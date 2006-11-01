@@ -139,7 +139,7 @@ E1000_PARAM(XsumRX, "Disable or enable Receive Checksum offload");
  * Valid Range: 0-65535
  */
 E1000_PARAM(TxIntDelay, "Transmit Interrupt Delay");
-#define DEFAULT_TIDV                  64
+#define DEFAULT_TIDV                   8
 #define MAX_TXDELAY               0xFFFF
 #define MIN_TXDELAY                    0
 
@@ -148,7 +148,7 @@ E1000_PARAM(TxIntDelay, "Transmit Interrupt Delay");
  * Valid Range: 0-65535
  */
 E1000_PARAM(TxAbsIntDelay, "Transmit Absolute Interrupt Delay");
-#define DEFAULT_TADV                  64
+#define DEFAULT_TADV                  32
 #define MAX_TXABSDELAY            0xFFFF
 #define MIN_TXABSDELAY                 0
 
@@ -167,16 +167,16 @@ E1000_PARAM(RxIntDelay, "Receive Interrupt Delay");
  * Valid Range: 0-65535
  */
 E1000_PARAM(RxAbsIntDelay, "Receive Absolute Interrupt Delay");
-#define DEFAULT_RADV                 128
+#define DEFAULT_RADV                   8
 #define MAX_RXABSDELAY            0xFFFF
 #define MIN_RXABSDELAY                 0
 
 /* Interrupt Throttle Rate (interrupts/sec)
  *
- * Valid Range: 100-100000 (0=off, 1=dynamic)
+ * Valid Range: 100-100000 (0=off, 1=dynamic, 3=dynamic conservative)
  */
 E1000_PARAM(InterruptThrottleRate, "Interrupt Throttling Rate");
-#define DEFAULT_ITR                 8000
+#define DEFAULT_ITR                    3
 #define MAX_ITR                   100000
 #define MIN_ITR                      100
 
@@ -472,15 +472,27 @@ e1000_check_options(struct e1000_adapter *adapter)
 				break;
 			case 1:
 				DPRINTK(PROBE, INFO, "%s set to dynamic mode\n",
-				        opt.name);
+					opt.name);
+				adapter->itr_setting = adapter->itr;
+				adapter->itr = 20000;
+				break;
+			case 3:
+				DPRINTK(PROBE, INFO,
+				        "%s set to dynamic conservative mode\n",
+					opt.name);
+				adapter->itr_setting = adapter->itr;
+				adapter->itr = 20000;
 				break;
 			default:
 				e1000_validate_option(&adapter->itr, &opt,
-				                      adapter);
+				        adapter);
+				/* save the setting, because the dynamic bits change itr */
+				adapter->itr_setting = adapter->itr;
 				break;
 			}
 		} else {
-			adapter->itr = opt.def;
+			adapter->itr_setting = opt.def;
+			adapter->itr = 20000;
 		}
 	}
 	{ /* Smart Power Down */

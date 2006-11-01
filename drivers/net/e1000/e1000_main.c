@@ -1897,7 +1897,7 @@ e1000_configure_rx(struct e1000_adapter *adapter)
 
 	if (hw->mac_type >= e1000_82540) {
 		E1000_WRITE_REG(hw, RADV, adapter->rx_abs_int_delay);
-		if (adapter->itr > 1)
+		if (adapter->itr_setting != 0)
 			E1000_WRITE_REG(hw, ITR,
 				1000000000 / (adapter->itr * 256));
 	}
@@ -1907,11 +1907,11 @@ e1000_configure_rx(struct e1000_adapter *adapter)
 		/* Reset delay timers after every interrupt */
 		ctrl_ext |= E1000_CTRL_EXT_INT_TIMER_CLR;
 #ifdef CONFIG_E1000_NAPI
-		/* Auto-Mask interrupts upon ICR read. */
+		/* Auto-Mask interrupts upon ICR access */
 		ctrl_ext |= E1000_CTRL_EXT_IAME;
+		E1000_WRITE_REG(hw, IAM, 0xffffffff);
 #endif
 		E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
-		E1000_WRITE_REG(hw, IAM, ~0);
 		E1000_WRITE_FLUSH(hw);
 	}
 
@@ -2576,19 +2576,6 @@ e1000_watchdog(unsigned long data)
 		}
 	}
 
-	/* Dynamic mode for Interrupt Throttle Rate (ITR) */
-	if (adapter->hw.mac_type >= e1000_82540 && adapter->itr == 1) {
-		/* Symmetric Tx/Rx gets a reduced ITR=2000; Total
-		 * asymmetrical Tx or Rx gets ITR=8000; everyone
-		 * else is between 2000-8000. */
-		uint32_t goc = (adapter->gotcl + adapter->gorcl) / 10000;
-		uint32_t dif = (adapter->gotcl > adapter->gorcl ?
-			adapter->gotcl - adapter->gorcl :
-			adapter->gorcl - adapter->gotcl) / 10000;
-		uint32_t itr = goc > 0 ? (dif * 6000 / goc + 2000) : 8000;
-		E1000_WRITE_REG(&adapter->hw, ITR, 1000000000 / (itr * 256));
-	}
-
 	/* Cause software interrupt to ensure rx ring is cleaned */
 	E1000_WRITE_REG(&adapter->hw, ICS, E1000_ICS_RXDMT0);
 
@@ -2602,6 +2589,135 @@ e1000_watchdog(unsigned long data)
 
 	/* Reset the timer */
 	mod_timer(&adapter->watchdog_timer, jiffies + 2 * HZ);
+}
+
+enum latency_range {
+	lowest_latency = 0,
+	low_latency = 1,
+	bulk_latency = 2,
+	latency_invalid = 255
+};
+
+/**
+ * e1000_update_itr - update the dynamic ITR value based on statistics
+ *      Stores a new ITR value based on packets and byte
+ *      counts during the last interrupt.  The advantage of per interrupt
+ *      computation is faster updates and more accurate ITR for the current
+ *      traffic pattern.  Constants in this function were computed
+ *      based on theoretical maximum wire speed and thresholds were set based
+ *      on testing data as well as attempting to minimize response time
+ *      while increasing bulk throughput.
+ *      this functionality is controlled by the InterruptThrottleRate module
+ *      parameter (see e1000_param.c)
+ * @adapter: pointer to adapter
+ * @itr_setting: current adapter->itr
+ * @packets: the number of packets during this measurement interval
+ * @bytes: the number of bytes during this measurement interval
+ **/
+static unsigned int e1000_update_itr(struct e1000_adapter *adapter,
+                                   uint16_t itr_setting,
+                                   int packets,
+                                   int bytes)
+{
+	unsigned int retval = itr_setting;
+	struct e1000_hw *hw = &adapter->hw;
+
+	if (unlikely(hw->mac_type < e1000_82540))
+		goto update_itr_done;
+
+	if (packets == 0)
+		goto update_itr_done;
+
+
+	switch (itr_setting) {
+	case lowest_latency:
+		if ((packets < 5) && (bytes > 512))
+			retval = low_latency;
+		break;
+	case low_latency:  /* 50 usec aka 20000 ints/s */
+		if (bytes > 10000) {
+			if ((packets < 10) ||
+			     ((bytes/packets) > 1200))
+				retval = bulk_latency;
+			else if ((packets > 35))
+				retval = lowest_latency;
+		} else if (packets <= 2 && bytes < 512)
+			retval = lowest_latency;
+		break;
+	case bulk_latency: /* 250 usec aka 4000 ints/s */
+		if (bytes > 25000) {
+			if (packets > 35)
+				retval = low_latency;
+		} else {
+			if (bytes < 6000)
+				retval = low_latency;
+		}
+		break;
+	}
+
+update_itr_done:
+	return retval;
+}
+
+static void e1000_set_itr(struct e1000_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	uint16_t current_itr;
+	uint32_t new_itr = adapter->itr;
+
+	if (unlikely(hw->mac_type < e1000_82540))
+		return;
+
+	/* for non-gigabit speeds, just fix the interrupt rate at 4000 */
+	if (unlikely(adapter->link_speed != SPEED_1000)) {
+		current_itr = 0;
+		new_itr = 4000;
+		goto set_itr_now;
+	}
+
+	adapter->tx_itr = e1000_update_itr(adapter,
+	                            adapter->tx_itr,
+	                            adapter->total_tx_packets,
+	                            adapter->total_tx_bytes);
+	adapter->rx_itr = e1000_update_itr(adapter,
+	                            adapter->rx_itr,
+	                            adapter->total_rx_packets,
+	                            adapter->total_rx_bytes);
+
+	current_itr = max(adapter->rx_itr, adapter->tx_itr);
+
+	/* conservative mode eliminates the lowest_latency setting */
+	if (current_itr == lowest_latency && (adapter->itr_setting == 3))
+		current_itr = low_latency;
+
+	switch (current_itr) {
+	/* counts and packets in update_itr are dependent on these numbers */
+	case lowest_latency:
+		new_itr = 70000;
+		break;
+	case low_latency:
+		new_itr = 20000; /* aka hwitr = ~200 */
+		break;
+	case bulk_latency:
+		new_itr = 4000;
+		break;
+	default:
+		break;
+	}
+
+set_itr_now:
+	if (new_itr != adapter->itr) {
+		/* this attempts to bias the interrupt rate towards Bulk
+		 * by adding intermediate steps when interrupt rate is
+		 * increasing */
+		new_itr = new_itr > adapter->itr ?
+		             min(adapter->itr + (new_itr >> 2), new_itr) :
+		             new_itr;
+		adapter->itr = new_itr;
+		E1000_WRITE_REG(hw, ITR, 1000000000 / (new_itr * 256));
+	}
+
+	return;
 }
 
 #define E1000_TX_FLAGS_CSUM		0x00000001
@@ -3538,15 +3654,27 @@ irqreturn_t e1000_intr_msi(int irq, void *data)
 	}
 
 #ifdef CONFIG_E1000_NAPI
-	if (likely(netif_rx_schedule_prep(netdev)))
+	if (likely(netif_rx_schedule_prep(netdev))) {
+		adapter->total_tx_bytes = 0;
+		adapter->total_tx_packets = 0;
+		adapter->total_rx_bytes = 0;
+		adapter->total_rx_packets = 0;
 		__netif_rx_schedule(netdev);
-	else
+	} else
 		e1000_irq_enable(adapter);
 #else
+	adapter->total_tx_bytes = 0;
+	adapter->total_rx_bytes = 0;
+	adapter->total_tx_packets = 0;
+	adapter->total_rx_packets = 0;
+
 	for (i = 0; i < E1000_MAX_INTR; i++)
 		if (unlikely(!adapter->clean_rx(adapter, adapter->rx_ring) &
 		   !e1000_clean_tx_irq(adapter, adapter->tx_ring)))
 			break;
+
+	if (likely(adapter->itr_setting & 3))
+		e1000_set_itr(adapter);
 #endif
 
 	return IRQ_HANDLED;
@@ -3568,7 +3696,17 @@ e1000_intr(int irq, void *data)
 	uint32_t rctl, icr = E1000_READ_REG(hw, ICR);
 #ifndef CONFIG_E1000_NAPI
 	int i;
-#else
+#endif
+	if (unlikely(!icr))
+		return IRQ_NONE;  /* Not our interrupt */
+
+#ifdef CONFIG_E1000_NAPI
+	/* IMS will not auto-mask if INT_ASSERTED is not set, and if it is
+	 * not set, then the adapter didn't send an interrupt */
+	if (unlikely(hw->mac_type >= e1000_82571 &&
+	             !(icr & E1000_ICR_INT_ASSERTED)))
+		return IRQ_NONE;
+
 	/* Interrupt Auto-Mask...upon reading ICR,
 	 * interrupts are masked.  No need for the
 	 * IMC write, but it does mean we should
@@ -3576,14 +3714,6 @@ e1000_intr(int irq, void *data)
 	if (likely(hw->mac_type >= e1000_82571))
 		atomic_inc(&adapter->irq_sem);
 #endif
-
-	if (unlikely(!icr)) {
-#ifdef CONFIG_E1000_NAPI
-		if (hw->mac_type >= e1000_82571)
-			e1000_irq_enable(adapter);
-#endif
-		return IRQ_NONE;  /* Not our interrupt */
-	}
 
 	if (unlikely(icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC))) {
 		hw->get_link_status = 1;
@@ -3605,13 +3735,18 @@ e1000_intr(int irq, void *data)
 
 #ifdef CONFIG_E1000_NAPI
 	if (unlikely(hw->mac_type < e1000_82571)) {
+		/* disable interrupts, without the synchronize_irq bit */
 		atomic_inc(&adapter->irq_sem);
 		E1000_WRITE_REG(hw, IMC, ~0);
 		E1000_WRITE_FLUSH(hw);
 	}
-	if (likely(netif_rx_schedule_prep(netdev)))
+	if (likely(netif_rx_schedule_prep(netdev))) {
+		adapter->total_tx_bytes = 0;
+		adapter->total_tx_packets = 0;
+		adapter->total_rx_bytes = 0;
+		adapter->total_rx_packets = 0;
 		__netif_rx_schedule(netdev);
-	else
+	} else
 		/* this really should not happen! if it does it is basically a
 		 * bug, but not a hard error, so enable ints and continue */
 		e1000_irq_enable(adapter);
@@ -3631,10 +3766,18 @@ e1000_intr(int irq, void *data)
 		E1000_WRITE_REG(hw, IMC, ~0);
 	}
 
+	adapter->total_tx_bytes = 0;
+	adapter->total_rx_bytes = 0;
+	adapter->total_tx_packets = 0;
+	adapter->total_rx_packets = 0;
+
 	for (i = 0; i < E1000_MAX_INTR; i++)
 		if (unlikely(!adapter->clean_rx(adapter, adapter->rx_ring) &
 		   !e1000_clean_tx_irq(adapter, adapter->tx_ring)))
 			break;
+
+	if (likely(adapter->itr_setting & 3))
+		e1000_set_itr(adapter);
 
 	if (hw->mac_type == e1000_82547 || hw->mac_type == e1000_82547_rev_2)
 		e1000_irq_enable(adapter);
@@ -3683,6 +3826,8 @@ e1000_clean(struct net_device *poll_dev, int *budget)
 	if ((!tx_cleaned && (work_done == 0)) ||
 	   !netif_running(poll_dev)) {
 quit_polling:
+		if (likely(adapter->itr_setting & 3))
+			e1000_set_itr(adapter);
 		netif_rx_complete(poll_dev);
 		e1000_irq_enable(adapter);
 		return 0;
@@ -3709,6 +3854,7 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 	unsigned int count = 0;
 #endif
 	boolean_t cleaned = FALSE;
+	unsigned int total_tx_bytes=0, total_tx_packets=0;
 
 	i = tx_ring->next_to_clean;
 	eop = tx_ring->buffer_info[i].next_to_watch;
@@ -3720,6 +3866,13 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 			buffer_info = &tx_ring->buffer_info[i];
 			cleaned = (i == eop);
 
+			if (cleaned) {
+				/* this packet count is wrong for TSO but has a
+				 * tendency to make dynamic ITR change more
+				 * towards bulk */
+				total_tx_packets++;
+				total_tx_bytes += buffer_info->skb->len;
+			}
 			e1000_unmap_and_free_tx_resource(adapter, buffer_info);
 			tx_desc->upper.data = 0;
 
@@ -3785,6 +3938,8 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 			netif_stop_queue(netdev);
 		}
 	}
+	adapter->total_tx_bytes += total_tx_bytes;
+	adapter->total_tx_packets += total_tx_packets;
 	return cleaned;
 }
 
@@ -3864,6 +4019,7 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 	unsigned int i;
 	int cleaned_count = 0;
 	boolean_t cleaned = FALSE;
+	unsigned int total_rx_bytes=0, total_rx_packets=0;
 
 	i = rx_ring->next_to_clean;
 	rx_desc = E1000_RX_DESC(*rx_ring, i);
@@ -3929,6 +4085,10 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		/* adjust length to remove Ethernet CRC, this must be
 		 * done after the TBI_ACCEPT workaround above */
 		length -= 4;
+
+		/* probably a little skewed due to removing CRC */
+		total_rx_bytes += length;
+		total_rx_packets++;
 
 		/* code added for copybreak, this should improve
 		 * performance for small packets with large amounts
@@ -3998,6 +4158,8 @@ next_desc:
 	if (cleaned_count)
 		adapter->alloc_rx_buf(adapter, rx_ring, cleaned_count);
 
+	adapter->total_rx_packets += total_rx_packets;
+	adapter->total_rx_bytes += total_rx_bytes;
 	return cleaned;
 }
 
@@ -4027,6 +4189,7 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 	uint32_t length, staterr;
 	int cleaned_count = 0;
 	boolean_t cleaned = FALSE;
+	unsigned int total_rx_bytes=0, total_rx_packets=0;
 
 	i = rx_ring->next_to_clean;
 	rx_desc = E1000_RX_DESC_PS(*rx_ring, i);
@@ -4131,6 +4294,9 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 		pskb_trim(skb, skb->len - 4);
 
 copydone:
+		total_rx_bytes += skb->len;
+		total_rx_packets++;
+
 		e1000_rx_checksum(adapter, staterr,
 				  le16_to_cpu(rx_desc->wb.lower.hi_dword.csum_ip.csum), skb);
 		skb->protocol = eth_type_trans(skb, netdev);
@@ -4179,6 +4345,8 @@ next_desc:
 	if (cleaned_count)
 		adapter->alloc_rx_buf(adapter, rx_ring, cleaned_count);
 
+	adapter->total_rx_packets += total_rx_packets;
+	adapter->total_rx_bytes += total_rx_bytes;
 	return cleaned;
 }
 

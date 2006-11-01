@@ -257,6 +257,17 @@ struct e1000_adapter {
 	spinlock_t tx_queue_lock;
 #endif
 	atomic_t irq_sem;
+	unsigned int detect_link;
+	unsigned int total_tx_bytes;
+	unsigned int total_tx_packets;
+	unsigned int total_rx_bytes;
+	unsigned int total_rx_packets;
+	/* Interrupt Throttle Rate */
+	uint32_t itr;
+	uint32_t itr_setting;
+	uint16_t tx_itr;
+	uint16_t rx_itr;
+
 	struct work_struct reset_task;
 	uint8_t fc_autoneg;
 
@@ -314,8 +325,6 @@ struct e1000_adapter {
 	uint64_t gorcl_old;
 	uint16_t rx_ps_bsize0;
 
-	/* Interrupt Throttle Rate */
-	uint32_t itr;
 
 	/* OS defined structs */
 	struct net_device *netdev;
