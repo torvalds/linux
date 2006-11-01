@@ -12,10 +12,6 @@
 
 #ifdef CONFIG_X86_IO_APIC
 
-#define IO_APIC_BASE(idx) \
-		((volatile int *)(__fix_to_virt(FIX_IO_APIC_BASE_0 + idx) \
-		+ (mp_ioapics[idx].mpc_apicaddr & ~PAGE_MASK)))
-
 /*
  * The structure of the IO-APIC:
  */
@@ -119,31 +115,8 @@ extern struct mpc_config_intsrc mp_irqs[MAX_IRQ_SOURCES];
 /* non-0 if default (table-less) MP configuration */
 extern int mpc_default_type;
 
-static inline unsigned int io_apic_read(unsigned int apic, unsigned int reg)
-{
-	*IO_APIC_BASE(apic) = reg;
-	return *(IO_APIC_BASE(apic)+4);
-}
-
-static inline void io_apic_write(unsigned int apic, unsigned int reg, unsigned int value)
-{
-	*IO_APIC_BASE(apic) = reg;
-	*(IO_APIC_BASE(apic)+4) = value;
-}
-
-/*
- * Re-write a value: to be used for read-modify-write
- * cycles where the read already set up the index register.
- *
- * Older SiS APIC requires we rewrite the index regiser
- */
+/* Older SiS APIC requires we rewrite the index register */
 extern int sis_apic_bug;
-static inline void io_apic_modify(unsigned int apic, unsigned int reg, unsigned int value)
-{
-	if (sis_apic_bug)
-		*IO_APIC_BASE(apic) = reg;
-	*(IO_APIC_BASE(apic)+4) = value;
-}
 
 /* 1 if "noapic" boot option passed */
 extern int skip_ioapic_setup;
