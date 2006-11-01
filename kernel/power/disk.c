@@ -44,9 +44,11 @@ static void power_down(suspend_disk_method_t mode)
 
 	switch(mode) {
 	case PM_DISK_PLATFORM:
-		kernel_shutdown_prepare(SYSTEM_SUSPEND_DISK);
-		error = pm_ops->enter(PM_SUSPEND_DISK);
-		break;
+		if (pm_ops && pm_ops->enter) {
+			kernel_shutdown_prepare(SYSTEM_SUSPEND_DISK);
+			error = pm_ops->enter(PM_SUSPEND_DISK);
+			break;
+		}
 	case PM_DISK_SHUTDOWN:
 		kernel_power_off();
 		break;
