@@ -42,10 +42,20 @@ extern unsigned int saa7146_debug;
 #define DEB_INT(x)  if (0!=(DEBUG_VARIABLE&0x20)) { DEBUG_PROLOG; printk x; } /* interrupt debug messages */
 #define DEB_CAP(x)  if (0!=(DEBUG_VARIABLE&0x40)) { DEBUG_PROLOG; printk x; } /* capture debug messages */
 
-#define SAA7146_IER_DISABLE(x,y) \
-	saa7146_write(x, IER, saa7146_read(x, IER) & ~(y));
-#define SAA7146_IER_ENABLE(x,y) \
-	saa7146_write(x, IER, saa7146_read(x, IER) | (y));
+#define SAA7146_IER_DISABLE(x,y) 					\
+	do { 								\
+		unsigned int flags; 					\
+		spin_lock_irqsave(&x->int_slock, flags); 		\
+		saa7146_write(x, IER, saa7146_read(x, IER) & ~(y));	\
+		spin_unlock_irqrestore(&x->int_slock, flags);		\
+	} while(0)
+#define SAA7146_IER_ENABLE(x,y)						\
+	do { 								\
+		unsigned int flags; 					\
+		spin_lock_irqsave(&x->int_slock, flags); 		\
+		saa7146_write(x, IER, saa7146_read(x, IER) | (y));	\
+		spin_unlock_irqrestore(&x->int_slock, flags);		\
+	} while(0)
 #define SAA7146_ISR_CLEAR(x,y) \
 	saa7146_write(x, ISR, (y));
 
