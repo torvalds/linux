@@ -844,9 +844,9 @@ e1000_probe(struct pci_dev *pdev,
 	   (adapter->hw.mac_type != e1000_82547))
 		netdev->features |= NETIF_F_TSO;
 
-#ifdef NETIF_F_TSO_IPV6
+#ifdef NETIF_F_TSO6
 	if (adapter->hw.mac_type > e1000_82547_rev_2)
-		netdev->features |= NETIF_F_TSO_IPV6;
+		netdev->features |= NETIF_F_TSO6;
 #endif
 #endif
 	if (pci_using_dac)
@@ -1814,8 +1814,11 @@ e1000_setup_rctl(struct e1000_adapter *adapter)
 		/* Configure extra packet-split registers */
 		rfctl = E1000_READ_REG(&adapter->hw, RFCTL);
 		rfctl |= E1000_RFCTL_EXTEN;
-		/* disable IPv6 packet split support */
-		rfctl |= E1000_RFCTL_IPV6_DIS;
+		/* disable packet split support for IPv6 extension headers,
+		 * because some malformed IPv6 headers can hang the RX */
+		rfctl |= (E1000_RFCTL_IPV6_EX_DIS |
+		          E1000_RFCTL_NEW_IPV6_EXT_DIS);
+
 		E1000_WRITE_REG(&adapter->hw, RFCTL, rfctl);
 
 		rctl |= E1000_RCTL_DTYP_PS;
@@ -2473,9 +2476,15 @@ e1000_watchdog(unsigned long data)
 					DPRINTK(PROBE,INFO,
 				        "10/100 speed: disabling TSO\n");
 					netdev->features &= ~NETIF_F_TSO;
+#ifdef NETIF_F_TSO6
+					netdev->features &= ~NETIF_F_TSO6;
+#endif
 					break;
 				case SPEED_1000:
 					netdev->features |= NETIF_F_TSO;
+#ifdef NETIF_F_TSO6
+					netdev->features |= NETIF_F_TSO6;
+#endif
 					break;
 				default:
 					/* oops */
@@ -2610,7 +2619,7 @@ e1000_tso(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 						   0);
 			cmd_length = E1000_TXD_CMD_IP;
 			ipcse = skb->h.raw - skb->data - 1;
-#ifdef NETIF_F_TSO_IPV6
+#ifdef NETIF_F_TSO6
 		} else if (skb->protocol == htons(ETH_P_IPV6)) {
 			skb->nh.ipv6h->payload_len = 0;
 			skb->h.th->check =

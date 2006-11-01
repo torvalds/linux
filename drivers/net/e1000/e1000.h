@@ -59,6 +59,9 @@
 #include <linux/capability.h>
 #include <linux/in.h>
 #include <linux/ip.h>
+#ifdef NETIF_F_TSO6
+#include <linux/ipv6.h>
+#endif
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <net/pkt_sched.h>

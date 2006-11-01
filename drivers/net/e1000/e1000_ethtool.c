@@ -348,6 +348,13 @@ e1000_set_tso(struct net_device *netdev, uint32_t data)
 	else
 		netdev->features &= ~NETIF_F_TSO;
 
+#ifdef NETIF_F_TSO6
+	if (data)
+		netdev->features |= NETIF_F_TSO6;
+	else
+		netdev->features &= ~NETIF_F_TSO6;
+#endif
+
 	DPRINTK(PROBE, INFO, "TSO is %s\n", data ? "Enabled" : "Disabled");
 	adapter->tso_force = TRUE;
 	return 0;
