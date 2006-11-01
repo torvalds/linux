@@ -26,7 +26,6 @@ static inline int gfs2_is_dir(struct gfs2_inode *ip)
 }
 
 void gfs2_inode_attr_in(struct gfs2_inode *ip);
-void gfs2_inode_attr_out(struct gfs2_inode *ip);
 struct inode *gfs2_inode_lookup(struct super_block *sb, struct gfs2_inum_host *inum, unsigned type);
 struct inode *gfs2_ilookup(struct super_block *sb, struct gfs2_inum_host *inum);
 

@@ -729,7 +729,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		error = gfs2_meta_inode_buffer(ip, &dibh);
 		if (error)
 			goto out_end_trans;
-		ip->i_di.di_ctime = get_seconds();
+		ip->i_inode.i_ctime.tv_sec = get_seconds();
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_dinode_out(ip, dibh->b_data);
 		brelse(dibh);
@@ -915,7 +915,6 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 
 	error = inode_setattr(inode, attr);
 	gfs2_assert_warn(sdp, !error);
-	gfs2_inode_attr_out(ip);
 
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(ip, dibh->b_data);

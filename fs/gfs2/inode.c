@@ -52,12 +52,6 @@ void gfs2_inode_attr_in(struct gfs2_inode *ip)
 
 	inode->i_ino = ip->i_num.no_addr;
 	i_size_write(inode, di->di_size);
-	inode->i_atime.tv_sec = di->di_atime;
-	inode->i_mtime.tv_sec = di->di_mtime;
-	inode->i_ctime.tv_sec = di->di_ctime;
-	inode->i_atime.tv_nsec = 0;
-	inode->i_mtime.tv_nsec = 0;
-	inode->i_ctime.tv_nsec = 0;
 	inode->i_blocks = di->di_blocks <<
 		(GFS2_SB(inode)->sd_sb.sb_bsize_shift - GFS2_BASIC_BLOCK_SHIFT);
 
@@ -70,23 +64,6 @@ void gfs2_inode_attr_in(struct gfs2_inode *ip)
 		inode->i_flags |= S_APPEND;
 	else
 		inode->i_flags &= ~S_APPEND;
-}
-
-/**
- * gfs2_inode_attr_out - Copy attributes from VFS inode into the dinode
- * @ip: The GFS2 inode
- *
- * Only copy out the attributes that we want the VFS layer
- * to be able to modify.
- */
-
-void gfs2_inode_attr_out(struct gfs2_inode *ip)
-{
-	struct inode *inode = &ip->i_inode;
-	struct gfs2_dinode_host *di = &ip->i_di;
-	di->di_atime = inode->i_atime.tv_sec;
-	di->di_mtime = inode->i_mtime.tv_sec;
-	di->di_ctime = inode->i_ctime.tv_sec;
 }
 
 static int iget_test(struct inode *inode, void *opaque)
@@ -221,9 +198,12 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	ip->i_inode.i_nlink = be32_to_cpu(str->di_nlink);
 	di->di_size = be64_to_cpu(str->di_size);
 	di->di_blocks = be64_to_cpu(str->di_blocks);
-	di->di_atime = be64_to_cpu(str->di_atime);
-	di->di_mtime = be64_to_cpu(str->di_mtime);
-	di->di_ctime = be64_to_cpu(str->di_ctime);
+	ip->i_inode.i_atime.tv_sec = be64_to_cpu(str->di_atime);
+	ip->i_inode.i_atime.tv_nsec = 0;
+	ip->i_inode.i_mtime.tv_sec = be64_to_cpu(str->di_mtime);
+	ip->i_inode.i_mtime.tv_nsec = 0;
+	ip->i_inode.i_ctime.tv_sec = be64_to_cpu(str->di_ctime);
+	ip->i_inode.i_ctime.tv_nsec = 0;
 
 	di->di_goal_meta = be64_to_cpu(str->di_goal_meta);
 	di->di_goal_data = be64_to_cpu(str->di_goal_data);
@@ -360,7 +340,7 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 	else
 		drop_nlink(&ip->i_inode);
 
-	ip->i_di.di_ctime = get_seconds();
+	ip->i_inode.i_ctime.tv_sec = get_seconds();
 
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(ip, dibh->b_data);
@@ -1224,7 +1204,7 @@ int gfs2_glock_nq_atime(struct gfs2_holder *gh)
 		return 0;
 
 	curtime = get_seconds();
-	if (curtime - ip->i_di.di_atime >= quantum) {
+	if (curtime - ip->i_inode.i_atime.tv_sec >= quantum) {
 		gfs2_glock_dq(gh);
 		gfs2_holder_reinit(LM_ST_EXCLUSIVE, gh->gh_flags & ~LM_FLAG_ANY,
 				   gh);
@@ -1236,7 +1216,7 @@ int gfs2_glock_nq_atime(struct gfs2_holder *gh)
 		   trying to get exclusive lock. */
 
 		curtime = get_seconds();
-		if (curtime - ip->i_di.di_atime >= quantum) {
+		if (curtime - ip->i_inode.i_atime.tv_sec >= quantum) {
 			struct buffer_head *dibh;
 			struct gfs2_dinode *di;
 
@@ -1250,11 +1230,11 @@ int gfs2_glock_nq_atime(struct gfs2_holder *gh)
 			if (error)
 				goto fail_end_trans;
 
-			ip->i_di.di_atime = curtime;
+			ip->i_inode.i_atime.tv_sec = curtime;
 
 			gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 			di = (struct gfs2_dinode *)dibh->b_data;
-			di->di_atime = cpu_to_be64(ip->i_di.di_atime);
+			di->di_atime = cpu_to_be64(ip->i_inode.i_atime.tv_sec);
 			brelse(dibh);
 
 			gfs2_trans_end(sdp);
@@ -1375,8 +1355,6 @@ __gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr)
 	if (!error) {
 		error = inode_setattr(&ip->i_inode, attr);
 		gfs2_assert_warn(GFS2_SB(&ip->i_inode), !error);
-		gfs2_inode_attr_out(ip);
-
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_dinode_out(ip, dibh->b_data);
 		brelse(dibh);

@@ -167,9 +167,9 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_nlink = cpu_to_be32(ip->i_inode.i_nlink);
 	str->di_size = cpu_to_be64(di->di_size);
 	str->di_blocks = cpu_to_be64(di->di_blocks);
-	str->di_atime = cpu_to_be64(di->di_atime);
-	str->di_mtime = cpu_to_be64(di->di_mtime);
-	str->di_ctime = cpu_to_be64(di->di_ctime);
+	str->di_atime = cpu_to_be64(ip->i_inode.i_atime.tv_sec);
+	str->di_mtime = cpu_to_be64(ip->i_inode.i_mtime.tv_sec);
+	str->di_ctime = cpu_to_be64(ip->i_inode.i_ctime.tv_sec);
 
 	str->di_goal_meta = cpu_to_be64(di->di_goal_meta);
 	str->di_goal_data = cpu_to_be64(di->di_goal_data);
@@ -193,10 +193,6 @@ void gfs2_dinode_print(const struct gfs2_inode *ip)
 
 	printk(KERN_INFO "  di_size = %llu\n", (unsigned long long)di->di_size);
 	printk(KERN_INFO "  di_blocks = %llu\n", (unsigned long long)di->di_blocks);
-	printk(KERN_INFO "  di_atime = %lld\n", (long long)di->di_atime);
-	printk(KERN_INFO "  di_mtime = %lld\n", (long long)di->di_mtime);
-	printk(KERN_INFO "  di_ctime = %lld\n", (long long)di->di_ctime);
-
 	printk(KERN_INFO "  di_goal_meta = %llu\n", (unsigned long long)di->di_goal_meta);
 	printk(KERN_INFO "  di_goal_data = %llu\n", (unsigned long long)di->di_goal_data);
 

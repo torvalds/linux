@@ -300,7 +300,7 @@ static int ea_dealloc_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (!error) {
-		ip->i_di.di_ctime = get_seconds();
+		ip->i_inode.i_ctime.tv_sec = get_seconds();
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_dinode_out(ip, dibh->b_data);
 		brelse(dibh);
@@ -715,7 +715,7 @@ static int ea_alloc_skeleton(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 					    (er->er_mode & S_IFMT));
 			ip->i_inode.i_mode = er->er_mode;
 		}
-		ip->i_di.di_ctime = get_seconds();
+		ip->i_inode.i_ctime.tv_sec = get_seconds();
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_dinode_out(ip, dibh->b_data);
 		brelse(dibh);
@@ -850,7 +850,7 @@ static int ea_set_simple_noalloc(struct gfs2_inode *ip, struct buffer_head *bh,
 			(ip->i_inode.i_mode & S_IFMT) == (er->er_mode & S_IFMT));
 		ip->i_inode.i_mode = er->er_mode;
 	}
-	ip->i_di.di_ctime = get_seconds();
+	ip->i_inode.i_ctime.tv_sec = get_seconds();
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);
@@ -1130,7 +1130,7 @@ static int ea_remove_stuffed(struct gfs2_inode *ip, struct gfs2_ea_location *el)
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (!error) {
-		ip->i_di.di_ctime = get_seconds();
+		ip->i_inode.i_ctime.tv_sec = get_seconds();
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_dinode_out(ip, dibh->b_data);
 		brelse(dibh);
@@ -1285,7 +1285,6 @@ int gfs2_ea_acl_chmod(struct gfs2_inode *ip, struct gfs2_ea_location *el,
 	if (!error) {
 		error = inode_setattr(&ip->i_inode, attr);
 		gfs2_assert_warn(GFS2_SB(&ip->i_inode), !error);
-		gfs2_inode_attr_out(ip);
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_dinode_out(ip, dibh->b_data);
 		brelse(dibh);

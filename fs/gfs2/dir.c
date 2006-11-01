@@ -131,7 +131,7 @@ static int gfs2_dir_write_stuffed(struct gfs2_inode *ip, const char *buf,
 	memcpy(dibh->b_data + offset + sizeof(struct gfs2_dinode), buf, size);
 	if (ip->i_di.di_size < offset + size)
 		ip->i_di.di_size = offset + size;
-	ip->i_di.di_mtime = ip->i_di.di_ctime = get_seconds();
+	ip->i_inode.i_mtime.tv_sec = ip->i_inode.i_ctime.tv_sec = get_seconds();
 	gfs2_dinode_out(ip, dibh->b_data);
 
 	brelse(dibh);
@@ -229,7 +229,7 @@ out:
 
 	if (ip->i_di.di_size < offset + copied)
 		ip->i_di.di_size = offset + copied;
-	ip->i_di.di_mtime = ip->i_di.di_ctime = get_seconds();
+	ip->i_inode.i_mtime.tv_sec = ip->i_inode.i_ctime.tv_sec = get_seconds();
 
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(ip, dibh->b_data);
@@ -1560,7 +1560,7 @@ int gfs2_dir_add(struct inode *inode, const struct qstr *name,
 				break;
 			gfs2_trans_add_bh(ip->i_gl, bh, 1);
 			ip->i_di.di_entries++;
-			ip->i_di.di_mtime = ip->i_di.di_ctime = get_seconds();
+			ip->i_inode.i_mtime.tv_sec = ip->i_inode.i_ctime.tv_sec = get_seconds();
 			gfs2_dinode_out(ip, bh->b_data);
 			brelse(bh);
 			error = 0;
@@ -1646,7 +1646,7 @@ int gfs2_dir_del(struct gfs2_inode *dip, const struct qstr *name)
 		gfs2_consist_inode(dip);
 	gfs2_trans_add_bh(dip->i_gl, bh, 1);
 	dip->i_di.di_entries--;
-	dip->i_di.di_mtime = dip->i_di.di_ctime = get_seconds();
+	dip->i_inode.i_mtime.tv_sec = dip->i_inode.i_ctime.tv_sec = get_seconds();
 	gfs2_dinode_out(dip, bh->b_data);
 	brelse(bh);
 	mark_inode_dirty(&dip->i_inode);
@@ -1694,7 +1694,7 @@ int gfs2_dir_mvino(struct gfs2_inode *dip, const struct qstr *filename,
 		gfs2_trans_add_bh(dip->i_gl, bh, 1);
 	}
 
-	dip->i_di.di_mtime = dip->i_di.di_ctime = get_seconds();
+	dip->i_inode.i_mtime.tv_sec = dip->i_inode.i_ctime.tv_sec = get_seconds();
 	gfs2_dinode_out(dip, bh->b_data);
 	brelse(bh);
 	return 0;
