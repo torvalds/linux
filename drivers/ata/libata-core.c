@@ -2158,6 +2158,7 @@ int ata_down_xfermask_limit(struct ata_device *dev, int force_pio0)
 
 static int ata_dev_set_mode(struct ata_device *dev)
 {
+	struct ata_eh_context *ehc = &dev->ap->eh_context;
 	unsigned int err_mask;
 	int rc;
 
@@ -2172,7 +2173,9 @@ static int ata_dev_set_mode(struct ata_device *dev)
 		return -EIO;
 	}
 
+	ehc->i.flags |= ATA_EHI_POST_SETMODE;
 	rc = ata_dev_revalidate(dev, 0);
+	ehc->i.flags &= ~ATA_EHI_POST_SETMODE;
 	if (rc)
 		return rc;
 

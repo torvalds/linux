@@ -1653,6 +1653,11 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 
 			ata_eh_done(ap, dev, ATA_EH_REVALIDATE);
 
+			/* Configuration may have changed, reconfigure
+			 * transfer mode.
+			 */
+			ehc->i.flags |= ATA_EHI_SETMODE;
+
 			/* schedule the scsi_rescan_device() here */
 			queue_work(ata_aux_wq, &(ap->scsi_rescan_task));
 		} else if (dev->class == ATA_DEV_UNKNOWN &&
@@ -1675,6 +1680,9 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 			spin_lock_irqsave(ap->lock, flags);
 			ap->pflags |= ATA_PFLAG_SCSI_HOTPLUG;
 			spin_unlock_irqrestore(ap->lock, flags);
+
+			/* new device discovered, configure transfer mode */
+			ehc->i.flags |= ATA_EHI_SETMODE;
 		}
 	}
 
@@ -1990,13 +1998,14 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	if (rc)
 		goto dev_fail;
 
-	/* configure transfer mode if the port has been reset */
-	if (ehc->i.flags & ATA_EHI_DID_RESET) {
+	/* configure transfer mode if necessary */
+	if (ehc->i.flags & ATA_EHI_SETMODE) {
 		rc = ata_set_mode(ap, &dev);
 		if (rc) {
 			down_xfermask = 1;
 			goto dev_fail;
 		}
+		ehc->i.flags &= ~ATA_EHI_SETMODE;
 	}
 
 	/* suspend devices */
