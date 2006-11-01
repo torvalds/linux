@@ -37,48 +37,36 @@
 /* Forwad definitions for all pic's                                               */
 /**********************************************************************************/
 
-static unsigned int tx4938_irq_cp0_startup(unsigned int irq);
-static void tx4938_irq_cp0_shutdown(unsigned int irq);
 static void tx4938_irq_cp0_enable(unsigned int irq);
 static void tx4938_irq_cp0_disable(unsigned int irq);
-static void tx4938_irq_cp0_mask_and_ack(unsigned int irq);
 static void tx4938_irq_cp0_end(unsigned int irq);
 
-static unsigned int tx4938_irq_pic_startup(unsigned int irq);
-static void tx4938_irq_pic_shutdown(unsigned int irq);
 static void tx4938_irq_pic_enable(unsigned int irq);
 static void tx4938_irq_pic_disable(unsigned int irq);
-static void tx4938_irq_pic_mask_and_ack(unsigned int irq);
 static void tx4938_irq_pic_end(unsigned int irq);
 
 /**********************************************************************************/
 /* Kernel structs for all pic's                                                   */
 /**********************************************************************************/
-DEFINE_SPINLOCK(tx4938_cp0_lock);
-DEFINE_SPINLOCK(tx4938_pic_lock);
 
 #define TX4938_CP0_NAME "TX4938-CP0"
 static struct irq_chip tx4938_irq_cp0_type = {
 	.typename = TX4938_CP0_NAME,
-	.startup = tx4938_irq_cp0_startup,
-	.shutdown = tx4938_irq_cp0_shutdown,
-	.enable = tx4938_irq_cp0_enable,
-	.disable = tx4938_irq_cp0_disable,
-	.ack = tx4938_irq_cp0_mask_and_ack,
+	.ack = tx4938_irq_cp0_disable,
+	.mask = tx4938_irq_cp0_disable,
+	.mask_ack = tx4938_irq_cp0_disable,
+	.unmask = tx4938_irq_cp0_enable,
 	.end = tx4938_irq_cp0_end,
-	.set_affinity = NULL
 };
 
 #define TX4938_PIC_NAME "TX4938-PIC"
 static struct irq_chip tx4938_irq_pic_type = {
 	.typename = TX4938_PIC_NAME,
-	.startup = tx4938_irq_pic_startup,
-	.shutdown = tx4938_irq_pic_shutdown,
-	.enable = tx4938_irq_pic_enable,
-	.disable = tx4938_irq_pic_disable,
-	.ack = tx4938_irq_pic_mask_and_ack,
+	.ack = tx4938_irq_pic_disable,
+	.mask = tx4938_irq_pic_disable,
+	.mask_ack = tx4938_irq_pic_disable,
+	.unmask = tx4938_irq_pic_enable,
 	.end = tx4938_irq_pic_end,
-	.set_affinity = NULL
 };
 
 static struct irqaction tx4938_irq_pic_action = {
@@ -99,56 +87,20 @@ tx4938_irq_cp0_init(void)
 {
 	int i;
 
-	for (i = TX4938_IRQ_CP0_BEG; i <= TX4938_IRQ_CP0_END; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = 0;
-		irq_desc[i].depth = 1;
-		irq_desc[i].chip = &tx4938_irq_cp0_type;
-	}
-}
-
-static unsigned int
-tx4938_irq_cp0_startup(unsigned int irq)
-{
-	tx4938_irq_cp0_enable(irq);
-
-	return 0;
-}
-
-static void
-tx4938_irq_cp0_shutdown(unsigned int irq)
-{
-	tx4938_irq_cp0_disable(irq);
+	for (i = TX4938_IRQ_CP0_BEG; i <= TX4938_IRQ_CP0_END; i++)
+		set_irq_chip(i, &tx4938_irq_cp0_type);
 }
 
 static void
 tx4938_irq_cp0_enable(unsigned int irq)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&tx4938_cp0_lock, flags);
-
 	set_c0_status(tx4938_irq_cp0_mask(irq));
-
-	spin_unlock_irqrestore(&tx4938_cp0_lock, flags);
 }
 
 static void
 tx4938_irq_cp0_disable(unsigned int irq)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&tx4938_cp0_lock, flags);
-
 	clear_c0_status(tx4938_irq_cp0_mask(irq));
-
-	spin_unlock_irqrestore(&tx4938_cp0_lock, flags);
-}
-
-static void
-tx4938_irq_cp0_mask_and_ack(unsigned int irq)
-{
-	tx4938_irq_cp0_disable(irq);
 }
 
 static void
@@ -290,70 +242,29 @@ tx4938_irq_pic_modify(unsigned pic_reg, unsigned clr_bits, unsigned set_bits)
 static void __init
 tx4938_irq_pic_init(void)
 {
-	unsigned long flags;
 	int i;
 
-	for (i = TX4938_IRQ_PIC_BEG; i <= TX4938_IRQ_PIC_END; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = 0;
-		irq_desc[i].depth = 2;
-		irq_desc[i].chip = &tx4938_irq_pic_type;
-	}
+	for (i = TX4938_IRQ_PIC_BEG; i <= TX4938_IRQ_PIC_END; i++)
+		set_irq_chip(i, &tx4938_irq_pic_type);
 
 	setup_irq(TX4938_IRQ_NEST_PIC_ON_CP0, &tx4938_irq_pic_action);
 
-	spin_lock_irqsave(&tx4938_pic_lock, flags);
-
 	TX4938_WR(0xff1ff640, 0x6);	/* irq level mask -- only accept hightest */
 	TX4938_WR(0xff1ff600, TX4938_RD(0xff1ff600) | 0x1);	/* irq enable */
-
-	spin_unlock_irqrestore(&tx4938_pic_lock, flags);
-}
-
-static unsigned int
-tx4938_irq_pic_startup(unsigned int irq)
-{
-	tx4938_irq_pic_enable(irq);
-
-	return 0;
-}
-
-static void
-tx4938_irq_pic_shutdown(unsigned int irq)
-{
-	tx4938_irq_pic_disable(irq);
 }
 
 static void
 tx4938_irq_pic_enable(unsigned int irq)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&tx4938_pic_lock, flags);
-
 	tx4938_irq_pic_modify(tx4938_irq_pic_addr(irq), 0,
 			      tx4938_irq_pic_mask(irq));
-
-	spin_unlock_irqrestore(&tx4938_pic_lock, flags);
 }
 
 static void
 tx4938_irq_pic_disable(unsigned int irq)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&tx4938_pic_lock, flags);
-
 	tx4938_irq_pic_modify(tx4938_irq_pic_addr(irq),
 			      tx4938_irq_pic_mask(irq), 0);
-
-	spin_unlock_irqrestore(&tx4938_pic_lock, flags);
-}
-
-static void
-tx4938_irq_pic_mask_and_ack(unsigned int irq)
-{
-	tx4938_irq_pic_disable(irq);
 }
 
 static void

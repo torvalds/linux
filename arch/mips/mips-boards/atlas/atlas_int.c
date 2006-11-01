@@ -62,16 +62,6 @@ void enable_atlas_irq(unsigned int irq_nr)
 	iob();
 }
 
-static unsigned int startup_atlas_irq(unsigned int irq)
-{
-	enable_atlas_irq(irq);
-	return 0; /* never anything pending */
-}
-
-#define shutdown_atlas_irq	disable_atlas_irq
-
-#define mask_and_ack_atlas_irq disable_atlas_irq
-
 static void end_atlas_irq(unsigned int irq)
 {
 	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
@@ -80,11 +70,10 @@ static void end_atlas_irq(unsigned int irq)
 
 static struct irq_chip atlas_irq_type = {
 	.typename = "Atlas",
-	.startup = startup_atlas_irq,
-	.shutdown = shutdown_atlas_irq,
-	.enable = enable_atlas_irq,
-	.disable = disable_atlas_irq,
-	.ack = mask_and_ack_atlas_irq,
+	.ack = disable_atlas_irq,
+	.mask = disable_atlas_irq,
+	.mask_ack = disable_atlas_irq,
+	.unmask = enable_atlas_irq,
 	.end = end_atlas_irq,
 };
 
@@ -217,13 +206,8 @@ static inline void init_atlas_irqs (int base)
 	 */
 	atlas_hw0_icregs->intrsten = 0xffffffff;
 
-	for (i = ATLAS_INT_BASE; i <= ATLAS_INT_END; i++) {
-		irq_desc[i].status	= IRQ_DISABLED;
-		irq_desc[i].action	= 0;
-		irq_desc[i].depth	= 1;
-		irq_desc[i].chip	= &atlas_irq_type;
-		spin_lock_init(&irq_desc[i].lock);
-	}
+	for (i = ATLAS_INT_BASE; i <= ATLAS_INT_END; i++)
+		set_irq_chip(i, &atlas_irq_type);
 }
 
 static struct irqaction atlasirq = {

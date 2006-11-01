@@ -30,17 +30,6 @@ extern void init_8259A(int hoge);
 
 extern int vr4133_rockhopper;
 
-static unsigned int startup_i8259_irq(unsigned int irq)
-{
-	enable_8259A_irq(irq - I8259_IRQ_BASE);
-	return 0;
-}
-
-static void shutdown_i8259_irq(unsigned int irq)
-{
-	disable_8259A_irq(irq - I8259_IRQ_BASE);
-}
-
 static void enable_i8259_irq(unsigned int irq)
 {
 	enable_8259A_irq(irq - I8259_IRQ_BASE);
@@ -64,11 +53,10 @@ static void end_i8259_irq(unsigned int irq)
 
 static struct irq_chip i8259_irq_type = {
 	.typename       = "XT-PIC",
-	.startup        = startup_i8259_irq,
-	.shutdown       = shutdown_i8259_irq,
-	.enable         = enable_i8259_irq,
-	.disable        = disable_i8259_irq,
 	.ack            = ack_i8259_irq,
+	.mask		= disable_i8259_irq,
+	.mask_ack	= ack_i8259_irq,
+	.unmask		= enable_i8259_irq,
 	.end            = end_i8259_irq,
 };
 
@@ -104,7 +92,7 @@ void __init rockhopper_init_irq(void)
 	}
 
 	for (i = I8259_IRQ_BASE; i <= I8259_IRQ_LAST; i++)
-		irq_desc[i].chip = &i8259_irq_type;
+		set_irq_chip(i, &i8259_irq_type);
 
 	setup_irq(I8259_SLAVE_IRQ, &i8259_slave_cascade);
 

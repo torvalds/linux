@@ -50,44 +50,6 @@ static inline void mask_mips_irq(unsigned int irq)
 	irq_disable_hazard();
 }
 
-static inline void mips_cpu_irq_enable(unsigned int irq)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	unmask_mips_irq(irq);
-	back_to_back_c0_hazard();
-	local_irq_restore(flags);
-}
-
-static void mips_cpu_irq_disable(unsigned int irq)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	mask_mips_irq(irq);
-	back_to_back_c0_hazard();
-	local_irq_restore(flags);
-}
-
-static unsigned int mips_cpu_irq_startup(unsigned int irq)
-{
-	mips_cpu_irq_enable(irq);
-
-	return 0;
-}
-
-#define	mips_cpu_irq_shutdown		mips_cpu_irq_disable
-
-/*
- * While we ack the interrupt interrupts are disabled and thus we don't need
- * to deal with concurrency issues.  Same for mips_cpu_irq_end.
- */
-static void mips_cpu_irq_ack(unsigned int irq)
-{
-	mask_mips_irq(irq);
-}
-
 static void mips_cpu_irq_end(unsigned int irq)
 {
 	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
@@ -96,11 +58,10 @@ static void mips_cpu_irq_end(unsigned int irq)
 
 static struct irq_chip mips_cpu_irq_controller = {
 	.typename	= "MIPS",
-	.startup	= mips_cpu_irq_startup,
-	.shutdown	= mips_cpu_irq_shutdown,
-	.enable		= mips_cpu_irq_enable,
-	.disable	= mips_cpu_irq_disable,
-	.ack		= mips_cpu_irq_ack,
+	.ack		= mask_mips_irq,
+	.mask		= mask_mips_irq,
+	.mask_ack	= mask_mips_irq,
+	.unmask		= unmask_mips_irq,
 	.end		= mips_cpu_irq_end,
 };
 
@@ -110,8 +71,6 @@ static struct irq_chip mips_cpu_irq_controller = {
 
 #define unmask_mips_mt_irq	unmask_mips_irq
 #define mask_mips_mt_irq	mask_mips_irq
-#define mips_mt_cpu_irq_enable	mips_cpu_irq_enable
-#define mips_mt_cpu_irq_disable	mips_cpu_irq_disable
 
 static unsigned int mips_mt_cpu_irq_startup(unsigned int irq)
 {
@@ -119,12 +78,10 @@ static unsigned int mips_mt_cpu_irq_startup(unsigned int irq)
 
 	clear_c0_cause(0x100 << (irq - mips_cpu_irq_base));
 	evpe(vpflags);
-	mips_mt_cpu_irq_enable(irq);
+	unmask_mips_mt_irq(irq);
 
 	return 0;
 }
-
-#define	mips_mt_cpu_irq_shutdown	mips_mt_cpu_irq_disable
 
 /*
  * While we ack the interrupt interrupts are disabled and thus we don't need
@@ -143,10 +100,10 @@ static void mips_mt_cpu_irq_ack(unsigned int irq)
 static struct irq_chip mips_mt_cpu_irq_controller = {
 	.typename	= "MIPS",
 	.startup	= mips_mt_cpu_irq_startup,
-	.shutdown	= mips_mt_cpu_irq_shutdown,
-	.enable		= mips_mt_cpu_irq_enable,
-	.disable	= mips_mt_cpu_irq_disable,
 	.ack		= mips_mt_cpu_irq_ack,
+	.mask		= mask_mips_mt_irq,
+	.mask_ack	= mips_mt_cpu_irq_ack,
+	.unmask		= unmask_mips_mt_irq,
 	.end		= mips_mt_cpu_irq_end,
 };
 
@@ -163,19 +120,11 @@ void __init mips_cpu_irq_init(int irq_base)
 	 * leave them uninitialized for other processors.
 	 */
 	if (cpu_has_mipsmt)
-		for (i = irq_base; i < irq_base + 2; i++) {
-			irq_desc[i].status = IRQ_DISABLED;
-			irq_desc[i].action = NULL;
-			irq_desc[i].depth = 1;
-			irq_desc[i].chip = &mips_mt_cpu_irq_controller;
-		}
+		for (i = irq_base; i < irq_base + 2; i++)
+			set_irq_chip(i, &mips_mt_cpu_irq_controller);
 
-	for (i = irq_base + 2; i < irq_base + 8; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = NULL;
-		irq_desc[i].depth = 1;
-		irq_desc[i].chip = &mips_cpu_irq_controller;
-	}
+	for (i = irq_base + 2; i < irq_base + 8; i++)
+		set_irq_chip(i, &mips_cpu_irq_controller);
 
 	mips_cpu_irq_base = irq_base;
 }

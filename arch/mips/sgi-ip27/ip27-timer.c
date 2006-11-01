@@ -172,24 +172,11 @@ static __init unsigned long get_m48t35_time(void)
         return mktime(year, month, date, hour, min, sec);
 }
 
-static unsigned int startup_rt_irq(unsigned int irq)
-{
-	return 0;
-}
-
-static void shutdown_rt_irq(unsigned int irq)
-{
-}
-
 static void enable_rt_irq(unsigned int irq)
 {
 }
 
 static void disable_rt_irq(unsigned int irq)
-{
-}
-
-static void mask_and_ack_rt(unsigned int irq)
 {
 }
 
@@ -199,11 +186,10 @@ static void end_rt_irq(unsigned int irq)
 
 static struct irq_chip rt_irq_type = {
 	.typename	= "SN HUB RT timer",
-	.startup	= startup_rt_irq,
-	.shutdown	= shutdown_rt_irq,
-	.enable		= enable_rt_irq,
-	.disable	= disable_rt_irq,
-	.ack		= mask_and_ack_rt,
+	.ack		= disable_rt_irq,
+	.mask		= disable_rt_irq,
+	.mask_ack	= disable_rt_irq,
+	.unmask		= enable_rt_irq,
 	.end		= end_rt_irq,
 };
 
@@ -221,10 +207,7 @@ void __init plat_timer_setup(struct irqaction *irq)
 	if (irqno < 0)
 		panic("Can't allocate interrupt number for timer interrupt");
 
-	irq_desc[irqno].status	= IRQ_DISABLED;
-	irq_desc[irqno].action	= NULL;
-	irq_desc[irqno].depth	= 1;
-	irq_desc[irqno].chip	= &rt_irq_type;
+	set_irq_chip(irqno, &rt_irq_type);
 
 	/* over-write the handler, we use our own way */
 	irq->handler = no_action;

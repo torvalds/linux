@@ -48,15 +48,6 @@ static void rm9k_cpu_irq_disable(unsigned int irq)
 	local_irq_restore(flags);
 }
 
-static unsigned int rm9k_cpu_irq_startup(unsigned int irq)
-{
-	rm9k_cpu_irq_enable(irq);
-
-	return 0;
-}
-
-#define	rm9k_cpu_irq_shutdown	rm9k_cpu_irq_disable
-
 /*
  * Performance counter interrupts are global on all processors.
  */
@@ -89,16 +80,6 @@ static void rm9k_perfcounter_irq_shutdown(unsigned int irq)
 	on_each_cpu(local_rm9k_perfcounter_irq_shutdown, (void *) irq, 0, 1);
 }
 
-
-/*
- * While we ack the interrupt interrupts are disabled and thus we don't need
- * to deal with concurrency issues.  Same for rm9k_cpu_irq_end.
- */
-static void rm9k_cpu_irq_ack(unsigned int irq)
-{
-	mask_rm9k_irq(irq);
-}
-
 static void rm9k_cpu_irq_end(unsigned int irq)
 {
 	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
@@ -107,11 +88,10 @@ static void rm9k_cpu_irq_end(unsigned int irq)
 
 static struct irq_chip rm9k_irq_controller = {
 	.typename = "RM9000",
-	.startup = rm9k_cpu_irq_startup,
-	.shutdown = rm9k_cpu_irq_shutdown,
-	.enable = rm9k_cpu_irq_enable,
-	.disable = rm9k_cpu_irq_disable,
-	.ack = rm9k_cpu_irq_ack,
+	.ack = mask_rm9k_irq,
+	.mask = mask_rm9k_irq,
+	.mask_ack = mask_rm9k_irq,
+	.unmask = unmask_rm9k_irq,
 	.end = rm9k_cpu_irq_end,
 };
 
@@ -119,9 +99,10 @@ static struct irq_chip rm9k_perfcounter_irq = {
 	.typename = "RM9000",
 	.startup = rm9k_perfcounter_irq_startup,
 	.shutdown = rm9k_perfcounter_irq_shutdown,
-	.enable = rm9k_cpu_irq_enable,
-	.disable = rm9k_cpu_irq_disable,
-	.ack = rm9k_cpu_irq_ack,
+	.ack = mask_rm9k_irq,
+	.mask = mask_rm9k_irq,
+	.mask_ack = mask_rm9k_irq,
+	.unmask = unmask_rm9k_irq,
 	.end = rm9k_cpu_irq_end,
 };
 
@@ -135,15 +116,11 @@ void __init rm9k_cpu_irq_init(int base)
 
 	clear_c0_intcontrol(0x0000f000);		/* Mask all */
 
-	for (i = base; i < base + 4; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = NULL;
-		irq_desc[i].depth = 1;
-		irq_desc[i].chip = &rm9k_irq_controller;
-	}
+	for (i = base; i < base + 4; i++)
+		set_irq_chip(i, &rm9k_irq_controller);
 
 	rm9000_perfcount_irq = base + 1;
-	irq_desc[rm9000_perfcount_irq].chip = &rm9k_perfcounter_irq;
+	set_irq_chip(rm9000_perfcount_irq, &rm9k_perfcounter_irq);
 
 	irq_base = base;
 }

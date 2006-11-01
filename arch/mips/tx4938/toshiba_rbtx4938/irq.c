@@ -87,25 +87,18 @@ IRQ  Device
 #include <linux/bootmem.h>
 #include <asm/tx4938/rbtx4938.h>
 
-static unsigned int toshiba_rbtx4938_irq_ioc_startup(unsigned int irq);
-static void toshiba_rbtx4938_irq_ioc_shutdown(unsigned int irq);
 static void toshiba_rbtx4938_irq_ioc_enable(unsigned int irq);
 static void toshiba_rbtx4938_irq_ioc_disable(unsigned int irq);
-static void toshiba_rbtx4938_irq_ioc_mask_and_ack(unsigned int irq);
 static void toshiba_rbtx4938_irq_ioc_end(unsigned int irq);
-
-DEFINE_SPINLOCK(toshiba_rbtx4938_ioc_lock);
 
 #define TOSHIBA_RBTX4938_IOC_NAME "RBTX4938-IOC"
 static struct irq_chip toshiba_rbtx4938_irq_ioc_type = {
 	.typename = TOSHIBA_RBTX4938_IOC_NAME,
-	.startup = toshiba_rbtx4938_irq_ioc_startup,
-	.shutdown = toshiba_rbtx4938_irq_ioc_shutdown,
-	.enable = toshiba_rbtx4938_irq_ioc_enable,
-	.disable = toshiba_rbtx4938_irq_ioc_disable,
-	.ack = toshiba_rbtx4938_irq_ioc_mask_and_ack,
+	.ack = toshiba_rbtx4938_irq_ioc_disable,
+	.mask = toshiba_rbtx4938_irq_ioc_disable,
+	.mask_ack = toshiba_rbtx4938_irq_ioc_disable,
+	.unmask = toshiba_rbtx4938_irq_ioc_enable,
 	.end = toshiba_rbtx4938_irq_ioc_end,
-	.set_affinity = NULL
 };
 
 #define TOSHIBA_RBTX4938_IOC_INTR_ENAB 0xb7f02000
@@ -142,69 +135,35 @@ toshiba_rbtx4938_irq_ioc_init(void)
 	int i;
 
 	for (i = TOSHIBA_RBTX4938_IRQ_IOC_BEG;
-	     i <= TOSHIBA_RBTX4938_IRQ_IOC_END; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = 0;
-		irq_desc[i].depth = 3;
-		irq_desc[i].chip = &toshiba_rbtx4938_irq_ioc_type;
-	}
+	     i <= TOSHIBA_RBTX4938_IRQ_IOC_END; i++)
+		set_irq_chip(i, &toshiba_rbtx4938_irq_ioc_type);
 
 	setup_irq(RBTX4938_IRQ_IOCINT,
 		  &toshiba_rbtx4938_irq_ioc_action);
 }
 
-static unsigned int
-toshiba_rbtx4938_irq_ioc_startup(unsigned int irq)
-{
-	toshiba_rbtx4938_irq_ioc_enable(irq);
-
-	return 0;
-}
-
-static void
-toshiba_rbtx4938_irq_ioc_shutdown(unsigned int irq)
-{
-	toshiba_rbtx4938_irq_ioc_disable(irq);
-}
-
 static void
 toshiba_rbtx4938_irq_ioc_enable(unsigned int irq)
 {
-	unsigned long flags;
 	volatile unsigned char v;
-
-	spin_lock_irqsave(&toshiba_rbtx4938_ioc_lock, flags);
 
 	v = TX4938_RD08(TOSHIBA_RBTX4938_IOC_INTR_ENAB);
 	v |= (1 << (irq - TOSHIBA_RBTX4938_IRQ_IOC_BEG));
 	TX4938_WR08(TOSHIBA_RBTX4938_IOC_INTR_ENAB, v);
 	mmiowb();
 	TX4938_RD08(TOSHIBA_RBTX4938_IOC_INTR_ENAB);
-
-	spin_unlock_irqrestore(&toshiba_rbtx4938_ioc_lock, flags);
 }
 
 static void
 toshiba_rbtx4938_irq_ioc_disable(unsigned int irq)
 {
-	unsigned long flags;
 	volatile unsigned char v;
-
-	spin_lock_irqsave(&toshiba_rbtx4938_ioc_lock, flags);
 
 	v = TX4938_RD08(TOSHIBA_RBTX4938_IOC_INTR_ENAB);
 	v &= ~(1 << (irq - TOSHIBA_RBTX4938_IRQ_IOC_BEG));
 	TX4938_WR08(TOSHIBA_RBTX4938_IOC_INTR_ENAB, v);
 	mmiowb();
 	TX4938_RD08(TOSHIBA_RBTX4938_IOC_INTR_ENAB);
-
-	spin_unlock_irqrestore(&toshiba_rbtx4938_ioc_lock, flags);
-}
-
-static void
-toshiba_rbtx4938_irq_ioc_mask_and_ack(unsigned int irq)
-{
-	toshiba_rbtx4938_irq_ioc_disable(irq);
 }
 
 static void

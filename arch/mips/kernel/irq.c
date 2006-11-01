@@ -172,19 +172,6 @@ __setup("nokgdb", nokgdb);
 
 void __init init_IRQ(void)
 {
-	int i;
-
-	for (i = 0; i < NR_IRQS; i++) {
-		irq_desc[i].status  = IRQ_DISABLED;
-		irq_desc[i].action  = NULL;
-		irq_desc[i].depth   = 1;
-		irq_desc[i].chip = &no_irq_chip;
-		spin_lock_init(&irq_desc[i].lock);
-#ifdef CONFIG_MIPS_MT_SMTC
-		irq_hwmask[i] = 0;
-#endif /* CONFIG_MIPS_MT_SMTC */
-	}
-
 	arch_init_irq();
 
 #ifdef CONFIG_KGDB

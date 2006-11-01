@@ -66,39 +66,6 @@ static inline void unmask_cpci_irq(unsigned int irq)
 }
 
 /*
- * Enables the IRQ in the FPGA
- */
-static void enable_cpci_irq(unsigned int irq)
-{
-	unmask_cpci_irq(irq);
-}
-
-/*
- * Initialize the IRQ in the FPGA
- */
-static unsigned int startup_cpci_irq(unsigned int irq)
-{
-	unmask_cpci_irq(irq);
-	return 0;
-}
-
-/*
- * Disables the IRQ in the FPGA
- */
-static void disable_cpci_irq(unsigned int irq)
-{
-	mask_cpci_irq(irq);
-}
-
-/*
- * Masks and ACKs an IRQ
- */
-static void mask_and_ack_cpci_irq(unsigned int irq)
-{
-	mask_cpci_irq(irq);
-}
-
-/*
  * End IRQ processing
  */
 static void end_cpci_irq(unsigned int irq)
@@ -125,15 +92,12 @@ void ll_cpci_irq(void)
 	do_IRQ(ls1bit8(irq_src) + CPCI_IRQ_BASE);
 }
 
-#define shutdown_cpci_irq	disable_cpci_irq
-
 struct irq_chip cpci_irq_type = {
 	.typename = "CPCI/FPGA",
-	.startup = startup_cpci_irq,
-	.shutdown = shutdown_cpci_irq,
-	.enable = enable_cpci_irq,
-	.disable = disable_cpci_irq,
-	.ack = mask_and_ack_cpci_irq,
+	.ack = mask_cpci_irq,
+	.mask = mask_cpci_irq,
+	.mask_ack = mask_cpci_irq,
+	.unmask = unmask_cpci_irq,
 	.end = end_cpci_irq,
 };
 
@@ -141,11 +105,6 @@ void cpci_irq_init(void)
 {
 	int i;
 
-	/* Reset irq handlers pointers to NULL */
-	for (i = CPCI_IRQ_BASE; i < (CPCI_IRQ_BASE + 8); i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = 0;
-		irq_desc[i].depth = 2;
-		irq_desc[i].chip = &cpci_irq_type;
-	}
+	for (i = CPCI_IRQ_BASE; i < (CPCI_IRQ_BASE + 8); i++)
+		set_irq_chip(i, &cpci_irq_type);
 }
