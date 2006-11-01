@@ -1377,7 +1377,6 @@ static void ata_set_port_max_cmd_len(struct ata_port *ap)
 /**
  *	ata_dev_configure - Configure the specified ATA/ATAPI device
  *	@dev: Target device to configure
- *	@print_info: Enable device info printout
  *
  *	Configure @dev according to @dev->id.  Generic and low-level
  *	driver specific fixups are also applied.
@@ -1388,9 +1387,10 @@ static void ata_set_port_max_cmd_len(struct ata_port *ap)
  *	RETURNS:
  *	0 on success, -errno otherwise
  */
-int ata_dev_configure(struct ata_device *dev, int print_info)
+int ata_dev_configure(struct ata_device *dev)
 {
 	struct ata_port *ap = dev->ap;
+	int print_info = ap->eh_context.i.flags & ATA_EHI_PRINTINFO;
 	const u16 *id = dev->id;
 	unsigned int xfer_mask;
 	char revbuf[7];		/* XYZ-99\0 */
@@ -1638,7 +1638,9 @@ int ata_bus_probe(struct ata_port *ap)
 		if (rc)
 			goto fail;
 
-		rc = ata_dev_configure(dev, 1);
+		ap->eh_context.i.flags |= ATA_EHI_PRINTINFO;
+		rc = ata_dev_configure(dev);
+		ap->eh_context.i.flags &= ~ATA_EHI_PRINTINFO;
 		if (rc)
 			goto fail;
 	}
@@ -3045,7 +3047,7 @@ int ata_dev_revalidate(struct ata_device *dev, int post_reset)
 	memcpy(dev->id, id, sizeof(id[0]) * ATA_ID_WORDS);
 
 	/* configure device according to the new ID */
-	rc = ata_dev_configure(dev, 0);
+	rc = ata_dev_configure(dev);
 	if (rc == 0)
 		return 0;
 

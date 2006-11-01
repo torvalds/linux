@@ -1661,8 +1661,11 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 			dev->class = ehc->classes[dev->devno];
 
 			rc = ata_dev_read_id(dev, &dev->class, 1, dev->id);
-			if (rc == 0)
-				rc = ata_dev_configure(dev, 1);
+			if (rc == 0) {
+				ehc->i.flags |= ATA_EHI_PRINTINFO;
+				rc = ata_dev_configure(dev);
+				ehc->i.flags &= ~ATA_EHI_PRINTINFO;
+			}
 
 			if (rc) {
 				dev->class = ATA_DEV_UNKNOWN;

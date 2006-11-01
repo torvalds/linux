@@ -283,6 +283,7 @@ enum {
 	ATA_EHI_QUIET		= (1 << 3),  /* be quiet */
 
 	ATA_EHI_DID_RESET	= (1 << 16), /* already reset this port */
+	ATA_EHI_PRINTINFO	= (1 << 17), /* print configuration info */
 
 	ATA_EHI_RESET_MODIFIER_MASK = ATA_EHI_RESUME_LINK,
 
