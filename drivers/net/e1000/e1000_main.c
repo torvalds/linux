@@ -2974,6 +2974,7 @@ static int __e1000_maybe_stop_tx(struct net_device *netdev, int size)
 
 	/* A reprieve! */
 	netif_start_queue(netdev);
+	++adapter->restart_queue;
 	return 0;
 }
 
@@ -3654,8 +3655,10 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 		 * sees the new next_to_clean.
 		 */
 		smp_mb();
-		if (netif_queue_stopped(netdev))
+		if (netif_queue_stopped(netdev)) {
 			netif_wake_queue(netdev);
+			++adapter->restart_queue;
+		}
 	}
 
 	if (adapter->detect_tx_hung) {

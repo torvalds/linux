@@ -85,6 +85,7 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	{ "tx_single_coll_ok", E1000_STAT(stats.scc) },
 	{ "tx_multi_coll_ok", E1000_STAT(stats.mcc) },
 	{ "tx_timeout_count", E1000_STAT(tx_timeout_count) },
+	{ "tx_restart_queue", E1000_STAT(restart_queue) },
 	{ "rx_long_length_errors", E1000_STAT(stats.roc) },
 	{ "rx_short_length_errors", E1000_STAT(stats.ruc) },
 	{ "rx_align_errors", E1000_STAT(stats.algnerrc) },
