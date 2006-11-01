@@ -480,9 +480,6 @@ static int open_high_hpage_areas(struct mm_struct *mm, u16 newareas)
 
 	mm->context.high_htlb_areas |= newareas;
 
-	/* update the paca copy of the context struct */
-	get_paca()->context = mm->context;
-
 	/* the context change must make it to memory before the flush,
 	 * so that further SLB misses do the right thing. */
 	mb();

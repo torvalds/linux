@@ -157,7 +157,7 @@ static int offb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		out_le32(par->cmap_adr + 0xb4, (red << 16 | green << 8 | blue));
 		break;
 	case cmap_gxt2000:
-		out_le32((unsigned __iomem *) par->cmap_adr + regno,
+		out_le32(((unsigned __iomem *) par->cmap_adr) + regno,
 			 (red << 16 | green << 8 | blue));
 		break;
 	}
@@ -213,7 +213,7 @@ static int offb_blank(int blank, struct fb_info *info)
 				out_le32(par->cmap_adr + 0xb4, 0);
 				break;
 			case cmap_gxt2000:
-				out_le32((unsigned __iomem *) par->cmap_adr + i,
+				out_le32(((unsigned __iomem *) par->cmap_adr) + i,
 					 0);
 				break;
 			}
@@ -226,13 +226,23 @@ static int offb_blank(int blank, struct fb_info *info)
 static void __iomem *offb_map_reg(struct device_node *np, int index,
 				  unsigned long offset, unsigned long size)
 {
-	struct resource r;
+	const u32 *addrp;
+	u64 asize, taddr;
+	unsigned int flags;
 
-	if (of_address_to_resource(np, index, &r))
-		return 0;
-	if ((r.start + offset + size) > r.end)
-		return 0;
-	return ioremap(r.start + offset, size);
+	addrp = of_get_pci_address(np, index, &asize, &flags);
+	if (addrp == NULL)
+		addrp = of_get_address(np, index, &asize, &flags);
+	if (addrp == NULL)
+		return NULL;
+	if ((flags & (IORESOURCE_IO | IORESOURCE_MEM)) == 0)
+		return NULL;
+	if ((offset + size) > asize)
+		return NULL;
+	taddr = of_translate_address(np, addrp);
+	if (taddr == OF_BAD_ADDR)
+		return NULL;
+	return ioremap(taddr + offset, size);
 }
 
 static void __init offb_init_fb(const char *name, const char *full_name,
@@ -289,7 +299,6 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 
 	par->cmap_type = cmap_unknown;
 	if (depth == 8) {
-		/* Palette hacks disabled for now */
 		if (dp && !strncmp(name, "ATY,Rage128", 11)) {
 			par->cmap_adr = offb_map_reg(dp, 2, 0, 0x1fff);
 			if (par->cmap_adr)
@@ -313,7 +322,8 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 			    ioremap(base + 0x7ff000, 0x1000) + 0xcc0;
 			par->cmap_data = par->cmap_adr + 1;
 			par->cmap_type = cmap_m64;
-		} else if (dp && device_is_compatible(dp, "pci1014,b7")) {
+		} else if (dp && (device_is_compatible(dp, "pci1014,b7") ||
+				  device_is_compatible(dp, "pci1014,21c"))) {
 			par->cmap_adr = offb_map_reg(dp, 0, 0x6000, 0x1000);
 			if (par->cmap_adr)
 				par->cmap_type = cmap_gxt2000;
@@ -433,7 +443,7 @@ static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
 	pp = get_property(dp, "linux,bootx-linebytes", &len);
 	if (pp == NULL)
 		pp = get_property(dp, "linebytes", &len);
-	if (pp && len == sizeof(u32))
+	if (pp && len == sizeof(u32) && (*pp != 0xffffffffu))
 		pitch = *pp;
 	else
 		pitch = width * ((depth + 7) / 8);
@@ -496,7 +506,7 @@ static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
 		offb_init_fb(no_real_node ? "bootx" : dp->name,
 			     no_real_node ? "display" : dp->full_name,
 			     width, height, depth, pitch, address,
-			     no_real_node ? dp : NULL);
+			     no_real_node ? NULL : dp);
 	}
 }
 

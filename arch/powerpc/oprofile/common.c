@@ -34,6 +34,11 @@ static void op_handle_interrupt(struct pt_regs *regs)
 	model->handle_interrupt(regs, ctr);
 }
 
+static void op_powerpc_cpu_setup(void *dummy)
+{
+	model->cpu_setup(ctr);
+}
+
 static int op_powerpc_setup(void)
 {
 	int err;
@@ -47,7 +52,7 @@ static int op_powerpc_setup(void)
 	model->reg_setup(ctr, &sys, model->num_counters);
 
 	/* Configure the registers on all cpus.  */
-	on_each_cpu(model->cpu_setup, NULL, 0, 1);
+	on_each_cpu(op_powerpc_cpu_setup, NULL, 0, 1);
 
 	return 0;
 }
@@ -142,7 +147,8 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 		case PPC_OPROFILE_POWER4:
 			model = &op_model_power4;
 			break;
-#else
+#endif
+#ifdef CONFIG_6xx
 		case PPC_OPROFILE_G4:
 			model = &op_model_7450;
 			break;
