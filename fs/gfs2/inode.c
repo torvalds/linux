@@ -269,7 +269,7 @@ int gfs2_inode_refresh(struct gfs2_inode *ip)
 
 	if (ip->i_num.no_addr != ip->i_di.di_num.no_addr) {
 		if (gfs2_consist_inode(ip))
-			gfs2_dinode_print(&ip->i_di);
+			gfs2_dinode_print(ip);
 		return -EIO;
 	}
 	if (ip->i_num.no_formal_ino != ip->i_di.di_num.no_formal_ino)
@@ -289,7 +289,7 @@ int gfs2_dinode_dealloc(struct gfs2_inode *ip)
 
 	if (ip->i_di.di_blocks != 1) {
 		if (gfs2_consist_inode(ip))
-			gfs2_dinode_print(&ip->i_di);
+			gfs2_dinode_print(ip);
 		return -EIO;
 	}
 
@@ -359,7 +359,7 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 	   bigger than the old one, we must have underflowed. */
 	if (diff < 0 && nlink > ip->i_di.di_nlink) {
 		if (gfs2_consist_inode(ip))
-			gfs2_dinode_print(&ip->i_di);
+			gfs2_dinode_print(ip);
 		return -EIO;
 	}
 
@@ -1010,7 +1010,7 @@ int gfs2_rmdiri(struct gfs2_inode *dip, const struct qstr *name,
 
 	if (ip->i_di.di_entries != 2) {
 		if (gfs2_consist_inode(ip))
-			gfs2_dinode_print(&ip->i_di);
+			gfs2_dinode_print(ip);
 		return -EIO;
 	}
 

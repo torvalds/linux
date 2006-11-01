@@ -190,8 +190,10 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 
 }
 
-void gfs2_dinode_print(const struct gfs2_dinode_host *di)
+void gfs2_dinode_print(const struct gfs2_inode *ip)
 {
+	const struct gfs2_dinode_host *di = &ip->i_di;
+
 	gfs2_meta_header_print(&di->di_header);
 	gfs2_inum_print(&di->di_num);
 

@@ -549,7 +549,7 @@ extern void gfs2_quota_change_in(struct gfs2_quota_change_host *qc, const void *
 /* Printing functions */
 
 extern void gfs2_rindex_print(const struct gfs2_rindex_host *ri);
-extern void gfs2_dinode_print(const struct gfs2_dinode_host *di);
+extern void gfs2_dinode_print(const struct gfs2_inode *ip);
 
 #endif /* __KERNEL__ */
 

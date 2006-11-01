@@ -467,7 +467,7 @@ static int gfs2_rmdir(struct inode *dir, struct dentry *dentry)
 
 	if (ip->i_di.di_entries < 2) {
 		if (gfs2_consist_inode(ip))
-			gfs2_dinode_print(&ip->i_di);
+			gfs2_dinode_print(ip);
 		error = -EIO;
 		goto out_gunlock;
 	}
@@ -640,7 +640,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		if (S_ISDIR(nip->i_di.di_mode)) {
 			if (nip->i_di.di_entries < 2) {
 				if (gfs2_consist_inode(nip))
-					gfs2_dinode_print(&nip->i_di);
+					gfs2_dinode_print(nip);
 				error = -EIO;
 				goto out_gunlock;
 			}
