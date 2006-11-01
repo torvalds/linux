@@ -1993,10 +1993,13 @@ e1000_unmap_and_free_tx_resource(struct e1000_adapter *adapter,
 				buffer_info->dma,
 				buffer_info->length,
 				PCI_DMA_TODEVICE);
+		buffer_info->dma = 0;
 	}
-	if (buffer_info->skb)
+	if (buffer_info->skb) {
 		dev_kfree_skb_any(buffer_info->skb);
-	memset(buffer_info, 0, sizeof(struct e1000_buffer));
+		buffer_info->skb = NULL;
+	}
+	/* buffer_info must be completely set up in the transmit path */
 }
 
 /**
@@ -2661,6 +2664,7 @@ e1000_tso(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 		context_desc->cmd_and_length = cpu_to_le32(cmd_length);
 
 		buffer_info->time_stamp = jiffies;
+		buffer_info->next_to_watch = i;
 
 		if (++i == tx_ring->count) i = 0;
 		tx_ring->next_to_use = i;
@@ -2695,6 +2699,7 @@ e1000_tx_csum(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 		context_desc->cmd_and_length = cpu_to_le32(E1000_TXD_CMD_DEXT);
 
 		buffer_info->time_stamp = jiffies;
+		buffer_info->next_to_watch = i;
 
 		if (unlikely(++i == tx_ring->count)) i = 0;
 		tx_ring->next_to_use = i;
@@ -2763,6 +2768,7 @@ e1000_tx_map(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 				size,
 				PCI_DMA_TODEVICE);
 		buffer_info->time_stamp = jiffies;
+		buffer_info->next_to_watch = i;
 
 		len -= size;
 		offset += size;
@@ -2802,6 +2808,7 @@ e1000_tx_map(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 					size,
 					PCI_DMA_TODEVICE);
 			buffer_info->time_stamp = jiffies;
+			buffer_info->next_to_watch = i;
 
 			len -= size;
 			offset += size;
@@ -3620,7 +3627,7 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 			cleaned = (i == eop);
 
 			e1000_unmap_and_free_tx_resource(adapter, buffer_info);
-			memset(tx_desc, 0, sizeof(struct e1000_tx_desc));
+			tx_desc->upper.data = 0;
 
 			if (unlikely(++i == tx_ring->count)) i = 0;
 		}
