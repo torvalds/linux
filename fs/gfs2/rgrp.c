@@ -1217,7 +1217,7 @@ u64 gfs2_alloc_data(struct gfs2_inode *ip)
 	al->al_alloced++;
 
 	gfs2_statfs_change(sdp, 0, -1, 0);
-	gfs2_quota_change(ip, +1, ip->i_di.di_uid, ip->i_di.di_gid);
+	gfs2_quota_change(ip, +1, ip->i_inode.i_uid, ip->i_inode.i_gid);
 
 	spin_lock(&sdp->sd_rindex_spin);
 	rgd->rd_free_clone--;
@@ -1261,7 +1261,7 @@ u64 gfs2_alloc_meta(struct gfs2_inode *ip)
 	al->al_alloced++;
 
 	gfs2_statfs_change(sdp, 0, -1, 0);
-	gfs2_quota_change(ip, +1, ip->i_di.di_uid, ip->i_di.di_gid);
+	gfs2_quota_change(ip, +1, ip->i_inode.i_uid, ip->i_inode.i_gid);
 	gfs2_trans_add_unrevoke(sdp, block);
 
 	spin_lock(&sdp->sd_rindex_spin);
@@ -1337,8 +1337,7 @@ void gfs2_free_data(struct gfs2_inode *ip, u64 bstart, u32 blen)
 	gfs2_trans_add_rg(rgd);
 
 	gfs2_statfs_change(sdp, 0, +blen, 0);
-	gfs2_quota_change(ip, -(s64)blen,
-			 ip->i_di.di_uid, ip->i_di.di_gid);
+	gfs2_quota_change(ip, -(s64)blen, ip->i_inode.i_uid, ip->i_inode.i_gid);
 }
 
 /**
@@ -1366,7 +1365,7 @@ void gfs2_free_meta(struct gfs2_inode *ip, u64 bstart, u32 blen)
 	gfs2_trans_add_rg(rgd);
 
 	gfs2_statfs_change(sdp, 0, +blen, 0);
-	gfs2_quota_change(ip, -(s64)blen, ip->i_di.di_uid, ip->i_di.di_gid);
+	gfs2_quota_change(ip, -(s64)blen, ip->i_inode.i_uid, ip->i_inode.i_gid);
 	gfs2_meta_wipe(ip, bstart, blen);
 }
 
@@ -1411,7 +1410,7 @@ static void gfs2_free_uninit_di(struct gfs2_rgrpd *rgd, u64 blkno)
 void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip)
 {
 	gfs2_free_uninit_di(rgd, ip->i_num.no_addr);
-	gfs2_quota_change(ip, -1, ip->i_di.di_uid, ip->i_di.di_gid);
+	gfs2_quota_change(ip, -1, ip->i_inode.i_uid, ip->i_inode.i_gid);
 	gfs2_meta_wipe(ip, ip->i_num.no_addr, 1);
 }
 

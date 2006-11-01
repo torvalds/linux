@@ -162,8 +162,8 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	gfs2_inum_out(&ip->i_num, &str->di_num);
 
 	str->di_mode = cpu_to_be32(ip->i_inode.i_mode);
-	str->di_uid = cpu_to_be32(di->di_uid);
-	str->di_gid = cpu_to_be32(di->di_gid);
+	str->di_uid = cpu_to_be32(ip->i_inode.i_uid);
+	str->di_gid = cpu_to_be32(ip->i_inode.i_gid);
 	str->di_nlink = cpu_to_be32(di->di_nlink);
 	str->di_size = cpu_to_be64(di->di_size);
 	str->di_blocks = cpu_to_be64(di->di_blocks);
@@ -191,8 +191,6 @@ void gfs2_dinode_print(const struct gfs2_inode *ip)
 
 	gfs2_inum_print(&ip->i_num);
 
-	pv(di, di_uid, "%u");
-	pv(di, di_gid, "%u");
 	pv(di, di_nlink, "%u");
 	printk(KERN_INFO "  di_size = %llu\n", (unsigned long long)di->di_size);
 	printk(KERN_INFO "  di_blocks = %llu\n", (unsigned long long)di->di_blocks);

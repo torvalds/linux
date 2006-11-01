@@ -196,8 +196,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 		if (error)
 			goto out_alloc;
 
-		error = gfs2_quota_check(dip, dip->i_di.di_uid,
-					 dip->i_di.di_gid);
+		error = gfs2_quota_check(dip, dip->i_inode.i_uid, dip->i_inode.i_gid);
 		if (error)
 			goto out_gunlock_q;
 
@@ -673,8 +672,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		if (error)
 			goto out_alloc;
 
-		error = gfs2_quota_check(ndip, ndip->i_di.di_uid,
-					 ndip->i_di.di_gid);
+		error = gfs2_quota_check(ndip, ndip->i_inode.i_uid, ndip->i_inode.i_gid);
 		if (error)
 			goto out_gunlock_q;
 
@@ -885,8 +883,8 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 	u32 ouid, ogid, nuid, ngid;
 	int error;
 
-	ouid = ip->i_di.di_uid;
-	ogid = ip->i_di.di_gid;
+	ouid = inode->i_uid;
+	ogid = inode->i_gid;
 	nuid = attr->ia_uid;
 	ngid = attr->ia_gid;
 

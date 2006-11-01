@@ -52,8 +52,6 @@ void gfs2_inode_attr_in(struct gfs2_inode *ip)
 
 	inode->i_ino = ip->i_num.no_addr;
 	inode->i_nlink = di->di_nlink;
-	inode->i_uid = di->di_uid;
-	inode->i_gid = di->di_gid;
 	i_size_write(inode, di->di_size);
 	inode->i_atime.tv_sec = di->di_atime;
 	inode->i_mtime.tv_sec = di->di_mtime;
@@ -87,8 +85,6 @@ void gfs2_inode_attr_out(struct gfs2_inode *ip)
 {
 	struct inode *inode = &ip->i_inode;
 	struct gfs2_dinode_host *di = &ip->i_di;
-	di->di_uid = inode->i_uid;
-	di->di_gid = inode->i_gid;
 	di->di_atime = inode->i_atime.tv_sec;
 	di->di_mtime = inode->i_mtime.tv_sec;
 	di->di_ctime = inode->i_ctime.tv_sec;
@@ -216,8 +212,8 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 		break;
 	};
 
-	di->di_uid = be32_to_cpu(str->di_uid);
-	di->di_gid = be32_to_cpu(str->di_gid);
+	ip->i_inode.i_uid = be32_to_cpu(str->di_uid);
+	ip->i_inode.i_gid = be32_to_cpu(str->di_gid);
 	di->di_nlink = be32_to_cpu(str->di_nlink);
 	di->di_size = be64_to_cpu(str->di_size);
 	di->di_blocks = be64_to_cpu(str->di_blocks);
@@ -616,19 +612,19 @@ static void munge_mode_uid_gid(struct gfs2_inode *dip, unsigned int *mode,
 			       unsigned int *uid, unsigned int *gid)
 {
 	if (GFS2_SB(&dip->i_inode)->sd_args.ar_suiddir &&
-	    (dip->i_inode.i_mode & S_ISUID) && dip->i_di.di_uid) {
+	    (dip->i_inode.i_mode & S_ISUID) && dip->i_inode.i_uid) {
 		if (S_ISDIR(*mode))
 			*mode |= S_ISUID;
-		else if (dip->i_di.di_uid != current->fsuid)
+		else if (dip->i_inode.i_uid != current->fsuid)
 			*mode &= ~07111;
-		*uid = dip->i_di.di_uid;
+		*uid = dip->i_inode.i_uid;
 	} else
 		*uid = current->fsuid;
 
 	if (dip->i_inode.i_mode & S_ISGID) {
 		if (S_ISDIR(*mode))
 			*mode |= S_ISGID;
-		*gid = dip->i_di.di_gid;
+		*gid = dip->i_inode.i_gid;
 	} else
 		*gid = current->fsgid;
 }
@@ -783,8 +779,7 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 	if (alloc_required < 0)
 		goto fail;
 	if (alloc_required) {
-		error = gfs2_quota_check(dip, dip->i_di.di_uid,
-					 dip->i_di.di_gid);
+		error = gfs2_quota_check(dip, dip->i_inode.i_uid, dip->i_inode.i_gid);
 		if (error)
 			goto fail_quota_locks;
 
@@ -1050,8 +1045,8 @@ int gfs2_unlink_ok(struct gfs2_inode *dip, const struct qstr *name,
 		return -EPERM;
 
 	if ((dip->i_inode.i_mode & S_ISVTX) &&
-	    dip->i_di.di_uid != current->fsuid &&
-	    ip->i_di.di_uid != current->fsuid && !capable(CAP_FOWNER))
+	    dip->i_inode.i_uid != current->fsuid &&
+	    ip->i_inode.i_uid != current->fsuid && !capable(CAP_FOWNER))
 		return -EPERM;
 
 	if (IS_APPEND(&dip->i_inode))

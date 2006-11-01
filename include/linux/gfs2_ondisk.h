@@ -322,8 +322,6 @@ struct gfs2_dinode {
 };
 
 struct gfs2_dinode_host {
-	__u32 di_uid;	/* owner's user id */
-	__u32 di_gid;	/* owner's group id */
 	__u32 di_nlink;	/* number of links to this file */
 	__u64 di_size;	/* number of bytes in file */
 	__u64 di_blocks;	/* number of blocks in file */

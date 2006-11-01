@@ -386,7 +386,7 @@ static int gfs2_prepare_write(struct file *file, struct page *page,
 		if (error)
 			goto out_alloc_put;
 
-		error = gfs2_quota_check(ip, ip->i_di.di_uid, ip->i_di.di_gid);
+		error = gfs2_quota_check(ip, ip->i_inode.i_uid, ip->i_inode.i_gid);
 		if (error)
 			goto out_qunlock;
 

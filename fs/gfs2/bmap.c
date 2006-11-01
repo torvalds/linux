@@ -819,7 +819,7 @@ static int do_grow(struct gfs2_inode *ip, u64 size)
 	if (error)
 		goto out;
 
-	error = gfs2_quota_check(ip, ip->i_di.di_uid, ip->i_di.di_gid);
+	error = gfs2_quota_check(ip, ip->i_inode.i_uid, ip->i_inode.i_gid);
 	if (error)
 		goto out_gunlock_q;
 

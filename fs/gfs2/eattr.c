@@ -687,7 +687,7 @@ static int ea_alloc_skeleton(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 	if (error)
 		goto out;
 
-	error = gfs2_quota_check(ip, ip->i_di.di_uid, ip->i_di.di_gid);
+	error = gfs2_quota_check(ip, ip->i_inode.i_uid, ip->i_inode.i_gid);
 	if (error)
 		goto out_gunlock_q;
 
