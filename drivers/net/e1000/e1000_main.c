@@ -602,9 +602,6 @@ void
 e1000_reset(struct e1000_adapter *adapter)
 {
 	uint32_t pba, manc;
-#ifdef DISABLE_MULR
-	uint32_t tctl;
-#endif
 	uint16_t fc_high_water_mark = E1000_FC_HIGH_DIFF;
 
 	/* Repartition Pba for greater than 9k mtu
@@ -671,12 +668,7 @@ e1000_reset(struct e1000_adapter *adapter)
 	e1000_reset_hw(&adapter->hw);
 	if (adapter->hw.mac_type >= e1000_82544)
 		E1000_WRITE_REG(&adapter->hw, WUC, 0);
-#ifdef DISABLE_MULR
-	/* disable Multiple Reads in Transmit Control Register for debugging */
-	tctl = E1000_READ_REG(hw, TCTL);
-	E1000_WRITE_REG(hw, TCTL, tctl & ~E1000_TCTL_MULR);
 
-#endif
 	if (e1000_init_hw(&adapter->hw))
 		DPRINTK(PROBE, ERR, "Hardware Error\n");
 	e1000_update_mng_vlan(adapter);
