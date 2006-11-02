@@ -1910,12 +1910,12 @@ static int sbp2scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	struct sbp2scsi_host_info *hi;
 	int result = DID_NO_CONNECT << 16;
 
-	if (!sbp2util_node_is_available(scsi_id))
+	if (unlikely(!sbp2util_node_is_available(scsi_id)))
 		goto done;
 
 	hi = scsi_id->hi;
 
-	if (!hi) {
+	if (unlikely(!hi)) {
 		SBP2_ERR("sbp2scsi_host_info is NULL - this is bad!");
 		goto done;
 	}
@@ -1923,7 +1923,7 @@ static int sbp2scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	/* Multiple units are currently represented to the SCSI core as separate
 	 * targets, not as one target with multiple LUs. Therefore return
 	 * selection time-out to any IO directed at non-zero LUNs. */
-	if (SCpnt->device->lun)
+	if (unlikely(SCpnt->device->lun))
 		goto done;
 
 	/* handle the request sense command here (auto-request sense) */
@@ -1934,7 +1934,7 @@ static int sbp2scsi_queuecommand(struct scsi_cmnd *SCpnt,
 		return 0;
 	}
 
-	if (!hpsb_node_entry_valid(scsi_id->ne)) {
+	if (unlikely(!hpsb_node_entry_valid(scsi_id->ne))) {
 		SBP2_ERR("Bus reset in progress - rejecting command");
 		result = DID_BUS_BUSY << 16;
 		goto done;
@@ -1942,7 +1942,7 @@ static int sbp2scsi_queuecommand(struct scsi_cmnd *SCpnt,
 
 	/* Bidirectional commands are not yet implemented,
 	 * and unknown transfer direction not handled. */
-	if (SCpnt->sc_data_direction == DMA_BIDIRECTIONAL) {
+	if (unlikely(SCpnt->sc_data_direction == DMA_BIDIRECTIONAL)) {
 		SBP2_ERR("Cannot handle DMA_BIDIRECTIONAL - rejecting command");
 		result = DID_ERROR << 16;
 		goto done;
