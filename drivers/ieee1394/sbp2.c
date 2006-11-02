@@ -217,18 +217,12 @@ static u32 global_outstanding_dmas = 0;
 #if CONFIG_IEEE1394_SBP2_DEBUG >= 2
 #define SBP2_DEBUG(fmt, args...)	HPSB_ERR("sbp2: "fmt, ## args)
 #define SBP2_INFO(fmt, args...)		HPSB_ERR("sbp2: "fmt, ## args)
-#define SBP2_NOTICE(fmt, args...)	HPSB_ERR("sbp2: "fmt, ## args)
-#define SBP2_WARN(fmt, args...)		HPSB_ERR("sbp2: "fmt, ## args)
 #elif CONFIG_IEEE1394_SBP2_DEBUG == 1
 #define SBP2_DEBUG(fmt, args...)	HPSB_DEBUG("sbp2: "fmt, ## args)
 #define SBP2_INFO(fmt, args...)		HPSB_INFO("sbp2: "fmt, ## args)
-#define SBP2_NOTICE(fmt, args...)	HPSB_NOTICE("sbp2: "fmt, ## args)
-#define SBP2_WARN(fmt, args...)		HPSB_WARN("sbp2: "fmt, ## args)
 #else
 #define SBP2_DEBUG(fmt, args...)	do {} while (0)
 #define SBP2_INFO(fmt, args...)		HPSB_INFO("sbp2: "fmt, ## args)
-#define SBP2_NOTICE(fmt, args...)       HPSB_NOTICE("sbp2: "fmt, ## args)
-#define SBP2_WARN(fmt, args...)         HPSB_WARN("sbp2: "fmt, ## args)
 #endif
 
 #define SBP2_ERR(fmt, args...)		HPSB_ERR("sbp2: "fmt, ## args)
@@ -1559,7 +1553,7 @@ static int sbp2_reconnect_device(struct scsi_id_instance_data *scsi_id)
 		return -EIO;
 	}
 
-	HPSB_DEBUG("Reconnected to SBP-2 device");
+	SBP2_INFO("Reconnected to SBP-2 device");
 	return 0;
 }
 
@@ -1685,7 +1679,7 @@ static void sbp2_parse_unit_directory(struct scsi_id_instance_data *scsi_id,
 	 * max_sectors on the fly, therefore warn only. */
 	if (workarounds & SBP2_WORKAROUND_128K_MAX_TRANS &&
 	    (max_sectors * 512) > (128 * 1024))
-		SBP2_WARN("Node " NODE_BUS_FMT ": Bridge only supports 128KB "
+		SBP2_INFO("Node " NODE_BUS_FMT ": Bridge only supports 128KB "
 			  "max transfer size. WARNING: Current max_sectors "
 			  "setting is larger than 128KB (%d sectors)",
 			  NODE_BUS_ARGS(ud->ne->host, ud->ne->nodeid),
@@ -1733,8 +1727,7 @@ static int sbp2_max_speed_and_size(struct scsi_id_instance_data *scsi_id)
 	/* Bump down our speed if the user requested it */
 	if (scsi_id->speed_code > max_speed) {
 		scsi_id->speed_code = max_speed;
-		SBP2_ERR("Forcing SBP-2 max speed down to %s",
-			 hpsb_speedto_str[scsi_id->speed_code]);
+		SBP2_INFO("Reducing speed to %s", hpsb_speedto_str[max_speed]);
 	}
 
 	/* Payload size is the lesser of what our speed supports and what
@@ -1749,10 +1742,10 @@ static int sbp2_max_speed_and_size(struct scsi_id_instance_data *scsi_id)
 		       payload)
 			payload--;
 
-	HPSB_DEBUG("Node " NODE_BUS_FMT ": Max speed [%s] - Max payload [%u]",
-		   NODE_BUS_ARGS(hi->host, scsi_id->ne->nodeid),
-		   hpsb_speedto_str[scsi_id->speed_code],
-		   SBP2_PAYLOAD_TO_BYTES(payload));
+	SBP2_INFO("Node " NODE_BUS_FMT ": Max speed [%s] - Max payload [%u]",
+		  NODE_BUS_ARGS(hi->host, scsi_id->ne->nodeid),
+		  hpsb_speedto_str[scsi_id->speed_code],
+		  SBP2_PAYLOAD_TO_BYTES(payload));
 
 	scsi_id->max_payload_size = payload;
 	return 0;
@@ -1997,7 +1990,7 @@ static void sbp2_create_command_orb(struct scsi_id_instance_data *scsi_id,
 	else if (dma_dir == DMA_FROM_DEVICE && scsi_request_bufflen)
 		orb_direction = ORB_DIRECTION_READ_FROM_MEDIA;
 	else {
-		SBP2_WARN("Falling back to DMA_NONE");
+		SBP2_INFO("Falling back to DMA_NONE");
 		orb_direction = ORB_DIRECTION_NO_DATA_TRANSFER;
 	}
 
@@ -2280,7 +2273,7 @@ static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid,
 			u32 r = STATUS_GET_RESP(h);
 
 			if (r != RESP_STATUS_REQUEST_COMPLETE) {
-				SBP2_WARN("resp 0x%x, sbp_status 0x%x",
+				SBP2_INFO("resp 0x%x, sbp_status 0x%x",
 					  r, STATUS_GET_SBP_STATUS(h));
 				scsi_status =
 					r == RESP_STATUS_TRANSPORT_FAILURE ?
@@ -2587,7 +2580,7 @@ static int sbp2scsi_abort(struct scsi_cmnd *SCpnt)
 	struct sbp2_command_info *command;
 	unsigned long flags;
 
-	SBP2_ERR("aborting sbp2 command");
+	SBP2_INFO("aborting sbp2 command");
 	scsi_print_command(SCpnt);
 
 	if (sbp2util_node_is_available(scsi_id)) {
@@ -2628,10 +2621,10 @@ static int sbp2scsi_reset(struct scsi_cmnd *SCpnt)
 	struct scsi_id_instance_data *scsi_id =
 		(struct scsi_id_instance_data *)SCpnt->device->host->hostdata[0];
 
-	SBP2_ERR("reset requested");
+	SBP2_INFO("reset requested");
 
 	if (sbp2util_node_is_available(scsi_id)) {
-		SBP2_ERR("Generating sbp2 fetch agent reset");
+		SBP2_INFO("generating sbp2 fetch agent reset");
 		sbp2_agent_reset(scsi_id, 1);
 	}
 
