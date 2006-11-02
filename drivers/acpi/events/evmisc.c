@@ -331,7 +331,6 @@ static void ACPI_SYSTEM_XFACE acpi_ev_global_lock_thread(void *context)
 static u32 acpi_ev_global_lock_handler(void *context)
 {
 	u8 acquired = FALSE;
-	acpi_status status;
 
 	/*
 	 * Attempt to get the lock
