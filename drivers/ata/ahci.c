@@ -421,6 +421,11 @@ static struct pci_driver ahci_pci_driver = {
 };
 
 
+static inline int ahci_nr_ports(u32 cap)
+{
+	return (cap & 0x1f) + 1;
+}
+
 static inline unsigned long ahci_port_base_ul (unsigned long base, unsigned int port)
 {
 	return base + 0x100 + (port * 0x80);
@@ -630,11 +635,12 @@ static int ahci_deinit_port(void __iomem *port_mmio, u32 cap, const char **emsg)
 
 static int ahci_reset_controller(void __iomem *mmio, struct pci_dev *pdev)
 {
-	u32 cap_save, tmp;
+	u32 cap_save, impl_save, tmp;
 
 	cap_save = readl(mmio + HOST_CAP);
 	cap_save &= ( (1<<28) | (1<<17) );
 	cap_save |= (1 << 27);
+	impl_save = readl(mmio + HOST_PORTS_IMPL);
 
 	/* global controller reset */
 	tmp = readl(mmio + HOST_CTL);
@@ -655,10 +661,21 @@ static int ahci_reset_controller(void __iomem *mmio, struct pci_dev *pdev)
 		return -EIO;
 	}
 
+	/* turn on AHCI mode */
 	writel(HOST_AHCI_EN, mmio + HOST_CTL);
 	(void) readl(mmio + HOST_CTL);	/* flush */
+
+	/* These write-once registers are normally cleared on reset.
+	 * Restore BIOS values... which we HOPE were present before
+	 * reset.
+	 */
+	if (!impl_save) {
+		impl_save = (1 << ahci_nr_ports(cap_save)) - 1;
+		dev_printk(KERN_WARNING, &pdev->dev,
+			   "PORTS_IMPL is zero, forcing 0x%x\n", impl_save);
+	}
 	writel(cap_save, mmio + HOST_CAP);
-	writel(0xf, mmio + HOST_PORTS_IMPL);
+	writel(impl_save, mmio + HOST_PORTS_IMPL);
 	(void) readl(mmio + HOST_PORTS_IMPL);	/* flush */
 
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL) {
@@ -1467,7 +1484,7 @@ static int ahci_host_init(struct ata_probe_ent *probe_ent)
 
 	hpriv->cap = readl(mmio + HOST_CAP);
 	hpriv->port_map = readl(mmio + HOST_PORTS_IMPL);
-	probe_ent->n_ports = (hpriv->cap & 0x1f) + 1;
+	probe_ent->n_ports = ahci_nr_ports(hpriv->cap);
 
 	VPRINTK("cap 0x%x  port_map 0x%x  n_ports %d\n",
 		hpriv->cap, hpriv->port_map, probe_ent->n_ports);
