@@ -210,7 +210,6 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	di->di_generation = be64_to_cpu(str->di_generation);
 
 	di->di_flags = be32_to_cpu(str->di_flags);
-	di->di_payload_format = be32_to_cpu(str->di_payload_format);
 	di->di_height = be16_to_cpu(str->di_height);
 
 	di->di_depth = be16_to_cpu(str->di_depth);
@@ -699,7 +698,7 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	}
 
 	di->__pad1 = 0;
-	di->di_payload_format = cpu_to_be32(0);
+	di->di_payload_format = cpu_to_be32(S_ISDIR(mode) ? GFS2_FORMAT_DE : 0);
 	di->di_height = cpu_to_be32(0);
 	di->__pad2 = 0;
 	di->__pad3 = 0;

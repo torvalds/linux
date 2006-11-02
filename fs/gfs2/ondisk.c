@@ -176,9 +176,10 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_generation = cpu_to_be64(di->di_generation);
 
 	str->di_flags = cpu_to_be32(di->di_flags);
-	str->di_payload_format = cpu_to_be32(di->di_payload_format);
 	str->di_height = cpu_to_be16(di->di_height);
-
+	str->di_payload_format = cpu_to_be32(S_ISDIR(ip->i_inode.i_mode) &&
+					     !(ip->i_di.di_flags & GFS2_DIF_EXHASH) ?
+					     GFS2_FORMAT_DE : 0);
 	str->di_depth = cpu_to_be16(di->di_depth);
 	str->di_entries = cpu_to_be32(di->di_entries);
 
@@ -197,7 +198,6 @@ void gfs2_dinode_print(const struct gfs2_inode *ip)
 	printk(KERN_INFO "  di_goal_data = %llu\n", (unsigned long long)di->di_goal_data);
 
 	pv(di, di_flags, "0x%.8X");
-	pv(di, di_payload_format, "%u");
 	pv(di, di_height, "%u");
 
 	pv(di, di_depth, "%u");

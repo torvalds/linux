@@ -333,7 +333,6 @@ struct gfs2_dinode_host {
 	__u64 di_generation;	/* generation number for NFS */
 
 	__u32 di_flags;	/* GFS2_DIF_... */
-	__u32 di_payload_format;  /* GFS2_FORMAT_... */
 	__u16 di_height;	/* height of metadata */
 
 	/* These only apply to directories  */

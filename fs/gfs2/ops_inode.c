@@ -389,7 +389,6 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	ip->i_inode.i_nlink = 2;
 	ip->i_di.di_size = sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode);
 	ip->i_di.di_flags |= GFS2_DIF_JDATA;
-	ip->i_di.di_payload_format = GFS2_FORMAT_DE;
 	ip->i_di.di_entries = 2;
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);

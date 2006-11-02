@@ -902,7 +902,6 @@ static int dir_make_exhash(struct inode *inode)
 	dip->i_di.di_size = sdp->sd_sb.sb_bsize / 2;
 	dip->i_di.di_blocks++;
 	dip->i_di.di_flags |= GFS2_DIF_EXHASH;
-	dip->i_di.di_payload_format = 0;
 
 	for (x = sdp->sd_hash_ptrs, y = -1; x; x >>= 1, y++) ;
 	dip->i_di.di_depth = y;
