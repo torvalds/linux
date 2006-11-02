@@ -3209,41 +3209,15 @@ static void bcm43xx_periodic_every15sec(struct bcm43xx_private *bcm)
 
 static void do_periodic_work(struct bcm43xx_private *bcm)
 {
-	unsigned int state;
-
-	state = bcm->periodic_state;
-	if (state % 8 == 0)
+	if (bcm->periodic_state % 8 == 0)
 		bcm43xx_periodic_every120sec(bcm);
-	if (state % 4 == 0)
+	if (bcm->periodic_state % 4 == 0)
 		bcm43xx_periodic_every60sec(bcm);
-	if (state % 2 == 0)
+	if (bcm->periodic_state % 2 == 0)
 		bcm43xx_periodic_every30sec(bcm);
-	if (state % 1 == 0)
-		bcm43xx_periodic_every15sec(bcm);
-	bcm->periodic_state = state + 1;
+	bcm43xx_periodic_every15sec(bcm);
 
 	schedule_delayed_work(&bcm->periodic_work, HZ * 15);
-}
-
-/* Estimate a "Badness" value based on the periodic work
- * state-machine state. "Badness" is worse (bigger), if the
- * periodic work will take longer.
- */
-static int estimate_periodic_work_badness(unsigned int state)
-{
-	int badness = 0;
-
-	if (state % 8 == 0) /* every 120 sec */
-		badness += 10;
-	if (state % 4 == 0) /* every 60 sec */
-		badness += 5;
-	if (state % 2 == 0) /* every 30 sec */
-		badness += 1;
-	if (state % 1 == 0) /* every 15 sec */
-		badness += 1;
-
-#define BADNESS_LIMIT	4
-	return badness;
 }
 
 static void bcm43xx_periodic_work_handler(void *d)
@@ -3252,12 +3226,10 @@ static void bcm43xx_periodic_work_handler(void *d)
 	struct net_device *net_dev = bcm->net_dev;
 	unsigned long flags;
 	u32 savedirqs = 0;
-	int badness;
 	unsigned long orig_trans_start = 0;
 
 	mutex_lock(&bcm->mutex);
-	badness = estimate_periodic_work_badness(bcm->periodic_state);
-	if (badness > BADNESS_LIMIT) {
+	if (unlikely(bcm->periodic_state % 4 == 0)) {
 		/* Periodic work will take a long time, so we want it to
 		 * be preemtible.
 		 */
@@ -3289,7 +3261,7 @@ static void bcm43xx_periodic_work_handler(void *d)
 
 	do_periodic_work(bcm);
 
-	if (badness > BADNESS_LIMIT) {
+	if (unlikely(bcm->periodic_state % 4 == 0)) {
 		spin_lock_irqsave(&bcm->irq_lock, flags);
 		tasklet_enable(&bcm->isr_tasklet);
 		bcm43xx_interrupt_enable(bcm, savedirqs);
@@ -3300,6 +3272,7 @@ static void bcm43xx_periodic_work_handler(void *d)
 		net_dev->trans_start = orig_trans_start;
 	}
 	mmiowb();
+	bcm->periodic_state++;
 	spin_unlock_irqrestore(&bcm->irq_lock, flags);
 	mutex_unlock(&bcm->mutex);
 }
