@@ -486,7 +486,7 @@ config SGI_IOC3_ETH_HW_TX_CSUM
 
 config MIPS_SIM_NET
 	tristate "MIPS simulator Network device (EXPERIMENTAL)"
-	depends on NETDEVICES && MIPS_SIM && EXPERIMENTAL
+	depends on MIPS_SIM && EXPERIMENTAL
 	help
 	  The MIPSNET device is a simple Ethernet network device which is
 	  emulated by the MIPS Simulator.
@@ -2467,7 +2467,7 @@ config ISERIES_VETH
 
 config RIONET
 	tristate "RapidIO Ethernet over messaging driver support"
-	depends on NETDEVICES && RAPIDIO
+	depends on RAPIDIO
 
 config RIONET_TX_SIZE
 	int "Number of outbound queue entries"
