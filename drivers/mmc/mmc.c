@@ -475,7 +475,7 @@ static u32 mmc_select_voltage(struct mmc_host *host, u32 ocr)
 	if (bit) {
 		bit -= 1;
 
-		ocr = 3 << bit;
+		ocr &= 3 << bit;
 
 		host->ios.vdd = bit;
 		mmc_set_ios(host);
