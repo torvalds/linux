@@ -673,15 +673,15 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	di->di_mode = cpu_to_be32(mode);
 	di->di_uid = cpu_to_be32(uid);
 	di->di_gid = cpu_to_be32(gid);
-	di->di_nlink = cpu_to_be32(0);
-	di->di_size = cpu_to_be64(0);
+	di->di_nlink = 0;
+	di->di_size = 0;
 	di->di_blocks = cpu_to_be64(1);
 	di->di_atime = di->di_mtime = di->di_ctime = cpu_to_be64(get_seconds());
 	di->di_major = cpu_to_be32(MAJOR(dev));
 	di->di_minor = cpu_to_be32(MINOR(dev));
 	di->di_goal_meta = di->di_goal_data = cpu_to_be64(inum->no_addr);
 	di->di_generation = cpu_to_be64(*generation);
-	di->di_flags = cpu_to_be32(0);
+	di->di_flags = 0;
 
 	if (S_ISREG(mode)) {
 		if ((dip->i_di.di_flags & GFS2_DIF_INHERIT_JDATA) ||
@@ -699,13 +699,13 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 
 	di->__pad1 = 0;
 	di->di_payload_format = cpu_to_be32(S_ISDIR(mode) ? GFS2_FORMAT_DE : 0);
-	di->di_height = cpu_to_be32(0);
+	di->di_height = 0;
 	di->__pad2 = 0;
 	di->__pad3 = 0;
-	di->di_depth = cpu_to_be16(0);
-	di->di_entries = cpu_to_be32(0);
+	di->di_depth = 0;
+	di->di_entries = 0;
 	memset(&di->__pad4, 0, sizeof(di->__pad4));
-	di->di_eattr = cpu_to_be64(0);
+	di->di_eattr = 0;
 	memset(&di->di_reserved, 0, sizeof(di->di_reserved));
 
 	brelse(dibh);
