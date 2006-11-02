@@ -100,7 +100,8 @@
  */
 static int sbp2_max_speed = IEEE1394_SPEED_MAX;
 module_param_named(max_speed, sbp2_max_speed, int, 0644);
-MODULE_PARM_DESC(max_speed, "Force max speed (3 = 800mb, 2 = 400mb, 1 = 200mb, 0 = 100mb)");
+MODULE_PARM_DESC(max_speed, "Force max speed "
+		 "(3 = 800Mb/s, 2 = 400Mb/s, 1 = 200Mb/s, 0 = 100Mb/s)");
 
 /*
  * Set serialize_io to 1 if you'd like only one scsi command sent
