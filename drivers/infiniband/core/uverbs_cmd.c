@@ -1214,7 +1214,7 @@ ssize_t ib_uverbs_query_qp(struct ib_uverbs_file *file,
 	resp.qp_access_flags        = attr->qp_access_flags;
 	resp.pkey_index             = attr->pkey_index;
 	resp.alt_pkey_index         = attr->alt_pkey_index;
-	resp.en_sqd_async_notify    = attr->en_sqd_async_notify;
+	resp.sq_draining            = attr->sq_draining;
 	resp.max_rd_atomic          = attr->max_rd_atomic;
 	resp.max_dest_rd_atomic     = attr->max_dest_rd_atomic;
 	resp.min_rnr_timer          = attr->min_rnr_timer;

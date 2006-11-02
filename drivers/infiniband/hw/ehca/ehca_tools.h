@@ -63,6 +63,7 @@
 #include <asm/ibmebus.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
+#include <asm/hvcall.h>
 
 extern int ehca_debug_level;
 
