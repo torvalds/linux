@@ -241,7 +241,7 @@ struct sbp2_status_block {
  * Representations of commands and devices
  */
 
-enum cmd_dma_types {
+enum sbp2_dma_types {
 	CMD_DMA_NONE,
 	CMD_DMA_PAGE,
 	CMD_DMA_SINGLE
@@ -260,13 +260,13 @@ struct sbp2_command_info {
 	dma_addr_t sge_dma ____cacheline_aligned;
 	void *sge_buffer;
 	dma_addr_t cmd_dma;
-	enum cmd_dma_types dma_type;
+	enum sbp2_dma_types dma_type;
 	unsigned long dma_size;
 	int dma_dir;
 };
 
 /* Per FireWire host */
-struct sbp2scsi_host_info {
+struct sbp2_fwhost_info {
 	struct hpsb_host *host;
 	struct list_head scsi_ids;
 };
@@ -291,17 +291,17 @@ struct scsi_id_instance_data {
 	struct sbp2_status_block status_block;
 
 	/* How to talk to the unit */
-	u64 sbp2_management_agent_addr;
-	u64 sbp2_command_block_agent_addr;
+	u64 management_agent_addr;
+	u64 command_block_agent_addr;
 	u32 speed_code;
 	u32 max_payload_size;
 
 	/* Pulled from the device's unit directory */
-	u32 sbp2_command_set_spec_id;
-	u32 sbp2_command_set;
-	u32 sbp2_unit_characteristics;
-	u32 sbp2_lun;
-	u32 sbp2_firmware_revision;
+	u32 command_set_spec_id;
+	u32 command_set;
+	u32 unit_characteristics;
+	u32 firmware_revision;
+	u16 lun;
 
 	/* Address for the unit to write status blocks to */
 	u64 status_fifo_addr;
@@ -310,12 +310,12 @@ struct scsi_id_instance_data {
 	int access_complete:1;
 
 	/* Pool of command ORBs for this logical unit */
-	spinlock_t sbp2_command_orb_lock;
-	struct list_head sbp2_command_orb_inuse;
-	struct list_head sbp2_command_orb_completed;
+	spinlock_t cmd_orb_lock;
+	struct list_head cmd_orb_inuse;
+	struct list_head cmd_orb_completed;
 
 	/* Backlink to FireWire host; list of units attached to the host */
-	struct sbp2scsi_host_info *hi;
+	struct sbp2_fwhost_info *hi;
 	struct list_head scsi_list;
 
 	/* IEEE 1394 core's device representations */
