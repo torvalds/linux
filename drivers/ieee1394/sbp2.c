@@ -1288,16 +1288,13 @@ static void sbp2_parse_unit_directory(struct scsi_id_instance_data *scsi_id,
 	struct csr1212_keyval *kv;
 	struct csr1212_dentry *dentry;
 	u64 management_agent_addr;
-	u32 command_set_spec_id, command_set, unit_characteristics,
-	    firmware_revision;
+	u32 unit_characteristics, firmware_revision;
 	unsigned workarounds;
 	int i;
 
-	management_agent_addr = 0x0;
-	command_set_spec_id = 0x0;
-	command_set = 0x0;
-	unit_characteristics = 0x0;
-	firmware_revision = 0x0;
+	management_agent_addr = 0;
+	unit_characteristics = 0;
+	firmware_revision = 0;
 
 	csr1212_for_each_dir_entry(ud->ne->csr, kv, ud->ud_kv, dentry) {
 		switch (kv->key.id) {
@@ -1310,14 +1307,6 @@ static void sbp2_parse_unit_directory(struct scsi_id_instance_data *scsi_id,
 			else if (kv->key.type == CSR1212_KV_TYPE_IMMEDIATE)
 				scsi_id->lun =
 				    ORB_SET_LUN(kv->value.immediate);
-			break;
-
-		case SBP2_COMMAND_SET_SPEC_ID_KEY:
-			command_set_spec_id = kv->value.immediate;
-			break;
-
-		case SBP2_COMMAND_SET_KEY:
-			command_set = kv->value.immediate;
 			break;
 
 		case SBP2_UNIT_CHARACTERISTICS_KEY:
@@ -1380,10 +1369,6 @@ static void sbp2_parse_unit_directory(struct scsi_id_instance_data *scsi_id,
 		sbp2_parse_unit_directory(scsi_id, parent_ud);
 	} else {
 		scsi_id->management_agent_addr = management_agent_addr;
-		scsi_id->command_set_spec_id = command_set_spec_id;
-		scsi_id->command_set = command_set;
-		scsi_id->unit_characteristics = unit_characteristics;
-		scsi_id->firmware_revision = firmware_revision;
 		scsi_id->workarounds = workarounds;
 		if (ud->flags & UNIT_DIRECTORY_HAS_LUN)
 			scsi_id->lun = ORB_SET_LUN(ud->lun);

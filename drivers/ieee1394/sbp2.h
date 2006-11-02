@@ -295,12 +295,6 @@ struct scsi_id_instance_data {
 	u64 command_block_agent_addr;
 	u32 speed_code;
 	u32 max_payload_size;
-
-	/* Pulled from the device's unit directory */
-	u32 command_set_spec_id;
-	u32 command_set;
-	u32 unit_characteristics;
-	u32 firmware_revision;
 	u16 lun;
 
 	/* Address for the unit to write status blocks to */
