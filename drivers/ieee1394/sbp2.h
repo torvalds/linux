@@ -256,7 +256,8 @@ struct sbp2_command_info {
 	void (*Current_done)(struct scsi_cmnd *);
 
 	/* Also need s/g structure for each sbp2 command */
-	struct sbp2_unrestricted_page_table scatter_gather_element[SG_ALL] ____cacheline_aligned;
+	struct sbp2_unrestricted_page_table
+			scatter_gather_element[SG_ALL] ____cacheline_aligned;
 	dma_addr_t sge_dma ____cacheline_aligned;
 	void *sge_buffer;
 	dma_addr_t cmd_dma;
@@ -268,11 +269,11 @@ struct sbp2_command_info {
 /* Per FireWire host */
 struct sbp2_fwhost_info {
 	struct hpsb_host *host;
-	struct list_head scsi_ids;
+	struct list_head logical_units;
 };
 
 /* Per logical unit */
-struct scsi_id_instance_data {
+struct sbp2_lu {
 	/* Operation request blocks */
 	struct sbp2_command_orb *last_orb;
 	dma_addr_t last_orb_dma;
@@ -310,7 +311,7 @@ struct scsi_id_instance_data {
 
 	/* Backlink to FireWire host; list of units attached to the host */
 	struct sbp2_fwhost_info *hi;
-	struct list_head scsi_list;
+	struct list_head lu_list;
 
 	/* IEEE 1394 core's device representations */
 	struct node_entry *ne;
@@ -318,7 +319,7 @@ struct scsi_id_instance_data {
 
 	/* SCSI core's device representations */
 	struct scsi_device *sdev;
-	struct Scsi_Host *scsi_host;
+	struct Scsi_Host *shost;
 
 	/* Device specific workarounds/brokeness */
 	unsigned workarounds;
@@ -330,14 +331,14 @@ struct scsi_id_instance_data {
 	struct work_struct protocol_work;
 };
 
-/* For use in scsi_id_instance_data.state */
+/* For use in sbp2_lu.state */
 enum sbp2lu_state_types {
 	SBP2LU_STATE_RUNNING,		/* all normal */
 	SBP2LU_STATE_IN_RESET,		/* between bus reset and reconnect */
 	SBP2LU_STATE_IN_SHUTDOWN	/* when sbp2_remove was called */
 };
 
-/* For use in scsi_id_instance_data.workarounds and in the corresponding
+/* For use in sbp2_lu.workarounds and in the corresponding
  * module load parameter */
 #define SBP2_WORKAROUND_128K_MAX_TRANS	0x1
 #define SBP2_WORKAROUND_INQUIRY_36	0x2
