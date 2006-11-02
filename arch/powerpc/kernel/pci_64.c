@@ -42,11 +42,9 @@
 unsigned long pci_probe_only = 1;
 int pci_assign_all_buses = 0;
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
 static void fixup_resource(struct resource *res, struct pci_dev *dev);
 static void do_bus_setup(struct pci_bus *bus);
 static void phbs_remap_io(void);
-#endif
 
 /* pci_io_base -- the base address from which io bars are offsets.
  * This is the lowest I/O base address (so bar values are always positive),
@@ -251,7 +249,6 @@ static void __init pcibios_claim_of_setup(void)
 		pcibios_claim_one_bus(b);
 }
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
 static u32 get_int_prop(struct device_node *np, const char *name, u32 def)
 {
 	const u32 *prop;
@@ -506,7 +503,6 @@ void __devinit of_scan_pci_bridge(struct device_node *node,
 		pci_scan_child_bus(bus);
 }
 EXPORT_SYMBOL(of_scan_pci_bridge);
-#endif /* CONFIG_PPC_MULTIPLATFORM */
 
 void __devinit scan_phb(struct pci_controller *hose)
 {
@@ -540,7 +536,7 @@ void __devinit scan_phb(struct pci_controller *hose)
 	}
 
 	mode = PCI_PROBE_NORMAL;
-#ifdef CONFIG_PPC_MULTIPLATFORM
+
 	if (node && ppc_md.pci_probe_mode)
 		mode = ppc_md.pci_probe_mode(bus);
 	DBG("    probe mode: %d\n", mode);
@@ -548,7 +544,7 @@ void __devinit scan_phb(struct pci_controller *hose)
 		bus->subordinate = hose->last_busno;
 		of_scan_bus(node, bus);
 	}
-#endif /* CONFIG_PPC_MULTIPLATFORM */
+
 	if (mode == PCI_PROBE_NORMAL)
 		hose->last_busno = bus->subordinate = pci_scan_child_bus(bus);
 }
@@ -592,11 +588,9 @@ static int __init pcibios_init(void)
 	if (ppc64_isabridge_dev != NULL)
 		printk(KERN_DEBUG "ISA bridge at %s\n", pci_name(ppc64_isabridge_dev));
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
 	if (!firmware_has_feature(FW_FEATURE_ISERIES))
 		/* map in PCI I/O space */
 		phbs_remap_io();
-#endif
 
 	printk(KERN_DEBUG "PCI: Probing PCI hardware done\n");
 
@@ -872,8 +866,6 @@ void pcibios_add_platform_entries(struct pci_dev *pdev)
 {
 	device_create_file(&pdev->dev, &dev_attr_devspec);
 }
-
-#ifdef CONFIG_PPC_MULTIPLATFORM
 
 #define ISA_SPACE_MASK 0x1
 #define ISA_SPACE_IO 0x1
@@ -1342,8 +1334,6 @@ struct pci_controller* pci_find_hose_for_OF_device(struct device_node* node)
 	}
 	return NULL;
 }
-
-#endif /* CONFIG_PPC_MULTIPLATFORM */
 
 unsigned long pci_address_to_pio(phys_addr_t address)
 {
