@@ -63,7 +63,7 @@ static int dibx000_i2c_gated_tuner_xfer(struct i2c_adapter *i2c_adap, struct i2c
 	struct i2c_msg m[2 + num];
 	u8 tx_open[4], tx_close[4];
 
-	memset(m,0, sizeof(struct i2c_msg) * (2 + num)),
+	memset(m,0, sizeof(struct i2c_msg) * (2 + num));
 
 	dibx000_i2c_select_interface(mst, DIBX000_I2C_INTERFACE_TUNER);
 
