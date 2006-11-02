@@ -2670,8 +2670,6 @@ static int sbp2_module_init(void)
 
 	/* Module load debug option to force one command at a time (serializing I/O) */
 	if (serialize_io) {
-		SBP2_INFO("Driver forced to serialize I/O (serialize_io=1)");
-		SBP2_INFO("Try serialize_io=0 for better performance");
 		scsi_driver_template.can_queue = 1;
 		scsi_driver_template.cmd_per_lun = 1;
 	}
