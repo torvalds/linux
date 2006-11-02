@@ -2484,17 +2484,6 @@ static void sbp2scsi_complete_command(struct scsi_id_instance_data *scsi_id,
 	}
 
 	/*
-	 * If a bus reset is in progress and there was an error, don't
-	 * complete the command, just let it get retried at the end of the
-	 * bus reset.
-	 */
-	if (!hpsb_node_entry_valid(scsi_id->ne)
-	    && (scsi_status != SBP2_SCSI_STATUS_GOOD)) {
-		SBP2_ERR("Bus reset in progress - retry command later");
-		return;
-	}
-
-	/*
 	 * Switch on scsi status
 	 */
 	switch (scsi_status) {
