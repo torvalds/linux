@@ -131,6 +131,14 @@ int tcp_set_default_congestion_control(const char *name)
 	return ret;
 }
 
+/* Set default value from kernel configuration at bootup */
+static int __init tcp_congestion_default(void)
+{
+	return tcp_set_default_congestion_control(CONFIG_DEFAULT_TCP_CONG);
+}
+late_initcall(tcp_congestion_default);
+
+
 /* Get current default congestion control */
 void tcp_get_default_congestion_control(char *name)
 {
