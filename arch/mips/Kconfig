@@ -408,7 +408,7 @@ config MOMENCO_OCELOT_C
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_RM7000
 	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL if BROKEN
+	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	help
 	  The Ocelot is a MIPS-based Single Board Computer (SBC) made by
@@ -425,9 +425,8 @@ config MOMENCO_OCELOT_G
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_RM7000
 	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
+	select SYS_SUPPORTS_64BIT_KERNEL if BROKEN
 	select SYS_SUPPORTS_BIG_ENDIAN
-	select ARCH_SPARSEMEM_ENABLE
 	help
 	  The Ocelot is a MIPS-based Single Board Computer (SBC) made by
 	  Momentum Computer <http://www.momenco.com/>.
@@ -560,6 +559,7 @@ config SGI_IP27
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_NUMA
+	select SYS_SUPPORTS_SMP
 	help
 	  This are the SGI Origin 200, Origin 2000 and Onyx 2 Graphics
 	  workstations.  To compile a Linux kernel that runs on these, say Y
@@ -1630,9 +1630,6 @@ config ARCH_DISCONTIGMEM_ENABLE
 	  for architectures which are either NUMA (Non-Uniform Memory Access)
 	  or have huge holes in the physical address space for other reasons.
 	  See <file:Documentation/vm/numa> for more.
-
-config ARCH_SPARSEMEM_ENABLE
-	bool
 
 config ARCH_SPARSEMEM_ENABLE
 	bool
