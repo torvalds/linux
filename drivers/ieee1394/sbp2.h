@@ -28,22 +28,22 @@
  * SBP2 specific structures and defines
  */
 
-#define ORB_DIRECTION_WRITE_TO_MEDIA    0x0
-#define ORB_DIRECTION_READ_FROM_MEDIA   0x1
-#define ORB_DIRECTION_NO_DATA_TRANSFER  0x2
+#define ORB_DIRECTION_WRITE_TO_MEDIA	0x0
+#define ORB_DIRECTION_READ_FROM_MEDIA	0x1
+#define ORB_DIRECTION_NO_DATA_TRANSFER	0x2
 
-#define ORB_SET_NULL_PTR(value)			((value & 0x1) << 31)
-#define ORB_SET_NOTIFY(value)			((value & 0x1) << 31)
-#define ORB_SET_RQ_FMT(value)			((value & 0x3) << 29)	/* unused ? */
-#define ORB_SET_NODE_ID(value)			((value & 0xffff) << 16)
-#define ORB_SET_STATUS_FIFO_HI(value, id)	(value >> 32 | ORB_SET_NODE_ID(id))
-#define ORB_SET_STATUS_FIFO_LO(value)		(value & 0xffffffff)
-#define ORB_SET_DATA_SIZE(value)		(value & 0xffff)
-#define ORB_SET_PAGE_SIZE(value)		((value & 0x7) << 16)
-#define ORB_SET_PAGE_TABLE_PRESENT(value)	((value & 0x1) << 19)
-#define ORB_SET_MAX_PAYLOAD(value)		((value & 0xf) << 20)
-#define ORB_SET_SPEED(value)			((value & 0x7) << 24)
-#define ORB_SET_DIRECTION(value)		((value & 0x1) << 27)
+#define ORB_SET_NULL_PTR(v)		(((v) & 0x1) << 31)
+#define ORB_SET_NOTIFY(v)		(((v) & 0x1) << 31)
+#define ORB_SET_RQ_FMT(v)		(((v) & 0x3) << 29)
+#define ORB_SET_NODE_ID(v)		(((v) & 0xffff) << 16)
+#define ORB_SET_STATUS_FIFO_HI(v, id)	((v) >> 32 | ORB_SET_NODE_ID(id))
+#define ORB_SET_STATUS_FIFO_LO(v)	((v) & 0xffffffff)
+#define ORB_SET_DATA_SIZE(v)		((v) & 0xffff)
+#define ORB_SET_PAGE_SIZE(v)		(((v) & 0x7) << 16)
+#define ORB_SET_PAGE_TABLE_PRESENT(v)	(((v) & 0x1) << 19)
+#define ORB_SET_MAX_PAYLOAD(v)		(((v) & 0xf) << 20)
+#define ORB_SET_SPEED(v)		(((v) & 0x7) << 24)
+#define ORB_SET_DIRECTION(v)		(((v) & 0x1) << 27)
 
 struct sbp2_command_orb {
 	u32 next_ORB_hi;
@@ -64,12 +64,12 @@ struct sbp2_command_orb {
 #define SBP2_LOGICAL_UNIT_RESET		0xe
 #define SBP2_TARGET_RESET_REQUEST	0xf
 
-#define ORB_SET_LUN(value)                      (value & 0xffff)
-#define ORB_SET_FUNCTION(value)                 ((value & 0xf) << 16)
-#define ORB_SET_RECONNECT(value)                ((value & 0xf) << 20)
-#define ORB_SET_EXCLUSIVE(value)                ((value & 0x1) << 28)
-#define ORB_SET_LOGIN_RESP_LENGTH(value)        (value & 0xffff)
-#define ORB_SET_PASSWD_LENGTH(value)            ((value & 0xffff) << 16)
+#define ORB_SET_LUN(v)			((v) & 0xffff)
+#define ORB_SET_FUNCTION(v)		(((v) & 0xf) << 16)
+#define ORB_SET_RECONNECT(v)		(((v) & 0xf) << 20)
+#define ORB_SET_EXCLUSIVE(v)		(((v) & 0x1) << 28)
+#define ORB_SET_LOGIN_RESP_LENGTH(v)	((v) & 0xffff)
+#define ORB_SET_PASSWD_LENGTH(v)	(((v) & 0xffff) << 16)
 
 struct sbp2_login_orb {
 	u32 password_hi;
@@ -82,9 +82,9 @@ struct sbp2_login_orb {
 	u32 status_fifo_lo;
 } __attribute__((packed));
 
-#define RESPONSE_GET_LOGIN_ID(value)            (value & 0xffff)
-#define RESPONSE_GET_LENGTH(value)              ((value >> 16) & 0xffff)
-#define RESPONSE_GET_RECONNECT_HOLD(value)      (value & 0xffff)
+#define RESPONSE_GET_LOGIN_ID(v)	((v) & 0xffff)
+#define RESPONSE_GET_LENGTH(v)		(((v) >> 16) & 0xffff)
+#define RESPONSE_GET_RECONNECT_HOLD(v)	((v) & 0xffff)
 
 struct sbp2_login_response {
 	u32 length_login_ID;
@@ -93,9 +93,8 @@ struct sbp2_login_response {
 	u32 reconnect_hold;
 } __attribute__((packed));
 
-#define ORB_SET_LOGIN_ID(value)                 (value & 0xffff)
-
-#define ORB_SET_QUERY_LOGINS_RESP_LENGTH(value) (value & 0xffff)
+#define ORB_SET_LOGIN_ID(v)                 ((v) & 0xffff)
+#define ORB_SET_QUERY_LOGINS_RESP_LENGTH(v) ((v) & 0xffff)
 
 struct sbp2_query_logins_orb {
 	u32 reserved1;
@@ -108,8 +107,8 @@ struct sbp2_query_logins_orb {
 	u32 status_fifo_lo;
 } __attribute__((packed));
 
-#define RESPONSE_GET_MAX_LOGINS(value)          (value & 0xffff)
-#define RESPONSE_GET_ACTIVE_LOGINS(value)       ((RESPONSE_GET_LENGTH(value) - 4) / 12)
+#define RESPONSE_GET_MAX_LOGINS(v)	((v) & 0xffff)
+#define RESPONSE_GET_ACTIVE_LOGINS(v)	((RESPONSE_GET_LENGTH((v)) - 4) / 12)
 
 struct sbp2_query_logins_response {
 	u32 length_max_logins;
@@ -140,8 +139,8 @@ struct sbp2_logout_orb {
 	u32 status_fifo_lo;
 } __attribute__((packed));
 
-#define PAGE_TABLE_SET_SEGMENT_BASE_HI(value)   (value & 0xffff)
-#define PAGE_TABLE_SET_SEGMENT_LENGTH(value)    ((value & 0xffff) << 16)
+#define PAGE_TABLE_SET_SEGMENT_BASE_HI(v)	((v) & 0xffff)
+#define PAGE_TABLE_SET_SEGMENT_LENGTH(v)	(((v) & 0xffff) << 16)
 
 struct sbp2_unrestricted_page_table {
 	u32 length_segment_base_hi;
@@ -171,23 +170,14 @@ struct sbp2_unrestricted_page_table {
 #define SFMT_DEFERRED_ERROR			0x1
 #define SFMT_VENDOR_DEPENDENT_STATUS		0x3
 
-#define SBP2_SCSI_STATUS_GOOD			0x0
-#define SBP2_SCSI_STATUS_CHECK_CONDITION	0x2
-#define SBP2_SCSI_STATUS_CONDITION_MET		0x4
-#define SBP2_SCSI_STATUS_BUSY			0x8
-#define SBP2_SCSI_STATUS_RESERVATION_CONFLICT	0x18
-#define SBP2_SCSI_STATUS_COMMAND_TERMINATED	0x22
-
-#define SBP2_SCSI_STATUS_SELECTION_TIMEOUT	0xff
-
-#define STATUS_GET_SRC(value)			(((value) >> 30) & 0x3)
-#define STATUS_GET_RESP(value)			(((value) >> 28) & 0x3)
-#define STATUS_GET_LEN(value)			(((value) >> 24) & 0x7)
-#define STATUS_GET_SBP_STATUS(value)		(((value) >> 16) & 0xff)
-#define STATUS_GET_ORB_OFFSET_HI(value)		((value) & 0x0000ffff)
-#define STATUS_TEST_DEAD(value)			((value) & 0x08000000)
+#define STATUS_GET_SRC(v)			(((v) >> 30) & 0x3)
+#define STATUS_GET_RESP(v)			(((v) >> 28) & 0x3)
+#define STATUS_GET_LEN(v)			(((v) >> 24) & 0x7)
+#define STATUS_GET_SBP_STATUS(v)		(((v) >> 16) & 0xff)
+#define STATUS_GET_ORB_OFFSET_HI(v)		((v) & 0x0000ffff)
+#define STATUS_TEST_DEAD(v)			((v) & 0x08000000)
 /* test 'resp' | 'dead' | 'sbp2_status' */
-#define STATUS_TEST_RDS(value)			((value) & 0x38ff0000)
+#define STATUS_TEST_RDS(v)			((v) & 0x38ff0000)
 
 struct sbp2_status_block {
 	u32 ORB_offset_hi_misc;
@@ -199,49 +189,53 @@ struct sbp2_status_block {
  * Miscellaneous SBP2 related config rom defines
  */
 
-#define SBP2_UNIT_DIRECTORY_OFFSET_KEY				0xd1
-#define SBP2_CSR_OFFSET_KEY					0x54
-#define SBP2_UNIT_SPEC_ID_KEY					0x12
-#define SBP2_UNIT_SW_VERSION_KEY				0x13
-#define SBP2_COMMAND_SET_SPEC_ID_KEY				0x38
-#define SBP2_COMMAND_SET_KEY					0x39
-#define SBP2_UNIT_CHARACTERISTICS_KEY				0x3a
-#define SBP2_DEVICE_TYPE_AND_LUN_KEY				0x14
-#define SBP2_FIRMWARE_REVISION_KEY				0x3c
+#define SBP2_UNIT_DIRECTORY_OFFSET_KEY		0xd1
+#define SBP2_CSR_OFFSET_KEY			0x54
+#define SBP2_UNIT_SPEC_ID_KEY			0x12
+#define SBP2_UNIT_SW_VERSION_KEY		0x13
+#define SBP2_COMMAND_SET_SPEC_ID_KEY		0x38
+#define SBP2_COMMAND_SET_KEY			0x39
+#define SBP2_UNIT_CHARACTERISTICS_KEY		0x3a
+#define SBP2_DEVICE_TYPE_AND_LUN_KEY		0x14
+#define SBP2_FIRMWARE_REVISION_KEY		0x3c
 
-#define SBP2_AGENT_STATE_OFFSET					0x00ULL
-#define SBP2_AGENT_RESET_OFFSET					0x04ULL
-#define SBP2_ORB_POINTER_OFFSET					0x08ULL
-#define SBP2_DOORBELL_OFFSET					0x10ULL
-#define SBP2_UNSOLICITED_STATUS_ENABLE_OFFSET			0x14ULL
-#define SBP2_UNSOLICITED_STATUS_VALUE				0xf
+#define SBP2_AGENT_STATE_OFFSET			0x00ULL
+#define SBP2_AGENT_RESET_OFFSET			0x04ULL
+#define SBP2_ORB_POINTER_OFFSET			0x08ULL
+#define SBP2_DOORBELL_OFFSET			0x10ULL
+#define SBP2_UNSOLICITED_STATUS_ENABLE_OFFSET	0x14ULL
+#define SBP2_UNSOLICITED_STATUS_VALUE		0xf
 
-#define SBP2_BUSY_TIMEOUT_ADDRESS				0xfffff0000210ULL
-#define SBP2_BUSY_TIMEOUT_VALUE					0xf
+#define SBP2_BUSY_TIMEOUT_ADDRESS		0xfffff0000210ULL
+#define SBP2_BUSY_TIMEOUT_VALUE			0xf
 
-#define SBP2_AGENT_RESET_DATA					0xf
+#define SBP2_AGENT_RESET_DATA			0xf
 
 /*
  * Unit spec id and sw version entry for SBP-2 devices
  */
 
-#define SBP2_UNIT_SPEC_ID_ENTRY					0x0000609e
-#define SBP2_SW_VERSION_ENTRY					0x00010483
+#define SBP2_UNIT_SPEC_ID_ENTRY			0x0000609e
+#define SBP2_SW_VERSION_ENTRY			0x00010483
 
 /*
  * SCSI specific stuff
  */
 
-#define SBP2_MAX_SG_ELEMENT_LENGTH	0xf000
-#define SBP2_MAX_SECTORS		255	/* Max sectors supported */
-#define SBP2_MAX_CMDS			8	/* This should be safe */
+#define SBP2_MAX_SG_ELEMENT_LENGTH		0xf000
+#define SBP2_MAX_SECTORS			255
+/* There is no real limitation of the queue depth (i.e. length of the linked
+ * list of command ORBs) at the target. The chosen depth is merely an
+ * implementation detail of the sbp2 driver. */
+#define SBP2_MAX_CMDS				8
 
-/* Flags for detected oddities and brokeness */
-#define SBP2_WORKAROUND_128K_MAX_TRANS	0x1
-#define SBP2_WORKAROUND_INQUIRY_36	0x2
-#define SBP2_WORKAROUND_MODE_SENSE_8	0x4
-#define SBP2_WORKAROUND_FIX_CAPACITY	0x8
-#define SBP2_WORKAROUND_OVERRIDE	0x100
+#define SBP2_SCSI_STATUS_GOOD			0x0
+#define SBP2_SCSI_STATUS_CHECK_CONDITION	0x2
+#define SBP2_SCSI_STATUS_CONDITION_MET		0x4
+#define SBP2_SCSI_STATUS_BUSY			0x8
+#define SBP2_SCSI_STATUS_RESERVATION_CONFLICT	0x18
+#define SBP2_SCSI_STATUS_COMMAND_TERMINATED	0x22
+#define SBP2_SCSI_STATUS_SELECTION_TIMEOUT	0xff
 
 /* This is the two dma types we use for cmd_dma below */
 enum cmd_dma_types {
@@ -363,5 +357,12 @@ struct sbp2scsi_host_info {
 	struct hpsb_host *host;		/* IEEE1394 host */
 	struct list_head scsi_ids;	/* List of scsi ids on this host */
 };
+
+/* Flags for detected oddities and brokeness */
+#define SBP2_WORKAROUND_128K_MAX_TRANS	0x1
+#define SBP2_WORKAROUND_INQUIRY_36	0x2
+#define SBP2_WORKAROUND_MODE_SENSE_8	0x4
+#define SBP2_WORKAROUND_FIX_CAPACITY	0x8
+#define SBP2_WORKAROUND_OVERRIDE	0x100
 
 #endif /* SBP2_H */
