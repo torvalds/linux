@@ -364,49 +364,4 @@ struct sbp2scsi_host_info {
 	struct list_head scsi_ids;	/* List of scsi ids on this host */
 };
 
-/*
- * Function prototypes
- */
-
-/*
- * Various utility prototypes
- */
-static int sbp2util_create_command_orb_pool(struct scsi_id_instance_data *scsi_id);
-static void sbp2util_remove_command_orb_pool(struct scsi_id_instance_data *scsi_id);
-static struct sbp2_command_info *sbp2util_find_command_for_orb(struct scsi_id_instance_data *scsi_id, dma_addr_t orb);
-static struct sbp2_command_info *sbp2util_find_command_for_SCpnt(struct scsi_id_instance_data *scsi_id, void *SCpnt);
-static struct sbp2_command_info *sbp2util_allocate_command_orb(struct scsi_id_instance_data *scsi_id,
-							  struct scsi_cmnd *Current_SCpnt,
-							  void (*Current_done)(struct scsi_cmnd *));
-static void sbp2util_mark_command_completed(struct scsi_id_instance_data *scsi_id,
-		struct sbp2_command_info *command);
-
-
-static int sbp2_start_device(struct scsi_id_instance_data *scsi_id);
-static void sbp2_remove_device(struct scsi_id_instance_data *scsi_id);
-
-#ifdef CONFIG_IEEE1394_SBP2_PHYS_DMA
-static int sbp2_handle_physdma_write(struct hpsb_host *host, int nodeid, int destid, quadlet_t *data,
-                                     u64 addr, size_t length, u16 flags);
-static int sbp2_handle_physdma_read(struct hpsb_host *host, int nodeid, quadlet_t *data,
-                                    u64 addr, size_t length, u16 flags);
-#endif
-
-/*
- * SBP-2 protocol related prototypes
- */
-static int sbp2_query_logins(struct scsi_id_instance_data *scsi_id);
-static int sbp2_login_device(struct scsi_id_instance_data *scsi_id);
-static int sbp2_reconnect_device(struct scsi_id_instance_data *scsi_id);
-static int sbp2_logout_device(struct scsi_id_instance_data *scsi_id);
-static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid, int destid,
-				    quadlet_t *data, u64 addr, size_t length, u16 flags);
-static int sbp2_agent_reset(struct scsi_id_instance_data *scsi_id, int wait);
-static unsigned int sbp2_status_to_sense_data(unchar *sbp2_status,
-					      unchar *sense_data);
-static void sbp2_parse_unit_directory(struct scsi_id_instance_data *scsi_id,
-				      struct unit_directory *ud);
-static int sbp2_set_busy_timeout(struct scsi_id_instance_data *scsi_id);
-static int sbp2_max_speed_and_size(struct scsi_id_instance_data *scsi_id);
-
 #endif /* SBP2_H */

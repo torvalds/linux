@@ -180,19 +180,6 @@ MODULE_PARM_DESC(workarounds, "Work around device bugs (default = 0"
 	", or a combination)");
 
 /*
- * Export information about protocols/devices supported by this driver.
- */
-static struct ieee1394_device_id sbp2_id_table[] = {
-	{
-	 .match_flags = IEEE1394_MATCH_SPECIFIER_ID | IEEE1394_MATCH_VERSION,
-	 .specifier_id = SBP2_UNIT_SPEC_ID_ENTRY & 0xffffff,
-	 .version = SBP2_SW_VERSION_ENTRY & 0xffffff},
-	{}
-};
-
-MODULE_DEVICE_TABLE(ieee1394, sbp2_id_table);
-
-/*
  * Debug levels, configured via kernel config, or enable here.
  */
 
@@ -250,39 +237,65 @@ static u32 global_outstanding_dmas = 0;
 /*
  * Globals
  */
+static void sbp2scsi_complete_all_commands(struct scsi_id_instance_data *, u32);
+static void sbp2scsi_complete_command(struct scsi_id_instance_data *, u32,
+				      struct scsi_cmnd *,
+				      void (*)(struct scsi_cmnd *));
+static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *);
+static int sbp2_start_device(struct scsi_id_instance_data *);
+static void sbp2_remove_device(struct scsi_id_instance_data *);
+static int sbp2_login_device(struct scsi_id_instance_data *);
+static int sbp2_reconnect_device(struct scsi_id_instance_data *);
+static int sbp2_logout_device(struct scsi_id_instance_data *);
+static void sbp2_host_reset(struct hpsb_host *);
+static int sbp2_handle_status_write(struct hpsb_host *, int, int, quadlet_t *,
+				    u64, size_t, u16);
+static int sbp2_agent_reset(struct scsi_id_instance_data *, int);
+static void sbp2_parse_unit_directory(struct scsi_id_instance_data *,
+				      struct unit_directory *);
+static int sbp2_set_busy_timeout(struct scsi_id_instance_data *);
+static int sbp2_max_speed_and_size(struct scsi_id_instance_data *);
 
-static void sbp2scsi_complete_all_commands(struct scsi_id_instance_data *scsi_id,
-					   u32 status);
-
-static void sbp2scsi_complete_command(struct scsi_id_instance_data *scsi_id,
-				      u32 scsi_status, struct scsi_cmnd *SCpnt,
-				      void (*done)(struct scsi_cmnd *));
-
-static struct scsi_host_template scsi_driver_template;
 
 static const u8 sbp2_speedto_max_payload[] = { 0x7, 0x8, 0x9, 0xA, 0xB, 0xC };
 
-static void sbp2_host_reset(struct hpsb_host *host);
-
-static int sbp2_probe(struct device *dev);
-static int sbp2_remove(struct device *dev);
-static int sbp2_update(struct unit_directory *ud);
-
 static struct hpsb_highlevel sbp2_highlevel = {
-	.name =		SBP2_DEVICE_NAME,
-	.host_reset =	sbp2_host_reset,
+	.name		= SBP2_DEVICE_NAME,
+	.host_reset	= sbp2_host_reset,
 };
 
 static struct hpsb_address_ops sbp2_ops = {
-	.write = sbp2_handle_status_write
+	.write		= sbp2_handle_status_write
 };
 
 #ifdef CONFIG_IEEE1394_SBP2_PHYS_DMA
+static int sbp2_handle_physdma_write(struct hpsb_host *, int, int, quadlet_t *,
+				     u64, size_t, u16);
+static int sbp2_handle_physdma_read(struct hpsb_host *, int, quadlet_t *, u64,
+				    size_t, u16);
+
 static struct hpsb_address_ops sbp2_physdma_ops = {
-	.read = sbp2_handle_physdma_read,
-	.write = sbp2_handle_physdma_write,
+	.read		= sbp2_handle_physdma_read,
+	.write		= sbp2_handle_physdma_write,
 };
 #endif
+
+
+/*
+ * Interface to driver core and IEEE 1394 core
+ */
+static struct ieee1394_device_id sbp2_id_table[] = {
+	{
+	 .match_flags	= IEEE1394_MATCH_SPECIFIER_ID | IEEE1394_MATCH_VERSION,
+	 .specifier_id	= SBP2_UNIT_SPEC_ID_ENTRY & 0xffffff,
+	 .version	= SBP2_SW_VERSION_ENTRY & 0xffffff},
+	{}
+};
+MODULE_DEVICE_TABLE(ieee1394, sbp2_id_table);
+
+static int sbp2_probe(struct device *);
+static int sbp2_remove(struct device *);
+static int sbp2_update(struct unit_directory *);
 
 static struct hpsb_protocol_driver sbp2_driver = {
 	.name		= "SBP2 Driver",
@@ -295,6 +308,47 @@ static struct hpsb_protocol_driver sbp2_driver = {
 		.remove		= sbp2_remove,
 	},
 };
+
+
+/*
+ * Interface to SCSI core
+ */
+static int sbp2scsi_queuecommand(struct scsi_cmnd *,
+				 void (*)(struct scsi_cmnd *));
+static int sbp2scsi_abort(struct scsi_cmnd *);
+static int sbp2scsi_reset(struct scsi_cmnd *);
+static int sbp2scsi_slave_alloc(struct scsi_device *);
+static int sbp2scsi_slave_configure(struct scsi_device *);
+static void sbp2scsi_slave_destroy(struct scsi_device *);
+static ssize_t sbp2_sysfs_ieee1394_id_show(struct device *,
+					   struct device_attribute *, char *);
+
+static DEVICE_ATTR(ieee1394_id, S_IRUGO, sbp2_sysfs_ieee1394_id_show, NULL);
+
+static struct device_attribute *sbp2_sysfs_sdev_attrs[] = {
+	&dev_attr_ieee1394_id,
+	NULL
+};
+
+static struct scsi_host_template scsi_driver_template = {
+	.module			 = THIS_MODULE,
+	.name			 = "SBP-2 IEEE-1394",
+	.proc_name		 = SBP2_DEVICE_NAME,
+	.queuecommand		 = sbp2scsi_queuecommand,
+	.eh_abort_handler	 = sbp2scsi_abort,
+	.eh_device_reset_handler = sbp2scsi_reset,
+	.slave_alloc		 = sbp2scsi_slave_alloc,
+	.slave_configure	 = sbp2scsi_slave_configure,
+	.slave_destroy		 = sbp2scsi_slave_destroy,
+	.this_id		 = -1,
+	.sg_tablesize		 = SG_ALL,
+	.use_clustering		 = ENABLE_CLUSTERING,
+	.cmd_per_lun		 = SBP2_MAX_CMDS,
+	.can_queue		 = SBP2_MAX_CMDS,
+	.emulated		 = 1,
+	.sdev_attrs		 = sbp2_sysfs_sdev_attrs,
+};
+
 
 /*
  * List of devices with known bugs.
@@ -715,7 +769,6 @@ static inline int sbp2util_node_is_available(struct scsi_id_instance_data *scsi_
 /*********************************************
  * IEEE-1394 core driver stack related section
  *********************************************/
-static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *ud);
 
 static int sbp2_probe(struct device *dev)
 {
@@ -2630,37 +2683,11 @@ static ssize_t sbp2_sysfs_ieee1394_id_show(struct device *dev,
 	return sprintf(buf, "%016Lx:%d:%d\n", (unsigned long long)scsi_id->ne->guid,
 		       scsi_id->ud->id, lun);
 }
-static DEVICE_ATTR(ieee1394_id, S_IRUGO, sbp2_sysfs_ieee1394_id_show, NULL);
-
-static struct device_attribute *sbp2_sysfs_sdev_attrs[] = {
-	&dev_attr_ieee1394_id,
-	NULL
-};
 
 MODULE_AUTHOR("Ben Collins <bcollins@debian.org>");
 MODULE_DESCRIPTION("IEEE-1394 SBP-2 protocol driver");
 MODULE_SUPPORTED_DEVICE(SBP2_DEVICE_NAME);
 MODULE_LICENSE("GPL");
-
-/* SCSI host template */
-static struct scsi_host_template scsi_driver_template = {
-	.module =			THIS_MODULE,
-	.name =				"SBP-2 IEEE-1394",
-	.proc_name =			SBP2_DEVICE_NAME,
-	.queuecommand =			sbp2scsi_queuecommand,
-	.eh_abort_handler =		sbp2scsi_abort,
-	.eh_device_reset_handler =	sbp2scsi_reset,
-	.slave_alloc =			sbp2scsi_slave_alloc,
-	.slave_configure =		sbp2scsi_slave_configure,
-	.slave_destroy =		sbp2scsi_slave_destroy,
-	.this_id =			-1,
-	.sg_tablesize =			SG_ALL,
-	.use_clustering =		ENABLE_CLUSTERING,
-	.cmd_per_lun =			SBP2_MAX_CMDS,
-	.can_queue = 			SBP2_MAX_CMDS,
-	.emulated =			1,
-	.sdev_attrs =			sbp2_sysfs_sdev_attrs,
-};
 
 static int sbp2_module_init(void)
 {
