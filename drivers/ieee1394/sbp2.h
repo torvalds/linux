@@ -25,7 +25,7 @@
 #define SBP2_DEVICE_NAME		"sbp2"
 
 /*
- * SBP2 specific structures and defines
+ * SBP-2 specific definitions
  */
 
 #define ORB_DIRECTION_WRITE_TO_MEDIA	0x0
@@ -185,8 +185,9 @@ struct sbp2_status_block {
 	u8 command_set_dependent[24];
 } __attribute__((packed));
 
+
 /*
- * Miscellaneous SBP2 related config rom defines
+ * SBP2 related configuration ROM definitions
  */
 
 #define SBP2_UNIT_DIRECTORY_OFFSET_KEY		0xd1
@@ -207,19 +208,17 @@ struct sbp2_status_block {
 #define SBP2_UNSOLICITED_STATUS_VALUE		0xf
 
 #define SBP2_BUSY_TIMEOUT_ADDRESS		0xfffff0000210ULL
+/* biggest possible value for Single Phase Retry count is 0xf */
 #define SBP2_BUSY_TIMEOUT_VALUE			0xf
 
 #define SBP2_AGENT_RESET_DATA			0xf
 
-/*
- * Unit spec id and sw version entry for SBP-2 devices
- */
-
 #define SBP2_UNIT_SPEC_ID_ENTRY			0x0000609e
 #define SBP2_SW_VERSION_ENTRY			0x00010483
 
+
 /*
- * SCSI specific stuff
+ * SCSI specific definitions
  */
 
 #define SBP2_MAX_SG_ELEMENT_LENGTH		0xf000
@@ -237,18 +236,19 @@ struct sbp2_status_block {
 #define SBP2_SCSI_STATUS_COMMAND_TERMINATED	0x22
 #define SBP2_SCSI_STATUS_SELECTION_TIMEOUT	0xff
 
-/* This is the two dma types we use for cmd_dma below */
+
+/*
+ * Representations of commands and devices
+ */
+
 enum cmd_dma_types {
 	CMD_DMA_NONE,
 	CMD_DMA_PAGE,
 	CMD_DMA_SINGLE
 };
 
-/*
- * Encapsulates all the info necessary for an outstanding command.
- */
+/* Per SCSI command */
 struct sbp2_command_info {
-
 	struct list_head list;
 	struct sbp2_command_orb command_orb ____cacheline_aligned;
 	dma_addr_t command_orb_dma ____cacheline_aligned;
@@ -263,18 +263,17 @@ struct sbp2_command_info {
 	enum cmd_dma_types dma_type;
 	unsigned long dma_size;
 	int dma_dir;
-
 };
 
-struct sbp2scsi_host_info;
+/* Per FireWire host */
+struct sbp2scsi_host_info {
+	struct hpsb_host *host;
+	struct list_head scsi_ids;
+};
 
-/*
- * Information needed on a per scsi id basis (one for each sbp2 device)
- */
+/* Per logical unit */
 struct scsi_id_instance_data {
-	/*
-	 * Various sbp2 specific structures
-	 */
+	/* Operation request blocks */
 	struct sbp2_command_orb *last_orb;
 	dma_addr_t last_orb_dma;
 	struct sbp2_login_orb *login_orb;
@@ -291,57 +290,49 @@ struct scsi_id_instance_data {
 	dma_addr_t logout_orb_dma;
 	struct sbp2_status_block status_block;
 
-	/*
-	 * Stuff we need to know about the sbp2 device itself
-	 */
+	/* How to talk to the unit */
 	u64 sbp2_management_agent_addr;
 	u64 sbp2_command_block_agent_addr;
 	u32 speed_code;
 	u32 max_payload_size;
 
-	/*
-	 * Values pulled from the device's unit directory
-	 */
+	/* Pulled from the device's unit directory */
 	u32 sbp2_command_set_spec_id;
 	u32 sbp2_command_set;
 	u32 sbp2_unit_characteristics;
 	u32 sbp2_lun;
 	u32 sbp2_firmware_revision;
 
-	/*
-	 * Address for the device to write status blocks to
-	 */
+	/* Address for the unit to write status blocks to */
 	u64 status_fifo_addr;
 
-	/*
-	 * Waitqueue flag for logins, reconnects, logouts, query logins
-	 */
+	/* Waitqueue flag for logins, reconnects, logouts, query logins */
 	int access_complete:1;
 
-	/*
-	 * Pool of command orbs, so we can have more than overlapped command per id
-	 */
+	/* Pool of command ORBs for this logical unit */
 	spinlock_t sbp2_command_orb_lock;
 	struct list_head sbp2_command_orb_inuse;
 	struct list_head sbp2_command_orb_completed;
 
+	/* Backlink to FireWire host; list of units attached to the host */
+	struct sbp2scsi_host_info *hi;
 	struct list_head scsi_list;
 
-	/* Node entry, as retrieved from NodeMgr entries */
+	/* IEEE 1394 core's device representations */
 	struct node_entry *ne;
 	struct unit_directory *ud;
 
-	/* A backlink to our host_info */
-	struct sbp2scsi_host_info *hi;
-
-	/* SCSI related pointers */
+	/* SCSI core's device representations */
 	struct scsi_device *sdev;
 	struct Scsi_Host *scsi_host;
 
 	/* Device specific workarounds/brokeness */
 	unsigned workarounds;
 
+	/* Connection state */
 	atomic_t state;
+
+	/* For deferred requests to the fetch agent */
 	struct work_struct protocol_work;
 };
 
@@ -352,13 +343,8 @@ enum sbp2lu_state_types {
 	SBP2LU_STATE_IN_SHUTDOWN	/* when sbp2_remove was called */
 };
 
-/* Sbp2 host data structure (one per IEEE1394 host) */
-struct sbp2scsi_host_info {
-	struct hpsb_host *host;		/* IEEE1394 host */
-	struct list_head scsi_ids;	/* List of scsi ids on this host */
-};
-
-/* Flags for detected oddities and brokeness */
+/* For use in scsi_id_instance_data.workarounds and in the corresponding
+ * module load parameter */
 #define SBP2_WORKAROUND_128K_MAX_TRANS	0x1
 #define SBP2_WORKAROUND_INQUIRY_36	0x2
 #define SBP2_WORKAROUND_MODE_SENSE_8	0x4
