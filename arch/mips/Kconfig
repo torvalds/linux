@@ -427,7 +427,6 @@ config MOMENCO_OCELOT_G
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
-	select ARCH_SPARSEMEM_ENABLE
 	help
 	  The Ocelot is a MIPS-based Single Board Computer (SBC) made by
 	  Momentum Computer <http://www.momenco.com/>.
@@ -1630,9 +1629,6 @@ config ARCH_DISCONTIGMEM_ENABLE
 	  for architectures which are either NUMA (Non-Uniform Memory Access)
 	  or have huge holes in the physical address space for other reasons.
 	  See <file:Documentation/vm/numa> for more.
-
-config ARCH_SPARSEMEM_ENABLE
-	bool
 
 config ARCH_SPARSEMEM_ENABLE
 	bool
