@@ -619,9 +619,8 @@ static void sbp2util_mark_command_completed(
 		struct sbp2_lu *lu,
 		struct sbp2_command_info *cmd)
 {
-	list_del(&cmd->list);
 	sbp2util_free_command_dma(cmd);
-	list_add_tail(&cmd->list, &lu->cmd_orb_completed);
+	list_move_tail(&cmd->list, &lu->cmd_orb_completed);
 }
 
 /*
