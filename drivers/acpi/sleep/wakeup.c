@@ -183,11 +183,11 @@ late_initcall(acpi_wakeup_device_init);
 #endif
 
 /*
- * Disable all wakeup GPEs before power off.
- * 
+ * Disable all wakeup GPEs before entering requested sleep state.
+ *	@sleep_state:	ACPI state
  * Since acpi_enter_sleep_state() will disable all
  * RUNTIME GPEs, we simply mark all GPES that
- * are not enabled for wakeup from S5 as RUNTIME.
+ * are not enabled for wakeup from requested state as RUNTIME.
  */
 void acpi_gpe_sleep_prepare(u32 sleep_state)
 {
