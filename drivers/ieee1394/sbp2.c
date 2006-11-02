@@ -2546,21 +2546,6 @@ static void sbp2scsi_complete_command(struct scsi_id_instance_data *scsi_id,
 	}
 
 	/*
-	 * If a unit attention occurs, return busy status so it gets
-	 * retried... it could have happened because of a 1394 bus reset
-	 * or hot-plug...
-	 * XXX  DID_BUS_BUSY is actually a bad idea because it will defy
-	 * the scsi layer's retry logic.
-	 */
-#if 0
-	if ((scsi_status == SBP2_SCSI_STATUS_CHECK_CONDITION) &&
-	    (SCpnt->sense_buffer[2] == UNIT_ATTENTION)) {
-		SBP2_DEBUG("UNIT ATTENTION - return busy");
-		SCpnt->result = DID_BUS_BUSY << 16;
-	}
-#endif
-
-	/*
 	 * Tell scsi stack that we're done with this command
 	 */
 	done(SCpnt);
