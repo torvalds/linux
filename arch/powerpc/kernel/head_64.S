@@ -72,13 +72,11 @@
 	.text
 	.globl  _stext
 _stext:
-#ifdef CONFIG_PPC_MULTIPLATFORM
 _GLOBAL(__start)
 	/* NOP this out unconditionally */
 BEGIN_FTR_SECTION
 	b	.__start_initialization_multiplatform
 END_FTR_SECTION(0, 1)
-#endif /* CONFIG_PPC_MULTIPLATFORM */
 
 	/* Catch branch to 0 in real mode */
 	trap
@@ -1643,7 +1641,6 @@ _STATIC(__start_initialization_iSeries)
 	b	.start_here_common
 #endif /* CONFIG_PPC_ISERIES */
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
 
 _STATIC(__mmu_off)
 	mfmsr	r3
@@ -1669,13 +1666,11 @@ _STATIC(__mmu_off)
  *
  */
 _GLOBAL(__start_initialization_multiplatform)
-#ifdef CONFIG_PPC_MULTIPLATFORM
 	/*
 	 * Are we booted from a PROM Of-type client-interface ?
 	 */
 	cmpldi	cr0,r5,0
 	bne	.__boot_from_prom		/* yes -> prom */
-#endif
 
 	/* Save parameters */
 	mr	r31,r3
@@ -1702,7 +1697,6 @@ _GLOBAL(__start_initialization_multiplatform)
 	bl	.__mmu_off
 	b	.__after_prom_start
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
 _STATIC(__boot_from_prom)
 	/* Save parameters */
 	mr	r31,r3
@@ -1742,7 +1736,6 @@ _STATIC(__boot_from_prom)
 	bl	.prom_init
 	/* We never return */
 	trap
-#endif
 
 /*
  * At this point, r3 contains the physical address we are running at,
@@ -1797,8 +1790,6 @@ _STATIC(__after_prom_start)
 	sub	r5,r5,r27
 	bl	.copy_and_flush		/* copy the rest */
 	b	.start_here_multiplatform
-
-#endif /* CONFIG_PPC_MULTIPLATFORM */
 
 /*
  * Copy routine used to copy the kernel to start at physical address 0
@@ -1964,7 +1955,6 @@ _GLOBAL(enable_64b_mode)
 	isync
 	blr
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
 /*
  * This is where the main kernel code starts.
  */
@@ -2035,7 +2025,6 @@ _STATIC(start_here_multiplatform)
 	mtspr	SPRN_SRR1,r4
 	rfid
 	b	.	/* prevent speculative execution */
-#endif /* CONFIG_PPC_MULTIPLATFORM */
 	
 	/* This is where all platforms converge execution */
 _STATIC(start_here_common)

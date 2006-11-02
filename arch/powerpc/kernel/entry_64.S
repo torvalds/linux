@@ -736,8 +736,6 @@ _STATIC(rtas_restore_regs)
 
 #endif /* CONFIG_PPC_RTAS */
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
-
 _GLOBAL(enter_prom)
 	mflr	r0
 	std	r0,16(r1)
@@ -822,5 +820,3 @@ _GLOBAL(enter_prom)
 	ld	r0,16(r1)
 	mtlr    r0
         blr
-	
-#endif	/* CONFIG_PPC_MULTIPLATFORM */
