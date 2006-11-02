@@ -412,9 +412,10 @@ void dlm_receive_rcom(struct dlm_header *hd, int nodeid)
 
 	ls = dlm_find_lockspace_global(hd->h_lockspace);
 	if (!ls) {
-		log_print("lockspace %x from %d not found",
-			  hd->h_lockspace, nodeid);
-		send_ls_not_ready(nodeid, rc);
+		log_print("lockspace %x from %d type %x not found",
+			  hd->h_lockspace, nodeid, rc->rc_type);
+		if (rc->rc_type == DLM_RCOM_STATUS)
+			send_ls_not_ready(nodeid, rc);
 		return;
 	}
 
