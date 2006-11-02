@@ -29,13 +29,27 @@
  * driver. It also registers as a SCSI lower-level driver in order to accept
  * SCSI commands for transport using SBP-2.
  *
- * You may access any attached SBP-2 storage devices as if they were SCSI
- * devices (e.g. mount /dev/sda1,  fdisk, mkfs, etc.).
+ * You may access any attached SBP-2 (usually storage devices) as regular
+ * SCSI devices. E.g. mount /dev/sda1, fdisk, mkfs, etc..
  *
- * Current Issues:
+ * See http://www.t10.org/drafts.htm#sbp2 for the final draft of the SBP-2
+ * specification and for where to purchase the official standard.
  *
- *	- Error Handling: SCSI aborts and bus reset requests are handled somewhat
- *	  but the code needs additional debugging.
+ * TODO:
+ *   - look into possible improvements of the SCSI error handlers
+ *   - handle Unit_Characteristics.mgt_ORB_timeout and .ORB_size
+ *   - handle Logical_Unit_Number.ordered
+ *   - handle src == 1 in status blocks
+ *   - reimplement the DMA mapping in absence of physical DMA so that
+ *     bus_to_virt is no longer required
+ *   - debug the handling of absent physical DMA
+ *   - replace CONFIG_IEEE1394_SBP2_PHYS_DMA by automatic detection
+ *     (this is easy but depends on the previous two TODO items)
+ *   - make the parameter serialize_io configurable per device
+ *   - move all requests to fetch agent registers into non-atomic context,
+ *     replace all usages of sbp2util_node_write_no_wait by true transactions
+ *   - convert to generic DMA mapping API to eliminate dependency on PCI
+ * Grep for inline FIXME comments below.
  */
 
 #include <linux/blkdev.h>
@@ -107,8 +121,6 @@ MODULE_PARM_DESC(max_speed, "Force max speed "
  * Set serialize_io to 1 if you'd like only one scsi command sent
  * down to us at a time (debugging). This might be necessary for very
  * badly behaved sbp2 devices.
- *
- * TODO: Make this configurable per device.
  */
 static int sbp2_serialize_io = 1;
 module_param_named(serialize_io, sbp2_serialize_io, int, 0444);
