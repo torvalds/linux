@@ -83,6 +83,18 @@ void* ipc_rcu_alloc(int size);
 void ipc_rcu_getref(void *ptr);
 void ipc_rcu_putref(void *ptr);
 
+static inline void __ipc_fini_ids(struct ipc_ids *ids,
+		struct ipc_id_ary *entries)
+{
+	if (entries != &ids->nullentry)
+		ipc_rcu_putref(entries);
+}
+
+static inline void ipc_fini_ids(struct ipc_ids *ids)
+{
+	__ipc_fini_ids(ids, ids->entries);
+}
+
 struct kern_ipc_perm* ipc_get(struct ipc_ids* ids, int id);
 struct kern_ipc_perm* ipc_lock(struct ipc_ids* ids, int id);
 void ipc_lock_by_ptr(struct kern_ipc_perm *ipcp);

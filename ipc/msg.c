@@ -124,6 +124,7 @@ void msg_exit_ns(struct ipc_namespace *ns)
 	}
 	mutex_unlock(&msg_ids(ns).mutex);
 
+	ipc_fini_ids(ns->ids[IPC_MSG_IDS]);
 	kfree(ns->ids[IPC_MSG_IDS]);
 	ns->ids[IPC_MSG_IDS] = NULL;
 }
