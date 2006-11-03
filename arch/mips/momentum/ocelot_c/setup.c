@@ -50,6 +50,7 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/timex.h>
 #include <linux/vmalloc.h>
@@ -69,7 +70,6 @@
 #include "ocelot_c_fpga.h"
 
 unsigned long marvell_base;
-extern unsigned long mv64340_sram_base;
 unsigned long cpu_clock;
 
 /* These functions are used for rebooting or halting the machine*/
@@ -119,7 +119,6 @@ void PMON_v2_setup(void)
 	add_wired_entry(ENTRYLO(0xfe000000), ENTRYLO(0xff000000), 0xfffffffffe000000, PM_16M);
 
 	marvell_base = 0xfffffffff4000000;
-	mv64340_sram_base = 0xfffffffffe000000;
 #else
 	/* marvell and extra space */
 	add_wired_entry(ENTRYLO(0xf4000000), ENTRYLO(0xf4010000), 0xf4000000, PM_64K);
@@ -129,7 +128,6 @@ void PMON_v2_setup(void)
 	add_wired_entry(ENTRYLO(0xfe000000), ENTRYLO(0xff000000), 0xfe000000, PM_16M);
 
 	marvell_base = 0xf4000000;
-	mv64340_sram_base = 0xfe000000;
 #endif
 }
 
@@ -365,3 +363,123 @@ static int io_base_ioremap(void)
 
 module_init(io_base_ioremap);
 #endif
+
+#if defined(CONFIG_MV643XX_ETH) || defined(CONFIG_MV643XX_ETH_MODULE)
+
+static struct resource mv643xx_eth_shared_resources[] = {
+	[0] = {
+		.name   = "ethernet shared base",
+		.start  = 0xf1000000 + MV643XX_ETH_SHARED_REGS,
+		.end    = 0xf1000000 + MV643XX_ETH_SHARED_REGS +
+		                       MV643XX_ETH_SHARED_REGS_SIZE - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device mv643xx_eth_shared_device = {
+	.name		= MV643XX_ETH_SHARED_NAME,
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(mv643xx_eth_shared_resources),
+	.resource	= mv643xx_eth_shared_resources,
+};
+
+#define MV_SRAM_BASE			0xfe000000UL
+#define MV_SRAM_SIZE			(256 * 1024)
+
+#define MV_SRAM_RXRING_SIZE		(MV_SRAM_SIZE / 4)
+#define MV_SRAM_TXRING_SIZE		(MV_SRAM_SIZE / 4)
+
+#define MV_SRAM_BASE_ETH0		MV_SRAM_BASE
+#define MV_SRAM_BASE_ETH1		(MV_SRAM_BASE + (MV_SRAM_SIZE / 2))
+
+#define MV64x60_IRQ_ETH_0 48
+#define MV64x60_IRQ_ETH_1 49
+
+#ifdef CONFIG_MV643XX_ETH_0
+
+static struct resource mv64x60_eth0_resources[] = {
+	[0] = {
+		.name	= "eth0 irq",
+		.start	= MV64x60_IRQ_ETH_0,
+		.end	= MV64x60_IRQ_ETH_0,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct mv643xx_eth_platform_data eth0_pd = {
+	.tx_sram_addr	= MV_SRAM_BASE_ETH0,
+	.tx_sram_size	= MV_SRAM_TXRING_SIZE,
+	.tx_queue_size	= MV_SRAM_TXRING_SIZE / 16,
+
+	.rx_sram_addr	= MV_SRAM_BASE_ETH0 + MV_SRAM_TXRING_SIZE,
+	.rx_sram_size	= MV_SRAM_RXRING_SIZE,
+	.rx_queue_size	= MV_SRAM_RXRING_SIZE / 16,
+};
+
+static struct platform_device eth0_device = {
+	.name		= MV643XX_ETH_NAME,
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(mv64x60_eth0_resources),
+	.resource	= mv64x60_eth0_resources,
+	.dev = {
+		.platform_data = &eth0_pd,
+	},
+};
+#endif /* CONFIG_MV643XX_ETH_0 */
+
+#ifdef CONFIG_MV643XX_ETH_1
+
+static struct resource mv64x60_eth1_resources[] = {
+	[0] = {
+		.name	= "eth1 irq",
+		.start	= MV64x60_IRQ_ETH_1,
+		.end	= MV64x60_IRQ_ETH_1,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct mv643xx_eth_platform_data eth1_pd = {
+	.tx_sram_addr	= MV_SRAM_BASE_ETH1,
+	.tx_sram_size	= MV_SRAM_TXRING_SIZE,
+	.tx_queue_size	= MV_SRAM_TXRING_SIZE / 16,
+
+	.rx_sram_addr	= MV_SRAM_BASE_ETH1 + MV_SRAM_TXRING_SIZE,
+	.rx_sram_size	= MV_SRAM_RXRING_SIZE,
+	.rx_queue_size	= MV_SRAM_RXRING_SIZE / 16,
+};
+
+static struct platform_device eth1_device = {
+	.name		= MV643XX_ETH_NAME,
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(mv64x60_eth1_resources),
+	.resource	= mv64x60_eth1_resources,
+	.dev = {
+		.platform_data = &eth1_pd,
+	},
+};
+#endif /* CONFIG_MV643XX_ETH_1 */
+
+static struct platform_device *mv643xx_eth_pd_devs[] __initdata = {
+	&mv643xx_eth_shared_device,
+#ifdef CONFIG_MV643XX_ETH_0
+	&eth0_device,
+#endif
+#ifdef CONFIG_MV643XX_ETH_1
+	&eth1_device,
+#endif
+	/* The third port is not wired up on the Ocelot C */
+};
+
+int mv643xx_eth_add_pds(void)
+{
+	int ret;
+
+	ret = platform_add_devices(mv643xx_eth_pd_devs,
+			ARRAY_SIZE(mv643xx_eth_pd_devs));
+
+	return ret;
+}
+
+device_initcall(mv643xx_eth_add_pds);
+
+#endif /* defined(CONFIG_MV643XX_ETH) || defined(CONFIG_MV643XX_ETH_MODULE) */
