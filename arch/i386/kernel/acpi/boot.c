@@ -70,7 +70,7 @@ static inline int acpi_madt_oem_check(char *oem_id, char *oem_table_id) { return
 
 #define PREFIX			"ACPI: "
 
-int acpi_noirq __initdata;	/* skip ACPI IRQ initialization */
+int acpi_noirq;				/* skip ACPI IRQ initialization */
 int acpi_pci_disabled __initdata;	/* skip ACPI PCI scan and IRQ initialization */
 int acpi_ht __initdata = 1;	/* enable HT */
 
