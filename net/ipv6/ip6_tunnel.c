@@ -513,14 +513,17 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	return 0;
 }
 
-static inline void ip6ip6_ecn_decapsulate(struct ipv6hdr *outer_iph,
-					  struct sk_buff *skb)
+static void ip6ip6_dscp_ecn_decapsulate(struct ip6_tnl *t,
+					struct ipv6hdr *ipv6h,
+					struct sk_buff *skb)
 {
-	struct ipv6hdr *inner_iph = skb->nh.ipv6h;
+	if (t->parms.flags & IP6_TNL_F_RCV_DSCP_COPY)
+		ipv6_copy_dscp(ipv6h, skb->nh.ipv6h);
 
-	if (INET_ECN_is_ce(ipv6_get_dsfield(outer_iph)))
-		IP6_ECN_set_ce(inner_iph);
+	if (INET_ECN_is_ce(ipv6_get_dsfield(ipv6h)))
+		IP6_ECN_set_ce(skb->nh.ipv6h);
 }
+
 static inline int ip6_tnl_rcv_ctl(struct ip6_tnl *t)
 {
 	struct ip6_tnl_parm *p = &t->parms;
@@ -546,12 +549,16 @@ static inline int ip6_tnl_rcv_ctl(struct ip6_tnl *t)
 /**
  * ip6ip6_rcv - decapsulate IPv6 packet and retransmit it locally
  *   @skb: received socket buffer
+ *   @protocol: ethernet protocol ID
+ *   @dscp_ecn_decapsulate: the function to decapsulate DSCP code and ECN
  *
  * Return: 0
  **/
 
-static int
-ip6ip6_rcv(struct sk_buff *skb)
+static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
+		       void (*dscp_ecn_decapsulate)(struct ip6_tnl *t,
+						    struct ipv6hdr *ipv6h,
+						    struct sk_buff *skb))
 {
 	struct ipv6hdr *ipv6h;
 	struct ip6_tnl *t;
@@ -574,16 +581,16 @@ ip6ip6_rcv(struct sk_buff *skb)
 		secpath_reset(skb);
 		skb->mac.raw = skb->nh.raw;
 		skb->nh.raw = skb->data;
-		skb->protocol = htons(ETH_P_IPV6);
+		skb->protocol = htons(protocol);
 		skb->pkt_type = PACKET_HOST;
 		memset(skb->cb, 0, sizeof(struct inet6_skb_parm));
 		skb->dev = t->dev;
 		dst_release(skb->dst);
 		skb->dst = NULL;
 		nf_reset(skb);
-		if (t->parms.flags & IP6_TNL_F_RCV_DSCP_COPY)
-			ipv6_copy_dscp(ipv6h, skb->nh.ipv6h);
-		ip6ip6_ecn_decapsulate(ipv6h, skb);
+
+		dscp_ecn_decapsulate(t, ipv6h, skb);
+
 		t->stat.rx_packets++;
 		t->stat.rx_bytes += skb->len;
 		netif_rx(skb);
@@ -596,6 +603,11 @@ ip6ip6_rcv(struct sk_buff *skb)
 discard:
 	kfree_skb(skb);
 	return 0;
+}
+
+static int ip6ip6_rcv(struct sk_buff *skb)
+{
+	return ip6_tnl_rcv(skb, ETH_P_IPV6, ip6ip6_dscp_ecn_decapsulate);
 }
 
 struct ipv6_tel_txoption {
