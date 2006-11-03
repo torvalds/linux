@@ -51,7 +51,11 @@
 
 #define MUX_NR 256
 static unsigned int port_cnt __read_mostly;
-static struct uart_port mux_ports[MUX_NR];
+struct mux_port {
+	struct uart_port port;
+	int enabled;
+};
+static struct mux_port mux_ports[MUX_NR];
 
 static struct uart_driver mux_driver = {
 	.owner = THIS_MODULE,
@@ -250,7 +254,7 @@ static void mux_read(struct uart_port *port)
  */
 static int mux_startup(struct uart_port *port)
 {
-	mod_timer(&mux_timer, jiffies + MUX_POLL_DELAY);
+	mux_ports[port->line].enabled = 1;
 	return 0;
 }
 
@@ -262,6 +266,7 @@ static int mux_startup(struct uart_port *port)
  */
 static void mux_shutdown(struct uart_port *port)
 {
+	mux_ports[port->line].enabled = 0;
 }
 
 /**
@@ -319,7 +324,7 @@ static int mux_request_port(struct uart_port *port)
  * @port: Ptr to the uart_port.
  * @type: Bitmask of required configurations.
  *
- * Perform any autoconfiguration steps for the port.  This functino is
+ * Perform any autoconfiguration steps for the port.  This function is
  * called if the UPF_BOOT_AUTOCONF flag is specified for the port.
  * [Note: This is required for now because of a bug in the Serial core.
  *  rmk has already submitted a patch to linus, should be available for
@@ -357,11 +362,11 @@ static void mux_poll(unsigned long unused)
 	int i;
 
 	for(i = 0; i < port_cnt; ++i) {
-		if(!mux_ports[i].info)
+		if(!mux_ports[i].enabled)
 			continue;
 
-		mux_read(&mux_ports[i]);
-		mux_write(&mux_ports[i]);
+		mux_read(&mux_ports[i].port);
+		mux_write(&mux_ports[i].port);
 	}
 
 	mod_timer(&mux_timer, jiffies + MUX_POLL_DELAY);
@@ -456,7 +461,7 @@ static int __init mux_probe(struct parisc_device *dev)
 	}
 
 	for(i = 0; i < ports; ++i, ++port_cnt) {
-		port = &mux_ports[port_cnt];
+		port = &mux_ports[port_cnt].port;
 		port->iobase	= 0;
 		port->mapbase	= dev->hpa.start + MUX_OFFSET +
 						(i * MUX_LINE_OFFSET);
@@ -484,6 +489,8 @@ static int __init mux_probe(struct parisc_device *dev)
 #ifdef CONFIG_SERIAL_MUX_CONSOLE
         register_console(&mux_console);
 #endif
+	mod_timer(&mux_timer, jiffies + MUX_POLL_DELAY);
+
 	return 0;
 }
 
@@ -520,9 +527,9 @@ static void __exit mux_exit(void)
 	int i;
 
 	for (i = 0; i < port_cnt; i++) {
-		uart_remove_one_port(&mux_driver, &mux_ports[i]);
-		if (mux_ports[i].membase)
-			iounmap(mux_ports[i].membase);
+		uart_remove_one_port(&mux_driver, &mux_ports[i].port);
+		if (mux_ports[i].port.membase)
+			iounmap(mux_ports[i].port.membase);
 	}
 
 	uart_unregister_driver(&mux_driver);
