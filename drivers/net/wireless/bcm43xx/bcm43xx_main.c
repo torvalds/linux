@@ -2684,14 +2684,10 @@ static int bcm43xx_probe_cores(struct bcm43xx_private *bcm)
 		bcm->chip_id, bcm->chip_rev);
 	dprintk(KERN_INFO PFX "Number of cores: %d\n", core_count);
 	if (bcm->core_chipcommon.available) {
-		dprintk(KERN_INFO PFX "Core 0: ID 0x%x, rev 0x%x, vendor 0x%x, %s\n",
-			core_id, core_rev, core_vendor,
-			bcm43xx_core_enabled(bcm) ? "enabled" : "disabled");
-	}
-
-	if (bcm->core_chipcommon.available)
+		dprintk(KERN_INFO PFX "Core 0: ID 0x%x, rev 0x%x, vendor 0x%x\n",
+			core_id, core_rev, core_vendor);
 		current_core = 1;
-	else
+	} else
 		current_core = 0;
 	for ( ; current_core < core_count; current_core++) {
 		struct bcm43xx_coreinfo *core;
@@ -2709,9 +2705,8 @@ static int bcm43xx_probe_cores(struct bcm43xx_private *bcm)
 		core_rev = (sb_id_hi & 0xF);
 		core_vendor = (sb_id_hi & 0xFFFF0000) >> 16;
 
-		dprintk(KERN_INFO PFX "Core %d: ID 0x%x, rev 0x%x, vendor 0x%x, %s\n",
-			current_core, core_id, core_rev, core_vendor,
-			bcm43xx_core_enabled(bcm) ? "enabled" : "disabled" );
+		dprintk(KERN_INFO PFX "Core %d: ID 0x%x, rev 0x%x, vendor 0x%x\n",
+			current_core, core_id, core_rev, core_vendor);
 
 		core = NULL;
 		switch (core_id) {
