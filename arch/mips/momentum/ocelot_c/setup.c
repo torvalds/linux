@@ -344,25 +344,23 @@ void __init plat_mem_setup(void)
 	}
 }
 
-#ifndef CONFIG_64BIT
-/* This needs to be one of the first initcalls, because no I/O port access
-   can work before this */
+/*
+ * This needs to be one of the first initcalls, because no I/O port access
+ * can work before this
+ */
 static int io_base_ioremap(void)
 {
-	/* we're mapping PCI accesses from 0xc0000000 to 0xf0000000 */
-	void *io_remap_range = ioremap(0xc0000000, 0x30000000);
+	void __iomem * io_remap_range = ioremap(0xc0000000UL, 0x10000);
 
-	if (!io_remap_range) {
+	if (!io_remap_range)
 		panic("Could not ioremap I/O port range");
-	}
-	printk("io_remap_range set at 0x%08x\n", (uint32_t)io_remap_range);
-	set_io_port_base(io_remap_range - 0xc0000000);
+
+	set_io_port_base((unsigned long) io_remap_range);
 
 	return 0;
 }
 
 module_init(io_base_ioremap);
-#endif
 
 #if defined(CONFIG_MV643XX_ETH) || defined(CONFIG_MV643XX_ETH_MODULE)
 
