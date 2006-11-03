@@ -1835,8 +1835,11 @@ asmlinkage long compat_sys_pselect7(int n, compat_ulong_t __user *inp,
 
 	} while (!ret && !timeout && tsp && (ts.tv_sec || ts.tv_nsec));
 
-	if (ret == 0 && tsp && !(current->personality & STICKY_TIMEOUTS)) {
+	if (tsp) {
 		struct compat_timespec rts;
+
+		if (current->personality & STICKY_TIMEOUTS)
+			goto sticky;
 
 		rts.tv_sec = timeout / HZ;
 		rts.tv_nsec = (timeout % HZ) * (NSEC_PER_SEC/HZ);
@@ -1846,8 +1849,19 @@ asmlinkage long compat_sys_pselect7(int n, compat_ulong_t __user *inp,
 		}
 		if (compat_timespec_compare(&rts, &ts) >= 0)
 			rts = ts;
-		if (copy_to_user(tsp, &rts, sizeof(rts)))
-			ret = -EFAULT;
+		if (copy_to_user(tsp, &rts, sizeof(rts))) {
+sticky:
+			/*
+			 * If an application puts its timeval in read-only
+			 * memory, we don't want the Linux-specific update to
+			 * the timeval to cause a fault after the select has
+			 * completed successfully. However, because we're not
+			 * updating the timeval, we can't restart the system
+			 * call.
+			 */
+			if (ret == -ERESTARTNOHAND)
+				ret = -EINTR;
+		}
 	}
 
 	if (ret == -ERESTARTNOHAND) {
