@@ -134,7 +134,7 @@ int ecryptfs_crypto_api_algify_cipher_name(char **algified_name,
 
 	algified_name_len = (chaining_modifier_len + cipher_name_len + 3);
 	(*algified_name) = kmalloc(algified_name_len, GFP_KERNEL);
-	if (!(algified_name)) {
+	if (!(*algified_name)) {
 		rc = -ENOMEM;
 		goto out;
 	}
