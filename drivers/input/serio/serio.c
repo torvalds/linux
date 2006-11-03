@@ -784,12 +784,6 @@ static int serio_driver_remove(struct device *dev)
 	return 0;
 }
 
-static struct bus_type serio_bus = {
-	.name =	"serio",
-	.probe = serio_driver_probe,
-	.remove = serio_driver_remove,
-};
-
 static void serio_add_driver(struct serio_driver *drv)
 {
 	int error;
@@ -946,15 +940,21 @@ irqreturn_t serio_interrupt(struct serio *serio,
 	return ret;
 }
 
+static struct bus_type serio_bus = {
+	.name		= "serio",
+	.dev_attrs	= serio_device_attrs,
+	.drv_attrs	= serio_driver_attrs,
+	.match		= serio_bus_match,
+	.uevent		= serio_uevent,
+	.probe		= serio_driver_probe,
+	.remove		= serio_driver_remove,
+	.resume		= serio_resume,
+};
+
 static int __init serio_init(void)
 {
 	int error;
 
-	serio_bus.dev_attrs = serio_device_attrs;
-	serio_bus.drv_attrs = serio_driver_attrs;
-	serio_bus.match = serio_bus_match;
-	serio_bus.uevent = serio_uevent;
-	serio_bus.resume = serio_resume;
 	error = bus_register(&serio_bus);
 	if (error) {
 		printk(KERN_ERR "serio: failed to register serio bus, error: %d\n", error);
