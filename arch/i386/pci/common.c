@@ -343,7 +343,6 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 
 void pcibios_disable_device (struct pci_dev *dev)
 {
-	pcibios_disable_resources(dev);
 	if (pcibios_disable_irq)
 		pcibios_disable_irq(dev);
 }
