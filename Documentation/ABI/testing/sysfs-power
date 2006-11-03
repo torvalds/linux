@@ -21,7 +21,7 @@ Description:
 		these states.
 
 What:		/sys/power/disk
-Date:		August 2006
+Date:		September 2006
 Contact:	Rafael J. Wysocki <rjw@sisk.pl>
 Description:
 		The /sys/power/disk file controls the operating mode of the
@@ -39,6 +39,19 @@ Description:
 		'reboot' - the memory image will be saved by the kernel and
 		the system will be rebooted.
 
+		Additionally, /sys/power/disk can be used to turn on one of the
+		two testing modes of the suspend-to-disk mechanism: 'testproc'
+		or 'test'.  If the suspend-to-disk mechanism is in the
+		'testproc' mode, writing 'disk' to /sys/power/state will cause
+		the kernel to disable nonboot CPUs and freeze tasks, wait for 5
+		seconds, unfreeze tasks and enable nonboot CPUs.  If it is in
+		the 'test' mode, writing 'disk' to /sys/power/state will cause
+		the kernel to disable nonboot CPUs and freeze tasks, shrink
+		memory, suspend devices, wait for 5 seconds, resume devices,
+		unfreeze tasks and enable nonboot CPUs.  Then, we are able to
+		look in the log messages and work out, for example, which code
+		is being slow and which device drivers are misbehaving.
+
 		The suspend-to-disk method may be chosen by writing to this
 		file one of the accepted strings:
 
@@ -46,6 +59,8 @@ Description:
 		'platform'
 		'shutdown'
 		'reboot'
+		'testproc'
+		'test'
 
 		It will only change to 'firmware' or 'platform' if the system
 		supports that.
