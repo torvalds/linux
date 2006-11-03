@@ -896,6 +896,10 @@ static int cifs_filldir(char *pfindEntry, struct file *file,
 		     tmp_inode->i_ino,obj_type);
 	if(rc) {
 		cFYI(1,("filldir rc = %d",rc));
+		/* we can not return filldir errors to the caller
+		since they are "normal" when the stat blocksize
+		is too small - we return remapped error instead */
+		rc = -EOVERFLOW;
 	}
 
 	dput(tmp_dentry);
@@ -1074,6 +1078,11 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 			we want to check for that here? */
 			rc = cifs_filldir(current_entry, file,
 					filldir, direntry, tmp_buf, max_len);
+			if(rc == -EOVERFLOW) {
+				rc = 0;
+				break;
+			}
+
 			file->f_pos++;
 			if(file->f_pos == 
 				cifsFile->srch_inf.index_of_last_entry) {
