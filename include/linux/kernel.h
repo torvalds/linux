@@ -171,6 +171,8 @@ __attribute_const__ roundup_pow_of_two(unsigned long x)
 
 extern int printk_ratelimit(void);
 extern int __printk_ratelimit(int ratelimit_jiffies, int ratelimit_burst);
+extern bool printk_timed_ratelimit(unsigned long *caller_jiffies,
+				unsigned int interval_msec);
 
 static inline void console_silent(void)
 {
