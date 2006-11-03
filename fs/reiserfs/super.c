@@ -1619,6 +1619,7 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 		      "jmacd-8: reiserfs_fill_super: unable to read bitmap");
 		goto error;
 	}
+	errval = -EINVAL;
 #ifdef CONFIG_REISERFS_CHECK
 	SWARN(silent, s, "CONFIG_REISERFS_CHECK is set ON");
 	SWARN(silent, s, "- it is slow mode for debugging.");
