@@ -376,8 +376,17 @@ static void mux_poll(unsigned long unused)
 #ifdef CONFIG_SERIAL_MUX_CONSOLE
 static void mux_console_write(struct console *co, const char *s, unsigned count)
 {
-        while(count--)
-                pdc_iodc_putc(*s++);
+	/* Wait until the FIFO drains. */
+	while(UART_GET_FIFO_CNT(&mux_ports[0].port))
+		udelay(1);
+
+	while(count--) {
+		if(*s == '\n') {
+			UART_PUT_CHAR(&mux_ports[0].port, '\r');
+		}
+		UART_PUT_CHAR(&mux_ports[0].port, *s++);
+	}
+
 }
 
 static int mux_console_setup(struct console *co, char *options)
