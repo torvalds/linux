@@ -26,8 +26,8 @@ struct ipx_address {
 #define IPX_MAX_PPROP_HOPS 8
 
 struct ipxhdr {
-	__u16			ipx_checksum __attribute__ ((packed));
-#define IPX_NO_CHECKSUM	0xFFFF
+	__be16			ipx_checksum __attribute__ ((packed));
+#define IPX_NO_CHECKSUM	__constant_htons(0xFFFF)
 	__be16			ipx_pktsize __attribute__ ((packed));
 	__u8			ipx_tctrl;
 	__u8			ipx_type;
