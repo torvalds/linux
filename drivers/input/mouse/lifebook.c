@@ -22,6 +22,12 @@
 
 static struct dmi_system_id lifebook_dmi_table[] = {
        {
+               .ident = "FLORA-ie 55mi",
+               .matches = {
+                       DMI_MATCH(DMI_PRODUCT_NAME, "FLORA-ie 55mi"),
+               },
+       },
+       {
                .ident = "LifeBook B",
                .matches = {
                        DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook B Series"),
