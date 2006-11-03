@@ -730,12 +730,6 @@ static int gameport_driver_remove(struct device *dev)
 	return 0;
 }
 
-static struct bus_type gameport_bus = {
-	.name	= "gameport",
-	.probe	= gameport_driver_probe,
-	.remove	= gameport_driver_remove,
-};
-
 static void gameport_add_driver(struct gameport_driver *drv)
 {
 	int error;
@@ -781,6 +775,15 @@ static int gameport_bus_match(struct device *dev, struct device_driver *drv)
 	return !gameport_drv->ignore;
 }
 
+static struct bus_type gameport_bus = {
+	.name		= "gameport",
+	.dev_attrs	= gameport_device_attrs,
+	.drv_attrs	= gameport_driver_attrs,
+	.match		= gameport_bus_match,
+	.probe		= gameport_driver_probe,
+	.remove		= gameport_driver_remove,
+};
+
 static void gameport_set_drv(struct gameport *gameport, struct gameport_driver *drv)
 {
 	mutex_lock(&gameport->drv_mutex);
@@ -790,7 +793,6 @@ static void gameport_set_drv(struct gameport *gameport, struct gameport_driver *
 
 int gameport_open(struct gameport *gameport, struct gameport_driver *drv, int mode)
 {
-
 	if (gameport->open) {
 		if (gameport->open(gameport, mode)) {
 			return -1;
@@ -818,9 +820,6 @@ static int __init gameport_init(void)
 {
 	int error;
 
-	gameport_bus.dev_attrs = gameport_device_attrs;
-	gameport_bus.drv_attrs = gameport_driver_attrs;
-	gameport_bus.match = gameport_bus_match;
 	error = bus_register(&gameport_bus);
 	if (error) {
 		printk(KERN_ERR "gameport: failed to register gameport bus, error: %d\n", error);
