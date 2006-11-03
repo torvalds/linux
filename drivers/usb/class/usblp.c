@@ -722,6 +722,7 @@ static ssize_t usblp_write(struct file *file, const char __user *buffer, size_t 
 		usblp->wcomplete = 0;
 		err = usb_submit_urb(usblp->writeurb, GFP_KERNEL);
 		if (err) {
+			usblp->wcomplete = 1;
 			if (err != -ENOMEM)
 				count = -EIO;
 			else
@@ -1202,8 +1203,6 @@ static int usblp_suspend (struct usb_interface *intf, pm_message_t message)
 	down (&usblp->sem);
 	/* we take no more IO */
 	usblp->sleeping = 1;
-	/* we wait for anything printing */
-	wait_event (usblp->wait, usblp->wcomplete || !usblp->present);
 	usblp_unlink_urbs(usblp);
 	up (&usblp->sem);
 	mutex_unlock (&usblp_mutex);

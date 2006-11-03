@@ -1188,6 +1188,7 @@ static inline void show_string(struct usb_device *udev, char *id, char *string)
 
 #ifdef	CONFIG_USB_OTG
 #include "otg_whitelist.h"
+static int __usb_port_suspend(struct usb_device *, int port1);
 #endif
 
 /**
@@ -1289,8 +1290,6 @@ int usb_new_device(struct usb_device *udev)
 		 * (Includes HNP test device.)
 		 */
 		if (udev->bus->b_hnp_enable || udev->bus->is_b_host) {
-			static int __usb_port_suspend(struct usb_device *,
-						int port1);
 			err = __usb_port_suspend(udev, udev->bus->otg_port);
 			if (err < 0)
 				dev_dbg(&udev->dev, "HNP fail, %d\n", err);

@@ -1236,7 +1236,7 @@ UNUSUAL_DEV( 0x0e21, 0x0520, 0x0100, 0x0100,
 		"Cowon Systems",
 		"iAUDIO M5",
 		US_SC_DEVICE, US_PR_BULK, NULL,
-		0 ),
+		US_FL_NEED_OVERRIDE ),
 
 /* Submitted by Antoine Mairesse <antoine.mairesse@free.fr> */
 UNUSUAL_DEV( 0x0ed1, 0x6660, 0x0100, 0x0300,
@@ -1296,6 +1296,13 @@ UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
 UNUSUAL_DEV(  0x0fce, 0xe031, 0x0000, 0x0000,
 		"Sony Ericsson",
 		"M600i",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
+/* Reported by Jan Mate <mate@fiit.stuba.sk> */
+UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
+		"Sony Ericsson",
+		"P990i",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 

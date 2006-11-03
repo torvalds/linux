@@ -428,12 +428,6 @@ Options supported:
   See http://www.uuhaus.de/linux/palmconnect.html for up-to-date
   information on this driver.
 
-AIRcable USB Dongle Bluetooth driver
-  If there is the cdc_acm driver loaded in the system, you will find that the
-  cdc_acm claims the device before AIRcable can. This is simply corrected
-  by unloading both modules and then loading the aircable module before
-  cdc_acm module
-
 Generic Serial driver
 
   If your device is not one of the above listed devices, compatible with
