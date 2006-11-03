@@ -15,6 +15,7 @@
 #include "user.h"
 #include "signal_kern.h"
 #include "sysdep/sigcontext.h"
+#include "sysdep/barrier.h"
 #include "sigcontext.h"
 #include "mode.h"
 #include "os.h"
@@ -34,8 +35,12 @@
 #define SIGALRM_BIT 2
 #define SIGALRM_MASK (1 << SIGALRM_BIT)
 
-static int signals_enabled = 1;
-static int pending = 0;
+/* These are used by both the signal handlers and
+ * block/unblock_signals.  I don't want modifications cached in a
+ * register - they must go straight to memory.
+ */
+static volatile int signals_enabled = 1;
+static volatile int pending = 0;
 
 void sig_handler(int sig, struct sigcontext *sc)
 {
@@ -152,6 +157,12 @@ int change_sig(int signal, int on)
 void block_signals(void)
 {
 	signals_enabled = 0;
+	/* This must return with signals disabled, so this barrier
+	 * ensures that writes are flushed out before the return.
+	 * This might matter if gcc figures out how to inline this and
+	 * decides to shuffle this code into the caller.
+	 */
+	mb();
 }
 
 void unblock_signals(void)
@@ -171,9 +182,23 @@ void unblock_signals(void)
 		 */
 		signals_enabled = 1;
 
+		/* Setting signals_enabled and reading pending must
+		 * happen in this order.
+		 */
+		mb();
+
 		save_pending = pending;
-		if(save_pending == 0)
+		if(save_pending == 0){
+			/* This must return with signals enabled, so
+			 * this barrier ensures that writes are
+			 * flushed out before the return.  This might
+			 * matter if gcc figures out how to inline
+			 * this (unlikely, given its size) and decides
+			 * to shuffle this code into the caller.
+			 */
+			mb();
 			return;
+		}
 
 		pending = 0;
 
