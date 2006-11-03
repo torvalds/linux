@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.19-rc4
-# Fri Nov  3 17:34:07 2006
+# Fri Nov  3 17:41:31 2006
 #
 CONFIG_ARM=y
 # CONFIG_GENERIC_TIME is not set
@@ -66,7 +66,8 @@ CONFIG_BASE_SMALL=0
 # Loadable module support
 #
 CONFIG_MODULES=y
-# CONFIG_MODULE_UNLOAD is not set
+CONFIG_MODULE_UNLOAD=y
+# CONFIG_MODULE_FORCE_UNLOAD is not set
 # CONFIG_MODVERSIONS is not set
 # CONFIG_MODULE_SRCVERSION_ALL is not set
 CONFIG_KMOD=y
@@ -431,6 +432,8 @@ CONFIG_MTD_BAST_MAXSIZE=4
 #
 # Self-contained MTD device drivers
 #
+# CONFIG_MTD_DATAFLASH is not set
+# CONFIG_MTD_M25P80 is not set
 # CONFIG_MTD_SLRAM is not set
 # CONFIG_MTD_PHRAM is not set
 # CONFIG_MTD_MTDRAM is not set
@@ -806,8 +809,21 @@ CONFIG_SENSORS_EEPROM=m
 #
 # SPI support
 #
-# CONFIG_SPI is not set
-# CONFIG_SPI_MASTER is not set
+CONFIG_SPI=y
+# CONFIG_SPI_DEBUG is not set
+CONFIG_SPI_MASTER=y
+
+#
+# SPI Master Controller Drivers
+#
+CONFIG_SPI_BITBANG=m
+# CONFIG_SPI_BUTTERFLY is not set
+CONFIG_SPI_S3C24XX_GPIO=m
+CONFIG_SPI_S3C24XX=m
+
+#
+# SPI Protocol Masters
+#
 
 #
 # Dallas's 1-wire bus
@@ -835,6 +851,7 @@ CONFIG_HWMON_VID=m
 # CONFIG_SENSORS_GL520SM is not set
 # CONFIG_SENSORS_IT87 is not set
 # CONFIG_SENSORS_LM63 is not set
+# CONFIG_SENSORS_LM70 is not set
 CONFIG_SENSORS_LM75=m
 # CONFIG_SENSORS_LM77 is not set
 CONFIG_SENSORS_LM78=m
@@ -866,15 +883,21 @@ CONFIG_SENSORS_LM85=m
 #
 # LED devices
 #
-# CONFIG_NEW_LEDS is not set
+CONFIG_NEW_LEDS=y
+CONFIG_LEDS_CLASS=m
 
 #
 # LED drivers
 #
+CONFIG_LEDS_S3C24XX=m
 
 #
 # LED Triggers
 #
+CONFIG_LEDS_TRIGGERS=y
+CONFIG_LEDS_TRIGGER_TIMER=m
+# CONFIG_LEDS_TRIGGER_IDE_DISK is not set
+CONFIG_LEDS_TRIGGER_HEARTBEAT=m
 
 #
 # Multimedia devices
@@ -1057,7 +1080,37 @@ CONFIG_USB_MON=y
 # Real Time Clock
 #
 CONFIG_RTC_LIB=y
-# CONFIG_RTC_CLASS is not set
+CONFIG_RTC_CLASS=y
+CONFIG_RTC_HCTOSYS=y
+CONFIG_RTC_HCTOSYS_DEVICE="rtc0"
+# CONFIG_RTC_DEBUG is not set
+
+#
+# RTC interfaces
+#
+CONFIG_RTC_INTF_SYSFS=y
+CONFIG_RTC_INTF_PROC=y
+CONFIG_RTC_INTF_DEV=y
+# CONFIG_RTC_INTF_DEV_UIE_EMUL is not set
+
+#
+# RTC drivers
+#
+# CONFIG_RTC_DRV_X1205 is not set
+# CONFIG_RTC_DRV_DS1307 is not set
+# CONFIG_RTC_DRV_DS1553 is not set
+# CONFIG_RTC_DRV_ISL1208 is not set
+# CONFIG_RTC_DRV_DS1672 is not set
+# CONFIG_RTC_DRV_DS1742 is not set
+# CONFIG_RTC_DRV_PCF8563 is not set
+# CONFIG_RTC_DRV_PCF8583 is not set
+# CONFIG_RTC_DRV_RS5C348 is not set
+# CONFIG_RTC_DRV_RS5C372 is not set
+CONFIG_RTC_DRV_S3C=y
+# CONFIG_RTC_DRV_M48T86 is not set
+# CONFIG_RTC_DRV_TEST is not set
+# CONFIG_RTC_DRV_MAX6902 is not set
+# CONFIG_RTC_DRV_V3020 is not set
 
 #
 # File systems
