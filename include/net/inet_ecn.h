@@ -48,7 +48,7 @@ static inline __u8 INET_ECN_encapsulate(__u8 outer, __u8 inner)
 
 #define	IP6_ECN_flow_xmit(sk, label) do {				\
 	if (INET_ECN_is_capable(inet_sk(sk)->tos))			\
-		(label) |= __constant_htons(INET_ECN_ECT_0 << 4);	\
+		(label) |= htonl(INET_ECN_ECT_0 << 20);			\
     } while (0)
 
 static inline int IP_ECN_set_ce(struct iphdr *iph)
