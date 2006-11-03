@@ -70,7 +70,7 @@
 #include "ocelot_c_fpga.h"
 
 unsigned long marvell_base;
-unsigned long cpu_clock;
+unsigned int cpu_clock;
 
 /* These functions are used for rebooting or halting the machine*/
 extern void momenco_ocelot_restart(char *command);

@@ -29,7 +29,7 @@
 struct callvectors* debug_vectors;
 
 extern unsigned long marvell_base;
-extern unsigned long cpu_clock;
+extern unsigned int cpu_clock;
 
 #ifdef CONFIG_MV643XX_ETH
 extern unsigned char prom_mac_addr_base[6];
