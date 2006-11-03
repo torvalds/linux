@@ -427,7 +427,7 @@ __build_packet_message(struct nfulnl_instance *inst,
 	nfmsg->version = NFNETLINK_V0;
 	nfmsg->res_id = htons(inst->group_num);
 
-	pmsg.hw_protocol	= htons(skb->protocol);
+	pmsg.hw_protocol	= skb->protocol;
 	pmsg.hook		= hooknum;
 
 	NFA_PUT(inst->skb, NFULA_PACKET_HDR, sizeof(pmsg), &pmsg);

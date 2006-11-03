@@ -414,7 +414,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	nfmsg->res_id = htons(queue->queue_num);
 
 	pmsg.packet_id 		= htonl(entry->id);
-	pmsg.hw_protocol	= htons(entskb->protocol);
+	pmsg.hw_protocol	= entskb->protocol;
 	pmsg.hook		= entinf->hook;
 
 	NFA_PUT(skb, NFQA_PACKET_HDR, sizeof(pmsg), &pmsg);
