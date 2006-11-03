@@ -1323,8 +1323,10 @@ UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
 /* Reported by Kevin Cernekee <kpc-usbdev@gelato.uiuc.edu>
  * Tested on hardware version 1.10.
  * Entry is needed only for the initializer function override.
+ * Devices with bcd > 110 seem to not need it while those
+ * with bcd < 110 appear to need it.
  */
-UNUSUAL_DEV(  0x1019, 0x0c55, 0x0110, 0x0110,
+UNUSUAL_DEV(  0x1019, 0x0c55, 0x0000, 0x0110,
 		"Desknote",
 		"UCR-61S2B",
 		US_SC_DEVICE, US_PR_DEVICE, usb_stor_ucr61s2b_init,
