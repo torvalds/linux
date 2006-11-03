@@ -66,6 +66,13 @@ static struct uart_driver mux_driver = {
 	.nr = MUX_NR,
 };
 
+struct mux_card {
+	int port_count;
+	struct parisc_device *dev;
+	struct mux_card *next;
+};
+
+static struct mux_card *mux_card_head;
 static struct timer_list mux_timer;
 
 #define UART_PUT_CHAR(p, c) __raw_writel((c), (p)->membase + IO_DATA_REG_OFFSET)
@@ -434,6 +441,37 @@ static struct uart_ops mux_pops = {
 };
 
 /**
+ * get_new_mux_card - Allocate and return a new mux card.
+ *
+ * This function is used to allocate and return a new mux card.
+ */
+static struct mux_card * __init get_new_mux_card(void)
+{
+	struct mux_card *card = mux_card_head;
+
+	if(card == NULL) {
+		mux_card_head = kzalloc(sizeof(struct mux_card), GFP_KERNEL);
+		if(!mux_card_head) {
+			printk(KERN_ERR "MUX: Unable to allocate memory.\n");
+			return NULL;
+		}
+		return mux_card_head;
+	}
+
+	while(card->next) {
+		card = card->next;
+	}
+
+	card->next = kzalloc(sizeof(struct mux_card), GFP_KERNEL);
+	if(!card->next) {
+		printk(KERN_ERR "MUX: Unable to allocate memory.\n");
+		return NULL;
+	}
+
+	return card->next;
+}
+
+/**
  * mux_probe - Determine if the Serial Mux should claim this device.
  * @dev: The parisc device.
  *
@@ -446,6 +484,7 @@ static int __init mux_probe(struct parisc_device *dev)
 	u8 iodc_data[32];
 	unsigned long bytecnt;
 	struct uart_port *port;
+	struct mux_card *card;
 
 	status = pdc_iodc_read(&bytecnt, dev->hpa.start, 0, iodc_data, 32);
 	if(status != PDC_OK) {
@@ -454,7 +493,16 @@ static int __init mux_probe(struct parisc_device *dev)
 	}
 
 	ports = GET_MUX_PORTS(iodc_data);
- 	printk(KERN_INFO "Serial mux driver (%d ports) Revision: 0.3\n", ports);
+	printk(KERN_INFO "Serial mux driver (%d ports) Revision: 0.4\n", ports);
+
+	card = get_new_mux_card();
+	if(card == NULL)
+		return 1;
+
+	card->dev = dev;
+	card->port_count = ports;
+	request_mem_region(card->dev->hpa.start + MUX_OFFSET,
+		card->port_count * MUX_LINE_OFFSET, "Mux");
 
 	if(!port_cnt) {
 		mux_driver.cons = MUX_CONSOLE;
@@ -534,11 +582,22 @@ static int __init mux_init(void)
 static void __exit mux_exit(void)
 {
 	int i;
+	struct mux_card *next;
+	struct mux_card *card = mux_card_head;
 
 	for (i = 0; i < port_cnt; i++) {
 		uart_remove_one_port(&mux_driver, &mux_ports[i].port);
 		if (mux_ports[i].port.membase)
 			iounmap(mux_ports[i].port.membase);
+	}
+
+	while(card != NULL) {
+		release_mem_region(card->dev->hpa.start + MUX_OFFSET,
+				   card->port_count * MUX_LINE_OFFSET);
+
+		next = card->next;
+		kfree(card);
+		card = next;
 	}
 
 	uart_unregister_driver(&mux_driver);
