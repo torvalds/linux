@@ -1806,13 +1806,6 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		}
 		if ((rc < 0) || (smb_read_data == NULL)) {
 			cFYI(1, ("Read error in readpages: %d", rc));
-			/* clean up remaing pages off list */
-			while (!list_empty(page_list) && (i < num_pages)) {
-				page = list_entry(page_list->prev, struct page,
-						  lru);
-				list_del(&page->lru);
-				page_cache_release(page);
-			}
 			break;
 		} else if (bytes_read > 0) {
 			pSMBr = (struct smb_com_read_rsp *)smb_read_data;
@@ -1831,13 +1824,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 				   this case is ok - if we are at server EOF 
 				   we will hit it on next read */
 
-			/* while (!list_empty(page_list) && (i < num_pages)) {
-					page = list_entry(page_list->prev, 
-							  struct page, list);
-					list_del(&page->list);
-					page_cache_release(page);
-				}
-				break; */
+				/* break; */
 			}
 		} else {
 			cFYI(1, ("No bytes read (%d) at offset %lld . "
@@ -1845,14 +1832,6 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 				 bytes_read, offset));
 			/* BB turn off caching and do new lookup on 
 			   file size at server? */
-			while (!list_empty(page_list) && (i < num_pages)) {
-				page = list_entry(page_list->prev, struct page,
-						  lru);
-				list_del(&page->lru);
-
-				/* BB removeme - replace with zero of page? */
-				page_cache_release(page);
-			}
 			break;
 		}
 		if (smb_read_data) {
