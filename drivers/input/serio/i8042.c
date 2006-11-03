@@ -255,25 +255,10 @@ static int i8042_kbd_write(struct serio *port, unsigned char c)
 static int i8042_aux_write(struct serio *serio, unsigned char c)
 {
 	struct i8042_port *port = serio->port_data;
-	int retval;
 
-/*
- * Send the byte out.
- */
-
-	if (port->mux == -1)
-		retval = i8042_command(&c, I8042_CMD_AUX_SEND);
-	else
-		retval = i8042_command(&c, I8042_CMD_MUX_SEND + port->mux);
-
-/*
- * Make sure the interrupt happens and the character is received even
- * in the case the IRQ isn't wired, so that we can receive further
- * characters later.
- */
-
-	i8042_interrupt(0, NULL);
-	return retval;
+	return i8042_command(&c, port->mux == -1 ?
+					I8042_CMD_AUX_SEND :
+					I8042_CMD_MUX_SEND + port->mux);
 }
 
 /*
