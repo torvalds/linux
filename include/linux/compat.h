@@ -230,5 +230,9 @@ asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp);
 extern int compat_printk(const char *fmt, ...);
 extern void sigset_from_compat(sigset_t *set, compat_sigset_t *compat);
 
+asmlinkage long compat_sys_migrate_pages(compat_pid_t pid,
+		compat_ulong_t maxnode, const compat_ulong_t __user *old_nodes,
+		const compat_ulong_t __user *new_nodes);
+
 #endif /* CONFIG_COMPAT */
 #endif /* _LINUX_COMPAT_H */
