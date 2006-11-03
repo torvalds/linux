@@ -3075,11 +3075,12 @@ end_io:
 		if (maxsector) {
 			sector_t sector = bio->bi_sector;
 
-			if (maxsector < nr_sectors || maxsector - nr_sectors < sector) {
+			if (maxsector < nr_sectors ||
+					maxsector - nr_sectors < sector) {
 				/*
-				 * This may well happen - partitions are not checked
-				 * to make sure they are within the size of the
-				 * whole device.
+				 * This may well happen - partitions are not
+				 * checked to make sure they are within the size
+				 * of the whole device.
 				 */
 				handle_bad_sector(bio);
 				goto end_io;
