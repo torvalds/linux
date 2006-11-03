@@ -172,13 +172,12 @@ static int read_raw_oob(struct mtd_info *mtd, loff_t offs, uint8_t *buf)
 
 	ops.mode = MTD_OOB_RAW;
 	ops.ooboffs = 0;
-	ops.ooblen = mtd->oobsize;
-	ops.len = OOB_SIZE;
+	ops.ooblen = OOB_SIZE;
 	ops.oobbuf = buf;
 	ops.datbuf = NULL;
 
 	ret = mtd->read_oob(mtd, offs, &ops);
-	if (ret < 0 || ops.retlen != OOB_SIZE)
+	if (ret < 0 || ops.oobretlen != OOB_SIZE)
 		return -1;
 
 	return 0;

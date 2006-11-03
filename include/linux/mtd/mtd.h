@@ -75,15 +75,12 @@ typedef enum {
  * struct mtd_oob_ops - oob operation operands
  * @mode:	operation mode
  *
- * @len:	number of bytes to write/read. When a data buffer is given
- *		(datbuf != NULL) this is the number of data bytes. When
- *		no data buffer is available this is the number of oob bytes.
+ * @len:	number of data bytes to write/read
  *
- * @retlen:	number of bytes written/read. When a data buffer is given
- *		(datbuf != NULL) this is the number of data bytes. When
- *		no data buffer is available this is the number of oob bytes.
+ * @retlen:	number of data bytes written/read
  *
- * @ooblen:	number of oob bytes per page
+ * @ooblen:	number of oob bytes to write/read
+ * @oobretlen:	number of oob bytes written/read
  * @ooboffs:	offset of oob data in the oob area (only relevant when
  *		mode = MTD_OOB_PLACE)
  * @datbuf:	data buffer - if NULL only oob data are read/written
@@ -94,6 +91,7 @@ struct mtd_oob_ops {
 	size_t		len;
 	size_t		retlen;
 	size_t		ooblen;
+	size_t		oobretlen;
 	uint32_t	ooboffs;
 	uint8_t		*datbuf;
 	uint8_t		*oobbuf;

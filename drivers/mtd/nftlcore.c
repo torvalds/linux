@@ -147,10 +147,9 @@ int nftl_read_oob(struct mtd_info *mtd, loff_t offs, size_t len,
 	ops.ooblen = len;
 	ops.oobbuf = buf;
 	ops.datbuf = NULL;
-	ops.len = len;
 
 	res = mtd->read_oob(mtd, offs & ~(mtd->writesize - 1), &ops);
-	*retlen = ops.retlen;
+	*retlen = ops.oobretlen;
 	return res;
 }
 
@@ -168,10 +167,9 @@ int nftl_write_oob(struct mtd_info *mtd, loff_t offs, size_t len,
 	ops.ooblen = len;
 	ops.oobbuf = buf;
 	ops.datbuf = NULL;
-	ops.len = len;
 
 	res = mtd->write_oob(mtd, offs & ~(mtd->writesize - 1), &ops);
-	*retlen = ops.retlen;
+	*retlen = ops.oobretlen;
 	return res;
 }
 

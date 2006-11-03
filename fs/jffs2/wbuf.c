@@ -968,8 +968,7 @@ int jffs2_check_oob_empty(struct jffs2_sb_info *c,
 	int oobsize = c->mtd->oobsize;
 	struct mtd_oob_ops ops;
 
-	ops.len = NR_OOB_SCAN_PAGES * oobsize;
-	ops.ooblen = oobsize;
+	ops.ooblen = NR_OOB_SCAN_PAGES * oobsize;
 	ops.oobbuf = c->oobbuf;
 	ops.ooboffs = 0;
 	ops.datbuf = NULL;
@@ -982,10 +981,10 @@ int jffs2_check_oob_empty(struct jffs2_sb_info *c,
 		return ret;
 	}
 
-	if (ops.retlen < ops.len) {
+	if (ops.oobretlen < ops.ooblen) {
 		D1(printk(KERN_WARNING "jffs2_check_oob_empty(): Read OOB "
 			  "returned short read (%zd bytes not %d) for block "
-			  "at %08x\n", ops.retlen, ops.len, jeb->offset));
+			  "at %08x\n", ops.oobretlen, ops.ooblen, jeb->offset));
 		return -EIO;
 	}
 
@@ -1004,7 +1003,7 @@ int jffs2_check_oob_empty(struct jffs2_sb_info *c,
 	}
 
 	/* we know, we are aligned :) */
-	for (page = oobsize; page < ops.len; page += sizeof(long)) {
+	for (page = oobsize; page < ops.ooblen; page += sizeof(long)) {
 		long dat = *(long *)(&ops.oobbuf[page]);
 		if(dat != -1)
 			return 1;
@@ -1032,7 +1031,6 @@ int jffs2_check_nand_cleanmarker (struct jffs2_sb_info *c,
 		return 2;
 	}
 
-	ops.len = oobsize;
 	ops.ooblen = oobsize;
 	ops.oobbuf = c->oobbuf;
 	ops.ooboffs = 0;
@@ -1047,10 +1045,10 @@ int jffs2_check_nand_cleanmarker (struct jffs2_sb_info *c,
 		return ret;
 	}
 
-	if (ops.retlen < ops.len) {
+	if (ops.oobretlen < ops.ooblen) {
 		D1 (printk (KERN_WARNING "jffs2_check_nand_cleanmarker(): "
 			    "Read OOB return short read (%zd bytes not %d) "
-			    "for block at %08x\n", ops.retlen, ops.len,
+			    "for block at %08x\n", ops.oobretlen, ops.ooblen,
 			    jeb->offset));
 		return -EIO;
 	}
@@ -1089,8 +1087,7 @@ int jffs2_write_nand_cleanmarker(struct jffs2_sb_info *c,
 	n.nodetype = cpu_to_je16(JFFS2_NODETYPE_CLEANMARKER);
 	n.totlen = cpu_to_je32(8);
 
-	ops.len = c->fsdata_len;
-	ops.ooblen = c->fsdata_len;;
+	ops.ooblen = c->fsdata_len;
 	ops.oobbuf = (uint8_t *)&n;
 	ops.ooboffs = c->fsdata_pos;
 	ops.datbuf = NULL;
@@ -1104,10 +1101,10 @@ int jffs2_write_nand_cleanmarker(struct jffs2_sb_info *c,
 			  jeb->offset, ret));
 		return ret;
 	}
-	if (ops.retlen != ops.len) {
+	if (ops.oobretlen != ops.ooblen) {
 		D1(printk(KERN_WARNING "jffs2_write_nand_cleanmarker(): "
 			  "Short write for block at %08x: %zd not %d\n",
-			  jeb->offset, ops.retlen, ops.len));
+			  jeb->offset, ops.oobretlen, ops.ooblen));
 		return -EIO;
 	}
 	return 0;

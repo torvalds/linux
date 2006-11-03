@@ -499,13 +499,12 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		if (ret)
 			return ret;
 
-		ops.len = buf.length;
 		ops.ooblen = buf.length;
 		ops.ooboffs = buf.start & (mtd->oobsize - 1);
 		ops.datbuf = NULL;
 		ops.mode = MTD_OOB_PLACE;
 
-		if (ops.ooboffs && ops.len > (mtd->oobsize - ops.ooboffs))
+		if (ops.ooboffs && ops.ooblen > (mtd->oobsize - ops.ooboffs))
 			return -EINVAL;
 
 		ops.oobbuf = kmalloc(buf.length, GFP_KERNEL);
@@ -520,7 +519,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		buf.start &= ~(mtd->oobsize - 1);
 		ret = mtd->write_oob(mtd, buf.start, &ops);
 
-		if (copy_to_user(argp + sizeof(uint32_t), &ops.retlen,
+		if (copy_to_user(argp + sizeof(uint32_t), &ops.oobretlen,
 				 sizeof(uint32_t)))
 			ret = -EFAULT;
 
@@ -548,7 +547,6 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		if (ret)
 			return ret;
 
-		ops.len = buf.length;
 		ops.ooblen = buf.length;
 		ops.ooboffs = buf.start & (mtd->oobsize - 1);
 		ops.datbuf = NULL;
@@ -564,10 +562,10 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		buf.start &= ~(mtd->oobsize - 1);
 		ret = mtd->read_oob(mtd, buf.start, &ops);
 
-		if (put_user(ops.retlen, (uint32_t __user *)argp))
+		if (put_user(ops.oobretlen, (uint32_t __user *)argp))
 			ret = -EFAULT;
-		else if (ops.retlen && copy_to_user(buf.ptr, ops.oobbuf,
-						    ops.retlen))
+		else if (ops.oobretlen && copy_to_user(buf.ptr, ops.oobbuf,
+						    ops.oobretlen))
 			ret = -EFAULT;
 
 		kfree(ops.oobbuf);
