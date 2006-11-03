@@ -15,9 +15,9 @@
 #include <linux/list.h>
 
 struct ipx_address {
-	__u32   net;
+	__be32  net;
 	__u8    node[IPX_NODE_LEN]; 
-	__u16   sock;
+	__be16  sock;
 };
 
 #define ipx_broadcast_node	"\377\377\377\377\377\377"
@@ -28,7 +28,7 @@ struct ipx_address {
 struct ipxhdr {
 	__u16			ipx_checksum __attribute__ ((packed));
 #define IPX_NO_CHECKSUM	0xFFFF
-	__u16			ipx_pktsize __attribute__ ((packed));
+	__be16			ipx_pktsize __attribute__ ((packed));
 	__u8			ipx_tctrl;
 	__u8			ipx_type;
 #define IPX_TYPE_UNKNOWN	0x00
@@ -48,14 +48,14 @@ static __inline__ struct ipxhdr *ipx_hdr(struct sk_buff *skb)
 
 struct ipx_interface {
 	/* IPX address */
-	__u32			if_netnum;
+	__be32			if_netnum;
 	unsigned char		if_node[IPX_NODE_LEN];
 	atomic_t		refcnt;
 
 	/* physical device info */
 	struct net_device	*if_dev;
 	struct datalink_proto	*if_dlink;
-	unsigned short		if_dlink_type;
+	__be16			if_dlink_type;
 
 	/* socket support */
 	unsigned short		if_sknum;
@@ -71,7 +71,7 @@ struct ipx_interface {
 };
 
 struct ipx_route {
-	__u32			ir_net;
+	__be32			ir_net;
 	struct ipx_interface	*ir_intrfc;
 	unsigned char		ir_routed;
 	unsigned char		ir_router_node[IPX_NODE_LEN];
@@ -82,10 +82,10 @@ struct ipx_route {
 #ifdef __KERNEL__
 struct ipx_cb {
 	u8	ipx_tctrl;
-	u32	ipx_dest_net;
-	u32	ipx_source_net;
+	__be32	ipx_dest_net;
+	__be32	ipx_source_net;
 	struct {
-		u32 netnum;
+		__be32 netnum;
 		int index;
 	} last_hop;
 };
@@ -97,7 +97,7 @@ struct ipx_sock {
 	struct sock		sk;
 	struct ipx_address	dest_addr;
 	struct ipx_interface	*intrfc;
-	unsigned short		port;
+	__be16			port;
 #ifdef CONFIG_IPX_INTERN
 	unsigned char		node[IPX_NODE_LEN];
 #endif
@@ -132,7 +132,7 @@ extern struct ipx_interface *ipx_primary_net;
 extern int ipx_proc_init(void);
 extern void ipx_proc_exit(void);
 
-extern const char *ipx_frame_name(unsigned short);
+extern const char *ipx_frame_name(__be16);
 extern const char *ipx_device_name(struct ipx_interface *intrfc);
 
 static __inline__ void ipxitf_hold(struct ipx_interface *intrfc)

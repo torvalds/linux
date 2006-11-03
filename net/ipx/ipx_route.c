@@ -20,16 +20,16 @@ DEFINE_RWLOCK(ipx_routes_lock);
 extern struct ipx_interface *ipx_internal_net;
 
 extern __u16 ipx_cksum(struct ipxhdr *packet, int length);
-extern struct ipx_interface *ipxitf_find_using_net(__u32 net);
+extern struct ipx_interface *ipxitf_find_using_net(__be32 net);
 extern int ipxitf_demux_socket(struct ipx_interface *intrfc,
 			       struct sk_buff *skb, int copy);
 extern int ipxitf_demux_socket(struct ipx_interface *intrfc,
 			       struct sk_buff *skb, int copy);
 extern int ipxitf_send(struct ipx_interface *intrfc, struct sk_buff *skb,
 		       char *node);
-extern struct ipx_interface *ipxitf_find_using_net(__u32 net);
+extern struct ipx_interface *ipxitf_find_using_net(__be32 net);
 
-struct ipx_route *ipxrtr_lookup(__u32 net)
+struct ipx_route *ipxrtr_lookup(__be32 net)
 {
 	struct ipx_route *r;
 
@@ -48,7 +48,7 @@ unlock:
 /*
  * Caller must hold a reference to intrfc
  */
-int ipxrtr_add_route(__u32 network, struct ipx_interface *intrfc,
+int ipxrtr_add_route(__be32 network, struct ipx_interface *intrfc,
 		     unsigned char *node)
 {
 	struct ipx_route *rt;
@@ -118,7 +118,7 @@ out:
 	return rc;
 }
 
-static int ipxrtr_delete(__u32 net)
+static int ipxrtr_delete(__be32 net)
 {
 	struct ipx_route *r, *tmp;
 	int rc;
