@@ -714,22 +714,26 @@ static int pcmcia_requery(struct device *dev, void * _data)
 	return 0;
 }
 
-static void pcmcia_bus_rescan(struct pcmcia_socket *skt)
+static void pcmcia_bus_rescan(struct pcmcia_socket *skt, int new_cis)
 {
-	int no_devices=0;
+	int no_devices = 0;
 	int ret = 0;
 	unsigned long flags;
 
 	/* must be called with skt_mutex held */
 	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
 	if (list_empty(&skt->devices_list))
-		no_devices=1;
+		no_devices = 1;
 	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+
+	/* If this is because of a CIS override, start over */
+	if (new_cis && !no_devices)
+		pcmcia_card_remove(skt, NULL);
 
 	/* if no devices were added for this socket yet because of
 	 * missing resource information or other trouble, we need to
 	 * do this now. */
-	if (no_devices) {
+	if (no_devices || new_cis) {
 		ret = pcmcia_card_add(skt);
 		if (ret)
 			return;
