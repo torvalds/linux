@@ -878,7 +878,7 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 		params = NFA_DATA(nfula[NFULA_CFG_MODE-1]);
 
 		nfulnl_set_mode(inst, params->copy_mode,
-				ntohs(params->copy_range));
+				ntohl(params->copy_range));
 	}
 
 	if (nfula[NFULA_CFG_TIMEOUT-1]) {
