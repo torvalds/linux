@@ -896,8 +896,8 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 	}
 
 	if (nfula[NFULA_CFG_QTHRESH-1]) {
-		u_int32_t qthresh = 
-			*(u_int16_t *)NFA_DATA(nfula[NFULA_CFG_QTHRESH-1]);
+		__be32 qthresh =
+			*(__be32 *)NFA_DATA(nfula[NFULA_CFG_QTHRESH-1]);
 
 		nfulnl_set_qthresh(inst, ntohl(qthresh));
 	}
