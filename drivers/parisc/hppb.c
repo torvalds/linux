@@ -10,10 +10,6 @@
 ** the Free Software Foundation; either version 2 of the License, or
 ** (at your option) any later version.
 **
-** This Driver currently only supports the console (port 0) on the MUX.
-** Additional work will be needed on this driver to enable the full
-** functionality of the MUX.
-**
 */
 
 #include <linux/types.h>
@@ -67,7 +63,7 @@ static int hppb_probe(struct parisc_device *dev)
 		}
 		card = card->next;
 	}
-        printk(KERN_INFO "Found GeckoBoa at 0x%lx\n", dev->hpa.start);
+        printk(KERN_INFO "Found GeckoBoa at 0x%x\n", dev->hpa.start);
 
 	card->hpa = dev->hpa.start;
 	card->mmio_region.name = "HP-PB Bus";
@@ -78,16 +74,18 @@ static int hppb_probe(struct parisc_device *dev)
 
 	status = ccio_request_resource(dev, &card->mmio_region);
 	if(status < 0) {
-		printk(KERN_ERR "%s: failed to claim HP-PB bus space (%08lx, %08lx)\n",
+		printk(KERN_ERR "%s: failed to claim HP-PB bus space (%08x, %08x)\n",
 			__FILE__, card->mmio_region.start, card->mmio_region.end);
 	}
 
         return 0;
 }
 
-
 static struct parisc_device_id hppb_tbl[] = {
-        { HPHW_BCPORT, HVERSION_REV_ANY_ID, 0x500, 0xc }, 
+        { HPHW_BCPORT, HVERSION_REV_ANY_ID, 0x500, 0xc }, /* E25 and K */
+        { HPHW_BCPORT, 0x0, 0x501, 0xc }, /* E35 */
+        { HPHW_BCPORT, 0x0, 0x502, 0xc }, /* E45 */
+        { HPHW_BCPORT, 0x0, 0x503, 0xc }, /* E55 */
         { 0, }
 };
 
