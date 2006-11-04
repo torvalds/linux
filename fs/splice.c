@@ -1109,6 +1109,19 @@ out_release:
 EXPORT_SYMBOL(do_splice_direct);
 
 /*
+ * After the inode slimming patch, i_pipe/i_bdev/i_cdev share the same
+ * location, so checking ->i_pipe is not enough to verify that this is a
+ * pipe.
+ */
+static inline struct pipe_inode_info *pipe_info(struct inode *inode)
+{
+	if (S_ISFIFO(inode->i_mode))
+		return inode->i_pipe;
+
+	return NULL;
+}
+
+/*
  * Determine where to splice to/from.
  */
 static long do_splice(struct file *in, loff_t __user *off_in,
@@ -1119,7 +1132,7 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 	loff_t offset, *off;
 	long ret;
 
-	pipe = in->f_dentry->d_inode->i_pipe;
+	pipe = pipe_info(in->f_dentry->d_inode);
 	if (pipe) {
 		if (off_in)
 			return -ESPIPE;
@@ -1140,7 +1153,7 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 		return ret;
 	}
 
-	pipe = out->f_dentry->d_inode->i_pipe;
+	pipe = pipe_info(out->f_dentry->d_inode);
 	if (pipe) {
 		if (off_out)
 			return -ESPIPE;
@@ -1298,7 +1311,7 @@ static int get_iovec_page_array(const struct iovec __user *iov,
 static long do_vmsplice(struct file *file, const struct iovec __user *iov,
 			unsigned long nr_segs, unsigned int flags)
 {
-	struct pipe_inode_info *pipe = file->f_dentry->d_inode->i_pipe;
+	struct pipe_inode_info *pipe;
 	struct page *pages[PIPE_BUFFERS];
 	struct partial_page partial[PIPE_BUFFERS];
 	struct splice_pipe_desc spd = {
@@ -1308,7 +1321,8 @@ static long do_vmsplice(struct file *file, const struct iovec __user *iov,
 		.ops = &user_page_pipe_buf_ops,
 	};
 
-	if (unlikely(!pipe))
+	pipe = pipe_info(file->f_dentry->d_inode);
+	if (!pipe)
 		return -EBADF;
 	if (unlikely(nr_segs > UIO_MAXIOV))
 		return -EINVAL;
@@ -1535,8 +1549,8 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 static long do_tee(struct file *in, struct file *out, size_t len,
 		   unsigned int flags)
 {
-	struct pipe_inode_info *ipipe = in->f_dentry->d_inode->i_pipe;
-	struct pipe_inode_info *opipe = out->f_dentry->d_inode->i_pipe;
+	struct pipe_inode_info *ipipe = pipe_info(in->f_dentry->d_inode);
+	struct pipe_inode_info *opipe = pipe_info(out->f_dentry->d_inode);
 	int ret = -EINVAL;
 
 	/*
