@@ -591,18 +591,14 @@ static struct sbp2_command_info *sbp2util_allocate_command_orb(
 	return cmd;
 }
 
-static void sbp2util_free_command_dma(struct sbp2_command_info *cmd)
+/*
+ * Unmaps the DMAs of a command and moves the command to the completed ORB list.
+ * Must be called with lu->cmd_orb_lock held.
+ */
+static void sbp2util_mark_command_completed(struct sbp2_lu *lu,
+					    struct sbp2_command_info *cmd)
 {
-	struct sbp2_lu *lu = (struct sbp2_lu *)
-			cmd->Current_SCpnt->device->host->hostdata[0];
-	struct hpsb_host *host;
-
-	if (!lu) {
-		SBP2_ERR("%s: lu == NULL", __FUNCTION__);
-		return;
-	}
-
-	host = lu->ud->ne->host;
+	struct hpsb_host *host = lu->ud->ne->host;
 
 	if (cmd->cmd_dma) {
 		if (cmd->dma_type == CMD_DMA_SINGLE)
@@ -615,23 +611,11 @@ static void sbp2util_free_command_dma(struct sbp2_command_info *cmd)
 		cmd->dma_type = CMD_DMA_NONE;
 		cmd->cmd_dma = 0;
 	}
-
 	if (cmd->sge_buffer) {
 		pci_unmap_sg(host->pdev, cmd->sge_buffer,
 			     cmd->dma_size, cmd->dma_dir);
 		cmd->sge_buffer = NULL;
 	}
-}
-
-/*
- * This function moves a command to the completed orb list.
- * Must be called with lu->cmd_orb_lock held.
- */
-static void sbp2util_mark_command_completed(
-		struct sbp2_lu *lu,
-		struct sbp2_command_info *cmd)
-{
-	sbp2util_free_command_dma(cmd);
 	list_move_tail(&cmd->list, &lu->cmd_orb_completed);
 }
 
