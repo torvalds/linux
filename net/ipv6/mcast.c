@@ -1465,7 +1465,7 @@ static void mld_sendpack(struct sk_buff *skb)
 	struct inet6_dev *idev = in6_dev_get(skb->dev);
 	int err;
 
-	IP6_INC_STATS(IPSTATS_MIB_OUTREQUESTS);
+	IP6_INC_STATS(idev, IPSTATS_MIB_OUTREQUESTS);
 	payload_len = skb->tail - (unsigned char *)skb->nh.ipv6h -
 		sizeof(struct ipv6hdr);
 	mldlen = skb->tail - skb->h.raw;
@@ -1477,9 +1477,9 @@ static void mld_sendpack(struct sk_buff *skb)
 		mld_dev_queue_xmit);
 	if (!err) {
 		ICMP6_INC_STATS(idev,ICMP6_MIB_OUTMSGS);
-		IP6_INC_STATS(IPSTATS_MIB_OUTMCASTPKTS);
+		IP6_INC_STATS(idev, IPSTATS_MIB_OUTMCASTPKTS);
 	} else
-		IP6_INC_STATS(IPSTATS_MIB_OUTDISCARDS);
+		IP6_INC_STATS(idev, IPSTATS_MIB_OUTDISCARDS);
 
 	if (likely(idev != NULL))
 		in6_dev_put(idev);
@@ -1763,7 +1763,10 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 		     IPV6_TLV_ROUTERALERT, 2, 0, 0,
 		     IPV6_TLV_PADN, 0 };
 
-	IP6_INC_STATS(IPSTATS_MIB_OUTREQUESTS);
+	rcu_read_lock();
+	IP6_INC_STATS(__in6_dev_get(dev),
+		      IPSTATS_MIB_OUTREQUESTS);
+	rcu_read_unlock();
 	snd_addr = addr;
 	if (type == ICMPV6_MGM_REDUCTION) {
 		snd_addr = &all_routers;
@@ -1777,7 +1780,10 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	skb = sock_alloc_send_skb(sk, LL_RESERVED_SPACE(dev) + full_len, 1, &err);
 
 	if (skb == NULL) {
-		IP6_INC_STATS(IPSTATS_MIB_OUTDISCARDS);
+		rcu_read_lock();
+		IP6_INC_STATS(__in6_dev_get(dev),
+			      IPSTATS_MIB_OUTDISCARDS);
+		rcu_read_unlock();
 		return;
 	}
 
@@ -1816,9 +1822,9 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 		else
 			ICMP6_INC_STATS(idev, ICMP6_MIB_OUTGROUPMEMBRESPONSES);
 		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTMSGS);
-		IP6_INC_STATS(IPSTATS_MIB_OUTMCASTPKTS);
+		IP6_INC_STATS(idev, IPSTATS_MIB_OUTMCASTPKTS);
 	} else
-		IP6_INC_STATS(IPSTATS_MIB_OUTDISCARDS);
+		IP6_INC_STATS(idev, IPSTATS_MIB_OUTDISCARDS);
 
 	if (likely(idev != NULL))
 		in6_dev_put(idev);

@@ -161,6 +161,7 @@ static int snmp6_seq_show(struct seq_file *seq, void *v)
 
 	if (idev) {
 		seq_printf(seq, "%-32s\t%u\n", "ifIndex", idev->dev->ifindex);
+		snmp6_seq_show_item(seq, (void **)idev->stats.ipv6, snmp6_ipstats_list);
 		snmp6_seq_show_item(seq, (void **)idev->stats.icmpv6, snmp6_icmp6_list);
 	} else {
 		snmp6_seq_show_item(seq, (void **)ipv6_statistics, snmp6_ipstats_list);
@@ -281,6 +282,9 @@ int snmp6_alloc_dev(struct inet6_dev *idev)
 	if (!idev || !idev->dev)
 		return -EINVAL;
 
+	if (snmp6_mib_init((void **)idev->stats.ipv6, sizeof(struct ipstats_mib),
+			   __alignof__(struct ipstats_mib)) < 0)
+		goto err_ip;
 	if (snmp6_mib_init((void **)idev->stats.icmpv6, sizeof(struct icmpv6_mib),
 			   __alignof__(struct icmpv6_mib)) < 0)
 		goto err_icmp;
@@ -288,12 +292,15 @@ int snmp6_alloc_dev(struct inet6_dev *idev)
 	return 0;
 
 err_icmp:
+	snmp6_mib_free((void **)idev->stats.ipv6);
+err_ip:
 	return err;
 }
 
 int snmp6_free_dev(struct inet6_dev *idev)
 {
 	snmp6_mib_free((void **)idev->stats.icmpv6);
+	snmp6_mib_free((void **)idev->stats.ipv6);
 	return 0;
 }
 

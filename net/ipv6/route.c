@@ -1749,9 +1749,9 @@ static inline int ip6_pkt_drop(struct sk_buff *skb, int code)
 {
 	int type = ipv6_addr_type(&skb->nh.ipv6h->daddr);
 	if (type == IPV6_ADDR_ANY || type == IPV6_ADDR_RESERVED)
-		IP6_INC_STATS(IPSTATS_MIB_INADDRERRORS);
+		IP6_INC_STATS(ip6_dst_idev(skb->dst), IPSTATS_MIB_INADDRERRORS);
 
-	IP6_INC_STATS(IPSTATS_MIB_OUTNOROUTES);
+	IP6_INC_STATS(ip6_dst_idev(skb->dst), IPSTATS_MIB_OUTNOROUTES);
 	icmpv6_send(skb, ICMPV6_DEST_UNREACH, code, 0, skb->dev);
 	kfree_skb(skb);
 	return 0;
