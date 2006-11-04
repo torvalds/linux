@@ -651,11 +651,6 @@ extern const char *scsi_host_state_name(enum scsi_host_state);
 
 extern u64 scsi_calculate_bounce_limit(struct Scsi_Host *);
 
-static inline void scsi_assign_lock(struct Scsi_Host *shost, spinlock_t *lock)
-{
-	shost->host_lock = lock;
-}
-
 static inline struct device *scsi_get_device(struct Scsi_Host *shost)
 {
         return shost->shost_gendev.parent;

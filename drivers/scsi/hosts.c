@@ -301,8 +301,8 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	if (!shost)
 		return NULL;
 
-	spin_lock_init(&shost->default_lock);
-	scsi_assign_lock(shost, &shost->default_lock);
+	shost->host_lock = &shost->default_lock;
+	spin_lock_init(shost->host_lock);
 	shost->shost_state = SHOST_CREATED;
 	INIT_LIST_HEAD(&shost->__devices);
 	INIT_LIST_HEAD(&shost->__targets);
