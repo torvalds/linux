@@ -505,5 +505,5 @@ void sb1_cache_init(void)
 	:
 	: "memory");
 
-	flush_cache_all();
+	local_sb1___flush_cache_all();
 }
