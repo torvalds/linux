@@ -52,7 +52,7 @@ struct msg_receiver {
 	long			r_msgtype;
 	long			r_maxsize;
 
-	volatile struct msg_msg	*r_msg;
+	struct msg_msg		*volatile r_msg;
 };
 
 /* one msg_sender for each sleeping sender */
