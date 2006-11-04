@@ -184,6 +184,14 @@ config VIDEO_KS0127
 	  To compile this driver as a module, choose M here: the
 	  module will be called ks0127.
 
+config VIDEO_OV7670
+	tristate "OmniVision OV7670 sensor support"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the OmniVision
+	  OV7670 VGA camera.  It currently only works with the M88ALP01
+	  controller.
+
 config VIDEO_SAA7110
 	tristate "Philips SAA7110 video decoder"
 	depends on VIDEO_V4L1 && I2C

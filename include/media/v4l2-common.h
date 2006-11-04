@@ -144,6 +144,9 @@ enum v4l2_chip_ident {
 	V4L2_IDENT_CX25841 = 241,
 	V4L2_IDENT_CX25842 = 242,
 	V4L2_IDENT_CX25843 = 243,
+
+	/* OmniVision sensors - range 250-299 */
+	V4L2_IDENT_OV7670 = 250,
 };
 
 /* audio ioctls */
