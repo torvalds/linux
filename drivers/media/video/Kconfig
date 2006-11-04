@@ -670,6 +670,15 @@ config VIDEO_M32R_AR_M64278
 	  To compile this driver as a module, choose M here: the
 	  module will be called arv.
 
+config VIDEO_CAFE_CCIC
+	tristate "Marvell 88ALP01 (Cafe) CMOS Camera Controller support"
+	depends on I2C && VIDEO_V4L2
+	select VIDEO_OV7670
+	---help---
+	  This is a video4linux2 driver for the Marvell 88ALP01 integrated
+	  CMOS camera controller.  This is the controller found on first-
+	  generation OLPC systems.
+
 #
 # USB Multimedia device configuration
 #
