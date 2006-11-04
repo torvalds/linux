@@ -251,4 +251,8 @@ struct v4l2_crystal_freq {
    If the frequency is not supported, then -EINVAL is returned. */
 #define VIDIOC_INT_S_CRYSTAL_FREQ 	_IOW ('d', 113, struct v4l2_crystal_freq)
 
+/* Initialize the sensor registors to some sort of reasonable
+   default values. */
+#define VIDIOC_INT_INIT			_IOW ('d', 114, u32)
+
 #endif /* V4L2_COMMON_H_ */
