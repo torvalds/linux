@@ -564,6 +564,10 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		|| ((device->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_7) && (usage->hid == 0x00090007)))
 		goto ignore;
 
+	if ((device->quirks & HID_QUIRK_BAD_RELATIVE_KEYS) &&
+	    usage->type == EV_KEY && (field->flags & HID_MAIN_ITEM_RELATIVE))
+		field->flags &= ~HID_MAIN_ITEM_RELATIVE;
+
 	set_bit(usage->type, input->evbit);
 
 	while (usage->code <= max && test_and_set_bit(usage->code, bit))

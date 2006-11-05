@@ -1643,6 +1643,9 @@ void hid_init_reports(struct hid_device *hid)
 #define USB_VENDOR_ID_AIRCABLE		0x16CA
 #define USB_DEVICE_ID_AIRCABLE1		0x1502
 
+#define USB_VENDOR_ID_LOGITECH		0x046d
+#define USB_DEVICE_ID_LOGITECH_USB_RECEIVER	0xc101
+
 /*
  * Alphabetically sorted blacklist by quirk type.
  */
@@ -1811,7 +1814,9 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_PANJIT, 0x0004, HID_QUIRK_IGNORE },
 
 	{ USB_VENDOR_ID_TURBOX, USB_DEVICE_ID_TURBOX_KEYBOARD, HID_QUIRK_NOGET },
-	
+
+	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_USB_RECEIVER, HID_QUIRK_BAD_RELATIVE_KEYS },
+
 	{ 0, 0 }
 };
 

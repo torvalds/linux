@@ -260,6 +260,7 @@ struct hid_item {
 #define HID_QUIRK_POWERBOOK_HAS_FN		0x00001000
 #define HID_QUIRK_POWERBOOK_FN_ON		0x00002000
 #define HID_QUIRK_INVERT_HWHEEL			0x00004000
+#define HID_QUIRK_BAD_RELATIVE_KEYS		0x00008000
 
 /*
  * This is the global environment of the parser. This information is
