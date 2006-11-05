@@ -295,13 +295,15 @@ EXPORT_SYMBOL(__rpc_wait_for_completion_task);
  */
 static void rpc_make_runnable(struct rpc_task *task)
 {
-	int do_ret;
-
 	BUG_ON(task->tk_timeout_fn);
-	do_ret = rpc_test_and_set_running(task);
 	rpc_clear_queued(task);
-	if (do_ret)
+	if (rpc_test_and_set_running(task))
 		return;
+	/* We might have raced */
+	if (RPC_IS_QUEUED(task)) {
+		rpc_clear_running(task);
+		return;
+	}
 	if (RPC_IS_ASYNC(task)) {
 		int status;
 
