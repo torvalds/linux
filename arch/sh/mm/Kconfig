@@ -4,8 +4,12 @@ menu "Processor selection"
 # Processor families
 #
 config CPU_SH2
+	select SH_WRITETHROUGH if !CPU_SH2A
 	bool
-	select SH_WRITETHROUGH
+
+config CPU_SH2A
+	bool
+	select CPU_SH2
 
 config CPU_SH3
 	bool
@@ -39,6 +43,16 @@ comment "SH-2 Processor Support"
 config CPU_SUBTYPE_SH7604
 	bool "Support SH7604 processor"
 	select CPU_SH2
+
+config CPU_SUBTYPE_SH7619
+	bool "Support SH7619 processor"
+	select CPU_SH2
+
+comment "SH-2A Processor Support"
+
+config CPU_SUBTYPE_SH7206
+	bool "Support SH7206 processor"
+	select CPU_SH2A
 
 comment "SH-3 Processor Support"
 
@@ -274,7 +288,6 @@ config SH_DIRECT_MAPPED
 
 config SH_WRITETHROUGH
 	bool "Use write-through caching"
-	default y if CPU_SH2
 	help
 	  Selecting this option will configure the caches in write-through
 	  mode, as opposed to the default write-back configuration.

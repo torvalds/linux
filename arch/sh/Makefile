@@ -109,6 +109,8 @@ machdir-$(CONFIG_SH_SH4202_MICRODEV)		:= superh/microdev
 machdir-$(CONFIG_SH_LANDISK)			:= landisk
 machdir-$(CONFIG_SH_TITAN)			:= titan
 machdir-$(CONFIG_SH_SHMIN)			:= shmin
+machdir-$(CONFIG_SH_7206_SOLUTION_ENGINE)	:= se/7206
+machdir-$(CONFIG_SH_7619_SOLUTION_ENGINE)	:= se/7619
 machdir-$(CONFIG_SH_UNKNOWN)			:= unknown
 
 incdir-y			:= $(notdir $(machdir-y))
@@ -124,6 +126,7 @@ core-$(CONFIG_HD64465)		+= arch/sh/cchips/hd6446x/hd64465/
 core-$(CONFIG_VOYAGERGX)	+= arch/sh/cchips/voyagergx/
 
 cpuincdir-$(CONFIG_CPU_SH2)	:= cpu-sh2
+cpuincdir-$(CONFIG_CPU_SH2A)	:= cpu-sh2a
 cpuincdir-$(CONFIG_CPU_SH3)	:= cpu-sh3
 cpuincdir-$(CONFIG_CPU_SH4)	:= cpu-sh4
 

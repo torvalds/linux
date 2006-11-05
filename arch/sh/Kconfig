@@ -219,6 +219,20 @@ config SH_SHMIN
 	help
 	  Select SHMIN if configuring for the SHMIN board.
 
+config SH_7206_SOLUTION_ENGINE
+	bool "SolutionEngine7206"
+	select CPU_SUBTYPE_SH7206
+	help
+	  Select 7206 SolutionEngine if configuring for a Hitachi SH7206
+	  evaluation board.
+
+config SH_7619_SOLUTION_ENGINE
+	bool "SolutionEngine7619"
+	select CPU_SUBTYPE_SH7619
+	help
+	  Select 7619 SolutionEngine if configuring for a Hitachi SH7619
+	  evaluation board.
+
 config SH_UNKNOWN
 	bool "BareCPU"
 	help
@@ -364,9 +378,24 @@ depends on !GENERIC_TIME
 
 config SH_TMU
 	bool "TMU timer support"
+	depends on CPU_SH3 || CPU_SH4
 	default y
 	help
 	  This enables the use of the TMU as the system timer.
+
+config SH_CMT
+	bool "CMT timer support"
+	depends on CPU_SH2
+	default y
+	help
+	  This enables the use of the CMT as the system timer.
+
+config SH_MTU2
+	bool "MTU2 timer support"
+	depends on CPU_SH2A
+	default n
+	help
+	  This enables the use of the MTU2 as the system timer.
 
 endmenu
 
@@ -378,16 +407,24 @@ source "arch/sh/boards/renesas/r7780rp/Kconfig"
 
 config SH_PCLK_FREQ
 	int "Peripheral clock frequency (in Hz)"
+	default "27000000" if CPU_SUBTYPE_SH73180 || CPU_SUBTYPE_SH7343
+	default "31250000" if CPU_SUBTYPE_SH7619
+	default "33333333" if CPU_SUBTYPE_SH7300 || CPU_SUBTYPE_SH7770 || \
+			      CPU_SUBTYPE_SH7760 || CPU_SUBTYPE_SH7705 || \
+			      CPU_SUBTYPE_SH7206
 	default "50000000" if CPU_SUBTYPE_SH7750 || CPU_SUBTYPE_SH7780
 	default "60000000" if CPU_SUBTYPE_SH7751
-	default "33333333" if CPU_SUBTYPE_SH7300 || CPU_SUBTYPE_SH7770 || \
-			      CPU_SUBTYPE_SH7760 || CPU_SUBTYPE_SH7705
-	default "27000000" if CPU_SUBTYPE_SH73180 || CPU_SUBTYPE_SH7343
 	default "66000000" if CPU_SUBTYPE_SH4_202
 	help
 	  This option is used to specify the peripheral clock frequency.
 	  This is necessary for determining the reference clock value on
 	  platforms lacking an RTC.
+
+config SH_CLK_MD
+	int "CPU Mode Pin Setting"
+	depends on CPU_SUBTYPE_SH7619 || CPU_SUBTYPE_SH7206
+	help
+	  MD2 - MD0 Setting.
 
 menu "CPU Frequency scaling"
 

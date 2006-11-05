@@ -98,7 +98,11 @@ sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
  */
 
 #define MOVW(n)	 (0x9300|((n)-2))	/* Move mem word at PC+n to R3 */
-#define TRAP16	 0xc310			/* Syscall w/no args (NR in R3) */
+#if defined(CONFIG_CPU_SH2) || defined(CONFIG_CPU_SH2A)
+#define TRAP_NOARG 0xc320		/* Syscall w/no args (NR in R3) */
+#else
+#define TRAP_NOARG 0xc310		/* Syscall w/no args (NR in R3) */
+#endif
 #define OR_R0_R0 0x200b			/* or r0,r0 (insert to avoid hardware bug) */
 
 struct sigframe
@@ -350,7 +354,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	} else {
 		/* Generate return code (system call to sigreturn) */
 		err |= __put_user(MOVW(7), &frame->retcode[0]);
-		err |= __put_user(TRAP16, &frame->retcode[1]);
+		err |= __put_user(TRAP_NOARG, &frame->retcode[1]);
 		err |= __put_user(OR_R0_R0, &frame->retcode[2]);
 		err |= __put_user(OR_R0_R0, &frame->retcode[3]);
 		err |= __put_user(OR_R0_R0, &frame->retcode[4]);
@@ -430,7 +434,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	} else {
 		/* Generate return code (system call to rt_sigreturn) */
 		err |= __put_user(MOVW(7), &frame->retcode[0]);
-		err |= __put_user(TRAP16, &frame->retcode[1]);
+		err |= __put_user(TRAP_NOARG, &frame->retcode[1]);
 		err |= __put_user(OR_R0_R0, &frame->retcode[2]);
 		err |= __put_user(OR_R0_R0, &frame->retcode[3]);
 		err |= __put_user(OR_R0_R0, &frame->retcode[4]);

@@ -4,7 +4,7 @@
 
 extra-y	:= head.o init_task.o vmlinux.lds
 
-obj-y	:= process.o signal.o entry.o traps.o irq.o \
+obj-y	:= process.o signal.o traps.o irq.o \
 	ptrace.o setup.o time.o sys_sh.o semaphore.o \
 	io.o io_generic.o sh_ksyms.o syscalls.o
 

@@ -133,6 +133,20 @@
 # define SCIF_ORER	0x0001		/* Overrun error bit */
 # define SCSCR_INIT(port)	0x3a	/* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 # define SCIF_ONLY
+#elif defined(CONFIG_CPU_SUBTYPE_SH7206)
+# define SCSPTR0 0xfffe8020 /* 16 bit SCIF */
+# define SCSPTR1 0xfffe8820 /* 16 bit SCIF */
+# define SCSPTR2 0xfffe9020 /* 16 bit SCIF */
+# define SCSPTR3 0xfffe9820 /* 16 bit SCIF */
+# define SCSCR_INIT(port)	0x38 /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
+# define SCIF_ONLY
+#elif defined(CONFIG_CPU_SUBTYPE_SH7619)
+# define SCSPTR0 0xf8400020 /* 16 bit SCIF */
+# define SCSPTR1 0xf8410020 /* 16 bit SCIF */
+# define SCSPTR2 0xf8420020 /* 16 bit SCIF */
+# define SCIF_ORER 0x0001  /* overrun error bit */
+# define SCSCR_INIT(port)	0x38 /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
+# define SCIF_ONLY
 #else
 # error CPU subtype not defined
 #endif
@@ -543,6 +557,28 @@ static inline int sci_rxd_in(struct uart_port *port)
 		return ctrl_inw(SCSPTR0) & 0x0001 ? 1 : 0; /* SCIF */
 	if (port->mapbase == 0xffe10000)
 		return ctrl_inw(SCSPTR1) & 0x0001 ? 1 : 0; /* SCIF */
+}
+#elif defined(CONFIG_CPU_SUBTYPE_SH7206)
+static inline int sci_rxd_in(struct uart_port *port)
+{
+	if (port->mapbase == 0xfffe8000)
+		return ctrl_inw(SCSPTR0) & 0x0001 ? 1 : 0; /* SCIF */
+	if (port->mapbase == 0xfffe8800)
+		return ctrl_inw(SCSPTR1) & 0x0001 ? 1 : 0; /* SCIF */
+	if (port->mapbase == 0xfffe9000)
+		return ctrl_inw(SCSPTR2) & 0x0001 ? 1 : 0; /* SCIF */
+	if (port->mapbase == 0xfffe9800)
+		return ctrl_inw(SCSPTR3) & 0x0001 ? 1 : 0; /* SCIF */
+}
+#elif defined(CONFIG_CPU_SUBTYPE_SH7619)
+static inline int sci_rxd_in(struct uart_port *port)
+{
+	if (port->mapbase == 0xf8400000)
+		return ctrl_inw(SCSPTR0) & 0x0001 ? 1 : 0; /* SCIF */
+	if (port->mapbase == 0xf8410000)
+		return ctrl_inw(SCSPTR1) & 0x0001 ? 1 : 0; /* SCIF */
+	if (port->mapbase == 0xf8420000)
+		return ctrl_inw(SCSPTR2) & 0x0001 ? 1 : 0; /* SCIF */
 }
 #endif
 
