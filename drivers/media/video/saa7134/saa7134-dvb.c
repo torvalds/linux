@@ -900,6 +900,18 @@ static struct tda1004x_config pinnacle_pctv_310i_config = {
 
 /* ------------------------------------------------------------------ */
 
+static struct tda1004x_config hauppauge_hvr_1110_config = {
+	.demod_address = 0x08,
+	.invert        = 1,
+	.invert_oclk   = 0,
+	.xtal_freq     = TDA10046_XTAL_16M,
+	.agc_config    = TDA10046_AGC_TDA827X,
+	.if_freq       = TDA10046_FREQ_045,
+	.request_firmware = philips_tda1004x_request_firmware,
+};
+
+/* ------------------------------------------------------------------ */
+
 static struct tda1004x_config asus_p7131_dual_config = {
 	.demod_address = 0x08,
 	.invert        = 1,
@@ -1213,6 +1225,17 @@ static int dvb_init(struct saa7134_dev *dev)
 	case SAA7134_BOARD_PINNACLE_PCTV_310i:
 		dev->dvb.frontend = dvb_attach(tda10046_attach,
 					       &pinnacle_pctv_310i_config,
+					       &dev->i2c_adap);
+		if (dev->dvb.frontend) {
+			dev->dvb.frontend->ops.i2c_gate_ctrl = tda8290_i2c_gate_ctrl;
+			dev->dvb.frontend->ops.tuner_ops.init = philips_tiger_tuner_init;
+			dev->dvb.frontend->ops.tuner_ops.sleep = philips_tiger_tuner_sleep;
+			dev->dvb.frontend->ops.tuner_ops.set_params = philips_tiger_tuner_set_params;
+		}
+		break;
+	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
+		dev->dvb.frontend = dvb_attach(tda10046_attach,
+					       &hauppauge_hvr_1110_config,
 					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
 			dev->dvb.frontend->ops.i2c_gate_ctrl = tda8290_i2c_gate_ctrl;

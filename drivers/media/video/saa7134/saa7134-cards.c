@@ -3126,6 +3126,28 @@ struct saa7134_board saa7134_boards[] = {
 			.amux   = LINE2,
 		}},
 	},
+	[SAA7134_BOARD_HAUPPAUGE_HVR1110] = {
+		/* Thomas Genty <tomlohave@gmail.com> */
+		.name           = "Hauppauge WinTV-HVR1110 DVB-T/Hybrid",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.gpiomask       = 0x000200000,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+		}},
+		.radio = {
+			.name = name_radio,
+			.amux   = TV,
+			.gpio   = 0x0200000,
+		},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -3753,6 +3775,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x4876,
 		.driver_data  = SAA7134_BOARD_ASUSTeK_P7131_DUAL,
 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x0070,
+		.subdevice    = 0x6701,
+		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1110,
+	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -4053,6 +4081,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 	case SAA7134_BOARD_TEVION_DVBT_220RF:
 	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
 	case SAA7134_BOARD_MEDION_MD8800_QUADRO:
+	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
 		/* this is a hybrid board, initialize to analog mode
 		 * and configure firmware eeprom address
 		 */
