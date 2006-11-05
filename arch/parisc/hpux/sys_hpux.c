@@ -61,7 +61,7 @@ int hpux_ptrace(void)
 	return -ENOSYS;
 }
 
-int hpux_wait(int *stat_loc)
+int hpux_wait(int __user *stat_loc)
 {
 	return sys_waitpid(-1, stat_loc, 0);
 }
@@ -255,7 +255,7 @@ asmlinkage long hpux_fstatfs(unsigned int fd, struct hpux_statfs __user * buf)
 /*  TODO: Are these put_user calls OK?  Should they pass an int?
  *        (I copied it from sys_i386.c like this.)
  */
-static int hpux_uname(struct hpux_utsname *name)
+static int hpux_uname(struct hpux_utsname __user *name)
 {
 	int error;
 
@@ -300,14 +300,14 @@ static int hpux_uname(struct hpux_utsname *name)
 /*  Note: HP-UX just uses the old suser() function to check perms
  *  in this system call.  We'll use capable(CAP_SYS_ADMIN).
  */
-int hpux_utssys(char *ubuf, int n, int type)
+int hpux_utssys(char __user *ubuf, int n, int type)
 {
 	int len;
 	int error;
 	switch( type ) {
 	case 0:
 		/*  uname():  */
-		return( hpux_uname( (struct hpux_utsname *)ubuf ) );
+		return hpux_uname((struct hpux_utsname __user *)ubuf);
 		break ;
 	case 1:
 		/*  Obsolete (used to be umask().)  */
@@ -315,8 +315,9 @@ int hpux_utssys(char *ubuf, int n, int type)
 		break ;
 	case 2:
 		/*  ustat():  */
-		return( hpux_ustat(new_decode_dev(n), (struct hpux_ustat *)ubuf) );
-		break ;
+		return hpux_ustat(new_decode_dev(n),
+				  (struct hpux_ustat __user *)ubuf);
+		break;
 	case 3:
 		/*  setuname():
 		 *
@@ -332,7 +333,7 @@ int hpux_utssys(char *ubuf, int n, int type)
 			return -EINVAL ;
 		/*  Unlike Linux, HP-UX truncates it if n is too big:  */
 		len = (n <= __NEW_UTS_LEN) ? n : __NEW_UTS_LEN ;
-		return( sys_sethostname(ubuf, len) );
+		return sys_sethostname(ubuf, len);
 		break ;
 	case 4:
 		/*  sethostname():
@@ -346,7 +347,7 @@ int hpux_utssys(char *ubuf, int n, int type)
 			return -EINVAL ;
 		/*  Unlike Linux, HP-UX truncates it if n is too big:  */
 		len = (n <= __NEW_UTS_LEN) ? n : __NEW_UTS_LEN ;
-		return( sys_sethostname(ubuf, len) );
+		return sys_sethostname(ubuf, len);
 		break ;
 	case 5:
 		/*  gethostname():
@@ -356,7 +357,7 @@ int hpux_utssys(char *ubuf, int n, int type)
 		/*  Unlike Linux, HP-UX returns an error if n==0:  */
 		if ( n <= 0 )
 			return -EINVAL ;
-		return( sys_gethostname(ubuf, n) );
+		return sys_gethostname(ubuf, n);
 		break ;
 	case 6:
 		/*  Supposedly called from setuname() in libc.
@@ -420,7 +421,7 @@ int hpux_utssys(char *ubuf, int n, int type)
 	}
 }
 
-int hpux_getdomainname(char *name, int len)
+int hpux_getdomainname(char __user *name, int len)
 {
  	int nlen;
  	int err = -EFAULT;
@@ -471,17 +472,18 @@ int hpux_sysfs(int opcode, unsigned long arg1, unsigned long arg2)
 	printk(KERN_DEBUG "hpux_sysfs called with arg1='%lx'\n", arg1);
 
 	if ( opcode == 1 ) { /* GETFSIND */	
-		len = strlen_user((char *)arg1);
+		char __user *user_fsname = (char __user *)arg1;
+		len = strlen_user(user_fsname);
 		printk(KERN_DEBUG "len of arg1 = %d\n", len);
 		if (len == 0)
 			return 0;
-		fsname = (char *) kmalloc(len, GFP_KERNEL);
-		if ( !fsname ) {
+		fsname = kmalloc(len, GFP_KERNEL);
+		if (!fsname) {
 			printk(KERN_DEBUG "failed to kmalloc fsname\n");
 			return 0;
 		}
 
-		if ( copy_from_user(fsname, (char *)arg1, len) ) {
+		if (copy_from_user(fsname, user_fsname, len)) {
 			printk(KERN_DEBUG "failed to copy_from_user fsname\n");
 			kfree(fsname);
 			return 0;
@@ -495,7 +497,7 @@ int hpux_sysfs(int opcode, unsigned long arg1, unsigned long arg2)
 			fstype = 0;
 		} else {
 			fstype = 0;
-		};
+		}
 
 		kfree(fsname);
 

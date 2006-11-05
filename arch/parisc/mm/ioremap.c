@@ -128,7 +128,7 @@ remap_area_pages(unsigned long address, unsigned long phys_addr,
  */
 void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned long flags)
 {
-	void *addr;
+	void __iomem *addr;
 	struct vm_struct *area;
 	unsigned long offset, last_addr;
 
@@ -178,13 +178,13 @@ void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned l
 	if (!area)
 		return NULL;
 
-	addr = area->addr;
+	addr = (void __iomem *) area->addr;
 	if (remap_area_pages((unsigned long) addr, phys_addr, size, flags)) {
 		vfree(addr);
 		return NULL;
 	}
 
-	return (void __iomem *) (offset + (char *)addr);
+	return (void __iomem *) (offset + (char __iomem *)addr);
 }
 EXPORT_SYMBOL(__ioremap);
 
