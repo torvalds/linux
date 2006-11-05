@@ -11,6 +11,7 @@
 
 /* Vendor IDs */
 #define USB_VID_ADSTECH				0x06e1
+#define USB_VID_ALCOR_MICRO		0x058f
 #define USB_VID_ANCHOR				0x0547
 #define USB_VID_AVERMEDIA			0x07ca
 #define USB_VID_COMPRO				0x185b
@@ -137,6 +138,7 @@
 #define USB_PID_WINFAST_DTV_DONGLE_STK7700P		0x6f00
 #define USB_PID_GENPIX_8PSK_COLD			0x0200
 #define USB_PID_GENPIX_8PSK_WARM			0x0201
+#define USB_PID_SIGMATEK_DVB_110			0x6610
 
 
 #endif

@@ -36,6 +36,9 @@ obj-$(CONFIG_DVB_USB_M920X) += dvb-usb-m920x.o
 dvb-usb-gl861-objs = gl861.o
 obj-$(CONFIG_DVB_USB_GL861) += dvb-usb-gl861.o
 
+dvb-usb-au6610-objs = au6610.o
+obj-$(CONFIG_DVB_USB_AU6610) += dvb-usb-au6610.o
+
 dvb-usb-digitv-objs = digitv.o
 obj-$(CONFIG_DVB_USB_DIGITV) += dvb-usb-digitv.o
 
