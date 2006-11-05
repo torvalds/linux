@@ -10,8 +10,8 @@
 
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <asm/io.h>
 #include <asm/se7206.h>
+#include <asm/io.h>
 #include <asm/machvec.h>
 
 static struct resource smc91x_resources[] = {
@@ -72,7 +72,6 @@ struct sh_machine_vector mv_se __initmv = {
 	.mv_outsl		= se7206_outsl,
 
 	.mv_init_irq		= init_se7206_IRQ,
-	.mv_irq_demux		= se7206_irq_demux,
 #ifdef CONFIG_HEARTBEAT
 	.mv_heartbeat		= heartbeat_se,
 #endif

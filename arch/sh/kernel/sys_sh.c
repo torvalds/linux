@@ -50,6 +50,7 @@ unsigned long shm_align_mask = PAGE_SIZE - 1;	/* Sane caches */
 
 EXPORT_SYMBOL(shm_align_mask);
 
+#ifdef CONFIG_MMU
 /*
  * To avoid cache aliases, we map the shared page with same color.
  */
@@ -135,6 +136,7 @@ full_search:
 			addr = COLOUR_ALIGN(addr, pgoff);
 	}
 }
+#endif /* CONFIG_MMU */
 
 static inline long
 do_mmap2(unsigned long addr, unsigned long len, unsigned long prot, 

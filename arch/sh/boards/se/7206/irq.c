@@ -6,12 +6,10 @@
  * Hitachi SolutionEngine Support.
  *
  */
-
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/irq.h>
-#include <asm/irq.h>
-#include <asm/io.h>
+#include <linux/io.h>
+#include <linux/irq.h>
 #include <asm/se7206.h>
 
 #define INTSTS0 0x31800000
@@ -19,9 +17,6 @@
 #define INTMSK0 0x31800004
 #define INTMSK1 0x31800006
 #define INTSEL  0x31800008
-
-/* shutdown is same as "disable" */
-#define shutdown_se7206_irq disable_se7206_irq
 
 static void disable_se7206_irq(unsigned int irq)
 {
@@ -84,18 +79,7 @@ static void enable_se7206_irq(unsigned int irq)
 	ctrl_outw(msk1, INTMSK1);
 }
 
-static unsigned int startup_se7206_irq(unsigned int irq)
-{
-	enable_se7206_irq(irq);
-	return 0; /* never anything pending */
-}
-
-static void ack_se7206_irq(unsigned int irq)
-{
-	disable_se7206_irq(irq);
-}
-
-static void end_se7206_irq(unsigned int irq)
+static void eoi_se7206_irq(unsigned int irq)
 {
 	unsigned short sts0,sts1;
 
@@ -121,20 +105,19 @@ static void end_se7206_irq(unsigned int irq)
 	ctrl_outw(sts1, INTSTS1);
 }
 
-static struct hw_interrupt_type se7206_irq_type = {
-	.typename =  "SE7206 FPGA-IRQ",
-	.startup = startup_se7206_irq,
-	.shutdown = shutdown_se7206_irq,
-	.enable = enable_se7206_irq,
-	.disable = disable_se7206_irq,
-	.ack = ack_se7206_irq,
-	.end = end_se7206_irq,
+static struct irq_chip se7206_irq_chip __read_mostly = {
+	.name		= "SE7206-FPGA-IRQ",
+	.mask		= disable_se7206_irq,
+	.unmask		= enable_se7206_irq,
+	.mask_ack	= disable_se7206_irq,
+	.eoi		= eoi_se7206_irq,
 };
 
 static void make_se7206_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
-	irq_desc[irq].handler = &se7206_irq_type;
+	set_irq_chip_and_handler_name(irq, &se7206_irq_chip,
+				      handle_level_irq, "level");
 	disable_se7206_irq(irq);
 }
 
@@ -153,9 +136,4 @@ void __init init_se7206_IRQ(void)
 	ctrl_outw(0x0000,INTSTS1); /* Clear INTSTS1 */
 	/* IRQ0=LAN, IRQ1=ATA, IRQ3=SLT,PCM */
 	ctrl_outw(0x0001,INTSEL);
-}
-
-int se7206_irq_demux(int irq)
-{
-	return irq;
 }

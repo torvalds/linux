@@ -96,8 +96,7 @@ static unsigned long cmt_timer_get_offset(void)
 	return count;
 }
 
-static irqreturn_t cmt_timer_interrupt(int irq, void *dev_id,
-				       struct pt_regs *regs)
+static irqreturn_t cmt_timer_interrupt(int irq, void *dev_id)
 {
 	unsigned long timer_status;
 
@@ -114,7 +113,7 @@ static irqreturn_t cmt_timer_interrupt(int irq, void *dev_id,
 	 * locally disabled. -arca
 	 */
 	write_seqlock(&xtime_lock);
-	handle_timer_tick(regs);
+	handle_timer_tick();
 	write_sequnlock(&xtime_lock);
 
 	return IRQ_HANDLED;
@@ -123,61 +122,9 @@ static irqreturn_t cmt_timer_interrupt(int irq, void *dev_id,
 static struct irqaction cmt_irq = {
 	.name		= "timer",
 	.handler	= cmt_timer_interrupt,
-	.flags		= SA_INTERRUPT,
+	.flags		= IRQF_DISABLED,
 	.mask		= CPU_MASK_NONE,
 };
-
-/*
- * Hah!  We'll see if this works (switching from usecs to nsecs).
- */
-static unsigned long cmt_timer_get_frequency(void)
-{
-	u32 freq;
-	struct timespec ts1, ts2;
-	unsigned long diff_nsec;
-	unsigned long factor;
-
-	/* Setup the timer:  We don't want to generate interrupts, just
-	 * have it count down at its natural rate.
-	 */
-	
-	ctrl_outw(ctrl_inw(CMT_CMSTR) & ~0x01, CMT_CMSTR);
-	ctrl_outw(CMT_CMCSR_CALIB, CMT_CMCSR_0);
-	ctrl_outw(0xffff, CMT_CMCOR_0);
-	ctrl_outw(0xffff, CMT_CMCNT_0);
-
-	rtc_sh_get_time(&ts2);
-
-	do {
-		rtc_sh_get_time(&ts1);
-	} while (ts1.tv_nsec == ts2.tv_nsec && ts1.tv_sec == ts2.tv_sec);
-
-	/* actually start the timer */
-	ctrl_outw(ctrl_inw(CMT_CMSTR) | 0x01, CMT_CMSTR);
-
-	do {
-		rtc_sh_get_time(&ts2);
-	} while (ts1.tv_nsec == ts2.tv_nsec && ts1.tv_sec == ts2.tv_sec);
-
-	freq = 0xffff - ctrl_inw(CMT_CMCNT_0);
-	if (ts2.tv_nsec < ts1.tv_nsec) {
-		ts2.tv_nsec += 1000000000;
-		ts2.tv_sec--;
-	}
-
-	diff_nsec = (ts2.tv_sec - ts1.tv_sec) * 1000000000 + (ts2.tv_nsec - ts1.tv_nsec);
-
-	/* this should work well if the RTC has a precision of n Hz, where
-	 * n is an integer.  I don't think we have to worry about the other
-	 * cases. */
-	factor = (1000000000 + diff_nsec/2) / diff_nsec;
-
-	if (factor * diff_nsec > 1100000000 ||
-	    factor * diff_nsec <  900000000)
-		panic("weird RTC (diff_nsec %ld)", diff_nsec);
-
-	return freq * factor;
-}
 
 static void cmt_clk_init(struct clk *clk)
 {
@@ -245,12 +192,12 @@ struct sys_timer_ops cmt_timer_ops = {
 	.init		= cmt_timer_init,
 	.start		= cmt_timer_start,
 	.stop		= cmt_timer_stop,
-	.get_frequency	= cmt_timer_get_frequency,
+#ifndef CONFIG_GENERIC_TIME
 	.get_offset	= cmt_timer_get_offset,
+#endif
 };
 
 struct sys_timer cmt_timer = {
 	.name	= "cmt",
 	.ops	= &cmt_timer_ops,
 };
-

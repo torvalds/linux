@@ -107,8 +107,6 @@ static inline void die_if_kernel(const char *str, struct pt_regs *regs,
 		die(str, regs, err);
 }
 
-static int handle_unaligned_notify_count = 10;
-
 /*
  * try and fix up kernelspace address errors
  * - userspace errors just cause EFAULT to be returned, resulting in SEGV
@@ -347,6 +345,13 @@ static inline int handle_unaligned_delayslot(struct pt_regs *regs)
 #define SH_PC_8BIT_OFFSET(instr) ((((signed char)(instr))*2) + 4)
 #define SH_PC_12BIT_OFFSET(instr) ((((signed short)(instr<<4))>>3) + 4)
 
+/*
+ * XXX: SH-2A needs this too, but it needs an overhaul thanks to mixed 32-bit
+ * opcodes..
+ */
+#ifndef CONFIG_CPU_SH2A
+static int handle_unaligned_notify_count = 10;
+
 static int handle_unaligned_access(u16 instruction, struct pt_regs *regs)
 {
 	u_int rm;
@@ -483,6 +488,7 @@ static int handle_unaligned_access(u16 instruction, struct pt_regs *regs)
 		regs->pc += 2;
 	return ret;
 }
+#endif /* CONFIG_CPU_SH2A */
 
 #ifdef CONFIG_CPU_HAS_SR_RB
 #define lookup_exception_vector(x)	\
@@ -501,8 +507,10 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 {
 	unsigned long error_code = 0;
 	mm_segment_t oldfs;
+#ifndef CONFIG_CPU_SH2A
 	u16 instruction;
 	int tmp;
+#endif
 
 	/* Intentional ifdef */
 #ifdef CONFIG_CPU_HAS_SR_RB

@@ -98,8 +98,7 @@ static unsigned long mtu2_timer_get_offset(void)
 	return count;
 }
 
-static irqreturn_t mtu2_timer_interrupt(int irq, void *dev_id,
-				       struct pt_regs *regs)
+static irqreturn_t mtu2_timer_interrupt(int irq, void *dev_id)
 {
 	unsigned long timer_status;
 
@@ -110,7 +109,7 @@ static irqreturn_t mtu2_timer_interrupt(int irq, void *dev_id,
 
 	/* Do timer tick */
 	write_seqlock(&xtime_lock);
-	handle_timer_tick(regs);
+	handle_timer_tick();
 	write_sequnlock(&xtime_lock);
 
 	return IRQ_HANDLED;
@@ -119,61 +118,9 @@ static irqreturn_t mtu2_timer_interrupt(int irq, void *dev_id,
 static struct irqaction mtu2_irq = {
 	.name		= "timer",
 	.handler	= mtu2_timer_interrupt,
-	.flags		= SA_INTERRUPT,
+	.flags		= IRQF_DISABLED,
 	.mask		= CPU_MASK_NONE,
 };
-
-/*
- * Hah!  We'll see if this works (switching from usecs to nsecs).
- */
-static unsigned long mtu2_timer_get_frequency(void)
-{
-	u32 freq;
-	struct timespec ts1, ts2;
-	unsigned long diff_nsec;
-	unsigned long factor;
-
-	/* Setup the timer:  We don't want to generate interrupts, just
-	 * have it count down at its natural rate.
-	 */
-	
-	ctrl_outb(ctrl_inb(MTU2_TSTR) & ~MTU2_TSTR_CST1, MTU2_TSTR);
-	ctrl_outb(MTU2_TCR_CALIB, MTU2_TCR_1);
-	ctrl_outb(ctrl_inb(MTU2_TIER_1) & ~MTU2_TIER_TGIEA, MTU2_TIER_1);
-	ctrl_outw(0, MTU2_TCNT_1);
-
-	rtc_get_time(&ts2);
-
-	do {
-		rtc_get_time(&ts1);
-	} while (ts1.tv_nsec == ts2.tv_nsec && ts1.tv_sec == ts2.tv_sec);
-
-	/* actually start the timer */
-	ctrl_outw(ctrl_inw(CMT_CMSTR) | 0x01, CMT_CMSTR);
-
-	do {
-		rtc_get_time(&ts2);
-	} while (ts1.tv_nsec == ts2.tv_nsec && ts1.tv_sec == ts2.tv_sec);
-
-	freq = ctrl_inw(MTU2_TCNT_0);
-	if (ts2.tv_nsec < ts1.tv_nsec) {
-		ts2.tv_nsec += 1000000000;
-		ts2.tv_sec--;
-	}
-
-	diff_nsec = (ts2.tv_sec - ts1.tv_sec) * 1000000000 + (ts2.tv_nsec - ts1.tv_nsec);
-
-	/* this should work well if the RTC has a precision of n Hz, where
-	 * n is an integer.  I don't think we have to worry about the other
-	 * cases. */
-	factor = (1000000000 + diff_nsec/2) / diff_nsec;
-
-	if (factor * diff_nsec > 1100000000 ||
-	    factor * diff_nsec <  900000000)
-		panic("weird RTC (diff_nsec %ld)", diff_nsec);
-
-	return freq * factor;
-}
 
 static unsigned int divisors[] = { 1, 4, 16, 64, 1, 1, 256 };
 
@@ -250,8 +197,9 @@ struct sys_timer_ops mtu2_timer_ops = {
 	.init		= mtu2_timer_init,
 	.start		= mtu2_timer_start,
 	.stop		= mtu2_timer_stop,
-	.get_frequency	= mtu2_timer_get_frequency,
+#ifndef CONFIG_GENERIC_TIME
 	.get_offset	= mtu2_timer_get_offset,
+#endif
 };
 
 struct sys_timer mtu2_timer = {
