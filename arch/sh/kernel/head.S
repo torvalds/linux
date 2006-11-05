@@ -53,8 +53,10 @@ ENTRY(_stext)
 	ldc	r0, sr
 	!			Initialize global interrupt mask
 	mov	#0, r0
+#ifdef CONFIG_CPU_HAS_SR_RB
 	ldc	r0, r6_bank
-
+#endif
+	
 	/*
 	 * Prefetch if possible to reduce cache miss penalty.
 	 *
@@ -71,8 +73,10 @@ ENTRY(_stext)
 	mov	#(THREAD_SIZE >> 8), r1
 	shll8	r1		! r1 = THREAD_SIZE
 	sub	r1, r0		!
+#ifdef CONFIG_CPU_HAS_SR_RB
 	ldc	r0, r7_bank	! ... and initial thread_info
-
+#endif
+	
 	!			Clear BSS area
 	mov.l	3f, r1
 	add	#4, r1
@@ -95,7 +99,11 @@ ENTRY(_stext)
 	 nop
 
 	.balign 4
+#if defined(CONFIG_CPU_SH2)
+1:	.long	0x000000F0		! IMASK=0xF
+#else
 1:	.long	0x400080F0		! MD=1, RB=0, BL=0, FD=1, IMASK=0xF
+#endif
 2:	.long	init_thread_union+THREAD_SIZE
 3:	.long	__bss_start
 4:	.long	_end
