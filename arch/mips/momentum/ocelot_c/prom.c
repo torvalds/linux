@@ -31,10 +31,6 @@ struct callvectors* debug_vectors;
 extern unsigned long marvell_base;
 extern unsigned int cpu_clock;
 
-#ifdef CONFIG_MV643XX_ETH
-extern unsigned char prom_mac_addr_base[6];
-#endif
-
 const char *get_system_type(void)
 {
 #ifdef CONFIG_CPU_SR71000
@@ -43,55 +39,6 @@ const char *get_system_type(void)
 	return "Momentum Ocelot-C";
 #endif
 }
-
-#ifdef CONFIG_MV643XX_ETH
-static void burn_clocks(void)
-{
-	int i;
-
-	/* this loop should burn at least 1us -- this should be plenty */
-	for (i = 0; i < 0x10000; i++)
-		;
-}
-
-static u8 exchange_bit(u8 val, u8 cs)
-{
-	/* place the data */
-	OCELOT_FPGA_WRITE((val << 2) | cs, EEPROM_MODE);
-	burn_clocks();
-
-	/* turn the clock on */
-	OCELOT_FPGA_WRITE((val << 2) | cs | 0x2, EEPROM_MODE);
-	burn_clocks();
-
-	/* turn the clock off and read-strobe */
-	OCELOT_FPGA_WRITE((val << 2) | cs | 0x10, EEPROM_MODE);
-
-	/* return the data */
-	return ((OCELOT_FPGA_READ(EEPROM_MODE) >> 3) & 0x1);
-}
-
-void get_mac(char dest[6])
-{
-	u8 read_opcode[12] = {1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-	int i,j;
-
-	for (i = 0; i < 12; i++)
-		exchange_bit(read_opcode[i], 1);
-
-	for (j = 0; j < 6; j++) {
-		dest[j] = 0;
-		for (i = 0; i < 8; i++) {
-			dest[j] <<= 1;
-			dest[j] |= exchange_bit(0, 1);
-		}
-	}
-
-	/* turn off CS */
-	exchange_bit(0,0);
-}
-#endif
-
 
 #ifdef CONFIG_64BIT
 
@@ -225,11 +172,6 @@ void __init prom_init(void)
 
 	mips_machgroup = MACH_GROUP_MOMENCO;
 	mips_machtype = MACH_MOMENCO_OCELOT_C;
-
-#ifdef CONFIG_MV643XX_ETH
-	/* get the base MAC address for on-board ethernet ports */
-	get_mac(prom_mac_addr_base);
-#endif
 
 #ifndef CONFIG_64BIT
 	debug_vectors->printf("Booting Linux kernel...\n");
