@@ -14,6 +14,10 @@
 #include <asm/machvec.h>
 #include <asm/ptrace.h>		/* for pt_regs */
 
+#if defined(CONFIG_CPU_SH2)
+#include <asm/cpu/irq.h>
+#endif
+
 #ifndef CONFIG_CPU_SUBTYPE_SH7780
 
 #define INTC_DMAC0_MSK	0
@@ -28,6 +32,31 @@
 #define INTC_IPRD	0xffd00010UL
 #endif
 
+#if defined(CONFIG_CPU_SUBTYPE_SH7206)
+#ifdef CONFIG_SH_CMT
+#define TIMER_IRQ	CMI0_IRQ
+#define TIMER_IPR_ADDR	INTC_IPR08
+#define TIMER_IPR_POS	 3
+#define TIMER_PRIORITY	 2
+
+#define TIMER1_IRQ	CMI1_IRQ
+#define TIMER1_IPR_ADDR	INTC_IPR08
+#define TIMER1_IPR_POS	 2
+#define TIMER1_PRIORITY	 2
+#endif
+
+#elif defined(CONFIG_CPU_SUBTYPE_SH7619)
+#define TIMER_IRQ	CMI0_IRQ
+#define TIMER_IPR_ADDR	INTC_IPRC
+#define TIMER_IPR_POS	 1
+#define TIMER_PRIORITY	 2
+
+#define TIMER1_IRQ	CMI1_IRQ
+#define TIMER1_IPR_ADDR	INTC_IPRC
+#define TIMER1_IPR_POS	 0
+#define TIMER1_PRIORITY	 4
+
+#else
 #define TIMER_IRQ	16
 #define TIMER_IPR_ADDR	INTC_IPRA
 #define TIMER_IPR_POS	 3
@@ -37,11 +66,14 @@
 #define TIMER1_IPR_ADDR	INTC_IPRA
 #define TIMER1_IPR_POS	 2
 #define TIMER1_PRIORITY	 4
+#endif
 
+#if !defined(CONFIG_CPU_SH2)
 #define RTC_IRQ		22
 #define RTC_IPR_ADDR	INTC_IPRA
 #define RTC_IPR_POS	 0
 #define RTC_PRIORITY	TIMER_PRIORITY
+#endif
 
 #if defined(CONFIG_CPU_SH3)
 #define DMTE0_IRQ	48
@@ -265,6 +297,10 @@
 # define ONCHIP_NR_IRQS 109
 #elif defined(CONFIG_CPU_SUBTYPE_SH7780)
 # define ONCHIP_NR_IRQS 111
+#elif defined(CONFIG_CPU_SUBTYPE_SH7206)
+# define ONCHIP_NR_IRQS 256
+#elif defined(CONFIG_CPU_SUBTYPE_SH7619)
+# define ONCHIP_NR_IRQS 128
 #elif defined(CONFIG_SH_UNKNOWN)	/* Most be last */
 # define ONCHIP_NR_IRQS 144
 #endif
@@ -321,6 +357,40 @@ extern void enable_irq(unsigned int);
  */
 extern void make_maskreg_irq(unsigned int irq);
 extern unsigned short *irq_mask_register;
+
+#if defined(CONFIG_CPU_SUBTYPE_SH7619)
+#define IRQ0_IRQ	16
+#define IRQ1_IRQ	17
+#define IRQ2_IRQ	18
+#define IRQ3_IRQ	19
+#define IRQ4_IRQ	32
+#define IRQ5_IRQ	33
+#define IRQ6_IRQ	34
+#define IRQ7_IRQ	35
+#elif !defined(CONFIG_CPU_SUBTYPE_SH7206)
+#define IRQ0_IRQ	32
+#define IRQ1_IRQ	33
+#define IRQ2_IRQ	34
+#define IRQ3_IRQ	35
+#define IRQ4_IRQ	36
+#define IRQ5_IRQ	37
+#endif
+
+#define IRQ0_PRIORITY	1
+#define IRQ1_PRIORITY	1
+#define IRQ2_PRIORITY	1
+#define IRQ3_PRIORITY	1
+#define IRQ4_PRIORITY	1
+#define IRQ5_PRIORITY	1
+
+#ifndef IRQ0_IPR_POS
+#define IRQ0_IPR_POS	0
+#define IRQ1_IPR_POS	1
+#define IRQ2_IPR_POS	2
+#define IRQ3_IPR_POS	3
+#define IRQ4_IPR_POS	0
+#define IRQ5_IPR_POS	1
+#endif
 
 /*
  * PINT IRQs
