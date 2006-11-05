@@ -33,8 +33,13 @@
 #endif
 
 #ifdef CONFIG_CPU_SH2
-#define TRAP_RESERVED_INST	4
-#define TRAP_ILLEGAL_SLOT_INST	6
+# define TRAP_RESERVED_INST	4
+# define TRAP_ILLEGAL_SLOT_INST	6
+# define TRAP_ADDRESS_ERROR	9
+# ifdef CONFIG_CPU_SH2A
+#  define TRAP_DIVZERO_ERROR	17
+#  define TRAP_DIVOVF_ERROR	18
+# endif
 #else
 #define TRAP_RESERVED_INST	12
 #define TRAP_ILLEGAL_SLOT_INST	13
@@ -479,6 +484,14 @@ static int handle_unaligned_access(u16 instruction, struct pt_regs *regs)
 	return ret;
 }
 
+#ifdef CONFIG_CPU_HAS_SR_RB
+#define lookup_exception_vector(x)	\
+	__asm__ __volatile__ ("stc r2_bank, %0\n\t" : "=r" ((x)))
+#else
+#define lookup_exception_vector(x)	\
+	__asm__ __volatile__ ("mov r4, %0\n\t" : "=r" ((x)))
+#endif
+
 /*
  * Handle various address error exceptions
  */
@@ -486,24 +499,37 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 				 unsigned long writeaccess,
 				 unsigned long address)
 {
-	unsigned long error_code;
+	unsigned long error_code = 0;
 	mm_segment_t oldfs;
 	u16 instruction;
 	int tmp;
 
-	asm volatile("stc       r2_bank,%0": "=r" (error_code));
+	/* Intentional ifdef */
+#ifdef CONFIG_CPU_HAS_SR_RB
+	lookup_exception_vector(error_code);
+#endif
 
 	oldfs = get_fs();
 
 	if (user_mode(regs)) {
 		local_irq_enable();
 		current->thread.error_code = error_code;
+#ifdef CONFIG_CPU_SH2
+		/*
+		 * On the SH-2, we only have a single vector for address
+		 * errors, there's no differentiating between a load error
+		 * and a store error.
+		 */
+		current->thread.trap_no = 9;
+#else
 		current->thread.trap_no = (writeaccess) ? 8 : 7;
+#endif
 
 		/* bad PC is not something we can fix */
 		if (regs->pc & 1)
 			goto uspace_segv;
 
+#ifndef CONFIG_CPU_SH2A
 		set_fs(USER_DS);
 		if (copy_from_user(&instruction, (u16 *)(regs->pc), 2)) {
 			/* Argh. Fault on the instruction itself.
@@ -518,6 +544,7 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 
 		if (tmp==0)
 			return; /* sorted */
+#endif
 
 	uspace_segv:
 		printk(KERN_NOTICE "Killing process \"%s\" due to unaligned access\n", current->comm);
@@ -526,6 +553,7 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 		if (regs->pc & 1)
 			die("unaligned program counter", regs, error_code);
 
+#ifndef CONFIG_CPU_SH2A
 		set_fs(KERNEL_DS);
 		if (copy_from_user(&instruction, (u16 *)(regs->pc), 2)) {
 			/* Argh. Fault on the instruction itself.
@@ -537,6 +565,10 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 
 		handle_unaligned_access(instruction, regs);
 		set_fs(oldfs);
+#else
+		printk(KERN_NOTICE "Killing process \"%s\" due to unaligned access\n", current->comm);
+		force_sig(SIGSEGV, current);
+#endif
 	}
 }
 
@@ -569,6 +601,29 @@ int is_dsp_inst(struct pt_regs *regs)
 #define is_dsp_inst(regs)	(0)
 #endif /* CONFIG_SH_DSP */
 
+#ifdef CONFIG_CPU_SH2A
+asmlinkage void do_divide_error(unsigned long r4, unsigned long r5,
+				unsigned long r6, unsigned long r7,
+				struct pt_regs regs)
+{
+	siginfo_t info;
+
+	current->thread.trap_no = r4;
+	current->thread.error_code = 0;
+
+	switch (r4) {
+	case TRAP_DIVZERO_ERROR:
+		info.si_code = FPE_INTDIV;
+		break;
+	case TRAP_DIVOVF_ERROR:
+		info.si_code = FPE_INTOVF;
+		break;
+	}
+
+	force_sig_info(SIGFPE, &info, current);
+}
+#endif
+
 /* arch/sh/kernel/cpu/sh4/fpu.c */
 extern int do_fpu_inst(unsigned short, struct pt_regs *);
 extern asmlinkage void do_fpu_state_restore(unsigned long r4, unsigned long r5,
@@ -582,7 +637,7 @@ asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
 	struct task_struct *tsk = current;
 
 #ifdef CONFIG_SH_FPU_EMU
-	unsigned short inst;
+	unsigned short inst = 0;
 	int err;
 
 	get_user(inst, (unsigned short*)regs.pc);
@@ -604,7 +659,8 @@ asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
 	}
 #endif
 
-	asm volatile("stc	r2_bank, %0": "=r" (error_code));
+	lookup_exception_vector(error_code);
+
 	local_irq_enable();
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_no = TRAP_RESERVED_INST;
@@ -663,7 +719,7 @@ asmlinkage void do_illegal_slot_inst(unsigned long r4, unsigned long r5,
 	unsigned long error_code;
 	struct task_struct *tsk = current;
 #ifdef CONFIG_SH_FPU_EMU
-	unsigned short inst;
+	unsigned short inst = 0;
 
 	get_user(inst, (unsigned short *)regs.pc + 1);
 	if (!do_fpu_inst(inst, &regs)) {
@@ -675,7 +731,8 @@ asmlinkage void do_illegal_slot_inst(unsigned long r4, unsigned long r5,
 	/* not a FPU inst. */
 #endif
 
-	asm volatile("stc	r2_bank, %0": "=r" (error_code));
+	lookup_exception_vector(error_code);
+
 	local_irq_enable();
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_no = TRAP_RESERVED_INST;
@@ -689,7 +746,8 @@ asmlinkage void do_exception_error(unsigned long r4, unsigned long r5,
 				   struct pt_regs regs)
 {
 	long ex;
-	asm volatile("stc	r2_bank, %0" : "=r" (ex));
+
+	lookup_exception_vector(ex);
 	die_if_kernel("exception", &regs, ex);
 }
 
@@ -741,6 +799,10 @@ void *set_exception_table_vec(unsigned int vec, void *handler)
 	return old_handler;
 }
 
+extern asmlinkage void address_error_handler(unsigned long r4, unsigned long r5,
+					     unsigned long r6, unsigned long r7,
+					     struct pt_regs regs);
+
 void __init trap_init(void)
 {
 	set_exception_table_vec(TRAP_RESERVED_INST, do_reserved_inst);
@@ -758,6 +820,14 @@ void __init trap_init(void)
 #elif defined(CONFIG_SH_FPU)
 	set_exception_table_evt(0x800, do_fpu_state_restore);
 	set_exception_table_evt(0x820, do_fpu_state_restore);
+#endif
+
+#ifdef CONFIG_CPU_SH2
+	set_exception_table_vec(TRAP_ADDRESS_ERROR, address_error_handler);
+#endif
+#ifdef CONFIG_CPU_SH2A
+	set_exception_table_vec(TRAP_DIVZERO_ERROR, do_divide_error);
+	set_exception_table_vec(TRAP_DIVOVF_ERROR, do_divide_error);
 #endif
 		
 	/* Setup VBR for boot cpu */
