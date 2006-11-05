@@ -727,7 +727,7 @@ int do_migrate_pages(struct mm_struct *mm,
 	return -ENOSYS;
 }
 
-static struct page *new_vma_page(struct page *page, unsigned long private)
+static struct page *new_vma_page(struct page *page, unsigned long private, int **x)
 {
 	return NULL;
 }

@@ -519,6 +519,7 @@ static int receive_from_sock(void)
 	msg.msg_flags = 0;
 	msg.msg_control = incmsg;
 	msg.msg_controllen = sizeof(incmsg);
+	msg.msg_iovlen = 1;
 
 	/* I don't see why this circular buffer stuff is necessary for SCTP
 	 * which is a packet-based protocol, but the whole thing breaks under
@@ -548,7 +549,7 @@ static int receive_from_sock(void)
 	}
 	len = iov[0].iov_len + iov[1].iov_len;
 
-	r = ret = kernel_recvmsg(sctp_con.sock, &msg, iov, 1, len,
+	r = ret = kernel_recvmsg(sctp_con.sock, &msg, iov, msg.msg_iovlen, len,
 				 MSG_NOSIGNAL | MSG_DONTWAIT);
 	if (ret <= 0)
 		goto out_close;

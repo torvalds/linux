@@ -177,7 +177,7 @@ get_subchannel_by_schid(struct subchannel_id schid)
 	struct device *dev;
 
 	dev = bus_find_device(&css_bus_type, NULL,
-			      (void *)&schid, check_subchannel);
+			      &schid, check_subchannel);
 
 	return dev ? to_subchannel(dev) : NULL;
 }
@@ -271,10 +271,6 @@ static int css_evaluate_known_subchannel(struct subchannel *sch, int slow)
 		/* Reset intparm to zeroes. */
 		sch->schib.pmcw.intparm = 0;
 		cio_modify(sch);
-
-		/* Probe if necessary. */
-		if (action == UNREGISTER_PROBE)
-			ret = css_probe_device(sch->schid);
 		break;
 	case REPROBE:
 		device_trigger_reprobe(sch);
@@ -283,6 +279,9 @@ static int css_evaluate_known_subchannel(struct subchannel *sch, int slow)
 		break;
 	}
 	spin_unlock_irqrestore(&sch->lock, flags);
+	/* Probe if necessary. */
+	if (action == UNREGISTER_PROBE)
+		ret = css_probe_device(sch->schid);
 
 	return ret;
 }

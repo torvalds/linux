@@ -19,6 +19,7 @@
 #include "chan_user.h"
 #include "port.h"
 #include "os.h"
+#include "um_malloc.h"
 
 struct port_chan {
 	int raw;

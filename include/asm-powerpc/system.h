@@ -25,8 +25,8 @@
  *
  * We have to use the sync instructions for mb(), since lwsync doesn't
  * order loads with respect to previous stores.  Lwsync is fine for
- * rmb(), though.  Note that lwsync is interpreted as sync by
- * 32-bit and older 64-bit CPUs.
+ * rmb(), though. Note that rmb() actually uses a sync on 32-bit
+ * architectures.
  *
  * For wmb(), we use sync since wmb is used in drivers to order
  * stores to system memory with respect to writes to the device.
@@ -34,7 +34,7 @@
  * SMP since it is only used to order updates to system memory.
  */
 #define mb()   __asm__ __volatile__ ("sync" : : : "memory")
-#define rmb()  __asm__ __volatile__ ("lwsync" : : : "memory")
+#define rmb()  __asm__ __volatile__ (__stringify(LWSYNC) : : : "memory")
 #define wmb()  __asm__ __volatile__ ("sync" : : : "memory")
 #define read_barrier_depends()  do { } while(0)
 

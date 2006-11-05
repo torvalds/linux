@@ -1099,7 +1099,7 @@ static void link_led_handler(void *p)
 	int r;
 
 	spin_lock_irq(&mac->lock);
-	is_associated = sm->associated != 0;
+	is_associated = sm->associnfo.associated != 0;
 	spin_unlock_irq(&mac->lock);
 
 	r = zd_chip_control_leds(chip,

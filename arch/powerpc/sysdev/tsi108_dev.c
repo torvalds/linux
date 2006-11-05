@@ -48,7 +48,7 @@ phys_addr_t get_csrbase(void)
 	tsi = of_find_node_by_type(NULL, "tsi-bridge");
 	if (tsi) {
 		unsigned int size;
-		void *prop = get_property(tsi, "reg", &size);
+		const void *prop = get_property(tsi, "reg", &size);
 		tsi108_csr_base = of_translate_address(tsi, prop);
 		of_node_put(tsi);
 	};
@@ -79,7 +79,7 @@ static int __init tsi108_eth_of_init(void)
 		hw_info tsi_eth_data;
 		unsigned int *id;
 		unsigned int *phy_id;
-		void *mac_addr;
+		const void *mac_addr;
 		phandle *ph;
 
 		memset(r, 0, sizeof(r));

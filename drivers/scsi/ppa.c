@@ -1012,7 +1012,7 @@ static LIST_HEAD(ppa_hosts);
 static int __ppa_attach(struct parport *pb)
 {
 	struct Scsi_Host *host;
-	DECLARE_WAIT_QUEUE_HEAD(waiting);
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(waiting);
 	DEFINE_WAIT(wait);
 	ppa_struct *dev;
 	int ports;

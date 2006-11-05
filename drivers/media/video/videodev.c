@@ -17,10 +17,11 @@
  */
 
 #define dbgarg(cmd, fmt, arg...) \
-		if (vfd->debug & V4L2_DEBUG_IOCTL_ARG)			\
+		if (vfd->debug & V4L2_DEBUG_IOCTL_ARG) {		\
 			printk (KERN_DEBUG "%s: ",  vfd->name);		\
 			v4l_printk_ioctl(cmd);				\
-			printk (KERN_DEBUG "%s: " fmt, vfd->name, ## arg);
+			printk (KERN_DEBUG "%s: " fmt, vfd->name, ## arg); \
+		}
 
 #define dbgarg2(fmt, arg...) \
 		if (vfd->debug & V4L2_DEBUG_IOCTL_ARG)			\
@@ -1287,6 +1288,7 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 			ret=vfd->vidioc_g_parm(file, fh, p);
 		} else {
 			struct v4l2_standard s;
+			int i;
 
 			if (!vfd->tvnormsize) {
 				printk (KERN_WARNING "%s: no TV norms defined!\n",
@@ -1297,8 +1299,14 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 			if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 				return -EINVAL;
 
-			v4l2_video_std_construct(&s, vfd->tvnorms[vfd->current_norm].id,
-						 vfd->tvnorms[vfd->current_norm].name);
+			for (i = 0; i < vfd->tvnormsize; i++)
+				if (vfd->tvnorms[i].id == vfd->current_norm)
+					break;
+			if (i >= vfd->tvnormsize)
+				return -EINVAL;
+
+			v4l2_video_std_construct(&s, vfd->current_norm,
+						 vfd->tvnorms[i].name);
 
 			memset(p,0,sizeof(*p));
 

@@ -236,18 +236,26 @@ EXPORT_SYMBOL_GPL(cpu_idle_wait);
  * We execute MONITOR against need_resched and enter optimized wait state
  * through MWAIT. Whenever someone changes need_resched, we would be woken
  * up from MWAIT (without an IPI).
+ *
+ * New with Core Duo processors, MWAIT can take some hints based on CPU
+ * capability.
  */
+void mwait_idle_with_hints(unsigned long eax, unsigned long ecx)
+{
+	if (!need_resched()) {
+		__monitor((void *)&current_thread_info()->flags, 0, 0);
+		smp_mb();
+		if (!need_resched())
+			__mwait(eax, ecx);
+	}
+}
+
+/* Default MONITOR/MWAIT with no hints, used for default C1 state */
 static void mwait_idle(void)
 {
 	local_irq_enable();
-
-	while (!need_resched()) {
-		__monitor((void *)&current_thread_info()->flags, 0, 0);
-		smp_mb();
-		if (need_resched())
-			break;
-		__mwait(0, 0);
-	}
+	while (!need_resched())
+		mwait_idle_with_hints(0, 0);
 }
 
 void __devinit select_idle_routine(const struct cpuinfo_x86 *c)
@@ -328,7 +336,6 @@ extern void kernel_thread_helper(void);
 int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 {
 	struct pt_regs regs;
-	int err;
 
 	memset(&regs, 0, sizeof(regs));
 
@@ -343,10 +350,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	regs.eflags = X86_EFLAGS_IF | X86_EFLAGS_SF | X86_EFLAGS_PF | 0x2;
 
 	/* Ok, create the new process.. */
-	err = do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
-	if (err == 0) /* terminate kernel stack */
-		task_pt_regs(current)->eip = 0;
-	return err;
+	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
 }
 EXPORT_SYMBOL(kernel_thread);
 

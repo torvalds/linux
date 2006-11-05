@@ -786,11 +786,10 @@ static long htb_do_events(struct htb_sched *q, int level)
 	for (i = 0; i < 500; i++) {
 		struct htb_class *cl;
 		long diff;
-		struct rb_node *p = q->wait_pq[level].rb_node;
+		struct rb_node *p = rb_first(&q->wait_pq[level]);
+
 		if (!p)
 			return 0;
-		while (p->rb_left)
-			p = p->rb_left;
 
 		cl = rb_entry(p, struct htb_class, pq_node);
 		if (time_after(cl->pq_key, q->jiffies)) {

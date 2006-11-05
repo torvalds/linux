@@ -536,7 +536,7 @@ static int bitmap_read_sb(struct bitmap *bitmap)
 		printk(KERN_INFO "%s: bitmap file is out of date (%llu < %llu) "
 			"-- forcing full recovery\n", bmname(bitmap), events,
 			(unsigned long long) bitmap->mddev->events);
-		sb->state |= BITMAP_STALE;
+		sb->state |= cpu_to_le32(BITMAP_STALE);
 	}
 success:
 	/* assign fields using values from superblock */
@@ -544,11 +544,11 @@ success:
 	bitmap->daemon_sleep = daemon_sleep;
 	bitmap->daemon_lastrun = jiffies;
 	bitmap->max_write_behind = write_behind;
-	bitmap->flags |= sb->state;
+	bitmap->flags |= le32_to_cpu(sb->state);
 	if (le32_to_cpu(sb->version) == BITMAP_MAJOR_HOSTENDIAN)
 		bitmap->flags |= BITMAP_HOSTENDIAN;
 	bitmap->events_cleared = le64_to_cpu(sb->events_cleared);
-	if (sb->state & BITMAP_STALE)
+	if (sb->state & cpu_to_le32(BITMAP_STALE))
 		bitmap->events_cleared = bitmap->mddev->events;
 	err = 0;
 out:
@@ -578,9 +578,9 @@ static void bitmap_mask_state(struct bitmap *bitmap, enum bitmap_state bits,
 	spin_unlock_irqrestore(&bitmap->lock, flags);
 	sb = (bitmap_super_t *)kmap_atomic(bitmap->sb_page, KM_USER0);
 	switch (op) {
-		case MASK_SET: sb->state |= bits;
+		case MASK_SET: sb->state |= cpu_to_le32(bits);
 				break;
-		case MASK_UNSET: sb->state &= ~bits;
+		case MASK_UNSET: sb->state &= cpu_to_le32(~bits);
 				break;
 		default: BUG();
 	}
@@ -1413,7 +1413,7 @@ int bitmap_create(mddev_t *mddev)
 	int err;
 	sector_t start;
 
-	BUG_ON(sizeof(bitmap_super_t) != 256);
+	BUILD_BUG_ON(sizeof(bitmap_super_t) != 256);
 
 	if (!file && !mddev->bitmap_offset) /* bitmap disabled, nothing to do */
 		return 0;

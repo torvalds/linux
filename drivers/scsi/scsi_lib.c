@@ -1084,7 +1084,7 @@ static void scsi_setup_blk_pc_cmnd(struct scsi_cmnd *cmd)
 {
 	struct request *req = cmd->request;
 
-	BUG_ON(sizeof(req->cmd) > sizeof(cmd->cmnd));
+	BUILD_BUG_ON(sizeof(req->cmd) > sizeof(cmd->cmnd));
 	memcpy(cmd->cmnd, req->cmd, sizeof(cmd->cmnd));
 	cmd->cmd_len = req->cmd_len;
 	if (!req->data_len)

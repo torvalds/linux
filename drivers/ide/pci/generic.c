@@ -40,6 +40,19 @@
 
 static int ide_generic_all;		/* Set to claim all devices */
 
+/*
+ * the module_param_named() was added for the modular case
+ * the __setup() is left as compatibility for existing setups
+ */
+#ifndef MODULE
+static int __init ide_generic_all_on(char *unused)
+{
+	ide_generic_all = 1;
+	printk(KERN_INFO "IDE generic will claim all unknown PCI IDE storage controllers.\n");
+	return 1;
+}
+__setup("all-generic-ide", ide_generic_all_on);
+#endif
 module_param_named(all_generic_ide, ide_generic_all, bool, 0444);
 MODULE_PARM_DESC(all_generic_ide, "IDE generic will claim all unknown PCI IDE storage controllers.");
 
@@ -234,13 +247,17 @@ static int __devinit generic_init_one(struct pci_dev *dev, const struct pci_devi
 	    (!(PCI_FUNC(dev->devfn) & 1)))
 		goto out;
 
-	if (dev->vendor == PCI_VENDOR_ID_JMICRON && PCI_FUNC(dev->devfn) != 1)
-		goto out;
+	if (dev->vendor == PCI_VENDOR_ID_JMICRON) {
+		if (dev->device != PCI_DEVICE_ID_JMICRON_JMB368 && PCI_FUNC(dev->devfn) != 1)
+			goto out;
+	}
 
-	pci_read_config_word(dev, PCI_COMMAND, &command);
-	if (!(command & PCI_COMMAND_IO)) {
-		printk(KERN_INFO "Skipping disabled %s IDE controller.\n", d->name);
-		goto out;
+	if (dev->vendor != PCI_VENDOR_ID_JMICRON) {
+		pci_read_config_word(dev, PCI_COMMAND, &command);
+		if (!(command & PCI_COMMAND_IO)) {
+			printk(KERN_INFO "Skipping disabled %s IDE controller.\n", d->name);
+			goto out;
+		}
 	}
 	ret = ide_setup_pci_device(dev, d);
 out:

@@ -168,7 +168,7 @@ static ahc_device_setup_t ahc_aha394XX_setup;
 static ahc_device_setup_t ahc_aha494XX_setup;
 static ahc_device_setup_t ahc_aha398XX_setup;
 
-struct ahc_pci_identity ahc_pci_ident_table [] =
+static struct ahc_pci_identity ahc_pci_ident_table [] =
 {
 	/* aic7850 based controllers */
 	{
@@ -559,7 +559,7 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 	}
 };
 
-const u_int ahc_num_pci_devs = ARRAY_SIZE(ahc_pci_ident_table);
+static const u_int ahc_num_pci_devs = ARRAY_SIZE(ahc_pci_ident_table);
 		
 #define AHC_394X_SLOT_CHANNEL_A	4
 #define AHC_394X_SLOT_CHANNEL_B	5

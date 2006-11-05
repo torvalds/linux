@@ -136,8 +136,10 @@ static int parse_table(int __user *, int, void __user *, size_t __user *,
 static int proc_do_uts_string(ctl_table *table, int write, struct file *filp,
 		  void __user *buffer, size_t *lenp, loff_t *ppos);
 
+#ifdef CONFIG_PROC_SYSCTL
 static int proc_do_cad_pid(ctl_table *table, int write, struct file *filp,
 		  void __user *buffer, size_t *lenp, loff_t *ppos);
+#endif
 
 static ctl_table root_table[];
 static struct ctl_table_header root_table_header =
@@ -542,6 +544,7 @@ static ctl_table kern_table[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 #endif
+#ifdef CONFIG_PROC_SYSCTL
 	{
 		.ctl_name	= KERN_CADPID,
 		.procname	= "cad_pid",
@@ -550,6 +553,7 @@ static ctl_table kern_table[] = {
 		.mode		= 0600,
 		.proc_handler	= &proc_do_cad_pid,
 	},
+#endif
 	{
 		.ctl_name	= KERN_MAX_THREADS,
 		.procname	= "threads-max",

@@ -48,6 +48,7 @@ extern void qla2x00_update_fcport(scsi_qla_host_t *, fc_port_t *);
 extern void qla2x00_reg_remote_port(scsi_qla_host_t *, fc_port_t *);
 
 extern void qla2x00_alloc_fw_dump(scsi_qla_host_t *);
+extern void qla2x00_try_to_stop_firmware(scsi_qla_host_t *);
 
 /*
  * Global Data in qla_os.c source file.
@@ -60,7 +61,8 @@ extern int ql2xplogiabsentdevice;
 extern int ql2xloginretrycount;
 extern int ql2xfdmienable;
 extern int ql2xallocfwdump;
-extern int qla2_extended_error_logging;
+extern int ql2xextended_error_logging;
+extern int ql2xqfullrampup;
 
 extern void qla2x00_sp_compl(scsi_qla_host_t *, srb_t *);
 

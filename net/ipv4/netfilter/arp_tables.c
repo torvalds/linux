@@ -466,7 +466,13 @@ static inline int check_entry(struct arpt_entry *e, const char *name, unsigned i
 		return -EINVAL;
 	}
 
+	if (e->target_offset + sizeof(struct arpt_entry_target) > e->next_offset)
+		return -EINVAL;
+
 	t = arpt_get_target(e);
+	if (e->target_offset + t->u.target_size > e->next_offset)
+		return -EINVAL;
+
 	target = try_then_request_module(xt_find_target(NF_ARP, t->u.user.name,
 							t->u.user.revision),
 					 "arpt_%s", t->u.user.name);
@@ -621,20 +627,18 @@ static int translate_table(const char *name,
 		}
 	}
 
-	if (!mark_source_chains(newinfo, valid_hooks, entry0)) {
-		duprintf("Looping hook\n");
-		return -ELOOP;
-	}
-
 	/* Finally, each sanity check must pass */
 	i = 0;
 	ret = ARPT_ENTRY_ITERATE(entry0, newinfo->size,
 				 check_entry, name, size, &i);
 
-	if (ret != 0) {
-		ARPT_ENTRY_ITERATE(entry0, newinfo->size,
-				   cleanup_entry, &i);
-		return ret;
+	if (ret != 0)
+		goto cleanup;
+
+	ret = -ELOOP;
+	if (!mark_source_chains(newinfo, valid_hooks, entry0)) {
+		duprintf("Looping hook\n");
+		goto cleanup;
 	}
 
 	/* And one copy for every other CPU */
@@ -643,6 +647,9 @@ static int translate_table(const char *name,
 			memcpy(newinfo->entries[i], entry0, newinfo->size);
 	}
 
+	return 0;
+cleanup:
+	ARPT_ENTRY_ITERATE(entry0, newinfo->size, cleanup_entry, &i);
 	return ret;
 }
 
@@ -1196,6 +1203,8 @@ err1:
 static void __exit arp_tables_fini(void)
 {
 	nf_unregister_sockopt(&arpt_sockopts);
+	xt_unregister_target(&arpt_error_target);
+	xt_unregister_target(&arpt_standard_target);
 	xt_proto_fini(NF_ARP);
 }
 

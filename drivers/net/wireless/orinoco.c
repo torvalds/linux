@@ -2457,6 +2457,7 @@ void free_orinocodev(struct net_device *dev)
 /* Wireless extensions                                              */
 /********************************************************************/
 
+/* Return : < 0 -> error code ; >= 0 -> length */
 static int orinoco_hw_get_essid(struct orinoco_private *priv, int *active,
 				char buf[IW_ESSID_MAX_SIZE+1])
 {
@@ -2501,9 +2502,9 @@ static int orinoco_hw_get_essid(struct orinoco_private *priv, int *active,
 	len = le16_to_cpu(essidbuf.len);
 	BUG_ON(len > IW_ESSID_MAX_SIZE);
 
-	memset(buf, 0, IW_ESSID_MAX_SIZE+1);
+	memset(buf, 0, IW_ESSID_MAX_SIZE);
 	memcpy(buf, p, len);
-	buf[len] = '\0';
+	err = len;
 
  fail_unlock:
 	orinoco_unlock(priv, &flags);
@@ -3027,17 +3028,18 @@ static int orinoco_ioctl_getessid(struct net_device *dev,
 
 	if (netif_running(dev)) {
 		err = orinoco_hw_get_essid(priv, &active, essidbuf);
-		if (err)
+		if (err < 0)
 			return err;
+		erq->length = err;
 	} else {
 		if (orinoco_lock(priv, &flags) != 0)
 			return -EBUSY;
-		memcpy(essidbuf, priv->desired_essid, IW_ESSID_MAX_SIZE + 1);
+		memcpy(essidbuf, priv->desired_essid, IW_ESSID_MAX_SIZE);
+		erq->length = strlen(priv->desired_essid);
 		orinoco_unlock(priv, &flags);
 	}
 
 	erq->flags = 1;
-	erq->length = strlen(essidbuf);
 
 	return 0;
 }
@@ -3075,10 +3077,10 @@ static int orinoco_ioctl_getnick(struct net_device *dev,
 	if (orinoco_lock(priv, &flags) != 0)
 		return -EBUSY;
 
-	memcpy(nickbuf, priv->nick, IW_ESSID_MAX_SIZE+1);
+	memcpy(nickbuf, priv->nick, IW_ESSID_MAX_SIZE);
 	orinoco_unlock(priv, &flags);
 
-	nrq->length = strlen(nickbuf);
+	nrq->length = strlen(priv->nick);
 
 	return 0;
 }

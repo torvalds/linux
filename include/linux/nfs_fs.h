@@ -157,7 +157,7 @@ struct nfs_inode {
 	 * This is the cookie verifier used for NFSv3 readdir
 	 * operations
 	 */
-	__u32			cookieverf[2];
+	__be32			cookieverf[2];
 
 	/*
 	 * This is the list of dirty unwritten pages.
@@ -290,6 +290,7 @@ static inline int nfs_verify_change_attribute(struct inode *inode, unsigned long
  * linux/fs/nfs/inode.c
  */
 extern int nfs_sync_mapping(struct address_space *mapping);
+extern void nfs_zap_mapping(struct inode *inode, struct address_space *mapping);
 extern void nfs_zap_caches(struct inode *);
 extern struct inode *nfs_fhget(struct super_block *, struct nfs_fh *,
 				struct nfs_fattr *);

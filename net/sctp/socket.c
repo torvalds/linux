@@ -821,7 +821,7 @@ out:
  * addrs is a pointer to an array of one or more socket addresses. Each
  * address is contained in its appropriate structure (i.e. struct
  * sockaddr_in or struct sockaddr_in6) the family of the address type
- * must be used to distengish the address length (note that this
+ * must be used to distinguish the address length (note that this
  * representation is termed a "packed array" of addresses). The caller
  * specifies the number of addresses in the array with addrcnt.
  *
@@ -3372,6 +3372,7 @@ SCTP_STATIC int sctp_do_peeloff(struct sctp_association *asoc,
 {
 	struct sock *sk = asoc->base.sk;
 	struct socket *sock;
+	struct inet_sock *inetsk;
 	int err = 0;
 
 	/* An association cannot be branched off from an already peeled-off
@@ -3389,6 +3390,14 @@ SCTP_STATIC int sctp_do_peeloff(struct sctp_association *asoc,
 	 * asoc to the newsk.
 	 */
 	sctp_sock_migrate(sk, sock->sk, asoc, SCTP_SOCKET_UDP_HIGH_BANDWIDTH);
+
+	/* Make peeled-off sockets more like 1-1 accepted sockets.
+	 * Set the daddr and initialize id to something more random
+	 */
+	inetsk = inet_sk(sock->sk);
+	inetsk->daddr = asoc->peer.primary_addr.v4.sin_addr.s_addr;
+	inetsk->id = asoc->next_tsn ^ jiffies;
+
 	*sockp = sock;
 
 	return err;
@@ -5362,6 +5371,20 @@ static void sctp_wfree(struct sk_buff *skb)
 	sctp_association_put(asoc);
 }
 
+/* Do accounting for the receive space on the socket.
+ * Accounting for the association is done in ulpevent.c
+ * We set this as a destructor for the cloned data skbs so that
+ * accounting is done at the correct time.
+ */
+void sctp_sock_rfree(struct sk_buff *skb)
+{
+	struct sock *sk = skb->sk;
+	struct sctp_ulpevent *event = sctp_skb2event(skb);
+
+	atomic_sub(event->rmem_len, &sk->sk_rmem_alloc);
+}
+
+
 /* Helper function to wait for space in the sndbuf.  */
 static int sctp_wait_for_sndbuf(struct sctp_association *asoc, long *timeo_p,
 				size_t msg_len)
@@ -5634,10 +5657,10 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	sctp_skb_for_each(skb, &oldsk->sk_receive_queue, tmp) {
 		event = sctp_skb2event(skb);
 		if (event->asoc == assoc) {
-			sock_rfree(skb);
+			sctp_sock_rfree(skb);
 			__skb_unlink(skb, &oldsk->sk_receive_queue);
 			__skb_queue_tail(&newsk->sk_receive_queue, skb);
-			skb_set_owner_r(skb, newsk);
+			sctp_skb_set_owner_r(skb, newsk);
 		}
 	}
 
@@ -5665,10 +5688,10 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 		sctp_skb_for_each(skb, &oldsp->pd_lobby, tmp) {
 			event = sctp_skb2event(skb);
 			if (event->asoc == assoc) {
-				sock_rfree(skb);
+				sctp_sock_rfree(skb);
 				__skb_unlink(skb, &oldsp->pd_lobby);
 				__skb_queue_tail(queue, skb);
-				skb_set_owner_r(skb, newsk);
+				sctp_skb_set_owner_r(skb, newsk);
 			}
 		}
 

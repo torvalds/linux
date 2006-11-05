@@ -1704,7 +1704,7 @@ ip2_write( PTTY tty, const unsigned char *pData, int count)
 
 	/* This is the actual move bit. Make sure it does what we need!!!!! */
 	WRITE_LOCK_IRQSAVE(&pCh->Pbuf_spinlock,flags);
-	bytesSent = i2Output( pCh, pData, count, 0 );
+	bytesSent = i2Output( pCh, pData, count);
 	WRITE_UNLOCK_IRQRESTORE(&pCh->Pbuf_spinlock,flags);
 
 	ip2trace (CHANN, ITRC_WRITE, ITRC_RETURN, 1, bytesSent );
@@ -1764,7 +1764,7 @@ ip2_flush_chars( PTTY tty )
 		//
 		// We may need to restart i2Output if it does not fullfill this request
 		//
-		strip = i2Output( pCh, pCh->Pbuf, pCh->Pbuf_stuff, 0 );
+		strip = i2Output( pCh, pCh->Pbuf, pCh->Pbuf_stuff);
 		if ( strip != pCh->Pbuf_stuff ) {
 			memmove( pCh->Pbuf, &pCh->Pbuf[strip], pCh->Pbuf_stuff - strip );
 		}

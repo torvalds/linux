@@ -214,6 +214,7 @@ static struct pci_device_id rtl8169_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK,	0x8168), 0, 0, RTL_CFG_2 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK,	0x8169), 0, 0, RTL_CFG_0 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_DLINK,	0x4300), 0, 0, RTL_CFG_0 },
+	{ PCI_DEVICE(0x1259,			0xc107), 0, 0, RTL_CFG_0 },
 	{ PCI_DEVICE(0x16ec,			0x0116), 0, 0, RTL_CFG_0 },
 	{ PCI_VENDOR_ID_LINKSYS,		0x1032,
 		PCI_ANY_ID, 0x0024, 0, 0, RTL_CFG_0 },
@@ -1396,41 +1397,6 @@ static void rtl8169_netpoll(struct net_device *dev)
 }
 #endif
 
-static void __rtl8169_set_mac_addr(struct net_device *dev, void __iomem *ioaddr)
-{
-	unsigned int i, j;
-
-	RTL_W8(Cfg9346, Cfg9346_Unlock);
-	for (i = 0; i < 2; i++) {
-		__le32 l = 0;
-
-		for (j = 0; j < 4; j++) {
-			l <<= 8;
-			l |= dev->dev_addr[4*i + j];
-		}
-		RTL_W32(MAC0 + 4*i, cpu_to_be32(l));
-	}
-	RTL_W8(Cfg9346, Cfg9346_Lock);
-}
-
-static int rtl8169_set_mac_addr(struct net_device *dev, void *p)
-{
-	struct rtl8169_private *tp = netdev_priv(dev);
-	struct sockaddr *addr = p;
-
-	if (!is_valid_ether_addr(addr->sa_data))
-		return -EINVAL;
-
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
-
-	if (netif_running(dev)) {
-		spin_lock_irq(&tp->lock);
-		__rtl8169_set_mac_addr(dev, tp->mmio_addr);
-		spin_unlock_irq(&tp->lock);
-	}
-	return 0;
-}
-
 static void rtl8169_release_board(struct pci_dev *pdev, struct net_device *dev,
 				  void __iomem *ioaddr)
 {
@@ -1680,7 +1646,6 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->stop = rtl8169_close;
 	dev->tx_timeout = rtl8169_tx_timeout;
 	dev->set_multicast_list = rtl8169_set_rx_mode;
-	dev->set_mac_address = rtl8169_set_mac_addr;
 	dev->watchdog_timeo = RTL8169_TX_TIMEOUT;
 	dev->irq = pdev->irq;
 	dev->base_addr = (unsigned long) ioaddr;
@@ -1927,8 +1892,6 @@ rtl8169_hw_start(struct net_device *dev)
 
 	/* Enable all known interrupts by setting the interrupt mask. */
 	RTL_W16(IntrMask, rtl8169_intr_mask);
-
-	__rtl8169_set_mac_addr(dev, ioaddr);
 
 	netif_start_queue(dev);
 }
@@ -2700,6 +2663,7 @@ static void rtl8169_down(struct net_device *dev)
 	struct rtl8169_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
 	unsigned int poll_locked = 0;
+	unsigned int intrmask;
 
 	rtl8169_delete_timer(dev);
 
@@ -2738,8 +2702,11 @@ core_down:
 	 * 2) dev->change_mtu
 	 *    -> rtl8169_poll can not be issued again and re-enable the
 	 *       interruptions. Let's simply issue the IRQ down sequence again.
+	 *
+	 * No loop if hotpluged or major error (0xffff).
 	 */
-	if (RTL_R16(IntrMask))
+	intrmask = RTL_R16(IntrMask);
+	if (intrmask && (intrmask != 0xffff))
 		goto core_down;
 
 	rtl8169_tx_clear(tp);

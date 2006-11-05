@@ -1240,23 +1240,53 @@ static CLASS_DEVICE_ATTR(frame_header, S_IRUGO,
 			 sn9c102_show_frame_header, NULL);
 
 
-static void sn9c102_create_sysfs(struct sn9c102_device* cam)
+static int sn9c102_create_sysfs(struct sn9c102_device* cam)
 {
 	struct video_device *v4ldev = cam->v4ldev;
+	int rc;
 
-	video_device_create_file(v4ldev, &class_device_attr_reg);
-	video_device_create_file(v4ldev, &class_device_attr_val);
-	video_device_create_file(v4ldev, &class_device_attr_frame_header);
-	if (cam->bridge == BRIDGE_SN9C101 || cam->bridge == BRIDGE_SN9C102)
-		video_device_create_file(v4ldev, &class_device_attr_green);
-	else if (cam->bridge == BRIDGE_SN9C103) {
-		video_device_create_file(v4ldev, &class_device_attr_blue);
-		video_device_create_file(v4ldev, &class_device_attr_red);
-	}
+	rc = video_device_create_file(v4ldev, &class_device_attr_reg);
+	if (rc) goto err;
+	rc = video_device_create_file(v4ldev, &class_device_attr_val);
+	if (rc) goto err_reg;
+	rc = video_device_create_file(v4ldev, &class_device_attr_frame_header);
+	if (rc) goto err_val;
+
 	if (cam->sensor.sysfs_ops) {
-		video_device_create_file(v4ldev, &class_device_attr_i2c_reg);
-		video_device_create_file(v4ldev, &class_device_attr_i2c_val);
+		rc = video_device_create_file(v4ldev, &class_device_attr_i2c_reg);
+		if (rc) goto err_frhead;
+		rc = video_device_create_file(v4ldev, &class_device_attr_i2c_val);
+		if (rc) goto err_i2c_reg;
 	}
+
+	if (cam->bridge == BRIDGE_SN9C101 || cam->bridge == BRIDGE_SN9C102) {
+		rc = video_device_create_file(v4ldev, &class_device_attr_green);
+		if (rc) goto err_i2c_val;
+	} else if (cam->bridge == BRIDGE_SN9C103) {
+		rc = video_device_create_file(v4ldev, &class_device_attr_blue);
+		if (rc) goto err_i2c_val;
+		rc = video_device_create_file(v4ldev, &class_device_attr_red);
+		if (rc) goto err_blue;
+	}
+
+	return 0;
+
+err_blue:
+	video_device_remove_file(v4ldev, &class_device_attr_blue);
+err_i2c_val:
+	if (cam->sensor.sysfs_ops)
+		video_device_remove_file(v4ldev, &class_device_attr_i2c_val);
+err_i2c_reg:
+	if (cam->sensor.sysfs_ops)
+		video_device_remove_file(v4ldev, &class_device_attr_i2c_reg);
+err_frhead:
+	video_device_remove_file(v4ldev, &class_device_attr_frame_header);
+err_val:
+	video_device_remove_file(v4ldev, &class_device_attr_val);
+err_reg:
+	video_device_remove_file(v4ldev, &class_device_attr_reg);
+err:
+	return rc;
 }
 #endif /* CONFIG_VIDEO_ADV_DEBUG */
 
@@ -2809,10 +2839,7 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 		DBG(1, "V4L2 device registration failed");
 		if (err == -ENFILE && video_nr[dev_nr] == -1)
 			DBG(1, "Free /dev/videoX node not found");
-		video_nr[dev_nr] = -1;
-		dev_nr = (dev_nr < SN9C102_MAX_DEVICES-1) ? dev_nr+1 : 0;
-		mutex_unlock(&cam->dev_mutex);
-		goto fail;
+		goto fail2;
 	}
 
 	DBG(2, "V4L2 device registered as /dev/video%d", cam->v4ldev->minor);
@@ -2823,7 +2850,9 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	dev_nr = (dev_nr < SN9C102_MAX_DEVICES-1) ? dev_nr+1 : 0;
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	sn9c102_create_sysfs(cam);
+	err = sn9c102_create_sysfs(cam);
+	if (err)
+		goto fail3;
 	DBG(2, "Optional device control through 'sysfs' interface ready");
 #endif
 
@@ -2833,6 +2862,14 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 
 	return 0;
 
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+fail3:
+	video_unregister_device(cam->v4ldev);
+#endif
+fail2:
+	video_nr[dev_nr] = -1;
+	dev_nr = (dev_nr < SN9C102_MAX_DEVICES-1) ? dev_nr+1 : 0;
+	mutex_unlock(&cam->dev_mutex);
 fail:
 	if (cam) {
 		kfree(cam->control_buffer);

@@ -260,6 +260,7 @@ static const struct pci_device_id pdc_ata_pci_tbl[] = {
 #if 0
 	{ PCI_VDEVICE(PROMISE, 0x3570), board_20771 },
 #endif
+	{ PCI_VDEVICE(PROMISE, 0x3577), board_20771 },
 
 	{ }	/* terminate list */
 };

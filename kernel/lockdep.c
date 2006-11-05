@@ -575,6 +575,8 @@ static noinline int print_circular_bug_tail(void)
 	return 0;
 }
 
+#define RECURSION_LIMIT 40
+
 static int noinline print_infinite_recursion_bug(void)
 {
 	__raw_spin_unlock(&hash_lock);
@@ -595,7 +597,7 @@ check_noncircular(struct lock_class *source, unsigned int depth)
 	debug_atomic_inc(&nr_cyclic_check_recursions);
 	if (depth > max_recursion_depth)
 		max_recursion_depth = depth;
-	if (depth >= 20)
+	if (depth >= RECURSION_LIMIT)
 		return print_infinite_recursion_bug();
 	/*
 	 * Check this lock's dependency list:
@@ -645,7 +647,7 @@ find_usage_forwards(struct lock_class *source, unsigned int depth)
 
 	if (depth > max_recursion_depth)
 		max_recursion_depth = depth;
-	if (depth >= 20)
+	if (depth >= RECURSION_LIMIT)
 		return print_infinite_recursion_bug();
 
 	debug_atomic_inc(&nr_find_usage_forwards_checks);
@@ -684,7 +686,7 @@ find_usage_backwards(struct lock_class *source, unsigned int depth)
 
 	if (depth > max_recursion_depth)
 		max_recursion_depth = depth;
-	if (depth >= 20)
+	if (depth >= RECURSION_LIMIT)
 		return print_infinite_recursion_bug();
 
 	debug_atomic_inc(&nr_find_usage_backwards_checks);
@@ -1114,8 +1116,6 @@ static int count_matching_names(struct lock_class *new_class)
 	return count + 1;
 }
 
-extern void __error_too_big_MAX_LOCKDEP_SUBCLASSES(void);
-
 /*
  * Register a lock's class in the hash-table, if the class is not present
  * yet. Otherwise we look it up. We cache the result in the lock object
@@ -1153,8 +1153,7 @@ look_up_lock_class(struct lockdep_map *lock, unsigned int subclass)
 	 * (or spin_lock_init()) call - which acts as the key. For static
 	 * locks we use the lock object itself as the key.
 	 */
-	if (sizeof(struct lock_class_key) > sizeof(struct lock_class))
-		__error_too_big_MAX_LOCKDEP_SUBCLASSES();
+	BUILD_BUG_ON(sizeof(struct lock_class_key) > sizeof(struct lock_class));
 
 	key = lock->key->subkeys + subclass;
 

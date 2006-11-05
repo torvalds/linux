@@ -311,6 +311,7 @@ pcbit_deliver(void *data)
 		dev->read_queue = frame->next;
 		spin_unlock_irqrestore(&dev->lock, flags);
 
+		msg = 0;
 		SET_MSG_CPU(msg, 0);
 		SET_MSG_PROC(msg, 0);
 		SET_MSG_CMD(msg, frame->skb->data[2]);

@@ -17,29 +17,18 @@
 
     Copyright 2003 (c) Lineo uSolutions,Inc.
 */
-/* -------------------------------------------------------------------- */
-
-#undef DEBUG
-
-#include <linux/sched.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/param.h>
-#include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
-#include <linux/irq.h>
-
-#include <asm/io.h>
-#include <asm/irq.h>
+#include <linux/io.h>
 #include <asm/voyagergx.h>
+#include <asm/rts7751r2d.h>
 
 static void disable_voyagergx_irq(unsigned int irq)
 {
 	unsigned long val;
 	unsigned long mask = 1 << (irq - VOYAGER_IRQ_BASE);
 
-    	pr_debug("disable_voyagergx_irq(%d): mask=%x\n", irq, mask);
+    	pr_debug("disable_voyagergx_irq(%d): mask=%lx\n", irq, mask);
         val = inl(VOYAGER_INT_MASK);
         val &= ~mask;
         outl(val, VOYAGER_INT_MASK);
@@ -50,7 +39,7 @@ static void enable_voyagergx_irq(unsigned int irq)
         unsigned long val;
         unsigned long mask = 1 << (irq - VOYAGER_IRQ_BASE);
 
-        pr_debug("disable_voyagergx_irq(%d): mask=%x\n", irq, mask);
+        pr_debug("disable_voyagergx_irq(%d): mask=%lx\n", irq, mask);
         val = inl(VOYAGER_INT_MASK);
         val |= mask;
         outl(val, VOYAGER_INT_MASK);
@@ -88,8 +77,7 @@ static struct hw_interrupt_type voyagergx_irq_type = {
 	.end = end_voyagergx_irq,
 };
 
-static irqreturn_t voyagergx_interrupt(int irq, void *dev_id,
-				      struct pt_regs *regs)
+static irqreturn_t voyagergx_interrupt(int irq, void *dev_id)
 {
 	printk(KERN_INFO
 	       "VoyagerGX: spurious interrupt, status: 0x%x\n",
@@ -138,7 +126,7 @@ int voyagergx_irq_demux(int irq)
 		} else {
 			printk("Unexpected IRQ irq = %d status = 0x%08lx\n", irq, val);
 		}
-		pr_debug("voyagergx_irq_demux %d \n", i);
+		pr_debug("voyagergx_irq_demux %ld\n", i);
 #else
 		for (bit = 1, i = 0 ; i < VOYAGER_IRQ_NUM ; bit <<= 1, i++)
 			if (val & bit)
@@ -186,4 +174,3 @@ void __init setup_voyagergx_irq(void)
 
 	setup_irq(IRQ_VOYAGER, &irq0);
 }
-

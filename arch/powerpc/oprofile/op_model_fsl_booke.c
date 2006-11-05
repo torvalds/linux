@@ -32,42 +32,152 @@ static unsigned long reset_value[OP_MAX_COUNTER];
 static int num_counters;
 static int oprofile_running;
 
-static inline unsigned int ctr_read(unsigned int i)
+static void init_pmc_stop(int ctr)
 {
-	switch(i) {
+	u32 pmlca = (PMLCA_FC | PMLCA_FCS | PMLCA_FCU |
+			PMLCA_FCM1 | PMLCA_FCM0);
+	u32 pmlcb = 0;
+
+	switch (ctr) {
 		case 0:
-			return mfpmr(PMRN_PMC0);
+			mtpmr(PMRN_PMLCA0, pmlca);
+			mtpmr(PMRN_PMLCB0, pmlcb);
+			break;
 		case 1:
-			return mfpmr(PMRN_PMC1);
+			mtpmr(PMRN_PMLCA1, pmlca);
+			mtpmr(PMRN_PMLCB1, pmlcb);
+			break;
 		case 2:
-			return mfpmr(PMRN_PMC2);
+			mtpmr(PMRN_PMLCA2, pmlca);
+			mtpmr(PMRN_PMLCB2, pmlcb);
+			break;
 		case 3:
-			return mfpmr(PMRN_PMC3);
+			mtpmr(PMRN_PMLCA3, pmlca);
+			mtpmr(PMRN_PMLCB3, pmlcb);
+			break;
 		default:
-			return 0;
+			panic("Bad ctr number!\n");
 	}
 }
 
-static inline void ctr_write(unsigned int i, unsigned int val)
+static void set_pmc_event(int ctr, int event)
 {
-	switch(i) {
-		case 0:
-			mtpmr(PMRN_PMC0, val);
-			break;
-		case 1:
-			mtpmr(PMRN_PMC1, val);
-			break;
-		case 2:
-			mtpmr(PMRN_PMC2, val);
-			break;
-		case 3:
-			mtpmr(PMRN_PMC3, val);
-			break;
-		default:
-			break;
-	}
+	u32 pmlca;
+
+	pmlca = get_pmlca(ctr);
+
+	pmlca = (pmlca & ~PMLCA_EVENT_MASK) |
+		((event << PMLCA_EVENT_SHIFT) &
+		 PMLCA_EVENT_MASK);
+
+	set_pmlca(ctr, pmlca);
 }
 
+static void set_pmc_user_kernel(int ctr, int user, int kernel)
+{
+	u32 pmlca;
+
+	pmlca = get_pmlca(ctr);
+
+	if(user)
+		pmlca &= ~PMLCA_FCU;
+	else
+		pmlca |= PMLCA_FCU;
+
+	if(kernel)
+		pmlca &= ~PMLCA_FCS;
+	else
+		pmlca |= PMLCA_FCS;
+
+	set_pmlca(ctr, pmlca);
+}
+
+static void set_pmc_marked(int ctr, int mark0, int mark1)
+{
+	u32 pmlca = get_pmlca(ctr);
+
+	if(mark0)
+		pmlca &= ~PMLCA_FCM0;
+	else
+		pmlca |= PMLCA_FCM0;
+
+	if(mark1)
+		pmlca &= ~PMLCA_FCM1;
+	else
+		pmlca |= PMLCA_FCM1;
+
+	set_pmlca(ctr, pmlca);
+}
+
+static void pmc_start_ctr(int ctr, int enable)
+{
+	u32 pmlca = get_pmlca(ctr);
+
+	pmlca &= ~PMLCA_FC;
+
+	if (enable)
+		pmlca |= PMLCA_CE;
+	else
+		pmlca &= ~PMLCA_CE;
+
+	set_pmlca(ctr, pmlca);
+}
+
+static void pmc_start_ctrs(int enable)
+{
+	u32 pmgc0 = mfpmr(PMRN_PMGC0);
+
+	pmgc0 &= ~PMGC0_FAC;
+	pmgc0 |= PMGC0_FCECE;
+
+	if (enable)
+		pmgc0 |= PMGC0_PMIE;
+	else
+		pmgc0 &= ~PMGC0_PMIE;
+
+	mtpmr(PMRN_PMGC0, pmgc0);
+}
+
+static void pmc_stop_ctrs(void)
+{
+	u32 pmgc0 = mfpmr(PMRN_PMGC0);
+
+	pmgc0 |= PMGC0_FAC;
+
+	pmgc0 &= ~(PMGC0_PMIE | PMGC0_FCECE);
+
+	mtpmr(PMRN_PMGC0, pmgc0);
+}
+
+static void dump_pmcs(void)
+{
+	printk("pmgc0: %x\n", mfpmr(PMRN_PMGC0));
+	printk("pmc\t\tpmlca\t\tpmlcb\n");
+	printk("%8x\t%8x\t%8x\n", mfpmr(PMRN_PMC0),
+			mfpmr(PMRN_PMLCA0), mfpmr(PMRN_PMLCB0));
+	printk("%8x\t%8x\t%8x\n", mfpmr(PMRN_PMC1),
+			mfpmr(PMRN_PMLCA1), mfpmr(PMRN_PMLCB1));
+	printk("%8x\t%8x\t%8x\n", mfpmr(PMRN_PMC2),
+			mfpmr(PMRN_PMLCA2), mfpmr(PMRN_PMLCB2));
+	printk("%8x\t%8x\t%8x\n", mfpmr(PMRN_PMC3),
+			mfpmr(PMRN_PMLCA3), mfpmr(PMRN_PMLCB3));
+}
+
+static void fsl_booke_cpu_setup(struct op_counter_config *ctr)
+{
+	int i;
+
+	/* freeze all counters */
+	pmc_stop_ctrs();
+
+	for (i = 0;i < num_counters;i++) {
+		init_pmc_stop(i);
+
+		set_pmc_event(i, ctr[i].event);
+
+		set_pmc_user_kernel(i, ctr[i].user, ctr[i].kernel);
+	}
+}
 
 static void fsl_booke_reg_setup(struct op_counter_config *ctr,
 			     struct op_system_config *sys,
@@ -77,23 +187,14 @@ static void fsl_booke_reg_setup(struct op_counter_config *ctr,
 
 	num_counters = num_ctrs;
 
-	/* freeze all counters */
-	pmc_stop_ctrs();
-
 	/* Our counters count up, and "count" refers to
 	 * how much before the next interrupt, and we interrupt
 	 * on overflow.  So we calculate the starting value
 	 * which will give us "count" until overflow.
 	 * Then we set the events on the enabled counters */
-	for (i = 0; i < num_counters; ++i) {
+	for (i = 0; i < num_counters; ++i)
 		reset_value[i] = 0x80000000UL - ctr[i].count;
 
-		init_pmc_stop(i);
-
-		set_pmc_event(i, ctr[i].event);
-
-		set_pmc_user_kernel(i, ctr[i].user, ctr[i].kernel);
-	}
 }
 
 static void fsl_booke_start(struct op_counter_config *ctr)
@@ -105,8 +206,8 @@ static void fsl_booke_start(struct op_counter_config *ctr)
 	for (i = 0; i < num_counters; ++i) {
 		if (ctr[i].enabled) {
 			ctr_write(i, reset_value[i]);
-			/* Set Each enabled counterd to only
-			 * count when the Mark bit is not set */
+			/* Set each enabled counter to only
+			 * count when the Mark bit is *not* set */
 			set_pmc_marked(i, 1, 0);
 			pmc_start_ctr(i, 1);
 		} else {
@@ -177,6 +278,7 @@ static void fsl_booke_handle_interrupt(struct pt_regs *regs,
 
 struct op_powerpc_model op_model_fsl_booke = {
 	.reg_setup		= fsl_booke_reg_setup,
+	.cpu_setup		= fsl_booke_cpu_setup,
 	.start			= fsl_booke_start,
 	.stop			= fsl_booke_stop,
 	.handle_interrupt	= fsl_booke_handle_interrupt,

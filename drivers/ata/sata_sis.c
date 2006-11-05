@@ -240,7 +240,7 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ata_probe_ent *probe_ent = NULL;
 	int rc;
 	u32 genctl;
-	struct ata_port_info *ppi[2];
+	struct ata_port_info pi = sis_port_info, *ppi[2] = { &pi, &pi };
 	int pci_dev_busy = 0;
 	u8 pmr;
 	u8 port2_start;
@@ -265,27 +265,20 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto err_out_regions;
 
-	ppi[0] = ppi[1] = &sis_port_info;
-	probe_ent = ata_pci_init_native_mode(pdev, ppi, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
-	if (!probe_ent) {
-		rc = -ENOMEM;
-		goto err_out_regions;
-	}
-
 	/* check and see if the SCRs are in IO space or PCI cfg space */
 	pci_read_config_dword(pdev, SIS_GENCTL, &genctl);
 	if ((genctl & GENCTL_IOMAPPED_SCR) == 0)
-		probe_ent->port_flags |= SIS_FLAG_CFGSCR;
+		pi.flags |= SIS_FLAG_CFGSCR;
 
 	/* if hardware thinks SCRs are in IO space, but there are
 	 * no IO resources assigned, change to PCI cfg space.
 	 */
-	if ((!(probe_ent->port_flags & SIS_FLAG_CFGSCR)) &&
+	if ((!(pi.flags & SIS_FLAG_CFGSCR)) &&
 	    ((pci_resource_start(pdev, SIS_SCR_PCI_BAR) == 0) ||
 	     (pci_resource_len(pdev, SIS_SCR_PCI_BAR) < 128))) {
 		genctl &= ~GENCTL_IOMAPPED_SCR;
 		pci_write_config_dword(pdev, SIS_GENCTL, genctl);
-		probe_ent->port_flags |= SIS_FLAG_CFGSCR;
+		pi.flags |= SIS_FLAG_CFGSCR;
 	}
 
 	pci_read_config_byte(pdev, SIS_PMR, &pmr);
@@ -304,6 +297,12 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	else {
 		dev_printk(KERN_INFO, &pdev->dev, "Detected SiS 182 chipset\n");
 		port2_start = 0x20;
+	}
+
+	probe_ent = ata_pci_init_native_mode(pdev, ppi, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
+	if (!probe_ent) {
+		rc = -ENOMEM;
+		goto err_out_regions;
 	}
 
 	if (!(probe_ent->port_flags & SIS_FLAG_CFGSCR)) {

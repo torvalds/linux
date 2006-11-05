@@ -31,6 +31,16 @@ SECTIONS
   PROVIDE (_etext = .);
   PROVIDE (etext = .);
 
+  . = ALIGN(8);
+  __ftr_fixup : {
+    *(__ftr_fixup)
+  }
+
+  . = ALIGN(8);
+  __fw_ftr_fixup : {
+    *(__fw_ftr_fixup)
+  }
+
   /* Other stuff is appended to the text segment: */
   .rodata         : { *(.rodata .rodata.* .gnu.linkonce.r.*) }
   .rodata1        : { *(.rodata1) }

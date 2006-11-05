@@ -39,6 +39,8 @@
 #include <linux/init.h>
 #include <linux/hardirq.h>
 
+#include <asm/io.h>
+
 #include <rdma/ib_pack.h>
 
 #include "mthca_dev.h"
@@ -210,6 +212,11 @@ static inline void update_cons_index(struct mthca_dev *dev, struct mthca_cq *cq,
 		mthca_write64(doorbell,
 			      dev->kar + MTHCA_CQ_DOORBELL,
 			      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
+		/*
+		 * Make sure doorbells don't leak out of CQ spinlock
+		 * and reach the HCA out of order:
+		 */
+		mmiowb();
 	}
 }
 

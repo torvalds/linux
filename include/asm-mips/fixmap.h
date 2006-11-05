@@ -45,8 +45,16 @@
  * fix-mapped?
  */
 enum fixed_addresses {
+#define FIX_N_COLOURS 8
+	FIX_CMAP_BEGIN,
+#ifdef CONFIG_MIPS_MT_SMTC
+	FIX_CMAP_END = FIX_CMAP_BEGIN + (FIX_N_COLOURS * NR_CPUS),
+#else
+	FIX_CMAP_END = FIX_CMAP_BEGIN + FIX_N_COLOURS,
+#endif
 #ifdef CONFIG_HIGHMEM
-	FIX_KMAP_BEGIN,	/* reserved pte's for temporary kernel mappings */
+	/* reserved pte's for temporary kernel mappings */
+	FIX_KMAP_BEGIN = FIX_CMAP_END + 1,
 	FIX_KMAP_END = FIX_KMAP_BEGIN+(KM_TYPE_NR*NR_CPUS)-1,
 #endif
 	__end_of_fixed_addresses
@@ -70,9 +78,9 @@ extern void __set_fixmap (enum fixed_addresses idx,
  * at the top of mem..
  */
 #if defined(CONFIG_CPU_TX39XX) || defined(CONFIG_CPU_TX49XX)
-#define FIXADDR_TOP	(0xff000000UL - 0x2000)
+#define FIXADDR_TOP	((unsigned long)(long)(int)(0xff000000 - 0x20000))
 #else
-#define FIXADDR_TOP	(0xffffe000UL)
+#define FIXADDR_TOP	((unsigned long)(long)(int)0xfffe0000)
 #endif
 #define FIXADDR_SIZE	(__end_of_fixed_addresses << PAGE_SHIFT)
 #define FIXADDR_START	(FIXADDR_TOP - FIXADDR_SIZE)

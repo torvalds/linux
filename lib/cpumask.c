@@ -43,19 +43,3 @@ int __any_online_cpu(const cpumask_t *mask)
 	return cpu;
 }
 EXPORT_SYMBOL(__any_online_cpu);
-
-#if MAX_NUMNODES > 1
-/*
- * Find the highest possible node id.
- */
-int highest_possible_node_id(void)
-{
-	unsigned int node;
-	unsigned int highest = 0;
-
-	for_each_node_mask(node, node_possible_map)
-		highest = node;
-	return highest;
-}
-EXPORT_SYMBOL(highest_possible_node_id);
-#endif

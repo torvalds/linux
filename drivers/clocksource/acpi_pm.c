@@ -54,8 +54,8 @@ static cycle_t acpi_pm_read_verified(void)
 		v1 = read_pmtmr();
 		v2 = read_pmtmr();
 		v3 = read_pmtmr();
-	} while ((v1 > v2 && v1 < v3) || (v2 > v3 && v2 < v1)
-			|| (v3 > v1 && v3 < v2));
+	} while (unlikely((v1 > v2 && v1 < v3) || (v2 > v3 && v2 < v1)
+			  || (v3 > v1 && v3 < v2)));
 
 	return (cycle_t)v2;
 }
@@ -137,6 +137,8 @@ static void __devinit acpi_pm_check_graylist(struct pci_dev *dev)
 	acpi_pm_need_workaround();
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_0,
+			acpi_pm_check_graylist);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_LE,
 			acpi_pm_check_graylist);
 #endif
 

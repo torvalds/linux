@@ -203,7 +203,7 @@ static irqreturn_t do_eata_pio_int_handler(int irq, void *dev_id)
 	irqreturn_t ret;
 
 	spin_lock_irqsave(dev->host_lock, flags);
-	ret = eata_pio_int_handler(irq, dev_id, regs);
+	ret = eata_pio_int_handler(irq, dev_id);
 	spin_unlock_irqrestore(dev->host_lock, flags);
 	return ret;
 }

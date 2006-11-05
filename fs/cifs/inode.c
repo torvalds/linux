@@ -337,6 +337,7 @@ int cifs_get_inode_info(struct inode **pinode,
 		pfindData = (FILE_ALL_INFO *)buf;
 		/* could do find first instead but this returns more info */
 		rc = CIFSSMBQPathInfo(xid, pTcon, search_path, pfindData,
+			      0 /* not legacy */,
 			      cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
 				CIFS_MOUNT_MAP_SPECIAL_CHR);
 		/* BB optimize code so we do not make the above call
@@ -384,8 +385,10 @@ int cifs_get_inode_info(struct inode **pinode,
 		/* get new inode */
 		if (*pinode == NULL) {
 			*pinode = new_inode(sb);
-			if (*pinode == NULL)
+			if (*pinode == NULL) {
+				kfree(buf);
 				return -ENOMEM;
+			}
 			/* Is an i_ino of zero legal? Can we use that to check
 			   if the server supports returning inode numbers?  Are
 			   there other sanity checks we can use to ensure that
@@ -431,8 +434,11 @@ int cifs_get_inode_info(struct inode **pinode,
 		(pTcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE) & 0xFFFFFE00;*/
 
 		/* Linux can not store file creation time so ignore it */
-		inode->i_atime =
-		    cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastAccessTime));
+		if(pfindData->LastAccessTime)
+			inode->i_atime = cifs_NTtimeToUnix
+				(le64_to_cpu(pfindData->LastAccessTime));
+		else /* do not need to use current_fs_time - time not stored */
+			inode->i_atime = CURRENT_TIME;
 		inode->i_mtime =
 		    cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastWriteTime));
 		inode->i_ctime =
@@ -879,10 +885,14 @@ int cifs_rename(struct inode *source_inode, struct dentry *source_direntry,
 			kmalloc(2 * sizeof(FILE_UNIX_BASIC_INFO), GFP_KERNEL);
 		if (info_buf_source != NULL) {
 			info_buf_target = info_buf_source + 1;
-			rc = CIFSSMBUnixQPathInfo(xid, pTcon, fromName,
-				info_buf_source, cifs_sb_source->local_nls, 
-				cifs_sb_source->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
+			if (pTcon->ses->capabilities & CAP_UNIX)
+				rc = CIFSSMBUnixQPathInfo(xid, pTcon, fromName,
+					info_buf_source, 
+					cifs_sb_source->local_nls,
+					cifs_sb_source->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
+			/* else rc is still EEXIST so will fall through to
+			   unlink the target and retry rename */
 			if (rc == 0) {
 				rc = CIFSSMBUnixQPathInfo(xid, pTcon, toName,
 						info_buf_target,
@@ -931,7 +941,7 @@ int cifs_rename(struct inode *source_inode, struct dentry *source_direntry,
 				 cifs_sb_source->mnt_cifs_flags & 
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 		if (rc==0) {
-			CIFSSMBRenameOpenFile(xid, pTcon, netfid, toName,
+			rc = CIFSSMBRenameOpenFile(xid, pTcon, netfid, toName,
 					      cifs_sb_source->local_nls, 
 					      cifs_sb_source->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);

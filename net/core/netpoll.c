@@ -335,13 +335,13 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	memcpy(skb->data, msg, len);
 	skb->len += len;
 
-	udph = (struct udphdr *) skb_push(skb, sizeof(*udph));
+	skb->h.uh = udph = (struct udphdr *) skb_push(skb, sizeof(*udph));
 	udph->source = htons(np->local_port);
 	udph->dest = htons(np->remote_port);
 	udph->len = htons(udp_len);
 	udph->check = 0;
 
-	iph = (struct iphdr *)skb_push(skb, sizeof(*iph));
+	skb->nh.iph = iph = (struct iphdr *)skb_push(skb, sizeof(*iph));
 
 	/* iph->version = 4; iph->ihl = 5; */
 	put_unaligned(0x45, (unsigned char *)iph);
@@ -357,8 +357,8 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	iph->check    = ip_fast_csum((unsigned char *)iph, iph->ihl);
 
 	eth = (struct ethhdr *) skb_push(skb, ETH_HLEN);
-
-	eth->h_proto = htons(ETH_P_IP);
+	skb->mac.raw = skb->data;
+	skb->protocol = eth->h_proto = htons(ETH_P_IP);
 	memcpy(eth->h_source, np->local_mac, 6);
 	memcpy(eth->h_dest, np->remote_mac, 6);
 

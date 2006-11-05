@@ -148,8 +148,8 @@ nsm_create(void)
  * XDR functions for NSM.
  */
 
-static u32 *
-xdr_encode_common(struct rpc_rqst *rqstp, u32 *p, struct nsm_args *argp)
+static __be32 *
+xdr_encode_common(struct rpc_rqst *rqstp, __be32 *p, struct nsm_args *argp)
 {
 	char	buffer[20], *name;
 
@@ -176,7 +176,7 @@ xdr_encode_common(struct rpc_rqst *rqstp, u32 *p, struct nsm_args *argp)
 }
 
 static int
-xdr_encode_mon(struct rpc_rqst *rqstp, u32 *p, struct nsm_args *argp)
+xdr_encode_mon(struct rpc_rqst *rqstp, __be32 *p, struct nsm_args *argp)
 {
 	p = xdr_encode_common(rqstp, p, argp);
 	if (IS_ERR(p))
@@ -192,7 +192,7 @@ xdr_encode_mon(struct rpc_rqst *rqstp, u32 *p, struct nsm_args *argp)
 }
 
 static int
-xdr_encode_unmon(struct rpc_rqst *rqstp, u32 *p, struct nsm_args *argp)
+xdr_encode_unmon(struct rpc_rqst *rqstp, __be32 *p, struct nsm_args *argp)
 {
 	p = xdr_encode_common(rqstp, p, argp);
 	if (IS_ERR(p))
@@ -202,7 +202,7 @@ xdr_encode_unmon(struct rpc_rqst *rqstp, u32 *p, struct nsm_args *argp)
 }
 
 static int
-xdr_decode_stat_res(struct rpc_rqst *rqstp, u32 *p, struct nsm_res *resp)
+xdr_decode_stat_res(struct rpc_rqst *rqstp, __be32 *p, struct nsm_res *resp)
 {
 	resp->status = ntohl(*p++);
 	resp->state = ntohl(*p++);
@@ -212,7 +212,7 @@ xdr_decode_stat_res(struct rpc_rqst *rqstp, u32 *p, struct nsm_res *resp)
 }
 
 static int
-xdr_decode_stat(struct rpc_rqst *rqstp, u32 *p, struct nsm_res *resp)
+xdr_decode_stat(struct rpc_rqst *rqstp, __be32 *p, struct nsm_res *resp)
 {
 	resp->state = ntohl(*p++);
 	return 0;

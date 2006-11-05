@@ -34,6 +34,7 @@
 #include <linux/socket.h>
 #include <linux/ioctl.h>
 #include <linux/file.h>
+#include <linux/compat.h>
 #include <net/sock.h>
 
 #include <linux/isdn/capilli.h>
@@ -137,11 +138,43 @@ static int cmtp_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long 
 	return -EINVAL;
 }
 
+#ifdef CONFIG_COMPAT
+static int cmtp_sock_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+{
+	if (cmd == CMTPGETCONNLIST) {
+		struct cmtp_connlist_req cl;
+		uint32_t uci;
+		int err;
+
+		if (get_user(cl.cnum, (uint32_t __user *) arg) ||
+				get_user(uci, (u32 __user *) (arg + 4)))
+			return -EFAULT;
+
+		cl.ci = compat_ptr(uci);
+
+		if (cl.cnum <= 0)
+			return -EINVAL;
+	
+		err = cmtp_get_connlist(&cl);
+
+		if (!err && put_user(cl.cnum, (uint32_t __user *) arg))
+			err = -EFAULT;
+
+		return err;
+	}
+
+	return cmtp_sock_ioctl(sock, cmd, arg);
+}
+#endif
+
 static const struct proto_ops cmtp_sock_ops = {
 	.family		= PF_BLUETOOTH,
 	.owner		= THIS_MODULE,
 	.release	= cmtp_sock_release,
 	.ioctl		= cmtp_sock_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= cmtp_sock_compat_ioctl,
+#endif
 	.bind		= sock_no_bind,
 	.getname	= sock_no_getname,
 	.sendmsg	= sock_no_sendmsg,
@@ -172,7 +205,7 @@ static int cmtp_sock_create(struct socket *sock, int protocol)
 	if (sock->type != SOCK_RAW)
 		return -ESOCKTNOSUPPORT;
 
-	sk = sk_alloc(PF_BLUETOOTH, GFP_KERNEL, &cmtp_proto, 1);
+	sk = sk_alloc(PF_BLUETOOTH, GFP_ATOMIC, &cmtp_proto, 1);
 	if (!sk)
 		return -ENOMEM;
 

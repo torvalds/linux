@@ -157,7 +157,7 @@ typedef struct svc_fh {
 	__u64			fh_post_size;	/* i_size */
 	unsigned long		fh_post_blocks; /* i_blocks */
 	unsigned long		fh_post_blksize;/* i_blksize */
-	__u32			fh_post_rdev[2];/* i_rdev */
+	__be32			fh_post_rdev[2];/* i_rdev */
 	struct timespec		fh_post_atime;	/* i_atime */
 	struct timespec		fh_post_mtime;	/* i_mtime */
 	struct timespec		fh_post_ctime;	/* i_ctime */
@@ -209,9 +209,9 @@ extern char * SVCFH_fmt(struct svc_fh *fhp);
 /*
  * Function prototypes
  */
-u32	fh_verify(struct svc_rqst *, struct svc_fh *, int, int);
-int	fh_compose(struct svc_fh *, struct svc_export *, struct dentry *, struct svc_fh *);
-int	fh_update(struct svc_fh *);
+__be32	fh_verify(struct svc_rqst *, struct svc_fh *, int, int);
+__be32	fh_compose(struct svc_fh *, struct svc_export *, struct dentry *, struct svc_fh *);
+__be32	fh_update(struct svc_fh *);
 void	fh_put(struct svc_fh *);
 
 static __inline__ struct svc_fh *

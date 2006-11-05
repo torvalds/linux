@@ -20,7 +20,7 @@
 #include "autofs_i.h"
 #include <linux/module.h>
 
-static void autofs_put_super(struct super_block *sb)
+void autofs_kill_sb(struct super_block *sb)
 {
 	struct autofs_sb_info *sbi = autofs_sbi(sb);
 	unsigned int n;
@@ -37,13 +37,13 @@ static void autofs_put_super(struct super_block *sb)
 	kfree(sb->s_fs_info);
 
 	DPRINTK(("autofs: shutting down\n"));
+	kill_anon_super(sb);
 }
 
 static void autofs_read_inode(struct inode *inode);
 
 static struct super_operations autofs_sops = {
 	.read_inode	= autofs_read_inode,
-	.put_super	= autofs_put_super,
 	.statfs		= simple_statfs,
 };
 

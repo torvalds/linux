@@ -20,16 +20,12 @@
  */
 
 #include <linux/module.h>
-#include <linux/sched.h>
+#include <linux/init.h>
 #include <linux/kthread.h>
-#include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
-#include <linux/init.h>
 #include <linux/miscdevice.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/kernel.h>
+#include <linux/kmod.h>
 
 #include <asm/ebus.h>
 #include <asm/uaccess.h>
@@ -980,7 +976,7 @@ static void envctrl_do_shutdown(void)
 
 	inprog = 1;
 	printk(KERN_CRIT "kenvctrld: WARNING: Shutting down the system now.\n");
-	ret = kernel_execve("/sbin/shutdown", argv, envp);
+	ret = call_usermodehelper("/sbin/shutdown", argv, envp, 0);
 	if (ret < 0) {
 		printk(KERN_CRIT "kenvctrld: WARNING: system shutdown failed!\n"); 
 		inprog = 0;  /* unlikely to succeed, but we could try again */

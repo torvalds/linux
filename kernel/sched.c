@@ -160,15 +160,6 @@
 #define TASK_PREEMPTS_CURR(p, rq) \
 	((p)->prio < (rq)->curr->prio)
 
-/*
- * task_timeslice() scales user-nice values [ -20 ... 0 ... 19 ]
- * to time slice values: [800ms ... 100ms ... 5ms]
- *
- * The higher a thread's priority, the bigger timeslices
- * it gets during one round of execution. But even the lowest
- * priority thread gets MIN_TIMESLICE worth of execution time.
- */
-
 #define SCALE_PRIO(x, prio) \
 	max(x * (MAX_PRIO - prio) / (MAX_USER_PRIO / 2), MIN_TIMESLICE)
 
@@ -179,6 +170,15 @@ static unsigned int static_prio_timeslice(int static_prio)
 	else
 		return SCALE_PRIO(DEF_TIMESLICE, static_prio);
 }
+
+/*
+ * task_timeslice() scales user-nice values [ -20 ... 0 ... 19 ]
+ * to time slice values: [800ms ... 100ms ... 5ms]
+ *
+ * The higher a thread's priority, the bigger timeslices
+ * it gets during one round of execution. But even the lowest
+ * priority thread gets MIN_TIMESLICE worth of execution time.
+ */
 
 static inline unsigned int task_timeslice(struct task_struct *p)
 {
@@ -1822,14 +1822,14 @@ context_switch(struct rq *rq, struct task_struct *prev,
 	struct mm_struct *mm = next->mm;
 	struct mm_struct *oldmm = prev->active_mm;
 
-	if (unlikely(!mm)) {
+	if (!mm) {
 		next->active_mm = oldmm;
 		atomic_inc(&oldmm->mm_count);
 		enter_lazy_tlb(oldmm, next);
 	} else
 		switch_mm(oldmm, mm, next);
 
-	if (unlikely(!prev->mm)) {
+	if (!prev->mm) {
 		prev->active_mm = NULL;
 		WARN_ON(rq->prev_mm);
 		rq->prev_mm = oldmm;
@@ -3491,7 +3491,7 @@ asmlinkage void __sched preempt_schedule(void)
 	 * If there is a non-zero preempt_count or interrupts are disabled,
 	 * we do not want to preempt the current task.  Just return..
 	 */
-	if (unlikely(ti->preempt_count || irqs_disabled()))
+	if (likely(ti->preempt_count || irqs_disabled()))
 		return;
 
 need_resched:

@@ -109,7 +109,7 @@ static struct clocksource clocksource_pit = {
 
 static int __init init_pit_clocksource(void)
 {
-	if (num_possible_cpus() > 4) /* PIT does not scale! */
+	if (num_possible_cpus() > 1) /* PIT does not scale! */
 		return 0;
 
 	clocksource_pit.mult = clocksource_hz2mult(CLOCK_TICK_RATE, 20);

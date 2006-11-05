@@ -342,20 +342,8 @@ static u32 acpi_ev_global_lock_handler(void *context)
 	if (acquired) {
 
 		/* Got the lock, now wake all threads waiting for it */
-
 		acpi_gbl_global_lock_acquired = TRUE;
-
-		/* Run the Global Lock thread which will signal all waiting threads */
-
-		status =
-		    acpi_os_execute(OSL_GLOBAL_LOCK_HANDLER,
-				    acpi_ev_global_lock_thread, context);
-		if (ACPI_FAILURE(status)) {
-			ACPI_EXCEPTION((AE_INFO, status,
-					"Could not queue Global Lock thread"));
-
-			return (ACPI_INTERRUPT_NOT_HANDLED);
-		}
+		acpi_ev_global_lock_thread(context);
 	}
 
 	return (ACPI_INTERRUPT_HANDLED);

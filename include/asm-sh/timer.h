@@ -8,8 +8,9 @@ struct sys_timer_ops {
 	int (*init)(void);
 	int (*start)(void);
 	int (*stop)(void);
+#ifndef CONFIG_GENERIC_TIME
 	unsigned long (*get_offset)(void);
-	unsigned long (*get_frequency)(void);
+#endif
 };
 
 struct sys_timer {
@@ -24,21 +25,17 @@ struct sys_timer {
 extern struct sys_timer tmu_timer;
 extern struct sys_timer *sys_timer;
 
+#ifndef CONFIG_GENERIC_TIME
 static inline unsigned long get_timer_offset(void)
 {
 	return sys_timer->ops->get_offset();
 }
-
-static inline unsigned long get_timer_frequency(void)
-{
-	return sys_timer->ops->get_frequency();
-}
+#endif
 
 /* arch/sh/kernel/timers/timer.c */
 struct sys_timer *get_sys_timer(void);
 
 /* arch/sh/kernel/time.c */
-void handle_timer_tick(struct pt_regs *);
+void handle_timer_tick(void);
 
 #endif /* __ASM_SH_TIMER_H */
-

@@ -5,6 +5,7 @@
  *  Copyright (C) 1995  Linus Torvalds
  *
  *  SuperH version:  Copyright (C) 1999, 2000  Niibe Yutaka & Kaz Kojima
+ *		     Copyright (C) 2006 Lineo Solutions Inc. support SH4A UBC
  */
 
 /*
@@ -104,7 +105,7 @@ void show_regs(struct pt_regs * regs)
 {
 	printk("\n");
 	printk("Pid : %d, Comm: %20s\n", current->pid, current->comm);
-	print_symbol("PC is at %s\n", regs->pc);
+	print_symbol("PC is at %s\n", instruction_pointer(regs));
 	printk("PC  : %08lx SP  : %08lx SR  : %08lx ",
 	       regs->pc, regs->regs[15], regs->sr);
 #ifdef CONFIG_MMU
@@ -129,15 +130,7 @@ void show_regs(struct pt_regs * regs)
 	printk("MACH: %08lx MACL: %08lx GBR : %08lx PR  : %08lx\n",
 	       regs->mach, regs->macl, regs->gbr, regs->pr);
 
-	/*
-	 * If we're in kernel mode, dump the stack too..
-	 */
-	if (!user_mode(regs)) {
-		extern void show_task(unsigned long *sp);
-		unsigned long sp = regs->regs[15];
-
-		show_task((unsigned long *)sp);
-	}
+	show_trace(NULL, (unsigned long *)regs->regs[15], regs);
 }
 
 /*
@@ -290,6 +283,24 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 static void
 ubc_set_tracing(int asid, unsigned long pc)
 {
+#if defined(CONFIG_CPU_SH4A)
+	unsigned long val;
+
+	val = (UBC_CBR_ID_INST | UBC_CBR_RW_READ | UBC_CBR_CE);
+	val |= (UBC_CBR_AIE | UBC_CBR_AIV_SET(asid));
+
+	ctrl_outl(val, UBC_CBR0);
+	ctrl_outl(pc,  UBC_CAR0);
+	ctrl_outl(0x0, UBC_CAMR0);
+	ctrl_outl(0x0, UBC_CBCR);
+
+	val = (UBC_CRR_RES | UBC_CRR_PCB | UBC_CRR_BIE);
+	ctrl_outl(val, UBC_CRR0);
+
+	/* Read UBC register that we writed last. For chekking UBC Register changed */
+	val = ctrl_inl(UBC_CRR0);
+
+#else	/* CONFIG_CPU_SH4A */
 	ctrl_outl(pc, UBC_BARA);
 
 #ifdef CONFIG_MMU
@@ -307,6 +318,7 @@ ubc_set_tracing(int asid, unsigned long pc)
 		ctrl_outw(BBR_INST | BBR_READ, UBC_BBRA);
 		ctrl_outw(BRCR_PCBA, UBC_BRCR);
 	}
+#endif	/* CONFIG_CPU_SH4A */
 }
 
 /*
@@ -359,8 +371,13 @@ struct task_struct *__switch_to(struct task_struct *prev, struct task_struct *ne
 #endif
 		ubc_set_tracing(asid, next->thread.ubc_pc);
 	} else {
+#if defined(CONFIG_CPU_SH4A)
+		ctrl_outl(UBC_CBR_INIT, UBC_CBR0);
+		ctrl_outl(UBC_CRR_INIT, UBC_CRR0);
+#else
 		ctrl_outw(0, UBC_BBRA);
 		ctrl_outw(0, UBC_BBRB);
+#endif
 	}
 
 	return prev;
@@ -460,8 +477,13 @@ asmlinkage void break_point_trap(unsigned long r4, unsigned long r5,
 				 struct pt_regs regs)
 {
 	/* Clear tracing.  */
+#if defined(CONFIG_CPU_SH4A)
+	ctrl_outl(UBC_CBR_INIT, UBC_CBR0);
+	ctrl_outl(UBC_CRR_INIT, UBC_CRR0);
+#else
 	ctrl_outw(0, UBC_BBRA);
 	ctrl_outw(0, UBC_BBRB);
+#endif
 	current->thread.ubc_pc = 0;
 	ubc_usercnt -= 1;
 

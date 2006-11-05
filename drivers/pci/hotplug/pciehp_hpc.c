@@ -1402,6 +1402,8 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 		pdev->subsystem_vendor, pdev->subsystem_device);
 
 	mutex_init(&ctrl->crit_sect);
+	mutex_init(&ctrl->ctrl_lock);
+
 	/* setup wait queue */
 	init_waitqueue_head(&ctrl->queue);
 

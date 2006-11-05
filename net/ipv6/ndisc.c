@@ -967,8 +967,6 @@ static void ndisc_recv_na(struct sk_buff *skb)
 		    ipv6_devconf.forwarding && ipv6_devconf.proxy_ndp &&
 		    pneigh_lookup(&nd_tbl, &msg->target, dev, 0)) {
 			/* XXX: idev->cnf.prixy_ndp */
-			WARN_ON(skb->dst != NULL &&
-				((struct rt6_info *)skb->dst)->rt6i_idev);
 			goto out;
 		}
 

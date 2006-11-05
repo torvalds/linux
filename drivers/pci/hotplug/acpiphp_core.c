@@ -37,10 +37,10 @@
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
-#include "pci_hotplug.h"
 #include "acpiphp.h"
 
 #define MY_NAME	"acpiphp"

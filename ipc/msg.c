@@ -52,7 +52,7 @@ struct msg_receiver {
 	long			r_msgtype;
 	long			r_maxsize;
 
-	volatile struct msg_msg	*r_msg;
+	struct msg_msg		*volatile r_msg;
 };
 
 /* one msg_sender for each sleeping sender */
@@ -124,6 +124,7 @@ void msg_exit_ns(struct ipc_namespace *ns)
 	}
 	mutex_unlock(&msg_ids(ns).mutex);
 
+	ipc_fini_ids(ns->ids[IPC_MSG_IDS]);
 	kfree(ns->ids[IPC_MSG_IDS]);
 	ns->ids[IPC_MSG_IDS] = NULL;
 }

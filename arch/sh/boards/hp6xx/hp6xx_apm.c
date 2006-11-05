@@ -14,7 +14,7 @@
 #include <asm/io.h>
 #include <asm/apm.h>
 #include <asm/adc.h>
-#include <asm/hp6xx/hp6xx.h>
+#include <asm/hp6xx.h>
 
 #define SH7709_PGDR			0xa400012c
 
@@ -83,7 +83,7 @@ static int hp6x0_apm_get_info(char *buf, char **start, off_t fpos, int length)
 	return p - buf;
 }
 
-static irqreturn_t hp6x0_apm_interrupt(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t hp6x0_apm_interrupt(int irq, void *dev)
 {
 	if (!apm_suspended)
 		apm_queue_event(APM_USER_SUSPEND);
@@ -96,7 +96,7 @@ static int __init hp6x0_apm_init(void)
 	int ret;
 
 	ret = request_irq(HP680_BTN_IRQ, hp6x0_apm_interrupt,
-			  SA_INTERRUPT, MODNAME, 0);
+			  IRQF_DISABLED, MODNAME, 0);
 	if (unlikely(ret < 0)) {
 		printk(KERN_ERR MODNAME ": IRQ %d request failed\n",
 		       HP680_BTN_IRQ);

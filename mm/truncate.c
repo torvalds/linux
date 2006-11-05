@@ -96,7 +96,6 @@ invalidate_complete_page(struct address_space *mapping, struct page *page)
 		return 0;
 
 	ret = remove_mapping(mapping, page);
-	ClearPageUptodate(page);
 
 	return ret;
 }
@@ -302,7 +301,7 @@ invalidate_complete_page2(struct address_space *mapping, struct page *page)
 	if (page->mapping != mapping)
 		return 0;
 
-	if (PagePrivate(page) && !try_to_release_page(page, 0))
+	if (PagePrivate(page) && !try_to_release_page(page, GFP_KERNEL))
 		return 0;
 
 	write_lock_irq(&mapping->tree_lock);
@@ -396,6 +395,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 		pagevec_release(&pvec);
 		cond_resched();
 	}
+	WARN_ON_ONCE(ret);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(invalidate_inode_pages2_range);

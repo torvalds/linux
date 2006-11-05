@@ -334,6 +334,14 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	{ PCI_VDEVICE(NVIDIA, 0x044d), board_ahci },		/* MCP65 */
 	{ PCI_VDEVICE(NVIDIA, 0x044e), board_ahci },		/* MCP65 */
 	{ PCI_VDEVICE(NVIDIA, 0x044f), board_ahci },		/* MCP65 */
+	{ PCI_VDEVICE(NVIDIA, 0x0554), board_ahci },		/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x0555), board_ahci },		/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x0556), board_ahci },		/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x0557), board_ahci },		/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x0558), board_ahci },		/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x0559), board_ahci },		/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x055a), board_ahci },		/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x055b), board_ahci },		/* MCP67 */
 
 	/* SiS */
 	{ PCI_VDEVICE(SI, 0x1184), board_ahci }, /* SiS 966 */
@@ -736,8 +744,7 @@ static int ahci_softreset(struct ata_port *ap, unsigned int *class)
 	}
 
 	/* check BUSY/DRQ, perform Command List Override if necessary */
-	ahci_tf_read(ap, &tf);
-	if (tf.command & (ATA_BUSY | ATA_DRQ)) {
+	if (ahci_check_status(ap) & (ATA_BUSY | ATA_DRQ)) {
 		rc = ahci_clo(ap);
 
 		if (rc == -EOPNOTSUPP) {
@@ -1041,7 +1048,7 @@ static void ahci_host_intr(struct ata_port *ap)
 	/* hmmm... a spurious interupt */
 
 	/* some devices send D2H reg with I bit set during NCQ command phase */
-	if (ap->sactive && status & PORT_IRQ_D2H_REG_FIS)
+	if (ap->sactive && (status & PORT_IRQ_D2H_REG_FIS))
 		return;
 
 	/* ignore interim PIO setup fis interrupts */

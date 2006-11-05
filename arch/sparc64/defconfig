@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.19-rc1
-# Thu Oct  5 02:08:41 2006
+# Linux kernel version: 2.6.19-rc2
+# Tue Oct 17 19:29:20 2006
 #
 CONFIG_SPARC=y
 CONFIG_SPARC64=y
@@ -217,6 +217,7 @@ CONFIG_INET6_XFRM_MODE_TRANSPORT=m
 CONFIG_INET6_XFRM_MODE_TUNNEL=m
 CONFIG_INET6_XFRM_MODE_BEET=m
 # CONFIG_INET6_XFRM_MODE_ROUTEOPTIMIZATION is not set
+CONFIG_IPV6_SIT=m
 CONFIG_IPV6_TUNNEL=m
 # CONFIG_IPV6_SUBTREES is not set
 # CONFIG_IPV6_MULTIPLE_TABLES is not set
@@ -332,6 +333,12 @@ CONFIG_CDROM_PKTCDVD=m
 CONFIG_CDROM_PKTCDVD_BUFFERS=8
 CONFIG_CDROM_PKTCDVD_WCACHE=y
 CONFIG_ATA_OVER_ETH=m
+
+#
+# Misc devices
+#
+# CONFIG_SGI_IOC4 is not set
+# CONFIG_TIFM_CORE is not set
 
 #
 # ATA/ATAPI/MFM/RLL support
@@ -728,7 +735,6 @@ CONFIG_RTC=y
 # TPM devices
 #
 # CONFIG_TCG_TPM is not set
-# CONFIG_TELCLOCK is not set
 
 #
 # I2C support
@@ -840,11 +846,6 @@ CONFIG_HWMON=y
 # CONFIG_SENSORS_W83627HF is not set
 # CONFIG_SENSORS_W83627EHF is not set
 # CONFIG_HWMON_DEBUG_CHIP is not set
-
-#
-# Misc devices
-#
-# CONFIG_TIFM_CORE is not set
 
 #
 # Multimedia devices
@@ -1104,7 +1105,6 @@ CONFIG_USB_HIDDEV=y
 # CONFIG_USB_ATI_REMOTE2 is not set
 # CONFIG_USB_KEYSPAN_REMOTE is not set
 # CONFIG_USB_APPLETOUCH is not set
-# CONFIG_USB_TRANCEVIBRATOR is not set
 
 #
 # USB Imaging devices
@@ -1150,6 +1150,7 @@ CONFIG_USB_HIDDEV=y
 # CONFIG_USB_APPLEDISPLAY is not set
 # CONFIG_USB_SISUSBVGA is not set
 # CONFIG_USB_LD is not set
+# CONFIG_USB_TRANCEVIBRATOR is not set
 # CONFIG_USB_TEST is not set
 
 #
@@ -1234,6 +1235,7 @@ CONFIG_EXT3_FS=y
 CONFIG_EXT3_FS_XATTR=y
 CONFIG_EXT3_FS_POSIX_ACL=y
 CONFIG_EXT3_FS_SECURITY=y
+# CONFIG_EXT4DEV_FS is not set
 CONFIG_JBD=y
 # CONFIG_JBD_DEBUG is not set
 CONFIG_FS_MBCACHE=y
@@ -1362,10 +1364,6 @@ CONFIG_NLS_DEFAULT="iso8859-1"
 # CONFIG_NLS_UTF8 is not set
 
 #
-# Distributed Lock Manager
-#
-
-#
 # Instrumentation Support
 #
 CONFIG_PROFILING=y
@@ -1399,6 +1397,7 @@ CONFIG_DEBUG_FS=y
 # CONFIG_DEBUG_LIST is not set
 # CONFIG_UNWIND_INFO is not set
 CONFIG_FORCED_INLINING=y
+# CONFIG_HEADERS_CHECK is not set
 # CONFIG_RCU_TORTURE_TEST is not set
 # CONFIG_LKDTM is not set
 # CONFIG_DEBUG_STACK_USAGE is not set

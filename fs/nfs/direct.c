@@ -497,6 +497,7 @@ static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode 
 			if (dreq->commit_data != NULL)
 				nfs_commit_free(dreq->commit_data);
 			nfs_direct_free_writedata(dreq);
+			nfs_zap_mapping(inode, inode->i_mapping);
 			nfs_direct_complete(dreq);
 	}
 }
@@ -517,6 +518,7 @@ static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode 
 {
 	nfs_end_data_update(inode);
 	nfs_direct_free_writedata(dreq);
+	nfs_zap_mapping(inode, inode->i_mapping);
 	nfs_direct_complete(dreq);
 }
 #endif
@@ -532,10 +534,12 @@ static void nfs_direct_write_result(struct rpc_task *task, void *calldata)
 
 	spin_lock(&dreq->lock);
 
-	if (likely(status >= 0))
-		dreq->count += data->res.count;
-	else
-		dreq->error = task->tk_status;
+	if (unlikely(status < 0)) {
+		dreq->error = status;
+		goto out_unlock;
+	}
+
+	dreq->count += data->res.count;
 
 	if (data->res.verf->committed != NFS_FILE_SYNC) {
 		switch (dreq->flags) {
@@ -550,7 +554,7 @@ static void nfs_direct_write_result(struct rpc_task *task, void *calldata)
 				}
 		}
 	}
-
+out_unlock:
 	spin_unlock(&dreq->lock);
 }
 
@@ -827,17 +831,6 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 		goto out;
 
 	retval = nfs_direct_write(iocb, (unsigned long) buf, count, pos);
-
-	/*
-	 * XXX: nfs_end_data_update() already ensures this file's
-	 *      cached data is subsequently invalidated.  Do we really
-	 *      need to call invalidate_inode_pages2() again here?
-	 *
-	 *      For aio writes, this invalidation will almost certainly
-	 *      occur before the writes complete.  Kind of racey.
-	 */
-	if (mapping->nrpages)
-		invalidate_inode_pages2(mapping);
 
 	if (retval > 0)
 		iocb->ki_pos = pos + retval;

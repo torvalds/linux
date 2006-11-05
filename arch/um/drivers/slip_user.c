@@ -15,6 +15,7 @@
 #include "slip.h"
 #include "slip_common.h"
 #include "os.h"
+#include "um_malloc.h"
 
 void slip_user_init(void *data, void *dev)
 {

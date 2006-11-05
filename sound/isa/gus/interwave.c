@@ -564,6 +564,8 @@ static int __devinit snd_interwave_pnp(int dev, struct snd_interwave *iwcard,
 	struct pnp_resource_table * cfg = kmalloc(sizeof(struct pnp_resource_table), GFP_KERNEL);
 	int err;
 
+	if (!cfg)
+		return -ENOMEM;
 	iwcard->dev = pnp_request_card_device(card, id->devs[0].id, NULL);
 	if (iwcard->dev == NULL) {
 		kfree(cfg);

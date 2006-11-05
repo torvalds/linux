@@ -117,8 +117,8 @@ void do_extint(struct pt_regs *regs, unsigned short code)
         int index;
 	struct pt_regs *old_regs;
 
-	irq_enter();
 	old_regs = set_irq_regs(regs);
+	irq_enter();
 	asm volatile ("mc 0,0");
 	if (S390_lowcore.int_clock >= S390_lowcore.jiffy_timer)
 		/**
@@ -134,8 +134,8 @@ void do_extint(struct pt_regs *regs, unsigned short code)
 				p->handler(code);
 		}
 	}
-	set_irq_regs(old_regs);
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 EXPORT_SYMBOL(register_external_interrupt);

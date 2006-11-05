@@ -201,6 +201,7 @@ dma_set_mask(struct device *dev, u64 mask)
 
 	return 0;
 }
+EXPORT_SYMBOL(dma_set_mask);
 
 void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long maxlen)
 {

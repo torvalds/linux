@@ -85,6 +85,14 @@ static void flow_cache_new_hashrnd(unsigned long arg)
 	add_timer(&flow_hash_rnd_timer);
 }
 
+static void flow_entry_kill(int cpu, struct flow_cache_entry *fle)
+{
+	if (fle->object)
+		atomic_dec(fle->object_ref);
+	kmem_cache_free(flow_cachep, fle);
+	flow_count(cpu)--;
+}
+
 static void __flow_cache_shrink(int cpu, int shrink_to)
 {
 	struct flow_cache_entry *fle, **flp;
@@ -100,10 +108,7 @@ static void __flow_cache_shrink(int cpu, int shrink_to)
 		}
 		while ((fle = *flp) != NULL) {
 			*flp = fle->next;
-			if (fle->object)
-				atomic_dec(fle->object_ref);
-			kmem_cache_free(flow_cachep, fle);
-			flow_count(cpu)--;
+			flow_entry_kill(cpu, fle);
 		}
 	}
 }
@@ -220,24 +225,33 @@ void *flow_cache_lookup(struct flowi *key, u16 family, u8 dir,
 
 nocache:
 	{
+		int err;
 		void *obj;
 		atomic_t *obj_ref;
 
-		resolver(key, family, dir, &obj, &obj_ref);
+		err = resolver(key, family, dir, &obj, &obj_ref);
 
 		if (fle) {
-			fle->genid = atomic_read(&flow_cache_genid);
+			if (err) {
+				/* Force security policy check on next lookup */
+				*head = fle->next;
+				flow_entry_kill(cpu, fle);
+			} else {
+				fle->genid = atomic_read(&flow_cache_genid);
 
-			if (fle->object)
-				atomic_dec(fle->object_ref);
+				if (fle->object)
+					atomic_dec(fle->object_ref);
 
-			fle->object = obj;
-			fle->object_ref = obj_ref;
-			if (obj)
-				atomic_inc(fle->object_ref);
+				fle->object = obj;
+				fle->object_ref = obj_ref;
+				if (obj)
+					atomic_inc(fle->object_ref);
+			}
 		}
 		local_bh_enable();
 
+		if (err)
+			obj = ERR_PTR(err);
 		return obj;
 	}
 }

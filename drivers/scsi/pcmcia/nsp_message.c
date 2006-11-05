@@ -8,7 +8,7 @@
 
 /* $Id: nsp_message.c,v 1.6 2003/07/26 14:21:09 elca Exp $ */
 
-static void nsp_message_in(Scsi_Cmnd *SCpnt)
+static void nsp_message_in(struct scsi_cmnd *SCpnt)
 {
 	unsigned int  base = SCpnt->device->host->io_port;
 	nsp_hw_data  *data = (nsp_hw_data *)SCpnt->device->host->hostdata;
@@ -50,7 +50,7 @@ static void nsp_message_in(Scsi_Cmnd *SCpnt)
 
 }
 
-static void nsp_message_out(Scsi_Cmnd *SCpnt)
+static void nsp_message_out(struct scsi_cmnd *SCpnt)
 {
 	nsp_hw_data *data = (nsp_hw_data *)SCpnt->device->host->hostdata;
 	int ret = 1;

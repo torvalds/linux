@@ -432,6 +432,12 @@ static int __init rd_init(void)
 		rd_disks[i] = alloc_disk(1);
 		if (!rd_disks[i])
 			goto out;
+
+		rd_queue[i] = blk_alloc_queue(GFP_KERNEL);
+		if (!rd_queue[i]) {
+			put_disk(rd_disks[i]);
+			goto out;
+		}
 	}
 
 	if (register_blkdev(RAMDISK_MAJOR, "ramdisk")) {
@@ -441,10 +447,6 @@ static int __init rd_init(void)
 
 	for (i = 0; i < CONFIG_BLK_DEV_RAM_COUNT; i++) {
 		struct gendisk *disk = rd_disks[i];
-
-		rd_queue[i] = blk_alloc_queue(GFP_KERNEL);
-		if (!rd_queue[i])
-			goto out_queue;
 
 		blk_queue_make_request(rd_queue[i], &rd_make_request);
 		blk_queue_hardsect_size(rd_queue[i], rd_blocksize);
@@ -466,8 +468,6 @@ static int __init rd_init(void)
 		CONFIG_BLK_DEV_RAM_COUNT, rd_size, rd_blocksize);
 
 	return 0;
-out_queue:
-	unregister_blkdev(RAMDISK_MAJOR, "ramdisk");
 out:
 	while (i--) {
 		put_disk(rd_disks[i]);

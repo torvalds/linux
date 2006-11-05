@@ -385,27 +385,6 @@ static inline void pci_iounmap(struct pci_dev *dev, void __iomem *p)
  */
 #define xlate_dev_kmem_ptr(p)	p
 
-/*
- * Check BIOS signature
- */
-static inline int check_signature(volatile void __iomem *io_addr,
-				  const unsigned char *signature, int length)
-{
-	int retval = 0;
-
-	do {
-		if (readb(io_addr) != *signature)
-			goto out;
-		io_addr++;
-		signature++;
-		length--;
-	} while (length);
-
-	retval = 1;
-out:
-	return retval;
-}
-
 #endif /* __KERNEL__ */
 
 #endif /* _ASM_IO_H */

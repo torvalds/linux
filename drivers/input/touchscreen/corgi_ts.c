@@ -219,7 +219,7 @@ static void ts_interrupt_main(struct corgi_ts *corgi_ts, int isTimer)
 static void corgi_ts_timer(unsigned long data)
 {
 	struct corgi_ts *corgits_data = (struct corgi_ts *) data;
-	ts_interrupt_main(corgits_data, 1, NULL);
+	ts_interrupt_main(corgits_data, 1);
 }
 
 static irqreturn_t ts_interrupt(int irq, void *dev_id)
@@ -237,7 +237,7 @@ static int corgits_suspend(struct platform_device *dev, pm_message_t state)
 	if (corgi_ts->pendown) {
 		del_timer_sync(&corgi_ts->timer);
 		corgi_ts->tc.pressure = 0;
-		new_data(corgi_ts, NULL);
+		new_data(corgi_ts);
 		corgi_ts->pendown = 0;
 	}
 	corgi_ts->power_mode = PWR_MODE_SUSPEND;

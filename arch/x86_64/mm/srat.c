@@ -207,7 +207,7 @@ static inline int save_add_info(void)
 	return hotadd_percent > 0;
 }
 #else
-int update_end_of_memory(unsigned long end) {return 0;}
+int update_end_of_memory(unsigned long end) {return -1;}
 static int hotadd_enough_memory(struct bootnode *nd) {return 1;}
 #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
 static inline int save_add_info(void) {return 1;}
@@ -337,7 +337,7 @@ acpi_numa_memory_affinity_init(struct acpi_table_memory_affinity *ma)
 	push_node_boundaries(node, nd->start >> PAGE_SHIFT,
 						nd->end >> PAGE_SHIFT);
 
- 	if (ma->flags.hot_pluggable && !reserve_hotadd(node, start, end) < 0) {
+ 	if (ma->flags.hot_pluggable && (reserve_hotadd(node, start, end) < 0)) {
 		/* Ignore hotadd region. Undo damage */
 		printk(KERN_NOTICE "SRAT: Hotplug region ignored\n");
 		*nd = oldnode;

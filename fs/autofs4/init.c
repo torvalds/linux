@@ -24,7 +24,7 @@ static struct file_system_type autofs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "autofs",
 	.get_sb		= autofs_get_sb,
-	.kill_sb	= kill_anon_super,
+	.kill_sb	= autofs4_kill_sb,
 };
 
 static int __init init_autofs4_fs(void)

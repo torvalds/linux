@@ -2155,7 +2155,7 @@ static void eth_update_mib_counters(struct mv643xx_private *mp)
 	for (offset = ETH_MIB_BAD_OCTETS_RECEIVED;
 			offset <= ETH_MIB_FRAMES_1024_TO_MAX_OCTETS;
 			offset += 4)
-		*(u32 *)((char *)p + offset) = read_mib(mp, offset);
+		*(u32 *)((char *)p + offset) += read_mib(mp, offset);
 
 	p->good_octets_sent += read_mib(mp, ETH_MIB_GOOD_OCTETS_SENT_LOW);
 	p->good_octets_sent +=
@@ -2164,7 +2164,7 @@ static void eth_update_mib_counters(struct mv643xx_private *mp)
 	for (offset = ETH_MIB_GOOD_FRAMES_SENT;
 			offset <= ETH_MIB_LATE_COLLISION;
 			offset += 4)
-		*(u32 *)((char *)p + offset) = read_mib(mp, offset);
+		*(u32 *)((char *)p + offset) += read_mib(mp, offset);
 }
 
 /*

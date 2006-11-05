@@ -1055,7 +1055,9 @@ asmlinkage long sys32_newuname(struct new_utsname __user * name)
 asmlinkage int sys32_personality(unsigned long personality)
 {
 	int ret;
-	if (current->personality == PER_LINUX32 && personality == PER_LINUX)
+	personality &= 0xffffffff;
+	if (personality(current->personality) == PER_LINUX32 &&
+	    personality == PER_LINUX)
 		personality = PER_LINUX32;
 	ret = sys_personality(personality);
 	if (ret == PER_LINUX32)

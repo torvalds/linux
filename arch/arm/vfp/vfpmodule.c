@@ -90,7 +90,7 @@ void vfp_raise_sigfpe(unsigned int sicode, struct pt_regs *regs)
 
 	info.si_signo = SIGFPE;
 	info.si_code = sicode;
-	info.si_addr = (void *)(instruction_pointer(regs) - 4);
+	info.si_addr = (void __user *)(instruction_pointer(regs) - 4);
 
 	/*
 	 * This is the same as NWFPE, because it's not clear what
@@ -148,6 +148,7 @@ static void vfp_raise_exceptions(u32 exceptions, u32 inst, u32 fpscr, struct pt_
 	/*
 	 * These are arranged in priority order, least to highest.
 	 */
+	RAISE(FPSCR_DZC, FPSCR_DZE, FPE_FLTDIV);
 	RAISE(FPSCR_IXC, FPSCR_IXE, FPE_FLTRES);
 	RAISE(FPSCR_UFC, FPSCR_UFE, FPE_FLTUND);
 	RAISE(FPSCR_OFC, FPSCR_OFE, FPE_FLTOVF);

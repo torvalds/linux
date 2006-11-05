@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include <linux/proc_fs.h>
 #include <linux/types.h>
 #include <linux/mutex.h>
@@ -29,7 +30,6 @@
 #include <asm/sn/types.h>
 
 #include "../pci.h"
-#include "pci_hotplug.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("SGI (prarit@sgi.com, dickie@sgi.com, habeck@sgi.com)");

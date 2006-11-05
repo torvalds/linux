@@ -186,7 +186,7 @@ static irqreturn_t locomokbd_interrupt(int irq, void *dev_id)
 static void locomokbd_timer_callback(unsigned long data)
 {
 	struct locomokbd *locomokbd = (struct locomokbd *) data;
-	locomokbd_scankeyboard(locomokbd, NULL);
+	locomokbd_scankeyboard(locomokbd);
 }
 
 static int locomokbd_probe(struct locomo_dev *dev)

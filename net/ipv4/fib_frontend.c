@@ -482,9 +482,7 @@ static int rtm_to_fib_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 	memset(cfg, 0, sizeof(*cfg));
 
 	rtm = nlmsg_data(nlh);
-	cfg->fc_family = rtm->rtm_family;
 	cfg->fc_dst_len = rtm->rtm_dst_len;
-	cfg->fc_src_len = rtm->rtm_src_len;
 	cfg->fc_tos = rtm->rtm_tos;
 	cfg->fc_table = rtm->rtm_table;
 	cfg->fc_protocol = rtm->rtm_protocol;
@@ -500,9 +498,6 @@ static int rtm_to_fib_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 		switch (attr->nla_type) {
 		case RTA_DST:
 			cfg->fc_dst = nla_get_be32(attr);
-			break;
-		case RTA_SRC:
-			cfg->fc_src = nla_get_be32(attr);
 			break;
 		case RTA_OIF:
 			cfg->fc_oif = nla_get_u32(attr);

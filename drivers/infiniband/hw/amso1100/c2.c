@@ -1243,7 +1243,7 @@ static struct pci_driver c2_pci_driver = {
 
 static int __init c2_init_module(void)
 {
-	return pci_module_init(&c2_pci_driver);
+	return pci_register_driver(&c2_pci_driver);
 }
 
 static void __exit c2_exit_module(void)

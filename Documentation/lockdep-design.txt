@@ -50,10 +50,10 @@ The bit position indicates hardirq, softirq, hardirq-read,
 softirq-read respectively, and the character displayed in each
 indicates:
 
-   '.'	 acquired while irqs enabled
+   '.'  acquired while irqs disabled
    '+'  acquired in irq context
-   '-'  acquired in process context with irqs disabled
-   '?'  read-acquired both with irqs enabled and in irq context
+   '-'  acquired with irqs enabled
+   '?' read acquired in irq context with irqs enabled.
 
 Unused mutexes cannot be part of the cause of an error.
 

@@ -40,7 +40,7 @@ config IP6_NF_QUEUE
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP6_NF_IPTABLES
-	tristate "IP6 tables support (required for filtering/masq/NAT)"
+	tristate "IP6 tables support (required for filtering)"
 	depends on NETFILTER_XTABLES
 	help
 	  ip6tables is a general, extensible packet identification framework.

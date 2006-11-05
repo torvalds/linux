@@ -260,7 +260,7 @@ int __init pcmcia_lubbock_init(struct sa1111_dev *sadev)
 		lubbock_set_misc_wr((1 << 15) | (1 << 14), 0);
 
 		sadev->dev.platform_data = &lubbock_pcmcia_ops;
-		ret = pxa2xx_drv_pcmcia_probe(&sadev->dev);
+		ret = __pxa2xx_drv_pcmcia_probe(&sadev->dev);
 	}
 
 	return ret;

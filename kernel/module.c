@@ -87,6 +87,12 @@ static inline int strong_try_module_get(struct module *mod)
 	return try_module_get(mod);
 }
 
+static inline void add_taint_module(struct module *mod, unsigned flag)
+{
+	add_taint(flag);
+	mod->taints |= flag;
+}
+
 /* A thread that wants to hold a reference to a module only while it
  * is running can call ths to safely exit.
  * nfsd and lockd use this.
@@ -847,12 +853,10 @@ static int check_version(Elf_Shdr *sechdrs,
 		return 0;
 	}
 	/* Not in module's version table.  OK, but that taints the kernel. */
-	if (!(tainted & TAINT_FORCED_MODULE)) {
+	if (!(tainted & TAINT_FORCED_MODULE))
 		printk("%s: no version for \"%s\" found: kernel tainted.\n",
 		       mod->name, symname);
-		add_taint(TAINT_FORCED_MODULE);
-		mod->taints |= TAINT_FORCED_MODULE;
-	}
+	add_taint_module(mod, TAINT_FORCED_MODULE);
 	return 1;
 }
 
@@ -910,7 +914,8 @@ static unsigned long resolve_symbol(Elf_Shdr *sechdrs,
 	unsigned long ret;
 	const unsigned long *crc;
 
-	ret = __find_symbol(name, &owner, &crc, mod->license_gplok);
+	ret = __find_symbol(name, &owner, &crc,
+			!(mod->taints & TAINT_PROPRIETARY_MODULE));
 	if (ret) {
 		/* use_module can fail due to OOM, or module unloading */
 		if (!check_version(sechdrs, versindex, name, mod, crc) ||
@@ -1335,12 +1340,11 @@ static void set_license(struct module *mod, const char *license)
 	if (!license)
 		license = "unspecified";
 
-	mod->license_gplok = license_is_gpl_compatible(license);
-	if (!mod->license_gplok && !(tainted & TAINT_PROPRIETARY_MODULE)) {
-		printk(KERN_WARNING "%s: module license '%s' taints kernel.\n",
-		       mod->name, license);
-		add_taint(TAINT_PROPRIETARY_MODULE);
-		mod->taints |= TAINT_PROPRIETARY_MODULE;
+	if (!license_is_gpl_compatible(license)) {
+		if (!(tainted & TAINT_PROPRIETARY_MODULE))
+			printk(KERN_WARNING "%s: module license '%s' taints "
+				"kernel.\n", mod->name, license);
+		add_taint_module(mod, TAINT_PROPRIETARY_MODULE);
 	}
 }
 
@@ -1619,8 +1623,7 @@ static struct module *load_module(void __user *umod,
 	modmagic = get_modinfo(sechdrs, infoindex, "vermagic");
 	/* This is allowed: modprobe --force will invalidate it. */
 	if (!modmagic) {
-		add_taint(TAINT_FORCED_MODULE);
-		mod->taints |= TAINT_FORCED_MODULE;
+		add_taint_module(mod, TAINT_FORCED_MODULE);
 		printk(KERN_WARNING "%s: no version magic, tainting kernel.\n",
 		       mod->name);
 	} else if (!same_magic(modmagic, vermagic)) {
@@ -1714,14 +1717,10 @@ static struct module *load_module(void __user *umod,
 	/* Set up license info based on the info section */
 	set_license(mod, get_modinfo(sechdrs, infoindex, "license"));
 
-	if (strcmp(mod->name, "ndiswrapper") == 0) {
+	if (strcmp(mod->name, "ndiswrapper") == 0)
 		add_taint(TAINT_PROPRIETARY_MODULE);
-		mod->taints |= TAINT_PROPRIETARY_MODULE;
-	}
-	if (strcmp(mod->name, "driverloader") == 0) {
-		add_taint(TAINT_PROPRIETARY_MODULE);
-		mod->taints |= TAINT_PROPRIETARY_MODULE;
-	}
+	if (strcmp(mod->name, "driverloader") == 0)
+		add_taint_module(mod, TAINT_PROPRIETARY_MODULE);
 
 	/* Set up MODINFO_ATTR fields */
 	setup_modinfo(mod, sechdrs, infoindex);
@@ -1766,8 +1765,7 @@ static struct module *load_module(void __user *umod,
 	    (mod->num_unused_gpl_syms && !unusedgplcrcindex)) {
 		printk(KERN_WARNING "%s: No versions for exported symbols."
 		       " Tainting kernel.\n", mod->name);
-		add_taint(TAINT_FORCED_MODULE);
-		mod->taints |= TAINT_FORCED_MODULE;
+		add_taint_module(mod, TAINT_FORCED_MODULE);
 	}
 #endif
 
@@ -2132,9 +2130,33 @@ static void m_stop(struct seq_file *m, void *p)
 	mutex_unlock(&module_mutex);
 }
 
+static char *taint_flags(unsigned int taints, char *buf)
+{
+	int bx = 0;
+
+	if (taints) {
+		buf[bx++] = '(';
+		if (taints & TAINT_PROPRIETARY_MODULE)
+			buf[bx++] = 'P';
+		if (taints & TAINT_FORCED_MODULE)
+			buf[bx++] = 'F';
+		/*
+		 * TAINT_FORCED_RMMOD: could be added.
+		 * TAINT_UNSAFE_SMP, TAINT_MACHINE_CHECK, TAINT_BAD_PAGE don't
+		 * apply to modules.
+		 */
+		buf[bx++] = ')';
+	}
+	buf[bx] = '\0';
+
+	return buf;
+}
+
 static int m_show(struct seq_file *m, void *p)
 {
 	struct module *mod = list_entry(p, struct module, list);
+	char buf[8];
+
 	seq_printf(m, "%s %lu",
 		   mod->name, mod->init_size + mod->core_size);
 	print_unload_info(m, mod);
@@ -2146,6 +2168,10 @@ static int m_show(struct seq_file *m, void *p)
 		   "Live");
 	/* Used by oprofile and other similar tools. */
 	seq_printf(m, " 0x%p", mod->module_core);
+
+	/* Taints info */
+	if (mod->taints)
+		seq_printf(m, " %s", taint_flags(mod->taints, buf));
 
 	seq_printf(m, "\n");
 	return 0;
@@ -2233,28 +2259,6 @@ struct module *module_text_address(unsigned long addr)
 	spin_unlock_irqrestore(&modlist_lock, flags);
 
 	return mod;
-}
-
-static char *taint_flags(unsigned int taints, char *buf)
-{
-	*buf = '\0';
-	if (taints) {
-		int bx;
-
-		buf[0] = '(';
-		bx = 1;
-		if (taints & TAINT_PROPRIETARY_MODULE)
-			buf[bx++] = 'P';
-		if (taints & TAINT_FORCED_MODULE)
-			buf[bx++] = 'F';
-		/*
-		 * TAINT_FORCED_RMMOD: could be added.
-		 * TAINT_UNSAFE_SMP, TAINT_MACHINE_CHECK, TAINT_BAD_PAGE don't
-		 * apply to modules.
-		 */
-		buf[bx] = ')';
-	}
-	return buf;
 }
 
 /* Don't grab lock, we're oopsing. */

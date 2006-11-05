@@ -32,7 +32,7 @@ void gfs2_rgrp_repolish_clones(struct gfs2_rgrpd *rgd);
 struct gfs2_alloc *gfs2_alloc_get(struct gfs2_inode *ip);
 static inline void gfs2_alloc_put(struct gfs2_inode *ip)
 {
-	return; /* Se we can see where ip->i_alloc is used */
+	return; /* So we can see where ip->i_alloc is used */
 }
 
 int gfs2_inplace_reserve_i(struct gfs2_inode *ip,

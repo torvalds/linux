@@ -1075,8 +1075,9 @@ static int netlink_getsockopt(struct socket *sock, int level, int optname,
 			return -EINVAL;
 		len = sizeof(int);
 		val = nlk->flags & NETLINK_RECV_PKTINFO ? 1 : 0;
-		put_user(len, optlen);
-		put_user(val, optval);
+		if (put_user(len, optlen) ||
+		    put_user(val, optval))
+			return -EFAULT;
 		err = 0;
 		break;
 	default:

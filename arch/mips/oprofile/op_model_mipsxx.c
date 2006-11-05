@@ -31,16 +31,18 @@
 #define M_COUNTER_OVERFLOW		(1UL      << 31)
 
 #ifdef CONFIG_MIPS_MT_SMP
-#define WHAT	(M_TC_EN_VPE | M_PERFCTL_VPEID(smp_processor_id()))
+#define WHAT		(M_TC_EN_VPE | M_PERFCTL_VPEID(smp_processor_id()))
+#define vpe_id()	smp_processor_id()
 #else
-#define WHAT	0
+#define WHAT		0
+#define vpe_id()	smp_processor_id()
 #endif
 
 #define __define_perf_accessors(r, n, np)				\
 									\
 static inline unsigned int r_c0_ ## r ## n(void)			\
 {									\
-	unsigned int cpu = smp_processor_id();				\
+	unsigned int cpu = vpe_id();					\
 									\
 	switch (cpu) {							\
 	case 0:								\
@@ -55,7 +57,7 @@ static inline unsigned int r_c0_ ## r ## n(void)			\
 									\
 static inline void w_c0_ ## r ## n(unsigned int value)			\
 {									\
-	unsigned int cpu = smp_processor_id();				\
+	unsigned int cpu = vpe_id();					\
 									\
 	switch (cpu) {							\
 	case 0:								\
@@ -218,7 +220,7 @@ static inline int n_counters(void)
 {
 	int counters = __n_counters();
 
-#ifndef CONFIG_SMP
+#ifdef CONFIG_MIPS_MT_SMP
 	if (current_cpu_data.cputype == CPU_34K)
 		return counters >> 1;
 #endif

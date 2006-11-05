@@ -1,7 +1,7 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 19
-EXTRAVERSION =-rc1
+EXTRAVERSION =-rc4
 NAME=Avast! A bilge rat!
 
 # *DOCUMENTATION*
@@ -499,6 +499,7 @@ endif
 
 ifdef CONFIG_UNWIND_INFO
 CFLAGS		+= -fasynchronous-unwind-tables
+LDFLAGS_vmlinux	+= --eh-frame-hdr
 endif
 
 ifdef CONFIG_DEBUG_INFO
@@ -741,6 +742,9 @@ endif # ifdef CONFIG_KALLSYMS
 
 # vmlinux image - including updated kernel symbols
 vmlinux: $(vmlinux-lds) $(vmlinux-init) $(vmlinux-main) $(kallsyms.o) FORCE
+ifdef CONFIG_HEADERS_CHECK
+	$(Q)$(MAKE) -f $(srctree)/Makefile headers_check
+endif
 	$(call if_changed_rule,vmlinux__)
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost $@
 	$(Q)rm -f .old_version
@@ -932,7 +936,7 @@ headers_install_all: include/linux/version.h scripts_basic FORCE
 
 PHONY += headers_install
 headers_install: include/linux/version.h scripts_basic FORCE
-	@if [ ! -r include/asm-$(ARCH)/Kbuild ]; then \
+	@if [ ! -r $(srctree)/include/asm-$(ARCH)/Kbuild ]; then \
 	  echo '*** Error: Headers not exportable for this architecture ($(ARCH))'; \
 	  exit 1 ; fi
 	$(Q)$(MAKE) $(build)=scripts scripts/unifdef
@@ -1316,7 +1320,8 @@ define xtags
 	    $(all-sources) | xargs $1 -a \
 		-I __initdata,__exitdata,__acquires,__releases \
 		-I EXPORT_SYMBOL,EXPORT_SYMBOL_GPL \
-		--extra=+f --c-kinds=+px; \
+		--extra=+f --c-kinds=+px \
+		--regex-asm='/ENTRY\(([^)]*)\).*/\1/'; \
 	    $(all-kconfigs) | xargs $1 -a \
 		--langdef=kconfig \
 		--language-force=kconfig \

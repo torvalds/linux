@@ -23,7 +23,7 @@ nlm_cmp_owner(struct nlm_share *share, struct xdr_netobj *oh)
 	    && !memcmp(share->s_owner.data, oh->data, oh->len);
 }
 
-u32
+__be32
 nlmsvc_share_file(struct nlm_host *host, struct nlm_file *file,
 			struct nlm_args *argp)
 {
@@ -64,7 +64,7 @@ update:
 /*
  * Delete a share.
  */
-u32
+__be32
 nlmsvc_unshare_file(struct nlm_host *host, struct nlm_file *file,
 			struct nlm_args *argp)
 {

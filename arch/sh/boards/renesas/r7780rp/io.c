@@ -11,7 +11,7 @@
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <asm/r7780rp/r7780rp.h>
+#include <asm/r7780rp.h>
 #include <asm/addrspace.h>
 #include <asm/io.h>
 

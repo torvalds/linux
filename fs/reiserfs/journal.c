@@ -53,6 +53,7 @@
 #include <linux/workqueue.h>
 #include <linux/writeback.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 
 /* gets a struct reiserfs_journal_list * from a list head */
 #define JOURNAL_LIST_ENTRY(h) (list_entry((h), struct reiserfs_journal_list, \
@@ -970,7 +971,7 @@ int reiserfs_async_progress_wait(struct super_block *s)
 	DEFINE_WAIT(wait);
 	struct reiserfs_journal *j = SB_JOURNAL(s);
 	if (atomic_read(&j->j_async_throttle))
-		blk_congestion_wait(WRITE, HZ / 10);
+		congestion_wait(WRITE, HZ / 10);
 	return 0;
 }
 

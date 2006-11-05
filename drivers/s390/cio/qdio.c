@@ -1741,7 +1741,7 @@ qdio_fill_qs(struct qdio_irq *irq_ptr, struct ccw_device *cdev,
 	void *ptr;
 	int available;
 
-	sprintf(dbf_text,"qfqs%4x",cdev->private->sch_no);
+	sprintf(dbf_text,"qfqs%4x",cdev->private->schid.sch_no);
 	QDIO_DBF_TEXT0(0,setup,dbf_text);
 	for (i=0;i<no_input_qs;i++) {
 		q=irq_ptr->input_qs[i];
@@ -2924,7 +2924,7 @@ qdio_establish_handle_irq(struct ccw_device *cdev, int cstat, int dstat)
 
 	irq_ptr = cdev->private->qdio_data;
 
-	sprintf(dbf_text,"qehi%4x",cdev->private->sch_no);
+	sprintf(dbf_text,"qehi%4x",cdev->private->schid.sch_no);
 	QDIO_DBF_TEXT0(0,setup,dbf_text);
 	QDIO_DBF_TEXT0(0,trace,dbf_text);
 
@@ -2943,7 +2943,7 @@ qdio_initialize(struct qdio_initialize *init_data)
 	int rc;
 	char dbf_text[15];
 
-	sprintf(dbf_text,"qini%4x",init_data->cdev->private->sch_no);
+	sprintf(dbf_text,"qini%4x",init_data->cdev->private->schid.sch_no);
 	QDIO_DBF_TEXT0(0,setup,dbf_text);
 	QDIO_DBF_TEXT0(0,trace,dbf_text);
 
@@ -2964,7 +2964,7 @@ qdio_allocate(struct qdio_initialize *init_data)
 	struct qdio_irq *irq_ptr;
 	char dbf_text[15];
 
-	sprintf(dbf_text,"qalc%4x",init_data->cdev->private->sch_no);
+	sprintf(dbf_text,"qalc%4x",init_data->cdev->private->schid.sch_no);
 	QDIO_DBF_TEXT0(0,setup,dbf_text);
 	QDIO_DBF_TEXT0(0,trace,dbf_text);
 	if ( (init_data->no_input_qs>QDIO_MAX_QUEUES_PER_IRQ) ||
@@ -3187,7 +3187,7 @@ qdio_establish(struct qdio_initialize *init_data)
 		tiqdio_set_delay_target(irq_ptr,TIQDIO_DELAY_TARGET);
 	}
 
-	sprintf(dbf_text,"qest%4x",cdev->private->sch_no);
+	sprintf(dbf_text,"qest%4x",cdev->private->schid.sch_no);
 	QDIO_DBF_TEXT0(0,setup,dbf_text);
 	QDIO_DBF_TEXT0(0,trace,dbf_text);
 
@@ -3529,7 +3529,7 @@ do_QDIO(struct ccw_device *cdev,unsigned int callflags,
 #ifdef CONFIG_QDIO_DEBUG
 	char dbf_text[20];
 
-	sprintf(dbf_text,"doQD%04x",cdev->private->sch_no);
+	sprintf(dbf_text,"doQD%04x",cdev->private->schid.sch_no);
  	QDIO_DBF_TEXT3(0,trace,dbf_text);
 #endif /* CONFIG_QDIO_DEBUG */
 

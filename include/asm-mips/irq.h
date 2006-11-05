@@ -24,8 +24,6 @@ static inline int irq_canonicalize(int irq)
 #define irq_canonicalize(irq) (irq)	/* Sane hardware, sane code ... */
 #endif
 
-struct pt_regs;
-
 extern asmlinkage unsigned int do_IRQ(unsigned int irq);
 
 #ifdef CONFIG_MIPS_MT_SMTC

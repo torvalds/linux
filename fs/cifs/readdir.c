@@ -106,6 +106,17 @@ static int construct_dentry(struct qstr *qstring, struct file *file,
 	return rc;
 }
 
+static void AdjustForTZ(struct cifsTconInfo * tcon, struct inode * inode)
+{
+	if((tcon) && (tcon->ses) && (tcon->ses->server)) {
+		inode->i_ctime.tv_sec += tcon->ses->server->timeAdj;
+		inode->i_mtime.tv_sec += tcon->ses->server->timeAdj;
+		inode->i_atime.tv_sec += tcon->ses->server->timeAdj;
+	}
+	return;
+}
+
+
 static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
 		char * buf, int *pobject_type, int isNewInode)
 {
@@ -135,16 +146,23 @@ static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
 		tmp_inode->i_ctime =
 		      cifs_NTtimeToUnix(le64_to_cpu(pfindData->ChangeTime));
 	} else { /* legacy, OS2 and DOS style */
+/*		struct timespec ts;*/
 		FIND_FILE_STANDARD_INFO * pfindData = 
 			(FIND_FILE_STANDARD_INFO *)buf;
 
+		tmp_inode->i_mtime = cnvrtDosUnixTm(
+				le16_to_cpu(pfindData->LastWriteDate),
+				le16_to_cpu(pfindData->LastWriteTime));
+		tmp_inode->i_atime = cnvrtDosUnixTm(
+				le16_to_cpu(pfindData->LastAccessDate),
+				le16_to_cpu(pfindData->LastAccessTime));
+                tmp_inode->i_ctime = cnvrtDosUnixTm(
+                                le16_to_cpu(pfindData->LastWriteDate),
+                                le16_to_cpu(pfindData->LastWriteTime));
+		AdjustForTZ(cifs_sb->tcon, tmp_inode);
 		attr = le16_to_cpu(pfindData->Attributes);
 		allocation_size = le32_to_cpu(pfindData->AllocationSize);
 		end_of_file = le32_to_cpu(pfindData->DataSize);
-		tmp_inode->i_atime = CURRENT_TIME;
-		/* tmp_inode->i_mtime =  BB FIXME - add dos time handling
-		tmp_inode->i_ctime = 0;   BB FIXME */
-
 	}
 
 	/* Linux can not store file creation time unfortunately so ignore it */
@@ -878,6 +896,10 @@ static int cifs_filldir(char *pfindEntry, struct file *file,
 		     tmp_inode->i_ino,obj_type);
 	if(rc) {
 		cFYI(1,("filldir rc = %d",rc));
+		/* we can not return filldir errors to the caller
+		since they are "normal" when the stat blocksize
+		is too small - we return remapped error instead */
+		rc = -EOVERFLOW;
 	}
 
 	dput(tmp_dentry);
@@ -938,6 +960,7 @@ static int cifs_save_resume_key(const char *current_entry,
 		filename = &pFindData->FileName[0];
 		/* one byte length, no name conversion */
 		len = (unsigned int)pFindData->FileNameLength;
+		cifsFile->srch_inf.resume_key = pFindData->ResumeKey;
 	} else {
 		cFYI(1,("Unknown findfirst level %d",level));
 		return -EINVAL;
@@ -1055,6 +1078,11 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 			we want to check for that here? */
 			rc = cifs_filldir(current_entry, file,
 					filldir, direntry, tmp_buf, max_len);
+			if(rc == -EOVERFLOW) {
+				rc = 0;
+				break;
+			}
+
 			file->f_pos++;
 			if(file->f_pos == 
 				cifsFile->srch_inf.index_of_last_entry) {

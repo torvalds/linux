@@ -8,11 +8,6 @@
 
 #include <asm/ptrace.h>
 
-#ifdef __KERNEL__
-#include <asm/mbus.h>
-#include <asm/uaccess.h>
-#endif
-
 /*
  * Sparc section types
  */
@@ -77,6 +72,23 @@ typedef unsigned long elf_greg_t;
 #define ELF_NGREG 38
 typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
+typedef struct {
+	union {
+		unsigned long	pr_regs[32];
+		double		pr_dregs[16];
+	} pr_fr;
+	unsigned long __unused;
+	unsigned long	pr_fsr;
+	unsigned char	pr_qcnt;
+	unsigned char	pr_q_entrysize;
+	unsigned char	pr_en;
+	unsigned int	pr_q[64];
+} elf_fpregset_t;
+
+#ifdef __KERNEL__
+#include <asm/mbus.h>
+#include <asm/uaccess.h>
+
 /* Format is:
  * 	G0 --> G7
  *	O0 --> O7
@@ -99,20 +111,7 @@ do {	unsigned long *dest = &(__elf_regs[0]);		\
 	dest[34] = src->npc;				\
 	dest[35] = src->y;				\
 	dest[36] = dest[37] = 0; /* XXX */		\
-} while(0); /* Janitors: Don't touch this colon. */
-
-typedef struct {
-	union {
-		unsigned long	pr_regs[32];
-		double		pr_dregs[16];
-	} pr_fr;
-	unsigned long __unused;
-	unsigned long	pr_fsr;
-	unsigned char	pr_qcnt;
-	unsigned char	pr_q_entrysize;
-	unsigned char	pr_en;
-	unsigned int	pr_q[64];
-} elf_fpregset_t;
+} while(0); /* Janitors: Don't touch this semicolon. */
 
 #define ELF_CORE_COPY_TASK_REGS(__tsk, __elf_regs)	\
 	({ ELF_CORE_COPY_REGS((*(__elf_regs)), (__tsk)->thread.kregs); 1; })
@@ -165,8 +164,8 @@ typedef struct {
 
 #define ELF_PLATFORM	(NULL)
 
-#ifdef __KERNEL__
 #define SET_PERSONALITY(ex, ibcs2) set_personality((ibcs2)?PER_SVR4:PER_LINUX)
-#endif
+
+#endif /* __KERNEL__ */
 
 #endif /* !(__ASMSPARC_ELF_H) */

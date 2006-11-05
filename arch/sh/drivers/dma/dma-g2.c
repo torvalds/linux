@@ -51,7 +51,7 @@ static volatile struct g2_dma_info *g2_dma = (volatile struct g2_dma_info *)0xa0
 	((g2_dma->channel[i].size - \
 	  g2_dma->status[i].size) & 0x0fffffff)
 
-static irqreturn_t g2_dma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t g2_dma_interrupt(int irq, void *dev_id)
 {
 	int i;
 

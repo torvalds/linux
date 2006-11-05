@@ -12,6 +12,7 @@
 #include "user_util.h"
 #include "chan_user.h"
 #include "os.h"
+#include "um_malloc.h"
 
 struct fd_chan {
 	int fd;

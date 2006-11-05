@@ -338,9 +338,11 @@ static void __init arch_sparse_init(void)
 void __init paging_init(void)
 { 
 	int i;
-	unsigned long max_zone_pfns[MAX_NR_ZONES] = { MAX_DMA_PFN,
-		MAX_DMA32_PFN,
-		end_pfn};
+	unsigned long max_zone_pfns[MAX_NR_ZONES];
+	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
+	max_zone_pfns[ZONE_DMA] = MAX_DMA_PFN;
+	max_zone_pfns[ZONE_DMA32] = MAX_DMA32_PFN;
+	max_zone_pfns[ZONE_NORMAL] = end_pfn;
 
 	arch_sparse_init();
 

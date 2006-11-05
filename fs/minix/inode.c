@@ -149,12 +149,8 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 		return -ENOMEM;
 	s->s_fs_info = sbi;
 
-	/* N.B. These should be compile-time tests.
-	   Unfortunately that is impossible. */
-	if (32 != sizeof (struct minix_inode))
-		panic("bad V1 i-node size");
-	if (64 != sizeof(struct minix2_inode))
-		panic("bad V2 i-node size");
+	BUILD_BUG_ON(32 != sizeof (struct minix_inode));
+	BUILD_BUG_ON(64 != sizeof(struct minix2_inode));
 
 	if (!sb_set_blocksize(s, BLOCK_SIZE))
 		goto out_bad_hblock;

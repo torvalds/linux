@@ -44,12 +44,14 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/fs.h>
 #include <linux/module.h>
+#include <linux/buffer_head.h>
 #include <linux/kprobes.h>
-#include <linux/kallsyms.h>
+#include <linux/list.h>
 #include <linux/init.h>
-#include <linux/irq.h>
 #include <linux/interrupt.h>
+#include <linux/hrtimer.h>
 #include <scsi/scsi_cmnd.h>
 
 #ifdef CONFIG_IDE
@@ -116,16 +118,16 @@ static enum ctype cptype = NONE;
 static int count = DEFAULT_COUNT;
 
 module_param(recur_count, int, 0644);
-MODULE_PARM_DESC(recur_count, "Recurcion level for the stack overflow test,\
-				 default is 10");
+MODULE_PARM_DESC(recur_count, " Recursion level for the stack overflow test, "\
+				 "default is 10");
 module_param(cpoint_name, charp, 0644);
-MODULE_PARM_DESC(cpoint_name, "Crash Point, where kernel is to be crashed");
-module_param(cpoint_type, charp, 06444);
-MODULE_PARM_DESC(cpoint_type, "Crash Point Type, action to be taken on\
-				hitting the crash point");
-module_param(cpoint_count, int, 06444);
-MODULE_PARM_DESC(cpoint_count, "Crash Point Count, number of times the \
-				crash point is to be hit to trigger action");
+MODULE_PARM_DESC(cpoint_name, " Crash Point, where kernel is to be crashed");
+module_param(cpoint_type, charp, 0644);
+MODULE_PARM_DESC(cpoint_type, " Crash Point Type, action to be taken on "\
+				"hitting the crash point");
+module_param(cpoint_count, int, 0644);
+MODULE_PARM_DESC(cpoint_count, " Crash Point Count, number of times the "\
+				"crash point is to be hit to trigger action");
 
 unsigned int jp_do_irq(unsigned int irq)
 {

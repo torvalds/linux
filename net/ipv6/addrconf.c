@@ -396,8 +396,10 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 	ndev->regen_timer.data = (unsigned long) ndev;
 	if ((dev->flags&IFF_LOOPBACK) ||
 	    dev->type == ARPHRD_TUNNEL ||
-	    dev->type == ARPHRD_NONE ||
-	    dev->type == ARPHRD_SIT) {
+#if defined(CONFIG_IPV6_SIT) || defined(CONFIG_IPV6_SIT_MODULE)
+	    dev->type == ARPHRD_SIT ||
+#endif
+	    dev->type == ARPHRD_NONE) {
 		printk(KERN_INFO
 		       "%s: Disabled Privacy Extensions\n",
 		       dev->name);
@@ -1546,8 +1548,10 @@ addrconf_prefix_route(struct in6_addr *pfx, int plen, struct net_device *dev,
 	   This thing is done here expecting that the whole
 	   class of non-broadcast devices need not cloning.
 	 */
+#if defined(CONFIG_IPV6_SIT) || defined(CONFIG_IPV6_SIT_MODULE)
 	if (dev->type == ARPHRD_SIT && (dev->flags & IFF_POINTOPOINT))
 		cfg.fc_flags |= RTF_NONEXTHOP;
+#endif
 
 	ip6_route_add(&cfg);
 }
@@ -1569,6 +1573,7 @@ static void addrconf_add_mroute(struct net_device *dev)
 	ip6_route_add(&cfg);
 }
 
+#if defined(CONFIG_IPV6_SIT) || defined(CONFIG_IPV6_SIT_MODULE)
 static void sit_route_add(struct net_device *dev)
 {
 	struct fib6_config cfg = {
@@ -1582,6 +1587,7 @@ static void sit_route_add(struct net_device *dev)
 	/* prefix length - 96 bits "::d.d.d.d" */
 	ip6_route_add(&cfg);
 }
+#endif
 
 static void addrconf_add_lroute(struct net_device *dev)
 {
@@ -1852,6 +1858,7 @@ int addrconf_set_dstaddr(void __user *arg)
 	if (dev == NULL)
 		goto err_exit;
 
+#if defined(CONFIG_IPV6_SIT) || defined(CONFIG_IPV6_SIT_MODULE)
 	if (dev->type == ARPHRD_SIT) {
 		struct ifreq ifr;
 		mm_segment_t	oldfs;
@@ -1881,6 +1888,7 @@ int addrconf_set_dstaddr(void __user *arg)
 			err = dev_open(dev);
 		}
 	}
+#endif
 
 err_exit:
 	rtnl_unlock();
@@ -2010,6 +2018,7 @@ int addrconf_del_ifaddr(void __user *arg)
 	return err;
 }
 
+#if defined(CONFIG_IPV6_SIT) || defined(CONFIG_IPV6_SIT_MODULE)
 static void sit_add_v4_addrs(struct inet6_dev *idev)
 {
 	struct inet6_ifaddr * ifp;
@@ -2078,6 +2087,7 @@ static void sit_add_v4_addrs(struct inet6_dev *idev)
 		}
         }
 }
+#endif
 
 static void init_loopback(struct net_device *dev)
 {
@@ -2141,6 +2151,7 @@ static void addrconf_dev_config(struct net_device *dev)
 		addrconf_add_linklocal(idev, &addr);
 }
 
+#if defined(CONFIG_IPV6_SIT) || defined(CONFIG_IPV6_SIT_MODULE)
 static void addrconf_sit_config(struct net_device *dev)
 {
 	struct inet6_dev *idev;
@@ -2166,6 +2177,7 @@ static void addrconf_sit_config(struct net_device *dev)
 	} else
 		sit_route_add(dev);
 }
+#endif
 
 static inline int
 ipv6_inherit_linklocal(struct inet6_dev *idev, struct net_device *link_dev)
@@ -2260,9 +2272,11 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 		}
 
 		switch(dev->type) {
+#if defined(CONFIG_IPV6_SIT) || defined(CONFIG_IPV6_SIT_MODULE)
 		case ARPHRD_SIT:
 			addrconf_sit_config(dev);
 			break;
+#endif
 		case ARPHRD_TUNNEL6:
 			addrconf_ip6_tnl_config(dev);
 			break;

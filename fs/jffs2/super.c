@@ -334,10 +334,10 @@ static int __init init_jffs2_fs(void)
 	   which means just 'no padding', without the alignment
 	   thing. But GCC doesn't have that -- we have to just
 	   hope the structs are the right sizes, instead. */
-	BUG_ON(sizeof(struct jffs2_unknown_node) != 12);
-	BUG_ON(sizeof(struct jffs2_raw_dirent) != 40);
-	BUG_ON(sizeof(struct jffs2_raw_inode) != 68);
-	BUG_ON(sizeof(struct jffs2_raw_summary) != 32);
+	BUILD_BUG_ON(sizeof(struct jffs2_unknown_node) != 12);
+	BUILD_BUG_ON(sizeof(struct jffs2_raw_dirent) != 40);
+	BUILD_BUG_ON(sizeof(struct jffs2_raw_inode) != 68);
+	BUILD_BUG_ON(sizeof(struct jffs2_raw_summary) != 32);
 
 	printk(KERN_INFO "JFFS2 version 2.2."
 #ifdef CONFIG_JFFS2_FS_WRITEBUFFER

@@ -2172,7 +2172,12 @@ struct netlbl_cache {
  */
 static void selinux_netlbl_cache_free(const void *data)
 {
-	struct netlbl_cache *cache = NETLBL_CACHE(data);
+	struct netlbl_cache *cache;
+
+	if (data == NULL)
+		return;
+
+	cache = NETLBL_CACHE(data);
 	switch (cache->type) {
 	case NETLBL_CACHE_T_MLS:
 		ebitmap_destroy(&cache->data.mls_label.level[0].cat);
@@ -2197,17 +2202,20 @@ static void selinux_netlbl_cache_add(struct sk_buff *skb, struct context *ctx)
 	struct netlbl_lsm_secattr secattr;
 
 	netlbl_secattr_init(&secattr);
+	secattr.cache = netlbl_secattr_cache_alloc(GFP_ATOMIC);
+	if (secattr.cache == NULL)
+		goto netlbl_cache_add_return;
 
 	cache = kzalloc(sizeof(*cache),	GFP_ATOMIC);
 	if (cache == NULL)
-		goto netlbl_cache_add_failure;
-	secattr.cache.free = selinux_netlbl_cache_free;
-	secattr.cache.data = (void *)cache;
+		goto netlbl_cache_add_return;
+	secattr.cache->free = selinux_netlbl_cache_free;
+	secattr.cache->data = (void *)cache;
 
 	cache->type = NETLBL_CACHE_T_MLS;
 	if (ebitmap_cpy(&cache->data.mls_label.level[0].cat,
 			&ctx->range.level[0].cat) != 0)
-		goto netlbl_cache_add_failure;
+		goto netlbl_cache_add_return;
 	cache->data.mls_label.level[1].cat.highbit =
 		cache->data.mls_label.level[0].cat.highbit;
 	cache->data.mls_label.level[1].cat.node =
@@ -2215,13 +2223,10 @@ static void selinux_netlbl_cache_add(struct sk_buff *skb, struct context *ctx)
 	cache->data.mls_label.level[0].sens = ctx->range.level[0].sens;
 	cache->data.mls_label.level[1].sens = ctx->range.level[0].sens;
 
-	if (netlbl_cache_add(skb, &secattr) != 0)
-		goto netlbl_cache_add_failure;
+	netlbl_cache_add(skb, &secattr);
 
-	return;
-
-netlbl_cache_add_failure:
-	netlbl_secattr_destroy(&secattr, 1);
+netlbl_cache_add_return:
+	netlbl_secattr_destroy(&secattr);
 }
 
 /**
@@ -2263,8 +2268,8 @@ static int selinux_netlbl_secattr_to_sid(struct sk_buff *skb,
 
 	POLICY_RDLOCK;
 
-	if (secattr->cache.data) {
-		cache = NETLBL_CACHE(secattr->cache.data);
+	if (secattr->cache) {
+		cache = NETLBL_CACHE(secattr->cache->data);
 		switch (cache->type) {
 		case NETLBL_CACHE_T_SID:
 			*sid = cache->data.sid;
@@ -2331,7 +2336,7 @@ static int selinux_netlbl_secattr_to_sid(struct sk_buff *skb,
 			selinux_netlbl_cache_add(skb, &ctx_new);
 		ebitmap_destroy(&ctx_new.range.level[0].cat);
 	} else {
-		*sid = SECINITSID_UNLABELED;
+		*sid = SECSID_NULL;
 		rc = 0;
 	}
 
@@ -2369,7 +2374,7 @@ static int selinux_netlbl_skbuff_getsid(struct sk_buff *skb,
 						   &secattr,
 						   base_sid,
 						   sid);
-	netlbl_secattr_destroy(&secattr, 0);
+	netlbl_secattr_destroy(&secattr);
 
 	return rc;
 }
@@ -2394,31 +2399,33 @@ static int selinux_netlbl_socket_setsid(struct socket *sock, u32 sid)
 	if (!ss_initialized)
 		return 0;
 
+	netlbl_secattr_init(&secattr);
+
 	POLICY_RDLOCK;
 
 	ctx = sidtab_search(&sidtab, sid);
 	if (ctx == NULL)
 		goto netlbl_socket_setsid_return;
 
-	netlbl_secattr_init(&secattr);
 	secattr.domain = kstrdup(policydb.p_type_val_to_name[ctx->type - 1],
 				 GFP_ATOMIC);
 	mls_export_lvl(ctx, &secattr.mls_lvl, NULL);
 	secattr.mls_lvl_vld = 1;
-	mls_export_cat(ctx,
-		       &secattr.mls_cat,
-		       &secattr.mls_cat_len,
-		       NULL,
-		       NULL);
+	rc = mls_export_cat(ctx,
+			    &secattr.mls_cat,
+			    &secattr.mls_cat_len,
+			    NULL,
+			    NULL);
+	if (rc != 0)
+		goto netlbl_socket_setsid_return;
 
 	rc = netlbl_socket_setattr(sock, &secattr);
 	if (rc == 0)
 		sksec->nlbl_state = NLBL_LABELED;
 
-	netlbl_secattr_destroy(&secattr, 0);
-
 netlbl_socket_setsid_return:
 	POLICY_RDUNLOCK;
+	netlbl_secattr_destroy(&secattr);
 	return rc;
 }
 
@@ -2514,10 +2521,10 @@ void selinux_netlbl_sock_graft(struct sock *sk, struct socket *sock)
 	if (netlbl_sock_getattr(sk, &secattr) == 0 &&
 	    selinux_netlbl_secattr_to_sid(NULL,
 					  &secattr,
-					  sksec->sid,
+					  SECINITSID_UNLABELED,
 					  &nlbl_peer_sid) == 0)
 		sksec->peer_sid = nlbl_peer_sid;
-	netlbl_secattr_destroy(&secattr, 0);
+	netlbl_secattr_destroy(&secattr);
 
 	sksec->nlbl_state = NLBL_REQUIRE;
 
@@ -2545,9 +2552,6 @@ u32 selinux_netlbl_inet_conn_request(struct sk_buff *skb, u32 sock_sid)
 
 	rc = selinux_netlbl_skbuff_getsid(skb, sock_sid, &peer_sid);
 	if (rc != 0)
-		return SECSID_NULL;
-
-	if (peer_sid == SECINITSID_UNLABELED)
 		return SECSID_NULL;
 
 	return peer_sid;
@@ -2611,11 +2615,13 @@ int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 	u32 netlbl_sid;
 	u32 recv_perm;
 
-	rc = selinux_netlbl_skbuff_getsid(skb, SECINITSID_NETMSG, &netlbl_sid);
+	rc = selinux_netlbl_skbuff_getsid(skb,
+					  SECINITSID_UNLABELED,
+					  &netlbl_sid);
 	if (rc != 0)
 		return rc;
 
-	if (netlbl_sid == SECINITSID_UNLABELED)
+	if (netlbl_sid == SECSID_NULL)
 		return 0;
 
 	switch (sksec->sclass) {
@@ -2653,10 +2659,6 @@ int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 u32 selinux_netlbl_socket_getpeersec_stream(struct socket *sock)
 {
 	struct sk_security_struct *sksec = sock->sk->sk_security;
-
-	if (sksec->peer_sid == SECINITSID_UNLABELED)
-		return SECSID_NULL;
-
 	return sksec->peer_sid;
 }
 
@@ -2672,18 +2674,49 @@ u32 selinux_netlbl_socket_getpeersec_stream(struct socket *sock)
 u32 selinux_netlbl_socket_getpeersec_dgram(struct sk_buff *skb)
 {
 	int peer_sid;
-	struct sock *sk = skb->sk;
-	struct inode_security_struct *isec;
 
-	if (sk == NULL || sk->sk_socket == NULL)
-		return SECSID_NULL;
-
-	isec = SOCK_INODE(sk->sk_socket)->i_security;
-	if (selinux_netlbl_skbuff_getsid(skb, isec->sid, &peer_sid) != 0)
-		return SECSID_NULL;
-	if (peer_sid == SECINITSID_UNLABELED)
+	if (selinux_netlbl_skbuff_getsid(skb,
+					 SECINITSID_UNLABELED,
+					 &peer_sid) != 0)
 		return SECSID_NULL;
 
 	return peer_sid;
+}
+
+/**
+ * selinux_netlbl_socket_setsockopt - Do not allow users to remove a NetLabel
+ * @sock: the socket
+ * @level: the socket level or protocol
+ * @optname: the socket option name
+ *
+ * Description:
+ * Check the setsockopt() call and if the user is trying to replace the IP
+ * options on a socket and a NetLabel is in place for the socket deny the
+ * access; otherwise allow the access.  Returns zero when the access is
+ * allowed, -EACCES when denied, and other negative values on error.
+ *
+ */
+int selinux_netlbl_socket_setsockopt(struct socket *sock,
+				     int level,
+				     int optname)
+{
+	int rc = 0;
+	struct inode *inode = SOCK_INODE(sock);
+	struct sk_security_struct *sksec = sock->sk->sk_security;
+	struct inode_security_struct *isec = inode->i_security;
+	struct netlbl_lsm_secattr secattr;
+
+	mutex_lock(&isec->lock);
+	if (level == IPPROTO_IP && optname == IP_OPTIONS &&
+	    sksec->nlbl_state == NLBL_LABELED) {
+		netlbl_secattr_init(&secattr);
+		rc = netlbl_socket_getattr(sock, &secattr);
+		if (rc == 0 && (secattr.cache || secattr.mls_lvl_vld))
+			rc = -EACCES;
+		netlbl_secattr_destroy(&secattr);
+	}
+	mutex_unlock(&isec->lock);
+
+	return rc;
 }
 #endif /* CONFIG_NETLABEL */

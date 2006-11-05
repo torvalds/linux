@@ -35,6 +35,8 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
+#include <asm/io.h>
+
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
 #include "mthca_memfree.h"
@@ -594,6 +596,12 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 			      dev->kar + MTHCA_RECEIVE_DOORBELL,
 			      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
 	}
+
+	/*
+	 * Make sure doorbells don't leak out of SRQ spinlock and
+	 * reach the HCA out of order:
+	 */
+	mmiowb();
 
 	spin_unlock_irqrestore(&srq->lock, flags);
 	return err;

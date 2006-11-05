@@ -28,7 +28,7 @@ static inline int
 set_ect_ip(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 {
 	struct iphdr *iph = (*pskb)->nh.iph;
-	__be16 oldtos;
+	u_int16_t oldtos;
 
 	if ((iph->tos & IPT_ECN_IP_MASK) != (einfo->ip_ect & IPT_ECN_IP_MASK)) {
 		if (!skb_make_writable(pskb, sizeof(struct iphdr)))
@@ -37,8 +37,8 @@ set_ect_ip(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 		oldtos = iph->tos;
 		iph->tos &= ~IPT_ECN_IP_MASK;
 		iph->tos |= (einfo->ip_ect & IPT_ECN_IP_MASK);
-		iph->check = nf_csum_update(oldtos ^ htons(0xFFFF), iph->tos,
-					    iph->check);
+		iph->check = nf_csum_update(htons(oldtos) ^ htons(0xFFFF),
+					    htons(iph->tos), iph->check);
 	} 
 	return 1;
 }

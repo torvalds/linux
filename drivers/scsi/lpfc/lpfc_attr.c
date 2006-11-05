@@ -594,7 +594,8 @@ lpfc_soft_wwpn_show(struct class_device *cdev, char *buf)
 {
 	struct Scsi_Host *host = class_to_shost(cdev);
 	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
-	return snprintf(buf, PAGE_SIZE, "0x%llx\n", phba->cfg_soft_wwpn);
+	return snprintf(buf, PAGE_SIZE, "0x%llx\n",
+			(unsigned long long)phba->cfg_soft_wwpn);
 }
 
 

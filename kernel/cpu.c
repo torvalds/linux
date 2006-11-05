@@ -19,7 +19,7 @@
 static DEFINE_MUTEX(cpu_add_remove_lock);
 static DEFINE_MUTEX(cpu_bitmask_lock);
 
-static __cpuinitdata BLOCKING_NOTIFIER_HEAD(cpu_chain);
+static __cpuinitdata RAW_NOTIFIER_HEAD(cpu_chain);
 
 /* If set, cpu_up and cpu_down will return -EBUSY and do nothing.
  * Should always be manipulated under cpu_add_remove_lock
@@ -68,7 +68,11 @@ EXPORT_SYMBOL_GPL(unlock_cpu_hotplug);
 /* Need to know about CPUs going up/down? */
 int __cpuinit register_cpu_notifier(struct notifier_block *nb)
 {
-	return blocking_notifier_chain_register(&cpu_chain, nb);
+	int ret;
+	mutex_lock(&cpu_add_remove_lock);
+	ret = raw_notifier_chain_register(&cpu_chain, nb);
+	mutex_unlock(&cpu_add_remove_lock);
+	return ret;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -77,7 +81,9 @@ EXPORT_SYMBOL(register_cpu_notifier);
 
 void unregister_cpu_notifier(struct notifier_block *nb)
 {
-	blocking_notifier_chain_unregister(&cpu_chain, nb);
+	mutex_lock(&cpu_add_remove_lock);
+	raw_notifier_chain_unregister(&cpu_chain, nb);
+	mutex_unlock(&cpu_add_remove_lock);
 }
 EXPORT_SYMBOL(unregister_cpu_notifier);
 
@@ -126,7 +132,7 @@ static int _cpu_down(unsigned int cpu)
 	if (!cpu_online(cpu))
 		return -EINVAL;
 
-	err = blocking_notifier_call_chain(&cpu_chain, CPU_DOWN_PREPARE,
+	err = raw_notifier_call_chain(&cpu_chain, CPU_DOWN_PREPARE,
 						(void *)(long)cpu);
 	if (err == NOTIFY_BAD) {
 		printk("%s: attempt to take down CPU %u failed\n",
@@ -144,18 +150,18 @@ static int _cpu_down(unsigned int cpu)
 	p = __stop_machine_run(take_cpu_down, NULL, cpu);
 	mutex_unlock(&cpu_bitmask_lock);
 
-	if (IS_ERR(p)) {
+	if (IS_ERR(p) || cpu_online(cpu)) {
 		/* CPU didn't die: tell everyone.  Can't complain. */
-		if (blocking_notifier_call_chain(&cpu_chain, CPU_DOWN_FAILED,
+		if (raw_notifier_call_chain(&cpu_chain, CPU_DOWN_FAILED,
 				(void *)(long)cpu) == NOTIFY_BAD)
 			BUG();
 
-		err = PTR_ERR(p);
-		goto out_allowed;
-	}
-
-	if (cpu_online(cpu))
+		if (IS_ERR(p)) {
+			err = PTR_ERR(p);
+			goto out_allowed;
+		}
 		goto out_thread;
+	}
 
 	/* Wait for it to sleep (leaving idle task). */
 	while (!idle_cpu(cpu))
@@ -169,7 +175,7 @@ static int _cpu_down(unsigned int cpu)
 	put_cpu();
 
 	/* CPU is completely dead: tell everyone.  Too late to complain. */
-	if (blocking_notifier_call_chain(&cpu_chain, CPU_DEAD,
+	if (raw_notifier_call_chain(&cpu_chain, CPU_DEAD,
 			(void *)(long)cpu) == NOTIFY_BAD)
 		BUG();
 
@@ -206,7 +212,7 @@ static int __devinit _cpu_up(unsigned int cpu)
 	if (cpu_online(cpu) || !cpu_present(cpu))
 		return -EINVAL;
 
-	ret = blocking_notifier_call_chain(&cpu_chain, CPU_UP_PREPARE, hcpu);
+	ret = raw_notifier_call_chain(&cpu_chain, CPU_UP_PREPARE, hcpu);
 	if (ret == NOTIFY_BAD) {
 		printk("%s: attempt to bring up CPU %u failed\n",
 				__FUNCTION__, cpu);
@@ -223,11 +229,11 @@ static int __devinit _cpu_up(unsigned int cpu)
 	BUG_ON(!cpu_online(cpu));
 
 	/* Now call notifier in preparation. */
-	blocking_notifier_call_chain(&cpu_chain, CPU_ONLINE, hcpu);
+	raw_notifier_call_chain(&cpu_chain, CPU_ONLINE, hcpu);
 
 out_notify:
 	if (ret != 0)
-		blocking_notifier_call_chain(&cpu_chain,
+		raw_notifier_call_chain(&cpu_chain,
 				CPU_UP_CANCELED, hcpu);
 
 	return ret;

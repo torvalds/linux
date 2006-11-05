@@ -117,8 +117,8 @@ struct svc_export *	exp_parent(struct auth_domain *clp,
 				   struct cache_req *reqp);
 int			exp_rootfh(struct auth_domain *, 
 					char *path, struct knfsd_fh *, int maxsize);
-int			exp_pseudoroot(struct auth_domain *, struct svc_fh *fhp, struct cache_req *creq);
-int			nfserrno(int errno);
+__be32			exp_pseudoroot(struct auth_domain *, struct svc_fh *fhp, struct cache_req *creq);
+__be32			nfserrno(int errno);
 
 extern struct cache_detail svc_export_cache;
 

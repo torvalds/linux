@@ -79,7 +79,7 @@ static irqreturn_t mconsole_interrupt(int irq, void *dev_id)
 	/* long to avoid size mismatch warnings from gcc */
 	long fd;
 	struct mconsole_entry *new;
-	struct mc_request req;
+	static struct mc_request req;	/* that's OK */
 
 	fd = (long) dev_id;
 	while (mconsole_get_request(fd, &req)){
@@ -91,6 +91,7 @@ static irqreturn_t mconsole_interrupt(int irq, void *dev_id)
 				mconsole_reply(&req, "Out of memory", 1, 0);
 			else {
 				new->request = req;
+				new->request.regs = get_irq_regs()->regs;
 				list_add(&new->list, &mc_requests);
 			}
 		}
@@ -314,9 +315,21 @@ void mconsole_stop(struct mc_request *req)
 {
 	deactivate_fd(req->originating_fd, MCONSOLE_IRQ);
 	os_set_fd_block(req->originating_fd, 1);
-	mconsole_reply(req, "", 0, 0);
-	while(mconsole_get_request(req->originating_fd, req)){
-		if(req->cmd->handler == mconsole_go) break;
+	mconsole_reply(req, "stopped", 0, 0);
+	while (mconsole_get_request(req->originating_fd, req)) {
+		if (req->cmd->handler == mconsole_go)
+			break;
+		if (req->cmd->handler == mconsole_stop) {
+			mconsole_reply(req, "Already stopped", 1, 0);
+			continue;
+		}
+		if (req->cmd->handler == mconsole_sysrq) {
+			struct pt_regs *old_regs;
+			old_regs = set_irq_regs((struct pt_regs *)&req->regs);
+			mconsole_sysrq(req);
+			set_irq_regs(old_regs);
+			continue;
+		}
 		(*req->cmd->handler)(req);
 	}
 	os_set_fd_block(req->originating_fd, 0);
@@ -673,9 +686,7 @@ static void with_console(struct mc_request *req, void (*proc)(void *),
 static void sysrq_proc(void *arg)
 {
 	char *op = arg;
-	struct pt_regs *old_regs = set_irq_regs(&current->thread.regs);
 	handle_sysrq(*op, NULL);
-	set_irq_regs(old_regs);
 }
 
 void mconsole_sysrq(struct mc_request *req)

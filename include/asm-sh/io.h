@@ -304,22 +304,6 @@ __ioremap_mode(unsigned long offset, unsigned long size, unsigned long flags)
 #define iounmap(addr)					\
 	__iounmap((addr))
 
-static inline int check_signature(char __iomem *io_addr,
-			const unsigned char *signature, int length)
-{
-	int retval = 0;
-	do {
-		if (readb(io_addr) != *signature)
-			goto out;
-		io_addr++;
-		signature++;
-		length--;
-	} while (length);
-	retval = 1;
-out:
-	return retval;
-}
-
 /*
  * The caches on some architectures aren't dma-coherent and have need to
  * handle this in software.  There are three types of operations that

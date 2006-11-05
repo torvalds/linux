@@ -77,8 +77,8 @@ static inline int selinux_authorizable_xfrm(struct xfrm_state *x)
  */
 int selinux_xfrm_policy_lookup(struct xfrm_policy *xp, u32 fl_secid, u8 dir)
 {
-	int rc = 0;
-	u32 sel_sid = SECINITSID_UNLABELED;
+	int rc;
+	u32 sel_sid;
 	struct xfrm_sec_ctx *ctx;
 
 	/* Context sid is either set to label or ANY_ASSOC */
@@ -88,10 +88,20 @@ int selinux_xfrm_policy_lookup(struct xfrm_policy *xp, u32 fl_secid, u8 dir)
 
 		sel_sid = ctx->ctx_sid;
 	}
+	else
+		/*
+		 * All flows should be treated as polmatch'ing an
+		 * otherwise applicable "non-labeled" policy. This
+		 * would prevent inadvertent "leaks".
+		 */
+		return 0;
 
 	rc = avc_has_perm(fl_secid, sel_sid, SECCLASS_ASSOCIATION,
 			  ASSOCIATION__POLMATCH,
 			  NULL);
+
+	if (rc == -EACCES)
+		rc = -ESRCH;
 
 	return rc;
 }
@@ -108,15 +118,20 @@ int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x, struct xfrm_policy *
 	u32 pol_sid;
 	int err;
 
-	if (x->security)
-		state_sid = x->security->ctx_sid;
-	else
-		state_sid = SECINITSID_UNLABELED;
-
-	if (xp->security)
+	if (xp->security) {
+		if (!x->security)
+			/* unlabeled SA and labeled policy can't match */
+			return 0;
+		else
+			state_sid = x->security->ctx_sid;
 		pol_sid = xp->security->ctx_sid;
-	else
-		pol_sid = SECINITSID_UNLABELED;
+	} else
+		if (x->security)
+			/* unlabeled policy and labeled SA can't match */
+			return 0;
+		else
+			/* unlabeled policy and unlabeled SA match all flows */
+			return 1;
 
 	err = avc_has_perm(state_sid, pol_sid, SECCLASS_ASSOCIATION,
 			  ASSOCIATION__POLMATCH,
@@ -125,7 +140,11 @@ int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x, struct xfrm_policy *
 	if (err)
 		return 0;
 
-	return selinux_xfrm_flow_state_match(fl, x);
+	err = avc_has_perm(fl->secid, state_sid, SECCLASS_ASSOCIATION,
+			  ASSOCIATION__SENDTO,
+			  NULL)? 0:1;
+
+	return err;
 }
 
 /*
@@ -133,11 +152,21 @@ int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x, struct xfrm_policy *
  * can use a given security association.
  */
 
-int selinux_xfrm_flow_state_match(struct flowi *fl, struct xfrm_state *xfrm)
+int selinux_xfrm_flow_state_match(struct flowi *fl, struct xfrm_state *xfrm,
+				  struct xfrm_policy *xp)
 {
 	int rc = 0;
 	u32 sel_sid = SECINITSID_UNLABELED;
 	struct xfrm_sec_ctx *ctx;
+
+	if (!xp->security)
+		if (!xfrm->security)
+			return 1;
+		else
+			return 0;
+	else
+		if (!xfrm->security)
+			return 0;
 
 	/* Context sid is either set to label or ANY_ASSOC */
 	if ((ctx = xfrm->security)) {

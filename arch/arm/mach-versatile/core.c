@@ -188,12 +188,12 @@ static struct map_desc versatile_io_desc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	=  VERSATILE_PCI_VIRT_BASE,
+		.virtual	=  (unsigned long)VERSATILE_PCI_VIRT_BASE,
 		.pfn		= __phys_to_pfn(VERSATILE_PCI_BASE),
 		.length		= VERSATILE_PCI_BASE_SIZE,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	=  VERSATILE_PCI_CFG_VIRT_BASE,
+		.virtual	=  (unsigned long)VERSATILE_PCI_CFG_VIRT_BASE,
 		.pfn		= __phys_to_pfn(VERSATILE_PCI_CFG_BASE),
 		.length		= VERSATILE_PCI_CFG_BASE_SIZE,
 		.type		= MT_DEVICE

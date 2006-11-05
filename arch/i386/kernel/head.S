@@ -317,7 +317,7 @@ is386:	movl $2,%ecx		# set MP
 	movl %eax,%gs
 	lldt %ax
 	cld			# gcc2 wants the direction flag cleared at all times
-	pushl %eax		# fake return address
+	pushl $0		# fake return address for unwinder
 #ifdef CONFIG_SMP
 	movb ready, %cl
 	movb $1, ready

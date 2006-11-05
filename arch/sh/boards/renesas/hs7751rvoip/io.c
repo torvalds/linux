@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <asm/io.h>
-#include <asm/hs7751rvoip/hs7751rvoip.h>
+#include <asm/hs7751rvoip.h>
 #include <asm/addrspace.h>
 
 extern void *area6_io8_base;	/* Area 6 8bit I/O Base address */

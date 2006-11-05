@@ -2413,10 +2413,11 @@ static int mos7840_ioctl(struct usb_serial_port *port, struct file *file,
 	}
 
 	mos7840_port = mos7840_get_port_private(port);
-	tty = mos7840_port->port->tty;
 
 	if (mos7840_port == NULL)
 		return -1;
+
+	tty = mos7840_port->port->tty;
 
 	dbg("%s - port %d, cmd = 0x%x", __FUNCTION__, port->number, cmd);
 

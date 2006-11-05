@@ -1306,6 +1306,42 @@ void wake_up_inode(struct inode *inode)
 	wake_up_bit(&inode->i_state, __I_LOCK);
 }
 
+/*
+ * We rarely want to lock two inodes that do not have a parent/child
+ * relationship (such as directory, child inode) simultaneously. The
+ * vast majority of file systems should be able to get along fine
+ * without this. Do not use these functions except as a last resort.
+ */
+void inode_double_lock(struct inode *inode1, struct inode *inode2)
+{
+	if (inode1 == NULL || inode2 == NULL || inode1 == inode2) {
+		if (inode1)
+			mutex_lock(&inode1->i_mutex);
+		else if (inode2)
+			mutex_lock(&inode2->i_mutex);
+		return;
+	}
+
+	if (inode1 < inode2) {
+		mutex_lock_nested(&inode1->i_mutex, I_MUTEX_PARENT);
+		mutex_lock_nested(&inode2->i_mutex, I_MUTEX_CHILD);
+	} else {
+		mutex_lock_nested(&inode2->i_mutex, I_MUTEX_PARENT);
+		mutex_lock_nested(&inode1->i_mutex, I_MUTEX_CHILD);
+	}
+}
+EXPORT_SYMBOL(inode_double_lock);
+
+void inode_double_unlock(struct inode *inode1, struct inode *inode2)
+{
+	if (inode1)
+		mutex_unlock(&inode1->i_mutex);
+
+	if (inode2 && inode2 != inode1)
+		mutex_unlock(&inode2->i_mutex);
+}
+EXPORT_SYMBOL(inode_double_unlock);
+
 static __initdata unsigned long ihash_entries;
 static int __init set_ihash_entries(char *str)
 {

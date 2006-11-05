@@ -2,7 +2,7 @@
  * net/tipc/dbg.h: Include file for TIPC print buffer routines
  * 
  * Copyright (c) 1997-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005-2006, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,14 @@
 #ifndef _TIPC_DBG_H
 #define _TIPC_DBG_H
 
+/**
+ * struct print_buf - TIPC print buffer structure
+ * @buf: pointer to character array containing print buffer contents
+ * @size: size of character array
+ * @crs: pointer to first unused space in character array (i.e. final NUL)
+ * @next: used to link print buffers when printing to more than one at a time
+ */
+
 struct print_buf {
 	char *buf;
 	u32 size;
@@ -44,7 +52,10 @@ struct print_buf {
 	struct print_buf *next;
 };
 
-void tipc_printbuf_init(struct print_buf *pb, char *buf, u32 sz);
+#define TIPC_PB_MIN_SIZE 64	/* minimum size for a print buffer's array */
+#define TIPC_PB_MAX_STR 512	/* max printable string (with trailing NUL) */
+
+void tipc_printbuf_init(struct print_buf *pb, char *buf, u32 size);
 void tipc_printbuf_reset(struct print_buf *pb);
 int  tipc_printbuf_empty(struct print_buf *pb);
 int  tipc_printbuf_validate(struct print_buf *pb);

@@ -91,6 +91,46 @@ static struct irq_pin_list {
 	int apic, pin, next;
 } irq_2_pin[PIN_MAP_SIZE];
 
+struct io_apic {
+	unsigned int index;
+	unsigned int unused[3];
+	unsigned int data;
+};
+
+static __attribute_const__ struct io_apic __iomem *io_apic_base(int idx)
+{
+	return (void __iomem *) __fix_to_virt(FIX_IO_APIC_BASE_0 + idx)
+		+ (mp_ioapics[idx].mpc_apicaddr & ~PAGE_MASK);
+}
+
+static inline unsigned int io_apic_read(unsigned int apic, unsigned int reg)
+{
+	struct io_apic __iomem *io_apic = io_apic_base(apic);
+	writel(reg, &io_apic->index);
+	return readl(&io_apic->data);
+}
+
+static inline void io_apic_write(unsigned int apic, unsigned int reg, unsigned int value)
+{
+	struct io_apic __iomem *io_apic = io_apic_base(apic);
+	writel(reg, &io_apic->index);
+	writel(value, &io_apic->data);
+}
+
+/*
+ * Re-write a value: to be used for read-modify-write
+ * cycles where the read already set up the index register.
+ *
+ * Older SiS APIC requires we rewrite the index register
+ */
+static inline void io_apic_modify(unsigned int apic, unsigned int reg, unsigned int value)
+{
+	volatile struct io_apic *io_apic = io_apic_base(apic);
+	if (sis_apic_bug)
+		writel(reg, &io_apic->index);
+	writel(value, &io_apic->data);
+}
+
 union entry_union {
 	struct { u32 w1, w2; };
 	struct IO_APIC_route_entry entry;
@@ -107,11 +147,33 @@ static struct IO_APIC_route_entry ioapic_read_entry(int apic, int pin)
 	return eu.entry;
 }
 
+/*
+ * When we write a new IO APIC routing entry, we need to write the high
+ * word first! If the mask bit in the low word is clear, we will enable
+ * the interrupt, and we need to make sure the entry is fully populated
+ * before that happens.
+ */
 static void ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
 {
 	unsigned long flags;
 	union entry_union eu;
 	eu.entry = e;
+	spin_lock_irqsave(&ioapic_lock, flags);
+	io_apic_write(apic, 0x11 + 2*pin, eu.w2);
+	io_apic_write(apic, 0x10 + 2*pin, eu.w1);
+	spin_unlock_irqrestore(&ioapic_lock, flags);
+}
+
+/*
+ * When we mask an IO APIC routing entry, we need to write the low
+ * word first, in order to set the mask bit before we change the
+ * high bits!
+ */
+static void ioapic_mask_entry(int apic, int pin)
+{
+	unsigned long flags;
+	union entry_union eu = { .entry.mask = 1 };
+
 	spin_lock_irqsave(&ioapic_lock, flags);
 	io_apic_write(apic, 0x10 + 2*pin, eu.w1);
 	io_apic_write(apic, 0x11 + 2*pin, eu.w2);
@@ -234,9 +296,7 @@ static void clear_IO_APIC_pin(unsigned int apic, unsigned int pin)
 	/*
 	 * Disable it in the IO-APIC irq-routing table:
 	 */
-	memset(&entry, 0, sizeof(entry));
-	entry.mask = 1;
-	ioapic_write_entry(apic, pin, entry);
+	ioapic_mask_entry(apic, pin);
 }
 
 static void clear_IO_APIC (void)
@@ -1225,11 +1285,11 @@ static void ioapic_register_intr(int irq, int vector, unsigned long trigger)
 {
 	if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
 			trigger == IOAPIC_LEVEL)
-		set_irq_chip_and_handler(irq, &ioapic_chip,
-					 handle_fasteoi_irq);
+		set_irq_chip_and_handler_name(irq, &ioapic_chip,
+					 handle_fasteoi_irq, "fasteoi");
 	else
-		set_irq_chip_and_handler(irq, &ioapic_chip,
-					 handle_edge_irq);
+		set_irq_chip_and_handler_name(irq, &ioapic_chip,
+					 handle_edge_irq, "edge");
 	set_intr_gate(vector, interrupt[irq]);
 }
 
@@ -2235,7 +2295,8 @@ static inline void check_timer(void)
 	printk(KERN_INFO "...trying to set up timer as Virtual Wire IRQ...");
 
 	disable_8259A_irq(0);
-	set_irq_chip_and_handler(0, &lapic_chip, handle_fasteoi_irq);
+	set_irq_chip_and_handler_name(0, &lapic_chip, handle_fasteoi_irq,
+				      "fasteio");
 	apic_write_around(APIC_LVT0, APIC_DM_FIXED | vector);	/* Fixed mode */
 	enable_8259A_irq(0);
 
@@ -2541,7 +2602,8 @@ int arch_setup_msi_irq(unsigned int irq, struct pci_dev *dev)
 
 	write_msi_msg(irq, &msg);
 
-	set_irq_chip_and_handler(irq, &msi_chip, handle_edge_irq);
+	set_irq_chip_and_handler_name(irq, &msi_chip, handle_edge_irq,
+				      "edge");
 
 	return 0;
 }
@@ -2594,7 +2656,7 @@ static void set_ht_irq_affinity(unsigned int irq, cpumask_t mask)
 }
 #endif
 
-static struct hw_interrupt_type ht_irq_chip = {
+static struct irq_chip ht_irq_chip = {
 	.name		= "PCI-HT",
 	.mask		= mask_ht_irq,
 	.unmask		= unmask_ht_irq,
@@ -2636,7 +2698,8 @@ int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 		write_ht_irq_low(irq, low);
 		write_ht_irq_high(irq, high);
 
-		set_irq_chip_and_handler(irq, &ht_irq_chip, handle_edge_irq);
+		set_irq_chip_and_handler_name(irq, &ht_irq_chip,
+					      handle_edge_irq, "edge");
 	}
 	return vector;
 }

@@ -93,21 +93,18 @@ static inline int elv_try_merge(struct request *__rq, struct bio *bio)
 
 static struct elevator_type *elevator_find(const char *name)
 {
-	struct elevator_type *e = NULL;
+	struct elevator_type *e;
 	struct list_head *entry;
 
 	list_for_each(entry, &elv_list) {
-		struct elevator_type *__e;
 
-		__e = list_entry(entry, struct elevator_type, list);
+		e = list_entry(entry, struct elevator_type, list);
 
-		if (!strcmp(__e->elevator_name, name)) {
-			e = __e;
-			break;
-		}
+		if (!strcmp(e->elevator_name, name))
+			return e;
 	}
 
-	return e;
+	return NULL;
 }
 
 static void elevator_put(struct elevator_type *e)
@@ -1088,7 +1085,7 @@ ssize_t elv_iosched_show(request_queue_t *q, char *name)
 	struct list_head *entry;
 	int len = 0;
 
-	spin_lock_irq(q->queue_lock);
+	spin_lock_irq(&elv_list_lock);
 	list_for_each(entry, &elv_list) {
 		struct elevator_type *__e;
 
@@ -1098,7 +1095,7 @@ ssize_t elv_iosched_show(request_queue_t *q, char *name)
 		else
 			len += sprintf(name+len, "%s ", __e->elevator_name);
 	}
-	spin_unlock_irq(q->queue_lock);
+	spin_unlock_irq(&elv_list_lock);
 
 	len += sprintf(len+name, "\n");
 	return len;

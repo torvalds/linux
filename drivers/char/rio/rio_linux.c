@@ -1017,6 +1017,10 @@ static int __init rio_init(void)
 			rio_dprintk(RIO_DEBUG_PROBE, "Hmm Tested ok, uniqid = %x.\n", p->RIOHosts[p->RIONumHosts].UniqueNum);
 
 			fix_rio_pci(pdev);
+
+			p->RIOHosts[p->RIONumHosts].pdev = pdev;
+			pci_dev_get(pdev);
+
 			p->RIOLastPCISearch = 0;
 			p->RIONumHosts++;
 			found++;
@@ -1065,6 +1069,9 @@ static int __init rio_init(void)
 			    ((readb(&p->RIOHosts[p->RIONumHosts].Unique[0]) & 0xFF) << 0) |
 			    ((readb(&p->RIOHosts[p->RIONumHosts].Unique[1]) & 0xFF) << 8) | ((readb(&p->RIOHosts[p->RIONumHosts].Unique[2]) & 0xFF) << 16) | ((readb(&p->RIOHosts[p->RIONumHosts].Unique[3]) & 0xFF) << 24);
 			rio_dprintk(RIO_DEBUG_PROBE, "Hmm Tested ok, uniqid = %x.\n", p->RIOHosts[p->RIONumHosts].UniqueNum);
+
+			p->RIOHosts[p->RIONumHosts].pdev = pdev;
+			pci_dev_get(pdev);
 
 			p->RIOLastPCISearch = 0;
 			p->RIONumHosts++;
@@ -1181,6 +1188,8 @@ static void __exit rio_exit(void)
 		}
 		/* It is safe/allowed to del_timer a non-active timer */
 		del_timer(&hp->timer);
+		if (hp->Type == RIO_PCI)
+			pci_dev_put(hp->pdev);
 	}
 
 	if (misc_deregister(&rio_fw_device) < 0) {

@@ -26,6 +26,7 @@
 #include <linux/backing-dev.h>
 #include <linux/bootmem.h>
 #include <linux/pipe_fs_i.h>
+#include <linux/pfn.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -292,8 +293,8 @@ static int mmap_kmem(struct file * file, struct vm_area_struct * vma)
 {
 	unsigned long pfn;
 
-	/* Turn a kernel-virtual address into a physical page frame */
-	pfn = __pa((u64)vma->vm_pgoff << PAGE_SHIFT) >> PAGE_SHIFT;
+	/* Turn a pfn offset into an absolute pfn */
+	pfn = PFN_DOWN(virt_to_phys((void *)PAGE_OFFSET)) + vma->vm_pgoff;
 
 	/*
 	 * RED-PEN: on some architectures there is more mapped memory

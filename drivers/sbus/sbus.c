@@ -61,11 +61,11 @@ static void __init fill_sbus_device(struct device_node *dp, struct sbus_dev *sde
 	else
 		sdev->ofdev.dev.parent = &sdev->bus->ofdev.dev;
 	sdev->ofdev.dev.bus = &sbus_bus_type;
-	strcpy(sdev->ofdev.dev.bus_id, dp->path_component_name);
+	sprintf(sdev->ofdev.dev.bus_id, "sbus[%08x]", dp->node);
 
 	if (of_device_register(&sdev->ofdev) != 0)
 		printk(KERN_DEBUG "sbus: device registration error for %s!\n",
-		       sdev->ofdev.dev.bus_id);
+		       dp->path_component_name);
 }
 
 static void __init sbus_bus_ranges_init(struct device_node *dp, struct sbus_bus *sbus)

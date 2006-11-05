@@ -49,7 +49,7 @@ __u64 stime, utime;
 	}
 
 /* Maximum size of response requested or message sent */
-#define MAX_MSG_SIZE	256
+#define MAX_MSG_SIZE	1024
 /* Maximum number of cpus expected to be specified in a cpumask */
 #define MAX_CPUS	32
 /* Maximum length of pathname to log file */

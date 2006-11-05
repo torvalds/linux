@@ -1262,7 +1262,9 @@ sub output_intro_text(%) {
 }
 
 ##
-# generic output function for typedefs
+# generic output function for all types (function, struct/union, typedef, enum);
+# calls the generated, variable output_ function name based on
+# functype and output_mode
 sub output_declaration {
     no strict 'refs';
     my $name = shift;
@@ -1278,8 +1280,7 @@ sub output_declaration {
 }
 
 ##
-# generic output function - calls the right one based
-# on current output mode.
+# generic output function - calls the right one based on current output mode.
 sub output_intro {
     no strict 'refs';
     my $func = "output_intro_".$output_mode;
@@ -1518,6 +1519,9 @@ sub dump_function($$) {
     $prototype =~ s/^asmlinkage +//;
     $prototype =~ s/^inline +//;
     $prototype =~ s/^__inline__ +//;
+    $prototype =~ s/^__inline +//;
+    $prototype =~ s/^__always_inline +//;
+    $prototype =~ s/^noinline +//;
     $prototype =~ s/__devinit +//;
     $prototype =~ s/^#define +//; #ak added
     $prototype =~ s/__attribute__ \(\([a-z,]*\)\)//;
@@ -1778,8 +1782,9 @@ sub process_file($) {
 		$in_doc_sect = 1;
 		$contents = $newcontents;
 		if ($contents ne "") {
-		    if (substr($contents, 0, 1) eq " ") {
-			$contents = substr($contents, 1);
+		    while ((substr($contents, 0, 1) eq " ") ||
+			substr($contents, 0, 1) eq "\t") {
+			    $contents = substr($contents, 1);
 		    }
 		    $contents .= "\n";
 		}

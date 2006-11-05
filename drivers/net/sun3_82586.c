@@ -330,7 +330,7 @@ out2:
 out1:
 	free_netdev(dev);
 out:
-	iounmap((void *)ioaddr);
+	iounmap((void __iomem *)ioaddr);
 	return ERR_PTR(err);
 }
 

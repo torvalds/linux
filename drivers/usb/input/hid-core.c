@@ -270,7 +270,7 @@ static int hid_add_field(struct hid_parser *parser, unsigned report_type, unsign
  * Read data value from item.
  */
 
-static __inline__ __u32 item_udata(struct hid_item *item)
+static u32 item_udata(struct hid_item *item)
 {
 	switch (item->size) {
 		case 1: return item->data.u8;
@@ -280,7 +280,7 @@ static __inline__ __u32 item_udata(struct hid_item *item)
 	return 0;
 }
 
-static __inline__ __s32 item_sdata(struct hid_item *item)
+static s32 item_sdata(struct hid_item *item)
 {
 	switch (item->size) {
 		case 1: return item->data.s8;
@@ -727,7 +727,7 @@ static struct hid_device *hid_parse_report(__u8 *start, unsigned size)
  * done by hand.
  */
 
-static __inline__ __s32 snto32(__u32 value, unsigned n)
+static s32 snto32(__u32 value, unsigned n)
 {
 	switch (n) {
 		case 8:  return ((__s8)value);
@@ -741,30 +741,65 @@ static __inline__ __s32 snto32(__u32 value, unsigned n)
  * Convert a signed 32-bit integer to a signed n-bit integer.
  */
 
-static __inline__ __u32 s32ton(__s32 value, unsigned n)
+static u32 s32ton(__s32 value, unsigned n)
 {
-	__s32 a = value >> (n - 1);
+	s32 a = value >> (n - 1);
 	if (a && a != -1)
 		return value < 0 ? 1 << (n - 1) : (1 << (n - 1)) - 1;
 	return value & ((1 << n) - 1);
 }
 
 /*
- * Extract/implement a data field from/to a report.
+ * Extract/implement a data field from/to a little endian report (bit array).
+ *
+ * Code sort-of follows HID spec:
+ *     http://www.usb.org/developers/devclass_docs/HID1_11.pdf
+ *
+ * While the USB HID spec allows unlimited length bit fields in "report
+ * descriptors", most devices never use more than 16 bits.
+ * One model of UPS is claimed to report "LINEV" as a 32-bit field.
+ * Search linux-kernel and linux-usb-devel archives for "hid-core extract".
  */
 
 static __inline__ __u32 extract(__u8 *report, unsigned offset, unsigned n)
 {
-	report += (offset >> 5) << 2; offset &= 31;
-	return (le64_to_cpu(get_unaligned((__le64*)report)) >> offset) & ((1ULL << n) - 1);
+	u64 x;
+
+	WARN_ON(n > 32);
+
+	report += offset >> 3;  /* adjust byte index */
+	offset &= 7;		/* now only need bit offset into one byte */
+	x = get_unaligned((u64 *) report);
+	x = le64_to_cpu(x);
+	x = (x >> offset) & ((1ULL << n) - 1);	/* extract bit field */
+	return (u32) x;
 }
 
+/*
+ * "implement" : set bits in a little endian bit stream.
+ * Same concepts as "extract" (see comments above).
+ * The data mangled in the bit stream remains in little endian
+ * order the whole time. It make more sense to talk about
+ * endianness of register values by considering a register
+ * a "cached" copy of the little endiad bit stream.
+ */
 static __inline__ void implement(__u8 *report, unsigned offset, unsigned n, __u32 value)
 {
-	report += (offset >> 5) << 2; offset &= 31;
-	put_unaligned((get_unaligned((__le64*)report)
-		& cpu_to_le64(~((((__u64) 1 << n) - 1) << offset)))
-		| cpu_to_le64((__u64)value << offset), (__le64*)report);
+	u64 x;
+	u64 m = (1ULL << n) - 1;
+
+	WARN_ON(n > 32);
+
+	WARN_ON(value > m);
+	value &= m;
+
+	report += offset >> 3;
+	offset &= 7;
+
+	x = get_unaligned((u64 *)report);
+	x &= cpu_to_le64(~(m << offset));
+	x |= cpu_to_le64(((u64) value) << offset);
+	put_unaligned(x, (u64 *) report);
 }
 
 /*
@@ -1381,6 +1416,9 @@ void hid_close(struct hid_device *hid)
 
 #define USB_VENDOR_ID_PANJIT		0x134c
 
+#define USB_VENDOR_ID_TURBOX		0x062a
+#define USB_DEVICE_ID_TURBOX_KEYBOARD	0x0201
+
 /*
  * Initialize all reports
  */
@@ -1602,6 +1640,9 @@ void hid_init_reports(struct hid_device *hid)
 #define USB_VENDOR_ID_SUN		0x0430
 #define USB_DEVICE_ID_RARITAN_KVM_DONGLE	0xcdab
 
+#define USB_VENDOR_ID_AIRCABLE		0x16CA
+#define USB_DEVICE_ID_AIRCABLE1		0x1502
+
 /*
  * Alphabetically sorted blacklist by quirk type.
  */
@@ -1619,6 +1660,7 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_AIPTEK, USB_DEVICE_ID_AIPTEK_22, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_AIPTEK, USB_DEVICE_ID_AIPTEK_23, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_AIPTEK, USB_DEVICE_ID_AIPTEK_24, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_AIRCABLE, USB_DEVICE_ID_AIRCABLE1, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_ALCOR, USB_DEVICE_ID_ALCOR_USBRS232, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_BERKSHIRE, USB_DEVICE_ID_BERKSHIRE_PCWD, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_CODEMERCS, USB_DEVICE_ID_CODEMERCS_IOW40, HID_QUIRK_IGNORE },
@@ -1768,6 +1810,8 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_PANJIT, 0x0003, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_PANJIT, 0x0004, HID_QUIRK_IGNORE },
 
+	{ USB_VENDOR_ID_TURBOX, USB_DEVICE_ID_TURBOX_KEYBOARD, HID_QUIRK_NOGET },
+	
 	{ 0, 0 }
 };
 

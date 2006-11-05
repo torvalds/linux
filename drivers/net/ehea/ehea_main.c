@@ -586,8 +586,8 @@ int ehea_sense_port_attr(struct ehea_port *port)
 	u64 hret;
 	struct hcp_ehea_port_cb0 *cb0;
 
-	cb0 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
-	if (!cb0) {
+	cb0 = kzalloc(H_CB_ALIGNMENT, GFP_ATOMIC);   /* May be called via */
+	if (!cb0) {                                  /* ehea_neq_tasklet() */
 		ehea_error("no mem for cb0");
 		ret = -ENOMEM;
 		goto out;
@@ -765,8 +765,7 @@ static void ehea_parse_eqe(struct ehea_adapter *adapter, u64 eqe)
 
 		if (EHEA_BMASK_GET(NEQE_PORT_UP, eqe)) {
 			if (!netif_carrier_ok(port->netdev)) {
-				ret = ehea_sense_port_attr(
-					adapter->port[portnum]);
+				ret = ehea_sense_port_attr(port);
 				if (ret) {
 					ehea_error("failed resensing port "
 						   "attributes");
@@ -818,7 +817,7 @@ static void ehea_parse_eqe(struct ehea_adapter *adapter, u64 eqe)
 		netif_stop_queue(port->netdev);
 		break;
 	default:
-		ehea_error("unknown event code %x", ec);
+		ehea_error("unknown event code %x, eqe=0x%lX", ec, eqe);
 		break;
 	}
 }
@@ -1502,7 +1501,7 @@ static void ehea_promiscuous(struct net_device *dev, int enable)
 	if ((enable && port->promisc) || (!enable && !port->promisc))
 		return;
 
-	cb7 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb7 = kzalloc(H_CB_ALIGNMENT, GFP_ATOMIC);
 	if (!cb7) {
 		ehea_error("no mem for cb7");
 		goto out;
@@ -1606,7 +1605,7 @@ static void ehea_add_multicast_entry(struct ehea_port* port, u8* mc_mac_addr)
 	struct ehea_mc_list *ehea_mcl_entry;
 	u64 hret;
 
-	ehea_mcl_entry = kzalloc(sizeof(*ehea_mcl_entry), GFP_KERNEL);
+	ehea_mcl_entry = kzalloc(sizeof(*ehea_mcl_entry), GFP_ATOMIC);
 	if (!ehea_mcl_entry) {
 		ehea_error("no mem for mcl_entry");
 		return;
@@ -1841,7 +1840,7 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (netif_msg_tx_queued(port)) {
 		ehea_info("post swqe on QP %d", pr->qp->init_attr.qp_nr);
-		ehea_dump(swqe, sizeof(*swqe), "swqe");
+		ehea_dump(swqe, 512, "swqe");
 	}
 
 	ehea_post_swqe(pr->qp, swqe);

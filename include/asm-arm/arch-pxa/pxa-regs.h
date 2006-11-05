@@ -1681,6 +1681,7 @@
 #define SSSR_TINT		(1 << 19)	/* Receiver Time-out Interrupt */
 #define SSSR_PINT		(1 << 18)	/* Peripheral Trailing Byte Interrupt */
 
+#define SSPSP_FSRT		(1 << 25)	/* Frame Sync Relative Timing */
 #define SSPSP_DMYSTOP(x)	(x << 23)	/* Dummy Stop */
 #define SSPSP_SFRMWDTH(x)	(x << 16)	/* Serial Frame Width */
 #define SSPSP_SFRMDLY(x)	(x << 9)	/* Serial Frame Delay */

@@ -20,7 +20,8 @@
 #include <linux/sched.h>
 #include <linux/oprofile.h>
 #include <linux/interrupt.h>
-#include <asm/irq.h>
+#include <linux/irq.h>
+
 #include <asm/system.h>
 
 #include "op_counter.h"

@@ -97,8 +97,7 @@ static struct attribute_group topology_attr_group = {
 /* Add/Remove cpu_topology interface for CPU device */
 static int __cpuinit topology_add_dev(struct sys_device * sys_dev)
 {
-	sysfs_create_group(&sys_dev->kobj, &topology_attr_group);
-	return 0;
+	return sysfs_create_group(&sys_dev->kobj, &topology_attr_group);
 }
 
 static int __cpuinit topology_remove_dev(struct sys_device * sys_dev)

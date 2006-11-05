@@ -326,13 +326,13 @@ static inline int do_040writeback1(unsigned short wbs, unsigned long wba,
 
 	switch (wbs & WBSIZ_040) {
 	case BA_SIZE_BYTE:
-		res = put_user(wbd & 0xff, (char *)wba);
+		res = put_user(wbd & 0xff, (char __user *)wba);
 		break;
 	case BA_SIZE_WORD:
-		res = put_user(wbd & 0xffff, (short *)wba);
+		res = put_user(wbd & 0xffff, (short __user *)wba);
 		break;
 	case BA_SIZE_LONG:
-		res = put_user(wbd, (int *)wba);
+		res = put_user(wbd, (int __user *)wba);
 		break;
 	}
 

@@ -11,8 +11,8 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/pci.h>
-#include <asm/rts7751r2d/rts7751r2d.h>
-#include <asm/io.h>
+#include <linux/io.h>
+#include <asm/rts7751r2d.h>
 #include <asm/addrspace.h>
 
 /*

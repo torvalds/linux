@@ -5,7 +5,7 @@
  * Copyright (C) 1999	Frodo Looijaard <frodol@dds.nl>
  *			Philip Edelbrock <phil@netroedge.com>
  * Copyright (C) 2003	Michiel Rook <michiel@grendelproject.nl>
- * Copyright (C) 2005	Grant Coady <gcoady@gmail.com> with valuable
+ * Copyright (C) 2005	Grant Coady <gcoady.lk@gmail.com> with valuable
  * 				guidance from Jean Delvare
  *
  * Driver supports	Analog Devices		ADM9240
@@ -774,7 +774,7 @@ static void __exit sensors_adm9240_exit(void)
 }
 
 MODULE_AUTHOR("Michiel Rook <michiel@grendelproject.nl>, "
-		"Grant Coady <gcoady@gmail.com> and others");
+		"Grant Coady <gcoady.lk@gmail.com> and others");
 MODULE_DESCRIPTION("ADM9240/DS1780/LM81 driver");
 MODULE_LICENSE("GPL");
 

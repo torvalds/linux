@@ -163,8 +163,11 @@ extern void _outsl_ns(volatile u32 __iomem *port, const void *buf, long count);
 
 static inline void mmiowb(void)
 {
-	__asm__ __volatile__ ("sync" : : : "memory");
-	get_paca()->io_sync = 0;
+	unsigned long tmp;
+
+	__asm__ __volatile__("sync; li %0,0; stb %0,%1(13)"
+	: "=&r" (tmp) : "i" (offsetof(struct paca_struct, io_sync))
+	: "memory");
 }
 
 /*
@@ -403,32 +406,6 @@ static inline void __out_be64(volatile unsigned long __iomem *addr, unsigned lon
 }
 
 #include <asm/eeh.h>
-
-/**
- *	check_signature		-	find BIOS signatures
- *	@io_addr: mmio address to check
- *	@signature:  signature block
- *	@length: length of signature
- *
- *	Perform a signature comparison with the mmio address io_addr. This
- *	address should have been obtained by ioremap.
- *	Returns 1 on a match.
- */
-static inline int check_signature(const volatile void __iomem * io_addr,
-	const unsigned char *signature, int length)
-{
-	int retval = 0;
-	do {
-		if (readb(io_addr) != *signature)
-			goto out;
-		io_addr++;
-		signature++;
-		length--;
-	} while (length);
-	retval = 1;
-out:
-	return retval;
-}
 
 /* Nothing to do */
 

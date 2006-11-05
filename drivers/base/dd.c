@@ -18,6 +18,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/kthread.h>
+#include <linux/wait.h>
 
 #include "base.h"
 #include "power/power.h"
@@ -70,6 +71,8 @@ struct stupid_thread_structure {
 };
 
 static atomic_t probe_count = ATOMIC_INIT(0);
+static DECLARE_WAIT_QUEUE_HEAD(probe_waitqueue);
+
 static int really_probe(void *void_data)
 {
 	struct stupid_thread_structure *data = void_data;
@@ -121,6 +124,7 @@ probe_failed:
 done:
 	kfree(data);
 	atomic_dec(&probe_count);
+	wake_up(&probe_waitqueue);
 	return ret;
 }
 
@@ -171,6 +175,8 @@ int driver_probe_device(struct device_driver * drv, struct device * dev)
 		 drv->bus->name, dev->bus_id, drv->name);
 
 	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 	data->drv = drv;
 	data->dev = dev;
 
@@ -178,7 +184,7 @@ int driver_probe_device(struct device_driver * drv, struct device * dev)
 		probe_task = kthread_run(really_probe, data,
 					 "probe-%s", dev->bus_id);
 		if (IS_ERR(probe_task))
-			ret = PTR_ERR(probe_task);
+			ret = really_probe(data);
 	} else
 		ret = really_probe(data);
 
@@ -335,6 +341,32 @@ void driver_detach(struct device_driver * drv)
 	}
 }
 
+#ifdef CONFIG_PCI_MULTITHREAD_PROBE
+static int __init wait_for_probes(void)
+{
+	DEFINE_WAIT(wait);
+
+	printk(KERN_INFO "%s: waiting for %d threads\n", __FUNCTION__,
+			atomic_read(&probe_count));
+	if (!atomic_read(&probe_count))
+		return 0;
+	while (atomic_read(&probe_count)) {
+		prepare_to_wait(&probe_waitqueue, &wait, TASK_UNINTERRUPTIBLE);
+		if (atomic_read(&probe_count))
+			schedule();
+	}
+	finish_wait(&probe_waitqueue, &wait);
+	return 0;
+}
+
+core_initcall_sync(wait_for_probes);
+postcore_initcall_sync(wait_for_probes);
+arch_initcall_sync(wait_for_probes);
+subsys_initcall_sync(wait_for_probes);
+fs_initcall_sync(wait_for_probes);
+device_initcall_sync(wait_for_probes);
+late_initcall_sync(wait_for_probes);
+#endif
 
 EXPORT_SYMBOL_GPL(device_bind_driver);
 EXPORT_SYMBOL_GPL(device_release_driver);

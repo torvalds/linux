@@ -30,6 +30,7 @@
 #include <linux/hash.h>
 #include <linux/kthread.h>
 #include <linux/migrate.h>
+#include <linux/backing-dev.h>
 #include "xfs_linux.h"
 
 STATIC kmem_zone_t *xfs_buf_zone;
@@ -395,7 +396,7 @@ _xfs_buf_lookup_pages(
 
 			XFS_STATS_INC(xb_page_retries);
 			xfsbufd_wakeup(0, gfp_mask);
-			blk_congestion_wait(WRITE, HZ/50);
+			congestion_wait(WRITE, HZ/50);
 			goto retry;
 		}
 
