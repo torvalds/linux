@@ -280,9 +280,10 @@
 #define __NR_sync_file_range	262
 #define __NR_tee		263
 #define __NR_vmsplice		264
+#define __NR_epoll_pwait	265
 
 #ifdef __KERNEL__
-#define NR_syscalls		265
+#define NR_syscalls		266
 
 
 #define __ARCH_WANT_IPC_PARSE_VERSION

@@ -286,4 +286,5 @@ sys_call_table:
 	.long	sys_sync_file_range
 	.long	sys_tee
 	.long	sys_vmsplice
+	.long	__sys_epoll_pwait	/* 265 */
 	.long	sys_ni_syscall		/* r8 is saturated at nr_syscalls */
