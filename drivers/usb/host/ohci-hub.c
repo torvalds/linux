@@ -175,7 +175,7 @@ __acquires(ohci->lock)
 		break;
 	case OHCI_USB_RESUME:
 		/* HCFS changes sometime after INTR_RD */
-		ohci_info(ohci, "%swakeup\n",
+		ohci_dbg(ohci, "%swakeup root hub\n",
 				autostopped ? "auto-" : "");
 		break;
 	case OHCI_USB_OPER:
