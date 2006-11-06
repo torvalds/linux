@@ -32,10 +32,11 @@
  * A0..A10 work in each range; A23 indicates I/O space;  A25 is CFRNW;
  * some other bit in {A24,A22..A11} is nREG to flag memory access
  * (vs attributes).  So more than 2KB/region would just be waste.
+ * Note: These are offsets from the physical base address.
  */
-#define	CF_ATTR_PHYS	(AT91_CF_BASE)
-#define	CF_IO_PHYS	(AT91_CF_BASE  + (1 << 23))
-#define	CF_MEM_PHYS	(AT91_CF_BASE  + 0x017ff800)
+#define	CF_ATTR_PHYS	(0)
+#define	CF_IO_PHYS	(1 << 23)
+#define	CF_MEM_PHYS	(0x017ff800)
 
 /*--------------------------------------------------------------------------*/
 
@@ -48,6 +49,8 @@ struct at91_cf_socket {
 
 	struct platform_device	*pdev;
 	struct at91_cf_data	*board;
+
+	unsigned long		phys_baseaddr;
 };
 
 #define	SZ_2K			(2 * SZ_1K)
@@ -168,7 +171,7 @@ static int at91_cf_set_io_map(struct pcmcia_socket *s, struct pccard_io_map *io)
 	 * some cards only like that way to get at the odd byte, despite
 	 * CF 3.0 spec table 35 also giving the D8-D15 option.
 	 */
-	if (!(io->flags & (MAP_16BIT|MAP_AUTOSZ))) {
+	if (!(io->flags & (MAP_16BIT | MAP_AUTOSZ))) {
 		csr |= AT91_SMC_DBW_8;
 		pr_debug("%s: 8bit i/o bus\n", driver_name);
 	} else {
@@ -194,11 +197,11 @@ at91_cf_set_mem_map(struct pcmcia_socket *s, struct pccard_mem_map *map)
 
 	cf = container_of(s, struct at91_cf_socket, socket);
 
-	map->flags &= MAP_ACTIVE|MAP_ATTRIB|MAP_16BIT;
+	map->flags &= (MAP_ACTIVE | MAP_ATTRIB | MAP_16BIT);
 	if (map->flags & MAP_ATTRIB)
-		map->static_start = CF_ATTR_PHYS;
+		map->static_start = cf->phys_baseaddr + CF_ATTR_PHYS;
 	else
-		map->static_start = CF_MEM_PHYS;
+		map->static_start = cf->phys_baseaddr + CF_MEM_PHYS;
 
 	return 0;
 }
@@ -235,6 +238,7 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 
 	cf->board = board;
 	cf->pdev = pdev;
+	cf->phys_baseaddr = io->start;
 	platform_set_drvdata(pdev, cf);
 
 	/* CF takes over CS4, CS5, CS6 */
@@ -260,8 +264,7 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 	);
 
 	/* must be a GPIO; ergo must trigger on both edges */
-	status = request_irq(board->det_pin, at91_cf_irq,
-			IRQF_SAMPLE_RANDOM, driver_name, cf);
+	status = request_irq(board->det_pin, at91_cf_irq, 0, driver_name, cf);
 	if (status < 0)
 		goto fail0;
 	device_init_wakeup(&pdev->dev, 1);
@@ -282,14 +285,18 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 		cf->socket.pci_irq = NR_IRQS + 1;
 
 	/* pcmcia layer only remaps "real" memory not iospace */
-	cf->socket.io_offset = (unsigned long) ioremap(CF_IO_PHYS, SZ_2K);
-	if (!cf->socket.io_offset)
+	cf->socket.io_offset = (unsigned long) ioremap(cf->phys_baseaddr + CF_IO_PHYS, SZ_2K);
+	if (!cf->socket.io_offset) {
+		status = -ENXIO;
 		goto fail1;
+	}
 
 	/* reserve CS4, CS5, and CS6 regions; but use just CS4 */
 	if (!request_mem_region(io->start, io->end + 1 - io->start,
-				driver_name))
+				driver_name)) {
+		status = -ENXIO;
 		goto fail1;
+	}
 
 	pr_info("%s: irqs det #%d, io #%d\n", driver_name,
 		board->det_pin, board->irq_pin);
@@ -319,7 +326,6 @@ fail1:
 fail0a:
 	device_init_wakeup(&pdev->dev, 0);
 	free_irq(board->det_pin, cf);
-	device_init_wakeup(&pdev->dev, 0);
 fail0:
 	at91_sys_write(AT91_EBI_CSA, csa);
 	kfree(cf);
@@ -336,8 +342,8 @@ static int __exit at91_cf_remove(struct platform_device *pdev)
 	pcmcia_unregister_socket(&cf->socket);
 	if (board->irq_pin)
 		free_irq(board->irq_pin, cf);
-	free_irq(board->det_pin, cf);
 	device_init_wakeup(&pdev->dev, 0);
+	free_irq(board->det_pin, cf);
 	iounmap((void __iomem *) cf->socket.io_offset);
 	release_mem_region(io->start, io->end + 1 - io->start);
 
