@@ -2680,13 +2680,33 @@ int sysctl_ms_jiffies(ctl_table *table, int __user *name, int nlen,
 asmlinkage long sys_sysctl(struct __sysctl_args __user *args)
 {
 	static int msg_count;
+	struct __sysctl_args tmp;
+	int name[CTL_MAXNAME];
+	int i;
+
+	/* Read in the sysctl name for better debug message logging */
+	if (copy_from_user(&tmp, args, sizeof(tmp)))
+		return -EFAULT;
+	if (tmp.nlen <= 0 || tmp.nlen >= CTL_MAXNAME)
+		return -ENOTDIR;
+	for (i = 0; i < tmp.nlen; i++)
+		if (get_user(name[i], tmp.name + i))
+			return -EFAULT;
+
+	/* Ignore accesses to kernel.version */
+	if ((tmp.nlen == 2) && (name[0] == CTL_KERN) && (name[1] == KERN_VERSION))
+		goto out;
 
 	if (msg_count < 5) {
 		msg_count++;
 		printk(KERN_INFO
 			"warning: process `%s' used the removed sysctl "
-			"system call\n", current->comm);
+			"system call with ", current->comm);
+		for (i = 0; i < tmp.nlen; i++)
+			printk("%d.", name[i]);
+		printk("\n");
 	}
+out:
 	return -ENOSYS;
 }
 
