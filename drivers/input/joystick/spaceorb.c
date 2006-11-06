@@ -172,7 +172,7 @@ static int spaceorb_connect(struct serio *serio, struct serio_driver *drv)
 	spaceorb = kzalloc(sizeof(struct spaceorb), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!spaceorb || !input_dev)
-		goto fail;
+		goto fail1;
 
 	spaceorb->dev = input_dev;
 	snprintf(spaceorb->phys, sizeof(spaceorb->phys), "%s/input0", serio->phys);
@@ -198,13 +198,17 @@ static int spaceorb_connect(struct serio *serio, struct serio_driver *drv)
 
 	err = serio_open(serio, drv);
 	if (err)
-		goto fail;
+		goto fail2;
 
-	input_register_device(spaceorb->dev);
+	err = input_register_device(spaceorb->dev);
+	if (err)
+		goto fail3;
+
 	return 0;
 
- fail:	serio_set_drvdata(serio, NULL);
-	input_free_device(input_dev);
+ fail3:	serio_close(serio);
+ fail2:	serio_set_drvdata(serio, NULL);
+ fail1:	input_free_device(input_dev);
 	kfree(spaceorb);
 	return err;
 }

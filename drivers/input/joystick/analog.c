@@ -434,6 +434,7 @@ static int analog_init_device(struct analog_port *port, struct analog *analog, i
 {
 	struct input_dev *input_dev;
 	int i, j, t, v, w, x, y, z;
+	int error;
 
 	analog_name(analog);
 	snprintf(analog->phys, sizeof(analog->phys),
@@ -505,7 +506,11 @@ static int analog_init_device(struct analog_port *port, struct analog *analog, i
 
 	analog_decode(analog, port->axes, port->initial, port->buttons);
 
-	input_register_device(analog->dev);
+	error = input_register_device(analog->dev);
+	if (error) {
+		input_free_device(analog->dev);
+		return error;
+	}
 
 	return 0;
 }
@@ -668,7 +673,8 @@ static int analog_connect(struct gameport *gameport, struct gameport_driver *drv
 	return 0;
 
  fail3: while (--i >= 0)
-		input_unregister_device(port->analog[i].dev);
+		if (port->analog[i].mask)
+			input_unregister_device(port->analog[i].dev);
  fail2:	gameport_close(gameport);
  fail1:	gameport_set_drvdata(gameport, NULL);
 	kfree(port);

@@ -325,8 +325,8 @@ int iforce_init_device(struct iforce *iforce)
 
 	if (i == 20) { /* 5 seconds */
 		printk(KERN_ERR "iforce-main.c: Timeout waiting for response from device.\n");
-		input_free_device(input_dev);
-		return -ENODEV;
+		error = -ENODEV;
+		goto fail;
 	}
 
 /*
@@ -439,10 +439,8 @@ int iforce_init_device(struct iforce *iforce)
 			set_bit(iforce->type->ff[i], input_dev->ffbit);
 
 		error = input_ff_create(input_dev, ff_effects);
-		if (error) {
-			input_free_device(input_dev);
-			return error;
-		}
+		if (error)
+			goto fail;
 
 		ff = input_dev->ff;
 		ff->upload = iforce_upload_effect;
@@ -455,11 +453,16 @@ int iforce_init_device(struct iforce *iforce)
  * Register input device.
  */
 
-	input_register_device(iforce->dev);
+	error = input_register_device(iforce->dev);
+	if (error)
+		goto fail;
 
 	printk(KERN_DEBUG "iforce->dev->open = %p\n", iforce->dev->open);
 
 	return 0;
+
+ fail:	input_free_device(input_dev);
+	return error;
 }
 
 static int __init iforce_init(void)
