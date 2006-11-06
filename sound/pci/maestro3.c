@@ -41,6 +41,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/moduleparam.h>
+#include <linux/firmware.h>
 #include <sound/core.h>
 #include <sound/info.h>
 #include <sound/control.h>
@@ -48,6 +49,7 @@
 #include <sound/mpu401.h>
 #include <sound/ac97_codec.h>
 #include <sound/initval.h>
+#include <asm/byteorder.h>
 
 MODULE_AUTHOR("Zach Brown <zab@zabbo.net>, Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("ESS Maestro3 PCI");
@@ -864,6 +866,9 @@ struct snd_m3 {
 #ifdef CONFIG_PM
 	u16 *suspend_mem;
 #endif
+
+	const struct firmware *assp_kernel_image;
+	const struct firmware *assp_minisrc_image;
 };
 
 /*
@@ -2132,6 +2137,10 @@ static int __devinit snd_m3_mixer(struct snd_m3 *chip)
 }
 
 
+#define FIRMWARE_IN_THE_KERNEL
+
+#ifdef FIRMWARE_IN_THE_KERNEL
+
 /*
  * DSP Code images
  */
@@ -2260,6 +2269,30 @@ static const u16 assp_minisrc_image[] = {
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 
 };
 
+static const struct firmware assp_kernel = {
+	.data = (u8 *)assp_kernel_image,
+	.size = sizeof assp_kernel_image
+};
+static const struct firmware assp_minisrc = {
+	.data = (u8 *)assp_minisrc_image,
+	.size = sizeof assp_minisrc_image
+};
+
+#endif /* FIRMWARE_IN_THE_KERNEL */
+
+#ifdef __LITTLE_ENDIAN
+static inline void snd_m3_convert_from_le(const struct firmware *fw) { }
+#else
+static void snd_m3_convert_from_le(const struct firmware *fw)
+{
+	int i;
+	u16 *data = (u16 *)fw->data;
+
+	for (i = 0; i < fw->size / 2; ++i)
+		le16_to_cpus(&data[i]);
+}
+#endif
+
 
 /*
  * initialize ASSP
@@ -2274,6 +2307,7 @@ static const u16 minisrc_lpf[MINISRC_LPF_LEN] = {
 static void snd_m3_assp_init(struct snd_m3 *chip)
 {
 	unsigned int i;
+	u16 *data;
 
 	/* zero kernel data */
 	for (i = 0; i < (REV_B_DATA_MEMORY_UNIT_LENGTH * NUM_UNITS_KERNEL_DATA) / 2; i++)
@@ -2291,10 +2325,10 @@ static void snd_m3_assp_init(struct snd_m3 *chip)
 			  KDATA_DMA_XFER0);
 
 	/* write kernel into code memory.. */
-	for (i = 0 ; i < ARRAY_SIZE(assp_kernel_image); i++) {
+	data = (u16 *)chip->assp_kernel_image->data;
+	for (i = 0 ; i * 2 < chip->assp_kernel_image->size; i++) {
 		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_CODE, 
-				  REV_B_CODE_MEMORY_BEGIN + i, 
-				  assp_kernel_image[i]);
+				  REV_B_CODE_MEMORY_BEGIN + i, data[i]);
 	}
 
 	/*
@@ -2303,10 +2337,10 @@ static void snd_m3_assp_init(struct snd_m3 *chip)
 	 * drop it there.  It seems that the minisrc doesn't
 	 * need vectors, so we won't bother with them..
 	 */
-	for (i = 0; i < ARRAY_SIZE(assp_minisrc_image); i++) {
+	data = (u16 *)chip->assp_minisrc_image->data;
+	for (i = 0; i * 2 < chip->assp_minisrc_image->size; i++) {
 		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_CODE, 
-				  0x400 + i, 
-				  assp_minisrc_image[i]);
+				  0x400 + i, data[i]);
 	}
 
 	/*
@@ -2553,6 +2587,15 @@ static int snd_m3_free(struct snd_m3 *chip)
 	if (chip->iobase)
 		pci_release_regions(chip->pci);
 
+#ifdef FIRMWARE_IN_THE_KERNEL
+	if (chip->assp_kernel_image != &assp_kernel)
+#endif
+		release_firmware(chip->assp_kernel_image);
+#ifdef FIRMWARE_IN_THE_KERNEL
+	if (chip->assp_minisrc_image != &assp_minisrc)
+#endif
+		release_firmware(chip->assp_minisrc_image);
+
 	pci_disable_device(chip->pci);
 	kfree(chip);
 	return 0;
@@ -2743,6 +2786,30 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 		pci_disable_device(pci);
 		return -ENOMEM;
 	}
+
+	err = request_firmware(&chip->assp_kernel_image,
+			       "ess/maestro3_assp_kernel.fw", &pci->dev);
+	if (err < 0) {
+#ifdef FIRMWARE_IN_THE_KERNEL
+		chip->assp_kernel_image = &assp_kernel;
+#else
+		snd_m3_free(chip);
+		return err;
+#endif
+	} else
+		snd_m3_convert_from_le(chip->assp_kernel_image);
+
+	err = request_firmware(&chip->assp_minisrc_image,
+			       "ess/maestro3_assp_minisrc.fw", &pci->dev);
+	if (err < 0) {
+#ifdef FIRMWARE_IN_THE_KERNEL
+		chip->assp_minisrc_image = &assp_minisrc;
+#else
+		snd_m3_free(chip);
+		return err;
+#endif
+	} else
+		snd_m3_convert_from_le(chip->assp_minisrc_image);
 
 	if ((err = pci_request_regions(pci, card->driver)) < 0) {
 		snd_m3_free(chip);

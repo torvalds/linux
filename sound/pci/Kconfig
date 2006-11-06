@@ -587,6 +587,7 @@ config SND_KORG1212
 config SND_MAESTRO3
 	tristate "ESS Allegro/Maestro3"
 	depends on SND
+	select FW_LOADER
 	select SND_AC97_CODEC
 	help
 	  Say Y here to include support for soundcards based on ESS Maestro 3
