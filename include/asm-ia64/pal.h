@@ -20,6 +20,8 @@
  * 00/05/24     eranian Updated to latest PAL spec, fix structures bugs, added
  * 00/05/25	eranian Support for stack calls, and static physical calls
  * 00/06/18	eranian Support for stacked physical calls
+ * 06/10/26	rja	Support for Intel Itanium Architecture Software Developer's
+ *			Manual Rev 2.2 (Jan 2006)
  */
 
 /*
@@ -69,6 +71,8 @@
 #define PAL_PREFETCH_VISIBILITY	41	/* Make Processor Prefetches Visible */
 #define PAL_LOGICAL_TO_PHYSICAL 42	/* returns information on logical to physical processor mapping */
 #define PAL_CACHE_SHARED_INFO	43	/* returns information on caches shared by logical processor */
+#define PAL_GET_HW_POLICY	48	/* Get current hardware resource sharing policy */
+#define PAL_SET_HW_POLICY	49	/* Set current hardware resource sharing policy */
 
 #define PAL_COPY_PAL		256	/* relocate PAL procedures and PAL PMI */
 #define PAL_HALT_INFO		257	/* return the low power capabilities of processor */
@@ -102,6 +106,7 @@ typedef s64				pal_status_t;
 						 * cache without sideeffects
 						 * and "restrict" was 1
 						 */
+#define PAL_STATUS_REQUIRES_MEMORY	(-9)	/* Call requires PAL memory buffer */
 
 /* Processor cache level in the heirarchy */
 typedef u64				pal_cache_level_t;
@@ -838,7 +843,9 @@ typedef union pal_bus_features_u {
 		u64	pbf_req_bus_parking			:	1;
 		u64	pbf_bus_lock_mask			:	1;
 		u64	pbf_enable_half_xfer_rate		:	1;
-		u64	pbf_reserved2				:	22;
+		u64	pbf_reserved2				:	20;
+		u64	pbf_enable_shared_line_replace		:	1;
+		u64	pbf_enable_exclusive_line_replace	:	1;
 		u64	pbf_disable_xaction_queueing		:	1;
 		u64	pbf_disable_resp_err_check		:	1;
 		u64	pbf_disable_berr_check			:	1;
@@ -1078,6 +1085,24 @@ ia64_pal_freq_ratios (struct pal_freq_ratio *proc_ratio, struct pal_freq_ratio *
 		*(u64 *)bus_ratio = iprv.v1;
 	if (itc_ratio)
 		*(u64 *)itc_ratio = iprv.v2;
+	return iprv.status;
+}
+
+/*
+ * Get the current hardware resource sharing policy of the processor
+ */
+static inline s64
+ia64_pal_get_hw_policy (u64 proc_num, u64 *cur_policy, u64 *num_impacted,
+			u64 *la)
+{
+	struct ia64_pal_retval iprv;
+	PAL_CALL(iprv, PAL_GET_HW_POLICY, proc_num, 0, 0);
+	if (cur_policy)
+		*cur_policy = iprv.v0;
+	if (num_impacted)
+		*num_impacted = iprv.v1;
+	if (la)
+		*la = iprv.v2;
 	return iprv.status;
 }
 
@@ -1405,6 +1430,17 @@ ia64_pal_rse_info (u64 *num_phys_stacked, pal_hints_u_t *hints)
 	return iprv.status;
 }
 
+/*
+ * Set the current hardware resource sharing policy of the processor
+ */
+static inline s64
+ia64_pal_set_hw_policy (u64 policy)
+{
+	struct ia64_pal_retval iprv;
+	PAL_CALL(iprv, PAL_SET_HW_POLICY, policy, 0, 0);
+	return iprv.status;
+}
+
 /* Cause the processor to enter	SHUTDOWN state, where prefetching and execution are
  * suspended, but cause cache and TLB coherency to be maintained.
  * This is usually called in IA-32 mode.
@@ -1528,12 +1564,15 @@ typedef union pal_vm_info_1_u {
 	} pal_vm_info_1_s;
 } pal_vm_info_1_u_t;
 
+#define PAL_MAX_PURGES		0xFFFF		/* all ones is means unlimited */
+
 typedef union pal_vm_info_2_u {
 	u64			pvi2_val;
 	struct {
 		u64		impl_va_msb	: 8,
 				rid_size	: 8,
-				reserved	: 48;
+				max_purges	: 16,
+				reserved	: 32;
 	} pal_vm_info_2_s;
 } pal_vm_info_2_u_t;
 

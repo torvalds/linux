@@ -315,13 +315,20 @@ vm_info(char *page)
 		     "Protection Key Registers(PKR)  : %d\n"
 		     "Implemented bits in PKR.key    : %d\n"
 		     "Hash Tag ID                    : 0x%x\n"
-		     "Size of RR.rid                 : %d\n",
+		     "Size of RR.rid                 : %d\n"
+		     "Max Purges                     : ",
 		     vm_info_1.pal_vm_info_1_s.phys_add_size,
 		     vm_info_2.pal_vm_info_2_s.impl_va_msb+1,
 		     vm_info_1.pal_vm_info_1_s.max_pkr+1,
 		     vm_info_1.pal_vm_info_1_s.key_size,
 		     vm_info_1.pal_vm_info_1_s.hash_tag_id,
 		     vm_info_2.pal_vm_info_2_s.rid_size);
+		if (vm_info_2.pal_vm_info_2_s.max_purges == PAL_MAX_PURGES)
+			p += sprintf(p, "unlimited\n");
+		else
+			p += sprintf(p, "%d\n",
+		     		vm_info_2.pal_vm_info_2_s.max_purges ?
+				vm_info_2.pal_vm_info_2_s.max_purges : 1);
 	}
 
 	if (ia64_pal_mem_attrib(&attrib) == 0) {
