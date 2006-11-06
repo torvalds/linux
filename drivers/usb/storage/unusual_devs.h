@@ -1306,27 +1306,6 @@ UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
-/* Reported by Jan Mate <mate@fiit.stuba.sk> */
-UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
-		"Sony Ericsson",
-		"P990i",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY ),
-
-/* Reported by Jan Mate <mate@fiit.stuba.sk> */
-UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
-		"Sony Ericsson",
-		"P990i",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY ),
-
-/* Reported by Jan Mate <mate@fiit.stuba.sk> */
-UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
-		"Sony Ericsson",
-		"P990i",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY ),
-
 /* Reported by Kevin Cernekee <kpc-usbdev@gelato.uiuc.edu>
  * Tested on hardware version 1.10.
  * Entry is needed only for the initializer function override.
