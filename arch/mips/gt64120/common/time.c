@@ -71,7 +71,7 @@ void gt64120_time_init(void)
 	/* Disable timer first */
 	GT_WRITE(GT_TC_CONTROL_OFS, 0);
 	/* Load timer value for 100 Hz */
-	GT_WRITE(GT_TC3_OFS, Sys_clock / 100);
+	GT_WRITE(GT_TC3_OFS, Sys_clock / HZ);
 
 	/*
 	 * Create the IRQ structure entry for the timer.  Since we're too early
