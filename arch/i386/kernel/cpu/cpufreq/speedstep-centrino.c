@@ -463,6 +463,10 @@ static int centrino_cpu_init_acpi(struct cpufreq_policy *policy)
 	}
 
 	for (i=0; i<p->state_count; i++) {
+		/* clear high bits (set by some BIOSes) that are non-relevant and
+		   problematic for this driver's MSR only frequency transition code */
+		p->states[i].control &= 0xffff;
+
 		if (p->states[i].control != p->states[i].status) {
 			dprintk("Different control (%llu) and status values (%llu)\n",
 				p->states[i].control, p->states[i].status);
