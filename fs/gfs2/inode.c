@@ -157,6 +157,9 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, struct gfs2_inum *inum, 
 	struct gfs2_glock *io_gl;
 	int error;
 
+	if (!inode)
+		return ERR_PTR(-ENOBUFS);
+
 	if (inode->i_state & I_NEW) {
 		struct gfs2_sbd *sdp = GFS2_SB(inode);
 		umode_t mode = DT2IF(type);

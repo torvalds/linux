@@ -84,8 +84,8 @@ static int __init init_gfs2_fs(void)
 
 	gfs2_inode_cachep = kmem_cache_create("gfs2_inode",
 					      sizeof(struct gfs2_inode),
-					      0, (SLAB_RECLAIM_ACCOUNT|
-					      SLAB_PANIC|SLAB_MEM_SPREAD),
+					      0,  SLAB_RECLAIM_ACCOUNT|
+					          SLAB_MEM_SPREAD,
 					      gfs2_init_inode_once, NULL);
 	if (!gfs2_inode_cachep)
 		goto fail;
