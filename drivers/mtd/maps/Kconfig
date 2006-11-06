@@ -193,6 +193,15 @@ config MTD_ESB2ROM
 
           BE VERY CAREFUL.
 
+config MTD_CK804XROM
+	tristate "BIOS flash chip on Nvidia CK804"
+	depends on X86 && MTD_JEDECPROBE
+	help
+	  Support for treating the BIOS flash chip on nvidia motherboards
+	  as an MTD device - with this you can reprogram your BIOS.
+
+	  BE VERY CAREFUL.
+
 config MTD_SCB2_FLASH
 	tristate "BIOS flash chip on Intel SCB2 boards"
 	depends on X86 && MTD_JEDECPROBE
