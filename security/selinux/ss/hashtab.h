@@ -22,9 +22,9 @@ struct hashtab {
 	struct hashtab_node **htable;	/* hash table */
 	u32 size;			/* number of slots in hash table */
 	u32 nel;			/* number of elements in hash table */
-	u32 (*hash_value)(struct hashtab *h, void *key);
+	u32 (*hash_value)(struct hashtab *h, const void *key);
 					/* hash function */
-	int (*keycmp)(struct hashtab *h, void *key1, void *key2);
+	int (*keycmp)(struct hashtab *h, const void *key1, const void *key2);
 					/* key comparison function */
 };
 
@@ -39,8 +39,8 @@ struct hashtab_info {
  * Returns NULL if insufficent space is available or
  * the new hash table otherwise.
  */
-struct hashtab *hashtab_create(u32 (*hash_value)(struct hashtab *h, void *key),
-                               int (*keycmp)(struct hashtab *h, void *key1, void *key2),
+struct hashtab *hashtab_create(u32 (*hash_value)(struct hashtab *h, const void *key),
+                               int (*keycmp)(struct hashtab *h, const void *key1, const void *key2),
                                u32 size);
 
 /*
@@ -59,7 +59,7 @@ int hashtab_insert(struct hashtab *h, void *k, void *d);
  * Returns NULL if no entry has the specified key or
  * the datum of the entry otherwise.
  */
-void *hashtab_search(struct hashtab *h, void *k);
+void *hashtab_search(struct hashtab *h, const void *k);
 
 /*
  * Destroys the specified hash table.
