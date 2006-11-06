@@ -136,10 +136,6 @@ int sn_setup_msi_irq(unsigned int irq, struct pci_dev *pdev)
 	 */
 	msg.data = 0x100 + irq;
 
-#ifdef CONFIG_SMP
-	set_irq_affinity_info(irq, sn_irq_info->irq_cpuid, 0);
-#endif
-
 	write_msi_msg(irq, &msg);
 	set_irq_chip_and_handler(irq, &sn_msi_chip, handle_edge_irq);
 
