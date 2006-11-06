@@ -961,8 +961,8 @@ extern ctl_handler sysctl_ms_jiffies;
 /*
  * Register a set of sysctl names by calling register_sysctl_table
  * with an initialised array of ctl_table's.  An entry with zero
- * ctl_name terminates the table.  table->de will be set up by the
- * registration and need not be initialised in advance.
+ * ctl_name and NULL procname terminates the table.  table->de will be
+ * set up by the registration and need not be initialised in advance.
  *
  * sysctl names can be mirrored automatically under /proc/sys.  The
  * procname supplied controls /proc naming.
@@ -973,7 +973,10 @@ extern ctl_handler sysctl_ms_jiffies;
  * Leaf nodes in the sysctl tree will be represented by a single file
  * under /proc; non-leaf nodes will be represented by directories.  A
  * null procname disables /proc mirroring at this node.
- * 
+ *
+ * sysctl entries with a zero ctl_name will not be available through
+ * the binary sysctl interface.
+ *
  * sysctl(2) can automatically manage read and write requests through
  * the sysctl table.  The data and maxlen fields of the ctl_table
  * struct enable minimal validation of the values being written to be

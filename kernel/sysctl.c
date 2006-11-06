@@ -1315,7 +1315,9 @@ repeat:
 		return -ENOTDIR;
 	if (get_user(n, name))
 		return -EFAULT;
-	for ( ; table->ctl_name; table++) {
+	for ( ; table->ctl_name || table->procname; table++) {
+		if (!table->ctl_name)
+			continue;
 		if (n == table->ctl_name || table->ctl_name == CTL_ANY) {
 			int error;
 			if (table->child) {
@@ -1532,7 +1534,7 @@ static void register_proc_table(ctl_table * table, struct proc_dir_entry *root, 
 	int len;
 	mode_t mode;
 	
-	for (; table->ctl_name; table++) {
+	for (; table->ctl_name || table->procname; table++) {
 		/* Can't do anything without a proc name. */
 		if (!table->procname)
 			continue;
@@ -1579,7 +1581,7 @@ static void register_proc_table(ctl_table * table, struct proc_dir_entry *root, 
 static void unregister_proc_table(ctl_table * table, struct proc_dir_entry *root)
 {
 	struct proc_dir_entry *de;
-	for (; table->ctl_name; table++) {
+	for (; table->ctl_name || table->procname; table++) {
 		if (!(de = table->de))
 			continue;
 		if (de->mode & S_IFDIR) {
