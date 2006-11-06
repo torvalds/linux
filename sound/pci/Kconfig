@@ -576,6 +576,7 @@ config SND_INTEL8X0M
 config SND_KORG1212
 	tristate "Korg 1212 IO"
 	depends on SND
+	select FW_LOADER
 	select SND_PCM
 	help
 	  Say Y here to include support for Korg 1212IO soundcards.
