@@ -542,6 +542,7 @@ ip6ip6_rcv(struct sk_buff *skb)
 		skb->dev = t->dev;
 		dst_release(skb->dst);
 		skb->dst = NULL;
+		nf_reset(skb);
 		if (t->parms.flags & IP6_TNL_F_RCV_DSCP_COPY)
 			ipv6_copy_dscp(ipv6h, skb->nh.ipv6h);
 		ip6ip6_ecn_decapsulate(ipv6h, skb);
