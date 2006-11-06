@@ -2304,6 +2304,12 @@ static void mpls_push(__be32 *mpls, struct pktgen_dev *pkt_dev)
 	*mpls |= MPLS_STACK_BOTTOM;
 }
 
+static inline __be16 build_tci(unsigned int id, unsigned int cfi,
+			       unsigned int prio)
+{
+	return htons(id | (cfi << 12) | (prio << 13));
+}
+
 static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 					struct pktgen_dev *pkt_dev)
 {
@@ -2353,16 +2359,16 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	if (pkt_dev->vlan_id != 0xffff) {
 		if(pkt_dev->svlan_id != 0xffff) {
 			svlan_tci = (__be16 *)skb_put(skb, sizeof(__be16));
-			*svlan_tci = htons(pkt_dev->svlan_id);
-			*svlan_tci |= pkt_dev->svlan_p << 5;
-			*svlan_tci |= pkt_dev->svlan_cfi << 4;
+			*svlan_tci = build_tci(pkt_dev->svlan_id,
+					       pkt_dev->svlan_cfi,
+					       pkt_dev->svlan_p);
 			svlan_encapsulated_proto = (__be16 *)skb_put(skb, sizeof(__be16));
 			*svlan_encapsulated_proto = __constant_htons(ETH_P_8021Q);
 		}
 		vlan_tci = (__be16 *)skb_put(skb, sizeof(__be16));
-		*vlan_tci = htons(pkt_dev->vlan_id);
-		*vlan_tci |= pkt_dev->vlan_p << 5;
-		*vlan_tci |= pkt_dev->vlan_cfi << 4;
+		*vlan_tci = build_tci(pkt_dev->vlan_id,
+				      pkt_dev->vlan_cfi,
+				      pkt_dev->vlan_p);
 		vlan_encapsulated_proto = (__be16 *)skb_put(skb, sizeof(__be16));
 		*vlan_encapsulated_proto = __constant_htons(ETH_P_IP);
 	}
@@ -2689,16 +2695,16 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	if (pkt_dev->vlan_id != 0xffff) {
 		if(pkt_dev->svlan_id != 0xffff) {
 			svlan_tci = (__be16 *)skb_put(skb, sizeof(__be16));
-			*svlan_tci = htons(pkt_dev->svlan_id);
-			*svlan_tci |= pkt_dev->svlan_p << 5;
-			*svlan_tci |= pkt_dev->svlan_cfi << 4;
+			*svlan_tci = build_tci(pkt_dev->svlan_id,
+					       pkt_dev->svlan_cfi,
+					       pkt_dev->svlan_p);
 			svlan_encapsulated_proto = (__be16 *)skb_put(skb, sizeof(__be16));
 			*svlan_encapsulated_proto = __constant_htons(ETH_P_8021Q);
 		}
 		vlan_tci = (__be16 *)skb_put(skb, sizeof(__be16));
-		*vlan_tci = htons(pkt_dev->vlan_id);
-		*vlan_tci |= pkt_dev->vlan_p << 5;
-		*vlan_tci |= pkt_dev->vlan_cfi << 4;
+		*vlan_tci = build_tci(pkt_dev->vlan_id,
+				      pkt_dev->vlan_cfi,
+				      pkt_dev->vlan_p);
 		vlan_encapsulated_proto = (__be16 *)skb_put(skb, sizeof(__be16));
 		*vlan_encapsulated_proto = __constant_htons(ETH_P_IPV6);
 	}

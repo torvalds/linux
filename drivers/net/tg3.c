@@ -68,8 +68,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.67"
-#define DRV_MODULE_RELDATE	"October 18, 2006"
+#define DRV_MODULE_VERSION	"3.68"
+#define DRV_MODULE_RELDATE	"November 02, 2006"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -6014,7 +6014,7 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		tg3_abort_hw(tp, 1);
 	}
 
-	if ((tp->tg3_flags2 & TG3_FLG2_MII_SERDES) && reset_phy)
+	if (reset_phy)
 		tg3_phy_reset(tp);
 
 	err = tg3_chip_reset(tp);
@@ -6574,7 +6574,7 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		tw32(GRC_LOCAL_CTRL, tp->grc_local_ctrl);
 	}
 
-	err = tg3_setup_phy(tp, reset_phy);
+	err = tg3_setup_phy(tp, 0);
 	if (err)
 		return err;
 
