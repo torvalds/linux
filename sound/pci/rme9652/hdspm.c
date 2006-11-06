@@ -3678,7 +3678,7 @@ static int snd_hdspm_hw_params(struct snd_pcm_substream *substream,
 
 		hdspm->playback_buffer =
 		    (unsigned char *) substream->runtime->dma_area;
-		snd_printdd("Allocated sample buffer for playback at 0x%08X\n",
+		snd_printdd("Allocated sample buffer for playback at %p\n",
 				hdspm->playback_buffer);
 	} else {
 		hdspm_set_sgbuf(hdspm, sgbuf, HDSPM_pageAddressBufferIn,
@@ -3689,7 +3689,7 @@ static int snd_hdspm_hw_params(struct snd_pcm_substream *substream,
 
 		hdspm->capture_buffer =
 		    (unsigned char *) substream->runtime->dma_area;
-		snd_printdd("Allocated sample buffer for capture at 0x%08X\n",
+		snd_printdd("Allocated sample buffer for capture at %p\n",
 				hdspm->capture_buffer);
 	}
 	/*
