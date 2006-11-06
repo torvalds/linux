@@ -380,10 +380,11 @@ static struct rt6_info *rt6_select(struct rt6_info **head, int oif,
 			continue;
 
 		if (m > mpri) {
-			rt6_probe(match);
+			if (strict & RT6_LOOKUP_F_REACHABLE)
+				rt6_probe(match);
 			match = rt;
 			mpri = m;
-		} else {
+		} else if (strict & RT6_LOOKUP_F_REACHABLE) {
 			rt6_probe(rt);
 		}
 	}
@@ -636,7 +637,7 @@ static struct rt6_info *ip6_pol_route_input(struct fib6_table *table,
 	int strict = 0;
 	int attempts = 3;
 	int err;
-	int reachable = RT6_LOOKUP_F_REACHABLE;
+	int reachable = ipv6_devconf.forwarding ? 0 : RT6_LOOKUP_F_REACHABLE;
 
 	strict |= flags & RT6_LOOKUP_F_IFACE;
 
@@ -733,7 +734,7 @@ static struct rt6_info *ip6_pol_route_output(struct fib6_table *table,
 	int strict = 0;
 	int attempts = 3;
 	int err;
-	int reachable = RT6_LOOKUP_F_REACHABLE;
+	int reachable = ipv6_devconf.forwarding ? 0 : RT6_LOOKUP_F_REACHABLE;
 
 	strict |= flags & RT6_LOOKUP_F_IFACE;
 
