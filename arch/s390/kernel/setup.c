@@ -450,7 +450,7 @@ setup_lowcore(void)
 		lc->extended_save_area_addr = (__u32)
 			__alloc_bootmem(PAGE_SIZE, PAGE_SIZE, 0);
 		/* enable extended save area */
-		ctl_set_bit(14, 29);
+		__ctl_set_bit(14, 29);
 	}
 #endif
 	set_prefix((u32)(unsigned long) lc);
