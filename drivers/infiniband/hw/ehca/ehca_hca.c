@@ -40,6 +40,7 @@
  */
 
 #include "ehca_tools.h"
+#include "ehca_iverbs.h"
 #include "hcp_if.h"
 
 int ehca_query_device(struct ib_device *ibdev, struct ib_device_attr *props)
@@ -49,7 +50,7 @@ int ehca_query_device(struct ib_device *ibdev, struct ib_device_attr *props)
 					      ib_device);
 	struct hipz_query_hca *rblock;
 
-	rblock = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	rblock = ehca_alloc_fw_ctrlblock();
 	if (!rblock) {
 		ehca_err(&shca->ib_device, "Can't allocate rblock memory.");
 		return -ENOMEM;
@@ -96,7 +97,7 @@ int ehca_query_device(struct ib_device *ibdev, struct ib_device_attr *props)
 		= min_t(int, rblock->max_total_mcast_qp_attach, INT_MAX);
 
 query_device1:
-	kfree(rblock);
+	ehca_free_fw_ctrlblock(rblock);
 
 	return ret;
 }
@@ -109,7 +110,7 @@ int ehca_query_port(struct ib_device *ibdev,
 					      ib_device);
 	struct hipz_query_port *rblock;
 
-	rblock = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	rblock = ehca_alloc_fw_ctrlblock();
 	if (!rblock) {
 		ehca_err(&shca->ib_device, "Can't allocate rblock memory.");
 		return -ENOMEM;
@@ -162,7 +163,7 @@ int ehca_query_port(struct ib_device *ibdev,
 	props->active_speed    = 0x1;
 
 query_port1:
-	kfree(rblock);
+	ehca_free_fw_ctrlblock(rblock);
 
 	return ret;
 }
@@ -178,7 +179,7 @@ int ehca_query_pkey(struct ib_device *ibdev, u8 port, u16 index, u16 *pkey)
 		return -EINVAL;
 	}
 
-	rblock = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	rblock = ehca_alloc_fw_ctrlblock();
 	if (!rblock) {
 		ehca_err(&shca->ib_device,  "Can't allocate rblock memory.");
 		return -ENOMEM;
@@ -193,7 +194,7 @@ int ehca_query_pkey(struct ib_device *ibdev, u8 port, u16 index, u16 *pkey)
 	memcpy(pkey, &rblock->pkey_entries + index, sizeof(u16));
 
 query_pkey1:
-	kfree(rblock);
+	ehca_free_fw_ctrlblock(rblock);
 
 	return ret;
 }
@@ -211,7 +212,7 @@ int ehca_query_gid(struct ib_device *ibdev, u8 port,
 		return -EINVAL;
 	}
 
-	rblock = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	rblock = ehca_alloc_fw_ctrlblock();
 	if (!rblock) {
 		ehca_err(&shca->ib_device, "Can't allocate rblock memory.");
 		return -ENOMEM;
@@ -227,7 +228,7 @@ int ehca_query_gid(struct ib_device *ibdev, u8 port,
 	memcpy(&gid->raw[8], &rblock->guid_entries[index], sizeof(u64));
 
 query_gid1:
-	kfree(rblock);
+	ehca_free_fw_ctrlblock(rblock);
 
 	return ret;
 }
