@@ -800,6 +800,8 @@ static struct hda_board_config ad1986a_cfg_tbl[] = {
 	  .config = AD1986A_3STACK }, /* ASUS P5RD2-VM / P5GPL-X SE */
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x81cb,
 	  .config = AD1986A_3STACK }, /* ASUS M2NPV-VM */
+	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x8234,
+	  .config = AD1986A_3STACK }, /* ASUS M2N-MX */
 	{ .pci_subvendor = 0x17aa, .pci_subdevice = 0x1017,
 	  .config = AD1986A_3STACK }, /* Lenovo A60 desktop */
 	{ .modelname = "laptop",	.config = AD1986A_LAPTOP },
