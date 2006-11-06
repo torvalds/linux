@@ -1018,89 +1018,6 @@ int security_change_sid(u32 ssid,
 	return security_compute_sid(ssid, tsid, tclass, AVTAB_CHANGE, out_sid);
 }
 
-/*
- * Verify that each permission that is defined under the
- * existing policy is still defined with the same value
- * in the new policy.
- */
-static int validate_perm(void *key, void *datum, void *p)
-{
-	struct hashtab *h;
-	struct perm_datum *perdatum, *perdatum2;
-	int rc = 0;
-
-
-	h = p;
-	perdatum = datum;
-
-	perdatum2 = hashtab_search(h, key);
-	if (!perdatum2) {
-		printk(KERN_ERR "security:  permission %s disappeared",
-		       (char *)key);
-		rc = -ENOENT;
-		goto out;
-	}
-	if (perdatum->value != perdatum2->value) {
-		printk(KERN_ERR "security:  the value of permission %s changed",
-		       (char *)key);
-		rc = -EINVAL;
-	}
-out:
-	return rc;
-}
-
-/*
- * Verify that each class that is defined under the
- * existing policy is still defined with the same
- * attributes in the new policy.
- */
-static int validate_class(void *key, void *datum, void *p)
-{
-	struct policydb *newp;
-	struct class_datum *cladatum, *cladatum2;
-	int rc;
-
-	newp = p;
-	cladatum = datum;
-
-	cladatum2 = hashtab_search(newp->p_classes.table, key);
-	if (!cladatum2) {
-		printk(KERN_ERR "security:  class %s disappeared\n",
-		       (char *)key);
-		rc = -ENOENT;
-		goto out;
-	}
-	if (cladatum->value != cladatum2->value) {
-		printk(KERN_ERR "security:  the value of class %s changed\n",
-		       (char *)key);
-		rc = -EINVAL;
-		goto out;
-	}
-	if ((cladatum->comdatum && !cladatum2->comdatum) ||
-	    (!cladatum->comdatum && cladatum2->comdatum)) {
-		printk(KERN_ERR "security:  the inherits clause for the access "
-		       "vector definition for class %s changed\n", (char *)key);
-		rc = -EINVAL;
-		goto out;
-	}
-	if (cladatum->comdatum) {
-		rc = hashtab_map(cladatum->comdatum->permissions.table, validate_perm,
-		                 cladatum2->comdatum->permissions.table);
-		if (rc) {
-			printk(" in the access vector definition for class "
-			       "%s\n", (char *)key);
-			goto out;
-		}
-	}
-	rc = hashtab_map(cladatum->permissions.table, validate_perm,
-	                 cladatum2->permissions.table);
-	if (rc)
-		printk(" in access vector definition for class %s\n",
-		       (char *)key);
-out:
-	return rc;
-}
-
 /* Clone the SID into the new SID table. */
 static int clone_sid(u32 sid,
 		     struct context *context,
@@ -1264,14 +1181,6 @@ int security_load_policy(void *data, size_t len)
 	}
 
 	sidtab_init(&newsidtab);
-
-	/* Verify that the existing classes did not change. */
-	if (hashtab_map(policydb.p_classes.table, validate_class, &newpolicydb)) {
-		printk(KERN_ERR "security:  the definition of an existing "
-		       "class changed\n");
-		rc = -EINVAL;
-		goto err;
-	}
 
 	/* Clone the SID table. */
 	sidtab_shutdown(&sidtab);
