@@ -39,7 +39,7 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"ehea"
-#define DRV_VERSION	"EHEA_0034"
+#define DRV_VERSION	"EHEA_0043"
 
 #define EHEA_MSG_DEFAULT (NETIF_MSG_LINK | NETIF_MSG_TIMER \
 	| NETIF_MSG_RX_ERR | NETIF_MSG_TX_ERR)
@@ -104,9 +104,6 @@
 #define EHEA_BCMC_TAGGED	0x00
 #define EHEA_BCMC_VLANID_ALL	0x01
 #define EHEA_BCMC_VLANID_SINGLE	0x00
-
-/* Use this define to kmallocate pHYP control blocks */
-#define H_CB_ALIGNMENT		4096
 
 #define EHEA_CACHE_LINE          128
 
