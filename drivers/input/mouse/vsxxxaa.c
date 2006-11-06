@@ -497,7 +497,7 @@ vsxxxaa_connect (struct serio *serio, struct serio_driver *drv)
 	mouse = kzalloc (sizeof (struct vsxxxaa), GFP_KERNEL);
 	input_dev = input_allocate_device ();
 	if (!mouse || !input_dev)
-		goto fail;
+		goto fail1;
 
 	mouse->dev = input_dev;
 	mouse->serio = serio;
@@ -527,7 +527,7 @@ vsxxxaa_connect (struct serio *serio, struct serio_driver *drv)
 
 	err = serio_open (serio, drv);
 	if (err)
-		goto fail;
+		goto fail2;
 
 	/*
 	 * Request selftest. Standard packet format and differential
@@ -535,12 +535,15 @@ vsxxxaa_connect (struct serio *serio, struct serio_driver *drv)
 	 */
 	serio->write (serio, 'T'); /* Test */
 
-	input_register_device (input_dev);
+	err = input_register_device (input_dev);
+	if (err)
+		goto fail3;
 
 	return 0;
 
- fail:	serio_set_drvdata (serio, NULL);
-	input_free_device (input_dev);
+ fail3:	serio_close (serio);
+ fail2:	serio_set_drvdata (serio, NULL);
+ fail1:	input_free_device (input_dev);
 	kfree (mouse);
 	return err;
 }

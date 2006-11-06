@@ -95,10 +95,13 @@ static void amimouse_close(struct input_dev *dev)
 
 static int __init amimouse_init(void)
 {
+	int err;
+
 	if (!MACH_IS_AMIGA || !AMIGAHW_PRESENT(AMI_MOUSE))
 		return -ENODEV;
 
-	if (!(amimouse_dev = input_allocate_device()))
+	amimouse_dev = input_allocate_device();
+	if (!amimouse_dev)
 		return -ENOMEM;
 
 	amimouse_dev->name = "Amiga mouse";
@@ -114,7 +117,11 @@ static int __init amimouse_init(void)
 	amimouse_dev->open = amimouse_open;
 	amimouse_dev->close = amimouse_close;
 
-	input_register_device(amimouse_dev);
+	err = input_register_device(amimouse_dev);
+	if (err) {
+		input_free_device(amimouse_dev);
+		return err;
+	}
 
 	return 0;
 }
