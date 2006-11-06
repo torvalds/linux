@@ -52,16 +52,8 @@ struct iommu_table {
 struct scatterlist;
 struct device_node;
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
-
-/* Walks all buses and creates iommu tables */
-extern void iommu_setup_pSeries(void);
-extern void iommu_setup_dart(void);
-
 /* Frees table for an individual device node */
 extern void iommu_free_table(struct device_node *dn);
-
-#endif /* CONFIG_PPC_MULTIPLATFORM */
 
 /* Initializes an iommu_table based in values set in the passed-in
  * structure
