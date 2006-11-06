@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/time.h>
 #include <linux/wait.h>
+#include <linux/firmware.h>
 #include <sound/core.h>
 #include <sound/snd_wavefront.h>
 #include <sound/initval.h>
@@ -34,7 +35,15 @@
 
 #define WAIT_IDLE	0xff
 
+#define FIRMWARE_IN_THE_KERNEL
+
+#ifdef FIRMWARE_IN_THE_KERNEL
 #include "yss225.c"
+static const struct firmware yss225_registers_firmware = {
+	.data = (u8 *)yss225_registers,
+	.size = sizeof yss225_registers
+};
+#endif
 
 static int
 wavefront_fx_idle (snd_wavefront_t *dev)
@@ -248,25 +257,47 @@ int __devinit
 snd_wavefront_fx_start (snd_wavefront_t *dev)
 {
 	unsigned int i;
+	int err;
+	const struct firmware *firmware;
 
 	if (dev->fx_initialized)
 		return 0;
 
-	for (i = 0; i < ARRAY_SIZE(yss225_registers); ++i) {
-		if (yss225_registers[i].addr >= 8 &&
-		    yss225_registers[i].addr < 16) {
-			outb(yss225_registers[i].data,
-			     yss225_registers[i].addr + dev->base);
-		} else if (yss225_registers[i].addr == WAIT_IDLE) {
-			if (!wavefront_fx_idle(dev))
-				return -1;
+	err = request_firmware(&firmware, "yamaha/yss225_registers.bin",
+			       dev->card->dev);
+	if (err < 0) {
+#ifdef FIRMWARE_IN_THE_KERNEL
+		firmware = &yss225_registers_firmware;
+#else
+		err = -1;
+		goto out;
+#endif
+	}
+
+	for (i = 0; i + 1 < firmware->size; i += 2) {
+		if (firmware->data[i] >= 8 && firmware->data[i] < 16) {
+			outb(firmware->data[i + 1],
+			     dev->base + firmware->data[i]);
+		} else if (firmware->data[i] == WAIT_IDLE) {
+			if (!wavefront_fx_idle(dev)) {
+				err = -1;
+				goto out;
+			}
 		} else {
 			snd_printk(KERN_ERR "invalid address"
 				   " in register data\n");
-			return -1;
+			err = -1;
+			goto out;
 		}
 	}
 
 	dev->fx_initialized = 1;
-	return (0);
+	err = 0;
+
+out:
+#ifdef FIRMWARE_IN_THE_KERNEL
+	if (firmware != &yss225_registers_firmware)
+#endif
+		release_firmware(firmware);
+	return err;
 }
