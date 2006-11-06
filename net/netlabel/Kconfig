@@ -4,7 +4,7 @@
 
 config NETLABEL
 	bool "NetLabel subsystem support"
-	depends on NET && SECURITY
+	depends on SECURITY
 	default n
 	---help---
 	  NetLabel provides support for explicit network packet labeling
