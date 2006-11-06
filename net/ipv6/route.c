@@ -330,6 +330,8 @@ static int inline rt6_check_neigh(struct rt6_info *rt)
 		read_lock_bh(&neigh->lock);
 		if (neigh->nud_state & NUD_VALID)
 			m = 2;
+		else if (!(neigh->nud_state & NUD_FAILED))
+			m = 1;
 		read_unlock_bh(&neigh->lock);
 	}
 	return m;
