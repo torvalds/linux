@@ -91,7 +91,7 @@ static int nkbd_connect(struct serio *serio, struct serio_driver *drv)
 	nkbd = kzalloc(sizeof(struct nkbd), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!nkbd || !input_dev)
-		goto fail;
+		goto fail1;
 
 	nkbd->serio = serio;
 	nkbd->dev = input_dev;
@@ -119,13 +119,17 @@ static int nkbd_connect(struct serio *serio, struct serio_driver *drv)
 
 	err = serio_open(serio, drv);
 	if (err)
-		goto fail;
+		goto fail2;
 
-	input_register_device(nkbd->dev);
+	err = input_register_device(nkbd->dev);
+	if (err)
+		goto fail3;
+
 	return 0;
 
- fail:	serio_set_drvdata(serio, NULL);
-	input_free_device(input_dev);
+ fail3:	serio_close(serio);
+ fail2:	serio_set_drvdata(serio, NULL);
+ fail1:	input_free_device(input_dev);
 	kfree(nkbd);
 	return err;
 }

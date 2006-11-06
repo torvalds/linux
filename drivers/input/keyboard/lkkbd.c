@@ -651,7 +651,7 @@ lkkbd_connect (struct serio *serio, struct serio_driver *drv)
 	input_dev = input_allocate_device ();
 	if (!lk || !input_dev) {
 		err = -ENOMEM;
-		goto fail;
+		goto fail1;
 	}
 
 	lk->serio = serio;
@@ -696,15 +696,19 @@ lkkbd_connect (struct serio *serio, struct serio_driver *drv)
 
 	err = serio_open (serio, drv);
 	if (err)
-		goto fail;
+		goto fail2;
 
-	input_register_device (lk->dev);
+	err = input_register_device (lk->dev);
+	if (err)
+		goto fail3;
+
 	lk->serio->write (lk->serio, LK_CMD_POWERCYCLE_RESET);
 
 	return 0;
 
- fail:	serio_set_drvdata (serio, NULL);
-	input_free_device (input_dev);
+ fail3:	serio_close (serio);
+ fail2:	serio_set_drvdata (serio, NULL);
+ fail1:	input_free_device (input_dev);
 	kfree (lk);
 	return err;
 }

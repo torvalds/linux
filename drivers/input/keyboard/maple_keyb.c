@@ -94,13 +94,13 @@ static int dc_kbd_connect(struct maple_device *dev)
 	struct input_dev *input_dev;
 	unsigned long data = be32_to_cpu(dev->devinfo.function_data[0]);
 	int i;
+	int err;
 
 	dev->private_data = kbd = kzalloc(sizeof(struct dc_kbd), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!kbd || !input_dev) {
-		kfree(kbd);
-		input_free_device(input_dev);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto fail;
 	}
 
 	kbd->dev = input_dev;
@@ -113,10 +113,16 @@ static int dc_kbd_connect(struct maple_device *dev)
 		set_bit(dc_kbd_keycode[i], input_dev->keybit);
 	clear_bit(0, input_dev->keybit);
 
-	input_register_device(kbd->dev);
+	err = input_register_device(kbd->dev);
+	if (err)
+		goto fail;
 
 	maple_getcond_callback(dev, dc_kbd_callback, 1, MAPLE_FUNC_KEYBOARD);
 	return 0;
+
+ fail:	input_free_device(input_dev);
+	kfree(kbd);
+	return err;
 }
 
 

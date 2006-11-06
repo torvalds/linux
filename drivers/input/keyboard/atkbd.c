@@ -939,7 +939,7 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 	atkbd = kzalloc(sizeof(struct atkbd), GFP_KERNEL);
 	dev = input_allocate_device();
 	if (!atkbd || !dev)
-		goto fail;
+		goto fail1;
 
 	atkbd->dev = dev;
 	ps2_init(&atkbd->ps2dev, serio);
@@ -967,14 +967,13 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 
 	err = serio_open(serio, drv);
 	if (err)
-		goto fail;
+		goto fail2;
 
 	if (atkbd->write) {
 
 		if (atkbd_probe(atkbd)) {
-			serio_close(serio);
 			err = -ENODEV;
-			goto fail;
+			goto fail3;
 		}
 
 		atkbd->set = atkbd_select_set(atkbd, atkbd_set, atkbd_extra);
@@ -988,16 +987,22 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 	atkbd_set_keycode_table(atkbd);
 	atkbd_set_device_attrs(atkbd);
 
-	sysfs_create_group(&serio->dev.kobj, &atkbd_attribute_group);
+	err = sysfs_create_group(&serio->dev.kobj, &atkbd_attribute_group);
+	if (err)
+		goto fail3;
 
 	atkbd_enable(atkbd);
 
-	input_register_device(atkbd->dev);
+	err = input_register_device(atkbd->dev);
+	if (err)
+		goto fail4;
 
 	return 0;
 
- fail:	serio_set_drvdata(serio, NULL);
-	input_free_device(dev);
+ fail4: sysfs_remove_group(&serio->dev.kobj, &atkbd_attribute_group);
+ fail3:	serio_close(serio);
+ fail2:	serio_set_drvdata(serio, NULL);
+ fail1:	input_free_device(dev);
 	kfree(atkbd);
 	return err;
 }
@@ -1133,9 +1138,11 @@ static ssize_t atkbd_show_extra(struct atkbd *atkbd, char *buf)
 
 static ssize_t atkbd_set_extra(struct atkbd *atkbd, const char *buf, size_t count)
 {
-	struct input_dev *new_dev;
+	struct input_dev *old_dev, *new_dev;
 	unsigned long value;
 	char *rest;
+	int err;
+	unsigned char old_extra, old_set;
 
 	if (!atkbd->write)
 		return -EIO;
@@ -1147,17 +1154,36 @@ static ssize_t atkbd_set_extra(struct atkbd *atkbd, const char *buf, size_t coun
 	if (atkbd->extra != value) {
 		/*
 		 * Since device's properties will change we need to
-		 * unregister old device. But allocate new one first
-		 * to make sure we have it.
+		 * unregister old device. But allocate and register
+		 * new one first to make sure we have it.
 		 */
-		if (!(new_dev = input_allocate_device()))
+		old_dev = atkbd->dev;
+		old_extra = atkbd->extra;
+		old_set = atkbd->set;
+
+		new_dev = input_allocate_device();
+		if (!new_dev)
 			return -ENOMEM;
-		input_unregister_device(atkbd->dev);
+
 		atkbd->dev = new_dev;
 		atkbd->set = atkbd_select_set(atkbd, atkbd->set, value);
 		atkbd_activate(atkbd);
+		atkbd_set_keycode_table(atkbd);
 		atkbd_set_device_attrs(atkbd);
-		input_register_device(atkbd->dev);
+
+		err = input_register_device(atkbd->dev);
+		if (err) {
+			input_free_device(new_dev);
+
+			atkbd->dev = old_dev;
+			atkbd->set = atkbd_select_set(atkbd, old_set, old_extra);
+			atkbd_set_keycode_table(atkbd);
+			atkbd_set_device_attrs(atkbd);
+
+			return err;
+		}
+		input_unregister_device(old_dev);
+
 	}
 	return count;
 }
@@ -1169,23 +1195,41 @@ static ssize_t atkbd_show_scroll(struct atkbd *atkbd, char *buf)
 
 static ssize_t atkbd_set_scroll(struct atkbd *atkbd, const char *buf, size_t count)
 {
-	struct input_dev *new_dev;
+	struct input_dev *old_dev, *new_dev;
 	unsigned long value;
 	char *rest;
+	int err;
+	unsigned char old_scroll;
 
 	value = simple_strtoul(buf, &rest, 10);
 	if (*rest || value > 1)
 		return -EINVAL;
 
 	if (atkbd->scroll != value) {
-		if (!(new_dev = input_allocate_device()))
+		old_dev = atkbd->dev;
+		old_scroll = atkbd->scroll;
+
+		new_dev = input_allocate_device();
+		if (!new_dev)
 			return -ENOMEM;
-		input_unregister_device(atkbd->dev);
+
 		atkbd->dev = new_dev;
 		atkbd->scroll = value;
 		atkbd_set_keycode_table(atkbd);
 		atkbd_set_device_attrs(atkbd);
-		input_register_device(atkbd->dev);
+
+		err = input_register_device(atkbd->dev);
+		if (err) {
+			input_free_device(new_dev);
+
+			atkbd->scroll = old_scroll;
+			atkbd->dev = old_dev;
+			atkbd_set_keycode_table(atkbd);
+			atkbd_set_device_attrs(atkbd);
+
+			return err;
+		}
+		input_unregister_device(old_dev);
 	}
 	return count;
 }
@@ -1197,9 +1241,11 @@ static ssize_t atkbd_show_set(struct atkbd *atkbd, char *buf)
 
 static ssize_t atkbd_set_set(struct atkbd *atkbd, const char *buf, size_t count)
 {
-	struct input_dev *new_dev;
+	struct input_dev *old_dev, *new_dev;
 	unsigned long value;
 	char *rest;
+	int err;
+	unsigned char old_set, old_extra;
 
 	if (!atkbd->write)
 		return -EIO;
@@ -1209,15 +1255,32 @@ static ssize_t atkbd_set_set(struct atkbd *atkbd, const char *buf, size_t count)
 		return -EINVAL;
 
 	if (atkbd->set != value) {
-		if (!(new_dev = input_allocate_device()))
+		old_dev = atkbd->dev;
+		old_extra = atkbd->extra;
+		old_set = atkbd->set;
+
+		new_dev = input_allocate_device();
+		if (!new_dev)
 			return -ENOMEM;
-		input_unregister_device(atkbd->dev);
+
 		atkbd->dev = new_dev;
 		atkbd->set = atkbd_select_set(atkbd, value, atkbd->extra);
 		atkbd_activate(atkbd);
 		atkbd_set_keycode_table(atkbd);
 		atkbd_set_device_attrs(atkbd);
-		input_register_device(atkbd->dev);
+
+		err = input_register_device(atkbd->dev);
+		if (err) {
+			input_free_device(new_dev);
+
+			atkbd->dev = old_dev;
+			atkbd->set = atkbd_select_set(atkbd, old_set, old_extra);
+			atkbd_set_keycode_table(atkbd);
+			atkbd_set_device_attrs(atkbd);
+
+			return err;
+		}
+		input_unregister_device(old_dev);
 	}
 	return count;
 }
@@ -1229,9 +1292,11 @@ static ssize_t atkbd_show_softrepeat(struct atkbd *atkbd, char *buf)
 
 static ssize_t atkbd_set_softrepeat(struct atkbd *atkbd, const char *buf, size_t count)
 {
-	struct input_dev *new_dev;
+	struct input_dev *old_dev, *new_dev;
 	unsigned long value;
 	char *rest;
+	int err;
+	unsigned char old_softrepeat, old_softraw;
 
 	if (!atkbd->write)
 		return -EIO;
@@ -1241,15 +1306,32 @@ static ssize_t atkbd_set_softrepeat(struct atkbd *atkbd, const char *buf, size_t
 		return -EINVAL;
 
 	if (atkbd->softrepeat != value) {
-		if (!(new_dev = input_allocate_device()))
+		old_dev = atkbd->dev;
+		old_softrepeat = atkbd->softrepeat;
+		old_softraw = atkbd->softraw;
+
+		new_dev = input_allocate_device();
+		if (!new_dev)
 			return -ENOMEM;
-		input_unregister_device(atkbd->dev);
+
 		atkbd->dev = new_dev;
 		atkbd->softrepeat = value;
 		if (atkbd->softrepeat)
 			atkbd->softraw = 1;
 		atkbd_set_device_attrs(atkbd);
-		input_register_device(atkbd->dev);
+
+		err = input_register_device(atkbd->dev);
+		if (err) {
+			input_free_device(new_dev);
+
+			atkbd->dev = old_dev;
+			atkbd->softrepeat = old_softrepeat;
+			atkbd->softraw = old_softraw;
+			atkbd_set_device_attrs(atkbd);
+
+			return err;
+		}
+		input_unregister_device(old_dev);
 	}
 	return count;
 }
@@ -1262,22 +1344,39 @@ static ssize_t atkbd_show_softraw(struct atkbd *atkbd, char *buf)
 
 static ssize_t atkbd_set_softraw(struct atkbd *atkbd, const char *buf, size_t count)
 {
-	struct input_dev *new_dev;
+	struct input_dev *old_dev, *new_dev;
 	unsigned long value;
 	char *rest;
+	int err;
+	unsigned char old_softraw;
 
 	value = simple_strtoul(buf, &rest, 10);
 	if (*rest || value > 1)
 		return -EINVAL;
 
 	if (atkbd->softraw != value) {
-		if (!(new_dev = input_allocate_device()))
+		old_dev = atkbd->dev;
+		old_softraw = atkbd->softraw;
+
+		new_dev = input_allocate_device();
+		if (!new_dev)
 			return -ENOMEM;
-		input_unregister_device(atkbd->dev);
+
 		atkbd->dev = new_dev;
 		atkbd->softraw = value;
 		atkbd_set_device_attrs(atkbd);
-		input_register_device(atkbd->dev);
+
+		err = input_register_device(atkbd->dev);
+		if (err) {
+			input_free_device(new_dev);
+
+			atkbd->dev = old_dev;
+			atkbd->softraw = old_softraw;
+			atkbd_set_device_attrs(atkbd);
+
+			return err;
+		}
+		input_unregister_device(old_dev);
 	}
 	return count;
 }

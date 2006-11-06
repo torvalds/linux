@@ -243,7 +243,7 @@ static int sunkbd_connect(struct serio *serio, struct serio_driver *drv)
 	sunkbd = kzalloc(sizeof(struct sunkbd), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!sunkbd || !input_dev)
-		goto fail;
+		goto fail1;
 
 	sunkbd->serio = serio;
 	sunkbd->dev = input_dev;
@@ -255,11 +255,11 @@ static int sunkbd_connect(struct serio *serio, struct serio_driver *drv)
 
 	err = serio_open(serio, drv);
 	if (err)
-		goto fail;
+		goto fail2;
 
 	if (sunkbd_initialize(sunkbd) < 0) {
-		serio_close(serio);
-		goto fail;
+		err = -ENODEV;
+		goto fail3;
 	}
 
 	snprintf(sunkbd->name, sizeof(sunkbd->name), "Sun Type %d keyboard", sunkbd->type);
@@ -287,11 +287,17 @@ static int sunkbd_connect(struct serio *serio, struct serio_driver *drv)
 	clear_bit(0, input_dev->keybit);
 
 	sunkbd_enable(sunkbd, 1);
-	input_register_device(sunkbd->dev);
+
+	err = input_register_device(sunkbd->dev);
+	if (err)
+		goto fail4;
+
 	return 0;
 
- fail:	serio_set_drvdata(serio, NULL);
-	input_free_device(input_dev);
+ fail4:	sunkbd_enable(sunkbd, 0);
+ fail3:	serio_close(serio);
+ fail2:	serio_set_drvdata(serio, NULL);
+ fail1:	input_free_device(input_dev);
 	kfree(sunkbd);
 	return err;
 }
