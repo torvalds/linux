@@ -58,8 +58,8 @@ void unlock_cpu_hotplug(void)
 		recursive_depth--;
 		return;
 	}
-	mutex_unlock(&cpu_bitmask_lock);
 	recursive = NULL;
+	mutex_unlock(&cpu_bitmask_lock);
 }
 EXPORT_SYMBOL_GPL(unlock_cpu_hotplug);
 
