@@ -35,7 +35,7 @@ struct cx24123_config
 	int lnb_polarity;
 };
 
-#if defined(CONFIG_DVB_CX24123) || defined(CONFIG_DVB_CX24123_MODULE)
+#if defined(CONFIG_DVB_CX24123) || (defined(CONFIG_DVB_CX24123_MODULE) && defined(MODULE))
 extern struct dvb_frontend* cx24123_attach(const struct cx24123_config* config,
 					   struct i2c_adapter* i2c);
 #else

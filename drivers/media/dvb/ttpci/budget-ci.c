@@ -46,7 +46,14 @@
 #include "bsbe1.h"
 #include "bsru6.h"
 
-#define DEBIADDR_IR		0x1234
+/*
+ * Regarding DEBIADDR_IR:
+ * Some CI modules hang if random addresses are read.
+ * Using address 0x4000 for the IR read means that we
+ * use the same address as for CI version, which should
+ * be a safe default.
+ */
+#define DEBIADDR_IR		0x4000
 #define DEBIADDR_CICONTROL	0x0000
 #define DEBIADDR_CIVERSION	0x4000
 #define DEBIADDR_IO		0x1000
@@ -1028,6 +1035,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 
 	case 0x1012:		// TT DVB-T CI budget (tda10046/Philips tdm1316l(tda6651tt))
 		budget_ci->tuner_pll_address = 0x60;
+		philips_tdm1316l_config.invert = 1;
 		budget_ci->budget.dvb_frontend =
 			dvb_attach(tda10046_attach, &philips_tdm1316l_config, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
