@@ -74,4 +74,8 @@ extern int setup_irq_smtc(unsigned int irq, struct irqaction * new,
                           unsigned long hwmask);
 #endif /* CONFIG_MIPS_MT_SMTC */
 
+extern int allocate_irqno(void);
+extern void alloc_legacy_irqno(void);
+extern void free_irqno(unsigned int irq);
+
 #endif /* _ASM_IRQ_H */

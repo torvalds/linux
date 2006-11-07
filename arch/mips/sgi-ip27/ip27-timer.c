@@ -214,8 +214,6 @@ static struct irqaction rt_irqaction = {
 	.name		= "timer"
 };
 
-extern int allocate_irqno(void);
-
 void __init plat_timer_setup(struct irqaction *irq)
 {
 	int irqno  = allocate_irqno();
