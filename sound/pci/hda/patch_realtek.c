@@ -125,6 +125,7 @@ enum {
 	ALC888_DEMO_BOARD,
 	ALC883_ACER,
 	ALC883_MEDION,
+	ALC883_LAPTOP_EAPD,
 	ALC883_AUTO,
 	ALC883_MODEL_LAST,
 };
@@ -4540,7 +4541,7 @@ static struct hda_verb alc882_init_verbs[] = {
 static struct hda_verb alc882_eapd_verbs[] = {
 	/* change to EAPD mode */
 	{0x20, AC_VERB_SET_COEF_INDEX, 0x07},
-	{0x20, AC_VERB_SET_PROC_COEF, 0x3070},
+	{0x20, AC_VERB_SET_PROC_COEF, 0x3060},
 	{ } 
 };
 
@@ -4996,6 +4997,13 @@ static struct hda_verb alc883_sixstack_ch8_init[] = {
 static struct hda_channel_mode alc883_sixstack_modes[2] = {
 	{ 6, alc883_sixstack_ch6_init },
 	{ 8, alc883_sixstack_ch8_init },
+};
+
+static struct hda_verb alc883_medion_eapd_verbs[] = {
+        /* eanable EAPD on medion laptop */
+	{0x20, AC_VERB_SET_COEF_INDEX, 0x07},
+	{0x20, AC_VERB_SET_PROC_COEF, 0x3070},
+	{ }
 };
 
 /* Pin assignment: Front=0x14, Rear=0x15, CLFE=0x16, Side=0x17
@@ -5471,6 +5479,9 @@ static struct hda_board_config alc883_cfg_tbl[] = {
 	  .config = ALC883_ACER },
 	{ .pci_subvendor = 0x161f, .pci_subdevice = 0x2054,
 	  .modelname = "medion", .config = ALC883_MEDION },
+	{ .modelname = "laptop-eapd", .config = ALC883_LAPTOP_EAPD },
+	{ .pci_subvendor = 0x1558, .pci_subdevice = 0,
+	  .config = ALC883_LAPTOP_EAPD }, /* Clevo */
 	{ .modelname = "auto", .config = ALC883_AUTO },
 	{}
 };
@@ -5591,7 +5602,7 @@ static struct alc_config_preset alc883_presets[] = {
 		.mixers = { alc883_fivestack_mixer,
 			    alc883_chmode_mixer },
 		.init_verbs = { alc883_init_verbs,
-				alc882_eapd_verbs },
+				alc883_medion_eapd_verbs },
 		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
 		.dac_nids = alc883_dac_nids,
 		.num_adc_nids = ARRAY_SIZE(alc883_adc_nids),
@@ -5599,8 +5610,19 @@ static struct alc_config_preset alc883_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc883_sixstack_modes),
 		.channel_mode = alc883_sixstack_modes,
 		.input_mux = &alc883_capture_source,
-	}
-
+	},
+	[ALC883_LAPTOP_EAPD] = {
+		.mixers = { alc883_base_mixer,
+			    alc883_chmode_mixer },
+		.init_verbs = { alc883_init_verbs, alc882_eapd_verbs },
+		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
+		.dac_nids = alc883_dac_nids,
+		.num_adc_nids = ARRAY_SIZE(alc883_adc_nids),
+		.adc_nids = alc883_adc_nids,
+		.num_channel_mode = ARRAY_SIZE(alc883_3ST_2ch_modes),
+		.channel_mode = alc883_3ST_2ch_modes,
+		.input_mux = &alc883_capture_source,
+	},
 };
 
 

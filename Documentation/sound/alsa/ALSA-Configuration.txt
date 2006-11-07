@@ -822,6 +822,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  medion	Medion Laptops
 	  targa-dig	Targa/MSI
 	  targa-2ch-dig	Targs/MSI with 2-channel
+	  laptop-eapd   3-jack with SPDIF I/O and EAPD (Clevo M540JE, M550JE)
 	  auto		auto-config reading BIOS (default)
 
 	ALC861/660
