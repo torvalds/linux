@@ -323,7 +323,7 @@ skip_restore:
 7:	.long	0x30000000
 
 ! common exception handler
-#include "../../entry.S"
+#include "../../entry-common.S"
 	
 ! Exception Vector Base
 !
