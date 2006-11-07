@@ -1940,6 +1940,11 @@ config COMPAT
 	depends on MIPS32_COMPAT
 	default y
 
+config SYSVIPC_COMPAT
+	bool
+	depends on COMPAT && SYSVIPC
+	default y
+
 config MIPS32_O32
 	bool "Kernel support for o32 binaries"
 	depends on MIPS32_COMPAT
