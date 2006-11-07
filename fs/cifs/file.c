@@ -492,10 +492,13 @@ int cifs_close(struct inode *inode, struct file *file)
 					the struct would be in each open file,
 					but this should give enough time to 
 					clear the socket */
-					cERROR(1,("close with pending writes"));
+#ifdef CONFIG_CIFS_DEBUG2
+					cFYI(1,("close delay, write pending"));
+#endif /* DEBUG2 */
 					msleep(timeout);
 					timeout *= 4;
-				} 
+				}
+				cERROR(1,("close with pending writes")); 
 				rc = CIFSSMBClose(xid, pTcon,
 						  pSMBFile->netfid);
 			}
