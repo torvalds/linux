@@ -340,6 +340,12 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	udph->dest = htons(np->remote_port);
 	udph->len = htons(udp_len);
 	udph->check = 0;
+	udph->check = csum_tcpudp_magic(htonl(np->local_ip),
+					htonl(np->remote_ip),
+					udp_len, IPPROTO_UDP,
+					csum_partial((unsigned char *)udph, udp_len, 0));
+	if (udph->check == 0)
+		udph->check = -1;
 
 	skb->nh.iph = iph = (struct iphdr *)skb_push(skb, sizeof(*iph));
 
