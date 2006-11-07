@@ -2242,7 +2242,7 @@
 
 #define CICR1_TBIT	(1 << 31)	/* Transparency bit */
 #define CICR1_RGBT_CONV	(0x3 << 30)	/* RGBT conversion mask */
-#define CICR1_PPL	(0x3f << 15)	/* Pixels per line mask */
+#define CICR1_PPL	(0x7ff << 15)	/* Pixels per line mask */
 #define CICR1_RGB_CONV	(0x7 << 12)	/* RGB conversion mask */
 #define CICR1_RGB_F	(1 << 11)	/* RGB format */
 #define CICR1_YCBCR_F	(1 << 10)	/* YCbCr format */
@@ -2268,7 +2268,7 @@
 #define CICR3_VSW	(0x3f << 10)	/* Vertical sync pulse width mask */
 #define CICR3_BFPW	(0x3f << 3)	/* Beginning-of-frame pixel clock
 					   wait count mask */
-#define CICR3_LPF	(0x3ff << 0)	/* Lines per frame mask */
+#define CICR3_LPF	(0x7ff << 0)	/* Lines per frame mask */
 
 #define CICR4_MCLK_DLY	(0x3 << 24)	/* MCLK Data Capture Delay mask */
 #define CICR4_PCLK_EN	(1 << 23)	/* Pixel clock enable */
@@ -2289,8 +2289,8 @@
 #define CISR_EOL	(1 << 8)	/* End of line */
 #define CISR_PAR_ERR	(1 << 7)	/* Parity error */
 #define CISR_CQD	(1 << 6)	/* Camera interface quick disable */
-#define CISR_SOF	(1 << 5)	/* Start of frame */
-#define CISR_CDD	(1 << 4)	/* Camera interface disable done */
+#define CISR_CDD	(1 << 5)	/* Camera interface disable done */
+#define CISR_SOF	(1 << 4)	/* Start of frame */
 #define CISR_EOF	(1 << 3)	/* End of frame */
 #define CISR_IFO_2	(1 << 2)	/* FIFO overrun for Channel 2 */
 #define CISR_IFO_1	(1 << 1)	/* FIFO overrun for Channel 1 */
