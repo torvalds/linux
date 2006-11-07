@@ -369,7 +369,7 @@ again:
 
 	/* If the server doesn't support the exclusive creation semantics,
 	 * try again with simple 'guarded' mode. */
-	if (status == NFSERR_NOTSUPP) {
+	if (status == -ENOTSUPP) {
 		switch (arg.createmode) {
 			case NFS3_CREATE_EXCLUSIVE:
 				arg.createmode = NFS3_CREATE_GUARDED;
