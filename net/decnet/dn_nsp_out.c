@@ -526,7 +526,7 @@ void dn_send_conn_conf(struct sock *sk, gfp_t gfp)
         struct nsp_conn_init_msg *msg;
 	__u8 len = (__u8)dn_ntohs(scp->conndata_out.opt_optl);
 
-	if ((skb = dn_alloc_skb(sk, 50 + dn_ntohs(scp->conndata_out.opt_optl), gfp)) == NULL)
+	if ((skb = dn_alloc_skb(sk, 50 + len, gfp)) == NULL)
 		return;
 
         msg = (struct nsp_conn_init_msg *)skb_put(skb, sizeof(*msg));
