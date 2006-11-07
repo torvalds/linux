@@ -213,8 +213,6 @@ struct gfs2_rgrp {
 };
 
 struct gfs2_rgrp_host {
-	struct gfs2_meta_header_host rg_header;
-
 	__u32 rg_flags;
 	__u32 rg_free;
 	__u32 rg_dinodes;

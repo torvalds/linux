@@ -65,15 +65,6 @@ static void gfs2_meta_header_in(struct gfs2_meta_header_host *mh, const void *bu
 	mh->mh_format = be32_to_cpu(str->mh_format);
 }
 
-static void gfs2_meta_header_out(const struct gfs2_meta_header_host *mh, void *buf)
-{
-	struct gfs2_meta_header *str = buf;
-
-	str->mh_magic = cpu_to_be32(mh->mh_magic);
-	str->mh_type = cpu_to_be32(mh->mh_type);
-	str->mh_format = cpu_to_be32(mh->mh_format);
-}
-
 void gfs2_sb_in(struct gfs2_sb_host *sb, const void *buf)
 {
 	const struct gfs2_sb *str = buf;
@@ -119,7 +110,6 @@ void gfs2_rgrp_in(struct gfs2_rgrp_host *rg, const void *buf)
 {
 	const struct gfs2_rgrp *str = buf;
 
-	gfs2_meta_header_in(&rg->rg_header, buf);
 	rg->rg_flags = be32_to_cpu(str->rg_flags);
 	rg->rg_free = be32_to_cpu(str->rg_free);
 	rg->rg_dinodes = be32_to_cpu(str->rg_dinodes);
@@ -130,7 +120,6 @@ void gfs2_rgrp_out(const struct gfs2_rgrp_host *rg, void *buf)
 {
 	struct gfs2_rgrp *str = buf;
 
-	gfs2_meta_header_out(&rg->rg_header, buf);
 	str->rg_flags = cpu_to_be32(rg->rg_flags);
 	str->rg_free = cpu_to_be32(rg->rg_free);
 	str->rg_dinodes = cpu_to_be32(rg->rg_dinodes);
