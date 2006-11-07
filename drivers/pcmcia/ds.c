@@ -231,65 +231,6 @@ static void pcmcia_check_driver(struct pcmcia_driver *p_drv)
 }
 
 
-#ifdef CONFIG_PCMCIA_LOAD_CIS
-
-/**
- * pcmcia_load_firmware - load CIS from userspace if device-provided is broken
- * @dev - the pcmcia device which needs a CIS override
- * @filename - requested filename in /lib/firmware/
- *
- * This uses the in-kernel firmware loading mechanism to use a "fake CIS" if
- * the one provided by the card is broken. The firmware files reside in
- * /lib/firmware/ in userspace.
- */
-static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
-{
-	struct pcmcia_socket *s = dev->socket;
-	const struct firmware *fw;
-	char path[20];
-	int ret=-ENOMEM;
-	cisdump_t *cis;
-
-	if (!filename)
-		return -EINVAL;
-
-	ds_dbg(1, "trying to load firmware %s\n", filename);
-
-	if (strlen(filename) > 14)
-		return -EINVAL;
-
-	snprintf(path, 20, "%s", filename);
-
-	if (request_firmware(&fw, path, &dev->dev) == 0) {
-		if (fw->size >= CISTPL_MAX_CIS_SIZE)
-			goto release;
-
-		cis = kzalloc(sizeof(cisdump_t), GFP_KERNEL);
-		if (!cis)
-			goto release;
-
-		cis->Length = fw->size + 1;
-		memcpy(cis->Data, fw->data, fw->size);
-
-		if (!pcmcia_replace_cis(s, cis))
-			ret = 0;
-	}
- release:
-	release_firmware(fw);
-
-	return (ret);
-}
-
-#else /* !CONFIG_PCMCIA_LOAD_CIS */
-
-static inline int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
-{
-	return -ENODEV;
-}
-
-#endif
-
-
 /*======================================================================*/
 
 
@@ -356,10 +297,11 @@ static void pcmcia_release_dev(struct device *dev)
 	kfree(p_dev);
 }
 
-static void pcmcia_add_pseudo_device(struct pcmcia_socket *s)
+static void pcmcia_add_device_later(struct pcmcia_socket *s, int mfc)
 {
 	if (!s->pcmcia_state.device_add_pending) {
 		s->pcmcia_state.device_add_pending = 1;
+		s->pcmcia_state.mfc_pfc = mfc;
 		schedule_work(&s->device_add);
 	}
 	return;
@@ -400,7 +342,7 @@ static int pcmcia_device_probe(struct device * dev)
 	did = p_dev->dev.driver_data;
 	if (did && (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) &&
 	    (p_dev->socket->device_count == 1) && (p_dev->device_no == 0))
-		pcmcia_add_pseudo_device(p_dev->socket);
+		pcmcia_add_device_later(p_dev->socket, 0);
 
  put_module:
 	if (ret)
@@ -598,8 +540,6 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 	p_dev->socket = s;
 	p_dev->device_no = (s->device_count++);
 	p_dev->func   = function;
-	if (s->functions <= function)
-		s->functions = function + 1;
 
 	p_dev->dev.bus = &pcmcia_bus_type;
 	p_dev->dev.parent = s->dev.dev;
@@ -690,6 +630,7 @@ static int pcmcia_card_add(struct pcmcia_socket *s)
 		no_funcs = mfc.nfn;
 	else
 		no_funcs = 1;
+	s->functions = no_funcs;
 
 	for (i=0; i < no_funcs; i++)
 		pcmcia_device_add(s, i);
@@ -698,11 +639,12 @@ static int pcmcia_card_add(struct pcmcia_socket *s)
 }
 
 
-static void pcmcia_delayed_add_pseudo_device(void *data)
+static void pcmcia_delayed_add_device(void *data)
 {
 	struct pcmcia_socket *s = data;
-	pcmcia_device_add(s, 0);
+	pcmcia_device_add(s, s->pcmcia_state.mfc_pfc);
 	s->pcmcia_state.device_add_pending = 0;
+	s->pcmcia_state.mfc_pfc = 0;
 }
 
 static int pcmcia_requery(struct device *dev, void * _data)
@@ -750,6 +692,85 @@ static void pcmcia_bus_rescan(struct pcmcia_socket *skt, int new_cis)
 	if (ret)
 		printk(KERN_INFO "pcmcia: bus_rescan_devices failed\n");
 }
+
+#ifdef CONFIG_PCMCIA_LOAD_CIS
+
+/**
+ * pcmcia_load_firmware - load CIS from userspace if device-provided is broken
+ * @dev - the pcmcia device which needs a CIS override
+ * @filename - requested filename in /lib/firmware/
+ *
+ * This uses the in-kernel firmware loading mechanism to use a "fake CIS" if
+ * the one provided by the card is broken. The firmware files reside in
+ * /lib/firmware/ in userspace.
+ */
+static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
+{
+	struct pcmcia_socket *s = dev->socket;
+	const struct firmware *fw;
+	char path[20];
+	int ret = -ENOMEM;
+	int no_funcs;
+	int old_funcs;
+	cisdump_t *cis;
+	cistpl_longlink_mfc_t mfc;
+
+	if (!filename)
+		return -EINVAL;
+
+	ds_dbg(1, "trying to load firmware %s\n", filename);
+
+	if (strlen(filename) > 14)
+		return -EINVAL;
+
+	snprintf(path, 20, "%s", filename);
+
+	if (request_firmware(&fw, path, &dev->dev) == 0) {
+		if (fw->size >= CISTPL_MAX_CIS_SIZE)
+			goto release;
+
+		cis = kzalloc(sizeof(cisdump_t), GFP_KERNEL);
+		if (!cis)
+			goto release;
+
+		cis->Length = fw->size + 1;
+		memcpy(cis->Data, fw->data, fw->size);
+
+		if (!pcmcia_replace_cis(s, cis))
+			ret = 0;
+
+		/* update information */
+		pcmcia_device_query(dev);
+
+		/* does this cis override add or remove functions? */
+		old_funcs = s->functions;
+
+		if (!pccard_read_tuple(s, BIND_FN_ALL, CISTPL_LONGLINK_MFC, &mfc))
+			no_funcs = mfc.nfn;
+		else
+			no_funcs = 1;
+		s->functions = no_funcs;
+
+		if (old_funcs > no_funcs)
+			pcmcia_card_remove(s, dev);
+		else if (no_funcs > old_funcs)
+			pcmcia_add_device_later(s, 1);
+	}
+ release:
+	release_firmware(fw);
+
+	return (ret);
+}
+
+#else /* !CONFIG_PCMCIA_LOAD_CIS */
+
+static inline int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
+{
+	return -ENODEV;
+}
+
+#endif
+
 
 static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 				  struct pcmcia_device_id *did)
@@ -1250,7 +1271,7 @@ static int __devinit pcmcia_bus_add_socket(struct class_device *class_dev,
 	init_waitqueue_head(&socket->queue);
 #endif
 	INIT_LIST_HEAD(&socket->devices_list);
-	INIT_WORK(&socket->device_add, pcmcia_delayed_add_pseudo_device, socket);
+	INIT_WORK(&socket->device_add, pcmcia_delayed_add_device, socket);
 	memset(&socket->pcmcia_state, 0, sizeof(u8));
 	socket->device_count = 0;
 
