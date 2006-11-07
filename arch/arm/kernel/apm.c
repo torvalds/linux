@@ -340,6 +340,7 @@ apm_ioctl(struct inode * inode, struct file *filp, u_int cmd, u_long arg)
 			wait_event(apm_suspend_waitqueue,
 				   as->suspend_state == SUSPEND_DONE);
 		} else {
+			as->suspend_state = SUSPEND_WAIT;
 			up(&state_lock);
 
 			/*
@@ -349,8 +350,14 @@ apm_ioctl(struct inode * inode, struct file *filp, u_int cmd, u_long arg)
 			 * acknowledged.
 			 */
 			err = queue_suspend_event(APM_USER_SUSPEND, as);
-			if (err < 0)
+			if (err < 0) {
+				/*
+				 * Avoid taking the lock here - this
+				 * should be fine.
+				 */
+				as->suspend_state = SUSPEND_NONE;
 				break;
+			}
 
 			if (err > 0)
 				apm_suspend();
