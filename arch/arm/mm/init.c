@@ -32,40 +32,51 @@ extern unsigned long phys_initrd_start;
 extern unsigned long phys_initrd_size;
 
 /*
- * The sole use of this is to pass memory configuration
- * data from paging_init to mem_init.
+ * This is used to pass memory configuration data from paging_init
+ * to mem_init, and by show_mem() to skip holes in the memory map.
  */
-static struct meminfo meminfo __initdata = { 0, };
+static struct meminfo meminfo = { 0, };
+
+#define for_each_nodebank(iter,mi,no)			\
+	for (iter = 0; iter < mi->nr_banks; iter++)	\
+		if (mi->bank[iter].node == no)
 
 void show_mem(void)
 {
 	int free = 0, total = 0, reserved = 0;
-	int shared = 0, cached = 0, slab = 0, node;
+	int shared = 0, cached = 0, slab = 0, node, i;
+	struct meminfo * mi = &meminfo;
 
 	printk("Mem-info:\n");
 	show_free_areas();
 	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 
 	for_each_online_node(node) {
-		struct page *page, *end;
+		for_each_nodebank (i,mi,node) {
+			unsigned int pfn1, pfn2;
+			struct page *page, *end;
 
-		page = NODE_MEM_MAP(node);
-		end  = page + NODE_DATA(node)->node_spanned_pages;
+			pfn1 = mi->bank[i].start >> PAGE_SHIFT;
+			pfn2 = (mi->bank[i].size + mi->bank[i].start) >> PAGE_SHIFT;
 
-		do {
-			total++;
-			if (PageReserved(page))
-				reserved++;
-			else if (PageSwapCache(page))
-				cached++;
-			else if (PageSlab(page))
-				slab++;
-			else if (!page_count(page))
-				free++;
-			else
-				shared += page_count(page) - 1;
-			page++;
-		} while (page < end);
+			page = NODE_MEM_MAP(node) + pfn1;
+			end  = NODE_MEM_MAP(node) + pfn2;
+
+			do {
+				total++;
+				if (PageReserved(page))
+					reserved++;
+				else if (PageSwapCache(page))
+					cached++;
+				else if (PageSlab(page))
+					slab++;
+				else if (!page_count(page))
+					free++;
+				else
+					shared += page_count(page) - 1;
+				page++;
+			} while (page < end);
+		}
 	}
 
 	printk("%d pages of RAM\n", total);
@@ -75,10 +86,6 @@ void show_mem(void)
 	printk("%d pages shared\n", shared);
 	printk("%d pages swap cached\n", cached);
 }
-
-#define for_each_nodebank(iter,mi,no)			\
-	for (iter = 0; iter < mi->nr_banks; iter++)	\
-		if (mi->bank[iter].node == no)
 
 /*
  * FIXME: We really want to avoid allocating the bootmap bitmap
