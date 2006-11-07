@@ -38,6 +38,9 @@
 #include "netxen_nic_phan_reg.h"
 #include "netxen_nic_ioctl.h"
 
+#include <linux/dma-mapping.h>
+#include <linux/vmalloc.h>
+
 MODULE_DESCRIPTION("NetXen Multi port (1/10) Gigabit Network Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(NETXEN_NIC_LINUX_VERSIONID);
@@ -66,7 +69,7 @@ static int netxen_nic_poll(struct net_device *dev, int *budget);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void netxen_nic_poll_controller(struct net_device *netdev);
 #endif
-static irqreturn_t netxen_intr(int irq, void *data, struct pt_regs *regs);
+static irqreturn_t netxen_intr(int irq, void *data);
 
 /*  PCI Device ID Table  */
 static struct pci_device_id netxen_pci_tbl[] __devinitdata = {
@@ -969,7 +972,7 @@ netxen_handle_int(struct netxen_adapter *adapter, struct net_device *netdev)
  * @irq: interrupt number
  * data points to adapter stucture (which may be handling more than 1 port
  */
-irqreturn_t netxen_intr(int irq, void *data, struct pt_regs * regs)
+irqreturn_t netxen_intr(int irq, void *data)
 {
 	struct netxen_adapter *adapter;
 	struct netxen_port *port;
@@ -1049,7 +1052,7 @@ static void netxen_nic_poll_controller(struct net_device *netdev)
 	struct netxen_port *port = netdev_priv(netdev);
 	struct netxen_adapter *adapter = port->adapter;
 	disable_irq(adapter->irq);
-	netxen_intr(adapter->irq, adapter, NULL);
+	netxen_intr(adapter->irq, adapter);
 	enable_irq(adapter->irq);
 }
 #endif

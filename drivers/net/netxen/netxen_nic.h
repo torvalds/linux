@@ -30,7 +30,6 @@
 #ifndef _NETXEN_NIC_H_
 #define _NETXEN_NIC_H_
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>

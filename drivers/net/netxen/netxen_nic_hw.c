@@ -351,7 +351,7 @@ void netxen_tso_check(struct netxen_adapter *adapter,
 		    ((skb->nh.iph)->ihl * sizeof(u32)) +
 		    ((skb->h.th)->doff * sizeof(u32));
 		desc->opcode = TX_TCP_LSO;
-	} else if (skb->ip_summed == CHECKSUM_HW) {
+	} else if (skb->ip_summed == CHECKSUM_COMPLETE) {
 		if (skb->nh.iph->protocol == IPPROTO_TCP) {
 			desc->opcode = TX_TCP_PKT;
 		} else if (skb->nh.iph->protocol == IPPROTO_UDP) {
