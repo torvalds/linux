@@ -1275,7 +1275,7 @@ static ssize_t snd_ctl_read(struct file *file, char __user *buffer,
 			schedule();
 			remove_wait_queue(&ctl->change_sleep, &wait);
 			if (signal_pending(current))
-				return result > 0 ? result : -ERESTARTSYS;
+				return -ERESTARTSYS;
 			spin_lock_irq(&ctl->read_lock);
 		}
 		kev = snd_kctl_event(ctl->events.next);
