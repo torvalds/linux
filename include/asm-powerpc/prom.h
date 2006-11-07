@@ -332,10 +332,18 @@ extern int of_irq_map_one(struct device_node *device, int index,
 struct pci_dev;
 extern int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq);
 
-static inline void of_irq_to_resource(struct device_node *dev, int index, struct resource *r)
+static inline int of_irq_to_resource(struct device_node *dev, int index, struct resource *r)
 {
-	r->start = r->end = irq_of_parse_and_map(dev, index);
-	r->flags = IORESOURCE_IRQ;
+	int irq = irq_of_parse_and_map(dev, index);
+
+	/* Only dereference the resource if both the
+	 * resource and the irq are valid. */
+	if (r && irq != NO_IRQ) {
+		r->start = r->end = irq;
+		r->flags = IORESOURCE_IRQ;
+	}
+
+	return irq;
 }
 
 
