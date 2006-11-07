@@ -9,7 +9,7 @@
    Steve Hirsch, Andreas Koppenh"ofer, Michael Leodolter, Eyal Lebedinsky,
    Michael Schaefer, J"org Weule, and Eric Youngdale.
 
-   Copyright 1992 - 2005 Kai Makisara
+   Copyright 1992 - 2006 Kai Makisara
    email Kai.Makisara@kolumbus.fi
 
    Some small formal changes - aeb, 950809
@@ -17,7 +17,7 @@
    Last modified: 18-JAN-1998 Richard Gooch <rgooch@atnf.csiro.au> Devfs support
  */
 
-static const char *verstr = "20050830";
+static const char *verstr = "20061107";
 
 #include <linux/module.h>
 
@@ -999,7 +999,7 @@ static int check_tape(struct scsi_tape *STp, struct file *filp)
 			STp->min_block = ((STp->buffer)->b_data[4] << 8) |
 			    (STp->buffer)->b_data[5];
 			if ( DEB( debugging || ) !STp->inited)
-				printk(KERN_WARNING
+				printk(KERN_INFO
                                        "%s: Block limits %d - %d bytes.\n", name,
                                        STp->min_block, STp->max_block);
 		} else {
@@ -1221,7 +1221,7 @@ static int st_flush(struct file *filp, fl_owner_t id)
 	}
 
 	DEBC( if (STp->nbr_requests)
-		printk(KERN_WARNING "%s: Number of r/w requests %d, dio used in %d, pages %d (%d).\n",
+		printk(KERN_DEBUG "%s: Number of r/w requests %d, dio used in %d, pages %d (%d).\n",
 		       name, STp->nbr_requests, STp->nbr_dio, STp->nbr_pages, STp->nbr_combinable));
 
 	if (STps->rw == ST_WRITING && !STp->pos_unknown) {
@@ -4053,11 +4053,11 @@ static int st_probe(struct device *dev)
 			goto out_free_tape;
 	}
 
-	sdev_printk(KERN_WARNING, SDp,
+	sdev_printk(KERN_NOTICE, SDp,
 		    "Attached scsi tape %s\n", tape_name(tpnt));
-	printk(KERN_WARNING "%s: try direct i/o: %s (alignment %d B)\n",
-	       tape_name(tpnt), tpnt->try_dio ? "yes" : "no",
-	       queue_dma_alignment(SDp->request_queue) + 1);
+	sdev_printk(KERN_INFO, SDp, "%s: try direct i/o: %s (alignment %d B)\n",
+		    tape_name(tpnt), tpnt->try_dio ? "yes" : "no",
+		    queue_dma_alignment(SDp->request_queue) + 1);
 
 	return 0;
 
