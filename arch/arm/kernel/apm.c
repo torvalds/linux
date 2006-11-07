@@ -12,7 +12,6 @@
  */
 #include <linux/module.h>
 #include <linux/poll.h>
-#include <linux/timer.h>
 #include <linux/slab.h>
 #include <linux/proc_fs.h>
 #include <linux/miscdevice.h>
@@ -26,6 +25,7 @@
 #include <linux/init.h>
 #include <linux/completion.h>
 #include <linux/kthread.h>
+#include <linux/delay.h>
 
 #include <asm/apm.h> /* apm_power_info */
 #include <asm/system.h>
@@ -71,7 +71,8 @@ struct apm_user {
 #define SUSPEND_PENDING	1		/* suspend pending read */
 #define SUSPEND_READ	2		/* suspend read, pending ack */
 #define SUSPEND_ACKED	3		/* suspend acked */
-#define SUSPEND_DONE	4		/* suspend completed */
+#define SUSPEND_WAIT	4		/* waiting for suspend */
+#define SUSPEND_DONE	5		/* suspend completed */
 
 	struct apm_queue	queue;
 };
@@ -101,6 +102,7 @@ static DECLARE_WAIT_QUEUE_HEAD(kapmd_wait);
 static DEFINE_SPINLOCK(kapmd_queue_lock);
 static struct apm_queue kapmd_queue;
 
+static DECLARE_MUTEX(state_lock);
 
 static const char driver_version[] = "1.13";	/* no spaces */
 
@@ -148,38 +150,60 @@ static void queue_add_event(struct apm_queue *q, apm_event_t event)
 	q->events[q->event_head] = event;
 }
 
-static void queue_event_one_user(struct apm_user *as, apm_event_t event)
-{
-	if (as->suser && as->writer) {
-		switch (event) {
-		case APM_SYS_SUSPEND:
-		case APM_USER_SUSPEND:
-			/*
-			 * If this user already has a suspend pending,
-			 * don't queue another one.
-			 */
-			if (as->suspend_state != SUSPEND_NONE)
-				return;
-
-			as->suspend_state = SUSPEND_PENDING;
-			suspends_pending++;
-			break;
-		}
-	}
-	queue_add_event(&as->queue, event);
-}
-
-static void queue_event(apm_event_t event, struct apm_user *sender)
+static void queue_event(apm_event_t event)
 {
 	struct apm_user *as;
 
 	down_read(&user_list_lock);
 	list_for_each_entry(as, &apm_user_list, list) {
-		if (as != sender && as->reader)
-			queue_event_one_user(as, event);
+		if (as->reader)
+			queue_add_event(&as->queue, event);
 	}
 	up_read(&user_list_lock);
 	wake_up_interruptible(&apm_waitqueue);
+}
+
+/*
+ * queue_suspend_event - queue an APM suspend event.
+ *
+ * Check that we're in a state where we can suspend.  If not,
+ * return -EBUSY.  Otherwise, queue an event to all "writer"
+ * users.  If there are no "writer" users, return '1' to
+ * indicate that we can immediately suspend.
+ */
+static int queue_suspend_event(apm_event_t event, struct apm_user *sender)
+{
+	struct apm_user *as;
+	int ret = 1;
+
+	down(&state_lock);
+	down_read(&user_list_lock);
+
+	/*
+	 * If a thread is still processing, we can't suspend, so reject
+	 * the request.
+	 */
+	list_for_each_entry(as, &apm_user_list, list) {
+		if (as != sender && as->reader && as->writer && as->suser &&
+		    as->suspend_state != SUSPEND_NONE) {
+			ret = -EBUSY;
+			goto out;
+		}
+	}
+
+	list_for_each_entry(as, &apm_user_list, list) {
+		if (as != sender && as->reader && as->writer && as->suser) {
+			as->suspend_state = SUSPEND_PENDING;
+			suspends_pending++;
+			queue_add_event(&as->queue, event);
+			ret = 0;
+		}
+	}
+ out:
+	up_read(&user_list_lock);
+	up(&state_lock);
+	wake_up_interruptible(&apm_waitqueue);
+	return ret;
 }
 
 static void apm_suspend(void)
@@ -191,17 +215,22 @@ static void apm_suspend(void)
 	 * Anyone on the APM queues will think we're still suspended.
 	 * Send a message so everyone knows we're now awake again.
 	 */
-	queue_event(APM_NORMAL_RESUME, NULL);
+	queue_event(APM_NORMAL_RESUME);
 
 	/*
 	 * Finally, wake up anyone who is sleeping on the suspend.
 	 */
+	down(&state_lock);
 	down_read(&user_list_lock);
 	list_for_each_entry(as, &apm_user_list, list) {
-		as->suspend_result = err;
-		as->suspend_state = SUSPEND_DONE;
+		if (as->suspend_state == SUSPEND_WAIT ||
+		    as->suspend_state == SUSPEND_ACKED) {
+	  		as->suspend_result = err;
+			as->suspend_state = SUSPEND_DONE;
+		}
 	}
 	up_read(&user_list_lock);
+	up(&state_lock);
 
 	wake_up(&apm_suspend_waitqueue);
 }
@@ -227,8 +256,11 @@ static ssize_t apm_read(struct file *fp, char __user *buf, size_t count, loff_t 
 		if (copy_to_user(buf, &event, sizeof(event)))
 			break;
 
-		if (event == APM_SYS_SUSPEND || event == APM_USER_SUSPEND)
+		down(&state_lock);
+		if (as->suspend_state == SUSPEND_PENDING &&
+		    (event == APM_SYS_SUSPEND || event == APM_USER_SUSPEND))
 			as->suspend_state = SUSPEND_READ;
+		up(&state_lock);
 
 		buf += sizeof(event);
 		i -= sizeof(event);
@@ -270,9 +302,13 @@ apm_ioctl(struct inode * inode, struct file *filp, u_int cmd, u_long arg)
 
 	switch (cmd) {
 	case APM_IOC_SUSPEND:
+		down(&state_lock);
+
 		as->suspend_result = -EINTR;
 
 		if (as->suspend_state == SUSPEND_READ) {
+			int pending;
+
 			/*
 			 * If we read a suspend command from /dev/apm_bios,
 			 * then the corresponding APM_IOC_SUSPEND ioctl is
@@ -280,47 +316,66 @@ apm_ioctl(struct inode * inode, struct file *filp, u_int cmd, u_long arg)
 			 */
 			as->suspend_state = SUSPEND_ACKED;
 			suspends_pending--;
+			pending = suspends_pending == 0;
+			up(&state_lock);
+
+			/*
+			 * If there are no further acknowledges required,
+			 * suspend the system.
+			 */
+			if (pending)
+				apm_suspend();
+
+			/*
+			 * Wait for the suspend/resume to complete.  If there
+			 * are pending acknowledges, we wait here for them.
+			 *
+			 * Note: we need to ensure that the PM subsystem does
+			 * not kick us out of the wait when it suspends the
+			 * threads.
+			 */
+			flags = current->flags;
+			current->flags |= PF_NOFREEZE;
+
+			wait_event(apm_suspend_waitqueue,
+				   as->suspend_state == SUSPEND_DONE);
 		} else {
+			up(&state_lock);
+
 			/*
 			 * Otherwise it is a request to suspend the system.
 			 * Queue an event for all readers, and expect an
 			 * acknowledge from all writers who haven't already
 			 * acknowledged.
 			 */
-			queue_event(APM_USER_SUSPEND, as);
-		}
+			err = queue_suspend_event(APM_USER_SUSPEND, as);
+			if (err < 0)
+				break;
 
-		/*
-		 * If there are no further acknowledges required, suspend
-		 * the system.
-		 */
-		if (suspends_pending == 0)
-			apm_suspend();
+			if (err > 0)
+				apm_suspend();
 
-		/*
-		 * Wait for the suspend/resume to complete.  If there are
-		 * pending acknowledges, we wait here for them.
-		 *
-		 * Note that we need to ensure that the PM subsystem does
-		 * not kick us out of the wait when it suspends the threads.
-		 */
-		flags = current->flags;
-		current->flags |= PF_NOFREEZE;
+			/*
+			 * Wait for the suspend/resume to complete.  If there
+			 * are pending acknowledges, we wait here for them.
+			 *
+			 * Note: we need to ensure that the PM subsystem does
+			 * not kick us out of the wait when it suspends the
+			 * threads.
+			 */
+			flags = current->flags;
+			current->flags |= PF_NOFREEZE;
 
-		/*
-		 * Note: do not allow a thread which is acking the suspend
-		 * to escape until the resume is complete.
-		 */
-		if (as->suspend_state == SUSPEND_ACKED)
-			wait_event(apm_suspend_waitqueue,
-					 as->suspend_state == SUSPEND_DONE);
-		else
 			wait_event_interruptible(apm_suspend_waitqueue,
 					 as->suspend_state == SUSPEND_DONE);
+		}
 
 		current->flags = flags;
+
+		down(&state_lock);
 		err = as->suspend_result;
 		as->suspend_state = SUSPEND_NONE;
+		up(&state_lock);
 		break;
 	}
 
@@ -330,6 +385,8 @@ apm_ioctl(struct inode * inode, struct file *filp, u_int cmd, u_long arg)
 static int apm_release(struct inode * inode, struct file * filp)
 {
 	struct apm_user *as = filp->private_data;
+	int pending = 0;
+
 	filp->private_data = NULL;
 
 	down_write(&user_list_lock);
@@ -342,11 +399,14 @@ static int apm_release(struct inode * inode, struct file * filp)
 	 * need to balance suspends_pending, which means the
 	 * possibility of sleeping.
 	 */
+	down(&state_lock);
 	if (as->suspend_state != SUSPEND_NONE) {
 		suspends_pending -= 1;
-		if (suspends_pending == 0)
-			apm_suspend();
+		pending = suspends_pending == 0;
 	}
+	up(&state_lock);
+	if (pending)
+		apm_suspend();
 
 	kfree(as);
 	return 0;
@@ -470,6 +530,7 @@ static int kapmd(void *arg)
 {
 	do {
 		apm_event_t event;
+		int ret;
 
 		wait_event_interruptible(kapmd_wait,
 				!queue_empty(&kapmd_queue) || kthread_should_stop());
@@ -489,13 +550,20 @@ static int kapmd(void *arg)
 
 		case APM_LOW_BATTERY:
 		case APM_POWER_STATUS_CHANGE:
-			queue_event(event, NULL);
+			queue_event(event);
 			break;
 
 		case APM_USER_SUSPEND:
 		case APM_SYS_SUSPEND:
-			queue_event(event, NULL);
-			if (suspends_pending == 0)
+			ret = queue_suspend_event(event, NULL);
+			if (ret < 0) {
+				/*
+				 * We were busy.  Try again in 50ms.
+				 */
+				queue_add_event(&kapmd_queue, event);
+				msleep(50);
+			}
+			if (ret > 0)
 				apm_suspend();
 			break;
 
