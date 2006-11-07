@@ -3,6 +3,9 @@
 #include <linux/kernel_stat.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
+#include <linux/interrupt.h>
+#include <linux/mc146818rtc.h>
+#include <linux/timex.h>
 
 #include <asm/mipsregs.h>
 #include <asm/ptrace.h>
@@ -10,24 +13,14 @@
 #include <asm/div64.h>
 #include <asm/cpu.h>
 #include <asm/time.h>
-
-#include <linux/interrupt.h>
-#include <linux/mc146818rtc.h>
-#include <linux/timex.h>
-#include <asm/mipsregs.h>
-#include <asm/hardirq.h>
 #include <asm/irq.h>
-#include <asm/div64.h>
-#include <asm/cpu.h>
-#include <asm/time.h>
 #include <asm/mc146818-time.h>
 #include <asm/msc01_ic.h>
+#include <asm/smp.h>
 
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/prom.h>
 #include <asm/mips-boards/simint.h>
-#include <asm/mc146818-time.h>
-#include <asm/smp.h>
 
 
 unsigned long cpu_khz;

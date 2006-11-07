@@ -94,8 +94,6 @@ void bcm1480_time_init(void)
 	 */
 }
 
-#include <asm/sibyte/sb1250.h>
-
 void bcm1480_timer_interrupt(void)
 {
 	int cpu = smp_processor_id();
