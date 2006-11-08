@@ -95,10 +95,10 @@
  */
 
 struct frag_hdr {
-	unsigned char	nexthdr;
-	unsigned char	reserved;	
-	unsigned short	frag_off;
-	__u32		identification;
+	__u8	nexthdr;
+	__u8	reserved;
+	__be16	frag_off;
+	__be32	identification;
 };
 
 #define	IP6_MF	0x0001
