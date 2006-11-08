@@ -2080,13 +2080,9 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	return hid;
 
 fail:
-
-	if (hid->urbin)
-		usb_free_urb(hid->urbin);
-	if (hid->urbout)
-		usb_free_urb(hid->urbout);
-	if (hid->urbctrl)
-		usb_free_urb(hid->urbctrl);
+	usb_free_urb(hid->urbin);
+	usb_free_urb(hid->urbout);
+	usb_free_urb(hid->urbctrl);
 	hid_free_buffers(dev, hid);
 	hid_free_device(hid);
 
@@ -2117,8 +2113,7 @@ static void hid_disconnect(struct usb_interface *intf)
 
 	usb_free_urb(hid->urbin);
 	usb_free_urb(hid->urbctrl);
-	if (hid->urbout)
-		usb_free_urb(hid->urbout);
+	usb_free_urb(hid->urbout);
 
 	hid_free_buffers(hid->dev, hid);
 	hid_free_device(hid);
