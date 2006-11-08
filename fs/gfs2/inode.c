@@ -50,7 +50,6 @@ void gfs2_inode_attr_in(struct gfs2_inode *ip)
 	struct inode *inode = &ip->i_inode;
 	struct gfs2_dinode_host *di = &ip->i_di;
 
-	inode->i_ino = ip->i_num.no_addr;
 	i_size_write(inode, di->di_size);
 	inode->i_blocks = di->di_blocks <<
 		(GFS2_SB(inode)->sd_sb.sb_bsize_shift - GFS2_BASIC_BLOCK_SHIFT);
@@ -73,6 +72,7 @@ static int iget_set(struct inode *inode, void *opaque)
 	struct gfs2_inum_host *inum = opaque;
 
 	ip->i_num = *inum;
+	inode->i_ino = inum->no_addr;
 	return 0;
 }
 
