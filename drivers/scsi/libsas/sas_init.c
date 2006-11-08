@@ -144,7 +144,7 @@ static int sas_get_linkerrors(struct sas_phy *phy)
 	return sas_smp_get_phy_events(phy);
 }
 
-static int sas_phy_reset(struct sas_phy *phy, int hard_reset)
+int sas_phy_reset(struct sas_phy *phy, int hard_reset)
 {
 	int ret;
 	enum phy_func reset_type;

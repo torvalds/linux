@@ -73,6 +73,8 @@ struct sas_phy {
 
 	/* for the list of phys belonging to a port */
 	struct list_head	port_siblings;
+
+	struct work_struct      reset_work;
 };
 
 #define dev_to_phy(d) \

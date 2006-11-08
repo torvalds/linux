@@ -597,6 +597,7 @@ struct sas_domain_function_template {
 extern int sas_register_ha(struct sas_ha_struct *);
 extern int sas_unregister_ha(struct sas_ha_struct *);
 
+int sas_phy_reset(struct sas_phy *phy, int hard_reset);
 extern int sas_queuecommand(struct scsi_cmnd *,
 		     void (*scsi_done)(struct scsi_cmnd *));
 extern int sas_target_alloc(struct scsi_target *);

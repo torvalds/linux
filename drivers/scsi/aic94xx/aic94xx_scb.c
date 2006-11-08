@@ -343,6 +343,27 @@ void asd_invalidate_edb(struct asd_ascb *ascb, int edb_id)
 	}
 }
 
+/* hard reset a phy later */
+static void do_phy_reset_later(void *data)
+{
+	struct sas_phy *sas_phy = data;
+	int error;
+
+	ASD_DPRINTK("%s: About to hard reset phy %d\n", __FUNCTION__,
+		    sas_phy->identify.phy_identifier);
+	/* Reset device port */
+	error = sas_phy_reset(sas_phy, 1);
+	if (error)
+		ASD_DPRINTK("%s: Hard reset of phy %d failed (%d).\n",
+			    __FUNCTION__, sas_phy->identify.phy_identifier, error);
+}
+
+static void phy_reset_later(struct sas_phy *sas_phy, struct Scsi_Host *shost)
+{
+	INIT_WORK(&sas_phy->reset_work, do_phy_reset_later, sas_phy);
+	queue_work(shost->work_q, &sas_phy->reset_work);
+}
+
 /* start up the ABORT TASK tmf... */
 static void task_kill_later(struct asd_ascb *ascb)
 {
@@ -402,7 +423,9 @@ static void escb_tasklet_complete(struct asd_ascb *ascb,
 		goto out;
 	}
 	case REQ_DEVICE_RESET: {
-		struct asd_ascb *a, *b;
+		struct Scsi_Host *shost = sas_ha->core.shost;
+		struct sas_phy *dev_phy;
+		struct asd_ascb *a;
 		u16 conn_handle;
 
 		conn_handle = *((u16*)(&dl->status_block[1]));
@@ -412,17 +435,31 @@ static void escb_tasklet_complete(struct asd_ascb *ascb,
 			    dl->status_block[3]);
 
 		/* Kill all pending tasks and reset the device */
-		list_for_each_entry_safe(a, b, &asd_ha->seq.pend_q, list) {
-			struct sas_task *task = a->uldd_task;
-			struct domain_device *dev = task->dev;
+		dev_phy = NULL;
+		list_for_each_entry(a, &asd_ha->seq.pend_q, list) {
+			struct sas_task *task;
+			struct domain_device *dev;
 			u16 x;
 
-			x = *((u16*)(&dev->lldd_dev));
-			if (x == conn_handle)
+			task = a->uldd_task;
+			if (!task)
+				continue;
+			dev = task->dev;
+
+			x = (u16)dev->lldd_dev;
+			if (x == conn_handle) {
+				dev_phy = dev->port->phy;
 				task_kill_later(a);
+			}
 		}
 
-		/* FIXME: Reset device port (huh?) */
+		/* Reset device port */
+		if (!dev_phy) {
+			ASD_DPRINTK("%s: No pending commands; can't reset.\n",
+				    __FUNCTION__);
+			goto out;
+		}
+		phy_reset_later(dev_phy, shost);
 		goto out;
 	}
 	case SIGNAL_NCQ_ERROR:
