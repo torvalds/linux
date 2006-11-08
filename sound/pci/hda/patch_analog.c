@@ -811,7 +811,7 @@ static struct hda_board_config ad1986a_cfg_tbl[] = {
 	{ .pci_subvendor = 0x144d, .pci_subdevice = 0xc024,
 	  .config = AD1986A_LAPTOP_EAPD }, /* Samsung R65-T2300 Charis */
 	{ .pci_subvendor = 0x144d, .pci_subdevice = 0xc026,
-	  .config = AD1986A_LAPTOP_EAPD }, /* Samsung X10-T2300 Culesa */
+	  .config = AD1986A_LAPTOP_EAPD }, /* Samsung X11-T2300 Culesa */
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1153,
 	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS M9 */
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1213,
