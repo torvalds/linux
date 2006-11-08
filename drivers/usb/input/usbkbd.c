@@ -208,10 +208,8 @@ static int usb_kbd_alloc_mem(struct usb_device *dev, struct usb_kbd *kbd)
 
 static void usb_kbd_free_mem(struct usb_device *dev, struct usb_kbd *kbd)
 {
-	if (kbd->irq)
-		usb_free_urb(kbd->irq);
-	if (kbd->led)
-		usb_free_urb(kbd->led);
+	usb_free_urb(kbd->irq);
+	usb_free_urb(kbd->led);
 	if (kbd->new)
 		usb_buffer_free(dev, 8, kbd->new, kbd->new_dma);
 	if (kbd->cr)
