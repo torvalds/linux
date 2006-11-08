@@ -190,8 +190,7 @@ static int qcm_alloc_int_urb(struct qcm *cam)
 
 static void qcm_free_int(struct qcm *cam)
 {
-	if (cam->button_urb)
-		usb_free_urb(cam->button_urb);
+	usb_free_urb(cam->button_urb);
 }
 #endif /* CONFIG_INPUT */
 
