@@ -826,6 +826,8 @@ struct request_sock;
  *	Sets the openreq's sid to socket's sid with MLS portion taken from peer sid.
  * @inet_csk_clone:
  *	Sets the new child socket's sid to the openreq sid.
+ * @inet_conn_established:
+ *     Sets the connection's peersid to the secmark on skb.
  * @req_classify_flow:
  *	Sets the flow's sid to the openreq sid.
  *
@@ -1368,6 +1370,7 @@ struct security_operations {
 	int (*inet_conn_request)(struct sock *sk, struct sk_buff *skb,
 					struct request_sock *req);
 	void (*inet_csk_clone)(struct sock *newsk, const struct request_sock *req);
+	void (*inet_conn_established)(struct sock *sk, struct sk_buff *skb);
 	void (*req_classify_flow)(const struct request_sock *req, struct flowi *fl);
 #endif	/* CONFIG_SECURITY_NETWORK */
 
@@ -2961,9 +2964,15 @@ static inline void security_inet_csk_clone(struct sock *newsk,
 {
 	security_ops->inet_csk_clone(newsk, req);
 }
+
+static inline void security_inet_conn_established(struct sock *sk,
+			struct sk_buff *skb)
+{
+	security_ops->inet_conn_established(sk, skb);
+}
 #else	/* CONFIG_SECURITY_NETWORK */
 static inline int security_unix_stream_connect(struct socket * sock,
-					       struct socket * other, 
+					       struct socket * other,
 					       struct sock * newsk)
 {
 	return 0;
@@ -3108,6 +3117,11 @@ static inline int security_inet_conn_request(struct sock *sk,
 
 static inline void security_inet_csk_clone(struct sock *newsk,
 			const struct request_sock *req)
+{
+}
+
+static inline void security_inet_conn_established(struct sock *sk,
+			struct sk_buff *skb)
 {
 }
 #endif	/* CONFIG_SECURITY_NETWORK */

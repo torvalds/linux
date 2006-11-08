@@ -3535,8 +3535,10 @@ static int selinux_socket_getpeersec_stream(struct socket *sock, char __user *op
 	}
 	else if (isec->sclass == SECCLASS_TCP_SOCKET) {
 		peer_sid = selinux_netlbl_socket_getpeersec_stream(sock);
-		if (peer_sid == SECSID_NULL)
-			peer_sid = selinux_socket_getpeer_stream(sock->sk);
+		if (peer_sid == SECSID_NULL) {
+			ssec = sock->sk->sk_security;
+			peer_sid = ssec->peer_sid;
+		}
 		if (peer_sid == SECSID_NULL) {
 			err = -ENOPROTOOPT;
 			goto out;
@@ -3647,11 +3649,11 @@ static int selinux_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 		return 0;
 	}
 
-	err = selinux_xfrm_decode_session(skb, &peersid, 0);
-	BUG_ON(err);
+	selinux_skb_xfrm_sid(skb, &peersid);
 
 	if (peersid == SECSID_NULL) {
 		req->secid = sksec->sid;
+		req->peer_secid = 0;
 		return 0;
 	}
 
@@ -3660,6 +3662,7 @@ static int selinux_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 		return err;
 
 	req->secid = newsid;
+	req->peer_secid = peersid;
 	return 0;
 }
 
@@ -3669,12 +3672,21 @@ static void selinux_inet_csk_clone(struct sock *newsk,
 	struct sk_security_struct *newsksec = newsk->sk_security;
 
 	newsksec->sid = req->secid;
+	newsksec->peer_sid = req->peer_secid;
 	/* NOTE: Ideally, we should also get the isec->sid for the
 	   new socket in sync, but we don't have the isec available yet.
 	   So we will wait until sock_graft to do it, by which
 	   time it will have been created and available. */
 
 	selinux_netlbl_sk_security_init(newsksec, req->rsk_ops->family);
+}
+
+static void selinux_inet_conn_established(struct sock *sk,
+				struct sk_buff *skb)
+{
+	struct sk_security_struct *sksec = sk->sk_security;
+
+	selinux_skb_xfrm_sid(skb, &sksec->peer_sid);
 }
 
 static void selinux_req_classify_flow(const struct request_sock *req,
@@ -4739,6 +4751,7 @@ static struct security_operations selinux_ops = {
 	.sock_graft =			selinux_sock_graft,
 	.inet_conn_request =		selinux_inet_conn_request,
 	.inet_csk_clone =		selinux_inet_csk_clone,
+	.inet_conn_established =	selinux_inet_conn_established,
 	.req_classify_flow =		selinux_req_classify_flow,
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
