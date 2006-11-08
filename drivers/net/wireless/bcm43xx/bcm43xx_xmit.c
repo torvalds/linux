@@ -543,6 +543,7 @@ int bcm43xx_rx(struct bcm43xx_private *bcm,
 		break;
 	}
 
+	frame_ctl = le16_to_cpu(wlhdr->frame_ctl);
 	switch (WLAN_FC_GET_TYPE(frame_ctl)) {
 	case IEEE80211_FTYPE_MGMT:
 		ieee80211_rx_mgt(bcm->ieee, wlhdr, &stats);
