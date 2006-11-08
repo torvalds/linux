@@ -170,14 +170,15 @@ prism54_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_master(pdev);
 
 	/* enable MWI */
-	pci_set_mwi(pdev);
+	if (pci_set_mwi(pdev))
+		goto do_pci_release_regions;
 
 	/* setup the network device interface and its structure */
 	if (!(ndev = islpci_setup(pdev))) {
 		/* error configuring the driver as a network device */
 		printk(KERN_ERR "%s: could not configure network device\n",
 		       DRV_NAME);
-		goto do_pci_release_regions;
+		goto do_pci_clear_mwi;
 	}
 
 	priv = netdev_priv(ndev);
@@ -207,6 +208,8 @@ prism54_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_drvdata(pdev, NULL);
 	free_netdev(ndev);
 	priv = NULL;
+      do_pci_clear_mwi:
+	pci_clear_mwi(pdev);
       do_pci_release_regions:
 	pci_release_regions(pdev);
       do_pci_disable_device:
@@ -254,6 +257,8 @@ prism54_remove(struct pci_dev *pdev)
 	free_netdev(ndev);
 	priv = NULL;
 
+	pci_clear_mwi(pdev);
+
 	pci_release_regions(pdev);
 
 	pci_disable_device(pdev);
@@ -287,11 +292,18 @@ prism54_resume(struct pci_dev *pdev)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	islpci_private *priv = ndev ? netdev_priv(ndev) : NULL;
+	int err;
+
 	BUG_ON(!priv);
 
-	pci_enable_device(pdev);
-
 	printk(KERN_NOTICE "%s: got resume request\n", ndev->name);
+
+	err = pci_enable_device(pdev);
+	if (err) {
+		printk(KERN_ERR "%s: pci_enable_device failed on resume\n",
+		       ndev->name);
+		return err;
+	}
 
 	pci_restore_state(pdev);
 

@@ -425,8 +425,14 @@ static int prism2_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 static int prism2_pci_resume(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
+	int err;
 
-	pci_enable_device(pdev);
+	err = pci_enable_device(pdev);
+	if (err) {
+		printk(KERN_ERR "%s: pci_enable_device failed on resume\n",
+		       dev->name);
+		return err;
+	}
 	pci_restore_state(pdev);
 	prism2_hw_config(dev, 0);
 	if (netif_running(dev)) {
