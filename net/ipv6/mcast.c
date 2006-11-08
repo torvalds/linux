@@ -83,7 +83,7 @@
 struct mld2_grec {
 	__u8		grec_type;
 	__u8		grec_auxwords;
-	__u16		grec_nsrcs;
+	__be16		grec_nsrcs;
 	struct in6_addr	grec_mca;
 	struct in6_addr	grec_src[0];
 };
@@ -92,8 +92,8 @@ struct mld2_report {
 	__u8	type;
 	__u8	resv1;
 	__u16	csum;
-	__u16	resv2;
-	__u16	ngrec;
+	__be16	resv2;
+	__be16	ngrec;
 	struct mld2_grec grec[0];
 };
 
@@ -101,8 +101,8 @@ struct mld2_query {
 	__u8 type;
 	__u8 code;
 	__u16 csum;
-	__u16 mrc;
-	__u16 resv1;
+	__be16 mrc;
+	__be16 resv1;
 	struct in6_addr mca;
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	__u8 qrv:3,
@@ -116,7 +116,7 @@ struct mld2_query {
 #error "Please fix <asm/byteorder.h>"
 #endif
 	__u8 qqic;
-	__u16 nsrcs;
+	__be16 nsrcs;
 	struct in6_addr srcs[0];
 };
 
