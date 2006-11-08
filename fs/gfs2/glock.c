@@ -1244,9 +1244,6 @@ restart:
 
 	clear_bit(GLF_PREFETCH, &gl->gl_flags);
 
-	if (error == GLR_TRYFAILED && (gh->gh_flags & GL_DUMP))
-		dump_glock(gl);
-
 	return error;
 }
 
