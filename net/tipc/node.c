@@ -597,8 +597,7 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_NET_ADDR))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
-	domain = *(u32 *)TLV_DATA(req_tlv_area);
-	domain = ntohl(domain);
+	domain = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
 	if (!tipc_addr_domain_valid(domain))
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (network address)");
@@ -642,8 +641,7 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_NET_ADDR))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
-	domain = *(u32 *)TLV_DATA(req_tlv_area);
-	domain = ntohl(domain);
+	domain = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
 	if (!tipc_addr_domain_valid(domain))
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (network address)");
@@ -664,8 +662,7 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 
 	/* Add TLV for broadcast link */
 
-        link_info.dest = tipc_own_addr & 0xfffff00;
-	link_info.dest = htonl(link_info.dest);
+        link_info.dest = htonl(tipc_own_addr & 0xfffff00);
         link_info.up = htonl(1);
         sprintf(link_info.str, tipc_bclink_name);
 	tipc_cfg_append_tlv(buf, TIPC_TLV_LINK_INFO, &link_info, sizeof(link_info));
