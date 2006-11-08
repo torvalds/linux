@@ -392,8 +392,7 @@ out2:
 		device_remove_file(mc->dev, &dev_attrs[i]);
 out:
 	if (mc) {
-		if (mc->irq)
-			usb_free_urb(mc->irq);
+		usb_free_urb(mc->irq);
 		if (mc->data)
 			usb_buffer_free(dev, URB_INT_SIZE, mc->data, mc->data_dma);
 		if (mc->dev)
