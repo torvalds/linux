@@ -650,8 +650,7 @@ out2:
 		device_remove_file(kit->dev, &dev_output_attrs[i]);
 out:
 	if (kit) {
-		if (kit->irq)
-			usb_free_urb(kit->irq);
+		usb_free_urb(kit->irq);
 		if (kit->data)
 			usb_buffer_free(dev, URB_INT_SIZE, kit->data, kit->data_dma);
 		if (kit->dev)
