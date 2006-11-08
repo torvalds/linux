@@ -2938,7 +2938,7 @@ out:
 	return NULL;
 }
 
-static int pfkey_send_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, u16 sport)
+static int pfkey_send_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, __be16 sport)
 {
 	struct sk_buff *skb;
 	struct sadb_msg *hdr;
