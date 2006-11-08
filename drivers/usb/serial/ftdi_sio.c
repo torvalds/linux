@@ -1388,8 +1388,7 @@ static void ftdi_close (struct usb_serial_port *port, struct file *filp)
 	flush_scheduled_work();
 
 	/* shutdown our bulk read */
-	if (port->read_urb)
-		usb_kill_urb(port->read_urb);
+	usb_kill_urb(port->read_urb);
 } /* ftdi_close */
 
 
