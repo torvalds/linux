@@ -217,7 +217,7 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	if (tclass < 0)
 		tclass = 0;
 
-	*(u32 *)hdr = htonl(0x60000000 | (tclass << 20)) | fl->fl6_flowlabel;
+	*(__be32 *)hdr = htonl(0x60000000 | (tclass << 20)) | fl->fl6_flowlabel;
 
 	hdr->payload_len = htons(seg_len);
 	hdr->nexthdr = proto;
@@ -1311,7 +1311,7 @@ int ip6_push_pending_frames(struct sock *sk)
 
 	skb->nh.ipv6h = hdr = (struct ipv6hdr*) skb_push(skb, sizeof(struct ipv6hdr));
 	
-	*(u32*)hdr = fl->fl6_flowlabel |
+	*(__be32*)hdr = fl->fl6_flowlabel |
 		     htonl(0x60000000 | ((int)np->cork.tclass << 20));
 
 	if (skb->len <= sizeof(struct ipv6hdr) + IPV6_MAXPLEN)

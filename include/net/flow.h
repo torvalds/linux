@@ -27,7 +27,7 @@ struct flowi {
 			struct in6_addr		daddr;
 			struct in6_addr		saddr;
 			__u32			fwmark;
-			__u32			flowlabel;
+			__be32			flowlabel;
 		} ip6_u;
 
 		struct {

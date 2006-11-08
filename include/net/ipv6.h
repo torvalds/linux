@@ -191,7 +191,7 @@ struct ipv6_txoptions
 struct ip6_flowlabel
 {
 	struct ip6_flowlabel	*next;
-	u32			label;
+	__be32			label;
 	struct in6_addr		dst;
 	struct ipv6_txoptions	*opt;
 	atomic_t		users;
@@ -211,7 +211,7 @@ struct ipv6_fl_socklist
 	struct ip6_flowlabel	*fl;
 };
 
-extern struct ip6_flowlabel	*fl6_sock_lookup(struct sock *sk, u32 label);
+extern struct ip6_flowlabel	*fl6_sock_lookup(struct sock *sk, __be32 label);
 extern struct ipv6_txoptions	*fl6_merge_options(struct ipv6_txoptions * opt_space,
 						   struct ip6_flowlabel * fl,
 						   struct ipv6_txoptions * fopt);
