@@ -277,6 +277,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 		{ USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_VOLAR) },
 		{ USB_DEVICE(USB_VID_COMPRO,    USB_PID_COMPRO_VIDEOMATE_U500) },
 		{ USB_DEVICE(USB_VID_UNIWILL,   USB_PID_UNIWILL_STK7700P) },
+		{ USB_DEVICE(USB_VID_LEADTEK,   USB_PID_WINFAST_DTV_DONGLE_STK7700P) },
 		{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -318,7 +319,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 5,
+		.num_device_descs = 6,
 		.devices = {
 			{   "DiBcom STK7700P reference design",
 				{ &dib0700_usb_id_table[0], &dib0700_usb_id_table[1] },
@@ -338,6 +339,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "Uniwill STK7700P based (Hama and others)",
 				{ &dib0700_usb_id_table[7], NULL },
+				{ NULL },
+			},
+			{   "Leadtek Winfast DTV Dongle (STK7700P based)",
+				{ &dib0700_usb_id_table[8], NULL },
 				{ NULL },
 			}
 		}
