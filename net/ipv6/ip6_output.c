@@ -267,7 +267,7 @@ int ip6_nd_hdr(struct sock *sk, struct sk_buff *skb, struct net_device *dev,
 	hdr = (struct ipv6hdr *) skb_put(skb, sizeof(struct ipv6hdr));
 	skb->nh.ipv6h = hdr;
 
-	*(u32*)hdr = htonl(0x60000000);
+	*(__be32*)hdr = htonl(0x60000000);
 
 	hdr->payload_len = htons(len);
 	hdr->nexthdr = proto;
@@ -571,7 +571,7 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 	struct ipv6hdr *tmp_hdr;
 	struct frag_hdr *fh;
 	unsigned int mtu, hlen, left, len;
-	u32 frag_id = 0;
+	__be32 frag_id = 0;
 	int ptr, offset = 0, err=0;
 	u8 *prevhdr, nexthdr = 0;
 
