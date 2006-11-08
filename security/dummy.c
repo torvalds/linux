@@ -836,7 +836,7 @@ static inline void dummy_req_classify_flow(const struct request_sock *req,
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 static int dummy_xfrm_policy_alloc_security(struct xfrm_policy *xp,
-		struct xfrm_user_sec_ctx *sec_ctx, struct sock *sk)
+		struct xfrm_user_sec_ctx *sec_ctx)
 {
 	return 0;
 }
@@ -856,7 +856,7 @@ static int dummy_xfrm_policy_delete_security(struct xfrm_policy *xp)
 }
 
 static int dummy_xfrm_state_alloc_security(struct xfrm_state *x,
-	struct xfrm_user_sec_ctx *sec_ctx, struct xfrm_sec_ctx *pol, u32 secid)
+	struct xfrm_user_sec_ctx *sec_ctx, u32 secid)
 {
 	return 0;
 }

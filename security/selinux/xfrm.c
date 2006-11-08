@@ -226,16 +226,15 @@ int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall)
  * CTX does not have a meaningful value on input
  */
 static int selinux_xfrm_sec_ctx_alloc(struct xfrm_sec_ctx **ctxp,
-	struct xfrm_user_sec_ctx *uctx, struct xfrm_sec_ctx *pol, u32 sid)
+	struct xfrm_user_sec_ctx *uctx, u32 sid)
 {
 	int rc = 0;
 	struct task_security_struct *tsec = current->security;
 	struct xfrm_sec_ctx *ctx = NULL;
 	char *ctx_str = NULL;
 	u32 str_len;
-	u32 ctx_sid;
 
-	BUG_ON(uctx && pol);
+	BUG_ON(uctx && sid);
 
 	if (!uctx)
 		goto not_from_user;
@@ -279,15 +278,7 @@ static int selinux_xfrm_sec_ctx_alloc(struct xfrm_sec_ctx **ctxp,
 	return rc;
 
 not_from_user:
-	if (pol) {
-		rc = security_sid_mls_copy(pol->ctx_sid, sid, &ctx_sid);
-		if (rc)
-			goto out;
-	}
-	else
-		ctx_sid = sid;
-
-	rc = security_sid_to_context(ctx_sid, &ctx_str, &str_len);
+	rc = security_sid_to_context(sid, &ctx_str, &str_len);
 	if (rc)
 		goto out;
 
@@ -302,7 +293,7 @@ not_from_user:
 
 	ctx->ctx_doi = XFRM_SC_DOI_LSM;
 	ctx->ctx_alg = XFRM_SC_ALG_SELINUX;
-	ctx->ctx_sid = ctx_sid;
+	ctx->ctx_sid = sid;
 	ctx->ctx_len = str_len;
 	memcpy(ctx->ctx_str,
 	       ctx_str,
@@ -323,22 +314,14 @@ out2:
  * xfrm_policy.
  */
 int selinux_xfrm_policy_alloc(struct xfrm_policy *xp,
-		struct xfrm_user_sec_ctx *uctx, struct sock *sk)
+		struct xfrm_user_sec_ctx *uctx)
 {
 	int err;
-	u32 sid;
 
 	BUG_ON(!xp);
-	BUG_ON(uctx && sk);
+	BUG_ON(!uctx);
 
-	if (sk) {
-		struct sk_security_struct *ssec = sk->sk_security;
-		sid = ssec->sid;
-	}
-	else
-		sid = SECSID_NULL;
-
-	err = selinux_xfrm_sec_ctx_alloc(&xp->security, uctx, NULL, sid);
+	err = selinux_xfrm_sec_ctx_alloc(&xp->security, uctx, 0);
 	return err;
 }
 
@@ -399,13 +382,13 @@ int selinux_xfrm_policy_delete(struct xfrm_policy *xp)
  * xfrm_state.
  */
 int selinux_xfrm_state_alloc(struct xfrm_state *x, struct xfrm_user_sec_ctx *uctx,
-		struct xfrm_sec_ctx *pol, u32 secid)
+		u32 secid)
 {
 	int err;
 
 	BUG_ON(!x);
 
-	err = selinux_xfrm_sec_ctx_alloc(&x->security, uctx, pol, secid);
+	err = selinux_xfrm_sec_ctx_alloc(&x->security, uctx, secid);
 	return err;
 }
 

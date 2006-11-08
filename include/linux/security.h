@@ -836,10 +836,8 @@ struct request_sock;
  *	used by the XFRM system.
  *	@sec_ctx contains the security context information being provided by
  *	the user-level policy update program (e.g., setkey).
- *	@sk refers to the sock from which to derive the security context.
  *	Allocate a security structure to the xp->security field; the security
- *	field is initialized to NULL when the xfrm_policy is allocated. Only
- *	one of sec_ctx or sock can be specified.
+ *	field is initialized to NULL when the xfrm_policy is allocated.
  *	Return 0 if operation was successful (memory to allocate, legal context)
  * @xfrm_policy_clone_security:
  *	@old contains an existing xfrm_policy in the SPD.
@@ -858,9 +856,6 @@ struct request_sock;
  *	Database by the XFRM system.
  *	@sec_ctx contains the security context information being provided by
  *	the user-level SA generation program (e.g., setkey or racoon).
- *	@polsec contains the security context information associated with a xfrm
- *	policy rule from which to take the base context. polsec must be NULL
- *	when sec_ctx is specified.
  *	@secid contains the secid from which to take the mls portion of the context.
  *	Allocate a security structure to the x->security field; the security
  *	field is initialized to NULL when the xfrm_state is allocated. Set the
@@ -1378,12 +1373,12 @@ struct security_operations {
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	int (*xfrm_policy_alloc_security) (struct xfrm_policy *xp,
-			struct xfrm_user_sec_ctx *sec_ctx, struct sock *sk);
+			struct xfrm_user_sec_ctx *sec_ctx);
 	int (*xfrm_policy_clone_security) (struct xfrm_policy *old, struct xfrm_policy *new);
 	void (*xfrm_policy_free_security) (struct xfrm_policy *xp);
 	int (*xfrm_policy_delete_security) (struct xfrm_policy *xp);
 	int (*xfrm_state_alloc_security) (struct xfrm_state *x,
-		struct xfrm_user_sec_ctx *sec_ctx, struct xfrm_sec_ctx *polsec,
+		struct xfrm_user_sec_ctx *sec_ctx,
 		u32 secid);
 	void (*xfrm_state_free_security) (struct xfrm_state *x);
 	int (*xfrm_state_delete_security) (struct xfrm_state *x);
@@ -3120,7 +3115,7 @@ static inline void security_inet_csk_clone(struct sock *newsk,
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 static inline int security_xfrm_policy_alloc(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx)
 {
-	return security_ops->xfrm_policy_alloc_security(xp, sec_ctx, NULL);
+	return security_ops->xfrm_policy_alloc_security(xp, sec_ctx);
 }
 
 static inline int security_xfrm_policy_clone(struct xfrm_policy *old, struct xfrm_policy *new)
@@ -3141,7 +3136,7 @@ static inline int security_xfrm_policy_delete(struct xfrm_policy *xp)
 static inline int security_xfrm_state_alloc(struct xfrm_state *x,
 			struct xfrm_user_sec_ctx *sec_ctx)
 {
-	return security_ops->xfrm_state_alloc_security(x, sec_ctx, NULL, 0);
+	return security_ops->xfrm_state_alloc_security(x, sec_ctx, 0);
 }
 
 static inline int security_xfrm_state_alloc_acquire(struct xfrm_state *x,
@@ -3149,7 +3144,11 @@ static inline int security_xfrm_state_alloc_acquire(struct xfrm_state *x,
 {
 	if (!polsec)
 		return 0;
-	return security_ops->xfrm_state_alloc_security(x, NULL, polsec, secid);
+	/*
+	 * We want the context to be taken from secid which is usually
+	 * from the sock.
+	 */
+	return security_ops->xfrm_state_alloc_security(x, NULL, secid);
 }
 
 static inline int security_xfrm_state_delete(struct xfrm_state *x)
