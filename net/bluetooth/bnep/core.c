@@ -117,14 +117,14 @@ static int bnep_send_rsp(struct bnep_session *s, u8 ctrl, u16 resp)
 static inline void bnep_set_default_proto_filter(struct bnep_session *s)
 {
 	/* (IPv4, ARP)  */
-	s->proto_filter[0].start = htons(0x0800);
-	s->proto_filter[0].end   = htons(0x0806);
+	s->proto_filter[0].start = ETH_P_IP;
+	s->proto_filter[0].end   = ETH_P_ARP;
 	/* (RARP, AppleTalk) */
-	s->proto_filter[1].start = htons(0x8035);
-	s->proto_filter[1].end   = htons(0x80F3);
+	s->proto_filter[1].start = ETH_P_RARP;
+	s->proto_filter[1].end   = ETH_P_AARP;
 	/* (IPX, IPv6) */
-	s->proto_filter[2].start = htons(0x8137);
-	s->proto_filter[2].end   = htons(0x86DD);
+	s->proto_filter[2].start = ETH_P_IPX;
+	s->proto_filter[2].end   = ETH_P_IPV6;
 }
 #endif
 
@@ -150,8 +150,8 @@ static int bnep_ctrl_set_netfilter(struct bnep_session *s, u16 *data, int len)
 		int i;
 
 		for (i = 0; i < n; i++) {
-			f[i].start = get_unaligned(data++);
-			f[i].end   = get_unaligned(data++);
+			f[i].start = ntohs(get_unaligned(data++));
+			f[i].end   = ntohs(get_unaligned(data++));
 
 			BT_DBG("proto filter start %d end %d",
 				f[i].start, f[i].end);
