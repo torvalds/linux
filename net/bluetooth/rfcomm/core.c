@@ -1018,7 +1018,7 @@ static void rfcomm_make_uih(struct sk_buff *skb, u8 addr)
 
 	if (len > 127) {
 		hdr = (void *) skb_push(skb, 4);
-		put_unaligned(htobs(__len16(len)), (u16 *) &hdr->len);
+		put_unaligned(htobs(__len16(len)), (__le16 *) &hdr->len);
 	} else {
 		hdr = (void *) skb_push(skb, 3);
 		hdr->len = __len8(len);
