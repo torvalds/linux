@@ -278,7 +278,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl)
 		case IPPROTO_SCTP:
 		case IPPROTO_DCCP:
 			if (pskb_may_pull(skb, skb->nh.raw + offset + 4 - skb->data)) {
-				u16 *ports = (u16 *)exthdr;
+				__be16 *ports = (__be16 *)exthdr;
 
 				fl->fl_ip_sport = ports[0];
 				fl->fl_ip_dport = ports[1];

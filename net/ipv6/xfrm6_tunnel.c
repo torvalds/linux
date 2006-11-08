@@ -62,7 +62,7 @@ static unsigned inline xfrm6_tunnel_spi_hash_byaddr(xfrm_address_t *addr)
 {
 	unsigned h;
 
-	h = addr->a6[0] ^ addr->a6[1] ^ addr->a6[2] ^ addr->a6[3];
+	h = (__force u32)(addr->a6[0] ^ addr->a6[1] ^ addr->a6[2] ^ addr->a6[3]);
 	h ^= h >> 16;
 	h ^= h >> 8;
 	h &= XFRM6_TUNNEL_SPI_BYADDR_HSIZE - 1;
@@ -126,7 +126,7 @@ static struct xfrm6_tunnel_spi *__xfrm6_tunnel_spi_lookup(xfrm_address_t *saddr)
 	return NULL;
 }
 
-u32 xfrm6_tunnel_spi_lookup(xfrm_address_t *saddr)
+__be32 xfrm6_tunnel_spi_lookup(xfrm_address_t *saddr)
 {
 	struct xfrm6_tunnel_spi *x6spi;
 	u32 spi;
@@ -196,7 +196,7 @@ out:
 	return spi;
 }
 
-u32 xfrm6_tunnel_alloc_spi(xfrm_address_t *saddr)
+__be32 xfrm6_tunnel_alloc_spi(xfrm_address_t *saddr)
 {
 	struct xfrm6_tunnel_spi *x6spi;
 	u32 spi;

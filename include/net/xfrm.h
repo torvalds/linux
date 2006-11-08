@@ -951,9 +951,9 @@ extern int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 			    xfrm_address_t *saddr, u8 proto);
 extern int xfrm6_tunnel_register(struct xfrm6_tunnel *handler);
 extern int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler);
-extern u32 xfrm6_tunnel_alloc_spi(xfrm_address_t *saddr);
+extern __be32 xfrm6_tunnel_alloc_spi(xfrm_address_t *saddr);
 extern void xfrm6_tunnel_free_spi(xfrm_address_t *saddr);
-extern u32 xfrm6_tunnel_spi_lookup(xfrm_address_t *saddr);
+extern __be32 xfrm6_tunnel_spi_lookup(xfrm_address_t *saddr);
 extern int xfrm6_output(struct sk_buff *skb);
 extern int xfrm6_find_1stfragopt(struct xfrm_state *x, struct sk_buff *skb,
 				 u8 **prevhdr);
@@ -1033,7 +1033,7 @@ static inline int xfrm_addr_cmp(xfrm_address_t *a, xfrm_address_t *b,
 	switch (family) {
 	default:
 	case AF_INET:
-		return a->a4 - b->a4;
+		return (__force __u32)a->a4 - (__force __u32)b->a4;
 	case AF_INET6:
 		return ipv6_addr_cmp((struct in6_addr *)a,
 				     (struct in6_addr *)b);
