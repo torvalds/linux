@@ -52,7 +52,7 @@ EXPORT_SYMBOL_GPL(inet6_csk_bind_conflict);
 /*
  * request_sock (formerly open request) hash tables.
  */
-static u32 inet6_synq_hash(const struct in6_addr *raddr, const u16 rport,
+static u32 inet6_synq_hash(const struct in6_addr *raddr, const __be16 rport,
 			   const u32 rnd, const u16 synq_hsize)
 {
 	u32 a = raddr->s6_addr32[0];
@@ -65,7 +65,7 @@ static u32 inet6_synq_hash(const struct in6_addr *raddr, const u16 rport,
 	__jhash_mix(a, b, c);
 
 	a += raddr->s6_addr32[3];
-	b += (u32)rport;
+	b += (__force u32)rport;
 	__jhash_mix(a, b, c);
 
 	return c & (synq_hsize - 1);
@@ -73,7 +73,7 @@ static u32 inet6_synq_hash(const struct in6_addr *raddr, const u16 rport,
 
 struct request_sock *inet6_csk_search_req(const struct sock *sk,
 					  struct request_sock ***prevp,
-					  const __u16 rport,
+					  const __be16 rport,
 					  const struct in6_addr *raddr,
 					  const struct in6_addr *laddr,
 					  const int iif)

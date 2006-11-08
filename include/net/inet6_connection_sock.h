@@ -27,7 +27,7 @@ extern int inet6_csk_bind_conflict(const struct sock *sk,
 
 extern struct request_sock *inet6_csk_search_req(const struct sock *sk,
 						 struct request_sock ***prevp,
-						 const __u16 rport,
+						 const __be16 rport,
 						 const struct in6_addr *raddr,
 						 const struct in6_addr *laddr,
 						 const int iif);
