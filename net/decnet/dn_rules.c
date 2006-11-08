@@ -124,8 +124,8 @@ static struct nla_policy dn_fib_rule_policy[FRA_MAX+1] __read_mostly = {
 static int dn_fib_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 {
 	struct dn_fib_rule *r = (struct dn_fib_rule *)rule;
-	u16 daddr = fl->fld_dst;
-	u16 saddr = fl->fld_src;
+	__le16 daddr = fl->fld_dst;
+	__le16 saddr = fl->fld_src;
 
 	if (((saddr ^ r->src) & r->srcmask) ||
 	    ((daddr ^ r->dst) & r->dstmask))

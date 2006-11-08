@@ -639,6 +639,7 @@ struct sk_buff *pskb_copy(struct sk_buff *skb, gfp_t gfp_mask)
 	n->csum	     = skb->csum;
 	n->ip_summed = skb->ip_summed;
 
+	n->truesize += skb->data_len;
 	n->data_len  = skb->data_len;
 	n->len	     = skb->len;
 
