@@ -349,7 +349,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	struct sk_buff *entskb = entry->skb;
 	struct net_device *indev;
 	struct net_device *outdev;
-	unsigned int tmp_uint;
+	__be32 tmp_uint;
 
 	QDEBUG("entered\n");
 
@@ -489,10 +489,9 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	    && entskb->dev->hard_header_parse) {
 		struct nfqnl_msg_packet_hw phw;
 
-		phw.hw_addrlen =
-			entskb->dev->hard_header_parse(entskb,
+		int len = entskb->dev->hard_header_parse(entskb,
 			                                   phw.hw_addr);
-		phw.hw_addrlen = htons(phw.hw_addrlen);
+		phw.hw_addrlen = htons(len);
 		NFA_PUT(skb, NFQA_HWADDR, sizeof(phw), &phw);
 	}
 
@@ -835,7 +834,7 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	}
 
 	if (nfqa[NFQA_MARK-1])
-		entry->skb->nfmark = ntohl(*(u_int32_t *)
+		entry->skb->nfmark = ntohl(*(__be32 *)
 		                           NFA_DATA(nfqa[NFQA_MARK-1]));
 		
 	issue_verdict(entry, verdict);

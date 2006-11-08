@@ -104,7 +104,7 @@ match(const struct sk_buff *skb,
       unsigned int protoff,
       int *hotdrop)
 {
-	u16 _ports[2], *pptr;
+	__be16 _ports[2], *pptr;
 	const struct xt_multiport *multiinfo = matchinfo;
 
 	if (offset)
@@ -135,7 +135,7 @@ match_v1(const struct sk_buff *skb,
 	 unsigned int protoff,
 	 int *hotdrop)
 {
-	u16 _ports[2], *pptr;
+	__be16 _ports[2], *pptr;
 	const struct xt_multiport_v1 *multiinfo = matchinfo;
 
 	if (offset)

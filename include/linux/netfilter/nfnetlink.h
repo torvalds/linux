@@ -78,7 +78,7 @@ struct nfattr
 struct nfgenmsg {
 	u_int8_t  nfgen_family;		/* AF_xxx */
 	u_int8_t  version;		/* nfnetlink version */
-	u_int16_t res_id;		/* resource id */
+	__be16    res_id;		/* resource id */
 };
 
 #define NFNETLINK_V0	0

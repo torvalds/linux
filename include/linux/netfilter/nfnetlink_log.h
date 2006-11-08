@@ -16,20 +16,20 @@ enum nfulnl_msg_types {
 };
 
 struct nfulnl_msg_packet_hdr {
-	u_int16_t	hw_protocol;	/* hw protocol (network order) */
+	__be16		hw_protocol;	/* hw protocol (network order) */
 	u_int8_t	hook;		/* netfilter hook */
 	u_int8_t	_pad;
 };
 
 struct nfulnl_msg_packet_hw {
-	u_int16_t	hw_addrlen;
+	__be16		hw_addrlen;
 	u_int16_t	_pad;
 	u_int8_t	hw_addr[8];
 };
 
 struct nfulnl_msg_packet_timestamp {
-	aligned_u64	sec;
-	aligned_u64	usec;
+	aligned_be64	sec;
+	aligned_be64	usec;
 };
 
 #define NFULNL_PREFIXLEN	30	/* just like old log target */
@@ -67,7 +67,7 @@ struct nfulnl_msg_config_cmd {
 } __attribute__ ((packed));
 
 struct nfulnl_msg_config_mode {
-	u_int32_t	copy_range;
+	__be32		copy_range;
 	u_int8_t	copy_mode;
 	u_int8_t	_pad;
 } __attribute__ ((packed));

@@ -414,7 +414,7 @@ __build_packet_message(struct nfulnl_instance *inst,
 	struct nfulnl_msg_packet_hdr pmsg;
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
-	u_int32_t tmp_uint;
+	__be32 tmp_uint;
 
 	UDEBUG("entered\n");
 		
@@ -508,11 +508,9 @@ __build_packet_message(struct nfulnl_instance *inst,
 
 	if (indev && skb->dev && skb->dev->hard_header_parse) {
 		struct nfulnl_msg_packet_hw phw;
-
-		phw.hw_addrlen = 
-			skb->dev->hard_header_parse((struct sk_buff *)skb, 
+		int len = skb->dev->hard_header_parse((struct sk_buff *)skb,
 						    phw.hw_addr);
-		phw.hw_addrlen = htons(phw.hw_addrlen);
+		phw.hw_addrlen = htons(len);
 		NFA_PUT(inst->skb, NFULA_HWADDR, sizeof(phw), &phw);
 	}
 
@@ -529,7 +527,7 @@ __build_packet_message(struct nfulnl_instance *inst,
 	if (skb->sk) {
 		read_lock_bh(&skb->sk->sk_callback_lock);
 		if (skb->sk->sk_socket && skb->sk->sk_socket->file) {
-			u_int32_t uid = htonl(skb->sk->sk_socket->file->f_uid);
+			__be32 uid = htonl(skb->sk->sk_socket->file->f_uid);
 			/* need to unlock here since NFA_PUT may goto */
 			read_unlock_bh(&skb->sk->sk_callback_lock);
 			NFA_PUT(inst->skb, NFULA_UID, sizeof(uid), &uid);
@@ -882,15 +880,15 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 	}
 
 	if (nfula[NFULA_CFG_TIMEOUT-1]) {
-		u_int32_t timeout = 
-			*(u_int32_t *)NFA_DATA(nfula[NFULA_CFG_TIMEOUT-1]);
+		__be32 timeout =
+			*(__be32 *)NFA_DATA(nfula[NFULA_CFG_TIMEOUT-1]);
 
 		nfulnl_set_timeout(inst, ntohl(timeout));
 	}
 
 	if (nfula[NFULA_CFG_NLBUFSIZ-1]) {
-		u_int32_t nlbufsiz = 
-			*(u_int32_t *)NFA_DATA(nfula[NFULA_CFG_NLBUFSIZ-1]);
+		__be32 nlbufsiz =
+			*(__be32 *)NFA_DATA(nfula[NFULA_CFG_NLBUFSIZ-1]);
 
 		nfulnl_set_nlbufsiz(inst, ntohl(nlbufsiz));
 	}
@@ -903,8 +901,8 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 	}
 
 	if (nfula[NFULA_CFG_FLAGS-1]) {
-		u_int16_t flags =
-			*(u_int16_t *)NFA_DATA(nfula[NFULA_CFG_FLAGS-1]);
+		__be16 flags =
+			*(__be16 *)NFA_DATA(nfula[NFULA_CFG_FLAGS-1]);
 		nfulnl_set_flags(inst, ntohs(flags));
 	}
 
