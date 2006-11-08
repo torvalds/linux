@@ -230,7 +230,7 @@ static int gfs2_readpage(struct file *file, struct page *page)
 				/* gfs2_sharewrite_nopage has grabbed the ip->i_gl already */
 				goto skip_lock;
 		}
-		gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME|GL_AOP, &gh);
+		gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME|LM_FLAG_TRY_1CB, &gh);
 		do_unlock = 1;
 		error = gfs2_glock_nq_m_atime(1, &gh);
 		if (unlikely(error))
@@ -254,6 +254,8 @@ skip_lock:
 out:
 	return error;
 out_unlock:
+	if (error == GLR_TRYFAILED)
+		error = AOP_TRUNCATED_PAGE;
 	unlock_page(page);
 	if (do_unlock)
 		gfs2_holder_uninit(&gh);
@@ -293,7 +295,7 @@ static int gfs2_readpages(struct file *file, struct address_space *mapping,
 				goto skip_lock;
 		}
 		gfs2_holder_init(ip->i_gl, LM_ST_SHARED,
-				 LM_FLAG_TRY_1CB|GL_ATIME|GL_AOP, &gh);
+				 LM_FLAG_TRY_1CB|GL_ATIME, &gh);
 		do_unlock = 1;
 		ret = gfs2_glock_nq_m_atime(1, &gh);
 		if (ret == GLR_TRYFAILED)
@@ -366,10 +368,13 @@ static int gfs2_prepare_write(struct file *file, struct page *page,
 	unsigned int write_len = to - from;
 
 
-	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_ATIME|GL_AOP, &ip->i_gh);
+	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_ATIME|LM_FLAG_TRY_1CB, &ip->i_gh);
 	error = gfs2_glock_nq_m_atime(1, &ip->i_gh);
-	if (error)
+	if (unlikely(error)) {
+		if (error == GLR_TRYFAILED)
+			error = AOP_TRUNCATED_PAGE;
 		goto out_uninit;
+	}
 
 	gfs2_write_calc_reserv(ip, write_len, &data_blocks, &ind_blocks);
 
