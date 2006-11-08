@@ -348,8 +348,7 @@ static void visor_close (struct usb_serial_port *port, struct file * filp)
 			 
 	/* shutdown our urbs */
 	usb_kill_urb(port->read_urb);
-	if (port->interrupt_in_urb)
-		usb_kill_urb(port->interrupt_in_urb);
+	usb_kill_urb(port->interrupt_in_urb);
 
 	/* Try to send shutdown message, if the device is gone, this will just fail. */
 	transfer_buffer =  kmalloc (0x12, GFP_KERNEL);
