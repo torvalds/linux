@@ -1816,21 +1816,14 @@ iscsi_tcp_conn_destroy(struct iscsi_cls_conn *cls_conn)
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
-	int digest = 0;
-
-	if (conn->hdrdgst_en || conn->datadgst_en)
-		digest = 1;
 
 	iscsi_tcp_release_conn(conn);
 	iscsi_conn_teardown(cls_conn);
 
-	/* now free tcp_conn */
-	if (digest) {
-		if (tcp_conn->tx_hash.tfm)
-			crypto_free_hash(tcp_conn->tx_hash.tfm);
-		if (tcp_conn->rx_hash.tfm)
-			crypto_free_hash(tcp_conn->rx_hash.tfm);
-	}
+	if (tcp_conn->tx_hash.tfm)
+		crypto_free_hash(tcp_conn->tx_hash.tfm);
+	if (tcp_conn->rx_hash.tfm)
+		crypto_free_hash(tcp_conn->rx_hash.tfm);
 
 	kfree(tcp_conn);
 }
