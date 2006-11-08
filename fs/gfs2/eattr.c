@@ -281,6 +281,7 @@ static int ea_dealloc_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 		if (!ip->i_di.di_blocks)
 			gfs2_consist_inode(ip);
 		ip->i_di.di_blocks--;
+		gfs2_set_inode_blocks(&ip->i_inode);
 	}
 	if (bstart)
 		gfs2_free_meta(ip, bstart, blen);
@@ -598,6 +599,7 @@ static int ea_alloc_blk(struct gfs2_inode *ip, struct buffer_head **bhp)
 	ea->ea_num_ptrs = 0;
 
 	ip->i_di.di_blocks++;
+	gfs2_set_inode_blocks(&ip->i_inode);
 
 	return 0;
 }
@@ -649,6 +651,7 @@ static int ea_write(struct gfs2_inode *ip, struct gfs2_ea_header *ea,
 			gfs2_metatype_set(bh, GFS2_METATYPE_ED, GFS2_FORMAT_ED);
 
 			ip->i_di.di_blocks++;
+			gfs2_set_inode_blocks(&ip->i_inode);
 
 			copy = data_len > sdp->sd_jbsize ? sdp->sd_jbsize :
 							   data_len;
@@ -977,6 +980,7 @@ static int ea_set_block(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 		ip->i_di.di_eattr = blk;
 		ip->i_di.di_flags |= GFS2_DIF_EA_INDIRECT;
 		ip->i_di.di_blocks++;
+		gfs2_set_inode_blocks(&ip->i_inode);
 
 		eablk++;
 	}
@@ -1387,6 +1391,7 @@ static int ea_dealloc_indirect(struct gfs2_inode *ip)
 		if (!ip->i_di.di_blocks)
 			gfs2_consist_inode(ip);
 		ip->i_di.di_blocks--;
+		gfs2_set_inode_blocks(&ip->i_inode);
 	}
 	if (bstart)
 		gfs2_free_meta(ip, bstart, blen);
@@ -1441,6 +1446,7 @@ static int ea_dealloc_block(struct gfs2_inode *ip)
 	if (!ip->i_di.di_blocks)
 		gfs2_consist_inode(ip);
 	ip->i_di.di_blocks--;
+	gfs2_set_inode_blocks(&ip->i_inode);
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (!error) {

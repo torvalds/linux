@@ -25,6 +25,13 @@ static inline int gfs2_is_dir(struct gfs2_inode *ip)
 	return S_ISDIR(ip->i_inode.i_mode);
 }
 
+static inline void gfs2_set_inode_blocks(struct inode *inode)
+{
+	struct gfs2_inode *ip = GFS2_I(inode);
+	inode->i_blocks = ip->i_di.di_blocks <<
+		(GFS2_SB(inode)->sd_sb.sb_bsize_shift - GFS2_BASIC_BLOCK_SHIFT);
+}
+
 void gfs2_inode_attr_in(struct gfs2_inode *ip);
 struct inode *gfs2_inode_lookup(struct super_block *sb, struct gfs2_inum_host *inum, unsigned type);
 struct inode *gfs2_ilookup(struct super_block *sb, struct gfs2_inum_host *inum);

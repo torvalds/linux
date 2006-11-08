@@ -38,29 +38,12 @@
 #include "trans.h"
 #include "util.h"
 
-/**
- * gfs2_inode_attr_in - Copy attributes from the dinode into the VFS inode
- * @ip: The GFS2 inode (with embedded disk inode data)
- * @inode:  The Linux VFS inode
- *
- */
-
-void gfs2_inode_attr_in(struct gfs2_inode *ip)
-{
-	struct inode *inode = &ip->i_inode;
-	struct gfs2_dinode_host *di = &ip->i_di;
-
-	i_size_write(inode, di->di_size);
-	inode->i_blocks = di->di_blocks <<
-		(GFS2_SB(inode)->sd_sb.sb_bsize_shift - GFS2_BASIC_BLOCK_SHIFT);
-}
-
 static int iget_test(struct inode *inode, void *opaque)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_inum_host *inum = opaque;
 
-	if (ip && ip->i_num.no_addr == inum->no_addr)
+	if (ip->i_num.no_addr == inum->no_addr)
 		return 1;
 
 	return 0;
@@ -187,7 +170,9 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	 */
 	ip->i_inode.i_nlink = be32_to_cpu(str->di_nlink);
 	di->di_size = be64_to_cpu(str->di_size);
+	i_size_write(&ip->i_inode, di->di_size);
 	di->di_blocks = be64_to_cpu(str->di_blocks);
+	gfs2_set_inode_blocks(&ip->i_inode);
 	ip->i_inode.i_atime.tv_sec = be64_to_cpu(str->di_atime);
 	ip->i_inode.i_atime.tv_nsec = 0;
 	ip->i_inode.i_mtime.tv_sec = be64_to_cpu(str->di_mtime);
