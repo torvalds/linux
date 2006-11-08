@@ -172,11 +172,33 @@ static struct IO_APIC_route_entry ioapic_read_entry(int apic, int pin)
 	return eu.entry;
 }
 
+/*
+ * When we write a new IO APIC routing entry, we need to write the high
+ * word first! If the mask bit in the low word is clear, we will enable
+ * the interrupt, and we need to make sure the entry is fully populated
+ * before that happens.
+ */
 static void ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
 {
 	unsigned long flags;
 	union entry_union eu;
 	eu.entry = e;
+	spin_lock_irqsave(&ioapic_lock, flags);
+	io_apic_write(apic, 0x11 + 2*pin, eu.w2);
+	io_apic_write(apic, 0x10 + 2*pin, eu.w1);
+	spin_unlock_irqrestore(&ioapic_lock, flags);
+}
+
+/*
+ * When we mask an IO APIC routing entry, we need to write the low
+ * word first, in order to set the mask bit before we change the
+ * high bits!
+ */
+static void ioapic_mask_entry(int apic, int pin)
+{
+	unsigned long flags;
+	union entry_union eu = { .entry.mask = 1 };
+
 	spin_lock_irqsave(&ioapic_lock, flags);
 	io_apic_write(apic, 0x10 + 2*pin, eu.w1);
 	io_apic_write(apic, 0x11 + 2*pin, eu.w2);
@@ -302,9 +324,7 @@ static void clear_IO_APIC_pin(unsigned int apic, unsigned int pin)
 	/*
 	 * Disable it in the IO-APIC irq-routing table:
 	 */
-	memset(&entry, 0, sizeof(entry));
-	entry.mask = 1;
-	ioapic_write_entry(apic, pin, entry);
+	ioapic_mask_entry(apic, pin);
 }
 
 static void clear_IO_APIC (void)
