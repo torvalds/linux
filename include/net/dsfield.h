@@ -20,7 +20,7 @@ static inline __u8 ipv4_get_dsfield(struct iphdr *iph)
 
 static inline __u8 ipv6_get_dsfield(struct ipv6hdr *ipv6h)
 {
-	return ntohs(*(__u16 *) ipv6h) >> 4;
+	return ntohs(*(__be16 *) ipv6h) >> 4;
 }
 
 
@@ -45,9 +45,9 @@ static inline void ipv6_change_dsfield(struct ipv6hdr *ipv6h,__u8 mask,
 {
         __u16 tmp;
 
-	tmp = ntohs(*(__u16 *) ipv6h);
+	tmp = ntohs(*(__be16 *) ipv6h);
 	tmp = (tmp & ((mask << 4) | 0xf00f)) | (value << 4);
-	*(__u16 *) ipv6h = htons(tmp);
+	*(__be16 *) ipv6h = htons(tmp);
 }
 
 
