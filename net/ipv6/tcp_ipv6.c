@@ -310,7 +310,7 @@ failure:
 }
 
 static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-		int type, int code, int offset, __u32 info)
+		int type, int code, int offset, __be32 info)
 {
 	struct ipv6hdr *hdr = (struct ipv6hdr*)skb->data;
 	const struct tcphdr *th = (struct tcphdr *)(skb->data+offset);

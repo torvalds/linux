@@ -391,7 +391,7 @@ parse_tlv_tnl_enc_lim(struct sk_buff *skb, __u8 * raw)
 
 static int
 ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-	   int type, int code, int offset, __u32 info)
+	   int type, int code, int offset, __be32 info)
 {
 	struct ipv6hdr *ipv6h = (struct ipv6hdr *) skb->data;
 	struct ip6_tnl *t;

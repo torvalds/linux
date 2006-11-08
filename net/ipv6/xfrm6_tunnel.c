@@ -265,7 +265,7 @@ static int xfrm6_tunnel_rcv(struct sk_buff *skb)
 }
 
 static int xfrm6_tunnel_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-			    int type, int code, int offset, __u32 info)
+			    int type, int code, int offset, __be32 info)
 {
 	/* xfrm6_tunnel native err handling */
 	switch (type) {

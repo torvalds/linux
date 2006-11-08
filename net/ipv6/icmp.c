@@ -555,7 +555,7 @@ out:
 	icmpv6_xmit_unlock();
 }
 
-static void icmpv6_notify(struct sk_buff *skb, int type, int code, u32 info)
+static void icmpv6_notify(struct sk_buff *skb, int type, int code, __be32 info)
 {
 	struct in6_addr *saddr, *daddr;
 	struct inet6_protocol *ipprot;

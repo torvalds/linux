@@ -84,7 +84,7 @@ static struct notifier_block sctp_inet6addr_notifier = {
 
 /* ICMP error handler. */
 SCTP_STATIC void sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-			     int type, int code, int offset, __u32 info)
+			     int type, int code, int offset, __be32 info)
 {
 	struct inet6_dev *idev;
 	struct ipv6hdr *iph = (struct ipv6hdr *)skb->data;
