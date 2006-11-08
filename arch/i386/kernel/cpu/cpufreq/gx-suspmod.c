@@ -473,7 +473,7 @@ static int __init cpufreq_gx_init(void)
 	pci_read_config_byte(params->cs55x0, PCI_MODON, &(params->on_duration));
 	pci_read_config_byte(params->cs55x0, PCI_MODOFF, &(params->off_duration));
         pci_read_config_dword(params->cs55x0, PCI_CLASS_REVISION, &class_rev);
-	params->pci_rev = class_rev && 0xff;
+	params->pci_rev = class_rev & 0xff;
 
 	if ((ret = cpufreq_register_driver(&gx_suspmod_driver))) {
 		kfree(params);
