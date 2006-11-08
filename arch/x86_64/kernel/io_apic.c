@@ -88,6 +88,52 @@ static struct irq_pin_list {
 	short apic, pin, next;
 } irq_2_pin[PIN_MAP_SIZE];
 
+struct io_apic {
+	unsigned int index;
+	unsigned int unused[3];
+	unsigned int data;
+};
+
+static __attribute_const__ struct io_apic __iomem *io_apic_base(int idx)
+{
+	return (void __iomem *) __fix_to_virt(FIX_IO_APIC_BASE_0 + idx)
+		+ (mp_ioapics[idx].mpc_apicaddr & ~PAGE_MASK);
+}
+
+static inline unsigned int io_apic_read(unsigned int apic, unsigned int reg)
+{
+	struct io_apic __iomem *io_apic = io_apic_base(apic);
+	writel(reg, &io_apic->index);
+	return readl(&io_apic->data);
+}
+
+static inline void io_apic_write(unsigned int apic, unsigned int reg, unsigned int value)
+{
+	struct io_apic __iomem *io_apic = io_apic_base(apic);
+	writel(reg, &io_apic->index);
+	writel(value, &io_apic->data);
+}
+
+/*
+ * Re-write a value: to be used for read-modify-write
+ * cycles where the read already set up the index register.
+ */
+static inline void io_apic_modify(unsigned int apic, unsigned int value)
+{
+	struct io_apic __iomem *io_apic = io_apic_base(apic);
+	writel(value, &io_apic->data);
+}
+
+/*
+ * Synchronize the IO-APIC and the CPU by doing
+ * a dummy read from the IO-APIC
+ */
+static inline void io_apic_sync(unsigned int apic)
+{
+	struct io_apic __iomem *io_apic = io_apic_base(apic);
+	readl(&io_apic->data);
+}
+
 #define __DO_ACTION(R, ACTION, FINAL)					\
 									\
 {									\
