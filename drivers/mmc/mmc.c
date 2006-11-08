@@ -1157,6 +1157,116 @@ static void mmc_read_scrs(struct mmc_host *host)
 	mmc_deselect_cards(host);
 }
 
+static void mmc_read_switch_caps(struct mmc_host *host)
+{
+	int err;
+	struct mmc_card *card;
+	struct mmc_request mrq;
+	struct mmc_command cmd;
+	struct mmc_data data;
+	unsigned char *status;
+	struct scatterlist sg;
+
+	status = kmalloc(64, GFP_KERNEL);
+	if (!status) {
+		printk(KERN_WARNING "%s: Unable to allocate buffer for "
+			"reading switch capabilities.\n",
+			mmc_hostname(host));
+		return;
+	}
+
+	list_for_each_entry(card, &host->cards, node) {
+		if (card->state & (MMC_STATE_DEAD|MMC_STATE_PRESENT))
+			continue;
+		if (!mmc_card_sd(card))
+			continue;
+		if (card->scr.sda_vsn < SCR_SPEC_VER_1)
+			continue;
+
+		err = mmc_select_card(host, card);
+		if (err != MMC_ERR_NONE) {
+			mmc_card_set_dead(card);
+			continue;
+		}
+
+		memset(&cmd, 0, sizeof(struct mmc_command));
+
+		cmd.opcode = SD_SWITCH;
+		cmd.arg = 0x00FFFFF1;
+		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
+
+		memset(&data, 0, sizeof(struct mmc_data));
+
+		mmc_set_data_timeout(&data, card, 0);
+
+		data.blksz = 64;
+		data.blocks = 1;
+		data.flags = MMC_DATA_READ;
+		data.sg = &sg;
+		data.sg_len = 1;
+
+		memset(&mrq, 0, sizeof(struct mmc_request));
+
+		mrq.cmd = &cmd;
+		mrq.data = &data;
+
+		sg_init_one(&sg, status, 64);
+
+		mmc_wait_for_req(host, &mrq);
+
+		if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE) {
+			mmc_card_set_dead(card);
+			continue;
+		}
+
+		if (status[13] & 0x02)
+			card->sw_caps.hs_max_dtr = 50000000;
+
+		memset(&cmd, 0, sizeof(struct mmc_command));
+
+		cmd.opcode = SD_SWITCH;
+		cmd.arg = 0x80FFFFF1;
+		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
+
+		memset(&data, 0, sizeof(struct mmc_data));
+
+		mmc_set_data_timeout(&data, card, 0);
+
+		data.blksz = 64;
+		data.blocks = 1;
+		data.flags = MMC_DATA_READ;
+		data.sg = &sg;
+		data.sg_len = 1;
+
+		memset(&mrq, 0, sizeof(struct mmc_request));
+
+		mrq.cmd = &cmd;
+		mrq.data = &data;
+
+		sg_init_one(&sg, status, 64);
+
+		mmc_wait_for_req(host, &mrq);
+
+		if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE) {
+			mmc_card_set_dead(card);
+			continue;
+		}
+
+		if ((status[16] & 0xF) != 1) {
+			printk(KERN_WARNING "%s: Problem switching card "
+				"into high-speed mode!\n",
+				mmc_hostname(host));
+			continue;
+		}
+
+		mmc_card_set_highspeed(card);
+	}
+
+	kfree(status);
+
+	mmc_deselect_cards(host);
+}
+
 static unsigned int mmc_calculate_clock(struct mmc_host *host)
 {
 	struct mmc_card *card;
@@ -1164,9 +1274,12 @@ static unsigned int mmc_calculate_clock(struct mmc_host *host)
 
 	list_for_each_entry(card, &host->cards, node)
 		if (!mmc_card_dead(card)) {
-			if (mmc_card_highspeed(card)) {
+			if (mmc_card_highspeed(card) && mmc_card_sd(card)) {
+				if (max_dtr > card->sw_caps.hs_max_dtr)
+					max_dtr = card->sw_caps.hs_max_dtr;
+			} else if (mmc_card_highspeed(card) && !mmc_card_sd(card)) {
 				if (max_dtr > card->ext_csd.hs_max_dtr)
-			    		max_dtr = card->ext_csd.hs_max_dtr;
+					max_dtr = card->ext_csd.hs_max_dtr;
 			} else if (max_dtr > card->csd.max_dtr) {
 				max_dtr = card->csd.max_dtr;
 			}
@@ -1288,9 +1401,10 @@ static void mmc_setup(struct mmc_host *host)
 
 	mmc_read_csds(host);
 
-	if (host->mode == MMC_MODE_SD)
+	if (host->mode == MMC_MODE_SD) {
 		mmc_read_scrs(host);
-	else
+		mmc_read_switch_caps(host);
+	} else
 		mmc_process_ext_csds(host);
 }
 

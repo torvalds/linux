@@ -50,6 +50,10 @@ struct sd_scr {
 #define SD_SCR_BUS_WIDTH_4	(1<<2)
 };
 
+struct sd_switch_caps {
+	unsigned int		hs_max_dtr;
+};
+
 struct mmc_host;
 
 /*
@@ -66,7 +70,7 @@ struct mmc_card {
 #define MMC_STATE_BAD		(1<<2)		/* unrecognised device */
 #define MMC_STATE_SDCARD	(1<<3)		/* is an SD card */
 #define MMC_STATE_READONLY	(1<<4)		/* card is read-only */
-#define MMC_STATE_HIGHSPEED	(1<<5)		/* card is in mmc4 highspeed mode */
+#define MMC_STATE_HIGHSPEED	(1<<5)		/* card is in high speed mode */
 	u32			raw_cid[4];	/* raw card CID */
 	u32			raw_csd[4];	/* raw card CSD */
 	u32			raw_scr[2];	/* raw card SCR */
@@ -74,6 +78,7 @@ struct mmc_card {
 	struct mmc_csd		csd;		/* card specific */
 	struct mmc_ext_csd	ext_csd;	/* mmc v4 extended card specific */
 	struct sd_scr		scr;		/* extra SD information */
+	struct sd_switch_caps	sw_caps;	/* switch (CMD6) caps */
 };
 
 #define mmc_card_present(c)	((c)->state & MMC_STATE_PRESENT)

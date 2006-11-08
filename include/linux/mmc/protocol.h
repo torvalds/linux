@@ -82,6 +82,7 @@
   /* class 8 */
 /* This is basically the same command as for MMC with some quirks. */
 #define SD_SEND_RELATIVE_ADDR     3   /* bcr                     R6  */
+#define SD_SWITCH                 6   /* adtc [31:0] See below   R1  */
 
   /* Application commands */
 #define SD_APP_SET_BUS_WIDTH      6   /* ac   [1:0] bus width    R1  */
@@ -98,6 +99,19 @@
  *	[15:08] Value Byte
  *	[07:03] Always 0
  *	[02:00] Command Set
+ */
+
+/*
+ * SD_SWITCH argument format:
+ *
+ *      [31] Check (0) or switch (1)
+ *      [30:24] Reserved (0)
+ *      [23:20] Function group 6
+ *      [19:16] Function group 5
+ *      [15:12] Function group 4
+ *      [11:8] Function group 3
+ *      [7:4] Function group 2
+ *      [3:0] Function group 1
  */
 
 /*
@@ -283,6 +297,14 @@ struct _mmc_csd {
 #define MMC_SWITCH_MODE_SET_BITS	0x01	/* Set bits which are 1 in value */
 #define MMC_SWITCH_MODE_CLEAR_BITS	0x02	/* Clear bits which are 1 in value */
 #define MMC_SWITCH_MODE_WRITE_BYTE	0x03	/* Set target to value */
+
+/*
+ * SCR field definitions
+ */
+
+#define SCR_SPEC_VER_0      0           /* Implements system specification 1.0 - 1.01 */
+#define SCR_SPEC_VER_1      1           /* Implements system specification 1.10 */
+#define SCR_SPEC_VER_2      2           /* Implements system specification 2.00 */
 
 /*
  * SD bus widths
