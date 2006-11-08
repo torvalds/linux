@@ -230,7 +230,7 @@ static int vt6420_prereset(struct ata_port *ap)
 	int online;
 
 	/* don't do any SCR stuff if we're not loading */
-	if (!ATA_PFLAG_LOADING)
+	if (!(ap->pflags & ATA_PFLAG_LOADING))
 		goto skip_scr;
 
 	/* Resume phy.  This is the old resume sequence from
