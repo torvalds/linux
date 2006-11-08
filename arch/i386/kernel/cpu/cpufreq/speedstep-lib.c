@@ -123,6 +123,7 @@ static unsigned int pentiumM_get_frequency(void)
 	return (msr_tmp * 100 * 1000);
 }
 
+#ifdef CONFIG_X86_32
 static unsigned int pentium_core_get_frequency(void)
 {
 	u32 fsb = 0;
@@ -152,7 +153,7 @@ static unsigned int pentium_core_get_frequency(void)
 
 	return (msr_tmp * fsb * 1000);
 }
-
+#endif
 
 static unsigned int pentium4_get_frequency(void)
 {
@@ -204,8 +205,10 @@ static unsigned int pentium4_get_frequency(void)
 unsigned int speedstep_get_processor_frequency(unsigned int processor)
 {
 	switch (processor) {
+#ifdef CONFIG_X86_32
 	case SPEEDSTEP_PROCESSOR_PCORE:
 		return pentium_core_get_frequency();
+#endif
 	case SPEEDSTEP_PROCESSOR_PM:
 		return pentiumM_get_frequency();
 	case SPEEDSTEP_PROCESSOR_P4D:
