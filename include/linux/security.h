@@ -886,11 +886,6 @@ struct request_sock;
  *	@xp contains the policy to check for a match.
  *	@fl contains the flow to check for a match.
  *	Return 1 if there is a match.
- * @xfrm_flow_state_match:
- *	@fl contains the flow key to match.
- *	@xfrm points to the xfrm_state to match.
- *	@xp points to the xfrm_policy to match.
- *	Return 1 if there is a match.
  * @xfrm_decode_session:
  *	@skb points to skb to decode.
  *	@secid points to the flow key secid to set.
@@ -1388,8 +1383,6 @@ struct security_operations {
 	int (*xfrm_policy_lookup)(struct xfrm_policy *xp, u32 fl_secid, u8 dir);
 	int (*xfrm_state_pol_flow_match)(struct xfrm_state *x,
 			struct xfrm_policy *xp, struct flowi *fl);
-	int (*xfrm_flow_state_match)(struct flowi *fl, struct xfrm_state *xfrm,
-			struct xfrm_policy *xp);
 	int (*xfrm_decode_session)(struct sk_buff *skb, u32 *secid, int ckall);
 #endif	/* CONFIG_SECURITY_NETWORK_XFRM */
 
@@ -3186,12 +3179,6 @@ static inline int security_xfrm_state_pol_flow_match(struct xfrm_state *x,
 	return security_ops->xfrm_state_pol_flow_match(x, xp, fl);
 }
 
-static inline int security_xfrm_flow_state_match(struct flowi *fl,
-			struct xfrm_state *xfrm, struct xfrm_policy *xp)
-{
-	return security_ops->xfrm_flow_state_match(fl, xfrm, xp);
-}
-
 static inline int security_xfrm_decode_session(struct sk_buff *skb, u32 *secid)
 {
 	return security_ops->xfrm_decode_session(skb, secid, 1);
@@ -3251,12 +3238,6 @@ static inline int security_xfrm_policy_lookup(struct xfrm_policy *xp, u32 fl_sec
 
 static inline int security_xfrm_state_pol_flow_match(struct xfrm_state *x,
 			struct xfrm_policy *xp, struct flowi *fl)
-{
-	return 1;
-}
-
-static inline int security_xfrm_flow_state_match(struct flowi *fl,
-			struct xfrm_state *xfrm, struct xfrm_policy *xp)
 {
 	return 1;
 }

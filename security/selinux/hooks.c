@@ -2889,7 +2889,8 @@ static void selinux_task_to_inode(struct task_struct *p,
 }
 
 /* Returns error only if unable to parse addresses */
-static int selinux_parse_skb_ipv4(struct sk_buff *skb, struct avc_audit_data *ad)
+static int selinux_parse_skb_ipv4(struct sk_buff *skb,
+			struct avc_audit_data *ad, u8 *proto)
 {
 	int offset, ihlen, ret = -EINVAL;
 	struct iphdr _iph, *ih;
@@ -2906,6 +2907,9 @@ static int selinux_parse_skb_ipv4(struct sk_buff *skb, struct avc_audit_data *ad
 	ad->u.net.v4info.saddr = ih->saddr;
 	ad->u.net.v4info.daddr = ih->daddr;
 	ret = 0;
+
+	if (proto)
+		*proto = ih->protocol;
 
 	switch (ih->protocol) {
         case IPPROTO_TCP: {
@@ -2950,7 +2954,8 @@ out:
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 
 /* Returns error only if unable to parse addresses */
-static int selinux_parse_skb_ipv6(struct sk_buff *skb, struct avc_audit_data *ad)
+static int selinux_parse_skb_ipv6(struct sk_buff *skb,
+			struct avc_audit_data *ad, u8 *proto)
 {
 	u8 nexthdr;
 	int ret = -EINVAL, offset;
@@ -2970,6 +2975,9 @@ static int selinux_parse_skb_ipv6(struct sk_buff *skb, struct avc_audit_data *ad
 	offset = ipv6_skip_exthdr(skb, offset, &nexthdr);
 	if (offset < 0)
 		goto out;
+
+	if (proto)
+		*proto = nexthdr;
 
 	switch (nexthdr) {
 	case IPPROTO_TCP: {
@@ -3007,13 +3015,13 @@ out:
 #endif /* IPV6 */
 
 static int selinux_parse_skb(struct sk_buff *skb, struct avc_audit_data *ad,
-			     char **addrp, int *len, int src)
+			     char **addrp, int *len, int src, u8 *proto)
 {
 	int ret = 0;
 
 	switch (ad->u.net.family) {
 	case PF_INET:
-		ret = selinux_parse_skb_ipv4(skb, ad);
+		ret = selinux_parse_skb_ipv4(skb, ad, proto);
 		if (ret || !addrp)
 			break;
 		*len = 4;
@@ -3023,7 +3031,7 @@ static int selinux_parse_skb(struct sk_buff *skb, struct avc_audit_data *ad,
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	case PF_INET6:
-		ret = selinux_parse_skb_ipv6(skb, ad);
+		ret = selinux_parse_skb_ipv6(skb, ad, proto);
 		if (ret || !addrp)
 			break;
 		*len = 16;
@@ -3494,7 +3502,7 @@ static int selinux_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	ad.u.net.netif = skb->dev ? skb->dev->name : "[unknown]";
 	ad.u.net.family = family;
 
-	err = selinux_parse_skb(skb, &ad, &addrp, &len, 1);
+	err = selinux_parse_skb(skb, &ad, &addrp, &len, 1, NULL);
 	if (err)
 		goto out;
 
@@ -3820,6 +3828,7 @@ static unsigned int selinux_ip_postroute_last(unsigned int hooknum,
 	struct avc_audit_data ad;
 	struct net_device *dev = (struct net_device *)out;
 	struct sk_security_struct *sksec;
+	u8 proto;
 
 	sk = skb->sk;
 	if (!sk)
@@ -3831,7 +3840,7 @@ static unsigned int selinux_ip_postroute_last(unsigned int hooknum,
 	ad.u.net.netif = dev->name;
 	ad.u.net.family = family;
 
-	err = selinux_parse_skb(skb, &ad, &addrp, &len, 0);
+	err = selinux_parse_skb(skb, &ad, &addrp, &len, 0, &proto);
 	if (err)
 		goto out;
 
@@ -3845,7 +3854,7 @@ static unsigned int selinux_ip_postroute_last(unsigned int hooknum,
 	if (err)
 		goto out;
 
-	err = selinux_xfrm_postroute_last(sksec->sid, skb, &ad);
+	err = selinux_xfrm_postroute_last(sksec->sid, skb, &ad, proto);
 out:
 	return err ? NF_DROP : NF_ACCEPT;
 }
@@ -4764,7 +4773,6 @@ static struct security_operations selinux_ops = {
 	.xfrm_state_delete_security =	selinux_xfrm_state_delete,
 	.xfrm_policy_lookup = 		selinux_xfrm_policy_lookup,
 	.xfrm_state_pol_flow_match =	selinux_xfrm_state_pol_flow_match,
-	.xfrm_flow_state_match =	selinux_xfrm_flow_state_match,
 	.xfrm_decode_session =		selinux_xfrm_decode_session,
 #endif
 

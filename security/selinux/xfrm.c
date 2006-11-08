@@ -115,70 +115,39 @@ int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x, struct xfrm_policy *
 			struct flowi *fl)
 {
 	u32 state_sid;
-	u32 pol_sid;
-	int err;
+	int rc;
 
-	if (xp->security) {
-		if (!x->security)
-			/* unlabeled SA and labeled policy can't match */
-			return 0;
-		else
-			state_sid = x->security->ctx_sid;
-		pol_sid = xp->security->ctx_sid;
-	} else
+	if (!xp->security)
 		if (x->security)
 			/* unlabeled policy and labeled SA can't match */
 			return 0;
 		else
 			/* unlabeled policy and unlabeled SA match all flows */
 			return 1;
+	else
+		if (!x->security)
+			/* unlabeled SA and labeled policy can't match */
+			return 0;
+		else
+			if (!selinux_authorizable_xfrm(x))
+				/* Not a SELinux-labeled SA */
+				return 0;
 
-	err = avc_has_perm(state_sid, pol_sid, SECCLASS_ASSOCIATION,
-			  ASSOCIATION__POLMATCH,
-			  NULL);
+	state_sid = x->security->ctx_sid;
 
-	if (err)
+	if (fl->secid != state_sid)
 		return 0;
 
-	err = avc_has_perm(fl->secid, state_sid, SECCLASS_ASSOCIATION,
+	rc = avc_has_perm(fl->secid, state_sid, SECCLASS_ASSOCIATION,
 			  ASSOCIATION__SENDTO,
 			  NULL)? 0:1;
 
-	return err;
-}
-
-/*
- * LSM hook implementation that authorizes that a particular outgoing flow
- * can use a given security association.
- */
-
-int selinux_xfrm_flow_state_match(struct flowi *fl, struct xfrm_state *xfrm,
-				  struct xfrm_policy *xp)
-{
-	int rc = 0;
-	u32 sel_sid = SECINITSID_UNLABELED;
-	struct xfrm_sec_ctx *ctx;
-
-	if (!xp->security)
-		if (!xfrm->security)
-			return 1;
-		else
-			return 0;
-	else
-		if (!xfrm->security)
-			return 0;
-
-	/* Context sid is either set to label or ANY_ASSOC */
-	if ((ctx = xfrm->security)) {
-		if (!selinux_authorizable_ctx(ctx))
-			return 0;
-
-		sel_sid = ctx->ctx_sid;
-	}
-
-	rc = avc_has_perm(fl->secid, sel_sid, SECCLASS_ASSOCIATION,
-			  ASSOCIATION__SENDTO,
-			  NULL)? 0:1;
+	/*
+	 * We don't need a separate SA Vs. policy polmatch check
+	 * since the SA is now of the same label as the flow and
+	 * a flow Vs. policy polmatch check had already happened
+	 * in selinux_xfrm_policy_lookup() above.
+	 */
 
 	return rc;
 }
@@ -481,6 +450,13 @@ int selinux_xfrm_sock_rcv_skb(u32 isec_sid, struct sk_buff *skb,
 		}
 	}
 
+	/*
+	 * This check even when there's no association involved is
+	 * intended, according to Trent Jaeger, to make sure a
+	 * process can't engage in non-ipsec communication unless
+	 * explicitly allowed by policy.
+	 */
+
 	rc = avc_has_perm(isec_sid, sel_sid, SECCLASS_ASSOCIATION,
 			  ASSOCIATION__RECVFROM, ad);
 
@@ -492,10 +468,10 @@ int selinux_xfrm_sock_rcv_skb(u32 isec_sid, struct sk_buff *skb,
  * If we have no security association, then we need to determine
  * whether the socket is allowed to send to an unlabelled destination.
  * If we do have a authorizable security association, then it has already been
- * checked in xfrm_policy_lookup hook.
+ * checked in the selinux_xfrm_state_pol_flow_match hook above.
  */
 int selinux_xfrm_postroute_last(u32 isec_sid, struct sk_buff *skb,
-					struct avc_audit_data *ad)
+					struct avc_audit_data *ad, u8 proto)
 {
 	struct dst_entry *dst;
 	int rc = 0;
@@ -513,6 +489,27 @@ int selinux_xfrm_postroute_last(u32 isec_sid, struct sk_buff *skb,
 				goto out;
 		}
 	}
+
+	switch (proto) {
+	case IPPROTO_AH:
+	case IPPROTO_ESP:
+	case IPPROTO_COMP:
+		/*
+		 * We should have already seen this packet once before
+		 * it underwent xfrm(s). No need to subject it to the
+		 * unlabeled check.
+		 */
+		goto out;
+	default:
+		break;
+	}
+
+	/*
+	 * This check even when there's no association involved is
+	 * intended, according to Trent Jaeger, to make sure a
+	 * process can't engage in non-ipsec communication unless
+	 * explicitly allowed by policy.
+	 */
 
 	rc = avc_has_perm(isec_sid, SECINITSID_UNLABELED, SECCLASS_ASSOCIATION,
 			  ASSOCIATION__SENDTO, ad);

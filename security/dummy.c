@@ -886,12 +886,6 @@ static int dummy_xfrm_state_pol_flow_match(struct xfrm_state *x,
 	return 1;
 }
 
-static int dummy_xfrm_flow_state_match(struct flowi *fl, struct xfrm_state *xfrm,
-				struct xfrm_policy *xp)
-{
-	return 1;
-}
-
 static int dummy_xfrm_decode_session(struct sk_buff *skb, u32 *fl, int ckall)
 {
 	return 0;
@@ -1126,7 +1120,6 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, xfrm_state_delete_security);
 	set_to_dummy_if_null(ops, xfrm_policy_lookup);
 	set_to_dummy_if_null(ops, xfrm_state_pol_flow_match);
-	set_to_dummy_if_null(ops, xfrm_flow_state_match);
 	set_to_dummy_if_null(ops, xfrm_decode_session);
 #endif	/* CONFIG_SECURITY_NETWORK_XFRM */
 #ifdef CONFIG_KEYS
