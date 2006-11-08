@@ -266,6 +266,24 @@ static int gfs2_get_flags(struct file *filp, u32 __user *ptr)
 	return error;
 }
 
+void gfs2_set_inode_flags(struct inode *inode)
+{
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_dinode_host *di = &ip->i_di;
+	unsigned int flags = inode->i_flags;
+
+	flags &= ~(S_SYNC|S_APPEND|S_IMMUTABLE|S_NOATIME|S_DIRSYNC);
+	if (di->di_flags & GFS2_DIF_IMMUTABLE)
+		flags |= S_IMMUTABLE;
+	if (di->di_flags & GFS2_DIF_APPENDONLY)
+		flags |= S_APPEND;
+	if (di->di_flags & GFS2_DIF_NOATIME)
+		flags |= S_NOATIME;
+	if (di->di_flags & GFS2_DIF_SYNC)
+		flags |= S_SYNC;
+	inode->i_flags = flags;
+}
+
 /* Flags that can be set by user space */
 #define GFS2_FLAGS_USER_SET (GFS2_DIF_JDATA|			\
 			     GFS2_DIF_DIRECTIO|			\
@@ -338,6 +356,7 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 	ip->i_di.di_flags = new_flags;
 	gfs2_dinode_out(ip, bh->b_data);
 	brelse(bh);
+	gfs2_set_inode_flags(inode);
 out_trans_end:
 	gfs2_trans_end(sdp);
 out:

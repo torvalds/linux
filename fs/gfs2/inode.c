@@ -54,16 +54,6 @@ void gfs2_inode_attr_in(struct gfs2_inode *ip)
 	i_size_write(inode, di->di_size);
 	inode->i_blocks = di->di_blocks <<
 		(GFS2_SB(inode)->sd_sb.sb_bsize_shift - GFS2_BASIC_BLOCK_SHIFT);
-
-	if (di->di_flags & GFS2_DIF_IMMUTABLE)
-		inode->i_flags |= S_IMMUTABLE;
-	else
-		inode->i_flags &= ~S_IMMUTABLE;
-
-	if (di->di_flags & GFS2_DIF_APPENDONLY)
-		inode->i_flags |= S_APPEND;
-	else
-		inode->i_flags &= ~S_APPEND;
 }
 
 static int iget_test(struct inode *inode, void *opaque)
@@ -210,6 +200,7 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	di->di_generation = be64_to_cpu(str->di_generation);
 
 	di->di_flags = be32_to_cpu(str->di_flags);
+	gfs2_set_inode_flags(&ip->i_inode);
 	di->di_height = be16_to_cpu(str->di_height);
 
 	di->di_depth = be16_to_cpu(str->di_depth);
