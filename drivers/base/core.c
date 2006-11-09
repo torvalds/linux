@@ -682,6 +682,7 @@ void device_del(struct device * dev)
 	device_remove_file(dev, &dev->uevent_attr);
 	device_remove_groups(dev);
 	device_remove_attrs(dev);
+	bus_remove_device(dev);
 
 	/* Notify the platform of the removal, in case they
 	 * need to do anything...
@@ -691,7 +692,6 @@ void device_del(struct device * dev)
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->bus_notifier,
 					     BUS_NOTIFY_DEL_DEVICE, dev);
-	bus_remove_device(dev);
 	device_pm_remove(dev);
 	kobject_uevent(&dev->kobj, KOBJ_REMOVE);
 	kobject_del(&dev->kobj);
