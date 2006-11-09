@@ -80,7 +80,7 @@ struct iwcm_work {
  * 1) in the event upcall, cm_event_handler(), for a listening cm_id.  If
  *    the backlog is exceeded, then no more connection request events will
  *    be processed.  cm_event_handler() returns -ENOMEM in this case.  Its up
- *    to the provider to reject the connectino request.
+ *    to the provider to reject the connection request.
  * 2) in the connection request workqueue handler, cm_conn_req_handler().
  *    If work elements cannot be allocated for the new connect request cm_id,
  *    then IWCM will call the provider reject method.  This is ok since
@@ -131,12 +131,11 @@ static int alloc_work_entries(struct iwcm_id_private *cm_id_priv, int count)
 }
 
 /*
- * Save private data from incoming connection requests in the
- * cm_id_priv so the low level driver doesn't have to.  Adjust
+ * Save private data from incoming connection requests to
+ * iw_cm_event, so the low level driver doesn't have to. Adjust
  * the event ptr to point to the local copy.
  */
-static int copy_private_data(struct iwcm_id_private *cm_id_priv,
-		       struct iw_cm_event *event)
+static int copy_private_data(struct iw_cm_event *event)
 {
 	void *p;
 
@@ -242,7 +241,7 @@ static int iwcm_modify_qp_sqd(struct ib_qp *qp)
 /*
  * CM_ID <-- CLOSING
  *
- * Block if a passive or active connection is currenlty being processed. Then
+ * Block if a passive or active connection is currently being processed. Then
  * process the event as follows:
  * - If we are ESTABLISHED, move to CLOSING and modify the QP state
  *   based on the abrupt flag
@@ -907,7 +906,7 @@ static int cm_event_handler(struct iw_cm_id *cm_id,
 	if ((work->event.event == IW_CM_EVENT_CONNECT_REQUEST ||
 	     work->event.event == IW_CM_EVENT_CONNECT_REPLY) &&
 	    work->event.private_data_len) {
-		ret = copy_private_data(cm_id_priv, &work->event);
+		ret = copy_private_data(&work->event);
 		if (ret) {
 			put_work(work);
 			goto out;
