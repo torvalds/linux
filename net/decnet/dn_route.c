@@ -269,9 +269,7 @@ static inline int compare_keys(struct flowi *fl1, struct flowi *fl2)
 {
 	return ((fl1->nl_u.dn_u.daddr ^ fl2->nl_u.dn_u.daddr) |
 		(fl1->nl_u.dn_u.saddr ^ fl2->nl_u.dn_u.saddr) |
-#ifdef CONFIG_DECNET_ROUTE_FWMARK
-		(fl1->nl_u.dn_u.fwmark ^ fl2->nl_u.dn_u.fwmark) |
-#endif
+		(fl1->mark ^ fl2->mark) |
 		(fl1->nl_u.dn_u.scope ^ fl2->nl_u.dn_u.scope) |
 		(fl1->oif ^ fl2->oif) |
 		(fl1->iif ^ fl2->iif)) == 0;
@@ -882,10 +880,8 @@ static int dn_route_output_slow(struct dst_entry **pprt, const struct flowi *old
 				      { .daddr = oldflp->fld_dst,
 					.saddr = oldflp->fld_src,
 					.scope = RT_SCOPE_UNIVERSE,
-#ifdef CONFIG_DECNET_ROUTE_FWMARK
-					.fwmark = oldflp->fld_fwmark
-#endif
 				     } },
+			    .mark = oldflp->mark,
 			    .iif = loopback_dev.ifindex,
 			    .oif = oldflp->oif };
 	struct dn_route *rt = NULL;
@@ -903,7 +899,7 @@ static int dn_route_output_slow(struct dst_entry **pprt, const struct flowi *old
 		       "dn_route_output_slow: dst=%04x src=%04x mark=%d"
 		       " iif=%d oif=%d\n", dn_ntohs(oldflp->fld_dst),
 		       dn_ntohs(oldflp->fld_src),
-                       oldflp->fld_fwmark, loopback_dev.ifindex, oldflp->oif);
+                       oldflp->mark, loopback_dev.ifindex, oldflp->oif);
 
 	/* If we have an output interface, verify its a DECnet device */
 	if (oldflp->oif) {
@@ -1108,9 +1104,7 @@ make_route:
 	rt->fl.fld_dst    = oldflp->fld_dst;
 	rt->fl.oif        = oldflp->oif;
 	rt->fl.iif        = 0;
-#ifdef CONFIG_DECNET_ROUTE_FWMARK
-	rt->fl.fld_fwmark = oldflp->fld_fwmark;
-#endif
+	rt->fl.mark       = oldflp->mark;
 
 	rt->rt_saddr      = fl.fld_src;
 	rt->rt_daddr      = fl.fld_dst;
@@ -1178,9 +1172,7 @@ static int __dn_route_output_key(struct dst_entry **pprt, const struct flowi *fl
 			rt = rcu_dereference(rt->u.rt_next)) {
 			if ((flp->fld_dst == rt->fl.fld_dst) &&
 			    (flp->fld_src == rt->fl.fld_src) &&
-#ifdef CONFIG_DECNET_ROUTE_FWMARK
-			    (flp->fld_fwmark == rt->fl.fld_fwmark) &&
-#endif
+			    (flp->mark == rt->fl.mark) &&
 			    (rt->fl.iif == 0) &&
 			    (rt->fl.oif == flp->oif)) {
 				rt->u.dst.lastuse = jiffies;
@@ -1235,10 +1227,8 @@ static int dn_route_input_slow(struct sk_buff *skb)
 				     { .daddr = cb->dst,
 				       .saddr = cb->src,
 				       .scope = RT_SCOPE_UNIVERSE,
-#ifdef CONFIG_DECNET_ROUTE_FWMARK
-				       .fwmark = skb->mark
-#endif
 				    } },
+			    .mark = skb->mark,
 			    .iif = skb->dev->ifindex };
 	struct dn_fib_res res = { .fi = NULL, .type = RTN_UNREACHABLE };
 	int err = -EINVAL;
@@ -1385,7 +1375,7 @@ make_route:
 	rt->fl.fld_dst    = cb->dst;
 	rt->fl.oif        = 0;
 	rt->fl.iif        = in_dev->ifindex;
-	rt->fl.fld_fwmark = fl.fld_fwmark;
+	rt->fl.mark       = fl.mark;
 
 	rt->u.dst.flags = DST_HOST;
 	rt->u.dst.neighbour = neigh;
@@ -1457,9 +1447,7 @@ int dn_route_input(struct sk_buff *skb)
 		if ((rt->fl.fld_src == cb->src) &&
 	 	    (rt->fl.fld_dst == cb->dst) &&
 		    (rt->fl.oif == 0) &&
-#ifdef CONFIG_DECNET_ROUTE_FWMARK
-		    (rt->fl.fld_fwmark == skb->mark) &&
-#endif
+		    (rt->fl.mark == skb->mark) &&
 		    (rt->fl.iif == cb->iif)) {
 			rt->u.dst.lastuse = jiffies;
 			dst_hold(&rt->u.dst);

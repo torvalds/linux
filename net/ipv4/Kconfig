@@ -104,13 +104,6 @@ config IP_MULTIPLE_TABLES
 
 	  If unsure, say N.
 
-config IP_ROUTE_FWMARK
-	bool "IP: use netfilter MARK value as routing key"
-	depends on IP_MULTIPLE_TABLES && NETFILTER
-	help
-	  If you say Y here, you will be able to specify different routes for
-	  packets with different mark values (see iptables(8), MARK target).
-
 config IP_ROUTE_MULTIPATH
 	bool "IP: equal cost multipath"
 	depends on IP_ADVANCED_ROUTER

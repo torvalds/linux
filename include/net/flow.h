@@ -13,12 +13,12 @@
 struct flowi {
 	int	oif;
 	int	iif;
+	__u32	mark;
 
 	union {
 		struct {
 			__be32			daddr;
 			__be32			saddr;
-			__u32			fwmark;
 			__u8			tos;
 			__u8			scope;
 		} ip4_u;
@@ -26,28 +26,23 @@ struct flowi {
 		struct {
 			struct in6_addr		daddr;
 			struct in6_addr		saddr;
-			__u32			fwmark;
 			__be32			flowlabel;
 		} ip6_u;
 
 		struct {
 			__le16			daddr;
 			__le16			saddr;
-			__u32			fwmark;
 			__u8			scope;
 		} dn_u;
 	} nl_u;
 #define fld_dst		nl_u.dn_u.daddr
 #define fld_src		nl_u.dn_u.saddr
-#define fld_fwmark	nl_u.dn_u.fwmark
 #define fld_scope	nl_u.dn_u.scope
 #define fl6_dst		nl_u.ip6_u.daddr
 #define fl6_src		nl_u.ip6_u.saddr
-#define fl6_fwmark	nl_u.ip6_u.fwmark
 #define fl6_flowlabel	nl_u.ip6_u.flowlabel
 #define fl4_dst		nl_u.ip4_u.daddr
 #define fl4_src		nl_u.ip4_u.saddr
-#define fl4_fwmark	nl_u.ip4_u.fwmark
 #define fl4_tos		nl_u.ip4_u.tos
 #define fl4_scope	nl_u.ip4_u.scope
 
