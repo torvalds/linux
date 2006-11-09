@@ -1349,19 +1349,22 @@ ssize_t psmouse_attr_set_helper(struct device *dev, struct device_attribute *dev
 
 static ssize_t psmouse_show_int_attr(struct psmouse *psmouse, void *offset, char *buf)
 {
-	unsigned long *field = (unsigned long *)((char *)psmouse + (size_t)offset);
+	unsigned int *field = (unsigned int *)((char *)psmouse + (size_t)offset);
 
-	return sprintf(buf, "%lu\n", *field);
+	return sprintf(buf, "%u\n", *field);
 }
 
 static ssize_t psmouse_set_int_attr(struct psmouse *psmouse, void *offset, const char *buf, size_t count)
 {
-	unsigned long *field = (unsigned long *)((char *)psmouse + (size_t)offset);
+	unsigned int *field = (unsigned int *)((char *)psmouse + (size_t)offset);
 	unsigned long value;
 	char *rest;
 
 	value = simple_strtoul(buf, &rest, 10);
 	if (*rest)
+		return -EINVAL;
+
+	if ((unsigned int)value != value)
 		return -EINVAL;
 
 	*field = value;
