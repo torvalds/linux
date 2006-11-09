@@ -444,9 +444,9 @@ SOC_DOUBLE_R("Capture Volume", WM8750_LINVOL, WM8750_RINVOL, 0, 63, 0),
 SOC_DOUBLE_R("Capture ZC Switch", WM8750_LINVOL, WM8750_RINVOL, 6, 1, 0),
 SOC_DOUBLE_R("Capture Switch", WM8750_LINVOL, WM8750_RINVOL, 7, 1, 1),
 
-SOC_DOUBLE_R("Out1 Playback ZC Switch", WM8750_LOUT1V,
+SOC_DOUBLE_R("Headphone Playback ZC Switch", WM8750_LOUT1V,
 	WM8750_ROUT1V, 7, 1, 0),
-SOC_DOUBLE_R("Out2 Playback ZC Switch", WM8750_LOUT2V,
+SOC_DOUBLE_R("Speaker Playback ZC Switch", WM8750_LOUT2V,
 	WM8750_ROUT2V, 7, 1, 0),
 
 SOC_ENUM("Playback De-emphasis", wm8750_enum[15]),
@@ -487,7 +487,7 @@ SOC_SINGLE("Right ADC Capture Volume", WM8750_RADC, 0, 255, 0),
 SOC_SINGLE("ZC Timeout Switch", WM8750_ADCTL1, 0, 1, 0),
 SOC_SINGLE("Playback Invert Switch", WM8750_ADCTL1, 1, 1, 0),
 
-SOC_SINGLE("Right Out2 Playback Invert Switch", WM8750_ADCTL2, 4, 1, 0),
+SOC_SINGLE("Right Speaker Playback Invert Switch", WM8750_ADCTL2, 4, 1, 0),
 
 /* Unimplemented */
 /* ADCDAC Bit 0 - ADCHPD */
@@ -514,8 +514,10 @@ SOC_DOUBLE_R("Bypass Mono Playback Volume", WM8750_MOUTM1,
 
 SOC_SINGLE("Mono Playback ZC Switch", WM8750_MOUTV, 7, 1, 0),
 
-SOC_DOUBLE_R("Out1 Playback Volume", WM8750_LOUT1V, WM8750_ROUT1V, 0, 127, 0),
-SOC_DOUBLE_R("Out2 Playback Volume", WM8750_LOUT2V, WM8750_ROUT2V, 0, 127, 0),
+SOC_DOUBLE_R("Headphone Playback Volume", WM8750_LOUT1V, WM8750_ROUT1V,
+	0, 127, 0),
+SOC_DOUBLE_R("Speaker Playback Volume", WM8750_LOUT2V, WM8750_ROUT2V,
+	0, 127, 0),
 
 SOC_SINGLE("Mono Playback Volume", WM8750_MOUTV, 0, 127, 0),
 

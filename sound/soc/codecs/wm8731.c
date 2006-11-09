@@ -310,8 +310,10 @@ static const struct soc_enum wm8731_enum[] = {
 
 static const struct snd_kcontrol_new wm8731_snd_controls[] = {
 
-SOC_DOUBLE_R("Playback Volume", WM8731_LOUT1V, WM8731_ROUT1V, 0, 127, 0),
-SOC_DOUBLE_R("Playback ZC Switch", WM8731_LOUT1V, WM8731_ROUT1V, 7, 1, 0),
+SOC_DOUBLE_R("Master Playback Volume", WM8731_LOUT1V, WM8731_ROUT1V,
+	0, 127, 0),
+SOC_DOUBLE_R("Master Playback ZC Switch", WM8731_LOUT1V, WM8731_ROUT1V,
+	7, 1, 0),
 
 SOC_DOUBLE_R("Capture Volume", WM8731_LINVOL, WM8731_RINVOL, 0, 31, 0),
 SOC_DOUBLE_R("Line Capture Switch", WM8731_LINVOL, WM8731_RINVOL, 7, 1, 1),
