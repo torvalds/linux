@@ -93,6 +93,7 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 {
 	struct svc_fh resfh;
 	__be32 status;
+	int created = 0;
 
 	fh_init(&resfh, NFS4_FHSIZE);
 	open->op_truncate = 0;
@@ -105,7 +106,7 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 		status = nfsd_create_v3(rqstp, current_fh, open->op_fname.data,
 					open->op_fname.len, &open->op_iattr,
 					&resfh, open->op_createmode,
-					(u32 *)open->op_verf.data, &open->op_truncate);
+					(u32 *)open->op_verf.data, &open->op_truncate, &created);
 	} else {
 		status = nfsd_lookup(rqstp, current_fh,
 				     open->op_fname.data, open->op_fname.len, &resfh);
@@ -122,7 +123,8 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 	memcpy(open->op_stateowner->so_replay.rp_openfh,
 			&resfh.fh_handle.fh_base, resfh.fh_handle.fh_size);
 
-	status = do_open_permission(rqstp, current_fh, open, MAY_NOP);
+	if (!created)
+		status = do_open_permission(rqstp, current_fh, open, MAY_NOP);
 
 out:
 	fh_put(&resfh);
