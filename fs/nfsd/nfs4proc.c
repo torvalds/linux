@@ -106,27 +106,25 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 					open->op_fname.len, &open->op_iattr,
 					&resfh, open->op_createmode,
 					(u32 *)open->op_verf.data, &open->op_truncate);
-	}
-	else {
+	} else {
 		status = nfsd_lookup(rqstp, current_fh,
 				     open->op_fname.data, open->op_fname.len, &resfh);
 		fh_unlock(current_fh);
 	}
+	if (status)
+		goto out;
 
-	if (!status) {
-		set_change_info(&open->op_cinfo, current_fh);
+	set_change_info(&open->op_cinfo, current_fh);
 
-		/* set reply cache */
-		fh_dup2(current_fh, &resfh);
-		open->op_stateowner->so_replay.rp_openfh_len =
-			resfh.fh_handle.fh_size;
-		memcpy(open->op_stateowner->so_replay.rp_openfh,
-				&resfh.fh_handle.fh_base,
-				resfh.fh_handle.fh_size);
+	/* set reply cache */
+	fh_dup2(current_fh, &resfh);
+	open->op_stateowner->so_replay.rp_openfh_len = resfh.fh_handle.fh_size;
+	memcpy(open->op_stateowner->so_replay.rp_openfh,
+			&resfh.fh_handle.fh_base, resfh.fh_handle.fh_size);
 
-		status = do_open_permission(rqstp, current_fh, open, MAY_NOP);
-	}
+	status = do_open_permission(rqstp, current_fh, open, MAY_NOP);
 
+out:
 	fh_put(&resfh);
 	return status;
 }
