@@ -619,7 +619,7 @@ static void cm_conn_req_handler(struct iwcm_id_private *listen_id_priv,
 	spin_lock_irqsave(&listen_id_priv->lock, flags);
 	if (listen_id_priv->state != IW_CM_STATE_LISTEN) {
 		spin_unlock_irqrestore(&listen_id_priv->lock, flags);
-		return;
+		goto out;
 	}
 	spin_unlock_irqrestore(&listen_id_priv->lock, flags);
 
@@ -628,7 +628,7 @@ static void cm_conn_req_handler(struct iwcm_id_private *listen_id_priv,
 				listen_id_priv->id.context);
 	/* If the cm_id could not be created, ignore the request */
 	if (IS_ERR(cm_id))
-		return;
+		goto out;
 
 	cm_id->provider_data = iw_event->provider_data;
 	cm_id->local_addr = iw_event->local_addr;
@@ -641,7 +641,7 @@ static void cm_conn_req_handler(struct iwcm_id_private *listen_id_priv,
 	if (ret) {
 		iw_cm_reject(cm_id, NULL, 0);
 		iw_destroy_cm_id(cm_id);
-		return;
+		goto out;
 	}
 
 	/* Call the client CM handler */
@@ -653,6 +653,7 @@ static void cm_conn_req_handler(struct iwcm_id_private *listen_id_priv,
 			kfree(cm_id);
 	}
 
+out:
 	if (iw_event->private_data_len)
 		kfree(iw_event->private_data);
 }
