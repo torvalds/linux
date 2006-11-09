@@ -1211,7 +1211,7 @@ static void intf_mem_outb(struct si_sm_io *io, unsigned int offset,
 static unsigned char intf_mem_inw(struct si_sm_io *io, unsigned int offset)
 {
 	return (readw((io->addr)+(offset * io->regspacing)) >> io->regshift)
-		&& 0xff;
+		& 0xff;
 }
 
 static void intf_mem_outw(struct si_sm_io *io, unsigned int offset,
@@ -1223,7 +1223,7 @@ static void intf_mem_outw(struct si_sm_io *io, unsigned int offset,
 static unsigned char intf_mem_inl(struct si_sm_io *io, unsigned int offset)
 {
 	return (readl((io->addr)+(offset * io->regspacing)) >> io->regshift)
-		&& 0xff;
+		& 0xff;
 }
 
 static void intf_mem_outl(struct si_sm_io *io, unsigned int offset,
@@ -1236,7 +1236,7 @@ static void intf_mem_outl(struct si_sm_io *io, unsigned int offset,
 static unsigned char mem_inq(struct si_sm_io *io, unsigned int offset)
 {
 	return (readq((io->addr)+(offset * io->regspacing)) >> io->regshift)
-		&& 0xff;
+		& 0xff;
 }
 
 static void mem_outq(struct si_sm_io *io, unsigned int offset,
