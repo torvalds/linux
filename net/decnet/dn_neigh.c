@@ -591,7 +591,6 @@ static int dn_neigh_seq_open(struct inode *inode, struct file *file)
 
 	seq          = file->private_data;
 	seq->private = s;
-	memset(s, 0, sizeof(*s));
 out:
 	return rc;
 out_kfree:
