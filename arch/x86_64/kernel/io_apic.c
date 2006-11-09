@@ -1955,18 +1955,16 @@ void arch_teardown_msi_irq(unsigned int irq)
 
 static void target_ht_irq(unsigned int irq, unsigned int dest, u8 vector)
 {
-	u32 low, high;
-	low  = read_ht_irq_low(irq);
-	high = read_ht_irq_high(irq);
+	struct ht_irq_msg msg;
+	fetch_ht_irq_msg(irq, &msg);
 
-	low  &= ~(HT_IRQ_LOW_VECTOR_MASK | HT_IRQ_LOW_DEST_ID_MASK);
-	high &= ~(HT_IRQ_HIGH_DEST_ID_MASK);
+	msg.address_lo &= ~(HT_IRQ_LOW_VECTOR_MASK | HT_IRQ_LOW_DEST_ID_MASK);
+	msg.address_hi &= ~(HT_IRQ_HIGH_DEST_ID_MASK);
 
-	low  |= HT_IRQ_LOW_VECTOR(vector) | HT_IRQ_LOW_DEST_ID(dest);
-	high |= HT_IRQ_HIGH_DEST_ID(dest);
+	msg.address_lo |= HT_IRQ_LOW_VECTOR(vector) | HT_IRQ_LOW_DEST_ID(dest);
+	msg.address_hi |= HT_IRQ_HIGH_DEST_ID(dest);
 
-	write_ht_irq_low(irq, low);
-	write_ht_irq_high(irq, high);
+	write_ht_irq_msg(irq, &msg);
 }
 
 static void set_ht_irq_affinity(unsigned int irq, cpumask_t mask)
@@ -1987,7 +1985,7 @@ static void set_ht_irq_affinity(unsigned int irq, cpumask_t mask)
 
 	dest = cpu_mask_to_apicid(tmp);
 
-	target_ht_irq(irq, dest, vector & 0xff);
+	target_ht_irq(irq, dest, vector);
 	set_native_irq_info(irq, mask);
 }
 #endif
@@ -2010,14 +2008,15 @@ int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 
 	vector = assign_irq_vector(irq, TARGET_CPUS, &tmp);
 	if (vector >= 0) {
-		u32 low, high;
+		struct ht_irq_msg msg;
 		unsigned dest;
 
 		dest = cpu_mask_to_apicid(tmp);
 
-		high = 	HT_IRQ_HIGH_DEST_ID(dest);
+		msg.address_hi = HT_IRQ_HIGH_DEST_ID(dest);
 
-		low =	HT_IRQ_LOW_BASE |
+		msg.address_lo =
+			HT_IRQ_LOW_BASE |
 			HT_IRQ_LOW_DEST_ID(dest) |
 			HT_IRQ_LOW_VECTOR(vector) |
 			((INT_DEST_MODE == 0) ?
@@ -2026,10 +2025,10 @@ int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 			HT_IRQ_LOW_RQEOI_EDGE |
 			((INT_DELIVERY_MODE != dest_LowestPrio) ?
 				HT_IRQ_LOW_MT_FIXED :
-				HT_IRQ_LOW_MT_ARBITRATED);
+				HT_IRQ_LOW_MT_ARBITRATED) |
+			HT_IRQ_LOW_IRQ_MASKED;
 
-		write_ht_irq_low(irq, low);
-		write_ht_irq_high(irq, high);
+		write_ht_irq_msg(irq, &msg);
 
 		set_irq_chip_and_handler_name(irq, &ht_irq_chip,
 					      handle_edge_irq, "edge");

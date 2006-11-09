@@ -27,82 +27,55 @@ struct ht_irq_cfg {
 	struct pci_dev *dev;
 	unsigned pos;
 	unsigned idx;
+	struct ht_irq_msg msg;
 };
 
-void write_ht_irq_low(unsigned int irq, u32 data)
+
+void write_ht_irq_msg(unsigned int irq, struct ht_irq_msg *msg)
 {
 	struct ht_irq_cfg *cfg = get_irq_data(irq);
 	unsigned long flags;
 	spin_lock_irqsave(&ht_irq_lock, flags);
-	pci_write_config_byte(cfg->dev, cfg->pos + 2, cfg->idx);
-	pci_write_config_dword(cfg->dev, cfg->pos + 4, data);
+	if (cfg->msg.address_lo != msg->address_lo) {
+		pci_write_config_byte(cfg->dev, cfg->pos + 2, cfg->idx);
+		pci_write_config_dword(cfg->dev, cfg->pos + 4, msg->address_lo);
+	}
+	if (cfg->msg.address_hi != msg->address_hi) {
+		pci_write_config_byte(cfg->dev, cfg->pos + 2, cfg->idx + 1);
+		pci_write_config_dword(cfg->dev, cfg->pos + 4, msg->address_hi);
+	}
 	spin_unlock_irqrestore(&ht_irq_lock, flags);
+	cfg->msg = *msg;
 }
 
-void write_ht_irq_high(unsigned int irq, u32 data)
+void fetch_ht_irq_msg(unsigned int irq, struct ht_irq_msg *msg)
 {
 	struct ht_irq_cfg *cfg = get_irq_data(irq);
-	unsigned long flags;
-	spin_lock_irqsave(&ht_irq_lock, flags);
-	pci_write_config_byte(cfg->dev, cfg->pos + 2, cfg->idx + 1);
-	pci_write_config_dword(cfg->dev, cfg->pos + 4, data);
-	spin_unlock_irqrestore(&ht_irq_lock, flags);
-}
-
-u32 read_ht_irq_low(unsigned int irq)
-{
-	struct ht_irq_cfg *cfg = get_irq_data(irq);
-	unsigned long flags;
-	u32 data;
-	spin_lock_irqsave(&ht_irq_lock, flags);
-	pci_write_config_byte(cfg->dev, cfg->pos + 2, cfg->idx);
-	pci_read_config_dword(cfg->dev, cfg->pos + 4, &data);
-	spin_unlock_irqrestore(&ht_irq_lock, flags);
-	return data;
-}
-
-u32 read_ht_irq_high(unsigned int irq)
-{
-	struct ht_irq_cfg *cfg = get_irq_data(irq);
-	unsigned long flags;
-	u32 data;
-	spin_lock_irqsave(&ht_irq_lock, flags);
-	pci_write_config_byte(cfg->dev, cfg->pos + 2, cfg->idx + 1);
-	pci_read_config_dword(cfg->dev, cfg->pos + 4, &data);
-	spin_unlock_irqrestore(&ht_irq_lock, flags);
-	return data;
+	*msg = cfg->msg;
 }
 
 void mask_ht_irq(unsigned int irq)
 {
 	struct ht_irq_cfg *cfg;
-	unsigned long flags;
-	u32 data;
+	struct ht_irq_msg msg;
 
 	cfg = get_irq_data(irq);
 
-	spin_lock_irqsave(&ht_irq_lock, flags);
-	pci_write_config_byte(cfg->dev, cfg->pos + 2, cfg->idx);
-	pci_read_config_dword(cfg->dev, cfg->pos + 4, &data);
-	data |= 1;
-	pci_write_config_dword(cfg->dev, cfg->pos + 4, data);
-	spin_unlock_irqrestore(&ht_irq_lock, flags);
+	msg = cfg->msg;
+	msg.address_lo |= 1;
+	write_ht_irq_msg(irq, &msg);
 }
 
 void unmask_ht_irq(unsigned int irq)
 {
 	struct ht_irq_cfg *cfg;
-	unsigned long flags;
-	u32 data;
+	struct ht_irq_msg msg;
 
 	cfg = get_irq_data(irq);
 
-	spin_lock_irqsave(&ht_irq_lock, flags);
-	pci_write_config_byte(cfg->dev, cfg->pos + 2, cfg->idx);
-	pci_read_config_dword(cfg->dev, cfg->pos + 4, &data);
-	data &= ~1;
-	pci_write_config_dword(cfg->dev, cfg->pos + 4, data);
-	spin_unlock_irqrestore(&ht_irq_lock, flags);
+	msg = cfg->msg;
+	msg.address_lo &= ~1;
+	write_ht_irq_msg(irq, &msg);
 }
 
 /**
@@ -152,6 +125,9 @@ int ht_create_irq(struct pci_dev *dev, int idx)
 	cfg->dev = dev;
 	cfg->pos = pos;
 	cfg->idx = 0x10 + (idx * 2);
+	/* Initialize msg to a value that will never match the first write. */
+	cfg->msg.address_lo = 0xffffffff;
+	cfg->msg.address_hi = 0xffffffff;
 
 	irq = create_irq();
 	if (irq < 0) {

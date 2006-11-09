@@ -2624,18 +2624,16 @@ void arch_teardown_msi_irq(unsigned int irq)
 
 static void target_ht_irq(unsigned int irq, unsigned int dest)
 {
-	u32 low, high;
-	low  = read_ht_irq_low(irq);
-	high = read_ht_irq_high(irq);
+	struct ht_irq_msg msg;
+	fetch_ht_irq_msg(irq, &msg);
 
-	low  &= ~(HT_IRQ_LOW_DEST_ID_MASK);
-	high &= ~(HT_IRQ_HIGH_DEST_ID_MASK);
+	msg.address_lo &= ~(HT_IRQ_LOW_DEST_ID_MASK);
+	msg.address_hi &= ~(HT_IRQ_HIGH_DEST_ID_MASK);
 
-	low  |= HT_IRQ_LOW_DEST_ID(dest);
-	high |= HT_IRQ_HIGH_DEST_ID(dest);
+	msg.address_lo |= HT_IRQ_LOW_DEST_ID(dest);
+	msg.address_hi |= HT_IRQ_HIGH_DEST_ID(dest);
 
-	write_ht_irq_low(irq, low);
-	write_ht_irq_high(irq, high);
+	write_ht_irq_msg(irq, &msg);
 }
 
 static void set_ht_irq_affinity(unsigned int irq, cpumask_t mask)
@@ -2673,7 +2671,7 @@ int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 
 	vector = assign_irq_vector(irq);
 	if (vector >= 0) {
-		u32 low, high;
+		struct ht_irq_msg msg;
 		unsigned dest;
 		cpumask_t tmp;
 
@@ -2681,9 +2679,10 @@ int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 		cpu_set(vector >> 8, tmp);
 		dest = cpu_mask_to_apicid(tmp);
 
-		high = 	HT_IRQ_HIGH_DEST_ID(dest);
+		msg.address_hi = HT_IRQ_HIGH_DEST_ID(dest);
 
-		low =	HT_IRQ_LOW_BASE |
+		msg.address_lo =
+			HT_IRQ_LOW_BASE |
 			HT_IRQ_LOW_DEST_ID(dest) |
 			HT_IRQ_LOW_VECTOR(vector) |
 			((INT_DEST_MODE == 0) ?
@@ -2695,8 +2694,7 @@ int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 				HT_IRQ_LOW_MT_ARBITRATED) |
 			HT_IRQ_LOW_IRQ_MASKED;
 
-		write_ht_irq_low(irq, low);
-		write_ht_irq_high(irq, high);
+		write_ht_irq_msg(irq, &msg);
 
 		set_irq_chip_and_handler_name(irq, &ht_irq_chip,
 					      handle_edge_irq, "edge");
