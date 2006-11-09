@@ -3200,7 +3200,7 @@ static int do_md_run(mddev_t * mddev)
 
 	mddev->changed = 1;
 	md_new_event(mddev);
-	kobject_uevent(&mddev->gendisk->kobj, KOBJ_ONLINE);
+	kobject_uevent(&mddev->gendisk->kobj, KOBJ_CHANGE);
 	return 0;
 }
 
@@ -3314,7 +3314,6 @@ static int do_md_stop(mddev_t * mddev, int mode)
 
 			module_put(mddev->pers->owner);
 			mddev->pers = NULL;
-			kobject_uevent(&mddev->gendisk->kobj, KOBJ_OFFLINE);
 			if (mddev->ro)
 				mddev->ro = 0;
 		}
