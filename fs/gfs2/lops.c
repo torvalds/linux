@@ -509,7 +509,7 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 {
 	LIST_HEAD(started);
 	struct gfs2_bufdata *bd1 = NULL, *bd2, *bdt;
-	struct buffer_head *bh = NULL;
+	struct buffer_head *bh = NULL,*bh1 = NULL;
 	unsigned int offset = sizeof(struct gfs2_log_descriptor);
 	struct gfs2_log_descriptor *ld;
 	unsigned int limit;
@@ -537,8 +537,13 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 		list_for_each_entry_safe_continue(bd1, bdt,
 						  &sdp->sd_log_le_databuf,
 						  bd_le.le_list) {
+			/* store off the buffer head in a local ptr since
+			 * gfs2_bufdata might change when we drop the log lock
+			 */
+			bh1 = bd1->bd_bh;
+
 			/* An ordered write buffer */
-			if (bd1->bd_bh && !buffer_pinned(bd1->bd_bh)) {
+			if (bh1 && !buffer_pinned(bh1)) {
 				list_move(&bd1->bd_le.le_list, &started);
 				if (bd1 == bd2) {
 					bd2 = NULL;
@@ -547,20 +552,21 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 							bd_le.le_list);
 				}
 				total_dbuf--;
-				if (bd1->bd_bh) {
-					get_bh(bd1->bd_bh);
-					if (buffer_dirty(bd1->bd_bh)) {
+				if (bh1) {
+					if (buffer_dirty(bh1)) {
+						get_bh(bh1);
+
 						gfs2_log_unlock(sdp);
-						wait_on_buffer(bd1->bd_bh);
-						ll_rw_block(WRITE, 1,
-							    &bd1->bd_bh);
+
+						ll_rw_block(SWRITE, 1, &bh1);
+						brelse(bh1);
+
 						gfs2_log_lock(sdp);
 					}
-					brelse(bd1->bd_bh);
 					continue;
 				}
 				continue;
-			} else if (bd1->bd_bh) { /* A journaled buffer */
+			} else if (bh1) { /* A journaled buffer */
 				int magic;
 				gfs2_log_unlock(sdp);
 				if (!bh) {
@@ -582,16 +588,16 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 					ld->ld_data2 = cpu_to_be32(0);
 					memset(ld->ld_reserved, 0, sizeof(ld->ld_reserved));
 				}
-				magic = gfs2_check_magic(bd1->bd_bh);
-				*ptr++ = cpu_to_be64(bd1->bd_bh->b_blocknr);
+				magic = gfs2_check_magic(bh1);
+				*ptr++ = cpu_to_be64(bh1->b_blocknr);
 				*ptr++ = cpu_to_be64((__u64)magic);
-				clear_buffer_escaped(bd1->bd_bh);
+				clear_buffer_escaped(bh1);
 				if (unlikely(magic != 0))
-					set_buffer_escaped(bd1->bd_bh);
+					set_buffer_escaped(bh1);
 				gfs2_log_lock(sdp);
 				if (n++ > num)
 					break;
-			} else if (!bd1->bd_bh) {
+			} else if (!bh1) {
 				total_dbuf--;
 				sdp->sd_log_num_databuf--;
 				list_del_init(&bd1->bd_le.le_list);
