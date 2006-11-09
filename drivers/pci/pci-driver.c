@@ -445,9 +445,12 @@ int __pci_register_driver(struct pci_driver *drv, struct module *owner)
 
 	/* register with core */
 	error = driver_register(&drv->driver);
+	if (error)
+		return error;
 
-	if (!error)
-		error = pci_create_newid_file(drv);
+	error = pci_create_newid_file(drv);
+	if (error)
+		driver_unregister(&drv->driver);
 
 	return error;
 }
