@@ -490,6 +490,47 @@ static void pci_restore_pcie_state(struct pci_dev *dev)
 	kfree(save_state);
 }
 
+
+static int pci_save_pcix_state(struct pci_dev *dev)
+{
+	int pos, i = 0;
+	struct pci_cap_saved_state *save_state;
+	u16 *cap;
+
+	pos = pci_find_capability(dev, PCI_CAP_ID_PCIX);
+	if (pos <= 0)
+		return 0;
+
+	save_state = kzalloc(sizeof(*save_state) + sizeof(u16), GFP_KERNEL);
+	if (!save_state) {
+		dev_err(&dev->dev, "Out of memory in pci_save_pcie_state\n");
+		return -ENOMEM;
+	}
+	cap = (u16 *)&save_state->data[0];
+
+	pci_read_config_word(dev, pos + PCI_X_CMD, &cap[i++]);
+	pci_add_saved_cap(dev, save_state);
+	return 0;
+}
+
+static void pci_restore_pcix_state(struct pci_dev *dev)
+{
+	int i = 0, pos;
+	struct pci_cap_saved_state *save_state;
+	u16 *cap;
+
+	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_PCIX);
+	pos = pci_find_capability(dev, PCI_CAP_ID_PCIX);
+	if (!save_state || pos <= 0)
+		return;
+	cap = (u16 *)&save_state->data[0];
+
+	pci_write_config_word(dev, pos + PCI_X_CMD, cap[i++]);
+	pci_remove_saved_cap(save_state);
+	kfree(save_state);
+}
+
+
 /**
  * pci_save_state - save the PCI configuration space of a device before suspending
  * @dev: - PCI device that we're dealing with
@@ -506,6 +547,8 @@ pci_save_state(struct pci_dev *dev)
 	if ((i = pci_save_msix_state(dev)) != 0)
 		return i;
 	if ((i = pci_save_pcie_state(dev)) != 0)
+		return i;
+	if ((i = pci_save_pcix_state(dev)) != 0)
 		return i;
 	return 0;
 }
@@ -538,6 +581,7 @@ pci_restore_state(struct pci_dev *dev)
 				dev->saved_config_space[i]);
 		}
 	}
+	pci_restore_pcix_state(dev);
 	pci_restore_msi_state(dev);
 	pci_restore_msix_state(dev);
 	return 0;
