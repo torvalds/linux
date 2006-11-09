@@ -829,7 +829,8 @@ static int process_event(struct iwcm_id_private *cm_id_priv,
  */
 static void cm_work_handler(void *arg)
 {
-	struct iwcm_work *work = arg, lwork;
+	struct iwcm_work *work = arg;
+	struct iw_cm_event levent;
 	struct iwcm_id_private *cm_id_priv = work->cm_id;
 	unsigned long flags;
 	int empty;
@@ -842,11 +843,11 @@ static void cm_work_handler(void *arg)
 				  struct iwcm_work, list);
 		list_del_init(&work->list);
 		empty = list_empty(&cm_id_priv->work_list);
-		lwork = *work;
+		levent = work->event;
 		put_work(work);
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 
-		ret = process_event(cm_id_priv, &work->event);
+		ret = process_event(cm_id_priv, &levent);
 		if (ret) {
 			set_bit(IWCM_F_CALLBACK_DESTROY, &cm_id_priv->flags);
 			destroy_cm_id(&cm_id_priv->id);
