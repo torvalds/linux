@@ -2251,6 +2251,14 @@ config SPIDER_NET
 	  This driver supports the Gigabit Ethernet chips present on the
 	  Cell Processor-Based Blades from IBM.
 
+config TSI108_ETH
+	   tristate "Tundra TSI108 gigabit Ethernet support"
+	   depends on TSI108_BRIDGE
+	   help
+	     This driver supports Tundra TSI108 gigabit Ethernet ports.
+	     To compile this driver as a module, choose M here: the module
+	     will be called tsi108_eth.
+
 config GIANFAR
 	tristate "Gianfar Ethernet"
 	depends on 85xx || 83xx || PPC_86xx
