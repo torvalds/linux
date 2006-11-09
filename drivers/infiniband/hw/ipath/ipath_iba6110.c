@@ -38,6 +38,7 @@
 
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/htirq.h>
 
 #include "ipath_kernel.h"
 #include "ipath_registers.h"
@@ -913,49 +914,40 @@ static void slave_or_pri_blk(struct ipath_devdata *dd, struct pci_dev *pdev,
 	}
 }
 
-static int set_int_handler(struct ipath_devdata *dd, struct pci_dev *pdev,
-			    int pos)
+static int ipath_ht_intconfig(struct ipath_devdata *dd)
 {
-	u32 int_handler_addr_lower;
-	u32 int_handler_addr_upper;
-	u64 ihandler;
-	u32 intvec;
+	int ret;
 
-	/* use indirection register to get the intr handler */
-	pci_write_config_byte(pdev, pos + HT_INTR_REG_INDEX, 0x10);
-	pci_read_config_dword(pdev, pos + 4, &int_handler_addr_lower);
-	pci_write_config_byte(pdev, pos + HT_INTR_REG_INDEX, 0x11);
-	pci_read_config_dword(pdev, pos + 4, &int_handler_addr_upper);
+	if (dd->ipath_intconfig) {
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_interruptconfig,
+				 dd->ipath_intconfig);	/* interrupt address */
+		ret = 0;
+	} else {
+		ipath_dev_err(dd, "No interrupts enabled, couldn't setup "
+			      "interrupt address\n");
+		ret = -EINVAL;
+	}
 
-	ihandler = (u64) int_handler_addr_lower |
-		((u64) int_handler_addr_upper << 32);
+	return ret;
+}
+
+static void ipath_ht_irq_update(struct pci_dev *dev, int irq,
+				struct ht_irq_msg *msg)
+{
+	struct ipath_devdata *dd = pci_get_drvdata(dev);
+	u64 prev_intconfig = dd->ipath_intconfig;
+
+	dd->ipath_intconfig = msg->address_lo;
+	dd->ipath_intconfig |= ((u64) msg->address_hi) << 32;
 
 	/*
-	 * kernels with CONFIG_PCI_MSI set the vector in the irq field of
-	 * struct pci_device, so we use that to program the internal
-	 * interrupt register (not config space) with that value. The BIOS
-	 * must still have done the basic MSI setup.
+	 * If the previous value of dd->ipath_intconfig is zero, we're
+	 * getting configured for the first time, and must not program the
+	 * intconfig register here (it will be programmed later, when the
+	 * hardware is ready).  Otherwise, we should.
 	 */
-	intvec = pdev->irq;
-	/*
-	 * clear any vector bits there; normally not set but we'll overload
-	 * this for some debug purposes (setting the HTC debug register
-	 * value from software, rather than GPIOs), so it might be set on a
-	 * driver reload.
-	 */
-	ihandler &= ~0xff0000;
-	/* x86 vector goes in intrinfo[23:16] */
-	ihandler |= intvec << 16;
-	ipath_cdbg(VERBOSE, "ihandler lower %x, upper %x, intvec %x, "
-		   "interruptconfig %llx\n", int_handler_addr_lower,
-		   int_handler_addr_upper, intvec,
-		   (unsigned long long) ihandler);
-
-	/* can't program yet, so save for interrupt setup */
-	dd->ipath_intconfig = ihandler;
-	/* keep going, so we find link control stuff also */
-
-	return ihandler != 0;
+	if (prev_intconfig)
+		ipath_ht_intconfig(dd);
 }
 
 /**
@@ -971,12 +963,19 @@ static int set_int_handler(struct ipath_devdata *dd, struct pci_dev *pdev,
 static int ipath_setup_ht_config(struct ipath_devdata *dd,
 				 struct pci_dev *pdev)
 {
-	int pos, ret = 0;
-	int ihandler = 0;
+	int pos, ret;
+
+	ret = __ht_create_irq(pdev, 0, ipath_ht_irq_update);
+	if (ret < 0) {
+		ipath_dev_err(dd, "Couldn't create interrupt handler: "
+			      "err %d\n", ret);
+		goto bail;
+	}
+	dd->ipath_irq = ret;
+	ret = 0;
 
 	/*
-	 * Read the capability info to find the interrupt info, and also
-	 * handle clearing CRC errors in linkctrl register if necessary.  We
+	 * Handle clearing CRC errors in linkctrl register if necessary.  We
 	 * do this early, before we ever enable errors or hardware errors,
 	 * mostly to avoid causing the chip to enter freeze mode.
 	 */
@@ -1000,16 +999,8 @@ static int ipath_setup_ht_config(struct ipath_devdata *dd,
 		}
 		if (!(cap_type & 0xE0))
 			slave_or_pri_blk(dd, pdev, pos, cap_type);
-		else if (cap_type == HT_INTR_DISC_CONFIG)
-			ihandler = set_int_handler(dd, pdev, pos);
 	} while ((pos = pci_find_next_capability(pdev, pos,
 						 PCI_CAP_ID_HT)));
-
-	if (!ihandler) {
-		ipath_dev_err(dd, "Couldn't find interrupt handler in "
-			      "config space\n");
-		ret = -ENODEV;
-	}
 
 bail:
 	return ret;
@@ -1360,25 +1351,6 @@ static void ipath_ht_quiet_serdes(struct ipath_devdata *dd)
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_serdesconfig0, val);
 }
 
-static int ipath_ht_intconfig(struct ipath_devdata *dd)
-{
-	int ret;
-
-	if (!dd->ipath_intconfig) {
-		ipath_dev_err(dd, "No interrupts enabled, couldn't setup "
-			      "interrupt address\n");
-		ret = 1;
-		goto bail;
-	}
-
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_interruptconfig,
-			 dd->ipath_intconfig);	/* interrupt address */
-	ret = 0;
-
-bail:
-	return ret;
-}
-
 /**
  * ipath_pe_put_tid - write a TID in chip
  * @dd: the infinipath device
@@ -1575,6 +1547,14 @@ static int ipath_ht_get_base_info(struct ipath_portdata *pd, void *kbase)
 	return 0;
 }
 
+static void ipath_ht_free_irq(struct ipath_devdata *dd)
+{
+	free_irq(dd->ipath_irq, dd);
+	ht_destroy_irq(dd->ipath_irq);
+	dd->ipath_irq = 0;
+	dd->ipath_intconfig = 0;
+}
+
 /**
  * ipath_init_iba6110_funcs - set up the chip-specific function pointers
  * @dd: the infinipath device
@@ -1598,6 +1578,7 @@ void ipath_init_iba6110_funcs(struct ipath_devdata *dd)
 	dd->ipath_f_cleanup = ipath_setup_ht_cleanup;
 	dd->ipath_f_setextled = ipath_setup_ht_setextled;
 	dd->ipath_f_get_base_info = ipath_ht_get_base_info;
+	dd->ipath_f_free_irq = ipath_ht_free_irq;
 
 	/*
 	 * initialize chip-specific variables
