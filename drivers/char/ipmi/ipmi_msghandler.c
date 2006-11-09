@@ -376,13 +376,23 @@ static void free_recv_msg_list(struct list_head *q)
 	}
 }
 
+static void free_smi_msg_list(struct list_head *q)
+{
+	struct ipmi_smi_msg *msg, *msg2;
+
+	list_for_each_entry_safe(msg, msg2, q, link) {
+		list_del(&msg->link);
+		ipmi_free_smi_msg(msg);
+	}
+}
+
 static void clean_up_interface_data(ipmi_smi_t intf)
 {
 	int              i;
 	struct cmd_rcvr  *rcvr, *rcvr2;
 	struct list_head list;
 
-	free_recv_msg_list(&intf->waiting_msgs);
+	free_smi_msg_list(&intf->waiting_msgs);
 	free_recv_msg_list(&intf->waiting_events);
 
 	/* Wholesale remove all the entries from the list in the
