@@ -328,7 +328,7 @@ static void Irq_Handler (int irq, void *dev_id)
 				pinquiryData->AdditionalLength = 35 - 4;
 
 				// Fill in vendor identification fields.
-				for ( z = 0;  z < 20;  z += 2 )
+				for ( z = 0;  z < 8;  z += 2 )
 					{
 					pinquiryData->VendorId[z]	  = ((UCHAR *)identifyData.ModelNumber)[z + 1];
 					pinquiryData->VendorId[z + 1] = ((UCHAR *)identifyData.ModelNumber)[z];
