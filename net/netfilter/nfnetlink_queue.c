@@ -480,8 +480,8 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 #endif
 	}
 
-	if (entskb->nfmark) {
-		tmp_uint = htonl(entskb->nfmark);
+	if (entskb->mark) {
+		tmp_uint = htonl(entskb->mark);
 		NFA_PUT(skb, NFQA_MARK, sizeof(u_int32_t), &tmp_uint);
 	}
 
@@ -834,8 +834,8 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	}
 
 	if (nfqa[NFQA_MARK-1])
-		entry->skb->nfmark = ntohl(*(__be32 *)
-		                           NFA_DATA(nfqa[NFQA_MARK-1]));
+		entry->skb->mark = ntohl(*(__be32 *)
+		                         NFA_DATA(nfqa[NFQA_MARK-1]));
 		
 	issue_verdict(entry, verdict);
 	instance_put(queue);

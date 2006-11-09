@@ -89,7 +89,7 @@ udp_conn_schedule(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		return 0;
 	}
 
-	if ((svc = ip_vs_service_get(skb->nfmark, skb->nh.iph->protocol,
+	if ((svc = ip_vs_service_get(skb->mark, skb->nh.iph->protocol,
 				     skb->nh.iph->daddr, uh->dest))) {
 		if (ip_vs_todrop()) {
 			/*

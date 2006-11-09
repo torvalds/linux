@@ -28,7 +28,7 @@ int ip_route_me_harder(struct sk_buff **pskb, unsigned addr_type)
 		fl.nl_u.ip4_u.tos = RT_TOS(iph->tos);
 		fl.oif = (*pskb)->sk ? (*pskb)->sk->sk_bound_dev_if : 0;
 #ifdef CONFIG_IP_ROUTE_FWMARK
-		fl.nl_u.ip4_u.fwmark = (*pskb)->nfmark;
+		fl.nl_u.ip4_u.fwmark = (*pskb)->mark;
 #endif
 		if (ip_route_output_key(&rt, &fl) != 0)
 			return -1;

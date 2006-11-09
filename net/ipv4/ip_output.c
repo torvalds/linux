@@ -386,6 +386,7 @@ static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 	dst_release(to->dst);
 	to->dst = dst_clone(from->dst);
 	to->dev = from->dev;
+	to->mark = from->mark;
 
 	/* Copy the flags to each fragment. */
 	IPCB(to)->flags = IPCB(from)->flags;
@@ -394,7 +395,6 @@ static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 	to->tc_index = from->tc_index;
 #endif
 #ifdef CONFIG_NETFILTER
-	to->nfmark = from->nfmark;
 	/* Connection association is same as pre-frag packet */
 	nf_conntrack_put(to->nfct);
 	to->nfct = from->nfct;

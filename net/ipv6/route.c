@@ -712,7 +712,7 @@ void ip6_route_input(struct sk_buff *skb)
 				.daddr = iph->daddr,
 				.saddr = iph->saddr,
 #ifdef CONFIG_IPV6_ROUTE_FWMARK
-				.fwmark = skb->nfmark,
+				.fwmark = skb->mark,
 #endif
 				.flowlabel = (* (__be32 *) iph)&IPV6_FLOWINFO_MASK,
 			},

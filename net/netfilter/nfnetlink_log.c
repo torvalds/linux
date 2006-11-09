@@ -501,8 +501,8 @@ __build_packet_message(struct nfulnl_instance *inst,
 #endif
 	}
 
-	if (skb->nfmark) {
-		tmp_uint = htonl(skb->nfmark);
+	if (skb->mark) {
+		tmp_uint = htonl(skb->mark);
 		NFA_PUT(inst->skb, NFULA_MARK, sizeof(tmp_uint), &tmp_uint);
 	}
 

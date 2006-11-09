@@ -473,8 +473,8 @@ struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 #endif
 	C(protocol);
 	n->destructor = NULL;
+	C(mark);
 #ifdef CONFIG_NETFILTER
-	C(nfmark);
 	C(nfct);
 	nf_conntrack_get(skb->nfct);
 	C(nfctinfo);
@@ -534,8 +534,8 @@ static void copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	new->pkt_type	= old->pkt_type;
 	new->tstamp	= old->tstamp;
 	new->destructor = NULL;
+	new->mark	= old->mark;
 #ifdef CONFIG_NETFILTER
-	new->nfmark	= old->nfmark;
 	new->nfct	= old->nfct;
 	nf_conntrack_get(old->nfct);
 	new->nfctinfo	= old->nfctinfo;

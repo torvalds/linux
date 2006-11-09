@@ -101,11 +101,7 @@ static int fw_classify(struct sk_buff *skb, struct tcf_proto *tp,
 	struct fw_head *head = (struct fw_head*)tp->root;
 	struct fw_filter *f;
 	int r;
-#ifdef CONFIG_NETFILTER
-	u32 id = skb->nfmark & head->mask;
-#else
-	u32 id = 0;
-#endif
+	u32 id = skb->mark & head->mask;
 
 	if (head != NULL) {
 		for (f=head->ht[fw_hash(id)]; f; f=f->next) {

@@ -216,7 +216,7 @@ enum {
  *	@tail: Tail pointer
  *	@end: End pointer
  *	@destructor: Destruct function
- *	@nfmark: Can be used for communication between hooks
+ *	@mark: Generic packet mark
  *	@nfct: Associated connection, if any
  *	@ipvs_property: skbuff is owned by ipvs
  *	@nfctinfo: Relationship of this skb to the connection
@@ -295,7 +295,6 @@ struct sk_buff {
 #ifdef CONFIG_BRIDGE_NETFILTER
 	struct nf_bridge_info	*nf_bridge;
 #endif
-	__u32			nfmark;
 #endif /* CONFIG_NETFILTER */
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */
@@ -310,6 +309,7 @@ struct sk_buff {
 	__u32			secmark;
 #endif
 
+	__u32			mark;
 
 	/* These elements must be at the end, see alloc_skb() for details.  */
 	unsigned int		truesize;

@@ -42,7 +42,7 @@ target(struct sk_buff **pskb,
 {
 	const struct xt_connmark_target_info *markinfo = targinfo;
 	u_int32_t diff;
-	u_int32_t nfmark;
+	u_int32_t mark;
 	u_int32_t newmark;
 	u_int32_t ctinfo;
 	u_int32_t *ctmark = nf_ct_get_mark(*pskb, &ctinfo);
@@ -62,7 +62,7 @@ target(struct sk_buff **pskb,
 			break;
 		case XT_CONNMARK_SAVE:
 			newmark = (*ctmark & ~markinfo->mask) |
-				  ((*pskb)->nfmark & markinfo->mask);
+				  ((*pskb)->mark & markinfo->mask);
 			if (*ctmark != newmark) {
 				*ctmark = newmark;
 #if defined(CONFIG_IP_NF_CONNTRACK) || defined(CONFIG_IP_NF_CONNTRACK_MODULE)
@@ -73,10 +73,10 @@ target(struct sk_buff **pskb,
 			}
 			break;
 		case XT_CONNMARK_RESTORE:
-			nfmark = (*pskb)->nfmark;
-			diff = (*ctmark ^ nfmark) & markinfo->mask;
+			mark = (*pskb)->mark;
+			diff = (*ctmark ^ mark) & markinfo->mask;
 			if (diff != 0)
-				(*pskb)->nfmark = nfmark ^ diff;
+				(*pskb)->mark = mark ^ diff;
 			break;
 		}
 	}

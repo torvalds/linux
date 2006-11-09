@@ -25,13 +25,13 @@ static int ebt_target_mark(struct sk_buff **pskb, unsigned int hooknr,
 	int action = info->target & -16;
 
 	if (action == MARK_SET_VALUE)
-		(*pskb)->nfmark = info->mark;
+		(*pskb)->mark = info->mark;
 	else if (action == MARK_OR_VALUE)
-		(*pskb)->nfmark |= info->mark;
+		(*pskb)->mark |= info->mark;
 	else if (action == MARK_AND_VALUE)
-		(*pskb)->nfmark &= info->mark;
+		(*pskb)->mark &= info->mark;
 	else
-		(*pskb)->nfmark ^= info->mark;
+		(*pskb)->mark ^= info->mark;
 
 	return info->target | -16;
 }

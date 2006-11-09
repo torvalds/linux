@@ -1644,7 +1644,7 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	rth->rt_dst	= daddr;
 	rth->fl.fl4_tos	= tos;
 #ifdef CONFIG_IP_ROUTE_FWMARK
-	rth->fl.fl4_fwmark= skb->nfmark;
+	rth->fl.fl4_fwmark= skb->mark;
 #endif
 	rth->fl.fl4_src	= saddr;
 	rth->rt_src	= saddr;
@@ -1790,7 +1790,7 @@ static inline int __mkroute_input(struct sk_buff *skb,
 	rth->rt_dst	= daddr;
 	rth->fl.fl4_tos	= tos;
 #ifdef CONFIG_IP_ROUTE_FWMARK
-	rth->fl.fl4_fwmark= skb->nfmark;
+	rth->fl.fl4_fwmark= skb->mark;
 #endif
 	rth->fl.fl4_src	= saddr;
 	rth->rt_src	= saddr;
@@ -1921,7 +1921,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 					.tos = tos,
 					.scope = RT_SCOPE_UNIVERSE,
 #ifdef CONFIG_IP_ROUTE_FWMARK
-					.fwmark = skb->nfmark
+					.fwmark = skb->mark
 #endif
 				      } },
 			    .iif = dev->ifindex };
@@ -2035,7 +2035,7 @@ local_input:
 	rth->rt_dst	= daddr;
 	rth->fl.fl4_tos	= tos;
 #ifdef CONFIG_IP_ROUTE_FWMARK
-	rth->fl.fl4_fwmark= skb->nfmark;
+	rth->fl.fl4_fwmark= skb->mark;
 #endif
 	rth->fl.fl4_src	= saddr;
 	rth->rt_src	= saddr;
@@ -2114,7 +2114,7 @@ int ip_route_input(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		    rth->fl.iif == iif &&
 		    rth->fl.oif == 0 &&
 #ifdef CONFIG_IP_ROUTE_FWMARK
-		    rth->fl.fl4_fwmark == skb->nfmark &&
+		    rth->fl.fl4_fwmark == skb->mark &&
 #endif
 		    rth->fl.fl4_tos == tos) {
 			rth->u.dst.lastuse = jiffies;

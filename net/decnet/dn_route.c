@@ -1236,7 +1236,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 				       .saddr = cb->src,
 				       .scope = RT_SCOPE_UNIVERSE,
 #ifdef CONFIG_DECNET_ROUTE_FWMARK
-				       .fwmark = skb->nfmark
+				       .fwmark = skb->mark
 #endif
 				    } },
 			    .iif = skb->dev->ifindex };
@@ -1458,7 +1458,7 @@ int dn_route_input(struct sk_buff *skb)
 	 	    (rt->fl.fld_dst == cb->dst) &&
 		    (rt->fl.oif == 0) &&
 #ifdef CONFIG_DECNET_ROUTE_FWMARK
-		    (rt->fl.fld_fwmark == skb->nfmark) &&
+		    (rt->fl.fld_fwmark == skb->mark) &&
 #endif
 		    (rt->fl.iif == cb->iif)) {
 			rt->u.dst.lastuse = jiffies;

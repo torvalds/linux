@@ -320,7 +320,7 @@ config CLS_U32_PERF
 
 config CLS_U32_MARK
 	bool "Netfilter marks support"
-	depends on NET_CLS_U32 && NETFILTER
+	depends on NET_CLS_U32
 	---help---
 	  Say Y here to be able to use netfilter marks as u32 key.
 

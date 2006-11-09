@@ -84,7 +84,7 @@ tcp_conn_schedule(struct sk_buff *skb,
 	}
 
 	if (th->syn &&
-	    (svc = ip_vs_service_get(skb->nfmark, skb->nh.iph->protocol,
+	    (svc = ip_vs_service_get(skb->mark, skb->nh.iph->protocol,
 				     skb->nh.iph->daddr, th->dest))) {
 		if (ip_vs_todrop()) {
 			/*
