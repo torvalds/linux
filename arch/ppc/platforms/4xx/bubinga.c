@@ -116,6 +116,7 @@ bubinga_early_serial_map(void)
 void __init
 bios_fixup(struct pci_controller *hose, struct pcil0_regs *pcip)
 {
+#ifdef CONFIG_PCI
 
 	unsigned int bar_response, bar;
 	/*
@@ -211,6 +212,7 @@ bios_fixup(struct pci_controller *hose, struct pcil0_regs *pcip)
 	printk(" ptm2ms\t0x%x\n", in_le32(&(pcip->ptm2ms)));
 	printk(" ptm2la\t0x%x\n", in_le32(&(pcip->ptm2la)));
 
+#endif
 #endif
 }
 
