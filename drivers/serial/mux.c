@@ -453,7 +453,7 @@ static int __init mux_probe(struct parisc_device *dev)
 	}
 
 	port_count = GET_MUX_PORTS(iodc_data);
-	printk(KERN_INFO "Serial mux driver (%d ports) Revision: 0.5\n", port_count);
+	printk(KERN_INFO "Serial mux driver (%d ports) Revision: 0.6\n", port_count);
 
 	dev_set_drvdata(&dev->dev, (void *)(long)port_count);
 	request_mem_region(dev->hpa.start + MUX_OFFSET,
@@ -491,6 +491,7 @@ static int __init mux_probe(struct parisc_device *dev)
 		 */
 		port->timeout   = HZ / 50;
 		spin_lock_init(&port->lock);
+
 		status = uart_add_one_port(&mux_driver, port);
 		BUG_ON(status);
 	}
@@ -500,11 +501,8 @@ static int __init mux_probe(struct parisc_device *dev)
 
 static int __devexit mux_remove(struct parisc_device *dev)
 {
-	int i;
+	int i, j;
 	int port_count = (long)dev_get_drvdata(&dev->dev);
-
-	/* Delete the Mux timer. */
-	del_timer(&mux_timer);
 
 	/* Find Port 0 for this card in the mux_ports list. */
 	for(i = 0; i < port_cnt; ++i) {
@@ -514,7 +512,7 @@ static int __devexit mux_remove(struct parisc_device *dev)
 	BUG_ON(i + port_count > port_cnt);
 
 	/* Release the resources associated with each port on the device. */
-	for(; i < port_count; ++i) {
+	for(j = 0; j < port_count; ++j, ++i) {
 		struct uart_port *port = &mux_ports[i].port;
 
 		uart_remove_one_port(&mux_driver, port);
@@ -526,12 +524,34 @@ static int __devexit mux_remove(struct parisc_device *dev)
 	return 0;
 }
 
+/* Hack.  This idea was taken from the 8250_gsc.c on how to properly order
+ * the serial port detection in the proper order.   The idea is we always
+ * want the builtin mux to be detected before addin mux cards, so we
+ * specifically probe for the builtin mux cards first.
+ *
+ * This table only contains the parisc_device_id of known builtin mux
+ * devices.  All other mux cards will be detected by the generic mux_tbl.
+ */
+static struct parisc_device_id builtin_mux_tbl[] = {
+	{ HPHW_A_DIRECT, HVERSION_REV_ANY_ID, 0x15, 0x0000D }, /* All K-class */
+	{ HPHW_A_DIRECT, HVERSION_REV_ANY_ID, 0x44, 0x0000D }, /* E35, E45, and E55 */
+	{ 0, }
+};
+
 static struct parisc_device_id mux_tbl[] = {
 	{ HPHW_A_DIRECT, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x0000D },
 	{ 0, }
 };
 
+MODULE_DEVICE_TABLE(parisc, builtin_mux_tbl);
 MODULE_DEVICE_TABLE(parisc, mux_tbl);
+
+static struct parisc_driver builtin_serial_mux_driver = {
+	.name =		"builtin_serial_mux",
+	.id_table =	builtin_mux_tbl,
+	.probe =	mux_probe,
+	.remove =       __devexit_p(mux_remove),
+};
 
 static struct parisc_driver serial_mux_driver = {
 	.name =		"serial_mux",
@@ -547,7 +567,8 @@ static struct parisc_driver serial_mux_driver = {
  */
 static int __init mux_init(void)
 {
-	int status = register_parisc_driver(&serial_mux_driver);
+	register_parisc_driver(&builtin_serial_mux_driver);
+	register_parisc_driver(&serial_mux_driver);
 
 	if(port_cnt > 0) {
 		/* Start the Mux timer */
@@ -560,7 +581,7 @@ static int __init mux_init(void)
 #endif
 	}
 
-	return status;
+	return 0;
 }
 
 /**
@@ -578,6 +599,7 @@ static void __exit mux_exit(void)
 #endif
 	}
 
+	unregister_parisc_driver(&builtin_serial_mux_driver);
 	unregister_parisc_driver(&serial_mux_driver);
 	uart_unregister_driver(&mux_driver);
 }
