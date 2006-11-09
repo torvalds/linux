@@ -303,6 +303,181 @@ static struct snd_ak4xxx_private akm_revo51_adc_priv __devinitdata = {
 
 static struct snd_pt2258 ptc_revo51_volume;
 
+/* AK4358 for AP192 DAC, AK5385A for ADC */
+static void ap192_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
+{
+	struct snd_ice1712 *ice = ak->private_data[0];
+
+	revo_set_rate_val(ak, rate);
+
+#if 1 /* FIXME: do we need this procedure? */
+	/* reset DFS pin of AK5385A for ADC, too */
+	/* DFS0 (pin 18) -- GPIO10 pin 77 */
+	snd_ice1712_save_gpio_status(ice);
+	snd_ice1712_gpio_write_bits(ice, 1 << 10,
+				    rate > 48000 ? (1 << 10) : 0);
+	snd_ice1712_restore_gpio_status(ice);
+#endif
+}
+
+static struct snd_akm4xxx_dac_channel ap192_dac[] = {
+	AK_DAC("PCM Playback Volume", 2)
+};
+
+static struct snd_akm4xxx akm_ap192 __devinitdata = {
+	.type = SND_AK4358,
+	.num_dacs = 2,
+	.ops = {
+		.set_rate_val = ap192_set_rate_val
+	},
+	.dac_info = ap192_dac,
+};
+
+static struct snd_ak4xxx_private akm_ap192_priv __devinitdata = {
+	.caddr = 2,
+	.cif = 0,
+	.data_mask = VT1724_REVO_CDOUT,
+	.clk_mask = VT1724_REVO_CCLK,
+	.cs_mask = VT1724_REVO_CS0 | VT1724_REVO_CS3,
+	.cs_addr = VT1724_REVO_CS3,
+	.cs_none = VT1724_REVO_CS0 | VT1724_REVO_CS3,
+	.add_flags = VT1724_REVO_CCLK, /* high at init */
+	.mask_flags = 0,
+};
+
+#if 0
+/* FIXME: ak4114 makes the sound much lower due to some confliction,
+ *        so let's disable it right now...
+ */
+#define BUILD_AK4114_AP192
+#endif
+
+#ifdef BUILD_AK4114_AP192
+/* AK4114 support on Audiophile 192 */
+/* CDTO (pin 32) -- GPIO2 pin 52
+ * CDTI (pin 33) -- GPIO3 pin 53 (shared with AK4358)
+ * CCLK (pin 34) -- GPIO1 pin 51 (shared with AK4358)
+ * CSN  (pin 35) -- GPIO7 pin 59
+ */
+#define AK4114_ADDR	0x00
+
+static void write_data(struct snd_ice1712 *ice, unsigned int gpio,
+		       unsigned int data, int idx)
+{
+	for (; idx >= 0; idx--) {
+		/* drop clock */
+		gpio &= ~VT1724_REVO_CCLK;
+		snd_ice1712_gpio_write(ice, gpio);
+		udelay(1);
+		/* set data */
+		if (data & (1 << idx))
+			gpio |= VT1724_REVO_CDOUT;
+		else
+			gpio &= ~VT1724_REVO_CDOUT;
+		snd_ice1712_gpio_write(ice, gpio);
+		udelay(1);
+		/* raise clock */
+		gpio |= VT1724_REVO_CCLK;
+		snd_ice1712_gpio_write(ice, gpio);
+		udelay(1);
+	}
+}
+
+static unsigned char read_data(struct snd_ice1712 *ice, unsigned int gpio,
+			       int idx)
+{
+	unsigned char data = 0;
+
+	for (; idx >= 0; idx--) {
+		/* drop clock */
+		gpio &= ~VT1724_REVO_CCLK;
+		snd_ice1712_gpio_write(ice, gpio);
+		udelay(1);
+		/* read data */
+		if (snd_ice1712_gpio_read(ice) & VT1724_REVO_CDIN)
+			data |= (1 << idx);
+		udelay(1);
+		/* raise clock */
+		gpio |= VT1724_REVO_CCLK;
+		snd_ice1712_gpio_write(ice, gpio);
+		udelay(1);
+	}
+	return data;
+}
+
+static unsigned char ap192_4wire_start(struct snd_ice1712 *ice)
+{
+	unsigned int tmp;
+
+	snd_ice1712_save_gpio_status(ice);
+	tmp = snd_ice1712_gpio_read(ice);
+	tmp |= VT1724_REVO_CCLK; /* high at init */
+	tmp |= VT1724_REVO_CS0;
+	tmp &= ~VT1724_REVO_CS3;
+	snd_ice1712_gpio_write(ice, tmp);
+	udelay(1);
+	return tmp;
+}
+
+static void ap192_4wire_finish(struct snd_ice1712 *ice, unsigned int tmp)
+{
+	tmp |= VT1724_REVO_CS3;
+	tmp |= VT1724_REVO_CS0;
+	snd_ice1712_gpio_write(ice, tmp);
+	udelay(1);
+	snd_ice1712_restore_gpio_status(ice);
+}
+
+static void ap192_ak4114_write(void *private_data, unsigned char addr,
+			       unsigned char data)
+{
+	struct snd_ice1712 *ice = private_data;
+	unsigned int tmp, addrdata;
+
+	tmp = ap192_4wire_start(ice);
+	addrdata = (AK4114_ADDR << 6) | 0x20 | (addr & 0x1f);
+	addrdata = (addrdata << 8) | data;
+	write_data(ice, tmp, addrdata, 15);
+	ap192_4wire_finish(ice, tmp);
+}
+
+static unsigned char ap192_ak4114_read(void *private_data, unsigned char addr)
+{
+	struct snd_ice1712 *ice = private_data;
+	unsigned int tmp;
+	unsigned char data;
+
+	tmp = ap192_4wire_start(ice);
+	write_data(ice, tmp, (AK4114_ADDR << 6) | (addr & 0x1f), 7);
+	data = read_data(ice, tmp, 7);
+	ap192_4wire_finish(ice, tmp);
+	return data;
+}
+
+static int ap192_ak4114_init(struct snd_ice1712 *ice)
+{
+	static unsigned char ak4114_init_vals[] = {
+		AK4114_RST | AK4114_PWN | AK4114_OCKS0 | AK4114_OCKS1,
+		AK4114_DIF_I24I2S,
+		AK4114_TX1E,
+		AK4114_EFH_1024 | AK4114_DIT | AK4114_IPS(1),
+		0,
+		0
+	};
+	static unsigned char ak4114_init_txcsb[] = {
+		0x41, 0x02, 0x2c, 0x00, 0x00
+	};
+	struct ak4114 *ak;
+	int err;
+
+	return snd_ak4114_create(ice->card,
+				 ap192_ak4114_read,
+				 ap192_ak4114_write,
+				 ak4114_init_vals, ak4114_init_txcsb,
+				 ice, &ak);
+}
+#endif /* BUILD_AK4114_AP192 */
+
 static int __devinit revo_init(struct snd_ice1712 *ice)
 {
 	struct snd_akm4xxx *ak;
@@ -317,6 +492,10 @@ static int __devinit revo_init(struct snd_ice1712 *ice)
 		break;
 	case VT1724_SUBDEVICE_REVOLUTION51:
 		ice->num_total_dacs = 6;
+		ice->num_total_adcs = 2;
+		break;
+	case VT1724_SUBDEVICE_AUDIOPHILE192:
+		ice->num_total_dacs = 2;
 		ice->num_total_adcs = 2;
 		break;
 	default:
@@ -356,6 +535,14 @@ static int __devinit revo_init(struct snd_ice1712 *ice)
 		snd_ice1712_gpio_write_bits(ice, VT1724_REVO_MUTE,
 					    VT1724_REVO_MUTE);
 		break;
+	case VT1724_SUBDEVICE_AUDIOPHILE192:
+		ice->akm_codecs = 1;
+		err = snd_ice1712_akm4xxx_init(ak, &akm_ap192, &akm_ap192_priv,
+					       ice);
+		if (err < 0)
+			return err;
+		
+		break;
 	}
 
 	return 0;
@@ -380,6 +567,16 @@ static int __devinit revo_add_controls(struct snd_ice1712 *ice)
 		if (err < 0)
 			return err;
 		break;
+	case VT1724_SUBDEVICE_AUDIOPHILE192:
+		err = snd_ice1712_akm4xxx_build_controls(ice);
+		if (err < 0)
+			return err;
+#ifdef BUILD_AK4114_AP192
+		err = ap192_ak4114_init(ice);
+		if (err < 0)
+			return err;
+#endif
+		break;
 	}
 	return 0;
 }
@@ -397,6 +594,13 @@ struct snd_ice1712_card_info snd_vt1724_revo_cards[] __devinitdata = {
 		.subvendor = VT1724_SUBDEVICE_REVOLUTION51,
 		.name = "M Audio Revolution-5.1",
 		.model = "revo51",
+		.chip_init = revo_init,
+		.build_controls = revo_add_controls,
+	},
+	{
+		.subvendor = VT1724_SUBDEVICE_AUDIOPHILE192,
+		.name = "M Audio Audiophile192",
+		.model = "ap192",
 		.chip_init = revo_init,
 		.build_controls = revo_add_controls,
 	},
