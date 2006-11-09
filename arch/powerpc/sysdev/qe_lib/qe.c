@@ -175,8 +175,7 @@ void qe_setbrg(u32 brg, u32 rate)
 	u32 divisor, tempval;
 	int div16 = 0;
 
-	bp = &qe_immr->brg.brgc1;
-	bp += brg;
+	bp = &qe_immr->brg.brgc[brg];
 
 	divisor = (get_brg_clk() / rate);
 	if (divisor > QE_BRGC_DIVISOR_MAX + 1) {
