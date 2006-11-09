@@ -407,7 +407,7 @@ int iw_cm_listen(struct iw_cm_id *cm_id, int backlog)
 {
 	struct iwcm_id_private *cm_id_priv;
 	unsigned long flags;
-	int ret = 0;
+	int ret;
 
 	cm_id_priv = container_of(cm_id, struct iwcm_id_private, id);
 
@@ -534,7 +534,7 @@ EXPORT_SYMBOL(iw_cm_accept);
 int iw_cm_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *iw_param)
 {
 	struct iwcm_id_private *cm_id_priv;
-	int ret = 0;
+	int ret;
 	unsigned long flags;
 	struct ib_qp *qp;
 
@@ -674,7 +674,7 @@ static int cm_conn_est_handler(struct iwcm_id_private *cm_id_priv,
 			       struct iw_cm_event *iw_event)
 {
 	unsigned long flags;
-	int ret = 0;
+	int ret;
 
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 
@@ -704,7 +704,7 @@ static int cm_conn_rep_handler(struct iwcm_id_private *cm_id_priv,
 			       struct iw_cm_event *iw_event)
 {
 	unsigned long flags;
-	int ret = 0;
+	int ret;
 
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	/*
