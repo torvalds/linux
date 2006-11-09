@@ -156,19 +156,6 @@ out_ignore:
 	return 0;
 }
 
-static int zero_readpage(struct page *page)
-{
-	void *kaddr;
-
-	kaddr = kmap_atomic(page, KM_USER0);
-	memset(kaddr, 0, PAGE_CACHE_SIZE);
-	kunmap_atomic(kaddr, KM_USER0);
-
-	SetPageUptodate(page);
-
-	return 0;
-}
-
 /**
  * stuffed_readpage - Fill in a Linux page with stuffed file data
  * @ip: the inode
@@ -183,9 +170,7 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 	void *kaddr;
 	int error;
 
-	/* Only the first page of a stuffed file might contain data */
-	if (unlikely(page->index))
-		return zero_readpage(page);
+	BUG_ON(page->index);
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (error)
@@ -735,6 +720,9 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 	do {
 		while (atomic_read(&bh->b_count)) {
 			if (!atomic_read(&aspace->i_writecount))
+				return 0;
+
+			if (!(gfp_mask & __GFP_WAIT))
 				return 0;
 
 			if (time_after_eq(jiffies, t)) {
