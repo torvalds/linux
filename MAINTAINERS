@@ -493,7 +493,7 @@ S:	Maintained
 
 BFS FILE SYSTEM
 P:	Tigran A. Aivazian
-M:	tigran@veritas.com
+M:	tigran@aivazian.fsnet.co.uk
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
@@ -1513,7 +1513,7 @@ S:	Maintained
 
 INTEL IA32 MICROCODE UPDATE SUPPORT
 P:	Tigran Aivazian
-M:	tigran@veritas.com
+M:	tigran@aivazian.fsnet.co.uk
 S:	Maintained
 
 INTEL IXP4XX RANDOM NUMBER GENERATOR SUPPORT
