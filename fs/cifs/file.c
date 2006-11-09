@@ -498,7 +498,8 @@ int cifs_close(struct inode *inode, struct file *file)
 					msleep(timeout);
 					timeout *= 4;
 				}
-				cERROR(1,("close with pending writes")); 
+				if(atomic_read(&pSMBFile->wrtPending))
+					cERROR(1,("close with pending writes"));
 				rc = CIFSSMBClose(xid, pTcon,
 						  pSMBFile->netfid);
 			}
