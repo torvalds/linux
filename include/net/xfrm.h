@@ -506,40 +506,8 @@ __be16 xfrm_flowi_dport(struct flowi *fl)
 	return port;
 }
 
-static inline int
-__xfrm4_selector_match(struct xfrm_selector *sel, struct flowi *fl)
-{
-	return  addr_match(&fl->fl4_dst, &sel->daddr, sel->prefixlen_d) &&
-		addr_match(&fl->fl4_src, &sel->saddr, sel->prefixlen_s) &&
-		!((xfrm_flowi_dport(fl) ^ sel->dport) & sel->dport_mask) &&
-		!((xfrm_flowi_sport(fl) ^ sel->sport) & sel->sport_mask) &&
-		(fl->proto == sel->proto || !sel->proto) &&
-		(fl->oif == sel->ifindex || !sel->ifindex);
-}
-
-static inline int
-__xfrm6_selector_match(struct xfrm_selector *sel, struct flowi *fl)
-{
-	return  addr_match(&fl->fl6_dst, &sel->daddr, sel->prefixlen_d) &&
-		addr_match(&fl->fl6_src, &sel->saddr, sel->prefixlen_s) &&
-		!((xfrm_flowi_dport(fl) ^ sel->dport) & sel->dport_mask) &&
-		!((xfrm_flowi_sport(fl) ^ sel->sport) & sel->sport_mask) &&
-		(fl->proto == sel->proto || !sel->proto) &&
-		(fl->oif == sel->ifindex || !sel->ifindex);
-}
-
-static inline int
-xfrm_selector_match(struct xfrm_selector *sel, struct flowi *fl,
-		    unsigned short family)
-{
-	switch (family) {
-	case AF_INET:
-		return __xfrm4_selector_match(sel, fl);
-	case AF_INET6:
-		return __xfrm6_selector_match(sel, fl);
-	}
-	return 0;
-}
+extern int xfrm_selector_match(struct xfrm_selector *sel, struct flowi *fl,
+			       unsigned short family);
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 /*	If neither has a context --> match
