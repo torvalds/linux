@@ -65,7 +65,6 @@ struct usb_hub {
 	unsigned		limited_power:1;
 	unsigned		quiescing:1;
 	unsigned		activating:1;
-	unsigned		resume_root_hub:1;
 
 	unsigned		has_indicators:1;
 	u8			indicator[USB_MAXCHILDREN];
@@ -328,6 +327,9 @@ static void kick_khubd(struct usb_hub *hub)
 {
 	unsigned long	flags;
 
+	/* Suppress autosuspend until khubd runs */
+	to_usb_interface(hub->intfdev)->pm_usage_cnt = 1;
+
 	spin_lock_irqsave(&hub_event_lock, flags);
 	if (list_empty(&hub->event_list)) {
 		list_add_tail(&hub->event_list, &hub_event_list);
@@ -509,7 +511,6 @@ static void hub_quiesce(struct usb_hub *hub)
 	/* (nonblocking) khubd and related activity won't re-trigger */
 	hub->quiescing = 1;
 	hub->activating = 0;
-	hub->resume_root_hub = 0;
 
 	/* (blocking) stop khubd and related activity */
 	usb_kill_urb(hub->urb);
@@ -525,7 +526,7 @@ static void hub_activate(struct usb_hub *hub)
 
 	hub->quiescing = 0;
 	hub->activating = 1;
-	hub->resume_root_hub = 0;
+
 	status = usb_submit_urb(hub->urb, GFP_NOIO);
 	if (status < 0)
 		dev_err(hub->intfdev, "activate --> %d\n", status);
@@ -940,6 +941,7 @@ descriptor_error:
 	INIT_WORK(&hub->leds, led_work, hub);
 
 	usb_set_intfdata (intf, hub);
+	intf->needs_remote_wakeup = 1;
 
 	if (hdev->speed == USB_SPEED_HIGH)
 		highspeed_hubs++;
@@ -1938,6 +1940,8 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 		}
 	}
 
+	dev_dbg(&intf->dev, "%s\n", __FUNCTION__);
+
 	/* "global suspend" of the downstream HC-to-USB interface */
 	if (!hdev->parent) {
 		struct usb_bus	*bus = hdev->bus;
@@ -1960,9 +1964,11 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 
 static int hub_resume(struct usb_interface *intf)
 {
-	struct usb_device	*hdev = interface_to_usbdev(intf);
 	struct usb_hub		*hub = usb_get_intfdata (intf);
+	struct usb_device	*hdev = hub->hdev;
 	int			status;
+
+	dev_dbg(&intf->dev, "%s\n", __FUNCTION__);
 
 	/* "global resume" of the downstream HC-to-USB interface */
 	if (!hdev->parent) {
@@ -2002,7 +2008,6 @@ void usb_resume_root_hub(struct usb_device *hdev)
 {
 	struct usb_hub *hub = hdev_to_hub(hdev);
 
-	hub->resume_root_hub = 1;
 	kick_khubd(hub);
 }
 
@@ -2639,16 +2644,13 @@ static void hub_events(void)
 		intf = to_usb_interface(hub->intfdev);
 		hub_dev = &intf->dev;
 
-		i = hub->resume_root_hub;
-
-		dev_dbg(hub_dev, "state %d ports %d chg %04x evt %04x%s\n",
+		dev_dbg(hub_dev, "state %d ports %d chg %04x evt %04x\n",
 				hdev->state, hub->descriptor
 					? hub->descriptor->bNbrPorts
 					: 0,
 				/* NOTE: expects max 15 ports... */
 				(u16) hub->change_bits[0],
-				(u16) hub->event_bits[0],
-				i ? ", resume root" : "");
+				(u16) hub->event_bits[0]);
 
 		usb_get_intf(intf);
 		spin_unlock_irq(&hub_event_lock);
@@ -2669,16 +2671,16 @@ static void hub_events(void)
 			goto loop;
 		}
 
-		/* Is this is a root hub wanting to reactivate the downstream
-		 * ports?  If so, be sure the interface resumes even if its
-		 * stub "device" node was never suspended.
-		 */
-		if (i)
-			usb_autoresume_device(hdev, 0);
-
-		/* If this is an inactive or suspended hub, do nothing */
-		if (hub->quiescing)
+		/* Autoresume */
+		ret = usb_autopm_get_interface(intf);
+		if (ret) {
+			dev_dbg(hub_dev, "Can't autoresume: %d\n", ret);
 			goto loop;
+		}
+
+		/* If this is an inactive hub, do nothing */
+		if (hub->quiescing)
+			goto loop_autopm;
 
 		if (hub->error) {
 			dev_dbg (hub_dev, "resetting for error %d\n",
@@ -2688,7 +2690,7 @@ static void hub_events(void)
 			if (ret) {
 				dev_dbg (hub_dev,
 					"error resetting hub: %d\n", ret);
-				goto loop;
+				goto loop_autopm;
 			}
 
 			hub->nerrors = 0;
@@ -2816,6 +2818,10 @@ static void hub_events(void)
 		if (!hdev->parent && !hub->busy_bits[0])
 			usb_enable_root_hub_irq(hdev->bus);
 
+loop_autopm:
+		/* Allow autosuspend if we're not going to run again */
+		if (list_empty(&hub->event_list))
+			usb_autopm_enable(intf);
 loop:
 		usb_unlock_device(hdev);
 		usb_put_intf(intf);
@@ -2857,6 +2863,7 @@ static struct usb_driver hub_driver = {
 	.post_reset =	hub_post_reset,
 	.ioctl =	hub_ioctl,
 	.id_table =	hub_id_table,
+	.supports_autosuspend =	1,
 };
 
 int usb_hub_init(void)
