@@ -59,6 +59,13 @@ struct fib_rules_ops
 	struct module		*owner;
 };
 
+#define FRA_GENERIC_POLICY \
+	[FRA_IFNAME]	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 }, \
+	[FRA_PRIORITY]	= { .type = NLA_U32 }, \
+	[FRA_FWMARK]	= { .type = NLA_U32 }, \
+	[FRA_FWMASK]	= { .type = NLA_U32 }, \
+	[FRA_TABLE]     = { .type = NLA_U32 }
+
 static inline void fib_rule_get(struct fib_rule *rule)
 {
 	atomic_inc(&rule->refcnt);

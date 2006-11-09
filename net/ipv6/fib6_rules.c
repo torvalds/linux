@@ -130,13 +130,9 @@ static int fib6_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 }
 
 static struct nla_policy fib6_rule_policy[FRA_MAX+1] __read_mostly = {
-	[FRA_IFNAME]	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 },
-	[FRA_PRIORITY]	= { .type = NLA_U32 },
+	FRA_GENERIC_POLICY,
 	[FRA_SRC]	= { .len = sizeof(struct in6_addr) },
 	[FRA_DST]	= { .len = sizeof(struct in6_addr) },
-	[FRA_FWMARK]	= { .type = NLA_U32 },
-	[FRA_FWMASK]	= { .type = NLA_U32 },
-	[FRA_TABLE]	= { .type = NLA_U32 },
 };
 
 static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,

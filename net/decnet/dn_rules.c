@@ -108,13 +108,9 @@ errout:
 }
 
 static struct nla_policy dn_fib_rule_policy[FRA_MAX+1] __read_mostly = {
-	[FRA_IFNAME]	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 },
-	[FRA_PRIORITY]	= { .type = NLA_U32 },
+	FRA_GENERIC_POLICY,
 	[FRA_SRC]	= { .type = NLA_U16 },
 	[FRA_DST]	= { .type = NLA_U16 },
-	[FRA_FWMARK]	= { .type = NLA_U32 },
-	[FRA_FWMASK]	= { .type = NLA_U32 },
-	[FRA_TABLE]     = { .type = NLA_U32 },
 };
 
 static int dn_fib_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
