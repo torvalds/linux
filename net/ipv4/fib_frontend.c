@@ -768,7 +768,7 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb )
 {
 	
 	struct fib_result       res;
-	struct flowi            fl = { .mark = frn->fl_fwmark,
+	struct flowi            fl = { .mark = frn->fl_mark,
 				       .nl_u = { .ip4_u = { .daddr = frn->fl_addr,
 							    .tos = frn->fl_tos,
 							    .scope = frn->fl_scope } } };
