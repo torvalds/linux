@@ -102,7 +102,7 @@ static DECLARE_WAIT_QUEUE_HEAD(kapmd_wait);
 static DEFINE_SPINLOCK(kapmd_queue_lock);
 static struct apm_queue kapmd_queue;
 
-static DECLARE_MUTEX(state_lock);
+static DEFINE_MUTEX(state_lock);
 
 static const char driver_version[] = "1.13";	/* no spaces */
 
@@ -176,7 +176,7 @@ static int queue_suspend_event(apm_event_t event, struct apm_user *sender)
 	struct apm_user *as;
 	int ret = 1;
 
-	down(&state_lock);
+	mutex_lock(&state_lock);
 	down_read(&user_list_lock);
 
 	/*
@@ -201,7 +201,7 @@ static int queue_suspend_event(apm_event_t event, struct apm_user *sender)
 	}
  out:
 	up_read(&user_list_lock);
-	up(&state_lock);
+	mutex_unlock(&state_lock);
 	wake_up_interruptible(&apm_waitqueue);
 	return ret;
 }
@@ -220,7 +220,7 @@ static void apm_suspend(void)
 	/*
 	 * Finally, wake up anyone who is sleeping on the suspend.
 	 */
-	down(&state_lock);
+	mutex_lock(&state_lock);
 	down_read(&user_list_lock);
 	list_for_each_entry(as, &apm_user_list, list) {
 		if (as->suspend_state == SUSPEND_WAIT ||
@@ -230,7 +230,7 @@ static void apm_suspend(void)
 		}
 	}
 	up_read(&user_list_lock);
-	up(&state_lock);
+	mutex_unlock(&state_lock);
 
 	wake_up(&apm_suspend_waitqueue);
 }
@@ -256,11 +256,11 @@ static ssize_t apm_read(struct file *fp, char __user *buf, size_t count, loff_t 
 		if (copy_to_user(buf, &event, sizeof(event)))
 			break;
 
-		down(&state_lock);
+		mutex_lock(&state_lock);
 		if (as->suspend_state == SUSPEND_PENDING &&
 		    (event == APM_SYS_SUSPEND || event == APM_USER_SUSPEND))
 			as->suspend_state = SUSPEND_READ;
-		up(&state_lock);
+		mutex_unlock(&state_lock);
 
 		buf += sizeof(event);
 		i -= sizeof(event);
@@ -302,7 +302,7 @@ apm_ioctl(struct inode * inode, struct file *filp, u_int cmd, u_long arg)
 
 	switch (cmd) {
 	case APM_IOC_SUSPEND:
-		down(&state_lock);
+		mutex_lock(&state_lock);
 
 		as->suspend_result = -EINTR;
 
@@ -317,7 +317,7 @@ apm_ioctl(struct inode * inode, struct file *filp, u_int cmd, u_long arg)
 			as->suspend_state = SUSPEND_ACKED;
 			suspends_pending--;
 			pending = suspends_pending == 0;
-			up(&state_lock);
+			mutex_unlock(&state_lock);
 
 			/*
 			 * If there are no further acknowledges required,
@@ -341,7 +341,7 @@ apm_ioctl(struct inode * inode, struct file *filp, u_int cmd, u_long arg)
 				   as->suspend_state == SUSPEND_DONE);
 		} else {
 			as->suspend_state = SUSPEND_WAIT;
-			up(&state_lock);
+			mutex_unlock(&state_lock);
 
 			/*
 			 * Otherwise it is a request to suspend the system.
@@ -379,10 +379,10 @@ apm_ioctl(struct inode * inode, struct file *filp, u_int cmd, u_long arg)
 
 		current->flags = flags;
 
-		down(&state_lock);
+		mutex_lock(&state_lock);
 		err = as->suspend_result;
 		as->suspend_state = SUSPEND_NONE;
-		up(&state_lock);
+		mutex_unlock(&state_lock);
 		break;
 	}
 
@@ -406,12 +406,12 @@ static int apm_release(struct inode * inode, struct file * filp)
 	 * need to balance suspends_pending, which means the
 	 * possibility of sleeping.
 	 */
-	down(&state_lock);
+	mutex_lock(&state_lock);
 	if (as->suspend_state != SUSPEND_NONE) {
 		suspends_pending -= 1;
 		pending = suspends_pending == 0;
 	}
-	up(&state_lock);
+	mutex_unlock(&state_lock);
 	if (pending)
 		apm_suspend();
 
