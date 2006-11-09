@@ -68,8 +68,9 @@ GLOBAL_ENTRY(ip_fast_csum)
 	zxt2	r20=r20
 	;;
 	add	r20=ret0,r20
+	mov	r9=0xffff
 	;;
-	andcm	ret0=-1,r20
+	andcm	ret0=r9,r20
 	.restore sp		// reset frame state
 	br.ret.sptk.many b0
 	;;
