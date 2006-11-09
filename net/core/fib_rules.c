@@ -107,6 +107,22 @@ out:
 
 EXPORT_SYMBOL_GPL(fib_rules_unregister);
 
+static int fib_rule_match(struct fib_rule *rule, struct fib_rules_ops *ops,
+			  struct flowi *fl, int flags)
+{
+	int ret = 0;
+
+	if (rule->ifindex && (rule->ifindex != fl->iif))
+		goto out;
+
+	if ((rule->mark ^ fl->mark) & rule->mark_mask)
+		goto out;
+
+	ret = ops->match(rule, fl, flags);
+out:
+	return (rule->flags & FIB_RULE_INVERT) ? !ret : ret;
+}
+
 int fib_rules_lookup(struct fib_rules_ops *ops, struct flowi *fl,
 		     int flags, struct fib_lookup_arg *arg)
 {
@@ -116,13 +132,7 @@ int fib_rules_lookup(struct fib_rules_ops *ops, struct flowi *fl,
 	rcu_read_lock();
 
 	list_for_each_entry_rcu(rule, ops->rules_list, list) {
-		if (rule->ifindex && (rule->ifindex != fl->iif))
-			continue;
-
-		if ((rule->mark ^ fl->mark) & rule->mark_mask)
-			continue;
-
-		if (!ops->match(rule, fl, flags))
+		if (!fib_rule_match(rule, ops, fl, flags))
 			continue;
 
 		err = ops->action(rule, fl, flags, arg);

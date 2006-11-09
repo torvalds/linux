@@ -6,6 +6,7 @@
 
 /* rule is permanent, and cannot be deleted */
 #define FIB_RULE_PERMANENT	1
+#define FIB_RULE_INVERT		2
 
 struct fib_rule_hdr
 {
