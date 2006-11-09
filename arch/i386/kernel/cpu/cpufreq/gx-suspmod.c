@@ -447,7 +447,6 @@ static int __init cpufreq_gx_init(void)
 	int ret;
 	struct gxfreq_params *params;
 	struct pci_dev *gx_pci;
-	u32 class_rev;
 
 	/* Test if we have the right hardware */
 	if ((gx_pci = gx_detect_chipset()) == NULL)
@@ -472,8 +471,7 @@ static int __init cpufreq_gx_init(void)
 	pci_read_config_byte(params->cs55x0, PCI_PMER2, &(params->pci_pmer2));
 	pci_read_config_byte(params->cs55x0, PCI_MODON, &(params->on_duration));
 	pci_read_config_byte(params->cs55x0, PCI_MODOFF, &(params->off_duration));
-        pci_read_config_dword(params->cs55x0, PCI_CLASS_REVISION, &class_rev);
-	params->pci_rev = class_rev & 0xff;
+	pci_read_config_byte(params->cs55x0, PCI_REVISION_ID, &params->pci_rev);
 
 	if ((ret = cpufreq_register_driver(&gx_suspmod_driver))) {
 		kfree(params);
