@@ -147,8 +147,9 @@ static int copy_private_data(struct iw_cm_event *event)
 }
 
 /*
- * Release a reference on cm_id. If the last reference is being removed
- * and iw_destroy_cm_id is waiting, wake up the waiting thread.
+ * Release a reference on cm_id. If the last reference is being
+ * released, enable the waiting thread (in iw_destroy_cm_id) to
+ * get woken up, and return 1 if a thread is already waiting.
  */
 static int iwcm_deref_id(struct iwcm_id_private *cm_id_priv)
 {
