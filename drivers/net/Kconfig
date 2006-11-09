@@ -188,6 +188,17 @@ config MII
 	  or internal device.  It is safe to say Y or M here even if your
 	  ethernet card lack MII.
 
+config MACB
+	tristate "Atmel MACB support"
+	depends on NET_ETHERNET && AVR32
+	select MII
+	help
+	  The Atmel MACB ethernet interface is found on many AT32 and AT91
+	  parts. Say Y to include support for the MACB chip.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called macb.
+
 source "drivers/net/arm/Kconfig"
 
 config MACE

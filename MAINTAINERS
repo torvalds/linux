@@ -432,6 +432,13 @@ L:	linux-atm-general@lists.sourceforge.net (subscribers-only)
 W:	http://linux-atm.sourceforge.net
 S:	Maintained
 
+ATMEL MACB ETHERNET DRIVER
+P:	Atmel AVR32 Support Team
+M:	avr32@atmel.com
+P:	Haavard Skinnemoen
+M:	hskinnemoen@atmel.com
+S:	Supported
+
 ATMEL WIRELESS DRIVER
 P:	Simon Kelley
 M:	simon@thekelleys.org.uk
