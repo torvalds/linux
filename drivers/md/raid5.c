@@ -3659,7 +3659,7 @@ static void end_reshape(raid5_conf_t *conf)
 		bdev = bdget_disk(conf->mddev->gendisk, 0);
 		if (bdev) {
 			mutex_lock(&bdev->bd_inode->i_mutex);
-			i_size_write(bdev->bd_inode, conf->mddev->array_size << 10);
+			i_size_write(bdev->bd_inode, (loff_t)conf->mddev->array_size << 10);
 			mutex_unlock(&bdev->bd_inode->i_mutex);
 			bdput(bdev);
 		}
