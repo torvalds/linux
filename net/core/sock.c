@@ -1527,7 +1527,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	atomic_set(&sk->sk_refcnt, 1);
 }
 
-void fastcall lock_sock(struct sock *sk)
+void fastcall lock_sock_nested(struct sock *sk, int subclass)
 {
 	might_sleep();
 	spin_lock_bh(&sk->sk_lock.slock);
@@ -1538,11 +1538,11 @@ void fastcall lock_sock(struct sock *sk)
 	/*
 	 * The sk_lock has mutex_lock() semantics here:
 	 */
-	mutex_acquire(&sk->sk_lock.dep_map, 0, 0, _RET_IP_);
+	mutex_acquire(&sk->sk_lock.dep_map, subclass, 0, _RET_IP_);
 	local_bh_enable();
 }
 
-EXPORT_SYMBOL(lock_sock);
+EXPORT_SYMBOL(lock_sock_nested);
 
 void fastcall release_sock(struct sock *sk)
 {

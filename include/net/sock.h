@@ -745,7 +745,13 @@ static inline int sk_stream_wmem_schedule(struct sock *sk, int size)
  */
 #define sock_owned_by_user(sk)	((sk)->sk_lock.owner)
 
-extern void FASTCALL(lock_sock(struct sock *sk));
+extern void FASTCALL(lock_sock_nested(struct sock *sk, int subclass));
+
+static inline void lock_sock(struct sock *sk)
+{
+	lock_sock_nested(sk, 0);
+}
+
 extern void FASTCALL(release_sock(struct sock *sk));
 
 /* BH context may only use the following locking interface. */
