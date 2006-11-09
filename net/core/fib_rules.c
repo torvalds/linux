@@ -119,6 +119,9 @@ int fib_rules_lookup(struct fib_rules_ops *ops, struct flowi *fl,
 		if (rule->ifindex && (rule->ifindex != fl->iif))
 			continue;
 
+		if ((rule->mark ^ fl->mark) & rule->mark_mask)
+			continue;
+
 		if (!ops->match(rule, fl, flags))
 			continue;
 
@@ -178,6 +181,18 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		if (dev)
 			rule->ifindex = dev->ifindex;
 	}
+
+	if (tb[FRA_FWMARK]) {
+		rule->mark = nla_get_u32(tb[FRA_FWMARK]);
+		if (rule->mark)
+			/* compatibility: if the mark value is non-zero all bits
+			 * are compared unless a mask is explicitly specified.
+			 */
+			rule->mark_mask = 0xFFFFFFFF;
+	}
+
+	if (tb[FRA_FWMASK])
+		rule->mark_mask = nla_get_u32(tb[FRA_FWMASK]);
 
 	rule->action = frh->action;
 	rule->flags = frh->flags;
@@ -250,6 +265,14 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		    nla_strcmp(tb[FRA_IFNAME], rule->ifname))
 			continue;
 
+		if (tb[FRA_FWMARK] &&
+		    (rule->mark != nla_get_u32(tb[FRA_FWMARK])))
+			continue;
+
+		if (tb[FRA_FWMASK] &&
+		    (rule->mark_mask != nla_get_u32(tb[FRA_FWMASK])))
+			continue;
+
 		if (!ops->compare(rule, frh, tb))
 			continue;
 
@@ -297,6 +320,12 @@ static int fib_nl_fill_rule(struct sk_buff *skb, struct fib_rule *rule,
 
 	if (rule->pref)
 		NLA_PUT_U32(skb, FRA_PRIORITY, rule->pref);
+
+	if (rule->mark)
+		NLA_PUT_U32(skb, FRA_FWMARK, rule->mark);
+
+	if (rule->mark_mask || rule->mark)
+		NLA_PUT_U32(skb, FRA_FWMASK, rule->mark_mask);
 
 	if (ops->fill(rule, skb, nlh, frh) < 0)
 		goto nla_put_failure;

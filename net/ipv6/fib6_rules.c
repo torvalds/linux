@@ -25,8 +25,6 @@ struct fib6_rule
 	struct fib_rule		common;
 	struct rt6key		src;
 	struct rt6key		dst;
-	u32			fwmark;
-	u32			fwmask;
 	u8			tclass;
 };
 
@@ -128,9 +126,6 @@ static int fib6_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 	if (r->tclass && r->tclass != ((ntohl(fl->fl6_flowlabel) >> 20) & 0xff))
 		return 0;
 
-	if ((r->fwmark ^ fl->mark) & r->fwmask)
-		return 0;
-
 	return 1;
 }
 
@@ -173,21 +168,6 @@ static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 		nla_memcpy(&rule6->dst.addr, tb[FRA_DST],
 			   sizeof(struct in6_addr));
 
-	if (tb[FRA_FWMARK]) {
-		rule6->fwmark = nla_get_u32(tb[FRA_FWMARK]);
-		if (rule6->fwmark) {
-			/*
-			 * if the mark value is non-zero,
-			 * all bits are compared by default
-			 * unless a mask is explicitly specified.
-			 */
-			rule6->fwmask = 0xFFFFFFFF;
-		}
-	}
-
-	if (tb[FRA_FWMASK])
-		rule6->fwmask = nla_get_u32(tb[FRA_FWMASK]);
-
 	rule6->src.plen = frh->src_len;
 	rule6->dst.plen = frh->dst_len;
 	rule6->tclass = frh->tos;
@@ -219,12 +199,6 @@ static int fib6_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,
 	    nla_memcmp(tb[FRA_DST], &rule6->dst.addr, sizeof(struct in6_addr)))
 		return 0;
 
-	if (tb[FRA_FWMARK] && (rule6->fwmark != nla_get_u32(tb[FRA_FWMARK])))
-		return 0;
-
-	if (tb[FRA_FWMASK] && (rule6->fwmask != nla_get_u32(tb[FRA_FWMASK])))
-		return 0;
-
 	return 1;
 }
 
@@ -245,12 +219,6 @@ static int fib6_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 	if (rule6->src.plen)
 		NLA_PUT(skb, FRA_SRC, sizeof(struct in6_addr),
 			&rule6->src.addr);
-
-	if (rule6->fwmark)
-		NLA_PUT_U32(skb, FRA_FWMARK, rule6->fwmark);
-
-	if (rule6->fwmask || rule6->fwmark)
-		NLA_PUT_U32(skb, FRA_FWMASK, rule6->fwmask);
 
 	return 0;
 

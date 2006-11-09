@@ -44,8 +44,6 @@ struct fib4_rule
 	__be32			srcmask;
 	__be32			dst;
 	__be32			dstmask;
-	u32			fwmark;
-	u32			fwmask;
 #ifdef CONFIG_NET_CLS_ROUTE
 	u32			tclassid;
 #endif
@@ -158,9 +156,6 @@ static int fib4_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 	if (r->tos && (r->tos != fl->fl4_tos))
 		return 0;
 
-	if ((r->fwmark ^ fl->mark) & r->fwmask)
-		return 0;
-
 	return 1;
 }
 
@@ -216,18 +211,6 @@ static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 	if (tb[FRA_DST])
 		rule4->dst = nla_get_be32(tb[FRA_DST]);
 
-	if (tb[FRA_FWMARK]) {
-		rule4->fwmark = nla_get_u32(tb[FRA_FWMARK]);
-		if (rule4->fwmark)
-			/* compatibility: if the mark value is non-zero all bits
-			 * are compared unless a mask is explicitly specified.
-			 */
-			rule4->fwmask = 0xFFFFFFFF;
-	}
-
-	if (tb[FRA_FWMASK])
-		rule4->fwmask = nla_get_u32(tb[FRA_FWMASK]);
-
 #ifdef CONFIG_NET_CLS_ROUTE
 	if (tb[FRA_FLOW])
 		rule4->tclassid = nla_get_u32(tb[FRA_FLOW]);
@@ -258,12 +241,6 @@ static int fib4_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,
 	if (frh->tos && (rule4->tos != frh->tos))
 		return 0;
 
-	if (tb[FRA_FWMARK] && (rule4->fwmark != nla_get_u32(tb[FRA_FWMARK])))
-		return 0;
-
-	if (tb[FRA_FWMASK] && (rule4->fwmask != nla_get_u32(tb[FRA_FWMASK])))
-		return 0;
-
 #ifdef CONFIG_NET_CLS_ROUTE
 	if (tb[FRA_FLOW] && (rule4->tclassid != nla_get_u32(tb[FRA_FLOW])))
 		return 0;
@@ -287,12 +264,6 @@ static int fib4_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 	frh->dst_len = rule4->dst_len;
 	frh->src_len = rule4->src_len;
 	frh->tos = rule4->tos;
-
-	if (rule4->fwmark)
-		NLA_PUT_U32(skb, FRA_FWMARK, rule4->fwmark);
-
-	if (rule4->fwmask || rule4->fwmark)
-		NLA_PUT_U32(skb, FRA_FWMASK, rule4->fwmask);
 
 	if (rule4->dst_len)
 		NLA_PUT_BE32(skb, FRA_DST, rule4->dst);

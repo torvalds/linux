@@ -13,6 +13,8 @@ struct fib_rule
 	atomic_t		refcnt;
 	int			ifindex;
 	char			ifname[IFNAMSIZ];
+	u32			mark;
+	u32			mark_mask;
 	u32			pref;
 	u32			flags;
 	u32			table;
