@@ -15,4 +15,9 @@ void unmask_ht_irq(unsigned int irq);
 /* The arch hook for getting things started */
 int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev);
 
+/* For drivers of buggy hardware */
+typedef void (ht_irq_update_t)(struct pci_dev *dev, int irq,
+			       struct ht_irq_msg *msg);
+int __ht_create_irq(struct pci_dev *dev, int idx, ht_irq_update_t *update);
+
 #endif /* LINUX_HTIRQ_H */

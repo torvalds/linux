@@ -25,6 +25,8 @@ static DEFINE_SPINLOCK(ht_irq_lock);
 
 struct ht_irq_cfg {
 	struct pci_dev *dev;
+	 /* Update callback used to cope with buggy hardware */
+	ht_irq_update_t *update;
 	unsigned pos;
 	unsigned idx;
 	struct ht_irq_msg msg;
@@ -44,6 +46,8 @@ void write_ht_irq_msg(unsigned int irq, struct ht_irq_msg *msg)
 		pci_write_config_byte(cfg->dev, cfg->pos + 2, cfg->idx + 1);
 		pci_write_config_dword(cfg->dev, cfg->pos + 4, msg->address_hi);
 	}
+	if (cfg->update)
+		cfg->update(cfg->dev, irq, msg);
 	spin_unlock_irqrestore(&ht_irq_lock, flags);
 	cfg->msg = *msg;
 }
@@ -79,16 +83,14 @@ void unmask_ht_irq(unsigned int irq)
 }
 
 /**
- * ht_create_irq - create an irq and attach it to a device.
+ * __ht_create_irq - create an irq and attach it to a device.
  * @dev: The hypertransport device to find the irq capability on.
  * @idx: Which of the possible irqs to attach to.
- *
- * ht_create_irq is needs to be called for all hypertransport devices
- * that generate irqs.
+ * @update: Function to be called when changing the htirq message
  *
  * The irq number of the new irq or a negative error value is returned.
  */
-int ht_create_irq(struct pci_dev *dev, int idx)
+int __ht_create_irq(struct pci_dev *dev, int idx, ht_irq_update_t *update)
 {
 	struct ht_irq_cfg *cfg;
 	unsigned long flags;
@@ -123,6 +125,7 @@ int ht_create_irq(struct pci_dev *dev, int idx)
 		return -ENOMEM;
 
 	cfg->dev = dev;
+	cfg->update = update;
 	cfg->pos = pos;
 	cfg->idx = 0x10 + (idx * 2);
 	/* Initialize msg to a value that will never match the first write. */
@@ -145,6 +148,21 @@ int ht_create_irq(struct pci_dev *dev, int idx)
 }
 
 /**
+ * ht_create_irq - create an irq and attach it to a device.
+ * @dev: The hypertransport device to find the irq capability on.
+ * @idx: Which of the possible irqs to attach to.
+ *
+ * ht_create_irq needs to be called for all hypertransport devices
+ * that generate irqs.
+ *
+ * The irq number of the new irq or a negative error value is returned.
+ */
+int ht_create_irq(struct pci_dev *dev, int idx)
+{
+	return __ht_create_irq(dev, idx, NULL);
+}
+
+/**
  * ht_destroy_irq - destroy an irq created with ht_create_irq
  *
  * This reverses ht_create_irq removing the specified irq from
@@ -162,5 +180,6 @@ void ht_destroy_irq(unsigned int irq)
 	kfree(cfg);
 }
 
+EXPORT_SYMBOL(__ht_create_irq);
 EXPORT_SYMBOL(ht_create_irq);
 EXPORT_SYMBOL(ht_destroy_irq);
