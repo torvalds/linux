@@ -619,9 +619,8 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 		unsigned	i = HCS_N_PORTS (ehci->hcs_params);
 
 		/* resume root hub? */
-		status = readl (&ehci->regs->command);
-		if (!(status & CMD_RUN))
-			writel (status | CMD_RUN, &ehci->regs->command);
+		if (!(readl(&ehci->regs->command) & CMD_RUN))
+			usb_hcd_resume_root_hub(hcd);
 
 		while (i--) {
 			int pstatus = readl (&ehci->regs->port_status [i]);
@@ -638,7 +637,6 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 			 */
 			ehci->reset_done [i] = jiffies + msecs_to_jiffies (20);
 			ehci_dbg (ehci, "port %d remote wakeup\n", i + 1);
-			usb_hcd_resume_root_hub(hcd);
 		}
 	}
 

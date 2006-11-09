@@ -34,6 +34,7 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	int			port;
+	int			mask;
 
 	if (time_before (jiffies, ehci->next_statechange))
 		msleep(5);
@@ -51,14 +52,25 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 		ehci->reclaim_ready = 1;
 	ehci_work(ehci);
 
-	/* suspend any active/unsuspended ports, maybe allow wakeup */
+	/* Unlike other USB host controller types, EHCI doesn't have
+	 * any notion of "global" or bus-wide suspend.  The driver has
+	 * to manually suspend all the active unsuspended ports, and
+	 * then manually resume them in the bus_resume() routine.
+	 */
+	ehci->bus_suspended = 0;
 	while (port--) {
 		u32 __iomem	*reg = &ehci->regs->port_status [port];
 		u32		t1 = readl (reg) & ~PORT_RWC_BITS;
 		u32		t2 = t1;
 
-		if ((t1 & PORT_PE) && !(t1 & PORT_OWNER))
+		/* keep track of which ports we suspend */
+		if ((t1 & PORT_PE) && !(t1 & PORT_OWNER) &&
+				!(t1 & PORT_SUSPEND)) {
 			t2 |= PORT_SUSPEND;
+			set_bit(port, &ehci->bus_suspended);
+		}
+
+		/* enable remote wakeup on all ports */
 		if (device_may_wakeup(&hcd->self.root_hub->dev))
 			t2 |= PORT_WKOC_E|PORT_WKDISC_E|PORT_WKCONN_E;
 		else
@@ -76,6 +88,13 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	ehci_halt (ehci);
 	hcd->state = HC_STATE_SUSPENDED;
 
+	/* allow remote wakeup */
+	mask = INTR_MASK;
+	if (!device_may_wakeup(&hcd->self.root_hub->dev))
+		mask &= ~STS_PCD;
+	writel(mask, &ehci->regs->intr_enable);
+	readl(&ehci->regs->intr_enable);
+
 	ehci->next_statechange = jiffies + msecs_to_jiffies(10);
 	spin_unlock_irq (&ehci->lock);
 	return 0;
@@ -88,7 +107,6 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	u32			temp;
 	int			i;
-	int			intr_enable;
 
 	if (time_before (jiffies, ehci->next_statechange))
 		msleep(5);
@@ -100,31 +118,30 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	 * the last user of the controller, not reset/pm hardware keeping
 	 * state we gave to it.
 	 */
+	temp = readl(&ehci->regs->intr_enable);
+	ehci_dbg(ehci, "resume root hub%s\n", temp ? "" : " after power loss");
 
-	/* re-init operational registers in case we lost power */
-	if (readl (&ehci->regs->intr_enable) == 0) {
-		/* at least some APM implementations will try to deliver
-		 * IRQs right away, so delay them until we're ready.
-		 */
-		intr_enable = 1;
-		writel (0, &ehci->regs->segment);
-		writel (ehci->periodic_dma, &ehci->regs->frame_list);
-		writel ((u32)ehci->async->qh_dma, &ehci->regs->async_next);
-	} else
-		intr_enable = 0;
-	ehci_dbg(ehci, "resume root hub%s\n",
-			intr_enable ? " after power loss" : "");
+	/* at least some APM implementations will try to deliver
+	 * IRQs right away, so delay them until we're ready.
+	 */
+	writel(0, &ehci->regs->intr_enable);
+
+	/* re-init operational registers */
+	writel(0, &ehci->regs->segment);
+	writel(ehci->periodic_dma, &ehci->regs->frame_list);
+	writel((u32) ehci->async->qh_dma, &ehci->regs->async_next);
 
 	/* restore CMD_RUN, framelist size, and irq threshold */
 	writel (ehci->command, &ehci->regs->command);
 
-	/* take ports out of suspend */
+	/* manually resume the ports we suspended during bus_suspend() */
 	i = HCS_N_PORTS (ehci->hcs_params);
 	while (i--) {
 		temp = readl (&ehci->regs->port_status [i]);
 		temp &= ~(PORT_RWC_BITS
 			| PORT_WKOC_E | PORT_WKDISC_E | PORT_WKCONN_E);
-		if (temp & PORT_SUSPEND) {
+		if (test_bit(i, &ehci->bus_suspended) &&
+				(temp & PORT_SUSPEND)) {
 			ehci->reset_done [i] = jiffies + msecs_to_jiffies (20);
 			temp |= PORT_RESUME;
 		}
@@ -134,11 +151,12 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	mdelay (20);
 	while (i--) {
 		temp = readl (&ehci->regs->port_status [i]);
-		if ((temp & PORT_SUSPEND) == 0)
-			continue;
-		temp &= ~(PORT_RWC_BITS | PORT_RESUME);
-		writel (temp, &ehci->regs->port_status [i]);
-		ehci_vdbg (ehci, "resumed port %d\n", i + 1);
+		if (test_bit(i, &ehci->bus_suspended) &&
+				(temp & PORT_SUSPEND)) {
+			temp &= ~(PORT_RWC_BITS | PORT_RESUME);
+			writel (temp, &ehci->regs->port_status [i]);
+			ehci_vdbg (ehci, "resumed port %d\n", i + 1);
+		}
 	}
 	(void) readl (&ehci->regs->command);
 
@@ -157,8 +175,7 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	hcd->state = HC_STATE_RUNNING;
 
 	/* Now we can safely re-enable irqs */
-	if (intr_enable)
-		writel (INTR_MASK, &ehci->regs->intr_enable);
+	writel(INTR_MASK, &ehci->regs->intr_enable);
 
 	spin_unlock_irq (&ehci->lock);
 	return 0;
