@@ -1177,7 +1177,7 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	/*
 	 * Get the dir op function pointer.
 	 */
-	err = nfserr_perm;
+	err = 0;
 	switch (type) {
 	case S_IFREG:
 		host_err = vfs_create(dirp, dchild, iap->ia_mode, NULL);
