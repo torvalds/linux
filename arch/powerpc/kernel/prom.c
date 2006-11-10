@@ -538,35 +538,31 @@ static struct ibm_pa_feature {
 	{CPU_FTR_REAL_LE, PPC_FEATURE_TRUE_LE, 5, 0, 0},
 };
 
-static void __init check_cpu_pa_features(unsigned long node)
+static void __init scan_features(unsigned long node, unsigned char *ftrs,
+				 unsigned long tablelen,
+				 struct ibm_pa_feature *fp,
+				 unsigned long ft_size)
 {
-	unsigned char *pa_ftrs;
-	unsigned long len, tablelen, i, bit;
-
-	pa_ftrs = of_get_flat_dt_prop(node, "ibm,pa-features", &tablelen);
-	if (pa_ftrs == NULL)
-		return;
+	unsigned long i, len, bit;
 
 	/* find descriptor with type == 0 */
 	for (;;) {
 		if (tablelen < 3)
 			return;
-		len = 2 + pa_ftrs[0];
+		len = 2 + ftrs[0];
 		if (tablelen < len)
 			return;		/* descriptor 0 not found */
-		if (pa_ftrs[1] == 0)
+		if (ftrs[1] == 0)
 			break;
 		tablelen -= len;
-		pa_ftrs += len;
+		ftrs += len;
 	}
 
 	/* loop over bits we know about */
-	for (i = 0; i < ARRAY_SIZE(ibm_pa_features); ++i) {
-		struct ibm_pa_feature *fp = &ibm_pa_features[i];
-
-		if (fp->pabyte >= pa_ftrs[0])
+	for (i = 0; i < ft_size; ++i, ++fp) {
+		if (fp->pabyte >= ftrs[0])
 			continue;
-		bit = (pa_ftrs[2 + fp->pabyte] >> (7 - fp->pabit)) & 1;
+		bit = (ftrs[2 + fp->pabyte] >> (7 - fp->pabit)) & 1;
 		if (bit ^ fp->invert) {
 			cur_cpu_spec->cpu_features |= fp->cpu_features;
 			cur_cpu_spec->cpu_user_features |= fp->cpu_user_ftrs;
@@ -577,16 +573,59 @@ static void __init check_cpu_pa_features(unsigned long node)
 	}
 }
 
+static void __init check_cpu_pa_features(unsigned long node)
+{
+	unsigned char *pa_ftrs;
+	unsigned long tablelen;
+
+	pa_ftrs = of_get_flat_dt_prop(node, "ibm,pa-features", &tablelen);
+	if (pa_ftrs == NULL)
+		return;
+
+	scan_features(node, pa_ftrs, tablelen,
+		      ibm_pa_features, ARRAY_SIZE(ibm_pa_features));
+}
+
+static struct feature_property {
+	const char *name;
+	u32 min_value;
+	unsigned long cpu_feature;
+	unsigned long cpu_user_ftr;
+} feature_properties[] __initdata = {
+#ifdef CONFIG_ALTIVEC
+	{"altivec", 0, CPU_FTR_ALTIVEC, PPC_FEATURE_HAS_ALTIVEC},
+	{"ibm,vmx", 1, CPU_FTR_ALTIVEC, PPC_FEATURE_HAS_ALTIVEC},
+#endif /* CONFIG_ALTIVEC */
+#ifdef CONFIG_PPC64
+	{"ibm,dfp", 1, 0, PPC_FEATURE_HAS_DFP},
+	{"ibm,purr", 1, CPU_FTR_PURR, 0},
+	{"ibm,spurr", 1, CPU_FTR_SPURR, 0},
+#endif /* CONFIG_PPC64 */
+};
+
+static void __init check_cpu_feature_properties(unsigned long node)
+{
+	unsigned long i;
+	struct feature_property *fp = feature_properties;
+	const u32 *prop;
+
+	for (i = 0; i < ARRAY_SIZE(feature_properties); ++i, ++fp) {
+		prop = of_get_flat_dt_prop(node, fp->name, NULL);
+		if (prop && *prop >= fp->min_value) {
+			cur_cpu_spec->cpu_features |= fp->cpu_feature;
+			cur_cpu_spec->cpu_user_features |= fp->cpu_user_ftr;
+		}
+	}
+}
+
 static int __init early_init_dt_scan_cpus(unsigned long node,
 					  const char *uname, int depth,
 					  void *data)
 {
 	static int logical_cpuid = 0;
 	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-#ifdef CONFIG_ALTIVEC
-	u32 *prop;
-#endif
-	u32 *intserv;
+	const u32 *prop;
+	const u32 *intserv;
 	int i, nthreads;
 	unsigned long len;
 	int found = 0;
@@ -643,24 +682,27 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 			intserv[i]);
 		boot_cpuid = logical_cpuid;
 		set_hard_smp_processor_id(boot_cpuid, intserv[i]);
+
+		/*
+		 * PAPR defines "logical" PVR values for cpus that
+		 * meet various levels of the architecture:
+		 * 0x0f000001	Architecture version 2.04
+		 * 0x0f000002	Architecture version 2.05
+		 * If the cpu-version property in the cpu node contains
+		 * such a value, we call identify_cpu again with the
+		 * logical PVR value in order to use the cpu feature
+		 * bits appropriate for the architecture level.
+		 *
+		 * A POWER6 partition in "POWER6 architected" mode
+		 * uses the 0x0f000002 PVR value; in POWER5+ mode
+		 * it uses 0x0f000001.
+		 */
+		prop = of_get_flat_dt_prop(node, "cpu-version", NULL);
+		if (prop && (*prop & 0xff000000) == 0x0f000000)
+			identify_cpu(0, *prop);
 	}
 
-#ifdef CONFIG_ALTIVEC
-	/* Check if we have a VMX and eventually update CPU features */
-	prop = (u32 *)of_get_flat_dt_prop(node, "ibm,vmx", NULL);
-	if (prop && (*prop) > 0) {
-		cur_cpu_spec->cpu_features |= CPU_FTR_ALTIVEC;
-		cur_cpu_spec->cpu_user_features |= PPC_FEATURE_HAS_ALTIVEC;
-	}
-
-	/* Same goes for Apple's "altivec" property */
-	prop = (u32 *)of_get_flat_dt_prop(node, "altivec", NULL);
-	if (prop) {
-		cur_cpu_spec->cpu_features |= CPU_FTR_ALTIVEC;
-		cur_cpu_spec->cpu_user_features |= PPC_FEATURE_HAS_ALTIVEC;
-	}
-#endif /* CONFIG_ALTIVEC */
-
+	check_cpu_feature_properties(node);
 	check_cpu_pa_features(node);
 
 #ifdef CONFIG_PPC_PSERIES

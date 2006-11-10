@@ -627,6 +627,7 @@ static void __init early_cmdline_parse(void)
 /* Option vector 3: processor options supported */
 #define OV3_FP			0x80	/* floating point */
 #define OV3_VMX			0x40	/* VMX/Altivec */
+#define OV3_DFP			0x20	/* decimal FP */
 
 /* Option vector 5: PAPR/OF options supported */
 #define OV5_LPAR		0x80	/* logical partitioning supported */
@@ -668,7 +669,7 @@ static unsigned char ibm_architecture_vec[] = {
 	/* option vector 3: processor options supported */
 	3 - 2,				/* length */
 	0,				/* don't ignore, don't halt */
-	OV3_FP | OV3_VMX,
+	OV3_FP | OV3_VMX | OV3_DFP,
 
 	/* option vector 4: IBM PAPR implementation */
 	2 - 2,				/* length */

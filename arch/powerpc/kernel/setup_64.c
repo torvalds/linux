@@ -171,7 +171,7 @@ void __init setup_paca(int cpu)
 void __init early_setup(unsigned long dt_ptr)
 {
 	/* Identify CPU type */
-	identify_cpu(0);
+	identify_cpu(0, mfspr(SPRN_PVR));
 
 	/* Assume we're on cpu 0 for now. Don't write to the paca yet! */
 	setup_paca(0);

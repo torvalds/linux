@@ -277,10 +277,45 @@ static struct cpu_spec cpu_specs[] = {
 		.oprofile_mmcra_sipr	= MMCRA_SIPR,
 		.platform		= "power5+",
 	},
+	{	/* POWER6 in P5+ mode; 2.04-compliant processor */
+		.pvr_mask		= 0xffffffff,
+		.pvr_value		= 0x0f000001,
+		.cpu_name		= "POWER5+",
+		.cpu_features		= CPU_FTRS_POWER5,
+		.cpu_user_features	= COMMON_USER_POWER5_PLUS,
+		.icache_bsize		= 128,
+		.dcache_bsize		= 128,
+		.num_pmcs		= 6,
+		.oprofile_cpu_type	= "ppc64/power6",
+		.oprofile_type		= PPC_OPROFILE_POWER4,
+		.oprofile_mmcra_sihv	= POWER6_MMCRA_SIHV,
+		.oprofile_mmcra_sipr	= POWER6_MMCRA_SIPR,
+		.oprofile_mmcra_clear	= POWER6_MMCRA_THRM |
+			POWER6_MMCRA_OTHER,
+		.platform		= "power5+",
+	},
 	{	/* Power6 */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x003e0000,
-		.cpu_name		= "POWER6",
+		.cpu_name		= "POWER6 (raw)",
+		.cpu_features		= CPU_FTRS_POWER6,
+		.cpu_user_features	= COMMON_USER_POWER6 |
+			PPC_FEATURE_POWER6_EXT,
+		.icache_bsize		= 128,
+		.dcache_bsize		= 128,
+		.num_pmcs		= 6,
+		.oprofile_cpu_type	= "ppc64/power6",
+		.oprofile_type		= PPC_OPROFILE_POWER4,
+		.oprofile_mmcra_sihv	= POWER6_MMCRA_SIHV,
+		.oprofile_mmcra_sipr	= POWER6_MMCRA_SIPR,
+		.oprofile_mmcra_clear	= POWER6_MMCRA_THRM |
+			POWER6_MMCRA_OTHER,
+		.platform		= "power6x",
+	},
+	{	/* 2.05-compliant processor, i.e. Power6 "architected" mode */
+		.pvr_mask		= 0xffffffff,
+		.pvr_value		= 0x0f000002,
+		.cpu_name		= "POWER6 (architected)",
 		.cpu_features		= CPU_FTRS_POWER6,
 		.cpu_user_features	= COMMON_USER_POWER6,
 		.icache_bsize		= 128,
@@ -1173,18 +1208,14 @@ static struct cpu_spec cpu_specs[] = {
 #endif /* CONFIG_PPC32 */
 };
 
-struct cpu_spec *identify_cpu(unsigned long offset)
+struct cpu_spec *identify_cpu(unsigned long offset, unsigned int pvr)
 {
 	struct cpu_spec *s = cpu_specs;
 	struct cpu_spec **cur = &cur_cpu_spec;
-	unsigned int pvr = mfspr(SPRN_PVR);
 	int i;
 
 	s = PTRRELOC(s);
 	cur = PTRRELOC(cur);
-
-	if (*cur != NULL)
-		return PTRRELOC(*cur);
 
 	for (i = 0; i < ARRAY_SIZE(cpu_specs); i++,s++)
 		if ((pvr & s->pvr_mask) == s->pvr_value) {
