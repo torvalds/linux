@@ -139,9 +139,8 @@ void inet6_csk_addr2sockaddr(struct sock *sk, struct sockaddr * uaddr)
 
 EXPORT_SYMBOL_GPL(inet6_csk_addr2sockaddr);
 
-int inet6_csk_xmit(struct sk_buff *skb, int ipfragok)
+int inet6_csk_xmit(struct sk_buff *skb, struct sock *sk, int ipfragok)
 {
-	struct sock *sk = skb->sk;
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct flowi fl;

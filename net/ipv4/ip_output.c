@@ -288,9 +288,8 @@ int ip_output(struct sk_buff *skb)
 			    !(IPCB(skb)->flags & IPSKB_REROUTED));
 }
 
-int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
+int ip_queue_xmit(struct sk_buff *skb, struct sock *sk, int ipfragok)
 {
-	struct sock *sk = skb->sk;
 	struct inet_sock *inet = inet_sk(sk);
 	struct ip_options *opt = inet->opt;
 	struct rtable *rt;

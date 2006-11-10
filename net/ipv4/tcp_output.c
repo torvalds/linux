@@ -426,7 +426,6 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, 
 
 	th = (struct tcphdr *) skb_push(skb, tcp_header_size);
 	skb->h.th = th;
-	skb_set_owner_w(skb, sk);
 
 	/* Build TCP header and checksum it. */
 	th->source		= inet->sport;
@@ -479,7 +478,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, 
 	if (after(tcb->end_seq, tp->snd_nxt) || tcb->seq == tcb->end_seq)
 		TCP_INC_STATS(TCP_MIB_OUTSEGS);
 
-	err = icsk->icsk_af_ops->queue_xmit(skb, 0);
+	err = icsk->icsk_af_ops->queue_xmit(skb, sk, 0);
 	if (likely(err <= 0))
 		return err;
 
