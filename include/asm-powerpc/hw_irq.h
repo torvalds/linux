@@ -18,15 +18,25 @@ extern void timer_interrupt(struct pt_regs *);
 
 static inline unsigned long local_get_flags(void)
 {
-	return get_paca()->soft_enabled;
+	unsigned long flags;
+
+	__asm__ __volatile__("lbz %0,%1(13)"
+	: "=r" (flags)
+	: "i" (offsetof(struct paca_struct, soft_enabled)));
+
+	return flags;
 }
 
 static inline unsigned long local_irq_disable(void)
 {
-	unsigned long flag = get_paca()->soft_enabled;
-	get_paca()->soft_enabled = 0;
-	barrier();
-	return flag;
+	unsigned long flags, zero;
+
+	__asm__ __volatile__("li %1,0; lbz %0,%2(13); stb %1,%2(13)"
+	: "=r" (flags), "=&r" (zero)
+	: "i" (offsetof(struct paca_struct, soft_enabled))
+	: "memory");
+
+	return flags;
 }
 
 extern void local_irq_restore(unsigned long);
