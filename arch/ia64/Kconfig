@@ -484,6 +484,15 @@ source "net/Kconfig"
 
 source "drivers/Kconfig"
 
+config MSPEC
+	tristate "Memory special operations driver"
+	depends on IA64
+	select IA64_UNCACHED_ALLOCATOR
+	help
+	  If you have an ia64 and you want to enable memory special
+	  operations support (formerly known as fetchop), say Y here,
+	  otherwise say N.
+
 source "fs/Kconfig"
 
 source "lib/Kconfig"
