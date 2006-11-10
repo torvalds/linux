@@ -15,6 +15,18 @@
 #include <net/netlink.h>
 #include "br_private.h"
 
+static inline size_t br_nlmsg_size(void)
+{
+	return NLMSG_ALIGN(sizeof(struct ifinfomsg))
+	       + nla_total_size(IFNAMSIZ) /* IFLA_IFNAME */
+	       + nla_total_size(MAX_ADDR_LEN) /* IFLA_ADDRESS */
+	       + nla_total_size(4) /* IFLA_MASTER */
+	       + nla_total_size(4) /* IFLA_MTU */
+	       + nla_total_size(4) /* IFLA_LINK */
+	       + nla_total_size(1) /* IFLA_OPERSTATE */
+	       + nla_total_size(1); /* IFLA_PROTINFO */
+}
+
 /*
  * Create one netlink message for one interface
  * Contains port and master info as well as carrier and bridge state.
@@ -77,19 +89,16 @@ rtattr_failure:
 void br_ifinfo_notify(int event, struct net_bridge_port *port)
 {
 	struct sk_buff *skb;
-	int payload = sizeof(struct ifinfomsg) + 128;
 	int err = -ENOBUFS;
 
 	pr_debug("bridge notify event=%d\n", event);
-	skb = nlmsg_new(nlmsg_total_size(payload), GFP_ATOMIC);
+	skb = nlmsg_new(br_nlmsg_size(), GFP_ATOMIC);
 	if (skb == NULL)
 		goto errout;
 
 	err = br_fill_ifinfo(skb, port, 0, 0, event, 0);
-	if (err < 0) {
-		kfree_skb(skb);
-		goto errout;
-	}
+	/* failure implies BUG in br_nlmsg_size() */
+	BUG_ON(err < 0);
 
 	err = rtnl_notify(skb, 0, RTNLGRP_LINK, NULL, GFP_ATOMIC);
 errout:

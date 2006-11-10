@@ -174,6 +174,7 @@ int netlink_sendskb(struct sock *sk, struct sk_buff *skb, int protocol);
  */
 #define NLMSG_GOODORDER 0
 #define NLMSG_GOODSIZE (SKB_MAX_ORDER(0, NLMSG_GOODORDER))
+#define NLMSG_DEFAULT_SIZE (NLMSG_GOODSIZE - NLMSG_HDRLEN)
 
 
 struct netlink_callback

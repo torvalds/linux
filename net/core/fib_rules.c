@@ -306,6 +306,22 @@ errout:
 	return err;
 }
 
+static inline size_t fib_rule_nlmsg_size(struct fib_rules_ops *ops,
+					 struct fib_rule *rule)
+{
+	size_t payload = NLMSG_ALIGN(sizeof(struct fib_rule_hdr))
+			 + nla_total_size(IFNAMSIZ) /* FRA_IFNAME */
+			 + nla_total_size(4) /* FRA_PRIORITY */
+			 + nla_total_size(4) /* FRA_TABLE */
+			 + nla_total_size(4) /* FRA_FWMARK */
+			 + nla_total_size(4); /* FRA_FWMASK */
+
+	if (ops->nlmsg_payload)
+		payload += ops->nlmsg_payload(rule);
+
+	return payload;
+}
+
 static int fib_nl_fill_rule(struct sk_buff *skb, struct fib_rule *rule,
 			    u32 pid, u32 seq, int type, int flags,
 			    struct fib_rules_ops *ops)
@@ -384,15 +400,13 @@ static void notify_rule_change(int event, struct fib_rule *rule,
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
 
-	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	skb = nlmsg_new(fib_rule_nlmsg_size(ops, rule), GFP_KERNEL);
 	if (skb == NULL)
 		goto errout;
 
 	err = fib_nl_fill_rule(skb, rule, pid, nlh->nlmsg_seq, event, 0, ops);
-	if (err < 0) {
-		kfree_skb(skb);
-		goto errout;
-	}
+	/* failure implies BUG in fib_rule_nlmsg_size() */
+	BUG_ON(err < 0);
 
 	err = rtnl_notify(skb, pid, ops->nlgroup, nlh, GFP_KERNEL);
 errout:

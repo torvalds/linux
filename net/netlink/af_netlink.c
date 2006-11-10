@@ -1148,7 +1148,7 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	if (len > sk->sk_sndbuf - 32)
 		goto out;
 	err = -ENOBUFS;
-	skb = nlmsg_new(len, GFP_KERNEL);
+	skb = alloc_skb(len, GFP_KERNEL);
 	if (skb==NULL)
 		goto out;
 
@@ -1435,14 +1435,13 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err)
 	struct sk_buff *skb;
 	struct nlmsghdr *rep;
 	struct nlmsgerr *errmsg;
-	int size;
+	size_t payload = sizeof(*errmsg);
 
-	if (err == 0)
-		size = nlmsg_total_size(sizeof(*errmsg));
-	else
-		size = nlmsg_total_size(sizeof(*errmsg) + nlmsg_len(nlh));
+	/* error messages get the original request appened */
+	if (err)
+		payload += nlmsg_len(nlh);
 
-	skb = nlmsg_new(size, GFP_KERNEL);
+	skb = nlmsg_new(payload, GFP_KERNEL);
 	if (!skb) {
 		struct sock *sk;
 

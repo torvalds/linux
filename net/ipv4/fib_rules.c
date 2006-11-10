@@ -299,6 +299,13 @@ static u32 fib4_rule_default_pref(void)
 	return 0;
 }
 
+static size_t fib4_rule_nlmsg_payload(struct fib_rule *rule)
+{
+	return nla_total_size(4) /* dst */
+	       + nla_total_size(4) /* src */
+	       + nla_total_size(4); /* flow */
+}
+
 static struct fib_rules_ops fib4_rules_ops = {
 	.family		= AF_INET,
 	.rule_size	= sizeof(struct fib4_rule),
@@ -308,6 +315,7 @@ static struct fib_rules_ops fib4_rules_ops = {
 	.compare	= fib4_rule_compare,
 	.fill		= fib4_rule_fill,
 	.default_pref	= fib4_rule_default_pref,
+	.nlmsg_payload	= fib4_rule_nlmsg_payload,
 	.nlgroup	= RTNLGRP_IPV4_RULE,
 	.policy		= fib4_rule_policy,
 	.rules_list	= &fib4_rules,

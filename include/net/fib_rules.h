@@ -52,6 +52,7 @@ struct fib_rules_ops
 					struct nlmsghdr *,
 					struct fib_rule_hdr *);
 	u32			(*default_pref)(void);
+	size_t			(*nlmsg_payload)(struct fib_rule *);
 
 	int			nlgroup;
 	struct nla_policy	*policy;

@@ -1120,6 +1120,16 @@ static struct notifier_block ip_netdev_notifier = {
 	.notifier_call =inetdev_event,
 };
 
+static inline size_t inet_nlmsg_size(void)
+{
+	return NLMSG_ALIGN(sizeof(struct ifaddrmsg))
+	       + nla_total_size(4) /* IFA_ADDRESS */
+	       + nla_total_size(4) /* IFA_LOCAL */
+	       + nla_total_size(4) /* IFA_BROADCAST */
+	       + nla_total_size(4) /* IFA_ANYCAST */
+	       + nla_total_size(IFNAMSIZ); /* IFA_LABEL */
+}
+
 static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
 			    u32 pid, u32 seq, int event, unsigned int flags)
 {
@@ -1208,15 +1218,13 @@ static void rtmsg_ifa(int event, struct in_ifaddr* ifa, struct nlmsghdr *nlh,
 	u32 seq = nlh ? nlh->nlmsg_seq : 0;
 	int err = -ENOBUFS;
 
-	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	skb = nlmsg_new(inet_nlmsg_size(), GFP_KERNEL);
 	if (skb == NULL)
 		goto errout;
 
 	err = inet_fill_ifaddr(skb, ifa, pid, seq, event, 0);
-	if (err < 0) {
-		kfree_skb(skb);
-		goto errout;
-	}
+	/* failure implies BUG in inet_nlmsg_size() */
+	BUG_ON(err < 0);
 
 	err = rtnl_notify(skb, pid, RTNLGRP_IPV4_IFADDR, nlh, GFP_KERNEL);
 errout:

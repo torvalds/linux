@@ -138,7 +138,7 @@ static int netlbl_unlabel_list(struct sk_buff *skb, struct genl_info *info)
 	struct sk_buff *ans_skb;
 	void *data;
 
-	ans_skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	ans_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (ans_skb == NULL)
 		goto list_failure;
 	data = netlbl_netlink_hdr_put(ans_skb,

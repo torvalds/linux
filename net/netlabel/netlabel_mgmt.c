@@ -356,7 +356,7 @@ static int netlbl_mgmt_listdef(struct sk_buff *skb, struct genl_info *info)
 	void *data;
 	struct netlbl_dom_map *entry;
 
-	ans_skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	ans_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (ans_skb == NULL)
 		return -ENOMEM;
 	data = netlbl_netlink_hdr_put(ans_skb,
@@ -492,7 +492,7 @@ static int netlbl_mgmt_version(struct sk_buff *skb, struct genl_info *info)
 	struct sk_buff *ans_skb = NULL;
 	void *data;
 
-	ans_skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	ans_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (ans_skb == NULL)
 		return -ENOMEM;
 	data = netlbl_netlink_hdr_put(ans_skb,

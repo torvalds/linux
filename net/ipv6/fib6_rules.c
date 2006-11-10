@@ -232,6 +232,12 @@ static u32 fib6_rule_default_pref(void)
 	return 0x3FFF;
 }
 
+static size_t fib6_rule_nlmsg_payload(struct fib_rule *rule)
+{
+	return nla_total_size(16) /* dst */
+	       + nla_total_size(16); /* src */
+}
+
 static struct fib_rules_ops fib6_rules_ops = {
 	.family			= AF_INET6,
 	.rule_size		= sizeof(struct fib6_rule),
@@ -241,6 +247,7 @@ static struct fib_rules_ops fib6_rules_ops = {
 	.compare		= fib6_rule_compare,
 	.fill			= fib6_rule_fill,
 	.default_pref		= fib6_rule_default_pref,
+	.nlmsg_payload		= fib6_rule_nlmsg_payload,
 	.nlgroup		= RTNLGRP_IPV6_RULE,
 	.policy			= fib6_rule_policy,
 	.rules_list		= &fib6_rules,

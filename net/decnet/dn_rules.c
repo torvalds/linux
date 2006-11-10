@@ -241,6 +241,12 @@ static u32 dn_fib_rule_default_pref(void)
 	return 0;
 }
 
+static size_t dn_fib_rule_nlmsg_payload(struct fib_rule *rule)
+{
+	return nla_total_size(2) /* dst */
+	       + nla_total_size(2); /* src */
+}
+
 int dn_fib_dump_rules(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	return fib_rules_dump(skb, cb, AF_DECnet);

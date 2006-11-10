@@ -3098,10 +3098,9 @@ static inline int rt_scope(int ifa_scope)
 
 static inline int inet6_ifaddr_msgsize(void)
 {
-	return nlmsg_total_size(sizeof(struct ifaddrmsg) +
-				nla_total_size(16) +
-				nla_total_size(sizeof(struct ifa_cacheinfo)) +
-				128);
+	return NLMSG_ALIGN(sizeof(struct ifaddrmsg))
+	       + nla_total_size(16) /* IFA_ADDRESS */
+	       + nla_total_size(sizeof(struct ifa_cacheinfo));
 }
 
 static int inet6_fill_ifaddr(struct sk_buff *skb, struct inet6_ifaddr *ifa,
@@ -3329,10 +3328,8 @@ static int inet6_rtm_getaddr(struct sk_buff *in_skb, struct nlmsghdr* nlh,
 
 	err = inet6_fill_ifaddr(skb, ifa, NETLINK_CB(in_skb).pid,
 				nlh->nlmsg_seq, RTM_NEWADDR, 0);
-	if (err < 0) {
-		kfree_skb(skb);
-		goto errout_ifa;
-	}
+	/* failure implies BUG in inet6_ifaddr_msgsize() */
+	BUG_ON(err < 0);
 
 	err = rtnl_unicast(skb, NETLINK_CB(in_skb).pid);
 errout_ifa:
@@ -3351,10 +3348,8 @@ static void inet6_ifa_notify(int event, struct inet6_ifaddr *ifa)
 		goto errout;
 
 	err = inet6_fill_ifaddr(skb, ifa, 0, 0, event, 0);
-	if (err < 0) {
-		kfree_skb(skb);
-		goto errout;
-	}
+	/* failure implies BUG in inet6_ifaddr_msgsize() */
+	BUG_ON(err < 0);
 
 	err = rtnl_notify(skb, 0, RTNLGRP_IPV6_IFADDR, NULL, GFP_ATOMIC);
 errout:
@@ -3397,16 +3392,19 @@ static void inline ipv6_store_devconf(struct ipv6_devconf *cnf,
 	array[DEVCONF_PROXY_NDP] = cnf->proxy_ndp;
 }
 
-/* Maximum length of ifinfomsg attributes */
-#define INET6_IFINFO_RTA_SPACE \
-		RTA_SPACE(IFNAMSIZ) /* IFNAME */ + \
-		RTA_SPACE(MAX_ADDR_LEN) /* ADDRESS */ +	\
-		RTA_SPACE(sizeof(u32)) /* MTU */ + \
-		RTA_SPACE(sizeof(int)) /* LINK */ + \
-		RTA_SPACE(0) /* PROTINFO */ + \
-		RTA_SPACE(sizeof(u32)) /* FLAGS */ + \
-		RTA_SPACE(sizeof(struct ifla_cacheinfo)) /* CACHEINFO */ + \
-		RTA_SPACE(sizeof(__s32[DEVCONF_MAX])) /* CONF */
+static inline size_t inet6_if_nlmsg_size(void)
+{
+	return NLMSG_ALIGN(sizeof(struct ifinfomsg))
+	       + nla_total_size(IFNAMSIZ) /* IFLA_IFNAME */
+	       + nla_total_size(MAX_ADDR_LEN) /* IFLA_ADDRESS */
+	       + nla_total_size(4) /* IFLA_MTU */
+	       + nla_total_size(4) /* IFLA_LINK */
+	       + nla_total_size( /* IFLA_PROTINFO */
+			nla_total_size(4) /* IFLA_INET6_FLAGS */
+			+ nla_total_size(sizeof(struct ifla_cacheinfo))
+			+ nla_total_size(DEVCONF_MAX * 4) /* IFLA_INET6_CONF */
+		 );
+}
 
 static int inet6_fill_ifinfo(struct sk_buff *skb, struct inet6_dev *idev, 
 			     u32 pid, u32 seq, int event, unsigned int flags)
@@ -3501,18 +3499,15 @@ static int inet6_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 void inet6_ifinfo_notify(int event, struct inet6_dev *idev)
 {
 	struct sk_buff *skb;
-	int payload = sizeof(struct ifinfomsg) + INET6_IFINFO_RTA_SPACE;
 	int err = -ENOBUFS;
 	
-	skb = nlmsg_new(nlmsg_total_size(payload), GFP_ATOMIC);
+	skb = nlmsg_new(inet6_if_nlmsg_size(), GFP_ATOMIC);
 	if (skb == NULL)
 		goto errout;
 
 	err = inet6_fill_ifinfo(skb, idev, 0, 0, event, 0);
-	if (err < 0) {
-		kfree_skb(skb);
-		goto errout;
-	}
+	/* failure implies BUG in inet6_if_nlmsg_size() */
+	BUG_ON(err < 0);
 
 	err = rtnl_notify(skb, 0, RTNLGRP_IPV6_IFADDR, NULL, GFP_ATOMIC);
 errout:
@@ -3520,10 +3515,12 @@ errout:
 		rtnl_set_sk_err(RTNLGRP_IPV6_IFADDR, err);
 }
 
-/* Maximum length of prefix_cacheinfo attributes */
-#define INET6_PREFIX_RTA_SPACE \
-		RTA_SPACE(sizeof(((struct prefix_info *)NULL)->prefix)) /* ADDRESS */ + \
-		RTA_SPACE(sizeof(struct prefix_cacheinfo)) /* CACHEINFO */
+static inline size_t inet6_prefix_nlmsg_size(void)
+{
+	return NLMSG_ALIGN(sizeof(struct prefixmsg))
+	       + nla_total_size(sizeof(struct in6_addr))
+	       + nla_total_size(sizeof(struct prefix_cacheinfo));
+}
 
 static int inet6_fill_prefix(struct sk_buff *skb, struct inet6_dev *idev,
 			struct prefix_info *pinfo, u32 pid, u32 seq, 
@@ -3569,18 +3566,15 @@ static void inet6_prefix_notify(int event, struct inet6_dev *idev,
 			 struct prefix_info *pinfo)
 {
 	struct sk_buff *skb;
-	int payload = sizeof(struct prefixmsg) + INET6_PREFIX_RTA_SPACE;
 	int err = -ENOBUFS;
 
-	skb = nlmsg_new(nlmsg_total_size(payload), GFP_ATOMIC);
+	skb = nlmsg_new(inet6_prefix_nlmsg_size(), GFP_ATOMIC);
 	if (skb == NULL)
 		goto errout;
 
 	err = inet6_fill_prefix(skb, idev, pinfo, 0, 0, event, 0);
-	if (err < 0) {
-		kfree_skb(skb);
-		goto errout;
-	}
+	/* failure implies BUG in inet6_prefix_nlmsg_size() */
+	BUG_ON(err < 0);
 
 	err = rtnl_notify(skb, 0, RTNLGRP_IPV6_PREFIX, NULL, GFP_ATOMIC);
 errout:

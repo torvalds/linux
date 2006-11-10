@@ -263,6 +263,32 @@ static int dn_fib_nh_match(struct rtmsg *r, struct nlmsghdr *nlh, struct dn_kern
 	return 0;
 }
 
+static inline size_t dn_fib_nlmsg_size(struct dn_fib_info *fi)
+{
+	size_t payload = NLMSG_ALIGN(struct rtmsg)
+			 + nla_total_size(4) /* RTA_TABLE */
+			 + nla_total_size(2) /* RTA_DST */
+			 + nla_total_size(4); /* RTA_PRIORITY */
+
+	/* space for nested metrics */
+	payload += nla_total_size((RTAX_MAX * nla_total_size(4)));
+
+	if (fi->fib_nhs) {
+		/* Also handles the special case fib_nhs == 1 */
+
+		/* each nexthop is packed in an attribute */
+		size_t nhsize = nla_total_size(sizeof(struct rtnexthop));
+
+		/* may contain a gateway attribute */
+		nhsize += nla_total_size(4);
+
+		/* all nexthops are packed in a nested attribute */
+		payload += nla_total_size(fi->fib_nhs * nhsize);
+	}
+
+	return payload;
+}
+
 static int dn_fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
                         u32 tb_id, u8 type, u8 scope, void *dst, int dst_len,
                         struct dn_fib_info *fi, unsigned int flags)
@@ -335,17 +361,15 @@ static void dn_rtmsg_fib(int event, struct dn_fib_node *f, int z, u32 tb_id,
         u32 pid = req ? req->pid : 0;
 	int err = -ENOBUFS;
 
-        skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+        skb = nlmsg_new(dn_fib_nlmsg_size(DN_FIB_INFO(f), GFP_KERNEL));
         if (skb == NULL)
 		goto errout;
 
         err = dn_fib_dump_info(skb, pid, nlh->nlmsg_seq, event, tb_id,
 			       f->fn_type, f->fn_scope, &f->fn_key, z,
 			       DN_FIB_INFO(f), 0);
-	if (err < 0) {
-                kfree_skb(skb);
-		goto errout;
-        }
+	/* failure implies BUG in dn_fib_nlmsg_size() */
+	BUG_ON(err < 0);
 
 	err = rtnl_notify(skb, pid, RTNLGRP_DECnet_ROUTE, nlh, GFP_KERNEL);
 errout:

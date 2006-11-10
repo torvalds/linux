@@ -452,7 +452,7 @@ static int netlbl_cipsov4_list(struct sk_buff *skb, struct genl_info *info)
 	}
 
 list_start:
-	ans_skb = nlmsg_new(NLMSG_GOODSIZE * nlsze_mult, GFP_KERNEL);
+	ans_skb = nlmsg_new(NLMSG_DEFAULT_SIZE * nlsze_mult, GFP_KERNEL);
 	if (ans_skb == NULL) {
 		ret_val = -ENOMEM;
 		goto list_failure;

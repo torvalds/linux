@@ -2006,6 +2006,20 @@ int inet6_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	return ip6_route_add(&cfg);
 }
 
+static inline size_t rt6_nlmsg_size(void)
+{
+	return NLMSG_ALIGN(sizeof(struct rtmsg))
+	       + nla_total_size(16) /* RTA_SRC */
+	       + nla_total_size(16) /* RTA_DST */
+	       + nla_total_size(16) /* RTA_GATEWAY */
+	       + nla_total_size(16) /* RTA_PREFSRC */
+	       + nla_total_size(4) /* RTA_TABLE */
+	       + nla_total_size(4) /* RTA_IIF */
+	       + nla_total_size(4) /* RTA_OIF */
+	       + nla_total_size(4) /* RTA_PRIORITY */
+	       + nla_total_size(sizeof(struct rta_cacheinfo));
+}
+
 static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 			 struct in6_addr *dst, struct in6_addr *src,
 			 int iif, int type, u32 pid, u32 seq,
@@ -2200,7 +2214,6 @@ void inet6_rt_notify(int event, struct rt6_info *rt, struct nl_info *info)
 	struct sk_buff *skb;
 	u32 pid = 0, seq = 0;
 	struct nlmsghdr *nlh = NULL;
-	int payload = sizeof(struct rtmsg) + 256;
 	int err = -ENOBUFS;
 
 	if (info) {
@@ -2210,15 +2223,13 @@ void inet6_rt_notify(int event, struct rt6_info *rt, struct nl_info *info)
 			seq = nlh->nlmsg_seq;
 	}
 
-	skb = nlmsg_new(nlmsg_total_size(payload), gfp_any());
+	skb = nlmsg_new(rt6_nlmsg_size(), gfp_any());
 	if (skb == NULL)
 		goto errout;
 
 	err = rt6_fill_node(skb, rt, NULL, NULL, 0, event, pid, seq, 0, 0);
-	if (err < 0) {
-		kfree_skb(skb);
-		goto errout;
-	}
+	/* failure implies BUG in rt6_nlmsg_size() */
+	BUG_ON(err < 0);
 
 	err = rtnl_notify(skb, pid, RTNLGRP_IPV6_ROUTE, nlh, gfp_any());
 errout:

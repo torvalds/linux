@@ -273,6 +273,25 @@ static void copy_rtnl_link_stats(struct rtnl_link_stats *a,
 	a->tx_compressed = b->tx_compressed;
 };
 
+static inline size_t if_nlmsg_size(int iwbuflen)
+{
+	return NLMSG_ALIGN(sizeof(struct ifinfomsg))
+	       + nla_total_size(IFNAMSIZ) /* IFLA_IFNAME */
+	       + nla_total_size(IFNAMSIZ) /* IFLA_QDISC */
+	       + nla_total_size(sizeof(struct rtnl_link_ifmap))
+	       + nla_total_size(sizeof(struct rtnl_link_stats))
+	       + nla_total_size(MAX_ADDR_LEN) /* IFLA_ADDRESS */
+	       + nla_total_size(MAX_ADDR_LEN) /* IFLA_BROADCAST */
+	       + nla_total_size(4) /* IFLA_TXQLEN */
+	       + nla_total_size(4) /* IFLA_WEIGHT */
+	       + nla_total_size(4) /* IFLA_MTU */
+	       + nla_total_size(4) /* IFLA_LINK */
+	       + nla_total_size(4) /* IFLA_MASTER */
+	       + nla_total_size(1) /* IFLA_OPERSTATE */
+	       + nla_total_size(1) /* IFLA_LINKMODE */
+	       + nla_total_size(iwbuflen);
+}
+
 static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 			    void *iwbuf, int iwbuflen, int type, u32 pid,
 			    u32 seq, u32 change, unsigned int flags)
@@ -558,7 +577,7 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	struct sk_buff *nskb;
 	char *iw_buf = NULL, *iw = NULL;
 	int iw_buf_len = 0;
-	int err, payload;
+	int err;
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFLA_MAX, ifla_policy);
 	if (err < 0)
@@ -587,9 +606,7 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	}
 #endif	/* CONFIG_NET_WIRELESS_RTNETLINK */
 
-	payload = NLMSG_ALIGN(sizeof(struct ifinfomsg) +
-			      nla_total_size(iw_buf_len));
-	nskb = nlmsg_new(nlmsg_total_size(payload), GFP_KERNEL);
+	nskb = nlmsg_new(if_nlmsg_size(iw_buf_len), GFP_KERNEL);
 	if (nskb == NULL) {
 		err = -ENOBUFS;
 		goto errout;
@@ -597,10 +614,8 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 	err = rtnl_fill_ifinfo(nskb, dev, iw, iw_buf_len, RTM_NEWLINK,
 			       NETLINK_CB(skb).pid, nlh->nlmsg_seq, 0, 0);
-	if (err <= 0) {
-		kfree_skb(nskb);
-		goto errout;
-	}
+	/* failure impilies BUG in if_nlmsg_size or wireless_rtnetlink_get */
+	BUG_ON(err < 0);
 
 	err = rtnl_unicast(nskb, NETLINK_CB(skb).pid);
 errout:
@@ -639,15 +654,13 @@ void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change)
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
 
-	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	skb = nlmsg_new(if_nlmsg_size(0), GFP_KERNEL);
 	if (skb == NULL)
 		goto errout;
 
 	err = rtnl_fill_ifinfo(skb, dev, NULL, 0, type, 0, 0, change, 0);
-	if (err < 0) {
-		kfree_skb(skb);
-		goto errout;
-	}
+	/* failure implies BUG in if_nlmsg_size() */
+	BUG_ON(err < 0);
 
 	err = rtnl_notify(skb, 0, RTNLGRP_LINK, NULL, GFP_KERNEL);
 errout:

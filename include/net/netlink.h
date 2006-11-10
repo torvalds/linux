@@ -500,14 +500,15 @@ static inline struct nlmsghdr *nlmsg_put_answer(struct sk_buff *skb,
 
 /**
  * nlmsg_new - Allocate a new netlink message
- * @size: maximum size of message
+ * @payload: size of the message payload
  * @flags: the type of memory to allocate.
  *
- * Use NLMSG_GOODSIZE if size isn't know and you need a good default size.
+ * Use NLMSG_DEFAULT_SIZE if the size of the payload isn't known
+ * and a good default is needed.
  */
-static inline struct sk_buff *nlmsg_new(int size, gfp_t flags)
+static inline struct sk_buff *nlmsg_new(size_t payload, gfp_t flags)
 {
-	return alloc_skb(size, flags);
+	return alloc_skb(nlmsg_total_size(payload), flags);
 }
 
 /**

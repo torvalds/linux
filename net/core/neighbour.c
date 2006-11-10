@@ -2410,20 +2410,27 @@ static struct file_operations neigh_stat_seq_fops = {
 #endif /* CONFIG_PROC_FS */
 
 #ifdef CONFIG_ARPD
+static inline size_t neigh_nlmsg_size(void)
+{
+	return NLMSG_ALIGN(sizeof(struct ndmsg))
+	       + nla_total_size(MAX_ADDR_LEN) /* NDA_DST */
+	       + nla_total_size(MAX_ADDR_LEN) /* NDA_LLADDR */
+	       + nla_total_size(sizeof(struct nda_cacheinfo))
+	       + nla_total_size(4); /* NDA_PROBES */
+}
+
 static void __neigh_notify(struct neighbour *n, int type, int flags)
 {
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
 
-	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_ATOMIC);
+	skb = nlmsg_new(neigh_nlmsg_size(), GFP_ATOMIC);
 	if (skb == NULL)
 		goto errout;
 
 	err = neigh_fill_info(skb, n, 0, 0, type, flags);
-	if (err < 0) {
-		kfree_skb(skb);
-		goto errout;
-	}
+	/* failure implies BUG in neigh_nlmsg_size() */
+	BUG_ON(err < 0);
 
 	err = rtnl_notify(skb, 0, RTNLGRP_NEIGH, NULL, GFP_ATOMIC);
 errout:

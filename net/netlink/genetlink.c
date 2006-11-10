@@ -480,7 +480,7 @@ static struct sk_buff *ctrl_build_msg(struct genl_family *family, u32 pid,
 	struct sk_buff *skb;
 	int err;
 
-	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (skb == NULL)
 		return ERR_PTR(-ENOBUFS);
 
