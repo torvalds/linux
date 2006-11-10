@@ -98,8 +98,8 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 	/*
 	 * Step 3: Process LISTEN state
 	 *
-	 * // Generate a new socket and switch to that socket
-	 * Set S := new socket for this port pair
+	 *   (* Generate a new socket and switch to that socket *)
+	 *   Set S := new socket for this port pair
 	 */
 	struct sock *newsk = inet_csk_clone(sk, req, GFP_ATOMIC);
 
@@ -148,9 +148,9 @@ out_free:
 		/*
 		 * Step 3: Process LISTEN state
 		 *
-		 *	Choose S.ISS (initial seqno) or set from Init Cookie
-		 *	Set S.ISR, S.GSR, S.SWL, S.SWH from packet or Init
-		 *	Cookie
+		 *    Choose S.ISS (initial seqno) or set from Init Cookies
+		 *    Initialize S.GAR := S.ISS
+		 *    Set S.ISR, S.GSR, S.SWL, S.SWH from packet or Init Cookies
 		 */
 
 		/* See dccp_v4_conn_request */
