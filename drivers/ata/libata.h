@@ -39,6 +39,11 @@ struct ata_scsi_args {
 };
 
 /* libata-core.c */
+enum {
+	/* flags for ata_dev_read_id() */
+	ATA_READID_POSTRESET	= (1 << 0), /* reading ID after reset */
+};
+
 extern struct workqueue_struct *ata_aux_wq;
 extern int atapi_enabled;
 extern int atapi_dmadir;
@@ -52,8 +57,8 @@ extern unsigned ata_exec_internal(struct ata_device *dev,
 				  int dma_dir, void *buf, unsigned int buflen);
 extern unsigned int ata_do_simple_cmd(struct ata_device *dev, u8 cmd);
 extern int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
-			   int post_reset, u16 *id);
-extern int ata_dev_revalidate(struct ata_device *dev, int post_reset);
+			   unsigned int flags, u16 *id);
+extern int ata_dev_revalidate(struct ata_device *dev, unsigned int flags);
 extern int ata_dev_configure(struct ata_device *dev);
 extern int sata_down_spd_limit(struct ata_port *ap);
 extern int sata_set_spd_needed(struct ata_port *ap);
