@@ -36,6 +36,7 @@
 
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "speedstep-centrino", msg)
 
+#define INTEL_MSR_RANGE	(0xffff)
 
 struct cpu_id
 {
@@ -463,8 +464,9 @@ static int centrino_cpu_init_acpi(struct cpufreq_policy *policy)
 	}
 
 	for (i=0; i<p->state_count; i++) {
-		if (p->states[i].control != p->states[i].status) {
-			dprintk("Different control (%llu) and status values (%llu)\n",
+		if ((p->states[i].control & INTEL_MSR_RANGE) !=
+		    (p->states[i].status & INTEL_MSR_RANGE)) {
+			dprintk("Different MSR bits in control (%llu) and status (%llu)\n",
 				p->states[i].control, p->states[i].status);
 			result = -EINVAL;
 			goto err_unreg;
@@ -500,7 +502,7 @@ static int centrino_cpu_init_acpi(struct cpufreq_policy *policy)
         }
 
         for (i=0; i<p->state_count; i++) {
-		centrino_model[cpu]->op_points[i].index = p->states[i].control;
+		centrino_model[cpu]->op_points[i].index = p->states[i].control & INTEL_MSR_RANGE;
 		centrino_model[cpu]->op_points[i].frequency = p->states[i].core_frequency * 1000;
 		dprintk("adding state %i with frequency %u and control value %04x\n", 
 			i, centrino_model[cpu]->op_points[i].frequency, centrino_model[cpu]->op_points[i].index);
