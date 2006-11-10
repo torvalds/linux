@@ -990,13 +990,17 @@ static int dccp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 	                                       --ANK (980728)
 	 */
 	if (np->rxopt.all)
+	/*
+	 * FIXME: Add handling of IPV6_PKTOPTIONS skb. See the comments below
+	 *        (wrt ipv6_pktopions) and net/ipv6/tcp_ipv6.c for an example.
+	 */
 		opt_skb = skb_clone(skb, GFP_ATOMIC);
 
 	if (sk->sk_state == DCCP_OPEN) { /* Fast path */
 		if (dccp_rcv_established(sk, skb, dccp_hdr(skb), skb->len))
 			goto reset;
 		if (opt_skb) {
-			/* This is where we would goto ipv6_pktoptions. */
+			/* XXX This is where we would goto ipv6_pktoptions. */
 			__kfree_skb(opt_skb);
 		}
 		return 0;
@@ -1024,7 +1028,7 @@ static int dccp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 	if (dccp_rcv_state_process(sk, skb, dccp_hdr(skb), skb->len))
 		goto reset;
 	if (opt_skb) {
-		/* This is where we would goto ipv6_pktoptions. */
+		/* XXX This is where we would goto ipv6_pktoptions. */
 		__kfree_skb(opt_skb);
 	}
 	return 0;
