@@ -58,12 +58,22 @@ static void dccp_v6_hash(struct sock *sk)
 	}
 }
 
-static inline u16 dccp_v6_check(struct dccp_hdr *dh, int len,
-				struct in6_addr *saddr,
-				struct in6_addr *daddr,
-				unsigned long base)
+/* add pseudo-header to DCCP checksum stored in skb->csum */
+static inline u16 dccp_v6_csum_finish(struct sk_buff *skb,
+				      struct in6_addr *saddr,
+				      struct in6_addr *daddr)
 {
-	return csum_ipv6_magic(saddr, daddr, len, IPPROTO_DCCP, base);
+	return csum_ipv6_magic(saddr, daddr, skb->len, IPPROTO_DCCP, skb->csum);
+}
+
+static inline void dccp_v6_send_check(struct sock *sk, int unused_value,
+				      struct sk_buff *skb)
+{
+	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct dccp_hdr *dh = dccp_hdr(skb);
+
+	dccp_csum_outgoing(skb);
+	dh->dccph_checksum = dccp_v6_csum_finish(skb, &np->saddr, &np->daddr);
 }
 
 static __u32 dccp_v6_init_sequence(struct sock *sk, struct sk_buff *skb)
@@ -280,12 +290,9 @@ static int dccp_v6_send_response(struct sock *sk, struct request_sock *req,
 	if (skb != NULL) {
 		struct dccp_hdr *dh = dccp_hdr(skb);
 
-		dh->dccph_checksum = dccp_v6_check(dh, skb->len,
-						   &ireq6->loc_addr,
-						   &ireq6->rmt_addr,
-						   csum_partial((char *)dh,
-								skb->len,
-								skb->csum));
+		dh->dccph_checksum = dccp_v6_csum_finish(skb,
+							 &ireq6->loc_addr,
+							 &ireq6->rmt_addr);
 		ipv6_addr_copy(&fl.fl6_dst, &ireq6->rmt_addr);
 		err = ip6_xmit(sk, skb, &fl, opt, 0);
 		if (err == NET_XMIT_CN)
@@ -303,18 +310,6 @@ static void dccp_v6_reqsk_destructor(struct request_sock *req)
 {
 	if (inet6_rsk(req)->pktopts != NULL)
 		kfree_skb(inet6_rsk(req)->pktopts);
-}
-
-static void dccp_v6_send_check(struct sock *sk, int len, struct sk_buff *skb)
-{
-	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct dccp_hdr *dh = dccp_hdr(skb);
-
-	dh->dccph_checksum = csum_ipv6_magic(&np->saddr, &np->daddr,
-					     len, IPPROTO_DCCP,
-					     csum_partial((char *)dh,
-							  dh->dccph_doff << 2,
-							  skb->csum));
 }
 
 static void dccp_v6_ctl_send_reset(struct sk_buff *rxskb)
@@ -360,12 +355,14 @@ static void dccp_v6_ctl_send_reset(struct sk_buff *rxskb)
 	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb),
 			 DCCP_SKB_CB(rxskb)->dccpd_seq);
 
+	dccp_csum_outgoing(skb);
+	dh->dccph_checksum = dccp_v6_csum_finish(skb, &rxskb->nh.ipv6h->saddr,
+				   		      &rxskb->nh.ipv6h->daddr);
+
 	memset(&fl, 0, sizeof(fl));
 	ipv6_addr_copy(&fl.fl6_dst, &rxskb->nh.ipv6h->saddr);
 	ipv6_addr_copy(&fl.fl6_src, &rxskb->nh.ipv6h->daddr);
-	dh->dccph_checksum = csum_ipv6_magic(&fl.fl6_src, &fl.fl6_dst,
-					     sizeof(*dh), IPPROTO_DCCP,
-					     skb->csum);
+
 	fl.proto = IPPROTO_DCCP;
 	fl.oif = inet6_iif(rxskb);
 	fl.fl_ip_dport = dh->dccph_dport;
@@ -825,11 +822,21 @@ static int dccp_v6_rcv(struct sk_buff **pskb)
 	const struct dccp_hdr *dh;
 	struct sk_buff *skb = *pskb;
 	struct sock *sk;
+	int min_cov;
 
-	/* Step 1: Check header basics: */
+	/* Step 1: Check header basics */
 
 	if (dccp_invalid_packet(skb))
 		goto discard_it;
+
+	/* Step 1: If header checksum is incorrect, drop packet and return. */
+	if (dccp_v6_csum_finish(skb, &skb->nh.ipv6h->saddr,
+				     &skb->nh.ipv6h->daddr)) {
+		LIMIT_NETDEBUG(KERN_WARNING
+			       "%s: dropped packet with invalid checksum\n",
+			       __FUNCTION__);
+		goto discard_it;
+	}
 
 	dh = dccp_hdr(skb);
 
@@ -867,6 +874,19 @@ static int dccp_v6_rcv(struct sk_buff **pskb)
 		dccp_pr_debug("sk->sk_state == DCCP_TIME_WAIT: do_time_wait\n");
 		inet_twsk_put(inet_twsk(sk));
 		goto no_dccp_socket;
+	}
+
+	/*
+	 * RFC 4340, sec. 9.2.1: Minimum Checksum Coverage
+	 * 	o if MinCsCov = 0, only packets with CsCov = 0 are accepted
+	 * 	o if MinCsCov > 0, also accept packets with CsCov >= MinCsCov
+	 */
+	min_cov = dccp_sk(sk)->dccps_pcrlen;
+	if (dh->dccph_cscov  &&  (min_cov == 0 || dh->dccph_cscov < min_cov))  {
+		dccp_pr_debug("Packet CsCov %d does not satisfy MinCsCov %d\n",
+			      dh->dccph_cscov, min_cov);
+		/* FIXME: send Data Dropped option (see also dccp_v4_rcv) */
+		goto discard_and_relse;
 	}
 
 	if (!xfrm6_policy_check(sk, XFRM_POLICY_IN, skb))

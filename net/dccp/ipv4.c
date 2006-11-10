@@ -349,13 +349,19 @@ out:
 	sock_put(sk);
 }
 
-/* This routine computes an IPv4 DCCP checksum. */
-void dccp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb)
+static inline u16 dccp_v4_csum_finish(struct sk_buff *skb,
+				      __be32 src, __be32 dst)
+{
+	return csum_tcpudp_magic(src, dst, skb->len, IPPROTO_DCCP, skb->csum);
+}
+
+void dccp_v4_send_check(struct sock *sk, int unused, struct sk_buff *skb)
 {
 	const struct inet_sock *inet = inet_sk(sk);
 	struct dccp_hdr *dh = dccp_hdr(skb);
 
-	dh->dccph_checksum = dccp_v4_checksum(skb, inet->saddr, inet->daddr);
+	dccp_csum_outgoing(skb);
+	dh->dccph_checksum = dccp_v4_csum_finish(skb, inet->saddr, inet->daddr);
 }
 
 EXPORT_SYMBOL_GPL(dccp_v4_send_check);
@@ -454,47 +460,6 @@ static struct sock *dccp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	return sk;
 }
 
-int dccp_v4_checksum(const struct sk_buff *skb, const __be32 saddr,
-		     const __be32 daddr)
-{
-	const struct dccp_hdr* dh = dccp_hdr(skb);
-	int checksum_len;
-	u32 tmp;
-
-	if (dh->dccph_cscov == 0)
-		checksum_len = skb->len;
-	else {
-		checksum_len = (dh->dccph_cscov + dh->dccph_x) * sizeof(u32);
-		checksum_len = checksum_len < skb->len ? checksum_len :
-							 skb->len;
-	}
-
-	tmp = csum_partial((unsigned char *)dh, checksum_len, 0);
-	return csum_tcpudp_magic(saddr, daddr, checksum_len,
-				 IPPROTO_DCCP, tmp);
-}
-
-EXPORT_SYMBOL_GPL(dccp_v4_checksum);
-
-static int dccp_v4_verify_checksum(struct sk_buff *skb,
-				   const __be32 saddr, const __be32 daddr)
-{
-	struct dccp_hdr *dh = dccp_hdr(skb);
-	int checksum_len;
-	u32 tmp;
-
-	if (dh->dccph_cscov == 0)
-		checksum_len = skb->len;
-	else {
-		checksum_len = (dh->dccph_cscov + dh->dccph_x) * sizeof(u32);
-		checksum_len = checksum_len < skb->len ? checksum_len :
-							 skb->len;
-	}
-	tmp = csum_partial((unsigned char *)dh, checksum_len, 0);
-	return csum_tcpudp_magic(saddr, daddr, checksum_len,
-				 IPPROTO_DCCP, tmp) == 0 ? 0 : -1;
-}
-
 static struct dst_entry* dccp_v4_route_skb(struct sock *sk,
 					   struct sk_buff *skb)
 {
@@ -536,8 +501,8 @@ static int dccp_v4_send_response(struct sock *sk, struct request_sock *req,
 		const struct inet_request_sock *ireq = inet_rsk(req);
 		struct dccp_hdr *dh = dccp_hdr(skb);
 
-		dh->dccph_checksum = dccp_v4_checksum(skb, ireq->loc_addr,
-						      ireq->rmt_addr);
+		dh->dccph_checksum = dccp_v4_csum_finish(skb, ireq->loc_addr,
+							      ireq->rmt_addr);
 		memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 		err = ip_build_and_send_pkt(skb, sk, ireq->loc_addr,
 					    ireq->rmt_addr,
@@ -602,8 +567,9 @@ static void dccp_v4_ctl_send_reset(struct sk_buff *rxskb)
 	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb),
 			 DCCP_SKB_CB(rxskb)->dccpd_seq);
 
-	dh->dccph_checksum = dccp_v4_checksum(skb, rxskb->nh.iph->saddr,
-					      rxskb->nh.iph->daddr);
+	dccp_csum_outgoing(skb);
+	dh->dccph_checksum = dccp_v4_csum_finish(skb, rxskb->nh.iph->saddr,
+						      rxskb->nh.iph->daddr);
 
 	bh_lock_sock(dccp_v4_ctl_socket->sk);
 	err = ip_build_and_send_pkt(skb, dccp_v4_ctl_socket->sk,
@@ -779,6 +745,7 @@ EXPORT_SYMBOL_GPL(dccp_v4_do_rcv);
 int dccp_invalid_packet(struct sk_buff *skb)
 {
 	const struct dccp_hdr *dh;
+	unsigned int cscov;
 
 	if (skb->pkt_type != PACKET_HOST)
 		return 1;
@@ -830,6 +797,22 @@ int dccp_invalid_packet(struct sk_buff *skb)
 		return 1;
 	}
 
+	/*
+	 * If P.CsCov is too large for the packet size, drop packet and return.
+	 * This must come _before_ checksumming (not as RFC 4340 suggests).
+	 */
+	cscov = dccp_csum_coverage(skb);
+	if (cscov > skb->len) {
+		LIMIT_NETDEBUG(KERN_WARNING
+			       "DCCP: P.CsCov %u exceeds packet length %d\n",
+			       dh->dccph_cscov, skb->len);
+		return 1;
+	}
+
+	/* If header checksum is incorrect, drop packet and return.
+	 * (This step is completed in the AF-dependent functions.) */
+	skb->csum = skb_checksum(skb, 0, cscov, 0);
+
 	return 0;
 }
 
@@ -840,16 +823,17 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 {
 	const struct dccp_hdr *dh;
 	struct sock *sk;
+	int min_cov;
 
-	/* Step 1: Check header basics: */
+	/* Step 1: Check header basics */
 
 	if (dccp_invalid_packet(skb))
 		goto discard_it;
 
-	/* If the header checksum is incorrect, drop packet and return */
-	if (dccp_v4_verify_checksum(skb, skb->nh.iph->saddr,
-				    skb->nh.iph->daddr) < 0) {
-		LIMIT_NETDEBUG(KERN_WARNING "%s: incorrect header checksum\n",
+	/* Step 1: If header checksum is incorrect, drop packet and return */
+	if (dccp_v4_csum_finish(skb, skb->nh.iph->saddr, skb->nh.iph->daddr)) {
+		LIMIT_NETDEBUG(KERN_WARNING
+			       "%s: dropped packet with invalid checksum\n",
 			       __FUNCTION__);
 		goto discard_it;
 	}
@@ -903,6 +887,21 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 		dccp_pr_debug("sk->sk_state == DCCP_TIME_WAIT: do_time_wait\n");
 		inet_twsk_put(inet_twsk(sk));
 		goto no_dccp_socket;
+	}
+
+	/*
+	 * RFC 4340, sec. 9.2.1: Minimum Checksum Coverage
+	 * 	o if MinCsCov = 0, only packets with CsCov = 0 are accepted
+	 * 	o if MinCsCov > 0, also accept packets with CsCov >= MinCsCov
+	 */
+	min_cov = dccp_sk(sk)->dccps_pcrlen;
+	if (dh->dccph_cscov && (min_cov == 0 || dh->dccph_cscov < min_cov))  {
+		dccp_pr_debug("Packet CsCov %d does not satisfy MinCsCov %d\n",
+			      dh->dccph_cscov, min_cov);
+		/* FIXME: "Such packets SHOULD be reported using Data Dropped
+		 *         options (Section 11.7) with Drop Code 0, Protocol
+		 *         Constraints."                                     */
+		goto discard_and_relse;
 	}
 
 	if (!xfrm4_policy_check(sk, XFRM_POLICY_IN, skb))

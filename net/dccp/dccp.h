@@ -129,6 +129,30 @@ DECLARE_SNMP_STAT(struct dccp_mib, dccp_statistics);
 #define DCCP_ADD_STATS_USER(field, val)	\
 			SNMP_ADD_STATS_USER(dccp_statistics, field, val)
 
+/*
+ * 	Checksumming routines
+ */
+static inline int dccp_csum_coverage(const struct sk_buff *skb)
+{
+	const struct dccp_hdr* dh = dccp_hdr(skb);
+
+	if (dh->dccph_cscov == 0)
+		return skb->len;
+	return (dh->dccph_doff + dh->dccph_cscov - 1) * sizeof(u32);
+}
+
+static inline void dccp_csum_outgoing(struct sk_buff *skb)
+{
+	int cov = dccp_csum_coverage(skb);
+
+	if (cov >= skb->len)
+		dccp_hdr(skb)->dccph_cscov = 0;
+
+	skb->csum = skb_checksum(skb, 0, (cov > skb->len)? skb->len : cov, 0);
+}
+
+extern void dccp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb);
+
 extern int  dccp_retransmit_skb(struct sock *sk, struct sk_buff *skb);
 
 extern void dccp_send_ack(struct sock *sk);
@@ -214,13 +238,8 @@ extern void	   dccp_shutdown(struct sock *sk, int how);
 extern int	   inet_dccp_listen(struct socket *sock, int backlog);
 extern unsigned int dccp_poll(struct file *file, struct socket *sock,
 			     poll_table *wait);
-extern void	   dccp_v4_send_check(struct sock *sk, int len,
-				      struct sk_buff *skb);
 extern int	   dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr,
 				   int addr_len);
-
-extern int	   dccp_v4_checksum(const struct sk_buff *skb,
-				    const __be32 saddr, const __be32 daddr);
 
 extern int	   dccp_send_reset(struct sock *sk, enum dccp_reset_codes code);
 extern void	   dccp_send_close(struct sock *sk, const int active);

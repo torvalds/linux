@@ -96,6 +96,7 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		dh->dccph_dport	= inet->dport;
 		dh->dccph_doff	= (dccp_header_size + dcb->dccpd_opt_len) / 4;
 		dh->dccph_ccval	= dcb->dccpd_ccval;
+		dh->dccph_cscov = dp->dccps_pcslen;
 		/* XXX For now we're using only 48 bits sequence numbers */
 		dh->dccph_x	= 1;
 
@@ -115,7 +116,7 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 			break;
 		}
 
-		icsk->icsk_af_ops->send_check(sk, skb->len, skb);
+		icsk->icsk_af_ops->send_check(sk, 0, skb);
 
 		if (set_ack)
 			dccp_event_ack_sent(sk);
@@ -329,7 +330,6 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 	skb_reserve(skb, sk->sk_prot->max_header);
 
 	skb->dst = dst_clone(dst);
-	skb->csum = 0;
 
 	dreq = dccp_rsk(req);
 	DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_RESPONSE;
@@ -351,6 +351,8 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 	dccp_hdr_set_seq(dh, dreq->dreq_iss);
 	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb), dreq->dreq_isr);
 	dccp_hdr_response(skb)->dccph_resp_service = dreq->dreq_service;
+
+	dccp_csum_outgoing(skb);
 
 	DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
 	return skb;
@@ -376,7 +378,6 @@ static struct sk_buff *dccp_make_reset(struct sock *sk, struct dst_entry *dst,
 	skb_reserve(skb, sk->sk_prot->max_header);
 
 	skb->dst = dst_clone(dst);
-	skb->csum = 0;
 
 	dccp_inc_seqno(&dp->dccps_gss);
 
@@ -401,7 +402,7 @@ static struct sk_buff *dccp_make_reset(struct sock *sk, struct dst_entry *dst,
 	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb), dp->dccps_gsr);
 
 	dccp_hdr_reset(skb)->dccph_reset_code = code;
-	inet_csk(sk)->icsk_af_ops->send_check(sk, skb->len, skb);
+	inet_csk(sk)->icsk_af_ops->send_check(sk, 0, skb);
 
 	DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
 	return skb;
@@ -475,7 +476,6 @@ int dccp_connect(struct sock *sk)
 	skb_reserve(skb, sk->sk_prot->max_header);
 
 	DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_REQUEST;
-	skb->csum = 0;
 
 	dccp_skb_entail(sk, skb);
 	dccp_transmit_skb(sk, skb_clone(skb, GFP_KERNEL));
@@ -507,7 +507,6 @@ void dccp_send_ack(struct sock *sk)
 
 		/* Reserve space for headers */
 		skb_reserve(skb, sk->sk_prot->max_header);
-		skb->csum = 0;
 		DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_ACK;
 		dccp_transmit_skb(sk, skb);
 	}
@@ -561,7 +560,6 @@ void dccp_send_sync(struct sock *sk, const u64 seq,
 
 	/* Reserve space for headers and prepare control bits. */
 	skb_reserve(skb, sk->sk_prot->max_header);
-	skb->csum = 0;
 	DCCP_SKB_CB(skb)->dccpd_type = pkt_type;
 	DCCP_SKB_CB(skb)->dccpd_seq = seq;
 
@@ -587,7 +585,6 @@ void dccp_send_close(struct sock *sk, const int active)
 
 	/* Reserve space for headers and prepare control bits. */
 	skb_reserve(skb, sk->sk_prot->max_header);
-	skb->csum = 0;
 	DCCP_SKB_CB(skb)->dccpd_type = dp->dccps_role == DCCP_ROLE_CLIENT ?
 					DCCP_PKT_CLOSE : DCCP_PKT_CLOSEREQ;
 

@@ -472,7 +472,6 @@ static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
 	case DCCP_SOCKOPT_PACKET_SIZE:
 		dp->dccps_packet_size = val;
 		break;
-
 	case DCCP_SOCKOPT_CHANGE_L:
 		if (optlen != sizeof(struct dccp_so_feat))
 			err = -EINVAL;
@@ -481,7 +480,6 @@ static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
 					             (struct dccp_so_feat __user *)
 						     optval);
 		break;
-
 	case DCCP_SOCKOPT_CHANGE_R:
 		if (optlen != sizeof(struct dccp_so_feat))
 			err = -EINVAL;
@@ -490,12 +488,26 @@ static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
 						     (struct dccp_so_feat __user *)
 						     optval);
 		break;
-
+	case DCCP_SOCKOPT_SEND_CSCOV:	/* sender side, RFC 4340, sec. 9.2 */
+		if (val < 0 || val > 15)
+			err = -EINVAL;
+		else
+			dp->dccps_pcslen = val;
+		break;
+	case DCCP_SOCKOPT_RECV_CSCOV:	/* receiver side, RFC 4340 sec. 9.2.1 */
+		if (val < 0 || val > 15)
+			err = -EINVAL;
+		else {
+			dp->dccps_pcrlen = val;
+			/* FIXME: add feature negotiation,
+			 * ChangeL(MinimumChecksumCoverage, val) */
+		}
+		break;
 	default:
 		err = -ENOPROTOOPT;
 		break;
 	}
-	
+
 	release_sock(sk);
 	return err;
 }
@@ -575,6 +587,12 @@ static int do_dccp_getsockopt(struct sock *sk, int level, int optname,
 	case DCCP_SOCKOPT_SERVICE:
 		return dccp_getsockopt_service(sk, len,
 					       (__be32 __user *)optval, optlen);
+	case DCCP_SOCKOPT_SEND_CSCOV:
+		val = dp->dccps_pcslen;
+		break;
+	case DCCP_SOCKOPT_RECV_CSCOV:
+		val = dp->dccps_pcrlen;
+		break;
 	case 128 ... 191:
 		return ccid_hc_rx_getsockopt(dp->dccps_hc_rx_ccid, sk, optname,
 					     len, (u32 __user *)optval, optlen);

@@ -183,6 +183,7 @@ enum {
 	DCCPF_ACK_RATIO = 5,
 	DCCPF_SEND_ACK_VECTOR = 6,
 	DCCPF_SEND_NDP_COUNT = 7,
+	DCCPF_MIN_CSUM_COVER = 8,
 	/* 10-127 reserved */
 	DCCPF_MIN_CCID_SPECIFIC = 128,
 	DCCPF_MAX_CCID_SPECIFIC = 255,
@@ -200,6 +201,8 @@ struct dccp_so_feat {
 #define DCCP_SOCKOPT_SERVICE		2
 #define DCCP_SOCKOPT_CHANGE_L		3
 #define DCCP_SOCKOPT_CHANGE_R		4
+#define DCCP_SOCKOPT_SEND_CSCOV		10
+#define DCCP_SOCKOPT_RECV_CSCOV		11
 #define DCCP_SOCKOPT_CCID_RX_INFO	128
 #define DCCP_SOCKOPT_CCID_TX_INFO	192
 
@@ -450,6 +453,8 @@ struct dccp_ackvec;
  * @dccps_timestamp_echo - latest timestamp received on a TIMESTAMP option
  * @dccps_packet_size - Set thru setsockopt
  * @dccps_role - Role of this sock, one of %dccp_role
+ * @dccps_pcslen - sender   partial checksum coverage (via sockopt)
+ * @dccps_pcrlen - receiver partial checksum coverage (via sockopt)
  * @dccps_ndp_count - number of Non Data Packets since last data packet
  * @dccps_hc_rx_ackvec - rx half connection ack vector
  * @dccps_xmit_timer - timer for when CCID is not ready to send
@@ -474,6 +479,8 @@ struct dccp_sock {
 	__u32				dccps_packet_size;
 	__u16				dccps_l_ack_ratio;
 	__u16				dccps_r_ack_ratio;
+	__u16				dccps_pcslen;
+	__u16				dccps_pcrlen;
 	unsigned long			dccps_ndp_count;
 	__u32				dccps_mss_cache;
 	struct dccp_minisock		dccps_minisock;
