@@ -249,8 +249,8 @@ void dccp_write_xmit(struct sock *sk, int block)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct sk_buff *skb;
-	long timeo = 30000; 	/* If a packet is taking longer than 2 secs
-				   we have other issues */
+	long timeo = DCCP_XMIT_TIMEO; 	/* If a packet is taking longer than
+					   this we have other issues */
 
 	while ((skb = skb_peek(&sk->sk_write_queue))) {
 		int err = ccid_hc_tx_send_packet(dp->dccps_hc_tx_ccid, sk, skb,
@@ -261,8 +261,10 @@ void dccp_write_xmit(struct sock *sk, int block)
 				sk_reset_timer(sk, &dp->dccps_xmit_timer,
 						msecs_to_jiffies(err)+jiffies);
 				break;
-			} else
+			} else {
 				err = dccp_wait_for_ccid(sk, skb, &timeo);
+				timeo = DCCP_XMIT_TIMEO;
+			}
 			if (err) {
 				printk(KERN_CRIT "%s:err at dccp_wait_for_ccid"
 						 " %d\n", __FUNCTION__, err);
