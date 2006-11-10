@@ -3218,12 +3218,11 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 #ifdef CONFIG_PPC_PMAC
 	/* Necessary on some machines if ohci1394 was loaded/ unloaded before */
 	if (machine_is(powermac)) {
-		struct device_node *of_node = pci_device_to_OF_node(dev);
+		struct device_node *ofn = pci_device_to_OF_node(dev);
 
-		if (of_node) {
-			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, of_node,
-					  0, 1);
-			pmac_call_feature(PMAC_FTR_1394_ENABLE, of_node, 0, 1);
+		if (ofn) {
+			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, ofn, 0, 1);
+			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 1);
 		}
 	}
 #endif /* CONFIG_PPC_PMAC */
@@ -3519,12 +3518,11 @@ static void ohci1394_pci_remove(struct pci_dev *pdev)
 	/* On UniNorth, power down the cable and turn off the chip clock
 	 * to save power on laptops */
 	{
-		struct device_node* of_node;
+		struct device_node* ofn = pci_device_to_OF_node(ohci->dev);
 
-		of_node = pci_device_to_OF_node(ohci->dev);
-		if (of_node) {
-			pmac_call_feature(PMAC_FTR_1394_ENABLE, of_node, 0, 0);
-			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, of_node, 0, 0);
+		if (ofn) {
+			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 0);
+			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, ofn, 0, 0);
 		}
 	}
 #endif /* CONFIG_PPC_PMAC */
@@ -3584,12 +3582,10 @@ static int ohci1394_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 /* PowerMac suspend code comes last */
 #ifdef CONFIG_PPC_PMAC
 	if (machine_is(powermac)) {
-		struct device_node *of_node;
+		struct device_node *ofn = pci_device_to_OF_node(pdev);
 
-		/* Disable 1394 */
-		of_node = pci_device_to_OF_node (pdev);
-		if (of_node)
-			pmac_call_feature(PMAC_FTR_1394_ENABLE, of_node, 0, 0);
+		if (ofn)
+			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 0);
 	}
 #endif /* CONFIG_PPC_PMAC */
 
@@ -3611,12 +3607,10 @@ static int ohci1394_pci_resume(struct pci_dev *pdev)
 /* PowerMac resume code comes first */
 #ifdef CONFIG_PPC_PMAC
 	if (machine_is(powermac)) {
-		struct device_node *of_node;
+		struct device_node *ofn = pci_device_to_OF_node(pdev);
 
-		/* Re-enable 1394 */
-		of_node = pci_device_to_OF_node (pdev);
-		if (of_node)
-			pmac_call_feature (PMAC_FTR_1394_ENABLE, of_node, 0, 1);
+		if (ofn)
+			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 1);
 	}
 #endif /* CONFIG_PPC_PMAC */
 
