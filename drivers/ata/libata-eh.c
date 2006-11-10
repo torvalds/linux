@@ -1667,12 +1667,23 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 			   ata_class_enabled(ehc->classes[dev->devno])) {
 			dev->class = ehc->classes[dev->devno];
 
+			if (ap->flags & ATA_FLAG_DETECT_POLLING)
+				readid_flags |= ATA_READID_DETECT;
+
 			rc = ata_dev_read_id(dev, &dev->class, readid_flags,
 					     dev->id);
 			if (rc == 0) {
 				ehc->i.flags |= ATA_EHI_PRINTINFO;
 				rc = ata_dev_configure(dev);
 				ehc->i.flags &= ~ATA_EHI_PRINTINFO;
+			} else if (rc == -ENOENT) {
+				/* IDENTIFY was issued to non-existent
+				 * device.  No need to reset.  Just
+				 * thaw and kill the device.
+				 */
+				ata_eh_thaw_port(ap);
+				dev->class = ATA_DEV_UNKNOWN;
+				rc = 0;
 			}
 
 			if (rc) {
@@ -1680,12 +1691,14 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 				break;
 			}
 
-			spin_lock_irqsave(ap->lock, flags);
-			ap->pflags |= ATA_PFLAG_SCSI_HOTPLUG;
-			spin_unlock_irqrestore(ap->lock, flags);
+			if (ata_dev_enabled(dev)) {
+				spin_lock_irqsave(ap->lock, flags);
+				ap->pflags |= ATA_PFLAG_SCSI_HOTPLUG;
+				spin_unlock_irqrestore(ap->lock, flags);
 
-			/* new device discovered, configure transfer mode */
-			ehc->i.flags |= ATA_EHI_SETMODE;
+				/* new device discovered, configure xfermode */
+				ehc->i.flags |= ATA_EHI_SETMODE;
+			}
 		}
 	}
 

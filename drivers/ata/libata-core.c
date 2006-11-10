@@ -1272,9 +1272,20 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 
 	tf.protocol = ATA_PROT_PIO;
 
+	/* presence detection using polling IDENTIFY? */
+	if (flags & ATA_READID_DETECT)
+		tf.flags |= ATA_TFLAG_POLLING;
+
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_FROM_DEVICE,
 				     id, sizeof(id[0]) * ATA_ID_WORDS);
 	if (err_mask) {
+		if ((flags & ATA_READID_DETECT) &&
+		    (err_mask & AC_ERR_NODEV_HINT)) {
+			DPRINTK("ata%u.%d: NODEV after polling detection\n",
+				ap->id, dev->devno);
+			return -ENOENT;
+		}
+
 		rc = -EIO;
 		reason = "I/O error";
 		goto err_out;
@@ -4285,8 +4296,12 @@ fsm_start:
 					/* device stops HSM for abort/error */
 					qc->err_mask |= AC_ERR_DEV;
 				else
-					/* HSM violation. Let EH handle this */
-					qc->err_mask |= AC_ERR_HSM;
+					/* HSM violation. Let EH handle this.
+					 * Phantom devices also trigger this
+					 * condition.  Mark hint.
+					 */
+					qc->err_mask |= AC_ERR_HSM |
+							AC_ERR_NODEV_HINT;
 
 				ap->hsm_task_state = HSM_ST_ERR;
 				goto fsm_start;
