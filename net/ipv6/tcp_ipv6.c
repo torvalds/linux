@@ -106,19 +106,12 @@ static __inline__ u16 tcp_v6_check(struct tcphdr *th, int len,
 	return csum_ipv6_magic(saddr, daddr, len, IPPROTO_TCP, base);
 }
 
-static __u32 tcp_v6_init_sequence(struct sock *sk, struct sk_buff *skb)
+static __u32 tcp_v6_init_sequence(struct sk_buff *skb)
 {
-	if (skb->protocol == htons(ETH_P_IPV6)) {
-		return secure_tcpv6_sequence_number(skb->nh.ipv6h->daddr.s6_addr32,
-						    skb->nh.ipv6h->saddr.s6_addr32,
-						    skb->h.th->dest,
-						    skb->h.th->source);
-	} else {
-		return secure_tcp_sequence_number(skb->nh.iph->daddr,
-						  skb->nh.iph->saddr,
-						  skb->h.th->dest,
-						  skb->h.th->source);
-	}
+	return secure_tcpv6_sequence_number(skb->nh.ipv6h->daddr.s6_addr32,
+					    skb->nh.ipv6h->saddr.s6_addr32,
+					    skb->h.th->dest,
+					    skb->h.th->source);
 }
 
 static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr, 
@@ -822,7 +815,7 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 		treq->iif = inet6_iif(skb);
 
 	if (isn == 0) 
-		isn = tcp_v6_init_sequence(sk,skb);
+		isn = tcp_v6_init_sequence(skb);
 
 	tcp_rsk(req)->snt_isn = isn;
 

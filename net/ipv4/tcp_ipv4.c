@@ -111,7 +111,7 @@ void tcp_unhash(struct sock *sk)
 	inet_unhash(&tcp_hashinfo, sk);
 }
 
-static inline __u32 tcp_v4_init_sequence(struct sock *sk, struct sk_buff *skb)
+static inline __u32 tcp_v4_init_sequence(struct sk_buff *skb)
 {
 	return secure_tcp_sequence_number(skb->nh.iph->daddr,
 					  skb->nh.iph->saddr,
@@ -859,7 +859,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 			goto drop_and_free;
 		}
 
-		isn = tcp_v4_init_sequence(sk, skb);
+		isn = tcp_v4_init_sequence(skb);
 	}
 	tcp_rsk(req)->snt_isn = isn;
 
