@@ -3517,7 +3517,7 @@ static void ohci1394_pci_remove(struct pci_dev *pdev)
 #ifdef CONFIG_PPC_PMAC
 	/* On UniNorth, power down the cable and turn off the chip clock
 	 * to save power on laptops */
-	{
+	if (machine_is(powermac)) {
 		struct device_node* ofn = pci_device_to_OF_node(ohci->dev);
 
 		if (ofn) {
