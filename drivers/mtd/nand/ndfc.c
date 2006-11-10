@@ -56,7 +56,7 @@ static void ndfc_select_chip(struct mtd_info *mtd, int chip)
 		ccr |= NDFC_CCR_BS(chip + pchip->chip_offset);
 	} else
 		ccr |= NDFC_CCR_RESET_CE;
-	writel(ccr, ndfc->ndfcbase + NDFC_CCR);
+	__raw_writel(ccr, ndfc->ndfcbase + NDFC_CCR);
 }
 
 static void ndfc_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int ctrl)
