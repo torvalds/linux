@@ -1854,7 +1854,7 @@ static ssize_t provides_dev_sdrs_show(struct device *dev,
 	struct bmc_device *bmc = dev_get_drvdata(dev);
 
 	return snprintf(buf, 10, "%u\n",
-			bmc->id.device_revision && 0x80 >> 7);
+			(bmc->id.device_revision & 0x80) >> 7);
 }
 
 static ssize_t revision_show(struct device *dev, struct device_attribute *attr,
@@ -1863,7 +1863,7 @@ static ssize_t revision_show(struct device *dev, struct device_attribute *attr,
 	struct bmc_device *bmc = dev_get_drvdata(dev);
 
 	return snprintf(buf, 20, "%u\n",
-			bmc->id.device_revision && 0x0F);
+			bmc->id.device_revision & 0x0F);
 }
 
 static ssize_t firmware_rev_show(struct device *dev,
