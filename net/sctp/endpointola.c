@@ -72,6 +72,10 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 {
 	memset(ep, 0, sizeof(struct sctp_endpoint));
 
+	ep->digest = kzalloc(SCTP_SIGNATURE_SIZE, gfp);
+	if (!ep->digest)
+		return NULL;
+
 	/* Initialize the base structure. */
 	/* What type of endpoint are we?  */
 	ep->base.type = SCTP_EP_TYPE_SOCKET;
@@ -181,6 +185,9 @@ static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 
 	/* Free up the HMAC transform. */
 	crypto_free_hash(sctp_sk(ep->base.sk)->hmac);
+
+	/* Free the digest buffer */
+	kfree(ep->digest);
 
 	/* Cleanup. */
 	sctp_inq_free(&ep->base.inqueue);

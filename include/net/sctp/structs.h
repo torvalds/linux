@@ -1270,7 +1270,7 @@ struct sctp_endpoint {
  	 * 	    this here so we pre-allocate this once and can re-use
  	 * 	    on every receive.
  	 */
- 	__u8 digest[SCTP_SIGNATURE_SIZE];
+ 	__u8 *digest;
  
 	/* sendbuf acct. policy.	*/
 	__u32 sndbuf_policy;
