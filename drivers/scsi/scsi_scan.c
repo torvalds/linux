@@ -631,12 +631,22 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	 * scanning run at their own risk, or supply a user level program
 	 * that can correctly scan.
 	 */
-	sdev->inquiry = kmalloc(sdev->inquiry_len, GFP_ATOMIC);
-	if (sdev->inquiry == NULL) {
-		return SCSI_SCAN_NO_RESPONSE;
-	}
 
-	memcpy(sdev->inquiry, inq_result, sdev->inquiry_len);
+	/*
+	 * Copy at least 36 bytes of INQUIRY data, so that we don't
+	 * dereference unallocated memory when accessing the Vendor,
+	 * Product, and Revision strings.  Badly behaved devices may set
+	 * the INQUIRY Additional Length byte to a small value, indicating
+	 * these strings are invalid, but often they contain plausible data
+	 * nonetheless.  It doesn't matter if the device sent < 36 bytes
+	 * total, since scsi_probe_lun() initializes inq_result with 0s.
+	 */
+	sdev->inquiry = kmemdup(inq_result,
+				max_t(size_t, sdev->inquiry_len, 36),
+				GFP_ATOMIC);
+	if (sdev->inquiry == NULL)
+		return SCSI_SCAN_NO_RESPONSE;
+
 	sdev->vendor = (char *) (sdev->inquiry + 8);
 	sdev->model = (char *) (sdev->inquiry + 16);
 	sdev->rev = (char *) (sdev->inquiry + 32);
