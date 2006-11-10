@@ -88,11 +88,9 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 			return -EPROTO;
 		}
 		
-		skb->h.raw = skb_push(skb, dccp_header_size);
-		dh = dccp_hdr(skb);
 
 		/* Build DCCP header and checksum it. */
-		memset(dh, 0, dccp_header_size);
+		dh = dccp_zeroed_hdr(skb, dccp_header_size);
 		dh->dccph_type	= dcb->dccpd_type;
 		dh->dccph_sport	= inet->sport;
 		dh->dccph_dport	= inet->dport;
@@ -340,10 +338,7 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 		return NULL;
 	}
 
-	skb->h.raw = skb_push(skb, dccp_header_size);
-
-	dh = dccp_hdr(skb);
-	memset(dh, 0, dccp_header_size);
+	dh = dccp_zeroed_hdr(skb, dccp_header_size);
 
 	dh->dccph_sport	= inet_sk(sk)->sport;
 	dh->dccph_dport	= inet_rsk(req)->rmt_port;
@@ -392,10 +387,7 @@ static struct sk_buff *dccp_make_reset(struct sock *sk, struct dst_entry *dst,
 		return NULL;
 	}
 
-	skb->h.raw = skb_push(skb, dccp_header_size);
-
-	dh = dccp_hdr(skb);
-	memset(dh, 0, dccp_header_size);
+	dh = dccp_zeroed_hdr(skb, dccp_header_size);
 
 	dh->dccph_sport	= inet_sk(sk)->sport;
 	dh->dccph_dport	= inet_sk(sk)->dport;

@@ -537,9 +537,7 @@ static void dccp_v6_ctl_send_reset(struct sk_buff *rxskb)
 
 	skb_reserve(skb, dccp_v6_ctl_socket->sk->sk_prot->max_header);
 
-	skb->h.raw = skb_push(skb, dccp_hdr_reset_len);
-	dh = dccp_hdr(skb);
-	memset(dh, 0, dccp_hdr_reset_len);
+	dh = dccp_zeroed_hdr(skb, dccp_hdr_reset_len);
 
 	/* Swap the send and the receive. */
 	dh->dccph_type	= DCCP_PKT_RESET;
@@ -601,9 +599,7 @@ static void dccp_v6_reqsk_send_ack(struct sk_buff *rxskb,
 
 	skb_reserve(skb, dccp_v6_ctl_socket->sk->sk_prot->max_header);
 
-	skb->h.raw = skb_push(skb, dccp_hdr_ack_len);
-	dh = dccp_hdr(skb);
-	memset(dh, 0, dccp_hdr_ack_len);
+	dh = dccp_zeroed_hdr(skb, dccp_hdr_ack_len);
 
 	/* Build DCCP header and checksum it. */
 	dh->dccph_type	= DCCP_PKT_ACK;
