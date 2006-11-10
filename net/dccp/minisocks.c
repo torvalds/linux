@@ -11,6 +11,7 @@
  */
 
 #include <linux/dccp.h>
+#include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/timer.h>
 
@@ -283,3 +284,12 @@ int dccp_child_process(struct sock *parent, struct sock *child,
 }
 
 EXPORT_SYMBOL_GPL(dccp_child_process);
+
+void dccp_reqsk_send_ack(struct sk_buff *skb, struct request_sock *rsk)
+{
+	pr_info(KERN_WARNING "DCCP: ACK packets are never sent in "
+			     "LISTEN/RESPOND state\n");
+	dump_stack();
+}
+
+EXPORT_SYMBOL_GPL(dccp_reqsk_send_ack);

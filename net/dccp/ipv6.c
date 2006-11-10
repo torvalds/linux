@@ -37,8 +37,6 @@
 static struct socket *dccp_v6_ctl_socket;
 
 static void dccp_v6_ctl_send_reset(struct sk_buff *skb);
-static void dccp_v6_reqsk_send_ack(struct sk_buff *skb,
-				   struct request_sock *req);
 static void dccp_v6_send_check(struct sock *sk, int len, struct sk_buff *skb);
 
 static int dccp_v6_do_rcv(struct sock *sk, struct sk_buff *skb);
@@ -493,7 +491,7 @@ static struct request_sock_ops dccp6_request_sock_ops = {
 	.family		= AF_INET6,
 	.obj_size	= sizeof(struct dccp6_request_sock),
 	.rtx_syn_ack	= dccp_v6_send_response,
-	.send_ack	= dccp_v6_reqsk_send_ack,
+	.send_ack	= dccp_reqsk_send_ack,
 	.destructor	= dccp_v6_reqsk_destructor,
 	.send_reset	= dccp_v6_ctl_send_reset,
 };
@@ -575,59 +573,6 @@ static void dccp_v6_ctl_send_reset(struct sk_buff *rxskb)
 			ip6_xmit(dccp_v6_ctl_socket->sk, skb, &fl, NULL, 0);
 			DCCP_INC_STATS_BH(DCCP_MIB_OUTSEGS);
 			DCCP_INC_STATS_BH(DCCP_MIB_OUTRSTS);
-			return;
-		}
-	}
-
-	kfree_skb(skb);
-}
-
-static void dccp_v6_reqsk_send_ack(struct sk_buff *rxskb,
-				   struct request_sock *req)
-{
-	struct flowi fl;
-	struct dccp_hdr *rxdh = dccp_hdr(rxskb), *dh;
-	const u32 dccp_hdr_ack_len = sizeof(struct dccp_hdr) +
-				     sizeof(struct dccp_hdr_ext) +
-				     sizeof(struct dccp_hdr_ack_bits);
-	struct sk_buff *skb;
-
-	skb = alloc_skb(dccp_v6_ctl_socket->sk->sk_prot->max_header,
-			GFP_ATOMIC);
-	if (skb == NULL)
-		return;
-
-	skb_reserve(skb, dccp_v6_ctl_socket->sk->sk_prot->max_header);
-
-	dh = dccp_zeroed_hdr(skb, dccp_hdr_ack_len);
-
-	/* Build DCCP header and checksum it. */
-	dh->dccph_type	= DCCP_PKT_ACK;
-	dh->dccph_sport = rxdh->dccph_dport;
-	dh->dccph_dport = rxdh->dccph_sport;
-	dh->dccph_doff	= dccp_hdr_ack_len / 4;
-	dh->dccph_x	= 1;
-
-	dccp_hdr_set_seq(dh, DCCP_SKB_CB(rxskb)->dccpd_ack_seq);
-	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb),
-			 DCCP_SKB_CB(rxskb)->dccpd_seq);
-
-	memset(&fl, 0, sizeof(fl));
-	ipv6_addr_copy(&fl.fl6_dst, &rxskb->nh.ipv6h->saddr);
-	ipv6_addr_copy(&fl.fl6_src, &rxskb->nh.ipv6h->daddr);
-
-	/* FIXME: calculate checksum, IPv4 also should... */
-
-	fl.proto = IPPROTO_DCCP;
-	fl.oif = inet6_iif(rxskb);
-	fl.fl_ip_dport = dh->dccph_dport;
-	fl.fl_ip_sport = dh->dccph_sport;
-	security_req_classify_flow(req, &fl);
-
-	if (!ip6_dst_lookup(NULL, &skb->dst, &fl)) {
-		if (xfrm_lookup(&skb->dst, &fl, NULL, 0) >= 0) {
-			ip6_xmit(dccp_v6_ctl_socket->sk, skb, &fl, NULL, 0);
-			DCCP_INC_STATS_BH(DCCP_MIB_OUTSEGS);
 			return;
 		}
 	}

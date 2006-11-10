@@ -193,52 +193,6 @@ static inline void dccp_do_pmtu_discovery(struct sock *sk,
 	} /* else let the usual retransmit timer handle it */
 }
 
-static void dccp_v4_reqsk_send_ack(struct sk_buff *rxskb,
-				   struct request_sock *req)
-{
-	int err;
-	struct dccp_hdr *rxdh = dccp_hdr(rxskb), *dh;
-	const u32 dccp_hdr_ack_len = sizeof(struct dccp_hdr) +
-				     sizeof(struct dccp_hdr_ext) +
-				     sizeof(struct dccp_hdr_ack_bits);
-	struct sk_buff *skb;
-
-	if (((struct rtable *)rxskb->dst)->rt_type != RTN_LOCAL)
-		return;
-
-	skb = alloc_skb(dccp_v4_ctl_socket->sk->sk_prot->max_header, GFP_ATOMIC);
-	if (skb == NULL)
-		return;
-
-	/* Reserve space for headers. */
-	skb_reserve(skb, dccp_v4_ctl_socket->sk->sk_prot->max_header);
-	skb->dst = dst_clone(rxskb->dst);
-
-	dh = dccp_zeroed_hdr(skb, dccp_hdr_ack_len);
-
-	/* Build DCCP header and checksum it. */
-	dh->dccph_type	   = DCCP_PKT_ACK;
-	dh->dccph_sport	   = rxdh->dccph_dport;
-	dh->dccph_dport	   = rxdh->dccph_sport;
-	dh->dccph_doff	   = dccp_hdr_ack_len / 4;
-	dh->dccph_x	   = 1;
-
-	dccp_hdr_set_seq(dh, DCCP_SKB_CB(rxskb)->dccpd_ack_seq);
-	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb),
-			 DCCP_SKB_CB(rxskb)->dccpd_seq);
-
-	bh_lock_sock(dccp_v4_ctl_socket->sk);
-	err = ip_build_and_send_pkt(skb, dccp_v4_ctl_socket->sk,
-				    rxskb->nh.iph->daddr,
-				    rxskb->nh.iph->saddr, NULL);
-	bh_unlock_sock(dccp_v4_ctl_socket->sk);
-
-	if (err == NET_XMIT_CN || err == 0) {
-		DCCP_INC_STATS_BH(DCCP_MIB_OUTSEGS);
-		DCCP_INC_STATS_BH(DCCP_MIB_OUTRSTS);
-	}
-}
-
 static int dccp_v4_send_response(struct sock *sk, struct request_sock *req,
 				 struct dst_entry *dst)
 {
@@ -1014,7 +968,7 @@ static struct request_sock_ops dccp_request_sock_ops __read_mostly = {
 	.family		= PF_INET,
 	.obj_size	= sizeof(struct dccp_request_sock),
 	.rtx_syn_ack	= dccp_v4_send_response,
-	.send_ack	= dccp_v4_reqsk_send_ack,
+	.send_ack	= dccp_reqsk_send_ack,
 	.destructor	= dccp_v4_reqsk_destructor,
 	.send_reset	= dccp_v4_ctl_send_reset,
 };
