@@ -83,18 +83,19 @@ static struct timer_list mux_timer;
  */
 static int __init get_mux_port_count(struct parisc_device *dev)
 {
+	int status;
 	u8 iodc_data[32];
 	unsigned long bytecnt;
-
-	int status = pdc_iodc_read(&bytecnt, dev->hpa.start, 0, iodc_data, 32);
-	BUG_ON(status != PDC_OK);
 
 	/* If this is the built-in Mux for the K-Class (Eole CAP/MUX),
 	 * we only need to allocate resources for 1 port since the
 	 * other 7 ports are not connected.
 	 */
-	if(((iodc_data[0] << 4) | ((iodc_data[1] & 0xf0) >> 4)) == 0x15)
+	if(dev->id.hversion == 0x15)
 		return 1;
+
+	status = pdc_iodc_read(&bytecnt, dev->hpa.start, 0, iodc_data, 32);
+	BUG_ON(status != PDC_OK);
 
 	/* Return the number of ports specified in the iodc data. */
 	return ((((iodc_data)[4] & 0xf0) >> 4) * 8) + 8;
