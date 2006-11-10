@@ -247,8 +247,6 @@ static int icmpv6_push_pending_frames(struct sock *sk, struct flowi *fl, struct 
 					   len, fl->proto, tmp_csum);
 		icmp6h->icmp6_cksum = tmp_csum;
 	}
-	if (icmp6h->icmp6_cksum == 0)
-		icmp6h->icmp6_cksum = -1;
 	ip6_push_pending_frames(sk);
 out:
 	return err;

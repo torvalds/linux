@@ -536,7 +536,7 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi *fl,
 				   &fl->fl6_dst,
 				   total_len, fl->proto, tmp_csum);
 
-	if (tmp_csum == 0)
+	if (tmp_csum == 0 && fl->proto == IPPROTO_UDP)
 		tmp_csum = -1;
 
 	csum = tmp_csum;
