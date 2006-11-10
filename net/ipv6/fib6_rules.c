@@ -142,8 +142,7 @@ static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 	int err = -EINVAL;
 	struct fib6_rule *rule6 = (struct fib6_rule *) rule;
 
-	if (frh->src_len > 128 || frh->dst_len > 128 ||
-	    (frh->tos & ~IPV6_FLOWINFO_MASK))
+	if (frh->src_len > 128 || frh->dst_len > 128)
 		goto errout;
 
 	if (rule->action == FR_ACT_TO_TBL) {
