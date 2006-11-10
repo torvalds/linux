@@ -70,7 +70,35 @@ static struct timer_list mux_timer;
 
 #define UART_PUT_CHAR(p, c) __raw_writel((c), (p)->membase + IO_DATA_REG_OFFSET)
 #define UART_GET_FIFO_CNT(p) __raw_readl((p)->membase + IO_DCOUNT_REG_OFFSET)
-#define GET_MUX_PORTS(iodc_data) ((((iodc_data)[4] & 0xf0) >> 4) * 8) + 8
+
+/**
+ * get_mux_port_count - Get the number of available ports on the Mux.
+ * @dev: The parisc device.
+ *
+ * This function is used to determine the number of ports the Mux
+ * supports.  The IODC data reports the number of ports the Mux
+ * can support, but there are cases where not all the Mux ports
+ * are connected.  This function can override the IODC and
+ * return the true port count.
+ */
+static int __init get_mux_port_count(struct parisc_device *dev)
+{
+	u8 iodc_data[32];
+	unsigned long bytecnt;
+
+	int status = pdc_iodc_read(&bytecnt, dev->hpa.start, 0, iodc_data, 32);
+	BUG_ON(status != PDC_OK);
+
+	/* If this is the built-in Mux for the K-Class (Eole CAP/MUX),
+	 * we only need to allocate resources for 1 port since the
+	 * other 7 ports are not connected.
+	 */
+	if(((iodc_data[0] << 4) | ((iodc_data[1] & 0xf0) >> 4)) == 0x15)
+		return 1;
+
+	/* Return the number of ports specified in the iodc data. */
+	return ((((iodc_data)[4] & 0xf0) >> 4) * 8) + 8;
+}
 
 /**
  * mux_tx_empty - Check if the transmitter fifo is empty.
@@ -442,17 +470,9 @@ static struct uart_ops mux_pops = {
  */
 static int __init mux_probe(struct parisc_device *dev)
 {
-	int i, status, port_count;
-	u8 iodc_data[32];
-	unsigned long bytecnt;
+	int i, status;
 
-	status = pdc_iodc_read(&bytecnt, dev->hpa.start, 0, iodc_data, 32);
-	if(status != PDC_OK) {
-		printk(KERN_ERR "Serial mux: Unable to read IODC.\n");
-		return 1;
-	}
-
-	port_count = GET_MUX_PORTS(iodc_data);
+	int port_count = get_mux_port_count(dev);
 	printk(KERN_INFO "Serial mux driver (%d ports) Revision: 0.6\n", port_count);
 
 	dev_set_drvdata(&dev->dev, (void *)(long)port_count);
