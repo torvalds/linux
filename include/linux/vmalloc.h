@@ -23,13 +23,14 @@ struct vm_area_struct;
 #endif
 
 struct vm_struct {
+	/* keep next,addr,size together to speedup lookups */
+	struct vm_struct	*next;
 	void			*addr;
 	unsigned long		size;
 	unsigned long		flags;
 	struct page		**pages;
 	unsigned int		nr_pages;
 	unsigned long		phys_addr;
-	struct vm_struct	*next;
 };
 
 /*

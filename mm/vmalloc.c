@@ -186,10 +186,8 @@ static struct vm_struct *__get_vm_area_node(unsigned long size, unsigned long fl
 	if (unlikely(!area))
 		return NULL;
 
-	if (unlikely(!size)) {
-		kfree (area);
+	if (unlikely(!size))
 		return NULL;
-	}
 
 	/*
 	 * We always allocate a guard page.
@@ -532,11 +530,12 @@ void *vmalloc_user(unsigned long size)
 	void *ret;
 
 	ret = __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO, PAGE_KERNEL);
-	write_lock(&vmlist_lock);
-	area = __find_vm_area(ret);
-	area->flags |= VM_USERMAP;
-	write_unlock(&vmlist_lock);
-
+	if (ret) {
+		write_lock(&vmlist_lock);
+		area = __find_vm_area(ret);
+		area->flags |= VM_USERMAP;
+		write_unlock(&vmlist_lock);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(vmalloc_user);
@@ -605,11 +604,12 @@ void *vmalloc_32_user(unsigned long size)
 	void *ret;
 
 	ret = __vmalloc(size, GFP_KERNEL | __GFP_ZERO, PAGE_KERNEL);
-	write_lock(&vmlist_lock);
-	area = __find_vm_area(ret);
-	area->flags |= VM_USERMAP;
-	write_unlock(&vmlist_lock);
-
+	if (ret) {
+		write_lock(&vmlist_lock);
+		area = __find_vm_area(ret);
+		area->flags |= VM_USERMAP;
+		write_unlock(&vmlist_lock);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(vmalloc_32_user);
