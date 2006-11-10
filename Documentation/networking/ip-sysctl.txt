@@ -351,6 +351,12 @@ tcp_frto - BOOLEAN
 	where packet loss is typically due to random radio interference
 	rather than intermediate router congestion.
 
+tcp_allowed_congestion_control - STRING
+	Show/set the congestion control choices available to non-privileged
+	processes. The list is a subset of those listed in
+	tcp_available_congestion_control.
+	Default is "reno" and the default setting (tcp_congestion_control).
+
 tcp_available_congestion_control - STRING
 	Shows the available congestion control choices that are registered.
 	More congestion control algorithms may be available as modules,

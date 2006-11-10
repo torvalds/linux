@@ -123,6 +123,7 @@ int tcp_set_default_congestion_control(const char *name)
 #endif
 
 	if (ca) {
+		ca->non_restricted = 1;	/* default is always allowed */
 		list_move(&ca->list, &tcp_cong_list);
 		ret = 0;
 	}
@@ -168,6 +169,64 @@ void tcp_get_default_congestion_control(char *name)
 	rcu_read_unlock();
 }
 
+/* Built list of non-restricted congestion control values */
+void tcp_get_allowed_congestion_control(char *buf, size_t maxlen)
+{
+	struct tcp_congestion_ops *ca;
+	size_t offs = 0;
+
+	*buf = '\0';
+	rcu_read_lock();
+	list_for_each_entry_rcu(ca, &tcp_cong_list, list) {
+		if (!ca->non_restricted)
+			continue;
+		offs += snprintf(buf + offs, maxlen - offs,
+				 "%s%s",
+				 offs == 0 ? "" : " ", ca->name);
+
+	}
+	rcu_read_unlock();
+}
+
+/* Change list of non-restricted congestion control */
+int tcp_set_allowed_congestion_control(char *val)
+{
+	struct tcp_congestion_ops *ca;
+	char *clone, *name;
+	int ret = 0;
+
+	clone = kstrdup(val, GFP_USER);
+	if (!clone)
+		return -ENOMEM;
+
+	spin_lock(&tcp_cong_list_lock);
+	/* pass 1 check for bad entries */
+	while ((name = strsep(&clone, " ")) && *name) {
+		ca = tcp_ca_find(name);
+		if (!ca) {
+			ret = -ENOENT;
+			goto out;
+		}
+	}
+
+	/* pass 2 clear */
+	list_for_each_entry_rcu(ca, &tcp_cong_list, list)
+		ca->non_restricted = 0;
+
+	/* pass 3 mark as allowed */
+	while ((name = strsep(&val, " ")) && *name) {
+		ca = tcp_ca_find(name);
+		WARN_ON(!ca);
+		if (ca)
+			ca->non_restricted = 1;
+	}
+out:
+	spin_unlock(&tcp_cong_list_lock);
+
+	return ret;
+}
+
+
 /* Change congestion control for socket */
 int tcp_set_congestion_control(struct sock *sk, const char *name)
 {
@@ -182,6 +241,9 @@ int tcp_set_congestion_control(struct sock *sk, const char *name)
 
 	if (!ca)
 		err = -ENOENT;
+
+	else if (!(ca->non_restricted || capable(CAP_NET_ADMIN)))
+		err = -EPERM;
 
 	else if (!try_module_get(ca->owner))
 		err = -EBUSY;
@@ -284,6 +346,7 @@ EXPORT_SYMBOL_GPL(tcp_reno_min_cwnd);
 
 struct tcp_congestion_ops tcp_reno = {
 	.name		= "reno",
+	.non_restricted = 1,
 	.owner		= THIS_MODULE,
 	.ssthresh	= tcp_reno_ssthresh,
 	.cong_avoid	= tcp_reno_cong_avoid,

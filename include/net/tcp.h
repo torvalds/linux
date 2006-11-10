@@ -625,6 +625,7 @@ enum tcp_ca_event {
 
 struct tcp_congestion_ops {
 	struct list_head	list;
+	int	non_restricted;
 
 	/* initialize private data (optional) */
 	void (*init)(struct sock *sk);
@@ -663,6 +664,8 @@ extern void tcp_cleanup_congestion_control(struct sock *sk);
 extern int tcp_set_default_congestion_control(const char *name);
 extern void tcp_get_default_congestion_control(char *name);
 extern void tcp_get_available_congestion_control(char *buf, size_t len);
+extern void tcp_get_allowed_congestion_control(char *buf, size_t len);
+extern int tcp_set_allowed_congestion_control(char *allowed);
 extern int tcp_set_congestion_control(struct sock *sk, const char *name);
 extern void tcp_slow_start(struct tcp_sock *tp);
 
