@@ -351,10 +351,16 @@ tcp_frto - BOOLEAN
 	where packet loss is typically due to random radio interference
 	rather than intermediate router congestion.
 
+tcp_available_congestion_control - STRING
+	Shows the available congestion control choices that are registered.
+	More congestion control algorithms may be available as modules,
+	but not loaded.
+
 tcp_congestion_control - STRING
 	Set the congestion control algorithm to be used for new
 	connections. The algorithm "reno" is always available, but
 	additional choices may be available based on kernel configuration.
+	Default is set as part of kernel configuration.
 
 somaxconn - INTEGER
 	Limit of socket listen() backlog, known in userspace as SOMAXCONN.

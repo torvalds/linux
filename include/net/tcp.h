@@ -620,6 +620,9 @@ enum tcp_ca_event {
  * Interface for adding new TCP congestion control handlers
  */
 #define TCP_CA_NAME_MAX	16
+#define TCP_CA_MAX	128
+#define TCP_CA_BUF_MAX	(TCP_CA_NAME_MAX*TCP_CA_MAX)
+
 struct tcp_congestion_ops {
 	struct list_head	list;
 
@@ -659,6 +662,7 @@ extern void tcp_init_congestion_control(struct sock *sk);
 extern void tcp_cleanup_congestion_control(struct sock *sk);
 extern int tcp_set_default_congestion_control(const char *name);
 extern void tcp_get_default_congestion_control(char *name);
+extern void tcp_get_available_congestion_control(char *buf, size_t len);
 extern int tcp_set_congestion_control(struct sock *sk, const char *name);
 extern void tcp_slow_start(struct tcp_sock *tp);
 

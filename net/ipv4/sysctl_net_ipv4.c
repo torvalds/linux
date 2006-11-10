@@ -129,6 +129,23 @@ static int sysctl_tcp_congestion_control(ctl_table *table, int __user *name,
 	return ret;
 }
 
+static int proc_tcp_available_congestion_control(ctl_table *ctl,
+						 int write, struct file * filp,
+						 void __user *buffer, size_t *lenp,
+						 loff_t *ppos)
+{
+	ctl_table tbl = { .maxlen = TCP_CA_BUF_MAX, };
+	int ret;
+
+	tbl.data = kmalloc(tbl.maxlen, GFP_USER);
+	if (!tbl.data)
+		return -ENOMEM;
+	tcp_get_available_congestion_control(tbl.data, TCP_CA_BUF_MAX);
+	ret = proc_dostring(&tbl, write, filp, buffer, lenp, ppos);
+	kfree(tbl.data);
+	return ret;
+}
+
 ctl_table ipv4_table[] = {
         {
 		.ctl_name	= NET_IPV4_TCP_TIMESTAMPS,
@@ -731,6 +748,13 @@ ctl_table ipv4_table[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 #endif /* CONFIG_NETLABEL */
+	{
+		.ctl_name	= NET_TCP_AVAIL_CONG_CONTROL,
+		.procname	= "tcp_available_congestion_control",
+		.maxlen		= TCP_CA_BUF_MAX,
+		.mode		= 0444,
+		.proc_handler   = &proc_tcp_available_congestion_control,
+	},
 	{ .ctl_name = 0 }
 };
 
