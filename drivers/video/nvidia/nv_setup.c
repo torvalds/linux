@@ -359,6 +359,7 @@ int NVCommonSetup(struct fb_info *info)
 	case 0x0186:
 	case 0x0187:
 	case 0x018D:
+	case 0x0228:
 	case 0x0286:
 	case 0x028C:
 	case 0x0316:
@@ -382,6 +383,10 @@ int NVCommonSetup(struct fb_info *info)
 	case 0x034C:
 	case 0x0160:
 	case 0x0166:
+	case 0x0169:
+	case 0x016B:
+	case 0x016C:
+	case 0x016D:
 	case 0x00C8:
 	case 0x00CC:
 	case 0x0144:
@@ -639,11 +644,22 @@ int NVCommonSetup(struct fb_info *info)
 		par->fpHeight = NV_RD32(par->PRAMDAC, 0x0800) + 1;
 		par->fpSyncs = NV_RD32(par->PRAMDAC, 0x0848) & 0x30000033;
 
-		printk("Panel size is %i x %i\n", par->fpWidth, par->fpHeight);
+		printk("nvidiafb: Panel size is %i x %i\n", par->fpWidth, par->fpHeight);
 	}
 
 	if (monA)
 		info->monspecs = *monA;
+
+	if (!par->FlatPanel || !par->twoHeads)
+		par->FPDither = 0;
+
+	par->LVDS = 0;
+	if (par->FlatPanel && par->twoHeads) {
+		NV_WR32(par->PRAMDAC0, 0x08B0, 0x00010004);
+		if (par->PRAMDAC0[0x08b4] & 1)
+			par->LVDS = 1;
+		printk("nvidiafb: Panel is %s\n", par->LVDS ? "LVDS" : "TMDS");
+	}
 
 	kfree(edidA);
 	kfree(edidB);
