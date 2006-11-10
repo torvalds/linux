@@ -293,3 +293,12 @@ void dccp_reqsk_send_ack(struct sk_buff *skb, struct request_sock *rsk)
 }
 
 EXPORT_SYMBOL_GPL(dccp_reqsk_send_ack);
+
+void dccp_reqsk_init(struct request_sock *req, struct sk_buff *skb)
+{
+	inet_rsk(req)->rmt_port = dccp_hdr(skb)->dccph_sport;
+	inet_rsk(req)->acked	= 0;
+	req->rcv_wnd		= dccp_feat_default_sequence_window;
+}
+
+EXPORT_SYMBOL_GPL(dccp_reqsk_init);

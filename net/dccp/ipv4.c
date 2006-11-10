@@ -636,11 +636,8 @@ static struct request_sock_ops dccp_request_sock_ops __read_mostly = {
 int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 {
 	struct inet_request_sock *ireq;
-	struct dccp_sock dp;
 	struct request_sock *req;
 	struct dccp_request_sock *dreq;
-	const __be32 saddr = skb->nh.iph->saddr;
-	const __be32 daddr = skb->nh.iph->daddr;
  	const __be32 service = dccp_hdr_request(skb)->dccph_req_service;
 	struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
 	__u8 reset_code = DCCP_RESET_CODE_TOO_BUSY;
@@ -680,14 +677,14 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (dccp_parse_options(sk, skb))
 		goto drop_and_free;
 
-	dccp_openreq_init(req, &dp, skb);
+	dccp_reqsk_init(req, skb);
 
 	if (security_inet_conn_request(sk, skb, req))
 		goto drop_and_free;
 
 	ireq = inet_rsk(req);
-	ireq->loc_addr = daddr;
-	ireq->rmt_addr = saddr;
+	ireq->loc_addr = skb->nh.iph->daddr;
+	ireq->rmt_addr = skb->nh.iph->saddr;
 	req->rcv_wnd	= dccp_feat_default_sequence_window;
 	ireq->opt	= NULL;
 

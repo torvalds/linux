@@ -155,18 +155,7 @@ extern const char *dccp_state_name(const int state);
 extern void dccp_set_state(struct sock *sk, const int state);
 extern void dccp_done(struct sock *sk);
 
-static inline void dccp_openreq_init(struct request_sock *req,
-				     struct dccp_sock *dp,
-				     struct sk_buff *skb)
-{
-	/*
-	 * FIXME: fill in the other req fields from the DCCP options
-	 * received
-	 */
-	inet_rsk(req)->rmt_port = dccp_hdr(skb)->dccph_sport;
-	inet_rsk(req)->acked	= 0;
-	req->rcv_wnd = 0;
-}
+extern void dccp_reqsk_init(struct request_sock *req, struct sk_buff *skb);
 
 extern int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb);
 
