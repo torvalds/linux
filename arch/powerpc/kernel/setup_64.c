@@ -380,7 +380,8 @@ void __init setup_system(void)
 	 * setting up the hash table pointers. It also sets up some interrupt-mapping
 	 * related options that will be used by finish_device_tree()
 	 */
-	ppc_md.init_early();
+	if (ppc_md.init_early)
+		ppc_md.init_early();
 
  	/*
 	 * We can discover serial ports now since the above did setup the
