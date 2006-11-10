@@ -910,8 +910,7 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 		dccp_pr_debug_cat("\n");
 	} else {
 		DCCP_SKB_CB(skb)->dccpd_ack_seq = dccp_hdr_ack_seq(skb);
-		dccp_pr_debug_cat(", ack=%llu\n",
-				  (unsigned long long)
+		dccp_pr_debug_cat(", ack=%llu\n", (unsigned long long)
 				  DCCP_SKB_CB(skb)->dccpd_ack_seq);
 	}
 
@@ -940,11 +939,10 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 	 *		Generate Reset(No Connection) unless P.type == Reset
 	 *		Drop packet and return
 	 */
-	       
 	if (sk->sk_state == DCCP_TIME_WAIT) {
-		dccp_pr_debug("sk->sk_state == DCCP_TIME_WAIT: "
-			      "do_time_wait\n");
-                goto do_time_wait;
+		dccp_pr_debug("sk->sk_state == DCCP_TIME_WAIT: do_time_wait\n");
+		inet_twsk_put(inet_twsk(sk));
+		goto no_dccp_socket;
 	}
 
 	if (!xfrm4_policy_check(sk, XFRM_POLICY_IN, skb))
@@ -968,17 +966,12 @@ no_dccp_socket:
 	}
 
 discard_it:
-	/* Discard frame. */
 	kfree_skb(skb);
 	return 0;
 
 discard_and_relse:
 	sock_put(sk);
 	goto discard_it;
-
-do_time_wait:
-	inet_twsk_put(inet_twsk(sk));
-	goto no_dccp_socket;
 }
 
 static struct inet_connection_sock_af_ops dccp_ipv4_af_ops = {

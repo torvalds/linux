@@ -1071,8 +1071,11 @@ static int dccp_v6_rcv(struct sk_buff **pskb)
 	 *		Generate Reset(No Connection) unless P.type == Reset
 	 *		Drop packet and return
 	 */
-	if (sk == NULL)
+	if (sk == NULL) {
+		dccp_pr_debug("failed to look up flow ID in table and "
+			      "get corresponding socket\n");
 		goto no_dccp_socket;
+	}
 
 	/*
 	 * Step 2:
@@ -1080,8 +1083,11 @@ static int dccp_v6_rcv(struct sk_buff **pskb)
 	 *		Generate Reset(No Connection) unless P.type == Reset
 	 *		Drop packet and return
 	 */
-	if (sk->sk_state == DCCP_TIME_WAIT)
-		goto do_time_wait;
+	if (sk->sk_state == DCCP_TIME_WAIT) {
+		dccp_pr_debug("sk->sk_state == DCCP_TIME_WAIT: do_time_wait\n");
+		inet_twsk_put(inet_twsk(sk));
+		goto no_dccp_socket;
+	}
 
 	if (!xfrm6_policy_check(sk, XFRM_POLICY_IN, skb))
 		goto discard_and_relse;
@@ -1101,22 +1107,14 @@ no_dccp_socket:
 					DCCP_RESET_CODE_NO_CONNECTION;
 		dccp_v6_ctl_send_reset(skb);
 	}
+
 discard_it:
-
-	/*
-	 *	Discard frame
-	 */
-
 	kfree_skb(skb);
 	return 0;
 
 discard_and_relse:
 	sock_put(sk);
 	goto discard_it;
-
-do_time_wait:
-	inet_twsk_put(inet_twsk(sk));
-	goto no_dccp_socket;
 }
 
 static struct inet_connection_sock_af_ops dccp_ipv6_af_ops = {
