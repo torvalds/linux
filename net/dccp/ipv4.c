@@ -1022,7 +1022,7 @@ static void dccp_v4_reqsk_destructor(struct request_sock *req)
 	kfree(inet_rsk(req)->opt);
 }
 
-static struct request_sock_ops dccp_request_sock_ops _read_mostly = {
+static struct request_sock_ops dccp_request_sock_ops __read_mostly = {
 	.family		= PF_INET,
 	.obj_size	= sizeof(struct dccp_request_sock),
 	.rtx_syn_ack	= dccp_v4_send_response,
