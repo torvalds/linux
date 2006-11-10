@@ -35,8 +35,6 @@ extern int dccp_debug;
 extern struct inet_hashinfo dccp_hashinfo;
 
 extern atomic_t dccp_orphan_count;
-extern int dccp_tw_count;
-extern void dccp_tw_deschedule(struct inet_timewait_sock *tw);
 
 extern void dccp_time_wait(struct sock *sk, int state, int timeo);
 
