@@ -469,6 +469,7 @@ config PPC_CELL_NATIVE
 	bool
 	select PPC_CELL
 	select PPC_DCR_MMIO
+	select MPIC
 	default n
 
 config PPC_IBM_CELL_BLADE

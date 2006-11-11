@@ -50,6 +50,7 @@
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>
 #include <asm/udbg.h>
+#include <asm/mpic.h>
 
 #include "interrupt.h"
 #include "iommu.h"
@@ -80,10 +81,53 @@ static void cell_progress(char *s, unsigned short hex)
 	printk("*** %04x : %s\n", hex, s ? s : "");
 }
 
+static void cell_mpic_cascade(unsigned int irq, struct irq_desc *desc)
+{
+	struct mpic *mpic = desc->handler_data;
+	unsigned int virq;
+
+	virq = mpic_get_one_irq(mpic);
+	if (virq != NO_IRQ)
+		generic_handle_irq(virq);
+	desc->chip->eoi(irq);
+}
+
+static void __init mpic_init_IRQ(void)
+{
+	struct device_node *dn;
+	struct mpic *mpic;
+	unsigned int virq;
+
+	for (dn = NULL;
+	     (dn = of_find_node_by_name(dn, "interrupt-controller"));) {
+		if (!device_is_compatible(dn, "CBEA,platform-open-pic"))
+			continue;
+
+		/* The MPIC driver will get everything it needs from the
+		 * device-tree, just pass 0 to all arguments
+		 */
+		mpic = mpic_alloc(dn, 0, 0, 0, 0, " MPIC     ");
+		if (mpic == NULL)
+			continue;
+		mpic_init(mpic);
+
+		virq = irq_of_parse_and_map(dn, 0);
+		if (virq == NO_IRQ)
+			continue;
+
+		printk(KERN_INFO "%s : hooking up to IRQ %d\n",
+		       dn->full_name, virq);
+		set_irq_data(virq, mpic);
+		set_irq_chained_handler(virq, cell_mpic_cascade);
+	}
+}
+
+
 static void __init cell_init_irq(void)
 {
 	iic_init_IRQ();
 	spider_init_IRQ();
+	mpic_init_IRQ();
 }
 
 static void __init cell_setup_arch(void)
