@@ -3,5 +3,13 @@
  *
  * This file is released under the GPLv2
  */
-#include <asm-generic/device.h>
+#ifndef _ASM_X86_64_DEVICE_H
+#define _ASM_X86_64_DEVICE_H
 
+struct dev_archdata {
+#ifdef CONFIG_ACPI
+	void	*acpi_handle;
+#endif
+};
+
+#endif /* _ASM_X86_64_DEVICE_H */
