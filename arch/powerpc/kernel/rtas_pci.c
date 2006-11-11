@@ -231,32 +231,13 @@ void __init init_pci_config_tokens (void)
 
 unsigned long __devinit get_phb_buid (struct device_node *phb)
 {
-	int addr_cells;
-	const unsigned int *buid_vals;
-	unsigned int len;
-	unsigned long buid;
+	struct resource r;
 
-	if (ibm_read_pci_config == -1) return 0;
-
-	/* PHB's will always be children of the root node,
-	 * or so it is promised by the current firmware. */
-	if (phb->parent == NULL)
+	if (ibm_read_pci_config == -1)
 		return 0;
-	if (phb->parent->parent)
+	if (of_address_to_resource(phb, 0, &r))
 		return 0;
-
-	buid_vals = get_property(phb, "reg", &len);
-	if (buid_vals == NULL)
-		return 0;
-
-	addr_cells = prom_n_addr_cells(phb);
-	if (addr_cells == 1) {
-		buid = (unsigned long) buid_vals[0];
-	} else {
-		buid = (((unsigned long)buid_vals[0]) << 32UL) |
-			(((unsigned long)buid_vals[1]) & 0xffffffff);
-	}
-	return buid;
+	return r.start;
 }
 
 static int phb_set_bus_ranges(struct device_node *dev,
