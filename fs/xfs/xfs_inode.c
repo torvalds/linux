@@ -2193,7 +2193,7 @@ xfs_ifree_cluster(
 			/* Inode not in memory or we found it already,
 			 * nothing to do
 			 */
-			if (!ip || (ip->i_flags & XFS_ISTALE)) {
+			if (!ip || xfs_iflags_test(ip, XFS_ISTALE)) {
 				read_unlock(&ih->ih_lock);
 				continue;
 			}
@@ -2215,10 +2215,7 @@ xfs_ifree_cluster(
 
 			if (ip == free_ip) {
 				if (xfs_iflock_nowait(ip)) {
-					spin_lock(&ip->i_flags_lock);
-					ip->i_flags |= XFS_ISTALE;
-					spin_unlock(&ip->i_flags_lock);
-
+					xfs_iflags_set(ip, XFS_ISTALE);
 					if (xfs_inode_clean(ip)) {
 						xfs_ifunlock(ip);
 					} else {
@@ -2231,9 +2228,7 @@ xfs_ifree_cluster(
 
 			if (xfs_ilock_nowait(ip, XFS_ILOCK_EXCL)) {
 				if (xfs_iflock_nowait(ip)) {
-					spin_lock(&ip->i_flags_lock);
-					ip->i_flags |= XFS_ISTALE;
-					spin_unlock(&ip->i_flags_lock);
+					xfs_iflags_set(ip, XFS_ISTALE);
 
 					if (xfs_inode_clean(ip)) {
 						xfs_ifunlock(ip);
@@ -2263,9 +2258,7 @@ xfs_ifree_cluster(
 				AIL_LOCK(mp,s);
 				iip->ili_flush_lsn = iip->ili_item.li_lsn;
 				AIL_UNLOCK(mp, s);
-				spin_lock(&iip->ili_inode->i_flags_lock);
-				iip->ili_inode->i_flags |= XFS_ISTALE;
-				spin_unlock(&iip->ili_inode->i_flags_lock);
+				xfs_iflags_set(ip, XFS_ISTALE);
 				pre_flushed++;
 			}
 			lip = lip->li_bio_list;
@@ -2764,7 +2757,7 @@ xfs_iunpin(
 		struct inode *inode = NULL;
 
 		spin_lock(&ip->i_flags_lock);
-		if (!(ip->i_flags & (XFS_IRECLAIM|XFS_IRECLAIMABLE))) {
+		if (!__xfs_iflags_test(ip, XFS_IRECLAIM|XFS_IRECLAIMABLE)) {
 			bhv_vnode_t	*vp = XFS_ITOV_NULL(ip);
 
 			/* make sync come back and flush this inode */

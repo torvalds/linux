@@ -3844,9 +3844,7 @@ xfs_reclaim(
 		XFS_MOUNT_ILOCK(mp);
 		vn_bhv_remove(VN_BHV_HEAD(vp), XFS_ITOBHV(ip));
 		list_add_tail(&ip->i_reclaim, &mp->m_del_inodes);
-		spin_lock(&ip->i_flags_lock);
-		ip->i_flags |= XFS_IRECLAIMABLE;
-		spin_unlock(&ip->i_flags_lock);
+		xfs_iflags_set(ip, XFS_IRECLAIMABLE);
 		XFS_MOUNT_IUNLOCK(mp);
 	}
 	return 0;
@@ -3872,8 +3870,8 @@ xfs_finish_reclaim(
 	 */
 	write_lock(&ih->ih_lock);
 	spin_lock(&ip->i_flags_lock);
-	if ((ip->i_flags & XFS_IRECLAIM) ||
-	    (!(ip->i_flags & XFS_IRECLAIMABLE) && vp == NULL)) {
+	if (__xfs_iflags_test(ip, XFS_IRECLAIM) ||
+	    (!__xfs_iflags_test(ip, XFS_IRECLAIMABLE) && vp == NULL)) {
 		spin_unlock(&ip->i_flags_lock);
 		write_unlock(&ih->ih_lock);
 		if (locked) {
@@ -3882,7 +3880,7 @@ xfs_finish_reclaim(
 		}
 		return 1;
 	}
-	ip->i_flags |= XFS_IRECLAIM;
+	__xfs_iflags_set(ip, XFS_IRECLAIM);
 	spin_unlock(&ip->i_flags_lock);
 	write_unlock(&ih->ih_lock);
 
