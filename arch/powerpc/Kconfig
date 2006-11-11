@@ -476,6 +476,7 @@ config PPC_CELL_NATIVE
 	select PPC_CELL
 	select PPC_DCR_MMIO
 	select PPC_OF_PLATFORM_PCI
+	select PPC_INDIRECT_IO
 	select MPIC
 	default n
 

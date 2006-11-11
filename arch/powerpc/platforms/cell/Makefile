@@ -1,6 +1,6 @@
 obj-$(CONFIG_PPC_CELL_NATIVE)		+= interrupt.o iommu.o setup.o \
-					   cbe_regs.o spider-pic.o pervasive.o \
-					   pmu.o
+					   cbe_regs.o spider-pic.o \
+					   pervasive.o pmu.o io-workarounds.o
 obj-$(CONFIG_CBE_RAS)			+= ras.o
 
 obj-$(CONFIG_CBE_THERM)			+= cbe_thermal.o
