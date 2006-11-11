@@ -70,6 +70,7 @@
 #include <asm/pmac_feature.h>
 #include <asm/time.h>
 #include <asm/of_device.h>
+#include <asm/of_platform.h>
 #include <asm/mmu_context.h>
 #include <asm/iommu.h>
 #include <asm/smu.h>

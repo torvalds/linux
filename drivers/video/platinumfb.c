@@ -34,6 +34,7 @@
 #include <asm/prom.h>
 #include <asm/pgtable.h>
 #include <asm/of_device.h>
+#include <asm/of_platform.h>
 
 #include "macmodes.h"
 #include "platinumfb.h"
@@ -682,14 +683,14 @@ static int __init platinumfb_init(void)
 		return -ENODEV;
 	platinumfb_setup(option);
 #endif
-	of_register_driver(&platinum_driver);
+	of_register_platform_driver(&platinum_driver);
 
 	return 0;
 }
 
 static void __exit platinumfb_exit(void)
 {
-	of_unregister_driver(&platinum_driver);	
+	of_unregister_platform_driver(&platinum_driver);
 }
 
 MODULE_LICENSE("GPL");
