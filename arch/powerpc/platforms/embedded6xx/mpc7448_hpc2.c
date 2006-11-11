@@ -89,7 +89,7 @@ u8 find_slot_by_devfn(unsigned int *interrupt_map, unsigned int devfn)
 /*
  * Scans the interrupt map for pci device
  */
-void mpc7448_hpc2_fixup_irq(struct pci_dev *dev)
+void __devinit mpc7448_hpc2_fixup_irq(struct pci_dev *dev)
 {
 	struct pci_controller *hose;
 	struct device_node *node;
@@ -117,18 +117,12 @@ void mpc7448_hpc2_fixup_irq(struct pci_dev *dev)
 		pin = 1;
 	pin--;
 	dev->irq  = interrupt[slot*4*7 + pin*7 + 5];
+
+	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
+
 	DBG("TSI_PCI: dev->irq = 0x%x\n", dev->irq);
 }
 /* temporary pci irq map fixup*/
-
-void __init mpc7448_hpc2_pcibios_fixup(void)
-{
-	struct pci_dev *dev = NULL;
-	for_each_pci_dev(dev) {
-		mpc7448_hpc2_fixup_irq(dev);
-		pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
-	}
-}
 
 static void __init mpc7448_hpc2_setup_arch(void)
 {
@@ -300,7 +294,7 @@ define_machine(mpc7448_hpc2){
 	.init_IRQ 		= mpc7448_hpc2_init_IRQ,
 	.show_cpuinfo 		= mpc7448_hpc2_show_cpuinfo,
 	.get_irq 		= mpic_get_irq,
-	.pcibios_fixup 		= mpc7448_hpc2_pcibios_fixup,
+	.pci_irq_fixup 		= mpc7448_hpc2_fixup_irq,
 	.restart 		= mpc7448_hpc2_restart,
 	.calibrate_decr 	= generic_calibrate_decr,
 	.machine_check_exception= mpc7448_machine_check_exception,

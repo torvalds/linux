@@ -1215,8 +1215,12 @@ static void __devinit do_bus_setup(struct pci_bus *bus)
 	list_for_each_entry(dev, &bus->devices, bus_list)
 		ppc_md.iommu_dev_setup(dev);
 
-	if (ppc_md.irq_bus_setup)
-		ppc_md.irq_bus_setup(bus);
+	/* Read default IRQs and fixup if necessary */
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		pci_read_irq_line(dev);
+		if (ppc_md.pci_irq_fixup)
+			ppc_md.pci_irq_fixup(dev);
+	}
 }
 
 void __devinit pcibios_fixup_bus(struct pci_bus *bus)

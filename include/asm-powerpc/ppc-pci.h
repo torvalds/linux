@@ -47,7 +47,6 @@ unsigned long get_phb_buid (struct device_node *);
 
 /* From pSeries_pci.h */
 extern void pSeries_final_fixup(void);
-extern void pSeries_irq_bus_setup(struct pci_bus *bus);
 
 extern unsigned long pci_probe_only;
 

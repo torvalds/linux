@@ -86,7 +86,6 @@ struct machdep_calls {
 	void		(*tce_flush)(struct iommu_table *tbl);
 	void		(*iommu_dev_setup)(struct pci_dev *dev);
 	void		(*iommu_bus_setup)(struct pci_bus *bus);
-	void		(*irq_bus_setup)(struct pci_bus *bus);
 #endif /* CONFIG_PPC64 */
 
 	int		(*probe)(void);
@@ -106,6 +105,7 @@ struct machdep_calls {
 	/* Called after scanning the bus, before allocating resources */
 	void		(*pcibios_fixup)(void);
 	int		(*pci_probe_mode)(struct pci_bus *);
+	void		(*pci_irq_fixup)(struct pci_dev *dev);
 
 	void		(*restart)(char *cmd);
 	void		(*power_off)(void);

@@ -176,7 +176,6 @@ define_machine(pas) {
 	.init_early		= pas_init_early,
 	.init_IRQ		= pas_init_IRQ,
 	.get_irq		= mpic_get_irq,
-	.pcibios_fixup		= pas_pcibios_fixup,
 	.restart		= pas_restart,
 	.power_off		= pas_power_off,
 	.halt			= pas_halt,

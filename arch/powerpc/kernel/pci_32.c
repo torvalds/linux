@@ -12,6 +12,7 @@
 #include <linux/errno.h>
 #include <linux/bootmem.h>
 #include <linux/irq.h>
+#include <linux/list.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
@@ -1338,6 +1339,7 @@ void __init pcibios_fixup_bus(struct pci_bus *bus)
 	struct pci_controller *hose = (struct pci_controller *) bus->sysdata;
 	unsigned long io_offset;
 	struct resource *res;
+	struct pci_dev *dev;
 	int i;
 
 	io_offset = (unsigned long)hose->io_base_virt - isa_io_base;
@@ -1390,8 +1392,16 @@ void __init pcibios_fixup_bus(struct pci_bus *bus)
 		}
 	}
 
+	/* Platform specific bus fixups */
 	if (ppc_md.pcibios_fixup_bus)
 		ppc_md.pcibios_fixup_bus(bus);
+
+	/* Read default IRQs and fixup if necessary */
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		pci_read_irq_line(dev);
+		if (ppc_md.pci_irq_fixup)
+			ppc_md.pci_irq_fixup(dev);
+	}
 }
 
 char __init *pcibios_setup(char *str)
