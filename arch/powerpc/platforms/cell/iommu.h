@@ -53,9 +53,11 @@ enum {
 	IOC_ST_ORIGIN     = 0x918,
 	IOC_CONF	  = 0x930,
 
-	/* The high bit needs to be set on every DMA address,
-	   only 2GB are addressable */
-	CELL_DMA_VALID	  = 0x80000000,
+	/* The high bit needs to be set on every DMA address when using
+	 * a spider bridge and only 2GB are addressable with the current
+	 * iommu code.
+	 */
+	SPIDER_DMA_VALID  = 0x80000000,
 	CELL_DMA_MASK	  = 0x7fffffff,
 };
 

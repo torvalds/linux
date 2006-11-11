@@ -46,6 +46,8 @@
 
 #include "iommu.h"
 
+static dma_addr_t cell_dma_valid = SPIDER_DMA_VALID;
+
 static inline unsigned long 
 get_iopt_entry(unsigned long real_address, unsigned long ioid,
 			 unsigned long prot)
@@ -423,7 +425,7 @@ static void *cell_alloc_coherent(struct device *hwdev, size_t size,
 	ret = (void *)__get_free_pages(flag, get_order(size));
 	if (ret != NULL) {
 		memset(ret, 0, size);
-		*dma_handle = virt_to_abs(ret) | CELL_DMA_VALID;
+		*dma_handle = virt_to_abs(ret) | cell_dma_valid;
 	}
 	return ret;
 }
@@ -437,7 +439,7 @@ static void cell_free_coherent(struct device *hwdev, size_t size,
 static dma_addr_t cell_map_single(struct device *hwdev, void *ptr,
 		size_t size, enum dma_data_direction direction)
 {
-	return virt_to_abs(ptr) | CELL_DMA_VALID;
+	return virt_to_abs(ptr) | cell_dma_valid;
 }
 
 static void cell_unmap_single(struct device *hwdev, dma_addr_t dma_addr,
@@ -452,7 +454,7 @@ static int cell_map_sg(struct device *hwdev, struct scatterlist *sg,
 
 	for (i = 0; i < nents; i++, sg++) {
 		sg->dma_address = (page_to_phys(sg->page) + sg->offset)
-					| CELL_DMA_VALID;
+					| cell_dma_valid;
 		sg->dma_length = sg->length;
 	}
 
@@ -482,6 +484,12 @@ static struct dma_mapping_ops cell_iommu_ops = {
 void cell_init_iommu(void)
 {
 	int setup_bus = 0;
+
+	/* If we have an Axon bridge, clear the DMA valid mask. This is fairly
+	 * hackish but will work well enough until we have proper iommu code.
+	 */
+	if (of_find_node_by_name(NULL, "axon"))
+		cell_dma_valid = 0;
 
 	if (of_find_node_by_path("/mambo")) {
 		pr_info("Not using iommu on systemsim\n");
