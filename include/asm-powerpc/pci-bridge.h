@@ -25,6 +25,7 @@ struct pci_controller {
 	int node;
 	void *arch_data;
 	struct list_head list_node;
+	struct device *parent;
 
 	int first_busno;
 	int last_busno;

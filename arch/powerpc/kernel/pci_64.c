@@ -513,7 +513,7 @@ void __devinit scan_phb(struct pci_controller *hose)
 
 	DBG("Scanning PHB %s\n", node ? node->full_name : "<NO NAME>");
 
-	bus = pci_create_bus(NULL, hose->first_busno, hose->ops, node);
+	bus = pci_create_bus(hose->parent, hose->first_busno, hose->ops, node);
 	if (bus == NULL) {
 		printk(KERN_ERR "Failed to create bus for PCI domain %04x\n",
 		       hose->global_number);
