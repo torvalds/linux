@@ -51,6 +51,7 @@
 #include <asm/spu_priv1.h>
 #include <asm/udbg.h>
 #include <asm/mpic.h>
+#include <asm/of_platform.h>
 
 #include "interrupt.h"
 #include "iommu.h"
@@ -80,6 +81,14 @@ static void cell_progress(char *s, unsigned short hex)
 {
 	printk("*** %04x : %s\n", hex, s ? s : "");
 }
+
+static int __init cell_publish_devices(void)
+{
+	if (machine_is(cell))
+		of_platform_bus_probe(NULL, NULL, NULL);
+	return 0;
+}
+device_initcall(cell_publish_devices);
 
 static void cell_mpic_cascade(unsigned int irq, struct irq_desc *desc)
 {
