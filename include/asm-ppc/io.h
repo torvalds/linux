@@ -26,17 +26,11 @@
 
 #if defined(CONFIG_4xx)
 #include <asm/ibm4xx.h>
-#elif defined(CONFIG_PPC_MPC52xx)
-#include <asm/mpc52xx.h>
 #elif defined(CONFIG_8xx)
 #include <asm/mpc8xx.h>
 #elif defined(CONFIG_8260)
 #include <asm/mpc8260.h>
-#elif defined(CONFIG_83xx)
-#include <asm/mpc83xx.h>
-#elif defined(CONFIG_85xx)
-#include <asm/mpc85xx.h>
-#elif defined(CONFIG_APUS)
+#elif defined(CONFIG_APUS) || !defined(CONFIG_PCI)
 #define _IO_BASE	0
 #define _ISA_MEM_BASE	0
 #define PCI_DRAM_OFFSET 0
