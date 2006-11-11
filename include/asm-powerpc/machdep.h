@@ -199,10 +199,6 @@ struct machdep_calls {
 	 * Returns 0 to allow assignment/enabling of the device. */
 	int  (*pcibios_enable_device_hook)(struct pci_dev *, int initial);
 
-	/* For interrupt routing */
-	unsigned char (*pci_swizzle)(struct pci_dev *, unsigned char *);
-	int (*pci_map_irq)(struct pci_dev *, unsigned char, unsigned char);
-
 	/* Called in indirect_* to avoid touching devices */
 	int (*pci_exclude_device)(unsigned char, unsigned char);
 

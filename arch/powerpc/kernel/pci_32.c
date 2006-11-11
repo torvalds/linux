@@ -1283,10 +1283,6 @@ pcibios_init(void)
 	if (pci_assign_all_buses && have_of)
 		pcibios_make_OF_bus_map();
 
-	/* Do machine dependent PCI interrupt routing */
-	if (ppc_md.pci_swizzle && ppc_md.pci_map_irq)
-		pci_fixup_irqs(ppc_md.pci_swizzle, ppc_md.pci_map_irq);
-
 	/* Call machine dependent fixup */
 	if (ppc_md.pcibios_fixup)
 		ppc_md.pcibios_fixup();
@@ -1308,25 +1304,6 @@ pcibios_init(void)
 }
 
 subsys_initcall(pcibios_init);
-
-unsigned char __init
-common_swizzle(struct pci_dev *dev, unsigned char *pinp)
-{
-	struct pci_controller *hose = dev->sysdata;
-
-	if (dev->bus->number != hose->first_busno) {
-		u8 pin = *pinp;
-		do {
-			pin = bridge_swizzle(pin, PCI_SLOT(dev->devfn));
-			/* Move up the chain of bridges. */
-			dev = dev->bus->self;
-		} while (dev->bus->self);
-		*pinp = pin;
-
-		/* The slot is the idsel of the last bridge. */
-	}
-	return PCI_SLOT(dev->devfn);
-}
 
 unsigned long resource_fixup(struct pci_dev * dev, struct resource * res,
 			     unsigned long start, unsigned long size)
