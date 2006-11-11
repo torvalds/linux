@@ -2741,42 +2741,39 @@ xfs_iunpin(
 {
 	ASSERT(atomic_read(&ip->i_pincount) > 0);
 
-	if (atomic_dec_and_test(&ip->i_pincount)) {
-		/*
-		 * If the inode is currently being reclaimed, the
-		 * linux inode _and_ the xfs vnode may have been
-		 * freed so we cannot reference either of them safely.
-		 * Hence we should not try to do anything to them
-		 * if the xfs inode is currently in the reclaim
-		 * path.
-		 *
-		 * However, we still need to issue the unpin wakeup
-		 * call as the inode reclaim may be blocked waiting for
-		 * the inode to become unpinned.
-		 */
-		struct inode *inode = NULL;
+	if (atomic_dec_and_lock(&ip->i_pincount, &ip->i_flags_lock)) {
 
-		spin_lock(&ip->i_flags_lock);
+		/*
+		 * If the inode is currently being reclaimed, the link between
+		 * the bhv_vnode and the xfs_inode will be broken after the
+		 * XFS_IRECLAIM* flag is set. Hence, if these flags are not
+		 * set, then we can move forward and mark the linux inode dirty
+		 * knowing that it is still valid as it won't freed until after
+		 * the bhv_vnode<->xfs_inode link is broken in xfs_reclaim. The
+		 * i_flags_lock is used to synchronise the setting of the
+		 * XFS_IRECLAIM* flags and the breaking of the link, and so we
+		 * can execute atomically w.r.t to reclaim by holding this lock
+		 * here.
+		 *
+		 * However, we still need to issue the unpin wakeup call as the
+		 * inode reclaim may be blocked waiting for the inode to become
+		 * unpinned.
+		 */
+
 		if (!__xfs_iflags_test(ip, XFS_IRECLAIM|XFS_IRECLAIMABLE)) {
 			bhv_vnode_t	*vp = XFS_ITOV_NULL(ip);
+			struct inode *inode = NULL;
+
+			BUG_ON(vp == NULL);
+			inode = vn_to_inode(vp);
+			BUG_ON(inode->i_state & I_CLEAR);
 
 			/* make sync come back and flush this inode */
-			if (vp) {
-				inode = vn_to_inode(vp);
-
-				if (!(inode->i_state &
-						(I_NEW|I_FREEING|I_CLEAR))) {
-					inode = igrab(inode);
-					if (inode)
-						mark_inode_dirty_sync(inode);
-				} else
-					inode = NULL;
-			}
+			if (!(inode->i_state & (I_NEW|I_FREEING)))
+				mark_inode_dirty_sync(inode);
 		}
 		spin_unlock(&ip->i_flags_lock);
 		wake_up(&ip->i_ipin_wait);
-		if (inode)
-			iput(inode);
 	}
 }
 

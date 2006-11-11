@@ -237,6 +237,36 @@ again:
 
 					goto again;
 				}
+				ASSERT(xfs_iflags_test(ip, XFS_IRECLAIMABLE));
+
+				/*
+				 * If lookup is racing with unlink, then we
+				 * should return an error immediately so we
+				 * don't remove it from the reclaim list and
+				 * potentially leak the inode.
+				 */
+				if ((ip->i_d.di_mode == 0) &&
+				    !(flags & XFS_IGET_CREATE)) {
+					read_unlock(&ih->ih_lock);
+					return ENOENT;
+				}
+
+				/*
+				 * There may be transactions sitting in the
+				 * incore log buffers or being flushed to disk
+				 * at this time.  We can't clear the
+				 * XFS_IRECLAIMABLE flag until these
+				 * transactions have hit the disk, otherwise we
+				 * will void the guarantee the flag provides
+				 * xfs_iunpin()
+				 */
+				if (xfs_ipincount(ip)) {
+					read_unlock(&ih->ih_lock);
+					xfs_log_force(mp, 0,
+						XFS_LOG_FORCE|XFS_LOG_SYNC);
+					XFS_STATS_INC(xs_ig_frecycle);
+					goto again;
+				}
 
 				vn_trace_exit(vp, "xfs_iget.alloc",
 					(inst_t *)__return_address);
