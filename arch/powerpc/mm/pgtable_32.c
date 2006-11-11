@@ -141,28 +141,11 @@ void pte_free(struct page *ptepage)
 	__free_page(ptepage);
 }
 
-#ifndef CONFIG_PHYS_64BIT
 void __iomem *
 ioremap(phys_addr_t addr, unsigned long size)
 {
 	return __ioremap(addr, size, _PAGE_NO_CACHE);
 }
-#else /* CONFIG_PHYS_64BIT */
-void __iomem *
-ioremap64(unsigned long long addr, unsigned long size)
-{
-	return __ioremap(addr, size, _PAGE_NO_CACHE);
-}
-EXPORT_SYMBOL(ioremap64);
-
-void __iomem *
-ioremap(phys_addr_t addr, unsigned long size)
-{
-	phys_addr_t addr64 = fixup_bigphys_addr(addr, size);
-
-	return ioremap64(addr64, size);
-}
-#endif /* CONFIG_PHYS_64BIT */
 EXPORT_SYMBOL(ioremap);
 
 void __iomem *
