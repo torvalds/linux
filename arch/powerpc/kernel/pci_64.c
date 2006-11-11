@@ -967,11 +967,7 @@ void __devinit pci_process_bridge_OF_ranges(struct pci_controller *hose,
 		res = NULL;
 		pci_space = ranges[0];
 		pci_addr = ((unsigned long)ranges[1] << 32) | ranges[2];
-
-		cpu_phys_addr = ranges[3];
-		if (na >= 2)
-			cpu_phys_addr = (cpu_phys_addr << 32) | ranges[4];
-
+		cpu_phys_addr = of_translate_address(dev, &ranges[3]);
 		size = ((unsigned long)ranges[na+3] << 32) | ranges[na+4];
 		ranges += np;
 		if (size == 0)
