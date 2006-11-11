@@ -1457,6 +1457,10 @@ int ata_dev_configure(struct ata_device *dev)
 			if (ata_id_has_lba48(id)) {
 				dev->flags |= ATA_DFLAG_LBA48;
 				lba_desc = "LBA48";
+
+				if (dev->n_sectors >= (1UL << 28) &&
+				    ata_id_has_flush_ext(id))
+					dev->flags |= ATA_DFLAG_FLUSH_EXT;
 			}
 
 			/* config NCQ */
@@ -5128,7 +5132,7 @@ int ata_flush_cache(struct ata_device *dev)
 	if (!ata_try_flush_cache(dev))
 		return 0;
 
-	if (ata_id_has_flush_ext(dev->id))
+	if (dev->flags & ATA_DFLAG_FLUSH_EXT)
 		cmd = ATA_CMD_FLUSH_EXT;
 	else
 		cmd = ATA_CMD_FLUSH;
