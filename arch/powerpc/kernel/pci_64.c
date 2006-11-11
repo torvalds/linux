@@ -1137,7 +1137,7 @@ int unmap_bus_range(struct pci_bus *bus)
 	
 	if (get_bus_io_range(bus, &start_phys, &start_virt, &size))
 		return 1;
-	if (iounmap_explicit((void __iomem *) start_virt, size))
+	if (__iounmap_explicit((void __iomem *) start_virt, size))
 		return 1;
 
 	return 0;

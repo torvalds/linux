@@ -599,3 +599,10 @@ void __init setup_per_cpu_areas(void)
 	}
 }
 #endif
+
+
+#ifdef CONFIG_PPC_INDIRECT_IO
+struct ppc_pci_io ppc_pci_io;
+EXPORT_SYMBOL(ppc_pci_io);
+#endif /* CONFIG_PPC_INDIRECT_IO */
+

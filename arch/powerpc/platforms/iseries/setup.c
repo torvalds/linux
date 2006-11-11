@@ -617,6 +617,16 @@ static void iseries_dedicated_idle(void)
 void __init iSeries_init_IRQ(void) { }
 #endif
 
+static void __iomem *iseries_ioremap(unsigned long address, unsigned long size,
+				     unsigned long flags)
+{
+	return (void __iomem *)address;
+}
+
+static void iseries_iounmap(void __iomem *token)
+{
+}
+
 /*
  * iSeries has no legacy IO, anything calling this function has to
  * fail or bad things will happen
@@ -655,6 +665,8 @@ define_machine(iseries) {
 	.progress	= iSeries_progress,
 	.probe		= iseries_probe,
 	.check_legacy_ioport	= iseries_check_legacy_ioport,
+	.ioremap	= iseries_ioremap,
+	.iounmap	= iseries_iounmap,
 	/* XXX Implement enable_pmcs for iSeries */
 };
 

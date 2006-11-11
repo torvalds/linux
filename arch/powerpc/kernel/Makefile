@@ -62,7 +62,7 @@ obj-$(CONFIG_PPC_UDBG_16550)	+= legacy_serial.o udbg_16550.o
 module-$(CONFIG_PPC64)		+= module_64.o
 obj-$(CONFIG_MODULES)		+= $(module-y)
 
-pci64-$(CONFIG_PPC64)		+= pci_64.o pci_dn.o iomap.o
+pci64-$(CONFIG_PPC64)		+= pci_64.o pci_dn.o
 pci32-$(CONFIG_PPC32)		:= pci_32.o
 obj-$(CONFIG_PCI)		+= $(pci64-y) $(pci32-y)
 kexec-$(CONFIG_PPC64)		:= machine_kexec_64.o
@@ -70,6 +70,10 @@ kexec-$(CONFIG_PPC32)		:= machine_kexec_32.o
 obj-$(CONFIG_KEXEC)		+= machine_kexec.o crash.o $(kexec-y)
 obj-$(CONFIG_AUDIT)		+= audit.o
 obj64-$(CONFIG_AUDIT)		+= compat_audit.o
+
+ifneq ($(CONFIG_PPC_INDIRECT_IO),y)
+pci64-$(CONFIG_PPC64)		+= iomap.o
+endif
 
 ifeq ($(CONFIG_PPC_ISERIES),y)
 $(obj)/head_64.o: $(obj)/lparmap.s

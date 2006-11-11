@@ -394,6 +394,7 @@ config PPC_PSERIES
 config PPC_ISERIES
 	bool "IBM Legacy iSeries"
 	depends on PPC_MULTIPLATFORM && PPC64
+	select PPC_INDIRECT_IO
 
 config PPC_CHRP
 	bool "Common Hardware Reference Platform (CHRP) based machines"
@@ -545,6 +546,15 @@ config PPC_MPC106
 	default n
 
 config PPC_970_NAP
+	bool
+	default n
+
+config PPC_INDIRECT_IO
+	bool
+	select GENERIC_IOMAP
+	default n
+
+config GENERIC_IOMAP
 	bool
 	default n
 
