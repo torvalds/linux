@@ -1022,25 +1022,29 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 	struct omap_mmc_conf *minfo = pdev->dev.platform_data;
 	struct mmc_host *mmc;
 	struct mmc_omap_host *host = NULL;
-	struct resource *r;
+	struct resource *res;
 	int ret = 0;
 	int irq;
-	
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
+	if (minfo == NULL) {
+		dev_err(&pdev->dev, "platform data missing\n");
+		return -ENXIO;
+	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	if (!r || irq < 0)
+	if (res == NULL || irq < 0)
 		return -ENXIO;
 
-	r = request_mem_region(pdev->resource[0].start,
-				pdev->resource[0].end - pdev->resource[0].start + 1,
-			       pdev->name);
-	if (!r)
+	res = request_mem_region(res->start, res->end - res->start + 1,
+			         pdev->name);
+	if (res == NULL)
 		return -EBUSY;
 
 	mmc = mmc_alloc_host(sizeof(struct mmc_omap_host), &pdev->dev);
-	if (!mmc) {
+	if (mmc == NULL) {
 		ret = -ENOMEM;
-		goto out;
+		goto err_free_mem_region;
 	}
 
 	host = mmc_priv(mmc);
@@ -1052,13 +1056,13 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 	host->dma_timer.data = (unsigned long) host;
 
 	host->id = pdev->id;
-	host->mem_res = r;
+	host->mem_res = res;
 	host->irq = irq;
 
 	if (cpu_is_omap24xx()) {
 		host->iclk = clk_get(&pdev->dev, "mmc_ick");
 		if (IS_ERR(host->iclk))
-			goto out;
+			goto err_free_mmc_host;
 		clk_enable(host->iclk);
 	}
 
@@ -1069,7 +1073,7 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 
 	if (IS_ERR(host->fclk)) {
 		ret = PTR_ERR(host->fclk);
-		goto out;
+		goto err_free_iclk;
 	}
 
 	/* REVISIT:
@@ -1082,7 +1086,7 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 	host->use_dma = 1;
 	host->dma_ch = -1;
 
-	host->irq = pdev->resource[1].start;
+	host->irq = irq;
 	host->phys_base = host->mem_res->start;
 	host->virt_base = (void __iomem *) IO_ADDRESS(host->phys_base);
 
@@ -1108,19 +1112,17 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 		if ((ret = omap_request_gpio(host->power_pin)) != 0) {
 			dev_err(mmc_dev(host->mmc),
 				"Unable to get GPIO pin for MMC power\n");
-			goto out;
+			goto err_free_fclk;
 		}
 		omap_set_gpio_direction(host->power_pin, 0);
 	}
 
 	ret = request_irq(host->irq, mmc_omap_irq, 0, DRIVER_NAME, host);
 	if (ret)
-		goto out;
+		goto err_free_power_gpio;
 
 	host->dev = &pdev->dev;
 	platform_set_drvdata(pdev, host);
-
-	mmc_add_host(mmc);
 
 	if (host->switch_pin >= 0) {
 		INIT_WORK(&host->switch_work, mmc_omap_switch_handler, host);
@@ -1159,10 +1161,11 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 			schedule_work(&host->switch_work);
 	}
 
-no_switch:
+	mmc_add_host(mmc);
+
 	return 0;
 
-out:
+no_switch:
 	/* FIXME: Free other resources too. */
 	if (host) {
 		if (host->iclk && !IS_ERR(host->iclk))
@@ -1171,6 +1174,20 @@ out:
 			clk_put(host->fclk);
 		mmc_free_host(host->mmc);
 	}
+err_free_power_gpio:
+	if (host->power_pin >= 0)
+		omap_free_gpio(host->power_pin);
+err_free_fclk:
+	clk_put(host->fclk);
+err_free_iclk:
+	if (host->iclk != NULL) {
+		clk_disable(host->iclk);
+		clk_put(host->iclk);
+	}
+err_free_mmc_host:
+	mmc_free_host(host->mmc);
+err_free_mem_region:
+	release_mem_region(res->start, res->end - res->start + 1);
 	return ret;
 }
 
@@ -1180,30 +1197,31 @@ static int mmc_omap_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 
-	if (host) {
-		mmc_remove_host(host->mmc);
-		free_irq(host->irq, host);
+	BUG_ON(host == NULL);
 
-		if (host->power_pin >= 0)
-			omap_free_gpio(host->power_pin);
-		if (host->switch_pin >= 0) {
-			device_remove_file(&pdev->dev, &dev_attr_enable_poll);
-			device_remove_file(&pdev->dev, &dev_attr_cover_switch);
-			free_irq(OMAP_GPIO_IRQ(host->switch_pin), host);
-			omap_free_gpio(host->switch_pin);
-			host->switch_pin = -1;
-			del_timer_sync(&host->switch_timer);
-			flush_scheduled_work();
-		}
-		if (host->iclk && !IS_ERR(host->iclk))
-			clk_put(host->iclk);
-		if (host->fclk && !IS_ERR(host->fclk))
-			clk_put(host->fclk);
-		mmc_free_host(host->mmc);
+	mmc_remove_host(host->mmc);
+	free_irq(host->irq, host);
+
+	if (host->power_pin >= 0)
+		omap_free_gpio(host->power_pin);
+	if (host->switch_pin >= 0) {
+		device_remove_file(&pdev->dev, &dev_attr_enable_poll);
+		device_remove_file(&pdev->dev, &dev_attr_cover_switch);
+		free_irq(OMAP_GPIO_IRQ(host->switch_pin), host);
+		omap_free_gpio(host->switch_pin);
+		host->switch_pin = -1;
+		del_timer_sync(&host->switch_timer);
+		flush_scheduled_work();
 	}
+	if (host->iclk && !IS_ERR(host->iclk))
+		clk_put(host->iclk);
+	if (host->fclk && !IS_ERR(host->fclk))
+		clk_put(host->fclk);
 
 	release_mem_region(pdev->resource[0].start,
-			pdev->resource[0].end - pdev->resource[0].start + 1);
+			   pdev->resource[0].end - pdev->resource[0].start + 1);
+
+	mmc_free_host(host->mmc);
 
 	return 0;
 }
