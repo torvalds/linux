@@ -223,14 +223,14 @@ void __init plat_timer_setup(struct irqaction *irq)
 	setup_irq(irqno, &rt_irqaction);
 }
 
-static unsigned int ip27_hpt_read(void)
+static cycle_t ip27_hpt_read(void)
 {
 	return REMOTE_HUB_L(cputonasid(0), PI_RT_COUNT);
 }
 
 void __init ip27_time_init(void)
 {
-	mips_hpt_read = ip27_hpt_read;
+	clocksource_mips.read = ip27_hpt_read;
 	mips_hpt_frequency = CYCLES_PER_SEC;
 	xtime.tv_sec = get_m48t35_time();
 	xtime.tv_nsec = 0;
