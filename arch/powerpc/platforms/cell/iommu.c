@@ -255,9 +255,6 @@ static void enable_mapping(void __iomem *base, void __iomem *mmio_base)
 	set_iost_origin(mmio_base);
 }
 
-static void iommu_dev_setup_null(struct pci_dev *d) { }
-static void iommu_bus_setup_null(struct pci_bus *b) { }
-
 struct cell_iommu {
 	unsigned long base;
 	unsigned long mmio_base;
@@ -306,12 +303,15 @@ static void cell_do_map_iommu(struct cell_iommu *iommu,
 	}
 }
 
-static void iommu_devnode_setup(struct device_node *d)
+static void pci_dma_cell_bus_setup(struct pci_bus *b)
 {
 	const unsigned int *ioid;
 	unsigned long map_start, map_size, token;
 	const unsigned long *dma_window;
 	struct cell_iommu *iommu;
+	struct device_node *d;
+
+	d = pci_bus_to_OF_node(b);
 
 	ioid = get_property(d, "ioid", NULL);
 	if (!ioid)
@@ -328,12 +328,6 @@ static void iommu_devnode_setup(struct device_node *d)
 	iommu = &cell_iommus[token];
 
 	cell_do_map_iommu(iommu, *ioid, map_start, map_size);
-}
-
-static void iommu_bus_setup(struct pci_bus *b)
-{
-	struct device_node *d = (struct device_node *)b->sysdata;
-	iommu_devnode_setup(d);
 }
 
 
@@ -499,16 +493,13 @@ void cell_init_iommu(void)
 
 		if (setup_bus) {
 			pr_debug("%s: IOMMU mapping activated\n", __FUNCTION__);
-			ppc_md.iommu_dev_setup = iommu_dev_setup_null;
-			ppc_md.iommu_bus_setup = iommu_bus_setup;
+			ppc_md.pci_dma_bus_setup = pci_dma_cell_bus_setup;
 		} else {
 			pr_debug("%s: IOMMU mapping activated, "
 				 "no device action necessary\n", __FUNCTION__);
 			/* Direct I/O, IOMMU off */
-			ppc_md.iommu_dev_setup = iommu_dev_setup_null;
-			ppc_md.iommu_bus_setup = iommu_bus_setup_null;
 		}
 	}
 
-	pci_dma_ops = cell_iommu_ops;
+	pci_dma_ops = &cell_iommu_ops;
 }

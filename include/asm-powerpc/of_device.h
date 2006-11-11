@@ -14,7 +14,7 @@
  */
 struct of_device
 {
-	struct device_node	*node;		/* OF device node */
+	struct device_node	*node;		/* to be obsoleted */
 	u64			dma_mask;	/* DMA mask */
 	struct device		dev;		/* Generic device interface */
 };

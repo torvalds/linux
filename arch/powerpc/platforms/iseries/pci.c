@@ -253,7 +253,7 @@ void __init iSeries_pci_final_fixup(void)
 			PCI_DN(node)->pcidev = pdev;
 			allocate_device_bars(pdev);
 			iSeries_Device_Information(pdev, DeviceCount);
-			iommu_devnode_init_iSeries(node);
+			iommu_devnode_init_iSeries(pdev, node);
 		} else
 			printk("PCI: Device Tree not found for 0x%016lX\n",
 					(unsigned long)pdev);

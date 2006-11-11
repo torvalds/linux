@@ -112,7 +112,7 @@ static int ibmebus_dma_supported(struct device *dev, u64 mask)
 	return 1;
 }
 
-struct dma_mapping_ops ibmebus_dma_ops = {
+static struct dma_mapping_ops ibmebus_dma_ops = {
 	.alloc_coherent = ibmebus_alloc_coherent,
 	.free_coherent  = ibmebus_free_coherent,
 	.map_single     = ibmebus_map_single,
@@ -175,6 +175,10 @@ static struct ibmebus_dev* __devinit ibmebus_register_device_common(
 	dev->ofdev.dev.parent  = &ibmebus_bus_device.ofdev.dev;
 	dev->ofdev.dev.bus     = &ibmebus_bus_type;
 	dev->ofdev.dev.release = ibmebus_dev_release;
+
+	dev->ofdev.dev.archdata.of_node = dev->ofdev.node;
+	dev->ofdev.dev.archdata.dma_ops = &ibmebus_dma_ops;
+	dev->ofdev.dev.archdata.numa_node = of_node_to_nid(dev->ofdev.node);
 
 	/* An ibmebusdev is based on a of_device. We have to change the
 	 * bus type to use our own DMA mapping operations. 

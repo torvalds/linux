@@ -22,7 +22,7 @@
 #include <asm/dcr.h>
 #include <asm/of_device.h>
 #include <asm/of_platform.h>
-
+#include <asm/topology.h>
 
 /*
  * The list of OF IDs below is used for matching bus types in the
@@ -221,6 +221,13 @@ struct of_device* of_platform_device_create(struct device_node *np,
 	dev->dev.parent = parent;
 	dev->dev.bus = &of_platform_bus_type;
 	dev->dev.release = of_release_dev;
+	dev->dev.archdata.of_node = np;
+	dev->dev.archdata.numa_node = of_node_to_nid(np);
+
+	/* We do not fill the DMA ops for platform devices by default.
+	 * This is currently the responsibility of the platform code
+	 * to do such, possibly using a device notifier
+	 */
 
 	if (bus_id)
 		strlcpy(dev->dev.bus_id, bus_id, BUS_ID_SIZE);

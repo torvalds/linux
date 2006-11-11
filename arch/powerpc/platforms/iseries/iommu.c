@@ -27,6 +27,7 @@
 #include <linux/types.h>
 #include <linux/dma-mapping.h>
 #include <linux/list.h>
+#include <linux/pci.h>
 
 #include <asm/iommu.h>
 #include <asm/tce.h>
@@ -168,7 +169,7 @@ static struct iommu_table *iommu_table_find(struct iommu_table * tbl)
 }
 
 
-void iommu_devnode_init_iSeries(struct device_node *dn)
+void iommu_devnode_init_iSeries(struct pci_dev *pdev, struct device_node *dn)
 {
 	struct iommu_table *tbl;
 	struct pci_dn *pdn = PCI_DN(dn);
@@ -186,19 +187,14 @@ void iommu_devnode_init_iSeries(struct device_node *dn)
 		pdn->iommu_table = iommu_init_table(tbl, -1);
 	else
 		kfree(tbl);
+	pdev->dev.archdata.dma_data = pdn->iommu_table;
 }
 #endif
-
-static void iommu_dev_setup_iSeries(struct pci_dev *dev) { }
-static void iommu_bus_setup_iSeries(struct pci_bus *bus) { }
 
 void iommu_init_early_iSeries(void)
 {
 	ppc_md.tce_build = tce_build_iSeries;
 	ppc_md.tce_free  = tce_free_iSeries;
 
-	ppc_md.iommu_dev_setup = iommu_dev_setup_iSeries;
-	ppc_md.iommu_bus_setup = iommu_bus_setup_iSeries;
-
-	pci_iommu_init();
+	pci_dma_ops = &dma_iommu_ops;
 }

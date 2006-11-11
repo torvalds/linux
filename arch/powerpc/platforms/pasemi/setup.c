@@ -26,6 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/console.h>
+#include <linux/pci.h>
 
 #include <asm/prom.h>
 #include <asm/system.h>
@@ -71,6 +72,9 @@ void __init pas_setup_arch(void)
 	/* Setup SMP callback */
 	smp_ops = &pas_smp_ops;
 #endif
+	/* no iommu yet */
+	pci_dma_ops = &dma_direct_ops;
+
 	/* Lookup PCI hosts */
 	pas_pci_init();
 
@@ -79,17 +83,6 @@ void __init pas_setup_arch(void)
 #endif
 
 	printk(KERN_DEBUG "Using default idle loop\n");
-}
-
-static void iommu_dev_setup_null(struct pci_dev *dev) { }
-static void iommu_bus_setup_null(struct pci_bus *bus) { }
-
-static void __init pas_init_early(void)
-{
-	/* No iommu code yet */
-	ppc_md.iommu_dev_setup = iommu_dev_setup_null;
-	ppc_md.iommu_bus_setup = iommu_bus_setup_null;
-	pci_direct_iommu_init();
 }
 
 /* No legacy IO on our parts */
@@ -173,7 +166,6 @@ define_machine(pas) {
 	.name			= "PA Semi PA6T-1682M",
 	.probe			= pas_probe,
 	.setup_arch		= pas_setup_arch,
-	.init_early		= pas_init_early,
 	.init_IRQ		= pas_init_IRQ,
 	.get_irq		= mpic_get_irq,
 	.restart		= pas_restart,

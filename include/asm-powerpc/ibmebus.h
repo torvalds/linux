@@ -44,7 +44,6 @@
 #include <linux/mod_devicetable.h>
 #include <asm/of_device.h>
 
-extern struct dma_mapping_ops ibmebus_dma_ops;
 extern struct bus_type ibmebus_bus_type;
 
 struct ibmebus_dev {	
