@@ -41,8 +41,8 @@
 #define	OMAP_MMC_STAT_CARD_BUSY		(1 <<  2)
 #define	OMAP_MMC_STAT_END_OF_CMD	(1 <<  0)
 
-#define OMAP_MMC_READ(base, reg)	__raw_readw((base) + OMAP_MMC_REG_##reg)
-#define OMAP_MMC_WRITE(base, reg, val)	__raw_writew((val), (base) + OMAP_MMC_REG_##reg)
+#define OMAP_MMC_READ(host, reg)	__raw_readw((host)->virt_base + OMAP_MMC_REG_##reg)
+#define OMAP_MMC_WRITE(host, reg, val)	__raw_writew((val), (host)->virt_base + OMAP_MMC_REG_##reg)
 
 /*
  * Command types

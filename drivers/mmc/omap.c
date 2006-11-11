@@ -192,16 +192,16 @@ mmc_omap_start_command(struct mmc_omap_host *host, struct mmc_command *cmd)
 
 	clk_enable(host->fclk);
 
-	OMAP_MMC_WRITE(host->base, CTO, 200);
-	OMAP_MMC_WRITE(host->base, ARGL, cmd->arg & 0xffff);
-	OMAP_MMC_WRITE(host->base, ARGH, cmd->arg >> 16);
-	OMAP_MMC_WRITE(host->base, IE,
+	OMAP_MMC_WRITE(host, CTO, 200);
+	OMAP_MMC_WRITE(host, ARGL, cmd->arg & 0xffff);
+	OMAP_MMC_WRITE(host, ARGH, cmd->arg >> 16);
+	OMAP_MMC_WRITE(host, IE,
 		       OMAP_MMC_STAT_A_EMPTY    | OMAP_MMC_STAT_A_FULL    |
 		       OMAP_MMC_STAT_CMD_CRC    | OMAP_MMC_STAT_CMD_TOUT  |
 		       OMAP_MMC_STAT_DATA_CRC   | OMAP_MMC_STAT_DATA_TOUT |
 		       OMAP_MMC_STAT_END_OF_CMD | OMAP_MMC_STAT_CARD_ERR  |
 		       OMAP_MMC_STAT_END_OF_DATA);
-	OMAP_MMC_WRITE(host->base, CMD, cmdreg);
+	OMAP_MMC_WRITE(host, CMD, cmdreg);
 }
 
 static void
@@ -297,22 +297,22 @@ mmc_omap_cmd_done(struct mmc_omap_host *host, struct mmc_command *cmd)
 		if (cmd->flags & MMC_RSP_136) {
 			/* response type 2 */
 			cmd->resp[3] =
-				OMAP_MMC_READ(host->base, RSP0) |
-				(OMAP_MMC_READ(host->base, RSP1) << 16);
+				OMAP_MMC_READ(host, RSP0) |
+				(OMAP_MMC_READ(host, RSP1) << 16);
 			cmd->resp[2] =
-				OMAP_MMC_READ(host->base, RSP2) |
-				(OMAP_MMC_READ(host->base, RSP3) << 16);
+				OMAP_MMC_READ(host, RSP2) |
+				(OMAP_MMC_READ(host, RSP3) << 16);
 			cmd->resp[1] =
-				OMAP_MMC_READ(host->base, RSP4) |
-				(OMAP_MMC_READ(host->base, RSP5) << 16);
+				OMAP_MMC_READ(host, RSP4) |
+				(OMAP_MMC_READ(host, RSP5) << 16);
 			cmd->resp[0] =
-				OMAP_MMC_READ(host->base, RSP6) |
-				(OMAP_MMC_READ(host->base, RSP7) << 16);
+				OMAP_MMC_READ(host, RSP6) |
+				(OMAP_MMC_READ(host, RSP7) << 16);
 		} else {
 			/* response types 1, 1b, 3, 4, 5, 6 */
 			cmd->resp[0] =
-				OMAP_MMC_READ(host->base, RSP6) |
-				(OMAP_MMC_READ(host->base, RSP7) << 16);
+				OMAP_MMC_READ(host, RSP6) |
+				(OMAP_MMC_READ(host, RSP7) << 16);
 		}
 	}
 
@@ -387,11 +387,11 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 	int transfer_error;
 
 	if (host->cmd == NULL && host->data == NULL) {
-		status = OMAP_MMC_READ(host->base, STAT);
+		status = OMAP_MMC_READ(host, STAT);
 		dev_info(mmc_dev(host->mmc),"spurious irq 0x%04x\n", status);
 		if (status != 0) {
-			OMAP_MMC_WRITE(host->base, STAT, status);
-			OMAP_MMC_WRITE(host->base, IE, 0);
+			OMAP_MMC_WRITE(host, STAT, status);
+			OMAP_MMC_WRITE(host, IE, 0);
 		}
 		return IRQ_HANDLED;
 	}
@@ -400,8 +400,8 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 	end_transfer = 0;
 	transfer_error = 0;
 
-	while ((status = OMAP_MMC_READ(host->base, STAT)) != 0) {
-		OMAP_MMC_WRITE(host->base, STAT, status);
+	while ((status = OMAP_MMC_READ(host, STAT)) != 0) {
+		OMAP_MMC_WRITE(host, STAT, status);
 #ifdef CONFIG_MMC_DEBUG
 		dev_dbg(mmc_dev(host->mmc), "MMC IRQ %04x (CMD %d): ",
 			status, host->cmd != NULL ? host->cmd->opcode : -1);
@@ -471,8 +471,8 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 
 		if (status & OMAP_MMC_STAT_CARD_ERR) {
 			if (host->cmd && host->cmd->opcode == MMC_STOP_TRANSMISSION) {
-				u32 response = OMAP_MMC_READ(host->base, RSP6)
-					| (OMAP_MMC_READ(host->base, RSP7) << 16);
+				u32 response = OMAP_MMC_READ(host, RSP6)
+					| (OMAP_MMC_READ(host, RSP7) << 16);
 				/* STOP sometimes sets must-ignore bits */
 				if (!(response & (R1_CC_ERROR
 								| R1_ILLEGAL_COMMAND
@@ -644,7 +644,7 @@ mmc_omap_prepare_dma(struct mmc_omap_host *host, struct mmc_data *data)
 	if (unlikely(count > 0xffff))
 		BUG();
 
-	OMAP_MMC_WRITE(host->base, BUF, buf);
+	OMAP_MMC_WRITE(host, BUF, buf);
 	omap_set_dma_transfer_params(dma_ch, OMAP_DMA_DATA_TYPE_S16,
 				     frame, count, OMAP_DMA_SYNC_FRAME,
 				     sync_dev, 0);
@@ -729,11 +729,11 @@ static inline void set_cmd_timeout(struct mmc_omap_host *host, struct mmc_reques
 {
 	u16 reg;
 
-	reg = OMAP_MMC_READ(host->base, SDIO);
+	reg = OMAP_MMC_READ(host, SDIO);
 	reg &= ~(1 << 5);
-	OMAP_MMC_WRITE(host->base, SDIO, reg);
+	OMAP_MMC_WRITE(host, SDIO, reg);
 	/* Set maximum timeout */
-	OMAP_MMC_WRITE(host->base, CTO, 0xff);
+	OMAP_MMC_WRITE(host, CTO, 0xff);
 }
 
 static inline void set_data_timeout(struct mmc_omap_host *host, struct mmc_request *req)
@@ -747,14 +747,14 @@ static inline void set_data_timeout(struct mmc_omap_host *host, struct mmc_reque
 	timeout = req->data->timeout_clks + req->data->timeout_ns / 500;
 
 	/* Check if we need to use timeout multiplier register */
-	reg = OMAP_MMC_READ(host->base, SDIO);
+	reg = OMAP_MMC_READ(host, SDIO);
 	if (timeout > 0xffff) {
 		reg |= (1 << 5);
 		timeout /= 1024;
 	} else
 		reg &= ~(1 << 5);
-	OMAP_MMC_WRITE(host->base, SDIO, reg);
-	OMAP_MMC_WRITE(host->base, DTO, timeout);
+	OMAP_MMC_WRITE(host, SDIO, reg);
+	OMAP_MMC_WRITE(host, DTO, timeout);
 }
 
 static void
@@ -766,9 +766,9 @@ mmc_omap_prepare_data(struct mmc_omap_host *host, struct mmc_request *req)
 
 	host->data = data;
 	if (data == NULL) {
-		OMAP_MMC_WRITE(host->base, BLEN, 0);
-		OMAP_MMC_WRITE(host->base, NBLK, 0);
-		OMAP_MMC_WRITE(host->base, BUF, 0);
+		OMAP_MMC_WRITE(host, BLEN, 0);
+		OMAP_MMC_WRITE(host, NBLK, 0);
+		OMAP_MMC_WRITE(host, BUF, 0);
 		host->dma_in_use = 0;
 		set_cmd_timeout(host, req);
 		return;
@@ -777,8 +777,8 @@ mmc_omap_prepare_data(struct mmc_omap_host *host, struct mmc_request *req)
 
 	block_size = data->blksz;
 
-	OMAP_MMC_WRITE(host->base, NBLK, data->blocks - 1);
-	OMAP_MMC_WRITE(host->base, BLEN, block_size - 1);
+	OMAP_MMC_WRITE(host, NBLK, data->blocks - 1);
+	OMAP_MMC_WRITE(host, BLEN, block_size - 1);
 	set_data_timeout(host, req);
 
 	/* cope with calling layer confusion; it issues "single
@@ -820,7 +820,7 @@ mmc_omap_prepare_data(struct mmc_omap_host *host, struct mmc_request *req)
 
 	/* Revert to PIO? */
 	if (!use_dma) {
-		OMAP_MMC_WRITE(host->base, BUF, 0x1f1f);
+		OMAP_MMC_WRITE(host, BUF, 0x1f1f);
 		host->total_bytes_left = data->blocks * block_size;
 		host->sg_len = sg_len;
 		mmc_omap_sg_to_buf(host);
@@ -872,8 +872,8 @@ static void mmc_omap_power(struct mmc_omap_host *host, int on)
 			/* GPIO 4 of TPS65010 sends SD_EN signal */
 			tps65010_set_gpio_out_value(GPIO4, HIGH);
 		else if (cpu_is_omap24xx()) {
-			u16 reg = OMAP_MMC_READ(host->base, CON);
-			OMAP_MMC_WRITE(host->base, CON, reg | (1 << 11));
+			u16 reg = OMAP_MMC_READ(host, CON);
+			OMAP_MMC_WRITE(host, CON, reg | (1 << 11));
 		} else
 			if (host->power_pin >= 0)
 				omap_set_gpio_dataout(host->power_pin, 1);
@@ -885,8 +885,8 @@ static void mmc_omap_power(struct mmc_omap_host *host, int on)
 		else if (machine_is_omap_h3())
 			tps65010_set_gpio_out_value(GPIO4, LOW);
 		else if (cpu_is_omap24xx()) {
-			u16 reg = OMAP_MMC_READ(host->base, CON);
-			OMAP_MMC_WRITE(host->base, CON, reg & ~(1 << 11));
+			u16 reg = OMAP_MMC_READ(host, CON);
+			OMAP_MMC_WRITE(host, CON, reg & ~(1 << 11));
 		} else
 			if (host->power_pin >= 0)
 				omap_set_gpio_dataout(host->power_pin, 0);
@@ -942,14 +942,14 @@ static void mmc_omap_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	 * which results in the while loop below getting stuck.
 	 * Writing to the CON register twice seems to do the trick. */
 	for (i = 0; i < 2; i++)
-		OMAP_MMC_WRITE(host->base, CON, dsor);
+		OMAP_MMC_WRITE(host, CON, dsor);
 	if (ios->power_mode == MMC_POWER_UP) {
 		/* Send clock cycles, poll completion */
-		OMAP_MMC_WRITE(host->base, IE, 0);
-		OMAP_MMC_WRITE(host->base, STAT, 0xffff);
-		OMAP_MMC_WRITE(host->base, CMD, 1<<7);
-		while (0 == (OMAP_MMC_READ(host->base, STAT) & 1));
-		OMAP_MMC_WRITE(host->base, STAT, 1);
+		OMAP_MMC_WRITE(host, IE, 0);
+		OMAP_MMC_WRITE(host, STAT, 0xffff);
+		OMAP_MMC_WRITE(host, CMD, 1<<7);
+		while (0 == (OMAP_MMC_READ(host, STAT) & 1));
+		OMAP_MMC_WRITE(host, STAT, 1);
 	}
 	clk_disable(host->fclk);
 }
