@@ -364,7 +364,7 @@ struct mpic
  * that is senses[0] correspond to linux irq "irq_offset".
  */
 extern struct mpic *mpic_alloc(struct device_node *node,
-			       unsigned long phys_addr,
+			       phys_addr_t phys_addr,
 			       unsigned int flags,
 			       unsigned int isu_size,
 			       unsigned int irq_count,
@@ -377,7 +377,7 @@ extern struct mpic *mpic_alloc(struct device_node *node,
  * @phys_addr:	physical address of the ISU
  */
 extern void mpic_assign_isu(struct mpic *mpic, unsigned int isu_num,
-			    unsigned long phys_addr);
+			    phys_addr_t phys_addr);
 
 /* Set default sense codes
  *
