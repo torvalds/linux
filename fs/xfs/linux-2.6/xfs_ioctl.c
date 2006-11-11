@@ -341,8 +341,11 @@ xfs_open_by_handle(
 		put_unused_fd(new_fd);
 		return -XFS_ERROR(-PTR_ERR(filp));
 	}
-	if (inode->i_mode & S_IFREG)
+	if (inode->i_mode & S_IFREG) {
+		/* invisible operation should not change atime */
+		filp->f_flags |= O_NOATIME;
 		filp->f_op = &xfs_invis_file_operations;
+	}
 
 	fd_install(new_fd, filp);
 	return new_fd;
