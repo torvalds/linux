@@ -120,14 +120,18 @@ unsigned long dma_direct_offset;
 static void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 				       dma_addr_t *dma_handle, gfp_t flag)
 {
+	struct page *page;
 	void *ret;
+	int node = dev->archdata.numa_node;
 
 	/* TODO: Maybe use the numa node here too ? */
-	ret = (void *)__get_free_pages(flag, get_order(size));
-	if (ret != NULL) {
-		memset(ret, 0, size);
-		*dma_handle = virt_to_abs(ret) | dma_direct_offset;
-	}
+	page = alloc_pages_node(node, flag, get_order(size));
+	if (page == NULL)
+		return NULL;
+	ret = page_address(page);
+	memset(ret, 0, size);
+	*dma_handle = virt_to_abs(ret) | dma_direct_offset;
+
 	return ret;
 }
 
