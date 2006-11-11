@@ -30,6 +30,7 @@
 #include <linux/console.h>
 #include <linux/mutex.h>
 #include <linux/memory_hotplug.h>
+#include <linux/notifier.h>
 
 #include <asm/mmu.h>
 #include <asm/processor.h>
@@ -82,10 +83,41 @@ static void cell_progress(char *s, unsigned short hex)
 	printk("*** %04x : %s\n", hex, s ? s : "");
 }
 
+static int cell_of_bus_notify(struct notifier_block *nb, unsigned long action,
+			      void *data)
+{
+	struct device *dev = data;
+
+	if (action != BUS_NOTIFY_ADD_DEVICE)
+		return 0;
+
+	/* For now, we just use the PCI DMA ops for everything, though
+	 * we'll need something better when we have a real iommu
+	 * implementation.
+	 */
+	dev->archdata.dma_ops = pci_dma_ops;
+
+	return 0;
+}
+
+static struct notifier_block cell_of_bus_notifier = {
+	.notifier_call = cell_of_bus_notify
+};
+
+
 static int __init cell_publish_devices(void)
 {
-	if (machine_is(cell))
-		of_platform_bus_probe(NULL, NULL, NULL);
+	if (!machine_is(cell))
+		return 0;
+
+	/* Register callbacks on OF platform device addition/removal
+	 * to handle linking them to the right DMA operations
+	 */
+	bus_register_notifier(&of_platform_bus_type, &cell_of_bus_notifier);
+
+	/* Publish OF platform devices for southbridge IOs */
+	of_platform_bus_probe(NULL, NULL, NULL);
+
 	return 0;
 }
 device_initcall(cell_publish_devices);
@@ -154,7 +186,6 @@ static void __init cell_setup_arch(void)
 #ifdef CONFIG_SMP
 	smp_init_cell();
 #endif
-
 	/* init to some ~sane value until calibrate_delay() runs */
 	loops_per_jiffy = 50000000;
 
