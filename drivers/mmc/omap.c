@@ -581,12 +581,6 @@ static void mmc_omap_switch_timer(unsigned long arg)
 	schedule_work(&host->switch_work);
 }
 
-/* FIXME: Handle card insertion and removal properly. Maybe use a mask
- * for MMC state? */
-static void mmc_omap_switch_callback(unsigned long data, u8 mmc_mask)
-{
-}
-
 static void mmc_omap_switch_handler(void *data)
 {
 	struct mmc_omap_host *host = (struct mmc_omap_host *) data;
@@ -824,7 +818,6 @@ mmc_omap_prepare_data(struct mmc_omap_host *host, struct mmc_request *req)
 		return;
 	}
 
-
 	block_size = data->blksz;
 
 	OMAP_MMC_WRITE(host, NBLK, data->blocks - 1);
@@ -896,7 +889,6 @@ static void mmc_omap_request(struct mmc_host *mmc, struct mmc_request *req)
 static void innovator_fpga_socket_power(int on)
 {
 #if defined(CONFIG_MACH_OMAP_INNOVATOR) && defined(CONFIG_ARCH_OMAP15XX)
-
 	if (on) {
 		fpga_write(fpga_read(OMAP1510_FPGA_POWER) | (1 << 3),
 		     OMAP1510_FPGA_POWER);
@@ -978,7 +970,7 @@ static void mmc_omap_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	case MMC_POWER_UP:
 	case MMC_POWER_ON:
 		mmc_omap_power(host, 1);
-		dsor |= 1<<11;
+		dsor |= 1 << 11;
 		break;
 	}
 
@@ -997,8 +989,8 @@ static void mmc_omap_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		/* Send clock cycles, poll completion */
 		OMAP_MMC_WRITE(host, IE, 0);
 		OMAP_MMC_WRITE(host, STAT, 0xffff);
-		OMAP_MMC_WRITE(host, CMD, 1<<7);
-		while (0 == (OMAP_MMC_READ(host, STAT) & 1));
+		OMAP_MMC_WRITE(host, CMD, 1 << 7);
+		while ((OMAP_MMC_READ(host, STAT) & 1) == 0);
 		OMAP_MMC_WRITE(host, STAT, 1);
 	}
 	clk_disable(host->fclk);
@@ -1093,7 +1085,7 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 	mmc->ops = &mmc_omap_ops;
 	mmc->f_min = 400000;
 	mmc->f_max = 24000000;
-	mmc->ocr_avail = MMC_VDD_32_33|MMC_VDD_33_34;
+	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
 	mmc->caps = MMC_CAP_MULTIWRITE | MMC_CAP_BYTEBLOCK;
 
 	if (minfo->wire4)
