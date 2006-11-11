@@ -683,6 +683,7 @@ xfs_ireclaim(xfs_inode_t *ip)
 	/*
 	 * Free all memory associated with the inode.
 	 */
+	xfs_iunlock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
 	xfs_idestroy(ip);
 }
 
