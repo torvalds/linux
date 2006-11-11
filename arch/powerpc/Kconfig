@@ -223,6 +223,11 @@ config PPC_DCR
 	depends on PPC_DCR_NATIVE || PPC_DCR_MMIO
 	default y
 
+config PPC_OF_PLATFORM_PCI
+	bool
+	depends on PPC64 # not supported on 32 bits yet
+	default n
+
 config BOOKE
 	bool
 	depends on E200 || E500
@@ -469,6 +474,7 @@ config PPC_CELL_NATIVE
 	bool
 	select PPC_CELL
 	select PPC_DCR_MMIO
+	select PPC_OF_PLATFORM_PCI
 	select MPIC
 	default n
 

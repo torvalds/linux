@@ -256,6 +256,7 @@ define_machine(cell) {
 	.check_legacy_ioport	= cell_check_legacy_ioport,
 	.progress		= cell_progress,
 	.init_IRQ       	= cell_init_irq,
+	.pci_setup_phb		= rtas_setup_phb,
 #ifdef CONFIG_KEXEC
 	.machine_kexec		= default_machine_kexec,
 	.machine_kexec_prepare	= default_machine_kexec_prepare,

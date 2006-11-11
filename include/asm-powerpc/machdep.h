@@ -26,6 +26,7 @@ struct device_node;
 struct iommu_table;
 struct rtc_time;
 struct file;
+struct pci_controller;
 #ifdef CONFIG_KEXEC
 struct kimage;
 #endif
@@ -106,6 +107,9 @@ struct machdep_calls {
 	void		(*pcibios_fixup)(void);
 	int		(*pci_probe_mode)(struct pci_bus *);
 	void		(*pci_irq_fixup)(struct pci_dev *dev);
+
+	/* To setup PHBs when using automatic OF platform driver for PCI */
+	int		(*pci_setup_phb)(struct pci_controller *host);
 
 	void		(*restart)(char *cmd);
 	void		(*power_off)(void);

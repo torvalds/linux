@@ -257,8 +257,10 @@ static int phb_set_bus_ranges(struct device_node *dev,
 	return 0;
 }
 
-int __devinit setup_phb(struct device_node *dev, struct pci_controller *phb)
+int __devinit rtas_setup_phb(struct pci_controller *phb)
 {
+	struct device_node *dev = phb->arch_data;
+
 	if (is_python(dev))
 		python_countermeasures(dev);
 
@@ -290,7 +292,7 @@ unsigned long __init find_and_init_phbs(void)
 		phb = pcibios_alloc_controller(node);
 		if (!phb)
 			continue;
-		setup_phb(node, phb);
+		rtas_setup_phb(phb);
 		pci_process_bridge_OF_ranges(phb, node, 0);
 		pci_setup_phb_io(phb, index == 0);
 		index++;
@@ -362,7 +364,6 @@ int pcibios_remove_root_bus(struct pci_controller *phb)
 		}
 	}
 
-	list_del(&phb->list_node);
 	pcibios_free_controller(phb);
 
 	return 0;

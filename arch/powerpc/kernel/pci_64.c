@@ -210,6 +210,10 @@ struct pci_controller * pcibios_alloc_controller(struct device_node *dev)
 
 void pcibios_free_controller(struct pci_controller *phb)
 {
+	spin_lock(&hose_spinlock);
+	list_del(&phb->list_node);
+	spin_unlock(&hose_spinlock);
+
 	if (phb->is_dynamic)
 		kfree(phb);
 }
@@ -1242,6 +1246,11 @@ static void __devinit do_bus_setup(struct pci_bus *bus)
 void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_dev *dev = bus->self;
+	struct device_node *np;
+
+	np = pci_bus_to_OF_node(bus);
+
+	DBG("pcibios_fixup_bus(%s)\n", np ? np->full_name : "<???>");
 
 	if (dev && pci_probe_only &&
 	    (dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {

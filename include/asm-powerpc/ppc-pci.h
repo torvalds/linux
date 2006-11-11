@@ -36,14 +36,14 @@ typedef void *(*traverse_func)(struct device_node *me, void *data);
 void *traverse_pci_devices(struct device_node *start, traverse_func pre,
 		void *data);
 
-void pci_devs_phb_init(void);
-void pci_devs_phb_init_dynamic(struct pci_controller *phb);
-int setup_phb(struct device_node *dev, struct pci_controller *phb);
-void __devinit scan_phb(struct pci_controller *hose);
+extern void pci_devs_phb_init(void);
+extern void pci_devs_phb_init_dynamic(struct pci_controller *phb);
+extern void scan_phb(struct pci_controller *hose);
 
 /* From rtas_pci.h */
-void init_pci_config_tokens (void);
-unsigned long get_phb_buid (struct device_node *);
+extern void init_pci_config_tokens (void);
+extern unsigned long get_phb_buid (struct device_node *);
+extern int rtas_setup_phb(struct pci_controller *phb);
 
 /* From pSeries_pci.h */
 extern void pSeries_final_fixup(void);

@@ -1,6 +1,7 @@
 /*
  *    Copyright (C) 2006 Benjamin Herrenschmidt, IBM Corp.
  *			 <benh@kernel.crashing.org>
+ *    and		 Arnd Bergmann, IBM Corp.
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -17,12 +18,15 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/slab.h>
+#include <linux/pci.h>
 
 #include <asm/errno.h>
 #include <asm/dcr.h>
 #include <asm/of_device.h>
 #include <asm/of_platform.h>
 #include <asm/topology.h>
+#include <asm/pci-bridge.h>
+#include <asm/ppc-pci.h>
 
 /*
  * The list of OF IDs below is used for matching bus types in the
@@ -377,3 +381,102 @@ struct of_device *of_find_device_by_phandle(phandle ph)
 	return NULL;
 }
 EXPORT_SYMBOL(of_find_device_by_phandle);
+
+
+#ifdef CONFIG_PPC_OF_PLATFORM_PCI
+
+/* The probing of PCI controllers from of_platform is currently
+ * 64 bits only, mostly due to gratuitous differences between
+ * the 32 and 64 bits PCI code on PowerPC and the 32 bits one
+ * lacking some bits needed here.
+ */
+
+static int __devinit of_pci_phb_probe(struct of_device *dev,
+				      const struct of_device_id *match)
+{
+	struct pci_controller *phb;
+
+	/* Check if we can do that ... */
+	if (ppc_md.pci_setup_phb == NULL)
+		return -ENODEV;
+
+	printk(KERN_INFO "Setting up PCI bus %s\n", dev->node->full_name);
+
+	/* Alloc and setup PHB data structure */
+	phb = pcibios_alloc_controller(dev->node);
+	if (!phb)
+		return -ENODEV;
+
+	/* Setup parent in sysfs */
+	phb->parent = &dev->dev;
+
+	/* Setup the PHB using arch provided callback */
+	if (ppc_md.pci_setup_phb(phb)) {
+		pcibios_free_controller(phb);
+		return -ENODEV;
+	}
+
+	/* Process "ranges" property */
+	pci_process_bridge_OF_ranges(phb, dev->node, 0);
+
+	/* Setup IO space.
+	 * This will not work properly for ISA IOs, something needs to be done
+	 * about it if we ever generalize that way of probing PCI brigdes
+	 */
+	pci_setup_phb_io_dynamic(phb, 0);
+
+	/* Init pci_dn data structures */
+	pci_devs_phb_init_dynamic(phb);
+
+	/* Register devices with EEH */
+#ifdef CONFIG_EEH
+	if (dev->node->child)
+		eeh_add_device_tree_early(dev->node);
+#endif /* CONFIG_EEH */
+
+	/* Scan the bus */
+	scan_phb(phb);
+
+	/* Claim resources. This might need some rework as well depending
+	 * wether we are doing probe-only or not, like assigning unassigned
+	 * resources etc...
+	 */
+	pcibios_claim_one_bus(phb->bus);
+
+	/* Finish EEH setup */
+#ifdef CONFIG_EEH
+	eeh_add_device_tree_late(phb->bus);
+#endif
+
+	/* Add probed PCI devices to the device model */
+	pci_bus_add_devices(phb->bus);
+
+	return 0;
+}
+
+static struct of_device_id of_pci_phb_ids[] = {
+	{ .type = "pci", },
+	{ .type = "pcix", },
+	{ .type = "pcie", },
+	{ .type = "pciex", },
+	{ .type = "ht", },
+	{}
+};
+
+static struct of_platform_driver of_pci_phb_driver = {
+       .name = "of-pci",
+       .match_table = of_pci_phb_ids,
+       .probe = of_pci_phb_probe,
+       .driver = {
+	       .multithread_probe = 1,
+       },
+};
+
+static __init int of_pci_phb_init(void)
+{
+	return of_register_platform_driver(&of_pci_phb_driver);
+}
+
+device_initcall(of_pci_phb_init);
+
+#endif /* CONFIG_PPC_OF_PLATFORM_PCI */
