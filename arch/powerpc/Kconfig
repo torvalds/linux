@@ -160,9 +160,11 @@ config PPC_86xx
 
 config 40x
 	bool "AMCC 40x"
+	select PPC_DCR_NATIVE
 
 config 44x
 	bool "AMCC 44x"
+	select PPC_DCR_NATIVE
 
 config 8xx
 	bool "Freescale 8xx"
@@ -207,6 +209,19 @@ config E500
 config PPC_FPU
 	bool
 	default y if PPC64
+
+config PPC_DCR_NATIVE
+	bool
+	default n
+
+config PPC_DCR_MMIO
+	bool
+	default n
+
+config PPC_DCR
+	bool
+	depends on PPC_DCR_NATIVE || PPC_DCR_MMIO
+	default y
 
 config BOOKE
 	bool
@@ -453,6 +468,7 @@ config PPC_CELL
 config PPC_CELL_NATIVE
 	bool
 	select PPC_CELL
+	select PPC_DCR_MMIO
 	default n
 
 config PPC_IBM_CELL_BLADE
