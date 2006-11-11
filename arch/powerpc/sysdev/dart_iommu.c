@@ -48,9 +48,6 @@
 
 #include "dart.h"
 
-extern int iommu_is_off;
-extern int iommu_force_on;
-
 /* Physical base address and size of the DART table */
 unsigned long dart_tablebase; /* exported to htab_initialize */
 static unsigned long dart_tablesize;

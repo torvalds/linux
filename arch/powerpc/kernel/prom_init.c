@@ -173,8 +173,8 @@ static unsigned long __initdata dt_string_start, dt_string_end;
 static unsigned long __initdata prom_initrd_start, prom_initrd_end;
 
 #ifdef CONFIG_PPC64
-static int __initdata iommu_force_on;
-static int __initdata ppc64_iommu_off;
+static int __initdata prom_iommu_force_on;
+static int __initdata prom_iommu_off;
 static unsigned long __initdata prom_tce_alloc_start;
 static unsigned long __initdata prom_tce_alloc_end;
 #endif
@@ -582,9 +582,9 @@ static void __init early_cmdline_parse(void)
 		while (*opt && *opt == ' ')
 			opt++;
 		if (!strncmp(opt, RELOC("off"), 3))
-			RELOC(ppc64_iommu_off) = 1;
+			RELOC(prom_iommu_off) = 1;
 		else if (!strncmp(opt, RELOC("force"), 5))
-			RELOC(iommu_force_on) = 1;
+			RELOC(prom_iommu_force_on) = 1;
 	}
 #endif
 }
@@ -1167,7 +1167,7 @@ static void __init prom_initialize_tce_table(void)
 	u64 local_alloc_top, local_alloc_bottom;
 	u64 i;
 
-	if (RELOC(ppc64_iommu_off))
+	if (RELOC(prom_iommu_off))
 		return;
 
 	prom_debug("starting prom_initialize_tce_table\n");
@@ -2283,11 +2283,11 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 * Fill in some infos for use by the kernel later on
 	 */
 #ifdef CONFIG_PPC64
-	if (RELOC(ppc64_iommu_off))
+	if (RELOC(prom_iommu_off))
 		prom_setprop(_prom->chosen, "/chosen", "linux,iommu-off",
 			     NULL, 0);
 
-	if (RELOC(iommu_force_on))
+	if (RELOC(prom_iommu_force_on))
 		prom_setprop(_prom->chosen, "/chosen", "linux,iommu-force-on",
 			     NULL, 0);
 

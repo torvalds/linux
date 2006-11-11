@@ -34,15 +34,15 @@
 #define IOMMU_PAGE_MASK       (~((1 << IOMMU_PAGE_SHIFT) - 1))
 #define IOMMU_PAGE_ALIGN(addr) _ALIGN_UP(addr, IOMMU_PAGE_SIZE)
 
-#ifndef __ASSEMBLY__
+/* Boot time flags */
+extern int iommu_is_off;
+extern int iommu_force_on;
 
 /* Pure 2^n version of get_order */
 static __inline__ __attribute_const__ int get_iommu_order(unsigned long size)
 {
 	return __ilog2((size - 1) >> IOMMU_PAGE_SHIFT) + 1;
 }
-
-#endif   /* __ASSEMBLY__ */
 
 
 /*

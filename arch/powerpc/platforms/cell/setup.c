@@ -30,7 +30,6 @@
 #include <linux/console.h>
 #include <linux/mutex.h>
 #include <linux/memory_hotplug.h>
-#include <linux/notifier.h>
 
 #include <asm/mmu.h>
 #include <asm/processor.h>
@@ -55,7 +54,6 @@
 #include <asm/of_platform.h>
 
 #include "interrupt.h"
-#include "iommu.h"
 #include "cbe_regs.h"
 #include "pervasive.h"
 #include "ras.h"
@@ -83,37 +81,10 @@ static void cell_progress(char *s, unsigned short hex)
 	printk("*** %04x : %s\n", hex, s ? s : "");
 }
 
-static int cell_of_bus_notify(struct notifier_block *nb, unsigned long action,
-			      void *data)
-{
-	struct device *dev = data;
-
-	if (action != BUS_NOTIFY_ADD_DEVICE)
-		return 0;
-
-	/* For now, we just use the PCI DMA ops for everything, though
-	 * we'll need something better when we have a real iommu
-	 * implementation.
-	 */
-	dev->archdata.dma_ops = pci_dma_ops;
-
-	return 0;
-}
-
-static struct notifier_block cell_of_bus_notifier = {
-	.notifier_call = cell_of_bus_notify
-};
-
-
 static int __init cell_publish_devices(void)
 {
 	if (!machine_is(cell))
 		return 0;
-
-	/* Register callbacks on OF platform device addition/removal
-	 * to handle linking them to the right DMA operations
-	 */
-	bus_register_notifier(&of_platform_bus_type, &cell_of_bus_notifier);
 
 	/* Publish OF platform devices for southbridge IOs */
 	of_platform_bus_probe(NULL, NULL, NULL);
@@ -205,19 +176,6 @@ static void __init cell_setup_arch(void)
 	mmio_nvram_init();
 }
 
-/*
- * Early initialization.  Relocation is on but do not reference unbolted pages
- */
-static void __init cell_init_early(void)
-{
-	DBG(" -> cell_init_early()\n");
-
-	cell_init_iommu();
-
-	DBG(" <- cell_init_early()\n");
-}
-
-
 static int __init cell_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
@@ -244,7 +202,6 @@ define_machine(cell) {
 	.name			= "Cell",
 	.probe			= cell_probe,
 	.setup_arch		= cell_setup_arch,
-	.init_early		= cell_init_early,
 	.show_cpuinfo		= cell_show_cpuinfo,
 	.restart		= rtas_restart,
 	.power_off		= rtas_power_off,
