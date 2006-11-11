@@ -60,8 +60,9 @@ struct mmc_omap_host {
 	unsigned char		id; /* 16xx chips have 2 MMC blocks */
 	struct clk *		iclk;
 	struct clk *		fclk;
-	struct resource		*res;
-	void __iomem		*base;
+	struct resource		*mem_res;
+	void __iomem		*virt_base;
+	unsigned int		phys_base;
 	int			irq;
 	unsigned char		bus_mode;
 	unsigned char		hw_bus_mode;
@@ -354,9 +355,9 @@ mmc_omap_xfer_data(struct mmc_omap_host *host, int write)
 	host->data->bytes_xfered += n;
 
 	if (write) {
-		__raw_writesw(host->base + OMAP_MMC_REG_DATA, host->buffer, n);
+		__raw_writesw(host->virt_base + OMAP_MMC_REG_DATA, host->buffer, n);
 	} else {
-		__raw_readsw(host->base + OMAP_MMC_REG_DATA, host->buffer, n);
+		__raw_readsw(host->virt_base + OMAP_MMC_REG_DATA, host->buffer, n);
 	}
 }
 
@@ -581,7 +582,7 @@ mmc_omap_prepare_dma(struct mmc_omap_host *host, struct mmc_data *data)
 	int dst_port = 0;
 	int sync_dev = 0;
 
-	data_addr = io_v2p((u32) host->base) + OMAP_MMC_REG_DATA;
+	data_addr = host->phys_base + OMAP_MMC_REG_DATA;
 	frame = data->blksz;
 	count = sg_dma_len(sg);
 
@@ -1001,7 +1002,7 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 	host->dma_timer.data = (unsigned long) host;
 
 	host->id = pdev->id;
-	host->res = r;
+	host->mem_res = r;
 	host->irq = irq;
 
 	if (cpu_is_omap24xx()) {
@@ -1032,7 +1033,8 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 	host->dma_ch = -1;
 
 	host->irq = pdev->resource[1].start;
-	host->base = (void __iomem*)IO_ADDRESS(r->start);
+	host->phys_base = host->mem_res->start;
+	host->virt_base = (void __iomem *) IO_ADDRESS(host->phys_base);
 
 	mmc->ops = &mmc_omap_ops;
 	mmc->f_min = 400000;
