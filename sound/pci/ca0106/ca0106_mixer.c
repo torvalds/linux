@@ -539,14 +539,14 @@ static struct snd_kcontrol_new snd_ca0106_volume_ctls[] __devinitdata = {
 	},
 	{
 		.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name =		"Digital Capture Source",
+		.name =		"Digital Source Capture Enum",
 		.info =		snd_ca0106_capture_source_info,
 		.get =		snd_ca0106_capture_source_get,
 		.put =		snd_ca0106_capture_source_put
 	},
 	{
 		.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name =		"Capture Source",
+		.name =		"Analog Source Capture Enum",
 		.info =		snd_ca0106_i2c_capture_source_info,
 		.get =		snd_ca0106_i2c_capture_source_get,
 		.put =		snd_ca0106_i2c_capture_source_put
