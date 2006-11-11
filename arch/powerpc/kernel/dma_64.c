@@ -111,7 +111,11 @@ EXPORT_SYMBOL(dma_iommu_ops);
 
 /*
  * Generic direct DMA implementation
+ *
+ * This implementation supports a global offset that can be applied if
+ * the address at which memory is visible to devices is not 0.
  */
+unsigned long dma_direct_offset;
 
 static void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 				       dma_addr_t *dma_handle, gfp_t flag)
@@ -122,7 +126,7 @@ static void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 	ret = (void *)__get_free_pages(flag, get_order(size));
 	if (ret != NULL) {
 		memset(ret, 0, size);
-		*dma_handle = virt_to_abs(ret);
+		*dma_handle = virt_to_abs(ret) | dma_direct_offset;
 	}
 	return ret;
 }
@@ -137,7 +141,7 @@ static dma_addr_t dma_direct_map_single(struct device *dev, void *ptr,
 					size_t size,
 					enum dma_data_direction direction)
 {
-	return virt_to_abs(ptr);
+	return virt_to_abs(ptr) | dma_direct_offset;
 }
 
 static void dma_direct_unmap_single(struct device *dev, dma_addr_t dma_addr,
@@ -152,7 +156,8 @@ static int dma_direct_map_sg(struct device *dev, struct scatterlist *sg,
 	int i;
 
 	for (i = 0; i < nents; i++, sg++) {
-		sg->dma_address = page_to_phys(sg->page) + sg->offset;
+		sg->dma_address = (page_to_phys(sg->page) + sg->offset) |
+			dma_direct_offset;
 		sg->dma_length = sg->length;
 	}
 

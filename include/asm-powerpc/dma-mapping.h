@@ -187,6 +187,8 @@ static inline void dma_unmap_sg(struct device *dev, struct scatterlist *sg,
 extern struct dma_mapping_ops dma_iommu_ops;
 extern struct dma_mapping_ops dma_direct_ops;
 
+extern unsigned long dma_direct_offset;
+
 #else /* CONFIG_PPC64 */
 
 #define dma_supported(dev, mask)	(1)
