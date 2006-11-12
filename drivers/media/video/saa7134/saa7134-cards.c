@@ -2969,7 +2969,7 @@ struct saa7134_board saa7134_boards[] = {
 		/* Petr Baudis <pasky@ucw.cz> */
 		.name           = "AVerMedia TV Hybrid A16AR",
 		.audio_clock    = 0x187de7,
-		.tuner_type     = TUNER_PHILIPS_TDA8290, /* untested */
+		.tuner_type     = TUNER_PHILIPS_TD1316, /* untested */
 		.radio_type     = TUNER_TEA5767, /* untested */
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
