@@ -149,6 +149,13 @@ ioremap(phys_addr_t addr, unsigned long size)
 EXPORT_SYMBOL(ioremap);
 
 void __iomem *
+ioremap_flags(phys_addr_t addr, unsigned long size, unsigned long flags)
+{
+	return __ioremap(addr, size, flags);
+}
+EXPORT_SYMBOL(ioremap_flags);
+
+void __iomem *
 __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)
 {
 	unsigned long v, i;
@@ -247,20 +254,7 @@ void iounmap(volatile void __iomem *addr)
 }
 EXPORT_SYMBOL(iounmap);
 
-void __iomem *ioport_map(unsigned long port, unsigned int len)
-{
-	return (void __iomem *) (port + _IO_BASE);
-}
-
-void ioport_unmap(void __iomem *addr)
-{
-	/* Nothing to do */
-}
-EXPORT_SYMBOL(ioport_map);
-EXPORT_SYMBOL(ioport_unmap);
-
-int
-map_page(unsigned long va, phys_addr_t pa, int flags)
+int map_page(unsigned long va, phys_addr_t pa, int flags)
 {
 	pmd_t *pd;
 	pte_t *pg;

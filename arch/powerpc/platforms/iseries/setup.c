@@ -617,13 +617,13 @@ static void iseries_dedicated_idle(void)
 void __init iSeries_init_IRQ(void) { }
 #endif
 
-static void __iomem *iseries_ioremap(unsigned long address, unsigned long size,
+static void __iomem *iseries_ioremap(phys_addr_t address, unsigned long size,
 				     unsigned long flags)
 {
 	return (void __iomem *)address;
 }
 
-static void iseries_iounmap(void __iomem *token)
+static void iseries_iounmap(volatile void __iomem *token)
 {
 }
 

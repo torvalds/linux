@@ -1561,7 +1561,7 @@ static struct resource *__pci_mmap_make_offset(struct pci_dev *dev,
 		*offset += hose->pci_mem_offset;
 		res_bit = IORESOURCE_MEM;
 	} else {
-		io_offset = hose->io_base_virt - ___IO_BASE;
+		io_offset = hose->io_base_virt - (void __iomem *)_IO_BASE;
 		*offset += io_offset;
 		res_bit = IORESOURCE_IO;
 	}
@@ -1816,7 +1816,8 @@ void pci_resource_to_user(const struct pci_dev *dev, int bar,
 		return;
 
 	if (rsrc->flags & IORESOURCE_IO)
-		offset = ___IO_BASE - hose->io_base_virt + hose->io_base_phys;
+		offset = (void __iomem *)_IO_BASE - hose->io_base_virt
+			+ hose->io_base_phys;
 
 	*start = rsrc->start + offset;
 	*end = rsrc->end + offset;
@@ -1834,35 +1835,6 @@ pci_init_resource(struct resource *res, unsigned long start, unsigned long end,
 	res->sibling = NULL;
 	res->child = NULL;
 }
-
-void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long max)
-{
-	unsigned long start = pci_resource_start(dev, bar);
-	unsigned long len = pci_resource_len(dev, bar);
-	unsigned long flags = pci_resource_flags(dev, bar);
-
-	if (!len)
-		return NULL;
-	if (max && len > max)
-		len = max;
-	if (flags & IORESOURCE_IO)
-		return ioport_map(start, len);
-	if (flags & IORESOURCE_MEM)
-		/* Not checking IORESOURCE_CACHEABLE because PPC does
-		 * not currently distinguish between ioremap and
-		 * ioremap_nocache.
-		 */
-		return ioremap(start, len);
-	/* What? */
-	return NULL;
-}
-
-void pci_iounmap(struct pci_dev *dev, void __iomem *addr)
-{
-	/* Nothing to do */
-}
-EXPORT_SYMBOL(pci_iomap);
-EXPORT_SYMBOL(pci_iounmap);
 
 unsigned long pci_address_to_pio(phys_addr_t address)
 {

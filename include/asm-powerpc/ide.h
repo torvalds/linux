@@ -22,17 +22,10 @@
 #endif
 #endif
 
-#ifdef __powerpc64__
 #define __ide_mm_insw(p, a, c)	readsw((void __iomem *)(p), (a), (c))
 #define __ide_mm_insl(p, a, c)	readsl((void __iomem *)(p), (a), (c))
 #define __ide_mm_outsw(p, a, c)	writesw((void __iomem *)(p), (a), (c))
 #define __ide_mm_outsl(p, a, c)	writesl((void __iomem *)(p), (a), (c))
-#else
-#define __ide_mm_insw(p, a, c)	_insw_ns((volatile u16 __iomem *)(p), (a), (c))
-#define __ide_mm_insl(p, a, c)	_insl_ns((volatile u32 __iomem *)(p), (a), (c))
-#define __ide_mm_outsw(p, a, c)	_outsw_ns((volatile u16 __iomem *)(p), (a), (c))
-#define __ide_mm_outsl(p, a, c)	_outsl_ns((volatile u32 __iomem *)(p), (a), (c))
-#endif
 
 #ifndef  __powerpc64__
 #include <linux/hdreg.h>

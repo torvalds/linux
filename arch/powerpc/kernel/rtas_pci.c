@@ -38,6 +38,7 @@
 #include <asm/rtas.h>
 #include <asm/mpic.h>
 #include <asm/ppc-pci.h>
+#include <asm/eeh.h>
 
 /* RTAS tokens */
 static int read_pci_config;

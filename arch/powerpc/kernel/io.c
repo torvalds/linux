@@ -117,3 +117,90 @@ void _outsl_ns(volatile u32 __iomem *port, const void *buf, long count)
 	asm volatile("sync");
 }
 EXPORT_SYMBOL(_outsl_ns);
+
+#define IO_CHECK_ALIGN(v,a) ((((unsigned long)(v)) & ((a) - 1)) == 0)
+
+void _memset_io(volatile void __iomem *addr, int c, unsigned long n)
+{
+	void *p = (void __force *)addr;
+	u32 lc = c;
+	lc |= lc << 8;
+	lc |= lc << 16;
+
+	__asm__ __volatile__ ("sync" : : : "memory");
+	while(n && !IO_CHECK_ALIGN(p, 4)) {
+		*((volatile u8 *)p) = c;
+		p++;
+		n--;
+	}
+	while(n >= 4) {
+		*((volatile u32 *)p) = lc;
+		p += 4;
+		n -= 4;
+	}
+	while(n) {
+		*((volatile u8 *)p) = c;
+		p++;
+		n--;
+	}
+	__asm__ __volatile__ ("sync" : : : "memory");
+}
+EXPORT_SYMBOL(_memset_io);
+
+void _memcpy_fromio(void *dest, const volatile void __iomem *src,
+		    unsigned long n)
+{
+	void *vsrc = (void __force *) src;
+
+	__asm__ __volatile__ ("sync" : : : "memory");
+	while(n && (!IO_CHECK_ALIGN(vsrc, 4) || !IO_CHECK_ALIGN(dest, 4))) {
+		*((u8 *)dest) = *((volatile u8 *)vsrc);
+		__asm__ __volatile__ ("eieio" : : : "memory");
+		vsrc++;
+		dest++;
+		n--;
+	}
+	while(n > 4) {
+		*((u32 *)dest) = *((volatile u32 *)vsrc);
+		__asm__ __volatile__ ("eieio" : : : "memory");
+		vsrc += 4;
+		dest += 4;
+		n -= 4;
+	}
+	while(n) {
+		*((u8 *)dest) = *((volatile u8 *)vsrc);
+		__asm__ __volatile__ ("eieio" : : : "memory");
+		vsrc++;
+		dest++;
+		n--;
+	}
+	__asm__ __volatile__ ("sync" : : : "memory");
+}
+EXPORT_SYMBOL(_memcpy_fromio);
+
+void _memcpy_toio(volatile void __iomem *dest, const void *src, unsigned long n)
+{
+	void *vdest = (void __force *) dest;
+
+	__asm__ __volatile__ ("sync" : : : "memory");
+	while(n && (!IO_CHECK_ALIGN(vdest, 4) || !IO_CHECK_ALIGN(src, 4))) {
+		*((volatile u8 *)vdest) = *((u8 *)src);
+		src++;
+		vdest++;
+		n--;
+	}
+	while(n > 4) {
+		*((volatile u32 *)vdest) = *((volatile u32 *)src);
+		src += 4;
+		vdest += 4;
+		n-=4;
+	}
+	while(n) {
+		*((volatile u8 *)vdest) = *((u8 *)src);
+		src++;
+		vdest++;
+		n--;
+	}
+	__asm__ __volatile__ ("sync" : : : "memory");
+}
+EXPORT_SYMBOL(_memcpy_toio);

@@ -113,7 +113,7 @@ static int map_io_page(unsigned long ea, unsigned long pa, int flags)
 }
 
 
-static void __iomem * __ioremap_com(unsigned long addr, unsigned long pa,
+static void __iomem * __ioremap_com(phys_addr_t addr, unsigned long pa,
 			    unsigned long ea, unsigned long size,
 			    unsigned long flags)
 {
@@ -129,7 +129,7 @@ static void __iomem * __ioremap_com(unsigned long addr, unsigned long pa,
 	return (void __iomem *) (ea + (addr & ~PAGE_MASK));
 }
 
-void __iomem * __ioremap(unsigned long addr, unsigned long size,
+void __iomem * __ioremap(phys_addr_t addr, unsigned long size,
 			 unsigned long flags)
 {
 	unsigned long pa, ea;
@@ -169,7 +169,7 @@ void __iomem * __ioremap(unsigned long addr, unsigned long size,
 }
 
 
-void __iomem * ioremap(unsigned long addr, unsigned long size)
+void __iomem * ioremap(phys_addr_t addr, unsigned long size)
 {
 	unsigned long flags = _PAGE_NO_CACHE | _PAGE_GUARDED;
 
@@ -178,7 +178,7 @@ void __iomem * ioremap(unsigned long addr, unsigned long size)
 	return __ioremap(addr, size, flags);
 }
 
-void __iomem * ioremap_flags(unsigned long addr, unsigned long size,
+void __iomem * ioremap_flags(phys_addr_t addr, unsigned long size,
 			     unsigned long flags)
 {
 	if (ppc_md.ioremap)
@@ -189,7 +189,7 @@ void __iomem * ioremap_flags(unsigned long addr, unsigned long size,
 
 #define IS_PAGE_ALIGNED(_val) ((_val) == ((_val) & PAGE_MASK))
 
-int __ioremap_explicit(unsigned long pa, unsigned long ea,
+int __ioremap_explicit(phys_addr_t pa, unsigned long ea,
 		       unsigned long size, unsigned long flags)
 {
 	struct vm_struct *area;
@@ -244,7 +244,7 @@ int __ioremap_explicit(unsigned long pa, unsigned long ea,
  *
  * XXX	what about calls before mem_init_done (ie python_countermeasures())
  */
-void __iounmap(void __iomem *token)
+void __iounmap(volatile void __iomem *token)
 {
 	void *addr;
 
@@ -256,7 +256,7 @@ void __iounmap(void __iomem *token)
 	im_free(addr);
 }
 
-void iounmap(void __iomem *token)
+void iounmap(volatile void __iomem *token)
 {
 	if (ppc_md.iounmap)
 		ppc_md.iounmap(token);
@@ -282,7 +282,7 @@ static int iounmap_subset_regions(unsigned long addr, unsigned long size)
 	return 0;
 }
 
-int __iounmap_explicit(void __iomem *start, unsigned long size)
+int __iounmap_explicit(volatile void __iomem *start, unsigned long size)
 {
 	struct vm_struct *area;
 	unsigned long addr;

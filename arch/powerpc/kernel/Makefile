@@ -72,7 +72,7 @@ obj-$(CONFIG_AUDIT)		+= audit.o
 obj64-$(CONFIG_AUDIT)		+= compat_audit.o
 
 ifneq ($(CONFIG_PPC_INDIRECT_IO),y)
-pci64-$(CONFIG_PPC64)		+= iomap.o
+obj-y				+= iomap.o
 endif
 
 ifeq ($(CONFIG_PPC_ISERIES),y)

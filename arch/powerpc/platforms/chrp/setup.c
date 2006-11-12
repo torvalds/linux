@@ -588,7 +588,6 @@ static int __init chrp_probe(void)
 	ISA_DMA_THRESHOLD = ~0L;
 	DMA_MODE_READ = 0x44;
 	DMA_MODE_WRITE = 0x48;
-	isa_io_base = CHRP_ISA_IO_BASE;		/* default value */
 
 	return 1;
 }

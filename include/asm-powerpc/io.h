@@ -13,23 +13,50 @@
 extern int check_legacy_ioport(unsigned long base_port);
 #define PNPBIOS_BASE	0xf000	/* only relevant for PReP */
 
-#ifndef CONFIG_PPC64
-#include <asm-ppc/io.h>
-#else
-
 #include <linux/compiler.h>
 #include <asm/page.h>
 #include <asm/byteorder.h>
-#include <asm/paca.h>
 #include <asm/synch.h>
 #include <asm/delay.h>
+#include <asm/mmu.h>
 
 #include <asm-generic/iomap.h>
+
+#ifdef CONFIG_PPC64
+#include <asm/paca.h>
+#endif
 
 #define SIO_CONFIG_RA	0x398
 #define SIO_CONFIG_RD	0x399
 
 #define SLOW_DOWN_IO
+
+/* 32 bits uses slightly different variables for the various IO
+ * bases. Most of this file only uses _IO_BASE though which we
+ * define properly based on the platform
+ */
+#ifndef CONFIG_PCI
+#define _IO_BASE	0
+#define _ISA_MEM_BASE	0
+#define PCI_DRAM_OFFSET 0
+#elif defined(CONFIG_PPC32)
+#define _IO_BASE	isa_io_base
+#define _ISA_MEM_BASE	isa_mem_base
+#define PCI_DRAM_OFFSET	pci_dram_offset
+#else
+#define _IO_BASE	pci_io_base
+#define _ISA_MEM_BASE	0
+#define PCI_DRAM_OFFSET	0
+#endif
+
+extern unsigned long isa_io_base;
+extern unsigned long isa_mem_base;
+extern unsigned long pci_io_base;
+extern unsigned long pci_dram_offset;
+
+#if defined(CONFIG_PPC32) && defined(CONFIG_PPC_INDIRECT_IO)
+#error CONFIG_PPC_INDIRECT_IO is not yet supported on 32 bits
+#endif
 
 /*
  *
@@ -53,7 +80,11 @@ extern int check_legacy_ioport(unsigned long base_port);
  *
  */
 
+#ifdef CONFIG_PPC64
 #define IO_SET_SYNC_FLAG()	do { get_paca()->io_sync = 1; } while(0)
+#else
+#define IO_SET_SYNC_FLAG()
+#endif
 
 #define DEF_MMIO_IN(name, type, insn)					\
 static inline type name(const volatile type __iomem *addr)		\
@@ -86,16 +117,18 @@ static inline void name(volatile type __iomem *addr, type val)		\
 DEF_MMIO_IN_BE(in_8,     8, lbz);
 DEF_MMIO_IN_BE(in_be16, 16, lhz);
 DEF_MMIO_IN_BE(in_be32, 32, lwz);
-DEF_MMIO_IN_BE(in_be64, 64, ld);
 DEF_MMIO_IN_LE(in_le16, 16, lhbrx);
 DEF_MMIO_IN_LE(in_le32, 32, lwbrx);
 
 DEF_MMIO_OUT_BE(out_8,     8, stb);
 DEF_MMIO_OUT_BE(out_be16, 16, sth);
 DEF_MMIO_OUT_BE(out_be32, 32, stw);
-DEF_MMIO_OUT_BE(out_be64, 64, std);
 DEF_MMIO_OUT_LE(out_le16, 16, sthbrx);
 DEF_MMIO_OUT_LE(out_le32, 32, stwbrx);
+
+#ifdef __powerpc64__
+DEF_MMIO_OUT_BE(out_be64, 64, std);
+DEF_MMIO_IN_BE(in_be64, 64, ld);
 
 /* There is no asm instructions for 64 bits reverse loads and stores */
 static inline u64 in_le64(const volatile u64 __iomem *addr)
@@ -107,6 +140,7 @@ static inline void out_le64(volatile u64 __iomem *addr, u64 val)
 {
 	out_be64(addr, cpu_to_le64(val));
 }
+#endif /* __powerpc64__ */
 
 /*
  * Low level IO stream instructions are defined out of line for now
@@ -126,6 +160,17 @@ extern void _outsl_ns(volatile u32 __iomem *addr, const void *buf, long count);
 #define _outsw	_outsw_ns
 #define _outsl	_outsl_ns
 
+
+/*
+ * memset_io, memcpy_toio, memcpy_fromio base implementations are out of line
+ */
+
+extern void _memset_io(volatile void __iomem *addr, int c, unsigned long n);
+extern void _memcpy_fromio(void *dest, const volatile void __iomem *src,
+			   unsigned long n);
+extern void _memcpy_toio(volatile void __iomem *dest, const void *src,
+			 unsigned long n);
+
 /*
  *
  * PCI and standard ISA accessors
@@ -139,9 +184,6 @@ extern void _outsl_ns(volatile u32 __iomem *addr, const void *buf, long count);
  * allowing the platform to provide its own implementation of some or all
  * of the accessors.
  */
-
-extern unsigned long isa_io_base;
-extern unsigned long pci_io_base;
 
 
 /*
@@ -160,10 +202,6 @@ static inline unsigned int __raw_readl(const volatile void __iomem *addr)
 {
 	return *(volatile unsigned int __force *)addr;
 }
-static inline unsigned long __raw_readq(const volatile void __iomem *addr)
-{
-	return *(volatile unsigned long __force *)addr;
-}
 static inline void __raw_writeb(unsigned char v, volatile void __iomem *addr)
 {
 	*(volatile unsigned char __force *)addr = v;
@@ -176,11 +214,17 @@ static inline void __raw_writel(unsigned int v, volatile void __iomem *addr)
 {
 	*(volatile unsigned int __force *)addr = v;
 }
+
+#ifdef __powerpc64__
+static inline unsigned long __raw_readq(const volatile void __iomem *addr)
+{
+	return *(volatile unsigned long __force *)addr;
+}
 static inline void __raw_writeq(unsigned long v, volatile void __iomem *addr)
 {
 	*(volatile unsigned long __force *)addr = v;
 }
-
+#endif /* __powerpc64__ */
 
 /*
  *
@@ -188,7 +232,13 @@ static inline void __raw_writeq(unsigned long v, volatile void __iomem *addr)
  *
  */
 
+/*
+ * Include the EEH definitions when EEH is enabled only so they don't get
+ * in the way when building for 32 bits
+ */
+#ifdef CONFIG_EEH
 #include <asm/eeh.h>
+#endif
 
 /* Shortcut to the MMIO argument pointer */
 #define PCI_IO_ADDR	volatile void __iomem *
@@ -196,7 +246,7 @@ static inline void __raw_writeq(unsigned long v, volatile void __iomem *addr)
 /* Indirect IO address tokens:
  *
  * When CONFIG_PPC_INDIRECT_IO is set, the platform can provide hooks
- * on all IOs.
+ * on all IOs. (Note that this is all 64 bits only for now)
  *
  * To help platforms who may need to differenciate MMIO addresses in
  * their hooks, a bitfield is reserved for use by the platform near the
@@ -241,6 +291,70 @@ do {									\
 #define PCI_FIX_ADDR(addr) (addr)
 #endif
 
+/*
+ * On 32 bits, PIO operations have a recovery mechanism in case they trigger
+ * machine checks (which they occasionally do when probing non existing
+ * IO ports on some platforms, like PowerMac and 8xx).
+ * I always found it to be of dubious reliability and I am tempted to get
+ * rid of it one of these days. So if you think it's important to keep it,
+ * please voice up asap. We never had it for 64 bits and I do not intend
+ * to port it over
+ */
+
+#ifdef CONFIG_PPC32
+
+#define __do_in_asm(name, op)				\
+extern __inline__ unsigned int name(unsigned int port)	\
+{							\
+	unsigned int x;					\
+	__asm__ __volatile__(				\
+		"sync\n"				\
+		"0:"	op "	%0,0,%1\n"		\
+		"1:	twi	0,%0,0\n"		\
+		"2:	isync\n"			\
+		"3:	nop\n"				\
+		"4:\n"					\
+		".section .fixup,\"ax\"\n"		\
+		"5:	li	%0,-1\n"		\
+		"	b	4b\n"			\
+		".previous\n"				\
+		".section __ex_table,\"a\"\n"		\
+		"	.align	2\n"			\
+		"	.long	0b,5b\n"		\
+		"	.long	1b,5b\n"		\
+		"	.long	2b,5b\n"		\
+		"	.long	3b,5b\n"		\
+		".previous"				\
+		: "=&r" (x)				\
+		: "r" (port + _IO_BASE));		\
+	return x;					\
+}
+
+#define __do_out_asm(name, op)				\
+extern __inline__ void name(unsigned int val, unsigned int port) \
+{							\
+	__asm__ __volatile__(				\
+		"sync\n"				\
+		"0:" op " %0,0,%1\n"			\
+		"1:	sync\n"				\
+		"2:\n"					\
+		".section __ex_table,\"a\"\n"		\
+		"	.align	2\n"			\
+		"	.long	0b,2b\n"		\
+		"	.long	1b,2b\n"		\
+		".previous"				\
+		: : "r" (val), "r" (port + _IO_BASE));	\
+}
+
+__do_in_asm(_rec_inb, "lbzx")
+__do_in_asm(_rec_inw, "lhbrx")
+__do_in_asm(_rec_inl, "lwbrx")
+__do_out_asm(_rec_outb, "stbx")
+__do_out_asm(_rec_outw, "sthbrx")
+__do_out_asm(_rec_outl, "stwbrx")
+
+#endif /* CONFIG_PPC32 */
+
 /* The "__do_*" operations below provide the actual "base" implementation
  * for each of the defined acccessor. Some of them use the out_* functions
  * directly, some of them still use EEH, though we might change that in the
@@ -263,6 +377,8 @@ do {									\
 #define __do_writew_be(val, addr) out_be16(PCI_FIX_ADDR(addr), val)
 #define __do_writel_be(val, addr) out_be32(PCI_FIX_ADDR(addr), val)
 #define __do_writeq_be(val, addr) out_be64(PCI_FIX_ADDR(addr), val)
+
+#ifdef CONFIG_EEH
 #define __do_readb(addr)	eeh_readb(PCI_FIX_ADDR(addr))
 #define __do_readw(addr)	eeh_readw(PCI_FIX_ADDR(addr))
 #define __do_readl(addr)	eeh_readl(PCI_FIX_ADDR(addr))
@@ -270,33 +386,64 @@ do {									\
 #define __do_readw_be(addr)	eeh_readw_be(PCI_FIX_ADDR(addr))
 #define __do_readl_be(addr)	eeh_readl_be(PCI_FIX_ADDR(addr))
 #define __do_readq_be(addr)	eeh_readq_be(PCI_FIX_ADDR(addr))
+#else /* CONFIG_EEH */
+#define __do_readb(addr)	in_8(PCI_FIX_ADDR(addr))
+#define __do_readw(addr)	in_le16(PCI_FIX_ADDR(addr))
+#define __do_readl(addr)	in_le32(PCI_FIX_ADDR(addr))
+#define __do_readq(addr)	in_le64(PCI_FIX_ADDR(addr))
+#define __do_readw_be(addr)	in_be16(PCI_FIX_ADDR(addr))
+#define __do_readl_be(addr)	in_be32(PCI_FIX_ADDR(addr))
+#define __do_readq_be(addr)	in_be64(PCI_FIX_ADDR(addr))
+#endif /* !defined(CONFIG_EEH) */
 
-#define __do_outb(val, port)	writeb(val,(PCI_IO_ADDR)pci_io_base+port);
-#define __do_outw(val, port)	writew(val,(PCI_IO_ADDR)pci_io_base+port);
-#define __do_outl(val, port)	writel(val,(PCI_IO_ADDR)pci_io_base+port);
-#define __do_inb(port)		readb((PCI_IO_ADDR)pci_io_base + port);
-#define __do_inw(port)		readw((PCI_IO_ADDR)pci_io_base + port);
-#define __do_inl(port)		readl((PCI_IO_ADDR)pci_io_base + port);
+#ifdef CONFIG_PPC32
+#define __do_outb(val, port)	_rec_outb(val, port)
+#define __do_outw(val, port)	_rec_outw(val, port)
+#define __do_outl(val, port)	_rec_outl(val, port)
+#define __do_inb(port)		_rec_inb(port)
+#define __do_inw(port)		_rec_inw(port)
+#define __do_inl(port)		_rec_inl(port)
+#else /* CONFIG_PPC32 */
+#define __do_outb(val, port)	writeb(val,(PCI_IO_ADDR)_IO_BASE+port);
+#define __do_outw(val, port)	writew(val,(PCI_IO_ADDR)_IO_BASE+port);
+#define __do_outl(val, port)	writel(val,(PCI_IO_ADDR)_IO_BASE+port);
+#define __do_inb(port)		readb((PCI_IO_ADDR)_IO_BASE + port);
+#define __do_inw(port)		readw((PCI_IO_ADDR)_IO_BASE + port);
+#define __do_inl(port)		readl((PCI_IO_ADDR)_IO_BASE + port);
+#endif /* !CONFIG_PPC32 */
 
+#ifdef CONFIG_EEH
 #define __do_readsb(a, b, n)	eeh_readsb(PCI_FIX_ADDR(a), (b), (n))
 #define __do_readsw(a, b, n)	eeh_readsw(PCI_FIX_ADDR(a), (b), (n))
 #define __do_readsl(a, b, n)	eeh_readsl(PCI_FIX_ADDR(a), (b), (n))
+#else /* CONFIG_EEH */
+#define __do_readsb(a, b, n)	_insb(PCI_FIX_ADDR(a), (b), (n))
+#define __do_readsw(a, b, n)	_insw(PCI_FIX_ADDR(a), (b), (n))
+#define __do_readsl(a, b, n)	_insl(PCI_FIX_ADDR(a), (b), (n))
+#endif /* !CONFIG_EEH */
 #define __do_writesb(a, b, n)	_outsb(PCI_FIX_ADDR(a),(b),(n))
 #define __do_writesw(a, b, n)	_outsw(PCI_FIX_ADDR(a),(b),(n))
 #define __do_writesl(a, b, n)	_outsl(PCI_FIX_ADDR(a),(b),(n))
 
-#define __do_insb(p, b, n)	readsb((PCI_IO_ADDR)pci_io_base+(p), (b), (n))
-#define __do_insw(p, b, n)	readsw((PCI_IO_ADDR)pci_io_base+(p), (b), (n))
-#define __do_insl(p, b, n)	readsl((PCI_IO_ADDR)pci_io_base+(p), (b), (n))
-#define __do_outsb(p, b, n)	writesb((PCI_IO_ADDR)pci_io_base+(p),(b),(n))
-#define __do_outsw(p, b, n)	writesw((PCI_IO_ADDR)pci_io_base+(p),(b),(n))
-#define __do_outsl(p, b, n)	writesl((PCI_IO_ADDR)pci_io_base+(p),(b),(n))
+#define __do_insb(p, b, n)	readsb((PCI_IO_ADDR)_IO_BASE+(p), (b), (n))
+#define __do_insw(p, b, n)	readsw((PCI_IO_ADDR)_IO_BASE+(p), (b), (n))
+#define __do_insl(p, b, n)	readsl((PCI_IO_ADDR)_IO_BASE+(p), (b), (n))
+#define __do_outsb(p, b, n)	writesb((PCI_IO_ADDR)_IO_BASE+(p),(b),(n))
+#define __do_outsw(p, b, n)	writesw((PCI_IO_ADDR)_IO_BASE+(p),(b),(n))
+#define __do_outsl(p, b, n)	writesl((PCI_IO_ADDR)_IO_BASE+(p),(b),(n))
 
-#define __do_memset_io(addr, c, n)	eeh_memset_io(PCI_FIX_ADDR(addr), c, n)
-#define __do_memcpy_fromio(dst, src, n)	eeh_memcpy_fromio(dst, \
-						PCI_FIX_ADDR(src), n)
-#define __do_memcpy_toio(dst, src, n)	eeh_memcpy_toio(PCI_FIX_ADDR(dst), \
-						src, n)
+#define __do_memset_io(addr, c, n)	\
+				_memset_io(PCI_FIX_ADDR(addr), c, n)
+#define __do_memcpy_toio(dst, src, n)	\
+				_memcpy_toio(PCI_FIX_ADDR(dst), src, n)
+
+#ifdef CONFIG_EEH
+#define __do_memcpy_fromio(dst, src, n)	\
+				eeh_memcpy_fromio(dst, PCI_FIX_ADDR(src), n)
+#else /* CONFIG_EEH */
+#define __do_memcpy_fromio(dst, src, n)	\
+				_memcpy_fromio(dst,PCI_FIX_ADDR(src),n)
+#endif /* !CONFIG_EEH */
 
 #ifdef CONFIG_PPC_INDIRECT_IO
 #define DEF_PCI_HOOK(x)		x
@@ -343,15 +490,27 @@ static inline void name at					\
 /* Some drivers check for the presence of readq & writeq with
  * a #ifdef, so we make them happy here.
  */
+#ifdef __powerpc64__
 #define readq	readq
 #define writeq	writeq
+#endif
 
-/* Nothing to do for cache stuff x*/
+#ifdef CONFIG_NOT_COHERENT_CACHE
+
+#define dma_cache_inv(_start,_size) \
+	invalidate_dcache_range(_start, (_start + _size))
+#define dma_cache_wback(_start,_size) \
+	clean_dcache_range(_start, (_start + _size))
+#define dma_cache_wback_inv(_start,_size) \
+	flush_dcache_range(_start, (_start + _size))
+
+#else /* CONFIG_NOT_COHERENT_CACHE */
 
 #define dma_cache_inv(_start,_size)		do { } while (0)
 #define dma_cache_wback(_start,_size)		do { } while (0)
 #define dma_cache_wback_inv(_start,_size)	do { } while (0)
 
+#endif /* !CONFIG_NOT_COHERENT_CACHE */
 
 /*
  * Convert a physical pointer to a virtual kernel pointer for /dev/mem
@@ -372,6 +531,9 @@ static inline void name at					\
 #define readl_relaxed(addr) readl(addr)
 #define readq_relaxed(addr) readq(addr)
 
+#ifdef CONFIG_PPC32
+#define mmiowb()
+#else
 /*
  * Enforce synchronisation of stores vs. spin_unlock
  * (this does it explicitely, though our implementation of spin_unlock
@@ -385,6 +547,7 @@ static inline void mmiowb(void)
 	: "=&r" (tmp) : "i" (offsetof(struct paca_struct, io_sync))
 	: "memory");
 }
+#endif /* !CONFIG_PPC32 */
 
 static inline void iosync(void)
 {
@@ -453,21 +616,28 @@ static inline void iosync(void)
  *   be hooked (but can be used by a hook on iounmap)
  *
  */
-extern void __iomem *ioremap(unsigned long address, unsigned long size);
-extern void __iomem *ioremap_flags(unsigned long address, unsigned long size,
+extern void __iomem *ioremap(phys_addr_t address, unsigned long size);
+extern void __iomem *ioremap_flags(phys_addr_t address, unsigned long size,
 				   unsigned long flags);
 #define ioremap_nocache(addr, size)	ioremap((addr), (size))
-extern void iounmap(void __iomem *addr);
+extern void iounmap(volatile void __iomem *addr);
 
-extern void __iomem *__ioremap(unsigned long address, unsigned long size,
+extern void __iomem *__ioremap(phys_addr_t, unsigned long size,
 			       unsigned long flags);
-extern void __iounmap(void __iomem *addr);
+extern void __iounmap(volatile void __iomem *addr);
 
-extern int __ioremap_explicit(unsigned long p_addr, unsigned long v_addr,
+extern int __ioremap_explicit(phys_addr_t p_addr, unsigned long v_addr,
 		     	      unsigned long size, unsigned long flags);
-extern int __iounmap_explicit(void __iomem *start, unsigned long size);
+extern int __iounmap_explicit(volatile void __iomem *start,
+			      unsigned long size);
 
 extern void __iomem * reserve_phb_iospace(unsigned long size);
+
+/* Those are more 32 bits only functions */
+extern unsigned long iopa(unsigned long addr);
+extern unsigned long mm_ptov(unsigned long addr) __attribute_const__;
+extern void io_block_mapping(unsigned long virt, phys_addr_t phys,
+			     unsigned int size, int flags);
 
 
 /*
@@ -538,7 +708,33 @@ static inline void * phys_to_virt(unsigned long address)
  */
 #define BIO_VMERGE_BOUNDARY	0
 
+/*
+ * 32 bits still uses virt_to_bus() for it's implementation of DMA
+ * mappings se we have to keep it defined here. We also have some old
+ * drivers (shame shame shame) that use bus_to_virt() and haven't been
+ * fixed yet so I need to define it here.
+ */
+#ifdef CONFIG_PPC32
+
+static inline unsigned long virt_to_bus(volatile void * address)
+{
+        if (address == NULL)
+		return 0;
+        return __pa(address) + PCI_DRAM_OFFSET;
+}
+
+static inline void * bus_to_virt(unsigned long address)
+{
+        if (address == 0)
+		return NULL;
+        return __va(address - PCI_DRAM_OFFSET);
+}
+
+#define page_to_bus(page)	(page_to_phys(page) + PCI_DRAM_OFFSET)
+
+#endif /* CONFIG_PPC32 */
+
+
 #endif /* __KERNEL__ */
 
-#endif /* CONFIG_PPC64 */
 #endif /* _ASM_POWERPC_IO_H */

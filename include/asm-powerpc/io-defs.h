@@ -3,17 +3,20 @@
 DEF_PCI_AC_RET(readb, u8, (const PCI_IO_ADDR addr), (addr))
 DEF_PCI_AC_RET(readw, u16, (const PCI_IO_ADDR addr), (addr))
 DEF_PCI_AC_RET(readl, u32, (const PCI_IO_ADDR addr), (addr))
-DEF_PCI_AC_RET(readq, u64, (const PCI_IO_ADDR addr), (addr))
 DEF_PCI_AC_RET(readw_be, u16, (const PCI_IO_ADDR addr), (addr))
 DEF_PCI_AC_RET(readl_be, u32, (const PCI_IO_ADDR addr), (addr))
-DEF_PCI_AC_RET(readq_be, u64, (const PCI_IO_ADDR addr), (addr))
 DEF_PCI_AC_NORET(writeb, (u8 val, PCI_IO_ADDR addr), (val, addr))
 DEF_PCI_AC_NORET(writew, (u16 val, PCI_IO_ADDR addr), (val, addr))
 DEF_PCI_AC_NORET(writel, (u32 val, PCI_IO_ADDR addr), (val, addr))
-DEF_PCI_AC_NORET(writeq, (u64 val, PCI_IO_ADDR addr), (val, addr))
 DEF_PCI_AC_NORET(writew_be, (u16 val, PCI_IO_ADDR addr), (val, addr))
 DEF_PCI_AC_NORET(writel_be, (u32 val, PCI_IO_ADDR addr), (val, addr))
+
+#ifdef __powerpc64__
+DEF_PCI_AC_RET(readq, u64, (const PCI_IO_ADDR addr), (addr))
+DEF_PCI_AC_RET(readq_be, u64, (const PCI_IO_ADDR addr), (addr))
+DEF_PCI_AC_NORET(writeq, (u64 val, PCI_IO_ADDR addr), (val, addr))
 DEF_PCI_AC_NORET(writeq_be, (u64 val, PCI_IO_ADDR addr), (val, addr))
+#endif /* __powerpc64__ */
 
 DEF_PCI_AC_RET(inb, u8, (unsigned long port), (port))
 DEF_PCI_AC_RET(inw, u16, (unsigned long port), (port))

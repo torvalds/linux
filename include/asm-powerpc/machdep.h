@@ -88,9 +88,9 @@ struct machdep_calls {
 	void		(*pci_dma_dev_setup)(struct pci_dev *dev);
 	void		(*pci_dma_bus_setup)(struct pci_bus *bus);
 
-	void __iomem *	(*ioremap)(unsigned long addr, unsigned long size,
+	void __iomem *	(*ioremap)(phys_addr_t addr, unsigned long size,
 				   unsigned long flags);
-	void		(*iounmap)(void __iomem *token);
+	void		(*iounmap)(volatile void __iomem *token);
 #endif /* CONFIG_PPC64 */
 
 	int		(*probe)(void);
