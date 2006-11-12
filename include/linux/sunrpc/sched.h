@@ -178,13 +178,6 @@ struct rpc_call_ops {
 	} while (0)
 
 #define RPC_IS_ACTIVATED(t)	(test_bit(RPC_TASK_ACTIVE, &(t)->tk_runstate))
-#define rpc_set_active(t)	(set_bit(RPC_TASK_ACTIVE, &(t)->tk_runstate))
-#define rpc_clear_active(t)	\
-	do { \
-		smp_mb__before_clear_bit(); \
-		clear_bit(RPC_TASK_ACTIVE, &(t)->tk_runstate); \
-		smp_mb__after_clear_bit(); \
-	} while(0)
 
 /*
  * Task priorities.
@@ -254,6 +247,7 @@ struct rpc_task *rpc_run_task(struct rpc_clnt *clnt, int flags,
 void		rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt,
 				int flags, const struct rpc_call_ops *ops,
 				void *data);
+void		rpc_put_task(struct rpc_task *);
 void		rpc_release_task(struct rpc_task *);
 void		rpc_exit_task(struct rpc_task *);
 void		rpc_killall_tasks(struct rpc_clnt *);

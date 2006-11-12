@@ -466,10 +466,9 @@ int rpc_call_sync(struct rpc_clnt *clnt, struct rpc_message *msg, int flags)
 
 	BUG_ON(flags & RPC_TASK_ASYNC);
 
-	status = -ENOMEM;
 	task = rpc_new_task(clnt, flags, &rpc_default_ops, NULL);
 	if (task == NULL)
-		goto out;
+		return -ENOMEM;
 
 	/* Mask signals on RPC calls _and_ GSS_AUTH upcalls */
 	rpc_task_sigmask(task, &oldset);
@@ -478,15 +477,17 @@ int rpc_call_sync(struct rpc_clnt *clnt, struct rpc_message *msg, int flags)
 
 	/* Set up the call info struct and execute the task */
 	status = task->tk_status;
-	if (status == 0) {
-		atomic_inc(&task->tk_count);
-		status = rpc_execute(task);
-		if (status == 0)
-			status = task->tk_status;
+	if (status != 0) {
+		rpc_release_task(task);
+		goto out;
 	}
-	rpc_restore_sigmask(&oldset);
-	rpc_release_task(task);
+	atomic_inc(&task->tk_count);
+	status = rpc_execute(task);
+	if (status == 0)
+		status = task->tk_status;
+	rpc_put_task(task);
 out:
+	rpc_restore_sigmask(&oldset);
 	return status;
 }
 

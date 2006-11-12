@@ -134,7 +134,7 @@ void rpc_getport(struct rpc_task *task)
 	child = rpc_run_task(pmap_clnt, RPC_TASK_ASYNC, &pmap_getport_ops, map);
 	if (IS_ERR(child))
 		goto bailout;
-	rpc_release_task(child);
+	rpc_put_task(child);
 
 	task->tk_xprt->stat.bind_count++;
 	return;

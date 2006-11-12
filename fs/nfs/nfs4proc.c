@@ -636,7 +636,7 @@ static int _nfs4_proc_open_confirm(struct nfs4_opendata *data)
 		smp_wmb();
 	} else
 		status = data->rpc_status;
-	rpc_release_task(task);
+	rpc_put_task(task);
 	return status;
 }
 
@@ -742,7 +742,7 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 		smp_wmb();
 	} else
 		status = data->rpc_status;
-	rpc_release_task(task);
+	rpc_put_task(task);
 	if (status != 0)
 		return status;
 
@@ -3067,7 +3067,7 @@ static int _nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, co
 		if (status == 0)
 			nfs_post_op_update_inode(inode, &data->fattr);
 	}
-	rpc_release_task(task);
+	rpc_put_task(task);
 	return status;
 }
 
@@ -3314,7 +3314,7 @@ static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *
 	if (IS_ERR(task))
 		goto out;
 	status = nfs4_wait_for_completion_rpc_task(task);
-	rpc_release_task(task);
+	rpc_put_task(task);
 out:
 	return status;
 }
@@ -3430,7 +3430,7 @@ static void nfs4_lock_release(void *calldata)
 		task = nfs4_do_unlck(&data->fl, data->ctx, data->lsp,
 				data->arg.lock_seqid);
 		if (!IS_ERR(task))
-			rpc_release_task(task);
+			rpc_put_task(task);
 		dprintk("%s: cancelling lock!\n", __FUNCTION__);
 	} else
 		nfs_free_seqid(data->arg.lock_seqid);
@@ -3472,7 +3472,7 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *f
 			ret = -EAGAIN;
 	} else
 		data->cancelled = 1;
-	rpc_release_task(task);
+	rpc_put_task(task);
 	dprintk("%s: done, ret = %d!\n", __FUNCTION__, ret);
 	return ret;
 }

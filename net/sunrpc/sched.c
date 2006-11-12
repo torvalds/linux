@@ -266,12 +266,28 @@ static int rpc_wait_bit_interruptible(void *word)
 	return 0;
 }
 
+static void rpc_set_active(struct rpc_task *task)
+{
+	if (test_and_set_bit(RPC_TASK_ACTIVE, &task->tk_runstate) != 0)
+		return;
+	spin_lock(&rpc_sched_lock);
+#ifdef RPC_DEBUG
+	task->tk_magic = RPC_TASK_MAGIC_ID;
+	task->tk_pid = rpc_task_id++;
+#endif
+	/* Add to global list of all tasks */
+	list_add_tail(&task->tk_task, &all_tasks);
+	spin_unlock(&rpc_sched_lock);
+}
+
 /*
  * Mark an RPC call as having completed by clearing the 'active' bit
  */
-static inline void rpc_mark_complete_task(struct rpc_task *task)
+static void rpc_mark_complete_task(struct rpc_task *task)
 {
-	rpc_clear_active(task);
+	smp_mb__before_clear_bit();
+	clear_bit(RPC_TASK_ACTIVE, &task->tk_runstate);
+	smp_mb__after_clear_bit();
 	wake_up_bit(&task->tk_runstate, RPC_TASK_ACTIVE);
 }
 
@@ -335,9 +351,6 @@ static void __rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
 		return;
 	}
 
-	/* Mark the task as being activated if so needed */
-	rpc_set_active(task);
-
 	__rpc_add_wait_queue(q, task);
 
 	BUG_ON(task->tk_callback != NULL);
@@ -348,6 +361,9 @@ static void __rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
 void rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
 				rpc_action action, rpc_action timer)
 {
+	/* Mark the task as being activated if so needed */
+	rpc_set_active(task);
+
 	/*
 	 * Protect the queue operations.
 	 */
@@ -673,8 +689,6 @@ static int __rpc_execute(struct rpc_task *task)
 	}
 
 	dprintk("RPC: %4d, return %d, status %d\n", task->tk_pid, status, task->tk_status);
-	/* Wake up anyone who is waiting for task completion */
-	rpc_mark_complete_task(task);
 	/* Release all resources associated with the task */
 	rpc_release_task(task);
 	return status;
@@ -788,15 +802,6 @@ void rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt, int flags, cons
 			task->tk_flags |= RPC_TASK_NOINTR;
 	}
 
-#ifdef RPC_DEBUG
-	task->tk_magic = RPC_TASK_MAGIC_ID;
-	task->tk_pid = rpc_task_id++;
-#endif
-	/* Add to global list of all tasks */
-	spin_lock(&rpc_sched_lock);
-	list_add_tail(&task->tk_task, &all_tasks);
-	spin_unlock(&rpc_sched_lock);
-
 	BUG_ON(task->tk_ops == NULL);
 
 	/* starting timestamp */
@@ -849,16 +854,35 @@ cleanup:
 	goto out;
 }
 
-void rpc_release_task(struct rpc_task *task)
+
+void rpc_put_task(struct rpc_task *task)
 {
 	const struct rpc_call_ops *tk_ops = task->tk_ops;
 	void *calldata = task->tk_calldata;
 
+	if (!atomic_dec_and_test(&task->tk_count))
+		return;
+	/* Release resources */
+	if (task->tk_rqstp)
+		xprt_release(task);
+	if (task->tk_msg.rpc_cred)
+		rpcauth_unbindcred(task);
+	if (task->tk_client) {
+		rpc_release_client(task->tk_client);
+		task->tk_client = NULL;
+	}
+	if (task->tk_flags & RPC_TASK_DYNAMIC)
+		rpc_free_task(task);
+	if (tk_ops->rpc_release)
+		tk_ops->rpc_release(calldata);
+}
+EXPORT_SYMBOL(rpc_put_task);
+
+void rpc_release_task(struct rpc_task *task)
+{
 #ifdef RPC_DEBUG
 	BUG_ON(task->tk_magic != RPC_TASK_MAGIC_ID);
 #endif
-	if (!atomic_dec_and_test(&task->tk_count))
-		return;
 	dprintk("RPC: %4d release task\n", task->tk_pid);
 
 	/* Remove from global task list */
@@ -871,23 +895,13 @@ void rpc_release_task(struct rpc_task *task)
 	/* Synchronously delete any running timer */
 	rpc_delete_timer(task);
 
-	/* Release resources */
-	if (task->tk_rqstp)
-		xprt_release(task);
-	if (task->tk_msg.rpc_cred)
-		rpcauth_unbindcred(task);
-	if (task->tk_client) {
-		rpc_release_client(task->tk_client);
-		task->tk_client = NULL;
-	}
-
 #ifdef RPC_DEBUG
 	task->tk_magic = 0;
 #endif
-	if (task->tk_flags & RPC_TASK_DYNAMIC)
-		rpc_free_task(task);
-	if (tk_ops->rpc_release)
-		tk_ops->rpc_release(calldata);
+	/* Wake up anyone who is waiting for task completion */
+	rpc_mark_complete_task(task);
+
+	rpc_put_task(task);
 }
 
 /**
