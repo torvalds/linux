@@ -76,12 +76,19 @@ static inline void dccp_v6_send_check(struct sock *sk, int unused_value,
 	dh->dccph_checksum = dccp_v6_csum_finish(skb, &np->saddr, &np->daddr);
 }
 
-static inline __u32 dccp_v6_init_sequence(const struct sk_buff *skb)
+static inline __u32 secure_dccpv6_sequence_number(__u32 *saddr, __u32 *daddr,
+				   		  __u16 sport, __u16 dport   )
 {
-	return secure_tcpv6_sequence_number(skb->nh.ipv6h->daddr.s6_addr32,
-					    skb->nh.ipv6h->saddr.s6_addr32,
-					    dccp_hdr(skb)->dccph_dport,
-					    dccp_hdr(skb)->dccph_sport     );
+	return secure_tcpv6_sequence_number(saddr, daddr, sport, dport);
+}
+
+static inline __u32 dccp_v6_init_sequence(struct sk_buff *skb)
+{
+	return secure_dccpv6_sequence_number(skb->nh.ipv6h->daddr.s6_addr32,
+					     skb->nh.ipv6h->saddr.s6_addr32,
+					     dccp_hdr(skb)->dccph_dport,
+					     dccp_hdr(skb)->dccph_sport     );
+
 }
 
 static void dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
@@ -1065,13 +1072,10 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	err = inet6_hash_connect(&dccp_death_row, sk);
 	if (err)
 		goto late_failure;
-	/* FIXME */
-#if 0
-	dp->dccps_gar = secure_dccp_v6_sequence_number(np->saddr.s6_addr32,
-						       np->daddr.s6_addr32,
-						       inet->sport,
-						       inet->dport);
-#endif
+
+	dp->dccps_iss = secure_dccpv6_sequence_number(np->saddr.s6_addr32,
+						      np->daddr.s6_addr32,
+						      inet->sport, inet->dport);
 	err = dccp_connect(sk);
 	if (err)
 		goto late_failure;

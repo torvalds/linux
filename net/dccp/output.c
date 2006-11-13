@@ -448,7 +448,6 @@ static inline void dccp_connect_init(struct sock *sk)
 	
 	dccp_sync_mss(sk, dst_mtu(dst));
 
-	dccp_update_gss(sk, dp->dccps_iss);
  	/*
 	 * SWL and AWL are initially adjusted so that they are not less than
 	 * the initial Sequence Numbers received and sent, respectively:
@@ -457,7 +456,12 @@ static inline void dccp_connect_init(struct sock *sk)
 	 * These adjustments MUST be applied only at the beginning of the
 	 * connection.
  	 */
+	dccp_update_gss(sk, dp->dccps_iss);
 	dccp_set_seqno(&dp->dccps_awl, max48(dp->dccps_awl, dp->dccps_iss));
+
+	/* S.GAR - greatest valid acknowledgement number received on a non-Sync;
+	 *         initialized to S.ISS (sec. 8.5)                            */
+	dp->dccps_gar = dp->dccps_iss;
 
 	icsk->icsk_retransmits = 0;
 	init_timer(&dp->dccps_xmit_timer);

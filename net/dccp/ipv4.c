@@ -113,13 +113,8 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	/* OK, now commit destination to socket.  */
 	sk_setup_caps(sk, &rt->u.dst);
 
-	dp->dccps_gar =
-		dp->dccps_iss = secure_dccp_sequence_number(inet->saddr,
-							    inet->daddr,
-							    inet->sport,
-							    usin->sin_port);
-	dccp_update_gss(sk, dp->dccps_iss);
-
+	dp->dccps_iss = secure_dccp_sequence_number(inet->saddr, inet->daddr,
+						    inet->sport, inet->dport);
 	inet->id = dp->dccps_iss ^ jiffies;
 
 	err = dccp_connect(sk);
