@@ -20,16 +20,6 @@ int  sysctl_dccp_request_retries	__read_mostly = TCP_SYN_RETRIES;
 int  sysctl_dccp_retries1		__read_mostly = TCP_RETR1;
 int  sysctl_dccp_retries2		__read_mostly = TCP_RETR2;
 
-static void dccp_write_timer(unsigned long data);
-static void dccp_keepalive_timer(unsigned long data);
-static void dccp_delack_timer(unsigned long data);
-
-void dccp_init_xmit_timers(struct sock *sk)
-{
-	inet_csk_init_xmit_timers(sk, &dccp_write_timer, &dccp_delack_timer,
-				  &dccp_keepalive_timer);
-}
-
 static void dccp_write_err(struct sock *sk)
 {
 	sk->sk_err = sk->sk_err_soft ? : ETIMEDOUT;
@@ -88,53 +78,6 @@ static int dccp_write_timeout(struct sock *sk)
 		return 1;
 	}
 	return 0;
-}
-
-/* This is the same as tcp_delack_timer, sans prequeue & mem_reclaim stuff */
-static void dccp_delack_timer(unsigned long data)
-{
-	struct sock *sk = (struct sock *)data;
-	struct inet_connection_sock *icsk = inet_csk(sk);
-
-	bh_lock_sock(sk);
-	if (sock_owned_by_user(sk)) {
-		/* Try again later. */
-		icsk->icsk_ack.blocked = 1;
-		NET_INC_STATS_BH(LINUX_MIB_DELAYEDACKLOCKED);
-		sk_reset_timer(sk, &icsk->icsk_delack_timer,
-			       jiffies + TCP_DELACK_MIN);
-		goto out;
-	}
-
-	if (sk->sk_state == DCCP_CLOSED ||
-	    !(icsk->icsk_ack.pending & ICSK_ACK_TIMER))
-		goto out;
-	if (time_after(icsk->icsk_ack.timeout, jiffies)) {
-		sk_reset_timer(sk, &icsk->icsk_delack_timer,
-			       icsk->icsk_ack.timeout);
-		goto out;
-	}
-
-	icsk->icsk_ack.pending &= ~ICSK_ACK_TIMER;
-
-	if (inet_csk_ack_scheduled(sk)) {
-		if (!icsk->icsk_ack.pingpong) {
-			/* Delayed ACK missed: inflate ATO. */
-			icsk->icsk_ack.ato = min(icsk->icsk_ack.ato << 1,
-						 icsk->icsk_rto);
-		} else {
-			/* Delayed ACK missed: leave pingpong mode and
-			 * deflate ATO.
-			 */
-			icsk->icsk_ack.pingpong = 0;
-			icsk->icsk_ack.ato = TCP_ATO_MIN;
-		}
-		dccp_send_ack(sk);
-		NET_INC_STATS_BH(LINUX_MIB_DELAYEDACKS);
-	}
-out:
-	bh_unlock_sock(sk);
-	sock_put(sk);
 }
 
 /*
@@ -269,4 +212,57 @@ static void dccp_keepalive_timer(unsigned long data)
 out:
 	bh_unlock_sock(sk);
 	sock_put(sk);
+}
+
+/* This is the same as tcp_delack_timer, sans prequeue & mem_reclaim stuff */
+static void dccp_delack_timer(unsigned long data)
+{
+	struct sock *sk = (struct sock *)data;
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	bh_lock_sock(sk);
+	if (sock_owned_by_user(sk)) {
+		/* Try again later. */
+		icsk->icsk_ack.blocked = 1;
+		NET_INC_STATS_BH(LINUX_MIB_DELAYEDACKLOCKED);
+		sk_reset_timer(sk, &icsk->icsk_delack_timer,
+			       jiffies + TCP_DELACK_MIN);
+		goto out;
+	}
+
+	if (sk->sk_state == DCCP_CLOSED ||
+	    !(icsk->icsk_ack.pending & ICSK_ACK_TIMER))
+		goto out;
+	if (time_after(icsk->icsk_ack.timeout, jiffies)) {
+		sk_reset_timer(sk, &icsk->icsk_delack_timer,
+			       icsk->icsk_ack.timeout);
+		goto out;
+	}
+
+	icsk->icsk_ack.pending &= ~ICSK_ACK_TIMER;
+
+	if (inet_csk_ack_scheduled(sk)) {
+		if (!icsk->icsk_ack.pingpong) {
+			/* Delayed ACK missed: inflate ATO. */
+			icsk->icsk_ack.ato = min(icsk->icsk_ack.ato << 1,
+						 icsk->icsk_rto);
+		} else {
+			/* Delayed ACK missed: leave pingpong mode and
+			 * deflate ATO.
+			 */
+			icsk->icsk_ack.pingpong = 0;
+			icsk->icsk_ack.ato = TCP_ATO_MIN;
+		}
+		dccp_send_ack(sk);
+		NET_INC_STATS_BH(LINUX_MIB_DELAYEDACKS);
+	}
+out:
+	bh_unlock_sock(sk);
+	sock_put(sk);
+}
+
+void dccp_init_xmit_timers(struct sock *sk)
+{
+	inet_csk_init_xmit_timers(sk, &dccp_write_timer, &dccp_delack_timer,
+				  &dccp_keepalive_timer);
 }
