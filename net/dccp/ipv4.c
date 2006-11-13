@@ -651,7 +651,6 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	ireq = inet_rsk(req);
 	ireq->loc_addr = skb->nh.iph->daddr;
 	ireq->rmt_addr = skb->nh.iph->saddr;
-	req->rcv_wnd	= dccp_feat_default_sequence_window;
 	ireq->opt	= NULL;
 
 	/* 

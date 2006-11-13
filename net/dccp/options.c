@@ -22,23 +22,23 @@
 #include "dccp.h"
 #include "feat.h"
 
-int dccp_feat_default_sequence_window = DCCPF_INITIAL_SEQUENCE_WINDOW;
-int dccp_feat_default_rx_ccid	      = DCCPF_INITIAL_CCID;
-int dccp_feat_default_tx_ccid	      = DCCPF_INITIAL_CCID;
-int dccp_feat_default_ack_ratio	      = DCCPF_INITIAL_ACK_RATIO;
-int dccp_feat_default_send_ack_vector = DCCPF_INITIAL_SEND_ACK_VECTOR;
-int dccp_feat_default_send_ndp_count  = DCCPF_INITIAL_SEND_NDP_COUNT;
+int sysctl_dccp_feat_sequence_window = DCCPF_INITIAL_SEQUENCE_WINDOW;
+int sysctl_dccp_feat_rx_ccid	      = DCCPF_INITIAL_CCID;
+int sysctl_dccp_feat_tx_ccid	      = DCCPF_INITIAL_CCID;
+int sysctl_dccp_feat_ack_ratio	      = DCCPF_INITIAL_ACK_RATIO;
+int sysctl_dccp_feat_send_ack_vector = DCCPF_INITIAL_SEND_ACK_VECTOR;
+int sysctl_dccp_feat_send_ndp_count  = DCCPF_INITIAL_SEND_NDP_COUNT;
 
-EXPORT_SYMBOL_GPL(dccp_feat_default_sequence_window);
+EXPORT_SYMBOL_GPL(sysctl_dccp_feat_sequence_window);
 
 void dccp_minisock_init(struct dccp_minisock *dmsk)
 {
-	dmsk->dccpms_sequence_window = dccp_feat_default_sequence_window;
-	dmsk->dccpms_rx_ccid	     = dccp_feat_default_rx_ccid;
-	dmsk->dccpms_tx_ccid	     = dccp_feat_default_tx_ccid;
-	dmsk->dccpms_ack_ratio	     = dccp_feat_default_ack_ratio;
-	dmsk->dccpms_send_ack_vector = dccp_feat_default_send_ack_vector;
-	dmsk->dccpms_send_ndp_count  = dccp_feat_default_send_ndp_count;
+	dmsk->dccpms_sequence_window = sysctl_dccp_feat_sequence_window;
+	dmsk->dccpms_rx_ccid	     = sysctl_dccp_feat_rx_ccid;
+	dmsk->dccpms_tx_ccid	     = sysctl_dccp_feat_tx_ccid;
+	dmsk->dccpms_ack_ratio	     = sysctl_dccp_feat_ack_ratio;
+	dmsk->dccpms_send_ack_vector = sysctl_dccp_feat_send_ack_vector;
+	dmsk->dccpms_send_ndp_count  = sysctl_dccp_feat_send_ndp_count;
 }
 
 static u32 dccp_decode_value_var(const unsigned char *bf, const u8 len)

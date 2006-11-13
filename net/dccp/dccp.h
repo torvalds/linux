@@ -68,12 +68,12 @@ extern void dccp_time_wait(struct sock *sk, int state, int timeo);
 extern int  sysctl_dccp_request_retries;
 extern int  sysctl_dccp_retries1;
 extern int  sysctl_dccp_retries2;
-extern int  dccp_feat_default_sequence_window;
-extern int  dccp_feat_default_rx_ccid;
-extern int  dccp_feat_default_tx_ccid;
-extern int  dccp_feat_default_ack_ratio;
-extern int  dccp_feat_default_send_ack_vector;
-extern int  dccp_feat_default_send_ndp_count;
+extern int  sysctl_dccp_feat_sequence_window;
+extern int  sysctl_dccp_feat_rx_ccid;
+extern int  sysctl_dccp_feat_tx_ccid;
+extern int  sysctl_dccp_feat_ack_ratio;
+extern int  sysctl_dccp_feat_send_ack_vector;
+extern int  sysctl_dccp_feat_send_ndp_count;
 
 /* is seq1 < seq2 ? */
 static inline int before48(const u64 seq1, const u64 seq2)
