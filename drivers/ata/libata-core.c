@@ -5957,7 +5957,7 @@ static void __exit ata_exit(void)
 	destroy_workqueue(ata_aux_wq);
 }
 
-module_init(ata_init);
+subsys_initcall(ata_init);
 module_exit(ata_exit);
 
 static unsigned long ratelimit_time;
