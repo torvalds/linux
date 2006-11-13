@@ -200,13 +200,6 @@ static void ksuspend_usb_cleanup(void)
 	destroy_workqueue(ksuspend_usb_wq);
 }
 
-#else
-
-#define ksuspend_usb_init()	0
-#define ksuspend_usb_cleanup()	do {} while (0)
-
-#endif
-
 #ifdef	CONFIG_USB_SUSPEND
 
 /* usb_autosuspend_work - callback routine to autosuspend a USB device */
@@ -225,7 +218,14 @@ static void usb_autosuspend_work(void *_udev)
 static void usb_autosuspend_work(void *_udev)
 {}
 
-#endif
+#endif	/* CONFIG_USB_SUSPEND */
+
+#else
+
+#define ksuspend_usb_init()	0
+#define ksuspend_usb_cleanup()	do {} while (0)
+
+#endif	/* CONFIG_PM */
 
 /**
  * usb_alloc_dev - usb device constructor (usbcore-internal)
