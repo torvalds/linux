@@ -76,20 +76,12 @@ static inline void dccp_v6_send_check(struct sock *sk, int unused_value,
 	dh->dccph_checksum = dccp_v6_csum_finish(skb, &np->saddr, &np->daddr);
 }
 
-static __u32 dccp_v6_init_sequence(struct sock *sk, struct sk_buff *skb)
+static inline __u32 dccp_v6_init_sequence(const struct sk_buff *skb)
 {
-	const struct dccp_hdr *dh = dccp_hdr(skb);
-
-	if (skb->protocol == htons(ETH_P_IPV6))
-		return secure_tcpv6_sequence_number(skb->nh.ipv6h->daddr.s6_addr32,
-						    skb->nh.ipv6h->saddr.s6_addr32,
-						    dh->dccph_dport,
-						    dh->dccph_sport);
-
-	return secure_dccp_sequence_number(skb->nh.iph->daddr,
-					   skb->nh.iph->saddr,
-					   dh->dccph_dport,
-					   dh->dccph_sport);
+	return secure_tcpv6_sequence_number(skb->nh.ipv6h->daddr.s6_addr32,
+					    skb->nh.ipv6h->saddr.s6_addr32,
+					    dccp_hdr(skb)->dccph_dport,
+					    dccp_hdr(skb)->dccph_sport     );
 }
 
 static void dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
@@ -491,7 +483,7 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	 */
 	dreq = dccp_rsk(req);
 	dreq->dreq_isr	   = dcb->dccpd_seq;
-	dreq->dreq_iss	   = dccp_v6_init_sequence(sk, skb);
+	dreq->dreq_iss	   = dccp_v6_init_sequence(skb);
 	dreq->dreq_service = service;
 
 	if (dccp_v6_send_response(sk, req, NULL))

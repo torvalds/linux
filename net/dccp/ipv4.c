@@ -366,8 +366,7 @@ void dccp_v4_send_check(struct sock *sk, int unused, struct sk_buff *skb)
 
 EXPORT_SYMBOL_GPL(dccp_v4_send_check);
 
-static inline u64 dccp_v4_init_sequence(const struct sock *sk,
-					const struct sk_buff *skb)
+static inline u64 dccp_v4_init_sequence(const struct sk_buff *skb)
 {
 	return secure_dccp_sequence_number(skb->nh.iph->daddr,
 					   skb->nh.iph->saddr,
@@ -663,7 +662,7 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	 */
 	dreq = dccp_rsk(req);
 	dreq->dreq_isr	   = dcb->dccpd_seq;
-	dreq->dreq_iss	   = dccp_v4_init_sequence(sk, skb);
+	dreq->dreq_iss	   = dccp_v4_init_sequence(skb);
 	dreq->dreq_service = service;
 
 	if (dccp_v4_send_response(sk, req, NULL))
