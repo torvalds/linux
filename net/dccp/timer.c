@@ -142,7 +142,7 @@ static void dccp_retransmit_timer(struct sock *sk)
 
 	/* retransmit timer is used for feature negotiation throughout
 	 * connection.  In this case, no packet is re-transmitted, but rather an
-	 * ack is generated and pending changes are splaced into its options.
+	 * ack is generated and pending changes are placed into its options.
 	 */
 	if (sk->sk_send_head == NULL) {
 		dccp_pr_debug("feat negotiation retransmit timeout %p\n", sk);
@@ -154,9 +154,11 @@ static void dccp_retransmit_timer(struct sock *sk)
 	/*
 	 * sk->sk_send_head has to have one skb with
 	 * DCCP_SKB_CB(skb)->dccpd_type set to one of the retransmittable DCCP
-	 * packet types (REQUEST, RESPONSE, the ACK in the 3way handshake
-	 * (PARTOPEN timer), etc).
-	 */
+	 * packet types. The only packets eligible for retransmission are:
+	 * 	-- Requests in client-REQUEST  state (sec. 8.1.1)
+	 * 	-- Acks     in client-PARTOPEN state (sec. 8.1.5)
+	 * 	-- CloseReq in server-CLOSEREQ state (sec. 8.3)
+	 * 	-- Close    in   node-CLOSING  state (sec. 8.3)                */
 	BUG_TRAP(sk->sk_send_head != NULL);
 
 	/* 
