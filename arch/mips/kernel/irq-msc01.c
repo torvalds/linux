@@ -117,6 +117,7 @@ struct irq_chip msc_levelirq_type = {
 	.mask = mask_msc_irq,
 	.mask_ack = level_mask_and_ack_msc_irq,
 	.unmask = unmask_msc_irq,
+	.eoi = unmask_msc_irq,
 	.end = end_msc_irq,
 };
 
@@ -126,6 +127,7 @@ struct irq_chip msc_edgeirq_type = {
 	.mask = mask_msc_irq,
 	.mask_ack = edge_mask_and_ack_msc_irq,
 	.unmask = unmask_msc_irq,
+	.eoi = unmask_msc_irq,
 	.end = end_msc_irq,
 };
 

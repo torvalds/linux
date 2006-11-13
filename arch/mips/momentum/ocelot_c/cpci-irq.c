@@ -106,5 +106,5 @@ void cpci_irq_init(void)
 	int i;
 
 	for (i = CPCI_IRQ_BASE; i < (CPCI_IRQ_BASE + 8); i++)
-		set_irq_chip(i, &cpci_irq_type);
+		set_irq_chip_and_handler(i, &cpci_irq_type, handle_level_irq);
 }

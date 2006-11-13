@@ -352,7 +352,7 @@ static struct irq_chip bridge_irq_type = {
 
 void __devinit register_bridge_irq(unsigned int irq)
 {
-	set_irq_chip(irq, &bridge_irq_type);
+	set_irq_chip_and_handler(irq, &bridge_irq_type, handle_level_irq);
 }
 
 int __devinit request_bridge_irq(struct bridge_controller *bc)

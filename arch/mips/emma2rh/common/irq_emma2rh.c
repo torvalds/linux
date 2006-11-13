@@ -76,7 +76,8 @@ void emma2rh_irq_init(u32 irq_base)
 	u32 i;
 
 	for (i = irq_base; i < irq_base + NUM_EMMA2RH_IRQ; i++)
-		set_irq_chip(i, &emma2rh_irq_controller);
+		set_irq_chip_and_handler(i, &emma2rh_irq_controller,
+					 handle_level_irq);
 
 	emma2rh_irq_base = irq_base;
 }

@@ -88,7 +88,8 @@ tx4938_irq_cp0_init(void)
 	int i;
 
 	for (i = TX4938_IRQ_CP0_BEG; i <= TX4938_IRQ_CP0_END; i++)
-		set_irq_chip(i, &tx4938_irq_cp0_type);
+		set_irq_chip_and_handler(i, &tx4938_irq_cp0_type,
+					 handle_level_irq);
 }
 
 static void
@@ -245,7 +246,8 @@ tx4938_irq_pic_init(void)
 	int i;
 
 	for (i = TX4938_IRQ_PIC_BEG; i <= TX4938_IRQ_PIC_END; i++)
-		set_irq_chip(i, &tx4938_irq_pic_type);
+		set_irq_chip_and_handler(i, &tx4938_irq_pic_type,
+					 handle_level_irq);
 
 	setup_irq(TX4938_IRQ_NEST_PIC_ON_CP0, &tx4938_irq_pic_action);
 

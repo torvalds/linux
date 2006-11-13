@@ -114,7 +114,8 @@ void __init mv64340_irq_init(unsigned int base)
 	int i;
 
 	for (i = base; i < base + 64; i++)
-		set_irq_chip(i, &mv64340_irq_type);
+		set_irq_chip_and_handler(i, &mv64340_irq_type,
+					 handle_level_irq);
 
 	irq_base = base;
 }

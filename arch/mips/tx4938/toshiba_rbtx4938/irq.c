@@ -136,7 +136,8 @@ toshiba_rbtx4938_irq_ioc_init(void)
 
 	for (i = TOSHIBA_RBTX4938_IRQ_IOC_BEG;
 	     i <= TOSHIBA_RBTX4938_IRQ_IOC_END; i++)
-		set_irq_chip(i, &toshiba_rbtx4938_irq_ioc_type);
+		set_irq_chip_and_handler(i, &toshiba_rbtx4938_irq_ioc_type,
+					 handle_level_irq);
 
 	setup_irq(RBTX4938_IRQ_IOCINT,
 		  &toshiba_rbtx4938_irq_ioc_action);

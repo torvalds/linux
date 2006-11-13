@@ -96,6 +96,6 @@ struct irq_chip uart_irq_type = {
 
 void uart_irq_init(void)
 {
-	set_irq_chip(80, &uart_irq_type);
-	set_irq_chip(81, &uart_irq_type);
+	set_irq_chip_and_handler(80, &uart_irq_type, handle_level_irq);
+	set_irq_chip_and_handler(81, &uart_irq_type, handle_level_irq);
 }

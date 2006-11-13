@@ -133,5 +133,5 @@ void __init arch_init_irq(void)
 	}
 
 	for (i = 0; i <= LASATINT_END; i++)
-		set_irq_chip(i, &lasat_irq_type);
+		set_irq_chip_and_handler(i, &lasat_irq_type, handle_level_irq);
 }

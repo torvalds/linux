@@ -117,10 +117,12 @@ void __init rm9k_cpu_irq_init(int base)
 	clear_c0_intcontrol(0x0000f000);		/* Mask all */
 
 	for (i = base; i < base + 4; i++)
-		set_irq_chip(i, &rm9k_irq_controller);
+		set_irq_chip_and_handler(i, &rm9k_irq_controller,
+					 handle_level_irq);
 
 	rm9000_perfcount_irq = base + 1;
-	set_irq_chip(rm9000_perfcount_irq, &rm9k_perfcounter_irq);
+	set_irq_chip_and_handler(rm9000_perfcount_irq, &rm9k_perfcounter_irq,
+				 handle_level_irq);
 
 	irq_base = base;
 }

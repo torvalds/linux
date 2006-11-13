@@ -196,7 +196,8 @@ static void __init tx4927_irq_cp0_init(void)
 			   TX4927_IRQ_CP0_BEG, TX4927_IRQ_CP0_END);
 
 	for (i = TX4927_IRQ_CP0_BEG; i <= TX4927_IRQ_CP0_END; i++)
-		set_irq_chip(i, &tx4927_irq_cp0_type);
+		set_irq_chip_and_handler(i, &tx4927_irq_cp0_type,
+					 handle_level_irq);
 }
 
 static void tx4927_irq_cp0_enable(unsigned int irq)
@@ -350,7 +351,8 @@ static void __init tx4927_irq_pic_init(void)
 			   TX4927_IRQ_PIC_BEG, TX4927_IRQ_PIC_END);
 
 	for (i = TX4927_IRQ_PIC_BEG; i <= TX4927_IRQ_PIC_END; i++)
-		set_irq_chip(i, &tx4927_irq_pic_type);
+		set_irq_chip_and_handler(i, &tx4927_irq_pic_type,
+					 handle_level_irq);
 
 	setup_irq(TX4927_IRQ_NEST_PIC_ON_CP0, &tx4927_irq_pic_action);
 

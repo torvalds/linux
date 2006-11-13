@@ -57,7 +57,7 @@ do {									\
 do {									\
 	irq_enter();							\
 	__DO_IRQ_SMTC_HOOK();						\
-	__do_IRQ((irq));						\
+	generic_handle_irq(irq);					\
 	irq_exit();							\
 } while (0)
 

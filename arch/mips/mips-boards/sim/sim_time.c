@@ -203,7 +203,8 @@ void __init plat_timer_setup(struct irqaction *irq)
 	   on seperate cpu's the first one tries to handle the second interrupt.
 	   The effect is that the int remains disabled on the second cpu.
 	   Mark the interrupt with IRQ_PER_CPU to avoid any confusion */
-	irq_desc[mips_cpu_timer_irq].status |= IRQ_PER_CPU;
+	irq_desc[mips_cpu_timer_irq].flags |= IRQ_PER_CPU;
+	set_irq_handler(mips_cpu_timer_irq, handle_percpu_irq);
 #endif
 
 	/* to generate the first timer interrupt */

@@ -74,6 +74,7 @@ static struct irq_chip atlas_irq_type = {
 	.mask = disable_atlas_irq,
 	.mask_ack = disable_atlas_irq,
 	.unmask = enable_atlas_irq,
+	.eoi = enable_atlas_irq,
 	.end = end_atlas_irq,
 };
 
@@ -207,7 +208,7 @@ static inline void init_atlas_irqs (int base)
 	atlas_hw0_icregs->intrsten = 0xffffffff;
 
 	for (i = ATLAS_INT_BASE; i <= ATLAS_INT_END; i++)
-		set_irq_chip(i, &atlas_irq_type);
+		set_irq_chip_and_handler(i, &atlas_irq_type, handle_level_irq);
 }
 
 static struct irqaction atlasirq = {

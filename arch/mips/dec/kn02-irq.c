@@ -85,7 +85,7 @@ void __init init_kn02_irqs(int base)
 	iob();
 
 	for (i = base; i < base + KN02_IRQ_LINES; i++)
-		set_irq_chip(i, &kn02_irq_type);
+		set_irq_chip_and_handler(i, &kn02_irq_type, handle_level_irq);
 
 	kn02_irq_base = base;
 }

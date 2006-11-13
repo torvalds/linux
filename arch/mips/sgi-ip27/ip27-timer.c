@@ -190,6 +190,7 @@ static struct irq_chip rt_irq_type = {
 	.mask		= disable_rt_irq,
 	.mask_ack	= disable_rt_irq,
 	.unmask		= enable_rt_irq,
+	.eoi		= enable_rt_irq,
 	.end		= end_rt_irq,
 };
 
@@ -207,7 +208,7 @@ void __init plat_timer_setup(struct irqaction *irq)
 	if (irqno < 0)
 		panic("Can't allocate interrupt number for timer interrupt");
 
-	set_irq_chip(irqno, &rt_irq_type);
+	set_irq_chip_and_handler(irqno, &rt_irq_type, handle_percpu_irq);
 
 	/* over-write the handler, we use our own way */
 	irq->handler = no_action;

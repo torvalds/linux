@@ -51,7 +51,8 @@ void __init rm7k_cpu_irq_init(int base)
 	clear_c0_intcontrol(0x00000f00);		/* Mask all */
 
 	for (i = base; i < base + 4; i++)
-		set_irq_chip(i, &rm7k_irq_controller);
+		set_irq_chip_and_handler(i, &rm7k_irq_controller,
+					 handle_level_irq);
 
 	irq_base = base;
 }
