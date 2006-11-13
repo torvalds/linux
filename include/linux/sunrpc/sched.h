@@ -11,6 +11,7 @@
 
 #include <linux/timer.h>
 #include <linux/sunrpc/types.h>
+#include <linux/rcupdate.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
@@ -85,6 +86,7 @@ struct rpc_task {
 	union {
 		struct work_struct	tk_work;	/* Async task work queue */
 		struct rpc_wait		tk_wait;	/* RPC wait */
+		struct rcu_head		tk_rcu;		/* for task deletion */
 	} u;
 
 	unsigned short		tk_timeouts;	/* maj timeouts */

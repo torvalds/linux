@@ -102,11 +102,17 @@ struct nfs_write_data *nfs_commit_alloc(void)
 	return p;
 }
 
-void nfs_commit_free(struct nfs_write_data *p)
+void nfs_commit_rcu_free(struct rcu_head *head)
 {
+	struct nfs_write_data *p = container_of(head, struct nfs_write_data, task.u.tk_rcu);
 	if (p && (p->pagevec != &p->page_array[0]))
 		kfree(p->pagevec);
 	mempool_free(p, nfs_commit_mempool);
+}
+
+void nfs_commit_free(struct nfs_write_data *wdata)
+{
+	call_rcu_bh(&wdata->task.u.tk_rcu, nfs_commit_rcu_free);
 }
 
 struct nfs_write_data *nfs_writedata_alloc(size_t len)
@@ -131,11 +137,17 @@ struct nfs_write_data *nfs_writedata_alloc(size_t len)
 	return p;
 }
 
-static void nfs_writedata_free(struct nfs_write_data *p)
+static void nfs_writedata_rcu_free(struct rcu_head *head)
 {
+	struct nfs_write_data *p = container_of(head, struct nfs_write_data, task.u.tk_rcu);
 	if (p && (p->pagevec != &p->page_array[0]))
 		kfree(p->pagevec);
 	mempool_free(p, nfs_wdata_mempool);
+}
+
+static void nfs_writedata_free(struct nfs_write_data *wdata)
+{
+	call_rcu_bh(&wdata->task.u.tk_rcu, nfs_writedata_rcu_free);
 }
 
 void nfs_writedata_release(void *wdata)
@@ -258,7 +270,7 @@ static int nfs_writepage_sync(struct nfs_open_context *ctx, struct inode *inode,
 io_error:
 	nfs_end_data_update(inode);
 	end_page_writeback(page);
-	nfs_writedata_free(wdata);
+	nfs_writedata_release(wdata);
 	return written ? written : result;
 }
 
@@ -1043,7 +1055,7 @@ out_bad:
 	while (!list_empty(&list)) {
 		data = list_entry(list.next, struct nfs_write_data, pages);
 		list_del(&data->pages);
-		nfs_writedata_free(data);
+		nfs_writedata_release(data);
 	}
 	nfs_mark_request_dirty(req);
 	nfs_clear_page_writeback(req);
