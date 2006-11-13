@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
+ * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -15,30 +15,14 @@
  * along with this program; if not, write the Free Software Foundation,
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-#ifndef __XFS_H__
-#define __XFS_H__
+#ifndef __XFS_DMAPI_PRIV_H__
+#define __XFS_DMAPI_PRIV_H__
 
-#ifdef CONFIG_XFS_DEBUG
-#define STATIC
-#define DEBUG 1
-#define XFS_BUF_LOCK_TRACKING 1
-/* #define QUOTADEBUG 1 */
-#endif
+/*
+ *	Based on IO_ISDIRECT, decide which i_ flag is set.
+ */
+#define DM_SEM_FLAG_RD(ioflags) (((ioflags) & IO_ISDIRECT) ? \
+			      DM_FLAGS_IMUX : 0)
+#define DM_SEM_FLAG_WR	(DM_FLAGS_IALLOCSEM_WR | DM_FLAGS_IMUX)
 
-#ifdef CONFIG_XFS_TRACE
-#define XFS_ALLOC_TRACE 1
-#define XFS_ATTR_TRACE 1
-#define XFS_BLI_TRACE 1
-#define XFS_BMAP_TRACE 1
-#define XFS_BMBT_TRACE 1
-#define XFS_DIR2_TRACE 1
-#define XFS_DQUOT_TRACE 1
-#define XFS_ILOCK_TRACE 1
-#define XFS_LOG_TRACE 1
-#define XFS_RW_TRACE 1
-#define XFS_BUF_TRACE 1
-#define XFS_VNODE_TRACE 1
-#endif
-
-#include <linux-2.6/xfs_linux.h>
-#endif	/* __XFS_H__ */
+#endif /*__XFS_DMAPI_PRIV_H__*/
