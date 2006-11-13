@@ -200,10 +200,9 @@ static void register_cpu_online(unsigned int cpu)
 	struct cpu *c = &per_cpu(cpu_devices, cpu);
 	struct sys_device *s = &c->sysdev;
 
-#ifndef CONFIG_PPC_ISERIES
-	if (cpu_has_feature(CPU_FTR_SMT))
+	if (!firmware_has_feature(FW_FEATURE_ISERIES) &&
+			cpu_has_feature(CPU_FTR_SMT))
 		sysdev_create_file(s, &attr_smt_snooze_delay);
-#endif
 
 	/* PMC stuff */
 
@@ -242,10 +241,9 @@ static void unregister_cpu_online(unsigned int cpu)
 
 	BUG_ON(c->no_control);
 
-#ifndef CONFIG_PPC_ISERIES
-	if (cpu_has_feature(CPU_FTR_SMT))
+	if (!firmware_has_feature(FW_FEATURE_ISERIES) &&
+			cpu_has_feature(CPU_FTR_SMT))
 		sysdev_remove_file(s, &attr_smt_snooze_delay);
-#endif
 
 	/* PMC stuff */
 
