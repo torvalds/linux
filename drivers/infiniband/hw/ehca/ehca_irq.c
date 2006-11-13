@@ -45,6 +45,7 @@
 #include "ehca_tools.h"
 #include "hcp_if.h"
 #include "hipz_fns.h"
+#include "ipz_pt_fn.h"
 
 #define EQE_COMPLETION_EVENT   EHCA_BMASK_IBM(1,1)
 #define EQE_CQ_QP_NUMBER       EHCA_BMASK_IBM(8,31)
@@ -137,38 +138,36 @@ int ehca_error_data(struct ehca_shca *shca, void *data,
 	u64 *rblock;
 	unsigned long block_count;
 
-	rblock = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	rblock = ehca_alloc_fw_ctrlblock();
 	if (!rblock) {
 		ehca_err(&shca->ib_device, "Cannot allocate rblock memory.");
 		ret = -ENOMEM;
 		goto error_data1;
 	}
 
+	/* rblock must be 4K aligned and should be 4K large */
 	ret = hipz_h_error_data(shca->ipz_hca_handle,
 				resource,
 				rblock,
 				&block_count);
 
-	if (ret == H_R_STATE) {
+	if (ret == H_R_STATE)
 		ehca_err(&shca->ib_device,
 			 "No error data is available: %lx.", resource);
-	}
 	else if (ret == H_SUCCESS) {
 		int length;
 
 		length = EHCA_BMASK_GET(ERROR_DATA_LENGTH, rblock[0]);
 
-		if (length > PAGE_SIZE)
-			length = PAGE_SIZE;
+		if (length > EHCA_PAGESIZE)
+			length = EHCA_PAGESIZE;
 
 		print_error_data(shca, data, rblock, length);
-	}
-	else {
+	} else
 		ehca_err(&shca->ib_device,
 			 "Error data could not be fetched: %lx", resource);
-	}
 
-	kfree(rblock);
+	ehca_free_fw_ctrlblock(rblock);
 
 error_data1:
 	return ret;

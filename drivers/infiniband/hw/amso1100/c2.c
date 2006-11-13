@@ -1155,7 +1155,8 @@ static int __devinit c2_probe(struct pci_dev *pcidev,
 		goto bail10;
 	}
 
-	c2_register_device(c2dev);
+	if (c2_register_device(c2dev))
+		goto bail10;
 
 	return 0;
 
