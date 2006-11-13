@@ -246,10 +246,10 @@ static int sg_io(struct file *file, request_queue_t *q,
 		switch (hdr->dxfer_direction) {
 		default:
 			return -EINVAL;
-		case SG_DXFER_TO_FROM_DEV:
 		case SG_DXFER_TO_DEV:
 			writing = 1;
 			break;
+		case SG_DXFER_TO_FROM_DEV:
 		case SG_DXFER_FROM_DEV:
 			break;
 		}
