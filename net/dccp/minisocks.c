@@ -196,15 +196,17 @@ struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 
 	/* Check for retransmitted REQUEST */
 	if (dccp_hdr(skb)->dccph_type == DCCP_PKT_REQUEST) {
-		if (after48(DCCP_SKB_CB(skb)->dccpd_seq,
-			    dccp_rsk(req)->dreq_isr)) {
-			struct dccp_request_sock *dreq = dccp_rsk(req);
+		struct dccp_request_sock *dreq = dccp_rsk(req);
 
+		if (after48(DCCP_SKB_CB(skb)->dccpd_seq, dreq->dreq_isr)) {
 			dccp_pr_debug("Retransmitted REQUEST\n");
-			/* Send another RESPONSE packet */
-			dccp_set_seqno(&dreq->dreq_iss, dreq->dreq_iss + 1);
-			dccp_set_seqno(&dreq->dreq_isr,
-				       DCCP_SKB_CB(skb)->dccpd_seq);
+			dreq->dreq_isr = DCCP_SKB_CB(skb)->dccpd_seq;
+			/*
+			 * Send another RESPONSE packet
+			 * To protect against Request floods, increment retrans
+			 * counter (backoff, monitored by dccp_response_timer).
+			 */
+			req->retrans++;
 			req->rsk_ops->rtx_syn_ack(sk, req, NULL);
 		}
 		/* Network Duplicate, discard packet */

@@ -332,6 +332,8 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 	skb->dst = dst_clone(dst);
 
 	dreq = dccp_rsk(req);
+	if (inet_rsk(req)->acked)	/* increase ISS upon retransmission */
+		dccp_inc_seqno(&dreq->dreq_iss);
 	DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_RESPONSE;
 	DCCP_SKB_CB(skb)->dccpd_seq  = dreq->dreq_iss;
 
@@ -354,6 +356,8 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 
 	dccp_csum_outgoing(skb);
 
+	/* We use `acked' to remember that a Response was already sent. */
+	inet_rsk(req)->acked = 1;
 	DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
 	return skb;
 }
