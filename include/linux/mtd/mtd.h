@@ -23,7 +23,7 @@
 
 #define MTD_CHAR_MAJOR 90
 #define MTD_BLOCK_MAJOR 31
-#define MAX_MTD_DEVICES 16
+#define MAX_MTD_DEVICES 32
 
 #define MTD_ERASE_PENDING      	0x01
 #define MTD_ERASING		0x02
