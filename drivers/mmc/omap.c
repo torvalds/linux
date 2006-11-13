@@ -960,7 +960,7 @@ static int mmc_omap_get_ro(struct mmc_host *mmc)
 	return host->wp_pin && omap_get_gpio_datain(host->wp_pin);
 }
 
-static struct mmc_host_ops mmc_omap_ops = {
+static const struct mmc_host_ops mmc_omap_ops = {
 	.request	= mmc_omap_request,
 	.set_ios	= mmc_omap_set_ios,
 	.get_ro		= mmc_omap_get_ro,

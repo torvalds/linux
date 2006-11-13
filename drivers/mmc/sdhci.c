@@ -784,7 +784,7 @@ static int sdhci_get_ro(struct mmc_host *mmc)
 	return !(present & SDHCI_WRITE_PROTECT);
 }
 
-static struct mmc_host_ops sdhci_ops = {
+static const struct mmc_host_ops sdhci_ops = {
 	.request	= sdhci_request,
 	.set_ios	= sdhci_set_ios,
 	.get_ro		= sdhci_get_ro,
