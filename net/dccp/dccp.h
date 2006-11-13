@@ -64,6 +64,17 @@ extern void dccp_time_wait(struct sock *sk, int state, int timeo);
 
 #define DCCP_XMIT_TIMEO 30000 /* Time/msecs for blocking transmit per packet */
 
+/* sysctl variables for DCCP */
+extern int  sysctl_dccp_request_retries;
+extern int  sysctl_dccp_retries1;
+extern int  sysctl_dccp_retries2;
+extern int  dccp_feat_default_sequence_window;
+extern int  dccp_feat_default_rx_ccid;
+extern int  dccp_feat_default_tx_ccid;
+extern int  dccp_feat_default_ack_ratio;
+extern int  dccp_feat_default_send_ack_vector;
+extern int  dccp_feat_default_send_ndp_count;
+
 /* is seq1 < seq2 ? */
 static inline int before48(const u64 seq1, const u64 seq2)
 {

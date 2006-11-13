@@ -63,6 +63,47 @@ DCCP_SOCKOPT_SEND_CSCOV is for the receiver and has a different meaning: it
 	coverage value are also acceptable. The higher the number, the more
 	restrictive this setting (see [RFC 4340, sec. 9.2.1]).
 
+Sysctl variables
+================
+Several DCCP default parameters can be managed by the following sysctls
+(sysctl net.dccp.default or /proc/sys/net/dccp/default):
+
+request_retries
+	The number of active connection initiation retries (the number of
+	Requests minus one) before timing out. In addition, it also governs
+	the behaviour of the other, passive side: this variable also sets
+	the number of times DCCP repeats sending a Response when the initial
+	handshake does not progress from RESPOND to OPEN (i.e. when no Ack
+	is received after the initial Request).  This value should be greater
+	than 0, suggested is less than 10. Analogue of tcp_syn_retries.
+
+retries1
+	How often a DCCP Response is retransmitted until the listening DCCP
+	side considers its connecting peer dead. Analogue of tcp_retries1.
+
+retries2
+	The number of times a general DCCP packet is retransmitted. This has
+	importance for retransmitted acknowledgments and feature negotiation,
+	data packets are never retransmitted. Analogue of tcp_retries2.
+
+send_ndp = 1
+	Whether or not to send NDP count options (sec. 7.7.2).
+
+send_ackvec = 1
+	Whether or not to send Ack Vector options (sec. 11.5).
+
+ack_ratio = 2
+	The default Ack Ratio (sec. 11.3) to use.
+
+tx_ccid = 2
+	Default CCID for the sender-receiver half-connection.
+
+rx_ccid = 2
+	Default CCID for the receiver-sender half-connection.
+
+seq_window = 100
+	The initial sequence window (sec. 7.5.2).
+
 Notes
 =====
 

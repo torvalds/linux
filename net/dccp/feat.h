@@ -26,11 +26,4 @@ extern void dccp_feat_clean(struct dccp_minisock *dmsk);
 extern int  dccp_feat_clone(struct sock *oldsk, struct sock *newsk);
 extern int  dccp_feat_init(struct dccp_minisock *dmsk);
 
-extern int  dccp_feat_default_sequence_window;
-extern int  dccp_feat_default_rx_ccid;
-extern int  dccp_feat_default_tx_ccid;
-extern int  dccp_feat_default_ack_ratio;
-extern int  dccp_feat_default_send_ack_vector;
-extern int  dccp_feat_default_send_ndp_count;
-
 #endif /* _DCCP_FEAT_H */

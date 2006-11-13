@@ -11,6 +11,7 @@
 
 #include <linux/mm.h>
 #include <linux/sysctl.h>
+#include "dccp.h"
 #include "feat.h"
 
 #ifndef CONFIG_SYSCTL
@@ -63,6 +64,30 @@ static struct ctl_table dccp_default_table[] = {
 		.procname	= "send_ndp",
 		.data		= &dccp_feat_default_send_ndp_count,
 		.maxlen		= sizeof(dccp_feat_default_send_ndp_count),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.ctl_name	= NET_DCCP_DEFAULT_REQ_RETRIES,
+		.procname	= "request_retries",
+		.data		= &sysctl_dccp_request_retries,
+		.maxlen		= sizeof(sysctl_dccp_request_retries),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.ctl_name	= NET_DCCP_DEFAULT_RETRIES1,
+		.procname	= "retries1",
+		.data		= &sysctl_dccp_retries1,
+		.maxlen		= sizeof(sysctl_dccp_retries1),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.ctl_name	= NET_DCCP_DEFAULT_RETRIES2,
+		.procname	= "retries2",
+		.data		= &sysctl_dccp_retries2,
+		.maxlen		= sizeof(sysctl_dccp_retries2),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},

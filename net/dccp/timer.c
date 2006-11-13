@@ -15,6 +15,11 @@
 
 #include "dccp.h"
 
+/* sysctl variables governing numbers of retransmission attempts */
+int  sysctl_dccp_request_retries	__read_mostly = TCP_SYN_RETRIES;
+int  sysctl_dccp_retries1		__read_mostly = TCP_RETR1;
+int  sysctl_dccp_retries2		__read_mostly = TCP_RETR2;
+
 static void dccp_write_timer(unsigned long data);
 static void dccp_keepalive_timer(unsigned long data);
 static void dccp_delack_timer(unsigned long data);
@@ -44,11 +49,10 @@ static int dccp_write_timeout(struct sock *sk)
 	if (sk->sk_state == DCCP_REQUESTING || sk->sk_state == DCCP_PARTOPEN) {
 		if (icsk->icsk_retransmits != 0)
 			dst_negative_advice(&sk->sk_dst_cache);
-		retry_until = icsk->icsk_syn_retries ? :
-			    /* FIXME! */ 3 /* FIXME! sysctl_tcp_syn_retries */;
+		retry_until = icsk->icsk_syn_retries ?
+			    : sysctl_dccp_request_retries;
 	} else {
-		if (icsk->icsk_retransmits >=
-		     /* FIXME! sysctl_tcp_retries1 */ 5 /* FIXME! */) {
+		if (icsk->icsk_retransmits >= sysctl_dccp_retries1) {
 			/* NOTE. draft-ietf-tcpimpl-pmtud-01.txt requires pmtu
 			   black hole detection. :-(
 
@@ -72,7 +76,7 @@ static int dccp_write_timeout(struct sock *sk)
 			dst_negative_advice(&sk->sk_dst_cache);
 		}
 
-		retry_until = /* FIXME! */ 15 /* FIXME! sysctl_tcp_retries2 */;
+		retry_until = sysctl_dccp_retries2;
 		/*
 		 * FIXME: see tcp_write_timout and tcp_out_of_resources
 		 */
@@ -196,7 +200,7 @@ backoff:
 	icsk->icsk_rto = min(icsk->icsk_rto << 1, DCCP_RTO_MAX);
 	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS, icsk->icsk_rto,
 				  DCCP_RTO_MAX);
-	if (icsk->icsk_retransmits > 3 /* FIXME: sysctl_dccp_retries1 */)
+	if (icsk->icsk_retransmits > sysctl_dccp_retries1)
 		__sk_dst_reset(sk);
 out:;
 }
