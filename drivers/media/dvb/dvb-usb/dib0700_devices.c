@@ -279,6 +279,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 		{ USB_DEVICE(USB_VID_UNIWILL,   USB_PID_UNIWILL_STK7700P) },
 		{ USB_DEVICE(USB_VID_LEADTEK,   USB_PID_WINFAST_DTV_DONGLE_STK7700P) },
 		{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_T_STICK_2) },
+		{ USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_VOLAR_2) },
 		{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -331,7 +332,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ NULL },
 			},
 			{   "AVerMedia AVerTV DVB-T Volar",
-				{ &dib0700_usb_id_table[5], NULL },
+				{ &dib0700_usb_id_table[5], &dib0700_usb_id_table[10] },
 				{ NULL },
 			},
 			{   "Compro Videomate U500",
