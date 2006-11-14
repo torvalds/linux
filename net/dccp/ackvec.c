@@ -67,10 +67,6 @@ static void dccp_ackvec_insert_avr(struct dccp_ackvec *av,
 int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-#ifdef CONFIG_IP_DCCP_DEBUG
-	const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ?
-				"CLIENT tx: " : "server tx: ";
-#endif
 	struct dccp_ackvec *av = dp->dccps_hc_rx_ackvec;
 	int len = av->dccpav_vec_len + 2;
 	struct timeval now;
@@ -129,9 +125,9 @@ int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 
 	dccp_ackvec_insert_avr(av, avr);
 
-	dccp_pr_debug("%sACK Vector 0, len=%d, ack_seqno=%llu, "
+	dccp_pr_debug("%s ACK Vector 0, len=%d, ack_seqno=%llu, "
 		      "ack_ackno=%llu\n",
-		      debug_prefix, avr->dccpavr_sent_len,
+		      dccp_role(sk), avr->dccpavr_sent_len,
 		      (unsigned long long)avr->dccpavr_ack_seqno,
 		      (unsigned long long)avr->dccpavr_ack_ackno);
 	return 0;
@@ -380,14 +376,9 @@ void dccp_ackvec_check_rcv_ackno(struct dccp_ackvec *av, struct sock *sk,
 	 */
 	list_for_each_entry_reverse(avr, &av->dccpav_records, dccpavr_node) {
 		if (ackno == avr->dccpavr_ack_seqno) {
-#ifdef CONFIG_IP_DCCP_DEBUG
-			struct dccp_sock *dp = dccp_sk(sk);
-			const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ?
-						"CLIENT rx ack: " : "server rx ack: ";
-#endif
-			dccp_pr_debug("%sACK packet 0, len=%d, ack_seqno=%llu, "
+			dccp_pr_debug("%s ACK packet 0, len=%d, ack_seqno=%llu, "
 				      "ack_ackno=%llu, ACKED!\n",
-				      debug_prefix, 1,
+				      dccp_role(sk), 1,
 				      (unsigned long long)avr->dccpavr_ack_seqno,
 				      (unsigned long long)avr->dccpavr_ack_ackno);
 			dccp_ackvec_throw_record(av, avr);
@@ -437,16 +428,10 @@ found:
 		if (between48(avr->dccpavr_ack_seqno, ackno_end_rl, ackno)) {
 			const u8 state = *vector & DCCP_ACKVEC_STATE_MASK;
 			if (state != DCCP_ACKVEC_STATE_NOT_RECEIVED) {
-#ifdef CONFIG_IP_DCCP_DEBUG
-				struct dccp_sock *dp = dccp_sk(sk);
-				const char *debug_prefix =
-					dp->dccps_role == DCCP_ROLE_CLIENT ?
-					"CLIENT rx ack: " : "server rx ack: ";
-#endif
-				dccp_pr_debug("%sACK vector 0, len=%d, "
+				dccp_pr_debug("%s ACK vector 0, len=%d, "
 					      "ack_seqno=%llu, ack_ackno=%llu, "
 					      "ACKED!\n",
-					      debug_prefix, len,
+					      dccp_role(sk), len,
 					      (unsigned long long)
 					      avr->dccpavr_ack_seqno,
 					      (unsigned long long)

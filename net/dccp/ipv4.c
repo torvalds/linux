@@ -518,7 +518,7 @@ static void dccp_v4_ctl_send_reset(struct sk_buff *rxskb)
 				       sizeof(struct dccp_hdr_reset);
 	struct sk_buff *skb;
 	struct dst_entry *dst;
-	u64 seqno;
+	u64 seqno = 0;
 
 	/* Never send a reset in response to a reset. */
 	if (rxdh->dccph_type == DCCP_PKT_RESET)
@@ -552,13 +552,11 @@ static void dccp_v4_ctl_send_reset(struct sk_buff *rxskb)
 				DCCP_SKB_CB(rxskb)->dccpd_reset_code;
 
 	/* See "8.3.1. Abnormal Termination" in RFC 4340 */
-	seqno = 0;
 	if (DCCP_SKB_CB(rxskb)->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
 		dccp_set_seqno(&seqno, DCCP_SKB_CB(rxskb)->dccpd_ack_seq + 1);
 
 	dccp_hdr_set_seq(dh, seqno);
-	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb),
-			 DCCP_SKB_CB(rxskb)->dccpd_seq);
+	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb), DCCP_SKB_CB(rxskb)->dccpd_seq);
 
 	dccp_csum_outgoing(skb);
 	dh->dccph_checksum = dccp_v4_csum_finish(skb, rxskb->nh.iph->saddr,
@@ -734,6 +732,11 @@ discard:
 
 EXPORT_SYMBOL_GPL(dccp_v4_do_rcv);
 
+/**
+ *	dccp_invalid_packet  -  check for malformed packets
+ *	Implements RFC 4340, 8.5:  Step 1: Check header basics
+ *	Packets that fail these checks are ignored and do not receive Resets.
+ */
 int dccp_invalid_packet(struct sk_buff *skb)
 {
 	const struct dccp_hdr *dh;
@@ -742,6 +745,7 @@ int dccp_invalid_packet(struct sk_buff *skb)
 	if (skb->pkt_type != PACKET_HOST)
 		return 1;
 
+	/* If the packet is shorter than 12 bytes, drop packet and return */
 	if (!pskb_may_pull(skb, sizeof(struct dccp_hdr))) {
 		LIMIT_NETDEBUG(KERN_WARNING "DCCP: pskb_may_pull failed\n");
 		return 1;
@@ -749,42 +753,37 @@ int dccp_invalid_packet(struct sk_buff *skb)
 
 	dh = dccp_hdr(skb);
 
-	/* If the packet type is not understood, drop packet and return */
+	/* If P.type is not understood, drop packet and return */
 	if (dh->dccph_type >= DCCP_PKT_INVALID) {
 		LIMIT_NETDEBUG(KERN_WARNING "DCCP: invalid packet type\n");
 		return 1;
 	}
 
 	/*
-	 * If P.Data Offset is too small for packet type, or too large for
-	 * packet, drop packet and return
+	 * If P.Data Offset is too small for packet type, drop packet and return
 	 */
 	if (dh->dccph_doff < dccp_hdr_len(skb) / sizeof(u32)) {
 		LIMIT_NETDEBUG(KERN_WARNING "DCCP: P.Data Offset(%u) "
-					    "too small 1\n",
-			       dh->dccph_doff);
+					    "too small\n", dh->dccph_doff);
 		return 1;
 	}
-
+	/*
+	 * If P.Data Offset is too too large for packet, drop packet and return
+	 */
 	if (!pskb_may_pull(skb, dh->dccph_doff * sizeof(u32))) {
 		LIMIT_NETDEBUG(KERN_WARNING "DCCP: P.Data Offset(%u) "
-					    "too small 2\n",
-			       dh->dccph_doff);
+					    "too large\n", dh->dccph_doff);
 		return 1;
 	}
-
-	dh = dccp_hdr(skb);
 
 	/*
 	 * If P.type is not Data, Ack, or DataAck and P.X == 0 (the packet
 	 * has short sequence numbers), drop packet and return
 	 */
-	if (dh->dccph_x == 0 &&
-	    dh->dccph_type != DCCP_PKT_DATA &&
-	    dh->dccph_type != DCCP_PKT_ACK &&
-	    dh->dccph_type != DCCP_PKT_DATAACK) {
-		LIMIT_NETDEBUG(KERN_WARNING "DCCP: P.type (%s) not Data, Ack "
-					    "nor DataAck and P.X == 0\n",
+	if (dh->dccph_type >= DCCP_PKT_DATA    &&
+	    dh->dccph_type <= DCCP_PKT_DATAACK && dh->dccph_x == 0)  {
+		LIMIT_NETDEBUG(KERN_WARNING "DCCP: P.type (%s) not Data||Ack||"
+					    "DataAck, while P.X == 0\n",
 			       dccp_packet_name(dh->dccph_type));
 		return 1;
 	}

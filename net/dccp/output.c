@@ -333,6 +333,7 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 		return NULL;
 	}
 
+	/* Build and checksum header */
 	dh = dccp_zeroed_hdr(skb, dccp_header_size);
 
 	dh->dccph_sport	= inet_sk(sk)->sport;

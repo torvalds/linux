@@ -452,9 +452,8 @@ out_free_val:
 static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
 		char __user *optval, int optlen)
 {
-	struct dccp_sock *dp;
-	int err;
-	int val;
+	struct dccp_sock *dp = dccp_sk(sk);
+	int val, err = 0;
 
 	if (optlen < sizeof(int))
 		return -EINVAL;
@@ -466,9 +465,6 @@ static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
 		return dccp_setsockopt_service(sk, val, optval, optlen);
 
 	lock_sock(sk);
-	dp = dccp_sk(sk);
-	err = 0;
-
 	switch (optname) {
 	case DCCP_SOCKOPT_PACKET_SIZE:
 		dp->dccps_packet_size = val;

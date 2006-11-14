@@ -318,7 +318,7 @@ static void dccp_v6_ctl_send_reset(struct sk_buff *rxskb)
 				       sizeof(struct dccp_hdr_reset);
 	struct sk_buff *skb;
 	struct flowi fl;
-	u64 seqno;
+	u64 seqno = 0;
 
 	if (rxdh->dccph_type == DCCP_PKT_RESET)
 		return;
@@ -345,13 +345,11 @@ static void dccp_v6_ctl_send_reset(struct sk_buff *rxskb)
 				DCCP_SKB_CB(rxskb)->dccpd_reset_code;
 
 	/* See "8.3.1. Abnormal Termination" in RFC 4340 */
-	seqno = 0;
 	if (DCCP_SKB_CB(rxskb)->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
 		dccp_set_seqno(&seqno, DCCP_SKB_CB(rxskb)->dccpd_ack_seq + 1);
 
 	dccp_hdr_set_seq(dh, seqno);
-	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb),
-			 DCCP_SKB_CB(rxskb)->dccpd_seq);
+	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb), DCCP_SKB_CB(rxskb)->dccpd_seq);
 
 	dccp_csum_outgoing(skb);
 	dh->dccph_checksum = dccp_v6_csum_finish(skb, &rxskb->nh.ipv6h->saddr,

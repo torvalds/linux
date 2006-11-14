@@ -60,10 +60,6 @@ static u32 dccp_decode_value_var(const unsigned char *bf, const u8 len)
 int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-#ifdef CONFIG_IP_DCCP_DEBUG
-	const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ?
-					"CLIENT rx opt: " : "server rx opt: ";
-#endif
 	const struct dccp_hdr *dh = dccp_hdr(skb);
 	const u8 pkt_type = DCCP_SKB_CB(skb)->dccpd_type;
 	unsigned char *options = (unsigned char *)dh + dccp_hdr_len(skb);
@@ -119,7 +115,7 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 				goto out_invalid_option;
 
 			opt_recv->dccpor_ndp = dccp_decode_value_var(value, len);
-			dccp_pr_debug("%sNDP count=%d\n", debug_prefix,
+			dccp_pr_debug("%s rx opt: NDP count=%d\n", dccp_role(sk),
 				      opt_recv->dccpor_ndp);
 			break;
 		case DCCPO_CHANGE_L:
@@ -165,8 +161,8 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 			dp->dccps_timestamp_echo = opt_recv->dccpor_timestamp;
 			dccp_timestamp(sk, &dp->dccps_timestamp_time);
 
-			dccp_pr_debug("%sTIMESTAMP=%u, ackno=%llu\n",
-				      debug_prefix, opt_recv->dccpor_timestamp,
+			dccp_pr_debug("%s rx opt: TIMESTAMP=%u, ackno=%llu\n",
+				      dccp_role(sk), opt_recv->dccpor_timestamp,
 				      (unsigned long long)
 				      DCCP_SKB_CB(skb)->dccpd_ack_seq);
 			break;
@@ -176,8 +172,8 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 
 			opt_recv->dccpor_timestamp_echo = ntohl(*(__be32 *)value);
 
-			dccp_pr_debug("%sTIMESTAMP_ECHO=%u, len=%d, ackno=%llu, ",
-				      debug_prefix,
+			dccp_pr_debug("%s rx opt: TIMESTAMP_ECHO=%u, len=%d, "
+				      "ackno=%llu, ",  dccp_role(sk),
 				      opt_recv->dccpor_timestamp_echo,
 				      len + 2,
 				      (unsigned long long)
@@ -211,8 +207,8 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 			if (elapsed_time > opt_recv->dccpor_elapsed_time)
 				opt_recv->dccpor_elapsed_time = elapsed_time;
 
-			dccp_pr_debug("%sELAPSED_TIME=%d\n", debug_prefix,
-				      elapsed_time);
+			dccp_pr_debug("%s rx opt: ELAPSED_TIME=%d\n",
+				      dccp_role(sk), elapsed_time);
 			break;
 			/*
 			 * From RFC 4340, sec. 10.3:
