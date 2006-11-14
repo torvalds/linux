@@ -82,6 +82,7 @@ EXPORT_SYMBOL(acpi_strict);
 acpi_interrupt_flags acpi_sci_flags __initdata;
 int acpi_sci_override_gsi __initdata;
 int acpi_skip_timer_override __initdata;
+int acpi_use_timer_override __initdata;
 
 #ifdef CONFIG_X86_LOCAL_APIC
 static u64 acpi_lapic_addr __initdata = APIC_DEFAULT_PHYS_BASE;
@@ -1300,6 +1301,13 @@ static int __init parse_acpi_skip_timer_override(char *arg)
 	return 0;
 }
 early_param("acpi_skip_timer_override", parse_acpi_skip_timer_override);
+
+static int __init parse_acpi_use_timer_override(char *arg)
+{
+	acpi_use_timer_override = 1;
+	return 0;
+}
+early_param("acpi_use_timer_override", parse_acpi_use_timer_override);
 #endif /* CONFIG_X86_IO_APIC */
 
 static int __init setup_acpi_sci(char *s)
