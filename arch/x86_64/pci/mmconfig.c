@@ -163,37 +163,6 @@ static __init void unreachable_devices(void)
 	}
 }
 
-static __init void pci_mmcfg_insert_resources(void)
-{
-#define PCI_MMCFG_RESOURCE_NAME_LEN 19
-	int i;
-	struct resource *res;
-	char *names;
-	unsigned num_buses;
-
-	res = kcalloc(PCI_MMCFG_RESOURCE_NAME_LEN + sizeof(*res),
-			pci_mmcfg_config_num, GFP_KERNEL);
-
-	if (!res) {
-		printk(KERN_ERR "PCI: Unable to allocate MMCONFIG resources\n");
-		return;
-	}
-
-	names = (void *)&res[pci_mmcfg_config_num];
-	for (i = 0; i < pci_mmcfg_config_num; i++, res++) {
-		num_buses = pci_mmcfg_config[i].end_bus_number -
-		    pci_mmcfg_config[i].start_bus_number + 1;
-		res->name = names;
-		snprintf(names, PCI_MMCFG_RESOURCE_NAME_LEN, "PCI MMCONFIG %u",
-			pci_mmcfg_config[i].pci_segment_group_number);
-		res->start = pci_mmcfg_config[i].base_address;
-		res->end = res->start + (num_buses << 20) - 1;
-		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-		insert_resource(&iomem_resource, res);
-		names += PCI_MMCFG_RESOURCE_NAME_LEN;
-	}
-}
-
 void __init pci_mmcfg_init(int type)
 {
 	int i;
@@ -237,7 +206,6 @@ void __init pci_mmcfg_init(int type)
 	}
 
 	unreachable_devices();
-	pci_mmcfg_insert_resources();
 
 	raw_pci_ops = &pci_mmcfg;
 	pci_probe = (pci_probe & ~PCI_PROBE_MASK) | PCI_PROBE_MMCONF;
