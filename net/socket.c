@@ -77,7 +77,6 @@
 #include <linux/cache.h>
 #include <linux/module.h>
 #include <linux/highmem.h>
-#include <linux/divert.h>
 #include <linux/mount.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
@@ -851,11 +850,6 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 			if (vlan_ioctl_hook)
 				err = vlan_ioctl_hook(argp);
 			mutex_unlock(&vlan_ioctl_mutex);
-			break;
-		case SIOCGIFDIVERT:
-		case SIOCSIFDIVERT:
-			/* Convert this to call through a hook */
-			err = divert_ioctl(cmd, argp);
 			break;
 		case SIOCADDDLCI:
 		case SIOCDELDLCI:

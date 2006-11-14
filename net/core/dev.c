@@ -98,7 +98,6 @@
 #include <linux/seq_file.h>
 #include <linux/stat.h>
 #include <linux/if_bridge.h>
-#include <linux/divert.h>
 #include <net/dst.h>
 #include <net/pkt_sched.h>
 #include <net/checksum.h>
@@ -1827,8 +1826,6 @@ int netif_receive_skb(struct sk_buff *skb)
 ncls:
 #endif
 
-	handle_diverter(skb);
-
 	if (handle_bridge(&skb, &pt_prev, &ret, orig_dev))
 		goto out;
 
@@ -2898,10 +2895,6 @@ int register_netdevice(struct net_device *dev)
 	spin_lock_init(&dev->ingress_lock);
 #endif
 
-	ret = alloc_divert_blk(dev);
-	if (ret)
-		goto out;
-
 	dev->iflink = -1;
 
 	/* Init, if this function is available */
@@ -2910,13 +2903,13 @@ int register_netdevice(struct net_device *dev)
 		if (ret) {
 			if (ret > 0)
 				ret = -EIO;
-			goto out_err;
+			goto out;
 		}
 	}
  
 	if (!dev_valid_name(dev->name)) {
 		ret = -EINVAL;
-		goto out_err;
+		goto out;
 	}
 
 	dev->ifindex = dev_new_index();
@@ -2930,7 +2923,7 @@ int register_netdevice(struct net_device *dev)
 			= hlist_entry(p, struct net_device, name_hlist);
 		if (!strncmp(d->name, dev->name, IFNAMSIZ)) {
 			ret = -EEXIST;
- 			goto out_err;
+ 			goto out;
 		}
  	}
 
@@ -2974,7 +2967,7 @@ int register_netdevice(struct net_device *dev)
 
 	ret = netdev_register_sysfs(dev);
 	if (ret)
-		goto out_err;
+		goto out;
 	dev->reg_state = NETREG_REGISTERED;
 
 	/*
@@ -3001,9 +2994,6 @@ int register_netdevice(struct net_device *dev)
 
 out:
 	return ret;
-out_err:
-	free_divert_blk(dev);
-	goto out;
 }
 
 /**
@@ -3319,8 +3309,6 @@ int unregister_netdevice(struct net_device *dev)
 
 	/* Notifier chain MUST detach us from master device. */
 	BUG_TRAP(!dev->master);
-
-	free_divert_blk(dev);
 
 	/* Finish processing unregister after unlock */
 	net_set_todo(dev);

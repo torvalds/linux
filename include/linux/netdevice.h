@@ -38,7 +38,6 @@
 #include <linux/percpu.h>
 #include <linux/dmaengine.h>
 
-struct divert_blk;
 struct vlan_group;
 struct ethtool_ops;
 struct netpoll_info;
@@ -516,11 +515,6 @@ struct net_device
 
 	/* bridge stuff */
 	struct net_bridge_port	*br_port;
-
-#ifdef CONFIG_NET_DIVERT
-	/* this will get initialized at each interface type init routine */
-	struct divert_blk	*divert;
-#endif /* CONFIG_NET_DIVERT */
 
 	/* class/net/name entry */
 	struct class_device	class_dev;
