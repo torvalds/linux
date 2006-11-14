@@ -1429,7 +1429,24 @@ out:
  *	@lease: file_lock to use
  *
  *	Call this to establish a lease on the file.
- *	The fl_lmops fl_break function is required by break_lease
+ *	The (*lease)->fl_lmops->fl_break operation must be set; if not,
+ *	break_lease will oops!
+ *
+ *	This will call the filesystem's setlease file method, if
+ *	defined.  Note that there is no getlease method; instead, the
+ *	filesystem setlease method should call back to setlease() to
+ *	add a lease to the inode's lease list, where fcntl_getlease() can
+ *	find it.  Since fcntl_getlease() only reports whether the current
+ *	task holds a lease, a cluster filesystem need only do this for
+ *	leases held by processes on this node.
+ *
+ *	There is also no break_lease method; filesystems that
+ *	handle their own leases shoud break leases themselves from the
+ *	filesystem's open, create, and (on truncate) setattr methods.
+ *
+ *	Warning: the only current setlease methods exist only to disable
+ *	leases in certain cases.  More vfs changes may be required to
+ *	allow a full filesystem lease implementation.
  */
 
 int vfs_setlease(struct file *filp, long arg, struct file_lock **lease)
@@ -1437,7 +1454,10 @@ int vfs_setlease(struct file *filp, long arg, struct file_lock **lease)
 	int error;
 
 	lock_kernel();
-	error = setlease(filp, arg, lease);
+	if (filp->f_op && filp->f_op->setlease)
+		error = filp->f_op->setlease(filp, arg, lease);
+	else
+		error = setlease(filp, arg, lease);
 	unlock_kernel();
 
 	return error;
