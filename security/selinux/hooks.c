@@ -58,6 +58,7 @@
 #include <linux/netlink.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
+#include <linux/dccp.h>
 #include <linux/quota.h>
 #include <linux/un.h>		/* for Unix socket types */
 #include <net/af_unix.h>	/* for Unix socket types */
@@ -751,6 +752,8 @@ static inline u16 socket_type_to_security_class(int family, int type, int protoc
 				return SECCLASS_UDP_SOCKET;
 			else
 				return SECCLASS_RAWIP_SOCKET;
+		case SOCK_DCCP:
+			return SECCLASS_DCCP_SOCKET;
 		default:
 			return SECCLASS_RAWIP_SOCKET;
 		}
@@ -2944,6 +2947,22 @@ static int selinux_parse_skb_ipv4(struct sk_buff *skb,
         	break;
         }
 
+	case IPPROTO_DCCP: {
+		struct dccp_hdr _dccph, *dh;
+
+		if (ntohs(ih->frag_off) & IP_OFFSET)
+			break;
+
+		offset += ihlen;
+		dh = skb_header_pointer(skb, offset, sizeof(_dccph), &_dccph);
+		if (dh == NULL)
+			break;
+
+		ad->u.net.sport = dh->dccph_sport;
+		ad->u.net.dport = dh->dccph_dport;
+		break;
+        }
+
         default:
         	break;
         }
@@ -3003,6 +3022,18 @@ static int selinux_parse_skb_ipv6(struct sk_buff *skb,
 		ad->u.net.dport = uh->dest;
 		break;
 	}
+
+	case IPPROTO_DCCP: {
+		struct dccp_hdr _dccph, *dh;
+
+		dh = skb_header_pointer(skb, offset, sizeof(_dccph), &_dccph);
+		if (dh == NULL)
+			break;
+
+		ad->u.net.sport = dh->dccph_sport;
+		ad->u.net.dport = dh->dccph_dport;
+		break;
+        }
 
 	/* includes fragments */
 	default:
@@ -3188,7 +3219,11 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 		case SECCLASS_UDP_SOCKET:
 			node_perm = UDP_SOCKET__NODE_BIND;
 			break;
-			
+
+		case SECCLASS_DCCP_SOCKET:
+			node_perm = DCCP_SOCKET__NODE_BIND;
+			break;
+
 		default:
 			node_perm = RAWIP_SOCKET__NODE_BIND;
 			break;
@@ -3226,16 +3261,17 @@ static int selinux_socket_connect(struct socket *sock, struct sockaddr *address,
 		return err;
 
 	/*
-	 * If a TCP socket, check name_connect permission for the port.
+	 * If a TCP or DCCP socket, check name_connect permission for the port.
 	 */
 	isec = SOCK_INODE(sock)->i_security;
-	if (isec->sclass == SECCLASS_TCP_SOCKET) {
+	if (isec->sclass == SECCLASS_TCP_SOCKET ||
+	    isec->sclass == SECCLASS_DCCP_SOCKET) {
 		struct sock *sk = sock->sk;
 		struct avc_audit_data ad;
 		struct sockaddr_in *addr4 = NULL;
 		struct sockaddr_in6 *addr6 = NULL;
 		unsigned short snum;
-		u32 sid;
+		u32 sid, perm;
 
 		if (sk->sk_family == PF_INET) {
 			addr4 = (struct sockaddr_in *)address;
@@ -3254,11 +3290,13 @@ static int selinux_socket_connect(struct socket *sock, struct sockaddr *address,
 		if (err)
 			goto out;
 
+		perm = (isec->sclass == SECCLASS_TCP_SOCKET) ?
+		       TCP_SOCKET__NAME_CONNECT : DCCP_SOCKET__NAME_CONNECT;
+
 		AVC_AUDIT_DATA_INIT(&ad,NET);
 		ad.u.net.dport = htons(snum);
 		ad.u.net.family = sk->sk_family;
-		err = avc_has_perm(isec->sid, sid, isec->sclass,
-				   TCP_SOCKET__NAME_CONNECT, &ad);
+		err = avc_has_perm(isec->sid, sid, isec->sclass, perm, &ad);
 		if (err)
 			goto out;
 	}
@@ -3446,7 +3484,13 @@ static int selinux_sock_rcv_skb_compat(struct sock *sk, struct sk_buff *skb,
 		node_perm = NODE__TCP_RECV;
 		recv_perm = TCP_SOCKET__RECV_MSG;
 		break;
-	
+
+	case SECCLASS_DCCP_SOCKET:
+		netif_perm = NETIF__DCCP_RECV;
+		node_perm = NODE__DCCP_RECV;
+		recv_perm = DCCP_SOCKET__RECV_MSG;
+		break;
+
 	default:
 		netif_perm = NETIF__RAWIP_RECV;
 		node_perm = NODE__RAWIP_RECV;
@@ -3777,7 +3821,13 @@ static int selinux_ip_postroute_last_compat(struct sock *sk, struct net_device *
 		node_perm = NODE__TCP_SEND;
 		send_perm = TCP_SOCKET__SEND_MSG;
 		break;
-	
+
+	case SECCLASS_DCCP_SOCKET:
+		netif_perm = NETIF__DCCP_SEND;
+		node_perm = NODE__DCCP_SEND;
+		send_perm = DCCP_SOCKET__SEND_MSG;
+		break;
+
 	default:
 		netif_perm = NETIF__RAWIP_SEND;
 		node_perm = NODE__RAWIP_SEND;
