@@ -224,10 +224,10 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	struct mmc_blk_data *md = mq->data;
 	struct mmc_card *card = md->queue.card;
 	struct mmc_blk_request brq;
-	int ret;
+	int ret = 1;
 
 	if (mmc_card_claim_host(card))
-		goto cmd_err;
+		goto flush_queue;
 
 	do {
 		struct mmc_command cmd;
@@ -344,8 +344,6 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	return 1;
 
  cmd_err:
-	ret = 1;
-
  	/*
  	 * If this is an SD card and we're writing, we can first
  	 * mark the known good sectors as ok.
@@ -379,6 +377,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 
 	mmc_card_release_host(card);
 
+flush_queue:
 	spin_lock_irq(&md->lock);
 	while (ret) {
 		ret = end_that_request_chunk(req, 0,
