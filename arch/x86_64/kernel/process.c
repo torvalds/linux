@@ -88,9 +88,8 @@ void enter_idle(void)
 
 static void __exit_idle(void)
 {
-	if (read_pda(isidle) == 0)
+	if (test_and_clear_bit_pda(0, isidle) == 0)
 		return;
-	write_pda(isidle, 0);
 	atomic_notifier_call_chain(&idle_notifier, IDLE_END, NULL);
 }
 
