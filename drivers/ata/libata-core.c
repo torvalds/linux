@@ -240,6 +240,49 @@ int ata_rwcmd_protocol(struct ata_queued_cmd *qc)
 }
 
 /**
+ *	ata_tf_read_block - Read block address from ATA taskfile
+ *	@tf: ATA taskfile of interest
+ *	@dev: ATA device @tf belongs to
+ *
+ *	LOCKING:
+ *	None.
+ *
+ *	Read block address from @tf.  This function can handle all
+ *	three address formats - LBA, LBA48 and CHS.  tf->protocol and
+ *	flags select the address format to use.
+ *
+ *	RETURNS:
+ *	Block address read from @tf.
+ */
+u64 ata_tf_read_block(struct ata_taskfile *tf, struct ata_device *dev)
+{
+	u64 block = 0;
+
+	if (tf->flags & ATA_TFLAG_LBA) {
+		if (tf->flags & ATA_TFLAG_LBA48) {
+			block |= (u64)tf->hob_lbah << 40;
+			block |= (u64)tf->hob_lbam << 32;
+			block |= tf->hob_lbal << 24;
+		} else
+			block |= (tf->device & 0xf) << 24;
+
+		block |= tf->lbah << 16;
+		block |= tf->lbam << 8;
+		block |= tf->lbal;
+	} else {
+		u32 cyl, head, sect;
+
+		cyl = tf->lbam | (tf->lbah << 8);
+		head = tf->device & 0xf;
+		sect = tf->lbal;
+
+		block = (cyl * dev->heads + head) * dev->sectors + sect;
+	}
+
+	return block;
+}
+
+/**
  *	ata_pack_xfermask - Pack pio, mwdma and udma masks into xfer_mask
  *	@pio_mask: pio_mask
  *	@mwdma_mask: mwdma_mask
