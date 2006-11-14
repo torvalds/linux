@@ -383,7 +383,8 @@ void dccp_ackvec_check_rcv_ackno(struct dccp_ackvec *av, struct sock *sk,
 				      (unsigned long long)avr->dccpavr_ack_ackno);
 			dccp_ackvec_throw_record(av, avr);
 			break;
-		}
+		} else if (avr->dccpavr_ack_seqno > ackno)
+			break; /* old news */
 	}
 }
 
