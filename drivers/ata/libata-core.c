@@ -4536,6 +4536,14 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 	qc->complete_fn(qc);
 }
 
+static void fill_result_tf(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+
+	ap->ops->tf_read(ap, &qc->result_tf);
+	qc->result_tf.flags = qc->tf.flags;
+}
+
 /**
  *	ata_qc_complete - Complete an active ATA command
  *	@qc: Command to complete
@@ -4573,7 +4581,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 		if (unlikely(qc->flags & ATA_QCFLAG_FAILED)) {
 			if (!ata_tag_internal(qc->tag)) {
 				/* always fill result TF for failed qc */
-				ap->ops->tf_read(ap, &qc->result_tf);
+				fill_result_tf(qc);
 				ata_qc_schedule_eh(qc);
 				return;
 			}
@@ -4581,7 +4589,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 
 		/* read result TF if requested */
 		if (qc->flags & ATA_QCFLAG_RESULT_TF)
-			ap->ops->tf_read(ap, &qc->result_tf);
+			fill_result_tf(qc);
 
 		__ata_qc_complete(qc);
 	} else {
@@ -4590,7 +4598,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 
 		/* read result TF if failed or requested */
 		if (qc->err_mask || qc->flags & ATA_QCFLAG_RESULT_TF)
-			ap->ops->tf_read(ap, &qc->result_tf);
+			fill_result_tf(qc);
 
 		__ata_qc_complete(qc);
 	}
