@@ -671,7 +671,7 @@ void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
 }
 
 /*
- *	ata_gen_ata_desc_sense - Generate check condition sense block.
+ *	ata_gen_passthru_sense - Generate check condition sense block.
  *	@qc: Command that completed.
  *
  *	This function is specific to the ATA descriptor format sense
@@ -681,9 +681,9 @@ void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
  *	block. Clear sense key, ASC & ASCQ if there is no error.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host lock)
+ *	None.
  */
-void ata_gen_ata_desc_sense(struct ata_queued_cmd *qc)
+static void ata_gen_passthru_sense(struct ata_queued_cmd *qc)
 {
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	struct ata_taskfile *tf = &qc->result_tf;
@@ -743,16 +743,16 @@ void ata_gen_ata_desc_sense(struct ata_queued_cmd *qc)
 }
 
 /**
- *	ata_gen_fixed_sense - generate a SCSI fixed sense block
+ *	ata_gen_ata_sense - generate a SCSI fixed sense block
  *	@qc: Command that we are erroring out
  *
  *	Leverage ata_to_sense_error() to give us the codes.  Fit our
  *	LBA in here if there's room.
  *
  *	LOCKING:
- *	inherited from caller
+ *	None.
  */
-void ata_gen_fixed_sense(struct ata_queued_cmd *qc)
+static void ata_gen_ata_sense(struct ata_queued_cmd *qc)
 {
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	struct ata_taskfile *tf = &qc->result_tf;
@@ -1460,7 +1460,7 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 	 */
 	if (((cdb[0] == ATA_16) || (cdb[0] == ATA_12)) &&
  	    ((cdb[2] & 0x20) || need_sense)) {
- 		ata_gen_ata_desc_sense(qc);
+		ata_gen_passthru_sense(qc);
 	} else {
 		if (!need_sense) {
 			cmd->result = SAM_STAT_GOOD;
@@ -1471,7 +1471,7 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 			 * good for smaller LBA (and maybe CHS?)
 			 * devices.
 			 */
-			ata_gen_fixed_sense(qc);
+			ata_gen_ata_sense(qc);
 		}
 	}
 
@@ -2302,7 +2302,7 @@ static void atapi_sense_complete(struct ata_queued_cmd *qc)
 		 * a sense descriptors, since that's only
 		 * correct for ATA, not ATAPI
 		 */
-		ata_gen_ata_desc_sense(qc);
+		ata_gen_passthru_sense(qc);
 	}
 
 	qc->scsidone(qc->scsicmd);
@@ -2377,7 +2377,7 @@ static void atapi_qc_complete(struct ata_queued_cmd *qc)
 			 * sense descriptors, since that's only
 			 * correct for ATA, not ATAPI
 			 */
-			ata_gen_ata_desc_sense(qc);
+			ata_gen_passthru_sense(qc);
 		}
 
 		/* SCSI EH automatically locks door if sdev->locked is
@@ -2410,7 +2410,7 @@ static void atapi_qc_complete(struct ata_queued_cmd *qc)
 		 * a sense descriptors, since that's only
 		 * correct for ATA, not ATAPI
 		 */
-		ata_gen_ata_desc_sense(qc);
+		ata_gen_passthru_sense(qc);
 	} else {
 		u8 *scsicmd = cmd->cmnd;
 
