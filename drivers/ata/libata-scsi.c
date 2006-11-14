@@ -1265,17 +1265,14 @@ nothing_to_do:
 
 static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicmd)
 {
-	struct ata_taskfile *tf = &qc->tf;
-	struct ata_device *dev = qc->dev;
+	unsigned int tf_flags = 0;
 	u64 block;
 	u32 n_block;
-
-	qc->flags |= ATA_QCFLAG_IO;
-	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
+	int rc;
 
 	if (scsicmd[0] == WRITE_10 || scsicmd[0] == WRITE_6 ||
 	    scsicmd[0] == WRITE_16)
-		tf->flags |= ATA_TFLAG_WRITE;
+		tf_flags |= ATA_TFLAG_WRITE;
 
 	/* Calculate the SCSI LBA, transfer length and FUA. */
 	switch (scsicmd[0]) {
@@ -1283,7 +1280,7 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicm
 	case WRITE_10:
 		scsi_10_lba_len(scsicmd, &block, &n_block);
 		if (unlikely(scsicmd[1] & (1 << 3)))
-			tf->flags |= ATA_TFLAG_FUA;
+			tf_flags |= ATA_TFLAG_FUA;
 		break;
 	case READ_6:
 	case WRITE_6:
@@ -1299,7 +1296,7 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicm
 	case WRITE_16:
 		scsi_16_lba_len(scsicmd, &block, &n_block);
 		if (unlikely(scsicmd[1] & (1 << 3)))
-			tf->flags |= ATA_TFLAG_FUA;
+			tf_flags |= ATA_TFLAG_FUA;
 		break;
 	default:
 		DPRINTK("no-byte command\n");
@@ -1317,106 +1314,17 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicm
 		 */
 		goto nothing_to_do;
 
-	if ((dev->flags & (ATA_DFLAG_PIO | ATA_DFLAG_NCQ_OFF |
-			   ATA_DFLAG_NCQ)) == ATA_DFLAG_NCQ) {
-		/* yay, NCQ */
-		if (!lba_48_ok(block, n_block))
-			goto out_of_range;
+	qc->flags |= ATA_QCFLAG_IO;
+	qc->nsect = n_block;
 
-		tf->protocol = ATA_PROT_NCQ;
-		tf->flags |= ATA_TFLAG_LBA | ATA_TFLAG_LBA48;
+	rc = ata_build_rw_tf(&qc->tf, qc->dev, block, n_block, tf_flags,
+			     qc->tag);
+	if (likely(rc == 0))
+		return 0;
 
-		if (tf->flags & ATA_TFLAG_WRITE)
-			tf->command = ATA_CMD_FPDMA_WRITE;
-		else
-			tf->command = ATA_CMD_FPDMA_READ;
-
-		qc->nsect = n_block;
-
-		tf->nsect = qc->tag << 3;
-		tf->hob_feature = (n_block >> 8) & 0xff;
-		tf->feature = n_block & 0xff;
-
-		tf->hob_lbah = (block >> 40) & 0xff;
-		tf->hob_lbam = (block >> 32) & 0xff;
-		tf->hob_lbal = (block >> 24) & 0xff;
-		tf->lbah = (block >> 16) & 0xff;
-		tf->lbam = (block >> 8) & 0xff;
-		tf->lbal = block & 0xff;
-
-		tf->device = 1 << 6;
-		if (tf->flags & ATA_TFLAG_FUA)
-			tf->device |= 1 << 7;
-	} else if (dev->flags & ATA_DFLAG_LBA) {
-		tf->flags |= ATA_TFLAG_LBA;
-
-		if (lba_28_ok(block, n_block)) {
-			/* use LBA28 */
-			tf->device |= (block >> 24) & 0xf;
-		} else if (lba_48_ok(block, n_block)) {
-			if (!(dev->flags & ATA_DFLAG_LBA48))
-				goto out_of_range;
-
-			/* use LBA48 */
-			tf->flags |= ATA_TFLAG_LBA48;
-
-			tf->hob_nsect = (n_block >> 8) & 0xff;
-
-			tf->hob_lbah = (block >> 40) & 0xff;
-			tf->hob_lbam = (block >> 32) & 0xff;
-			tf->hob_lbal = (block >> 24) & 0xff;
-		} else
-			/* request too large even for LBA48 */
-			goto out_of_range;
-
-		if (unlikely(ata_rwcmd_protocol(qc) < 0))
-			goto invalid_fld;
-
-		qc->nsect = n_block;
-		tf->nsect = n_block & 0xff;
-
-		tf->lbah = (block >> 16) & 0xff;
-		tf->lbam = (block >> 8) & 0xff;
-		tf->lbal = block & 0xff;
-
-		tf->device |= ATA_LBA;
-	} else {
-		/* CHS */
-		u32 sect, head, cyl, track;
-
-		/* The request -may- be too large for CHS addressing. */
-		if (!lba_28_ok(block, n_block))
-			goto out_of_range;
-
-		if (unlikely(ata_rwcmd_protocol(qc) < 0))
-			goto invalid_fld;
-
-		/* Convert LBA to CHS */
-		track = (u32)block / dev->sectors;
-		cyl   = track / dev->heads;
-		head  = track % dev->heads;
-		sect  = (u32)block % dev->sectors + 1;
-
-		DPRINTK("block %u track %u cyl %u head %u sect %u\n",
-			(u32)block, track, cyl, head, sect);
-
-		/* Check whether the converted CHS can fit.
-		   Cylinder: 0-65535
-		   Head: 0-15
-		   Sector: 1-255*/
-		if ((cyl >> 16) || (head >> 4) || (sect >> 8) || (!sect))
-			goto out_of_range;
-
-		qc->nsect = n_block;
-		tf->nsect = n_block & 0xff; /* Sector count 0 means 256 sectors */
-		tf->lbal = sect;
-		tf->lbam = cyl;
-		tf->lbah = cyl >> 8;
-		tf->device |= head;
-	}
-
-	return 0;
-
+	if (rc == -ERANGE)
+		goto out_of_range;
+	/* treat all other errors as -EINVAL, fall through */
 invalid_fld:
 	ata_scsi_set_sense(qc->scsicmd, ILLEGAL_REQUEST, 0x24, 0x0);
 	/* "Invalid field in cbd" */
