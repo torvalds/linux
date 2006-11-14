@@ -746,53 +746,53 @@ static void ata_gen_passthru_sense(struct ata_queued_cmd *qc)
  *	ata_gen_ata_sense - generate a SCSI fixed sense block
  *	@qc: Command that we are erroring out
  *
- *	Leverage ata_to_sense_error() to give us the codes.  Fit our
- *	LBA in here if there's room.
+ *	Generate sense block for a failed ATA command @qc.  Descriptor
+ *	format is used to accomodate LBA48 block address.
  *
  *	LOCKING:
  *	None.
  */
 static void ata_gen_ata_sense(struct ata_queued_cmd *qc)
 {
+	struct ata_device *dev = qc->dev;
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	struct ata_taskfile *tf = &qc->result_tf;
 	unsigned char *sb = cmd->sense_buffer;
+	unsigned char *desc = sb + 8;
 	int verbose = qc->ap->ops->error_handler == NULL;
+	u64 block;
 
 	memset(sb, 0, SCSI_SENSE_BUFFERSIZE);
 
 	cmd->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
 
-	/*
-	 * Use ata_to_sense_error() to map status register bits
+	/* sense data is current and format is descriptor */
+	sb[0] = 0x72;
+
+	/* Use ata_to_sense_error() to map status register bits
 	 * onto sense key, asc & ascq.
 	 */
 	if (qc->err_mask ||
 	    tf->command & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ)) {
 		ata_to_sense_error(qc->ap->id, tf->command, tf->feature,
-				   &sb[2], &sb[12], &sb[13], verbose);
-		sb[2] &= 0x0f;
+				   &sb[1], &sb[2], &sb[3], verbose);
+		sb[1] &= 0x0f;
 	}
 
-	sb[0] = 0x70;
-	sb[7] = 0x0a;
+	block = ata_tf_read_block(&qc->result_tf, dev);
 
-	if (tf->flags & ATA_TFLAG_LBA48) {
-		/* TODO: find solution for LBA48 descriptors */
-	}
+	/* information sense data descriptor */
+	sb[7] = 12;
+	desc[0] = 0x00;
+	desc[1] = 10;
 
-	else if (tf->flags & ATA_TFLAG_LBA) {
-		/* A small (28b) LBA will fit in the 32b info field */
-		sb[0] |= 0x80;		/* set valid bit */
-		sb[3] = tf->device & 0x0f;
-		sb[4] = tf->lbah;
-		sb[5] = tf->lbam;
-		sb[6] = tf->lbal;
-	}
-
-	else {
-		/* TODO: C/H/S */
-	}
+	desc[2] |= 0x80;	/* valid */
+	desc[6] = block >> 40;
+	desc[7] = block >> 32;
+	desc[8] = block >> 24;
+	desc[9] = block >> 16;
+	desc[10] = block >> 8;
+	desc[11] = block;
 }
 
 static void ata_scsi_sdev_config(struct scsi_device *sdev)
