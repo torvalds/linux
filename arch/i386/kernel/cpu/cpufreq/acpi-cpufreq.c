@@ -693,7 +693,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		    perf->states[i].core_frequency * 1000;
 		valid_states++;
 	}
-	data->freq_table[perf->state_count].frequency = CPUFREQ_TABLE_END;
+	data->freq_table[valid_states].frequency = CPUFREQ_TABLE_END;
 
 	result = cpufreq_frequency_table_cpuinfo(policy, data->freq_table);
 	if (result)
