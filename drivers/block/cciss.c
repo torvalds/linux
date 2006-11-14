@@ -1300,6 +1300,12 @@ static void cciss_softirq_done(struct request *rq)
 
 	complete_buffers(rq->bio, rq->errors);
 
+	if (blk_fs_request(rq)) {
+		const int rw = rq_data_dir(rq);
+
+		disk_stat_add(rq->rq_disk, sectors[rw], rq->nr_sectors);
+	}
+
 #ifdef CCISS_DEBUG
 	printk("Done with %p\n", rq);
 #endif				/* CCISS_DEBUG */
