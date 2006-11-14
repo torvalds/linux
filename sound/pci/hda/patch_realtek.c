@@ -6440,6 +6440,9 @@ static struct hda_board_config alc262_cfg_tbl[] = {
 	{ .modelname = "hippo",
 	  .pci_subvendor =0x1002, .pci_subdevice = 0x437b,
 	  .config = ALC262_HIPPO},
+	{ .modelname = "hippo",
+	  .pci_subvendor = 0x104d, .pci_subdevice = 0x8203,
+	  .config = ALC262_HIPPO }, /* Sony UX-90s */
 	{ .modelname = "hippo_1",
 	  .pci_subvendor =0x17ff, .pci_subdevice = 0x058f,
 	  .config = ALC262_HIPPO_1},
