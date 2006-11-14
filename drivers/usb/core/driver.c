@@ -810,7 +810,7 @@ EXPORT_SYMBOL_GPL_FUTURE(usb_deregister);
 #ifdef CONFIG_PM
 
 /* Caller has locked udev's pm_mutex */
-static int suspend_device(struct usb_device *udev, pm_message_t msg)
+static int usb_suspend_device(struct usb_device *udev, pm_message_t msg)
 {
 	struct usb_device_driver	*udriver;
 	int				status = 0;
@@ -837,7 +837,7 @@ done:
 }
 
 /* Caller has locked udev's pm_mutex */
-static int resume_device(struct usb_device *udev)
+static int usb_resume_device(struct usb_device *udev)
 {
 	struct usb_device_driver	*udriver;
 	int				status = 0;
@@ -863,7 +863,7 @@ done:
 }
 
 /* Caller has locked intf's usb_device's pm mutex */
-static int suspend_interface(struct usb_interface *intf, pm_message_t msg)
+static int usb_suspend_interface(struct usb_interface *intf, pm_message_t msg)
 {
 	struct usb_driver	*driver;
 	int			status = 0;
@@ -900,7 +900,7 @@ done:
 }
 
 /* Caller has locked intf's usb_device's pm_mutex */
-static int resume_interface(struct usb_interface *intf)
+static int usb_resume_interface(struct usb_interface *intf)
 {
 	struct usb_driver	*driver;
 	int			status = 0;
@@ -1031,19 +1031,19 @@ int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 	if (udev->actconfig) {
 		for (; i < udev->actconfig->desc.bNumInterfaces; i++) {
 			intf = udev->actconfig->interface[i];
-			status = suspend_interface(intf, msg);
+			status = usb_suspend_interface(intf, msg);
 			if (status != 0)
 				break;
 		}
 	}
 	if (status == 0)
-		status = suspend_device(udev, msg);
+		status = usb_suspend_device(udev, msg);
 
 	/* If the suspend failed, resume interfaces that did get suspended */
 	if (status != 0) {
 		while (--i >= 0) {
 			intf = udev->actconfig->interface[i];
-			resume_interface(intf);
+			usb_resume_interface(intf);
 		}
 
 	/* If the suspend succeeded, propagate it up the tree */
@@ -1109,14 +1109,14 @@ int usb_resume_both(struct usb_device *udev)
 				status = -EHOSTUNREACH;
 		}
 		if (status == 0)
-			status = resume_device(udev);
+			status = usb_resume_device(udev);
 		if (parent)
 			usb_pm_unlock(parent);
 	} else {
 
 		/* Needed only for setting udev->dev.power.power_state.event
 		 * and for possible debugging message. */
-		status = resume_device(udev);
+		status = usb_resume_device(udev);
 	}
 
 	/* Now the parent won't suspend until we are finished */
@@ -1124,7 +1124,7 @@ int usb_resume_both(struct usb_device *udev)
 	if (status == 0 && udev->actconfig) {
 		for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++) {
 			intf = udev->actconfig->interface[i];
-			resume_interface(intf);
+			usb_resume_interface(intf);
 		}
 	}
 
