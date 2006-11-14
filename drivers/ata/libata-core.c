@@ -1042,13 +1042,13 @@ void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 }
 
 /**
- *	ata_exec_internal - execute libata internal command
+ *	ata_exec_internal_sg - execute libata internal command
  *	@dev: Device to which the command is sent
  *	@tf: Taskfile registers for the command and the result
  *	@cdb: CDB for packet command
  *	@dma_dir: Data tranfer direction of the command
- *	@buf: Data buffer of the command
- *	@buflen: Length of data buffer
+ *	@sg: sg list for the data buffer of the command
+ *	@n_elem: Number of sg entries
  *
  *	Executes libata internal command with timeout.  @tf contains
  *	command on entry and result on return.  Timeout and error
@@ -1062,9 +1062,10 @@ void ata_qc_complete_internal(struct ata_queued_cmd *qc)
  *	RETURNS:
  *	Zero on success, AC_ERR_* mask on failure
  */
-unsigned ata_exec_internal(struct ata_device *dev,
-			   struct ata_taskfile *tf, const u8 *cdb,
-			   int dma_dir, void *buf, unsigned int buflen)
+unsigned ata_exec_internal_sg(struct ata_device *dev,
+			      struct ata_taskfile *tf, const u8 *cdb,
+			      int dma_dir, struct scatterlist *sg,
+			      unsigned int n_elem)
 {
 	struct ata_port *ap = dev->ap;
 	u8 command = tf->command;
@@ -1120,7 +1121,12 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	qc->flags |= ATA_QCFLAG_RESULT_TF;
 	qc->dma_dir = dma_dir;
 	if (dma_dir != DMA_NONE) {
-		ata_sg_init_one(qc, buf, buflen);
+		unsigned int i, buflen = 0;
+
+		for (i = 0; i < n_elem; i++)
+			buflen += sg[i].length;
+
+		ata_sg_init(qc, sg, n_elem);
 		qc->nsect = buflen / ATA_SECT_SIZE;
 	}
 
@@ -1201,6 +1207,35 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	return err_mask;
+}
+
+/**
+ *	ata_exec_internal_sg - execute libata internal command
+ *	@dev: Device to which the command is sent
+ *	@tf: Taskfile registers for the command and the result
+ *	@cdb: CDB for packet command
+ *	@dma_dir: Data tranfer direction of the command
+ *	@buf: Data buffer of the command
+ *	@buflen: Length of data buffer
+ *
+ *	Wrapper around ata_exec_internal_sg() which takes simple
+ *	buffer instead of sg list.
+ *
+ *	LOCKING:
+ *	None.  Should be called with kernel context, might sleep.
+ *
+ *	RETURNS:
+ *	Zero on success, AC_ERR_* mask on failure
+ */
+unsigned ata_exec_internal(struct ata_device *dev,
+			   struct ata_taskfile *tf, const u8 *cdb,
+			   int dma_dir, void *buf, unsigned int buflen)
+{
+	struct scatterlist sg;
+
+	sg_init_one(&sg, buf, buflen);
+
+	return ata_exec_internal_sg(dev, tf, cdb, dma_dir, &sg, 1);
 }
 
 /**
