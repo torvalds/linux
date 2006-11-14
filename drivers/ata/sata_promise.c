@@ -46,15 +46,14 @@
 #include "sata_promise.h"
 
 #define DRV_NAME	"sata_promise"
-#define DRV_VERSION	"1.04"
+#define DRV_VERSION	"1.05"
 
 
 enum {
 	PDC_PKT_SUBMIT		= 0x40, /* Command packet pointer addr */
 	PDC_INT_SEQMASK		= 0x40,	/* Mask of asserted SEQ INTs */
-	PDC_TBG_MODE		= 0x41,	/* TBG mode */
+	PDC_TBG_MODE		= 0x41C,	/* TBG mode */
 	PDC_FLASH_CTL		= 0x44, /* Flash control register */
-	PDC_PCI_CTL		= 0x48, /* PCI control and status register */
 	PDC_GLOBAL_CTL		= 0x48, /* Global control/status (per port) */
 	PDC_CTLSTAT		= 0x60,	/* IDE control and status (per port) */
 	PDC_SATA_PLUG_CSR	= 0x6C, /* SATA Plug control/status reg */
