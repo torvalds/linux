@@ -83,7 +83,6 @@ static void mmc_blk_put(struct mmc_blk_data *md)
 	md->usage--;
 	if (md->usage == 0) {
 		put_disk(md->disk);
-		mmc_cleanup_queue(&md->queue);
 		kfree(md);
 	}
 	mutex_unlock(&open_lock);
@@ -553,12 +552,11 @@ static void mmc_blk_remove(struct mmc_card *card)
 	if (md) {
 		int devidx;
 
+		/* Stop new requests from getting into the queue */
 		del_gendisk(md->disk);
 
-		/*
-		 * I think this is needed.
-		 */
-		md->disk->queue = NULL;
+		/* Then flush out any already in there */
+		mmc_cleanup_queue(&md->queue);
 
 		devidx = md->disk->first_minor >> MMC_SHIFT;
 		__clear_bit(devidx, dev_use);

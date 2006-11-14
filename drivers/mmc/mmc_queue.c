@@ -103,6 +103,19 @@ static int mmc_queue_thread(void *d)
 static void mmc_request(request_queue_t *q)
 {
 	struct mmc_queue *mq = q->queuedata;
+	struct request *req;
+	int ret;
+
+	if (!mq) {
+		printk(KERN_ERR "MMC: killing requests for dead queue\n");
+		while ((req = elv_next_request(q)) != NULL) {
+			do {
+				ret = end_that_request_chunk(req, 0,
+					req->current_nr_sectors << 9);
+			} while (ret);
+		}
+		return;
+	}
 
 	if (!mq->req)
 		wake_up_process(mq->thread);
@@ -168,6 +181,15 @@ EXPORT_SYMBOL(mmc_init_queue);
 
 void mmc_cleanup_queue(struct mmc_queue *mq)
 {
+	request_queue_t *q = mq->queue;
+	unsigned long flags;
+
+	/* Mark that we should start throwing out stragglers */
+	spin_lock_irqsave(q->queue_lock, flags);
+	q->queuedata = NULL;
+	spin_unlock_irqrestore(q->queue_lock, flags);
+
+	/* Then terminate our worker thread */
 	kthread_stop(mq->thread);
 
 	kfree(mq->sg);
