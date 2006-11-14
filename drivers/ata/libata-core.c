@@ -3491,19 +3491,15 @@ void ata_noop_qc_prep(struct ata_queued_cmd *qc) { }
 
 void ata_sg_init_one(struct ata_queued_cmd *qc, void *buf, unsigned int buflen)
 {
-	struct scatterlist *sg;
-
 	qc->flags |= ATA_QCFLAG_SINGLE;
 
-	memset(&qc->sgent, 0, sizeof(qc->sgent));
 	qc->__sg = &qc->sgent;
 	qc->n_elem = 1;
 	qc->orig_n_elem = 1;
 	qc->buf_virt = buf;
 	qc->nbytes = buflen;
 
-	sg = qc->__sg;
-	sg_init_one(sg, buf, buflen);
+	sg_init_one(&qc->sgent, buf, buflen);
 }
 
 /**
