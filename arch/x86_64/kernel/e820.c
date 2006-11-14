@@ -594,7 +594,9 @@ static int __init parse_memmap_opt(char *p)
 		 * size before original memory map is
 		 * reset.
 		 */
+		e820_register_active_regions(0, 0, -1UL);
 		saved_max_pfn = e820_end_of_ram();
+		remove_all_active_ranges();
 #endif
 		end_pfn_map = 0;
 		e820.nr_map = 0;
