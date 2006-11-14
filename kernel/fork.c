@@ -687,7 +687,6 @@ static struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 		 * the latest pointer.
 		 */
 		spin_lock(&oldf->file_lock);
-		open_files = count_open_files(old_fdt);
 		old_fdt = files_fdtable(oldf);
 	}
 
