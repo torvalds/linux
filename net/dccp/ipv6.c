@@ -294,8 +294,7 @@ static int dccp_v6_send_response(struct sock *sk, struct request_sock *req,
 							 &ireq6->rmt_addr);
 		ipv6_addr_copy(&fl.fl6_dst, &ireq6->rmt_addr);
 		err = ip6_xmit(sk, skb, &fl, opt, 0);
-		if (err == NET_XMIT_CN)
-			err = 0;
+		err = net_xmit_eval(err);
 	}
 
 done:

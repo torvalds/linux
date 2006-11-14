@@ -66,6 +66,10 @@ struct netpoll_info;
 #define NET_RX_CN_HIGH		4   /* The storm is here */
 #define NET_RX_BAD		5  /* packet dropped due to kernel error */
 
+/* NET_XMIT_CN is special. It does not guarantee that this packet is lost. It
+ * indicates that the device will soon be dropping packets, or already drops
+ * some packets of the same priority; prompting us to send less aggressively. */
+#define net_xmit_eval(e)	((e) == NET_XMIT_CN? 0 : (e))
 #define net_xmit_errno(e)	((e) != NET_XMIT_CN ? -ENOBUFS : 0)
 
 #endif

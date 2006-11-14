@@ -125,16 +125,7 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 
 		memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 		err = icsk->icsk_af_ops->queue_xmit(skb, sk, 0);
-		if (err <= 0)
-			return err;
-
-		/* NET_XMIT_CN is special. It does not guarantee,
-		 * that this packet is lost. It tells that device
-		 * is about to start to drop packets or already
-		 * drops some packets of the same priority and
-		 * invokes us to send less aggressively.
-		 */
-		return err == NET_XMIT_CN ? 0 : err;
+		return net_xmit_eval(err);
 	}
 	return -ENOBUFS;
 }
@@ -426,8 +417,7 @@ int dccp_send_reset(struct sock *sk, enum dccp_reset_codes code)
 		if (skb != NULL) {
 			memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 			err = inet_csk(sk)->icsk_af_ops->queue_xmit(skb, sk, 0);
-			if (err == NET_XMIT_CN)
-				err = 0;
+			return net_xmit_eval(err);
 		}
 	}
 

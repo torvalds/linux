@@ -501,8 +501,7 @@ static int dccp_v4_send_response(struct sock *sk, struct request_sock *req,
 		err = ip_build_and_send_pkt(skb, sk, ireq->loc_addr,
 					    ireq->rmt_addr,
 					    ireq->opt);
-		if (err == NET_XMIT_CN)
-			err = 0;
+		err = net_xmit_eval(err);
 	}
 
 out:
@@ -571,7 +570,7 @@ static void dccp_v4_ctl_send_reset(struct sk_buff *rxskb)
 				    rxskb->nh.iph->saddr, NULL);
 	bh_unlock_sock(dccp_v4_ctl_socket->sk);
 
-	if (err == NET_XMIT_CN || err == 0) {
+	if (net_xmit_eval(err) == 0) {
 		DCCP_INC_STATS_BH(DCCP_MIB_OUTSEGS);
 		DCCP_INC_STATS_BH(DCCP_MIB_OUTRSTS);
 	}

@@ -748,7 +748,7 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, 
 		      skb->dst->dev, dst_output);
 
-	if (err == NET_XMIT_SUCCESS || err == NET_XMIT_CN) {
+	if (net_xmit_eval(err) == 0) {
 		stats->tx_bytes += pkt_len;
 		stats->tx_packets++;
 	} else {

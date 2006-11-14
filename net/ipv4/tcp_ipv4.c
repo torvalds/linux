@@ -662,8 +662,7 @@ static int tcp_v4_send_synack(struct sock *sk, struct request_sock *req,
 		err = ip_build_and_send_pkt(skb, sk, ireq->loc_addr,
 					    ireq->rmt_addr,
 					    ireq->opt);
-		if (err == NET_XMIT_CN)
-			err = 0;
+		err = net_xmit_eval(err);
 	}
 
 out:

@@ -502,8 +502,7 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 
 		ipv6_addr_copy(&fl.fl6_dst, &treq->rmt_addr);
 		err = ip6_xmit(sk, skb, &fl, opt, 0);
-		if (err == NET_XMIT_CN)
-			err = 0;
+		err = net_xmit_eval(err);
 	}
 
 done:
