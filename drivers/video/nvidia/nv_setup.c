@@ -262,7 +262,7 @@ static void nv10GetConfig(struct nvidia_par *par)
 #endif
 
 	dev = pci_find_slot(0, 1);
-	if ((par->Chipset && 0xffff) == 0x01a0) {
+	if ((par->Chipset & 0xffff) == 0x01a0) {
 		int amt = 0;
 
 		pci_read_config_dword(dev, 0x7c, &amt);
