@@ -88,6 +88,7 @@ static void __kprobes update_kprobe_inst_flag(uint template, uint  slot,
 {
 	p->ainsn.inst_flag = 0;
 	p->ainsn.target_br_reg = 0;
+	p->ainsn.slot = slot;
 
 	/* Check for Break instruction
 	 * Bits 37:40 Major opcode to be zero
@@ -296,12 +297,6 @@ static int __kprobes valid_kprobe_addr(int template, int slot,
 		return -EINVAL;
 	}
 
-	if (slot == 1 && bundle_encoding[template][1] != L) {
-		printk(KERN_WARNING "Inserting kprobes on slot #1 "
-		       "is not supported\n");
-		return -EINVAL;
-	}
-
 	return 0;
 }
 
@@ -458,23 +453,49 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 
 void __kprobes arch_arm_kprobe(struct kprobe *p)
 {
-	unsigned long addr = (unsigned long)p->addr;
-	unsigned long arm_addr = addr & ~0xFULL;
+	unsigned long arm_addr;
+	bundle_t *src, *dest;
+
+	arm_addr = ((unsigned long)p->addr) & ~0xFUL;
+	dest = &((kprobe_opcode_t *)arm_addr)->bundle;
+	src = &p->opcode.bundle;
 
 	flush_icache_range((unsigned long)p->ainsn.insn,
 			(unsigned long)p->ainsn.insn + sizeof(kprobe_opcode_t));
-	memcpy((char *)arm_addr, &p->opcode, sizeof(kprobe_opcode_t));
+	switch (p->ainsn.slot) {
+		case 0:
+			dest->quad0.slot0 = src->quad0.slot0;
+			break;
+		case 1:
+			dest->quad1.slot1_p1 = src->quad1.slot1_p1;
+			break;
+		case 2:
+			dest->quad1.slot2 = src->quad1.slot2;
+			break;
+	}
 	flush_icache_range(arm_addr, arm_addr + sizeof(kprobe_opcode_t));
 }
 
 void __kprobes arch_disarm_kprobe(struct kprobe *p)
 {
-	unsigned long addr = (unsigned long)p->addr;
-	unsigned long arm_addr = addr & ~0xFULL;
+	unsigned long arm_addr;
+	bundle_t *src, *dest;
 
+	arm_addr = ((unsigned long)p->addr) & ~0xFUL;
+	dest = &((kprobe_opcode_t *)arm_addr)->bundle;
 	/* p->ainsn.insn contains the original unaltered kprobe_opcode_t */
-	memcpy((char *) arm_addr, (char *) p->ainsn.insn,
-					 sizeof(kprobe_opcode_t));
+	src = &p->ainsn.insn->bundle;
+	switch (p->ainsn.slot) {
+		case 0:
+			dest->quad0.slot0 = src->quad0.slot0;
+			break;
+		case 1:
+			dest->quad1.slot1_p1 = src->quad1.slot1_p1;
+			break;
+		case 2:
+			dest->quad1.slot2 = src->quad1.slot2;
+			break;
+	}
 	flush_icache_range(arm_addr, arm_addr + sizeof(kprobe_opcode_t));
 }
 
@@ -807,7 +828,9 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 	switch(val) {
 	case DIE_BREAK:
 		/* err is break number from ia64_bad_break() */
-		if (args->err == 0x80200 || args->err == 0x80300 || args->err == 0)
+		if ((args->err >> 12) == (__IA64_BREAK_KPROBE >> 12)
+			|| args->err == __IA64_BREAK_JPROBE
+			|| args->err == 0)
 			if (pre_kprobes_handler(args))
 				ret = NOTIFY_STOP;
 		break;
