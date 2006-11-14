@@ -790,9 +790,11 @@ static void ioapic_register_intr(int irq, int vector, unsigned long trigger)
 			trigger == IOAPIC_LEVEL)
 		set_irq_chip_and_handler_name(irq, &ioapic_chip,
 					      handle_fasteoi_irq, "fasteoi");
-	else
+	else {
+		irq_desc[irq].status |= IRQ_DELAYED_DISABLE;
 		set_irq_chip_and_handler_name(irq, &ioapic_chip,
 					      handle_edge_irq, "edge");
+	}
 }
 
 static void __init setup_IO_APIC_irqs(void)
