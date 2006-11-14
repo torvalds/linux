@@ -713,12 +713,9 @@ void ata_gen_ata_desc_sense(struct ata_queued_cmd *qc)
 
 	desc[0] = 0x09;
 
-	/*
-	 * Set length of additional sense data.
-	 * Since we only populate descriptor 0, the total
-	 * length is the same (fixed) length as descriptor 0.
-	 */
-	desc[1] = sb[7] = 14;
+	/* set length of additional sense data */
+	sb[7] = 14;
+	desc[1] = 12;
 
 	/*
 	 * Copy registers into sense buffer.
