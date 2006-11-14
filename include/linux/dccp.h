@@ -175,18 +175,21 @@ enum {
 	DCCPC_CCID3 = 3,
 };
 
-/* DCCP features */
-enum {
-	DCCPF_RESERVED = 0,
-	DCCPF_CCID = 1,
-	DCCPF_SEQUENCE_WINDOW = 3,
-	DCCPF_ACK_RATIO = 5,
-	DCCPF_SEND_ACK_VECTOR = 6,
-	DCCPF_SEND_NDP_COUNT = 7,
+/* DCCP features (RFC 4340 section 6.4) */
+ enum {
+ 	DCCPF_RESERVED = 0,
+ 	DCCPF_CCID = 1,
+	DCCPF_SHORT_SEQNOS = 2,		/* XXX: not yet implemented */
+ 	DCCPF_SEQUENCE_WINDOW = 3,
+	DCCPF_ECN_INCAPABLE = 4,	/* XXX: not yet implemented */
+ 	DCCPF_ACK_RATIO = 5,
+ 	DCCPF_SEND_ACK_VECTOR = 6,
+ 	DCCPF_SEND_NDP_COUNT = 7,
 	DCCPF_MIN_CSUM_COVER = 8,
-	/* 10-127 reserved */
-	DCCPF_MIN_CCID_SPECIFIC = 128,
-	DCCPF_MAX_CCID_SPECIFIC = 255,
+	DCCPF_DATA_CHECKSUM = 9,	/* XXX: not yet implemented */
+ 	/* 10-127 reserved */
+ 	DCCPF_MIN_CCID_SPECIFIC = 128,
+ 	DCCPF_MAX_CCID_SPECIFIC = 255,
 };
 
 /* this structure is argument to DCCP_SOCKOPT_CHANGE_X */
