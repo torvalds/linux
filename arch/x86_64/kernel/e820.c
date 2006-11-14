@@ -278,7 +278,7 @@ e820_register_active_regions(int nid, unsigned long start_pfn,
 								>> PAGE_SHIFT;
 
 		/* Skip map entries smaller than a page */
-		if (ei_startpfn > ei_endpfn)
+		if (ei_startpfn >= ei_endpfn)
 			continue;
 
 		/* Check if end_pfn_map should be updated */
