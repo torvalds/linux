@@ -78,9 +78,9 @@ static void queue_process(void *p)
 }
 
 static int checksum_udp(struct sk_buff *skb, struct udphdr *uh,
-			unsigned short ulen, u32 saddr, u32 daddr)
+			unsigned short ulen, __be32 saddr, __be32 daddr)
 {
-	unsigned int psum;
+	__wsum psum;
 
 	if (uh->check == 0 || skb->ip_summed == CHECKSUM_UNNECESSARY)
 		return 0;

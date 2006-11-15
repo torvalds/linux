@@ -135,7 +135,7 @@ static inline void ip_tr_mc_map(__be32 addr, char *buf)
 
 struct ip_reply_arg {
 	struct kvec iov[1];   
-	u32 	    csum; 
+	__wsum 	    csum;
 	int	    csumoffset; /* u16 offset of csum in iov[0].iov_base */
 				/* -1 if not needed */ 
 }; 
