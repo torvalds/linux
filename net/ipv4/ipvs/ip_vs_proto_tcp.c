@@ -490,16 +490,18 @@ tcp_state_transition(struct ip_vs_conn *cp, int direction,
 static struct list_head tcp_apps[TCP_APP_TAB_SIZE];
 static DEFINE_SPINLOCK(tcp_app_lock);
 
-static inline __u16 tcp_app_hashkey(__u16 port)
+static inline __u16 tcp_app_hashkey(__be16 port)
 {
-	return ((port >> TCP_APP_TAB_BITS) ^ port) & TCP_APP_TAB_MASK;
+	return (((__force u16)port >> TCP_APP_TAB_BITS) ^ (__force u16)port)
+		& TCP_APP_TAB_MASK;
 }
 
 
 static int tcp_register_app(struct ip_vs_app *inc)
 {
 	struct ip_vs_app *i;
-	__u16 hash, port = inc->port;
+	__u16 hash;
+	__be16 port = inc->port;
 	int ret = 0;
 
 	hash = tcp_app_hashkey(port);

@@ -282,16 +282,18 @@ udp_csum_check(struct sk_buff *skb, struct ip_vs_protocol *pp)
 static struct list_head udp_apps[UDP_APP_TAB_SIZE];
 static DEFINE_SPINLOCK(udp_app_lock);
 
-static inline __u16 udp_app_hashkey(__u16 port)
+static inline __u16 udp_app_hashkey(__be16 port)
 {
-	return ((port >> UDP_APP_TAB_BITS) ^ port) & UDP_APP_TAB_MASK;
+	return (((__force u16)port >> UDP_APP_TAB_BITS) ^ (__force u16)port)
+		& UDP_APP_TAB_MASK;
 }
 
 
 static int udp_register_app(struct ip_vs_app *inc)
 {
 	struct ip_vs_app *i;
-	__u16 hash, port = inc->port;
+	__u16 hash;
+	__be16 port = inc->port;
 	int ret = 0;
 
 	hash = udp_app_hashkey(port);
