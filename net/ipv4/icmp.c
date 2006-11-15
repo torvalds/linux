@@ -356,7 +356,7 @@ static void icmp_push_reply(struct icmp_bxm *icmp_param,
 		ip_flush_pending_frames(icmp_socket->sk);
 	else if ((skb = skb_peek(&icmp_socket->sk->sk_write_queue)) != NULL) {
 		struct icmphdr *icmph = skb->h.icmph;
-		unsigned int csum = 0;
+		__wsum csum = 0;
 		struct sk_buff *skb1;
 
 		skb_queue_walk(&icmp_socket->sk->sk_write_queue, skb1) {
@@ -931,7 +931,7 @@ int icmp_rcv(struct sk_buff *skb)
 
 	switch (skb->ip_summed) {
 	case CHECKSUM_COMPLETE:
-		if (!(u16)csum_fold(skb->csum))
+		if (!csum_fold(skb->csum))
 			break;
 		/* fall through */
 	case CHECKSUM_NONE:

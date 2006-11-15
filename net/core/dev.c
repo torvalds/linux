@@ -1169,7 +1169,7 @@ EXPORT_SYMBOL(netif_device_attach);
  */
 int skb_checksum_help(struct sk_buff *skb)
 {
-	unsigned int csum;
+	__wsum csum;
 	int ret = 0, offset = skb->h.raw - skb->data;
 
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
@@ -1193,7 +1193,7 @@ int skb_checksum_help(struct sk_buff *skb)
 	BUG_ON(offset <= 0);
 	BUG_ON(skb->csum + 2 > offset);
 
-	*(u16*)(skb->h.raw + skb->csum) = csum_fold(csum);
+	*(__sum16*)(skb->h.raw + skb->csum) = csum_fold(csum);
 
 out_set_summed:
 	skb->ip_summed = CHECKSUM_NONE;

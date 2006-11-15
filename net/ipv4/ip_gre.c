@@ -557,7 +557,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 	struct iphdr *iph;
 	u8     *h;
 	__be16    flags;
-	u16    csum = 0;
+	__sum16   csum = 0;
 	__be32 key = 0;
 	u32    seqno = 0;
 	struct ip_tunnel *tunnel;
@@ -580,7 +580,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 		if (flags&GRE_CSUM) {
 			switch (skb->ip_summed) {
 			case CHECKSUM_COMPLETE:
-				csum = (u16)csum_fold(skb->csum);
+				csum = csum_fold(skb->csum);
 				if (!csum)
 					break;
 				/* fall through */

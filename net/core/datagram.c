@@ -413,9 +413,9 @@ fault:
 
 unsigned int __skb_checksum_complete(struct sk_buff *skb)
 {
-	unsigned int sum;
+	__sum16 sum;
 
-	sum = (u16)csum_fold(skb_checksum(skb, 0, skb->len, skb->csum));
+	sum = csum_fold(skb_checksum(skb, 0, skb->len, skb->csum));
 	if (likely(!sum)) {
 		if (unlikely(skb->ip_summed == CHECKSUM_COMPLETE))
 			netdev_rx_csum_fault(skb->dev);
@@ -441,7 +441,7 @@ EXPORT_SYMBOL(__skb_checksum_complete);
 int skb_copy_and_csum_datagram_iovec(struct sk_buff *skb,
 				     int hlen, struct iovec *iov)
 {
-	unsigned int csum;
+	__wsum csum;
 	int chunk = skb->len - hlen;
 
 	/* Skip filled elements.
@@ -460,7 +460,7 @@ int skb_copy_and_csum_datagram_iovec(struct sk_buff *skb,
 		if (skb_copy_and_csum_datagram(skb, hlen, iov->iov_base,
 					       chunk, &csum))
 			goto fault;
-		if ((unsigned short)csum_fold(csum))
+		if (csum_fold(csum))
 			goto csum_error;
 		if (unlikely(skb->ip_summed == CHECKSUM_COMPLETE))
 			netdev_rx_csum_fault(skb->dev);

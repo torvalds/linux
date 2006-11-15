@@ -1396,7 +1396,7 @@ unsigned int skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
 
 void skb_copy_and_csum_dev(const struct sk_buff *skb, u8 *to)
 {
-	unsigned int csum;
+	__wsum csum;
 	long csstart;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
@@ -1416,7 +1416,7 @@ void skb_copy_and_csum_dev(const struct sk_buff *skb, u8 *to)
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		long csstuff = csstart + skb->csum;
 
-		*((unsigned short *)(to + csstuff)) = csum_fold(csum);
+		*((__sum16 *)(to + csstuff)) = csum_fold(csum);
 	}
 }
 

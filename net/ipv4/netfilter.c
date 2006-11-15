@@ -172,7 +172,7 @@ unsigned int nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
 	case CHECKSUM_COMPLETE:
 		if (hook != NF_IP_PRE_ROUTING && hook != NF_IP_LOCAL_IN)
 			break;
-		if ((protocol == 0 && !(u16)csum_fold(skb->csum)) ||
+		if ((protocol == 0 && !csum_fold(skb->csum)) ||
 		    !csum_tcpudp_magic(iph->saddr, iph->daddr,
 			    	       skb->len - dataoff, protocol,
 				       skb->csum)) {

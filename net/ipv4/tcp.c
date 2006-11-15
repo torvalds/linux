@@ -2162,7 +2162,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 	struct tcphdr *th;
 	unsigned thlen;
 	unsigned int seq;
-	unsigned int delta;
+	__be32 delta;
 	unsigned int oldlen;
 	unsigned int len;
 
@@ -2215,7 +2215,8 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 	do {
 		th->fin = th->psh = 0;
 
-		th->check = ~csum_fold(th->check + delta);
+		th->check = ~csum_fold((__force __wsum)((__force u32)th->check +
+				       (__force u32)delta));
 		if (skb->ip_summed != CHECKSUM_PARTIAL)
 			th->check = csum_fold(csum_partial(skb->h.raw, thlen,
 							   skb->csum));
@@ -2229,7 +2230,8 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 	} while (skb->next);
 
 	delta = htonl(oldlen + (skb->tail - skb->h.raw) + skb->data_len);
-	th->check = ~csum_fold(th->check + delta);
+	th->check = ~csum_fold((__force __wsum)((__force u32)th->check +
+				(__force u32)delta));
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		th->check = csum_fold(csum_partial(skb->h.raw, thlen,
 						   skb->csum));

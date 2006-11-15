@@ -538,7 +538,7 @@ static unsigned int ip_vs_post_routing(unsigned int hooknum,
 
 u16 ip_vs_checksum_complete(struct sk_buff *skb, int offset)
 {
-	return (u16) csum_fold(skb_checksum(skb, offset, skb->len - offset, 0));
+	return csum_fold(skb_checksum(skb, offset, skb->len - offset, 0));
 }
 
 static inline struct sk_buff *
