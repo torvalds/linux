@@ -1240,8 +1240,8 @@ EXPORT_SYMBOL(skb_store_bits);
 
 /* Checksum skb data. */
 
-unsigned int skb_checksum(const struct sk_buff *skb, int offset,
-			  int len, unsigned int csum)
+__wsum skb_checksum(const struct sk_buff *skb, int offset,
+			  int len, __wsum csum)
 {
 	int start = skb_headlen(skb);
 	int i, copy = start - offset;
