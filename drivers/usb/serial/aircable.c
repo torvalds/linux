@@ -270,8 +270,11 @@ static void aircable_read(void *params)
 	 */
 	tty = port->tty;
 
-	if (!tty)
+	if (!tty) {
 		schedule_work(&priv->rx_work);
+		err("%s - No tty available", __FUNCTION__);
+		return ;
+	}
 
 	count = min(64, serial_buf_data_avail(priv->rx_buf));
 
