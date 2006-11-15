@@ -34,60 +34,60 @@
 
 #ifndef _HAVE_ARCH_IPV6_CSUM
 
-static __inline__ unsigned short int csum_ipv6_magic(struct in6_addr *saddr,
-						     struct in6_addr *daddr,
-						     __u16 len,
-						     unsigned short proto,
-						     unsigned int csum) 
+static __inline__ __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
+					  const struct in6_addr *daddr,
+					  __u32 len, unsigned short proto,
+					  __wsum csum)
 {
 
 	int carry;
 	__u32 ulen;
 	__u32 uproto;
+	__u32 sum = (__force u32)csum;
 
-	csum += saddr->s6_addr32[0];
-	carry = (csum < saddr->s6_addr32[0]);
-	csum += carry;
+	sum += (__force u32)saddr->s6_addr32[0];
+	carry = (sum < (__force u32)saddr->s6_addr32[0]);
+	sum += carry;
 
-	csum += saddr->s6_addr32[1];
-	carry = (csum < saddr->s6_addr32[1]);
-	csum += carry;
+	sum += (__force u32)saddr->s6_addr32[1];
+	carry = (sum < (__force u32)saddr->s6_addr32[1]);
+	sum += carry;
 
-	csum += saddr->s6_addr32[2];
-	carry = (csum < saddr->s6_addr32[2]);
-	csum += carry;
+	sum += (__force u32)saddr->s6_addr32[2];
+	carry = (sum < (__force u32)saddr->s6_addr32[2]);
+	sum += carry;
 
-	csum += saddr->s6_addr32[3];
-	carry = (csum < saddr->s6_addr32[3]);
-	csum += carry;
+	sum += (__force u32)saddr->s6_addr32[3];
+	carry = (sum < (__force u32)saddr->s6_addr32[3]);
+	sum += carry;
 
-	csum += daddr->s6_addr32[0];
-	carry = (csum < daddr->s6_addr32[0]);
-	csum += carry;
+	sum += (__force u32)daddr->s6_addr32[0];
+	carry = (sum < (__force u32)daddr->s6_addr32[0]);
+	sum += carry;
 
-	csum += daddr->s6_addr32[1];
-	carry = (csum < daddr->s6_addr32[1]);
-	csum += carry;
+	sum += (__force u32)daddr->s6_addr32[1];
+	carry = (sum < (__force u32)daddr->s6_addr32[1]);
+	sum += carry;
 
-	csum += daddr->s6_addr32[2];
-	carry = (csum < daddr->s6_addr32[2]);
-	csum += carry;
+	sum += (__force u32)daddr->s6_addr32[2];
+	carry = (sum < (__force u32)daddr->s6_addr32[2]);
+	sum += carry;
 
-	csum += daddr->s6_addr32[3];
-	carry = (csum < daddr->s6_addr32[3]);
-	csum += carry;
+	sum += (__force u32)daddr->s6_addr32[3];
+	carry = (sum < (__force u32)daddr->s6_addr32[3]);
+	sum += carry;
 
-	ulen = htonl((__u32) len);
-	csum += ulen;
-	carry = (csum < ulen);
-	csum += carry;
+	ulen = (__force u32)htonl((__u32) len);
+	sum += ulen;
+	carry = (sum < ulen);
+	sum += carry;
 
-	uproto = htonl(proto);
-	csum += uproto;
-	carry = (csum < uproto);
-	csum += carry;
+	uproto = (__force u32)htonl(proto);
+	sum += uproto;
+	carry = (sum < uproto);
+	sum += carry;
 
-	return csum_fold(csum);
+	return csum_fold((__force __wsum)csum);
 }
 
 #endif
