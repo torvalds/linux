@@ -150,6 +150,16 @@ static inline int genlmsg_unicast(struct sk_buff *skb, u32 pid)
 }
 
 /**
+ * genlmsg_reply - reply to a request
+ * @skb: netlink message to be sent back
+ * @info: receiver information
+ */
+static inline int genlmsg_reply(struct sk_buff *skb, struct genl_info *info)
+{
+	return genlmsg_unicast(skb, info->snd_pid);
+}
+
+/**
  * gennlmsg_data - head of message payload
  * @gnlh: genetlink messsage header
  */

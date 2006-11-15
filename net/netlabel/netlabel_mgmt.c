@@ -390,7 +390,7 @@ static int netlbl_mgmt_listdef(struct sk_buff *skb, struct genl_info *info)
 
 	genlmsg_end(ans_skb, data);
 
-	ret_val = genlmsg_unicast(ans_skb, info->snd_pid);
+	ret_val = genlmsg_reply(ans_skb, info);
 	if (ret_val != 0)
 		goto listdef_failure;
 	return 0;
@@ -512,7 +512,7 @@ static int netlbl_mgmt_version(struct sk_buff *skb, struct genl_info *info)
 
 	genlmsg_end(ans_skb, data);
 
-	ret_val = genlmsg_unicast(ans_skb, info->snd_pid);
+	ret_val = genlmsg_reply(ans_skb, info);
 	if (ret_val != 0)
 		goto version_failure;
 	return 0;

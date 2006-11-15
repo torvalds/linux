@@ -160,7 +160,7 @@ static int netlbl_unlabel_list(struct sk_buff *skb, struct genl_info *info)
 
 	genlmsg_end(ans_skb, data);
 
-	ret_val = genlmsg_unicast(ans_skb, info->snd_pid);
+	ret_val = genlmsg_reply(ans_skb, info);
 	if (ret_val != 0)
 		goto list_failure;
 	return 0;

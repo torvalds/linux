@@ -529,7 +529,7 @@ static int ctrl_getfamily(struct sk_buff *skb, struct genl_info *info)
 		goto errout;
 	}
 
-	err = genlmsg_unicast(msg, info->snd_pid);
+	err = genlmsg_reply(msg, info);
 errout:
 	return err;
 }
