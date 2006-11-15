@@ -360,7 +360,6 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 				  inode);
 
 	ocfs2_set_inode_flags(inode);
-	inode->i_flags |= S_NOATIME;
 
 	status = 0;
 bail:

@@ -32,6 +32,7 @@
 #include <linux/uio.h>
 #include <linux/sched.h>
 #include <linux/pipe_fs_i.h>
+#include <linux/mount.h>
 
 #define MLOG_MASK_PREFIX ML_INODE
 #include <cluster/masklog.h>
@@ -133,6 +134,57 @@ bail:
 	mlog_exit(err);
 
 	return (err < 0) ? -EIO : 0;
+}
+
+int ocfs2_should_update_atime(struct inode *inode,
+			      struct vfsmount *vfsmnt)
+{
+	struct timespec now;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+
+	if (ocfs2_is_hard_readonly(osb) || ocfs2_is_soft_readonly(osb))
+		return 0;
+
+	if ((inode->i_flags & S_NOATIME) ||
+	    ((inode->i_sb->s_flags & MS_NODIRATIME) && S_ISDIR(inode->i_mode)))
+		return 0;
+
+	if ((vfsmnt->mnt_flags & MNT_NOATIME) ||
+	    ((vfsmnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode)))
+		return 0;
+
+	now = CURRENT_TIME;
+	if ((now.tv_sec - inode->i_atime.tv_sec <= osb->s_atime_quantum))
+		return 0;
+	else
+		return 1;
+}
+
+int ocfs2_update_inode_atime(struct inode *inode,
+			     struct buffer_head *bh)
+{
+	int ret;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	handle_t *handle;
+
+	mlog_entry_void();
+
+	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
+	if (handle == NULL) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	inode->i_atime = CURRENT_TIME;
+	ret = ocfs2_mark_inode_dirty(handle, inode, bh);
+	if (ret < 0)
+		mlog_errno(ret);
+
+	ocfs2_commit_trans(OCFS2_SB(inode->i_sb), handle);
+out:
+	mlog_exit(ret);
+	return ret;
 }
 
 int ocfs2_set_inode_size(handle_t *handle,

@@ -139,6 +139,7 @@ enum {
 	Opt_hb_local,
 	Opt_data_ordered,
 	Opt_data_writeback,
+	Opt_atime_quantum,
 	Opt_err,
 };
 
@@ -152,6 +153,7 @@ static match_table_t tokens = {
 	{Opt_hb_local, OCFS2_HB_LOCAL},
 	{Opt_data_ordered, "data=ordered"},
 	{Opt_data_writeback, "data=writeback"},
+	{Opt_atime_quantum, "atime_quantum=%u"},
 	{Opt_err, NULL}
 };
 
@@ -705,6 +707,7 @@ static int ocfs2_parse_options(struct super_block *sb,
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token, option;
 		substring_t args[MAX_OPT_ARGS];
+		struct ocfs2_super * osb = OCFS2_SB(sb);
 
 		if (!*p)
 			continue;
@@ -744,6 +747,16 @@ static int ocfs2_parse_options(struct super_block *sb,
 			break;
 		case Opt_data_writeback:
 			*mount_opt |= OCFS2_MOUNT_DATA_WRITEBACK;
+			break;
+		case Opt_atime_quantum:
+			if (match_int(&args[0], &option)) {
+				status = 0;
+				goto bail;
+			}
+			if (option >= 0)
+				osb->s_atime_quantum = option;
+			else
+				osb->s_atime_quantum = OCFS2_DEFAULT_ATIME_QUANTUM;
 			break;
 		default:
 			mlog(ML_ERROR,
@@ -1264,6 +1277,8 @@ static int ocfs2_initialize_super(struct super_block *sb,
 
 	init_waitqueue_head(&osb->checkpoint_event);
 	atomic_set(&osb->needs_checkpoint, 0);
+
+	osb->s_atime_quantum = OCFS2_DEFAULT_ATIME_QUANTUM;
 
 	osb->node_num = O2NM_INVALID_NODE_NUM;
 	osb->slot_num = OCFS2_INVALID_SLOT;

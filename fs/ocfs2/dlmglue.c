@@ -49,6 +49,7 @@
 #include "dcache.h"
 #include "dlmglue.h"
 #include "extent_map.h"
+#include "file.h"
 #include "heartbeat.h"
 #include "inode.h"
 #include "journal.h"
@@ -1720,6 +1721,44 @@ int ocfs2_meta_lock_with_page(struct inode *inode,
 		ret = AOP_TRUNCATED_PAGE;
 	}
 
+	return ret;
+}
+
+int ocfs2_meta_lock_atime(struct inode *inode,
+			  struct vfsmount *vfsmnt,
+			  int *level)
+{
+	int ret;
+
+	mlog_entry_void();
+	ret = ocfs2_meta_lock(inode, NULL, 0);
+	if (ret < 0) {
+		mlog_errno(ret);
+		return ret;
+	}
+
+	/*
+	 * If we should update atime, we will get EX lock,
+	 * otherwise we just get PR lock.
+	 */
+	if (ocfs2_should_update_atime(inode, vfsmnt)) {
+		struct buffer_head *bh = NULL;
+
+		ocfs2_meta_unlock(inode, 0);
+		ret = ocfs2_meta_lock(inode, &bh, 1);
+		if (ret < 0) {
+			mlog_errno(ret);
+			return ret;
+		}
+		*level = 1;
+		if (ocfs2_should_update_atime(inode, vfsmnt))
+			ocfs2_update_inode_atime(inode, bh);
+		if (bh)
+			brelse(bh);
+	} else
+		*level = 0;
+
+	mlog_exit(ret);
 	return ret;
 }
 

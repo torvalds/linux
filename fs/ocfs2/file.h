@@ -54,4 +54,9 @@ int ocfs2_set_inode_size(handle_t *handle,
 			 struct buffer_head *fe_bh,
 			 u64 new_i_size);
 
+int ocfs2_should_update_atime(struct inode *inode,
+			      struct vfsmount *vfsmnt);
+int ocfs2_update_inode_atime(struct inode *inode,
+			     struct buffer_head *bh);
+
 #endif /* OCFS2_FILE_H */
