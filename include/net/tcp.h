@@ -807,9 +807,9 @@ static inline void tcp_update_wl(struct tcp_sock *tp, u32 ack, u32 seq)
 /*
  * Calculate(/check) TCP checksum
  */
-static inline u16 tcp_v4_check(struct tcphdr *th, int len,
-			       unsigned long saddr, unsigned long daddr, 
-			       unsigned long base)
+static inline __sum16 tcp_v4_check(struct tcphdr *th, int len,
+			       __be32 saddr, __be32 daddr,
+			       __wsum base)
 {
 	return csum_tcpudp_magic(saddr,daddr,len,IPPROTO_TCP,base);
 }

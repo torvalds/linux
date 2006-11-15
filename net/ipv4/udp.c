@@ -414,8 +414,9 @@ static void udp_flush_pending_frames(struct sock *sk)
 static void udp4_hwcsum_outgoing(struct sock *sk, struct sk_buff *skb,
 				 __be32 src, __be32 dst, int len      )
 {
-	unsigned int csum = 0, offset;
+	unsigned int offset;
 	struct udphdr *uh = skb->h.uh;
+	__wsum csum = 0;
 
 	if (skb_queue_len(&sk->sk_write_queue) == 1) {
 		/*
