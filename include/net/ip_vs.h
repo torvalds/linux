@@ -988,7 +988,7 @@ extern int ip_vs_make_skb_writable(struct sk_buff **pskb, int len);
 extern void ip_vs_nat_icmp(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		struct ip_vs_conn *cp, int dir);
 
-extern u16 ip_vs_checksum_complete(struct sk_buff *skb, int offset);
+extern __sum16 ip_vs_checksum_complete(struct sk_buff *skb, int offset);
 
 static inline u16 ip_vs_check_diff(u32 old, u32 new, u16 oldsum)
 {
