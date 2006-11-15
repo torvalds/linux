@@ -2316,9 +2316,10 @@ void __init tcp_init(void)
 		sysctl_max_syn_backlog = 128;
 	}
 
-	sysctl_tcp_mem[0] =  768 << order;
-	sysctl_tcp_mem[1] = 1024 << order;
-	sysctl_tcp_mem[2] = 1536 << order;
+	/* Allow no more than 3/4 kernel memory (usually less) allocated to TCP */
+	sysctl_tcp_mem[0] = (1536 / sizeof (struct inet_bind_hashbucket)) << order;
+	sysctl_tcp_mem[1] = sysctl_tcp_mem[0] * 4 / 3;
+	sysctl_tcp_mem[2] = sysctl_tcp_mem[0] * 2;
 
 	limit = ((unsigned long)sysctl_tcp_mem[1]) << (PAGE_SHIFT - 7);
 	max_share = min(4UL*1024*1024, limit);
