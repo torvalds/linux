@@ -27,7 +27,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt366"
-#define DRV_VERSION	"0.5"
+#define DRV_VERSION	"0.5.1"
 
 struct hpt_clock {
 	u8	xfer_speed;
@@ -222,9 +222,17 @@ static u32 hpt36x_find_mode(struct ata_port *ap, int speed)
 
 static int hpt36x_pre_reset(struct ata_port *ap)
 {
+	static const struct pci_bits hpt36x_enable_bits[] = {
+		{ 0x50, 1, 0x04, 0x04 },
+		{ 0x54, 1, 0x04, 0x04 }
+	};
+
 	u8 ata66;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
+	if (!pci_test_config_bits(pdev, &hpt36x_enable_bits[ap->port_no]))
+		return -ENOENT;
+		
 	pci_read_config_byte(pdev, 0x5A, &ata66);
 	if (ata66 & (1 << ap->port_no))
 		ap->cbl = ATA_CBL_PATA40;
