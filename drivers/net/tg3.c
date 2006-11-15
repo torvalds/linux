@@ -4728,10 +4728,11 @@ static int tg3_poll_fw(struct tg3 *tp)
 	u32 val;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
-		for (i = 0; i < 400; i++) {
+		/* Wait up to 20ms for init done. */
+		for (i = 0; i < 200; i++) {
 			if (tr32(VCPU_STATUS) & VCPU_STATUS_INIT_DONE)
 				return 0;
-			udelay(10);
+			udelay(100);
 		}
 		return -ENODEV;
 	}
