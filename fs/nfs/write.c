@@ -1525,9 +1525,10 @@ int nfs_sync_inode_wait(struct inode *inode, unsigned long idx_start,
 		pages = nfs_scan_dirty(inode, &head, idx_start, npages);
 		if (pages != 0) {
 			spin_unlock(&nfsi->req_lock);
-			if (how & FLUSH_INVALIDATE)
+			if (how & FLUSH_INVALIDATE) {
 				nfs_cancel_dirty_list(&head);
-			else
+				ret = pages;
+			} else
 				ret = nfs_flush_list(inode, &head, pages, how);
 			spin_lock(&nfsi->req_lock);
 			continue;
@@ -1540,6 +1541,7 @@ int nfs_sync_inode_wait(struct inode *inode, unsigned long idx_start,
 		if (how & FLUSH_INVALIDATE) {
 			spin_unlock(&nfsi->req_lock);
 			nfs_cancel_commit_list(&head);
+			ret = pages;
 			spin_lock(&nfsi->req_lock);
 			continue;
 		}
