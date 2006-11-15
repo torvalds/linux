@@ -682,7 +682,7 @@ ip_generic_getfrag(void *from, char *to, int offset, int len, int odd, struct sk
 		if (memcpy_fromiovecend(to, iov, offset, len) < 0)
 			return -EFAULT;
 	} else {
-		unsigned int csum = 0;
+		__wsum csum = 0;
 		if (csum_partial_copy_fromiovecend(to, iov, offset, len, &csum) < 0)
 			return -EFAULT;
 		skb->csum = csum_block_add(skb->csum, csum, odd);
@@ -690,11 +690,11 @@ ip_generic_getfrag(void *from, char *to, int offset, int len, int odd, struct sk
 	return 0;
 }
 
-static inline unsigned int
+static inline __wsum
 csum_page(struct page *page, int offset, int copy)
 {
 	char *kaddr;
-	unsigned int csum;
+	__wsum csum;
 	kaddr = kmap(page);
 	csum = csum_partial(kaddr + offset, copy, 0);
 	kunmap(page);
@@ -1166,7 +1166,7 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 		}
 
 		if (skb->ip_summed == CHECKSUM_NONE) {
-			unsigned int csum;
+			__wsum csum;
 			csum = csum_page(page, offset, len);
 			skb->csum = csum_block_add(skb->csum, csum, skb->len);
 		}

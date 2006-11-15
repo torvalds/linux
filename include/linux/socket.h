@@ -293,7 +293,7 @@ extern int memcpy_fromiovecend(unsigned char *kdata, struct iovec *iov,
 extern int csum_partial_copy_fromiovecend(unsigned char *kdata, 
 					  struct iovec *iov, 
 					  int offset, 
-					  unsigned int len, int *csump);
+					  unsigned int len, __wsum *csump);
 
 extern int verify_iovec(struct msghdr *m, struct iovec *iov, char *address, int mode);
 extern int memcpy_toiovec(struct iovec *v, unsigned char *kdata, int len);
