@@ -78,7 +78,7 @@ static void queue_process(void *p)
 }
 
 static int checksum_udp(struct sk_buff *skb, struct udphdr *uh,
-			     unsigned short ulen, u32 saddr, u32 daddr)
+			unsigned short ulen, u32 saddr, u32 daddr)
 {
 	unsigned int psum;
 
@@ -144,12 +144,11 @@ static void service_arp_queue(struct netpoll_info *npi)
 		arp_reply(skb);
 		skb = skb_dequeue(&npi->arp_tx);
 	}
-	return;
 }
 
 void netpoll_poll(struct netpoll *np)
 {
-	if(!np->dev || !netif_running(np->dev) || !np->dev->poll_controller)
+	if (!np->dev || !netif_running(np->dev) || !np->dev->poll_controller)
 		return;
 
 	/* Process pending work on NIC */
@@ -194,7 +193,7 @@ static void zap_completion_queue(void)
 		while (clist != NULL) {
 			struct sk_buff *skb = clist;
 			clist = clist->next;
-			if(skb->destructor)
+			if (skb->destructor)
 				dev_kfree_skb_any(skb); /* put this one back */
 			else
 				__kfree_skb(skb);
@@ -217,7 +216,7 @@ repeat:
 	if (!skb)
 		skb = skb_dequeue(&skb_pool);
 
-	if(!skb) {
+	if (!skb) {
 		if (++count < 10) {
 			netpoll_poll(np);
 			goto repeat;
@@ -243,12 +242,11 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
  	}
 
 	/* don't get messages out of order, and no recursion */
-	if ( skb_queue_len(&npinfo->txq) == 0
-	     && npinfo->poll_owner != smp_processor_id()
-	     && netif_tx_trylock(dev)) {
-
+	if (skb_queue_len(&npinfo->txq) == 0 &&
+	    npinfo->poll_owner != smp_processor_id() &&
+	    netif_tx_trylock(dev)) {
 		/* try until next clock tick */
-		for(tries = jiffies_to_usecs(1)/USEC_PER_POLL; tries > 0; --tries) {
+		for (tries = jiffies_to_usecs(1)/USEC_PER_POLL; tries > 0; --tries) {
 			if (!netif_queue_stopped(dev))
 				status = dev->hard_start_xmit(skb, dev);
 
@@ -384,8 +382,8 @@ static void arp_reply(struct sk_buff *skb)
 
 	if (np->dev->hard_header &&
 	    np->dev->hard_header(send_skb, skb->dev, ptype,
-				       np->remote_mac, np->local_mac,
-				       send_skb->len) < 0) {
+				 np->remote_mac, np->local_mac,
+				 send_skb->len) < 0) {
 		kfree_skb(send_skb);
 		return;
 	}
@@ -422,7 +420,6 @@ int __netpoll_rx(struct sk_buff *skb)
 	struct udphdr *uh;
 	struct netpoll_info *npi = skb->dev->npinfo;
 	struct netpoll *np = npi->rx_np;
-
 
 	if (!np)
 		goto out;
@@ -496,47 +493,47 @@ int netpoll_parse_options(struct netpoll *np, char *opt)
 {
 	char *cur=opt, *delim;
 
-	if(*cur != '@') {
+	if (*cur != '@') {
 		if ((delim = strchr(cur, '@')) == NULL)
 			goto parse_failed;
-		*delim=0;
-		np->local_port=simple_strtol(cur, NULL, 10);
-		cur=delim;
+		*delim = 0;
+		np->local_port = simple_strtol(cur, NULL, 10);
+		cur = delim;
 	}
 	cur++;
 	printk(KERN_INFO "%s: local port %d\n", np->name, np->local_port);
 
-	if(*cur != '/') {
+	if (*cur != '/') {
 		if ((delim = strchr(cur, '/')) == NULL)
 			goto parse_failed;
-		*delim=0;
-		np->local_ip=ntohl(in_aton(cur));
-		cur=delim;
+		*delim = 0;
+		np->local_ip = ntohl(in_aton(cur));
+		cur = delim;
 
 		printk(KERN_INFO "%s: local IP %d.%d.%d.%d\n",
 		       np->name, HIPQUAD(np->local_ip));
 	}
 	cur++;
 
-	if ( *cur != ',') {
+	if (*cur != ',') {
 		/* parse out dev name */
 		if ((delim = strchr(cur, ',')) == NULL)
 			goto parse_failed;
-		*delim=0;
+		*delim = 0;
 		strlcpy(np->dev_name, cur, sizeof(np->dev_name));
-		cur=delim;
+		cur = delim;
 	}
 	cur++;
 
 	printk(KERN_INFO "%s: interface %s\n", np->name, np->dev_name);
 
-	if ( *cur != '@' ) {
+	if (*cur != '@') {
 		/* dst port */
 		if ((delim = strchr(cur, '@')) == NULL)
 			goto parse_failed;
-		*delim=0;
-		np->remote_port=simple_strtol(cur, NULL, 10);
-		cur=delim;
+		*delim = 0;
+		np->remote_port = simple_strtol(cur, NULL, 10);
+		cur = delim;
 	}
 	cur++;
 	printk(KERN_INFO "%s: remote port %d\n", np->name, np->remote_port);
@@ -544,42 +541,41 @@ int netpoll_parse_options(struct netpoll *np, char *opt)
 	/* dst ip */
 	if ((delim = strchr(cur, '/')) == NULL)
 		goto parse_failed;
-	*delim=0;
-	np->remote_ip=ntohl(in_aton(cur));
-	cur=delim+1;
+	*delim = 0;
+	np->remote_ip = ntohl(in_aton(cur));
+	cur = delim + 1;
 
 	printk(KERN_INFO "%s: remote IP %d.%d.%d.%d\n",
-		       np->name, HIPQUAD(np->remote_ip));
+	       np->name, HIPQUAD(np->remote_ip));
 
-	if( *cur != 0 )
-	{
+	if (*cur != 0) {
 		/* MAC address */
 		if ((delim = strchr(cur, ':')) == NULL)
 			goto parse_failed;
-		*delim=0;
-		np->remote_mac[0]=simple_strtol(cur, NULL, 16);
-		cur=delim+1;
+		*delim = 0;
+		np->remote_mac[0] = simple_strtol(cur, NULL, 16);
+		cur = delim + 1;
 		if ((delim = strchr(cur, ':')) == NULL)
 			goto parse_failed;
-		*delim=0;
-		np->remote_mac[1]=simple_strtol(cur, NULL, 16);
-		cur=delim+1;
+		*delim = 0;
+		np->remote_mac[1] = simple_strtol(cur, NULL, 16);
+		cur = delim + 1;
 		if ((delim = strchr(cur, ':')) == NULL)
 			goto parse_failed;
-		*delim=0;
-		np->remote_mac[2]=simple_strtol(cur, NULL, 16);
-		cur=delim+1;
+		*delim = 0;
+		np->remote_mac[2] = simple_strtol(cur, NULL, 16);
+		cur = delim + 1;
 		if ((delim = strchr(cur, ':')) == NULL)
 			goto parse_failed;
-		*delim=0;
-		np->remote_mac[3]=simple_strtol(cur, NULL, 16);
-		cur=delim+1;
+		*delim = 0;
+		np->remote_mac[3] = simple_strtol(cur, NULL, 16);
+		cur = delim + 1;
 		if ((delim = strchr(cur, ':')) == NULL)
 			goto parse_failed;
-		*delim=0;
-		np->remote_mac[4]=simple_strtol(cur, NULL, 16);
-		cur=delim+1;
-		np->remote_mac[5]=simple_strtol(cur, NULL, 16);
+		*delim = 0;
+		np->remote_mac[4] = simple_strtol(cur, NULL, 16);
+		cur = delim + 1;
+		np->remote_mac[5] = simple_strtol(cur, NULL, 16);
 	}
 
 	printk(KERN_INFO "%s: remote ethernet address "
@@ -735,7 +731,8 @@ int netpoll_setup(struct netpoll *np)
 	return err;
 }
 
-static int __init netpoll_init(void) {
+static int __init netpoll_init(void)
+{
 	skb_queue_head_init(&skb_pool);
 	return 0;
 }
