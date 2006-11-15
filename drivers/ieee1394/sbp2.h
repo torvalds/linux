@@ -302,7 +302,7 @@ struct sbp2_lu {
 	u64 status_fifo_addr;
 
 	/* Waitqueue flag for logins, reconnects, logouts, query logins */
-	int access_complete:1;
+	unsigned int access_complete:1;
 
 	/* Pool of command ORBs for this logical unit */
 	spinlock_t cmd_orb_lock;
