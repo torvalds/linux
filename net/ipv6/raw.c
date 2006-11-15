@@ -530,7 +530,7 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi *fl,
 
 	/* in case cksum was not initialized */
 	if (unlikely(csum))
-		tmp_csum = csum_sub(tmp_csum, csum);
+		tmp_csum = csum_sub(tmp_csum, csum_unfold(csum));
 
 	csum = csum_ipv6_magic(&fl->fl6_src,
 				   &fl->fl6_dst,

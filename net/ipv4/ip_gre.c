@@ -877,7 +877,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 		if (tunnel->parms.o_flags&GRE_CSUM) {
 			*ptr = 0;
-			*(__be16*)ptr = ip_compute_csum((void*)(iph+1), skb->len - sizeof(struct iphdr));
+			*(__sum16*)ptr = ip_compute_csum((void*)(iph+1), skb->len - sizeof(struct iphdr));
 		}
 	}
 

@@ -1294,7 +1294,7 @@ unsigned int skb_checksum(const struct sk_buff *skb, int offset,
 
 			end = start + list->len;
 			if ((copy = end - offset) > 0) {
-				unsigned int csum2;
+				__wsum csum2;
 				if (copy > len)
 					copy = len;
 				csum2 = skb_checksum(list, offset - start,

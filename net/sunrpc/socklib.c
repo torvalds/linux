@@ -45,7 +45,8 @@ static size_t skb_read_bits(skb_reader_t *desc, void *to, size_t len)
  */
 static size_t skb_read_and_csum_bits(skb_reader_t *desc, void *to, size_t len)
 {
-	unsigned int	csum2, pos;
+	unsigned int pos;
+	__wsum csum2;
 
 	if (len > desc->count)
 		len = desc->count;
@@ -160,7 +161,7 @@ int csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb)
 	if (xdr_partial_copy_from_skb(xdr, 0, &desc, skb_read_and_csum_bits) < 0)
 		return -1;
 	if (desc.offset != skb->len) {
-		unsigned int csum2;
+		__wsum csum2;
 		csum2 = skb_checksum(skb, desc.offset, skb->len - desc.offset, 0);
 		desc.csum = csum_block_add(desc.csum, csum2, desc.offset);
 	}

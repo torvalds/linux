@@ -262,7 +262,7 @@ static int icmpv6_getfrag(void *from, char *to, int offset, int len, int odd, st
 {
 	struct icmpv6_msg *msg = (struct icmpv6_msg *) from;
 	struct sk_buff *org_skb = msg->skb;
-	__u32 csum = 0;
+	__wsum csum = 0;
 
 	csum = skb_copy_and_csum_bits(org_skb, msg->offset + offset,
 				      to, len, csum);
