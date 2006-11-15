@@ -73,6 +73,14 @@ struct ccid3_options_received {
 	u32 ccid3or_receive_rate;
 };
 
+/* TFRC sender states */
+enum ccid3_hc_tx_states {
+       	TFRC_SSTATE_NO_SENT = 1,
+	TFRC_SSTATE_NO_FBACK,
+	TFRC_SSTATE_FBACK,
+	TFRC_SSTATE_TERM,
+};
+
 /** struct ccid3_hc_tx_sock - CCID3 sender half connection sock
  *
   * @ccid3hctx_state - Sender state
@@ -103,7 +111,7 @@ struct ccid3_hc_tx_sock {
 #define ccid3hctx_t_rto			ccid3hctx_tfrc.tfrctx_rto
 #define ccid3hctx_t_ipi			ccid3hctx_tfrc.tfrctx_ipi
 	u16				ccid3hctx_s;
-  	u8				ccid3hctx_state;
+  	enum ccid3_hc_tx_states 	ccid3hctx_state:8;
 	u8				ccid3hctx_last_win_count;
 	u8				ccid3hctx_idle;
 	struct timeval			ccid3hctx_t_last_win_count;
@@ -115,6 +123,13 @@ struct ccid3_hc_tx_sock {
 	struct ccid3_options_received	ccid3hctx_options_received;
 };
 
+/* TFRC receiver states */
+enum ccid3_hc_rx_states {
+       	TFRC_RSTATE_NO_DATA = 1,
+	TFRC_RSTATE_DATA,
+	TFRC_RSTATE_TERM    = 127,
+};
+
 struct ccid3_hc_rx_sock {
 	struct tfrc_rx_info	ccid3hcrx_tfrc;
 #define ccid3hcrx_x_recv	ccid3hcrx_tfrc.tfrcrx_x_recv
@@ -122,8 +137,8 @@ struct ccid3_hc_rx_sock {
 #define ccid3hcrx_p		ccid3hcrx_tfrc.tfrcrx_p
   	u64			ccid3hcrx_seqno_nonloss:48,
 				ccid3hcrx_ccval_nonloss:4,
-				ccid3hcrx_state:8,
 				ccid3hcrx_ccval_last_counter:4;
+	enum ccid3_hc_rx_states	ccid3hcrx_state:8;
   	u32			ccid3hcrx_bytes_recv;
   	struct timeval		ccid3hcrx_tstamp_last_feedback;
   	struct timeval		ccid3hcrx_tstamp_last_ack;

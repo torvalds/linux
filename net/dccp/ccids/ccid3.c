@@ -75,14 +75,6 @@ static struct dccp_tx_hist *ccid3_tx_hist;
 static struct dccp_rx_hist *ccid3_rx_hist;
 static struct dccp_li_hist *ccid3_li_hist;
 
-/* TFRC sender states */
-enum ccid3_hc_tx_states {
-       	TFRC_SSTATE_NO_SENT = 1,
-	TFRC_SSTATE_NO_FBACK,
-	TFRC_SSTATE_FBACK,
-	TFRC_SSTATE_TERM,
-};
-
 #ifdef CCID3_DEBUG
 static const char *ccid3_tx_state_name(enum ccid3_hc_tx_states state)
 {
@@ -251,9 +243,8 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 						      hctx->ccid3hctx_x));
 		break;
 	default:
-		printk(KERN_CRIT "%s: %s, sk=%p, Illegal state (%d)!\n",
-		       __FUNCTION__, dccp_role(sk), sk, hctx->ccid3hctx_state);
-		dump_stack();
+		DCCP_BUG("%s, sk=%p, Illegal state (%d)!", dccp_role(sk), sk,
+			 hctx->ccid3hctx_state);
 		goto out;
 	}
 
@@ -329,9 +320,8 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 		rc = delay > 0 ? delay : 0;
 		break;
 	default:
-		printk(KERN_CRIT "%s: %s, sk=%p, Illegal state (%d)!\n",
-		       __FUNCTION__, dccp_role(sk), sk, hctx->ccid3hctx_state);
-		dump_stack();
+		DCCP_BUG("%s, sk=%p, Illegal state (%d)!", dccp_role(sk), sk,
+			 hctx->ccid3hctx_state);
 		rc = -EINVAL;
 		break;
 	}
@@ -423,9 +413,8 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 		}
 		break;
 	default:
-		printk(KERN_CRIT "%s: %s, sk=%p, Illegal state (%d)!\n",
-		       __FUNCTION__, dccp_role(sk), sk, hctx->ccid3hctx_state);
-		dump_stack();
+		DCCP_BUG("%s, sk=%p, Illegal state (%d)!", dccp_role(sk), sk,
+			 hctx->ccid3hctx_state);
 		break;
 	}
 }
@@ -568,9 +557,8 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		hctx->ccid3hctx_idle = 1;   
 		break;
 	default:
-		printk(KERN_CRIT "%s: %s, sk=%p, Illegal state (%d)!\n",
-		       __FUNCTION__, dccp_role(sk), sk, hctx->ccid3hctx_state);
-		dump_stack();
+		DCCP_BUG("%s, sk=%p, Illegal state (%d)!", dccp_role(sk), sk,
+			 hctx->ccid3hctx_state);
 		break;
 	}
 }
@@ -688,13 +676,6 @@ static void ccid3_hc_tx_exit(struct sock *sk)
  * RX Half Connection methods
  */
 
-/* TFRC receiver states */
-enum ccid3_hc_rx_states {
-       	TFRC_RSTATE_NO_DATA = 1,
-	TFRC_RSTATE_DATA,
-	TFRC_RSTATE_TERM    = 127,
-};
-
 #ifdef CCID3_DEBUG
 static const char *ccid3_rx_state_name(enum ccid3_hc_rx_states state)
 {
@@ -744,9 +725,8 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 	}
 		break;
 	default:
-		printk(KERN_CRIT "%s: %s, sk=%p, Illegal state (%d)!\n",
-		       __FUNCTION__, dccp_role(sk), sk, hcrx->ccid3hcrx_state);
-		dump_stack();
+		DCCP_BUG("%s, sk=%p, Illegal state (%d)!", dccp_role(sk), sk,
+			 hcrx->ccid3hcrx_state);
 		return;
 	}
 
@@ -1088,9 +1068,8 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		}
 		return;
 	default:
-		printk(KERN_CRIT "%s: %s, sk=%p, Illegal state (%d)!\n",
-		       __FUNCTION__, dccp_role(sk), sk, hcrx->ccid3hcrx_state);
-		dump_stack();
+		DCCP_BUG("%s, sk=%p, Illegal state (%d)!",  dccp_role(sk), sk,
+			 hcrx->ccid3hcrx_state);
 		return;
 	}
 

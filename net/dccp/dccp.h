@@ -18,6 +18,14 @@
 #include <net/tcp.h>
 #include "ackvec.h"
 
+#define DCCP_CRIT(fmt, a...) LIMIT_NETDEBUG(KERN_CRIT fmt " at %s:%d/%s()\n",  \
+ 					 ##a, __FILE__, __LINE__, __FUNCTION__)
+#define DCCP_BUG(fmt, a...)  do { DCCP_CRIT(fmt, ##a); dump_stack(); } while (0)
+#define DCCP_BUG_ON(cond)    do { if (unlikely((cond) == 0))                   \
+					DCCP_BUG("BUG: condition \"%s\" fails",\
+						 __stringify((cond)));	       \
+			     } while (0)
+
 #ifdef CONFIG_IP_DCCP_DEBUG
 extern int dccp_debug;
 
