@@ -1318,6 +1318,16 @@ UNUSUAL_DEV(  0x1019, 0x0c55, 0x0000, 0x0110,
 		US_SC_DEVICE, US_PR_DEVICE, usb_stor_ucr61s2b_init,
 		0 ),
 
+/* Reported by Jaco Kroon <jaco@kroon.co.za>
+ * The usb-storage module found on the Digitech GNX4 (and supposedly other
+ * devices) misbehaves and causes a bunch of invalid I/O errors.
+ */
+UNUSUAL_DEV(  0x1210, 0x0003, 0x0100, 0x0100,
+		"Digitech HMG",
+		"DigiTech Mass Storage",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE ),
+
 /* Reported by Vilius Bilinkevicius <vilisas AT xxx DOT lt) */
 UNUSUAL_DEV(  0x132b, 0x000b, 0x0001, 0x0001,
 		"Minolta",
