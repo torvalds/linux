@@ -82,6 +82,7 @@ int ocfs2_readdir(struct file * filp, void * dirent, filldir_t filldir)
 	struct inode *inode = filp->f_dentry->d_inode;
 	struct super_block * sb = inode->i_sb;
 	unsigned int ra_sectors = 16;
+	int lock_level = 0;
 
 	mlog_entry("dirino=%llu\n",
 		   (unsigned long long)OCFS2_I(inode)->ip_blkno);
@@ -89,7 +90,15 @@ int ocfs2_readdir(struct file * filp, void * dirent, filldir_t filldir)
 	stored = 0;
 	bh = NULL;
 
-	error = ocfs2_meta_lock(inode, NULL, 0);
+	error = ocfs2_meta_lock_atime(inode, filp->f_vfsmnt, &lock_level);
+	if (lock_level && error >= 0) {
+		/* We release EX lock which used to update atime
+		 * and get PR lock again to reduce contention
+		 * on commonly accessed directories. */
+		ocfs2_meta_unlock(inode, 1);
+		lock_level = 0;
+		error = ocfs2_meta_lock(inode, NULL, 0);
+	}
 	if (error < 0) {
 		if (error != -ENOENT)
 			mlog_errno(error);
@@ -198,7 +207,7 @@ revalidate:
 
 	stored = 0;
 bail:
-	ocfs2_meta_unlock(inode, 0);
+	ocfs2_meta_unlock(inode, lock_level);
 
 bail_nolock:
 	mlog_exit(stored);

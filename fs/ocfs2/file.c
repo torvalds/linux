@@ -1254,7 +1254,7 @@ static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
 				   unsigned long nr_segs,
 				   loff_t pos)
 {
-	int ret = 0, rw_level = -1, have_alloc_sem = 0;
+	int ret = 0, rw_level = -1, have_alloc_sem = 0, lock_level = 0;
 	struct file *filp = iocb->ki_filp;
 	struct inode *inode = filp->f_dentry->d_inode;
 
@@ -1296,12 +1296,12 @@ static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
 	 * like i_size. This allows the checks down below
 	 * generic_file_aio_read() a chance of actually working. 
 	 */
-	ret = ocfs2_meta_lock(inode, NULL, 0);
+	ret = ocfs2_meta_lock_atime(inode, filp->f_vfsmnt, &lock_level);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto bail;
 	}
-	ocfs2_meta_unlock(inode, 0);
+	ocfs2_meta_unlock(inode, lock_level);
 
 	ret = generic_file_aio_read(iocb, iov, nr_segs, iocb->ki_pos);
 	if (ret == -EINVAL)
