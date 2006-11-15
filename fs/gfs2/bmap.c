@@ -423,108 +423,6 @@ static int lookup_block(struct gfs2_inode *ip, struct buffer_head *bh,
 	return 0;
 }
 
-/**
- * gfs2_block_pointers - Map a block from an inode to a disk block
- * @inode: The inode
- * @lblock: The logical block number
- * @map_bh: The bh to be mapped
- * @mp: metapath to use
- *
- * Find the block number on the current device which corresponds to an
- * inode's block. If the block had to be created, "new" will be set.
- *
- * Returns: errno
- */
-
-static int gfs2_block_pointers(struct inode *inode, u64 lblock, int create,
-			       struct buffer_head *bh_map, struct metapath *mp)
-{
-	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	struct buffer_head *bh;
-	unsigned int bsize;
-	unsigned int height;
-	unsigned int end_of_metadata;
-	unsigned int x;
-	int error = 0;
-	int new = 0;
-	u64 dblock = 0;
-	int boundary;
-	unsigned int maxlen = bh_map->b_size >> inode->i_blkbits;
-
-	BUG_ON(maxlen == 0);
-
-	if (gfs2_assert_warn(sdp, !gfs2_is_stuffed(ip)))
-		return 0;
-
-	bsize = gfs2_is_dir(ip) ? sdp->sd_jbsize : sdp->sd_sb.sb_bsize;
-
-	height = calc_tree_height(ip, (lblock + 1) * bsize);
-	if (ip->i_di.di_height < height) {
-		if (!create)
-			return 0;
-
-		error = build_height(inode, height);
-		if (error)
-			return error;
-	}
-
-	find_metapath(ip, lblock, mp);
-	end_of_metadata = ip->i_di.di_height - 1;
-
-	error = gfs2_meta_inode_buffer(ip, &bh);
-	if (error)
-		return error;
-
-	for (x = 0; x < end_of_metadata; x++) {
-		lookup_block(ip, bh, x, mp, create, &new, &dblock);
-		brelse(bh);
-		if (!dblock)
-			return 0;
-
-		error = gfs2_meta_indirect_buffer(ip, x+1, dblock, new, &bh);
-		if (error)
-			return error;
-	}
-
-	boundary = lookup_block(ip, bh, end_of_metadata, mp, create, &new, &dblock);
-	clear_buffer_mapped(bh_map);
-	clear_buffer_new(bh_map);
-	clear_buffer_boundary(bh_map);
-
-	if (dblock) {
-		map_bh(bh_map, inode->i_sb, dblock);
-		if (boundary)
-			set_buffer_boundary(bh);
-		if (new) {
-			struct buffer_head *dibh;
-			error = gfs2_meta_inode_buffer(ip, &dibh);
-			if (!error) {
-				gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-				gfs2_dinode_out(ip, dibh->b_data);
-				brelse(dibh);
-			}
-			set_buffer_new(bh_map);
-			goto out_brelse;
-		}
-		while(--maxlen && !buffer_boundary(bh_map)) {
-			u64 eblock;
-
-			mp->mp_list[end_of_metadata]++;
-			boundary = lookup_block(ip, bh, end_of_metadata, mp, 0, &new, &eblock);
-			if (eblock != ++dblock)
-				break;
-			bh_map->b_size += (1 << inode->i_blkbits);
-			if (boundary)
-				set_buffer_boundary(bh_map);
-		}
-	}
-out_brelse:
-	brelse(bh);
-	return 0;
-}
-
-
 static inline void bmap_lock(struct inode *inode, int create)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
@@ -543,21 +441,116 @@ static inline void bmap_unlock(struct inode *inode, int create)
 		up_read(&ip->i_rw_mutex);
 }
 
+/**
+ * gfs2_block_map - Map a block from an inode to a disk block
+ * @inode: The inode
+ * @lblock: The logical block number
+ * @bh_map: The bh to be mapped
+ *
+ * Find the block number on the current device which corresponds to an
+ * inode's block. If the block had to be created, "new" will be set.
+ *
+ * Returns: errno
+ */
+
 int gfs2_block_map(struct inode *inode, u64 lblock, int create,
-		   struct buffer_head *bh)
+		   struct buffer_head *bh_map)
 {
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	struct buffer_head *bh;
+	unsigned int bsize;
+	unsigned int height;
+	unsigned int end_of_metadata;
+	unsigned int x;
+	int error = 0;
+	int new = 0;
+	u64 dblock = 0;
+	int boundary;
+	unsigned int maxlen = bh_map->b_size >> inode->i_blkbits;
 	struct metapath mp;
-	int ret;
+	u64 size;
+
+	BUG_ON(maxlen == 0);
+
+	if (gfs2_assert_warn(sdp, !gfs2_is_stuffed(ip)))
+		return 0;
 
 	bmap_lock(inode, create);
-	ret = gfs2_block_pointers(inode, lblock, create, bh, &mp);
+	clear_buffer_mapped(bh_map);
+	clear_buffer_new(bh_map);
+	clear_buffer_boundary(bh_map);
+	bsize = gfs2_is_dir(ip) ? sdp->sd_jbsize : sdp->sd_sb.sb_bsize;
+	size = (lblock + 1) * bsize;
+
+	if (size > ip->i_di.di_size) {
+		height = calc_tree_height(ip, size);
+		if (ip->i_di.di_height < height) {
+			if (!create)
+				goto out_ok;
+	
+			error = build_height(inode, height);
+			if (error)
+				goto out_fail;
+		}
+	}
+
+	find_metapath(ip, lblock, &mp);
+	end_of_metadata = ip->i_di.di_height - 1;
+	error = gfs2_meta_inode_buffer(ip, &bh);
+	if (error)
+		goto out_fail;
+
+	for (x = 0; x < end_of_metadata; x++) {
+		lookup_block(ip, bh, x, &mp, create, &new, &dblock);
+		brelse(bh);
+		if (!dblock)
+			goto out_ok;
+
+		error = gfs2_meta_indirect_buffer(ip, x+1, dblock, new, &bh);
+		if (error)
+			goto out_fail;
+	}
+
+	boundary = lookup_block(ip, bh, end_of_metadata, &mp, create, &new, &dblock);
+	if (dblock) {
+		map_bh(bh_map, inode->i_sb, dblock);
+		if (boundary)
+			set_buffer_boundary(bh_map);
+		if (new) {
+			struct buffer_head *dibh;
+			error = gfs2_meta_inode_buffer(ip, &dibh);
+			if (!error) {
+				gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+				gfs2_dinode_out(ip, dibh->b_data);
+				brelse(dibh);
+			}
+			set_buffer_new(bh_map);
+			goto out_brelse;
+		}
+		while(--maxlen && !buffer_boundary(bh_map)) {
+			u64 eblock;
+
+			mp.mp_list[end_of_metadata]++;
+			boundary = lookup_block(ip, bh, end_of_metadata, &mp, 0, &new, &eblock);
+			if (eblock != ++dblock)
+				break;
+			bh_map->b_size += (1 << inode->i_blkbits);
+			if (boundary)
+				set_buffer_boundary(bh_map);
+		}
+	}
+out_brelse:
+	brelse(bh);
+out_ok:
+	error = 0;
+out_fail:
 	bmap_unlock(inode, create);
-	return ret;
+	return error;
 }
 
 int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsigned *extlen)
 {
-	struct metapath mp;
 	struct buffer_head bh = { .b_state = 0, .b_blocknr = 0 };
 	int ret;
 	int create = *new;
@@ -567,9 +560,7 @@ int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsi
 	BUG_ON(!new);
 
 	bh.b_size = 1 << (inode->i_blkbits + 5);
-	bmap_lock(inode, create);
-	ret = gfs2_block_pointers(inode, lblock, create, &bh, &mp);
-	bmap_unlock(inode, create);
+	ret = gfs2_block_map(inode, lblock, create, &bh);
 	*extlen = bh.b_size >> inode->i_blkbits;
 	*dblock = bh.b_blocknr;
 	if (buffer_new(&bh))
