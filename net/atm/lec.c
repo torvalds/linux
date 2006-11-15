@@ -204,9 +204,9 @@ static unsigned char *get_tr_dst(unsigned char *packet, unsigned char *rdesc)
 	memset(rdesc, 0, ETH_ALEN);
 	/* offset 4 comes from LAN destination field in LE control frames */
 	if (trh->rcf & htons((uint16_t) TR_RCF_DIR_BIT))
-		memcpy(&rdesc[4], &trh->rseg[num_rdsc - 2], sizeof(uint16_t));
+		memcpy(&rdesc[4], &trh->rseg[num_rdsc - 2], sizeof(__be16));
 	else {
-		memcpy(&rdesc[4], &trh->rseg[1], sizeof(uint16_t));
+		memcpy(&rdesc[4], &trh->rseg[1], sizeof(__be16));
 		rdesc[5] = ((ntohs(trh->rseg[0]) & 0x000f) | (rdesc[5] & 0xf0));
 	}
 
@@ -775,7 +775,7 @@ static void lec_push(struct atm_vcc *vcc, struct sk_buff *skb)
 		unsigned char *src, *dst;
 
 		atm_return(vcc, skb->truesize);
-		if (*(uint16_t *) skb->data == htons(priv->lecid) ||
+		if (*(__be16 *) skb->data == htons(priv->lecid) ||
 		    !priv->lecd || !(dev->flags & IFF_UP)) {
 			/*
 			 * Probably looping back, or if lecd is missing,

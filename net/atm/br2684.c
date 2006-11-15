@@ -372,7 +372,7 @@ static int br2684_setfilt(struct atm_vcc *atmvcc, void __user *arg)
 
 /* Returns 1 if packet should be dropped */
 static inline int
-packet_fails_filter(u16 type, struct br2684_vcc *brvcc, struct sk_buff *skb)
+packet_fails_filter(__be16 type, struct br2684_vcc *brvcc, struct sk_buff *skb)
 {
 	if (brvcc->filter.netmask == 0)
 		return 0;			/* no filter in place */

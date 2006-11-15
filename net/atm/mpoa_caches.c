@@ -22,7 +22,7 @@
 #define ddprintk(format,args...)
 #endif
 
-static in_cache_entry *in_cache_get(uint32_t dst_ip,
+static in_cache_entry *in_cache_get(__be32 dst_ip,
 				    struct mpoa_client *client)
 {
 	in_cache_entry *entry;
@@ -42,9 +42,9 @@ static in_cache_entry *in_cache_get(uint32_t dst_ip,
 	return NULL;
 }
 
-static in_cache_entry *in_cache_get_with_mask(uint32_t dst_ip,
+static in_cache_entry *in_cache_get_with_mask(__be32 dst_ip,
 					      struct mpoa_client *client,
-					      uint32_t mask)
+					      __be32 mask)
 {
 	in_cache_entry *entry;
 
@@ -84,7 +84,7 @@ static in_cache_entry *in_cache_get_by_vcc(struct atm_vcc *vcc,
 	return NULL;
 }
 
-static in_cache_entry *in_cache_add_entry(uint32_t dst_ip,
+static in_cache_entry *in_cache_add_entry(__be32 dst_ip,
 					  struct mpoa_client *client)
 {
 	in_cache_entry* entry = kmalloc(sizeof(in_cache_entry), GFP_KERNEL);
@@ -319,7 +319,7 @@ static void in_destroy_cache(struct mpoa_client *mpc)
 	return;
 }
 
-static eg_cache_entry *eg_cache_get_by_cache_id(uint32_t cache_id, struct mpoa_client *mpc)
+static eg_cache_entry *eg_cache_get_by_cache_id(__be32 cache_id, struct mpoa_client *mpc)
 {
 	eg_cache_entry *entry;
 
@@ -339,7 +339,7 @@ static eg_cache_entry *eg_cache_get_by_cache_id(uint32_t cache_id, struct mpoa_c
 }
 
 /* This can be called from any context since it saves CPU flags */
-static eg_cache_entry *eg_cache_get_by_tag(uint32_t tag, struct mpoa_client *mpc)
+static eg_cache_entry *eg_cache_get_by_tag(__be32 tag, struct mpoa_client *mpc)
 {
 	unsigned long flags;
 	eg_cache_entry *entry;
@@ -380,7 +380,7 @@ static eg_cache_entry *eg_cache_get_by_vcc(struct atm_vcc *vcc, struct mpoa_clie
 	return NULL;
 }
 
-static eg_cache_entry *eg_cache_get_by_src_ip(uint32_t ipaddr, struct mpoa_client *mpc)
+static eg_cache_entry *eg_cache_get_by_src_ip(__be32 ipaddr, struct mpoa_client *mpc)
 {
 	eg_cache_entry *entry;
 

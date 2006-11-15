@@ -54,7 +54,7 @@ static struct atm_vcc *atmarpd;
 static struct neigh_table clip_tbl;
 static struct timer_list idle_timer;
 
-static int to_atmarpd(enum atmarp_ctrl_type type, int itf, unsigned long ip)
+static int to_atmarpd(enum atmarp_ctrl_type type, int itf, __be32 ip)
 {
 	struct sock *sk;
 	struct atmarp_ctrl *ctrl;
@@ -220,7 +220,7 @@ static void clip_push(struct atm_vcc *vcc, struct sk_buff *skb)
 	    || memcmp(skb->data, llc_oui, sizeof (llc_oui)))
 		skb->protocol = htons(ETH_P_IP);
 	else {
-		skb->protocol = ((u16 *) skb->data)[3];
+		skb->protocol = ((__be16 *) skb->data)[3];
 		skb_pull(skb, RFC1483LLC_LEN);
 		if (skb->protocol == htons(ETH_P_ARP)) {
 			PRIV(skb->dev)->stats.rx_packets++;
@@ -430,7 +430,7 @@ static int clip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		here = skb_push(skb, RFC1483LLC_LEN);
 		memcpy(here, llc_oui, sizeof(llc_oui));
-		((u16 *) here)[3] = skb->protocol;
+		((__be16 *) here)[3] = skb->protocol;
 	}
 	atomic_add(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc);
 	ATM_SKB(skb)->atm_options = vcc->atm_options;
@@ -509,7 +509,7 @@ static int clip_mkip(struct atm_vcc *vcc, int timeout)
 	return 0;
 }
 
-static int clip_setentry(struct atm_vcc *vcc, u32 ip)
+static int clip_setentry(struct atm_vcc *vcc, __be32 ip)
 {
 	struct neighbour *neigh;
 	struct atmarp_entry *entry;
@@ -752,7 +752,7 @@ static int clip_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		err = clip_mkip(vcc, arg);
 		break;
 	case ATMARP_SETENTRY:
-		err = clip_setentry(vcc, arg);
+		err = clip_setentry(vcc, (__force __be32)arg);
 		break;
 	case ATMARP_ENCAP:
 		err = clip_encap(vcc, arg);
