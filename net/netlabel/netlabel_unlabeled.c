@@ -141,12 +141,8 @@ static int netlbl_unlabel_list(struct sk_buff *skb, struct genl_info *info)
 	ans_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (ans_skb == NULL)
 		goto list_failure;
-	data = netlbl_netlink_hdr_put(ans_skb,
-				      info->snd_pid,
-				      info->snd_seq,
-				      netlbl_unlabel_gnl_family.id,
-				      0,
-				      NLBL_UNLABEL_C_LIST);
+	data = genlmsg_put_reply(ans_skb, info, &netlbl_unlabel_gnl_family,
+				 0, NLBL_UNLABEL_C_LIST);
 	if (data == NULL) {
 		ret_val = -ENOMEM;
 		goto list_failure;

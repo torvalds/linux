@@ -457,12 +457,8 @@ list_start:
 		ret_val = -ENOMEM;
 		goto list_failure;
 	}
-	data = netlbl_netlink_hdr_put(ans_skb,
-				      info->snd_pid,
-				      info->snd_seq,
-				      netlbl_cipsov4_gnl_family.id,
-				      0,
-				      NLBL_CIPSOV4_C_LIST);
+	data = genlmsg_put_reply(ans_skb, info, &netlbl_cipsov4_gnl_family,
+				 0, NLBL_CIPSOV4_C_LIST);
 	if (data == NULL) {
 		ret_val = -ENOMEM;
 		goto list_failure;
@@ -607,12 +603,9 @@ static int netlbl_cipsov4_listall_cb(struct cipso_v4_doi *doi_def, void *arg)
 	struct netlbl_cipsov4_doiwalk_arg *cb_arg = arg;
 	void *data;
 
-	data = netlbl_netlink_hdr_put(cb_arg->skb,
-				      NETLINK_CB(cb_arg->nl_cb->skb).pid,
-				      cb_arg->seq,
-				      netlbl_cipsov4_gnl_family.id,
-				      NLM_F_MULTI,
-				      NLBL_CIPSOV4_C_LISTALL);
+	data = genlmsg_put(cb_arg->skb, NETLINK_CB(cb_arg->nl_cb->skb).pid,
+			   cb_arg->seq, &netlbl_cipsov4_gnl_family,
+			   NLM_F_MULTI, NLBL_CIPSOV4_C_LISTALL);
 	if (data == NULL)
 		goto listall_cb_failure;
 

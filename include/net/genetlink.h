@@ -79,31 +79,48 @@ extern struct sock *genl_sock;
  * @skb: socket buffer holding the message
  * @pid: netlink pid the message is addressed to
  * @seq: sequence number (usually the one of the sender)
- * @type: netlink message type
- * @hdrlen: length of the user specific header
+ * @family: generic netlink family
  * @flags netlink message flags
  * @cmd: generic netlink command
- * @version: version
  *
  * Returns pointer to user specific header
  */
 static inline void *genlmsg_put(struct sk_buff *skb, u32 pid, u32 seq,
-				int type, int hdrlen, int flags,
-				u8 cmd, u8 version)
+				struct genl_family *family, int flags, u8 cmd)
 {
 	struct nlmsghdr *nlh;
 	struct genlmsghdr *hdr;
 
-	nlh = nlmsg_put(skb, pid, seq, type, GENL_HDRLEN + hdrlen, flags);
+	nlh = nlmsg_put(skb, pid, seq, family->id, GENL_HDRLEN +
+			family->hdrsize, flags);
 	if (nlh == NULL)
 		return NULL;
 
 	hdr = nlmsg_data(nlh);
 	hdr->cmd = cmd;
-	hdr->version = version;
+	hdr->version = family->version;
 	hdr->reserved = 0;
 
 	return (char *) hdr + GENL_HDRLEN;
+}
+
+/**
+ * genlmsg_put_reply - Add generic netlink header to a reply message
+ * @skb: socket buffer holding the message
+ * @info: receiver info
+ * @family: generic netlink family
+ * @flags: netlink message flags
+ * @cmd: generic netlink command
+ *
+ * Returns pointer to user specific header
+ */
+static inline void *genlmsg_put_reply(struct sk_buff *skb,
+				      struct genl_info *info,
+				      struct genl_family *family,
+				      int flags, u8 cmd)
+{
+	return genlmsg_put(skb, info->snd_pid, info->snd_seq, family,
+			   flags, cmd);
 }
 
 /**

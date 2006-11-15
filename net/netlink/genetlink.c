@@ -384,6 +384,13 @@ static void genl_rcv(struct sock *sk, int len)
  * Controller
  **************************************************************************/
 
+static struct genl_family genl_ctrl = {
+	.id = GENL_ID_CTRL,
+	.name = "nlctrl",
+	.version = 0x1,
+	.maxattr = CTRL_ATTR_MAX,
+};
+
 static int ctrl_fill_info(struct genl_family *family, u32 pid, u32 seq,
 			  u32 flags, struct sk_buff *skb, u8 cmd)
 {
@@ -392,8 +399,7 @@ static int ctrl_fill_info(struct genl_family *family, u32 pid, u32 seq,
 	void *hdr;
 	int idx = 1;
 
-	hdr = genlmsg_put(skb, pid, seq, GENL_ID_CTRL, 0, flags, cmd,
-			  family->version);
+	hdr = genlmsg_put(skb, pid, seq, &genl_ctrl, flags, cmd);
 	if (hdr == NULL)
 		return -1;
 
@@ -560,13 +566,6 @@ static struct genl_ops genl_ctrl_ops = {
 	.doit		= ctrl_getfamily,
 	.dumpit		= ctrl_dumpfamily,
 	.policy		= ctrl_policy,
-};
-
-static struct genl_family genl_ctrl = {
-	.id = GENL_ID_CTRL,
-	.name = "nlctrl",
-	.version = 0x1,
-	.maxattr = CTRL_ATTR_MAX,
 };
 
 static int __init genl_init(void)

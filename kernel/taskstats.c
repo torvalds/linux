@@ -85,13 +85,9 @@ static int prepare_reply(struct genl_info *info, u8 cmd, struct sk_buff **skbp,
 		int seq = get_cpu_var(taskstats_seqnum)++;
 		put_cpu_var(taskstats_seqnum);
 
-		reply = genlmsg_put(skb, 0, seq,
-				family.id, 0, 0,
-				cmd, family.version);
+		reply = genlmsg_put(skb, 0, seq, &family, 0, cmd);
 	} else
-		reply = genlmsg_put(skb, info->snd_pid, info->snd_seq,
-				family.id, 0, 0,
-				cmd, family.version);
+		reply = genlmsg_put_reply(skb, info, &family, 0, cmd);
 	if (reply == NULL) {
 		nlmsg_free(skb);
 		return -EINVAL;

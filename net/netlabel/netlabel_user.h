@@ -42,37 +42,6 @@
 /* NetLabel NETLINK helper functions */
 
 /**
- * netlbl_netlink_hdr_put - Write the NETLINK buffers into a sk_buff
- * @skb: the packet
- * @pid: the PID of the receipient
- * @seq: the sequence number
- * @type: the generic NETLINK message family type
- * @cmd: command
- *
- * Description:
- * Write both a NETLINK nlmsghdr structure and a Generic NETLINK genlmsghdr
- * struct to the packet.  Returns a pointer to the start of the payload buffer
- * on success or NULL on failure.
- *
- */
-static inline void *netlbl_netlink_hdr_put(struct sk_buff *skb,
-					   u32 pid,
-					   u32 seq,
-					   int type,
-					   int flags,
-					   u8 cmd)
-{
-	return genlmsg_put(skb,
-			   pid,
-			   seq,
-			   type,
-			   0,
-			   flags,
-			   cmd,
-			   NETLBL_PROTO_VERSION);
-}
-
-/**
  * netlbl_netlink_auditinfo - Fetch the audit information from a NETLINK msg
  * @skb: the packet
  * @audit_info: NetLabel audit information
