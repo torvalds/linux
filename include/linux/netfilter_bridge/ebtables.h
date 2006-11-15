@@ -141,7 +141,7 @@ struct ebt_entry {
 	/* this needs to be the first field */
 	unsigned int bitmask;
 	unsigned int invflags;
-	uint16_t ethproto;
+	__be16 ethproto;
 	/* the physical in-dev */
 	char in[IFNAMSIZ];
 	/* the logical in-dev */

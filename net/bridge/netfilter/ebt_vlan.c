@@ -55,7 +55,7 @@ ebt_filter_vlan(const struct sk_buff *skb,
 	unsigned short id;	/* VLAN ID, given from frame TCI */
 	unsigned char prio;	/* user_priority, given from frame TCI */
 	/* VLAN encapsulated Type/Length field, given from orig frame */
-	unsigned short encap;
+	__be16 encap;
 
 	fp = skb_header_pointer(skb, 0, sizeof(_frame), &_frame);
 	if (fp == NULL)

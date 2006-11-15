@@ -381,7 +381,7 @@ static int check_hbh_len(struct sk_buff *skb)
 		case IPV6_TLV_JUMBO:
 			if (skb->nh.raw[off + 1] != 4 || (off & 3) != 2)
 				goto bad;
-			pkt_len = ntohl(*(u32 *) (skb->nh.raw + off + 2));
+			pkt_len = ntohl(*(__be32 *) (skb->nh.raw + off + 2));
 			if (pkt_len <= IPV6_MAXPLEN ||
 			    skb->nh.ipv6h->payload_len)
 				goto bad;
