@@ -385,7 +385,7 @@ static inline int udp6_csum_init(struct sk_buff *skb, struct udphdr *uh)
 	if (skb->ip_summed != CHECKSUM_UNNECESSARY)
 		skb->csum = ~csum_unfold(csum_ipv6_magic(&skb->nh.ipv6h->saddr,
 							 &skb->nh.ipv6h->daddr,
-							 ulen, IPPROTO_UDP,
+							 skb->len, IPPROTO_UDP,
 							 0));
 
 	return (UDP_SKB_CB(skb)->partial_cov = 0);
