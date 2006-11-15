@@ -351,9 +351,10 @@ ipq_mangle_ipv4(ipq_verdict_msg_t *v, struct ipq_queue_entry *e)
 	if (v->data_len < sizeof(*user_iph))
 		return 0;
 	diff = v->data_len - e->skb->len;
-	if (diff < 0)
-		skb_trim(e->skb, v->data_len);
-	else if (diff > 0) {
+	if (diff < 0) {
+		if (pskb_trim(e->skb, v->data_len))
+			return -ENOMEM;
+	} else if (diff > 0) {
 		if (v->data_len > 0xFFFF)
 			return -EINVAL;
 		if (diff > skb_tailroom(e->skb)) {

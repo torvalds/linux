@@ -622,9 +622,10 @@ nfqnl_mangle(void *data, int data_len, struct nfqnl_queue_entry *e)
 	int diff;
 
 	diff = data_len - e->skb->len;
-	if (diff < 0)
-		skb_trim(e->skb, data_len);
-	else if (diff > 0) {
+	if (diff < 0) {
+		if (pskb_trim(e->skb, data_len))
+			return -ENOMEM;
+	} else if (diff > 0) {
 		if (data_len > 0xFFFF)
 			return -EINVAL;
 		if (diff > skb_tailroom(e->skb)) {
