@@ -31,7 +31,6 @@
 #endif
 #include <linux/errqueue.h>
 #include <asm/uaccess.h>
-#include <asm/checksum.h>
 #include "internal.h"
 
 struct errormsg {

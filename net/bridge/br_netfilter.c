@@ -40,7 +40,6 @@
 #include <net/route.h>
 
 #include <asm/uaccess.h>
-#include <asm/checksum.h>
 #include "br_private.h"
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>

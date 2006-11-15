@@ -60,7 +60,6 @@
 #include <net/ip.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
-#include <asm/checksum.h>
 
 __setup("ether=", netdev_boot_setup);
 
