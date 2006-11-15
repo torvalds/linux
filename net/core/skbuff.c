@@ -1315,8 +1315,8 @@ __wsum skb_checksum(const struct sk_buff *skb, int offset,
 
 /* Both of above in one bottle. */
 
-unsigned int skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
-				    u8 *to, int len, unsigned int csum)
+__wsum skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
+				    u8 *to, int len, __wsum csum)
 {
 	int start = skb_headlen(skb);
 	int i, copy = start - offset;
@@ -1368,7 +1368,7 @@ unsigned int skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
 		struct sk_buff *list = skb_shinfo(skb)->frag_list;
 
 		for (; list; list = list->next) {
-			unsigned int csum2;
+			__wsum csum2;
 			int end;
 
 			BUG_TRAP(start <= offset + len);
