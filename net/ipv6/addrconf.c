@@ -3518,16 +3518,18 @@ static inline size_t inet6_prefix_nlmsg_size(void)
 }
 
 static int inet6_fill_prefix(struct sk_buff *skb, struct inet6_dev *idev,
-			struct prefix_info *pinfo, u32 pid, u32 seq, 
-			int event, unsigned int flags)
+			     struct prefix_info *pinfo, u32 pid, u32 seq,
+			     int event, unsigned int flags)
 {
-	struct prefixmsg	*pmsg;
-	struct nlmsghdr 	*nlh;
-	unsigned char		*b = skb->tail;
+	struct prefixmsg *pmsg;
+	struct nlmsghdr *nlh;
 	struct prefix_cacheinfo	ci;
 
-	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*pmsg), flags);
-	pmsg = NLMSG_DATA(nlh);
+	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*pmsg), flags);
+	if (nlh == NULL)
+		return -ENOBUFS;
+
+	pmsg = nlmsg_data(nlh);
 	pmsg->prefix_family = AF_INET6;
 	pmsg->prefix_pad1 = 0;
 	pmsg->prefix_pad2 = 0;
@@ -3535,26 +3537,22 @@ static int inet6_fill_prefix(struct sk_buff *skb, struct inet6_dev *idev,
 	pmsg->prefix_len = pinfo->prefix_len;
 	pmsg->prefix_type = pinfo->type;
 	pmsg->prefix_pad3 = 0;
-	
 	pmsg->prefix_flags = 0;
 	if (pinfo->onlink)
 		pmsg->prefix_flags |= IF_PREFIX_ONLINK;
 	if (pinfo->autoconf)
 		pmsg->prefix_flags |= IF_PREFIX_AUTOCONF;
 
-	RTA_PUT(skb, PREFIX_ADDRESS, sizeof(pinfo->prefix), &pinfo->prefix);
+	NLA_PUT(skb, PREFIX_ADDRESS, sizeof(pinfo->prefix), &pinfo->prefix);
 
 	ci.preferred_time = ntohl(pinfo->prefered);
 	ci.valid_time = ntohl(pinfo->valid);
-	RTA_PUT(skb, PREFIX_CACHEINFO, sizeof(ci), &ci);
+	NLA_PUT(skb, PREFIX_CACHEINFO, sizeof(ci), &ci);
 
-	nlh->nlmsg_len = skb->tail - b;
-	return skb->len;
+	return nlmsg_end(skb, nlh);
 
-nlmsg_failure:
-rtattr_failure:
-	skb_trim(skb, b - skb->data);
-	return -1;
+nla_put_failure:
+	return nlmsg_cancel(skb, nlh);
 }
 
 static void inet6_prefix_notify(int event, struct inet6_dev *idev, 
