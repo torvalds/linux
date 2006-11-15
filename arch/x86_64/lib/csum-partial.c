@@ -132,9 +132,10 @@ static __force_inline unsigned do_csum(const unsigned char *buff, unsigned len)
  *
  * it's best to have buff aligned on a 64-bit boundary
  */
-unsigned csum_partial(const unsigned char *buff, unsigned len, unsigned sum)
+__wsum csum_partial(const void *buff, int len, __wsum sum)
 {
-	return add32_with_carry(do_csum(buff, len), sum); 
+	return (__force __wsum)add32_with_carry(do_csum(buff, len),
+						(__force u32)sum);
 }
 
 EXPORT_SYMBOL(csum_partial);
@@ -143,7 +144,7 @@ EXPORT_SYMBOL(csum_partial);
  * this routine is used for miscellaneous IP-like checksums, mainly
  * in icmp.c
  */
-unsigned short ip_compute_csum(unsigned char * buff, int len)
+__sum16 ip_compute_csum(const void *buff, int len)
 {
 	return csum_fold(csum_partial(buff,len,0));
 }
