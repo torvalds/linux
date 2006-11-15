@@ -30,7 +30,7 @@ struct dccp_hdr {
 #else
 #error  "Adjust your <asm/byteorder.h> defines"
 #endif
-	__u16	dccph_checksum;
+	__sum16	dccph_checksum;
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	__u8	dccph_x:1,
 		dccph_type:4,

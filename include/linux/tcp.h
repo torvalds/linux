@@ -52,7 +52,7 @@ struct tcphdr {
 #error	"Adjust your <asm/byteorder.h> defines"
 #endif	
 	__be16	window;
-	__be16	check;
+	__sum16	check;
 	__be16	urg_ptr;
 };
 

@@ -7,7 +7,7 @@ struct icmp6hdr {
 
 	__u8		icmp6_type;
 	__u8		icmp6_code;
-	__be16		icmp6_cksum;
+	__sum16		icmp6_cksum;
 
 
 	union {
