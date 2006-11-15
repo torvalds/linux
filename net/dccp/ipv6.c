@@ -59,7 +59,7 @@ static void dccp_v6_hash(struct sock *sk)
 }
 
 /* add pseudo-header to DCCP checksum stored in skb->csum */
-static inline u16 dccp_v6_csum_finish(struct sk_buff *skb,
+static inline __sum16 dccp_v6_csum_finish(struct sk_buff *skb,
 				      struct in6_addr *saddr,
 				      struct in6_addr *daddr)
 {

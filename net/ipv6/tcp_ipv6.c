@@ -105,10 +105,10 @@ static void tcp_v6_hash(struct sock *sk)
 	}
 }
 
-static __inline__ u16 tcp_v6_check(struct tcphdr *th, int len,
+static __inline__ __sum16 tcp_v6_check(struct tcphdr *th, int len,
 				   struct in6_addr *saddr, 
 				   struct in6_addr *daddr, 
-				   unsigned long base)
+				   __wsum base)
 {
 	return csum_ipv6_magic(saddr, daddr, len, IPPROTO_TCP, base);
 }
@@ -1537,8 +1537,8 @@ static int tcp_v6_checksum_init(struct sk_buff *skb)
 		}
 	}
 
-	skb->csum = ~tcp_v6_check(skb->h.th,skb->len,&skb->nh.ipv6h->saddr,
-				  &skb->nh.ipv6h->daddr, 0);
+	skb->csum = ~csum_unfold(tcp_v6_check(skb->h.th,skb->len,&skb->nh.ipv6h->saddr,
+				  &skb->nh.ipv6h->daddr, 0));
 
 	if (skb->len <= 76) {
 		return __skb_checksum_complete(skb);

@@ -89,9 +89,9 @@ static __inline__ int udp_lib_checksum_complete(struct sk_buff *skb)
  * 	@skb: 	sk_buff containing the filled-in UDP header
  * 	        (checksum field must be zeroed out)
  */
-static inline u32 udp_csum_outgoing(struct sock *sk, struct sk_buff *skb)
+static inline __wsum udp_csum_outgoing(struct sock *sk, struct sk_buff *skb)
 {
-	u32 csum = csum_partial(skb->h.raw, sizeof(struct udphdr), 0);
+	__wsum csum = csum_partial(skb->h.raw, sizeof(struct udphdr), 0);
 
 	skb_queue_walk(&sk->sk_write_queue, skb) {
 		csum = csum_add(csum, skb->csum);

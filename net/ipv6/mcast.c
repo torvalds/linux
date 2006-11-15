@@ -91,7 +91,7 @@ struct mld2_grec {
 struct mld2_report {
 	__u8	type;
 	__u8	resv1;
-	__u16	csum;
+	__sum16	csum;
 	__be16	resv2;
 	__be16	ngrec;
 	struct mld2_grec grec[0];
@@ -100,7 +100,7 @@ struct mld2_report {
 struct mld2_query {
 	__u8 type;
 	__u8 code;
-	__u16 csum;
+	__sum16 csum;
 	__be16 mrc;
 	__be16 resv1;
 	struct in6_addr mca;

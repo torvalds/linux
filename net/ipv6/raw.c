@@ -370,9 +370,9 @@ int rawv6_rcv(struct sock *sk, struct sk_buff *skb)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 	if (skb->ip_summed != CHECKSUM_UNNECESSARY)
-		skb->csum = ~csum_ipv6_magic(&skb->nh.ipv6h->saddr,
+		skb->csum = ~csum_unfold(csum_ipv6_magic(&skb->nh.ipv6h->saddr,
 					     &skb->nh.ipv6h->daddr,
-					     skb->len, inet->num, 0);
+					     skb->len, inet->num, 0));
 
 	if (inet->hdrincl) {
 		if (skb_checksum_complete(skb)) {
@@ -479,8 +479,8 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi *fl,
 	int offset;
 	int len;
 	int total_len;
-	u32 tmp_csum;
-	u16 csum;
+	__wsum tmp_csum;
+	__sum16 csum;
 
 	if (!rp->checksum)
 		goto send;
@@ -532,14 +532,13 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi *fl,
 	if (unlikely(csum))
 		tmp_csum = csum_sub(tmp_csum, csum);
 
-	tmp_csum = csum_ipv6_magic(&fl->fl6_src,
+	csum = csum_ipv6_magic(&fl->fl6_src,
 				   &fl->fl6_dst,
 				   total_len, fl->proto, tmp_csum);
 
 	if (tmp_csum == 0 && fl->proto == IPPROTO_UDP)
 		tmp_csum = -1;
 
-	csum = tmp_csum;
 	if (skb_store_bits(skb, offset, &csum, 2))
 		BUG();
 

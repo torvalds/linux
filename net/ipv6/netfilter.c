@@ -100,12 +100,13 @@ unsigned int nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
 		}
 		/* fall through */
 	case CHECKSUM_NONE:
-		skb->csum = ~csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
+		skb->csum = ~csum_unfold(
+				csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
 					     skb->len - dataoff,
 					     protocol,
 					     csum_sub(0,
 						      skb_checksum(skb, 0,
-							           dataoff, 0)));
+							           dataoff, 0))));
 		csum = __skb_checksum_complete(skb);
 	}
 	return csum;

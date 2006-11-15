@@ -383,9 +383,10 @@ static inline int udp6_csum_init(struct sk_buff *skb, struct udphdr *uh)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	if (skb->ip_summed != CHECKSUM_UNNECESSARY)
-		skb->csum = ~csum_ipv6_magic(&skb->nh.ipv6h->saddr,
-					     &skb->nh.ipv6h->daddr,
-					     skb->len, IPPROTO_UDP, 0);
+		skb->csum = ~csum_unfold(csum_ipv6_magic(&skb->nh.ipv6h->saddr,
+							 &skb->nh.ipv6h->daddr,
+							 ulen, IPPROTO_UDP,
+							 0));
 
 	return (UDP_SKB_CB(skb)->partial_cov = 0);
 }
@@ -511,7 +512,7 @@ static int udp_v6_push_pending_frames(struct sock *sk, struct udp_sock *up)
 	struct inet_sock *inet = inet_sk(sk);
 	struct flowi *fl = &inet->cork.fl;
 	int err = 0;
-	u32 csum = 0;
+	__wsum csum = 0;
 
 	/* Grab the skbuff where UDP header space exists. */
 	if ((skb = skb_peek(&sk->sk_write_queue)) == NULL)
