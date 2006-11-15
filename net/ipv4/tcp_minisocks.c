@@ -361,8 +361,8 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 
 void tcp_twsk_destructor(struct sock *sk)
 {
-	struct tcp_timewait_sock *twsk = tcp_twsk(sk);
 #ifdef CONFIG_TCP_MD5SIG
+	struct tcp_timewait_sock *twsk = tcp_twsk(sk);
 	if (twsk->tw_md5_keylen)
 		tcp_put_md5sig_pool();
 #endif

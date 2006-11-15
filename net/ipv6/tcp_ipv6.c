@@ -81,8 +81,10 @@ static int	tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb);
 
 static struct inet_connection_sock_af_ops ipv6_mapped;
 static struct inet_connection_sock_af_ops ipv6_specific;
+#ifdef CONFIG_TCP_MD5SIG
 static struct tcp_sock_af_ops tcp_sock_ipv6_specific;
 static struct tcp_sock_af_ops tcp_sock_ipv6_mapped_specific;
+#endif
 
 static int tcp_v6_get_port(struct sock *sk, unsigned short snum)
 {
@@ -1843,14 +1845,14 @@ static struct inet_connection_sock_af_ops ipv6_specific = {
 #endif
 };
 
-static struct tcp_sock_af_ops tcp_sock_ipv6_specific = {
 #ifdef CONFIG_TCP_MD5SIG
+static struct tcp_sock_af_ops tcp_sock_ipv6_specific = {
 	.md5_lookup	=	tcp_v6_md5_lookup,
 	.calc_md5_hash	=	tcp_v6_calc_md5_hash,
 	.md5_add	=	tcp_v6_md5_add_func,
 	.md5_parse	=	tcp_v6_parse_md5_keys,
-#endif
 };
+#endif
 
 /*
  *	TCP over IPv4 via INET6 API
@@ -1874,14 +1876,14 @@ static struct inet_connection_sock_af_ops ipv6_mapped = {
 #endif
 };
 
-static struct tcp_sock_af_ops tcp_sock_ipv6_mapped_specific = {
 #ifdef CONFIG_TCP_MD5SIG
+static struct tcp_sock_af_ops tcp_sock_ipv6_mapped_specific = {
 	.md5_lookup	=	tcp_v4_md5_lookup,
 	.calc_md5_hash	=	tcp_v4_calc_md5_hash,
 	.md5_add	=	tcp_v6_md5_add_func,
 	.md5_parse	=	tcp_v6_parse_md5_keys,
-#endif
 };
+#endif
 
 /* NOTE: A lot of things set to zero explicitly by call to
  *       sk_alloc() so need not be done here.
