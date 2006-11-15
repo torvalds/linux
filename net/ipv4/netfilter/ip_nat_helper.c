@@ -188,10 +188,8 @@ ip_nat_mangle_tcp_packet(struct sk_buff **pskb,
 					   csum_partial((char *)tcph,
 					   		datalen, 0));
 	} else
-		tcph->check = nf_proto_csum_update(*pskb,
-						   htons(oldlen) ^ htons(0xFFFF),
-						   htons(datalen),
-						   tcph->check, 1);
+		nf_proto_csum_replace2(&tcph->check, *pskb,
+					htons(oldlen), htons(datalen), 1);
 
 	if (rep_len != match_len) {
 		set_bit(IPS_SEQ_ADJUST_BIT, &ct->status);
@@ -266,10 +264,8 @@ ip_nat_mangle_udp_packet(struct sk_buff **pskb,
 		if (!udph->check)
 			udph->check = CSUM_MANGLED_0;
 	} else
-		udph->check = nf_proto_csum_update(*pskb,
-						   htons(oldlen) ^ htons(0xFFFF),
-						   htons(datalen),
-						   udph->check, 1);
+		nf_proto_csum_replace2(&udph->check, *pskb,
+					htons(oldlen), htons(datalen), 1);
 	return 1;
 }
 EXPORT_SYMBOL(ip_nat_mangle_udp_packet);
@@ -307,14 +303,10 @@ sack_adjust(struct sk_buff *skb,
 			ntohl(sack->start_seq), new_start_seq,
 			ntohl(sack->end_seq), new_end_seq);
 
-		tcph->check = nf_proto_csum_update(skb,
-						   ~sack->start_seq,
-						   new_start_seq,
-						   tcph->check, 0);
-		tcph->check = nf_proto_csum_update(skb,
-						   ~sack->end_seq,
-						   new_end_seq,
-						   tcph->check, 0);
+		nf_proto_csum_replace4(&tcph->check, skb,
+					sack->start_seq, new_start_seq, 0);
+		nf_proto_csum_replace4(&tcph->check, skb,
+					sack->end_seq, new_end_seq, 0);
 		sack->start_seq = new_start_seq;
 		sack->end_seq = new_end_seq;
 		sackoff += sizeof(*sack);
@@ -397,10 +389,8 @@ ip_nat_seq_adjust(struct sk_buff **pskb,
 	else
 		newack = htonl(ntohl(tcph->ack_seq) - other_way->offset_before);
 
-	tcph->check = nf_proto_csum_update(*pskb, ~tcph->seq, newseq,
-					   tcph->check, 0);
-	tcph->check = nf_proto_csum_update(*pskb, ~tcph->ack_seq, newack,
-					   tcph->check, 0);
+	nf_proto_csum_replace4(&tcph->check, *pskb, tcph->seq, newseq, 0);
+	nf_proto_csum_replace4(&tcph->check, *pskb, tcph->ack_seq, newack, 0);
 
 	DEBUGP("Adjusting sequence number from %u->%u, ack from %u->%u\n",
 		ntohl(tcph->seq), ntohl(newseq), ntohl(tcph->ack_seq),
