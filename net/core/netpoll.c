@@ -330,7 +330,7 @@ static void arp_reply(struct sk_buff *skb)
 	struct arphdr *arp;
 	unsigned char *arp_ptr;
 	int size, type = ARPOP_REPLY, ptype = ETH_P_ARP;
-	u32 sip, tip;
+	__be32 sip, tip;
 	struct sk_buff *send_skb;
 	struct netpoll *np = NULL;
 

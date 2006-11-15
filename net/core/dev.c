@@ -1215,7 +1215,7 @@ struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features)
 {
 	struct sk_buff *segs = ERR_PTR(-EPROTONOSUPPORT);
 	struct packet_type *ptype;
-	int type = skb->protocol;
+	__be16 type = skb->protocol;
 	int err;
 
 	BUG_ON(skb_shinfo(skb)->frag_list);
@@ -1766,7 +1766,7 @@ int netif_receive_skb(struct sk_buff *skb)
 	struct packet_type *ptype, *pt_prev;
 	struct net_device *orig_dev;
 	int ret = NET_RX_DROP;
-	unsigned short type;
+	__be16 type;
 
 	/* if we've gotten here through NAPI, check netpoll */
 	if (skb->dev->poll && netpoll_rx(skb))
