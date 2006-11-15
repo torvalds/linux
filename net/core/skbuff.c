@@ -1342,7 +1342,7 @@ unsigned int skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
 
 		end = start + skb_shinfo(skb)->frags[i].size;
 		if ((copy = end - offset) > 0) {
-			unsigned int csum2;
+			__wsum csum2;
 			u8 *vaddr;
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 

@@ -321,7 +321,7 @@ fault:
 
 static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 				      u8 __user *to, int len,
-				      unsigned int *csump)
+				      __wsum *csump)
 {
 	int start = skb_headlen(skb);
 	int pos = 0;
@@ -350,7 +350,7 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 
 		end = start + skb_shinfo(skb)->frags[i].size;
 		if ((copy = end - offset) > 0) {
-			unsigned int csum2;
+			__wsum csum2;
 			int err = 0;
 			u8  *vaddr;
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
@@ -386,7 +386,7 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 
 			end = start + list->len;
 			if ((copy = end - offset) > 0) {
-				unsigned int csum2 = 0;
+				__wsum csum2 = 0;
 				if (copy > len)
 					copy = len;
 				if (skb_copy_and_csum_datagram(list,

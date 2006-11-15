@@ -1199,8 +1199,7 @@ static inline int skb_add_data(struct sk_buff *skb,
 
 	if (skb->ip_summed == CHECKSUM_NONE) {
 		int err = 0;
-		unsigned int csum = csum_and_copy_from_user(from,
-							    skb_put(skb, copy),
+		__wsum csum = csum_and_copy_from_user(from, skb_put(skb, copy),
 							    copy, 0, &err);
 		if (!err) {
 			skb->csum = csum_block_add(skb->csum, csum, off);
