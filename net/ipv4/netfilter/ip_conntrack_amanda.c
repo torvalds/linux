@@ -180,7 +180,7 @@ static struct ip_conntrack_helper amanda_helper = {
 	.help = help,
 	.name = "amanda",
 
-	.tuple = { .src = { .u = { __constant_htons(10080) } },
+	.tuple = { .src = { .u = { .udp = {.port = __constant_htons(10080) } } },
 		   .dst = { .protonum = IPPROTO_UDP },
 	},
 	.mask = { .src = { .u = { 0xFFFF } },
