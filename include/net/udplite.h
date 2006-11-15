@@ -4,6 +4,8 @@
 #ifndef _UDPLITE_H
 #define _UDPLITE_H
 
+#include <net/ip6_checksum.h>
+
 /* UDP-Lite socket options */
 #define UDPLITE_SEND_CSCOV   10 /* sender partial coverage (as sent)      */
 #define UDPLITE_RECV_CSCOV   11 /* receiver partial coverage (threshold ) */
