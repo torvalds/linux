@@ -19,6 +19,7 @@
 
 #include <linux/types.h>
 #include <asm/byteorder.h>
+#include <linux/socket.h>
 
 struct tcphdr {
 	__be16	source;
@@ -94,6 +95,7 @@ enum {
 #define TCP_INFO		11	/* Information about this connection. */
 #define TCP_QUICKACK		12	/* Block/reenable quick acks */
 #define TCP_CONGESTION		13	/* Congestion control algorithm */
+#define TCP_MD5SIG		14	/* TCP MD5 Signature (RFC2385) */
 
 #define TCPI_OPT_TIMESTAMPS	1
 #define TCPI_OPT_SACK		2
@@ -157,6 +159,17 @@ struct tcp_info
 	__u32	tcpi_total_retrans;
 };
 
+/* for TCP_MD5SIG socket option */
+#define TCP_MD5SIG_MAXKEYLEN	80
+
+struct tcp_md5sig {
+	struct __kernel_sockaddr_storage tcpm_addr;	/* address associated */
+	__u16	__tcpm_pad1;				/* zero */
+	__u16	tcpm_keylen;				/* key length */
+	__u32	__tcpm_pad2;				/* zero */
+	__u8	tcpm_key[TCP_MD5SIG_MAXKEYLEN];		/* key (binary) */
+};
+
 #ifdef __KERNEL__
 
 #include <linux/skbuff.h>
@@ -197,9 +210,13 @@ struct tcp_options_received {
 };
 
 struct tcp_request_sock {
-	struct inet_request_sock req;
-	__u32			 rcv_isn;
-	__u32			 snt_isn;
+	struct inet_request_sock 	req;
+#ifdef CONFIG_TCP_MD5SIG
+	/* Only used by TCP MD5 Signature so far. */
+	struct tcp_request_sock_ops	*af_specific;
+#endif
+	__u32			 	rcv_isn;
+	__u32			 	snt_isn;
 };
 
 static inline struct tcp_request_sock *tcp_rsk(const struct request_sock *req)
@@ -363,6 +380,14 @@ struct tcp_sock {
 		__u32		  probe_seq_start;
 		__u32		  probe_seq_end;
 	} mtu_probe;
+
+#ifdef CONFIG_TCP_MD5SIG
+/* TCP AF-Specific parts; only used by MD5 Signature support so far */
+	struct tcp_sock_af_ops	*af_specific;
+
+/* TCP MD5 Signagure Option information */
+	struct tcp_md5sig_info	*md5sig_info;
+#endif
 };
 
 static inline struct tcp_sock *tcp_sk(const struct sock *sk)
@@ -377,6 +402,10 @@ struct tcp_timewait_sock {
 	__u32			  tw_rcv_wnd;
 	__u32			  tw_ts_recent;
 	long			  tw_ts_recent_stamp;
+#ifdef CONFIG_TCP_MD5SIG
+	__u16			  tw_md5_keylen;
+	__u8			  tw_md5_key[TCP_MD5SIG_MAXKEYLEN];
+#endif
 };
 
 static inline struct tcp_timewait_sock *tcp_twsk(const struct sock *sk)

@@ -78,6 +78,9 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
+#include <linux/crypto.h>
+#include <linux/scatterlist.h>
+
 int sysctl_tcp_tw_reuse __read_mostly;
 int sysctl_tcp_low_latency __read_mostly;
 
@@ -88,6 +91,13 @@ int sysctl_tcp_low_latency __read_mostly;
 static struct socket *tcp_socket;
 
 void tcp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb);
+
+#ifdef CONFIG_TCP_MD5SIG
+static struct tcp_md5sig_key *tcp_v4_md5_do_lookup(struct sock *sk, __be32 addr);
+static int tcp_v4_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
+				   __be32 saddr, __be32 daddr, struct tcphdr *th,
+				   int protocol, int tcplen);
+#endif
 
 struct inet_hashinfo __cacheline_aligned tcp_hashinfo = {
 	.lhash_lock	= __RW_LOCK_UNLOCKED(tcp_hashinfo.lhash_lock),
@@ -526,11 +536,19 @@ int tcp_v4_gso_send_check(struct sk_buff *skb)
  *	Exception: precedence violation. We do not implement it in any case.
  */
 
-static void tcp_v4_send_reset(struct sk_buff *skb)
+static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcphdr *th = skb->h.th;
-	struct tcphdr rth;
+	struct {
+		struct tcphdr th;
+#ifdef CONFIG_TCP_MD5SIG
+		u32 opt[(TCPOLEN_MD5SIG_ALIGNED >> 2)];
+#endif
+	} rep;
 	struct ip_reply_arg arg;
+#ifdef CONFIG_TCP_MD5SIG
+	struct tcp_md5sig_key *key;
+#endif
 
 	/* Never send a reset in response to a reset. */
 	if (th->rst)
@@ -540,29 +558,50 @@ static void tcp_v4_send_reset(struct sk_buff *skb)
 		return;
 
 	/* Swap the send and the receive. */
-	memset(&rth, 0, sizeof(struct tcphdr));
-	rth.dest   = th->source;
-	rth.source = th->dest;
-	rth.doff   = sizeof(struct tcphdr) / 4;
-	rth.rst    = 1;
+	memset(&rep, 0, sizeof(rep));
+	rep.th.dest   = th->source;
+	rep.th.source = th->dest;
+	rep.th.doff   = sizeof(struct tcphdr) / 4;
+	rep.th.rst    = 1;
 
 	if (th->ack) {
-		rth.seq = th->ack_seq;
+		rep.th.seq = th->ack_seq;
 	} else {
-		rth.ack = 1;
-		rth.ack_seq = htonl(ntohl(th->seq) + th->syn + th->fin +
-				    skb->len - (th->doff << 2));
+		rep.th.ack = 1;
+		rep.th.ack_seq = htonl(ntohl(th->seq) + th->syn + th->fin +
+				       skb->len - (th->doff << 2));
 	}
 
 	memset(&arg, 0, sizeof arg);
-	arg.iov[0].iov_base = (unsigned char *)&rth;
-	arg.iov[0].iov_len  = sizeof rth;
+	arg.iov[0].iov_base = (unsigned char *)&rep;
+	arg.iov[0].iov_len  = sizeof(rep.th);
+
+#ifdef CONFIG_TCP_MD5SIG
+	key = sk ? tcp_v4_md5_do_lookup(sk, skb->nh.iph->daddr) : NULL;
+	if (key) {
+		rep.opt[0] = htonl((TCPOPT_NOP << 24) |
+				   (TCPOPT_NOP << 16) |
+				   (TCPOPT_MD5SIG << 8) |
+				   TCPOLEN_MD5SIG);
+		/* Update length and the length the header thinks exists */
+		arg.iov[0].iov_len += TCPOLEN_MD5SIG_ALIGNED;
+		rep.th.doff = arg.iov[0].iov_len / 4;
+
+		tcp_v4_do_calc_md5_hash((__u8 *)&rep.opt[1],
+					key,
+					skb->nh.iph->daddr,
+					skb->nh.iph->saddr,
+					&rep.th, IPPROTO_TCP,
+					arg.iov[0].iov_len);
+	}
+#endif
+
 	arg.csum = csum_tcpudp_nofold(skb->nh.iph->daddr,
 				      skb->nh.iph->saddr, /*XXX*/
 				      sizeof(struct tcphdr), IPPROTO_TCP, 0);
 	arg.csumoffset = offsetof(struct tcphdr, check) / 2;
 
-	ip_send_reply(tcp_socket->sk, skb, &arg, sizeof rth);
+	ip_send_reply(tcp_socket->sk, skb, &arg, arg.iov[0].iov_len);
 
 	TCP_INC_STATS_BH(TCP_MIB_OUTSEGS);
 	TCP_INC_STATS_BH(TCP_MIB_OUTRSTS);
@@ -572,15 +611,24 @@ static void tcp_v4_send_reset(struct sk_buff *skb)
    outside socket context is ugly, certainly. What can I do?
  */
 
-static void tcp_v4_send_ack(struct sk_buff *skb, u32 seq, u32 ack,
+static void tcp_v4_send_ack(struct tcp_timewait_sock *twsk,
+			    struct sk_buff *skb, u32 seq, u32 ack,
 			    u32 win, u32 ts)
 {
 	struct tcphdr *th = skb->h.th;
 	struct {
 		struct tcphdr th;
-		u32 tsopt[TCPOLEN_TSTAMP_ALIGNED >> 2];
+		u32 opt[(TCPOLEN_TSTAMP_ALIGNED >> 2)
+#ifdef CONFIG_TCP_MD5SIG
+			+ (TCPOLEN_MD5SIG_ALIGNED >> 2)
+#endif
+			];
 	} rep;
 	struct ip_reply_arg arg;
+#ifdef CONFIG_TCP_MD5SIG
+	struct tcp_md5sig_key *key;
+	struct tcp_md5sig_key tw_key;
+#endif
 
 	memset(&rep.th, 0, sizeof(struct tcphdr));
 	memset(&arg, 0, sizeof arg);
@@ -588,12 +636,12 @@ static void tcp_v4_send_ack(struct sk_buff *skb, u32 seq, u32 ack,
 	arg.iov[0].iov_base = (unsigned char *)&rep;
 	arg.iov[0].iov_len  = sizeof(rep.th);
 	if (ts) {
-		rep.tsopt[0] = htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16) |
-				     (TCPOPT_TIMESTAMP << 8) |
-				     TCPOLEN_TIMESTAMP);
-		rep.tsopt[1] = htonl(tcp_time_stamp);
-		rep.tsopt[2] = htonl(ts);
-		arg.iov[0].iov_len = sizeof(rep);
+		rep.opt[0] = htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16) |
+				   (TCPOPT_TIMESTAMP << 8) |
+				   TCPOLEN_TIMESTAMP);
+		rep.opt[1] = htonl(tcp_time_stamp);
+		rep.opt[2] = htonl(ts);
+		arg.iov[0].iov_len = TCPOLEN_TSTAMP_ALIGNED;
 	}
 
 	/* Swap the send and the receive. */
@@ -604,6 +652,44 @@ static void tcp_v4_send_ack(struct sk_buff *skb, u32 seq, u32 ack,
 	rep.th.ack_seq = htonl(ack);
 	rep.th.ack     = 1;
 	rep.th.window  = htons(win);
+
+#ifdef CONFIG_TCP_MD5SIG
+	/*
+	 * The SKB holds an imcoming packet, but may not have a valid ->sk
+	 * pointer. This is especially the case when we're dealing with a
+	 * TIME_WAIT ack, because the sk structure is long gone, and only
+	 * the tcp_timewait_sock remains. So the md5 key is stashed in that
+	 * structure, and we use it in preference.  I believe that (twsk ||
+	 * skb->sk) holds true, but we program defensively.
+	 */
+	if (!twsk && skb->sk) {
+		key = tcp_v4_md5_do_lookup(skb->sk, skb->nh.iph->daddr);
+	} else if (twsk && twsk->tw_md5_keylen) {
+		tw_key.key = twsk->tw_md5_key;
+		tw_key.keylen = twsk->tw_md5_keylen;
+		key = &tw_key;
+	} else {
+		key = NULL;
+	}
+
+	if (key) {
+		int offset = (ts) ? 3 : 0;
+
+		rep.opt[offset++] = htonl((TCPOPT_NOP << 24) |
+					  (TCPOPT_NOP << 16) |
+					  (TCPOPT_MD5SIG << 8) |
+					  TCPOLEN_MD5SIG);
+		arg.iov[0].iov_len += TCPOLEN_MD5SIG_ALIGNED;
+		rep.th.doff = arg.iov[0].iov_len/4;
+
+		tcp_v4_do_calc_md5_hash((__u8 *)&rep.opt[offset],
+					key,
+					skb->nh.iph->daddr,
+					skb->nh.iph->saddr,
+					&rep.th, IPPROTO_TCP,
+					arg.iov[0].iov_len);
+	}
+#endif
 
 	arg.csum = csum_tcpudp_nofold(skb->nh.iph->daddr,
 				      skb->nh.iph->saddr, /*XXX*/
@@ -618,9 +704,9 @@ static void tcp_v4_send_ack(struct sk_buff *skb, u32 seq, u32 ack,
 static void tcp_v4_timewait_ack(struct sock *sk, struct sk_buff *skb)
 {
 	struct inet_timewait_sock *tw = inet_twsk(sk);
-	const struct tcp_timewait_sock *tcptw = tcp_twsk(sk);
+	struct tcp_timewait_sock *tcptw = tcp_twsk(sk);
 
-	tcp_v4_send_ack(skb, tcptw->tw_snd_nxt, tcptw->tw_rcv_nxt,
+	tcp_v4_send_ack(tcptw, skb, tcptw->tw_snd_nxt, tcptw->tw_rcv_nxt,
 			tcptw->tw_rcv_wnd >> tw->tw_rcv_wscale, tcptw->tw_ts_recent);
 
 	inet_twsk_put(tw);
@@ -628,7 +714,8 @@ static void tcp_v4_timewait_ack(struct sock *sk, struct sk_buff *skb)
 
 static void tcp_v4_reqsk_send_ack(struct sk_buff *skb, struct request_sock *req)
 {
-	tcp_v4_send_ack(skb, tcp_rsk(req)->snt_isn + 1, tcp_rsk(req)->rcv_isn + 1, req->rcv_wnd,
+	tcp_v4_send_ack(NULL, skb, tcp_rsk(req)->snt_isn + 1,
+			tcp_rsk(req)->rcv_isn + 1, req->rcv_wnd,
 			req->ts_recent);
 }
 
@@ -714,6 +801,461 @@ static struct ip_options *tcp_v4_save_options(struct sock *sk,
 	return dopt;
 }
 
+#ifdef CONFIG_TCP_MD5SIG
+/*
+ * RFC2385 MD5 checksumming requires a mapping of
+ * IP address->MD5 Key.
+ * We need to maintain these in the sk structure.
+ */
+
+/* Find the Key structure for an address.  */
+static struct tcp_md5sig_key *tcp_v4_md5_do_lookup(struct sock *sk, __be32 addr)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	int i;
+
+	if (!tp->md5sig_info || !tp->md5sig_info->entries4)
+		return NULL;
+	for (i = 0; i < tp->md5sig_info->entries4; i++) {
+		if (tp->md5sig_info->keys4[i].addr == addr)
+			return (struct tcp_md5sig_key *)&tp->md5sig_info->keys4[i];
+	}
+	return NULL;
+}
+
+struct tcp_md5sig_key *tcp_v4_md5_lookup(struct sock *sk,
+					 struct sock *addr_sk)
+{
+	return tcp_v4_md5_do_lookup(sk, inet_sk(addr_sk)->daddr);
+}
+
+EXPORT_SYMBOL(tcp_v4_md5_lookup);
+
+struct tcp_md5sig_key *tcp_v4_reqsk_md5_lookup(struct sock *sk,
+					       struct request_sock *req)
+{
+	return tcp_v4_md5_do_lookup(sk, inet_rsk(req)->rmt_addr);
+}
+
+/* This can be called on a newly created socket, from other files */
+int tcp_v4_md5_do_add(struct sock *sk, __be32 addr,
+		      u8 *newkey, u8 newkeylen)
+{
+	/* Add Key to the list */
+	struct tcp4_md5sig_key *key;
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct tcp4_md5sig_key *keys;
+
+	key = (struct tcp4_md5sig_key *) tcp_v4_md5_do_lookup(sk, addr);
+	if (key) {
+		/* Pre-existing entry - just update that one. */
+		kfree (key->key);
+		key->key = newkey;
+		key->keylen = newkeylen;
+	} else {
+		if (!tp->md5sig_info) {
+			tp->md5sig_info = kzalloc(sizeof(*tp->md5sig_info), GFP_ATOMIC);
+			if (!tp->md5sig_info) {
+				kfree(newkey);
+				return -ENOMEM;
+			}
+		}
+		if (tcp_alloc_md5sig_pool() == NULL) {
+			kfree(newkey);
+			return -ENOMEM;
+		}
+		if (tp->md5sig_info->alloced4 == tp->md5sig_info->entries4) {
+			keys = kmalloc((sizeof(struct tcp4_md5sig_key) *
+				       (tp->md5sig_info->entries4 + 1)), GFP_ATOMIC);
+			if (!keys) {
+				kfree(newkey);
+				tcp_free_md5sig_pool();
+				return -ENOMEM;
+			}
+
+			if (tp->md5sig_info->entries4)
+				memcpy(keys, tp->md5sig_info->keys4,
+				       (sizeof (struct tcp4_md5sig_key) *
+					tp->md5sig_info->entries4));
+
+			/* Free old key list, and reference new one */
+			if (tp->md5sig_info->keys4)
+				kfree(tp->md5sig_info->keys4);
+			tp->md5sig_info->keys4 = keys;
+			tp->md5sig_info->alloced4++;
+		}
+		tp->md5sig_info->entries4++;
+		tp->md5sig_info->keys4[tp->md5sig_info->entries4 - 1].addr = addr;
+		tp->md5sig_info->keys4[tp->md5sig_info->entries4 - 1].key = newkey;
+		tp->md5sig_info->keys4[tp->md5sig_info->entries4 - 1].keylen = newkeylen;
+	}
+	return 0;
+}
+
+EXPORT_SYMBOL(tcp_v4_md5_do_add);
+
+static int tcp_v4_md5_add_func(struct sock *sk, struct sock *addr_sk,
+			       u8 *newkey, u8 newkeylen)
+{
+	return tcp_v4_md5_do_add(sk, inet_sk(addr_sk)->daddr,
+				 newkey, newkeylen);
+}
+
+int tcp_v4_md5_do_del(struct sock *sk, __be32 addr)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	int i;
+
+	for (i = 0; i < tp->md5sig_info->entries4; i++) {
+		if (tp->md5sig_info->keys4[i].addr == addr) {
+			/* Free the key */
+			kfree(tp->md5sig_info->keys4[i].key);
+			tp->md5sig_info->entries4--;
+
+			if (tp->md5sig_info->entries4 == 0) {
+				kfree(tp->md5sig_info->keys4);
+				tp->md5sig_info->keys4 = NULL;
+			} else {
+				/* Need to do some manipulation */
+				if (tp->md5sig_info->entries4 != i)
+					memcpy(&tp->md5sig_info->keys4[i],
+					       &tp->md5sig_info->keys4[i+1],
+					       (tp->md5sig_info->entries4 - i)
+					        * sizeof (struct tcp4_md5sig_key));
+			}
+			tcp_free_md5sig_pool();
+			return 0;
+		}
+	}
+	return -ENOENT;
+}
+
+EXPORT_SYMBOL(tcp_v4_md5_do_del);
+
+static void tcp_v4_clear_md5_list (struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	/* Free each key, then the set of key keys,
+	 * the crypto element, and then decrement our
+	 * hold on the last resort crypto.
+	 */
+	if (tp->md5sig_info->entries4) {
+		int i;
+		for (i = 0; i < tp->md5sig_info->entries4; i++)
+			kfree(tp->md5sig_info->keys4[i].key);
+		tp->md5sig_info->entries4 = 0;
+		tcp_free_md5sig_pool();
+	}
+	if (tp->md5sig_info->keys4) {
+		kfree(tp->md5sig_info->keys4);
+		tp->md5sig_info->keys4 = NULL;
+		tp->md5sig_info->alloced4  = 0;
+	}
+}
+
+static int tcp_v4_parse_md5_keys (struct sock *sk, char __user *optval,
+				  int optlen)
+{
+	struct tcp_md5sig cmd;
+	struct sockaddr_in *sin = (struct sockaddr_in *)&cmd.tcpm_addr;
+	u8 *newkey;
+
+	if (optlen < sizeof(cmd))
+		return -EINVAL;
+
+	if (copy_from_user (&cmd, optval, sizeof(cmd)))
+		return -EFAULT;
+
+	if (sin->sin_family != AF_INET)
+		return -EINVAL;
+
+	if (!cmd.tcpm_key || !cmd.tcpm_keylen) {
+		if (!tcp_sk(sk)->md5sig_info)
+			return -ENOENT;
+		return tcp_v4_md5_do_del(sk, sin->sin_addr.s_addr);
+	}
+
+	if (cmd.tcpm_keylen > TCP_MD5SIG_MAXKEYLEN)
+		return -EINVAL;
+
+	if (!tcp_sk(sk)->md5sig_info) {
+		struct tcp_sock *tp = tcp_sk(sk);
+		struct tcp_md5sig_info *p;
+
+		p = kzalloc(sizeof(struct tcp_md5sig_info), GFP_KERNEL);
+		if (!p)
+			return -EINVAL;
+
+		tp->md5sig_info = p;
+
+	}
+
+	newkey = kmalloc(cmd.tcpm_keylen, GFP_KERNEL);
+	if (!newkey)
+		return -ENOMEM;
+	memcpy(newkey, cmd.tcpm_key, cmd.tcpm_keylen);
+	return tcp_v4_md5_do_add(sk, sin->sin_addr.s_addr,
+				 newkey, cmd.tcpm_keylen);
+}
+
+static int tcp_v4_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
+				   __be32 saddr, __be32 daddr,
+				   struct tcphdr *th, int protocol,
+				   int tcplen)
+{
+	struct scatterlist sg[4];
+	__u16 data_len;
+	int block = 0;
+#ifdef CONFIG_TCP_MD5SIG_DEBUG
+	int i;
+#endif
+	__u16 old_checksum;
+	struct tcp_md5sig_pool *hp;
+	struct tcp4_pseudohdr *bp;
+	struct hash_desc *desc;
+	int err;
+	unsigned int nbytes = 0;
+
+	/*
+	 * Okay, so RFC2385 is turned on for this connection,
+	 * so we need to generate the MD5 hash for the packet now.
+	 */
+
+	hp = tcp_get_md5sig_pool();
+	if (!hp)
+		goto clear_hash_noput;
+
+	bp = &hp->md5_blk.ip4;
+	desc = &hp->md5_desc;
+
+	/*
+	 * 1. the TCP pseudo-header (in the order: source IP address,
+	 * destination IP address, zero-padded protocol number, and
+	 * segment length)
+	 */
+	bp->saddr = saddr;
+	bp->daddr = daddr;
+	bp->pad = 0;
+	bp->protocol = protocol;
+	bp->len = htons(tcplen);
+	sg_set_buf(&sg[block++], bp, sizeof(*bp));
+	nbytes += sizeof(*bp);
+
+#ifdef CONFIG_TCP_MD5SIG_DEBUG
+	printk("Calcuating hash for: ");
+	for (i = 0; i < sizeof (*bp); i++)
+		printk ("%02x ", (unsigned int)((unsigned char *)bp)[i]);
+	printk(" ");
+#endif
+
+	/* 2. the TCP header, excluding options, and assuming a
+	 * checksum of zero/
+	 */
+	old_checksum = th->check;
+	th->check = 0;
+	sg_set_buf(&sg[block++], th, sizeof(struct tcphdr));
+	nbytes += sizeof(struct tcphdr);
+#ifdef CONFIG_TCP_MD5SIG_DEBUG
+	for (i = 0; i < sizeof (struct tcphdr); i++)
+		printk (" %02x", (unsigned int)((unsigned char *)th)[i]);
+#endif
+	/* 3. the TCP segment data (if any) */
+	data_len = tcplen - (th->doff << 2);
+	if (data_len > 0) {
+		unsigned char *data = (unsigned char *)th + (th->doff << 2);
+		sg_set_buf(&sg[block++], data, data_len);
+		nbytes += data_len;
+	}
+
+	/* 4. an independently-specified key or password, known to both
+	 * TCPs and presumably connection-specific
+	 */
+	sg_set_buf(&sg[block++], key->key, key->keylen);
+	nbytes += key->keylen;
+
+#ifdef CONFIG_TCP_MD5SIG_DEBUG
+	printk ("  and password: ");
+	for (i = 0; i < key->keylen; i++)
+		printk ("%02x ", (unsigned int)key->key[i]);
+#endif
+
+	/* Now store the Hash into the packet */
+	err = crypto_hash_init(desc);
+	if (err)
+		goto clear_hash;
+	err = crypto_hash_update(desc, sg, nbytes);
+	if (err)
+		goto clear_hash;
+	err = crypto_hash_final(desc, md5_hash);
+	if (err)
+		goto clear_hash;
+
+	/* Reset header, and free up the crypto */
+	tcp_put_md5sig_pool();
+	th->check = old_checksum;
+
+out:
+#ifdef CONFIG_TCP_MD5SIG_DEBUG
+	printk(" result:");
+	for (i = 0; i < 16; i++)
+		printk (" %02x", (unsigned int)(((u8*)md5_hash)[i]));
+	printk("\n");
+#endif
+	return 0;
+clear_hash:
+	tcp_put_md5sig_pool();
+clear_hash_noput:
+	memset(md5_hash, 0, 16);
+	goto out;
+}
+
+int tcp_v4_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
+			 struct sock *sk,
+			 struct dst_entry *dst,
+			 struct request_sock *req,
+			 struct tcphdr *th, int protocol,
+			 int tcplen)
+{
+	__be32 saddr, daddr;
+
+	if (sk) {
+		saddr = inet_sk(sk)->saddr;
+		daddr = inet_sk(sk)->daddr;
+	} else {
+		struct rtable *rt = (struct rtable *)dst;
+		BUG_ON(!rt);
+		saddr = rt->rt_src;
+		daddr = rt->rt_dst;
+	}
+	return tcp_v4_do_calc_md5_hash(md5_hash, key,
+				       saddr, daddr,
+				       th, protocol, tcplen);
+}
+
+EXPORT_SYMBOL(tcp_v4_calc_md5_hash);
+
+static int tcp_v4_inbound_md5_hash (struct sock *sk, struct sk_buff *skb)
+{
+	/*
+	 * This gets called for each TCP segment that arrives
+	 * so we want to be efficient.
+	 * We have 3 drop cases:
+	 * o No MD5 hash and one expected.
+	 * o MD5 hash and we're not expecting one.
+	 * o MD5 hash and its wrong.
+	 */
+	__u8 *hash_location = NULL;
+	struct tcp_md5sig_key *hash_expected;
+	struct iphdr *iph = skb->nh.iph;
+	struct tcphdr *th = skb->h.th;
+	int length = (th->doff << 2) - sizeof (struct tcphdr);
+	int genhash;
+	unsigned char *ptr;
+	unsigned char newhash[16];
+
+	hash_expected = tcp_v4_md5_do_lookup(sk, iph->saddr);
+
+	/*
+	 * If the TCP option length is less than the TCP_MD5SIG
+	 * option length, then we can shortcut
+	 */
+	if (length < TCPOLEN_MD5SIG) {
+		if (hash_expected)
+			return 1;
+		else
+			return 0;
+	}
+
+	/* Okay, we can't shortcut - we have to grub through the options */
+	ptr = (unsigned char *)(th + 1);
+	while (length > 0) {
+		int opcode = *ptr++;
+		int opsize;
+
+		switch (opcode) {
+		case TCPOPT_EOL:
+			goto done_opts;
+		case TCPOPT_NOP:
+			length--;
+			continue;
+		default:
+			opsize = *ptr++;
+			if (opsize < 2)
+				goto done_opts;
+			if (opsize > length)
+				goto done_opts;
+
+			if (opcode == TCPOPT_MD5SIG) {
+				hash_location = ptr;
+				goto done_opts;
+			}
+		}
+		ptr += opsize-2;
+		length -= opsize;
+	}
+done_opts:
+	/* We've parsed the options - do we have a hash? */
+	if (!hash_expected && !hash_location)
+		return 0;
+
+	if (hash_expected && !hash_location) {
+		if (net_ratelimit()) {
+			printk(KERN_INFO "MD5 Hash NOT expected but found "
+			       "(" NIPQUAD_FMT ", %d)->(" NIPQUAD_FMT ", %d)\n",
+			       NIPQUAD (iph->saddr), ntohs(th->source),
+			       NIPQUAD (iph->daddr), ntohs(th->dest));
+		}
+		return 1;
+	}
+
+	if (!hash_expected && hash_location) {
+		if (net_ratelimit()) {
+			printk(KERN_INFO "MD5 Hash NOT expected but found "
+			       "(" NIPQUAD_FMT ", %d)->(" NIPQUAD_FMT ", %d)\n",
+			       NIPQUAD (iph->saddr), ntohs(th->source),
+			       NIPQUAD (iph->daddr), ntohs(th->dest));
+		}
+		return 1;
+	}
+
+	/* Okay, so this is hash_expected and hash_location -
+	 * so we need to calculate the checksum.
+	 */
+	genhash = tcp_v4_do_calc_md5_hash(newhash,
+					  hash_expected,
+					  iph->saddr, iph->daddr,
+					  th, sk->sk_protocol,
+					  skb->len);
+
+	if (genhash || memcmp(hash_location, newhash, 16) != 0) {
+		if (net_ratelimit()) {
+			printk(KERN_INFO "MD5 Hash failed for "
+			       "(" NIPQUAD_FMT ", %d)->(" NIPQUAD_FMT ", %d)%s\n",
+			       NIPQUAD (iph->saddr), ntohs(th->source),
+			       NIPQUAD (iph->daddr), ntohs(th->dest),
+			       genhash ? " tcp_v4_calc_md5_hash failed" : "");
+#ifdef CONFIG_TCP_MD5SIG_DEBUG
+			do {
+				int i;
+				printk("Received: ");
+				for (i = 0; i < 16; i++)
+					printk("%02x ", 0xff & (int)hash_location[i]);
+				printk("\n");
+				printk("Calculated: ");
+				for (i = 0; i < 16; i++)
+					printk("%02x ", 0xff & (int)newhash[i]);
+				printk("\n");
+			} while(0);
+#endif
+		}
+		return 1;
+	}
+	return 0;
+}
+
+#endif
+
 struct request_sock_ops tcp_request_sock_ops __read_mostly = {
 	.family		=	PF_INET,
 	.obj_size	=	sizeof(struct tcp_request_sock),
@@ -723,9 +1265,16 @@ struct request_sock_ops tcp_request_sock_ops __read_mostly = {
 	.send_reset	=	tcp_v4_send_reset,
 };
 
+struct tcp_request_sock_ops tcp_request_sock_ipv4_ops = {
+#ifdef CONFIG_TCP_MD5SIG
+	.md5_lookup	=	tcp_v4_reqsk_md5_lookup,
+#endif
+};
+
 static struct timewait_sock_ops tcp_timewait_sock_ops = {
 	.twsk_obj_size	= sizeof(struct tcp_timewait_sock),
 	.twsk_unique	= tcp_twsk_unique,
+	.twsk_destructor= tcp_twsk_destructor,
 };
 
 int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
@@ -772,6 +1321,10 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	req = reqsk_alloc(&tcp_request_sock_ops);
 	if (!req)
 		goto drop;
+
+#ifdef CONFIG_TCP_MD5SIG
+	tcp_rsk(req)->af_specific = &tcp_request_sock_ipv4_ops;
+#endif
 
 	tcp_clear_options(&tmp_opt);
 	tmp_opt.mss_clamp = 536;
@@ -891,6 +1444,9 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	struct inet_sock *newinet;
 	struct tcp_sock *newtp;
 	struct sock *newsk;
+#ifdef CONFIG_TCP_MD5SIG
+	struct tcp_md5sig_key *key;
+#endif
 
 	if (sk_acceptq_is_full(sk))
 		goto exit_overflow;
@@ -924,6 +1480,24 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	tcp_sync_mss(newsk, dst_mtu(dst));
 	newtp->advmss = dst_metric(dst, RTAX_ADVMSS);
 	tcp_initialize_rcv_mss(newsk);
+
+#ifdef CONFIG_TCP_MD5SIG
+	/* Copy over the MD5 key from the original socket */
+	if ((key = tcp_v4_md5_do_lookup(sk, newinet->daddr)) != NULL) {
+		/*
+		 * We're using one, so create a matching key
+		 * on the newsk structure. If we fail to get
+		 * memory, then we end up not copying the key
+		 * across. Shucks.
+		 */
+		char *newkey = kmalloc(key->keylen, GFP_ATOMIC);
+		if (newkey) {
+			memcpy(newkey, key->key, key->keylen);
+			tcp_v4_md5_do_add(newsk, inet_sk(sk)->daddr,
+					  newkey, key->keylen);
+		}
+	}
+#endif
 
 	__inet_hash(&tcp_hashinfo, newsk, 0);
 	__inet_inherit_port(&tcp_hashinfo, sk, newsk);
@@ -1000,10 +1574,24 @@ static int tcp_v4_checksum_init(struct sk_buff *skb)
  */
 int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 {
+	struct sock *rsk;
+#ifdef CONFIG_TCP_MD5SIG
+	/*
+	 * We really want to reject the packet as early as possible
+	 * if:
+	 *  o We're expecting an MD5'd packet and this is no MD5 tcp option
+	 *  o There is an MD5 option and we're not expecting one
+	 */
+	if (tcp_v4_inbound_md5_hash (sk, skb))
+		goto discard;
+#endif
+
 	if (sk->sk_state == TCP_ESTABLISHED) { /* Fast path */
 		TCP_CHECK_TIMER(sk);
-		if (tcp_rcv_established(sk, skb, skb->h.th, skb->len))
+		if (tcp_rcv_established(sk, skb, skb->h.th, skb->len)) {
+			rsk = sk;
 			goto reset;
+		}
 		TCP_CHECK_TIMER(sk);
 		return 0;
 	}
@@ -1017,20 +1605,24 @@ int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 			goto discard;
 
 		if (nsk != sk) {
-			if (tcp_child_process(sk, nsk, skb))
+			if (tcp_child_process(sk, nsk, skb)) {
+				rsk = nsk;
 				goto reset;
+			}
 			return 0;
 		}
 	}
 
 	TCP_CHECK_TIMER(sk);
-	if (tcp_rcv_state_process(sk, skb, skb->h.th, skb->len))
+	if (tcp_rcv_state_process(sk, skb, skb->h.th, skb->len)) {
+		rsk = sk;
 		goto reset;
+	}
 	TCP_CHECK_TIMER(sk);
 	return 0;
 
 reset:
-	tcp_v4_send_reset(skb);
+	tcp_v4_send_reset(rsk, skb);
 discard:
 	kfree_skb(skb);
 	/* Be careful here. If this function gets more complicated and
@@ -1139,7 +1731,7 @@ no_tcp_socket:
 bad_packet:
 		TCP_INC_STATS_BH(TCP_MIB_INERRS);
 	} else {
-		tcp_v4_send_reset(skb);
+		tcp_v4_send_reset(NULL, skb);
 	}
 
 discard_it:
@@ -1262,6 +1854,15 @@ struct inet_connection_sock_af_ops ipv4_specific = {
 #endif
 };
 
+struct tcp_sock_af_ops tcp_sock_ipv4_specific = {
+#ifdef CONFIG_TCP_MD5SIG
+	.md5_lookup		= tcp_v4_md5_lookup,
+	.calc_md5_hash		= tcp_v4_calc_md5_hash,
+	.md5_add		= tcp_v4_md5_add_func,
+	.md5_parse		= tcp_v4_parse_md5_keys,
+#endif
+};
+
 /* NOTE: A lot of things set to zero explicitly by call to
  *       sk_alloc() so need not be done here.
  */
@@ -1301,6 +1902,9 @@ static int tcp_v4_init_sock(struct sock *sk)
 
 	icsk->icsk_af_ops = &ipv4_specific;
 	icsk->icsk_sync_mss = tcp_sync_mss;
+#ifdef CONFIG_TCP_MD5SIG
+	tp->af_specific = &tcp_sock_ipv4_specific;
+#endif
 
 	sk->sk_sndbuf = sysctl_tcp_wmem[1];
 	sk->sk_rcvbuf = sysctl_tcp_rmem[1];
@@ -1323,6 +1927,15 @@ int tcp_v4_destroy_sock(struct sock *sk)
 
 	/* Cleans up our, hopefully empty, out_of_order_queue. */
   	__skb_queue_purge(&tp->out_of_order_queue);
+
+#ifdef CONFIG_TCP_MD5SIG
+	/* Clean up the MD5 key list, if any */
+	if (tp->md5sig_info) {
+		tcp_v4_clear_md5_list(sk);
+		kfree(tp->md5sig_info);
+		tp->md5sig_info = NULL;
+	}
+#endif
 
 #ifdef CONFIG_NET_DMA
 	/* Cleans up our sk_async_wait_queue */

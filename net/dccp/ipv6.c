@@ -310,7 +310,7 @@ static void dccp_v6_reqsk_destructor(struct request_sock *req)
 		kfree_skb(inet6_rsk(req)->pktopts);
 }
 
-static void dccp_v6_ctl_send_reset(struct sk_buff *rxskb)
+static void dccp_v6_ctl_send_reset(struct sock *sk, struct sk_buff *rxskb)
 {
 	struct dccp_hdr *rxdh = dccp_hdr(rxskb), *dh;
 	const u32 dccp_hdr_reset_len = sizeof(struct dccp_hdr) +
@@ -805,7 +805,7 @@ static int dccp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 	return 0;
 
 reset:
-	dccp_v6_ctl_send_reset(skb);
+	dccp_v6_ctl_send_reset(sk, skb);
 discard:
 	if (opt_skb != NULL)
 		__kfree_skb(opt_skb);
@@ -902,7 +902,7 @@ no_dccp_socket:
 	if (dh->dccph_type != DCCP_PKT_RESET) {
 		DCCP_SKB_CB(skb)->dccpd_reset_code =
 					DCCP_RESET_CODE_NO_CONNECTION;
-		dccp_v6_ctl_send_reset(skb);
+		dccp_v6_ctl_send_reset(sk, skb);
 	}
 
 discard_it:

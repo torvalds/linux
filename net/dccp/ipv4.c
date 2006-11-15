@@ -509,7 +509,7 @@ out:
 	return err;
 }
 
-static void dccp_v4_ctl_send_reset(struct sk_buff *rxskb)
+static void dccp_v4_ctl_send_reset(struct sock *sk, struct sk_buff *rxskb)
 {
 	int err;
 	struct dccp_hdr *rxdh = dccp_hdr(rxskb), *dh;
@@ -724,7 +724,7 @@ int dccp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 	return 0;
 
 reset:
-	dccp_v4_ctl_send_reset(skb);
+	dccp_v4_ctl_send_reset(sk, skb);
 discard:
 	kfree_skb(skb);
 	return 0;
@@ -913,7 +913,7 @@ no_dccp_socket:
 	if (dh->dccph_type != DCCP_PKT_RESET) {
 		DCCP_SKB_CB(skb)->dccpd_reset_code =
 					DCCP_RESET_CODE_NO_CONNECTION;
-		dccp_v4_ctl_send_reset(skb);
+		dccp_v4_ctl_send_reset(sk, skb);
 	}
 
 discard_it:

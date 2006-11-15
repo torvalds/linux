@@ -2677,6 +2677,14 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 					   opt_rx->sack_ok) {
 						TCP_SKB_CB(skb)->sacked = (ptr - 2) - (unsigned char *)th;
 					}
+#ifdef CONFIG_TCP_MD5SIG
+				case TCPOPT_MD5SIG:
+					/*
+					 * The MD5 Hash has already been
+					 * checked (see tcp_v{4,6}_do_rcv()).
+					 */
+					break;
+#endif
 	  			};
 	  			ptr+=opsize-2;
 	  			length-=opsize;

@@ -618,5 +618,21 @@ config DEFAULT_TCP_CONG
 	default "reno" if DEFAULT_RENO
 	default "cubic"
 
+config TCP_MD5SIG
+	bool "TCP: MD5 Signature Option support (RFC2385) (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	select CRYPTO
+	select CRYPTO_MD5
+	---help---
+	  RFC2385 specifices a method of giving MD5 protection to TCP sessions.
+	  Its main (only?) use is to protect BGP sessions between core routers
+	  on the Internet.
+
+	  If unsure, say N.
+
+config TCP_MD5SIG_DEBUG
+	bool "TCP: MD5 Signature Option debugging"
+	depends on TCP_MD5SIG
+
 source "net/ipv4/ipvs/Kconfig"
 
