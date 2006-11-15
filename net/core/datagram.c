@@ -411,7 +411,7 @@ fault:
 	return -EFAULT;
 }
 
-unsigned int __skb_checksum_complete(struct sk_buff *skb)
+__sum16 __skb_checksum_complete(struct sk_buff *skb)
 {
 	__sum16 sum;
 

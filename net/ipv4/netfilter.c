@@ -162,11 +162,11 @@ static int nf_ip_reroute(struct sk_buff **pskb, const struct nf_info *info)
 	return 0;
 }
 
-unsigned int nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
+__sum16 nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
 			    unsigned int dataoff, u_int8_t protocol)
 {
 	struct iphdr *iph = skb->nh.iph;
-	unsigned int csum = 0;
+	__sum16 csum = 0;
 
 	switch (skb->ip_summed) {
 	case CHECKSUM_COMPLETE:

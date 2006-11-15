@@ -1544,7 +1544,7 @@ static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	return sk;
 }
 
-static int tcp_v4_checksum_init(struct sk_buff *skb)
+static __sum16 tcp_v4_checksum_init(struct sk_buff *skb)
 {
 	if (skb->ip_summed == CHECKSUM_COMPLETE) {
 		if (!tcp_v4_check(skb->h.th, skb->len, skb->nh.iph->saddr,

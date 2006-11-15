@@ -1527,7 +1527,7 @@ out:
 	return NULL;
 }
 
-static int tcp_v6_checksum_init(struct sk_buff *skb)
+static __sum16 tcp_v6_checksum_init(struct sk_buff *skb)
 {
 	if (skb->ip_summed == CHECKSUM_COMPLETE) {
 		if (!tcp_v6_check(skb->h.th,skb->len,&skb->nh.ipv6h->saddr,

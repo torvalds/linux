@@ -1398,7 +1398,7 @@ static inline void skb_set_timestamp(struct sk_buff *skb, const struct timeval *
 
 extern void __net_timestamp(struct sk_buff *skb);
 
-extern unsigned int __skb_checksum_complete(struct sk_buff *skb);
+extern __sum16 __skb_checksum_complete(struct sk_buff *skb);
 
 /**
  *	skb_checksum_complete - Calculate checksum of an entire packet

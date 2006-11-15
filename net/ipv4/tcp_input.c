@@ -3790,9 +3790,9 @@ static int tcp_copy_to_iovec(struct sock *sk, struct sk_buff *skb, int hlen)
 	return err;
 }
 
-static int __tcp_checksum_complete_user(struct sock *sk, struct sk_buff *skb)
+static __sum16 __tcp_checksum_complete_user(struct sock *sk, struct sk_buff *skb)
 {
-	int result;
+	__sum16 result;
 
 	if (sock_owned_by_user(sk)) {
 		local_bh_enable();

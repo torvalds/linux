@@ -814,7 +814,7 @@ static inline __sum16 tcp_v4_check(struct tcphdr *th, int len,
 	return csum_tcpudp_magic(saddr,daddr,len,IPPROTO_TCP,base);
 }
 
-static inline int __tcp_checksum_complete(struct sk_buff *skb)
+static inline __sum16 __tcp_checksum_complete(struct sk_buff *skb)
 {
 	return __skb_checksum_complete(skb);
 }

@@ -290,7 +290,7 @@ extern u_int16_t nf_proto_csum_update(struct sk_buff *skb,
 
 struct nf_afinfo {
 	unsigned short	family;
-	unsigned int	(*checksum)(struct sk_buff *skb, unsigned int hook,
+	__sum16		(*checksum)(struct sk_buff *skb, unsigned int hook,
 				    unsigned int dataoff, u_int8_t protocol);
 	void		(*saveroute)(const struct sk_buff *skb,
 				     struct nf_info *info);
@@ -305,12 +305,12 @@ static inline struct nf_afinfo *nf_get_afinfo(unsigned short family)
 	return rcu_dereference(nf_afinfo[family]);
 }
 
-static inline unsigned int
+static inline __sum16
 nf_checksum(struct sk_buff *skb, unsigned int hook, unsigned int dataoff,
 	    u_int8_t protocol, unsigned short family)
 {
 	struct nf_afinfo *afinfo;
-	unsigned int csum = 0;
+	__sum16 csum = 0;
 
 	rcu_read_lock();
 	afinfo = nf_get_afinfo(family);

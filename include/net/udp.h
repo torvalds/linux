@@ -69,15 +69,15 @@ struct sk_buff;
 /*
  *	Generic checksumming routines for UDP(-Lite) v4 and v6
  */
-static inline u16  __udp_lib_checksum_complete(struct sk_buff *skb)
+static inline __sum16 __udp_lib_checksum_complete(struct sk_buff *skb)
 {
 	if (! UDP_SKB_CB(skb)->partial_cov)
 		return __skb_checksum_complete(skb);
-	return  csum_fold(skb_checksum(skb, 0, UDP_SKB_CB(skb)->cscov,
-			  skb->csum));
+	return csum_fold(skb_checksum(skb, 0, UDP_SKB_CB(skb)->cscov,
+				      skb->csum));
 }
 
-static __inline__ int udp_lib_checksum_complete(struct sk_buff *skb)
+static inline __sum16 udp_lib_checksum_complete(struct sk_buff *skb)
 {
 	return skb->ip_summed != CHECKSUM_UNNECESSARY &&
 		__udp_lib_checksum_complete(skb);

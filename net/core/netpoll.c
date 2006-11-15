@@ -77,8 +77,8 @@ static void queue_process(void *p)
 	}
 }
 
-static int checksum_udp(struct sk_buff *skb, struct udphdr *uh,
-			unsigned short ulen, __be32 saddr, __be32 daddr)
+static __sum16 checksum_udp(struct sk_buff *skb, struct udphdr *uh,
+			    unsigned short ulen, __be32 saddr, __be32 daddr)
 {
 	__wsum psum;
 
