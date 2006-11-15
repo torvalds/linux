@@ -644,7 +644,7 @@ int inet_getname(struct socket *sock, struct sockaddr *uaddr,
 		sin->sin_port = inet->dport;
 		sin->sin_addr.s_addr = inet->daddr;
 	} else {
-		__u32 addr = inet->rcv_saddr;
+		__be32 addr = inet->rcv_saddr;
 		if (!addr)
 			addr = inet->saddr;
 		sin->sin_port = inet->sport;
@@ -995,8 +995,8 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 	struct inet_sock *inet = inet_sk(sk);
 	int err;
 	struct rtable *rt;
-	__u32 old_saddr = inet->saddr;
-	__u32 new_saddr;
+	__be32 old_saddr = inet->saddr;
+	__be32 new_saddr;
 	__be32 daddr = inet->daddr;
 
 	if (inet->opt && inet->opt->srr)

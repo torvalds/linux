@@ -542,7 +542,7 @@ static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 	struct {
 		struct tcphdr th;
 #ifdef CONFIG_TCP_MD5SIG
-		u32 opt[(TCPOLEN_MD5SIG_ALIGNED >> 2)];
+		__be32 opt[(TCPOLEN_MD5SIG_ALIGNED >> 2)];
 #endif
 	} rep;
 	struct ip_reply_arg arg;
@@ -618,9 +618,9 @@ static void tcp_v4_send_ack(struct tcp_timewait_sock *twsk,
 	struct tcphdr *th = skb->h.th;
 	struct {
 		struct tcphdr th;
-		u32 opt[(TCPOLEN_TSTAMP_ALIGNED >> 2)
+		__be32 opt[(TCPOLEN_TSTAMP_ALIGNED >> 2)
 #ifdef CONFIG_TCP_MD5SIG
-			+ (TCPOLEN_MD5SIG_ALIGNED >> 2)
+			   + (TCPOLEN_MD5SIG_ALIGNED >> 2)
 #endif
 			];
 	} rep;
@@ -2333,8 +2333,8 @@ static void get_tcp4_sock(struct sock *sp, char *tmpbuf, int i)
 	struct tcp_sock *tp = tcp_sk(sp);
 	const struct inet_connection_sock *icsk = inet_csk(sp);
 	struct inet_sock *inet = inet_sk(sp);
-	unsigned int dest = inet->daddr;
-	unsigned int src = inet->rcv_saddr;
+	__be32 dest = inet->daddr;
+	__be32 src = inet->rcv_saddr;
 	__u16 destp = ntohs(inet->dport);
 	__u16 srcp = ntohs(inet->sport);
 

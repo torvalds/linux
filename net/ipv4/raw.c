@@ -854,8 +854,8 @@ static void raw_seq_stop(struct seq_file *seq, void *v)
 static __inline__ char *get_raw_sock(struct sock *sp, char *tmpbuf, int i)
 {
 	struct inet_sock *inet = inet_sk(sp);
-	unsigned int dest = inet->daddr,
-		     src = inet->rcv_saddr;
+	__be32 dest = inet->daddr,
+	       src = inet->rcv_saddr;
 	__u16 destp = 0,
 	      srcp  = inet->num;
 

@@ -123,7 +123,7 @@ extern int		ip4_datagram_connect(struct sock *sk,
  *      multicast packets.
  */
 
-static inline void ip_tr_mc_map(u32 addr, char *buf)
+static inline void ip_tr_mc_map(__be32 addr, char *buf)
 {
 	buf[0]=0xC0;
 	buf[1]=0x00;
@@ -238,9 +238,9 @@ static inline void ip_select_ident_more(struct iphdr *iph, struct dst_entry *dst
  *	Map a multicast IP onto multicast MAC for type ethernet.
  */
 
-static inline void ip_eth_mc_map(u32 addr, char *buf)
+static inline void ip_eth_mc_map(__be32 naddr, char *buf)
 {
-	addr=ntohl(addr);
+	__u32 addr=ntohl(naddr);
 	buf[0]=0x01;
 	buf[1]=0x00;
 	buf[2]=0x5e;
@@ -256,13 +256,14 @@ static inline void ip_eth_mc_map(u32 addr, char *buf)
  *	Leave P_Key as 0 to be filled in by driver.
  */
 
-static inline void ip_ib_mc_map(u32 addr, char *buf)
+static inline void ip_ib_mc_map(__be32 naddr, char *buf)
 {
+	__u32 addr;
 	buf[0]  = 0;		/* Reserved */
 	buf[1]  = 0xff;		/* Multicast QPN */
 	buf[2]  = 0xff;
 	buf[3]  = 0xff;
-	addr    = ntohl(addr);
+	addr    = ntohl(naddr);
 	buf[4]  = 0xff;
 	buf[5]  = 0x12;		/* link local scope */
 	buf[6]  = 0x40;		/* IPv4 signature */

@@ -493,7 +493,7 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 			   struct request_sock **prev)
 {
 	struct tcphdr *th = skb->h.th;
-	u32 flg = tcp_flag_word(th) & (TCP_FLAG_RST|TCP_FLAG_SYN|TCP_FLAG_ACK);
+	__be32 flg = tcp_flag_word(th) & (TCP_FLAG_RST|TCP_FLAG_SYN|TCP_FLAG_ACK);
 	int paws_reject = 0;
 	struct tcp_options_received tmp_opt;
 	struct sock *child;
