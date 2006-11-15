@@ -220,7 +220,7 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *) uaddr;
-	__u32 v4addr = 0;
+	__be32 v4addr = 0;
 	int addr_type;
 	int err;
 

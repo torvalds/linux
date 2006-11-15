@@ -232,7 +232,7 @@ static inline unsigned ipv6_addr_scope2type(unsigned scope)
 
 int __ipv6_addr_type(const struct in6_addr *addr)
 {
-	u32 st;
+	__be32 st;
 
 	st = addr->s6_addr32[0];
 

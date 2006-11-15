@@ -207,7 +207,7 @@ out:
 }
 
 void ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err, 
-		     u16 port, u32 info, u8 *payload)
+		     __be16 port, u32 info, u8 *payload)
 {
 	struct ipv6_pinfo *np  = inet6_sk(sk);
 	struct icmp6hdr *icmph = (struct icmp6hdr *)skb->h.raw;
@@ -324,7 +324,7 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len)
 		} else {
 			ipv6_addr_set(&sin->sin6_addr, 0, 0,
 				      htonl(0xffff),
-				      *(u32*)(skb->nh.raw + serr->addr_offset));
+				      *(__be32*)(skb->nh.raw + serr->addr_offset));
 		}
 	}
 
@@ -397,7 +397,7 @@ int datagram_recv_ctl(struct sock *sk, struct msghdr *msg, struct sk_buff *skb)
 	}
 
 	if (np->rxopt.bits.rxtclass) {
-		int tclass = (ntohl(*(u32 *)skb->nh.ipv6h) >> 20) & 0xff;
+		int tclass = (ntohl(*(__be32 *)skb->nh.ipv6h) >> 20) & 0xff;
 		put_cmsg(msg, SOL_IPV6, IPV6_TCLASS, sizeof(tclass), &tclass);
 	}
 

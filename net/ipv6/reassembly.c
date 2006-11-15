@@ -77,7 +77,7 @@ struct frag_queue
 	struct hlist_node	list;
 	struct list_head lru_list;		/* lru list member	*/
 
-	__u32			id;		/* fragment id		*/
+	__be32			id;		/* fragment id		*/
 	struct in6_addr		saddr;
 	struct in6_addr		daddr;
 
@@ -125,28 +125,28 @@ static __inline__ void fq_unlink(struct frag_queue *fq)
  * callers should be careful not to use the hash value outside the ipfrag_lock
  * as doing so could race with ipfrag_hash_rnd being recalculated.
  */
-static unsigned int ip6qhashfn(u32 id, struct in6_addr *saddr,
+static unsigned int ip6qhashfn(__be32 id, struct in6_addr *saddr,
 			       struct in6_addr *daddr)
 {
 	u32 a, b, c;
 
-	a = saddr->s6_addr32[0];
-	b = saddr->s6_addr32[1];
-	c = saddr->s6_addr32[2];
+	a = (__force u32)saddr->s6_addr32[0];
+	b = (__force u32)saddr->s6_addr32[1];
+	c = (__force u32)saddr->s6_addr32[2];
 
 	a += JHASH_GOLDEN_RATIO;
 	b += JHASH_GOLDEN_RATIO;
 	c += ip6_frag_hash_rnd;
 	__jhash_mix(a, b, c);
 
-	a += saddr->s6_addr32[3];
-	b += daddr->s6_addr32[0];
-	c += daddr->s6_addr32[1];
+	a += (__force u32)saddr->s6_addr32[3];
+	b += (__force u32)daddr->s6_addr32[0];
+	c += (__force u32)daddr->s6_addr32[1];
 	__jhash_mix(a, b, c);
 
-	a += daddr->s6_addr32[2];
-	b += daddr->s6_addr32[3];
-	c += id;
+	a += (__force u32)daddr->s6_addr32[2];
+	b += (__force u32)daddr->s6_addr32[3];
+	c += (__force u32)id;
 	__jhash_mix(a, b, c);
 
 	return c & (IP6Q_HASHSZ - 1);
@@ -370,7 +370,7 @@ static struct frag_queue *ip6_frag_intern(struct frag_queue *fq_in)
 
 
 static struct frag_queue *
-ip6_frag_create(u32 id, struct in6_addr *src, struct in6_addr *dst,
+ip6_frag_create(__be32 id, struct in6_addr *src, struct in6_addr *dst,
 		struct inet6_dev *idev)
 {
 	struct frag_queue *fq;
@@ -396,7 +396,7 @@ oom:
 }
 
 static __inline__ struct frag_queue *
-fq_find(u32 id, struct in6_addr *src, struct in6_addr *dst,
+fq_find(__be32 id, struct in6_addr *src, struct in6_addr *dst,
 	struct inet6_dev *idev)
 {
 	struct frag_queue *fq;

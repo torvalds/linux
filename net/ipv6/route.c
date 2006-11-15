@@ -440,7 +440,7 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 	if (pref == ICMPV6_ROUTER_PREF_INVALID)
 		pref = ICMPV6_ROUTER_PREF_MEDIUM;
 
-	lifetime = htonl(rinfo->lifetime);
+	lifetime = ntohl(rinfo->lifetime);
 	if (lifetime == 0xffffffff) {
 		/* infinity */
 	} else if (lifetime > 0x7fffffff/HZ) {

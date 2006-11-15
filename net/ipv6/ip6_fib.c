@@ -139,9 +139,9 @@ static __inline__ u32 fib6_new_sernum(void)
  *	test bit
  */
 
-static __inline__ int addr_bit_set(void *token, int fn_bit)
+static __inline__ __be32 addr_bit_set(void *token, int fn_bit)
 {
-	__u32 *addr = token;
+	__be32 *addr = token;
 
 	return htonl(1 << ((~fn_bit)&0x1F)) & addr[fn_bit>>5];
 }
@@ -434,7 +434,7 @@ static struct fib6_node * fib6_add_1(struct fib6_node *root, void *addr,
 	struct fib6_node *pn = NULL;
 	struct rt6key *key;
 	int	bit;
-       	int	dir = 0;
+       	__be32	dir = 0;
 	__u32	sernum = fib6_new_sernum();
 
 	RT6_TRACE("fib6_add_1\n");
@@ -829,7 +829,7 @@ static struct fib6_node * fib6_lookup_1(struct fib6_node *root,
 					struct lookup_args *args)
 {
 	struct fib6_node *fn;
-	int dir;
+	__be32 dir;
 
 	if (unlikely(args->offset == 0))
 		return NULL;

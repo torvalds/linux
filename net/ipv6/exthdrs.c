@@ -655,7 +655,7 @@ static int ipv6_hop_jumbo(struct sk_buff **skbp, int optoff)
 		goto drop;
 	}
 
-	pkt_len = ntohl(*(u32*)(skb->nh.raw+optoff+2));
+	pkt_len = ntohl(*(__be32*)(skb->nh.raw+optoff+2));
 	if (pkt_len <= IPV6_MAXPLEN) {
 		IP6_INC_STATS_BH(ip6_dst_idev(skb->dst), IPSTATS_MIB_INHDRERRORS);
 		icmpv6_param_prob(skb, ICMPV6_HDR_FIELD, optoff+2);

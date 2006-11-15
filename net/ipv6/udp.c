@@ -298,8 +298,8 @@ drop:
 }
 
 static struct sock *udp_v6_mcast_next(struct sock *sk,
-				      u16 loc_port, struct in6_addr *loc_addr,
-				      u16 rmt_port, struct in6_addr *rmt_addr,
+				      __be16 loc_port, struct in6_addr *loc_addr,
+				      __be16 rmt_port, struct in6_addr *rmt_addr,
 				      int dif)
 {
 	struct hlist_node *node;

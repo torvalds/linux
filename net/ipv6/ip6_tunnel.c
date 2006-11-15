@@ -66,7 +66,7 @@ MODULE_LICENSE("GPL");
 
 #define HASH_SIZE  32
 
-#define HASH(addr) (((addr)->s6_addr32[0] ^ (addr)->s6_addr32[1] ^ \
+#define HASH(addr) ((__force u32)((addr)->s6_addr32[0] ^ (addr)->s6_addr32[1] ^ \
 	             (addr)->s6_addr32[2] ^ (addr)->s6_addr32[3]) & \
                     (HASH_SIZE - 1))
 

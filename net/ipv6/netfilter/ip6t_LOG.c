@@ -69,9 +69,9 @@ static void dump_packet(const struct nf_loginfo *info,
 	/* Max length: 44 "LEN=65535 TC=255 HOPLIMIT=255 FLOWLBL=FFFFF " */
 	printk("LEN=%Zu TC=%u HOPLIMIT=%u FLOWLBL=%u ",
 	       ntohs(ih->payload_len) + sizeof(struct ipv6hdr),
-	       (ntohl(*(u_int32_t *)ih) & 0x0ff00000) >> 20,
+	       (ntohl(*(__be32 *)ih) & 0x0ff00000) >> 20,
 	       ih->hop_limit,
-	       (ntohl(*(u_int32_t *)ih) & 0x000fffff));
+	       (ntohl(*(__be32 *)ih) & 0x000fffff));
 
 	fragment = 0;
 	ptr = ip6hoff + sizeof(struct ipv6hdr);

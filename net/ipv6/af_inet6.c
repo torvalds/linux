@@ -222,7 +222,7 @@ lookup_protocol:
 		 * the user to assign a number at socket
 		 * creation time automatically shares.
 		 */
-		inet->sport = ntohs(inet->num);
+		inet->sport = htons(inet->num);
 		sk->sk_prot->hash(sk);
 	}
 	if (sk->sk_prot->init) {
@@ -342,7 +342,7 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		sk->sk_userlocks |= SOCK_BINDADDR_LOCK;
 	if (snum)
 		sk->sk_userlocks |= SOCK_BINDPORT_LOCK;
-	inet->sport = ntohs(inet->num);
+	inet->sport = htons(inet->num);
 	inet->dport = 0;
 	inet->daddr = 0;
 out:

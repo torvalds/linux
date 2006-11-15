@@ -1084,7 +1084,7 @@ static void tcp_v6_send_ack(struct tcp_timewait_sock *tw,
 	struct sk_buff *buff;
 	struct flowi fl;
 	int tot_len = sizeof(struct tcphdr);
-	u32 *topt;
+	__be32 *topt;
 #ifdef CONFIG_TCP_MD5SIG
 	struct tcp_md5sig_key *key;
 	struct tcp_md5sig_key tw_key;
@@ -1128,7 +1128,7 @@ static void tcp_v6_send_ack(struct tcp_timewait_sock *tw,
 	t1->ack = 1;
 	t1->window = htons(win);
 
-	topt = (u32*)(t1 + 1);
+	topt = (__be32 *)(t1 + 1);
 	
 	if (ts) {
 		*topt++ = htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16) |
