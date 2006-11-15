@@ -187,4 +187,15 @@ static inline int genlmsg_total_size(int payload)
 	return NLMSG_ALIGN(genlmsg_msg_size(payload));
 }
 
+/**
+ * genlmsg_new - Allocate a new generic netlink message
+ * @payload: size of the message payload
+ * @flags: the type of memory to allocate.
+ */
+static inline struct sk_buff *genlmsg_new(size_t payload, gfp_t flags)
+{
+	return nlmsg_new(genlmsg_total_size(payload), flags);
+}
+
+
 #endif	/* __NET_GENERIC_NETLINK_H */
