@@ -769,7 +769,7 @@ restart:
 	} else {
 		spin_unlock(&gl->gl_spin);
 
-		new_gh = gfs2_holder_get(gl, state, LM_FLAG_TRY, GFP_KERNEL);
+		new_gh = gfs2_holder_get(gl, state, LM_FLAG_TRY, GFP_NOFS);
 		if (!new_gh)
 			return;
 		set_bit(HIF_DEMOTE, &new_gh->gh_iflags);
