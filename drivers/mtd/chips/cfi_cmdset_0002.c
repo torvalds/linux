@@ -257,12 +257,11 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 	struct mtd_info *mtd;
 	int i;
 
-	mtd = kmalloc(sizeof(*mtd), GFP_KERNEL);
+	mtd = kzalloc(sizeof(*mtd), GFP_KERNEL);
 	if (!mtd) {
 		printk(KERN_WARNING "Failed to allocate memory for MTD device\n");
 		return NULL;
 	}
-	memset(mtd, 0, sizeof(*mtd));
 	mtd->priv = map;
 	mtd->type = MTD_NORFLASH;
 

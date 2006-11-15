@@ -165,14 +165,12 @@ static int parse_redboot_partitions(struct mtd_info *master,
 		}
 	}
 #endif
-	parts = kmalloc(sizeof(*parts)*nrparts + nulllen + namelen, GFP_KERNEL);
+	parts = kzalloc(sizeof(*parts)*nrparts + nulllen + namelen, GFP_KERNEL);
 
 	if (!parts) {
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	memset(parts, 0, sizeof(*parts)*nrparts + nulllen + namelen);
 
 	nullname = (char *)&parts[nrparts];
 #ifdef CONFIG_MTD_REDBOOT_PARTS_UNALLOCATED

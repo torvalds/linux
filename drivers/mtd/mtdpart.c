@@ -323,14 +323,13 @@ int add_mtd_partitions(struct mtd_info *master,
 	for (i = 0; i < nbparts; i++) {
 
 		/* allocate the partition structure */
-		slave = kmalloc (sizeof(*slave), GFP_KERNEL);
+		slave = kzalloc (sizeof(*slave), GFP_KERNEL);
 		if (!slave) {
 			printk ("memory allocation error while creating partitions for \"%s\"\n",
 				master->name);
 			del_mtd_partitions(master);
 			return -ENOMEM;
 		}
-		memset(slave, 0, sizeof(*slave));
 		list_add(&slave->list, &mtd_partitions);
 
 		/* set up the MTD object for this partition */

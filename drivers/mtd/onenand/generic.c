@@ -45,11 +45,9 @@ static int __devinit generic_onenand_probe(struct device *dev)
 	unsigned long size = res->end - res->start + 1;
 	int err;
 
-	info = kmalloc(sizeof(struct onenand_info), GFP_KERNEL);
+	info = kzalloc(sizeof(struct onenand_info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
-
-	memset(info, 0, sizeof(struct onenand_info));
 
 	if (!request_mem_region(res->start, size, dev->driver->name)) {
 		err = -EBUSY;

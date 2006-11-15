@@ -78,11 +78,9 @@ static int __devinit omapflash_probe(struct platform_device *pdev)
 	struct resource *res = pdev->resource;
 	unsigned long size = res->end - res->start + 1;
 
-	info = kmalloc(sizeof(struct omapflash_info), GFP_KERNEL);
+	info = kzalloc(sizeof(struct omapflash_info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
-
-	memset(info, 0, sizeof(struct omapflash_info));
 
 	if (!request_mem_region(res->start, size, "flash")) {
 		err = -EBUSY;

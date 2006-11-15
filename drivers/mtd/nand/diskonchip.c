@@ -1635,13 +1635,12 @@ static int __init doc_probe(unsigned long physadr)
 
 	len = sizeof(struct mtd_info) +
 	    sizeof(struct nand_chip) + sizeof(struct doc_priv) + (2 * sizeof(struct nand_bbt_descr));
-	mtd = kmalloc(len, GFP_KERNEL);
+	mtd = kzalloc(len, GFP_KERNEL);
 	if (!mtd) {
 		printk(KERN_ERR "DiskOnChip kmalloc (%d bytes) failed!\n", len);
 		ret = -ENOMEM;
 		goto fail;
 	}
-	memset(mtd, 0, len);
 
 	nand			= (struct nand_chip *) (mtd + 1);
 	doc			= (struct doc_priv *) (nand + 1);

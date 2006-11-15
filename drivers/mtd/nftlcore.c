@@ -57,13 +57,12 @@ static void nftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 	DEBUG(MTD_DEBUG_LEVEL1, "NFTL: add_mtd for %s\n", mtd->name);
 
-	nftl = kmalloc(sizeof(struct NFTLrecord), GFP_KERNEL);
+	nftl = kzalloc(sizeof(struct NFTLrecord), GFP_KERNEL);
 
 	if (!nftl) {
 		printk(KERN_WARNING "NFTL: out of memory for data structures\n");
 		return;
 	}
-	memset(nftl, 0, sizeof(*nftl));
 
 	nftl->mbd.mtd = mtd;
 	nftl->mbd.devnum = -1;

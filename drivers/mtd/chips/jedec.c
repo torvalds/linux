@@ -116,11 +116,10 @@ static struct mtd_info *jedec_probe(struct map_info *map)
    char Part[200];
    memset(&priv,0,sizeof(priv));
 
-   MTD = kmalloc(sizeof(struct mtd_info) + sizeof(struct jedec_private), GFP_KERNEL);
+   MTD = kzalloc(sizeof(struct mtd_info) + sizeof(struct jedec_private), GFP_KERNEL);
    if (!MTD)
 	   return NULL;
 
-   memset(MTD, 0, sizeof(struct mtd_info) + sizeof(struct jedec_private));
    priv = (struct jedec_private *)&MTD[1];
 
    my_bank_size = map->size;

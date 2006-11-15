@@ -278,11 +278,10 @@ static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 	}
 
 	/* OK, it's not open. Create cache info for it */
-	mtdblk = kmalloc(sizeof(struct mtdblk_dev), GFP_KERNEL);
+	mtdblk = kzalloc(sizeof(struct mtdblk_dev), GFP_KERNEL);
 	if (!mtdblk)
 		return -ENOMEM;
 
-	memset(mtdblk, 0, sizeof(*mtdblk));
 	mtdblk->count = 1;
 	mtdblk->mtd = mtd;
 
@@ -339,12 +338,10 @@ static int mtdblock_flush(struct mtd_blktrans_dev *dev)
 
 static void mtdblock_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 {
-	struct mtd_blktrans_dev *dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	struct mtd_blktrans_dev *dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 
 	if (!dev)
 		return;
-
-	memset(dev, 0, sizeof(*dev));
 
 	dev->mtd = mtd;
 	dev->devnum = mtd->index;

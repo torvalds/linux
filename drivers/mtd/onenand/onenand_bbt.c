@@ -177,14 +177,12 @@ int onenand_scan_bbt(struct mtd_info *mtd, struct nand_bbt_descr *bd)
 	int len, ret = 0;
 
 	len = mtd->size >> (this->erase_shift + 2);
-	/* Allocate memory (2bit per block) */
-	bbm->bbt = kmalloc(len, GFP_KERNEL);
+	/* Allocate memory (2bit per block) and clear the memory bad block table */
+	bbm->bbt = kzalloc(len, GFP_KERNEL);
 	if (!bbm->bbt) {
 		printk(KERN_ERR "onenand_scan_bbt: Out of memory\n");
 		return -ENOMEM;
 	}
-	/* Clear the memory bad block table */
-	memset(bbm->bbt, 0x00, len);
 
 	/* Set the bad block position */
 	bbm->badblockpos = ONENAND_BADBLOCK_POS;
@@ -230,13 +228,11 @@ int onenand_default_bbt(struct mtd_info *mtd)
 	struct onenand_chip *this = mtd->priv;
 	struct bbm_info *bbm;
 
-	this->bbm = kmalloc(sizeof(struct bbm_info), GFP_KERNEL);
+	this->bbm = kzalloc(sizeof(struct bbm_info), GFP_KERNEL);
 	if (!this->bbm)
 		return -ENOMEM;
 
 	bbm = this->bbm;
-
-	memset(bbm, 0, sizeof(struct bbm_info));
 
 	/* 1KB page has same configuration as 2KB page */
 	if (!bbm->badblock_pattern)

@@ -33,12 +33,10 @@ static int mtdblock_writesect(struct mtd_blktrans_dev *dev,
 
 static void mtdblock_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 {
-	struct mtd_blktrans_dev *dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	struct mtd_blktrans_dev *dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 
 	if (!dev)
 		return;
-
-	memset(dev, 0, sizeof(*dev));
 
 	dev->mtd = mtd;
 	dev->devnum = mtd->index;

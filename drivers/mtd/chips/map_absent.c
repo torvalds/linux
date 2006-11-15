@@ -47,12 +47,10 @@ static struct mtd_info *map_absent_probe(struct map_info *map)
 {
 	struct mtd_info *mtd;
 
-	mtd = kmalloc(sizeof(*mtd), GFP_KERNEL);
+	mtd = kzalloc(sizeof(*mtd), GFP_KERNEL);
 	if (!mtd) {
 		return NULL;
 	}
-
-	memset(mtd, 0, sizeof(*mtd));
 
 	map->fldrv 	= &map_absent_chipdrv;
 	mtd->priv 	= map;

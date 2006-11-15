@@ -373,11 +373,9 @@ int register_mtd_blktrans(struct mtd_blktrans_ops *tr)
 	if (!blktrans_notifier.list.next)
 		register_mtd_user(&blktrans_notifier);
 
-	tr->blkcore_priv = kmalloc(sizeof(*tr->blkcore_priv), GFP_KERNEL);
+	tr->blkcore_priv = kzalloc(sizeof(*tr->blkcore_priv), GFP_KERNEL);
 	if (!tr->blkcore_priv)
 		return -ENOMEM;
-
-	memset(tr->blkcore_priv, 0, sizeof(*tr->blkcore_priv));
 
 	mutex_lock(&mtd_table_mutex);
 

@@ -1511,14 +1511,12 @@ static int __init ns_init_module(void)
 	}
 
 	/* Allocate and initialize mtd_info, nand_chip and nandsim structures */
-	nsmtd = kmalloc(sizeof(struct mtd_info) + sizeof(struct nand_chip)
+	nsmtd = kzalloc(sizeof(struct mtd_info) + sizeof(struct nand_chip)
 				+ sizeof(struct nandsim), GFP_KERNEL);
 	if (!nsmtd) {
 		NS_ERR("unable to allocate core structures.\n");
 		return -ENOMEM;
 	}
-	memset(nsmtd, 0, sizeof(struct mtd_info) + sizeof(struct nand_chip) +
-			sizeof(struct nandsim));
 	chip        = (struct nand_chip *)(nsmtd + 1);
         nsmtd->priv = (void *)chip;
 	nand        = (struct nandsim *)(chip + 1);

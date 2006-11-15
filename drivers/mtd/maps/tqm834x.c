@@ -132,20 +132,16 @@ static int __init init_tqm834x_mtd(void)
 
 		pr_debug("%s: chip probing count %d\n", __FUNCTION__, idx);
 
-		map_banks[idx] =
-			(struct map_info *)kmalloc(sizeof(struct map_info),
-						   GFP_KERNEL);
+		map_banks[idx] = kzalloc(sizeof(struct map_info), GFP_KERNEL);
 		if (map_banks[idx] == NULL) {
 			ret = -ENOMEM;
 			goto error_mem;
 		}
-		memset((void *)map_banks[idx], 0, sizeof(struct map_info));
-		map_banks[idx]->name = (char *)kmalloc(16, GFP_KERNEL);
+		map_banks[idx]->name = kzalloc(16, GFP_KERNEL);
 		if (map_banks[idx]->name == NULL) {
 			ret = -ENOMEM;
 			goto error_mem;
 		}
-		memset((void *)map_banks[idx]->name, 0, 16);
 
 		sprintf(map_banks[idx]->name, "TQM834x-%d", idx);
 		map_banks[idx]->size = flash_size;

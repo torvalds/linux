@@ -163,13 +163,12 @@ static struct mtd_partition * newpart(char *s,
 		*num_parts = this_part + 1;
 		alloc_size = *num_parts * sizeof(struct mtd_partition) +
 			     extra_mem_size;
-		parts = kmalloc(alloc_size, GFP_KERNEL);
+		parts = kzalloc(alloc_size, GFP_KERNEL);
 		if (!parts)
 		{
 			printk(KERN_ERR ERRP "out of memory\n");
 			return NULL;
 		}
-		memset(parts, 0, alloc_size);
 		extra_mem = (unsigned char *)(parts + *num_parts);
 	}
 	/* enter this partition (offset will be calculated later if it is zero at this point) */

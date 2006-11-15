@@ -708,14 +708,13 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 
 	/* allocate the device structure */
 	size = SIZEOF_STRUCT_MTD_CONCAT(num_devs);
-	concat = kmalloc(size, GFP_KERNEL);
+	concat = kzalloc(size, GFP_KERNEL);
 	if (!concat) {
 		printk
 		    ("memory allocation error while creating concatenated device \"%s\"\n",
 		     name);
 		return NULL;
 	}
-	memset(concat, 0, size);
 	concat->subdev = (struct mtd_info **) (concat + 1);
 
 	/*

@@ -207,11 +207,10 @@ static int parse_afs_partitions(struct mtd_info *mtd,
 	if (!sz)
 		return ret;
 
-	parts = kmalloc(sz, GFP_KERNEL);
+	parts = kzalloc(sz, GFP_KERNEL);
 	if (!parts)
 		return -ENOMEM;
 
-	memset(parts, 0, sz);
 	str = (char *)(parts + idx);
 
 	/*

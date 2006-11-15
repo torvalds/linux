@@ -960,14 +960,12 @@ int nand_scan_bbt(struct mtd_info *mtd, struct nand_bbt_descr *bd)
 	struct nand_bbt_descr *md = this->bbt_md;
 
 	len = mtd->size >> (this->bbt_erase_shift + 2);
-	/* Allocate memory (2bit per block) */
-	this->bbt = kmalloc(len, GFP_KERNEL);
+	/* Allocate memory (2bit per block) and clear the memory bad block table */
+	this->bbt = kzalloc(len, GFP_KERNEL);
 	if (!this->bbt) {
 		printk(KERN_ERR "nand_scan_bbt: Out of memory\n");
 		return -ENOMEM;
 	}
-	/* Clear the memory bad block table */
-	memset(this->bbt, 0x00, len);
 
 	/* If no primary table decriptor is given, scan the device
 	 * to build a memory based bad block table

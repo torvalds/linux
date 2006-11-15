@@ -431,7 +431,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		if(!(file->f_mode & 2))
 			return -EPERM;
 
-		erase=kmalloc(sizeof(struct erase_info),GFP_KERNEL);
+		erase=kzalloc(sizeof(struct erase_info),GFP_KERNEL);
 		if (!erase)
 			ret = -ENOMEM;
 		else {
@@ -440,7 +440,6 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 
 			init_waitqueue_head(&waitq);
 
-			memset (erase,0,sizeof(struct erase_info));
 			if (copy_from_user(&erase->addr, argp,
 				    sizeof(struct erase_info_user))) {
 				kfree(erase);

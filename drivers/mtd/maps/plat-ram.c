@@ -147,14 +147,13 @@ static int platram_probe(struct platform_device *pdev)
 
 	pdata = pdev->dev.platform_data;
 
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL) {
 		dev_err(&pdev->dev, "no memory for flash info\n");
 		err = -ENOMEM;
 		goto exit_error;
 	}
 
-	memset(info, 0, sizeof(*info));
 	platform_set_drvdata(pdev, info);
 
 	info->dev = &pdev->dev;
