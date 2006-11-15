@@ -394,22 +394,15 @@ static inline int ipv6_addr_any(const struct in6_addr *a)
  */
 static inline int __ipv6_addr_diff(const void *token1, const void *token2, int addrlen)
 {
-	const __u32 *a1 = token1, *a2 = token2;
+	const __be32 *a1 = token1, *a2 = token2;
 	int i;
 
 	addrlen >>= 2;
 
 	for (i = 0; i < addrlen; i++) {
-		__u32 xb = a1[i] ^ a2[i];
-		if (xb) {
-			int j = 31;
-
-			xb = ntohl(xb);
-			while ((xb & (1 << j)) == 0)
-				j--;
-
-			return (i * 32 + 31 - j);
-		}
+		__be32 xb = a1[i] ^ a2[i];
+		if (xb)
+			return i * 32 + 32 - fls(ntohl(xb));
 	}
 
 	/*
