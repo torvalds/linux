@@ -830,6 +830,8 @@ static struct hda_board_config ad1986a_cfg_tbl[] = {
 	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS Z62F */
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x12b3,
 	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS V1j */
+	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1302,
+	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS W3j */
 	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x30af,
 	  .config = AD1986A_LAPTOP_EAPD }, /* HP Compaq Presario B2800 */
 	{ .pci_subvendor = 0x17aa, .pci_subdevice = 0x2066,
