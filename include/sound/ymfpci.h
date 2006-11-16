@@ -286,7 +286,7 @@ struct snd_ymfpci {
 	int irq;
 
 	unsigned int device_id;	/* PCI device ID */
-	unsigned int rev;	/* PCI revision */
+	unsigned char rev;	/* PCI revision */
 	unsigned long reg_area_phys;
 	void __iomem *reg_area_virt;
 	struct resource *res_reg_area;
