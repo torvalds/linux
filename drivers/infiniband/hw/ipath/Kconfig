@@ -1,6 +1,6 @@
 config INFINIBAND_IPATH
 	tristate "QLogic InfiniPath Driver"
-	depends on PCI_MSI && 64BIT && INFINIBAND
+	depends on (PCI_MSI || HT_IRQ) && 64BIT && INFINIBAND
 	---help---
 	This is a driver for QLogic InfiniPath host channel adapters,
 	including InfiniBand verbs support.  This driver allows these
