@@ -262,12 +262,12 @@ int dccp_destroy_sock(struct sock *sk)
 
 EXPORT_SYMBOL_GPL(dccp_destroy_sock);
 
-static inline int dccp_listen_start(struct sock *sk)
+static inline int dccp_listen_start(struct sock *sk, int backlog)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 
 	dp->dccps_role = DCCP_ROLE_LISTEN;
-	return inet_csk_listen_start(sk, TCP_SYNQ_HSIZE);
+	return inet_csk_listen_start(sk, backlog);
 }
 
 int dccp_disconnect(struct sock *sk, int flags)
@@ -788,7 +788,7 @@ int inet_dccp_listen(struct socket *sock, int backlog)
 		 * FIXME: here it probably should be sk->sk_prot->listen_start
 		 * see tcp_listen_start
 		 */
-		err = dccp_listen_start(sk);
+		err = dccp_listen_start(sk, backlog);
 		if (err)
 			goto out;
 	}

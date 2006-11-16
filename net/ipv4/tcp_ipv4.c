@@ -715,7 +715,7 @@ static struct ip_options *tcp_v4_save_options(struct sock *sk,
 	return dopt;
 }
 
-struct request_sock_ops tcp_request_sock_ops = {
+struct request_sock_ops tcp_request_sock_ops __read_mostly = {
 	.family		=	PF_INET,
 	.obj_size	=	sizeof(struct tcp_request_sock),
 	.rtx_syn_ack	=	tcp_v4_send_synack,
@@ -1385,7 +1385,7 @@ static void *listening_get_next(struct seq_file *seq, void *cur)
 	if (st->state == TCP_SEQ_STATE_OPENREQ) {
 		struct request_sock *req = cur;
 
-	       	icsk = inet_csk(st->syn_wait_sk);
+		icsk = inet_csk(st->syn_wait_sk);
 		req = req->dl_next;
 		while (1) {
 			while (req) {
@@ -1395,7 +1395,7 @@ static void *listening_get_next(struct seq_file *seq, void *cur)
 				}
 				req = req->dl_next;
 			}
-			if (++st->sbucket >= TCP_SYNQ_HSIZE)
+			if (++st->sbucket >= icsk->icsk_accept_queue.listen_opt->nr_table_entries)
 				break;
 get_req:
 			req = icsk->icsk_accept_queue.listen_opt->syn_table[st->sbucket];

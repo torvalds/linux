@@ -526,7 +526,7 @@ static void tcp_v6_reqsk_destructor(struct request_sock *req)
 		kfree_skb(inet6_rsk(req)->pktopts);
 }
 
-static struct request_sock_ops tcp6_request_sock_ops = {
+static struct request_sock_ops tcp6_request_sock_ops _read_mostly = {
 	.family		=	AF_INET6,
 	.obj_size	=	sizeof(struct tcp6_request_sock),
 	.rtx_syn_ack	=	tcp_v6_send_synack,

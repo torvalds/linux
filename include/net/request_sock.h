@@ -28,8 +28,8 @@ struct proto;
 
 struct request_sock_ops {
 	int		family;
-	kmem_cache_t	*slab;
 	int		obj_size;
+	kmem_cache_t	*slab;
 	int		(*rtx_syn_ack)(struct sock *sk,
 				       struct request_sock *req,
 				       struct dst_entry *dst);
@@ -51,13 +51,13 @@ struct request_sock {
 	u32				rcv_wnd;	  /* rcv_wnd offered first time */
 	u32				ts_recent;
 	unsigned long			expires;
-	struct request_sock_ops		*rsk_ops;
+	const struct request_sock_ops	*rsk_ops;
 	struct sock			*sk;
 	u32				secid;
 	u32				peer_secid;
 };
 
-static inline struct request_sock *reqsk_alloc(struct request_sock_ops *ops)
+static inline struct request_sock *reqsk_alloc(const struct request_sock_ops *ops)
 {
 	struct request_sock *req = kmem_cache_alloc(ops->slab, SLAB_ATOMIC);
 
@@ -121,7 +121,7 @@ struct request_sock_queue {
 };
 
 extern int reqsk_queue_alloc(struct request_sock_queue *queue,
-			     const int nr_table_entries);
+			     unsigned int nr_table_entries);
 
 static inline struct listen_sock *reqsk_queue_yank_listen_sk(struct request_sock_queue *queue)
 {

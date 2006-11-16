@@ -204,7 +204,7 @@ int inet_listen(struct socket *sock, int backlog)
 	 * we can only allow the backlog to be adjusted.
 	 */
 	if (old_state != TCP_LISTEN) {
-		err = inet_csk_listen_start(sk, TCP_SYNQ_HSIZE);
+		err = inet_csk_listen_start(sk, backlog);
 		if (err)
 			goto out;
 	}

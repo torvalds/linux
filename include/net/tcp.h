@@ -138,7 +138,6 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 #define MAX_TCP_SYNCNT		127
 
 #define TCP_SYNQ_INTERVAL	(HZ/5)	/* Period of SYNACK timer */
-#define TCP_SYNQ_HSIZE		512	/* Size of SYNACK hash table */
 
 #define TCP_PAWS_24DAYS	(60 * 60 * 24 * 24)
 #define TCP_PAWS_MSL	60		/* Per-host timestamps are invalidated
