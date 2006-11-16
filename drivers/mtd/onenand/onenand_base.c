@@ -1301,20 +1301,26 @@ static int onenand_block_markbad(struct mtd_info *mtd, loff_t ofs)
 }
 
 /**
- * onenand_unlock - [MTD Interface] Unlock block(s)
+ * onenand_do_lock_cmd - [OneNAND Interface] Lock or unlock block(s)
  * @param mtd		MTD device structure
  * @param ofs		offset relative to mtd start
- * @param len		number of bytes to unlock
+ * @param len		number of bytes to lock or unlock
  *
- * Unlock one or more blocks
+ * Lock or unlock one or more blocks
  */
-static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
+static int onenand_do_lock_cmd(struct mtd_info *mtd, loff_t ofs, size_t len, int cmd)
 {
 	struct onenand_chip *this = mtd->priv;
 	int start, end, block, value, status;
+	int wp_status_mask;
 
 	start = ofs >> this->erase_shift;
 	end = len >> this->erase_shift;
+
+	if (cmd == ONENAND_CMD_LOCK)
+		wp_status_mask = ONENAND_WP_LS;
+	else
+		wp_status_mask = ONENAND_WP_US;
 
 	/* Continuous lock scheme */
 	if (this->options & ONENAND_HAS_CONT_LOCK) {
@@ -1322,11 +1328,11 @@ static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 		this->write_word(start, this->base + ONENAND_REG_START_BLOCK_ADDRESS);
 		/* Set end block address */
 		this->write_word(start + end - 1, this->base + ONENAND_REG_END_BLOCK_ADDRESS);
-		/* Write unlock command */
-		this->command(mtd, ONENAND_CMD_UNLOCK, 0, 0);
+		/* Write lock command */
+		this->command(mtd, cmd, 0, 0);
 
 		/* There's no return value */
-		this->wait(mtd, FL_UNLOCKING);
+		this->wait(mtd, FL_LOCKING);
 
 		/* Sanity check */
 		while (this->read_word(this->base + ONENAND_REG_CTRL_STATUS)
@@ -1335,7 +1341,7 @@ static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 
 		/* Check lock status */
 		status = this->read_word(this->base + ONENAND_REG_WP_STATUS);
-		if (!(status & ONENAND_WP_US))
+		if (!(status & wp_status_mask))
 			printk(KERN_ERR "wp status = 0x%x\n", status);
 
 		return 0;
@@ -1351,11 +1357,11 @@ static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 		this->write_word(value, this->base + ONENAND_REG_START_ADDRESS2);
 		/* Set start block address */
 		this->write_word(block, this->base + ONENAND_REG_START_BLOCK_ADDRESS);
-		/* Write unlock command */
-		this->command(mtd, ONENAND_CMD_UNLOCK, 0, 0);
+		/* Write lock command */
+		this->command(mtd, cmd, 0, 0);
 
 		/* There's no return value */
-		this->wait(mtd, FL_UNLOCKING);
+		this->wait(mtd, FL_LOCKING);
 
 		/* Sanity check */
 		while (this->read_word(this->base + ONENAND_REG_CTRL_STATUS)
@@ -1364,11 +1370,38 @@ static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 
 		/* Check lock status */
 		status = this->read_word(this->base + ONENAND_REG_WP_STATUS);
-		if (!(status & ONENAND_WP_US))
+		if (!(status & wp_status_mask))
 			printk(KERN_ERR "block = %d, wp status = 0x%x\n", block, status);
 	}
 
 	return 0;
+}
+
+/**
+ * onenand_lock - [MTD Interface] Lock block(s)
+ * @param mtd		MTD device structure
+ * @param ofs		offset relative to mtd start
+ * @param len		number of bytes to unlock
+ *
+ * Lock one or more blocks
+ */
+static int onenand_lock(struct mtd_info *mtd, loff_t ofs, size_t len)
+{
+	return onenand_do_lock_cmd(mtd, ofs, len, ONENAND_CMD_LOCK);
+}
+
+
+/**
+ * onenand_unlock - [MTD Interface] Unlock block(s)
+ * @param mtd		MTD device structure
+ * @param ofs		offset relative to mtd start
+ * @param len		number of bytes to unlock
+ *
+ * Unlock one or more blocks
+ */
+static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
+{
+	return onenand_do_lock_cmd(mtd, ofs, len, ONENAND_CMD_UNLOCK);
 }
 
 /**
@@ -1415,7 +1448,7 @@ static int onenand_unlock_all(struct mtd_info *mtd)
 		this->command(mtd, ONENAND_CMD_UNLOCK_ALL, 0, 0);
 
 		/* There's no return value */
-		this->wait(mtd, FL_UNLOCKING);
+		this->wait(mtd, FL_LOCKING);
 
 		/* Sanity check */
 		while (this->read_word(this->base + ONENAND_REG_CTRL_STATUS)
@@ -1439,7 +1472,7 @@ static int onenand_unlock_all(struct mtd_info *mtd)
 		return 0;
 	}
 
-	mtd->unlock(mtd, 0x0, this->chipsize);
+	onenand_unlock(mtd, 0x0, this->chipsize);
 
 	return 0;
 }
@@ -2027,7 +2060,7 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	mtd->lock_user_prot_reg = onenand_lock_user_prot_reg;
 #endif
 	mtd->sync = onenand_sync;
-	mtd->lock = NULL;
+	mtd->lock = onenand_lock;
 	mtd->unlock = onenand_unlock;
 	mtd->suspend = onenand_suspend;
 	mtd->resume = onenand_resume;
