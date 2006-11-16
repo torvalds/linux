@@ -201,7 +201,7 @@ static void sn_set_affinity_irq(unsigned int irq, cpumask_t mask)
 }
 
 struct hw_interrupt_type irq_type_sn = {
-	.typename	= "SN hub",
+	.name		= "SN hub",
 	.startup	= sn_startup_irq,
 	.shutdown	= sn_shutdown_irq,
 	.enable		= sn_enable_irq,
