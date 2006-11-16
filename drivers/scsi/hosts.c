@@ -263,6 +263,10 @@ static void scsi_host_dev_release(struct device *dev)
 		kthread_stop(shost->ehandler);
 	if (shost->work_q)
 		destroy_workqueue(shost->work_q);
+	if (shost->uspace_req_q) {
+		kfree(shost->uspace_req_q->queuedata);
+		scsi_free_queue(shost->uspace_req_q);
+	}
 
 	scsi_destroy_command_freelist(shost);
 	if (shost->bqt)

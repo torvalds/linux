@@ -7,6 +7,7 @@
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 
+struct request_queue;
 struct block_device;
 struct completion;
 struct module;
@@ -122,6 +123,39 @@ struct scsi_host_template {
 	 */
 	int (* queuecommand)(struct scsi_cmnd *,
 			     void (*done)(struct scsi_cmnd *));
+
+	/*
+	 * The transfer functions are used to queue a scsi command to
+	 * the LLD. When the driver is finished processing the command
+	 * the done callback is invoked.
+	 *
+	 * return values: see queuecommand
+	 *
+	 * If the LLD accepts the cmd, it should set the result to an
+	 * appropriate value when completed before calling the done function.
+	 *
+	 * STATUS: REQUIRED FOR TARGET DRIVERS
+	 */
+	/* TODO: rename */
+	int (* transfer_response)(struct scsi_cmnd *,
+				  void (*done)(struct scsi_cmnd *));
+	/*
+	 * This is called to inform the LLD to transfer cmd->request_bufflen
+	 * bytes of the cmd at cmd->offset in the cmd. The cmd->use_sg
+	 * speciefies the number of scatterlist entried in the command
+	 * and cmd->request_buffer contains the scatterlist.
+	 *
+	 * If the command cannot be processed in one transfer_data call
+	 * becuase a scatterlist within the LLD's limits cannot be
+	 * created then transfer_data will be called multiple times.
+	 * It is initially called from process context, and later
+	 * calls are from the interrup context.
+	 */
+	int (* transfer_data)(struct scsi_cmnd *,
+			      void (*done)(struct scsi_cmnd *));
+
+	/* Used as callback for the completion of task management request. */
+	int (* tsk_mgmt_response)(u64 mid, int result);
 
 	/*
 	 * This is an error handling strategy routine.  You don't need to
@@ -589,6 +623,12 @@ struct Scsi_Host {
 	 */
 	unsigned int max_host_blocked;
 
+	/*
+	 * q used for scsi_tgt msgs, async events or any other requests that
+	 * need to be processed in userspace
+	 */
+	struct request_queue *uspace_req_q;
+
 	/* legacy crap */
 	unsigned long base;
 	unsigned long io_port;
@@ -687,6 +727,9 @@ extern void scsi_unblock_requests(struct Scsi_Host *);
 extern void scsi_block_requests(struct Scsi_Host *);
 
 struct class_container;
+
+extern struct request_queue *__scsi_alloc_queue(struct Scsi_Host *shost,
+						void (*) (struct request_queue *));
 /*
  * These two functions are used to allocate and free a pseudo device
  * which will connect to the host adapter itself rather than any

@@ -704,7 +704,7 @@ static struct scsi_cmnd *scsi_end_request(struct scsi_cmnd *cmd, int uptodate,
 	return NULL;
 }
 
-static struct scatterlist *scsi_alloc_sgtable(struct scsi_cmnd *cmd, gfp_t gfp_mask)
+struct scatterlist *scsi_alloc_sgtable(struct scsi_cmnd *cmd, gfp_t gfp_mask)
 {
 	struct scsi_host_sg_pool *sgp;
 	struct scatterlist *sgl;
@@ -745,7 +745,9 @@ static struct scatterlist *scsi_alloc_sgtable(struct scsi_cmnd *cmd, gfp_t gfp_m
 	return sgl;
 }
 
-static void scsi_free_sgtable(struct scatterlist *sgl, int index)
+EXPORT_SYMBOL(scsi_alloc_sgtable);
+
+void scsi_free_sgtable(struct scatterlist *sgl, int index)
 {
 	struct scsi_host_sg_pool *sgp;
 
@@ -754,6 +756,8 @@ static void scsi_free_sgtable(struct scatterlist *sgl, int index)
 	sgp = scsi_sg_pools + index;
 	mempool_free(sgl, sgp->pool);
 }
+
+EXPORT_SYMBOL(scsi_free_sgtable);
 
 /*
  * Function:    scsi_release_buffers()
@@ -1567,27 +1571,38 @@ u64 scsi_calculate_bounce_limit(struct Scsi_Host *shost)
 }
 EXPORT_SYMBOL(scsi_calculate_bounce_limit);
 
-struct request_queue *scsi_alloc_queue(struct scsi_device *sdev)
+struct request_queue *__scsi_alloc_queue(struct Scsi_Host *shost,
+					 request_fn_proc *request_fn)
 {
-	struct Scsi_Host *shost = sdev->host;
 	struct request_queue *q;
 
-	q = blk_init_queue(scsi_request_fn, NULL);
+	q = blk_init_queue(request_fn, NULL);
 	if (!q)
 		return NULL;
-
-	blk_queue_prep_rq(q, scsi_prep_fn);
 
 	blk_queue_max_hw_segments(q, shost->sg_tablesize);
 	blk_queue_max_phys_segments(q, SCSI_MAX_PHYS_SEGMENTS);
 	blk_queue_max_sectors(q, shost->max_sectors);
 	blk_queue_bounce_limit(q, scsi_calculate_bounce_limit(shost));
 	blk_queue_segment_boundary(q, shost->dma_boundary);
-	blk_queue_issue_flush_fn(q, scsi_issue_flush_fn);
-	blk_queue_softirq_done(q, scsi_softirq_done);
 
 	if (!shost->use_clustering)
 		clear_bit(QUEUE_FLAG_CLUSTER, &q->queue_flags);
+	return q;
+}
+EXPORT_SYMBOL(__scsi_alloc_queue);
+
+struct request_queue *scsi_alloc_queue(struct scsi_device *sdev)
+{
+	struct request_queue *q;
+
+	q = __scsi_alloc_queue(sdev->host, scsi_request_fn);
+	if (!q)
+		return NULL;
+
+	blk_queue_prep_rq(q, scsi_prep_fn);
+	blk_queue_issue_flush_fn(q, scsi_issue_flush_fn);
+	blk_queue_softirq_done(q, scsi_softirq_done);
 	return q;
 }
 
