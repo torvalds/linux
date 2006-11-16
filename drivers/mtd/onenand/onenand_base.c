@@ -331,9 +331,12 @@ static int onenand_wait(struct mtd_info *mtd, int state)
 
 	if (interrupt & ONENAND_INT_READ) {
 		ecc = this->read_word(this->base + ONENAND_REG_ECC_STATUS);
-		if (ecc & ONENAND_ECC_2BIT_ALL) {
+		if (ecc) {
 			DEBUG(MTD_DEBUG_LEVEL0, "onenand_wait: ECC error = 0x%04x\n", ecc);
-			return -EBADMSG;
+			if (ecc & ONENAND_ECC_2BIT_ALL)
+				mtd->ecc_stats.failed++;
+			else if (ecc & ONENAND_ECC_1BIT_ALL)
+				mtd->ecc_stats.corrected++;
 		}
 	}
 
@@ -715,6 +718,7 @@ static int onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
 	size_t *retlen, u_char *buf)
 {
 	struct onenand_chip *this = mtd->priv;
+	struct mtd_ecc_stats stats;
 	int read = 0, column;
 	int thislen;
 	int ret = 0;
@@ -733,6 +737,7 @@ static int onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 	/* TODO handling oob */
 
+	stats = mtd->ecc_stats;
 	while (read < len) {
 		thislen = min_t(int, mtd->writesize, len - read);
 
@@ -774,7 +779,11 @@ out:
 	 * retlen == desired len and result == -EBADMSG
 	 */
 	*retlen = read;
-	return ret;
+
+	if (mtd->ecc_stats.failed - stats.failed)
+		return -EBADMSG;
+
+	return mtd->ecc_stats.corrected - stats.corrected ? -EUCLEAN : 0;
 }
 
 /**
@@ -1390,7 +1399,6 @@ static int onenand_lock(struct mtd_info *mtd, loff_t ofs, size_t len)
 	return onenand_do_lock_cmd(mtd, ofs, len, ONENAND_CMD_LOCK);
 }
 
-
 /**
  * onenand_unlock - [MTD Interface] Unlock block(s)
  * @param mtd		MTD device structure
@@ -1900,7 +1908,7 @@ static int onenand_probe(struct mtd_info *mtd)
 	/* Read manufacturer and device IDs from Register */
 	maf_id = this->read_word(this->base + ONENAND_REG_MANUFACTURER_ID);
 	dev_id = this->read_word(this->base + ONENAND_REG_DEVICE_ID);
-	ver_id= this->read_word(this->base + ONENAND_REG_VERSION_ID);
+	ver_id = this->read_word(this->base + ONENAND_REG_VERSION_ID);
 
 	/* Check OneNAND device */
 	if (maf_id != bram_maf_id || dev_id != bram_dev_id)
