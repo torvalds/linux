@@ -206,10 +206,8 @@ CONFIG_BINFMT_ELF=y
 #
 # Power management options
 #
-CONFIG_PM=y
-CONFIG_PM_LEGACY=y
-# CONFIG_PM_DEBUG is not set
-CONFIG_APM=y
+# CONFIG_PM is not set
+# CONFIG_APM is not set
 
 #
 # Networking

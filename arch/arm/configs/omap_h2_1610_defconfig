@@ -257,7 +257,7 @@ CONFIG_BINFMT_AOUT=y
 # Power management options
 #
 CONFIG_PM=y
-CONFIG_PM_LEGACY=y
+# CONFIG_PM_LEGACY is not set
 # CONFIG_PM_DEBUG is not set
 # CONFIG_APM is not set
 
