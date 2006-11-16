@@ -253,7 +253,7 @@ static int gfs2_get_flags(struct file *filp, u32 __user *ptr)
 	u32 fsflags;
 
 	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &gh);
-	error = gfs2_glock_nq_m_atime(1, &gh);
+	error = gfs2_glock_nq_atime(&gh);
 	if (error)
 		return error;
 

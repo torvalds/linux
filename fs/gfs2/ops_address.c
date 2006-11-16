@@ -217,7 +217,7 @@ static int gfs2_readpage(struct file *file, struct page *page)
 		}
 		gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME|LM_FLAG_TRY_1CB, &gh);
 		do_unlock = 1;
-		error = gfs2_glock_nq_m_atime(1, &gh);
+		error = gfs2_glock_nq_atime(&gh);
 		if (unlikely(error))
 			goto out_unlock;
 	}
@@ -282,7 +282,7 @@ static int gfs2_readpages(struct file *file, struct address_space *mapping,
 		gfs2_holder_init(ip->i_gl, LM_ST_SHARED,
 				 LM_FLAG_TRY_1CB|GL_ATIME, &gh);
 		do_unlock = 1;
-		ret = gfs2_glock_nq_m_atime(1, &gh);
+		ret = gfs2_glock_nq_atime(&gh);
 		if (ret == GLR_TRYFAILED)
 			goto out_noerror;
 		if (unlikely(ret))
@@ -354,7 +354,7 @@ static int gfs2_prepare_write(struct file *file, struct page *page,
 
 
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_ATIME|LM_FLAG_TRY_1CB, &ip->i_gh);
-	error = gfs2_glock_nq_m_atime(1, &ip->i_gh);
+	error = gfs2_glock_nq_atime(&ip->i_gh);
 	if (unlikely(error)) {
 		if (error == GLR_TRYFAILED)
 			error = AOP_TRUNCATED_PAGE;
@@ -609,7 +609,7 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 	 * on this path. All we need change is atime.
 	 */
 	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &gh);
-	rv = gfs2_glock_nq_m_atime(1, &gh);
+	rv = gfs2_glock_nq_atime(&gh);
 	if (rv)
 		goto out;
 
