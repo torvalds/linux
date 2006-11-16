@@ -193,6 +193,16 @@ struct asd_seq_data {
 	struct asd_ascb **escb_arr; /* array of pointers to escbs */
 };
 
+/* This is an internal port structure. These are used to get accurate
+ * phy_mask for updating DDB 0.
+ */
+struct asd_port {
+	u8  sas_addr[SAS_ADDR_SIZE];
+	u8  attached_sas_addr[SAS_ADDR_SIZE];
+	u32 phy_mask;
+	int num_phys;
+};
+
 /* This is the Host Adapter structure.  It describes the hardware
  * SAS adapter.
  */
@@ -211,6 +221,8 @@ struct asd_ha_struct {
 	struct hw_profile hw_prof;
 
 	struct asd_phy    phys[ASD_MAX_PHYS];
+	spinlock_t        asd_ports_lock;
+	struct asd_port   asd_ports[ASD_MAX_PHYS];
 	struct asd_sas_port   ports[ASD_MAX_PHYS];
 
 	struct dma_pool  *scb_pool;

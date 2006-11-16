@@ -1369,10 +1369,9 @@ int asd_start_seqs(struct asd_ha_struct *asd_ha)
  * port_map_by_links is also used as the conn_mask byte in the
  * initiator/target port DDB.
  */
-void asd_update_port_links(struct asd_sas_phy *sas_phy)
+void asd_update_port_links(struct asd_ha_struct *asd_ha, struct asd_phy *phy)
 {
-	struct asd_ha_struct *asd_ha = sas_phy->ha->lldd_ha;
-	const u8 phy_mask = (u8) sas_phy->port->phy_mask;
+	const u8 phy_mask = (u8) phy->asd_port->phy_mask;
 	u8  phy_is_up;
 	u8  mask;
 	int i, err;

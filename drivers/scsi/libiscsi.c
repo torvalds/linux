@@ -975,13 +975,13 @@ int iscsi_eh_host_reset(struct scsi_cmnd *sc)
 	if (session->state == ISCSI_STATE_TERMINATE) {
 failed:
 		debug_scsi("failing host reset: session terminated "
-			   "[CID %d age %d]", conn->id, session->age);
+			   "[CID %d age %d]\n", conn->id, session->age);
 		spin_unlock_bh(&session->lock);
 		return FAILED;
 	}
 
 	if (sc->SCp.phase == session->age) {
-		debug_scsi("failing connection CID %d due to SCSI host reset",
+		debug_scsi("failing connection CID %d due to SCSI host reset\n",
 			   conn->id);
 		fail_session = 1;
 	}
@@ -1054,7 +1054,8 @@ static int iscsi_exec_abort_task(struct scsi_cmnd *sc,
 				     NULL, 0);
 	if (rc) {
 		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
-		debug_scsi("abort sent failure [itt 0x%x] %d", ctask->itt, rc);
+		debug_scsi("abort sent failure [itt 0x%x] %d\n", ctask->itt,
+		           rc);
 		return rc;
 	}
 
@@ -1071,7 +1072,7 @@ static int iscsi_exec_abort_task(struct scsi_cmnd *sc,
 		conn->tmabort_timer.function = iscsi_tmabort_timedout;
 		conn->tmabort_timer.data = (unsigned long)ctask;
 		add_timer(&conn->tmabort_timer);
-		debug_scsi("abort set timeout [itt 0x%x]", ctask->itt);
+		debug_scsi("abort set timeout [itt 0x%x]\n", ctask->itt);
 	}
 	spin_unlock_bh(&session->lock);
 	mutex_unlock(&conn->xmitmutex);
