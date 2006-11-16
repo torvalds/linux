@@ -121,7 +121,7 @@ udp_manip_pkt(struct sk_buff **pskb,
 						  *portptr ^ htons(0xFFFF), newport,
 						  hdr->check, 0);
 		if (!hdr->check)
-			hdr->check = -1;
+			hdr->check = CSUM_MANGLED_0;
 	}
 	*portptr = newport;
 	return 1;

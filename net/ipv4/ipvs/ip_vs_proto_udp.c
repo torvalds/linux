@@ -125,7 +125,7 @@ udp_fast_csum_update(struct udphdr *uhdr, __be32 oldip, __be32 newip,
 				 ip_vs_check_diff(oldport ^ htons(0xFFFF),
 						  newport, uhdr->check));
 	if (!uhdr->check)
-		uhdr->check = -1;
+		uhdr->check = CSUM_MANGLED_0;
 }
 
 static int
@@ -173,7 +173,7 @@ udp_snat_handler(struct sk_buff **pskb,
 						cp->protocol,
 						(*pskb)->csum);
 		if (udph->check == 0)
-			udph->check = -1;
+			udph->check = CSUM_MANGLED_0;
 		IP_VS_DBG(11, "O-pkt: %s O-csum=%d (+%zd)\n",
 			  pp->name, udph->check,
 			  (char*)&(udph->check) - (char*)udph);
@@ -228,7 +228,7 @@ udp_dnat_handler(struct sk_buff **pskb,
 						cp->protocol,
 						(*pskb)->csum);
 		if (udph->check == 0)
-			udph->check = -1;
+			udph->check = CSUM_MANGLED_0;
 		(*pskb)->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 	return 1;

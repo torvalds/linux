@@ -536,7 +536,7 @@ static int udp_v6_push_pending_frames(struct sock *sk, struct udp_sock *up)
 	uh->check = csum_ipv6_magic(&fl->fl6_src, &fl->fl6_dst,
 				    up->len, fl->proto, csum   );
 	if (uh->check == 0)
-		uh->check = -1;
+		uh->check = CSUM_MANGLED_0;
 
 	err = ip6_push_pending_frames(sk);
 out:

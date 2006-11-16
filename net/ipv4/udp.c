@@ -441,7 +441,7 @@ static void udp4_hwcsum_outgoing(struct sock *sk, struct sk_buff *skb,
 
 		uh->check = csum_tcpudp_magic(src, dst, len, IPPROTO_UDP, csum);
 		if (uh->check == 0)
-			uh->check = -1;
+			uh->check = CSUM_MANGLED_0;
 	}
 }
 
@@ -490,7 +490,7 @@ int udp_push_pending_frames(struct sock *sk, struct udp_sock *up)
 	uh->check = csum_tcpudp_magic(fl->fl4_src, fl->fl4_dst, up->len,
 				      sk->sk_protocol, csum             );
 	if (uh->check == 0)
-		uh->check = -1;
+		uh->check = CSUM_MANGLED_0;
 
 send:
 	err = ip_push_pending_frames(sk);

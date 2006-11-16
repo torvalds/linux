@@ -92,4 +92,5 @@ static inline __wsum csum_unfold(__sum16 n)
 	return (__force __wsum)n;
 }
 
+#define CSUM_MANGLED_0 ((__force __sum16)0xffff)
 #endif

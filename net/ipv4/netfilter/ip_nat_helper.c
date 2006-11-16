@@ -264,7 +264,7 @@ ip_nat_mangle_udp_packet(struct sk_buff **pskb,
 		                                csum_partial((char *)udph,
 		                                             datalen, 0));
 		if (!udph->check)
-			udph->check = -1;
+			udph->check = CSUM_MANGLED_0;
 	} else
 		udph->check = nf_proto_csum_update(*pskb,
 						   htons(oldlen) ^ htons(0xFFFF),
