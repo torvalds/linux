@@ -899,7 +899,7 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 		goto discard_and_relse;
 	nf_reset(skb);
 
-	return sk_receive_skb(sk, skb);
+	return sk_receive_skb(sk, skb, 1);
 
 no_dccp_socket:
 	if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb))

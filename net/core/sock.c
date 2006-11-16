@@ -270,7 +270,7 @@ out:
 }
 EXPORT_SYMBOL(sock_queue_rcv_skb);
 
-int sk_receive_skb(struct sock *sk, struct sk_buff *skb)
+int sk_receive_skb(struct sock *sk, struct sk_buff *skb, const int nested)
 {
 	int rc = NET_RX_SUCCESS;
 
@@ -279,7 +279,10 @@ int sk_receive_skb(struct sock *sk, struct sk_buff *skb)
 
 	skb->dev = NULL;
 
-	bh_lock_sock(sk);
+	if (nested)
+		bh_lock_sock_nested(sk);
+	else
+		bh_lock_sock(sk);
 	if (!sock_owned_by_user(sk)) {
 		/*
 		 * trylock + unlock semantics:

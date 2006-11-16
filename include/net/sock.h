@@ -954,7 +954,8 @@ static inline void sock_put(struct sock *sk)
 		sk_free(sk);
 }
 
-extern int sk_receive_skb(struct sock *sk, struct sk_buff *skb);
+extern int sk_receive_skb(struct sock *sk, struct sk_buff *skb,
+			  const int nested);
 
 /* Detach socket from process context.
  * Announce socket dead, detach it from wait queue and inode.
