@@ -191,7 +191,7 @@ err:
 
 static struct platform_driver rgbfb_driver = {
 	.driver = {
-		.name = "rgbfb",
+		.name = "pnx4008-rgbfb",
 	},
 	.probe = rgbfb_probe,
 	.remove = rgbfb_remove,
