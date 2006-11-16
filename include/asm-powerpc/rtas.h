@@ -54,8 +54,6 @@ struct rtas_args {
 	rtas_arg_t *rets;     /* Pointer to return values in args[]. */
 };  
 
-extern struct rtas_args rtas_stop_self_args;
-
 struct rtas_t {
 	unsigned long entry;		/* physical address pointer */
 	unsigned long base;		/* physical address pointer */
