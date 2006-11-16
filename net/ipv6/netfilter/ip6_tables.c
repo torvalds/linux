@@ -1494,7 +1494,7 @@ int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 			if (_frag_off) {
 				if (target < 0 &&
 				    ((!ipv6_ext_hdr(hp->nexthdr)) ||
-				     nexthdr == NEXTHDR_NONE)) {
+				     hp->nexthdr == NEXTHDR_NONE)) {
 					if (fragoff)
 						*fragoff = _frag_off;
 					return hp->nexthdr;

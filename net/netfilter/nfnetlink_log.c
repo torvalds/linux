@@ -544,7 +544,7 @@ __build_packet_message(struct nfulnl_instance *inst,
 	}
 	/* global sequence number */
 	if (inst->flags & NFULNL_CFG_F_SEQ_GLOBAL) {
-		tmp_uint = atomic_inc_return(&global_seq);
+		tmp_uint = htonl(atomic_inc_return(&global_seq));
 		NFA_PUT(inst->skb, NFULA_SEQ_GLOBAL, sizeof(tmp_uint), &tmp_uint);
 	}
 
