@@ -442,9 +442,10 @@ static int __init kprobe_init(void)
 	kp.fault_handler = handler_fault;
 	kp.symbol_name = "do_fork";
 
-	if ((ret = register_kprobe(&kp) < 0)) {
+	ret = register_kprobe(&kp);
+	if (ret < 0) {
 		printk("register_kprobe failed, returned %d\n", ret);
-		return -1;
+		return ret;
 	}
 	printk("kprobe registered\n");
 	return 0;
