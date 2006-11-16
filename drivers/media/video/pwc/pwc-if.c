@@ -866,11 +866,10 @@ int pwc_isoc_init(struct pwc_device *pdev)
 	}
 	if (ret) {
 		/* De-allocate in reverse order */
-		while (i >= 0) {
+		while (i--) {
 			if (pdev->sbuf[i].urb != NULL)
 				usb_free_urb(pdev->sbuf[i].urb);
 			pdev->sbuf[i].urb = NULL;
-			i--;
 		}
 		return ret;
 	}
