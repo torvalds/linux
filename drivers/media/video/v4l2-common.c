@@ -184,11 +184,13 @@ char *v4l2_field_names[] = {
 };
 
 char *v4l2_type_names[] = {
-	[V4L2_BUF_TYPE_VIDEO_CAPTURE] = "video-cap",
-	[V4L2_BUF_TYPE_VIDEO_OVERLAY] = "video-over",
-	[V4L2_BUF_TYPE_VIDEO_OUTPUT]  = "video-out",
-	[V4L2_BUF_TYPE_VBI_CAPTURE]   = "vbi-cap",
-	[V4L2_BUF_TYPE_VBI_OUTPUT]    = "vbi-out",
+	[V4L2_BUF_TYPE_VIDEO_CAPTURE]      = "video-cap",
+	[V4L2_BUF_TYPE_VIDEO_OVERLAY]      = "video-over",
+	[V4L2_BUF_TYPE_VIDEO_OUTPUT]       = "video-out",
+	[V4L2_BUF_TYPE_VBI_CAPTURE]        = "vbi-cap",
+	[V4L2_BUF_TYPE_VBI_OUTPUT]         = "vbi-out",
+	[V4L2_BUF_TYPE_SLICED_VBI_CAPTURE] = "sliced-vbi-cap",
+	[V4L2_BUF_TYPE_SLICED_VBI_OUTPUT]  = "slicec-vbi-out",
 };
 
 static char *v4l2_memory_names[] = {
