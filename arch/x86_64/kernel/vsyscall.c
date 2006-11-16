@@ -274,6 +274,7 @@ static void __cpuinit cpu_vsyscall_init(void *arg)
 	vsyscall_set_cpu(raw_smp_processor_id());
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 static int __cpuinit
 cpu_vsyscall_notifier(struct notifier_block *n, unsigned long action, void *arg)
 {
@@ -282,6 +283,7 @@ cpu_vsyscall_notifier(struct notifier_block *n, unsigned long action, void *arg)
 		smp_call_function_single(cpu, cpu_vsyscall_init, NULL, 0, 1);
 	return NOTIFY_DONE;
 }
+#endif
 
 static void __init map_vsyscall(void)
 {
