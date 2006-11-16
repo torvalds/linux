@@ -664,7 +664,7 @@ register_intr (unsigned int gsi, int vector, unsigned char delivery,
 			printk(KERN_WARNING
 			       "%s: changing vector %d from %s to %s\n",
 			       __FUNCTION__, vector,
-			       idesc->chip->typename, irq_type->typename);
+			       idesc->chip->name, irq_type->name);
 		idesc->chip = irq_type;
 	}
 	return 0;
