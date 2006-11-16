@@ -50,6 +50,10 @@ static unsigned int antenna_pwr = 0;
 module_param(antenna_pwr, int, 0444);
 MODULE_PARM_DESC(antenna_pwr,"enable antenna power (Pinnacle 300i)");
 
+static int use_frontent = 0;
+module_param(use_frontent, int, 0644);
+MODULE_PARM_DESC(use_frontent,"for cards with multiple frontends (0: terrestrial, 1: satellite)");
+
 /* ------------------------------------------------------------------ */
 static int pinnacle_antenna_pwr(struct saa7134_dev *dev, int on)
 {
@@ -1299,12 +1303,27 @@ static int dvb_init(struct saa7134_dev *dev)
 		}
 		break;
 	case SAA7134_BOARD_FLYDVB_TRIO:
-		dev->dvb.frontend = dvb_attach(tda10046_attach,
-					       &lifeview_trio_config,
-					       &dev->i2c_adap);
-		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops.tuner_ops.sleep = lifeview_trio_tuner_sleep;
-			dev->dvb.frontend->ops.tuner_ops.set_params = lifeview_trio_tuner_set_params;
+		if(! use_frontent) {	//terrestrial
+			dev->dvb.frontend = dvb_attach(tda10046_attach,
+						       &lifeview_trio_config,
+						       &dev->i2c_adap);
+			if (dev->dvb.frontend) {
+				dev->dvb.frontend->ops.tuner_ops.sleep = lifeview_trio_tuner_sleep;
+				dev->dvb.frontend->ops.tuner_ops.set_params =
+								lifeview_trio_tuner_set_params;
+			}
+		} else {  	      //satellite
+			dev->dvb.frontend = dvb_attach(tda10086_attach, &flydvbs, &dev->i2c_adap);
+			if (dev->dvb.frontend) {
+				if (dvb_attach(tda826x_attach, dev->dvb.frontend, 0x63,
+									&dev->i2c_adap, 0) == NULL) {
+					printk("%s: Lifeview Trio, No tda826x found!\n", __FUNCTION__);
+				}
+				if (dvb_attach(isl6421_attach, dev->dvb.frontend, &dev->i2c_adap,
+										0x08, 0, 0) == NULL) {
+					printk("%s: Lifeview Trio, No ISL6421 found!\n", __FUNCTION__);
+				}
+			}
 		}
 		break;
 	case SAA7134_BOARD_ADS_DUO_CARDBUS_PTV331:
