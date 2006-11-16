@@ -470,6 +470,7 @@ out_lock:
 	unlock_dir(lower_dir_dentry);
 	dput(lower_new_dentry);
 	dput(lower_old_dentry);
+	d_drop(lower_old_dentry);
 	d_drop(new_dentry);
 	d_drop(old_dentry);
 	return rc;
@@ -484,7 +485,7 @@ static int ecryptfs_unlink(struct inode *dir, struct dentry *dentry)
 	lock_parent(lower_dentry);
 	rc = vfs_unlink(lower_dir_inode, lower_dentry);
 	if (rc) {
-		ecryptfs_printk(KERN_ERR, "Error in vfs_unlink\n");
+		printk(KERN_ERR "Error in vfs_unlink; rc = [%d]\n", rc);
 		goto out_unlock;
 	}
 	ecryptfs_copy_attr_times(dir, lower_dir_inode);
