@@ -233,7 +233,7 @@ static inline struct ipoib_neigh **to_ipoib_neigh(struct neighbour *neigh)
 }
 
 struct ipoib_neigh *ipoib_neigh_alloc(struct neighbour *neigh);
-void ipoib_neigh_free(struct ipoib_neigh *neigh);
+void ipoib_neigh_free(struct net_device *dev, struct ipoib_neigh *neigh);
 
 extern struct workqueue_struct *ipoib_workqueue;
 
