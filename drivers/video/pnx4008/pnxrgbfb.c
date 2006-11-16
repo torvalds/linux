@@ -154,7 +154,8 @@ static int __devinit rgbfb_probe(struct platform_device *pdev)
 			goto err1;
 	}
 
-	if (!fb_get_options("pnxrgbfb", &option) && !strcmp(option, "nocursor"))
+	if (!fb_get_options("pnxrgbfb", &option) && option &&
+			!strcmp(option, "nocursor"))
 		rgbfb_ops.fb_cursor = no_cursor;
 
 	info->node = -1;
