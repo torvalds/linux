@@ -197,7 +197,7 @@ void fixup_irqs(void)
 			struct pt_regs *old_regs = set_irq_regs(NULL);
 
 			vectors_in_migration[irq]=0;
-			__do_IRQ(irq);
+			generic_handle_irq(irq);
 			set_irq_regs(old_regs);
 		}
 	}

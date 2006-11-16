@@ -186,7 +186,7 @@ ia64_handle_irq (ia64_vector vector, struct pt_regs *regs)
 			ia64_setreg(_IA64_REG_CR_TPR, vector);
 			ia64_srlz_d();
 
-			__do_IRQ(local_vector_to_irq(vector));
+			generic_handle_irq(local_vector_to_irq(vector));
 
 			/*
 			 * Disable interrupts and send EOI:
@@ -242,7 +242,7 @@ void ia64_process_pending_intr(void)
 			 * Probably could shared code.
 			 */
 			vectors_in_migration[local_vector_to_irq(vector)]=0;
-			__do_IRQ(local_vector_to_irq(vector));
+			generic_handle_irq(local_vector_to_irq(vector));
 			set_irq_regs(old_regs);
 
 			/*
