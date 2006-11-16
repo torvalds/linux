@@ -169,7 +169,7 @@ static int is_elf32(void *hdr)
 	return 1;
 }
 
-static void prep_kernel(unsigned long *a1, unsigned long *a2)
+static void prep_kernel(unsigned long a1, unsigned long a2)
 {
 	int len;
 
@@ -205,11 +205,14 @@ static void prep_kernel(unsigned long *a1, unsigned long *a2)
 	}
 
 	/*
-	 * Now we try to alloc memory for the initrd (and copy it there)
+	 * Now find the initrd
+	 *
+	 * First see if we have an image attached to us.  If so
+	 * allocate memory for it and copy it there.
 	 */
 	initrd.size = (unsigned long)(_initrd_end - _initrd_start);
 	initrd.memsize = initrd.size;
-	if ( initrd.size > 0 ) {
+	if (initrd.size > 0) {
 		printf("Allocating 0x%lx bytes for initrd ...\n\r",
 		       initrd.size);
 		initrd.addr = (unsigned long)malloc((u32)initrd.size);
@@ -218,8 +221,6 @@ static void prep_kernel(unsigned long *a1, unsigned long *a2)
 					"ramdisk !\n\r");
 			exit();
 		}
-		*a1 = initrd.addr;
-		*a2 = initrd.size;
 		printf("initial ramdisk moving 0x%lx <- 0x%lx "
 			"(0x%lx bytes)\n\r", initrd.addr,
 			(unsigned long)_initrd_start, initrd.size);
@@ -227,6 +228,12 @@ static void prep_kernel(unsigned long *a1, unsigned long *a2)
 			initrd.size);
 		printf("initrd head: 0x%lx\n\r",
 				*((unsigned long *)initrd.addr));
+	} else if (a2 != 0) {
+		/* Otherwise, see if yaboot or another loader gave us an initrd */
+		initrd.addr = a1;
+		initrd.memsize = initrd.size = a2;
+		printf("Using loader supplied initrd at 0x%lx (0x%lx bytes)\n\r",
+		       initrd.addr, initrd.size);
 	}
 
 	/* Eventually gunzip the kernel */
@@ -307,7 +314,7 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 	printf("\n\rzImage starting: loaded at 0x%p (sp: 0x%p)\n\r",
 	       _start, sp);
 
-	prep_kernel(&a1, &a2);
+	prep_kernel(a1, a2);
 
 	/* If cmdline came from zimage wrapper or if we can edit the one
 	 * in the dt, print it out and edit it, if possible.
@@ -331,7 +338,7 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 	}
 	else
 		/* XXX initrd addr/size should be passed in properties */
-		kentry(a1, a2, promptr);
+		kentry(initrd.addr, initrd.size, promptr);
 
 	/* console closed so printf below may not work */
 	printf("Error: Linux kernel returned to zImage boot wrapper!\n\r");
