@@ -421,6 +421,8 @@ extern int __must_check device_add(struct device * dev);
 extern void device_del(struct device * dev);
 extern int device_for_each_child(struct device *, void *,
 		     int (*fn)(struct device *, void *));
+extern struct device *device_find_child(struct device *, void *data,
+					int (*match)(struct device *, void *));
 extern int device_rename(struct device *dev, char *new_name);
 
 /*

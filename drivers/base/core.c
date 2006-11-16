@@ -750,12 +750,45 @@ int device_for_each_child(struct device * parent, void * data,
 	return error;
 }
 
+/**
+ * device_find_child - device iterator for locating a particular device.
+ * @parent: parent struct device
+ * @data: Data to pass to match function
+ * @match: Callback function to check device
+ *
+ * This is similar to the device_for_each_child() function above, but it
+ * returns a reference to a device that is 'found' for later use, as
+ * determined by the @match callback.
+ *
+ * The callback should return 0 if the device doesn't match and non-zero
+ * if it does.  If the callback returns non-zero and a reference to the
+ * current device can be obtained, this function will return to the caller
+ * and not iterate over any more devices.
+ */
+struct device * device_find_child(struct device *parent, void *data,
+				  int (*match)(struct device *, void *))
+{
+	struct klist_iter i;
+	struct device *child;
+
+	if (!parent)
+		return NULL;
+
+	klist_iter_init(&parent->klist_children, &i);
+	while ((child = next_device(&i)))
+		if (match(child, data) && get_device(child))
+			break;
+	klist_iter_exit(&i);
+	return child;
+}
+
 int __init devices_init(void)
 {
 	return subsystem_register(&devices_subsys);
 }
 
 EXPORT_SYMBOL_GPL(device_for_each_child);
+EXPORT_SYMBOL_GPL(device_find_child);
 
 EXPORT_SYMBOL_GPL(device_initialize);
 EXPORT_SYMBOL_GPL(device_add);
