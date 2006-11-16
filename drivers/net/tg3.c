@@ -68,8 +68,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.68"
-#define DRV_MODULE_RELDATE	"November 02, 2006"
+#define DRV_MODULE_VERSION	"3.69"
+#define DRV_MODULE_RELDATE	"November 15, 2006"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -10366,7 +10366,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	u32 pci_state_reg, grc_misc_cfg;
 	u32 val;
 	u16 pci_cmd;
-	int err;
+	int err, pcie_cap;
 
 	/* Force memory write invalidate off.  If we leave it on,
 	 * then on 5700_BX chips we have to enable a workaround.
@@ -10541,8 +10541,19 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5906)
 		tp->tg3_flags2 |= TG3_FLG2_JUMBO_CAPABLE;
 
-	if (pci_find_capability(tp->pdev, PCI_CAP_ID_EXP) != 0)
+	pcie_cap = pci_find_capability(tp->pdev, PCI_CAP_ID_EXP);
+	if (pcie_cap != 0) {
 		tp->tg3_flags2 |= TG3_FLG2_PCI_EXPRESS;
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
+			u16 lnkctl;
+
+			pci_read_config_word(tp->pdev,
+					     pcie_cap + PCI_EXP_LNKCTL,
+					     &lnkctl);
+			if (lnkctl & PCI_EXP_LNKCTL_CLKREQ_EN)
+				tp->tg3_flags2 &= ~TG3_FLG2_HW_TSO_2;
+		}
+	}
 
 	/* If we have an AMD 762 or VIA K8T800 chipset, write
 	 * reordering to the mailbox registers done by the host
@@ -11809,6 +11820,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701 ||
 	    tp->pci_chip_rev_id == CHIPREV_ID_5705_A0 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906 ||
 	    (tp->tg3_flags & TG3_FLAG_ENABLE_ASF) != 0) {
 		tp->tg3_flags2 &= ~TG3_FLG2_TSO_CAPABLE;
 	} else {
