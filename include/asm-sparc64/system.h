@@ -7,6 +7,9 @@
 #include <asm/visasm.h>
 
 #ifndef __ASSEMBLY__
+
+#include <linux/irqflags.h>
+
 /*
  * Sparc (general) CPU types
  */
@@ -71,52 +74,6 @@ do {	__asm__ __volatile__("ba,pt	%%xcc, 1f\n\t" \
 	membar_safe("#StoreStore | #LoadStore")
 
 #endif
-
-#define setipl(__new_ipl) \
-	__asm__ __volatile__("wrpr	%0, %%pil"  : : "r" (__new_ipl) : "memory")
-
-#define local_irq_disable() \
-	__asm__ __volatile__("wrpr	15, %%pil" : : : "memory")
-
-#define local_irq_enable() \
-	__asm__ __volatile__("wrpr	0, %%pil" : : : "memory")
-
-#define getipl() \
-({ unsigned long retval; __asm__ __volatile__("rdpr	%%pil, %0" : "=r" (retval)); retval; })
-
-#define swap_pil(__new_pil) \
-({	unsigned long retval; \
-	__asm__ __volatile__("rdpr	%%pil, %0\n\t" \
-			     "wrpr	%1, %%pil" \
-			     : "=&r" (retval) \
-			     : "r" (__new_pil) \
-			     : "memory"); \
-	retval; \
-})
-
-#define read_pil_and_cli() \
-({	unsigned long retval; \
-	__asm__ __volatile__("rdpr	%%pil, %0\n\t" \
-			     "wrpr	15, %%pil" \
-			     : "=r" (retval) \
-			     : : "memory"); \
-	retval; \
-})
-
-#define local_save_flags(flags)		((flags) = getipl())
-#define local_irq_save(flags)		((flags) = read_pil_and_cli())
-#define local_irq_restore(flags)		setipl((flags))
-
-/* On sparc64 IRQ flags are the PIL register.  A value of zero
- * means all interrupt levels are enabled, any other value means
- * only IRQ levels greater than that value will be received.
- * Consequently this means that the lowest IRQ level is one.
- */
-#define irqs_disabled()		\
-({	unsigned long flags;	\
-	local_save_flags(flags);\
-	(flags > 0);		\
-})
 
 #define nop() 		__asm__ __volatile__ ("nop")
 
