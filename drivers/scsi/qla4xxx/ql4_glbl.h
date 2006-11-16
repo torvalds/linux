@@ -8,6 +8,7 @@
 #ifndef __QLA4x_GBL_H
 #define	__QLA4x_GBL_H
 
+int ql4xxx_lock_drvr_wait(struct scsi_qla_host *a);
 int qla4xxx_send_tgts(struct scsi_qla_host *ha, char *ip, uint16_t port);
 int qla4xxx_send_command_to_isp(struct scsi_qla_host *ha, struct srb * srb);
 int qla4xxx_initialize_adapter(struct scsi_qla_host * ha,
