@@ -6922,7 +6922,7 @@ static struct hda_verb alc861_base_init_verbs[] = {
 	/* port-E for HP out (front panel) */
 	{ 0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0 },
 	/* route front PCM to HP */
-	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x01 },
+	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x00 },
 	/* port-F for mic-in (front panel) with vref */
 	{ 0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
 	/* port-G for CLFE (rear panel) */
@@ -6986,7 +6986,7 @@ static struct hda_verb alc861_threestack_init_verbs[] = {
 	/* port-E for HP out (front panel) */
 	{ 0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0 },
 	/* route front PCM to HP */
-	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x01 },
+	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x00 },
 	/* port-F for mic-in (front panel) with vref */
 	{ 0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
 	/* port-G for CLFE (rear panel) */
@@ -7046,7 +7046,7 @@ static struct hda_verb alc861_uniwill_m31_init_verbs[] = {
 	/* port-E for HP out (front panel) */
 	{ 0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 }, // this has to be set to VREF80
 	/* route front PCM to HP */
-	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x01 },
+	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x00 },
 	/* port-F for mic-in (front panel) with vref */
 	{ 0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
 	/* port-G for CLFE (rear panel) */
@@ -7108,7 +7108,7 @@ static struct hda_verb alc861_asus_init_verbs[] = {
 	/* port-E for HP out (front panel) */
 	{ 0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 }, /* this has to be set to VREF80 */
 	/* route front PCM to HP */
-	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x01 },
+	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x00 },
 	/* port-F for mic-in (front panel) with vref */
 	{ 0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
 	/* port-G for CLFE (rear panel) */
