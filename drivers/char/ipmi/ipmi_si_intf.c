@@ -2346,7 +2346,7 @@ static int try_smi_init(struct smi_info *new_smi)
 		new_smi->dev = &new_smi->pdev->dev;
 		new_smi->dev->driver = &ipmi_driver;
 
-		rv = platform_device_register(new_smi->pdev);
+		rv = platform_device_add(new_smi->pdev);
 		if (rv) {
 			printk(KERN_ERR
 			       "ipmi_si_intf:"

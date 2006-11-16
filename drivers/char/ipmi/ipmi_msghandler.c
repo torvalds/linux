@@ -2118,7 +2118,7 @@ static int ipmi_bmc_register(ipmi_smi_t intf)
 		dev_set_drvdata(&bmc->dev->dev, bmc);
 		kref_init(&bmc->refcount);
 
-		rv = platform_device_register(bmc->dev);
+		rv = platform_device_add(bmc->dev);
 		mutex_unlock(&ipmidriver_mutex);
 		if (rv) {
 			printk(KERN_ERR
