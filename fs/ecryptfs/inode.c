@@ -630,6 +630,8 @@ ecryptfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		ecryptfs_copy_attr_all(old_dir, lower_old_dir_dentry->d_inode);
 out_lock:
 	unlock_rename(lower_old_dir_dentry, lower_new_dir_dentry);
+	dput(lower_new_dentry->d_parent);
+	dput(lower_old_dentry->d_parent);
 	dput(lower_new_dentry);
 	dput(lower_old_dentry);
 	return rc;
