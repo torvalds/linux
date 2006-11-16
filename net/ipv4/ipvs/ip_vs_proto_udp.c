@@ -121,9 +121,9 @@ udp_fast_csum_update(struct udphdr *uhdr, __be32 oldip, __be32 newip,
 		     __be16 oldport, __be16 newport)
 {
 	uhdr->check =
-		ip_vs_check_diff(~oldip, newip,
-				 ip_vs_check_diff(oldport ^ htons(0xFFFF),
-						  newport, uhdr->check));
+		csum_fold(ip_vs_check_diff4(oldip, newip,
+				 ip_vs_check_diff2(oldport, newport,
+					~csum_unfold(uhdr->check))));
 	if (!uhdr->check)
 		uhdr->check = CSUM_MANGLED_0;
 }
