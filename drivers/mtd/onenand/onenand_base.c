@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/onenand.h>
@@ -337,6 +338,111 @@ static int onenand_wait(struct mtd_info *mtd, int state)
 	}
 
 	return 0;
+}
+
+/*
+ * onenand_interrupt - [DEFAULT] onenand interrupt handler
+ * @param irq		onenand interrupt number
+ * @param dev_id	interrupt data
+ *
+ * complete the work
+ */
+static irqreturn_t onenand_interrupt(int irq, void *data)
+{
+	struct onenand_chip *this = (struct onenand_chip *) data;
+
+	/* To handle shared interrupt */
+	if (!this->complete.done)
+		complete(&this->complete);
+
+	return IRQ_HANDLED;
+}
+
+/*
+ * onenand_interrupt_wait - [DEFAULT] wait until the command is done
+ * @param mtd		MTD device structure
+ * @param state		state to select the max. timeout value
+ *
+ * Wait for command done.
+ */
+static int onenand_interrupt_wait(struct mtd_info *mtd, int state)
+{
+	struct onenand_chip *this = mtd->priv;
+
+	/* To prevent soft lockup */
+	touch_softlockup_watchdog();
+
+	wait_for_completion(&this->complete);
+
+	return onenand_wait(mtd, state);
+}
+
+/*
+ * onenand_try_interrupt_wait - [DEFAULT] try interrupt wait
+ * @param mtd		MTD device structure
+ * @param state		state to select the max. timeout value
+ *
+ * Try interrupt based wait (It is used one-time)
+ */
+static int onenand_try_interrupt_wait(struct mtd_info *mtd, int state)
+{
+	struct onenand_chip *this = mtd->priv;
+	unsigned long remain, timeout;
+
+	/* We use interrupt wait first */
+	this->wait = onenand_interrupt_wait;
+
+	/* To prevent soft lockup */
+	touch_softlockup_watchdog();
+
+	timeout = msecs_to_jiffies(100);
+	remain = wait_for_completion_timeout(&this->complete, timeout);
+	if (!remain) {
+		printk(KERN_INFO "OneNAND: There's no interrupt. "
+				"We use the normal wait\n");
+
+		/* Release the irq */
+		free_irq(this->irq, this);
+		
+		this->wait = onenand_wait;
+	}
+
+	return onenand_wait(mtd, state);
+}
+
+/*
+ * onenand_setup_wait - [OneNAND Interface] setup onenand wait method
+ * @param mtd		MTD device structure
+ *
+ * There's two method to wait onenand work
+ * 1. polling - read interrupt status register
+ * 2. interrupt - use the kernel interrupt method
+ */
+static void onenand_setup_wait(struct mtd_info *mtd)
+{
+	struct onenand_chip *this = mtd->priv;
+	int syscfg;
+
+	init_completion(&this->complete);
+
+	if (this->irq <= 0) {
+		this->wait = onenand_wait;
+		return;
+	}
+
+	if (request_irq(this->irq, &onenand_interrupt,
+				IRQF_SHARED, "onenand", this)) {
+		/* If we can't get irq, use the normal wait */
+		this->wait = onenand_wait;
+		return;
+	}
+
+	/* Enable interrupt */
+	syscfg = this->read_word(this->base + ONENAND_REG_SYS_CFG1);
+	syscfg |= ONENAND_SYS_CFG1_IOBE;
+	this->write_word(syscfg, this->base + ONENAND_REG_SYS_CFG1);
+
+	this->wait = onenand_try_interrupt_wait;
 }
 
 /**
@@ -1129,7 +1235,6 @@ static void onenand_sync(struct mtd_info *mtd)
 	onenand_release_device(mtd);
 }
 
-
 /**
  * onenand_block_isbad - [MTD Interface] Check whether the block at the given offset is bad
  * @param mtd		MTD device structure
@@ -1846,7 +1951,7 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	if (!this->command)
 		this->command = onenand_command;
 	if (!this->wait)
-		this->wait = onenand_wait;
+		onenand_setup_wait(mtd);
 
 	if (!this->read_bufferram)
 		this->read_bufferram = onenand_read_bufferram;
