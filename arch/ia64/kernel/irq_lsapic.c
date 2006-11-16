@@ -34,7 +34,7 @@ static int lsapic_retrigger(unsigned int irq)
 }
 
 struct hw_interrupt_type irq_type_ia64_lsapic = {
-	.typename =	"LSAPIC",
+	.name =		"LSAPIC",
 	.startup =	lsapic_noop_startup,
 	.shutdown =	lsapic_noop,
 	.enable =	lsapic_noop,
