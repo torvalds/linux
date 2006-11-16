@@ -9,13 +9,13 @@
 
 static inline int eeprom_size(struct scsi_qla_host *ha)
 {
-	return is_qla4022(ha) ? FM93C86A_SIZE_16 : FM93C66A_SIZE_16;
+	return is_qla4010(ha) ? FM93C66A_SIZE_16 : FM93C86A_SIZE_16;
 }
 
 static inline int eeprom_no_addr_bits(struct scsi_qla_host *ha)
 {
-	return is_qla4022(ha) ? FM93C86A_NO_ADDR_BITS_16 :
-		FM93C56A_NO_ADDR_BITS_16;
+	return is_qla4010(ha) ? FM93C56A_NO_ADDR_BITS_16 :
+		FM93C86A_NO_ADDR_BITS_16 ;
 }
 
 static inline int eeprom_no_data_bits(struct scsi_qla_host *ha)

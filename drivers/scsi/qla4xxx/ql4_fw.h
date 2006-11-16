@@ -296,7 +296,6 @@ static inline uint32_t clr_rmask(uint32_t val)
 /*  ISP Semaphore definitions */
 
 /*  ISP General Purpose Output definitions */
-#define GPOR_TOPCAT_RESET			0x00000004
 
 /*  shadow registers (DMA'd from HA to system memory.  read only) */
 struct shadow_regs {
@@ -339,10 +338,13 @@ union external_hw_config_reg {
 /*  Mailbox command definitions */
 #define MBOX_CMD_ABOUT_FW			0x0009
 #define MBOX_CMD_LUN_RESET			0x0016
+#define MBOX_CMD_GET_MANAGEMENT_DATA		0x001E
 #define MBOX_CMD_GET_FW_STATUS			0x001F
 #define MBOX_CMD_SET_ISNS_SERVICE		0x0021
 #define ISNS_DISABLE				0
 #define ISNS_ENABLE				1
+#define MBOX_CMD_COPY_FLASH			0x0024
+#define MBOX_CMD_WRITE_FLASH			0x0025
 #define MBOX_CMD_READ_FLASH			0x0026
 #define MBOX_CMD_CLEAR_DATABASE_ENTRY		0x0031
 #define MBOX_CMD_CONN_CLOSE_SESS_LOGOUT		0x0056
@@ -360,10 +362,13 @@ union external_hw_config_reg {
 #define DDB_DS_SESSION_FAILED			0x06
 #define DDB_DS_LOGIN_IN_PROCESS			0x07
 #define MBOX_CMD_GET_FW_STATE			0x0069
+#define MBOX_CMD_GET_INIT_FW_CTRL_BLOCK_DEFAULTS 0x006A
+#define MBOX_CMD_RESTORE_FACTORY_DEFAULTS	0x0087
 
 /* Mailbox 1 */
 #define FW_STATE_READY				0x0000
 #define FW_STATE_CONFIG_WAIT			0x0001
+#define FW_STATE_WAIT_LOGIN			0x0002
 #define FW_STATE_ERROR				0x0004
 #define FW_STATE_DHCP_IN_PROGRESS		0x0008
 
