@@ -72,6 +72,7 @@ struct ccid2_hc_tx_sock {
 	int			ccid2hctx_rpdupack;
 	int			ccid2hctx_sendwait;
 	unsigned long		ccid2hctx_last_cong;
+	u64			ccid2hctx_high_ack;
 };
 
 struct ccid2_hc_rx_sock {

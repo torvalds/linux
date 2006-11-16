@@ -619,7 +619,17 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	}
 
 	ackno = DCCP_SKB_CB(skb)->dccpd_ack_seq;
-	seqp = hctx->ccid2hctx_seqh->ccid2s_prev;
+	if (after48(ackno, hctx->ccid2hctx_high_ack))
+		hctx->ccid2hctx_high_ack = ackno;
+
+	seqp = hctx->ccid2hctx_seqt;
+	while (before48(seqp->ccid2s_seq, ackno)) {
+		seqp = seqp->ccid2s_next;
+		if (seqp == hctx->ccid2hctx_seqh) {
+			seqp = hctx->ccid2hctx_seqh->ccid2s_prev;
+			break;
+		}
+	}
 
 	/* If in slow-start, cwnd can increase at most Ack Ratio / 2 packets for
 	 * this single ack.  I round up.
@@ -697,7 +707,14 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	/* The state about what is acked should be correct now
 	 * Check for NUMDUPACK
 	 */
-	seqp = hctx->ccid2hctx_seqh->ccid2s_prev;
+	seqp = hctx->ccid2hctx_seqt;
+	while (before48(seqp->ccid2s_seq, hctx->ccid2hctx_high_ack)) {
+		seqp = seqp->ccid2s_next;
+		if (seqp == hctx->ccid2hctx_seqh) {
+			seqp = hctx->ccid2hctx_seqh->ccid2s_prev;
+			break;
+		}
+	}
 	done = 0;
 	while (1) {
 		if (seqp->ccid2s_acked) {
@@ -771,6 +788,7 @@ static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
 	hctx->ccid2hctx_lastrtt  = 0;
 	hctx->ccid2hctx_rpdupack = -1;
 	hctx->ccid2hctx_last_cong = jiffies;
+	hctx->ccid2hctx_high_ack = 0;
 
 	hctx->ccid2hctx_rtotimer.function = &ccid2_hc_tx_rto_expire;
 	hctx->ccid2hctx_rtotimer.data	  = (unsigned long)sk;
