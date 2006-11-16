@@ -178,6 +178,7 @@ enum {
 	ATA_FLAG_DEBUGMSG	= (1 << 13),
 	ATA_FLAG_DETECT_POLLING	= (1 << 14), /* detect device presence by
 					      * polling IDENTIFY */
+	ATA_FLAG_SETXFER_POLLING= (1 << 15), /* use polling for SETXFER */
 
 	/* The following flag belongs to ap->pflags but is kept in
 	 * ap->flags because it's referenced in many LLDs and will be

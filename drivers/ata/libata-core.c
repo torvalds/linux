@@ -4821,6 +4821,14 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		}
 	}
 
+	/* Some controllers show flaky interrupt behavior after
+	 * setting xfer mode.  Use polling instead.
+	 */
+	if (unlikely(qc->tf.command == ATA_CMD_SET_FEATURES &&
+		     qc->tf.feature == SETFEATURES_XFER) &&
+	    (ap->flags & ATA_FLAG_SETXFER_POLLING))
+		qc->tf.flags |= ATA_TFLAG_POLLING;
+
 	/* select the device */
 	ata_dev_select(ap, qc->dev->devno, 1, 0);
 
