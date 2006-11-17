@@ -1564,12 +1564,12 @@ static void devinet_sysctl_register(struct in_device *in_dev,
 {
 	int i;
 	struct net_device *dev = in_dev ? in_dev->dev : NULL;
-	struct devinet_sysctl_table *t = kmalloc(sizeof(*t), GFP_KERNEL);
+	struct devinet_sysctl_table *t = kmemdup(&devinet_sysctl, sizeof(*t),
+						 GFP_KERNEL);
 	char *dev_name = NULL;
 
 	if (!t)
 		return;
-	memcpy(t, &devinet_sysctl, sizeof(*t));
 	for (i = 0; i < ARRAY_SIZE(t->devinet_vars) - 1; i++) {
 		t->devinet_vars[i].data += (char *)p - (char *)&ipv4_devconf;
 		t->devinet_vars[i].de = NULL;
