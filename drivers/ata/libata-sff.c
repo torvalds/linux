@@ -743,7 +743,6 @@ void ata_bmdma_drive_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 			ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
 			ata_postreset_fn_t postreset)
 {
-	struct ata_eh_context *ehc = &ap->eh_context;
 	struct ata_queued_cmd *qc;
 	unsigned long flags;
 	int thaw = 0;
@@ -762,8 +761,6 @@ void ata_bmdma_drive_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 		u8 host_stat;
 
 		host_stat = ap->ops->bmdma_status(ap);
-
-		ata_ehi_push_desc(&ehc->i, "BMDMA stat 0x%x", host_stat);
 
 		/* BMDMA controllers indicate host bus error by
 		 * setting DMA_ERR bit and timing out.  As it wasn't

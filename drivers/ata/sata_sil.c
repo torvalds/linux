@@ -356,6 +356,7 @@ static void sil_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 
 static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 {
+	struct ata_eh_info *ehi = &ap->eh_info;
 	struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->active_tag);
 	u8 status;
 
@@ -427,6 +428,10 @@ static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 
 	/* kick HSM in the ass */
 	ata_hsm_move(ap, qc, status, 0);
+
+	if (unlikely(qc->err_mask) && (qc->tf.protocol == ATA_PROT_DMA ||
+				       qc->tf.protocol == ATA_PROT_ATAPI_DMA))
+		ata_ehi_push_desc(ehi, "BMDMA2 stat 0x%x", bmdma2);
 
 	return;
 
