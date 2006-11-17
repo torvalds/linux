@@ -1141,11 +1141,11 @@ static int __devinit init_one(struct pci_dev *pdev,
 	t1_free_sw_modules(adapter);
  out_free_dev:
 	if (adapter) {
-		if (adapter->regs) iounmap(adapter->regs);
+		if (adapter->regs)
+			iounmap(adapter->regs);
 		for (i = bi->port_number - 1; i >= 0; --i)
-			if (adapter->port[i].dev) {
-				kfree(adapter->port[i].dev);
-			}
+			if (adapter->port[i].dev)
+				free_netdev(adapter->port[i].dev);
 	}
 	pci_release_regions(pdev);
  out_disable_pdev:
@@ -1175,9 +1175,9 @@ static void __devexit remove_one(struct pci_dev *pdev)
 		t1_free_sw_modules(adapter);
 		iounmap(adapter->regs);
 		while (--i >= 0)
-			if (adapter->port[i].dev) {
-				kfree(adapter->port[i].dev);
-			}
+			if (adapter->port[i].dev)
+				free_netdev(adapter->port[i].dev);
+
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
 		pci_set_drvdata(pdev, NULL);
