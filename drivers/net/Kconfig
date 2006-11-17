@@ -2468,6 +2468,7 @@ config MYRI10GE
 
 config NETXEN_NIC
 	tristate "NetXen Multi port (1/10) Gigabit Ethernet NIC"
+	depends on PCI
 	help
 	  This enables the support for NetXen's Gigabit Ethernet card.
 
