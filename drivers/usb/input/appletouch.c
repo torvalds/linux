@@ -38,14 +38,21 @@
 #define APPLE_VENDOR_ID		0x05AC
 
 /* These names come from Info.plist in AppleUSBTrackpad.kext */
-#define GEYSER_ANSI_PRODUCT_ID	0x0214
-#define GEYSER_ISO_PRODUCT_ID	0x0215
-#define GEYSER_JIS_PRODUCT_ID	0x0216
+#define FOUNTAIN_ANSI_PRODUCT_ID	0x020E
+#define FOUNTAIN_ISO_PRODUCT_ID		0x020F
+
+#define FOUNTAIN_TP_ONLY_PRODUCT_ID	0x030A
+
+#define GEYSER1_TP_ONLY_PRODUCT_ID	0x030B
+
+#define GEYSER_ANSI_PRODUCT_ID		0x0214
+#define GEYSER_ISO_PRODUCT_ID		0x0215
+#define GEYSER_JIS_PRODUCT_ID		0x0216
 
 /* MacBook devices */
-#define GEYSER3_ANSI_PRODUCT_ID	0x0217
-#define GEYSER3_ISO_PRODUCT_ID	0x0218
-#define GEYSER3_JIS_PRODUCT_ID	0x0219
+#define GEYSER3_ANSI_PRODUCT_ID		0x0217
+#define GEYSER3_ISO_PRODUCT_ID		0x0218
+#define GEYSER3_JIS_PRODUCT_ID		0x0219
 
 /*
  * Geyser IV: same as Geyser III according to Info.plist in AppleUSBTrackpad.kext
@@ -66,10 +73,10 @@
 
 /* table of devices that work with this driver */
 static struct usb_device_id atp_table [] = {
-	{ ATP_DEVICE(0x020E) },
-	{ ATP_DEVICE(0x020F) },
-	{ ATP_DEVICE(0x030A) },
-	{ ATP_DEVICE(0x030B) },
+	{ ATP_DEVICE(FOUNTAIN_ANSI_PRODUCT_ID) },
+	{ ATP_DEVICE(FOUNTAIN_ISO_PRODUCT_ID) },
+	{ ATP_DEVICE(FOUNTAIN_TP_ONLY_PRODUCT_ID) },
+	{ ATP_DEVICE(GEYSER1_TP_ONLY_PRODUCT_ID) },
 
 	/* PowerBooks Oct 2005 */
 	{ ATP_DEVICE(GEYSER_ANSI_PRODUCT_ID) },
