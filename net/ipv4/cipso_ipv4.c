@@ -1135,7 +1135,7 @@ int cipso_v4_validate(unsigned char **option)
 	}
 
 	rcu_read_lock();
-	doi_def = cipso_v4_doi_getdef(ntohl(*((__be32 *)&opt[2])));
+	doi_def = cipso_v4_doi_search(ntohl(*((u32 *)&opt[2])));
 	if (doi_def == NULL) {
 		err_offset = 2;
 		goto validate_return_locked;
@@ -1380,7 +1380,7 @@ int cipso_v4_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr)
 
 	doi = ntohl(*(__be32 *)&cipso_ptr[2]);
 	rcu_read_lock();
-	doi_def = cipso_v4_doi_getdef(doi);
+	doi_def = cipso_v4_doi_search(doi);
 	if (doi_def == NULL) {
 		rcu_read_unlock();
 		return -ENOMSG;
@@ -1448,7 +1448,7 @@ int cipso_v4_skbuff_getattr(const struct sk_buff *skb,
 
 	doi = ntohl(*(__be32 *)&cipso_ptr[2]);
 	rcu_read_lock();
-	doi_def = cipso_v4_doi_getdef(doi);
+	doi_def = cipso_v4_doi_search(doi);
 	if (doi_def == NULL)
 		goto skbuff_getattr_return;
 
