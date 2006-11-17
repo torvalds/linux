@@ -855,15 +855,18 @@ int tcp_v4_md5_do_add(struct sock *sk, __be32 addr,
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp4_md5sig_key *keys;
 
-	key = (struct tcp4_md5sig_key *) tcp_v4_md5_do_lookup(sk, addr);
+	key = (struct tcp4_md5sig_key *)tcp_v4_md5_do_lookup(sk, addr);
 	if (key) {
 		/* Pre-existing entry - just update that one. */
-		kfree (key->key);
+		kfree(key->key);
 		key->key = newkey;
 		key->keylen = newkeylen;
 	} else {
+		struct tcp_md5sig_info *md5sig;
+
 		if (!tp->md5sig_info) {
-			tp->md5sig_info = kzalloc(sizeof(*tp->md5sig_info), GFP_ATOMIC);
+			tp->md5sig_info = kzalloc(sizeof(*tp->md5sig_info),
+						  GFP_ATOMIC);
 			if (!tp->md5sig_info) {
 				kfree(newkey);
 				return -ENOMEM;
@@ -873,30 +876,31 @@ int tcp_v4_md5_do_add(struct sock *sk, __be32 addr,
 			kfree(newkey);
 			return -ENOMEM;
 		}
-		if (tp->md5sig_info->alloced4 == tp->md5sig_info->entries4) {
-			keys = kmalloc((sizeof(struct tcp4_md5sig_key) *
-				       (tp->md5sig_info->entries4 + 1)), GFP_ATOMIC);
+		md5sig = tp->md5sig_info;
+
+		if (md5sig->alloced4 == md5sig->entries4) {
+			keys = kmalloc((sizeof(*keys) *
+				        (md5sig->entries4 + 1)), GFP_ATOMIC);
 			if (!keys) {
 				kfree(newkey);
 				tcp_free_md5sig_pool();
 				return -ENOMEM;
 			}
 
-			if (tp->md5sig_info->entries4)
-				memcpy(keys, tp->md5sig_info->keys4,
-				       (sizeof (struct tcp4_md5sig_key) *
-					tp->md5sig_info->entries4));
+			if (md5sig->entries4)
+				memcpy(keys, md5sig->keys4,
+				       sizeof(*keys) * md5sig->entries4);
 
 			/* Free old key list, and reference new one */
-			if (tp->md5sig_info->keys4)
-				kfree(tp->md5sig_info->keys4);
-			tp->md5sig_info->keys4 = keys;
-			tp->md5sig_info->alloced4++;
+			if (md5sig->keys4)
+				kfree(md5sig->keys4);
+			md5sig->keys4 = keys;
+			md5sig->alloced4++;
 		}
-		tp->md5sig_info->entries4++;
-		tp->md5sig_info->keys4[tp->md5sig_info->entries4 - 1].addr = addr;
-		tp->md5sig_info->keys4[tp->md5sig_info->entries4 - 1].key = newkey;
-		tp->md5sig_info->keys4[tp->md5sig_info->entries4 - 1].keylen = newkeylen;
+		md5sig->entries4++;
+		md5sig->keys4[md5sig->entries4 - 1].addr   = addr;
+		md5sig->keys4[md5sig->entries4 - 1].key    = newkey;
+		md5sig->keys4[md5sig->entries4 - 1].keylen = newkeylen;
 	}
 	return 0;
 }
@@ -998,10 +1002,9 @@ static int tcp_v4_parse_md5_keys(struct sock *sk, char __user *optval,
 
 	}
 
-	newkey = kmalloc(cmd.tcpm_keylen, GFP_KERNEL);
+	newkey = kmemdup(cmd.tcpm_key, cmd.tcpm_keylen, GFP_KERNEL);
 	if (!newkey)
 		return -ENOMEM;
-	memcpy(newkey, cmd.tcpm_key, cmd.tcpm_keylen);
 	return tcp_v4_md5_do_add(sk, sin->sin_addr.s_addr,
 				 newkey, cmd.tcpm_keylen);
 }
@@ -1494,12 +1497,10 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 		 * memory, then we end up not copying the key
 		 * across. Shucks.
 		 */
-		char *newkey = kmalloc(key->keylen, GFP_ATOMIC);
-		if (newkey) {
-			memcpy(newkey, key->key, key->keylen);
+		char *newkey = kmemdup(key->key, key->keylen, GFP_ATOMIC);
+		if (newkey != NULL)
 			tcp_v4_md5_do_add(newsk, inet_sk(sk)->daddr,
 					  newkey, key->keylen);
-		}
 	}
 #endif
 
