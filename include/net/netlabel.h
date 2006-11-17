@@ -111,11 +111,17 @@ struct netlbl_lsm_cache {
 	void (*free) (const void *data);
 	void *data;
 };
+#define NETLBL_SECATTR_NONE             0x00000000
+#define NETLBL_SECATTR_DOMAIN           0x00000001
+#define NETLBL_SECATTR_CACHE            0x00000002
+#define NETLBL_SECATTR_MLS_LVL          0x00000004
+#define NETLBL_SECATTR_MLS_CAT          0x00000008
 struct netlbl_lsm_secattr {
+	u32 flags;
+
 	char *domain;
 
 	u32 mls_lvl;
-	u32 mls_lvl_vld;
 	unsigned char *mls_cat;
 	size_t mls_cat_len;
 
@@ -174,7 +180,10 @@ static inline void netlbl_secattr_cache_free(struct netlbl_lsm_cache *cache)
  */
 static inline void netlbl_secattr_init(struct netlbl_lsm_secattr *secattr)
 {
-	memset(secattr, 0, sizeof(*secattr));
+	secattr->flags = 0;
+	secattr->domain = NULL;
+	secattr->mls_cat = NULL;
+	secattr->cache = NULL;
 }
 
 /**

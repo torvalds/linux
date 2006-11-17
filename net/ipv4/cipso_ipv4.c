@@ -319,6 +319,7 @@ static int cipso_v4_cache_check(const unsigned char *key,
 			entry->activity += 1;
 			atomic_inc(&entry->lsm_data->refcount);
 			secattr->cache = entry->lsm_data;
+			secattr->flags |= NETLBL_SECATTR_CACHE;
 			if (prev_entry == NULL) {
 				spin_unlock_bh(&cipso_v4_cache[bkt].lock);
 				return 0;
@@ -991,12 +992,15 @@ static int cipso_v4_gentag_rbm(const struct cipso_v4_doi *doi_def,
 			       unsigned char **buffer,
 			       u32 *buffer_len)
 {
-	int ret_val = -EPERM;
+	int ret_val;
 	unsigned char *buf = NULL;
 	u32 buf_len;
 	u32 level;
 
-	if (secattr->mls_cat) {
+	if ((secattr->flags & NETLBL_SECATTR_MLS_LVL) == 0)
+		return -EPERM;
+
+	if (secattr->flags & NETLBL_SECATTR_MLS_CAT) {
 		buf = kzalloc(CIPSO_V4_HDR_LEN + 4 + CIPSO_V4_TAG1_CAT_LEN,
 			      GFP_ATOMIC);
 		if (buf == NULL)
@@ -1013,10 +1017,10 @@ static int cipso_v4_gentag_rbm(const struct cipso_v4_doi *doi_def,
 		/* This will send packets using the "optimized" format when
 		 * possibile as specified in  section 3.4.2.6 of the
 		 * CIPSO draft. */
-		if (cipso_v4_rbm_optfmt && (ret_val > 0 && ret_val < 10))
-			ret_val = 10;
-
-		buf_len = 4 + ret_val;
+		if (cipso_v4_rbm_optfmt && ret_val > 0 && ret_val <= 10)
+			buf_len = 14;
+		else
+			buf_len = 4 + ret_val;
 	} else {
 		buf = kzalloc(CIPSO_V4_HDR_LEN + 4, GFP_ATOMIC);
 		if (buf == NULL)
@@ -1070,7 +1074,7 @@ static int cipso_v4_parsetag_rbm(const struct cipso_v4_doi *doi_def,
 	if (ret_val != 0)
 		return ret_val;
 	secattr->mls_lvl = level;
-	secattr->mls_lvl_vld = 1;
+	secattr->flags |= NETLBL_SECATTR_MLS_LVL;
 
 	if (tag_len > 4) {
 		switch (doi_def->type) {
@@ -1094,8 +1098,10 @@ static int cipso_v4_parsetag_rbm(const struct cipso_v4_doi *doi_def,
 		if (ret_val < 0) {
 			kfree(secattr->mls_cat);
 			return ret_val;
+		} else if (ret_val > 0) {
+			secattr->mls_cat_len = ret_val;
+			secattr->flags |= NETLBL_SECATTR_MLS_CAT;
 		}
-		secattr->mls_cat_len = ret_val;
 	}
 
 	return 0;

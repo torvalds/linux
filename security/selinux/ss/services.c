@@ -2254,8 +2254,6 @@ static void selinux_netlbl_cache_add(struct sk_buff *skb, struct context *ctx)
 	cache = kzalloc(sizeof(*cache),	GFP_ATOMIC);
 	if (cache == NULL)
 		goto netlbl_cache_add_return;
-	secattr.cache->free = selinux_netlbl_cache_free;
-	secattr.cache->data = (void *)cache;
 
 	cache->type = NETLBL_CACHE_T_MLS;
 	if (ebitmap_cpy(&cache->data.mls_label.level[0].cat,
@@ -2267,6 +2265,10 @@ static void selinux_netlbl_cache_add(struct sk_buff *skb, struct context *ctx)
 		cache->data.mls_label.level[0].cat.node;
 	cache->data.mls_label.level[0].sens = ctx->range.level[0].sens;
 	cache->data.mls_label.level[1].sens = ctx->range.level[0].sens;
+
+	secattr.cache->free = selinux_netlbl_cache_free;
+	secattr.cache->data = (void *)cache;
+	secattr.flags = NETLBL_SECATTR_CACHE;
 
 	netlbl_cache_add(skb, &secattr);
 
@@ -2313,7 +2315,7 @@ static int selinux_netlbl_secattr_to_sid(struct sk_buff *skb,
 
 	POLICY_RDLOCK;
 
-	if (secattr->cache) {
+	if (secattr->flags & NETLBL_SECATTR_CACHE) {
 		cache = NETLBL_CACHE(secattr->cache->data);
 		switch (cache->type) {
 		case NETLBL_CACHE_T_SID:
@@ -2346,7 +2348,7 @@ static int selinux_netlbl_secattr_to_sid(struct sk_buff *skb,
 		default:
 			goto netlbl_secattr_to_sid_return;
 		}
-	} else if (secattr->mls_lvl_vld) {
+	} else if (secattr->flags & NETLBL_SECATTR_MLS_LVL) {
 		ctx = sidtab_search(&sidtab, base_sid);
 		if (ctx == NULL)
 			goto netlbl_secattr_to_sid_return;
@@ -2355,7 +2357,7 @@ static int selinux_netlbl_secattr_to_sid(struct sk_buff *skb,
 		ctx_new.role = ctx->role;
 		ctx_new.type = ctx->type;
 		mls_import_lvl(&ctx_new, secattr->mls_lvl, secattr->mls_lvl);
-		if (secattr->mls_cat) {
+		if (secattr->flags & NETLBL_SECATTR_MLS_CAT) {
 			if (mls_import_cat(&ctx_new,
 					   secattr->mls_cat,
 					   secattr->mls_cat_len,
@@ -2414,11 +2416,13 @@ static int selinux_netlbl_skbuff_getsid(struct sk_buff *skb,
 
 	netlbl_secattr_init(&secattr);
 	rc = netlbl_skbuff_getattr(skb, &secattr);
-	if (rc == 0)
+	if (rc == 0 && secattr.flags != NETLBL_SECATTR_NONE)
 		rc = selinux_netlbl_secattr_to_sid(skb,
 						   &secattr,
 						   base_sid,
 						   sid);
+	else
+		*sid = SECSID_NULL;
 	netlbl_secattr_destroy(&secattr);
 
 	return rc;
@@ -2455,7 +2459,6 @@ static int selinux_netlbl_socket_setsid(struct socket *sock, u32 sid)
 	secattr.domain = kstrdup(policydb.p_type_val_to_name[ctx->type - 1],
 				 GFP_ATOMIC);
 	mls_export_lvl(ctx, &secattr.mls_lvl, NULL);
-	secattr.mls_lvl_vld = 1;
 	rc = mls_export_cat(ctx,
 			    &secattr.mls_cat,
 			    &secattr.mls_cat_len,
@@ -2463,6 +2466,10 @@ static int selinux_netlbl_socket_setsid(struct socket *sock, u32 sid)
 			    NULL);
 	if (rc != 0)
 		goto netlbl_socket_setsid_return;
+
+	secattr.flags |= NETLBL_SECATTR_DOMAIN | NETLBL_SECATTR_MLS_LVL;
+	if (secattr.mls_cat)
+		secattr.flags |= NETLBL_SECATTR_MLS_CAT;
 
 	rc = netlbl_socket_setattr(sock, &secattr);
 	if (rc == 0)
@@ -2564,6 +2571,7 @@ void selinux_netlbl_sock_graft(struct sock *sk, struct socket *sock)
 
 	netlbl_secattr_init(&secattr);
 	if (netlbl_sock_getattr(sk, &secattr) == 0 &&
+	    secattr.flags != NETLBL_SECATTR_NONE &&
 	    selinux_netlbl_secattr_to_sid(NULL,
 					  &secattr,
 					  SECINITSID_UNLABELED,
@@ -2756,7 +2764,7 @@ int selinux_netlbl_socket_setsockopt(struct socket *sock,
 	    sksec->nlbl_state == NLBL_LABELED) {
 		netlbl_secattr_init(&secattr);
 		rc = netlbl_socket_getattr(sock, &secattr);
-		if (rc == 0 && (secattr.cache || secattr.mls_lvl_vld))
+		if (rc == 0 && secattr.flags != NETLBL_SECATTR_NONE)
 			rc = -EACCES;
 		netlbl_secattr_destroy(&secattr);
 	}
