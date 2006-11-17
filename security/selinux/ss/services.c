@@ -54,6 +54,7 @@
 #include "mls.h"
 #include "objsec.h"
 #include "selinux_netlabel.h"
+#include "xfrm.h"
 
 extern void selnl_notify_policyload(u32 seqno);
 unsigned int policydb_loaded_version;
@@ -2191,6 +2192,32 @@ void selinux_audit_set_callback(int (*callback)(void))
 	aurule_callback = callback;
 }
 
+/**
+ * security_skb_extlbl_sid - Determine the external label of a packet
+ * @skb: the packet
+ * @base_sid: the SELinux SID to use as a context for MLS only external labels
+ * @sid: the packet's SID
+ *
+ * Description:
+ * Check the various different forms of external packet labeling and determine
+ * the external SID for the packet.
+ *
+ */
+void security_skb_extlbl_sid(struct sk_buff *skb, u32 base_sid, u32 *sid)
+{
+	u32 xfrm_sid;
+	u32 nlbl_sid;
+
+	selinux_skb_xfrm_sid(skb, &xfrm_sid);
+	if (selinux_netlbl_skbuff_getsid(skb,
+					 (xfrm_sid == SECSID_NULL ?
+					  base_sid : xfrm_sid),
+					 &nlbl_sid) != 0)
+		nlbl_sid = SECSID_NULL;
+
+	*sid = (nlbl_sid == SECSID_NULL ? xfrm_sid : nlbl_sid);
+}
+
 #ifdef CONFIG_NETLABEL
 /*
  * This is the structure we store inside the NetLabel cache block.
@@ -2408,9 +2435,7 @@ netlbl_secattr_to_sid_return_cleanup:
  * assign to the packet.  Returns zero on success, negative values on failure.
  *
  */
-static int selinux_netlbl_skbuff_getsid(struct sk_buff *skb,
-					u32 base_sid,
-					u32 *sid)
+int selinux_netlbl_skbuff_getsid(struct sk_buff *skb, u32 base_sid, u32 *sid)
 {
 	int rc;
 	struct netlbl_lsm_secattr secattr;
@@ -2616,29 +2641,6 @@ void selinux_netlbl_sock_graft(struct sock *sk, struct socket *sock)
 }
 
 /**
- * selinux_netlbl_inet_conn_request - Handle a new connection request
- * @skb: the packet
- * @sock_sid: the SID of the parent socket
- *
- * Description:
- * If present, use the security attributes of the packet in @skb and the
- * parent sock's SID to arrive at a SID for the new child sock.  Returns the
- * SID of the connection or SECSID_NULL on failure.
- *
- */
-u32 selinux_netlbl_inet_conn_request(struct sk_buff *skb, u32 sock_sid)
-{
-	int rc;
-	u32 peer_sid;
-
-	rc = selinux_netlbl_skbuff_getsid(skb, sock_sid, &peer_sid);
-	if (rc != 0)
-		return SECSID_NULL;
-
-	return peer_sid;
-}
-
-/**
  * selinux_netlbl_inode_permission - Verify the socket is NetLabel labeled
  * @inode: the file descriptor's inode
  * @mask: the permission mask
@@ -2725,42 +2727,6 @@ int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 
 	netlbl_skbuff_err(skb, rc);
 	return rc;
-}
-
-/**
- * selinux_netlbl_socket_getpeersec_stream - Return the connected peer's SID
- * @sock: the socket
- *
- * Description:
- * Examine @sock to find the connected peer's SID.  Returns the SID on success
- * or SECSID_NULL on error.
- *
- */
-u32 selinux_netlbl_socket_getpeersec_stream(struct socket *sock)
-{
-	struct sk_security_struct *sksec = sock->sk->sk_security;
-	return sksec->peer_sid;
-}
-
-/**
- * selinux_netlbl_socket_getpeersec_dgram - Return the SID of a NetLabel packet
- * @skb: the packet
- *
- * Description:
- * Examine @skb to find the SID assigned to it by NetLabel.  Returns the SID on
- * success, SECSID_NULL on error.
- *
- */
-u32 selinux_netlbl_socket_getpeersec_dgram(struct sk_buff *skb)
-{
-	int peer_sid;
-
-	if (selinux_netlbl_skbuff_getsid(skb,
-					 SECINITSID_UNLABELED,
-					 &peer_sid) != 0)
-		return SECSID_NULL;
-
-	return peer_sid;
 }
 
 /**

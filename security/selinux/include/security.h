@@ -8,6 +8,7 @@
 #ifndef _SELINUX_SECURITY_H_
 #define _SELINUX_SECURITY_H_
 
+#include <linux/skbuff.h>
 #include "flask.h"
 
 #define SECSID_NULL			0x00000000 /* unspecified SID */
@@ -79,6 +80,8 @@ int security_netif_sid(char *name, u32 *if_sid,
 
 int security_node_sid(u16 domain, void *addr, u32 addrlen,
 	u32 *out_sid);
+
+void security_skb_extlbl_sid(struct sk_buff *skb, u32 base_sid, u32 *sid);
 
 int security_validate_transition(u32 oldsid, u32 newsid, u32 tasksid,
                                  u16 tclass);

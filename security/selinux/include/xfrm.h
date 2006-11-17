@@ -36,7 +36,6 @@ int selinux_xfrm_sock_rcv_skb(u32 sid, struct sk_buff *skb,
 			struct avc_audit_data *ad);
 int selinux_xfrm_postroute_last(u32 isec_sid, struct sk_buff *skb,
 			struct avc_audit_data *ad, u8 proto);
-u32 selinux_socket_getpeer_dgram(struct sk_buff *skb);
 int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall);
 #else
 static inline int selinux_xfrm_sock_rcv_skb(u32 isec_sid, struct sk_buff *skb,
@@ -51,10 +50,6 @@ static inline int selinux_xfrm_postroute_last(u32 isec_sid, struct sk_buff *skb,
 	return 0;
 }
 
-static inline int selinux_socket_getpeer_dgram(struct sk_buff *skb)
-{
-	return SECSID_NULL;
-}
 static inline int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall)
 {
 	*sid = SECSID_NULL;

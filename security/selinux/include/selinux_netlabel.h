@@ -38,14 +38,12 @@
 
 #ifdef CONFIG_NETLABEL
 void selinux_netlbl_cache_invalidate(void);
+int selinux_netlbl_skbuff_getsid(struct sk_buff *skb, u32 base_sid, u32 *sid);
 int selinux_netlbl_socket_post_create(struct socket *sock);
 void selinux_netlbl_sock_graft(struct sock *sk, struct socket *sock);
-u32 selinux_netlbl_inet_conn_request(struct sk_buff *skb, u32 sock_sid);
 int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 				struct sk_buff *skb,
 				struct avc_audit_data *ad);
-u32 selinux_netlbl_socket_getpeersec_stream(struct socket *sock);
-u32 selinux_netlbl_socket_getpeersec_dgram(struct sk_buff *skb);
 void selinux_netlbl_sk_security_reset(struct sk_security_struct *ssec,
 				      int family);
 void selinux_netlbl_sk_security_init(struct sk_security_struct *ssec,
@@ -62,6 +60,14 @@ static inline void selinux_netlbl_cache_invalidate(void)
 	return;
 }
 
+static inline int selinux_netlbl_skbuff_getsid(struct sk_buff *skb,
+					       u32 base_sid,
+					       u32 *sid)
+{
+	*sid = SECSID_NULL;
+	return 0;
+}
+
 static inline int selinux_netlbl_socket_post_create(struct socket *sock)
 {
 	return 0;
@@ -73,27 +79,11 @@ static inline void selinux_netlbl_sock_graft(struct sock *sk,
 	return;
 }
 
-static inline u32 selinux_netlbl_inet_conn_request(struct sk_buff *skb,
-						   u32 sock_sid)
-{
-	return SECSID_NULL;
-}
-
 static inline int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 					      struct sk_buff *skb,
 					      struct avc_audit_data *ad)
 {
 	return 0;
-}
-
-static inline u32 selinux_netlbl_socket_getpeersec_stream(struct socket *sock)
-{
-	return SECSID_NULL;
-}
-
-static inline u32 selinux_netlbl_socket_getpeersec_dgram(struct sk_buff *skb)
-{
-	return SECSID_NULL;
 }
 
 static inline void selinux_netlbl_sk_security_reset(

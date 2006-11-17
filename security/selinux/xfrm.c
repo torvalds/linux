@@ -372,39 +372,6 @@ void selinux_xfrm_state_free(struct xfrm_state *x)
 		kfree(ctx);
 }
 
-/*
- * SELinux internal function to retrieve the context of a UDP packet
- * based on its security association.
- *
- * Retrieve via setsockopt IP_PASSSEC and recvmsg with control message
- * type SCM_SECURITY.
- */
-u32 selinux_socket_getpeer_dgram(struct sk_buff *skb)
-{
-	struct sec_path *sp;
-
-	if (skb == NULL)
-		return SECSID_NULL;
-
-	if (skb->sk->sk_protocol != IPPROTO_UDP)
-		return SECSID_NULL;
-
-	sp = skb->sp;
-	if (sp) {
-		int i;
-
-		for (i = sp->len-1; i >= 0; i--) {
-			struct xfrm_state *x = sp->xvec[i];
-			if (selinux_authorizable_xfrm(x)) {
-				struct xfrm_sec_ctx *ctx = x->security;
-				return ctx->ctx_sid;
-			}
-		}
-	}
-
-	return SECSID_NULL;
-}
-
  /*
   * LSM hook implementation that authorizes deletion of labeled SAs.
   */

@@ -3574,27 +3574,16 @@ static int selinux_socket_getpeersec_stream(struct socket *sock, char __user *op
 	u32 scontext_len;
 	struct sk_security_struct *ssec;
 	struct inode_security_struct *isec;
-	u32 peer_sid = 0;
+	u32 peer_sid = SECSID_NULL;
 
 	isec = SOCK_INODE(sock)->i_security;
 
-	/* if UNIX_STREAM check peer_sid, if TCP check dst for labelled sa */
-	if (isec->sclass == SECCLASS_UNIX_STREAM_SOCKET) {
+	if (isec->sclass == SECCLASS_UNIX_STREAM_SOCKET ||
+	    isec->sclass == SECCLASS_TCP_SOCKET) {
 		ssec = sock->sk->sk_security;
 		peer_sid = ssec->peer_sid;
 	}
-	else if (isec->sclass == SECCLASS_TCP_SOCKET) {
-		peer_sid = selinux_netlbl_socket_getpeersec_stream(sock);
-		if (peer_sid == SECSID_NULL) {
-			ssec = sock->sk->sk_security;
-			peer_sid = ssec->peer_sid;
-		}
-		if (peer_sid == SECSID_NULL) {
-			err = -ENOPROTOOPT;
-			goto out;
-		}
-	}
-	else {
+	if (peer_sid == SECSID_NULL) {
 		err = -ENOPROTOOPT;
 		goto out;
 	}
@@ -3626,13 +3615,12 @@ static int selinux_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *
 	u32 peer_secid = SECSID_NULL;
 	int err = 0;
 
-	if (sock && (sock->sk->sk_family == PF_UNIX))
+	if (sock && sock->sk->sk_family == PF_UNIX)
 		selinux_get_inode_sid(SOCK_INODE(sock), &peer_secid);
-	else if (skb) {
-		peer_secid = selinux_netlbl_socket_getpeersec_dgram(skb);
-		if (peer_secid == SECSID_NULL)
-			peer_secid = selinux_socket_getpeer_dgram(skb);
-	}
+	else if (skb)
+		security_skb_extlbl_sid(skb,
+					SECINITSID_UNLABELED,
+					&peer_secid);
 
 	if (peer_secid == SECSID_NULL)
 		err = -EINVAL;
@@ -3693,17 +3681,10 @@ static int selinux_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 	u32 newsid;
 	u32 peersid;
 
-	newsid = selinux_netlbl_inet_conn_request(skb, sksec->sid);
-	if (newsid != SECSID_NULL) {
-		req->secid = newsid;
-		return 0;
-	}
-
-	selinux_skb_xfrm_sid(skb, &peersid);
-
+	security_skb_extlbl_sid(skb, SECINITSID_UNLABELED, &peersid);
 	if (peersid == SECSID_NULL) {
 		req->secid = sksec->sid;
-		req->peer_secid = 0;
+		req->peer_secid = SECSID_NULL;
 		return 0;
 	}
 
@@ -3738,7 +3719,7 @@ static void selinux_inet_conn_established(struct sock *sk,
 {
 	struct sk_security_struct *sksec = sk->sk_security;
 
-	selinux_skb_xfrm_sid(skb, &sksec->peer_sid);
+	security_skb_extlbl_sid(skb, SECINITSID_UNLABELED, &sksec->peer_sid);
 }
 
 static void selinux_req_classify_flow(const struct request_sock *req,
