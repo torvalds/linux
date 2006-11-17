@@ -78,7 +78,7 @@ static int __devinit start_contest(int cmd, long offset, int num)
 {
 	int i, score=0;
 	u64 tb;
-	long mark;
+	u64 mark;
 
 	tbsync->cmd = cmd;
 
