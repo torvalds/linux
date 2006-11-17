@@ -45,7 +45,6 @@
 #include <linux/if_vlan.h>
 #include <linux/mii.h>
 #include <linux/sockios.h>
-#include <linux/proc_fs.h>
 #include <linux/dma-mapping.h>
 #include <asm/uaccess.h>
 
@@ -780,17 +779,6 @@ static const struct ethtool_ops t1_ethtool_ops = {
 	.set_tso           = set_tso,
 };
 
-static void cxgb_proc_cleanup(struct adapter *adapter,
-					struct proc_dir_entry *dir)
-{
-	const char *name;
-	name = adapter->name;
-	remove_proc_entry(name, dir);
-}
-//#define chtoe_setup_toedev(adapter) NULL
-#define update_mtu_tab(adapter)
-#define write_smt_entry(adapter, idx)
-
 static int t1_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 {
 	struct adapter *adapter = dev->priv;
@@ -1156,7 +1144,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 		if (adapter->regs) iounmap(adapter->regs);
 		for (i = bi->port_number - 1; i >= 0; --i)
 			if (adapter->port[i].dev) {
-				cxgb_proc_cleanup(adapter, proc_root_driver);
 				kfree(adapter->port[i].dev);
 			}
 	}
@@ -1189,7 +1176,6 @@ static void __devexit remove_one(struct pci_dev *pdev)
 		iounmap(adapter->regs);
 		while (--i >= 0)
 			if (adapter->port[i].dev) {
-				cxgb_proc_cleanup(adapter, proc_root_driver);
 				kfree(adapter->port[i].dev);
 			}
 		pci_release_regions(pdev);
