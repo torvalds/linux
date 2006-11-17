@@ -351,8 +351,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		 * socket up.  We've got bigger problems than
 		 * non-graceful socket closings.
 		 */
-		if (net_ratelimit())
-			printk(KERN_INFO "TCP: time wait bucket table overflow\n");
+		LIMIT_NETDEBUG(KERN_INFO "TCP: time wait bucket table overflow\n");
 	}
 
 	tcp_update_metrics(sk);
@@ -667,11 +666,11 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 				 * newsk structure. If we fail to get memory then we
 				 * end up not copying the key across. Shucks.
 				 */
-				char *newkey = kmalloc(key->keylen, GFP_ATOMIC);
+				char *newkey = kmemdup(key->key, key->keylen,
+						       GFP_ATOMIC);
 				if (newkey) {
 					if (!tcp_alloc_md5sig_pool())
 						BUG();
-					memcpy(newkey, key->key, key->keylen);
 					tp->af_specific->md5_add(child, child,
 								 newkey,
 								 key->keylen);
