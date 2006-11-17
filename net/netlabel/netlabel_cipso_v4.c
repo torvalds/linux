@@ -407,12 +407,14 @@ static int netlbl_cipsov4_add(struct sk_buff *skb, struct genl_info *info)
 
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_CIPSOV4_ADD,
 					      &audit_info);
-	audit_log_format(audit_buf,
-			 " cipso_doi=%u cipso_type=%s res=%u",
-			 doi,
-			 type_str,
-			 ret_val == 0 ? 1 : 0);
-	audit_log_end(audit_buf);
+	if (audit_buf != NULL) {
+		audit_log_format(audit_buf,
+				 " cipso_doi=%u cipso_type=%s res=%u",
+				 doi,
+				 type_str,
+				 ret_val == 0 ? 1 : 0);
+		audit_log_end(audit_buf);
+	}
 
 	return ret_val;
 }
@@ -680,11 +682,13 @@ static int netlbl_cipsov4_remove(struct sk_buff *skb, struct genl_info *info)
 
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_CIPSOV4_DEL,
 					      &audit_info);
-	audit_log_format(audit_buf,
-			 " cipso_doi=%u res=%u",
-			 doi,
-			 ret_val == 0 ? 1 : 0);
-	audit_log_end(audit_buf);
+	if (audit_buf != NULL) {
+		audit_log_format(audit_buf,
+				 " cipso_doi=%u res=%u",
+				 doi,
+				 ret_val == 0 ? 1 : 0);
+		audit_log_end(audit_buf);
+	}
 
 	return ret_val;
 }

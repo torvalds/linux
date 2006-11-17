@@ -35,6 +35,7 @@
 #include <linux/socket.h>
 #include <linux/string.h>
 #include <linux/skbuff.h>
+#include <linux/audit.h>
 #include <net/sock.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>
@@ -92,8 +93,11 @@ static void netlbl_unlabel_acceptflg_set(u8 value,
 
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_UNLBL_ALLOW,
 					      audit_info);
-	audit_log_format(audit_buf, " unlbl_accept=%u old=%u", value, old_val);
-	audit_log_end(audit_buf);
+	if (audit_buf != NULL) {
+		audit_log_format(audit_buf,
+				 " unlbl_accept=%u old=%u", value, old_val);
+		audit_log_end(audit_buf);
+	}
 }
 
 /*
