@@ -286,12 +286,11 @@ static int dccp_feat_nn(struct sock *sk, u8 type, u8 feature, u8 *val, u8 len)
 	if (opt == NULL)
 		return -ENOMEM;
 
-	copy = kmalloc(len, GFP_ATOMIC);
+	copy = kmemdup(val, len, GFP_ATOMIC);
 	if (copy == NULL) {
 		kfree(opt);
 		return -ENOMEM;
 	}
-	memcpy(copy, val, len);
 
 	opt->dccpop_type = DCCPO_CONFIRM_R; /* NN can only confirm R */
 	opt->dccpop_feat = feature;
@@ -521,20 +520,18 @@ int dccp_feat_clone(struct sock *oldsk, struct sock *newsk)
 	list_for_each_entry(opt, &olddmsk->dccpms_pending, dccpop_node) {
 		struct dccp_opt_pend *newopt;
 		/* copy the value of the option */
-		u8 *val = kmalloc(opt->dccpop_len, GFP_ATOMIC);
+		u8 *val = kmemdup(opt->dccpop_val, opt->dccpop_len, GFP_ATOMIC);
 
 		if (val == NULL)
 			goto out_clean;
-		memcpy(val, opt->dccpop_val, opt->dccpop_len);
 
-		newopt = kmalloc(sizeof(*newopt), GFP_ATOMIC);
+		newopt = kmemdup(opt, sizeof(*newopt), GFP_ATOMIC);
 		if (newopt == NULL) {
 			kfree(val);
 			goto out_clean;
 		}
 
 		/* insert the option */
-		memcpy(newopt, opt, sizeof(*newopt));
 		newopt->dccpop_val = val;
 		list_add_tail(&newopt->dccpop_node, &newdmsk->dccpms_pending);
 
@@ -565,10 +562,9 @@ static int __dccp_feat_init(struct dccp_minisock *dmsk, u8 type, u8 feat,
 			    u8 *val, u8 len)
 {
 	int rc = -ENOMEM;
-	u8 *copy = kmalloc(len, GFP_KERNEL);
+	u8 *copy = kmemdup(val, len, GFP_KERNEL);
 
 	if (copy != NULL) {
-		memcpy(copy, val, len);
 		rc = dccp_feat_change(dmsk, type, feat, copy, len, GFP_KERNEL);
 		if (rc)
 			kfree(copy);
