@@ -340,10 +340,15 @@ fail:
 	return (copied) ? copied : error;
 }
 
+static inline int gfs2_dirent_sentinel(const struct gfs2_dirent *dent)
+{
+	return dent->de_inum.no_addr == 0 || dent->de_inum.no_formal_ino == 0;
+}
+
 static inline int __gfs2_dirent_find(const struct gfs2_dirent *dent,
 				     const struct qstr *name, int ret)
 {
-	if (dent->de_inum.no_addr != 0 &&
+	if (!gfs2_dirent_sentinel(dent) &&
 	    be32_to_cpu(dent->de_hash) == name->hash &&
 	    be16_to_cpu(dent->de_name_len) == name->len &&
 	    memcmp(dent+1, name->name, name->len) == 0)
@@ -388,7 +393,7 @@ static int gfs2_dirent_find_space(const struct gfs2_dirent *dent,
 	unsigned actual = GFS2_DIRENT_SIZE(be16_to_cpu(dent->de_name_len));
 	unsigned totlen = be16_to_cpu(dent->de_rec_len);
 
-	if (!dent->de_inum.no_addr)
+	if (gfs2_dirent_sentinel(dent))
 		actual = GFS2_DIRENT_SIZE(0);
 	if (totlen - actual >= required)
 		return 1;
@@ -405,7 +410,7 @@ static int gfs2_dirent_gather(const struct gfs2_dirent *dent,
 			      void *opaque)
 {
 	struct dirent_gather *g = opaque;
-	if (dent->de_inum.no_addr) {
+	if (!gfs2_dirent_sentinel(dent)) {
 		g->pdent[g->offset++] = dent;
 	}
 	return 0;
@@ -433,10 +438,10 @@ static int gfs2_check_dirent(struct gfs2_dirent *dent, unsigned int offset,
 	if (unlikely(offset + size > len))
 		goto error;
 	msg = "zero inode number";
-	if (unlikely(!first && !dent->de_inum.no_addr))
+	if (unlikely(!first && gfs2_dirent_sentinel(dent)))
 		goto error;
 	msg = "name length is greater than space in dirent";
-	if (dent->de_inum.no_addr &&
+	if (!gfs2_dirent_sentinel(dent) &&
 	    unlikely(sizeof(struct gfs2_dirent)+be16_to_cpu(dent->de_name_len) >
 		     size))
 		goto error;
@@ -598,7 +603,7 @@ static int dirent_next(struct gfs2_inode *dip, struct buffer_head *bh,
 		return ret;
 
         /* Only the first dent could ever have de_inum.no_addr == 0 */
-	if (!tmp->de_inum.no_addr) {
+	if (gfs2_dirent_sentinel(tmp)) {
 		gfs2_consist_inode(dip);
 		return -EIO;
 	}
@@ -621,7 +626,7 @@ static void dirent_del(struct gfs2_inode *dip, struct buffer_head *bh,
 {
 	u16 cur_rec_len, prev_rec_len;
 
-	if (!cur->de_inum.no_addr) {
+	if (gfs2_dirent_sentinel(cur)) {
 		gfs2_consist_inode(dip);
 		return;
 	}
@@ -633,7 +638,8 @@ static void dirent_del(struct gfs2_inode *dip, struct buffer_head *bh,
 	   out the inode number and return.  */
 
 	if (!prev) {
-		cur->de_inum.no_addr = 0;	/* No endianess worries */
+		cur->de_inum.no_addr = 0;
+		cur->de_inum.no_formal_ino = 0;
 		return;
 	}
 
@@ -664,7 +670,7 @@ static struct gfs2_dirent *gfs2_init_dirent(struct inode *inode,
 	struct gfs2_dirent *ndent;
 	unsigned offset = 0, totlen;
 
-	if (dent->de_inum.no_addr)
+	if (!gfs2_dirent_sentinel(dent))
 		offset = GFS2_DIRENT_SIZE(be16_to_cpu(dent->de_name_len));
 	totlen = be16_to_cpu(dent->de_rec_len);
 	BUG_ON(offset + name->len > totlen);
@@ -1002,7 +1008,7 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 		if (dirent_next(dip, obh, &next))
 			next = NULL;
 
-		if (dent->de_inum.no_addr &&
+		if (!gfs2_dirent_sentinel(dent) &&
 		    be32_to_cpu(dent->de_hash) < divider) {
 			struct qstr str;
 			str.name = (char*)(dent+1);
