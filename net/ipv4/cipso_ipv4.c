@@ -447,8 +447,22 @@ static struct cipso_v4_doi *cipso_v4_doi_search(u32 doi)
  */
 int cipso_v4_doi_add(struct cipso_v4_doi *doi_def)
 {
+	u32 iter;
+
 	if (doi_def == NULL || doi_def->doi == CIPSO_V4_DOI_UNKNOWN)
 		return -EINVAL;
+	for (iter = 0; iter < CIPSO_V4_TAG_MAXCNT; iter++) {
+		switch (doi_def->tags[iter]) {
+		case CIPSO_V4_TAG_RBITMAP:
+			break;
+		case CIPSO_V4_TAG_INVALID:
+			if (iter == 0)
+				return -EINVAL;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
 
 	doi_def->valid = 1;
 	INIT_RCU_HEAD(&doi_def->rcu);
