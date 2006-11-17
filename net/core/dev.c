@@ -3035,15 +3035,6 @@ int register_netdev(struct net_device *dev)
 			goto out;
 	}
 	
-	/*
-	 * Back compatibility hook. Kill this one in 2.5
-	 */
-	if (dev->name[0] == 0 || dev->name[0] == ' ') {
-		err = dev_alloc_name(dev, "eth%d");
-		if (err < 0)
-			goto out;
-	}
-
 	err = register_netdevice(dev);
 out:
 	rtnl_unlock();
