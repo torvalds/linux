@@ -720,10 +720,9 @@ static int tcp_v6_parse_md5_keys (struct sock *sk, char __user *optval,
 		tp->md5sig_info = p;
 	}
 
-	newkey = kmalloc(cmd.tcpm_keylen, GFP_KERNEL);
+	newkey = kmemdup(cmd.tcpm_key, cmd.tcpm_keylen, GFP_KERNEL);
 	if (!newkey)
 		return -ENOMEM;
-	memcpy(newkey, cmd.tcpm_key, cmd.tcpm_keylen);
 	if (ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_MAPPED) {
 		return tcp_v4_md5_do_add(sk, sin6->sin6_addr.s6_addr32[3],
 					 newkey, cmd.tcpm_keylen);
@@ -1503,12 +1502,10 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 		 * memory, then we end up not copying the key
 		 * across. Shucks.
 		 */
-		char *newkey = kmalloc(key->keylen, GFP_ATOMIC);
-		if (newkey) {
-			memcpy(newkey, key->key, key->keylen);
+		char *newkey = kmemdup(key->key, key->keylen, GFP_ATOMIC);
+		if (newkey != NULL)
 			tcp_v6_md5_do_add(newsk, &inet6_sk(sk)->daddr,
 					  newkey, key->keylen);
-		}
 	}
 #endif
 
