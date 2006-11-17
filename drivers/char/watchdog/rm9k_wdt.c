@@ -111,6 +111,30 @@ static irqreturn_t wdt_gpi_irqhdl(int irq, void *ctxt, struct pt_regs *regs)
 
 
 /* Watchdog functions */
+static void wdt_gpi_start(void)
+{
+	u32 reg;
+
+	lock_titan_regs();
+	reg = titan_readl(CPGIG1ER);
+	titan_writel(reg | (0x100 << wd_ctr), CPGIG1ER);
+	iob();
+	unlock_titan_regs();
+}
+
+static void wdt_gpi_stop(void)
+{
+	u32 reg;
+
+	lock_titan_regs();
+	reg = titan_readl(CPCCR) & ~(0xf << (wd_ctr * 4));
+	titan_writel(reg, CPCCR);
+	reg = titan_readl(CPGIG1ER);
+	titan_writel(reg & ~(0x100 << wd_ctr), CPGIG1ER);
+	iob();
+	unlock_titan_regs();
+}
+
 static void wdt_gpi_set_timeout(unsigned int to)
 {
 	u32 reg;
@@ -134,7 +158,6 @@ static void wdt_gpi_set_timeout(unsigned int to)
 static int wdt_gpi_open(struct inode *i, struct file *f)
 {
 	int res;
-	u32 reg;
 
 	if (unlikely(0 > atomic_dec_if_positive(&opencnt)))
 		return -EBUSY;
@@ -152,12 +175,7 @@ static int wdt_gpi_open(struct inode *i, struct file *f)
 		return res;
 
 	wdt_gpi_set_timeout(timeout);
-
-	lock_titan_regs();
-	reg = titan_readl(CPGIG1ER);
-	titan_writel(reg | (0x100 << wd_ctr), CPGIG1ER);
-	iob();
-	unlock_titan_regs();
+	wdt_gpi_start();
 
 	printk(KERN_INFO "%s: watchdog started, timeout = %u seconds\n",
 		wdt_gpi_name, timeout);
@@ -173,15 +191,7 @@ static int wdt_gpi_release(struct inode *i, struct file *f)
 		locked = 1;
 	} else {
 		if (expect_close) {
-			u32 reg;
-
-			lock_titan_regs();
-			reg = titan_readl(CPCCR) & ~(0xf << (wd_ctr * 4));
-			titan_writel(reg, CPCCR);
-			reg = titan_readl(CPGIG1ER);
-			titan_writel(reg & ~(0x100 << wd_ctr), CPGIG1ER);
-			iob();
-			unlock_titan_regs();
+			wdt_gpi_stop();
 			free_irq(wd_irq, &miscdev);
 			printk(KERN_INFO "%s: watchdog stopped\n", wdt_gpi_name);
 		} else {
@@ -293,17 +303,9 @@ wdt_gpi_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 static int
 wdt_gpi_notify(struct notifier_block *this, unsigned long code, void *unused)
 {
-	if(code == SYS_DOWN || code == SYS_HALT) {
-		u32 reg;
+	if (code == SYS_DOWN || code == SYS_HALT)
+		wdt_gpi_stop();
 
-		lock_titan_regs();
-		reg = titan_readl(CPCCR) & ~(0xf << (wd_ctr * 4));
-		titan_writel(reg, CPCCR);
-		reg = titan_readl(CPGIG1ER);
-		titan_writel(reg & ~(0x100 << wd_ctr), CPGIG1ER);
-		iob();
-		unlock_titan_regs();
-	}
 	return NOTIFY_DONE;
 }
 
