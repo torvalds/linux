@@ -44,7 +44,6 @@ EXPORT_SYMBOL(serio_interrupt);
 EXPORT_SYMBOL(__serio_register_port);
 EXPORT_SYMBOL(serio_unregister_port);
 EXPORT_SYMBOL(serio_unregister_child_port);
-EXPORT_SYMBOL(__serio_unregister_port_delayed);
 EXPORT_SYMBOL(__serio_register_driver);
 EXPORT_SYMBOL(serio_unregister_driver);
 EXPORT_SYMBOL(serio_open);
@@ -64,7 +63,6 @@ static struct bus_type serio_bus;
 
 static void serio_add_driver(struct serio_driver *drv);
 static void serio_add_port(struct serio *serio);
-static void serio_destroy_port(struct serio *serio);
 static void serio_reconnect_port(struct serio *serio);
 static void serio_disconnect_port(struct serio *serio);
 
@@ -173,7 +171,6 @@ enum serio_event_type {
 	SERIO_RESCAN,
 	SERIO_RECONNECT,
 	SERIO_REGISTER_PORT,
-	SERIO_UNREGISTER_PORT,
 	SERIO_REGISTER_DRIVER,
 };
 
@@ -305,11 +302,6 @@ static void serio_handle_event(void)
 		switch (event->type) {
 			case SERIO_REGISTER_PORT:
 				serio_add_port(event->object);
-				break;
-
-			case SERIO_UNREGISTER_PORT:
-				serio_disconnect_port(event->object);
-				serio_destroy_port(event->object);
 				break;
 
 			case SERIO_RECONNECT:
@@ -714,16 +706,6 @@ void serio_unregister_child_port(struct serio *serio)
 		serio_destroy_port(serio->child);
 	}
 	mutex_unlock(&serio_mutex);
-}
-
-/*
- * Submits register request to kseriod for subsequent execution.
- * Can be used when it is not obvious whether the serio_mutex is
- * taken or not and when delayed execution is feasible.
- */
-void __serio_unregister_port_delayed(struct serio *serio, struct module *owner)
-{
-	serio_queue_event(serio, owner, SERIO_UNREGISTER_PORT);
 }
 
 

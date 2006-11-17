@@ -85,11 +85,6 @@ static inline void serio_register_port(struct serio *serio)
 
 void serio_unregister_port(struct serio *serio);
 void serio_unregister_child_port(struct serio *serio);
-void __serio_unregister_port_delayed(struct serio *serio, struct module *owner);
-static inline void serio_unregister_port_delayed(struct serio *serio)
-{
-	__serio_unregister_port_delayed(serio, THIS_MODULE);
-}
 
 void __serio_register_driver(struct serio_driver *drv, struct module *owner);
 static inline void serio_register_driver(struct serio_driver *drv)
