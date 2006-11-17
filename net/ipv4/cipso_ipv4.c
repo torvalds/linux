@@ -958,34 +958,27 @@ static int cipso_v4_map_cat_rbm_ntoh(const struct cipso_v4_doi *doi_def,
  * Protocol Handling Functions
  */
 
+#define CIPSO_V4_OPT_LEN_MAX          40
 #define CIPSO_V4_HDR_LEN              6
 
 /**
  * cipso_v4_gentag_hdr - Generate a CIPSO option header
  * @doi_def: the DOI definition
- * @len: the total tag length in bytes
+ * @len: the total tag length in bytes, not including this header
  * @buf: the CIPSO option buffer
  *
  * Description:
- * Write a CIPSO header into the beginning of @buffer.  Return zero on success,
- * negative values on failure.
+ * Write a CIPSO header into the beginning of @buffer.
  *
  */
-static int cipso_v4_gentag_hdr(const struct cipso_v4_doi *doi_def,
-			       u32 len,
-			       unsigned char *buf)
+static void cipso_v4_gentag_hdr(const struct cipso_v4_doi *doi_def,
+				unsigned char *buf,
+				u32 len)
 {
-	if (CIPSO_V4_HDR_LEN + len > 40)
-		return -ENOSPC;
-
 	buf[0] = IPOPT_CIPSO;
 	buf[1] = CIPSO_V4_HDR_LEN + len;
 	*(__be32 *)&buf[2] = htonl(doi_def->doi);
-
-	return 0;
 }
-
-#define CIPSO_V4_TAG1_CAT_LEN         30
 
 /**
  * cipso_v4_gentag_rbm - Generate a CIPSO restricted bitmap tag (type #1)
@@ -997,71 +990,50 @@ static int cipso_v4_gentag_hdr(const struct cipso_v4_doi *doi_def,
  * Description:
  * Generate a CIPSO option using the restricted bitmap tag, tag type #1.  The
  * actual buffer length may be larger than the indicated size due to
- * translation between host and network category bitmaps.  Returns zero on
- * success, negative values on failure.
+ * translation between host and network category bitmaps.  Returns the size of
+ * the tag on success, negative values on failure.
  *
  */
 static int cipso_v4_gentag_rbm(const struct cipso_v4_doi *doi_def,
 			       const struct netlbl_lsm_secattr *secattr,
-			       unsigned char **buffer,
-			       u32 *buffer_len)
+			       unsigned char *buffer,
+			       u32 buffer_len)
 {
 	int ret_val;
-	unsigned char *buf = NULL;
-	u32 buf_len;
+	u32 tag_len;
 	u32 level;
 
 	if ((secattr->flags & NETLBL_SECATTR_MLS_LVL) == 0)
 		return -EPERM;
 
-	if (secattr->flags & NETLBL_SECATTR_MLS_CAT) {
-		buf = kzalloc(CIPSO_V4_HDR_LEN + 4 + CIPSO_V4_TAG1_CAT_LEN,
-			      GFP_ATOMIC);
-		if (buf == NULL)
-			return -ENOMEM;
+	ret_val = cipso_v4_map_lvl_hton(doi_def, secattr->mls_lvl, &level);
+	if (ret_val != 0)
+		return ret_val;
 
+	if (secattr->flags & NETLBL_SECATTR_MLS_CAT) {
 		ret_val = cipso_v4_map_cat_rbm_hton(doi_def,
 						    secattr->mls_cat,
 						    secattr->mls_cat_len,
-						    &buf[CIPSO_V4_HDR_LEN + 4],
-						    CIPSO_V4_TAG1_CAT_LEN);
+						    &buffer[4],
+						    buffer_len - 4);
 		if (ret_val < 0)
-			goto gentag_failure;
+			return ret_val;
 
 		/* This will send packets using the "optimized" format when
 		 * possibile as specified in  section 3.4.2.6 of the
 		 * CIPSO draft. */
 		if (cipso_v4_rbm_optfmt && ret_val > 0 && ret_val <= 10)
-			buf_len = 14;
+			tag_len = 14;
 		else
-			buf_len = 4 + ret_val;
-	} else {
-		buf = kzalloc(CIPSO_V4_HDR_LEN + 4, GFP_ATOMIC);
-		if (buf == NULL)
-			return -ENOMEM;
-		buf_len = 4;
-	}
+			tag_len = 4 + ret_val;
+	} else
+		tag_len = 4;
 
-	ret_val = cipso_v4_map_lvl_hton(doi_def, secattr->mls_lvl, &level);
-	if (ret_val != 0)
-		goto gentag_failure;
+	buffer[0] = 0x01;
+	buffer[1] = tag_len;
+	buffer[3] = level;
 
-	ret_val = cipso_v4_gentag_hdr(doi_def, buf_len, buf);
-	if (ret_val != 0)
-		goto gentag_failure;
-
-	buf[CIPSO_V4_HDR_LEN] = 0x01;
-	buf[CIPSO_V4_HDR_LEN + 1] = buf_len;
-	buf[CIPSO_V4_HDR_LEN + 3] = level;
-
-	*buffer = buf;
-	*buffer_len = CIPSO_V4_HDR_LEN + buf_len;
-
-	return 0;
-
-gentag_failure:
-	kfree(buf);
-	return ret_val;
+	return tag_len;
 }
 
 /**
@@ -1284,7 +1256,7 @@ int cipso_v4_socket_setattr(const struct socket *sock,
 {
 	int ret_val = -EPERM;
 	u32 iter;
-	unsigned char *buf = NULL;
+	unsigned char *buf;
 	u32 buf_len = 0;
 	u32 opt_len;
 	struct ip_options *opt = NULL;
@@ -1300,17 +1272,28 @@ int cipso_v4_socket_setattr(const struct socket *sock,
 	if (sk == NULL)
 		return 0;
 
+	/* We allocate the maximum CIPSO option size here so we are probably
+	 * being a little wasteful, but it makes our life _much_ easier later
+	 * on and after all we are only talking about 40 bytes. */
+	buf_len = CIPSO_V4_OPT_LEN_MAX;
+	buf = kmalloc(buf_len, GFP_ATOMIC);
+	if (buf == NULL) {
+		ret_val = -ENOMEM;
+		goto socket_setattr_failure;
+	}
+
 	/* XXX - This code assumes only one tag per CIPSO option which isn't
 	 * really a good assumption to make but since we only support the MAC
 	 * tags right now it is a safe assumption. */
 	iter = 0;
 	do {
+		memset(buf, 0, buf_len);
 		switch (doi_def->tags[iter]) {
 		case CIPSO_V4_TAG_RBITMAP:
 			ret_val = cipso_v4_gentag_rbm(doi_def,
-						      secattr,
-						      &buf,
-						      &buf_len);
+						   secattr,
+						   &buf[CIPSO_V4_HDR_LEN],
+						   buf_len - CIPSO_V4_HDR_LEN);
 			break;
 		default:
 			ret_val = -EPERM;
@@ -1318,11 +1301,13 @@ int cipso_v4_socket_setattr(const struct socket *sock,
 		}
 
 		iter++;
-	} while (ret_val != 0 &&
+	} while (ret_val < 0 &&
 		 iter < CIPSO_V4_TAG_MAXCNT &&
 		 doi_def->tags[iter] != CIPSO_V4_TAG_INVALID);
-	if (ret_val != 0)
+	if (ret_val < 0)
 		goto socket_setattr_failure;
+	cipso_v4_gentag_hdr(doi_def, buf, ret_val);
+	buf_len = CIPSO_V4_HDR_LEN + ret_val;
 
 	/* We can't use ip_options_get() directly because it makes a call to
 	 * ip_options_get_alloc() which allocates memory with GFP_KERNEL and
@@ -1396,6 +1381,10 @@ int cipso_v4_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr)
 		rcu_read_unlock();
 		return -ENOMSG;
 	}
+
+	/* XXX - This code assumes only one tag per CIPSO option which isn't
+	 * really a good assumption to make but since we only support the MAC
+	 * tags right now it is a safe assumption. */
 	switch (cipso_ptr[6]) {
 	case CIPSO_V4_TAG_RBITMAP:
 		ret_val = cipso_v4_parsetag_rbm(doi_def,
@@ -1458,6 +1447,10 @@ int cipso_v4_skbuff_getattr(const struct sk_buff *skb,
 	doi_def = cipso_v4_doi_getdef(doi);
 	if (doi_def == NULL)
 		goto skbuff_getattr_return;
+
+	/* XXX - This code assumes only one tag per CIPSO option which isn't
+	 * really a good assumption to make but since we only support the MAC
+	 * tags right now it is a safe assumption. */
 	switch (cipso_ptr[6]) {
 	case CIPSO_V4_TAG_RBITMAP:
 		ret_val = cipso_v4_parsetag_rbm(doi_def,
