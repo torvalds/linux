@@ -47,6 +47,14 @@
 #define GEYSER3_ISO_PRODUCT_ID	0x0218
 #define GEYSER3_JIS_PRODUCT_ID	0x0219
 
+/*
+ * Geyser IV: same as Geyser III according to Info.plist in AppleUSBTrackpad.kext
+ * -> same IOClass (AppleUSBGrIIITrackpad), same acceleration tables
+ */
+#define GEYSER4_ANSI_PRODUCT_ID	0x021A
+#define GEYSER4_ISO_PRODUCT_ID	0x021B
+#define GEYSER4_JIS_PRODUCT_ID	0x021C
+
 #define ATP_DEVICE(prod)					\
 	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |		\
 		       USB_DEVICE_ID_MATCH_INT_CLASS |		\
@@ -68,9 +76,15 @@ static struct usb_device_id atp_table [] = {
 	{ ATP_DEVICE(GEYSER_ISO_PRODUCT_ID) },
 	{ ATP_DEVICE(GEYSER_JIS_PRODUCT_ID) },
 
+	/* Core Duo MacBook & MacBook Pro */
 	{ ATP_DEVICE(GEYSER3_ANSI_PRODUCT_ID) },
 	{ ATP_DEVICE(GEYSER3_ISO_PRODUCT_ID) },
 	{ ATP_DEVICE(GEYSER3_JIS_PRODUCT_ID) },
+
+	/* Core2 Duo MacBook & MacBook Pro */
+	{ ATP_DEVICE(GEYSER4_ANSI_PRODUCT_ID) },
+	{ ATP_DEVICE(GEYSER4_ISO_PRODUCT_ID) },
+	{ ATP_DEVICE(GEYSER4_JIS_PRODUCT_ID) },
 
 	/* Terminating entry */
 	{ }
@@ -108,7 +122,7 @@ MODULE_DEVICE_TABLE (usb, atp_table);
  */
 #define ATP_THRESHOLD	 5
 
-/* MacBook Pro (Geyser 3) initialization constants */
+/* MacBook Pro (Geyser 3 & 4) initialization constants */
 #define ATP_GEYSER3_MODE_READ_REQUEST_ID 1
 #define ATP_GEYSER3_MODE_WRITE_REQUEST_ID 9
 #define ATP_GEYSER3_MODE_REQUEST_VALUE 0x300
@@ -181,7 +195,10 @@ static inline int atp_is_geyser_3(struct atp *dev)
 
 	return (productId == GEYSER3_ANSI_PRODUCT_ID) ||
 		(productId == GEYSER3_ISO_PRODUCT_ID) ||
-		(productId == GEYSER3_JIS_PRODUCT_ID);
+		(productId == GEYSER3_JIS_PRODUCT_ID) ||
+		(productId == GEYSER4_ANSI_PRODUCT_ID) ||
+		(productId == GEYSER4_ISO_PRODUCT_ID) ||
+		(productId == GEYSER4_JIS_PRODUCT_ID);
 }
 
 static int atp_calculate_abs(int *xy_sensors, int nb_sensors, int fact,
