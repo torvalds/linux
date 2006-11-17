@@ -26,6 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/fs.h>
 #include <linux/reboot.h>
+#include <linux/notifier.h>
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <asm/io.h>
@@ -47,13 +48,15 @@
 
 /* Function prototypes */
 static irqreturn_t wdt_gpi_irqhdl(int, void *, struct pt_regs *);
+static void wdt_gpi_start(void);
+static void wdt_gpi_stop(void);
 static void wdt_gpi_set_timeout(unsigned int);
 static int wdt_gpi_open(struct inode *, struct file *);
 static int wdt_gpi_release(struct inode *, struct file *);
 static ssize_t wdt_gpi_write(struct file *, const char __user *, size_t, loff_t *);
 static long wdt_gpi_ioctl(struct file *, unsigned int, unsigned long);
-static const struct resource *wdt_gpi_get_resource(struct platform_device *, const char *, unsigned int);
 static int wdt_gpi_notify(struct notifier_block *, unsigned long, void *);
+static const struct resource *wdt_gpi_get_resource(struct platform_device *, const char *, unsigned int);
 static int __init wdt_gpi_probe(struct device *);
 static int __exit wdt_gpi_remove(struct device *);
 
@@ -61,7 +64,7 @@ static int __exit wdt_gpi_remove(struct device *);
 static const char wdt_gpi_name[] = "wdt_gpi";
 static atomic_t opencnt;
 static int expect_close;
-static int locked = 0;
+static int locked;
 
 
 /* These are set from device resources */
@@ -82,7 +85,7 @@ static unsigned long flagaddr = 0xbffdc104;
 module_param(flagaddr, ulong, 0444);
 MODULE_PARM_DESC(flagaddr, "Address to write to boot flags to");
 
-static int powercycle = 0;
+static int powercycle;
 module_param(powercycle, bool, 0444);
 MODULE_PARM_DESC(powercycle, "Cycle power if watchdog expires");
 
@@ -99,7 +102,7 @@ static irqreturn_t wdt_gpi_irqhdl(int irq, void *ctxt, struct pt_regs *regs)
 	__raw_writel(0x1, wd_regs + 0x0008);
 
 
-	printk(KERN_WARNING "%s: watchdog expired - resetting system\n",
+	printk(KERN_CRIT "%s: watchdog expired - resetting system\n",
 		wdt_gpi_name);
 
 	*(volatile char *) flagaddr |= 0x01;
@@ -155,11 +158,11 @@ static void wdt_gpi_set_timeout(unsigned int to)
 
 
 /* /dev/watchdog operations */
-static int wdt_gpi_open(struct inode *i, struct file *f)
+static int wdt_gpi_open(struct inode *inode, struct file *file)
 {
 	int res;
 
-	if (unlikely(0 > atomic_dec_if_positive(&opencnt)))
+	if (unlikely(atomic_dec_if_positive(&opencnt) < 0))
 		return -EBUSY;
 
 	expect_close = 0;
@@ -179,13 +182,13 @@ static int wdt_gpi_open(struct inode *i, struct file *f)
 
 	printk(KERN_INFO "%s: watchdog started, timeout = %u seconds\n",
 		wdt_gpi_name, timeout);
-	return 0;
+	return nonseekable_open(inode, file);
 }
 
-static int wdt_gpi_release(struct inode *i, struct file *f)
+static int wdt_gpi_release(struct inode *inode, struct file *file)
 {
 	if (nowayout) {
-		printk(KERN_NOTICE "%s: no way out - watchdog left running\n",
+		printk(KERN_INFO "%s: no way out - watchdog left running\n",
 			wdt_gpi_name);
 		__module_get(THIS_MODULE);
 		locked = 1;
@@ -195,7 +198,7 @@ static int wdt_gpi_release(struct inode *i, struct file *f)
 			free_irq(wd_irq, &miscdev);
 			printk(KERN_INFO "%s: watchdog stopped\n", wdt_gpi_name);
 		} else {
-			printk(KERN_NOTICE "%s: unexpected close() -"
+			printk(KERN_CRIT "%s: unexpected close() -"
 				" watchdog left running\n",
 				wdt_gpi_name);
 			wdt_gpi_set_timeout(timeout);
@@ -224,6 +227,7 @@ wdt_gpi_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 	long res = -ENOTTY;
 	const long size = _IOC_SIZE(cmd);
 	int stat;
+	void __user *argp = (void __user *)arg;
 	static struct watchdog_info wdinfo = {
 		.identity               = "RM9xxx/GPI watchdog",
 		.firmware_version       = 0,
@@ -248,8 +252,7 @@ wdt_gpi_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 		wdinfo.options = nowayout ?
 			WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING :
 			WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE;
-		res = __copy_to_user((void __user *)arg, &wdinfo, size) ?
-			-EFAULT : size;
+		res = __copy_to_user(argp, &wdinfo, size) ?  -EFAULT : size;
 		break;
 
 	case WDIOC_GETSTATUS:
@@ -258,7 +261,7 @@ wdt_gpi_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 	case WDIOC_GETBOOTSTATUS:
 		stat = (*(volatile char *) flagaddr & 0x01)
 			? WDIOF_CARDRESET : 0;
-		res = __copy_to_user((void __user *)arg, &stat, size) ?
+		res = __copy_to_user(argp, &stat, size) ?
 			-EFAULT : size;
 		break;
 
@@ -273,24 +276,23 @@ wdt_gpi_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 	case WDIOC_SETTIMEOUT:
 		{
 			int val;
-			if (unlikely(__copy_from_user(&val, (const void __user *) arg,
-					size))) {
+			if (unlikely(__copy_from_user(&val, argp, size))) {
 				res = -EFAULT;
 				break;
 			}
 
-			if (val > 32)
-				val = 32;
+			if (val > MAX_TIMEOUT_SECONDS)
+				val = MAX_TIMEOUT_SECONDS;
 			timeout = val;
 			wdt_gpi_set_timeout(val);
 			res = size;
-			printk("%s: timeout set to %u seconds\n",
+			printk(KERN_INFO "%s: timeout set to %u seconds\n",
 				wdt_gpi_name, timeout);
 		}
 		break;
 
 	case WDIOC_GETTIMEOUT:
-		res = __copy_to_user((void __user *) arg, &timeout, size) ?
+		res = __copy_to_user(argp, &timeout, size) ?
 			-EFAULT : size;
 		break;
 	}
@@ -299,7 +301,7 @@ wdt_gpi_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 }
 
 
-/* Shutdown notifier*/
+/* Shutdown notifier */
 static int
 wdt_gpi_notify(struct notifier_block *this, unsigned long code, void *unused)
 {
