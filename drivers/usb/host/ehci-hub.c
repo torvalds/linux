@@ -319,6 +319,7 @@ static int ehci_hub_control (
 	u32		temp, status;
 	unsigned long	flags;
 	int		retval = 0;
+	unsigned	selector;
 
 	/*
 	 * FIXME:  support SetPortFeatures USB_PORT_FEAT_INDICATOR.
@@ -506,6 +507,8 @@ static int ehci_hub_control (
 		}
 		break;
 	case SetPortFeature:
+		selector = wIndex >> 8;
+		wIndex &= 0xff;
 		if (!wIndex || wIndex > ports)
 			goto error;
 		wIndex--;
@@ -559,6 +562,22 @@ static int ehci_hub_control (
 			}
 			writel (temp, &ehci->regs->port_status [wIndex]);
 			break;
+
+		/* For downstream facing ports (these):  one hub port is put
+		 * into test mode according to USB2 11.24.2.13, then the hub
+		 * must be reset (which for root hub now means rmmod+modprobe,
+		 * or else system reboot).  See EHCI 2.3.9 and 4.14 for info
+		 * about the EHCI-specific stuff.
+		 */
+		case USB_PORT_FEAT_TEST:
+			if (!selector || selector > 5)
+				goto error;
+			ehci_quiesce(ehci);
+			ehci_halt(ehci);
+			temp |= selector << 16;
+			writel (temp, &ehci->regs->port_status [wIndex]);
+			break;
+
 		default:
 			goto error;
 		}
