@@ -45,7 +45,6 @@
 #define CPGIG1ER               0x0054
 
 
-
 /* Function prototypes */
 static int __init wdt_gpi_probe(struct device *);
 static int __exit wdt_gpi_remove(struct device *);
@@ -59,13 +58,10 @@ static int wdt_gpi_notify(struct notifier_block *, unsigned long, void *);
 static irqreturn_t wdt_gpi_irqhdl(int, void *, struct pt_regs *);
 
 
-
-
 static const char wdt_gpi_name[] = "wdt_gpi";
 static atomic_t opencnt;
 static int expect_close;
 static int locked = 0;
-
 
 
 /* These are set from device resources */
@@ -73,19 +69,26 @@ static void __iomem * wd_regs;
 static unsigned int wd_irq, wd_ctr;
 
 
-
 /* Module arguments */
 static int timeout = MAX_TIMEOUT_SECONDS;
 module_param(timeout, int, 0444);
+MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds");
+
 static unsigned long resetaddr = 0xbffdc200;
 module_param(resetaddr, ulong, 0444);
+MODULE_PARM_DESC(resetaddr, "Address to write to to force a reset");
+
 static unsigned long flagaddr = 0xbffdc104;
 module_param(flagaddr, ulong, 0444);
+MODULE_PARM_DESC(flagaddr, "Address to write to boot flags to");
+
 static int powercycle = 0;
 module_param(powercycle, bool, 0444);
+MODULE_PARM_DESC(powercycle, "Cycle power if watchdog expires");
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0444);
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be disabled once started");
 
 
 
@@ -424,8 +427,4 @@ MODULE_DESCRIPTION("Basler eXcite watchdog driver for gpi devices");
 MODULE_VERSION("0.1");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
-MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds");
-MODULE_PARM_DESC(resetaddr, "Address to write to to force a reset");
-MODULE_PARM_DESC(flagaddr, "Address to write to boot flags to");
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be disabled once started");
-MODULE_PARM_DESC(powercycle, "Cycle power if watchdog expires");
+
