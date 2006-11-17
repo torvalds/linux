@@ -700,6 +700,14 @@ void ata_bmdma_freeze(struct ata_port *ap)
 		writeb(ap->ctl, (void __iomem *)ioaddr->ctl_addr);
 	else
 		outb(ap->ctl, ioaddr->ctl_addr);
+
+	/* Under certain circumstances, some controllers raise IRQ on
+	 * ATA_NIEN manipulation.  Also, many controllers fail to mask
+	 * previously pending IRQ on ATA_NIEN assertion.  Clear it.
+	 */
+	ata_chk_status(ap);
+
+	ap->ops->irq_clear(ap);
 }
 
 /**

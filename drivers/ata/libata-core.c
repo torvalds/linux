@@ -5681,9 +5681,8 @@ int ata_device_add(const struct ata_probe_ent *ent)
 				ap->ioaddr.bmdma_addr,
 				irq_line);
 
-		ata_chk_status(ap);
-		host->ops->irq_clear(ap);
-		ata_eh_freeze_port(ap);	/* freeze port before requesting IRQ */
+		/* freeze port before requesting IRQ */
+		ata_eh_freeze_port(ap);
 	}
 
 	/* obtain irq, that may be shared between channels */
