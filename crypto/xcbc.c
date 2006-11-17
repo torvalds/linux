@@ -28,9 +28,9 @@
 #include <linux/scatterlist.h>
 #include "internal.h"
 
-u_int32_t ks[12] = {0x01010101, 0x01010101, 0x01010101, 0x01010101,
-		    0x02020202, 0x02020202, 0x02020202, 0x02020202,
-		    0x03030303, 0x03030303, 0x03030303, 0x03030303};
+static u_int32_t ks[12] = {0x01010101, 0x01010101, 0x01010101, 0x01010101,
+			   0x02020202, 0x02020202, 0x02020202, 0x02020202,
+			   0x03030303, 0x03030303, 0x03030303, 0x03030303};
 /*
  * +------------------------
  * | <parent tfm>
@@ -96,7 +96,7 @@ static int crypto_xcbc_digest_setkey(struct crypto_hash *parent,
 	return _crypto_xcbc_digest_setkey(parent, ctx);
 }
 
-int crypto_xcbc_digest_init(struct hash_desc *pdesc)
+static int crypto_xcbc_digest_init(struct hash_desc *pdesc)
 {
 	struct crypto_xcbc_ctx *ctx = crypto_hash_ctx_aligned(pdesc->tfm);
 	int bs = crypto_hash_blocksize(pdesc->tfm);
@@ -108,7 +108,9 @@ int crypto_xcbc_digest_init(struct hash_desc *pdesc)
 	return 0;
 }
 
-int crypto_xcbc_digest_update(struct hash_desc *pdesc, struct scatterlist *sg, unsigned int nbytes)
+static int crypto_xcbc_digest_update(struct hash_desc *pdesc,
+				     struct scatterlist *sg,
+				     unsigned int nbytes)
 {
 	struct crypto_hash *parent = pdesc->tfm;
 	struct crypto_xcbc_ctx *ctx = crypto_hash_ctx_aligned(parent);
@@ -181,7 +183,7 @@ int crypto_xcbc_digest_update(struct hash_desc *pdesc, struct scatterlist *sg, u
 	return 0;
 }
 
-int crypto_xcbc_digest_final(struct hash_desc *pdesc, u8 *out)
+static int crypto_xcbc_digest_final(struct hash_desc *pdesc, u8 *out)
 {
 	struct crypto_hash *parent = pdesc->tfm;
 	struct crypto_xcbc_ctx *ctx = crypto_hash_ctx_aligned(parent);
