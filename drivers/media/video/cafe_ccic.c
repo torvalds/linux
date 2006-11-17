@@ -1688,7 +1688,7 @@ static struct v4l2_tvnorm cafe_tvnorm[] = {
 };
 
 
-void cafe_v4l_dev_release(struct video_device *vd)
+static void cafe_v4l_dev_release(struct video_device *vd)
 {
 	struct cafe_camera *cam = container_of(vd, struct cafe_camera, v4ldev);
 
