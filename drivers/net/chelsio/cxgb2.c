@@ -56,34 +56,6 @@
 #include "sge.h"
 #include "espi.h"
 
-#ifdef work_struct
-#include <linux/tqueue.h>
-#define INIT_WORK INIT_TQUEUE
-#define schedule_work schedule_task
-#define flush_scheduled_work flush_scheduled_tasks
-
-static inline void schedule_mac_stats_update(struct adapter *ap, int secs)
-{
-	mod_timer(&ap->stats_update_timer, jiffies + secs * HZ);
-}
-
-static inline void cancel_mac_stats_update(struct adapter *ap)
-{
-	del_timer_sync(&ap->stats_update_timer);
-	flush_scheduled_tasks();
-}
-
-/*
- * Stats update timer for 2.4.  It schedules a task to do the actual update as
- * we need to access MAC statistics in process context.
- */
-static void mac_stats_timer(unsigned long data)
-{
-	struct adapter *ap = (struct adapter *)data;
-
-	schedule_task(&ap->stats_update_task);
-}
-#else
 #include <linux/workqueue.h>
 
 static inline void schedule_mac_stats_update(struct adapter *ap, int secs)
@@ -95,7 +67,6 @@ static inline void cancel_mac_stats_update(struct adapter *ap)
 {
 	cancel_delayed_work(&ap->stats_update_task);
 }
-#endif
 
 #define MAX_CMDQ_ENTRIES 16384
 #define MAX_CMDQ1_ENTRIES 1024
@@ -1090,12 +1061,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 				  ext_intr_task, adapter);
 			INIT_WORK(&adapter->stats_update_task, mac_stats_task,
 				  adapter);
-#ifdef work_struct
-			init_timer(&adapter->stats_update_timer);
-			adapter->stats_update_timer.function = mac_stats_timer;
-			adapter->stats_update_timer.data =
-				(unsigned long)adapter;
-#endif
 
 			pci_set_drvdata(pdev, netdev);
 		}
