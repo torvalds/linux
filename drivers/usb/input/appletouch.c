@@ -154,6 +154,13 @@ MODULE_AUTHOR("Johannes Berg, Stelian Pop, Frank Arnold, Michael Hanselmann");
 MODULE_DESCRIPTION("Apple PowerBooks USB touchpad driver");
 MODULE_LICENSE("GPL");
 
+/*
+ * Make the threshold a module parameter
+ */
+static int threshold = ATP_THRESHOLD;
+module_param(threshold, int, 0644);
+MODULE_PARM_DESC(threshold, "Discards any change in data from a sensor (trackpad has hundreds of these sensors) less than this value");
+
 static int debug = 1;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Activate debugging output");
@@ -183,16 +190,48 @@ static int atp_calculate_abs(int *xy_sensors, int nb_sensors, int fact,
 	int i;
 	/* values to calculate mean */
 	int pcum = 0, psum = 0;
+	int is_increasing = 0;
 
 	*fingers = 0;
 
 	for (i = 0; i < nb_sensors; i++) {
-		if (xy_sensors[i] < ATP_THRESHOLD)
+		if (xy_sensors[i] < threshold) {
+			if (is_increasing)
+				is_increasing = 0;
+
 			continue;
-		if ((i - 1 < 0) || (xy_sensors[i - 1] < ATP_THRESHOLD))
+		}
+
+		/*
+		 * Makes the finger detection more versatile.  For example,
+		 * two fingers with no gap will be detected.  Also, my
+		 * tests show it less likely to have intermittent loss
+		 * of multiple finger readings while moving around (scrolling).
+		 *
+		 * Changes the multiple finger detection to counting humps on
+		 * sensors (transitions from nonincreasing to increasing)
+		 * instead of counting transitions from low sensors (no
+		 * finger reading) to high sensors (finger above
+		 * sensor)
+		 *
+		 * - Jason Parekh <jasonparekh@gmail.com>
+		 */
+		if (i < 1 || (!is_increasing && xy_sensors[i - 1] < xy_sensors[i])) {
 			(*fingers)++;
-		pcum += xy_sensors[i] * i;
-		psum += xy_sensors[i];
+			is_increasing = 1;
+		} else if (i > 0 && xy_sensors[i - 1] >= xy_sensors[i]) {
+			is_increasing = 0;
+		}
+
+		/*
+		 * Subtracts threshold so a high sensor that just passes the threshold
+		 * won't skew the calculated absolute coordinate.  Fixes an issue
+		 * where slowly moving the mouse would occassionaly jump a number of
+		 * pixels (let me restate--slowly moving the mouse makes this issue
+		 * most apparent).
+		 */
+		pcum += (xy_sensors[i] - threshold) * i;
+		psum += (xy_sensors[i] - threshold);
 	}
 
 	if (psum > 0) {
