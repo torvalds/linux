@@ -3140,9 +3140,7 @@ static int selinux_socket_post_create(struct socket *sock, int family,
 	if (sock->sk) {
 		sksec = sock->sk->sk_security;
 		sksec->sid = isec->sid;
-		err = selinux_netlbl_socket_post_create(sock,
-							family,
-							isec->sid);
+		err = selinux_netlbl_socket_post_create(sock);
 	}
 
 	return err;
@@ -3661,7 +3659,7 @@ static void selinux_sk_clone_security(const struct sock *sk, struct sock *newsk)
 	newssec->sid = ssec->sid;
 	newssec->peer_sid = ssec->peer_sid;
 
-	selinux_netlbl_sk_clone_security(ssec, newssec);
+	selinux_netlbl_sk_security_clone(ssec, newssec);
 }
 
 static void selinux_sk_getsecid(struct sock *sk, u32 *secid)
@@ -3730,7 +3728,9 @@ static void selinux_inet_csk_clone(struct sock *newsk,
 	   So we will wait until sock_graft to do it, by which
 	   time it will have been created and available. */
 
-	selinux_netlbl_sk_security_init(newsksec, req->rsk_ops->family);
+	/* We don't need to take any sort of lock here as we are the only
+	 * thread with access to newsksec */
+	selinux_netlbl_sk_security_reset(newsksec, req->rsk_ops->family);
 }
 
 static void selinux_inet_conn_established(struct sock *sk,

@@ -33,6 +33,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/spinlock.h>
+#include <linux/rcupdate.h>
 #include <linux/errno.h>
 #include <linux/in.h>
 #include <linux/sched.h>
@@ -2435,7 +2436,9 @@ static int selinux_netlbl_skbuff_getsid(struct sk_buff *skb,
  *
  * Description:
  * Attempt to label a socket using the NetLabel mechanism using the given
- * SID.  Returns zero values on success, negative values on failure.
+ * SID.  Returns zero values on success, negative values on failure.  The
+ * caller is responsibile for calling rcu_read_lock() before calling this
+ * this function and rcu_read_unlock() after this function returns.
  *
  */
 static int selinux_netlbl_socket_setsid(struct socket *sock, u32 sid)
@@ -2472,13 +2475,35 @@ static int selinux_netlbl_socket_setsid(struct socket *sock, u32 sid)
 		secattr.flags |= NETLBL_SECATTR_MLS_CAT;
 
 	rc = netlbl_socket_setattr(sock, &secattr);
-	if (rc == 0)
+	if (rc == 0) {
+		spin_lock(&sksec->nlbl_lock);
 		sksec->nlbl_state = NLBL_LABELED;
+		spin_unlock(&sksec->nlbl_lock);
+	}
 
 netlbl_socket_setsid_return:
 	POLICY_RDUNLOCK;
 	netlbl_secattr_destroy(&secattr);
 	return rc;
+}
+
+/**
+ * selinux_netlbl_sk_security_reset - Reset the NetLabel fields
+ * @ssec: the sk_security_struct
+ * @family: the socket family
+ *
+ * Description:
+ * Called when the NetLabel state of a sk_security_struct needs to be reset.
+ * The caller is responsibile for all the NetLabel sk_security_struct locking.
+ *
+ */
+void selinux_netlbl_sk_security_reset(struct sk_security_struct *ssec,
+				      int family)
+{
+        if (family == PF_INET)
+		ssec->nlbl_state = NLBL_REQUIRE;
+	else
+		ssec->nlbl_state = NLBL_UNSET;
 }
 
 /**
@@ -2494,14 +2519,13 @@ netlbl_socket_setsid_return:
 void selinux_netlbl_sk_security_init(struct sk_security_struct *ssec,
 				     int family)
 {
-        if (family == PF_INET)
-		ssec->nlbl_state = NLBL_REQUIRE;
-	else
-		ssec->nlbl_state = NLBL_UNSET;
+	/* No locking needed, we are the only one who has access to ssec */
+	selinux_netlbl_sk_security_reset(ssec, family);
+	spin_lock_init(&ssec->nlbl_lock);
 }
 
 /**
- * selinux_netlbl_sk_clone_security - Copy the NetLabel fields
+ * selinux_netlbl_sk_security_clone - Copy the NetLabel fields
  * @ssec: the original sk_security_struct
  * @newssec: the cloned sk_security_struct
  *
@@ -2510,41 +2534,41 @@ void selinux_netlbl_sk_security_init(struct sk_security_struct *ssec,
  * @newssec.
  *
  */
-void selinux_netlbl_sk_clone_security(struct sk_security_struct *ssec,
+void selinux_netlbl_sk_security_clone(struct sk_security_struct *ssec,
 				      struct sk_security_struct *newssec)
 {
+	/* We don't need to take newssec->nlbl_lock because we are the only
+	 * thread with access to newssec, but we do need to take the RCU read
+	 * lock as other threads could have access to ssec */
+	rcu_read_lock();
+	selinux_netlbl_sk_security_reset(newssec, ssec->sk->sk_family);
 	newssec->sclass = ssec->sclass;
-	if (ssec->nlbl_state != NLBL_UNSET)
-		newssec->nlbl_state = NLBL_REQUIRE;
-	else
-		newssec->nlbl_state = NLBL_UNSET;
+	rcu_read_unlock();
 }
 
 /**
  * selinux_netlbl_socket_post_create - Label a socket using NetLabel
  * @sock: the socket to label
- * @sock_family: the socket family
- * @sid: the SID to use
  *
  * Description:
  * Attempt to label a socket using the NetLabel mechanism using the given
  * SID.  Returns zero values on success, negative values on failure.
  *
  */
-int selinux_netlbl_socket_post_create(struct socket *sock,
-				      int sock_family,
-				      u32 sid)
+int selinux_netlbl_socket_post_create(struct socket *sock)
 {
+	int rc = 0;
 	struct inode_security_struct *isec = SOCK_INODE(sock)->i_security;
 	struct sk_security_struct *sksec = sock->sk->sk_security;
 
 	sksec->sclass = isec->sclass;
 
-	if (sock_family != PF_INET)
-		return 0;
+	rcu_read_lock();
+	if (sksec->nlbl_state == NLBL_REQUIRE)
+		rc = selinux_netlbl_socket_setsid(sock, sksec->sid);
+	rcu_read_unlock();
 
-	sksec->nlbl_state = NLBL_REQUIRE;
-	return selinux_netlbl_socket_setsid(sock, sid);
+	return rc;
 }
 
 /**
@@ -2566,8 +2590,12 @@ void selinux_netlbl_sock_graft(struct sock *sk, struct socket *sock)
 
 	sksec->sclass = isec->sclass;
 
-	if (sk->sk_family != PF_INET)
+	rcu_read_lock();
+
+	if (sksec->nlbl_state != NLBL_REQUIRE) {
+		rcu_read_unlock();
 		return;
+	}
 
 	netlbl_secattr_init(&secattr);
 	if (netlbl_sock_getattr(sk, &secattr) == 0 &&
@@ -2579,12 +2607,12 @@ void selinux_netlbl_sock_graft(struct sock *sk, struct socket *sock)
 		sksec->peer_sid = nlbl_peer_sid;
 	netlbl_secattr_destroy(&secattr);
 
-	sksec->nlbl_state = NLBL_REQUIRE;
-
 	/* Try to set the NetLabel on the socket to save time later, if we fail
 	 * here we will pick up the pieces in later calls to
 	 * selinux_netlbl_inode_permission(). */
 	selinux_netlbl_socket_setsid(sock, sksec->sid);
+
+	rcu_read_unlock();
 }
 
 /**
@@ -2625,25 +2653,24 @@ u32 selinux_netlbl_inet_conn_request(struct sk_buff *skb, u32 sock_sid)
 int selinux_netlbl_inode_permission(struct inode *inode, int mask)
 {
 	int rc;
-	struct inode_security_struct *isec;
 	struct sk_security_struct *sksec;
 	struct socket *sock;
 
-	if (!S_ISSOCK(inode->i_mode))
+	if (!S_ISSOCK(inode->i_mode) ||
+	    ((mask & (MAY_WRITE | MAY_APPEND)) == 0))
 		return 0;
-
 	sock = SOCKET_I(inode);
-	isec = inode->i_security;
 	sksec = sock->sk->sk_security;
-	mutex_lock(&isec->lock);
-	if (unlikely(sksec->nlbl_state == NLBL_REQUIRE &&
-		     (mask & (MAY_WRITE | MAY_APPEND)))) {
-		lock_sock(sock->sk);
-		rc = selinux_netlbl_socket_setsid(sock, sksec->sid);
-		release_sock(sock->sk);
-	} else
-		rc = 0;
-	mutex_unlock(&isec->lock);
+
+	rcu_read_lock();
+	if (sksec->nlbl_state != NLBL_REQUIRE) {
+		rcu_read_unlock();
+		return 0;
+	}
+	lock_sock(sock->sk);
+	rc = selinux_netlbl_socket_setsid(sock, sksec->sid);
+	release_sock(sock->sk);
+	rcu_read_unlock();
 
 	return rc;
 }
@@ -2754,12 +2781,10 @@ int selinux_netlbl_socket_setsockopt(struct socket *sock,
 				     int optname)
 {
 	int rc = 0;
-	struct inode *inode = SOCK_INODE(sock);
 	struct sk_security_struct *sksec = sock->sk->sk_security;
-	struct inode_security_struct *isec = inode->i_security;
 	struct netlbl_lsm_secattr secattr;
 
-	mutex_lock(&isec->lock);
+	rcu_read_lock();
 	if (level == IPPROTO_IP && optname == IP_OPTIONS &&
 	    sksec->nlbl_state == NLBL_LABELED) {
 		netlbl_secattr_init(&secattr);
@@ -2768,7 +2793,7 @@ int selinux_netlbl_socket_setsockopt(struct socket *sock,
 			rc = -EACCES;
 		netlbl_secattr_destroy(&secattr);
 	}
-	mutex_unlock(&isec->lock);
+	rcu_read_unlock();
 
 	return rc;
 }
