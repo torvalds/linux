@@ -46,8 +46,7 @@
 
 
 /* Function prototypes */
-static int __init wdt_gpi_probe(struct device *);
-static int __exit wdt_gpi_remove(struct device *);
+static irqreturn_t wdt_gpi_irqhdl(int, void *, struct pt_regs *);
 static void wdt_gpi_set_timeout(unsigned int);
 static int wdt_gpi_open(struct inode *, struct file *);
 static int wdt_gpi_release(struct inode *, struct file *);
@@ -55,7 +54,8 @@ static ssize_t wdt_gpi_write(struct file *, const char __user *, size_t, loff_t 
 static long wdt_gpi_ioctl(struct file *, unsigned int, unsigned long);
 static const struct resource *wdt_gpi_get_resource(struct platform_device *, const char *, unsigned int);
 static int wdt_gpi_notify(struct notifier_block *, unsigned long, void *);
-static irqreturn_t wdt_gpi_irqhdl(int, void *, struct pt_regs *);
+static int __init wdt_gpi_probe(struct device *);
+static int __exit wdt_gpi_remove(struct device *);
 
 
 static const char wdt_gpi_name[] = "wdt_gpi";
@@ -91,93 +91,26 @@ module_param(nowayout, bool, 0444);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be disabled once started");
 
 
-
-static struct file_operations fops = {
-	.owner		= THIS_MODULE,
-	.open		= wdt_gpi_open,
-	.release	= wdt_gpi_release,
-	.write		= wdt_gpi_write,
-	.unlocked_ioctl	= wdt_gpi_ioctl,
-};
-
-static struct miscdevice miscdev = {
-	.minor		= WATCHDOG_MINOR,
-	.name		= wdt_gpi_name,
-	.fops		= &fops,
-};
-
-static struct device_driver wdt_gpi_driver = {
-	.name		= (char *) wdt_gpi_name,
-	.bus		= &platform_bus_type,
-	.owner		= THIS_MODULE,
-	.probe		= wdt_gpi_probe,
-	.remove		= __exit_p(wdt_gpi_remove),
-	.shutdown	= NULL,
-	.suspend	= NULL,
-	.resume		= NULL,
-};
-
-static struct notifier_block wdt_gpi_shutdown = {
-	.notifier_call	= wdt_gpi_notify,
-};
-
-
-
-static const struct resource *
-wdt_gpi_get_resource(struct platform_device *pdv, const char *name,
-		      unsigned int type)
+/* Interrupt handler */
+static irqreturn_t wdt_gpi_irqhdl(int irq, void *ctxt, struct pt_regs *regs)
 {
-	char buf[80];
-	if (snprintf(buf, sizeof buf, "%s_0", name) >= sizeof buf)
-		return NULL;
-	return platform_get_resource_byname(pdv, type, buf);
+	if (!unlikely(__raw_readl(wd_regs + 0x0008) & 0x1))
+		return IRQ_NONE;
+	__raw_writel(0x1, wd_regs + 0x0008);
+
+
+	printk(KERN_WARNING "%s: watchdog expired - resetting system\n",
+		wdt_gpi_name);
+
+	*(volatile char *) flagaddr |= 0x01;
+	*(volatile char *) resetaddr = powercycle ? 0x01 : 0x2;
+	iob();
+	while (1)
+		cpu_relax();
 }
 
 
-
-/* No hotplugging on the platform bus - use __init */
-static int __init wdt_gpi_probe(struct device *dev)
-{
-	int res;
-	struct platform_device * const pdv = to_platform_device(dev);
-	const struct resource
-		* const rr = wdt_gpi_get_resource(pdv, WDT_RESOURCE_REGS,
-						  IORESOURCE_MEM),
-		* const ri = wdt_gpi_get_resource(pdv, WDT_RESOURCE_IRQ,
-						  IORESOURCE_IRQ),
-		* const rc = wdt_gpi_get_resource(pdv, WDT_RESOURCE_COUNTER,
-						  0);
-
-	if (unlikely(!rr || !ri || !rc))
-		return -ENXIO;
-
-	wd_regs = ioremap_nocache(rr->start, rr->end + 1 - rr->start);
-	if (unlikely(!wd_regs))
-		return -ENOMEM;
-	wd_irq = ri->start;
-	wd_ctr = rc->start;
-	res = misc_register(&miscdev);
-	if (res)
-		iounmap(wd_regs);
-	else
-		register_reboot_notifier(&wdt_gpi_shutdown);
-	return res;
-}
-
-
-
-static int __exit wdt_gpi_remove(struct device *dev)
-{
-	int res;
-
-	unregister_reboot_notifier(&wdt_gpi_shutdown);
-	res = misc_deregister(&miscdev);
-	iounmap(wd_regs);
-	wd_regs = NULL;
-	return res;
-}
-
-
+/* Watchdog functions */
 static void wdt_gpi_set_timeout(unsigned int to)
 {
 	u32 reg;
@@ -197,7 +130,7 @@ static void wdt_gpi_set_timeout(unsigned int to)
 }
 
 
-
+/* /dev/watchdog operations */
 static int wdt_gpi_open(struct inode *i, struct file *f)
 {
 	int res;
@@ -230,8 +163,6 @@ static int wdt_gpi_open(struct inode *i, struct file *f)
 		wdt_gpi_name, timeout);
 	return 0;
 }
-
-
 
 static int wdt_gpi_release(struct inode *i, struct file *f)
 {
@@ -267,8 +198,6 @@ static int wdt_gpi_release(struct inode *i, struct file *f)
 	return 0;
 }
 
-
-
 static ssize_t
 wdt_gpi_write(struct file *f, const char __user *d, size_t s, loff_t *o)
 {
@@ -278,8 +207,6 @@ wdt_gpi_write(struct file *f, const char __user *d, size_t s, loff_t *o)
 	expect_close = (s > 0) && !get_user(val, d) && (val == 'V');
 	return s ? 1 : 0;
 }
-
-
 
 static long
 wdt_gpi_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
@@ -362,27 +289,7 @@ wdt_gpi_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 }
 
 
-
-
-static irqreturn_t wdt_gpi_irqhdl(int irq, void *ctxt, struct pt_regs *regs)
-{
-	if (!unlikely(__raw_readl(wd_regs + 0x0008) & 0x1))
-		return IRQ_NONE;
-	__raw_writel(0x1, wd_regs + 0x0008);
-
-
-	printk(KERN_WARNING "%s: watchdog expired - resetting system\n",
-		wdt_gpi_name);
-
-	*(volatile char *) flagaddr |= 0x01;
-	*(volatile char *) resetaddr = powercycle ? 0x01 : 0x2;
-	iob();
-	while (1)
-		cpu_relax();
-}
-
-
-
+/* Shutdown notifier*/
 static int
 wdt_gpi_notify(struct notifier_block *this, unsigned long code, void *unused)
 {
@@ -401,6 +308,89 @@ wdt_gpi_notify(struct notifier_block *this, unsigned long code, void *unused)
 }
 
 
+/* Kernel interfaces */
+static struct file_operations fops = {
+	.owner		= THIS_MODULE,
+	.open		= wdt_gpi_open,
+	.release	= wdt_gpi_release,
+	.write		= wdt_gpi_write,
+	.unlocked_ioctl	= wdt_gpi_ioctl,
+};
+
+static struct miscdevice miscdev = {
+	.minor		= WATCHDOG_MINOR,
+	.name		= wdt_gpi_name,
+	.fops		= &fops,
+};
+
+static struct notifier_block wdt_gpi_shutdown = {
+	.notifier_call	= wdt_gpi_notify,
+};
+
+
+/* Init & exit procedures */
+static const struct resource *
+wdt_gpi_get_resource(struct platform_device *pdv, const char *name,
+		      unsigned int type)
+{
+	char buf[80];
+	if (snprintf(buf, sizeof buf, "%s_0", name) >= sizeof buf)
+		return NULL;
+	return platform_get_resource_byname(pdv, type, buf);
+}
+
+/* No hotplugging on the platform bus - use __init */
+static int __init wdt_gpi_probe(struct device *dev)
+{
+	int res;
+	struct platform_device * const pdv = to_platform_device(dev);
+	const struct resource
+		* const rr = wdt_gpi_get_resource(pdv, WDT_RESOURCE_REGS,
+						  IORESOURCE_MEM),
+		* const ri = wdt_gpi_get_resource(pdv, WDT_RESOURCE_IRQ,
+						  IORESOURCE_IRQ),
+		* const rc = wdt_gpi_get_resource(pdv, WDT_RESOURCE_COUNTER,
+						  0);
+
+	if (unlikely(!rr || !ri || !rc))
+		return -ENXIO;
+
+	wd_regs = ioremap_nocache(rr->start, rr->end + 1 - rr->start);
+	if (unlikely(!wd_regs))
+		return -ENOMEM;
+	wd_irq = ri->start;
+	wd_ctr = rc->start;
+	res = misc_register(&miscdev);
+	if (res)
+		iounmap(wd_regs);
+	else
+		register_reboot_notifier(&wdt_gpi_shutdown);
+	return res;
+}
+
+static int __exit wdt_gpi_remove(struct device *dev)
+{
+	int res;
+
+	unregister_reboot_notifier(&wdt_gpi_shutdown);
+	res = misc_deregister(&miscdev);
+	iounmap(wd_regs);
+	wd_regs = NULL;
+	return res;
+}
+
+
+/* Device driver init & exit */
+static struct device_driver wdt_gpi_driver = {
+	.name		= (char *) wdt_gpi_name,
+	.bus		= &platform_bus_type,
+	.owner		= THIS_MODULE,
+	.probe		= wdt_gpi_probe,
+	.remove		= __exit_p(wdt_gpi_remove),
+	.shutdown	= NULL,
+	.suspend	= NULL,
+	.resume		= NULL,
+};
 
 static int __init wdt_gpi_init_module(void)
 {
@@ -410,8 +400,6 @@ static int __init wdt_gpi_init_module(void)
 	return driver_register(&wdt_gpi_driver);
 }
 
-
-
 static void __exit wdt_gpi_cleanup_module(void)
 {
 	driver_unregister(&wdt_gpi_driver);
@@ -419,8 +407,6 @@ static void __exit wdt_gpi_cleanup_module(void)
 
 module_init(wdt_gpi_init_module);
 module_exit(wdt_gpi_cleanup_module);
-
-
 
 MODULE_AUTHOR("Thomas Koeller <thomas.koeller@baslerweb.com>");
 MODULE_DESCRIPTION("Basler eXcite watchdog driver for gpi devices");
