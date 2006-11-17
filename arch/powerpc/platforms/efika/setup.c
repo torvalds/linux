@@ -29,6 +29,7 @@
 #include <asm/machdep.h>
 #include <asm/rtas.h>
 #include <asm/of_device.h>
+#include <asm/of_platform.h>
 #include <asm/mpc52xx.h>
 
 #include "efika.h"
