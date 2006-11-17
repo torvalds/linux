@@ -463,11 +463,12 @@ static inline int forced_push(struct tcp_sock *tp)
 static inline void skb_entail(struct sock *sk, struct tcp_sock *tp,
 			      struct sk_buff *skb)
 {
-	skb->csum = 0;
-	TCP_SKB_CB(skb)->seq = tp->write_seq;
-	TCP_SKB_CB(skb)->end_seq = tp->write_seq;
-	TCP_SKB_CB(skb)->flags = TCPCB_FLAG_ACK;
-	TCP_SKB_CB(skb)->sacked = 0;
+	struct tcp_skb_cb *tcb = TCP_SKB_CB(skb);
+
+	skb->csum    = 0;
+	tcb->seq     = tcb->end_seq = tp->write_seq;
+	tcb->flags   = TCPCB_FLAG_ACK;
+	tcb->sacked  = 0;
 	skb_header_release(skb);
 	__skb_queue_tail(&sk->sk_write_queue, skb);
 	sk_charge_skb(sk, skb);
