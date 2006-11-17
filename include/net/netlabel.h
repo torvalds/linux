@@ -169,14 +169,12 @@ static inline void netlbl_secattr_cache_free(struct netlbl_lsm_cache *cache)
  * @secattr: the struct to initialize
  *
  * Description:
- * Initialize an already allocated netlbl_lsm_secattr struct.  Returns zero on
- * success, negative values on error.
+ * Initialize an already allocated netlbl_lsm_secattr struct.
  *
  */
-static inline int netlbl_secattr_init(struct netlbl_lsm_secattr *secattr)
+static inline void netlbl_secattr_init(struct netlbl_lsm_secattr *secattr)
 {
 	memset(secattr, 0, sizeof(*secattr));
-	return 0;
 }
 
 /**
