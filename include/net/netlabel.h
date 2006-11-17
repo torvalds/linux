@@ -205,7 +205,7 @@ static inline void netlbl_secattr_destroy(struct netlbl_lsm_secattr *secattr)
  * pointer on success, or NULL on failure.
  *
  */
-static inline struct netlbl_lsm_secattr *netlbl_secattr_alloc(int flags)
+static inline struct netlbl_lsm_secattr *netlbl_secattr_alloc(gfp_t flags)
 {
 	return kzalloc(sizeof(struct netlbl_lsm_secattr), flags);
 }
