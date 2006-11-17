@@ -867,6 +867,8 @@ static int cipso_v4_map_cat_rbm_hton(const struct cipso_v4_doi *doi_def,
 				return -EPERM;
 
 			net_spot = host_cat_array[host_spot];
+			if (net_spot >= CIPSO_V4_INV_CAT)
+				return -EPERM;
 			if (net_spot >= net_clen_bits)
 				return -ENOSPC;
 			cipso_v4_bitmap_setbit(net_cat, net_spot, 1);
@@ -935,6 +937,8 @@ static int cipso_v4_map_cat_rbm_ntoh(const struct cipso_v4_doi *doi_def,
 				return -EPERM;
 
 			host_spot = net_cat_array[net_spot];
+			if (host_spot >= CIPSO_V4_INV_CAT)
+				return -EPERM;
 			if (host_spot >= host_clen_bits)
 				return -ENOSPC;
 			cipso_v4_bitmap_setbit(host_cat, host_spot, 1);
