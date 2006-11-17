@@ -97,7 +97,7 @@ do_crypt(void *src, void *dst, int len, u32 flags)
 	return counter ? 0 : 1;
 }
 
-unsigned int
+static unsigned int
 geode_aes_crypt(struct geode_aes_op *op)
 {
 

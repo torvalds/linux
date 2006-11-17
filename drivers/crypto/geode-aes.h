@@ -37,6 +37,4 @@ struct geode_aes_op {
 	u8 iv[AES_IV_LENGTH];
 };
 
-unsigned int geode_aes_crypt(struct geode_aes_op *);
-
 #endif
