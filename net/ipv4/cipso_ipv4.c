@@ -1435,8 +1435,6 @@ int cipso_v4_skbuff_getattr(const struct sk_buff *skb,
 	u32 doi;
 	struct cipso_v4_doi *doi_def;
 
-	if (!CIPSO_V4_OPTEXIST(skb))
-		return -ENOMSG;
 	cipso_ptr = CIPSO_V4_OPTPTR(skb);
 	if (cipso_v4_cache_check(cipso_ptr, cipso_ptr[1], secattr) == 0)
 		return 0;

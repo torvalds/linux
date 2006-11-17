@@ -149,10 +149,8 @@ int netlbl_socket_getattr(const struct socket *sock,
 int netlbl_skbuff_getattr(const struct sk_buff *skb,
 			  struct netlbl_lsm_secattr *secattr)
 {
-	int ret_val;
-
-	ret_val = cipso_v4_skbuff_getattr(skb, secattr);
-	if (ret_val == 0)
+	if (CIPSO_V4_OPTEXIST(skb) &&
+	    cipso_v4_skbuff_getattr(skb, secattr) == 0)
 		return 0;
 
 	return netlbl_unlabel_getattr(secattr);
