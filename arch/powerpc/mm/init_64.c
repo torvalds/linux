@@ -130,7 +130,7 @@ static int __init setup_kcore(void)
 		/* GFP_ATOMIC to avoid might_sleep warnings during boot */
 		kcore_mem = kmalloc(sizeof(struct kcore_list), GFP_ATOMIC);
 		if (!kcore_mem)
-			panic("mem_init: kmalloc failed\n");
+			panic("%s: kmalloc failed\n", __FUNCTION__);
 
 		kclist_add(kcore_mem, __va(base), size);
 	}
