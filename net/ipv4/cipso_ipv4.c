@@ -377,12 +377,11 @@ int cipso_v4_cache_add(const struct sk_buff *skb,
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (entry == NULL)
 		return -ENOMEM;
-	entry->key = kmalloc(cipso_ptr_len, GFP_ATOMIC);
+	entry->key = kmemdup(cipso_ptr, cipso_ptr_len, GFP_ATOMIC);
 	if (entry->key == NULL) {
 		ret_val = -ENOMEM;
 		goto cache_add_failure;
 	}
-	memcpy(entry->key, cipso_ptr, cipso_ptr_len);
 	entry->key_len = cipso_ptr_len;
 	entry->hash = cipso_v4_map_cache_hash(cipso_ptr, cipso_ptr_len);
 	atomic_inc(&secattr->cache->refcount);
