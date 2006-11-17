@@ -126,6 +126,11 @@ static unsigned park = 0;
 module_param (park, uint, S_IRUGO);
 MODULE_PARM_DESC (park, "park setting; 1-3 back-to-back async packets");
 
+/* for flakey hardware, ignore overcurrent indicators */
+static int ignore_oc = 0;
+module_param (ignore_oc, bool, S_IRUGO);
+MODULE_PARM_DESC (ignore_oc, "ignore bogus hardware overcurrent indications");
+
 #define	INTR_MASK (STS_IAA | STS_FATAL | STS_PCD | STS_ERR | STS_INT)
 
 /*-------------------------------------------------------------------------*/
@@ -541,9 +546,10 @@ static int ehci_run (struct usb_hcd *hcd)
 
 	temp = HC_VERSION(readl (&ehci->caps->hc_capbase));
 	ehci_info (ehci,
-		"USB %x.%x started, EHCI %x.%02x, driver %s\n",
+		"USB %x.%x started, EHCI %x.%02x, driver %s%s\n",
 		((ehci->sbrn & 0xf0)>>4), (ehci->sbrn & 0x0f),
-		temp >> 8, temp & 0xff, DRIVER_VERSION);
+		temp >> 8, temp & 0xff, DRIVER_VERSION,
+		ignore_oc ? ", overcurrent ignored" : "");
 
 	writel (INTR_MASK, &ehci->regs->intr_enable); /* Turn On Interrupts */
 

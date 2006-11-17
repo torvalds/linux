@@ -218,6 +218,7 @@ ehci_hub_status_data (struct usb_hcd *hcd, char *buf)
 {
 	struct ehci_hcd	*ehci = hcd_to_ehci (hcd);
 	u32		temp, status = 0;
+	u32		mask;
 	int		ports, i, retval = 1;
 	unsigned long	flags;
 
@@ -232,6 +233,18 @@ ehci_hub_status_data (struct usb_hcd *hcd, char *buf)
 		buf [1] = 0;
 		retval++;
 	}
+
+	/* Some boards (mostly VIA?) report bogus overcurrent indications,
+	 * causing massive log spam unless we completely ignore them.  It
+	 * may be relevant that VIA VT8235 controlers, where PORT_POWER is
+	 * always set, seem to clear PORT_OCC and PORT_CSC when writing to
+	 * PORT_POWER; that's surprising, but maybe within-spec.
+	 */
+	if (!ignore_oc)
+		mask = PORT_CSC | PORT_PEC | PORT_OCC;
+	else
+		mask = PORT_CSC | PORT_PEC;
+	// PORT_RESUME from hardware ~= PORT_STAT_C_SUSPEND
 
 	/* no hub change reports (bit 0) for now (power, ...) */
 
@@ -250,8 +263,7 @@ ehci_hub_status_data (struct usb_hcd *hcd, char *buf)
 		}
 		if (!(temp & PORT_CONNECT))
 			ehci->reset_done [i] = 0;
-		if ((temp & (PORT_CSC | PORT_PEC | PORT_OCC)) != 0
-				// PORT_STAT_C_SUSPEND?
+		if ((temp & mask) != 0
 				|| ((temp & PORT_RESUME) != 0
 					&& time_after (jiffies,
 						ehci->reset_done [i]))) {
@@ -418,7 +430,7 @@ static int ehci_hub_control (
 			status |= 1 << USB_PORT_FEAT_C_CONNECTION;
 		if (temp & PORT_PEC)
 			status |= 1 << USB_PORT_FEAT_C_ENABLE;
-		if (temp & PORT_OCC)
+		if ((temp & PORT_OCC) && !ignore_oc)
 			status |= 1 << USB_PORT_FEAT_C_OVER_CURRENT;
 
 		/* whoever resumes must GetPortStatus to complete it!! */
