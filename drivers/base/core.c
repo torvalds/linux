@@ -389,7 +389,7 @@ void device_initialize(struct device *dev)
 }
 
 #ifdef CONFIG_SYSFS_DEPRECATED
-int setup_parent(struct device *dev, struct device *parent)
+static int setup_parent(struct device *dev, struct device *parent)
 {
 	/* Set the parent to the class, not the parent device */
 	/* this keeps sysfs from having a symlink to make old udevs happy */
@@ -418,7 +418,7 @@ static int virtual_device_parent(struct device *dev)
 	return 0;
 }
 
-int setup_parent(struct device *dev, struct device *parent)
+static int setup_parent(struct device *dev, struct device *parent)
 {
 	int error;
 
