@@ -388,6 +388,11 @@ static int platform_drv_probe(struct device *_dev)
 	return drv->probe(dev);
 }
 
+static int platform_drv_probe_fail(struct device *_dev)
+{
+	return -ENXIO;
+}
+
 static int platform_drv_remove(struct device *_dev)
 {
 	struct platform_driver *drv = to_platform_driver(_dev->driver);
@@ -451,6 +456,49 @@ void platform_driver_unregister(struct platform_driver *drv)
 }
 EXPORT_SYMBOL_GPL(platform_driver_unregister);
 
+/**
+ * platform_driver_probe - register driver for non-hotpluggable device
+ * @drv: platform driver structure
+ * @probe: the driver probe routine, probably from an __init section
+ *
+ * Use this instead of platform_driver_register() when you know the device
+ * is not hotpluggable and has already been registered, and you want to
+ * remove its run-once probe() infrastructure from memory after the driver
+ * has bound to the device.
+ *
+ * One typical use for this would be with drivers for controllers integrated
+ * into system-on-chip processors, where the controller devices have been
+ * configured as part of board setup.
+ *
+ * Returns zero if the driver registered and bound to a device, else returns
+ * a negative error code and with the driver not registered.
+ */
+int platform_driver_probe(struct platform_driver *drv,
+		int (*probe)(struct platform_device *))
+{
+	int retval, code;
+
+	/* temporary section violation during probe() */
+	drv->probe = probe;
+	retval = code = platform_driver_register(drv);
+
+	/* Fixup that section violation, being paranoid about code scanning
+	 * the list of drivers in order to probe new devices.  Check to see
+	 * if the probe was successful, and make sure any forced probes of
+	 * new devices fail.
+	 */
+	spin_lock(&platform_bus_type.klist_drivers.k_lock);
+	drv->probe = NULL;
+	if (code == 0 && list_empty(&drv->driver.klist_devices.k_list))
+		retval = -ENODEV;
+	drv->driver.probe = platform_drv_probe_fail;
+	spin_unlock(&platform_bus_type.klist_drivers.k_lock);
+
+	if (code != retval)
+		platform_driver_unregister(drv);
+	return retval;
+}
+EXPORT_SYMBOL_GPL(platform_driver_probe);
 
 /* modalias support enables more hands-off userspace setup:
  * (a) environment variable lets new-style hotplug events work once system is
