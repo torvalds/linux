@@ -828,10 +828,7 @@ char *usb_cache_string(struct usb_device *udev, int index)
  * Context: !in_interrupt ()
  *
  * Updates the copy of the device descriptor stored in the device structure,
- * which dedicates space for this purpose.  Note that several fields are
- * converted to the host CPU's byte order:  the USB version (bcdUSB), and
- * vendors product and version fields (idVendor, idProduct, and bcdDevice).
- * That lets device drivers compare against non-byteswapped constants.
+ * which dedicates space for this purpose.
  *
  * Not exported, only for use by the core.  If drivers really want to read
  * the device descriptor directly, they can call usb_get_descriptor() with

@@ -169,7 +169,8 @@ __acquires(ohci->lock)
 		break;
 	case OHCI_USB_RESUME:
 		/* HCFS changes sometime after INTR_RD */
-		ohci_info (ohci, "wakeup\n");
+		ohci_info(ohci, "%swakeup\n",
+				autostopped ? "auto-" : "");
 		break;
 	case OHCI_USB_OPER:
 		/* this can happen after resuming a swsusp snapshot */
@@ -422,7 +423,8 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 				ohci->autostop = 0;
 				ohci->next_statechange = jiffies +
 						STATECHANGE_DELAY;
-			} else if (time_after_eq (jiffies,
+			} else if (device_may_wakeup(&hcd->self.root_hub->dev)
+					&& time_after_eq(jiffies,
 						ohci->next_statechange)
 					&& !ohci->ed_rm_list
 					&& !(ohci->hc_control &
