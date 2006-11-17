@@ -47,7 +47,8 @@
 #include "netlabel_unlabeled.h"
 
 /* Accept unlabeled packets flag */
-static atomic_t netlabel_unlabel_accept_flg = ATOMIC_INIT(0);
+static DEFINE_SPINLOCK(netlabel_unlabel_acceptflg_lock);
+static u8 netlabel_unlabel_acceptflg = 0;
 
 /* NetLabel Generic NETLINK CIPSOv4 family */
 static struct genl_family netlbl_unlabel_gnl_family = {
@@ -82,8 +83,12 @@ static void netlbl_unlabel_acceptflg_set(u8 value,
 	struct audit_buffer *audit_buf;
 	u8 old_val;
 
-	old_val = atomic_read(&netlabel_unlabel_accept_flg);
-	atomic_set(&netlabel_unlabel_accept_flg, value);
+	rcu_read_lock();
+	old_val = netlabel_unlabel_acceptflg;
+	spin_lock(&netlabel_unlabel_acceptflg_lock);
+	netlabel_unlabel_acceptflg = value;
+	spin_unlock(&netlabel_unlabel_acceptflg_lock);
+	rcu_read_unlock();
 
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_UNLBL_ALLOW,
 					      audit_info);
@@ -148,9 +153,11 @@ static int netlbl_unlabel_list(struct sk_buff *skb, struct genl_info *info)
 		goto list_failure;
 	}
 
+	rcu_read_lock();
 	ret_val = nla_put_u8(ans_skb,
 			     NLBL_UNLABEL_A_ACPTFLG,
-			     atomic_read(&netlabel_unlabel_accept_flg));
+			     netlabel_unlabel_acceptflg);
+	rcu_read_unlock();
 	if (ret_val != 0)
 		goto list_failure;
 
@@ -236,10 +243,17 @@ int netlbl_unlabel_genl_init(void)
  */
 int netlbl_unlabel_getattr(struct netlbl_lsm_secattr *secattr)
 {
-	if (atomic_read(&netlabel_unlabel_accept_flg) == 1)
-		return netlbl_secattr_init(secattr);
+	int ret_val;
 
-	return -ENOMSG;
+	rcu_read_lock();
+	if (netlabel_unlabel_acceptflg == 1) {
+		netlbl_secattr_init(secattr);
+		ret_val = 0;
+	} else
+		ret_val = -ENOMSG;
+	rcu_read_unlock();
+
+	return ret_val;
 }
 
 /**
