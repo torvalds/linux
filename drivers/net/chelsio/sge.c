@@ -929,18 +929,6 @@ static inline void reclaim_completed_tx(struct sge *sge, struct cmdQ *q)
 # define __netif_rx_complete(dev) netif_rx_complete(dev)
 #endif
 
-/*
- * We cannot use the standard netif_rx_schedule_prep() because we have multiple
- * ports plus the TOE all multiplexing onto a single response queue, therefore
- * accepting new responses cannot depend on the state of any particular port.
- * So define our own equivalent that omits the netif_running() test.
- */
-static inline int napi_schedule_prep(struct net_device *dev)
-{
-	return !test_and_set_bit(__LINK_STATE_RX_SCHED, &dev->state);
-}
-
-
 /**
  *	sge_rx - process an ingress ethernet packet
  *	@sge: the sge structure
@@ -1241,10 +1229,10 @@ static irqreturn_t t1_interrupt_napi(int irq, void *data)
 		if (e->GenerationBit == q->genbit) {
 			if (e->DataValid ||
 			    process_pure_responses(adapter, e)) {
-				if (likely(napi_schedule_prep(sge->netdev)))
+				if (likely(__netif_rx_schedule_prep(sge->netdev)))
 					__netif_rx_schedule(sge->netdev);
-				else
-					printk(KERN_CRIT
+				else if (net_ratelimit())
+					printk(KERN_INFO
 					       "NAPI schedule failure!\n");
 			} else
 			writel(q->cidx, adapter->regs + A_SG_SLEEPING);
