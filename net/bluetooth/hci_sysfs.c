@@ -259,7 +259,9 @@ void hci_conn_add_sysfs(struct hci_conn *conn)
 
 	BT_DBG("conn %p", conn);
 
-	conn->dev.parent  = &hdev->dev;
+	conn->dev.bus = &bt_bus;
+	conn->dev.parent = &hdev->dev;
+
 	conn->dev.release = bt_release;
 
 	snprintf(conn->dev.bus_id, BUS_ID_SIZE,
