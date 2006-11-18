@@ -335,10 +335,9 @@ static int alloc_rx_resources(struct sge *sge, struct sge_params *p)
 			goto err_no_mem;
 		memset(q->entries, 0, size);
 		size = sizeof(struct freelQ_ce) * q->size;
-		q->centries = kmalloc(size, GFP_KERNEL);
+		q->centries = kzalloc(size, GFP_KERNEL);
 		if (!q->centries)
 			goto err_no_mem;
-		memset(q->centries, 0, size);
 	}
 
 	/*
@@ -463,10 +462,9 @@ static int alloc_tx_resources(struct sge *sge, struct sge_params *p)
 			goto err_no_mem;
 		memset(q->entries, 0, size);
 		size = sizeof(struct cmdQ_ce) * q->size;
-		q->centries = kmalloc(size, GFP_KERNEL);
+		q->centries = kzalloc(size, GFP_KERNEL);
 		if (!q->centries)
 			goto err_no_mem;
-		memset(q->centries, 0, size);
 	}
 
 	/*
@@ -1635,11 +1633,10 @@ static void espibug_workaround(void *data)
 struct sge * __devinit t1_sge_create(struct adapter *adapter,
 				     struct sge_params *p)
 {
-	struct sge *sge = kmalloc(sizeof(*sge), GFP_KERNEL);
+	struct sge *sge = kzalloc(sizeof(*sge), GFP_KERNEL);
 
 	if (!sge)
 		return NULL;
-	memset(sge, 0, sizeof(*sge));
 
 	sge->adapter = adapter;
 	sge->netdev = adapter->port[0].dev;
