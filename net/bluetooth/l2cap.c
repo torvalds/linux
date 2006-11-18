@@ -1533,6 +1533,9 @@ static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 	if (!(sk = l2cap_get_chan_by_scid(&conn->chan_list, dcid)))
 		return -ENOENT;
 
+	if (sk->sk_state == BT_DISCONN)
+		goto unlock;
+
 	l2cap_parse_conf_req(sk, req->data, cmd->len - sizeof(*req));
 
 	if (flags & 0x0001) {
