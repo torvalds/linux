@@ -8,7 +8,6 @@
 #ifndef _SELINUX_SECURITY_H_
 #define _SELINUX_SECURITY_H_
 
-#include <linux/skbuff.h>
 #include "flask.h"
 
 #define SECSID_NULL			0x00000000 /* unspecified SID */
@@ -34,6 +33,8 @@
 #else
 #define POLICYDB_VERSION_MAX	POLICYDB_VERSION_RANGETRANS
 #endif
+
+struct sk_buff;
 
 extern int selinux_enabled;
 extern int selinux_mls_enabled;
