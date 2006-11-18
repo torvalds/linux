@@ -1531,6 +1531,10 @@ struct cx88_subid cx88_subids[] = {
 	},{
 		.subvendor = 0x17de,
 		.subdevice = 0x0840,
+	       .card      = CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT,
+       },{
+	       .subvendor = 0x1421,
+	       .subdevice = 0x0305,
 		.card      = CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT,
 	},{
 		.subvendor = 0x18ac,
