@@ -1406,13 +1406,20 @@ lba_hw_init(struct lba_device *d)
 	return 0;
 }
 
-
+/*
+ * Unfortunately, when firmware numbers busses, it doesn't take into account
+ * Cardbus bridges.  So we have to renumber the busses to suit ourselves.
+ * Elroy/Mercury don't actually know what bus number they're attached to;
+ * we use bus 0 to indicate the directly attached bus and any other bus
+ * number will be taken care of by the PCI-PCI bridge.
+ */
+static unsigned int lba_next_bus = 0;
 
 /*
-** Determine if lba should claim this chip (return 0) or not (return 1).
-** If so, initialize the chip and tell other partners in crime they
-** have work to do.
-*/
+ * Determine if lba should claim this chip (return 0) or not (return 1).
+ * If so, initialize the chip and tell other partners in crime they
+ * have work to do.
+ */
 static int __init
 lba_driver_probe(struct parisc_device *dev)
 {
@@ -1478,9 +1485,7 @@ lba_driver_probe(struct parisc_device *dev)
 		return -ENODEV;
 	}
 
-	/*
-	** Tell I/O SAPIC driver we have a IRQ handler/region.
-	*/
+	/* Tell I/O SAPIC driver we have a IRQ handler/region. */
 	tmp_obj = iosapic_register(dev->hpa.start + LBA_IOSAPIC_BASE);
 
 	/* NOTE: PCI devices (e.g. 103c:1005 graphics card) which don't
@@ -1529,16 +1534,17 @@ lba_driver_probe(struct parisc_device *dev)
 		lba_legacy_resources(dev, lba_dev);
 	}
 
-	/* 
-	** Tell PCI support another PCI bus was found.
-	** Walks PCI bus for us too.
-	*/
+	if (lba_dev->hba.bus_num.start < lba_next_bus)
+		lba_dev->hba.bus_num.start = lba_next_bus;
+
 	dev->dev.platform_data = lba_dev;
 	lba_bus = lba_dev->hba.hba_bus =
 		pci_scan_bus_parented(&dev->dev, lba_dev->hba.bus_num.start,
 				cfg_ops, NULL);
-	if (lba_bus)
+	if (lba_bus) {
+		lba_next_bus = lba_bus->subordinate + 1;
 		pci_bus_add_devices(lba_bus);
+	}
 
 	/* This is in lieu of calling pci_assign_unassigned_resources() */
 	if (is_pdc_pat()) {
