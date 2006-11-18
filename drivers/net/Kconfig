@@ -440,10 +440,10 @@ config HPLANCE
 
 config LASI_82596
 	tristate "Lasi ethernet"
-	depends on NET_ETHERNET && PARISC && GSC_LASI
+	depends on NET_ETHERNET && GSC
 	help
-	  Say Y here to support the on-board Intel 82596 ethernet controller
-	  built into Hewlett-Packard PA-RISC machines.
+	  Say Y here to support the builtin Intel 82596 ethernet controller
+	  found in Hewlett-Packard PA-RISC machines with 10Mbit ethernet.
 
 config MIPS_JAZZ_SONIC
 	tristate "MIPS JAZZ onboard SONIC Ethernet support"
