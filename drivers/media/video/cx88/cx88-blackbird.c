@@ -942,9 +942,10 @@ static int mpeg_open(struct inode *inode, struct file *file)
 	struct cx8802_driver *drv = NULL;
 	int err;
 
+       dev = cx8802_get_device(inode);
+
 	dprintk( 1, "%s\n", __FUNCTION__);
 
-	dev = cx8802_get_device(inode);
 	if (dev == NULL)
 		return -ENODEV;
 
