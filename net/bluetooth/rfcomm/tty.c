@@ -765,7 +765,7 @@ static void rfcomm_tty_set_termios(struct tty_struct *tty, struct termios *old)
 
 	BT_DBG("tty %p termios %p", tty, old);
 
-	if (!dev)
+	if (!dev || !dev->dlc || !dev->dlc->session)
 		return;
 
 	/* Handle turning off CRTSCTS */
