@@ -798,7 +798,7 @@ static void nodemgr_remove_uds(struct node_entry *ne)
 
 static void nodemgr_remove_ne(struct node_entry *ne)
 {
-	struct device *dev = &ne->device;
+	struct device *dev;
 
 	dev = get_device(&ne->device);
 	if (!dev)
