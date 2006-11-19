@@ -46,6 +46,10 @@
 #include "lnbp21.h"
 #include "bsru6.h"
 
+static int diseqc_method;
+module_param(diseqc_method, int, 0444);
+MODULE_PARM_DESC(diseqc_method, "Select DiSEqC method for subsystem id 13c2:1003, 0: default, 1: more reliable (for newer revisions only)");
+
 static void Set22K (struct budget *budget, int state)
 {
 	struct saa7146_dev *dev=budget->dev;
@@ -382,7 +386,11 @@ static void frontend_init(struct budget *budget)
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops.tuner_ops.set_params = alps_bsru6_tuner_set_params;
 			budget->dvb_frontend->tuner_priv = &budget->i2c_adap;
-			budget->dvb_frontend->ops.set_tone = budget_set_tone;
+			if (budget->dev->pci->subsystem_device == 0x1003 && diseqc_method == 0) {
+				budget->dvb_frontend->ops.diseqc_send_master_cmd = budget_diseqc_send_master_cmd;
+				budget->dvb_frontend->ops.diseqc_send_burst = budget_diseqc_send_burst;
+				budget->dvb_frontend->ops.set_tone = budget_set_tone;
+			}
 			break;
 		}
 		break;
