@@ -2261,8 +2261,12 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 	do_exit(SIGSEGV);
 }
 
+#define VIS_OPCODE_MASK	((0x3 << 30) | (0x3f << 19))
+#define VIS_OPCODE_VAL	((0x2 << 30) | (0x36 << 19))
+
 extern int handle_popc(u32 insn, struct pt_regs *regs);
 extern int handle_ldf_stq(u32 insn, struct pt_regs *regs);
+extern int vis_emul(struct pt_regs *, unsigned int);
 
 void do_illegal_instruction(struct pt_regs *regs)
 {
@@ -2287,10 +2291,18 @@ void do_illegal_instruction(struct pt_regs *regs)
 			if (handle_ldf_stq(insn, regs))
 				return;
 		} else if (tlb_type == hypervisor) {
-			extern int vis_emul(struct pt_regs *, unsigned int);
+			if ((insn & VIS_OPCODE_MASK) == VIS_OPCODE_VAL) {
+				if (!vis_emul(regs, insn))
+					return;
+			} else {
+				struct fpustate *f = FPUSTATE;
 
-			if (!vis_emul(regs, insn))
-				return;
+				/* XXX maybe verify XFSR bits like
+				 * XXX do_fpother() does?
+				 */
+				if (do_mathemu(regs, f))
+					return;
+			}
 		}
 	}
 	info.si_signo = SIGILL;
