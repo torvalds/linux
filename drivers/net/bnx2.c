@@ -86,6 +86,7 @@ typedef enum {
 	NC370F,
 	BCM5708,
 	BCM5708S,
+	BCM5709,
 } board_t;
 
 /* indexed by board_t, above */
@@ -99,6 +100,7 @@ static const struct {
 	{ "HP NC370F Multifunction Gigabit Server Adapter" },
 	{ "Broadcom NetXtreme II BCM5708 1000Base-T" },
 	{ "Broadcom NetXtreme II BCM5708 1000Base-SX" },
+	{ "Broadcom NetXtreme II BCM5709 1000Base-T" },
 	};
 
 static struct pci_device_id bnx2_pci_tbl[] = {
@@ -116,6 +118,8 @@ static struct pci_device_id bnx2_pci_tbl[] = {
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, BCM5706S },
 	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_NX2_5708S,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, BCM5708S },
+	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_NX2_5709,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, BCM5709 },
 	{ 0, }
 };
 
@@ -5854,10 +5858,15 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->phy_addr = 1;
 
 	/* Disable WOL support if we are running on a SERDES chip. */
-	if (CHIP_BOND_ID(bp) & CHIP_BOND_ID_SERDES_BIT) {
+	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
+		if (CHIP_BOND_ID(bp) != BNX2_MISC_DUAL_MEDIA_CTRL_BOND_ID_C)
+			bp->phy_flags |= PHY_SERDES_FLAG;
+	} else if (CHIP_BOND_ID(bp) & CHIP_BOND_ID_SERDES_BIT)
 		bp->phy_flags |= PHY_SERDES_FLAG;
+
+	if (bp->phy_flags & PHY_SERDES_FLAG) {
 		bp->flags |= NO_WOL_FLAG;
-		if (CHIP_NUM(bp) == CHIP_NUM_5708) {
+		if (CHIP_NUM(bp) != CHIP_NUM_5706) {
 			bp->phy_addr = 2;
 			reg = REG_RD_IND(bp, bp->shmem_base +
 					 BNX2_SHARED_HW_CFG_CONFIG);
