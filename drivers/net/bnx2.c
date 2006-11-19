@@ -1159,7 +1159,6 @@ bnx2_setup_copper_phy(struct bnx2 *bp)
 	}
 	if (new_bmcr != bmcr) {
 		u32 bmsr;
-		int i = 0;
 
 		bnx2_read_phy(bp, MII_BMSR, &bmsr);
 		bnx2_read_phy(bp, MII_BMSR, &bmsr);
@@ -1167,12 +1166,12 @@ bnx2_setup_copper_phy(struct bnx2 *bp)
 		if (bmsr & BMSR_LSTATUS) {
 			/* Force link down */
 			bnx2_write_phy(bp, MII_BMCR, BMCR_LOOPBACK);
-			do {
-				udelay(100);
-				bnx2_read_phy(bp, MII_BMSR, &bmsr);
-				bnx2_read_phy(bp, MII_BMSR, &bmsr);
-				i++;
-			} while ((bmsr & BMSR_LSTATUS) && (i < 620));
+			spin_unlock_bh(&bp->phy_lock);
+			msleep(50);
+			spin_lock_bh(&bp->phy_lock);
+
+			bnx2_read_phy(bp, MII_BMSR, &bmsr);
+			bnx2_read_phy(bp, MII_BMSR, &bmsr);
 		}
 
 		bnx2_write_phy(bp, MII_BMCR, new_bmcr);
