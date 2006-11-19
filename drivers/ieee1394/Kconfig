@@ -67,16 +67,11 @@ config IEEE1394_CONFIG_ROM_IP1394
 	  eth1394 option below.
 
 config IEEE1394_EXPORT_FULL_API
-	bool "Export all symbols of ieee1394's API"
+	bool "Export all symbols of ieee1394's API (deprecated)"
 	depends on IEEE1394
 	default n
 	help
-	  Export all symbols of ieee1394's driver programming interface, even
-	  those that are not currently used by the standard IEEE 1394 drivers.
-
-	  This option does not affect the interface to userspace applications.
-	  Say Y here if you want to compile externally developed drivers that
-	  make extended use of ieee1394's API. It is otherwise safe to say N.
+	  This option will be removed soon.  Don't worry, say N.
 
 comment "Device Drivers"
 	depends on IEEE1394
