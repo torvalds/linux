@@ -4040,6 +4040,7 @@ struct bnx2 {
 
 	u8			serdes_an_pending;
 #define SERDES_AN_TIMEOUT	(HZ / 3)
+#define SERDES_FORCED_TIMEOUT	(HZ / 10)
 
 	u8			mac_addr[8];
 

@@ -1067,19 +1067,17 @@ bnx2_setup_serdes_phy(struct bnx2 *bp)
 		bnx2_write_phy(bp, MII_ADVERTISE, new_adv);
 		bnx2_write_phy(bp, MII_BMCR, bmcr | BMCR_ANRESTART |
 			BMCR_ANENABLE);
-		if (CHIP_NUM(bp) == CHIP_NUM_5706) {
-			/* Speed up link-up time when the link partner
-			 * does not autonegotiate which is very common
-			 * in blade servers. Some blade servers use
-			 * IPMI for kerboard input and it's important
-			 * to minimize link disruptions. Autoneg. involves
-			 * exchanging base pages plus 3 next pages and
-			 * normally completes in about 120 msec.
-			 */
-			bp->current_interval = SERDES_AN_TIMEOUT;
-			bp->serdes_an_pending = 1;
-			mod_timer(&bp->timer, jiffies + bp->current_interval);
-		}
+		/* Speed up link-up time when the link partner
+		 * does not autonegotiate which is very common
+		 * in blade servers. Some blade servers use
+		 * IPMI for kerboard input and it's important
+		 * to minimize link disruptions. Autoneg. involves
+		 * exchanging base pages plus 3 next pages and
+		 * normally completes in about 120 msec.
+		 */
+		bp->current_interval = SERDES_AN_TIMEOUT;
+		bp->serdes_an_pending = 1;
+		mod_timer(&bp->timer, jiffies + bp->current_interval);
 	}
 
 	return 0;
@@ -4228,6 +4226,41 @@ bnx2_5706_serdes_timer(struct bnx2 *bp)
 }
 
 static void
+bnx2_5708_serdes_timer(struct bnx2 *bp)
+{
+	if ((bp->phy_flags & PHY_2_5G_CAPABLE_FLAG) == 0) {
+		bp->serdes_an_pending = 0;
+		return;
+	}
+
+	spin_lock(&bp->phy_lock);
+	if (bp->serdes_an_pending)
+		bp->serdes_an_pending--;
+	else if ((bp->link_up == 0) && (bp->autoneg & AUTONEG_SPEED)) {
+		u32 bmcr;
+
+		bnx2_read_phy(bp, MII_BMCR, &bmcr);
+
+		if (bmcr & BMCR_ANENABLE) {
+			bmcr &= ~BMCR_ANENABLE;
+			bmcr |= BMCR_FULLDPLX | BCM5708S_BMCR_FORCE_2500;
+			bnx2_write_phy(bp, MII_BMCR, bmcr);
+			bp->current_interval = SERDES_FORCED_TIMEOUT;
+		} else {
+			bmcr &= ~(BMCR_FULLDPLX | BCM5708S_BMCR_FORCE_2500);
+			bmcr |= BMCR_ANENABLE;
+			bnx2_write_phy(bp, MII_BMCR, bmcr);
+			bp->serdes_an_pending = 2;
+			bp->current_interval = bp->timer_interval;
+		}
+
+	} else
+		bp->current_interval = bp->timer_interval;
+
+	spin_unlock(&bp->phy_lock);
+}
+
+static void
 bnx2_timer(unsigned long data)
 {
 	struct bnx2 *bp = (struct bnx2 *) data;
@@ -4244,9 +4277,12 @@ bnx2_timer(unsigned long data)
 
 	bp->stats_blk->stat_FwRxDrop = REG_RD_IND(bp, BNX2_FW_RX_DROP_COUNT);
 
-	if ((bp->phy_flags & PHY_SERDES_FLAG) &&
-	    (CHIP_NUM(bp) == CHIP_NUM_5706))
-		bnx2_5706_serdes_timer(bp);
+	if (bp->phy_flags & PHY_SERDES_FLAG) {
+		if (CHIP_NUM(bp) == CHIP_NUM_5706)
+			bnx2_5706_serdes_timer(bp);
+		else if (CHIP_NUM(bp) == CHIP_NUM_5708)
+			bnx2_5708_serdes_timer(bp);
+	}
 
 bnx2_restart_timer:
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
@@ -4917,11 +4953,10 @@ bnx2_nway_reset(struct net_device *dev)
 		msleep(20);
 
 		spin_lock_bh(&bp->phy_lock);
-		if (CHIP_NUM(bp) == CHIP_NUM_5706) {
-			bp->current_interval = SERDES_AN_TIMEOUT;
-			bp->serdes_an_pending = 1;
-			mod_timer(&bp->timer, jiffies + bp->current_interval);
-		}
+
+		bp->current_interval = SERDES_AN_TIMEOUT;
+		bp->serdes_an_pending = 1;
+		mod_timer(&bp->timer, jiffies + bp->current_interval);
 	}
 
 	bnx2_read_phy(bp, MII_BMCR, &bmcr);
