@@ -138,6 +138,20 @@ MODULE_LICENSE("GPL");
 #define   COM17_AECWIN	  0xc0	  /* AEC window - must match COM4 */
 #define   COM17_CBAR	  0x08	  /* DSP Color bar */
 
+/*
+ * This matrix defines how the colors are generated, must be
+ * tweaked to adjust hue and saturation.
+ *
+ * Order: v-red, v-green, v-blue, u-red, u-green, u-blue
+ *
+ * They are nine-bit signed quantities, with the sign bit
+ * stored in 0x58.  Sign for v-red is bit 0, and up from there.
+ */
+#define	REG_CMATRIX_BASE 0x4f
+#define   CMATRIX_LEN 6
+#define REG_CMATRIX_SIGN 0x58
+
+
 #define REG_BRIGHT	0x55	/* Brightness */
 #define REG_CONTRAS	0x56	/* Contrast control */
 
@@ -160,6 +174,19 @@ MODULE_LICENSE("GPL");
 
 
 /*
+ * Information we maintain about a known sensor.
+ */
+struct ov7670_format_struct;  /* coming later */
+struct ov7670_info {
+	struct ov7670_format_struct *fmt;  /* Current format */
+	unsigned char sat;		/* Saturation value */
+	int hue;			/* Hue value */
+};
+
+
+
+
+/*
  * The default register settings, as obtained from OmniVision.  There
  * is really no making sense of most of these - lots of "reserved" values
  * and such.
@@ -179,7 +206,7 @@ static struct regval_list ov7670_default_regs[] = {
  *              2 = 20fps
  *              1 = 30fps
  */
-	{ REG_CLKRC, 0x1 },	/* OV: clock scale (15 fps) */
+	{ REG_CLKRC, 0x1 },	/* OV: clock scale (30 fps) */
 	{ REG_TSLB,  0x04 },	/* OV */
 	{ REG_COM7, 0 },	/* VGA */
 	/*
@@ -286,10 +313,6 @@ static struct regval_list ov7670_default_regs[] = {
 	{ 0x79, 0x05 },		{ 0xc8, 0x30 },
 	{ 0x79, 0x26 },
 
-	/* Not sure if these should be here */
-	{ 0xf1, 0x10 },		{ 0x0f, 0x1d },
-	{ 0x0f, 0x1f },
-
 	{ 0xff, 0xff },	/* END MARKER */
 };
 
@@ -312,6 +335,7 @@ static struct regval_list ov7670_fmt_yuv422[] = {
 	{ REG_COM9, 0x18 }, /* 4x gain ceiling; 0x8 is reserved bit */
 	{ 0x4f, 0x80 }, 	/* "matrix coefficient 1" */
 	{ 0x50, 0x80 }, 	/* "matrix coefficient 2" */
+	{ 0x51, 0    },		/* vb */
 	{ 0x52, 0x22 }, 	/* "matrix coefficient 4" */
 	{ 0x53, 0x5e }, 	/* "matrix coefficient 5" */
 	{ 0x54, 0x80 }, 	/* "matrix coefficient 6" */
@@ -327,6 +351,7 @@ static struct regval_list ov7670_fmt_rgb565[] = {
 	{ REG_COM9, 0x38 }, 	/* 16x gain ceiling; 0x8 is reserved bit */
 	{ 0x4f, 0xb3 }, 	/* "matrix coefficient 1" */
 	{ 0x50, 0xb3 }, 	/* "matrix coefficient 2" */
+	{ 0x51, 0    },		/* vb */
 	{ 0x52, 0x3d }, 	/* "matrix coefficient 4" */
 	{ 0x53, 0xa7 }, 	/* "matrix coefficient 5" */
 	{ 0x54, 0xe4 }, 	/* "matrix coefficient 6" */
@@ -342,6 +367,7 @@ static struct regval_list ov7670_fmt_rgb444[] = {
 	{ REG_COM9, 0x38 }, 	/* 16x gain ceiling; 0x8 is reserved bit */
 	{ 0x4f, 0xb3 }, 	/* "matrix coefficient 1" */
 	{ 0x50, 0xb3 }, 	/* "matrix coefficient 2" */
+	{ 0x51, 0    },		/* vb */
 	{ 0x52, 0x3d }, 	/* "matrix coefficient 4" */
 	{ 0x53, 0xa7 }, 	/* "matrix coefficient 5" */
 	{ 0x54, 0xe4 }, 	/* "matrix coefficient 6" */
@@ -362,7 +388,7 @@ static int ov7670_read(struct i2c_client *c, unsigned char reg,
 	int ret;
 
 	ret = i2c_smbus_read_byte_data(c, reg);
-	if (ret > 0)
+	if (ret >= 0)
 		*value = (unsigned char) ret;
 	return ret;
 }
@@ -442,28 +468,34 @@ static int ov7670_detect(struct i2c_client *client)
 }
 
 
-
-
-
+/*
+ * Store information about the video data format.  The color matrix
+ * is deeply tied into the format, so keep the relevant values here.
+ * The magic matrix nubmers come from OmniVision.
+ */
 static struct ov7670_format_struct {
 	__u8 *desc;
 	__u32 pixelformat;
 	struct regval_list *regs;
+	int cmatrix[CMATRIX_LEN];
 } ov7670_formats[] = {
 	{
 		.desc		= "YUYV 4:2:2",
 		.pixelformat	= V4L2_PIX_FMT_YUYV,
 		.regs 		= ov7670_fmt_yuv422,
+		.cmatrix	= { 128, -128, 0, -34, -94, 128 },
 	},
 	{
 		.desc		= "RGB 444",
 		.pixelformat	= V4L2_PIX_FMT_RGB444,
 		.regs		= ov7670_fmt_rgb444,
+		.cmatrix	= { 179, -179, 0, -61, -176, 228 },
 	},
 	{
 		.desc		= "RGB 565",
 		.pixelformat	= V4L2_PIX_FMT_RGB565,
 		.regs		= ov7670_fmt_rgb565,
+		.cmatrix	= { 179, -179, 0, -61, -176, 228 },
 	},
 	/*
 	 * Pretend we do RGB32.  This is here on the assumption that the
@@ -476,6 +508,7 @@ static struct ov7670_format_struct {
 		.desc		= "RGB32 (faked)",
 		.pixelformat	= V4L2_PIX_FMT_RGB32,
 		.regs		= ov7670_fmt_rgb444,
+		.cmatrix	= { 179, -179, 0, -61, -176, 228 },
 	},
 };
 #define N_OV7670_FMTS (sizeof(ov7670_formats)/sizeof(ov7670_formats[0]))
@@ -488,6 +521,32 @@ static struct ov7670_format_struct {
 /*
  * Then there is the issue of window sizes.  Try to capture the info here.
  */
+
+/*
+ * QCIF mode is done (by OV) in a very strange way - it actually looks like
+ * VGA with weird scaling options - they do *not* use the canned QCIF mode
+ * which is allegedly provided by the sensor.  So here's the weird register
+ * settings.
+ */
+static struct regval_list ov7670_qcif_regs[] = {
+	{ REG_COM3, COM3_SCALEEN|COM3_DCWEN },
+	{ REG_COM3, COM3_DCWEN },
+	{ REG_COM14, COM14_DCWEN | 0x01},
+	{ 0x73, 0xf1 },
+	{ 0xa2, 0x52 },
+	{ 0x7b, 0x1c },
+	{ 0x7c, 0x28 },
+	{ 0x7d, 0x3c },
+	{ 0x7f, 0x69 },
+	{ REG_COM9, 0x38 },
+	{ 0xa1, 0x0b },
+	{ 0x74, 0x19 },
+	{ 0x9a, 0x80 },
+	{ 0x43, 0x14 },
+	{ REG_COM13, 0xc0 },
+	{ 0xff, 0xff },
+};
+
 static struct ov7670_win_size {
 	int	width;
 	int	height;
@@ -496,6 +555,7 @@ static struct ov7670_win_size {
 	int	hstop;		/* that they do not always make complete */
 	int	vstart;		/* sense to humans, but evidently the sensor */
 	int	vstop;		/* will do the right thing... */
+	struct regval_list *regs; /* Regs to tweak */
 /* h/vref stuff */
 } ov7670_win_sizes[] = {
 	/* VGA */
@@ -507,6 +567,7 @@ static struct ov7670_win_size {
 		.hstop		=  14,		/* Omnivision */
 		.vstart		=  10,
 		.vstop		= 490,
+		.regs 		= NULL,
 	},
 	/* CIF */
 	{
@@ -517,6 +578,7 @@ static struct ov7670_win_size {
 		.hstop		=  90,
 		.vstart		=  14,
 		.vstop		= 494,
+		.regs 		= NULL,
 	},
 	/* QVGA */
 	{
@@ -527,6 +589,18 @@ static struct ov7670_win_size {
 		.hstop		=  20,
 		.vstart		=  14,
 		.vstop		= 494,
+		.regs 		= NULL,
+	},
+	/* QCIF */
+	{
+		.width		= QCIF_WIDTH,
+		.height		= QCIF_HEIGHT,
+		.com7_bit	= COM7_FMT_VGA, /* see comment above */
+		.hstart		= 456,		/* Empirically determined */
+		.hstop		=  24,
+		.vstart		=  14,
+		.vstop		= 494,
+		.regs 		= ov7670_qcif_regs,
 	},
 };
 
@@ -610,7 +684,7 @@ static int ov7670_try_fmt(struct i2c_client *c, struct v4l2_format *fmt,
 	     wsize++)
 		if (pix->width >= wsize->width && pix->height >= wsize->height)
 			break;
-	if (wsize > ov7670_win_sizes + N_WIN_SIZES)
+	if (wsize >= ov7670_win_sizes + N_WIN_SIZES)
 		wsize--;   /* Take the smallest one */
 	if (ret_wsize != NULL)
 		*ret_wsize = wsize;
@@ -624,7 +698,6 @@ static int ov7670_try_fmt(struct i2c_client *c, struct v4l2_format *fmt,
 		pix->bytesperline *= 2;
 	pix->sizeimage = pix->height*pix->bytesperline;
 	return 0;
-
 }
 
 /*
@@ -635,6 +708,7 @@ static int ov7670_s_fmt(struct i2c_client *c, struct v4l2_format *fmt)
 	int ret;
 	struct ov7670_format_struct *ovfmt;
 	struct ov7670_win_size *wsize;
+	struct ov7670_info *info = i2c_get_clientdata(c);
 	unsigned char com7;
 
 	ret = ov7670_try_fmt(c, fmt, &ovfmt, &wsize);
@@ -655,12 +729,178 @@ static int ov7670_s_fmt(struct i2c_client *c, struct v4l2_format *fmt)
 	ov7670_write_array(c, ovfmt->regs + 1);
 	ov7670_set_hw(c, wsize->hstart, wsize->hstop, wsize->vstart,
 			wsize->vstop);
+	ret = 0;
+	if (wsize->regs)
+		ret = ov7670_write_array(c, wsize->regs);
+	info->fmt = ovfmt;
 	return 0;
 }
 
 /*
  * Code for dealing with controls.
  */
+
+
+
+
+
+static int ov7670_store_cmatrix(struct i2c_client *client,
+		int matrix[CMATRIX_LEN])
+{
+	int i, ret;
+	unsigned char signbits;
+
+	/*
+	 * Weird crap seems to exist in the upper part of
+	 * the sign bits register, so let's preserve it.
+	 */
+	ret = ov7670_read(client, REG_CMATRIX_SIGN, &signbits);
+	signbits &= 0xc0;
+
+	for (i = 0; i < CMATRIX_LEN; i++) {
+		unsigned char raw;
+
+		if (matrix[i] < 0) {
+			signbits |= (1 << i);
+			if (matrix[i] < -255)
+				raw = 0xff;
+			else
+				raw = (-1 * matrix[i]) & 0xff;
+		}
+		else {
+			if (matrix[i] > 255)
+				raw = 0xff;
+			else
+				raw = matrix[i] & 0xff;
+		}
+		ret += ov7670_write(client, REG_CMATRIX_BASE + i, raw);
+	}
+	ret += ov7670_write(client, REG_CMATRIX_SIGN, signbits);
+	return ret;
+}
+
+
+/*
+ * Hue also requires messing with the color matrix.  It also requires
+ * trig functions, which tend not to be well supported in the kernel.
+ * So here is a simple table of sine values, 0-90 degrees, in steps
+ * of five degrees.  Values are multiplied by 1000.
+ *
+ * The following naive approximate trig functions require an argument
+ * carefully limited to -180 <= theta <= 180.
+ */
+#define SIN_STEP 5
+static const int ov7670_sin_table[] = {
+	   0,	 87,   173,   258,   342,   422,
+	 499,	573,   642,   707,   766,   819,
+	 866,	906,   939,   965,   984,   996,
+	1000
+};
+
+static int ov7670_sine(int theta)
+{
+	int chs = 1;
+	int sine;
+
+	if (theta < 0) {
+		theta = -theta;
+		chs = -1;
+	}
+	if (theta <= 90)
+		sine = ov7670_sin_table[theta/SIN_STEP];
+	else {
+		theta -= 90;
+		sine = 1000 - ov7670_sin_table[theta/SIN_STEP];
+	}
+	return sine*chs;
+}
+
+static int ov7670_cosine(int theta)
+{
+	theta = 90 - theta;
+	if (theta > 180)
+		theta -= 360;
+	else if (theta < -180)
+		theta += 360;
+	return ov7670_sine(theta);
+}
+
+
+
+
+static void ov7670_calc_cmatrix(struct ov7670_info *info,
+		int matrix[CMATRIX_LEN])
+{
+	int i;
+	/*
+	 * Apply the current saturation setting first.
+	 */
+	for (i = 0; i < CMATRIX_LEN; i++)
+		matrix[i] = (info->fmt->cmatrix[i]*info->sat) >> 7;
+	/*
+	 * Then, if need be, rotate the hue value.
+	 */
+	if (info->hue != 0) {
+		int sinth, costh, tmpmatrix[CMATRIX_LEN];
+
+		memcpy(tmpmatrix, matrix, CMATRIX_LEN*sizeof(int));
+		sinth = ov7670_sine(info->hue);
+		costh = ov7670_cosine(info->hue);
+
+		matrix[0] = (matrix[3]*sinth + matrix[0]*costh)/1000;
+		matrix[1] = (matrix[4]*sinth + matrix[1]*costh)/1000;
+		matrix[2] = (matrix[5]*sinth + matrix[2]*costh)/1000;
+		matrix[3] = (matrix[3]*costh - matrix[0]*sinth)/1000;
+		matrix[4] = (matrix[4]*costh - matrix[1]*sinth)/1000;
+		matrix[5] = (matrix[5]*costh - matrix[2]*sinth)/1000;
+	}
+}
+
+
+
+static int ov7670_t_sat(struct i2c_client *client, int value)
+{
+	struct ov7670_info *info = i2c_get_clientdata(client);
+	int matrix[CMATRIX_LEN];
+	int ret;
+
+	info->sat = value;
+	ov7670_calc_cmatrix(info, matrix);
+	ret = ov7670_store_cmatrix(client, matrix);
+	return ret;
+}
+
+static int ov7670_q_sat(struct i2c_client *client, __s32 *value)
+{
+	struct ov7670_info *info = i2c_get_clientdata(client);
+
+	*value = info->sat;
+	return 0;
+}
+
+static int ov7670_t_hue(struct i2c_client *client, int value)
+{
+	struct ov7670_info *info = i2c_get_clientdata(client);
+	int matrix[CMATRIX_LEN];
+	int ret;
+
+	if (value < -180 || value > 180)
+		return -EINVAL;
+	info->hue = value;
+	ov7670_calc_cmatrix(info, matrix);
+	ret = ov7670_store_cmatrix(client, matrix);
+	return ret;
+}
+
+
+static int ov7670_q_hue(struct i2c_client *client, __s32 *value)
+{
+	struct ov7670_info *info = i2c_get_clientdata(client);
+
+	*value = info->hue;
+	return 0;
+}
+
 
 /*
  * Some weird registers seem to store values in a sign/magnitude format!
@@ -682,38 +922,43 @@ static unsigned char ov7670_abs_to_sm(unsigned char v)
 		return (128 - v) | 0x80;
 }
 
-static int ov7670_t_brightness(struct i2c_client *client, unsigned char value)
+static int ov7670_t_brightness(struct i2c_client *client, int value)
 {
-	unsigned char com8;
+	unsigned char com8, v;
 	int ret;
 
 	ov7670_read(client, REG_COM8, &com8);
 	com8 &= ~COM8_AEC;
 	ov7670_write(client, REG_COM8, com8);
-	value = ov7670_abs_to_sm(value);
-	ret = ov7670_write(client, REG_BRIGHT, value);
+	v = ov7670_abs_to_sm(value);
+	ret = ov7670_write(client, REG_BRIGHT, v);
 	return ret;
 }
 
-static int ov7670_q_brightness(struct i2c_client *client, unsigned char *value)
+static int ov7670_q_brightness(struct i2c_client *client, __s32 *value)
 {
-	int ret;
-	ret = ov7670_read(client, REG_BRIGHT, value);
-	*value = ov7670_sm_to_abs(*value);
+	unsigned char v;
+	int ret = ov7670_read(client, REG_BRIGHT, &v);
+
+	*value = ov7670_sm_to_abs(v);
 	return ret;
 }
 
-static int ov7670_t_contrast(struct i2c_client *client, unsigned char value)
+static int ov7670_t_contrast(struct i2c_client *client, int value)
 {
-	return ov7670_write(client, REG_CONTRAS, value);
+	return ov7670_write(client, REG_CONTRAS, (unsigned char) value);
 }
 
-static int ov7670_q_contrast(struct i2c_client *client, unsigned char *value)
+static int ov7670_q_contrast(struct i2c_client *client, __s32 *value)
 {
-	return ov7670_read(client, REG_CONTRAS, value);
+	unsigned char v;
+	int ret = ov7670_read(client, REG_CONTRAS, &v);
+
+	*value = v;
+	return ret;
 }
 
-static int ov7670_q_hflip(struct i2c_client *client, unsigned char *value)
+static int ov7670_q_hflip(struct i2c_client *client, __s32 *value)
 {
 	int ret;
 	unsigned char v;
@@ -724,7 +969,7 @@ static int ov7670_q_hflip(struct i2c_client *client, unsigned char *value)
 }
 
 
-static int ov7670_t_hflip(struct i2c_client *client, unsigned char value)
+static int ov7670_t_hflip(struct i2c_client *client, int value)
 {
 	unsigned char v;
 	int ret;
@@ -741,7 +986,7 @@ static int ov7670_t_hflip(struct i2c_client *client, unsigned char value)
 
 
 
-static int ov7670_q_vflip(struct i2c_client *client, unsigned char *value)
+static int ov7670_q_vflip(struct i2c_client *client, __s32 *value)
 {
 	int ret;
 	unsigned char v;
@@ -752,7 +997,7 @@ static int ov7670_q_vflip(struct i2c_client *client, unsigned char *value)
 }
 
 
-static int ov7670_t_vflip(struct i2c_client *client, unsigned char value)
+static int ov7670_t_vflip(struct i2c_client *client, int value)
 {
 	unsigned char v;
 	int ret;
@@ -770,8 +1015,8 @@ static int ov7670_t_vflip(struct i2c_client *client, unsigned char value)
 
 static struct ov7670_control {
 	struct v4l2_queryctrl qc;
-	int (*query)(struct i2c_client *c, unsigned char *value);
-	int (*tweak)(struct i2c_client *c, unsigned char value);
+	int (*query)(struct i2c_client *c, __s32 *value);
+	int (*tweak)(struct i2c_client *c, int value);
 } ov7670_controls[] =
 {
 	{
@@ -801,6 +1046,34 @@ static struct ov7670_control {
 		},
 		.tweak = ov7670_t_contrast,
 		.query = ov7670_q_contrast,
+	},
+	{
+		.qc = {
+			.id = V4L2_CID_SATURATION,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+			.name = "Saturation",
+			.minimum = 0,
+			.maximum = 256,
+			.step = 1,
+			.default_value = 0x80,
+			.flags = V4L2_CTRL_FLAG_SLIDER
+		},
+		.tweak = ov7670_t_sat,
+		.query = ov7670_q_sat,
+	},
+	{
+		.qc = {
+			.id = V4L2_CID_HUE,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+			.name = "HUE",
+			.minimum = -180,
+			.maximum = 180,
+			.step = 5,
+			.default_value = 0,
+			.flags = V4L2_CTRL_FLAG_SLIDER
+		},
+		.tweak = ov7670_t_hue,
+		.query = ov7670_q_hue,
 	},
 	{
 		.qc = {
@@ -857,27 +1130,27 @@ static int ov7670_g_ctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 {
 	struct ov7670_control *octrl = ov7670_find_control(ctrl->id);
 	int ret;
-	unsigned char v;
 
 	if (octrl == NULL)
 		return -EINVAL;
-	ret = octrl->query(client, &v);
-	if (ret >= 0) {
-		ctrl->value = v;
+	ret = octrl->query(client, &ctrl->value);
+	if (ret >= 0)
 		return 0;
-	}
 	return ret;
 }
 
 static int ov7670_s_ctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 {
 	struct ov7670_control *octrl = ov7670_find_control(ctrl->id);
+	int ret;
 
 	if (octrl == NULL)
 		return -EINVAL;
-	return octrl->tweak(client, ctrl->value);
+	ret =  octrl->tweak(client, ctrl->value);
+	if (ret >= 0)
+		return 0;
+	return ret;
 }
-
 
 
 
@@ -893,15 +1166,14 @@ static int ov7670_attach(struct i2c_adapter *adapter)
 {
 	int ret;
 	struct i2c_client *client;
+	struct ov7670_info *info;
 
-	printk(KERN_ERR "ov7670 attach, id = %d\n", adapter->id);
 	/*
 	 * For now: only deal with adapters we recognize.
 	 */
 	if (adapter->id != I2C_HW_SMBUS_CAFE)
 		return -ENODEV;
 
-	printk(KERN_ERR "ov7670 accepting\n");
 	client = kzalloc(sizeof (struct i2c_client), GFP_KERNEL);
 	if (! client)
 		return -ENOMEM;
@@ -909,18 +1181,29 @@ static int ov7670_attach(struct i2c_adapter *adapter)
 	client->addr = OV7670_I2C_ADDR;
 	client->driver = &ov7670_driver,
 	strcpy(client->name, "OV7670");
-	/* Do we need clientdata? */
+	/*
+	 * Set up our info structure.
+	 */
+	info = kzalloc(sizeof (struct ov7670_info), GFP_KERNEL);
+	if (! info) {
+		ret = -ENOMEM;
+		goto out_free;
+	}
+	info->fmt = &ov7670_formats[0];
+	info->sat = 128;	/* Review this */
+	i2c_set_clientdata(client, info);
 
 	/*
 	 * Make sure it's an ov7670
 	 */
 	ret = ov7670_detect(client);
-	printk(KERN_ERR "detect result is %d\n", ret);
 	if (ret)
-		goto out_free;
+		goto out_free_info;
 	i2c_attach_client(client);
 	return 0;
 
+  out_free_info:
+	kfree(info);
   out_free:
 	kfree(client);
 	return ret;
@@ -930,6 +1213,7 @@ static int ov7670_attach(struct i2c_adapter *adapter)
 static int ov7670_detach(struct i2c_client *client)
 {
 	i2c_detach_client(client);
+	kfree(i2c_get_clientdata(client));
 	kfree(client);
 	return 0;
 }

@@ -505,6 +505,8 @@ static struct i2c_algorithm cafe_smbus_algo = {
 
 /* Somebody is on the bus */
 static int cafe_cam_init(struct cafe_camera *cam);
+static void cafe_ctlr_stop_dma(struct cafe_camera *cam);
+static void cafe_ctlr_power_down(struct cafe_camera *cam);
 
 static int cafe_smbus_attach(struct i2c_client *client)
 {
@@ -513,7 +515,6 @@ static int cafe_smbus_attach(struct i2c_client *client)
 	/*
 	 * Don't talk to chips we don't recognize.
 	 */
-	cam_err(cam, "smbus_attach id = %d\n", client->driver->id);
 	if (client->driver->id == I2C_DRIVERID_OV7670) {
 		cam->sensor = client;
 		return cafe_cam_init(cam);
@@ -525,8 +526,13 @@ static int cafe_smbus_detach(struct i2c_client *client)
 {
 	struct cafe_camera *cam = i2c_get_adapdata(client->adapter);
 
-	if (cam->sensor == client)
+	if (cam->sensor == client) {
+		cafe_ctlr_stop_dma(cam);
+		cafe_ctlr_power_down(cam);
+		cam_err(cam, "lost the sensor!\n");
 		cam->sensor = NULL;  /* Bummer, no camera */
+		cam->state = S_NOTREADY;
+	}
 	return 0;
 }
 
@@ -774,7 +780,7 @@ static void cafe_ctlr_power_up(struct cafe_camera *cam)
 	 * wiring).  Control 0 is reset - set to 1 to operate.
 	 * Control 1 is power down, set to 0 to operate.
 	 */
-	cafe_reg_write(cam, REG_GPR, GPR_C1EN|GPR_C0EN|GPR_C1);
+	cafe_reg_write(cam, REG_GPR, GPR_C1EN|GPR_C0EN); /* pwr up, reset */
 	mdelay(1); /* Marvell says 1ms will do it */
 	cafe_reg_write(cam, REG_GPR, GPR_C1EN|GPR_C0EN|GPR_C0);
 	mdelay(1); /* Enough? */
@@ -1468,8 +1474,11 @@ static int cafe_v4l_release(struct inode *inode, struct file *filp)
 		cafe_free_sio_buffers(cam);
 		cam->owner = NULL;
 	}
-	if (cam->users == 0)
+	if (cam->users == 0) {
 		cafe_ctlr_power_down(cam);
+		if (! alloc_bufs_at_load)
+			cafe_free_dma_bufs(cam);
+	}
 	mutex_unlock(&cam->s_mutex);
 	return 0;
 }
