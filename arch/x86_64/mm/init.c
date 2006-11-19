@@ -496,19 +496,12 @@ int remove_memory(u64 start, u64 size)
 }
 EXPORT_SYMBOL_GPL(remove_memory);
 
-#ifndef CONFIG_ACPI_NUMA
+#if !defined(CONFIG_ACPI_NUMA) && defined(CONFIG_NUMA)
 int memory_add_physaddr_to_nid(u64 start)
 {
 	return 0;
 }
 EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
-#endif
-
-#ifndef CONFIG_ACPI_NUMA
-int memory_add_physaddr_to_nid(u64 start)
-{
-	return 0;
-}
 #endif
 
 #endif /* CONFIG_MEMORY_HOTPLUG */
