@@ -10,15 +10,20 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/spinlock.h>
+#include <linux/idr.h>
 #include <linux/usb.h>
 #include "usb.h"
 
-/* endpoint stuff */
+#define MAX_ENDPOINT_MINORS (64*128*32)
+static int usb_endpoint_major;
+static DEFINE_IDR(endpoint_idr);
 
 struct ep_device {
 	struct usb_endpoint_descriptor *desc;
 	struct usb_device *udev;
 	struct device dev;
+	int minor;
 };
 #define to_ep_device(_dev) \
 	container_of(_dev, struct ep_device, dev)
@@ -152,6 +157,55 @@ static struct attribute_group ep_dev_attr_grp = {
 	.attrs = ep_dev_attrs,
 };
 
+static int usb_endpoint_major_init(void)
+{
+	dev_t dev;
+	int error;
+
+	error = alloc_chrdev_region(&dev, 0, MAX_ENDPOINT_MINORS,
+				    "usb_endpoint");
+	if (error) {
+		err("unable to get a dynamic major for usb endpoints");
+		return error;
+	}
+	usb_endpoint_major = MAJOR(dev);
+
+	return error;
+}
+
+static void usb_endpoint_major_cleanup(void)
+{
+	unregister_chrdev_region(MKDEV(usb_endpoint_major, 0),
+				 MAX_ENDPOINT_MINORS);
+}
+
+static int endpoint_get_minor(struct ep_device *ep_dev)
+{
+	static DEFINE_MUTEX(minor_lock);
+	int retval = -ENOMEM;
+	int id;
+
+	mutex_lock(&minor_lock);
+	if (idr_pre_get(&endpoint_idr, GFP_KERNEL) == 0)
+		goto exit;
+
+	retval = idr_get_new(&endpoint_idr, ep_dev, &id);
+	if (retval < 0) {
+		if (retval == -EAGAIN)
+			retval = -ENOMEM;
+		goto exit;
+	}
+	ep_dev->minor = id & MAX_ID_MASK;
+exit:
+	mutex_unlock(&minor_lock);
+	return retval;
+}
+
+static void endpoint_free_minor(struct ep_device *ep_dev)
+{
+	idr_remove(&endpoint_idr, ep_dev->minor);
+}
+
 static struct endpoint_class {
 	struct kref kref;
 	struct class *class;
@@ -176,11 +230,20 @@ static int init_endpoint_class(void)
 	ep_class->class = class_create(THIS_MODULE, "usb_endpoint");
 	if (IS_ERR(ep_class->class)) {
 		result = IS_ERR(ep_class->class);
-		kfree(ep_class);
-		ep_class = NULL;
-		goto exit;
+		goto class_create_error;
 	}
 
+	result = usb_endpoint_major_init();
+	if (result)
+		goto endpoint_major_error;
+
+	goto exit;
+
+endpoint_major_error:
+	class_destroy(ep_class->class);
+class_create_error:
+	kfree(ep_class);
+	ep_class = NULL;
 exit:
 	return result;
 }
@@ -191,6 +254,7 @@ static void release_endpoint_class(struct kref *kref)
 	class_destroy(ep_class->class);
 	kfree(ep_class);
 	ep_class = NULL;
+	usb_endpoint_major_cleanup();
 }
 
 static void destroy_endpoint_class(void)
@@ -213,7 +277,6 @@ int usb_create_ep_files(struct device *parent,
 {
 	char name[8];
 	struct ep_device *ep_dev;
-	int minor;
 	int retval;
 
 	retval = init_endpoint_class();
@@ -226,12 +289,16 @@ int usb_create_ep_files(struct device *parent,
 		goto error_alloc;
 	}
 
-	/* fun calculation to determine the minor of this endpoint */
-	minor = (((udev->bus->busnum - 1) * 128) * 16) + (udev->devnum - 1);
+	retval = endpoint_get_minor(ep_dev);
+	if (retval) {
+		dev_err(parent, "can not allocate minor number for %s",
+			ep_dev->dev.bus_id);
+		goto error_register;
+	}
 
 	ep_dev->desc = &endpoint->desc;
 	ep_dev->udev = udev;
-	ep_dev->dev.devt = MKDEV(442, minor);	// FIXME fake number...
+	ep_dev->dev.devt = MKDEV(usb_endpoint_major, ep_dev->minor);
 	ep_dev->dev.class = ep_class->class;
 	ep_dev->dev.parent = parent;
 	ep_dev->dev.release = ep_device_release;
@@ -241,7 +308,7 @@ int usb_create_ep_files(struct device *parent,
 
 	retval = device_register(&ep_dev->dev);
 	if (retval)
-		goto error_register;
+		goto error_chrdev;
 	retval = sysfs_create_group(&ep_dev->dev.kobj, &ep_dev_attr_grp);
 	if (retval)
 		goto error_group;
@@ -261,6 +328,9 @@ error_group:
 	destroy_endpoint_class();
 	return retval;
 
+error_chrdev:
+	endpoint_free_minor(ep_dev);
+
 error_register:
 	kfree(ep_dev);
 error_alloc:
@@ -271,14 +341,16 @@ exit:
 
 void usb_remove_ep_files(struct usb_host_endpoint *endpoint)
 {
+	struct ep_device *ep_dev = endpoint->ep_dev;
 
-	if (endpoint->ep_dev) {
+	if (ep_dev) {
 		char name[8];
 
 		sprintf(name, "ep_%02x", endpoint->desc.bEndpointAddress);
-		sysfs_remove_link(&endpoint->ep_dev->dev.parent->kobj, name);
-		sysfs_remove_group(&endpoint->ep_dev->dev.kobj, &ep_dev_attr_grp);
-		device_unregister(&endpoint->ep_dev->dev);
+		sysfs_remove_link(&ep_dev->dev.parent->kobj, name);
+		sysfs_remove_group(&ep_dev->dev.kobj, &ep_dev_attr_grp);
+		endpoint_free_minor(ep_dev);
+		device_unregister(&ep_dev->dev);
 		endpoint->ep_dev = NULL;
 		destroy_endpoint_class();
 	}
