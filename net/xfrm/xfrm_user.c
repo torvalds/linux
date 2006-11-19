@@ -2060,6 +2060,9 @@ static int xfrm_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *
 		len += RTA_SPACE(headlen);
 		headlen = sizeof(*id);
 	}
+#ifdef CONFIG_XFRM_SUB_POLICY
+	len += RTA_SPACE(sizeof(struct xfrm_userpolicy_type));
+#endif
 	len += NLMSG_SPACE(headlen);
 
 	skb = alloc_skb(len, GFP_ATOMIC);
