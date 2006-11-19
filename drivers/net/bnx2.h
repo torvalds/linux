@@ -3696,6 +3696,8 @@ struct l2_fhdr {
 
 /* 5708 Serdes PHY registers */
 
+#define BCM5708S_BMCR_FORCE_2500		0x20
+
 #define BCM5708S_UP1				0xb
 
 #define BCM5708S_UP1_2G5			0x1
