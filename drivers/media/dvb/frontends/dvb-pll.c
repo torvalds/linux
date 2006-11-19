@@ -478,8 +478,7 @@ EXPORT_SYMBOL(dvb_pll_configure);
 
 static int dvb_pll_release(struct dvb_frontend *fe)
 {
-	if (fe->tuner_priv)
-		kfree(fe->tuner_priv);
+	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
 	return 0;
 }
