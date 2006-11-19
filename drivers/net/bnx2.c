@@ -2214,11 +2214,12 @@ load_rv2p_fw(struct bnx2 *bp, u32 *rv2p_code, u32 rv2p_code_len,
 	}
 }
 
-static void
+static int
 load_cpu_fw(struct bnx2 *bp, struct cpu_reg *cpu_reg, struct fw_info *fw)
 {
 	u32 offset;
 	u32 val;
+	int rc;
 
 	/* Halt the CPU. */
 	val = REG_RD_IND(bp, cpu_reg->mode);
@@ -2228,7 +2229,18 @@ load_cpu_fw(struct bnx2 *bp, struct cpu_reg *cpu_reg, struct fw_info *fw)
 
 	/* Load the Text area. */
 	offset = cpu_reg->spad_base + (fw->text_addr - cpu_reg->mips_view_base);
-	if (fw->text) {
+	if (fw->gz_text) {
+		u32 text_len;
+		void *text;
+
+		rc = bnx2_gunzip(bp, fw->gz_text, fw->gz_text_len, &text,
+				 &text_len);
+		if (rc)
+			return rc;
+
+		fw->text = text;
+	}
+	if (fw->gz_text) {
 		int j;
 
 		for (j = 0; j < (fw->text_len / 4); j++, offset += 4) {
@@ -2286,13 +2298,15 @@ load_cpu_fw(struct bnx2 *bp, struct cpu_reg *cpu_reg, struct fw_info *fw)
 	val &= ~cpu_reg->mode_value_halt;
 	REG_WR_IND(bp, cpu_reg->state, cpu_reg->state_value_clear);
 	REG_WR_IND(bp, cpu_reg->mode, val);
+
+	return 0;
 }
 
 static int
 bnx2_init_cpus(struct bnx2 *bp)
 {
 	struct cpu_reg cpu_reg;
-	struct fw_info fw;
+	struct fw_info *fw;
 	int rc = 0;
 	void *text;
 	u32 text_len;
@@ -2329,43 +2343,11 @@ bnx2_init_cpus(struct bnx2 *bp)
 	cpu_reg.spad_base = BNX2_RXP_SCRATCH;
 	cpu_reg.mips_view_base = 0x8000000;
 
-	fw.ver_major = bnx2_RXP_b06FwReleaseMajor;
-	fw.ver_minor = bnx2_RXP_b06FwReleaseMinor;
-	fw.ver_fix = bnx2_RXP_b06FwReleaseFix;
-	fw.start_addr = bnx2_RXP_b06FwStartAddr;
+	fw = &bnx2_rxp_fw_06;
 
-	fw.text_addr = bnx2_RXP_b06FwTextAddr;
-	fw.text_len = bnx2_RXP_b06FwTextLen;
-	fw.text_index = 0;
-
-	rc = bnx2_gunzip(bp, bnx2_RXP_b06FwText, sizeof(bnx2_RXP_b06FwText),
-			 &text, &text_len);
+	rc = load_cpu_fw(bp, &cpu_reg, fw);
 	if (rc)
 		goto init_cpu_err;
-
-	fw.text = text;
-
-	fw.data_addr = bnx2_RXP_b06FwDataAddr;
-	fw.data_len = bnx2_RXP_b06FwDataLen;
-	fw.data_index = 0;
-	fw.data = bnx2_RXP_b06FwData;
-
-	fw.sbss_addr = bnx2_RXP_b06FwSbssAddr;
-	fw.sbss_len = bnx2_RXP_b06FwSbssLen;
-	fw.sbss_index = 0;
-	fw.sbss = bnx2_RXP_b06FwSbss;
-
-	fw.bss_addr = bnx2_RXP_b06FwBssAddr;
-	fw.bss_len = bnx2_RXP_b06FwBssLen;
-	fw.bss_index = 0;
-	fw.bss = bnx2_RXP_b06FwBss;
-
-	fw.rodata_addr = bnx2_RXP_b06FwRodataAddr;
-	fw.rodata_len = bnx2_RXP_b06FwRodataLen;
-	fw.rodata_index = 0;
-	fw.rodata = bnx2_RXP_b06FwRodata;
-
-	load_cpu_fw(bp, &cpu_reg, &fw);
 
 	/* Initialize the TX Processor. */
 	cpu_reg.mode = BNX2_TXP_CPU_MODE;
@@ -2381,43 +2363,11 @@ bnx2_init_cpus(struct bnx2 *bp)
 	cpu_reg.spad_base = BNX2_TXP_SCRATCH;
 	cpu_reg.mips_view_base = 0x8000000;
 
-	fw.ver_major = bnx2_TXP_b06FwReleaseMajor;
-	fw.ver_minor = bnx2_TXP_b06FwReleaseMinor;
-	fw.ver_fix = bnx2_TXP_b06FwReleaseFix;
-	fw.start_addr = bnx2_TXP_b06FwStartAddr;
+	fw = &bnx2_txp_fw_06;
 
-	fw.text_addr = bnx2_TXP_b06FwTextAddr;
-	fw.text_len = bnx2_TXP_b06FwTextLen;
-	fw.text_index = 0;
-
-	rc = bnx2_gunzip(bp, bnx2_TXP_b06FwText, sizeof(bnx2_TXP_b06FwText),
-			 &text, &text_len);
+	rc = load_cpu_fw(bp, &cpu_reg, fw);
 	if (rc)
 		goto init_cpu_err;
-
-	fw.text = text;
-
-	fw.data_addr = bnx2_TXP_b06FwDataAddr;
-	fw.data_len = bnx2_TXP_b06FwDataLen;
-	fw.data_index = 0;
-	fw.data = bnx2_TXP_b06FwData;
-
-	fw.sbss_addr = bnx2_TXP_b06FwSbssAddr;
-	fw.sbss_len = bnx2_TXP_b06FwSbssLen;
-	fw.sbss_index = 0;
-	fw.sbss = bnx2_TXP_b06FwSbss;
-
-	fw.bss_addr = bnx2_TXP_b06FwBssAddr;
-	fw.bss_len = bnx2_TXP_b06FwBssLen;
-	fw.bss_index = 0;
-	fw.bss = bnx2_TXP_b06FwBss;
-
-	fw.rodata_addr = bnx2_TXP_b06FwRodataAddr;
-	fw.rodata_len = bnx2_TXP_b06FwRodataLen;
-	fw.rodata_index = 0;
-	fw.rodata = bnx2_TXP_b06FwRodata;
-
-	load_cpu_fw(bp, &cpu_reg, &fw);
 
 	/* Initialize the TX Patch-up Processor. */
 	cpu_reg.mode = BNX2_TPAT_CPU_MODE;
@@ -2433,43 +2383,11 @@ bnx2_init_cpus(struct bnx2 *bp)
 	cpu_reg.spad_base = BNX2_TPAT_SCRATCH;
 	cpu_reg.mips_view_base = 0x8000000;
 
-	fw.ver_major = bnx2_TPAT_b06FwReleaseMajor;
-	fw.ver_minor = bnx2_TPAT_b06FwReleaseMinor;
-	fw.ver_fix = bnx2_TPAT_b06FwReleaseFix;
-	fw.start_addr = bnx2_TPAT_b06FwStartAddr;
+	fw = &bnx2_tpat_fw_06;
 
-	fw.text_addr = bnx2_TPAT_b06FwTextAddr;
-	fw.text_len = bnx2_TPAT_b06FwTextLen;
-	fw.text_index = 0;
-
-	rc = bnx2_gunzip(bp, bnx2_TPAT_b06FwText, sizeof(bnx2_TPAT_b06FwText),
-			 &text, &text_len);
+	rc = load_cpu_fw(bp, &cpu_reg, fw);
 	if (rc)
 		goto init_cpu_err;
-
-	fw.text = text;
-
-	fw.data_addr = bnx2_TPAT_b06FwDataAddr;
-	fw.data_len = bnx2_TPAT_b06FwDataLen;
-	fw.data_index = 0;
-	fw.data = bnx2_TPAT_b06FwData;
-
-	fw.sbss_addr = bnx2_TPAT_b06FwSbssAddr;
-	fw.sbss_len = bnx2_TPAT_b06FwSbssLen;
-	fw.sbss_index = 0;
-	fw.sbss = bnx2_TPAT_b06FwSbss;
-
-	fw.bss_addr = bnx2_TPAT_b06FwBssAddr;
-	fw.bss_len = bnx2_TPAT_b06FwBssLen;
-	fw.bss_index = 0;
-	fw.bss = bnx2_TPAT_b06FwBss;
-
-	fw.rodata_addr = bnx2_TPAT_b06FwRodataAddr;
-	fw.rodata_len = bnx2_TPAT_b06FwRodataLen;
-	fw.rodata_index = 0;
-	fw.rodata = bnx2_TPAT_b06FwRodata;
-
-	load_cpu_fw(bp, &cpu_reg, &fw);
 
 	/* Initialize the Completion Processor. */
 	cpu_reg.mode = BNX2_COM_CPU_MODE;
@@ -2485,43 +2403,11 @@ bnx2_init_cpus(struct bnx2 *bp)
 	cpu_reg.spad_base = BNX2_COM_SCRATCH;
 	cpu_reg.mips_view_base = 0x8000000;
 
-	fw.ver_major = bnx2_COM_b06FwReleaseMajor;
-	fw.ver_minor = bnx2_COM_b06FwReleaseMinor;
-	fw.ver_fix = bnx2_COM_b06FwReleaseFix;
-	fw.start_addr = bnx2_COM_b06FwStartAddr;
+	fw = &bnx2_com_fw_06;
 
-	fw.text_addr = bnx2_COM_b06FwTextAddr;
-	fw.text_len = bnx2_COM_b06FwTextLen;
-	fw.text_index = 0;
-
-	rc = bnx2_gunzip(bp, bnx2_COM_b06FwText, sizeof(bnx2_COM_b06FwText),
-			 &text, &text_len);
+	rc = load_cpu_fw(bp, &cpu_reg, fw);
 	if (rc)
 		goto init_cpu_err;
-
-	fw.text = text;
-
-	fw.data_addr = bnx2_COM_b06FwDataAddr;
-	fw.data_len = bnx2_COM_b06FwDataLen;
-	fw.data_index = 0;
-	fw.data = bnx2_COM_b06FwData;
-
-	fw.sbss_addr = bnx2_COM_b06FwSbssAddr;
-	fw.sbss_len = bnx2_COM_b06FwSbssLen;
-	fw.sbss_index = 0;
-	fw.sbss = bnx2_COM_b06FwSbss;
-
-	fw.bss_addr = bnx2_COM_b06FwBssAddr;
-	fw.bss_len = bnx2_COM_b06FwBssLen;
-	fw.bss_index = 0;
-	fw.bss = bnx2_COM_b06FwBss;
-
-	fw.rodata_addr = bnx2_COM_b06FwRodataAddr;
-	fw.rodata_len = bnx2_COM_b06FwRodataLen;
-	fw.rodata_index = 0;
-	fw.rodata = bnx2_COM_b06FwRodata;
-
-	load_cpu_fw(bp, &cpu_reg, &fw);
 
 init_cpu_err:
 	bnx2_gunzip_end(bp);

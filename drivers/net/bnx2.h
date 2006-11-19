@@ -4107,41 +4107,43 @@ struct cpu_reg {
 };
 
 struct fw_info {
-	u32 ver_major;
-	u32 ver_minor;
-	u32 ver_fix;
+	const u32 ver_major;
+	const u32 ver_minor;
+	const u32 ver_fix;
 
-	u32 start_addr;
+	const u32 start_addr;
 
 	/* Text section. */
-	u32 text_addr;
-	u32 text_len;
-	u32 text_index;
+	const u32 text_addr;
+	const u32 text_len;
+	const u32 text_index;
 	u32 *text;
+	u8 *gz_text;
+	const u32 gz_text_len;
 
 	/* Data section. */
-	u32 data_addr;
-	u32 data_len;
-	u32 data_index;
-	u32 *data;
+	const u32 data_addr;
+	const u32 data_len;
+	const u32 data_index;
+	const u32 *data;
 
 	/* SBSS section. */
-	u32 sbss_addr;
-	u32 sbss_len;
-	u32 sbss_index;
-	u32 *sbss;
+	const u32 sbss_addr;
+	const u32 sbss_len;
+	const u32 sbss_index;
+	const u32 *sbss;
 
 	/* BSS section. */
-	u32 bss_addr;
-	u32 bss_len;
-	u32 bss_index;
-	u32 *bss;
+	const u32 bss_addr;
+	const u32 bss_len;
+	const u32 bss_index;
+	const u32 *bss;
 
 	/* Read-only section. */
-	u32 rodata_addr;
-	u32 rodata_len;
-	u32 rodata_index;
-	u32 *rodata;
+	const u32 rodata_addr;
+	const u32 rodata_len;
+	const u32 rodata_index;
+	const u32 *rodata;
 };
 
 #define RV2P_PROC1                              0
