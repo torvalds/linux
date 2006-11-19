@@ -42,7 +42,7 @@
 #include "cx22702.h"
 #include "or51132.h"
 #include "lgdt330x.h"
-#include "lg_h06xf.h"
+#include "lgh06xf.h"
 #include "nxt200x.h"
 #include "cx24123.h"
 #include "isl6421.h"
@@ -392,18 +392,6 @@ static int lgdt3302_tuner_set_params(struct dvb_frontend* fe,
 	return 0;
 }
 
-static int lgdt3303_tuner_set_params(struct dvb_frontend* fe,
-				     struct dvb_frontend_parameters* params)
-{
-	struct cx8802_dev *dev= fe->dvb->priv;
-	struct cx88_core *core = dev->core;
-
-	/* Put the analog decoder in standby to keep it quiet */
-	cx88_call_i2c_clients (dev->core, TUNER_SET_STANDBY, NULL);
-
-	return lg_h06xf_pll_set(fe, &core->i2c_adap, params);
-}
-
 static int lgdt330x_pll_rf_set(struct dvb_frontend* fe, int index)
 {
 	struct cx8802_dev *dev= fe->dvb->priv;
@@ -719,7 +707,8 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &fusionhdtv_5_gold,
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dev->dvb.frontend->ops.tuner_ops.set_params = lgdt3303_tuner_set_params;
+			dvb_attach(lgh06xf_attach, dev->dvb.frontend,
+				   &dev->core->i2c_adap);
 		}
 		}
 		break;
@@ -737,7 +726,8 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &pchdtv_hd5500,
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dev->dvb.frontend->ops.tuner_ops.set_params = lgdt3303_tuner_set_params;
+			dvb_attach(lgh06xf_attach, dev->dvb.frontend,
+				   &dev->core->i2c_adap);
 		}
 		}
 		break;

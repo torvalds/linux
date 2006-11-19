@@ -27,7 +27,7 @@
 
 #include "cx22702.h"
 #include "lgdt330x.h"
-#include "lg_h06xf.h"
+#include "lgh06xf.h"
 #include "mt352.h"
 #include "mt352_priv.h"
 #include "zl10353.h"
@@ -324,13 +324,6 @@ static int cxusb_mt352_demod_init(struct dvb_frontend* fe)
 	return 0;
 }
 
-static int cxusb_lgh064f_tuner_set_params(struct dvb_frontend *fe,
-					  struct dvb_frontend_parameters *fep)
-{
-	struct dvb_usb_adapter *adap = fe->dvb->priv;
-	return lg_h06xf_pll_set(fe, &adap->dev->i2c_adap, fep);
-}
-
 static struct cx22702_config cxusb_cx22702_config = {
 	.demod_address = 0x63,
 
@@ -398,7 +391,7 @@ static int cxusb_dtt7579_tuner_attach(struct dvb_usb_adapter *adap)
 
 static int cxusb_lgh064f_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	adap->fe->ops.tuner_ops.set_params = cxusb_lgh064f_tuner_set_params;
+	dvb_attach(lgh06xf_attach, adap->fe, &adap->dev->i2c_adap);
 	return 0;
 }
 

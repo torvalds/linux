@@ -34,7 +34,6 @@
 #include "dvb_frontend.h"
 #include "dvb-bt8xx.h"
 #include "bt878.h"
-#include "dvb-pll.h"
 
 static int debug;
 
@@ -568,12 +567,6 @@ static struct mt352_config digitv_alps_tded4_config = {
 	.demod_init = digitv_alps_tded4_demod_init,
 };
 
-static int tdvs_tua6034_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
-{
-	struct dvb_bt8xx_card *card = (struct dvb_bt8xx_card *) fe->dvb->priv;
-	return lg_h06xf_pll_set(fe, card->i2c_adapter, params);
-}
-
 static struct lgdt330x_config tdvs_tua6034_config = {
 	.demod_address    = 0x0e,
 	.demod_chip       = LGDT3303,
@@ -616,7 +609,7 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		lgdt330x_reset(card);
 		card->fe = dvb_attach(lgdt330x_attach, &tdvs_tua6034_config, card->i2c_adapter);
 		if (card->fe != NULL) {
-			card->fe->ops.tuner_ops.set_params = tdvs_tua6034_tuner_set_params;
+			dvb_attach(lgh06xf_attach, card->fe, card->i2c_adapter);
 			dprintk ("dvb_bt8xx: lgdt330x detected\n");
 		}
 		break;

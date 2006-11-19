@@ -297,6 +297,14 @@ config DVB_TUNER_MT2060
 	help
 	  A driver for the silicon IF tuner MT2060 from Microtune.
 
+config DVB_TUNER_LGH06XF
+	tristate "LG TDVS-H06xF ATSC tuner"
+	depends on DVB_CORE && I2C
+	select DVB_PLL
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for the LG TDVS-H06xF ATSC tuner family.
+
 comment "Miscellaneous devices"
 	depends on DVB_CORE
 
