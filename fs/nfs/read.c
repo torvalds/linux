@@ -145,12 +145,12 @@ static int nfs_readpage_sync(struct nfs_open_context *ctx, struct inode *inode,
 {
 	unsigned int	rsize = NFS_SERVER(inode)->rsize;
 	unsigned int	count = PAGE_CACHE_SIZE;
-	int		result;
+	int result = -ENOMEM;
 	struct nfs_read_data *rdata;
 
 	rdata = nfs_readdata_alloc(count);
 	if (!rdata)
-		return -ENOMEM;
+		goto out_unlock;
 
 	memset(rdata, 0, sizeof(*rdata));
 	rdata->flags = (IS_SWAPFILE(inode)? NFS_RPC_SWAPFLAGS : 0);
@@ -218,8 +218,9 @@ static int nfs_readpage_sync(struct nfs_open_context *ctx, struct inode *inode,
 	result = 0;
 
 io_error:
-	unlock_page(page);
 	nfs_readdata_free(rdata);
+out_unlock:
+	unlock_page(page);
 	return result;
 }
 
@@ -630,9 +631,10 @@ int nfs_readpage(struct file *file, struct page *page)
 		goto out_error;
 
 	if (file == NULL) {
+		error = -EBADF;
 		ctx = nfs_find_open_context(inode, NULL, FMODE_READ);
 		if (ctx == NULL)
-			return -EBADF;
+			goto out_error;
 	} else
 		ctx = get_nfs_open_context((struct nfs_open_context *)
 				file->private_data);
