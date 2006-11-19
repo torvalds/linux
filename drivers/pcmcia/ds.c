@@ -1271,6 +1271,9 @@ static void pcmcia_bus_remove_socket(struct class_device *class_dev,
 	socket->pcmcia_state.dead = 1;
 	pccard_register_pcmcia(socket, NULL);
 
+	/* unregister any unbound devices */
+	pcmcia_card_remove(socket, NULL);
+
 	pcmcia_put_socket(socket);
 
 	return;
