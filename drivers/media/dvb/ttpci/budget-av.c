@@ -655,6 +655,10 @@ static struct tda10021_config philips_cu1216_config = {
 	.demod_address = 0x0c,
 };
 
+static struct tda10021_config philips_cu1216_config_altaddress = {
+	.demod_address = 0x0d,
+};
+
 
 
 
@@ -1013,6 +1017,10 @@ static void frontend_init(struct budget_av *budget_av)
 		fe = dvb_attach(tda10021_attach, &philips_cu1216_config,
 				     &budget_av->budget.i2c_adap,
 				     read_pwm(budget_av));
+		if (fe == NULL)
+			fe = dvb_attach(tda10021_attach, &philips_cu1216_config_altaddress,
+					     &budget_av->budget.i2c_adap,
+					     read_pwm(budget_av));
 		if (fe) {
 			budget_av->tda10021_poclkp = 1;
 			budget_av->tda10021_set_frontend = fe->ops.set_frontend;
