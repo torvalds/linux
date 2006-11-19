@@ -36,7 +36,7 @@ config IEEE1394_VERBOSEDEBUG
 	  else says N.
 
 config IEEE1394_OUI_DB
-	bool "OUI Database built-in"
+	bool "OUI Database built-in (deprecated)"
 	depends on IEEE1394
 	help
 	  If you say Y here, then an OUI list (vendor unique ID's) will be
