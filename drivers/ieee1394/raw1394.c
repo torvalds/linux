@@ -99,6 +99,21 @@ static struct hpsb_address_ops arm_ops = {
 
 static void queue_complete_cb(struct pending_request *req);
 
+#include <asm/current.h>
+static void print_old_iso_deprecation(void)
+{
+	static pid_t p;
+
+	if (p == current->pid)
+		return;
+	p = current->pid;
+	printk(KERN_WARNING "raw1394: WARNING - Program \"%s\" uses unsupported"
+	       " isochronous request types which will be removed in a next"
+	       " kernel release\n", current->comm);
+	printk(KERN_WARNING "raw1394: Update your software to use libraw1394's"
+	       " newer interface\n");
+}
+
 static struct pending_request *__alloc_pending_request(gfp_t flags)
 {
 	struct pending_request *req;
@@ -2292,6 +2307,7 @@ static int state_connected(struct file_info *fi, struct pending_request *req)
 		return sizeof(struct raw1394_request);
 
 	case RAW1394_REQ_ISO_SEND:
+		print_old_iso_deprecation();
 		return handle_iso_send(fi, req, node);
 
 	case RAW1394_REQ_ARM_REGISTER:
@@ -2310,6 +2326,7 @@ static int state_connected(struct file_info *fi, struct pending_request *req)
 		return reset_notification(fi, req);
 
 	case RAW1394_REQ_ISO_LISTEN:
+		print_old_iso_deprecation();
 		handle_iso_listen(fi, req);
 		return sizeof(struct raw1394_request);
 
