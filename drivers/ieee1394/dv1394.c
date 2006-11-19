@@ -2579,6 +2579,10 @@ static int __init dv1394_init_module(void)
 {
 	int ret;
 
+	printk(KERN_WARNING
+	       "WARNING: The dv1394 driver is unsupported and will be removed "
+	       "from Linux soon. Use raw1394 instead.\n");
+
 	cdev_init(&dv1394_cdev, &dv1394_fops);
 	dv1394_cdev.owner = THIS_MODULE;
 	kobject_set_name(&dv1394_cdev.kobj, "dv1394");

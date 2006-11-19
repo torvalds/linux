@@ -161,17 +161,12 @@ config IEEE1394_ETH1394
 	  MCAP, therefore multicast support is significantly limited.
 
 config IEEE1394_DV1394
-	tristate "OHCI-DV I/O support"
+	tristate "OHCI-DV I/O support (deprecated)"
 	depends on IEEE1394 && IEEE1394_OHCI1394
 	help
-	  This driver allows you to transmit and receive DV (digital video)
-	  streams on an OHCI-1394 card using a simple frame-oriented
-	  interface.
-
-	  The user-space API for dv1394 is documented in dv1394.h.
-
-	  To compile this driver as a module, say M here: the
-	  module will be called dv1394.
+	  The dv1394 driver will be removed from Linux in a future release.
+	  Its functionality is now provided by raw1394 together with libraries
+	  such as libiec61883.
 
 config IEEE1394_RAWIO
 	tristate "Raw IEEE1394 I/O support"

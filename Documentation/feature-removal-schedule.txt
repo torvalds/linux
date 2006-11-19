@@ -39,6 +39,17 @@ Who:	Dan Dennedy <dan@dennedy.org>, Stefan Richter <stefanr@s5r6.in-berlin.de>
 
 ---------------------------
 
+What:	dv1394 driver (CONFIG_IEEE1394_DV1394)
+When:	June 2007
+Why:	Replaced by raw1394 + userspace libraries, notably libiec61883.  This
+	shift of application support has been indicated on www.linux1394.org
+	and developers' mailinglists for quite some time.  Major applications
+	have been converted, with the exception of ffmpeg and hence xine.
+	Piped output of dvgrab2 is a partial equivalent to dv1394.
+Who:	Dan Dennedy <dan@dennedy.org>, Stefan Richter <stefanr@s5r6.in-berlin.de>
+
+---------------------------
+
 What:	Video4Linux API 1 ioctls and video_decoder.h from Video devices.
 When:	December 2006
 Why:	V4L1 AP1 was replaced by V4L2 API. during migration from 2.4 to 2.6
