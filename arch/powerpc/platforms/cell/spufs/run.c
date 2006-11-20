@@ -26,6 +26,7 @@ void spufs_dma_callback(struct spu *spu, int type)
 	} else {
 		switch (type) {
 		case SPE_EVENT_DMA_ALIGNMENT:
+		case SPE_EVENT_SPE_DATA_STORAGE:
 		case SPE_EVENT_INVALID_DMA:
 			force_sig(SIGBUS, /* info, */ current);
 			break;

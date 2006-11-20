@@ -507,7 +507,7 @@ int spu_irq_class_1_bottom(struct spu *spu)
 	if (!error) {
 		spu_restart_dma(spu);
 	} else {
-		__spu_trap_invalid_dma(spu);
+		spu->dma_callback(spu, SPE_EVENT_SPE_DATA_STORAGE);
 	}
 	return ret;
 }
