@@ -362,7 +362,7 @@ struct usb_device {
 	u8 portnum;			/* Parent port number (origin 1) */
 	u8 level;			/* Number of USB hub ancestors */
 
-	int have_langid;		/* whether string_langid is valid */
+	unsigned have_langid:1;		/* whether string_langid is valid */
 	int string_langid;		/* language ID for strings */
 
 	/* static strings from the device */
