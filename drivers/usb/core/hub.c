@@ -1234,7 +1234,7 @@ void usb_disconnect(struct usb_device **pdev)
 	if (udev->parent) {
 		usb_pm_lock(udev);
 		if (!udev->discon_suspended)
-			usb_autosuspend_device(udev->parent, 1);
+			usb_autosuspend_device(udev->parent);
 		usb_pm_unlock(udev);
 	}
 
@@ -1368,7 +1368,7 @@ static int __usb_new_device(void *void_data)
 
 	/* Increment the parent's count of unsuspended children */
 	if (udev->parent)
-		usb_autoresume_device(udev->parent, 1);
+		usb_autoresume_device(udev->parent);
 
 exit:
 	module_put(THIS_MODULE);
@@ -1881,12 +1881,12 @@ static int remote_wakeup(struct usb_device *udev)
 	usb_lock_device(udev);
 	if (udev->state == USB_STATE_SUSPENDED) {
 		dev_dbg(&udev->dev, "usb %sresume\n", "wakeup-");
-		status = usb_autoresume_device(udev, 1);
+		status = usb_autoresume_device(udev);
 
 		/* Give the interface drivers a chance to do something,
 		 * then autosuspend the device again. */
 		if (status == 0)
-			usb_autosuspend_device(udev, 1);
+			usb_autosuspend_device(udev);
 	}
 	usb_unlock_device(udev);
 	return status;
@@ -3099,7 +3099,7 @@ int usb_reset_composite_device(struct usb_device *udev,
 	}
 
 	/* Prevent autosuspend during the reset */
-	usb_autoresume_device(udev, 1);
+	usb_autoresume_device(udev);
 
 	if (iface && iface->condition != USB_INTERFACE_BINDING)
 		iface = NULL;
@@ -3142,7 +3142,7 @@ int usb_reset_composite_device(struct usb_device *udev,
 		}
 	}
 
-	usb_autosuspend_device(udev, 1);
+	usb_autosuspend_device(udev);
 	return ret;
 }
 EXPORT_SYMBOL(usb_reset_composite_device);

@@ -561,7 +561,7 @@ static int usbdev_open(struct inode *inode, struct file *file)
 		dev = inode->i_private;
 	if (!dev)
 		goto out;
-	ret = usb_autoresume_device(dev, 1);
+	ret = usb_autoresume_device(dev);
 	if (ret)
 		goto out;
 
@@ -609,7 +609,7 @@ static int usbdev_release(struct inode *inode, struct file *file)
 			releaseintf(ps, ifnum);
 	}
 	destroy_all_async(ps);
-	usb_autosuspend_device(dev, 1);
+	usb_autosuspend_device(dev);
 	usb_unlock_device(dev);
 	usb_put_dev(dev);
 	put_pid(ps->disc_pid);
