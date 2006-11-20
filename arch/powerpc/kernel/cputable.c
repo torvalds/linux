@@ -304,6 +304,9 @@ static struct cpu_spec cpu_specs[] = {
 			PPC_FEATURE_SMT,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 4,
+		.oprofile_cpu_type	= "ppc64/cell-be",
+		.oprofile_type		= PPC_OPROFILE_CELL,
 		.platform		= "ppc-cell-be",
 	},
 	{	/* PA Semi PA6T */

@@ -45,6 +45,7 @@ enum powerpc_oprofile_type {
 	PPC_OPROFILE_POWER4 = 2,
 	PPC_OPROFILE_G4 = 3,
 	PPC_OPROFILE_BOOKE = 4,
+	PPC_OPROFILE_CELL = 5,
 };
 
 struct cpu_spec {

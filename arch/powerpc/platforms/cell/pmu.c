@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/types.h>
 #include <asm/io.h>
+#include <asm/irq_regs.h>
 #include <asm/machdep.h>
 #include <asm/pmc.h>
 #include <asm/reg.h>
@@ -375,9 +376,9 @@ void cbe_disable_pm_interrupts(u32 cpu)
 }
 EXPORT_SYMBOL_GPL(cbe_disable_pm_interrupts);
 
-static irqreturn_t cbe_pm_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t cbe_pm_irq(int irq, void *dev_id)
 {
-	perf_irq(regs);
+	perf_irq(get_irq_regs());
 	return IRQ_HANDLED;
 }
 
@@ -407,4 +408,22 @@ int __init cbe_init_pm_irq(void)
 	return 0;
 }
 arch_initcall(cbe_init_pm_irq);
+
+void cbe_sync_irq(int node)
+{
+	unsigned int irq;
+
+	irq = irq_find_mapping(NULL,
+			       IIC_IRQ_IOEX_PMI
+			       | (node << IIC_IRQ_NODE_SHIFT));
+
+	if (irq == NO_IRQ) {
+		printk(KERN_WARNING "ERROR, unable to get existing irq %d " \
+		"for node %d\n", irq, node);
+		return;
+	}
+
+	synchronize_irq(irq);
+}
+EXPORT_SYMBOL_GPL(cbe_sync_irq);
 

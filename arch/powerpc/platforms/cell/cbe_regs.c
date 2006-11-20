@@ -130,6 +130,18 @@ struct cbe_mic_tm_regs __iomem *cbe_get_cpu_mic_tm_regs(int cpu)
 }
 EXPORT_SYMBOL_GPL(cbe_get_cpu_mic_tm_regs);
 
+/* FIXME
+ * This is little more than a stub at the moment.  It should be
+ * fleshed out so that it works for both SMT and non-SMT, no
+ * matter if the passed cpu is odd or even.
+ * For SMT enabled, returns 0 for even-numbered cpu; otherwise 1.
+ * For SMT disabled, returns 0 for all cpus.
+ */
+u32 cbe_get_hw_thread_id(int cpu)
+{
+	return (cpu & 1);
+}
+EXPORT_SYMBOL_GPL(cbe_get_hw_thread_id);
 
 void __init cbe_regs_init(void)
 {

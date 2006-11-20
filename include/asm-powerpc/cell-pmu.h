@@ -91,5 +91,23 @@ extern void cbe_enable_pm_interrupts(u32 cpu, u32 thread, u32 mask);
 extern void cbe_disable_pm_interrupts(u32 cpu);
 extern u32  cbe_query_pm_interrupts(u32 cpu);
 extern u32  cbe_clear_pm_interrupts(u32 cpu);
+extern void cbe_sync_irq(int node);
+
+/* Utility functions, macros */
+extern u32 cbe_get_hw_thread_id(int cpu);
+
+#define cbe_cpu_to_node(cpu) ((cpu) >> 1)
+
+#define CBE_COUNT_SUPERVISOR_MODE       0
+#define CBE_COUNT_HYPERVISOR_MODE       1
+#define CBE_COUNT_PROBLEM_MODE          2
+#define CBE_COUNT_ALL_MODES             3
+
+/* Macros for the pm07_control registers. */
+#define PM07_CTR_INPUT_MUX(x)                    (((x) & 0x3F) << 26)
+#define PM07_CTR_INPUT_CONTROL(x)                (((x) & 1) << 25)
+#define PM07_CTR_POLARITY(x)                     (((x) & 1) << 24)
+#define PM07_CTR_COUNT_CYCLES(x)                 (((x) & 1) << 23)
+#define PM07_CTR_ENABLE(x)                       (((x) & 1) << 22)
 
 #endif /* __ASM_CELL_PMU_H__ */

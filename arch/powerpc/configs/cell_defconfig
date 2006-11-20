@@ -1121,7 +1121,8 @@ CONFIG_PLIST=y
 #
 # Instrumentation Support
 #
-# CONFIG_PROFILING is not set
+CONFIG_PROFILING=y
+CONFIG_OPROFILE=y
 # CONFIG_KPROBES is not set
 
 #
