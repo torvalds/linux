@@ -1679,23 +1679,10 @@ static int cafe_vidioc_s_input(struct file *filp, void *priv, unsigned int i)
 }
 
 /* from vivi.c */
-static int cafe_vidioc_s_std(struct file *filp, void *priv, v4l2_std_id a)
+static int cafe_vidioc_s_std(struct file *filp, void *priv, v4l2_std_id *a)
 {
 	return 0;
 }
-
-
-/*
- * The TV Norm stuff is weird - we're a camera with little to do with TV,
- * really.  The following is what vivi does.
- */
-static struct v4l2_tvnorm cafe_tvnorm[] = {
-	{
-		.name      = "NTSC-M",
-		.id        = V4L2_STD_NTSC_M,
-	}
-};
-
 
 static void cafe_v4l_dev_release(struct video_device *vd)
 {
@@ -1726,8 +1713,7 @@ static struct video_device cafe_v4l_template = {
 	.type = VFL_TYPE_GRABBER,
 	.type2 = VID_TYPE_CAPTURE,
 	.minor = -1, /* Get one dynamically */
-	.tvnorms = cafe_tvnorm,
-	.tvnormsize = 1,
+	.tvnorms = V4L2_STD_NTSC_M,
 	.current_norm = V4L2_STD_NTSC_M,  /* make mplayer happy */
 
 	.fops = &cafe_v4l_fops,

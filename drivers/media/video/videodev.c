@@ -833,20 +833,85 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_ENUMSTD:
 	{
 		struct v4l2_standard *p = arg;
-		unsigned int index = p->index;
+		v4l2_std_id id = vfd->tvnorms,curr_id=0;
+		unsigned int index = p->index,i;
 
-		if (!vfd->tvnormsize) {
-			printk (KERN_WARNING "%s: no TV norms defined!\n",
-						vfd->name);
-			break;
-		}
-
-		if (index<0 || index >= vfd->tvnormsize) {
+		if (index<0) {
 			ret=-EINVAL;
 			break;
 		}
-		v4l2_video_std_construct(p, vfd->tvnorms[p->index].id,
-					 vfd->tvnorms[p->index].name);
+
+		/* Return norm array on a canonical way */
+		for (i=0;i<= index && id; i++) {
+			if ( (id & V4L2_STD_PAL) == V4L2_STD_PAL) {
+				curr_id = V4L2_STD_PAL;
+			} else if ( (id & V4L2_STD_PAL_BG) == V4L2_STD_PAL_BG) {
+				curr_id = V4L2_STD_PAL_BG;
+			} else if ( (id & V4L2_STD_PAL_DK) == V4L2_STD_PAL_DK) {
+				curr_id = V4L2_STD_PAL_DK;
+			} else if ( (id & V4L2_STD_PAL_B) == V4L2_STD_PAL_B) {
+				curr_id = V4L2_STD_PAL_B;
+			} else if ( (id & V4L2_STD_PAL_B1) == V4L2_STD_PAL_B1) {
+				curr_id = V4L2_STD_PAL_B1;
+			} else if ( (id & V4L2_STD_PAL_G) == V4L2_STD_PAL_G) {
+				curr_id = V4L2_STD_PAL_G;
+			} else if ( (id & V4L2_STD_PAL_H) == V4L2_STD_PAL_H) {
+				curr_id = V4L2_STD_PAL_H;
+			} else if ( (id & V4L2_STD_PAL_I) == V4L2_STD_PAL_I) {
+				curr_id = V4L2_STD_PAL_I;
+			} else if ( (id & V4L2_STD_PAL_D) == V4L2_STD_PAL_D) {
+				curr_id = V4L2_STD_PAL_D;
+			} else if ( (id & V4L2_STD_PAL_D1) == V4L2_STD_PAL_D1) {
+				curr_id = V4L2_STD_PAL_D1;
+			} else if ( (id & V4L2_STD_PAL_K) == V4L2_STD_PAL_K) {
+				curr_id = V4L2_STD_PAL_K;
+			} else if ( (id & V4L2_STD_PAL_M) == V4L2_STD_PAL_M) {
+				curr_id = V4L2_STD_PAL_M;
+			} else if ( (id & V4L2_STD_PAL_N) == V4L2_STD_PAL_N) {
+				curr_id = V4L2_STD_PAL_N;
+			} else if ( (id & V4L2_STD_PAL_Nc) == V4L2_STD_PAL_Nc) {
+				curr_id = V4L2_STD_PAL_Nc;
+			} else if ( (id & V4L2_STD_PAL_60) == V4L2_STD_PAL_60) {
+				curr_id = V4L2_STD_PAL_60;
+			} else if ( (id & V4L2_STD_NTSC) == V4L2_STD_NTSC) {
+				curr_id = V4L2_STD_NTSC;
+			} else if ( (id & V4L2_STD_NTSC_M) == V4L2_STD_NTSC_M) {
+				curr_id = V4L2_STD_NTSC_M;
+			} else if ( (id & V4L2_STD_NTSC_M_JP) == V4L2_STD_NTSC_M_JP) {
+				curr_id = V4L2_STD_NTSC_M_JP;
+			} else if ( (id & V4L2_STD_NTSC_443) == V4L2_STD_NTSC_443) {
+				curr_id = V4L2_STD_NTSC_443;
+			} else if ( (id & V4L2_STD_NTSC_M_KR) == V4L2_STD_NTSC_M_KR) {
+				curr_id = V4L2_STD_NTSC_M_KR;
+			} else if ( (id & V4L2_STD_SECAM) == V4L2_STD_SECAM) {
+				curr_id = V4L2_STD_SECAM;
+			} else if ( (id & V4L2_STD_SECAM_DK) == V4L2_STD_SECAM_DK) {
+				curr_id = V4L2_STD_SECAM_DK;
+			} else if ( (id & V4L2_STD_SECAM_B) == V4L2_STD_SECAM_B) {
+				curr_id = V4L2_STD_SECAM_B;
+			} else if ( (id & V4L2_STD_SECAM_D) == V4L2_STD_SECAM_D) {
+				curr_id = V4L2_STD_SECAM_D;
+			} else if ( (id & V4L2_STD_SECAM_G) == V4L2_STD_SECAM_G) {
+				curr_id = V4L2_STD_SECAM_G;
+			} else if ( (id & V4L2_STD_SECAM_H) == V4L2_STD_SECAM_H) {
+				curr_id = V4L2_STD_SECAM_H;
+			} else if ( (id & V4L2_STD_SECAM_K) == V4L2_STD_SECAM_K) {
+				curr_id = V4L2_STD_SECAM_K;
+			} else if ( (id & V4L2_STD_SECAM_K1) == V4L2_STD_SECAM_K1) {
+				curr_id = V4L2_STD_SECAM_K1;
+			} else if ( (id & V4L2_STD_SECAM_L) == V4L2_STD_SECAM_L) {
+				curr_id = V4L2_STD_SECAM_L;
+			} else if ( (id & V4L2_STD_SECAM_LC) == V4L2_STD_SECAM_LC) {
+				curr_id = V4L2_STD_SECAM_LC;
+			} else {
+				break;
+			}
+			id &= ~curr_id;
+		}
+		if (i<=index)
+			return -EINVAL;
+
+		v4l2_video_std_construct(p, curr_id,v4l2_norm_to_name(curr_id));
 		p->index = index;
 
 		dbgarg (cmd, "index=%d, id=%Ld, name=%s, fps=%d/%d, "
@@ -872,39 +937,23 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	}
 	case VIDIOC_S_STD:
 	{
-		v4l2_std_id *id = arg;
-		unsigned int i;
-
-		if (!vfd->tvnormsize) {
-			printk (KERN_WARNING "%s: no TV norms defined!\n",
-						vfd->name);
-			break;
-		}
+		v4l2_std_id *id = arg,norm;
 
 		dbgarg (cmd, "value=%Lu\n", (long long unsigned) *id);
 
-		/* First search for exact match */
-		for (i = 0; i < vfd->tvnormsize; i++)
-			if (*id == vfd->tvnorms[i].id)
-				break;
-		/* Then for a generic video std that contains desired std */
-		if (i == vfd->tvnormsize)
-			for (i = 0; i < vfd->tvnormsize; i++)
-				if (*id & vfd->tvnorms[i].id)
-					break;
-		if (i == vfd->tvnormsize) {
+		norm = (*id) & vfd->tvnorms;
+		if ( vfd->tvnorms && !norm)	/* Check if std is supported */
 			break;
-		}
 
 		/* Calls the specific handler */
 		if (vfd->vidioc_s_std)
-			ret=vfd->vidioc_s_std(file, fh, i);
+			ret=vfd->vidioc_s_std(file, fh, &norm);
 		else
 			ret=-EINVAL;
 
 		/* Updates standard information */
-		if (!ret)
-			vfd->current_norm=*id;
+		if (ret>=0)
+			vfd->current_norm=norm;
 
 		break;
 	}
@@ -1296,25 +1345,12 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 			ret=vfd->vidioc_g_parm(file, fh, p);
 		} else {
 			struct v4l2_standard s;
-			int i;
-
-			if (!vfd->tvnormsize) {
-				printk (KERN_WARNING "%s: no TV norms defined!\n",
-							vfd->name);
-				break;
-			}
 
 			if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 				return -EINVAL;
 
-			for (i = 0; i < vfd->tvnormsize; i++)
-				if (vfd->tvnorms[i].id == vfd->current_norm)
-					break;
-			if (i >= vfd->tvnormsize)
-				return -EINVAL;
-
 			v4l2_video_std_construct(&s, vfd->current_norm,
-						 vfd->tvnorms[i].name);
+						 v4l2_norm_to_name(vfd->current_norm));
 
 			memset(p,0,sizeof(*p));
 

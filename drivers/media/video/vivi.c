@@ -1044,16 +1044,8 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	return (0);
 }
 
-static struct v4l2_tvnorm tvnorms[] = {
-	{
-		.name      = "NTSC-M",
-		.id        = V4L2_STD_NTSC_M,
-	}
-};
-
-static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id a)
+static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *i)
 {
-
 	return 0;
 }
 
@@ -1333,8 +1325,8 @@ static struct video_device vivi = {
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	.vidiocgmbuf          = vidiocgmbuf,
 #endif
-	.tvnorms              = tvnorms,
-	.tvnormsize           = ARRAY_SIZE(tvnorms),
+	.tvnorms              = V4L2_STD_NTSC_M,
+	.current_norm         = V4L2_STD_NTSC_M,
 };
 /* -----------------------------------------------------------------
 	Initialization and module stuff
@@ -1360,8 +1352,6 @@ static int __init vivi_init(void)
 	dev->vidq.timeout.function = vivi_vid_timeout;
 	dev->vidq.timeout.data     = (unsigned long)dev;
 	init_timer(&dev->vidq.timeout);
-
-	vivi.current_norm         = tvnorms[0].id;
 
 	ret = video_register_device(&vivi, VFL_TYPE_GRABBER, video_nr);
 	printk(KERN_INFO "Video Technology Magazine Virtual Video Capture Board (Load status: %d)\n", ret);
