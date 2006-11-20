@@ -93,8 +93,8 @@ static struct configfs_dirent *configfs_new_dirent(struct configfs_dirent * pare
  *
  * called with parent inode's i_mutex held
  */
-int configfs_dirent_exists(struct configfs_dirent *parent_sd,
-			   const unsigned char *new)
+static int configfs_dirent_exists(struct configfs_dirent *parent_sd,
+				  const unsigned char *new)
 {
 	struct configfs_dirent * sd;
 
