@@ -171,6 +171,11 @@ config CPU_SUBTYPE_SH7780
 	select CPU_SH4A
 	select CPU_HAS_INTC2_IRQ
 
+config CPU_SUBTYPE_SH7785
+	bool "Support SH7785 processor"
+	select CPU_SH4A
+	select CPU_HAS_INTC2_IRQ
+
 comment "SH4AL-DSP Processor Support"
 
 config CPU_SUBTYPE_SH73180
