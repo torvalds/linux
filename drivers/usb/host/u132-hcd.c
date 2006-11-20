@@ -71,7 +71,7 @@ static int distrust_firmware = 1;
 module_param(distrust_firmware, bool, 0);
 MODULE_PARM_DESC(distrust_firmware, "true to distrust firmware power/overcurren"
         "t setup");
-DECLARE_WAIT_QUEUE_HEAD(u132_hcd_wait);
+static DECLARE_WAIT_QUEUE_HEAD(u132_hcd_wait);
 /*
 * u132_module_lock exists to protect access to global variables
 *
