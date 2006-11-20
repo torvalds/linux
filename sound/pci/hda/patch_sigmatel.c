@@ -1201,7 +1201,7 @@ static int stac92xx_auto_create_hp_ctls(struct hda_codec *codec,
 }
 
 /* labels for dmic mux inputs */
-const char *stac92xx_dmic_labels[5] = {
+static const char *stac92xx_dmic_labels[5] = {
 	"Analog Inputs", "Digital Mic 1", "Digital Mic 2",
 	"Digital Mic 3", "Digital Mic 4"
 };
