@@ -835,7 +835,7 @@ static int philips_sd1878_tda8261_tuner_set_params(struct dvb_frontend *fe,
 		return -EINVAL;
 
 	rc=dvb_pll_configure(&dvb_pll_philips_sd1878_tda8261, buf,
-			params->frequency, 0);
+			     params->frequency, 0);
 	if(rc < 0) return rc;
 
 	if (fe->ops.i2c_gate_ctrl)

@@ -48,7 +48,7 @@ extern struct dvb_pll_desc dvb_pll_philips_td1316;
 extern struct dvb_pll_desc dvb_pll_thomson_fe6600;
 
 extern int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
-		      u32 freq, int bandwidth);
+			     u32 freq, int bandwidth);
 
 /**
  * Attach a dvb-pll to the supplied frontend structure.
@@ -59,6 +59,9 @@ extern int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
  * @param desc dvb_pll_desc to use.
  * @return Frontend pointer on success, NULL on failure
  */
-extern struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr, struct i2c_adapter *i2c, struct dvb_pll_desc *desc);
+extern struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe,
+					   int pll_addr,
+					   struct i2c_adapter *i2c,
+					   struct dvb_pll_desc *desc);
 
 #endif
