@@ -15,6 +15,8 @@
 #ifndef CBE_REGS_H
 #define CBE_REGS_H
 
+#include <asm/cell-pmu.h>
+
 /*
  *
  * Some HID register definitions
@@ -34,32 +36,6 @@
  * Pervasive unit register definitions
  *
  */
-
-/* Macros for the pm_control register. */
-#define CBE_PM_16BIT_CTR(ctr)			(1 << (24 - ((ctr) & (NR_PHYS_CTRS - 1))))
-#define CBE_PM_ENABLE_PERF_MON			0x80000000
-#define CBE_PM_STOP_AT_MAX			0x40000000
-#define CBE_PM_TRACE_MODE_GET(pm_control)	(((pm_control) >> 28) & 0x3)
-#define CBE_PM_TRACE_MODE_SET(mode)		(((mode)  & 0x3) << 28)
-#define CBE_PM_COUNT_MODE_SET(count)		(((count) & 0x3) << 18)
-#define CBE_PM_FREEZE_ALL_CTRS			0x00100000
-#define CBE_PM_ENABLE_EXT_TRACE			0x00008000
-
-/* Macros for the trace_address register. */
-#define CBE_PM_TRACE_BUF_FULL			0x00000800
-#define CBE_PM_TRACE_BUF_EMPTY			0x00000400
-#define CBE_PM_TRACE_BUF_DATA_COUNT(ta)		((ta) & 0x3ff)
-#define CBE_PM_TRACE_BUF_MAX_COUNT		0x400
-
-/* Macros for the pm07_control registers. */
-#define CBE_PM_CTR_INPUT_MUX(pm07_control)	(((pm07_control) >> 26) & 0x3f)
-#define CBE_PM_CTR_INPUT_CONTROL		0x02000000
-#define CBE_PM_CTR_POLARITY			0x01000000
-#define CBE_PM_CTR_COUNT_CYCLES			0x00800000
-#define CBE_PM_CTR_ENABLE			0x00400000
-
-/* Macros for the pm_status register. */
-#define CBE_PM_CTR_OVERFLOW_INTR(ctr)		(1 << (31 - ((ctr) & 7)))
 
 union spe_reg {
 	u64 val;
@@ -159,9 +135,6 @@ extern struct cbe_pmd_regs __iomem *cbe_get_cpu_pmd_regs(int cpu);
  * disabled. The counter_value_in_latch field is a bitmap indicating which
  * counters currently have a value waiting to be written.
  */
-
-#define NR_PHYS_CTRS	4
-#define NR_CTRS		(NR_PHYS_CTRS * 2)
 
 struct cbe_pmd_shadow_regs {
 	u32 group_control;

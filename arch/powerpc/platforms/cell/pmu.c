@@ -30,7 +30,6 @@
 
 #include "cbe_regs.h"
 #include "interrupt.h"
-#include "pmu.h"
 
 /*
  * When writing to write-only mmio addresses, save a shadow copy. All of the
