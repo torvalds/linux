@@ -33,18 +33,11 @@
 #include "../dccp.h"
 #include "ccid2.h"
 
+
+#ifdef CONFIG_IP_DCCP_CCID2_DEBUG
 static int ccid2_debug;
+#define ccid2_pr_debug(format, a...)	DCCP_PR_DEBUG(ccid2_debug, format, ##a)
 
-#ifdef CONFIG_IP_DCCP_CCID2_DEBUG
-#define ccid2_pr_debug(format, a...) \
-        do { if (ccid2_debug) \
-                printk(KERN_DEBUG "%s: " format, __FUNCTION__, ##a); \
-        } while (0)
-#else
-#define ccid2_pr_debug(format, a...)
-#endif
-
-#ifdef CONFIG_IP_DCCP_CCID2_DEBUG
 static void ccid2_hc_tx_check_sanity(const struct ccid2_hc_tx_sock *hctx)
 {
 	int len = 0;
@@ -86,7 +79,8 @@ static void ccid2_hc_tx_check_sanity(const struct ccid2_hc_tx_sock *hctx)
 	BUG_ON(len != hctx->ccid2hctx_seqbufc * CCID2_SEQBUF_LEN);
 }
 #else
-#define ccid2_hc_tx_check_sanity(hctx) do {} while (0)
+#define ccid2_pr_debug(format, a...)
+#define ccid2_hc_tx_check_sanity(hctx)
 #endif
 
 static int ccid2_hc_tx_alloc_seq(struct ccid2_hc_tx_sock *hctx, int num,
@@ -841,8 +835,10 @@ static struct ccid_operations ccid2 = {
 	.ccid_hc_rx_packet_recv	= ccid2_hc_rx_packet_recv,
 };
 
+#ifdef CONFIG_IP_DCCP_CCID2_DEBUG
 module_param(ccid2_debug, int, 0444);
 MODULE_PARM_DESC(ccid2_debug, "Enable debug messages");
+#endif
 
 static __init int ccid2_module_init(void)
 {

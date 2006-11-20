@@ -318,21 +318,18 @@ out_duplicate:
 #ifdef CONFIG_IP_DCCP_DEBUG
 void dccp_ackvector_print(const u64 ackno, const unsigned char *vector, int len)
 {
-	if (!dccp_debug)
-		return;
-
-	printk("ACK vector len=%d, ackno=%llu |", len,
-	       (unsigned long long)ackno);
+	dccp_pr_debug_cat("ACK vector len=%d, ackno=%llu |", len,
+			 		(unsigned long long)ackno);
 
 	while (len--) {
 		const u8 state = (*vector & DCCP_ACKVEC_STATE_MASK) >> 6;
 		const u8 rl = *vector & DCCP_ACKVEC_LEN_MASK;
 
-		printk("%d,%d|", state, rl);
+		dccp_pr_debug_cat("%d,%d|", state, rl);
 		++vector;
 	}
 
-	printk("\n");
+	dccp_pr_debug_cat("\n");
 }
 
 void dccp_ackvec_print(const struct dccp_ackvec *av)

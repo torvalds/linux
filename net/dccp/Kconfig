@@ -38,6 +38,9 @@ config IP_DCCP_DEBUG
 	---help---
 	  Only use this if you're hacking DCCP.
 
+	  When compiling DCCP as a module, this debugging output can be toggled
+	  by setting the parameter dccp_debug of the `dccp' module to 0 or 1.
+
 	  Just say N.
 
 config NET_DCCPPROBE

@@ -28,13 +28,20 @@ config IP_DCCP_CCID2
 	  This text was extracted from RFC 4340 (sec. 10.1),
 	  http://www.ietf.org/rfc/rfc4340.txt
 
+	  To compile this CCID as a module, choose M here: the module will be
+	  called dccp_ccid2.
+
 	  If in doubt, say M.
 
 config IP_DCCP_CCID2_DEBUG
-	  bool "CCID2 debug"
+	  bool "CCID2 debugging messages"
 	  depends on IP_DCCP_CCID2
 	  ---help---
-	    Enable CCID2 debug messages.
+	    Enable CCID2-specific debugging messages.
+
+	    When compiling CCID2 as a module, this debugging output can
+	    additionally be toggled by setting the ccid2_debug module
+	    parameter to 0 or 1.
 
 	    If in doubt, say N.
 
@@ -62,6 +69,9 @@ config IP_DCCP_CCID3
 	  This text was extracted from RFC 4340 (sec. 10.2),
 	  http://www.ietf.org/rfc/rfc4340.txt
 	  
+	  To compile this CCID as a module, choose M here: the module will be
+	  called dccp_ccid3.
+
 	  If in doubt, say M.
 
 config IP_DCCP_TFRC_LIB

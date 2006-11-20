@@ -26,15 +26,20 @@
 						 __stringify((cond)));	       \
 			     } while (0)
 
+#ifdef MODULE
+#define DCCP_PRINTK(enable, fmt, args...)	do { if (enable)	     \
+							printk(fmt, ##args); \
+					 	} while(0)
+#else
+#define DCCP_PRINTK(enable, fmt, args...)	printk(fmt, ##args)
+#endif
+#define DCCP_PR_DEBUG(enable, fmt, a...)	DCCP_PRINTK(enable, KERN_DEBUG \
+						  "%s: " fmt, __FUNCTION__, ##a)
+
 #ifdef CONFIG_IP_DCCP_DEBUG
 extern int dccp_debug;
-
-#define dccp_pr_debug(format, a...) \
-	do { if (dccp_debug) \
-		printk(KERN_DEBUG "%s: " format, __FUNCTION__ , ##a); \
-	} while (0)
-#define dccp_pr_debug_cat(format, a...) do { if (dccp_debug) \
-					     printk(format, ##a); } while (0)
+#define dccp_pr_debug(format, a...)	  DCCP_PR_DEBUG(dccp_debug, format, ##a)
+#define dccp_pr_debug_cat(format, a...)   DCCP_PRINTK(dccp_debug, format, ##a)
 #else
 #define dccp_pr_debug(format, a...)
 #define dccp_pr_debug_cat(format, a...)
