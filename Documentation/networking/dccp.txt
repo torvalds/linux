@@ -100,6 +100,10 @@ rx_ccid = 2
 seq_window = 100
 	The initial sequence window (sec. 7.5.2).
 
+tx_qlen = 5
+	The size of the transmit buffer in packets. A value of 0 corresponds
+	to an unbounded transmit buffer.
+
 Notes
 =====
 

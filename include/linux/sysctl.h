@@ -617,6 +617,7 @@ enum {
 	NET_DCCP_DEFAULT_REQ_RETRIES = 7,
 	NET_DCCP_DEFAULT_RETRIES1    = 8,
 	NET_DCCP_DEFAULT_RETRIES2    = 9,
+	NET_DCCP_DEFAULT_TX_QLEN     = 10,
 };
 
 /* /proc/sys/net/ipx */
