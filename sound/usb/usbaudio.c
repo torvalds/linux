@@ -2471,7 +2471,13 @@ static int parse_audio_format_rates(struct snd_usb_audio *chip, struct audioform
 		fp->nr_rates = nr_rates;
 		fp->rate_min = fp->rate_max = combine_triple(&fmt[8]);
 		for (r = 0, idx = offset + 1; r < nr_rates; r++, idx += 3) {
-			unsigned int rate = fp->rate_table[r] = combine_triple(&fmt[idx]);
+			unsigned int rate = combine_triple(&fmt[idx]);
+			/* C-Media CM6501 mislabels its 96 kHz altsetting */
+			if (rate == 48000 && nr_rates == 1 &&
+			    chip->usb_id == USB_ID(0x0d8c, 0x0201) &&
+			    fp->altsetting == 5 && fp->maxpacksize == 392)
+				rate = 96000;
+			fp->rate_table[r] = rate;
 			if (rate < fp->rate_min)
 				fp->rate_min = rate;
 			else if (rate > fp->rate_max)
