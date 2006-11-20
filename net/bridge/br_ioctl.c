@@ -58,12 +58,13 @@ static int get_fdb_entries(struct net_bridge *br, void __user *userbuf,
 {
 	int num;
 	void *buf;
-	size_t size = maxnum * sizeof(struct __fdb_entry);
+	size_t size;
 
-	if (size > PAGE_SIZE) {
-		size = PAGE_SIZE;
+	/* Clamp size to PAGE_SIZE, test maxnum to avoid overflow */
+	if (maxnum > PAGE_SIZE/sizeof(struct __fdb_entry))
 		maxnum = PAGE_SIZE/sizeof(struct __fdb_entry);
-	}
+
+	size = maxnum * sizeof(struct __fdb_entry);
 
 	buf = kmalloc(size, GFP_USER);
 	if (!buf)
