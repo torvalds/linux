@@ -183,7 +183,8 @@ void spu_yield(struct spu_context *ctx);
 int __init spu_sched_init(void);
 void __exit spu_sched_exit(void);
 
-int spu_recycle_isolated(struct spu_context *ctx);
+extern char *isolated_loader;
+
 /*
  * spufs_wait
  * 	Same as wait_event_interruptible(), except that here

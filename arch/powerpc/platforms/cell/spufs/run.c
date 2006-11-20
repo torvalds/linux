@@ -4,6 +4,8 @@
 #include <linux/ptrace.h>
 
 #include <asm/spu.h>
+#include <asm/spu_priv1.h>
+#include <asm/io.h>
 #include <asm/unistd.h>
 
 #include "spufs.h"
@@ -51,21 +53,122 @@ static inline int spu_stopped(struct spu_context *ctx, u32 * stat)
 	return (!(*stat & 0x1) || pte_fault || spu->class_0_pending) ? 1 : 0;
 }
 
+static int spu_setup_isolated(struct spu_context *ctx)
+{
+	int ret;
+	u64 __iomem *mfc_cntl;
+	u64 sr1;
+	u32 status;
+	unsigned long timeout;
+	const u32 status_loading = SPU_STATUS_RUNNING
+		| SPU_STATUS_ISOLATED_STATE | SPU_STATUS_ISOLATED_LOAD_STATUS;
+
+	if (!isolated_loader)
+		return -ENODEV;
+
+	ret = spu_acquire_exclusive(ctx);
+	if (ret)
+		goto out;
+
+	mfc_cntl = &ctx->spu->priv2->mfc_control_RW;
+
+	/* purge the MFC DMA queue to ensure no spurious accesses before we
+	 * enter kernel mode */
+	timeout = jiffies + HZ;
+	out_be64(mfc_cntl, MFC_CNTL_PURGE_DMA_REQUEST);
+	while ((in_be64(mfc_cntl) & MFC_CNTL_PURGE_DMA_STATUS_MASK)
+			!= MFC_CNTL_PURGE_DMA_COMPLETE) {
+		if (time_after(jiffies, timeout)) {
+			printk(KERN_ERR "%s: timeout flushing MFC DMA queue\n",
+					__FUNCTION__);
+			ret = -EIO;
+			goto out_unlock;
+		}
+		cond_resched();
+	}
+
+	/* put the SPE in kernel mode to allow access to the loader */
+	sr1 = spu_mfc_sr1_get(ctx->spu);
+	sr1 &= ~MFC_STATE1_PROBLEM_STATE_MASK;
+	spu_mfc_sr1_set(ctx->spu, sr1);
+
+	/* start the loader */
+	ctx->ops->signal1_write(ctx, (unsigned long)isolated_loader >> 32);
+	ctx->ops->signal2_write(ctx,
+			(unsigned long)isolated_loader & 0xffffffff);
+
+	ctx->ops->runcntl_write(ctx,
+			SPU_RUNCNTL_RUNNABLE | SPU_RUNCNTL_ISOLATE);
+
+	ret = 0;
+	timeout = jiffies + HZ;
+	while (((status = ctx->ops->status_read(ctx)) & status_loading) ==
+				status_loading) {
+		if (time_after(jiffies, timeout)) {
+			printk(KERN_ERR "%s: timeout waiting for loader\n",
+					__FUNCTION__);
+			ret = -EIO;
+			goto out_drop_priv;
+		}
+		cond_resched();
+	}
+
+	if (!(status & SPU_STATUS_RUNNING)) {
+		/* If isolated LOAD has failed: run SPU, we will get a stop-and
+		 * signal later. */
+		pr_debug("%s: isolated LOAD failed\n", __FUNCTION__);
+		ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_RUNNABLE);
+		ret = -EACCES;
+
+	} else if (!(status & SPU_STATUS_ISOLATED_STATE)) {
+		/* This isn't allowed by the CBEA, but check anyway */
+		pr_debug("%s: SPU fell out of isolated mode?\n", __FUNCTION__);
+		ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_STOP);
+		ret = -EINVAL;
+	}
+
+out_drop_priv:
+	/* Finished accessing the loader. Drop kernel mode */
+	sr1 |= MFC_STATE1_PROBLEM_STATE_MASK;
+	spu_mfc_sr1_set(ctx->spu, sr1);
+
+out_unlock:
+	spu_release_exclusive(ctx);
+out:
+	return ret;
+}
+
 static inline int spu_run_init(struct spu_context *ctx, u32 * npc)
 {
 	int ret;
 	unsigned long runcntl = SPU_RUNCNTL_RUNNABLE;
 
-	if ((ret = spu_acquire_runnable(ctx)) != 0)
+	ret = spu_acquire_runnable(ctx);
+	if (ret)
 		return ret;
 
-	/* if we're in isolated mode, we would have started the SPU
-	 * earlier, so don't do it again now. */
-	if (!(ctx->flags & SPU_CREATE_ISOLATE)) {
+	if (ctx->flags & SPU_CREATE_ISOLATE) {
+		if (!(ctx->ops->status_read(ctx) & SPU_STATUS_ISOLATED_STATE)) {
+			/* Need to release ctx, because spu_setup_isolated will
+			 * acquire it exclusively.
+			 */
+			spu_release(ctx);
+			ret = spu_setup_isolated(ctx);
+			if (!ret)
+				ret = spu_acquire_runnable(ctx);
+		}
+
+		/* if userspace has set the runcntrl register (eg, to issue an
+		 * isolated exit), we need to re-set it here */
+		runcntl = ctx->ops->runcntl_read(ctx) &
+			(SPU_RUNCNTL_RUNNABLE | SPU_RUNCNTL_ISOLATE);
+		if (runcntl == 0)
+			runcntl = SPU_RUNCNTL_RUNNABLE;
+	} else
 		ctx->ops->npc_write(ctx, *npc);
-		ctx->ops->runcntl_write(ctx, runcntl);
-	}
-	return 0;
+
+	ctx->ops->runcntl_write(ctx, runcntl);
+	return ret;
 }
 
 static inline int spu_run_fini(struct spu_context *ctx, u32 * npc,

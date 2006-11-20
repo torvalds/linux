@@ -1358,37 +1358,6 @@ static struct file_operations spufs_mfc_fops = {
 	.mmap	 = spufs_mfc_mmap,
 };
 
-
-static int spufs_recycle_open(struct inode *inode, struct file *file)
-{
-	file->private_data = SPUFS_I(inode)->i_ctx;
-	return nonseekable_open(inode, file);
-}
-
-static ssize_t spufs_recycle_write(struct file *file,
-		const char __user *buffer, size_t size, loff_t *pos)
-{
-	struct spu_context *ctx = file->private_data;
-	int ret;
-
-	if (!(ctx->flags & SPU_CREATE_ISOLATE))
-		return -EINVAL;
-
-	if (size < 1)
-		return -EINVAL;
-
-	ret = spu_recycle_isolated(ctx);
-
-	if (ret)
-		return ret;
-	return size;
-}
-
-static struct file_operations spufs_recycle_fops = {
-	.open	 = spufs_recycle_open,
-	.write	 = spufs_recycle_write,
-};
-
 static void spufs_npc_set(void *data, u64 val)
 {
 	struct spu_context *ctx = data;
@@ -1789,6 +1758,5 @@ struct tree_descr spufs_dir_nosched_contents[] = {
 	{ "psmap", &spufs_psmap_fops, 0666, },
 	{ "phys-id", &spufs_id_ops, 0666, },
 	{ "object-id", &spufs_object_id_ops, 0666, },
-	{ "recycle", &spufs_recycle_fops, 0222, },
 	{},
 };

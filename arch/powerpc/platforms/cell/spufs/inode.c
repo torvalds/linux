@@ -34,8 +34,6 @@
 #include <linux/parser.h>
 
 #include <asm/prom.h>
-#include <asm/spu_priv1.h>
-#include <asm/io.h>
 #include <asm/semaphore.h>
 #include <asm/spu.h>
 #include <asm/uaccess.h>
@@ -43,7 +41,7 @@
 #include "spufs.h"
 
 static kmem_cache_t *spufs_inode_cache;
-static char *isolated_loader;
+char *isolated_loader;
 
 static struct inode *
 spufs_alloc_inode(struct super_block *sb)
@@ -235,102 +233,6 @@ struct file_operations spufs_context_fops = {
 	.fsync		= simple_sync_file,
 };
 
-static int spu_setup_isolated(struct spu_context *ctx)
-{
-	int ret;
-	u64 __iomem *mfc_cntl;
-	u64 sr1;
-	u32 status;
-	unsigned long timeout;
-	const u32 status_loading = SPU_STATUS_RUNNING
-		| SPU_STATUS_ISOLATED_STATE | SPU_STATUS_ISOLATED_LOAD_STATUS;
-
-	if (!isolated_loader)
-		return -ENODEV;
-
-	/* prevent concurrent operation with spu_run */
-	down(&ctx->run_sema);
-	ctx->ops->master_start(ctx);
-
-	ret = spu_acquire_exclusive(ctx);
-	if (ret)
-		goto out;
-
-	mfc_cntl = &ctx->spu->priv2->mfc_control_RW;
-
-	/* purge the MFC DMA queue to ensure no spurious accesses before we
-	 * enter kernel mode */
-	timeout = jiffies + HZ;
-	out_be64(mfc_cntl, MFC_CNTL_PURGE_DMA_REQUEST);
-	while ((in_be64(mfc_cntl) & MFC_CNTL_PURGE_DMA_STATUS_MASK)
-			!= MFC_CNTL_PURGE_DMA_COMPLETE) {
-		if (time_after(jiffies, timeout)) {
-			printk(KERN_ERR "%s: timeout flushing MFC DMA queue\n",
-					__FUNCTION__);
-			ret = -EIO;
-			goto out_unlock;
-		}
-		cond_resched();
-	}
-
-	/* put the SPE in kernel mode to allow access to the loader */
-	sr1 = spu_mfc_sr1_get(ctx->spu);
-	sr1 &= ~MFC_STATE1_PROBLEM_STATE_MASK;
-	spu_mfc_sr1_set(ctx->spu, sr1);
-
-	/* start the loader */
-	ctx->ops->signal1_write(ctx, (unsigned long)isolated_loader >> 32);
-	ctx->ops->signal2_write(ctx,
-			(unsigned long)isolated_loader & 0xffffffff);
-
-	ctx->ops->runcntl_write(ctx,
-			SPU_RUNCNTL_RUNNABLE | SPU_RUNCNTL_ISOLATE);
-
-	ret = 0;
-	timeout = jiffies + HZ;
-	while (((status = ctx->ops->status_read(ctx)) & status_loading) ==
-				status_loading) {
-		if (time_after(jiffies, timeout)) {
-			printk(KERN_ERR "%s: timeout waiting for loader\n",
-					__FUNCTION__);
-			ret = -EIO;
-			goto out_drop_priv;
-		}
-		cond_resched();
-	}
-
-	if (!(status & SPU_STATUS_RUNNING)) {
-		/* If isolated LOAD has failed: run SPU, we will get a stop-and
-		 * signal later. */
-		pr_debug("%s: isolated LOAD failed\n", __FUNCTION__);
-		ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_RUNNABLE);
-		ret = -EACCES;
-
-	} else if (!(status & SPU_STATUS_ISOLATED_STATE)) {
-		/* This isn't allowed by the CBEA, but check anyway */
-		pr_debug("%s: SPU fell out of isolated mode?\n", __FUNCTION__);
-		ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_STOP);
-		ret = -EINVAL;
-	}
-
-out_drop_priv:
-	/* Finished accessing the loader. Drop kernel mode */
-	sr1 |= MFC_STATE1_PROBLEM_STATE_MASK;
-	spu_mfc_sr1_set(ctx->spu, sr1);
-
-out_unlock:
-	spu_release_exclusive(ctx);
-out:
-	ctx->ops->master_stop(ctx);
-	up(&ctx->run_sema);
-	return ret;
-}
-
-int spu_recycle_isolated(struct spu_context *ctx)
-{
-	return spu_setup_isolated(ctx);
-}
-
 static int
 spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
 		int mode)
@@ -439,15 +341,6 @@ static int spufs_create_context(struct inode *inode,
 out_unlock:
 	mutex_unlock(&inode->i_mutex);
 out:
-	if (ret >= 0 && (flags & SPU_CREATE_ISOLATE)) {
-		int setup_err = spu_setup_isolated(
-				SPUFS_I(dentry->d_inode)->i_ctx);
-		/* FIXME: clean up context again on failure to avoid
-		          leak. */
-		if (setup_err)
-			ret = setup_err;
-	}
-
 	dput(dentry);
 	return ret;
 }
