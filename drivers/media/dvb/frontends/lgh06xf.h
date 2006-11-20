@@ -25,7 +25,7 @@ extern struct dvb_frontend* lgh06xf_attach(struct dvb_frontend* fe,
 					    struct i2c_adapter *i2c);
 #else
 static inline struct dvb_frontend* lgh06xf_attach(struct dvb_frontend* fe,
-						  struct i2c_adapter *i2c);
+						  struct i2c_adapter *i2c)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
 	return NULL;
