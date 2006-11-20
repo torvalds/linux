@@ -79,25 +79,27 @@ static int __init sh7780_devices_setup(void)
 __initcall(sh7780_devices_setup);
 
 static struct intc2_data intc2_irq_table[] = {
-	{ 28, 0, 24, 0, INTC_TMU0_MSK, 2 },
-	{ 21, 1, 0, 0, INTC_RTC_MSK, TIMER_PRIORITY },
-	{ 22, 1, 1, 0, INTC_RTC_MSK, TIMER_PRIORITY },
-	{ 23, 1, 2, 0, INTC_RTC_MSK, TIMER_PRIORITY },
-	{ SCIF0_ERI_IRQ, 8, 24, 0, INTC_SCIF0_MSK, SCIF0_PRIORITY },
-	{ SCIF0_RXI_IRQ, 8, 24, 0, INTC_SCIF0_MSK, SCIF0_PRIORITY },
-	{ SCIF0_BRI_IRQ, 8, 24, 0, INTC_SCIF0_MSK, SCIF0_PRIORITY },
-	{ SCIF0_TXI_IRQ, 8, 24, 0, INTC_SCIF0_MSK, SCIF0_PRIORITY },
+	{ 28, 0, 24, 0, 0, 2 },		/* TMU0 */
 
-	{ SCIF1_ERI_IRQ, 8, 16, 0, INTC_SCIF1_MSK, SCIF1_PRIORITY },
-	{ SCIF1_RXI_IRQ, 8, 16, 0, INTC_SCIF1_MSK, SCIF1_PRIORITY },
-	{ SCIF1_BRI_IRQ, 8, 16, 0, INTC_SCIF1_MSK, SCIF1_PRIORITY },
-	{ SCIF1_TXI_IRQ, 8, 16, 0, INTC_SCIF1_MSK, SCIF1_PRIORITY },
+	{ 21, 1,  0, 0, 2, 2 },
+	{ 22, 1,  1, 0, 2, 2 },
+	{ 23, 1,  2, 0, 2, 2 },
 
-	{ PCIC0_IRQ, 0x10,  8, 0, INTC_PCIC0_MSK, PCIC0_PRIORITY },
-	{ PCIC1_IRQ, 0x10,  0, 0, INTC_PCIC1_MSK, PCIC1_PRIORITY },
-	{ PCIC2_IRQ, 0x14, 24, 0, INTC_PCIC2_MSK, PCIC2_PRIORITY },
-	{ PCIC3_IRQ, 0x14, 16, 0, INTC_PCIC3_MSK, PCIC3_PRIORITY },
-	{ PCIC4_IRQ, 0x14,  8, 0, INTC_PCIC4_MSK, PCIC4_PRIORITY },
+	{ 40, 8, 24, 0, 3, 3 },		/* SCIF0 ERI */
+	{ 41, 8, 24, 0, 3, 3 },		/* SCIF0 RXI */
+	{ 42, 8, 24, 0, 3, 3 },		/* SCIF0 BRI */
+	{ 43, 8, 24, 0, 3, 3 },		/* SCIF0 TXI */
+
+	{ 76, 8, 16, 0, 4, 3 },		/* SCIF1 ERI */
+	{ 77, 8, 16, 0, 4, 3 },		/* SCIF1 RXI */
+	{ 78, 8, 16, 0, 4, 3 },		/* SCIF1 BRI */
+	{ 79, 8, 16, 0, 4, 3 },		/* SCIF1 TXI */
+
+	{ 64, 0x10,  8, 0, 14, 2 },	/* PCIC0 */
+	{ 65, 0x10,  0, 0, 15, 2 },	/* PCIC1 */
+	{ 66, 0x14, 24, 0, 16, 2 },	/* PCIC2 */
+	{ 67, 0x14, 16, 0, 17, 2 },	/* PCIC3 */
+	{ 68, 0x14,  8, 0, 18, 2 },	/* PCIC4 */
 };
 
 void __init init_IRQ_intc2(void)

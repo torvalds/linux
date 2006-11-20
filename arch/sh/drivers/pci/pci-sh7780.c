@@ -22,6 +22,20 @@
 #include <linux/delay.h>
 #include "pci-sh4.h"
 
+#define INTC_BASE	0xffd00000
+#define INTC_ICR0	(INTC_BASE+0x0)
+#define INTC_ICR1	(INTC_BASE+0x1c)
+#define INTC_INTPRI	(INTC_BASE+0x10)
+#define INTC_INTREQ	(INTC_BASE+0x24)
+#define INTC_INTMSK0	(INTC_BASE+0x44)
+#define INTC_INTMSK1	(INTC_BASE+0x48)
+#define INTC_INTMSK2	(INTC_BASE+0x40080)
+#define INTC_INTMSKCLR0	(INTC_BASE+0x64)
+#define INTC_INTMSKCLR1	(INTC_BASE+0x68)
+#define INTC_INTMSKCLR2	(INTC_BASE+0x40084)
+#define INTC_INT2MSKR	(INTC_BASE+0x40038)
+#define INTC_INT2MSKCR	(INTC_BASE+0x4003c)
+
 /*
  * Initialization. Try all known PCI access methods. Note that we support
  * using both PCI BIOS and direct access: in such cases, we use I/O ports

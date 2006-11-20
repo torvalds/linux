@@ -19,10 +19,8 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/module.h>
-#include <asm/system.h>
-#include <asm/io.h>
-#include <asm/machvec.h>
-
+#include <linux/io.h>
+#include <linux/interrupt.h>
 
 static void disable_ipr_irq(unsigned int irq)
 {
