@@ -3691,16 +3691,6 @@ struct _snd_pcm_runtime {
         </para>
 
         <para>
-          Here, the chip instance is retrieved via
-        <function>snd_kcontrol_chip()</function> macro.  This macro
-        just accesses to kcontrol-&gt;private_data. The
-        kcontrol-&gt;private_data field is 
-        given as the argument of <function>snd_ctl_new()</function>
-        (see the later subsection
-        <link linkend="control-interface-constructor"><citetitle>Constructor</citetitle></link>).
-        </para>
-
-        <para>
 	The <structfield>value</structfield> field is depending on
         the type of control as well as on info callback.  For example,
 	the sb driver uses this field to store the register offset,
