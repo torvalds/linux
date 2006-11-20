@@ -424,6 +424,7 @@ extern int device_for_each_child(struct device *, void *,
 extern struct device *device_find_child(struct device *, void *data,
 					int (*match)(struct device *, void *));
 extern int device_rename(struct device *dev, char *new_name);
+extern int device_move(struct device *dev, struct device *new_parent);
 
 /*
  * Manual binding of a device to driver. See drivers/base/bus.c

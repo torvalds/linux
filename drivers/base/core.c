@@ -955,3 +955,95 @@ int device_rename(struct device *dev, char *new_name)
 
 	return error;
 }
+
+
+static int device_move_class_links(struct device *dev,
+				   struct device *old_parent,
+				   struct device *new_parent)
+{
+#ifdef CONFIG_SYSFS_DEPRECATED
+	int error;
+	char *class_name;
+
+	class_name = make_class_name(dev->class->name, &dev->kobj);
+	if (!class_name) {
+		error = PTR_ERR(class_name);
+		class_name = NULL;
+		goto out;
+	}
+	if (old_parent) {
+		sysfs_remove_link(&dev->kobj, "device");
+		sysfs_remove_link(&old_parent->kobj, class_name);
+	}
+	error = sysfs_create_link(&dev->kobj, &new_parent->kobj, "device");
+	if (error)
+		goto out;
+	error = sysfs_create_link(&new_parent->kobj, &dev->kobj, class_name);
+	if (error)
+		sysfs_remove_link(&dev->kobj, "device");
+out:
+	kfree(class_name);
+	return error;
+#else
+	return 0;
+#endif
+}
+
+/**
+ * device_move - moves a device to a new parent
+ * @dev: the pointer to the struct device to be moved
+ * @new_parent: the new parent of the device
+ */
+int device_move(struct device *dev, struct device *new_parent)
+{
+	int error;
+	struct device *old_parent;
+
+	dev = get_device(dev);
+	if (!dev)
+		return -EINVAL;
+
+	if (!device_is_registered(dev)) {
+		error = -EINVAL;
+		goto out;
+	}
+	new_parent = get_device(new_parent);
+	if (!new_parent) {
+		error = -EINVAL;
+		goto out;
+	}
+	pr_debug("DEVICE: moving '%s' to '%s'\n", dev->bus_id,
+		new_parent->bus_id);
+	error = kobject_move(&dev->kobj, &new_parent->kobj);
+	if (error) {
+		put_device(new_parent);
+		goto out;
+	}
+	old_parent = dev->parent;
+	dev->parent = new_parent;
+	if (old_parent)
+		klist_del(&dev->knode_parent);
+	klist_add_tail(&dev->knode_parent, &new_parent->klist_children);
+	if (!dev->class)
+		goto out_put;
+	error = device_move_class_links(dev, old_parent, new_parent);
+	if (error) {
+		/* We ignore errors on cleanup since we're hosed anyway... */
+		device_move_class_links(dev, new_parent, old_parent);
+		if (!kobject_move(&dev->kobj, &old_parent->kobj)) {
+			klist_del(&dev->knode_parent);
+			if (old_parent)
+				klist_add_tail(&dev->knode_parent,
+					       &old_parent->klist_children);
+		}
+		put_device(new_parent);
+		goto out;
+	}
+out_put:
+	put_device(old_parent);
+out:
+	put_device(dev);
+	return error;
+}
+
+EXPORT_SYMBOL_GPL(device_move);
