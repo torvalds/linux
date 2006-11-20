@@ -708,7 +708,16 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 	}
 	case VIDIOCSTUNER: /*  select a tuner input  */
 	{
-		err = 0;
+		struct video_tuner	*tun = arg;
+		struct v4l2_tuner	t;
+		memset(&t,0,sizeof(t));
+
+		t.index=tun->tuner;
+
+		err = drv(inode, file, VIDIOC_S_INPUT, &t);
+		if (err < 0)
+			dprintk("VIDIOCSTUNER / VIDIOC_S_INPUT: %d\n",err);
+
 		break;
 	}
 	case VIDIOCGFREQ: /*  get frequency  */
