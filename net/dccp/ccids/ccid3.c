@@ -176,8 +176,6 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 		       ccid3_tx_state_name(hctx->ccid3hctx_state));
 	
 	switch (hctx->ccid3hctx_state) {
-	case TFRC_SSTATE_TERM:
-		goto out;
 	case TFRC_SSTATE_NO_FBACK:
 		/* Halve send rate */
 		hctx->ccid3hctx_x /= 2;
@@ -240,9 +238,10 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 					2 * usecs_div(hctx->ccid3hctx_s,
 						      hctx->ccid3hctx_x));
 		break;
-	default:
-		DCCP_BUG("%s, sk=%p, Illegal state (%d)!", dccp_role(sk), sk,
-			 hctx->ccid3hctx_state);
+	case TFRC_SSTATE_NO_SENT:
+		DCCP_BUG("Illegal %s state NO_SENT, sk=%p", dccp_role(sk), sk);
+		/* fall through */
+	case TFRC_SSTATE_TERM:
 		goto out;
 	}
 
@@ -264,7 +263,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 	long delay;
 	int rc = -ENOTCONN;
 
-	BUG_ON(hctx == NULL || hctx->ccid3hctx_state == TFRC_SSTATE_TERM);
+	BUG_ON(hctx == NULL);
 
 	/* Check if pure ACK or Terminating*/
 	/*
@@ -282,9 +281,8 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 
 		rc = -ENOBUFS;
 		if (unlikely(new_packet == NULL)) {
-			LIMIT_NETDEBUG(KERN_WARNING "%s: %s, sk=%p, not enough "
-				       "mem to add to history, send refused\n",
-				       __FUNCTION__, dccp_role(sk), sk);
+			DCCP_WARN("%s, sk=%p, not enough mem to add to history,"
+				  "send refused\n", dccp_role(sk), sk);
 			goto out;
 		}
 
@@ -317,9 +315,8 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 		/* divide by -1000 is to convert to ms and get sign right */
 		rc = delay > 0 ? delay : 0;
 		break;
-	default:
-		DCCP_BUG("%s, sk=%p, Illegal state (%d)!", dccp_role(sk), sk,
-			 hctx->ccid3hctx_state);
+	case TFRC_SSTATE_TERM:
+		DCCP_BUG("Illegal %s state TERM, sk=%p", dccp_role(sk), sk);
 		rc = -EINVAL;
 		break;
 	}
@@ -343,7 +340,7 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct timeval now;
 
-	BUG_ON(hctx == NULL || hctx->ccid3hctx_state == TFRC_SSTATE_TERM);
+	BUG_ON(hctx == NULL);
 
 	dccp_timestamp(sk, &now);
 
@@ -354,13 +351,11 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 
 		packet = dccp_tx_hist_head(&hctx->ccid3hctx_hist);
 		if (unlikely(packet == NULL)) {
-			LIMIT_NETDEBUG(KERN_WARNING "%s: packet doesn't "
-				       "exists in history!\n", __FUNCTION__);
+			DCCP_WARN("packet doesn't exist in history!\n");
 			return;
 		}
 		if (unlikely(packet->dccphtx_sent)) {
-			LIMIT_NETDEBUG(KERN_WARNING "%s: no unsent packet in "
-				       "history!\n", __FUNCTION__);
+			DCCP_WARN("no unsent packet in history!\n");
 			return;
 		}
 		packet->dccphtx_tstamp = now;
@@ -395,9 +390,8 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 	case TFRC_SSTATE_NO_SENT:
 		/* if first wasn't pure ack */
 		if (len != 0)
-			printk(KERN_CRIT "%s: %s, First packet sent is noted "
-					 "as a data packet\n",
-			       __FUNCTION__, dccp_role(sk));
+			DCCP_CRIT("%s, First packet sent is noted "
+				  "as a data packet",  dccp_role(sk));
 		return;
 	case TFRC_SSTATE_NO_FBACK:
 	case TFRC_SSTATE_FBACK:
@@ -410,9 +404,8 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 					  hctx->ccid3hctx_t_ipi);
 		}
 		break;
-	default:
-		DCCP_BUG("%s, sk=%p, Illegal state (%d)!", dccp_role(sk), sk,
-			 hctx->ccid3hctx_state);
+	case TFRC_SSTATE_TERM:
+		DCCP_BUG("Illegal %s state TERM, sk=%p", dccp_role(sk), sk);
 		break;
 	}
 }
@@ -430,7 +423,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	u32 x_recv;
 	u32 r_sample;
 
-	BUG_ON(hctx == NULL || hctx->ccid3hctx_state == TFRC_SSTATE_TERM);
+	BUG_ON(hctx == NULL);
 
 	/* we are only interested in ACKs */
 	if (!(DCCP_SKB_CB(skb)->dccpd_type == DCCP_PKT_ACK ||
@@ -455,11 +448,10 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		packet = dccp_tx_hist_find_entry(&hctx->ccid3hctx_hist,
 						 DCCP_SKB_CB(skb)->dccpd_ack_seq);
 		if (unlikely(packet == NULL)) {
-			LIMIT_NETDEBUG(KERN_WARNING "%s: %s, sk=%p, seqno "
-				       "%llu(%s) does't exist in history!\n",
-				       __FUNCTION__, dccp_role(sk), sk,
+			DCCP_WARN("%s, sk=%p, seqno %llu(%s) does't exist "
+				  "in history!\n",  dccp_role(sk), sk,
 			    (unsigned long long)DCCP_SKB_CB(skb)->dccpd_ack_seq,
-				dccp_packet_name(DCCP_SKB_CB(skb)->dccpd_type));
+				  dccp_packet_name(DCCP_SKB_CB(skb)->dccpd_type));
 			return;
 		}
 
@@ -467,9 +459,8 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		dccp_timestamp(sk, &now);
 		r_sample = timeval_delta(&now, &packet->dccphtx_tstamp);
 		if (unlikely(r_sample <= t_elapsed))
-			LIMIT_NETDEBUG(KERN_WARNING "%s: r_sample=%uus, "
-				       "t_elapsed=%uus\n",
-				       __FUNCTION__, r_sample, t_elapsed);
+			DCCP_WARN("r_sample=%uus,t_elapsed=%uus\n",
+				  r_sample, t_elapsed);
 		else
 			r_sample -= t_elapsed;
 
@@ -554,9 +545,8 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		/* set idle flag */
 		hctx->ccid3hctx_idle = 1;   
 		break;
-	default:
-		DCCP_BUG("%s, sk=%p, Illegal state (%d)!", dccp_role(sk), sk,
-			 hctx->ccid3hctx_state);
+	case TFRC_SSTATE_TERM:
+		DCCP_BUG("Illegal %s state TERM, sk=%p", dccp_role(sk), sk);
 		break;
 	}
 }
@@ -596,9 +586,9 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
 	switch (option) {
 	case TFRC_OPT_LOSS_EVENT_RATE:
 		if (unlikely(len != 4)) {
-			LIMIT_NETDEBUG(KERN_WARNING "%s: %s, sk=%p, invalid "
-				       "len for TFRC_OPT_LOSS_EVENT_RATE\n",
-				       __FUNCTION__, dccp_role(sk), sk);
+			DCCP_WARN("%s, sk=%p, invalid len %d "
+				  "for TFRC_OPT_LOSS_EVENT_RATE\n",
+				  dccp_role(sk), sk, len);
 			rc = -EINVAL;
 		} else {
 			opt_recv->ccid3or_loss_event_rate = ntohl(*(__be32 *)value);
@@ -617,9 +607,9 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
 		break;
 	case TFRC_OPT_RECEIVE_RATE:
 		if (unlikely(len != 4)) {
-			LIMIT_NETDEBUG(KERN_WARNING "%s: %s, sk=%p, invalid "
-				       "len for TFRC_OPT_RECEIVE_RATE\n",
-				       __FUNCTION__, dccp_role(sk), sk);
+			DCCP_WARN("%s, sk=%p, invalid len %d "
+				  "for TFRC_OPT_RECEIVE_RATE\n",
+				  dccp_role(sk), sk, len);
 			rc = -EINVAL;
 		} else {
 			opt_recv->ccid3or_receive_rate = ntohl(*(__be32 *)value);
@@ -722,17 +712,15 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 						   delta);
 	}
 		break;
-	default:
-		DCCP_BUG("%s, sk=%p, Illegal state (%d)!", dccp_role(sk), sk,
-			 hcrx->ccid3hcrx_state);
+	case TFRC_RSTATE_TERM:
+		DCCP_BUG("Illegal %s state TERM, sk=%p", dccp_role(sk), sk);
 		return;
 	}
 
 	packet = dccp_rx_hist_find_data_packet(&hcrx->ccid3hcrx_hist);
 	if (unlikely(packet == NULL)) {
-		LIMIT_NETDEBUG(KERN_WARNING "%s: %s, sk=%p, no data packet "
-			       "in history!\n",
-			       __FUNCTION__, dccp_role(sk), sk);
+		DCCP_WARN("%s, sk=%p, no data packet in history!\n",
+			  dccp_role(sk), sk);
 		return;
 	}
 
@@ -820,29 +808,29 @@ static u32 ccid3_hc_rx_calc_first_li(struct sock *sk)
 	}
 
 	if (unlikely(step == 0)) {
-		LIMIT_NETDEBUG(KERN_WARNING "%s: %s, sk=%p, packet history "
-			       "contains no data packets!\n",
-			       __FUNCTION__, dccp_role(sk), sk);
+		DCCP_WARN("%s, sk=%p, packet history has no data packets!\n",
+			  dccp_role(sk), sk);
 		return ~0;
 	}
 
 	if (unlikely(interval == 0)) {
-		LIMIT_NETDEBUG(KERN_WARNING "%s: %s, sk=%p, Could not find a "
-			       "win_count interval > 0. Defaulting to 1\n",
-			       __FUNCTION__, dccp_role(sk), sk);
+		DCCP_WARN("%s, sk=%p, Could not find a win_count interval > 0."
+			  "Defaulting to 1\n", dccp_role(sk), sk);
 		interval = 1;
 	}
 found:
 	if (!tail) {
-		LIMIT_NETDEBUG(KERN_WARNING "%s: tail is null\n",
-		   __FUNCTION__);
+		DCCP_CRIT("tail is null\n");
 		return ~0;
 	}
 	rtt = timeval_delta(&tstamp, &tail->dccphrx_tstamp) * 4 / interval;
 	ccid3_pr_debug("%s, sk=%p, approximated RTT to %uus\n",
 		       dccp_role(sk), sk, rtt);
-	if (rtt == 0)
-		rtt = 1;
+
+	if (rtt == 0) {
+		DCCP_WARN("RTT==0, setting to 1\n");
+ 		rtt = 1;
+	}
 
 	dccp_timestamp(sk, &tstamp);
 	delta = timeval_delta(&tstamp, &hcrx->ccid3hcrx_tstamp_last_feedback);
@@ -856,9 +844,7 @@ found:
 	tmp2 = (u32)tmp1;
 
 	if (!tmp2) {
-		LIMIT_NETDEBUG(KERN_WARNING "tmp2 = 0 "
-		   "%s: x_recv = %u, rtt =%u\n",
-		   __FUNCTION__, x_recv, rtt);
+		DCCP_CRIT("tmp2 = 0, x_recv = %u, rtt =%u\n", x_recv, rtt);
 		return ~0;
 	}
 
@@ -904,8 +890,7 @@ static void ccid3_hc_rx_update_li(struct sock *sk, u64 seq_loss, u8 win_loss)
 		entry = dccp_li_hist_entry_new(ccid3_li_hist, SLAB_ATOMIC);
 
 		if (entry == NULL) {
-			printk(KERN_CRIT "%s: out of memory\n",__FUNCTION__);
-			dump_stack();
+			DCCP_BUG("out of memory - can not allocate entry");
 			return;
 		}
 
@@ -984,9 +969,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	u32 p_prev, rtt_prev, r_sample, t_elapsed;
 	int loss;
 
-	BUG_ON(hcrx == NULL ||
-	       !(hcrx->ccid3hcrx_state == TFRC_RSTATE_NO_DATA ||
-		 hcrx->ccid3hcrx_state == TFRC_RSTATE_DATA));
+	BUG_ON(hcrx == NULL);
 
 	opt_recv = &dccp_sk(sk)->dccps_options_received;
 
@@ -1004,9 +987,8 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		t_elapsed = opt_recv->dccpor_elapsed_time * 10;
 
 		if (unlikely(r_sample <= t_elapsed))
-			LIMIT_NETDEBUG(KERN_WARNING "%s: r_sample=%uus, "
-				       "t_elapsed=%uus\n",
-				       __FUNCTION__, r_sample, t_elapsed);
+			DCCP_WARN("r_sample=%uus, t_elapsed=%uus\n",
+				  r_sample, t_elapsed);
 		else
 			r_sample -= t_elapsed;
 
@@ -1030,9 +1012,8 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	packet = dccp_rx_hist_entry_new(ccid3_rx_hist, sk, opt_recv->dccpor_ndp,
 					skb, SLAB_ATOMIC);
 	if (unlikely(packet == NULL)) {
-		LIMIT_NETDEBUG(KERN_WARNING "%s: %s, sk=%p, Not enough mem to "
-				"add rx packet to history, consider it lost!\n",
-			       __FUNCTION__, dccp_role(sk), sk);
+		DCCP_WARN("%s, sk=%p, Not enough mem to add rx packet "
+			  "to history, consider it lost!\n", dccp_role(sk), sk);
 		return;
 	}
 
@@ -1065,9 +1046,8 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			ccid3_hc_rx_send_feedback(sk);
 		}
 		return;
-	default:
-		DCCP_BUG("%s, sk=%p, Illegal state (%d)!",  dccp_role(sk), sk,
-			 hcrx->ccid3hcrx_state);
+	case TFRC_RSTATE_TERM:
+		DCCP_BUG("Illegal %s state TERM, sk=%p", dccp_role(sk), sk);
 		return;
 	}
 
@@ -1084,10 +1064,8 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		/* Scaling up by 1000000 as fixed decimal */
 		if (i_mean != 0)
 			hcrx->ccid3hcrx_p = 1000000 / i_mean;
-	} else {
-		printk(KERN_CRIT "%s: empty loss hist\n",__FUNCTION__);
-		dump_stack();
-	}
+	} else
+		DCCP_BUG("empty loss history");
 
 	if (hcrx->ccid3hcrx_p > p_prev) {
 		ccid3_hc_rx_send_feedback(sk);

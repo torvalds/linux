@@ -747,7 +747,7 @@ int dccp_invalid_packet(struct sk_buff *skb)
 
 	/* If the packet is shorter than 12 bytes, drop packet and return */
 	if (!pskb_may_pull(skb, sizeof(struct dccp_hdr))) {
-		LIMIT_NETDEBUG(KERN_WARNING "DCCP: pskb_may_pull failed\n");
+		DCCP_WARN("pskb_may_pull failed\n");
 		return 1;
 	}
 
@@ -755,7 +755,7 @@ int dccp_invalid_packet(struct sk_buff *skb)
 
 	/* If P.type is not understood, drop packet and return */
 	if (dh->dccph_type >= DCCP_PKT_INVALID) {
-		LIMIT_NETDEBUG(KERN_WARNING "DCCP: invalid packet type\n");
+		DCCP_WARN("invalid packet type\n");
 		return 1;
 	}
 
@@ -763,16 +763,14 @@ int dccp_invalid_packet(struct sk_buff *skb)
 	 * If P.Data Offset is too small for packet type, drop packet and return
 	 */
 	if (dh->dccph_doff < dccp_hdr_len(skb) / sizeof(u32)) {
-		LIMIT_NETDEBUG(KERN_WARNING "DCCP: P.Data Offset(%u) "
-					    "too small\n", dh->dccph_doff);
+		DCCP_WARN("P.Data Offset(%u) too small\n", dh->dccph_doff);
 		return 1;
 	}
 	/*
 	 * If P.Data Offset is too too large for packet, drop packet and return
 	 */
 	if (!pskb_may_pull(skb, dh->dccph_doff * sizeof(u32))) {
-		LIMIT_NETDEBUG(KERN_WARNING "DCCP: P.Data Offset(%u) "
-					    "too large\n", dh->dccph_doff);
+		DCCP_WARN("P.Data Offset(%u) too large\n", dh->dccph_doff);
 		return 1;
 	}
 
@@ -782,9 +780,8 @@ int dccp_invalid_packet(struct sk_buff *skb)
 	 */
 	if (dh->dccph_type >= DCCP_PKT_DATA    &&
 	    dh->dccph_type <= DCCP_PKT_DATAACK && dh->dccph_x == 0)  {
-		LIMIT_NETDEBUG(KERN_WARNING "DCCP: P.type (%s) not Data||Ack||"
-					    "DataAck, while P.X == 0\n",
-			       dccp_packet_name(dh->dccph_type));
+		DCCP_WARN("P.type (%s) not Data || [Data]Ack, while P.X == 0\n",
+			  dccp_packet_name(dh->dccph_type));
 		return 1;
 	}
 
@@ -794,9 +791,8 @@ int dccp_invalid_packet(struct sk_buff *skb)
 	 */
 	cscov = dccp_csum_coverage(skb);
 	if (cscov > skb->len) {
-		LIMIT_NETDEBUG(KERN_WARNING
-			       "DCCP: P.CsCov %u exceeds packet length %d\n",
-			       dh->dccph_cscov, skb->len);
+		DCCP_WARN("P.CsCov %u exceeds packet length %d\n",
+			  dh->dccph_cscov, skb->len);
 		return 1;
 	}
 
@@ -823,9 +819,7 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 
 	/* Step 1: If header checksum is incorrect, drop packet and return */
 	if (dccp_v4_csum_finish(skb, skb->nh.iph->saddr, skb->nh.iph->daddr)) {
-		LIMIT_NETDEBUG(KERN_WARNING
-			       "%s: dropped packet with invalid checksum\n",
-			       __FUNCTION__);
+		DCCP_WARN("dropped packet with invalid checksum\n");
 		goto discard_it;
 	}
 

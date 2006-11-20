@@ -828,9 +828,7 @@ static int dccp_v6_rcv(struct sk_buff **pskb)
 	/* Step 1: If header checksum is incorrect, drop packet and return. */
 	if (dccp_v6_csum_finish(skb, &skb->nh.ipv6h->saddr,
 				     &skb->nh.ipv6h->daddr)) {
-		LIMIT_NETDEBUG(KERN_WARNING
-			       "%s: dropped packet with invalid checksum\n",
-			       __FUNCTION__);
+		DCCP_WARN("dropped packet with invalid checksum\n");
 		goto discard_it;
 	}
 

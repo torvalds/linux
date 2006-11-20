@@ -238,9 +238,8 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 		}
 			break;
 		default:
-			pr_info("DCCP(%p): option %d(len=%d) not "
-				"implemented, ignoring\n",
-				sk, opt, len);
+			DCCP_CRIT("DCCP(%p): option %d(len=%d) not "
+				  "implemented, ignoring", sk, opt, len);
 			break;
 	        }
 
@@ -257,7 +256,7 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 out_invalid_option:
 	DCCP_INC_STATS_BH(DCCP_MIB_INVALIDOPT);
 	DCCP_SKB_CB(skb)->dccpd_reset_code = DCCP_RESET_CODE_OPTION_ERROR;
-	pr_info("DCCP(%p): invalid option %d, len=%d\n", sk, opt, len);
+	DCCP_WARN("DCCP(%p): invalid option %d, len=%d", sk, opt, len);
 	return -1;
 }
 
@@ -447,8 +446,7 @@ static int dccp_insert_feat_opt(struct sk_buff *skb, u8 type, u8 feat,
 	u8 *to;
 
 	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len + 3 > DCCP_MAX_OPT_LEN) {
-		LIMIT_NETDEBUG(KERN_INFO "DCCP: packet too small"
-			       " to insert feature %d option!\n", feat);
+		DCCP_WARN("packet too small for feature %d option!\n", feat);
 		return -1;
 	}
 

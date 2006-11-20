@@ -461,9 +461,6 @@ int dccp_ackvec_parse(struct sock *sk, const struct sk_buff *skb,
 	return 0;
 }
 
-static char dccp_ackvec_slab_msg[] __initdata =
-	KERN_CRIT "DCCP: Unable to create ack vectors slab caches\n";
-
 int __init dccp_ackvec_init(void)
 {
 	dccp_ackvec_slab = kmem_cache_create("dccp_ackvec",
@@ -485,7 +482,7 @@ out_destroy_slab:
 	kmem_cache_destroy(dccp_ackvec_slab);
 	dccp_ackvec_slab = NULL;
 out_err:
-	printk(dccp_ackvec_slab_msg);
+	DCCP_CRIT("Unable to create Ack Vector slab cache");
 	return -ENOBUFS;
 }
 

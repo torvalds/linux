@@ -1033,8 +1033,7 @@ static int __init dccp_init(void)
 	} while (!dccp_hashinfo.ehash && --ehash_order > 0);
 
 	if (!dccp_hashinfo.ehash) {
-		printk(KERN_CRIT "Failed to allocate DCCP "
-				 "established hash table\n");
+		DCCP_CRIT("Failed to allocate DCCP established hash table");
 		goto out_free_bind_bucket_cachep;
 	}
 
@@ -1056,7 +1055,7 @@ static int __init dccp_init(void)
 	} while (!dccp_hashinfo.bhash && --bhash_order >= 0);
 
 	if (!dccp_hashinfo.bhash) {
-		printk(KERN_CRIT "Failed to allocate DCCP bind hash table\n");
+		DCCP_CRIT("Failed to allocate DCCP bind hash table");
 		goto out_free_dccp_ehash;
 	}
 

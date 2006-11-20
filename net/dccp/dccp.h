@@ -18,12 +18,17 @@
 #include <net/tcp.h>
 #include "ackvec.h"
 
-#define DCCP_CRIT(fmt, a...) LIMIT_NETDEBUG(KERN_CRIT fmt " at %s:%d/%s()\n",  \
- 					 ##a, __FILE__, __LINE__, __FUNCTION__)
-#define DCCP_BUG(fmt, a...)  do { DCCP_CRIT(fmt, ##a); dump_stack(); } while (0)
-#define DCCP_BUG_ON(cond)    do { if (unlikely((cond) == 0))                   \
-					DCCP_BUG("BUG: condition \"%s\" fails",\
-						 __stringify((cond)));	       \
+/*
+ * 	DCCP - specific warning and debugging macros.
+ */
+#define DCCP_WARN(fmt, a...) LIMIT_NETDEBUG(KERN_WARNING "%s: " fmt,       \
+						        __FUNCTION__, ##a)
+#define DCCP_CRIT(fmt, a...) printk(KERN_CRIT fmt " at %s:%d/%s()\n", ##a, \
+					 __FILE__, __LINE__, __FUNCTION__)
+#define DCCP_BUG(a...)       do { DCCP_CRIT("BUG: " a); dump_stack(); } while(0)
+#define DCCP_BUG_ON(cond)    do { if (unlikely((cond) != 0))		   \
+				     DCCP_BUG("\"%s\" holds (exception!)", \
+					      __stringify(cond));          \
 			     } while (0)
 
 #ifdef MODULE

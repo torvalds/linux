@@ -257,11 +257,8 @@ void dccp_write_xmit(struct sock *sk, int block)
 				err = dccp_wait_for_ccid(sk, skb, &timeo);
 				timeo = DCCP_XMIT_TIMEO;
 			}
-			if (err) {
-				printk(KERN_CRIT "%s:err at dccp_wait_for_ccid"
-						 " %d\n", __FUNCTION__, err);
-				dump_stack();
-			}
+			if (err)
+				DCCP_BUG("err=%d after dccp_wait_for_ccid", err);
 		}
 
 		skb_dequeue(&sk->sk_write_queue);
@@ -283,12 +280,9 @@ void dccp_write_xmit(struct sock *sk, int block)
 
 			err = dccp_transmit_skb(sk, skb);
 			ccid_hc_tx_packet_sent(dp->dccps_hc_tx_ccid, sk, 0, len);
-			if (err) {
-				printk(KERN_CRIT "%s:err from "
-					         "ccid_hc_tx_packet_sent %d\n",
-					         __FUNCTION__, err);
-				dump_stack();
-			}
+			if (err)
+				DCCP_BUG("err=%d after ccid_hc_tx_packet_sent",
+					 err);
 		} else
 			kfree(skb);
 	}

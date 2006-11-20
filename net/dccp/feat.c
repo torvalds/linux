@@ -25,11 +25,11 @@ int dccp_feat_change(struct dccp_minisock *dmsk, u8 type, u8 feature,
 	dccp_feat_debug(type, feature, *val);
 
 	if (!dccp_feat_is_valid_type(type)) {
-		pr_info("option type %d invalid in negotiation\n", type);
+		DCCP_WARN("option type %d invalid in negotiation\n", type);
 		return 1;
 	}
 	if (!dccp_feat_is_valid_length(type, feature, len)) {
-		pr_info("invalid length %d\n", len);
+		DCCP_WARN("invalid length %d\n", len);
 		return 1;
 	}
 	/* XXX add further sanity checks */
@@ -169,7 +169,8 @@ static int dccp_feat_reconcile(struct sock *sk, struct dccp_opt_pend *opt,
 			break;
 
 		default:
-			WARN_ON(1); /* XXX implement res */
+			DCCP_BUG("Fell through, feat=%d", opt->dccpop_feat);
+			/* XXX implement res */
 			return -EFAULT;
 		}
 
@@ -328,7 +329,7 @@ static void dccp_feat_empty_confirm(struct dccp_minisock *dmsk,
 	switch (type) {
 	case DCCPO_CHANGE_L: opt->dccpop_type = DCCPO_CONFIRM_R; break;
 	case DCCPO_CHANGE_R: opt->dccpop_type = DCCPO_CONFIRM_L; break;
-	default: 	     pr_info("invalid type %d\n", type); return;
+	default: 	     DCCP_WARN("invalid type %d\n", type); return;
 
 	}
 	opt->dccpop_feat = feature;
@@ -426,7 +427,7 @@ int dccp_feat_confirm_recv(struct sock *sk, u8 type, u8 feature,
 	switch (type) {
 	case DCCPO_CONFIRM_L: t = DCCPO_CHANGE_R; break;
 	case DCCPO_CONFIRM_R: t = DCCPO_CHANGE_L; break;
-	default: 	      pr_info("invalid type %d\n", type);
+	default: 	      DCCP_WARN("invalid type %d\n", type);
 			      return 1;
 
 	}

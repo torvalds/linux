@@ -420,7 +420,7 @@ static int ccid2_ackvector(struct sock *sk, struct sk_buff *skb, int offset,
 	return -1;
 
 out_invalid_option:
-	BUG_ON(1); /* should never happen... options were previously parsed ! */
+	DCCP_BUG("Invalid option - this should not happen (previous parsing)!");
 	return -1;
 }
 

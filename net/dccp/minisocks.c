@@ -84,8 +84,7 @@ void dccp_time_wait(struct sock *sk, int state, int timeo)
 		 * socket up.  We've got bigger problems than
 		 * non-graceful socket closings.
 		 */
-		LIMIT_NETDEBUG(KERN_INFO "DCCP: time wait bucket "
-					 "table overflow\n");
+		DCCP_WARN("time wait bucket table overflow\n");
 	}
 
 	dccp_done(sk);
@@ -289,9 +288,7 @@ EXPORT_SYMBOL_GPL(dccp_child_process);
 
 void dccp_reqsk_send_ack(struct sk_buff *skb, struct request_sock *rsk)
 {
-	pr_info(KERN_WARNING "DCCP: ACK packets are never sent in "
-			     "LISTEN/RESPOND state\n");
-	dump_stack();
+	DCCP_BUG("DCCP-ACK packets are never sent in LISTEN/RESPOND state");
 }
 
 EXPORT_SYMBOL_GPL(dccp_reqsk_send_ack);
