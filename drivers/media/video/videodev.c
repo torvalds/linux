@@ -428,6 +428,10 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 		v4l_print_ioctl(vfd->name, cmd);
 	}
 
+	if (_IOC_TYPE(cmd)=='v')
+		return v4l_compat_translate_ioctl(inode,file,cmd,arg,
+						__video_do_ioctl);
+
 	switch(cmd) {
 	/* --- capabilities ------------------------------------------ */
 	case VIDIOC_QUERYCAP:
@@ -1409,12 +1413,7 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 		ret=vfd->vidioc_log_status(file, fh);
 		break;
 	}
-
-	/* --- Others --------------------------------------------- */
-
-	default:
-		ret=v4l_compat_translate_ioctl(inode,file,cmd,arg,__video_do_ioctl);
-	}
+	} /* switch */
 
 	if (vfd->debug & V4L2_DEBUG_IOCTL_ARG) {
 		if (ret<0) {
