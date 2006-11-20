@@ -87,6 +87,7 @@ extern int  sysctl_dccp_feat_tx_ccid;
 extern int  sysctl_dccp_feat_ack_ratio;
 extern int  sysctl_dccp_feat_send_ack_vector;
 extern int  sysctl_dccp_feat_send_ndp_count;
+extern int  sysctl_dccp_tx_qlen;
 
 /* is seq1 < seq2 ? */
 static inline int before48(const u64 seq1, const u64 seq2)

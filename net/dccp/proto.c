@@ -52,6 +52,9 @@ struct inet_hashinfo __cacheline_aligned dccp_hashinfo = {
 
 EXPORT_SYMBOL_GPL(dccp_hashinfo);
 
+/* the maximum queue length for tx in packets. 0 is no limit */
+int sysctl_dccp_tx_qlen __read_mostly = 5;
+
 void dccp_set_state(struct sock *sk, const int state)
 {
 	const int oldstate = sk->sk_state;
@@ -645,6 +648,13 @@ int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		return -EMSGSIZE;
 
 	lock_sock(sk);
+
+	if (sysctl_dccp_tx_qlen &&
+	    (sk->sk_write_queue.qlen >= sysctl_dccp_tx_qlen)) {
+		rc = -EAGAIN;
+		goto out_release;
+	}
+
 	timeo = sock_sndtimeo(sk, noblock);
 
 	/*
