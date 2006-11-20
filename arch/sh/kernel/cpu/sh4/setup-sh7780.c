@@ -79,7 +79,7 @@ static int __init sh7780_devices_setup(void)
 __initcall(sh7780_devices_setup);
 
 static struct intc2_data intc2_irq_table[] = {
-	{ TIMER_IRQ, 0, 24, 0, INTC_TMU0_MSK, 2 },
+	{ 28, 0, 24, 0, INTC_TMU0_MSK, 2 },
 	{ 21, 1, 0, 0, INTC_RTC_MSK, TIMER_PRIORITY },
 	{ 22, 1, 1, 0, INTC_RTC_MSK, TIMER_PRIORITY },
 	{ 23, 1, 2, 0, INTC_RTC_MSK, TIMER_PRIORITY },

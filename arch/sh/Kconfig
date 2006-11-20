@@ -405,6 +405,13 @@ source "arch/sh/boards/renesas/rts7751r2d/Kconfig"
 
 source "arch/sh/boards/renesas/r7780rp/Kconfig"
 
+config SH_TIMER_IRQ
+	int
+	default "28" if CPU_SUBTYPE_SH7780
+	default "86" if CPU_SUBTYPE_SH7619
+	default "140" if CPU_SUBTYPE_SH7206
+	default "16"
+
 config SH_PCLK_FREQ
 	int "Peripheral clock frequency (in Hz)"
 	default "27000000" if CPU_SUBTYPE_SH73180 || CPU_SUBTYPE_SH7343

@@ -169,7 +169,7 @@ static int cmt_timer_init(void)
 
 	cmt_clock_enable();
 
-	setup_irq(TIMER_IRQ, &cmt_irq);
+	setup_irq(CONFIG_SH_TIMER_IRQ, &cmt_irq);
 
 	cmt0_clk.parent = clk_get("module_clk");
 

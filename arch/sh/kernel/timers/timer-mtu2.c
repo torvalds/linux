@@ -167,7 +167,7 @@ static int mtu2_timer_init(void)
 	u8 tmp;
 	unsigned long interval;
 
-	setup_irq(TIMER_IRQ, &mtu2_irq);
+	setup_irq(CONFIG_SH_TIMER_IRQ, &mtu2_irq);
 
 	mtu2_clk1.parent = clk_get("module_clk");
 

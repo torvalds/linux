@@ -149,7 +149,7 @@ static int tmu_timer_init(void)
 {
 	unsigned long interval;
 
-	setup_irq(TIMER_IRQ, &tmu_irq);
+	setup_irq(CONFIG_SH_TIMER_IRQ, &tmu_irq);
 
 	tmu0_clk.parent = clk_get("module_clk");
 
