@@ -1088,9 +1088,13 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_G_AUDIO:
 	{
 		struct v4l2_audio *p=arg;
+		__u32 index=p->index;
 
 		if (!vfd->vidioc_g_audio)
 			break;
+
+		memset(p,0,sizeof(*p));
+		p->index=index;
 		dbgarg(cmd, "Get for index=%d\n", p->index);
 		ret=vfd->vidioc_g_audio(file, fh, p);
 		if (!ret)
@@ -1329,8 +1333,14 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_G_TUNER:
 	{
 		struct v4l2_tuner *p=arg;
+		__u32 index=p->index;
+
 		if (!vfd->vidioc_g_tuner)
 			break;
+
+		memset(p,0,sizeof(*p));
+		p->index=index;
+
 		ret=vfd->vidioc_g_tuner(file, fh, p);
 		if (!ret)
 			dbgarg (cmd, "index=%d, name=%s, type=%d, "
@@ -1363,6 +1373,9 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 		struct v4l2_frequency *p=arg;
 		if (!vfd->vidioc_g_frequency)
 			break;
+
+		memset(p,0,sizeof(*p));
+
 		ret=vfd->vidioc_g_frequency(file, fh, p);
 		if (!ret)
 			dbgarg (cmd, "tuner=%d, type=%d, frequency=%d\n",
