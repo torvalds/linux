@@ -143,14 +143,14 @@ static void msp430_ir_debounce(unsigned long data)
 	struct input_dev *dev = (struct input_dev *) data;
 
 	if (dev->rep[0] == 0 || dev->rep[0] == ~0) {
-		input_event(dev, EV_KEY, key_map[dev->repeat_key], !!0);
-		return;
+		input_event(dev, EV_KEY, key_map[dev->repeat_key], 0);
+	} else {
+		dev->rep[0] = 0;
+		dev->timer.expires = jiffies + HZ * 350 / 1000;
+		add_timer(&dev->timer);
+		input_event(dev, EV_KEY, key_map[dev->repeat_key], 2);	/* REPEAT */
 	}
-
-	dev->rep[0] = 0;
-	dev->timer.expires = jiffies + HZ * 350 / 1000;
-	add_timer(&dev->timer);
-	input_event(dev, EV_KEY, key_map[dev->repeat_key], 2);	/* REPEAT */
+	input_sync(dev);
 }
 
 static void msp430_ir_interrupt(unsigned long data)
@@ -169,7 +169,7 @@ static void msp430_ir_interrupt(unsigned long data)
 				return;
 			}
 			del_timer(&dev->timer);
-			input_event(dev, EV_KEY, key_map[dev->repeat_key], !!0);
+			input_event(dev, EV_KEY, key_map[dev->repeat_key], 0);
 		}
 
 		if (!key_map[code]) {
@@ -177,15 +177,14 @@ static void msp430_ir_interrupt(unsigned long data)
 			return;
 		}
 
+		input_event(dev, EV_KEY, key_map[code], 1);
+		input_sync(dev);
+
 		/* initialize debounce and repeat */
 		dev->repeat_key = code;
 		/* Zenith remote _always_ sends 2 sequences */
 		dev->rep[0] = ~0;
-		/* 350 milliseconds */
-		dev->timer.expires = jiffies + HZ * 350 / 1000;
-		/* MAKE */
-		input_event(dev, EV_KEY, key_map[code], !0);
-		add_timer(&dev->timer);
+		mod_timer(&dev->timer, jiffies + msecs_to_jiffies(350));
 	}
 }
 
@@ -194,8 +193,9 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	struct saa7146_dev *saa = budget_ci->budget.dev;
 	struct input_dev *input_dev;
 	int i;
+	int err;
 
-	budget_ci->input_dev = input_dev = input_allocate_device();
+	input_dev = input_allocate_device();
 	if (!input_dev)
 		return -ENOMEM;
 
@@ -208,9 +208,15 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 		if (key_map[i])
 			set_bit(key_map[i], input_dev->keybit);
 
-	input_register_device(budget_ci->input_dev);
+	err = input_register_device(input_dev);
+	if (err) {
+		input_free_device(input_dev);
+		return err;
+	}
 
 	input_dev->timer.function = msp430_ir_debounce;
+
+	budget_ci->input_dev = input_dev;
 
 	saa7146_write(saa, IER, saa7146_read(saa, IER) | MASK_06);
 	saa7146_setgpio(saa, 3, SAA7146_GPIO_IRQHI);
@@ -226,8 +232,10 @@ static void msp430_ir_deinit(struct budget_ci *budget_ci)
 	saa7146_write(saa, IER, saa7146_read(saa, IER) & ~MASK_06);
 	saa7146_setgpio(saa, 3, SAA7146_GPIO_INPUT);
 
-	if (del_timer(&dev->timer))
-		input_event(dev, EV_KEY, key_map[dev->repeat_key], !!0);
+	if (del_timer(&dev->timer)) {
+		input_event(dev, EV_KEY, key_map[dev->repeat_key], 0);
+		input_sync(dev);
+	}
 
 	input_unregister_device(dev);
 }

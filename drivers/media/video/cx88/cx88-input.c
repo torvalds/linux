@@ -155,6 +155,35 @@ static void cx88_ir_work(struct work_struct *work)
 	mod_timer(&ir->timer, timeout);
 }
 
+static void cx88_ir_start(struct cx88_core *core, struct cx88_IR *ir)
+{
+	if (ir->polling) {
+		INIT_WORK(&ir->work, cx88_ir_work, ir);
+		init_timer(&ir->timer);
+		ir->timer.function = ir_timer;
+		ir->timer.data = (unsigned long)ir;
+		schedule_work(&ir->work);
+	}
+	if (ir->sampling) {
+		core->pci_irqmask |= (1 << 18);	/* IR_SMP_INT */
+		cx_write(MO_DDS_IO, 0xa80a80);	/* 4 kHz sample rate */
+		cx_write(MO_DDSCFG_IO, 0x5);	/* enable */
+	}
+}
+
+static void cx88_ir_stop(struct cx88_core *core, struct cx88_IR *ir)
+{
+	if (ir->sampling) {
+		cx_write(MO_DDSCFG_IO, 0x0);
+		core->pci_irqmask &= ~(1 << 18);
+	}
+
+	if (ir->polling) {
+		del_timer_sync(&ir->timer);
+		flush_scheduled_work();
+	}
+}
+
 /* ---------------------------------------------------------------------- */
 
 int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
@@ -163,14 +192,12 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	struct input_dev *input_dev;
 	IR_KEYTAB_TYPE *ir_codes = NULL;
 	int ir_type = IR_TYPE_OTHER;
+	int err = -ENOMEM;
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
 	input_dev = input_allocate_device();
-	if (!ir || !input_dev) {
-		kfree(ir);
-		input_free_device(input_dev);
-		return -ENOMEM;
-	}
+	if (!ir || !input_dev)
+		goto err_out_free;
 
 	ir->input = input_dev;
 
@@ -280,9 +307,8 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	}
 
 	if (NULL == ir_codes) {
-		kfree(ir);
-		input_free_device(input_dev);
-		return -ENODEV;
+		err = -ENODEV;
+		goto err_out_free;
 	}
 
 	/* init input device */
@@ -307,23 +333,22 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	ir->core = core;
 	core->ir = ir;
 
-	if (ir->polling) {
-		INIT_WORK(&ir->work, cx88_ir_work);
-		init_timer(&ir->timer);
-		ir->timer.function = ir_timer;
-		ir->timer.data = (unsigned long)ir;
-		schedule_work(&ir->work);
-	}
-	if (ir->sampling) {
-		core->pci_irqmask |= (1 << 18);	/* IR_SMP_INT */
-		cx_write(MO_DDS_IO, 0xa80a80);	/* 4 kHz sample rate */
-		cx_write(MO_DDSCFG_IO, 0x5);	/* enable */
-	}
+	cx88_ir_start(core, ir);
 
 	/* all done */
-	input_register_device(ir->input);
+	err = input_register_device(ir->input);
+	if (err)
+		goto err_out_stop;
 
 	return 0;
+
+ err_out_stop:
+	cx88_ir_stop(core, ir);
+	core->ir = NULL;
+ err_out_free:
+	input_free_device(input_dev);
+	kfree(ir);
+	return err;
 }
 
 int cx88_ir_fini(struct cx88_core *core)
@@ -334,15 +359,7 @@ int cx88_ir_fini(struct cx88_core *core)
 	if (NULL == ir)
 		return 0;
 
-	if (ir->sampling) {
-		cx_write(MO_DDSCFG_IO, 0x0);
-		core->pci_irqmask &= ~(1 << 18);
-	}
-	if (ir->polling) {
-		del_timer(&ir->timer);
-		flush_scheduled_work();
-	}
-
+	cx88_ir_stop(core, ir);
 	input_unregister_device(ir->input);
 	kfree(ir);
 

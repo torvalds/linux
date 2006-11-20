@@ -746,6 +746,7 @@ static void cinergyt2_query_rc (struct work_struct *work)
 				dprintk(1, "rc_input_event=%d Up\n", cinergyt2->rc_input_event);
 				input_report_key(cinergyt2->rc_input_dev,
 						 cinergyt2->rc_input_event, 0);
+				input_sync(cinergyt2->rc_input_dev);
 				cinergyt2->rc_input_event = KEY_MAX;
 			}
 			cinergyt2->rc_last_code = ~0;
@@ -783,6 +784,7 @@ static void cinergyt2_query_rc (struct work_struct *work)
 			dprintk(1, "rc_input_event=%d\n", cinergyt2->rc_input_event);
 			input_report_key(cinergyt2->rc_input_dev,
 					 cinergyt2->rc_input_event, 1);
+			input_sync(cinergyt2->rc_input_dev);
 			cinergyt2->rc_last_code = rc_events[n].value;
 		}
 	}
@@ -798,8 +800,9 @@ static int cinergyt2_register_rc(struct cinergyt2 *cinergyt2)
 {
 	struct input_dev *input_dev;
 	int i;
+	int err;
 
-	cinergyt2->rc_input_dev = input_dev = input_allocate_device();
+	input_dev = input_allocate_device();
 	if (!input_dev)
 		return -ENOMEM;
 
@@ -817,7 +820,13 @@ static int cinergyt2_register_rc(struct cinergyt2 *cinergyt2)
 	input_dev->keycodesize = 0;
 	input_dev->keycodemax = 0;
 
-	input_register_device(cinergyt2->rc_input_dev);
+	err = input_register_device(input_dev);
+	if (err) {
+		input_free_device(input_dev);
+		return err;
+	}
+
+	cinergyt2->rc_input_dev = input_dev;
 	schedule_delayed_work(&cinergyt2->rc_query_work, HZ/2);
 
 	return 0;

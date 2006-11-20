@@ -131,6 +131,23 @@ static void saa7134_input_timer(unsigned long data)
 	mod_timer(&ir->timer, timeout);
 }
 
+static void saa7134_ir_start(struct saa7134_dev *dev, struct saa7134_ir *ir)
+{
+	if (ir->polling) {
+		init_timer(&ir->timer);
+		ir->timer.function = saa7134_input_timer;
+		ir->timer.data     = (unsigned long)dev;
+		ir->timer.expires  = jiffies + HZ;
+		add_timer(&ir->timer);
+	}
+}
+
+static void saa7134_ir_stop(struct saa7134_dev *dev)
+{
+	if (dev->remote->polling)
+		del_timer_sync(&dev->remote->timer);
+}
+
 int saa7134_input_init1(struct saa7134_dev *dev)
 {
 	struct saa7134_ir *ir;
@@ -141,6 +158,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	u32 mask_keyup   = 0;
 	int polling      = 0;
 	int ir_type      = IR_TYPE_OTHER;
+	int err;
 
 	if (dev->has_remote != SAA7134_REMOTE_GPIO)
 		return -ENODEV;
@@ -267,9 +285,8 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!ir || !input_dev) {
-		kfree(ir);
-		input_free_device(input_dev);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_out_free;
 	}
 
 	ir->dev = input_dev;
@@ -300,18 +317,22 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	}
 	input_dev->cdev.dev = &dev->pci->dev;
 
-	/* all done */
 	dev->remote = ir;
-	if (ir->polling) {
-		init_timer(&ir->timer);
-		ir->timer.function = saa7134_input_timer;
-		ir->timer.data     = (unsigned long)dev;
-		ir->timer.expires  = jiffies + HZ;
-		add_timer(&ir->timer);
-	}
+	saa7134_ir_start(dev, ir);
 
-	input_register_device(ir->dev);
+	err = input_register_device(ir->dev);
+	if (err)
+		goto err_out_stop;
+
 	return 0;
+
+ err_out_stop:
+	saa7134_ir_stop(dev);
+	dev->remote = NULL;
+ err_out_free:
+	input_free_device(input_dev);
+	kfree(ir);
+	return err;
 }
 
 void saa7134_input_fini(struct saa7134_dev *dev)
@@ -319,8 +340,7 @@ void saa7134_input_fini(struct saa7134_dev *dev)
 	if (NULL == dev->remote)
 		return;
 
-	if (dev->remote->polling)
-		del_timer_sync(&dev->remote->timer);
+	saa7134_ir_stop(dev);
 	input_unregister_device(dev->remote->dev);
 	kfree(dev->remote);
 	dev->remote = NULL;
