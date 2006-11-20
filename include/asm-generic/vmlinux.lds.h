@@ -215,6 +215,8 @@
 		.notes : { *(.note.*) } :note
 
 #define INITCALLS							\
+  	*(.initcall0.init)						\
+  	*(.initcall0s.init)						\
   	*(.initcall1.init)						\
   	*(.initcall1s.init)						\
   	*(.initcall2.init)						\

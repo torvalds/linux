@@ -59,7 +59,7 @@ static int __init init_cpufreq_transition_notifier_list(void)
 	srcu_init_notifier_head(&cpufreq_transition_notifier_list);
 	return 0;
 }
-core_initcall(init_cpufreq_transition_notifier_list);
+pure_initcall(init_cpufreq_transition_notifier_list);
 
 static LIST_HEAD(cpufreq_governor_list);
 static DEFINE_MUTEX (cpufreq_governor_mutex);
