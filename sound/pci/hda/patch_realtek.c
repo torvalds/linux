@@ -5480,6 +5480,8 @@ static struct hda_board_config alc883_cfg_tbl[] = {
 	{ .pci_subvendor = 0x161f, .pci_subdevice = 0x2054,
 	  .modelname = "medion", .config = ALC883_MEDION },
 	{ .modelname = "laptop-eapd", .config = ALC883_LAPTOP_EAPD },
+	{ .pci_subvendor = 0x1071, .pci_subdevice = 0x8258,
+	  .config = ALC883_LAPTOP_EAPD }, /* Evesham Voyager C530RD */
 	{ .pci_subvendor = 0x1558, .pci_subdevice = 0,
 	  .config = ALC883_LAPTOP_EAPD }, /* Clevo */
 	{ .modelname = "auto", .config = ALC883_AUTO },
