@@ -350,6 +350,7 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 		struct video_buffer	*buffer = arg;
 
 		memset(buffer, 0, sizeof(*buffer));
+		memset(&fbuf2, 0, sizeof(fbuf2));
 
 		err = drv(inode, file, VIDIOC_G_FBUF, &fbuf2);
 		if (err < 0) {
@@ -616,6 +617,7 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 	case VIDIOCSPICT: /*  set tone controls & partial capture format  */
 	{
 		struct video_picture	*pict = arg;
+		memset(&fbuf2, 0, sizeof(fbuf2));
 
 		set_v4l_control(inode, file,
 				V4L2_CID_BRIGHTNESS, pict->brightness, drv);
