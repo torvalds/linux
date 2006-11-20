@@ -29,6 +29,7 @@
 
 #include <asm/spu.h>
 #include <asm/spu_csa.h>
+#include <asm/spu_info.h>
 
 /* The magic number for our file system */
 enum {
@@ -119,8 +120,12 @@ struct spu_context_ops {
 	int (*set_mfc_query)(struct spu_context * ctx, u32 mask, u32 mode);
 	u32 (*read_mfc_tagstatus)(struct spu_context * ctx);
 	u32 (*get_mfc_free_elements)(struct spu_context *ctx);
-	int (*send_mfc_command)(struct spu_context *ctx,
-					struct mfc_dma_command *cmd);
+	int (*send_mfc_command)(struct spu_context * ctx,
+				struct mfc_dma_command * cmd);
+	void (*dma_info_read) (struct spu_context * ctx,
+			       struct spu_dma_info * info);
+	void (*proxydma_info_read) (struct spu_context * ctx,
+				    struct spu_proxydma_info * info);
 };
 
 extern struct spu_context_ops spu_hw_ops;

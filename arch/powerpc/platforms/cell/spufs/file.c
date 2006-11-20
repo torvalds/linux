@@ -32,6 +32,7 @@
 #include <asm/io.h>
 #include <asm/semaphore.h>
 #include <asm/spu.h>
+#include <asm/spu_info.h>
 #include <asm/uaccess.h>
 
 #include "spufs.h"
@@ -1482,6 +1483,23 @@ static u64 spufs_event_mask_get(void *data)
 DEFINE_SIMPLE_ATTRIBUTE(spufs_event_mask_ops, spufs_event_mask_get,
 			spufs_event_mask_set, "0x%llx\n")
 
+static u64 spufs_event_status_get(void *data)
+{
+	struct spu_context *ctx = data;
+	struct spu_state *state = &ctx->csa;
+	u64 ret = 0;
+	u64 stat;
+
+	spu_acquire_saved(ctx);
+	stat = state->spu_chnlcnt_RW[0];
+	if (stat)
+		ret = state->spu_chnldata_RW[0];
+	spu_release(ctx);
+	return ret;
+}
+DEFINE_SIMPLE_ATTRIBUTE(spufs_event_status_ops, spufs_event_status_get,
+			NULL, "0x%llx\n")
+
 static void spufs_srr0_set(void *data, u64 val)
 {
 	struct spu_context *ctx = data;
@@ -1535,6 +1553,109 @@ static void spufs_object_id_set(void *data, u64 id)
 DEFINE_SIMPLE_ATTRIBUTE(spufs_object_id_ops, spufs_object_id_get,
 		spufs_object_id_set, "0x%llx\n");
 
+static u64 spufs_lslr_get(void *data)
+{
+	struct spu_context *ctx = data;
+	u64 ret;
+
+	spu_acquire_saved(ctx);
+	ret = ctx->csa.priv2.spu_lslr_RW;
+	spu_release(ctx);
+
+	return ret;
+}
+DEFINE_SIMPLE_ATTRIBUTE(spufs_lslr_ops, spufs_lslr_get, NULL, "0x%llx\n")
+
+static int spufs_info_open(struct inode *inode, struct file *file)
+{
+	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spu_context *ctx = i->i_ctx;
+	file->private_data = ctx;
+	return 0;
+}
+
+static ssize_t spufs_dma_info_read(struct file *file, char __user *buf,
+			      size_t len, loff_t *pos)
+{
+	struct spu_context *ctx = file->private_data;
+	struct spu_dma_info info;
+	struct mfc_cq_sr *qp, *spuqp;
+	int i;
+
+	if (!access_ok(VERIFY_WRITE, buf, len))
+		return -EFAULT;
+
+	spu_acquire_saved(ctx);
+	spin_lock(&ctx->csa.register_lock);
+	info.dma_info_type = ctx->csa.priv2.spu_tag_status_query_RW;
+	info.dma_info_mask = ctx->csa.lscsa->tag_mask.slot[0];
+	info.dma_info_status = ctx->csa.spu_chnldata_RW[24];
+	info.dma_info_stall_and_notify = ctx->csa.spu_chnldata_RW[25];
+	info.dma_info_atomic_command_status = ctx->csa.spu_chnldata_RW[27];
+	for (i = 0; i < 16; i++) {
+		qp = &info.dma_info_command_data[i];
+		spuqp = &ctx->csa.priv2.spuq[i];
+
+		qp->mfc_cq_data0_RW = spuqp->mfc_cq_data0_RW;
+		qp->mfc_cq_data1_RW = spuqp->mfc_cq_data1_RW;
+		qp->mfc_cq_data2_RW = spuqp->mfc_cq_data2_RW;
+		qp->mfc_cq_data3_RW = spuqp->mfc_cq_data3_RW;
+	}
+	spin_unlock(&ctx->csa.register_lock);
+	spu_release(ctx);
+
+	return simple_read_from_buffer(buf, len, pos, &info,
+				sizeof info);
+}
+
+static struct file_operations spufs_dma_info_fops = {
+	.open = spufs_info_open,
+	.read = spufs_dma_info_read,
+};
+
+static ssize_t spufs_proxydma_info_read(struct file *file, char __user *buf,
+				   size_t len, loff_t *pos)
+{
+	struct spu_context *ctx = file->private_data;
+	struct spu_proxydma_info info;
+	int ret = sizeof info;
+	struct mfc_cq_sr *qp, *puqp;
+	int i;
+
+	if (len < ret)
+		return -EINVAL;
+
+	if (!access_ok(VERIFY_WRITE, buf, len))
+		return -EFAULT;
+
+	spu_acquire_saved(ctx);
+	spin_lock(&ctx->csa.register_lock);
+	info.proxydma_info_type = ctx->csa.prob.dma_querytype_RW;
+	info.proxydma_info_mask = ctx->csa.prob.dma_querymask_RW;
+	info.proxydma_info_status = ctx->csa.prob.dma_tagstatus_R;
+	for (i = 0; i < 8; i++) {
+		qp = &info.proxydma_info_command_data[i];
+		puqp = &ctx->csa.priv2.puq[i];
+
+		qp->mfc_cq_data0_RW = puqp->mfc_cq_data0_RW;
+		qp->mfc_cq_data1_RW = puqp->mfc_cq_data1_RW;
+		qp->mfc_cq_data2_RW = puqp->mfc_cq_data2_RW;
+		qp->mfc_cq_data3_RW = puqp->mfc_cq_data3_RW;
+	}
+	spin_unlock(&ctx->csa.register_lock);
+	spu_release(ctx);
+
+	if (copy_to_user(buf, &info, sizeof info))
+		ret = -EFAULT;
+
+	return ret;
+}
+
+static struct file_operations spufs_proxydma_info_fops = {
+	.open = spufs_info_open,
+	.read = spufs_proxydma_info_read,
+};
+
 struct tree_descr spufs_dir_contents[] = {
 	{ "mem",  &spufs_mem_fops,  0666, },
 	{ "regs", &spufs_regs_fops,  0666, },
@@ -1548,19 +1669,23 @@ struct tree_descr spufs_dir_contents[] = {
 	{ "signal2", &spufs_signal2_fops, 0666, },
 	{ "signal1_type", &spufs_signal1_type, 0666, },
 	{ "signal2_type", &spufs_signal2_type, 0666, },
-	{ "mss", &spufs_mss_fops, 0666, },
-	{ "mfc", &spufs_mfc_fops, 0666, },
 	{ "cntl", &spufs_cntl_fops,  0666, },
-	{ "npc", &spufs_npc_ops, 0666, },
 	{ "fpcr", &spufs_fpcr_fops, 0666, },
+	{ "lslr", &spufs_lslr_ops, 0444, },
+	{ "mfc", &spufs_mfc_fops, 0666, },
+	{ "mss", &spufs_mss_fops, 0666, },
+	{ "npc", &spufs_npc_ops, 0666, },
+	{ "srr0", &spufs_srr0_ops, 0666, },
 	{ "decr", &spufs_decr_ops, 0666, },
 	{ "decr_status", &spufs_decr_status_ops, 0666, },
 	{ "spu_tag_mask", &spufs_spu_tag_mask_ops, 0666, },
 	{ "event_mask", &spufs_event_mask_ops, 0666, },
-	{ "srr0", &spufs_srr0_ops, 0666, },
+	{ "event_status", &spufs_event_status_ops, 0444, },
 	{ "psmap", &spufs_psmap_fops, 0666, },
 	{ "phys-id", &spufs_id_ops, 0666, },
 	{ "object-id", &spufs_object_id_ops, 0666, },
+	{ "dma_info", &spufs_dma_info_fops, 0444, },
+	{ "proxydma_info", &spufs_proxydma_info_fops, 0444, },
 	{},
 };
 
