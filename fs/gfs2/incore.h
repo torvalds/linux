@@ -14,8 +14,6 @@
 
 #define DIO_WAIT	0x00000010
 #define DIO_METADATA	0x00000020
-#define DIO_DATA	0x00000040
-#define DIO_RELEASE	0x00000080
 #define DIO_ALL		0x00000100
 
 struct gfs2_log_operations;
@@ -103,18 +101,17 @@ struct gfs2_bufdata {
 };
 
 struct gfs2_glock_operations {
-	void (*go_xmote_th) (struct gfs2_glock * gl, unsigned int state,
-			     int flags);
-	void (*go_xmote_bh) (struct gfs2_glock * gl);
-	void (*go_drop_th) (struct gfs2_glock * gl);
-	void (*go_drop_bh) (struct gfs2_glock * gl);
-	void (*go_sync) (struct gfs2_glock * gl, int flags);
-	void (*go_inval) (struct gfs2_glock * gl, int flags);
-	int (*go_demote_ok) (struct gfs2_glock * gl);
-	int (*go_lock) (struct gfs2_holder * gh);
-	void (*go_unlock) (struct gfs2_holder * gh);
-	void (*go_callback) (struct gfs2_glock * gl, unsigned int state);
-	void (*go_greedy) (struct gfs2_glock * gl);
+	void (*go_xmote_th) (struct gfs2_glock *gl, unsigned int state, int flags);
+	void (*go_xmote_bh) (struct gfs2_glock *gl);
+	void (*go_drop_th) (struct gfs2_glock *gl);
+	void (*go_drop_bh) (struct gfs2_glock *gl);
+	void (*go_sync) (struct gfs2_glock *gl);
+	void (*go_inval) (struct gfs2_glock *gl, int flags);
+	int (*go_demote_ok) (struct gfs2_glock *gl);
+	int (*go_lock) (struct gfs2_holder *gh);
+	void (*go_unlock) (struct gfs2_holder *gh);
+	void (*go_callback) (struct gfs2_glock *gl, unsigned int state);
+	void (*go_greedy) (struct gfs2_glock *gl);
 	const int go_type;
 };
 

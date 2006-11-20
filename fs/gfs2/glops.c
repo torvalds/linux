@@ -173,23 +173,18 @@ static void gfs2_page_writeback(struct gfs2_glock *gl)
 /**
  * meta_go_sync - sync out the metadata for this glock
  * @gl: the glock
- * @flags: DIO_*
  *
  * Called when demoting or unlocking an EX glock.  We must flush
  * to disk all dirty buffers/pages relating to this glock, and must not
  * not return to caller to demote/unlock the glock until I/O is complete.
  */
 
-static void meta_go_sync(struct gfs2_glock *gl, int flags)
+static void meta_go_sync(struct gfs2_glock *gl)
 {
-	if (!(flags & DIO_METADATA))
-		return;
-
 	if (test_and_clear_bit(GLF_DIRTY, &gl->gl_flags)) {
 		gfs2_log_flush(gl->gl_sbd, gl);
 		gfs2_meta_sync(gl);
-		if (flags & DIO_RELEASE)
-			gfs2_ail_empty_gl(gl);
+		gfs2_ail_empty_gl(gl);
 	}
 
 }
@@ -264,31 +259,18 @@ static void inode_go_drop_th(struct gfs2_glock *gl)
 /**
  * inode_go_sync - Sync the dirty data and/or metadata for an inode glock
  * @gl: the glock protecting the inode
- * @flags:
  *
  */
 
-static void inode_go_sync(struct gfs2_glock *gl, int flags)
+static void inode_go_sync(struct gfs2_glock *gl)
 {
-	int meta = (flags & DIO_METADATA);
-	int data = (flags & DIO_DATA);
-
 	if (test_bit(GLF_DIRTY, &gl->gl_flags)) {
-		if (meta && data) {
-			gfs2_page_writeback(gl);
-			gfs2_log_flush(gl->gl_sbd, gl);
-			gfs2_meta_sync(gl);
-			gfs2_page_wait(gl);
-			clear_bit(GLF_DIRTY, &gl->gl_flags);
-		} else if (meta) {
-			gfs2_log_flush(gl->gl_sbd, gl);
-			gfs2_meta_sync(gl);
-		} else if (data) {
-			gfs2_page_writeback(gl);
-			gfs2_page_wait(gl);
-		}
-		if (flags & DIO_RELEASE)
-			gfs2_ail_empty_gl(gl);
+		gfs2_page_writeback(gl);
+		gfs2_log_flush(gl->gl_sbd, gl);
+		gfs2_meta_sync(gl);
+		gfs2_page_wait(gl);
+		clear_bit(GLF_DIRTY, &gl->gl_flags);
+		gfs2_ail_empty_gl(gl);
 	}
 }
 
@@ -302,15 +284,13 @@ static void inode_go_sync(struct gfs2_glock *gl, int flags)
 static void inode_go_inval(struct gfs2_glock *gl, int flags)
 {
 	int meta = (flags & DIO_METADATA);
-	int data = (flags & DIO_DATA);
 
 	if (meta) {
 		struct gfs2_inode *ip = gl->gl_object;
 		gfs2_meta_inval(gl);
 		set_bit(GIF_INVALID, &ip->i_flags);
 	}
-	if (data)
-		gfs2_page_inval(gl);
+	gfs2_page_inval(gl);
 }
 
 /**
@@ -494,7 +474,7 @@ static void trans_go_xmote_bh(struct gfs2_glock *gl)
 	if (gl->gl_state != LM_ST_UNLOCKED &&
 	    test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags)) {
 		gfs2_meta_cache_flush(GFS2_I(sdp->sd_jdesc->jd_inode));
-		j_gl->gl_ops->go_inval(j_gl, DIO_METADATA | DIO_DATA);
+		j_gl->gl_ops->go_inval(j_gl, DIO_METADATA);
 
 		error = gfs2_find_jhead(sdp->sd_jdesc, &head);
 		if (error)

@@ -847,12 +847,12 @@ static void xmote_bh(struct gfs2_glock *gl, unsigned int ret)
 
 	if (prev_state != LM_ST_UNLOCKED && !(ret & LM_OUT_CACHEABLE)) {
 		if (glops->go_inval)
-			glops->go_inval(gl, DIO_METADATA | DIO_DATA);
+			glops->go_inval(gl, DIO_METADATA);
 	} else if (gl->gl_state == LM_ST_DEFERRED) {
 		/* We might not want to do this here.
 		   Look at moving to the inode glops. */
 		if (glops->go_inval)
-			glops->go_inval(gl, DIO_DATA);
+			glops->go_inval(gl, 0);
 	}
 
 	/*  Deal with each possible exit condition  */
@@ -954,7 +954,7 @@ void gfs2_glock_xmote_th(struct gfs2_glock *gl, unsigned int state, int flags)
 	gfs2_assert_warn(sdp, state != gl->gl_state);
 
 	if (gl->gl_state == LM_ST_EXCLUSIVE && glops->go_sync)
-		glops->go_sync(gl, DIO_METADATA | DIO_DATA | DIO_RELEASE);
+		glops->go_sync(gl);
 
 	gfs2_glock_hold(gl);
 	gl->gl_req_bh = xmote_bh;
@@ -995,7 +995,7 @@ static void drop_bh(struct gfs2_glock *gl, unsigned int ret)
 	state_change(gl, LM_ST_UNLOCKED);
 
 	if (glops->go_inval)
-		glops->go_inval(gl, DIO_METADATA | DIO_DATA);
+		glops->go_inval(gl, DIO_METADATA);
 
 	if (gh) {
 		spin_lock(&gl->gl_spin);
@@ -1041,7 +1041,7 @@ void gfs2_glock_drop_th(struct gfs2_glock *gl)
 	gfs2_assert_warn(sdp, gl->gl_state != LM_ST_UNLOCKED);
 
 	if (gl->gl_state == LM_ST_EXCLUSIVE && glops->go_sync)
-		glops->go_sync(gl, DIO_METADATA | DIO_DATA | DIO_RELEASE);
+		glops->go_sync(gl);
 
 	gfs2_glock_hold(gl);
 	gl->gl_req_bh = drop_bh;

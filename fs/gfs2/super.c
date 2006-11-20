@@ -517,7 +517,7 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 		return error;
 
 	gfs2_meta_cache_flush(ip);
-	j_gl->gl_ops->go_inval(j_gl, DIO_METADATA | DIO_DATA);
+	j_gl->gl_ops->go_inval(j_gl, DIO_METADATA);
 
 	error = gfs2_find_jhead(sdp->sd_jdesc, &head);
 	if (error)
