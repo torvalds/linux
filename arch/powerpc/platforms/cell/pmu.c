@@ -85,6 +85,7 @@ u32 cbe_read_phys_ctr(u32 cpu, u32 phys_ctr)
 
 	return val;
 }
+EXPORT_SYMBOL_GPL(cbe_read_phys_ctr);
 
 void cbe_write_phys_ctr(u32 cpu, u32 phys_ctr, u32 val)
 {
@@ -111,6 +112,7 @@ void cbe_write_phys_ctr(u32 cpu, u32 phys_ctr, u32 val)
 		}
 	}
 }
+EXPORT_SYMBOL_GPL(cbe_write_phys_ctr);
 
 /*
  * "Logical" counter registers.
@@ -130,6 +132,7 @@ u32 cbe_read_ctr(u32 cpu, u32 ctr)
 
 	return val;
 }
+EXPORT_SYMBOL_GPL(cbe_read_ctr);
 
 void cbe_write_ctr(u32 cpu, u32 ctr, u32 val)
 {
@@ -149,6 +152,7 @@ void cbe_write_ctr(u32 cpu, u32 ctr, u32 val)
 
 	cbe_write_phys_ctr(cpu, phys_ctr, val);
 }
+EXPORT_SYMBOL_GPL(cbe_write_ctr);
 
 /*
  * Counter-control registers.
@@ -164,12 +168,14 @@ u32 cbe_read_pm07_control(u32 cpu, u32 ctr)
 
 	return pm07_control;
 }
+EXPORT_SYMBOL_GPL(cbe_read_pm07_control);
 
 void cbe_write_pm07_control(u32 cpu, u32 ctr, u32 val)
 {
 	if (ctr < NR_CTRS)
 		WRITE_WO_MMIO(pm07_control[ctr], val);
 }
+EXPORT_SYMBOL_GPL(cbe_write_pm07_control);
 
 /*
  * Other PMU control registers. Most of these are write-only.
@@ -215,6 +221,7 @@ u32 cbe_read_pm(u32 cpu, enum pm_reg_name reg)
 
 	return val;
 }
+EXPORT_SYMBOL_GPL(cbe_read_pm);
 
 void cbe_write_pm(u32 cpu, enum pm_reg_name reg, u32 val)
 {
@@ -252,6 +259,7 @@ void cbe_write_pm(u32 cpu, enum pm_reg_name reg, u32 val)
 		break;
 	}
 }
+EXPORT_SYMBOL_GPL(cbe_write_pm);
 
 /*
  * Get/set the size of a physical counter to either 16 or 32 bits.
@@ -268,6 +276,7 @@ u32 cbe_get_ctr_size(u32 cpu, u32 phys_ctr)
 
 	return size;
 }
+EXPORT_SYMBOL_GPL(cbe_get_ctr_size);
 
 void cbe_set_ctr_size(u32 cpu, u32 phys_ctr, u32 ctr_size)
 {
@@ -287,6 +296,7 @@ void cbe_set_ctr_size(u32 cpu, u32 phys_ctr, u32 ctr_size)
 		cbe_write_pm(cpu, pm_control, pm_ctrl);
 	}
 }
+EXPORT_SYMBOL_GPL(cbe_set_ctr_size);
 
 /*
  * Enable/disable the entire performance monitoring unit.
@@ -304,6 +314,7 @@ void cbe_enable_pm(u32 cpu)
 	pm_ctrl = cbe_read_pm(cpu, pm_control) | CBE_PM_ENABLE_PERF_MON;
 	cbe_write_pm(cpu, pm_control, pm_ctrl);
 }
+EXPORT_SYMBOL_GPL(cbe_enable_pm);
 
 void cbe_disable_pm(u32 cpu)
 {
@@ -311,6 +322,7 @@ void cbe_disable_pm(u32 cpu)
 	pm_ctrl = cbe_read_pm(cpu, pm_control) & ~CBE_PM_ENABLE_PERF_MON;
 	cbe_write_pm(cpu, pm_control, pm_ctrl);
 }
+EXPORT_SYMBOL_GPL(cbe_disable_pm);
 
 /*
  * Reading from the trace_buffer.
@@ -325,4 +337,5 @@ void cbe_read_trace_buffer(u32 cpu, u64 *buf)
 	*buf++ = in_be64(&pmd_regs->trace_buffer_0_63);
 	*buf++ = in_be64(&pmd_regs->trace_buffer_64_127);
 }
+EXPORT_SYMBOL_GPL(cbe_read_trace_buffer);
 
