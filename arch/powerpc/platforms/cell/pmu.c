@@ -22,9 +22,11 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/interrupt.h>
 #include <linux/types.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
+#include <asm/pmc.h>
 #include <asm/reg.h>
 #include <asm/spu.h>
 
@@ -337,4 +339,72 @@ void cbe_read_trace_buffer(u32 cpu, u64 *buf)
 	*buf++ = in_be64(&pmd_regs->trace_buffer_64_127);
 }
 EXPORT_SYMBOL_GPL(cbe_read_trace_buffer);
+
+/*
+ * Enabling/disabling interrupts for the entire performance monitoring unit.
+ */
+
+u32 cbe_query_pm_interrupts(u32 cpu)
+{
+	return cbe_read_pm(cpu, pm_status);
+}
+EXPORT_SYMBOL_GPL(cbe_query_pm_interrupts);
+
+u32 cbe_clear_pm_interrupts(u32 cpu)
+{
+	/* Reading pm_status clears the interrupt bits. */
+	return cbe_query_pm_interrupts(cpu);
+}
+EXPORT_SYMBOL_GPL(cbe_clear_pm_interrupts);
+
+void cbe_enable_pm_interrupts(u32 cpu, u32 thread, u32 mask)
+{
+	/* Set which node and thread will handle the next interrupt. */
+	iic_set_interrupt_routing(cpu, thread, 0);
+
+	/* Enable the interrupt bits in the pm_status register. */
+	if (mask)
+		cbe_write_pm(cpu, pm_status, mask);
+}
+EXPORT_SYMBOL_GPL(cbe_enable_pm_interrupts);
+
+void cbe_disable_pm_interrupts(u32 cpu)
+{
+	cbe_clear_pm_interrupts(cpu);
+	cbe_write_pm(cpu, pm_status, 0);
+}
+EXPORT_SYMBOL_GPL(cbe_disable_pm_interrupts);
+
+static irqreturn_t cbe_pm_irq(int irq, void *dev_id, struct pt_regs *regs)
+{
+	perf_irq(regs);
+	return IRQ_HANDLED;
+}
+
+int __init cbe_init_pm_irq(void)
+{
+	unsigned int irq;
+	int rc, node;
+
+	for_each_node(node) {
+		irq = irq_create_mapping(NULL, IIC_IRQ_IOEX_PMI |
+					       (node << IIC_IRQ_NODE_SHIFT));
+		if (irq == NO_IRQ) {
+			printk("ERROR: Unable to allocate irq for node %d\n",
+			       node);
+			return -EINVAL;
+		}
+
+		rc = request_irq(irq, cbe_pm_irq,
+				 IRQF_DISABLED, "cbe-pmu-0", NULL);
+		if (rc) {
+			printk("ERROR: Request for irq on node %d failed\n",
+			       node);
+			return rc;
+		}
+	}
+
+	return 0;
+}
+arch_initcall(cbe_init_pm_irq);
 

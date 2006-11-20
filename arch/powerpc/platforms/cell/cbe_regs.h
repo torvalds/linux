@@ -185,6 +185,14 @@ struct cbe_iic_regs {
 	struct	cbe_iic_thread_regs thread[2];			/* 0x0400 */
 
 	u64	iic_ir;						/* 0x0440 */
+#define CBE_IIC_IR_PRIO(x)      (((x) & 0xf) << 12)
+#define CBE_IIC_IR_DEST_NODE(x) (((x) & 0xf) << 4)
+#define CBE_IIC_IR_DEST_UNIT(x) ((x) & 0xf)
+#define CBE_IIC_IR_IOC_0        0x0
+#define CBE_IIC_IR_IOC_1S       0xb
+#define CBE_IIC_IR_PT_0         0xe
+#define CBE_IIC_IR_PT_1         0xf
+
 	u64	iic_is;						/* 0x0448 */
 #define CBE_IIC_IS_PMI		0x2
 
