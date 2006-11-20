@@ -135,19 +135,9 @@ static int spu_hw_wbox_write(struct spu_context *ctx, u32 data)
 	return ret;
 }
 
-static u32 spu_hw_signal1_read(struct spu_context *ctx)
-{
-	return in_be32(&ctx->spu->problem->signal_notify1);
-}
-
 static void spu_hw_signal1_write(struct spu_context *ctx, u32 data)
 {
 	out_be32(&ctx->spu->problem->signal_notify1, data);
-}
-
-static u32 spu_hw_signal2_read(struct spu_context *ctx)
-{
-	return in_be32(&ctx->spu->problem->signal_notify2);
 }
 
 static void spu_hw_signal2_write(struct spu_context *ctx, u32 data)
@@ -294,9 +284,7 @@ struct spu_context_ops spu_hw_ops = {
 	.mbox_stat_poll = spu_hw_mbox_stat_poll,
 	.ibox_read = spu_hw_ibox_read,
 	.wbox_write = spu_hw_wbox_write,
-	.signal1_read = spu_hw_signal1_read,
 	.signal1_write = spu_hw_signal1_write,
-	.signal2_read = spu_hw_signal2_read,
 	.signal2_write = spu_hw_signal2_write,
 	.signal1_type_set = spu_hw_signal1_type_set,
 	.signal1_type_get = spu_hw_signal1_type_get,

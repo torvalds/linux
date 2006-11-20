@@ -723,19 +723,27 @@ static ssize_t spufs_signal1_read(struct file *file, char __user *buf,
 			size_t len, loff_t *pos)
 {
 	struct spu_context *ctx = file->private_data;
+	int ret = 0;
 	u32 data;
 
 	if (len < 4)
 		return -EINVAL;
 
-	spu_acquire(ctx);
-	data = ctx->ops->signal1_read(ctx);
+	spu_acquire_saved(ctx);
+	if (ctx->csa.spu_chnlcnt_RW[3]) {
+		data = ctx->csa.spu_chnldata_RW[3];
+		ret = 4;
+	}
 	spu_release(ctx);
+
+	if (!ret)
+		goto out;
 
 	if (copy_to_user(buf, &data, 4))
 		return -EFAULT;
 
-	return 4;
+out:
+	return ret;
 }
 
 static ssize_t spufs_signal1_write(struct file *file, const char __user *buf,
@@ -811,21 +819,27 @@ static int spufs_signal2_open(struct inode *inode, struct file *file)
 static ssize_t spufs_signal2_read(struct file *file, char __user *buf,
 			size_t len, loff_t *pos)
 {
-	struct spu_context *ctx;
+	struct spu_context *ctx = file->private_data;
+	int ret = 0;
 	u32 data;
-
-	ctx = file->private_data;
 
 	if (len < 4)
 		return -EINVAL;
 
-	spu_acquire(ctx);
-	data = ctx->ops->signal2_read(ctx);
+	spu_acquire_saved(ctx);
+	if (ctx->csa.spu_chnlcnt_RW[4]) {
+		data =  ctx->csa.spu_chnldata_RW[4];
+		ret = 4;
+	}
 	spu_release(ctx);
+
+	if (!ret)
+		goto out;
 
 	if (copy_to_user(buf, &data, 4))
 		return -EFAULT;
 
+out:
 	return 4;
 }
 
