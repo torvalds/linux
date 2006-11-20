@@ -268,6 +268,11 @@ static char *spu_backing_get_ls(struct spu_context *ctx)
 	return ctx->csa.lscsa->ls;
 }
 
+static u32 spu_backing_runcntl_read(struct spu_context *ctx)
+{
+	return ctx->csa.prob.spu_runcntl_RW;
+}
+
 static void spu_backing_runcntl_write(struct spu_context *ctx, u32 val)
 {
 	spin_lock(&ctx->csa.register_lock);
@@ -363,6 +368,7 @@ struct spu_context_ops spu_backing_ops = {
 	.npc_write = spu_backing_npc_write,
 	.status_read = spu_backing_status_read,
 	.get_ls = spu_backing_get_ls,
+	.runcntl_read = spu_backing_runcntl_read,
 	.runcntl_write = spu_backing_runcntl_write,
 	.master_start = spu_backing_master_start,
 	.master_stop = spu_backing_master_stop,
