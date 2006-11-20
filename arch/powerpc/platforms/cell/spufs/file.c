@@ -1391,7 +1391,8 @@ static u64 spufs_npc_get(void *data)
 	spu_release(ctx);
 	return ret;
 }
-DEFINE_SIMPLE_ATTRIBUTE(spufs_npc_ops, spufs_npc_get, spufs_npc_set, "%llx\n")
+DEFINE_SIMPLE_ATTRIBUTE(spufs_npc_ops, spufs_npc_get, spufs_npc_set,
+			"0x%llx\n")
 
 static void spufs_decr_set(void *data, u64 val)
 {
@@ -1413,7 +1414,7 @@ static u64 spufs_decr_get(void *data)
 	return ret;
 }
 DEFINE_SIMPLE_ATTRIBUTE(spufs_decr_ops, spufs_decr_get, spufs_decr_set,
-			"%llx\n")
+			"0x%llx\n")
 
 static void spufs_decr_status_set(void *data, u64 val)
 {
@@ -1435,7 +1436,7 @@ static u64 spufs_decr_status_get(void *data)
 	return ret;
 }
 DEFINE_SIMPLE_ATTRIBUTE(spufs_decr_status_ops, spufs_decr_status_get,
-			spufs_decr_status_set, "%llx\n")
+			spufs_decr_status_set, "0x%llx\n")
 
 static void spufs_spu_tag_mask_set(void *data, u64 val)
 {
@@ -1457,7 +1458,7 @@ static u64 spufs_spu_tag_mask_get(void *data)
 	return ret;
 }
 DEFINE_SIMPLE_ATTRIBUTE(spufs_spu_tag_mask_ops, spufs_spu_tag_mask_get,
-			spufs_spu_tag_mask_set, "%llx\n")
+			spufs_spu_tag_mask_set, "0x%llx\n")
 
 static void spufs_event_mask_set(void *data, u64 val)
 {
@@ -1479,7 +1480,7 @@ static u64 spufs_event_mask_get(void *data)
 	return ret;
 }
 DEFINE_SIMPLE_ATTRIBUTE(spufs_event_mask_ops, spufs_event_mask_get,
-			spufs_event_mask_set, "%llx\n")
+			spufs_event_mask_set, "0x%llx\n")
 
 static void spufs_srr0_set(void *data, u64 val)
 {
@@ -1501,7 +1502,7 @@ static u64 spufs_srr0_get(void *data)
 	return ret;
 }
 DEFINE_SIMPLE_ATTRIBUTE(spufs_srr0_ops, spufs_srr0_get, spufs_srr0_set,
-			"%llx\n")
+			"0x%llx\n")
 
 static u64 spufs_id_get(void *data)
 {
