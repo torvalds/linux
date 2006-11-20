@@ -216,13 +216,26 @@ static void spu_hw_runcntl_write(struct spu_context *ctx, u32 val)
 	spin_unlock_irq(&ctx->spu->register_lock);
 }
 
-static void spu_hw_runcntl_stop(struct spu_context *ctx)
+static void spu_hw_master_start(struct spu_context *ctx)
 {
-	spin_lock_irq(&ctx->spu->register_lock);
-	out_be32(&ctx->spu->problem->spu_runcntl_RW, SPU_RUNCNTL_STOP);
-	while (in_be32(&ctx->spu->problem->spu_status_R) & SPU_STATUS_RUNNING)
-		cpu_relax();
-	spin_unlock_irq(&ctx->spu->register_lock);
+	struct spu *spu = ctx->spu;
+	u64 sr1;
+
+	spin_lock_irq(&spu->register_lock);
+	sr1 = spu_mfc_sr1_get(spu) | MFC_STATE1_MASTER_RUN_CONTROL_MASK;
+	spu_mfc_sr1_set(spu, sr1);
+	spin_unlock_irq(&spu->register_lock);
+}
+
+static void spu_hw_master_stop(struct spu_context *ctx)
+{
+	struct spu *spu = ctx->spu;
+	u64 sr1;
+
+	spin_lock_irq(&spu->register_lock);
+	sr1 = spu_mfc_sr1_get(spu) & ~MFC_STATE1_MASTER_RUN_CONTROL_MASK;
+	spu_mfc_sr1_set(spu, sr1);
+	spin_unlock_irq(&spu->register_lock);
 }
 
 static int spu_hw_set_mfc_query(struct spu_context * ctx, u32 mask, u32 mode)
@@ -295,7 +308,8 @@ struct spu_context_ops spu_hw_ops = {
 	.status_read = spu_hw_status_read,
 	.get_ls = spu_hw_get_ls,
 	.runcntl_write = spu_hw_runcntl_write,
-	.runcntl_stop = spu_hw_runcntl_stop,
+	.master_start = spu_hw_master_start,
+	.master_stop = spu_hw_master_stop,
 	.set_mfc_query = spu_hw_set_mfc_query,
 	.read_mfc_tagstatus = spu_hw_read_mfc_tagstatus,
 	.get_mfc_free_elements = spu_hw_get_mfc_free_elements,

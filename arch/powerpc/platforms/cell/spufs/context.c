@@ -122,29 +122,29 @@ void spu_unmap_mappings(struct spu_context *ctx)
 
 int spu_acquire_exclusive(struct spu_context *ctx)
 {
-       int ret = 0;
+	int ret = 0;
 
-       down_write(&ctx->state_sema);
-       /* ctx is about to be freed, can't acquire any more */
-       if (!ctx->owner) {
-               ret = -EINVAL;
-               goto out;
-       }
+	down_write(&ctx->state_sema);
+	/* ctx is about to be freed, can't acquire any more */
+	if (!ctx->owner) {
+		ret = -EINVAL;
+		goto out;
+	}
 
-       if (ctx->state == SPU_STATE_SAVED) {
-               ret = spu_activate(ctx, 0);
-               if (ret)
-                       goto out;
-               ctx->state = SPU_STATE_RUNNABLE;
-       } else {
-               /* We need to exclude userspace access to the context. */
-               spu_unmap_mappings(ctx);
-       }
+	if (ctx->state == SPU_STATE_SAVED) {
+		ret = spu_activate(ctx, 0);
+		if (ret)
+			goto out;
+		ctx->state = SPU_STATE_RUNNABLE;
+	} else {
+		/* We need to exclude userspace access to the context. */
+		spu_unmap_mappings(ctx);
+	}
 
 out:
-       if (ret)
-               up_write(&ctx->state_sema);
-       return ret;
+	if (ret)
+		up_write(&ctx->state_sema);
+	return ret;
 }
 
 int spu_acquire_runnable(struct spu_context *ctx)

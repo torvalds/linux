@@ -248,8 +248,13 @@ static int spu_setup_isolated(struct spu_context *ctx)
 	if (!isolated_loader)
 		return -ENODEV;
 
-	if ((ret = spu_acquire_exclusive(ctx)) != 0)
-		return ret;
+	/* prevent concurrent operation with spu_run */
+	down(&ctx->run_sema);
+	ctx->ops->master_start(ctx);
+
+	ret = spu_acquire_exclusive(ctx);
+	if (ret)
+		goto out;
 
 	mfc_cntl = &ctx->spu->priv2->mfc_control_RW;
 
@@ -315,12 +320,14 @@ out_drop_priv:
 
 out_unlock:
 	spu_release_exclusive(ctx);
+out:
+	ctx->ops->master_stop(ctx);
+	up(&ctx->run_sema);
 	return ret;
 }
 
 int spu_recycle_isolated(struct spu_context *ctx)
 {
-	ctx->ops->runcntl_stop(ctx);
 	return spu_setup_isolated(ctx);
 }
 
@@ -435,6 +442,8 @@ out:
 	if (ret >= 0 && (flags & SPU_CREATE_ISOLATE)) {
 		int setup_err = spu_setup_isolated(
 				SPUFS_I(dentry->d_inode)->i_ctx);
+		/* FIXME: clean up context again on failure to avoid
+		          leak. */
 		if (setup_err)
 			ret = setup_err;
 	}

@@ -280,9 +280,26 @@ static void spu_backing_runcntl_write(struct spu_context *ctx, u32 val)
 	spin_unlock(&ctx->csa.register_lock);
 }
 
-static void spu_backing_runcntl_stop(struct spu_context *ctx)
+static void spu_backing_master_start(struct spu_context *ctx)
 {
-	spu_backing_runcntl_write(ctx, SPU_RUNCNTL_STOP);
+	struct spu_state *csa = &ctx->csa;
+	u64 sr1;
+
+	spin_lock(&csa->register_lock);
+	sr1 = csa->priv1.mfc_sr1_RW | MFC_STATE1_MASTER_RUN_CONTROL_MASK;
+	csa->priv1.mfc_sr1_RW = sr1;
+	spin_unlock(&csa->register_lock);
+}
+
+static void spu_backing_master_stop(struct spu_context *ctx)
+{
+	struct spu_state *csa = &ctx->csa;
+	u64 sr1;
+
+	spin_lock(&csa->register_lock);
+	sr1 = csa->priv1.mfc_sr1_RW & ~MFC_STATE1_MASTER_RUN_CONTROL_MASK;
+	csa->priv1.mfc_sr1_RW = sr1;
+	spin_unlock(&csa->register_lock);
 }
 
 static int spu_backing_set_mfc_query(struct spu_context * ctx, u32 mask,
@@ -347,7 +364,8 @@ struct spu_context_ops spu_backing_ops = {
 	.status_read = spu_backing_status_read,
 	.get_ls = spu_backing_get_ls,
 	.runcntl_write = spu_backing_runcntl_write,
-	.runcntl_stop = spu_backing_runcntl_stop,
+	.master_start = spu_backing_master_start,
+	.master_stop = spu_backing_master_stop,
 	.set_mfc_query = spu_backing_set_mfc_query,
 	.read_mfc_tagstatus = spu_backing_read_mfc_tagstatus,
 	.get_mfc_free_elements = spu_backing_get_mfc_free_elements,
