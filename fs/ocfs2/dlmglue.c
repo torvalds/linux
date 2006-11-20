@@ -1063,10 +1063,10 @@ static void ocfs2_cluster_unlock(struct ocfs2_super *osb,
 	mlog_exit_void();
 }
 
-int ocfs2_create_new_lock(struct ocfs2_super *osb,
-			  struct ocfs2_lock_res *lockres,
-			  int ex,
-			  int local)
+static int ocfs2_create_new_lock(struct ocfs2_super *osb,
+				 struct ocfs2_lock_res *lockres,
+				 int ex,
+				 int local)
 {
 	int level =  ex ? LKM_EXMODE : LKM_PRMODE;
 	unsigned long flags;
