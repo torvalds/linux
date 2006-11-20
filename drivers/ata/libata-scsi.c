@@ -1698,6 +1698,22 @@ void ata_scsi_rbuf_fill(struct ata_scsi_args *args,
 }
 
 /**
+ *	ATA_SCSI_RBUF_SET - helper to set values in SCSI response buffer
+ *	@idx: byte index into SCSI response buffer
+ *	@val: value to set
+ *
+ *	To be used by SCSI command simulator functions.  This macros
+ *	expects two local variables, u8 *rbuf and unsigned int buflen,
+ *	are in scope.
+ *
+ *	LOCKING:
+ *	None.
+ */
+#define ATA_SCSI_RBUF_SET(idx, val) do { \
+		if ((idx) < buflen) rbuf[(idx)] = (u8)(val); \
+	} while (0)
+
+/**
  *	ata_scsiop_inq_std - Simulate INQUIRY command
  *	@args: device IDENTIFY data / SCSI command of interest.
  *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
@@ -2156,67 +2172,42 @@ saving_not_supp:
  *	Simulate READ CAPACITY commands.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host lock)
+ *	None.
  */
-
 unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf,
 			        unsigned int buflen)
 {
-	u64 n_sectors;
-	u32 tmp;
+	u64 last_lba = args->dev->n_sectors - 1; /* LBA of the last block */
 
 	VPRINTK("ENTER\n");
 
-	if (ata_id_has_lba(args->id)) {
-		if (ata_id_has_lba48(args->id))
-			n_sectors = ata_id_u64(args->id, 100);
-		else
-			n_sectors = ata_id_u32(args->id, 60);
-	} else {
-		/* CHS default translation */
-		n_sectors = args->id[1] * args->id[3] * args->id[6];
-
-		if (ata_id_current_chs_valid(args->id))
-			/* CHS current translation */
-			n_sectors = ata_id_u32(args->id, 57);
-	}
-
-	n_sectors--;		/* ATA TotalUserSectors - 1 */
-
 	if (args->cmd->cmnd[0] == READ_CAPACITY) {
-		if( n_sectors >= 0xffffffffULL )
-			tmp = 0xffffffff ;  /* Return max count on overflow */
-		else
-			tmp = n_sectors ;
+		if (last_lba >= 0xffffffffULL)
+			last_lba = 0xffffffff;
 
 		/* sector count, 32-bit */
-		rbuf[0] = tmp >> (8 * 3);
-		rbuf[1] = tmp >> (8 * 2);
-		rbuf[2] = tmp >> (8 * 1);
-		rbuf[3] = tmp;
+		ATA_SCSI_RBUF_SET(0, last_lba >> (8 * 3));
+		ATA_SCSI_RBUF_SET(1, last_lba >> (8 * 2));
+		ATA_SCSI_RBUF_SET(2, last_lba >> (8 * 1));
+		ATA_SCSI_RBUF_SET(3, last_lba);
 
 		/* sector size */
-		tmp = ATA_SECT_SIZE;
-		rbuf[6] = tmp >> 8;
-		rbuf[7] = tmp;
-
+		ATA_SCSI_RBUF_SET(6, ATA_SECT_SIZE >> 8);
+		ATA_SCSI_RBUF_SET(7, ATA_SECT_SIZE);
 	} else {
 		/* sector count, 64-bit */
-		tmp = n_sectors >> (8 * 4);
-		rbuf[2] = tmp >> (8 * 3);
-		rbuf[3] = tmp >> (8 * 2);
-		rbuf[4] = tmp >> (8 * 1);
-		rbuf[5] = tmp;
-		tmp = n_sectors;
-		rbuf[6] = tmp >> (8 * 3);
-		rbuf[7] = tmp >> (8 * 2);
-		rbuf[8] = tmp >> (8 * 1);
-		rbuf[9] = tmp;
+		ATA_SCSI_RBUF_SET(0, last_lba >> (8 * 7));
+		ATA_SCSI_RBUF_SET(1, last_lba >> (8 * 6));
+		ATA_SCSI_RBUF_SET(2, last_lba >> (8 * 5));
+		ATA_SCSI_RBUF_SET(3, last_lba >> (8 * 4));
+		ATA_SCSI_RBUF_SET(4, last_lba >> (8 * 3));
+		ATA_SCSI_RBUF_SET(5, last_lba >> (8 * 2));
+		ATA_SCSI_RBUF_SET(6, last_lba >> (8 * 1));
+		ATA_SCSI_RBUF_SET(7, last_lba);
 
 		/* sector size */
-		tmp = ATA_SECT_SIZE;
-		rbuf[12] = tmp >> 8;
-		rbuf[13] = tmp;
+		ATA_SCSI_RBUF_SET(10, ATA_SECT_SIZE >> 8);
+		ATA_SCSI_RBUF_SET(11, ATA_SECT_SIZE);
 	}
 
 	return 0;
