@@ -78,4 +78,15 @@ config IP_DCCP_TFRC_LIB
 	depends on IP_DCCP_CCID3
 	def_tristate IP_DCCP_CCID3
 
+config IP_DCCP_CCID3_DEBUG
+	  bool "CCID3 debugging messages"
+	  depends on IP_DCCP_CCID3
+	  ---help---
+	    Enable CCID3-specific debugging messages.
+
+	    When compiling CCID3 as a module, this debugging output can
+	    additionally be toggled by setting the ccid3_debug module
+	    parameter to 0 or 1.
+
+	    If in doubt, say N.
 endmenu

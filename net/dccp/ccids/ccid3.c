@@ -60,13 +60,11 @@ static u32 usecs_div(const u32 a, const u32 b)
 	return (b >= 2 * div) ? tmp / (b / div) : tmp;
 }
 
-static int ccid3_debug;
 
-#ifdef CCID3_DEBUG
-#define ccid3_pr_debug(format, a...) \
-	do { if (ccid3_debug) \
-		printk(KERN_DEBUG "%s: " format, __FUNCTION__, ##a); \
-	} while (0)
+
+#ifdef CONFIG_IP_DCCP_CCID3_DEBUG
+static int ccid3_debug;
+#define ccid3_pr_debug(format, a...)	DCCP_PR_DEBUG(ccid3_debug, format, ##a)
 #else
 #define ccid3_pr_debug(format, a...)
 #endif
@@ -75,7 +73,7 @@ static struct dccp_tx_hist *ccid3_tx_hist;
 static struct dccp_rx_hist *ccid3_rx_hist;
 static struct dccp_li_hist *ccid3_li_hist;
 
-#ifdef CCID3_DEBUG
+#ifdef CONFIG_IP_DCCP_CCID3_DEBUG
 static const char *ccid3_tx_state_name(enum ccid3_hc_tx_states state)
 {
 	static char *ccid3_state_names[] = {
@@ -676,7 +674,7 @@ static void ccid3_hc_tx_exit(struct sock *sk)
  * RX Half Connection methods
  */
 
-#ifdef CCID3_DEBUG
+#ifdef CONFIG_IP_DCCP_CCID3_DEBUG
 static const char *ccid3_rx_state_name(enum ccid3_hc_rx_states state)
 {
 	static char *ccid3_rx_state_names[] = {
@@ -1240,8 +1238,10 @@ static struct ccid_operations ccid3 = {
 	.ccid_hc_tx_getsockopt	   = ccid3_hc_tx_getsockopt,
 };
  
+#ifdef CONFIG_IP_DCCP_CCID3_DEBUG
 module_param(ccid3_debug, int, 0444);
 MODULE_PARM_DESC(ccid3_debug, "Enable debug messages");
+#endif
 
 static __init int ccid3_module_init(void)
 {
