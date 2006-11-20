@@ -965,7 +965,6 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	const struct dccp_options_received *opt_recv;
 	struct dccp_rx_hist_entry *packet;
 	struct timeval now;
-	u8 win_count;
 	u32 p_prev, rtt_prev, r_sample, t_elapsed;
 	int loss;
 
@@ -1016,8 +1015,6 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			  "to history, consider it lost!\n", dccp_role(sk), sk);
 		return;
 	}
-
-	win_count = packet->dccphrx_ccval;
 
 	loss = ccid3_hc_rx_detect_loss(sk, packet);
 
