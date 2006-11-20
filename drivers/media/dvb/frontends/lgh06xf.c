@@ -40,19 +40,23 @@ static int lgh06xf_set_params(struct dvb_frontend* fe,
 	u8 buf[4];
 	struct i2c_msg msg = { .addr = LG_H06XF_PLL_I2C_ADDR, .flags = 0,
 			       .buf = buf, .len = sizeof(buf) };
-	u32 div;
-	int i;
-	int err;
+	u32 frequency;
+	int result;
 
-	dvb_pll_configure(&dvb_pll_lg_tdvs_h06xf, buf, params->frequency, 0);
+	if ((result = dvb_pll_configure(&dvb_pll_lg_tdvs_h06xf, buf,
+					params->frequency, 0)) < 0)
+		return result;
+	else
+		frequency = result;
+
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
-	if ((err = i2c_transfer(priv->i2c, &msg, 1)) != 1) {
+	if ((result = i2c_transfer(priv->i2c, &msg, 1)) != 1) {
 		printk(KERN_WARNING "lgh06xf: %s error "
-		       "(addr %02x <- %02x, err = %i)\n",
-		       __FUNCTION__, buf[0], buf[1], err);
-		if (err < 0)
-			return err;
+		       "(addr %02x <- %02x, result = %i)\n",
+		       __FUNCTION__, buf[0], buf[1], result);
+		if (result < 0)
+			return result;
 		else
 			return -EREMOTEIO;
 	}
@@ -65,26 +69,17 @@ static int lgh06xf_set_params(struct dvb_frontend* fe,
 	msg.len = 2;
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
-	if ((err = i2c_transfer(priv->i2c, &msg, 1)) != 1) {
+	if ((result = i2c_transfer(priv->i2c, &msg, 1)) != 1) {
 		printk(KERN_WARNING "lgh06xf: %s error "
-		       "(addr %02x <- %02x, err = %i)\n",
-		       __FUNCTION__, buf[0], buf[1], err);
-		if (err < 0)
-			return err;
+		       "(addr %02x <- %02x, result = %i)\n",
+		       __FUNCTION__, buf[0], buf[1], result);
+		if (result < 0)
+			return result;
 		else
 			return -EREMOTEIO;
 	}
 
-	// calculate the frequency we set it to
-	for (i = 0; i < dvb_pll_lg_tdvs_h06xf.count; i++) {
-		if (params->frequency > dvb_pll_lg_tdvs_h06xf.entries[i].limit)
-			continue;
-		break;
-	}
-	div = (params->frequency + dvb_pll_lg_tdvs_h06xf.entries[i].offset) /
-		dvb_pll_lg_tdvs_h06xf.entries[i].stepsize;
-	priv->frequency = (div * dvb_pll_lg_tdvs_h06xf.entries[i].stepsize) -
-		dvb_pll_lg_tdvs_h06xf.entries[i].offset;
+	priv->frequency = frequency;
 
 	return 0;
 }
