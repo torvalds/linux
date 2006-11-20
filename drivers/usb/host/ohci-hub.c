@@ -56,7 +56,6 @@ static void finish_unlinks (struct ohci_hcd *, u16);
 
 #ifdef	CONFIG_PM
 static int ohci_restart(struct ohci_hcd *ohci);
-#endif
 
 static int ohci_rh_suspend (struct ohci_hcd *ohci, int autostop)
 __releases(ohci->lock)
@@ -187,7 +186,6 @@ __acquires(ohci->lock)
 		ohci_dbg (ohci, "lost power\n");
 		status = -EBUSY;
 	}
-#ifdef	CONFIG_PM
 	if (status == -EBUSY) {
 		if (!autostopped) {
 			spin_unlock_irq (&ohci->lock);
@@ -197,7 +195,6 @@ __acquires(ohci->lock)
 		}
 		return status;
 	}
-#endif
 	if (status != -EINPROGRESS)
 		return status;
 	if (autostopped)
@@ -291,8 +288,6 @@ skip_resume:
 	return 0;
 }
 
-#ifdef	CONFIG_PM
-
 static int ohci_bus_suspend (struct usb_hcd *hcd)
 {
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
@@ -328,6 +323,83 @@ static int ohci_bus_resume (struct usb_hcd *hcd)
 	if (rc == 0)
 		usb_hcd_poll_rh_status(hcd);
 	return rc;
+}
+
+/* Carry out polling-, autostop-, and autoresume-related state changes */
+static int ohci_root_hub_state_changes(struct ohci_hcd *ohci, int changed,
+		int any_connected)
+{
+	int	poll_rh = 1;
+
+	switch (ohci->hc_control & OHCI_CTRL_HCFS) {
+
+	case OHCI_USB_OPER:
+		/* keep on polling until we know a device is connected
+		 * and RHSC is enabled */
+		if (!ohci->autostop) {
+			if (any_connected ||
+					!device_may_wakeup(&ohci_to_hcd(ohci)
+						->self.root_hub->dev)) {
+				if (ohci_readl(ohci, &ohci->regs->intrenable) &
+						OHCI_INTR_RHSC)
+					poll_rh = 0;
+			} else {
+				ohci->autostop = 1;
+				ohci->next_statechange = jiffies + HZ;
+			}
+
+		/* if no devices have been attached for one second, autostop */
+		} else {
+			if (changed || any_connected) {
+				ohci->autostop = 0;
+				ohci->next_statechange = jiffies +
+						STATECHANGE_DELAY;
+			} else if (time_after_eq(jiffies,
+						ohci->next_statechange)
+					&& !ohci->ed_rm_list
+					&& !(ohci->hc_control &
+						OHCI_SCHED_ENABLES)) {
+				ohci_rh_suspend(ohci, 1);
+			}
+		}
+		break;
+
+	/* if there is a port change, autostart or ask to be resumed */
+	case OHCI_USB_SUSPEND:
+	case OHCI_USB_RESUME:
+		if (changed) {
+			if (ohci->autostop)
+				ohci_rh_resume(ohci);
+			else
+				usb_hcd_resume_root_hub(ohci_to_hcd(ohci));
+		} else {
+			/* everything is idle, no need for polling */
+			poll_rh = 0;
+		}
+		break;
+	}
+	return poll_rh;
+}
+
+#else	/* CONFIG_PM */
+
+static inline int ohci_rh_resume(struct ohci_hcd *ohci)
+{
+	return 0;
+}
+
+/* Carry out polling-related state changes.
+ * autostop isn't used when CONFIG_PM is turned off.
+ */
+static int ohci_root_hub_state_changes(struct ohci_hcd *ohci, int changed,
+		int any_connected)
+{
+	int	poll_rh = 1;
+
+	/* keep on polling until RHSC is enabled */
+	if (ohci_readl(ohci, &ohci->regs->intrenable) & OHCI_INTR_RHSC)
+		poll_rh = 0;
+	return poll_rh;
 }
 
 #endif	/* CONFIG_PM */
@@ -382,55 +454,8 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 		}
 	}
 
-	hcd->poll_rh = 1;
-
-	/* carry out appropriate state changes */
-	switch (ohci->hc_control & OHCI_CTRL_HCFS) {
-
-	case OHCI_USB_OPER:
-		/* keep on polling until we know a device is connected
-		 * and RHSC is enabled */
-		if (!ohci->autostop) {
-			if (any_connected) {
-				if (ohci_readl(ohci, &ohci->regs->intrenable) &
-						OHCI_INTR_RHSC)
-					hcd->poll_rh = 0;
-			} else {
-				ohci->autostop = 1;
-				ohci->next_statechange = jiffies + HZ;
-			}
-
-		/* if no devices have been attached for one second, autostop */
-		} else {
-			if (changed || any_connected) {
-				ohci->autostop = 0;
-				ohci->next_statechange = jiffies +
-						STATECHANGE_DELAY;
-			} else if (device_may_wakeup(&hcd->self.root_hub->dev)
-					&& time_after_eq(jiffies,
-						ohci->next_statechange)
-					&& !ohci->ed_rm_list
-					&& !(ohci->hc_control &
-						OHCI_SCHED_ENABLES)) {
-				ohci_rh_suspend (ohci, 1);
-			}
-		}
-		break;
-
-	/* if there is a port change, autostart or ask to be resumed */
-	case OHCI_USB_SUSPEND:
-	case OHCI_USB_RESUME:
-		if (changed) {
-			if (ohci->autostop)
-				ohci_rh_resume (ohci);
-			else
-				usb_hcd_resume_root_hub (hcd);
-		} else {
-			/* everything is idle, no need for polling */
-			hcd->poll_rh = 0;
-		}
-		break;
-	}
+	hcd->poll_rh = ohci_root_hub_state_changes(ohci, changed,
+			any_connected);
 
 done:
 	spin_unlock_irqrestore (&ohci->lock, flags);
