@@ -612,9 +612,6 @@ static void ahci_power_down(void __iomem *port_mmio, u32 cap)
 static void ahci_init_port(void __iomem *port_mmio, u32 cap,
 			   dma_addr_t cmd_slot_dma, dma_addr_t rx_fis_dma)
 {
-	/* power up */
-	ahci_power_up(port_mmio, cap);
-
 	/* enable FIS reception */
 	ahci_start_fis_rx(port_mmio, cap, cmd_slot_dma, rx_fis_dma);
 
@@ -639,9 +636,6 @@ static int ahci_deinit_port(void __iomem *port_mmio, u32 cap, const char **emsg)
 		*emsg = "failed stop FIS RX";
 		return rc;
 	}
-
-	/* put device into slumber mode */
-	ahci_power_down(port_mmio, cap);
 
 	return 0;
 }
@@ -1321,7 +1315,9 @@ static int ahci_port_suspend(struct ata_port *ap, pm_message_t mesg)
 	int rc;
 
 	rc = ahci_deinit_port(port_mmio, hpriv->cap, &emsg);
-	if (rc) {
+	if (rc == 0)
+		ahci_power_down(port_mmio, hpriv->cap);
+	else {
 		ata_port_printk(ap, KERN_ERR, "%s (%d)\n", emsg, rc);
 		ahci_init_port(port_mmio, hpriv->cap,
 			       pp->cmd_slot_dma, pp->rx_fis_dma);
@@ -1337,6 +1333,7 @@ static int ahci_port_resume(struct ata_port *ap)
 	void __iomem *mmio = ap->host->mmio_base;
 	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 
+	ahci_power_up(port_mmio, hpriv->cap);
 	ahci_init_port(port_mmio, hpriv->cap, pp->cmd_slot_dma, pp->rx_fis_dma);
 
 	return 0;
@@ -1442,6 +1439,9 @@ static int ahci_port_start(struct ata_port *ap)
 	pp->cmd_tbl_dma = mem_dma;
 
 	ap->private_data = pp;
+
+	/* power up port */
+	ahci_power_up(port_mmio, hpriv->cap);
 
 	/* initialize port */
 	ahci_init_port(port_mmio, hpriv->cap, pp->cmd_slot_dma, pp->rx_fis_dma);
