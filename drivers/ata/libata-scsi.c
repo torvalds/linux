@@ -3347,20 +3347,23 @@ EXPORT_SYMBOL_GPL(ata_sas_slave_configure);
  *	@ap:	ATA port to which the command is being sent
  *
  *	RETURNS:
- *	Zero.
+ *	Return value from __ata_scsi_queuecmd() if @cmd can be queued,
+ *	0 otherwise.
  */
 
 int ata_sas_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *),
 		     struct ata_port *ap)
 {
+	int rc = 0;
+
 	ata_scsi_dump_cdb(ap, cmd);
 
 	if (likely(ata_scsi_dev_enabled(ap->device)))
-		__ata_scsi_queuecmd(cmd, done, ap->device);
+		rc = __ata_scsi_queuecmd(cmd, done, ap->device);
 	else {
 		cmd->result = (DID_BAD_TARGET << 16);
 		done(cmd);
 	}
-	return 0;
+	return rc;
 }
 EXPORT_SYMBOL_GPL(ata_sas_queuecmd);
