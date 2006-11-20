@@ -242,6 +242,12 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     ac97_clock		- AC'97 clock (default = 48000)
     ac97_quirk		- AC'97 workaround for strange hardware
 			  See "AC97 Quirk Option" section below.
+    ac97_codec		- Workaround to specify which AC'97 codec 
+			  instead of probing.  If this works for you
+			  file a bug with your `lspci -vn` output.
+			  -2  -- Force probing.
+			  -1  -- Default behavior.
+			  0-2 -- Use the specified codec.
     spdif_aclink	- S/PDIF transfer over AC-link (default = 1)
 
     This module supports one card and autoprobe.

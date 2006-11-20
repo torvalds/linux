@@ -45,6 +45,7 @@ static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
 static int ac97_clock = 48000;
 static char *ac97_quirk;
 static int spdif_aclink = 1;
+static int ac97_codec = -1;
 
 module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for ATI IXP controller.");
@@ -54,6 +55,8 @@ module_param(ac97_clock, int, 0444);
 MODULE_PARM_DESC(ac97_clock, "AC'97 codec clock (default 48000Hz).");
 module_param(ac97_quirk, charp, 0444);
 MODULE_PARM_DESC(ac97_quirk, "AC'97 workaround for strange hardware.");
+module_param(ac97_codec, int, 0444);
+MODULE_PARM_DESC(ac97_codec, "Specify codec instead of probing.");
 module_param(spdif_aclink, bool, 0444);
 MODULE_PARM_DESC(spdif_aclink, "S/PDIF over AC-link.");
 
@@ -293,6 +296,22 @@ static struct pci_device_id snd_atiixp_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, snd_atiixp_ids);
 
+struct atiixp_quirk {
+	unsigned short  subvendor;
+	unsigned short  subdevice;
+	const char *name;
+	int ac97_codec;
+};
+
+static struct atiixp_quirk atiixp_quirks[] __devinitdata = {
+	{
+		.subvendor = 0x15bd,
+		.subdevice = 0x3100,
+		.name = "DFI RS482",
+		.ac97_codec = 0,
+	},
+	{ .subvendor = 0 } /* terminator */
+};
 
 /*
  * lowlevel functions
@@ -553,11 +572,37 @@ static int snd_atiixp_aclink_down(struct atiixp *chip)
 	     ATI_REG_ISR_CODEC2_NOT_READY)
 #define CODEC_CHECK_BITS (ALL_CODEC_NOT_READY|ATI_REG_ISR_NEW_FRAME)
 
+static int ac97_probing_bugs(struct pci_dev *pci)
+{
+	int i = 0;
+
+	while (atiixp_quirks[i].subvendor) {
+		if (pci->subsystem_vendor == atiixp_quirks[i].subvendor  &&
+		    pci->subsystem_device == atiixp_quirks[i].subdevice) {
+			printk(KERN_INFO "Atiixp quirk for %s.  "
+			       "Forcing codec %d\n", atiixp_quirks[i].name, 
+			       atiixp_quirks[i].ac97_codec);
+			return atiixp_quirks[i].ac97_codec;
+		}
+		i++;
+	}
+	/* this hardware doesn't need workarounds.  Probe for codec */
+	return -1;
+}
+
 static int snd_atiixp_codec_detect(struct atiixp *chip)
 {
 	int timeout;
 
 	chip->codec_not_ready_bits = 0;
+	if (ac97_codec == -1)
+		ac97_codec = ac97_probing_bugs(chip->pci);
+	if (ac97_codec >= 0) {
+		chip->codec_not_ready_bits |= 
+			CODEC_CHECK_BITS ^ (1 << (ac97_codec + 10));
+		return 0;
+	}
+
 	atiixp_write(chip, IER, CODEC_CHECK_BITS);
 	/* wait for the interrupts */
 	timeout = 50;
