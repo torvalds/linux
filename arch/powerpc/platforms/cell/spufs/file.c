@@ -1279,6 +1279,7 @@ static ssize_t spufs_mfc_write(struct file *file, const char __user *buffer,
 		goto out;
 
 	ctx->tagwait |= 1 << cmd.tag;
+	ret = size;
 
 out:
 	return ret;
