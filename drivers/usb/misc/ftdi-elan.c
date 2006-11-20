@@ -303,7 +303,7 @@ void ftdi_elan_gone_away(struct platform_device *pdev)
 
 
 EXPORT_SYMBOL_GPL(ftdi_elan_gone_away);
-void ftdi_release_platform_dev(struct device *dev)
+static void ftdi_release_platform_dev(struct device *dev)
 {
         dev->parent = NULL;
 }
@@ -1426,14 +1426,6 @@ static int ftdi_elan_read_reg(struct usb_ftdi *ftdi, u32 *data)
         }
 }
 
-int usb_ftdi_elan_read_reg(struct platform_device *pdev, u32 *data)
-{
-        struct usb_ftdi *ftdi = platform_device_to_usb_ftdi(pdev);
-        return ftdi_elan_read_reg(ftdi, data);
-}
-
-
-EXPORT_SYMBOL_GPL(usb_ftdi_elan_read_reg);
 static int ftdi_elan_read_config(struct usb_ftdi *ftdi, int config_offset,
         u8 width, u32 *data)
 {

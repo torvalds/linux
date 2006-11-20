@@ -205,11 +205,7 @@ struct u132 {
         struct u132_port port[MAX_U132_PORTS];
         struct u132_endp *endp[MAX_U132_ENDPS];
 };
-int usb_ftdi_elan_read_reg(struct platform_device *pdev, u32 *data);
-int usb_ftdi_elan_read_pcimem(struct platform_device *pdev, u8 addressofs,
-        u8 width, u32 *data);
-int usb_ftdi_elan_write_pcimem(struct platform_device *pdev, u8 addressofs,
-        u8 width, u32 data);
+
 /*
 * these can not be inlines because we need the structure offset!!
 * Does anyone have a better way?????
