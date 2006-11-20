@@ -79,13 +79,7 @@ static inline int spu_run_fini(struct spu_context *ctx, u32 * npc,
 
 	if (signal_pending(current))
 		ret = -ERESTARTSYS;
-	if (unlikely(current->ptrace & PT_PTRACED)) {
-		if ((*status & SPU_STATUS_STOPPED_BY_STOP)
-		    && (*status >> SPU_STOP_STATUS_SHIFT) == 0x3fff) {
-			force_sig(SIGTRAP, current);
-			ret = -ERESTARTSYS;
-		}
-	}
+
 	return ret;
 }
 
@@ -232,7 +226,7 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 		if (unlikely(ctx->state != SPU_STATE_RUNNABLE)) {
 			ret = spu_reacquire_runnable(ctx, npc, &status);
 			if (ret)
-				goto out;
+				goto out2;
 			continue;
 		}
 		ret = spu_process_events(ctx);
@@ -242,9 +236,23 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 
 	ctx->ops->runcntl_stop(ctx);
 	ret = spu_run_fini(ctx, npc, &status);
-	if (!ret)
-		ret = status;
 	spu_yield(ctx);
+
+out2:
+	if ((ret == 0) ||
+	    ((ret == -ERESTARTSYS) &&
+	     ((status & SPU_STATUS_STOPPED_BY_HALT) ||
+	      ((status & SPU_STATUS_STOPPED_BY_STOP) &&
+	       (status >> SPU_STOP_STATUS_SHIFT != 0x2104)))))
+		ret = status;
+
+	if (unlikely(current->ptrace & PT_PTRACED)) {
+		if ((status & SPU_STATUS_STOPPED_BY_STOP)
+		    && (status >> SPU_STOP_STATUS_SHIFT) == 0x3fff) {
+			force_sig(SIGTRAP, current);
+			ret = -ERESTARTSYS;
+		}
+	}
 
 out:
 	*event = ctx->event_return;
