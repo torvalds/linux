@@ -472,7 +472,8 @@ int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
 		printk("pll: %s: div=%d | buf=0x%02x,0x%02x,0x%02x,0x%02x\n",
 		       desc->name, div, buf[0], buf[1], buf[2], buf[3]);
 
-	return 0;
+	// calculate the frequency we set it to
+	return (div * desc->entries[i].stepsize) - desc->entries[i].offset;
 }
 EXPORT_SYMBOL(dvb_pll_configure);
 
@@ -526,9 +527,7 @@ static int dvb_pll_set_params(struct dvb_frontend *fe,
 		{ .addr = priv->pll_i2c_address, .flags = 0,
 		  .buf = buf, .len = sizeof(buf) };
 	int result;
-	u32 div;
-	int i;
-	u32 bandwidth = 0;
+	u32 bandwidth = 0, frequency = 0;
 
 	if (priv->i2c == NULL)
 		return -EINVAL;
@@ -538,9 +537,11 @@ static int dvb_pll_set_params(struct dvb_frontend *fe,
 		bandwidth = params->u.ofdm.bandwidth;
 	}
 
-	if ((result = dvb_pll_configure(priv->pll_desc, buf, params->frequency,
-					bandwidth)) != 0)
+	if ((result = dvb_pll_configure(priv->pll_desc, buf,
+					params->frequency, bandwidth)) < 0)
 		return result;
+	else
+		frequency = result;
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
@@ -548,16 +549,7 @@ static int dvb_pll_set_params(struct dvb_frontend *fe,
 		return result;
 	}
 
-	// calculate the frequency we set it to
-	for (i = 0; i < priv->pll_desc->count; i++) {
-		if (params->frequency > priv->pll_desc->entries[i].limit)
-			continue;
-		break;
-	}
-	div = (params->frequency + priv->pll_desc->entries[i].offset) /
-		priv->pll_desc->entries[i].stepsize;
-	priv->frequency = (div * priv->pll_desc->entries[i].stepsize) -
-		priv->pll_desc->entries[i].offset;
+	priv->frequency = frequency;
 	priv->bandwidth = bandwidth;
 
 	return 0;
@@ -569,9 +561,7 @@ static int dvb_pll_calc_regs(struct dvb_frontend *fe,
 {
 	struct dvb_pll_priv *priv = fe->tuner_priv;
 	int result;
-	u32 div;
-	int i;
-	u32 bandwidth = 0;
+	u32 bandwidth = 0, frequency = 0;
 
 	if (buf_len < 5)
 		return -EINVAL;
@@ -582,20 +572,14 @@ static int dvb_pll_calc_regs(struct dvb_frontend *fe,
 	}
 
 	if ((result = dvb_pll_configure(priv->pll_desc, buf+1,
-					params->frequency, bandwidth)) != 0)
+					params->frequency, bandwidth)) < 0)
 		return result;
+	else
+		frequency = result;
+
 	buf[0] = priv->pll_i2c_address;
 
-	// calculate the frequency we set it to
-	for (i = 0; i < priv->pll_desc->count; i++) {
-		if (params->frequency > priv->pll_desc->entries[i].limit)
-			continue;
-		break;
-	}
-	div = (params->frequency + priv->pll_desc->entries[i].offset) /
-		priv->pll_desc->entries[i].stepsize;
-	priv->frequency = (div * priv->pll_desc->entries[i].stepsize) -
-		priv->pll_desc->entries[i].offset;
+	priv->frequency = frequency;
 	priv->bandwidth = bandwidth;
 
 	return 5;
