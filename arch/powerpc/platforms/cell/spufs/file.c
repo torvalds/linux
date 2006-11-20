@@ -1439,28 +1439,6 @@ static u64 spufs_decr_status_get(void *data)
 DEFINE_SIMPLE_ATTRIBUTE(spufs_decr_status_ops, spufs_decr_status_get,
 			spufs_decr_status_set, "0x%llx\n")
 
-static void spufs_spu_tag_mask_set(void *data, u64 val)
-{
-	struct spu_context *ctx = data;
-	struct spu_lscsa *lscsa = ctx->csa.lscsa;
-	spu_acquire_saved(ctx);
-	lscsa->tag_mask.slot[0] = (u32) val;
-	spu_release(ctx);
-}
-
-static u64 spufs_spu_tag_mask_get(void *data)
-{
-	struct spu_context *ctx = data;
-	struct spu_lscsa *lscsa = ctx->csa.lscsa;
-	u64 ret;
-	spu_acquire_saved(ctx);
-	ret = lscsa->tag_mask.slot[0];
-	spu_release(ctx);
-	return ret;
-}
-DEFINE_SIMPLE_ATTRIBUTE(spufs_spu_tag_mask_ops, spufs_spu_tag_mask_get,
-			spufs_spu_tag_mask_set, "0x%llx\n")
-
 static void spufs_event_mask_set(void *data, u64 val)
 {
 	struct spu_context *ctx = data;
@@ -1678,7 +1656,6 @@ struct tree_descr spufs_dir_contents[] = {
 	{ "srr0", &spufs_srr0_ops, 0666, },
 	{ "decr", &spufs_decr_ops, 0666, },
 	{ "decr_status", &spufs_decr_status_ops, 0666, },
-	{ "spu_tag_mask", &spufs_spu_tag_mask_ops, 0666, },
 	{ "event_mask", &spufs_event_mask_ops, 0666, },
 	{ "event_status", &spufs_event_status_ops, 0444, },
 	{ "psmap", &spufs_psmap_fops, 0666, },
