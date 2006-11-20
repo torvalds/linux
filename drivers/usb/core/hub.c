@@ -1409,10 +1409,12 @@ static int hub_port_status(struct usb_hub *hub, int port1,
 	int ret;
 
 	ret = get_port_status(hub->hdev, port1, &hub->status->port);
-	if (ret < 0)
+	if (ret < 4) {
 		dev_err (hub->intfdev,
 			"%s failed (err = %d)\n", __FUNCTION__, ret);
-	else {
+		if (ret >= 0)
+			ret = -EIO;
+	} else {
 		*status = le16_to_cpu(hub->status->port.wPortStatus);
 		*change = le16_to_cpu(hub->status->port.wPortChange); 
 		ret = 0;
@@ -1760,6 +1762,12 @@ static int
 hub_port_resume(struct usb_hub *hub, int port1, struct usb_device *udev)
 {
 	int	status;
+	u16	portchange, portstatus;
+
+	/* Skip the initial Clear-Suspend step for a remote wakeup */
+	status = hub_port_status(hub, port1, &portstatus, &portchange);
+	if (status == 0 && !(portstatus & USB_PORT_STAT_SUSPEND))
+		goto SuspendCleared;
 
 	// dev_dbg(hub->intfdev, "resume port %d\n", port1);
 
@@ -1773,9 +1781,6 @@ hub_port_resume(struct usb_hub *hub, int port1, struct usb_device *udev)
 			"can't resume port %d, status %d\n",
 			port1, status);
 	} else {
-		u16		devstatus;
-		u16		portchange;
-
 		/* drive resume for at least 20 msec */
 		if (udev)
 			dev_dbg(&udev->dev, "usb %sresume\n",
@@ -1790,16 +1795,15 @@ hub_port_resume(struct usb_hub *hub, int port1, struct usb_device *udev)
 		 * stop resume signaling.  Then finish the resume
 		 * sequence.
 		 */
-		devstatus = portchange = 0;
-		status = hub_port_status(hub, port1,
-				&devstatus, &portchange);
+		status = hub_port_status(hub, port1, &portstatus, &portchange);
+SuspendCleared:
 		if (status < 0
-				|| (devstatus & LIVE_FLAGS) != LIVE_FLAGS
-				|| (devstatus & USB_PORT_STAT_SUSPEND) != 0
+				|| (portstatus & LIVE_FLAGS) != LIVE_FLAGS
+				|| (portstatus & USB_PORT_STAT_SUSPEND) != 0
 				) {
 			dev_dbg(hub->intfdev,
 				"port %d status %04x.%04x after resume, %d\n",
-				port1, portchange, devstatus, status);
+				port1, portchange, portstatus, status);
 			if (status >= 0)
 				status = -ENODEV;
 		} else {
@@ -1860,23 +1864,16 @@ static int remote_wakeup(struct usb_device *udev)
 {
 	int	status = 0;
 
-	/* All this just to avoid sending a port-resume message
-	 * to the parent hub! */
-
 	usb_lock_device(udev);
-	usb_pm_lock(udev);
 	if (udev->state == USB_STATE_SUSPENDED) {
 		dev_dbg(&udev->dev, "usb %sresume\n", "wakeup-");
-		/* TRSMRCY = 10 msec */
-		msleep(10);
-		status = finish_port_resume(udev);
-		if (status == 0)
-			udev->dev.power.power_state.event = PM_EVENT_ON;
-	}
-	usb_pm_unlock(udev);
+		status = usb_autoresume_device(udev, 1);
 
-	if (status == 0)
-		usb_autoresume_device(udev, 0);
+		/* Give the interface drivers a chance to do something,
+		 * then autosuspend the device again. */
+		if (status == 0)
+			usb_autosuspend_device(udev, 1);
+	}
 	usb_unlock_device(udev);
 	return status;
 }
