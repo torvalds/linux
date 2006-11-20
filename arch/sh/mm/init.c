@@ -93,7 +93,7 @@ static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 	pud = pud_offset(pgd, addr);
 	if (pud_none(*pud)) {
 		pmd = (pmd_t *)get_zeroed_page(GFP_ATOMIC);
-		set_pud(pud, __pud(__pa(pmd) | _KERNPG_TABLE | _PAGE_USER));
+		set_pud(pud, __pud(__pa(pmd) | _PAGE_TABLE));
 		if (pmd != pmd_offset(pud, 0)) {
 			pud_ERROR(*pud);
 			return;
@@ -103,7 +103,7 @@ static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 	pmd = pmd_offset(pud, addr);
 	if (pmd_none(*pmd)) {
 		pte = (pte_t *)get_zeroed_page(GFP_ATOMIC);
-		set_pmd(pmd, __pmd(__pa(pte) | _KERNPG_TABLE | _PAGE_USER));
+		set_pmd(pmd, __pmd(__pa(pte) | _PAGE_TABLE));
 		if (pte != pte_offset_kernel(pmd, 0)) {
 			pmd_ERROR(*pmd);
 			return;

@@ -13,9 +13,16 @@
    [ P4 control   ]		0xE0000000
  */
 
-
 /* PAGE_SHIFT determines the page size */
-#define PAGE_SHIFT	12
+#if defined(CONFIG_PAGE_SIZE_4KB)
+# define PAGE_SHIFT	12
+#elif defined(CONFIG_PAGE_SIZE_8KB)
+# define PAGE_SHIFT	13
+#elif defined(CONFIG_PAGE_SIZE_64KB)
+# define PAGE_SHIFT	16
+#else
+# error "Bogus kernel page size?"
+#endif
 
 #ifdef __ASSEMBLY__
 #define PAGE_SIZE	(1 << PAGE_SHIFT)
@@ -28,8 +35,14 @@
 
 #if defined(CONFIG_HUGETLB_PAGE_SIZE_64K)
 #define HPAGE_SHIFT	16
+#elif defined(CONFIG_HUGETLB_PAGE_SIZE_256K)
+#define HPAGE_SHIFT	18
 #elif defined(CONFIG_HUGETLB_PAGE_SIZE_1MB)
 #define HPAGE_SHIFT	20
+#elif defined(CONFIG_HUGETLB_PAGE_SIZE_4MB)
+#define HPAGE_SHIFT	22
+#elif defined(CONFIG_HUGETLB_PAGE_SIZE_64MB)
+#define HPAGE_SHIFT	26
 #endif
 
 #ifdef CONFIG_HUGETLB_PAGE
@@ -69,15 +82,25 @@ extern void __copy_user_page(void *to, void *from, void *orig_to);
 /*
  * These are used to make use of C type-checking..
  */
-typedef struct { unsigned long pte; } pte_t;
-typedef struct { unsigned long pgd; } pgd_t;
+#ifdef CONFIG_X2TLB
+typedef struct { unsigned long pte_low, pte_high; } pte_t;
+typedef struct { unsigned long long pgprot; } pgprot_t;
+#define pte_val(x) \
+	((x).pte_low | ((unsigned long long)(x).pte_high << 32))
+#define __pte(x) \
+	({ pte_t __pte = {(x), ((unsigned long long)(x)) >> 32}; __pte; })
+#else
+typedef struct { unsigned long pte_low; } pte_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
+#define pte_val(x)	((x).pte_low)
+#define __pte(x) ((pte_t) { (x) } )
+#endif
 
-#define pte_val(x)	((x).pte)
+typedef struct { unsigned long pgd; } pgd_t;
+
 #define pgd_val(x)	((x).pgd)
 #define pgprot_val(x)	((x).pgprot)
 
-#define __pte(x) ((pte_t) { (x) } )
 #define __pgd(x) ((pgd_t) { (x) } )
 #define __pgprot(x)	((pgprot_t) { (x) } )
 

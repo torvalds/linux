@@ -37,10 +37,6 @@ void clear_user_page(void *to, unsigned long address, struct page *page)
 	if (((address ^ (unsigned long)to) & CACHE_ALIAS) == 0)
 		clear_page(to);
 	else {
-		pgprot_t pgprot = __pgprot(_PAGE_PRESENT |
-					   _PAGE_RW | _PAGE_CACHABLE |
-					   _PAGE_DIRTY | _PAGE_ACCESSED |
-					   _PAGE_HW_SHARED | _PAGE_FLAGS_HARD);
 		unsigned long phys_addr = PHYSADDR(to);
 		unsigned long p3_addr = P3SEG + (address & CACHE_ALIAS);
 		pgd_t *pgd = pgd_offset_k(p3_addr);
@@ -50,7 +46,7 @@ void clear_user_page(void *to, unsigned long address, struct page *page)
 		pte_t entry;
 		unsigned long flags;
 
-		entry = pfn_pte(phys_addr >> PAGE_SHIFT, pgprot);
+		entry = pfn_pte(phys_addr >> PAGE_SHIFT, PAGE_KERNEL);
 		down(&p3map_sem[(address & CACHE_ALIAS)>>12]);
 		set_pte(pte, entry);
 		local_irq_save(flags);
@@ -77,10 +73,6 @@ void copy_user_page(void *to, void *from, unsigned long address,
 	if (((address ^ (unsigned long)to) & CACHE_ALIAS) == 0)
 		copy_page(to, from);
 	else {
-		pgprot_t pgprot = __pgprot(_PAGE_PRESENT |
-					   _PAGE_RW | _PAGE_CACHABLE |
-					   _PAGE_DIRTY | _PAGE_ACCESSED |
-					   _PAGE_HW_SHARED | _PAGE_FLAGS_HARD);
 		unsigned long phys_addr = PHYSADDR(to);
 		unsigned long p3_addr = P3SEG + (address & CACHE_ALIAS);
 		pgd_t *pgd = pgd_offset_k(p3_addr);
@@ -90,7 +82,7 @@ void copy_user_page(void *to, void *from, unsigned long address,
 		pte_t entry;
 		unsigned long flags;
 
-		entry = pfn_pte(phys_addr >> PAGE_SHIFT, pgprot);
+		entry = pfn_pte(phys_addr >> PAGE_SHIFT, PAGE_KERNEL);
 		down(&p3map_sem[(address & CACHE_ALIAS)>>12]);
 		set_pte(pte, entry);
 		local_irq_save(flags);

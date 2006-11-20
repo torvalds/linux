@@ -235,12 +235,21 @@ config MEMORY_SIZE
 
 config 32BIT
 	bool "Support 32-bit physical addressing through PMB"
-	depends on CPU_SH4A && MMU
+	depends on CPU_SH4A && MMU && (!X2TLB || BROKEN)
 	default y
 	help
 	  If you say Y here, physical addressing will be extended to
 	  32-bits through the SH-4A PMB. If this is not set, legacy
 	  29-bit physical addressing will be used.
+
+config X2TLB
+	bool "Enable extended TLB mode"
+	depends on CPU_SUBTYPE_SH7785 && MMU && EXPERIMENTAL
+	help
+	  Selecting this option will enable the extended mode of the SH-X2
+	  TLB. For legacy SH-X behaviour and interoperability, say N. For
+	  all of the fun new features and a willingless to submit bug reports,
+	  say Y.
 
 config VSYSCALL
 	bool "Support vsyscall page"
@@ -256,15 +265,51 @@ config VSYSCALL
 	  (the default value) say Y.
 
 choice
+	prompt "Kernel page size"
+	default PAGE_SIZE_4KB
+
+config PAGE_SIZE_4KB
+	bool "4kB"
+	help
+	  This is the default page size used by all SuperH CPUs.
+
+config PAGE_SIZE_8KB
+	bool "8kB"
+	depends on EXPERIMENTAL && X2TLB
+	help
+	  This enables 8kB pages as supported by SH-X2 and later MMUs.
+
+config PAGE_SIZE_64KB
+	bool "64kB"
+	depends on EXPERIMENTAL && CPU_SH4
+	help
+	  This enables support for 64kB pages, possible on all SH-4
+	  CPUs and later. Highly experimental, not recommended.
+
+endchoice
+
+choice
 	prompt "HugeTLB page size"
 	depends on HUGETLB_PAGE && CPU_SH4 && MMU
 	default HUGETLB_PAGE_SIZE_64K
 
 config HUGETLB_PAGE_SIZE_64K
-	bool "64K"
+	bool "64kB"
+
+config HUGETLB_PAGE_SIZE_256K
+	bool "256kB"
+	depends on X2TLB
 
 config HUGETLB_PAGE_SIZE_1MB
 	bool "1MB"
+
+config HUGETLB_PAGE_SIZE_4MB
+	bool "4MB"
+	depends on X2TLB
+
+config HUGETLB_PAGE_SIZE_64MB
+	bool "64MB"
+	depends on X2TLB
 
 endchoice
 
