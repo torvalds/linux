@@ -552,6 +552,9 @@ static hda_nid_t cxt5045_adc_nids[1] = { 0x1a };
 static hda_nid_t cxt5045_capsrc_nids[1] = { 0x1a };
 #define CXT5045_SPDIF_OUT	0x13
 
+static struct hda_channel_mode cxt5045_modes[1] = {
+	{ 2, NULL },
+};
 
 static struct hda_input_mux cxt5045_capture_source = {
 	.num_items = 2,
@@ -842,6 +845,9 @@ static int patch_cxt5045(struct hda_codec *codec)
 	spec->num_init_verbs = 1;
 	spec->init_verbs[0] = cxt5045_init_verbs;
 	spec->spdif_route = 0;
+	spec->num_channel_mode = ARRAY_SIZE(cxt5045_modes),
+	spec->channel_mode = cxt5045_modes,
+
 
 	codec->patch_ops = conexant_patch_ops;
 	codec->patch_ops.unsol_event = cxt5045_hp_unsol_event;
@@ -873,6 +879,9 @@ static hda_nid_t cxt5047_adc_nids[1] = { 0x12 };
 static hda_nid_t cxt5047_capsrc_nids[1] = { 0x1a };
 #define CXT5047_SPDIF_OUT	0x11
 
+static struct hda_channel_mode cxt5047_modes[1] = {
+	{ 2, NULL },
+};
 
 static struct hda_input_mux cxt5047_capture_source = {
 	.num_items = 2,
@@ -1039,7 +1048,7 @@ static struct hda_verb cxt5047_init_verbs[] = {
 	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN|AC_PINCTL_VREF_50 },
 	/* HP, Amp  */
 	{0x13, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
-	{0x1A, AC_VERB_SET_CONNECT_SEL,0x01},
+	{0x1A, AC_VERB_SET_CONNECT_SEL,0x03},
 	{0x1A, AC_VERB_SET_AMP_GAIN_MUTE,
 	 AC_AMP_SET_OUTPUT|AC_AMP_SET_RIGHT|AC_AMP_SET_LEFT|0x00},
 	{0x1A, AC_VERB_SET_AMP_GAIN_MUTE,
@@ -1111,9 +1120,9 @@ static struct snd_kcontrol_new cxt5047_test_mixer[] = {
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x19, 0x04, HDA_INPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x19, 0x04, HDA_INPUT),
 
+#if 0   
 	/* Controls for GPIO pins, assuming they exist and are configured as outputs */
 	CXT_GPIO_DATA_SWITCH("GPIO pin 0", 0x01, 0x01),
-#if 0   /* limit this to one GPIO pin for now */	
 	CXT_GPIO_DATA_SWITCH("GPIO pin 1", 0x01, 0x02),
 	CXT_GPIO_DATA_SWITCH("GPIO pin 2", 0x01, 0x04),
 	CXT_GPIO_DATA_SWITCH("GPIO pin 3", 0x01, 0x08),
@@ -1262,6 +1271,8 @@ static int patch_cxt5047(struct hda_codec *codec)
 	spec->num_init_verbs = 1;
 	spec->init_verbs[0] = cxt5047_init_verbs;
 	spec->spdif_route = 0;
+	spec->num_channel_mode = ARRAY_SIZE(cxt5047_modes),
+	spec->channel_mode = cxt5047_modes,
 
 	codec->patch_ops = conexant_patch_ops;
 	codec->patch_ops.unsol_event = cxt5047_hp_unsol_event;
