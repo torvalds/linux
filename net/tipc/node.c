@@ -60,7 +60,7 @@ struct node *tipc_node_create(u32 addr)
 	struct node *n_ptr;
         struct node **curr_node;
 
-	n_ptr = kmalloc(sizeof(*n_ptr),GFP_ATOMIC);
+	n_ptr = kzalloc(sizeof(*n_ptr),GFP_ATOMIC);
 	if (!n_ptr) {
 		warn("Node creation failed, no memory\n");
 		return NULL;
@@ -75,7 +75,6 @@ struct node *tipc_node_create(u32 addr)
 		return NULL;
 	}
 		
-	memset(n_ptr, 0, sizeof(*n_ptr));
 	n_ptr->addr = addr;
                 spin_lock_init(&n_ptr->lock);
 	INIT_LIST_HEAD(&n_ptr->nsub);
