@@ -757,7 +757,6 @@ const union sctp_addr *sctp_source(const struct sctp_chunk *chunk);
 struct sctp_sockaddr_entry {
 	struct list_head list;
 	union sctp_addr a;
-	union sctp_addr a_h;
 	__u8 use_as_src;
 };
 

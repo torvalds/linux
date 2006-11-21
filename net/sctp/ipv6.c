@@ -336,7 +336,6 @@ static void sctp_v6_copy_addrlist(struct list_head *addrlist,
 			addr->a.v6.sin6_port = 0;
 			addr->a.v6.sin6_addr = ifp->addr;
 			addr->a.v6.sin6_scope_id = dev->ifindex;
-			addr->a_h = addr->a;
 			INIT_LIST_HEAD(&addr->list);
 			list_add_tail(&addr->list, addrlist);
 		}

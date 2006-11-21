@@ -153,7 +153,6 @@ static void sctp_v4_copy_addrlist(struct list_head *addrlist,
 			addr->a.v4.sin_family = AF_INET;
 			addr->a.v4.sin_port = 0;
 			addr->a.v4.sin_addr.s_addr = ifa->ifa_local;
-			addr->a_h = addr->a;
 			list_add_tail(&addr->list, addrlist);
 		}
 	}
