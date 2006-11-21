@@ -1041,10 +1041,10 @@ const union sctp_addr *sctp_source(const struct sctp_chunk *chunk)
 {
 	/* If we have a known transport, use that.  */
 	if (chunk->transport) {
-		return &chunk->transport->ipaddr_h;
+		return &chunk->transport->ipaddr;
 	} else {
 		/* Otherwise, extract it from the IP header.  */
-		return &chunk->source_h;
+		return &chunk->source;
 	}
 }
 
@@ -1844,7 +1844,6 @@ int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 	struct sctp_transport *transport;
 	struct list_head *pos, *temp;
 	char *cookie;
-	union sctp_addr tmp;
 
 	/* We must include the address that the INIT packet came from.
 	 * This is the only address that matters for an INIT packet.
@@ -1857,8 +1856,7 @@ int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 	 * be a a better choice than any of the embedded addresses.
 	 */
 	if (peer_addr) {
-		flip_to_n(&tmp, peer_addr);
-		if(!sctp_assoc_add_peer(asoc, &tmp, gfp, SCTP_ACTIVE))
+		if(!sctp_assoc_add_peer(asoc, peer_addr, gfp, SCTP_ACTIVE))
 			goto nomem;
 	}
 
@@ -2419,7 +2417,6 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 	union sctp_addr	addr;
 	struct list_head *pos;
 	union sctp_addr_param *addr_param;
-	union sctp_addr tmp;
 
 	addr_param = (union sctp_addr_param *)
 			((void *)asconf_param + sizeof(sctp_addip_param_t));
@@ -2463,8 +2460,7 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 		 * an Error Cause TLV set to the new error code 'Request to
 		 * Delete Source IP Address'
 		 */
-		flip_to_n(&tmp, sctp_source(asconf));
-		if (sctp_cmp_addr_exact(&tmp, &addr))
+		if (sctp_cmp_addr_exact(sctp_source(asconf), &addr))
 			return SCTP_ERROR_DEL_SRC_IP;
 
 		sctp_assoc_del_peer(asoc, &addr);

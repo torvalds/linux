@@ -346,10 +346,8 @@ static void sctp_endpoint_bh_rcv(struct sctp_endpoint *ep)
 		 * COOKIE-ECHO chunk.
 		 */
 		if (NULL == chunk->asoc) {
-			union sctp_addr tmp;
-			flip_to_n(&tmp, sctp_source(chunk));
 			asoc = sctp_endpoint_lookup_assoc(ep,
-							  &tmp,
+							  sctp_source(chunk),
 							  &transport);
 			chunk->asoc = asoc;
 			chunk->transport = transport;

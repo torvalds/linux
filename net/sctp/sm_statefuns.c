@@ -598,7 +598,6 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(const struct sctp_endpoint *ep,
 	struct sctp_ulpevent *ev, *ai_ev = NULL;
 	int error = 0;
 	struct sctp_chunk *err_chk_p;
-	union sctp_addr tmp;
 
 	/* If the packet is an OOTB packet which is temporarily on the
 	 * control endpoint, respond with an ABORT.
@@ -666,9 +665,8 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(const struct sctp_endpoint *ep,
 	 */
 	peer_init = &chunk->subh.cookie_hdr->c.peer_init[0];
 
-	flip_to_h(&tmp, &chunk->subh.cookie_hdr->c.peer_addr);
 	if (!sctp_process_init(new_asoc, chunk->chunk_hdr->type,
-			       &tmp,
+			       &chunk->subh.cookie_hdr->c.peer_addr,
 			       peer_init, GFP_ATOMIC))
 		goto nomem_init;
 
@@ -5105,7 +5103,6 @@ static struct sctp_packet *sctp_ootb_pkt_new(const struct sctp_association *asoc
 	__u16 sport;
 	__u16 dport;
 	__u32 vtag;
-	union sctp_addr tmp;
 
 	/* Get the source and destination port from the inbound packet.  */
 	sport = ntohs(chunk->sctp_hdr->dest);
@@ -5136,8 +5133,7 @@ static struct sctp_packet *sctp_ootb_pkt_new(const struct sctp_association *asoc
 	}
 
 	/* Make a transport for the bucket, Eliza... */
-	flip_to_n(&tmp, sctp_source(chunk));
-	transport = sctp_transport_new(&tmp, GFP_ATOMIC);
+	transport = sctp_transport_new(sctp_source(chunk), GFP_ATOMIC);
 	if (!transport)
 		goto nomem;
 
