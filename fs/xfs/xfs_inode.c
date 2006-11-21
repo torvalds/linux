@@ -2258,7 +2258,7 @@ xfs_ifree_cluster(
 				AIL_LOCK(mp,s);
 				iip->ili_flush_lsn = iip->ili_item.li_lsn;
 				AIL_UNLOCK(mp, s);
-				xfs_iflags_set(ip, XFS_ISTALE);
+				xfs_iflags_set(iip->ili_inode, XFS_ISTALE);
 				pre_flushed++;
 			}
 			lip = lip->li_bio_list;
