@@ -587,7 +587,7 @@ struct sctp_pf {
 			  struct sctp_sock *);
 	int  (*bind_verify) (struct sctp_sock *, union sctp_addr *);
 	int  (*send_verify) (struct sctp_sock *, union sctp_addr *);
-	int  (*supported_addrs)(const struct sctp_sock *, __u16 *);
+	int  (*supported_addrs)(const struct sctp_sock *, __be16 *);
 	struct sock *(*create_accept_sk) (struct sock *sk,
 					  struct sctp_association *asoc);
 	void (*addr_v4map) (struct sctp_sock *, union sctp_addr *);

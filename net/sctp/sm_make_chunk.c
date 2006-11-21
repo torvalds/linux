@@ -183,7 +183,7 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 	int num_types, addrs_len = 0;
 	struct sctp_sock *sp;
 	sctp_supported_addrs_param_t sat;
-	__u16 types[2];
+	__be16 types[2];
 	sctp_adaption_ind_param_t aiparam;
 
 	/* RFC 2960 3.3.2 Initiation (INIT) (1)

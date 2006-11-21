@@ -791,7 +791,7 @@ static int sctp_inet_send_verify(struct sctp_sock *opt, union sctp_addr *addr)
  * chunks.  Returns number of addresses supported.
  */
 static int sctp_inet_supported_addrs(const struct sctp_sock *opt,
-				     __u16 *types)
+				     __be16 *types)
 {
 	types[0] = SCTP_PARAM_IPV4_ADDRESS;
 	return 1;
