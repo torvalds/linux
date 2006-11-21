@@ -296,7 +296,7 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 					udp_len, IPPROTO_UDP,
 					csum_partial((unsigned char *)udph, udp_len, 0));
 	if (udph->check == 0)
-		udph->check = -1;
+		udph->check = CSUM_MANGLED_0;
 
 	skb->nh.iph = iph = (struct iphdr *)skb_push(skb, sizeof(*iph));
 
