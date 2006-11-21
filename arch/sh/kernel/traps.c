@@ -93,7 +93,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 
 	if (!user_mode(regs) || in_interrupt())
 		dump_mem("Stack: ", regs->regs[15], THREAD_SIZE +
-		 	 (unsigned long)task_stack_page(current));
+			 (unsigned long)task_stack_page(current));
 
 	bust_spinlocks(0);
 	spin_unlock_irq(&die_lock);
@@ -201,7 +201,7 @@ static int handle_unaligned_ins(u16 instruction, struct pt_regs *regs)
 		if (copy_to_user(dst,src,4))
 			goto fetch_fault;
 		ret = 0;
- 		break;
+		break;
 
 	case 2: /* mov.[bwl] to memory, possibly with pre-decrement */
 		if (instruction & 4)
@@ -225,7 +225,7 @@ static int handle_unaligned_ins(u16 instruction, struct pt_regs *regs)
 		if (copy_from_user(dst,src,4))
 			goto fetch_fault;
 		ret = 0;
- 		break;
+		break;
 
 	case 6:	/* mov.[bwl] from memory, possibly with post-increment */
 		src = (unsigned char*) *rm;
@@ -233,7 +233,7 @@ static int handle_unaligned_ins(u16 instruction, struct pt_regs *regs)
 			*rm += count;
 		dst = (unsigned char*) rn;
 		*(unsigned long*)dst = 0;
-		
+
 #ifdef __LITTLE_ENDIAN__
 		if (copy_from_user(dst, src, count))
 			goto fetch_fault;
@@ -244,7 +244,7 @@ static int handle_unaligned_ins(u16 instruction, struct pt_regs *regs)
 		}
 #else
 		dst += 4-count;
-		
+
 		if (copy_from_user(dst, src, count))
 			goto fetch_fault;
 
@@ -323,7 +323,8 @@ static inline int handle_unaligned_delayslot(struct pt_regs *regs)
 			return -EFAULT;
 
 		/* kernel */
-		die("delay-slot-insn faulting in handle_unaligned_delayslot", regs, 0);
+		die("delay-slot-insn faulting in handle_unaligned_delayslot",
+		    regs, 0);
 	}
 
 	return handle_unaligned_ins(instruction,regs);
@@ -364,7 +365,8 @@ static int handle_unaligned_access(u16 instruction, struct pt_regs *regs)
 	if (user_mode(regs) && handle_unaligned_notify_count>0) {
 		handle_unaligned_notify_count--;
 
-		printk("Fixing up unaligned userspace access in \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
+		printk(KERN_NOTICE "Fixing up unaligned userspace access "
+		       "in \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
 		       current->comm,current->pid,(u16*)regs->pc,instruction);
 	}
 
@@ -499,7 +501,15 @@ static int handle_unaligned_access(u16 instruction, struct pt_regs *regs)
 #endif
 
 /*
- * Handle various address error exceptions
+ * Handle various address error exceptions:
+ *  - instruction address error:
+ *       misaligned PC
+ *       PC >= 0x80000000 in user mode
+ *  - data address error (read and write)
+ *       misaligned data access
+ *       access to >= 0x80000000 is user mode
+ * Unfortuntaly we can't distinguish between instruction address error
+ * and data address errors caused by read acceses.
  */
 asmlinkage void do_address_error(struct pt_regs *regs,
 				 unsigned long writeaccess,
@@ -507,6 +517,7 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 {
 	unsigned long error_code = 0;
 	mm_segment_t oldfs;
+	siginfo_t info;
 #ifndef CONFIG_CPU_SH2A
 	u16 instruction;
 	int tmp;
@@ -520,22 +531,15 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 	oldfs = get_fs();
 
 	if (user_mode(regs)) {
+		int si_code = BUS_ADRERR;
+
 		local_irq_enable();
-		current->thread.error_code = error_code;
-#ifdef CONFIG_CPU_SH2
-		/*
-		 * On the SH-2, we only have a single vector for address
-		 * errors, there's no differentiating between a load error
-		 * and a store error.
-		 */
-		current->thread.trap_no = 9;
-#else
-		current->thread.trap_no = (writeaccess) ? 8 : 7;
-#endif
 
 		/* bad PC is not something we can fix */
-		if (regs->pc & 1)
+		if (regs->pc & 1) {
+			si_code = BUS_ADRALN;
 			goto uspace_segv;
+		}
 
 #ifndef CONFIG_CPU_SH2A
 		set_fs(USER_DS);
@@ -554,9 +558,16 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 			return; /* sorted */
 #endif
 
-	uspace_segv:
-		printk(KERN_NOTICE "Killing process \"%s\" due to unaligned access\n", current->comm);
-		force_sig(SIGSEGV, current);
+uspace_segv:
+		printk(KERN_NOTICE "Sending SIGBUS to \"%s\" due to unaligned "
+		       "access (PC %lx PR %lx)\n", current->comm, regs->pc,
+		       regs->pr);
+
+		info.si_signo = SIGBUS;
+		info.si_errno = 0;
+		info.si_code = si_code;
+		info.si_addr = (void *) address;
+		force_sig_info(SIGBUS, &info, current);
 	} else {
 		if (regs->pc & 1)
 			die("unaligned program counter", regs, error_code);
@@ -574,7 +585,9 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 		handle_unaligned_access(instruction, regs);
 		set_fs(oldfs);
 #else
-		printk(KERN_NOTICE "Killing process \"%s\" due to unaligned access\n", current->comm);
+		printk(KERN_NOTICE "Killing process \"%s\" due to unaligned "
+		       "access\n", current->comm);
+
 		force_sig(SIGSEGV, current);
 #endif
 	}
@@ -616,9 +629,6 @@ asmlinkage void do_divide_error(unsigned long r4, unsigned long r5,
 {
 	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	siginfo_t info;
-
-	current->thread.trap_no = r4;
-	current->thread.error_code = 0;
 
 	switch (r4) {
 	case TRAP_DIVZERO_ERROR:
@@ -662,7 +672,7 @@ asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
 
 #ifdef CONFIG_SH_DSP
 	/* Check if it's a DSP instruction */
- 	if (is_dsp_inst(regs)) {
+	if (is_dsp_inst(regs)) {
 		/* Enable DSP mode, and restart instruction. */
 		regs->sr |= SR_DSP;
 		return;
@@ -672,8 +682,6 @@ asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
 	lookup_exception_vector(error_code);
 
 	local_irq_enable();
-	tsk->thread.error_code = error_code;
-	tsk->thread.trap_no = TRAP_RESERVED_INST;
 	CHK_REMOTE_DEBUG(regs);
 	force_sig(SIGILL, tsk);
 	die_if_no_fixup("reserved instruction", regs, error_code);
@@ -745,8 +753,6 @@ asmlinkage void do_illegal_slot_inst(unsigned long r4, unsigned long r5,
 	lookup_exception_vector(error_code);
 
 	local_irq_enable();
-	tsk->thread.error_code = error_code;
-	tsk->thread.trap_no = TRAP_RESERVED_INST;
 	CHK_REMOTE_DEBUG(regs);
 	force_sig(SIGILL, tsk);
 	die_if_no_fixup("illegal slot instruction", regs, error_code);
@@ -805,7 +811,7 @@ void *set_exception_table_vec(unsigned int vec, void *handler)
 {
 	extern void *exception_handling_table[];
 	void *old_handler;
-	
+
 	old_handler = exception_handling_table[vec];
 	exception_handling_table[vec] = handler;
 	return old_handler;
@@ -841,7 +847,7 @@ void __init trap_init(void)
 	set_exception_table_vec(TRAP_DIVZERO_ERROR, do_divide_error);
 	set_exception_table_vec(TRAP_DIVOVF_ERROR, do_divide_error);
 #endif
-		
+
 	/* Setup VBR for boot cpu */
 	per_cpu_trap_init();
 }

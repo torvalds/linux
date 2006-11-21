@@ -282,11 +282,8 @@ ieee_fpe_handler (struct pt_regs *regs)
 			grab_fpu(regs);
 			restore_fpu(tsk);
 			set_tsk_thread_flag(tsk, TIF_USEDFPU);
-		} else {
-			tsk->thread.trap_no = 11;
-			tsk->thread.error_code = 0;
+		} else
 			force_sig(SIGFPE, tsk);
-		}
 
 		regs->pc = nextpc;
 		return 1;
@@ -307,8 +304,6 @@ do_fpu_error(unsigned long r4, unsigned long r5, unsigned long r6,
 
 	regs->pc += 2;
 	save_fpu(tsk, regs);
-	tsk->thread.trap_no = 11;
-	tsk->thread.error_code = 0;
 	force_sig(SIGFPE, tsk);
 }
 

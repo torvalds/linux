@@ -136,12 +136,11 @@ union sh_fpu_union {
 };
 
 struct thread_struct {
+	/* Saved registers when thread is descheduled */
 	unsigned long sp;
 	unsigned long pc;
 
-	unsigned long trap_no, error_code;
-	unsigned long address;
-	/* Hardware debugging registers may come here */
+	/* Hardware debugging registers */
 	unsigned long ubc_pc;
 
 	/* floating point info */
@@ -156,12 +155,7 @@ typedef struct {
 extern int ubc_usercnt;
 
 #define INIT_THREAD  {						\
-	sizeof(init_stack) + (long) &init_stack, /* sp */	\
-	0,					 /* pc */	\
-	0, 0,							\
-	0,							\
-	0,							\
-	{{{0,}},}				/* fpu state */	\
+	.sp = sizeof(init_stack) + (long) &init_stack,		\
 }
 
 /*
