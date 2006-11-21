@@ -1167,8 +1167,8 @@ static int sctp_sf_check_restart_addrs(const struct sctp_association *new_asoc,
 		list_for_each(pos2, &asoc->peer.transport_addr_list) {
 			addr = list_entry(pos2, struct sctp_transport,
 					  transports);
-			if (sctp_cmp_addr_exact(&new_addr->ipaddr_h,
-						&addr->ipaddr_h)) {
+			if (sctp_cmp_addr_exact(&new_addr->ipaddr,
+						&addr->ipaddr)) {
 				found = 1;
 				break;
 			}

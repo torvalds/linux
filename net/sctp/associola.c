@@ -666,10 +666,13 @@ void sctp_assoc_del_peer(struct sctp_association *asoc,
 	struct list_head	*pos;
 	struct list_head	*temp;
 	struct sctp_transport	*transport;
+	union sctp_addr tmp;
+
+	flip_to_n(&tmp, addr);
 
 	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
 		transport = list_entry(pos, struct sctp_transport, transports);
-		if (sctp_cmp_addr_exact(addr, &transport->ipaddr_h)) {
+		if (sctp_cmp_addr_exact(&tmp, &transport->ipaddr)) {
 			/* Do book keeping for removing the peer and free it. */
 			sctp_assoc_rm_peer(asoc, transport);
 			break;
@@ -684,12 +687,14 @@ struct sctp_transport *sctp_assoc_lookup_paddr(
 {
 	struct sctp_transport *t;
 	struct list_head *pos;
+	union sctp_addr tmp;
 
+	flip_to_n(&tmp, address);
 	/* Cycle through all transports searching for a peer address. */
 
 	list_for_each(pos, &asoc->peer.transport_addr_list) {
 		t = list_entry(pos, struct sctp_transport, transports);
-		if (sctp_cmp_addr_exact(address, &t->ipaddr_h))
+		if (sctp_cmp_addr_exact(&tmp, &t->ipaddr))
 			return t;
 	}
 

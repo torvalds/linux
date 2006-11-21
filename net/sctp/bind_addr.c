@@ -181,10 +181,13 @@ int sctp_del_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *del_addr)
 {
 	struct list_head *pos, *temp;
 	struct sctp_sockaddr_entry *addr;
+	union sctp_addr tmp;
+
+	flip_to_n(&tmp, del_addr);
 
 	list_for_each_safe(pos, temp, &bp->address_list) {
 		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
-		if (sctp_cmp_addr_exact(&addr->a_h, del_addr)) {
+		if (sctp_cmp_addr_exact(&addr->a, &tmp)) {
 			/* Found the exact match. */
 			list_del(pos);
 			kfree(addr);
@@ -304,10 +307,12 @@ int sctp_bind_addr_match(struct sctp_bind_addr *bp,
 {
 	struct sctp_sockaddr_entry *laddr;
 	struct list_head *pos;
+	union sctp_addr tmp;
 
+	flip_to_n(&tmp, addr);
 	list_for_each(pos, &bp->address_list) {
 		laddr = list_entry(pos, struct sctp_sockaddr_entry, list);
-		if (opt->pf->cmp_addr(&laddr->a_h, addr, opt))
+		if (opt->pf->cmp_addr(&laddr->a, &tmp, opt))
  			return 1;
 	}
 
@@ -334,14 +339,12 @@ union sctp_addr *sctp_find_unmatch_addr(struct sctp_bind_addr	*bp,
 		
 		addr_buf = (union sctp_addr *)addrs;
 		for (i = 0; i < addrcnt; i++) {
-			union sctp_addr tmp;
 			addr = (union sctp_addr *)addr_buf;
 			af = sctp_get_af_specific(addr->v4.sin_family);
 			if (!af) 
 				return NULL;
-			flip_to_h(&tmp, addr);
 
-			if (opt->pf->cmp_addr(&laddr->a_h, &tmp, opt))
+			if (opt->pf->cmp_addr(&laddr->a, addr, opt))
 				break;
 
 			addr_buf += af->sockaddr_len;

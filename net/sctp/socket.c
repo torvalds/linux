@@ -693,7 +693,6 @@ static int sctp_send_asconf_del_ip(struct sock		*sk,
 	struct sctp_bind_addr	*bp;
 	struct sctp_chunk	*chunk;
 	union sctp_addr		*laddr;
-	union sctp_addr		saveaddr;
 	void			*addr_buf;
 	struct sctp_af		*af;
 	struct list_head	*pos, *pos1;
@@ -773,13 +772,11 @@ static int sctp_send_asconf_del_ip(struct sock		*sk,
 		for (i = 0; i < addrcnt; i++) {
 			laddr = (union sctp_addr *)addr_buf;
 			af = sctp_get_af_specific(laddr->v4.sin_family);
-			memcpy(&saveaddr, laddr, af->sockaddr_len);
-			saveaddr.v4.sin_port = ntohs(saveaddr.v4.sin_port);
 			list_for_each(pos1, &bp->address_list) {
 				saddr = list_entry(pos1,
 						   struct sctp_sockaddr_entry,
 						   list);
-				if (sctp_cmp_addr_exact(&saddr->a_h, &saveaddr))
+				if (sctp_cmp_addr_exact(&saddr->a, laddr))
 					saddr->use_as_src = 0;
 			}
 			addr_buf += af->sockaddr_len;

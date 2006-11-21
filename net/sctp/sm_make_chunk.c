@@ -2414,7 +2414,8 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 	union sctp_addr	addr;
 	struct list_head *pos;
 	union sctp_addr_param *addr_param;
-				 
+	union sctp_addr tmp, tmp_addr;
+
 	addr_param = (union sctp_addr_param *)
 			((void *)asconf_param + sizeof(sctp_addip_param_t));
 
@@ -2423,6 +2424,7 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 		return SCTP_ERROR_INV_PARAM;
 
 	af->from_addr_param(&addr, addr_param, asoc->peer.port, 0);
+	flip_to_n(&tmp_addr, &addr);
 	switch (asconf_param->param_hdr.type) {
 	case SCTP_PARAM_ADD_IP:
 		/* ADDIP 4.3 D9) If an endpoint receives an ADD IP address
@@ -2457,7 +2459,8 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 		 * an Error Cause TLV set to the new error code 'Request to
 		 * Delete Source IP Address'
 		 */
-		if (sctp_cmp_addr_exact(sctp_source(asconf), &addr))
+		flip_to_n(&tmp, sctp_source(asconf));
+		if (sctp_cmp_addr_exact(&tmp, &tmp_addr))
 			return SCTP_ERROR_DEL_SRC_IP;
 
 		sctp_assoc_del_peer(asoc, &addr);
@@ -2581,6 +2584,7 @@ static int sctp_asconf_param_success(struct sctp_association *asoc,
 	struct sctp_transport *transport;
 	struct sctp_sockaddr_entry *saddr;
 	int retval = 0;
+	union sctp_addr tmp;
 
 	addr_param = (union sctp_addr_param *)
 			((void *)asconf_param + sizeof(sctp_addip_param_t));
@@ -2588,6 +2592,7 @@ static int sctp_asconf_param_success(struct sctp_association *asoc,
 	/* We have checked the packet before, so we do not check again.	*/
 	af = sctp_get_af_specific(param_type2af(addr_param->v4.param_hdr.type));
 	af->from_addr_param(&addr, addr_param, bp->port, 0);
+	flip_to_n(&tmp, &addr);
 
 	switch (asconf_param->param_hdr.type) {
 	case SCTP_PARAM_ADD_IP:
@@ -2595,7 +2600,7 @@ static int sctp_asconf_param_success(struct sctp_association *asoc,
 		sctp_write_lock(&asoc->base.addr_lock);
 		list_for_each(pos, &bp->address_list) {
 			saddr = list_entry(pos, struct sctp_sockaddr_entry, list);
-			if (sctp_cmp_addr_exact(&saddr->a_h, &addr))
+			if (sctp_cmp_addr_exact(&saddr->a, &tmp))
 				saddr->use_as_src = 1;
 		}
 		sctp_write_unlock(&asoc->base.addr_lock);
