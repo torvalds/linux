@@ -2969,7 +2969,6 @@ static int ipr_alloc_dump(struct ipr_ioa_cfg *ioa_cfg)
 	struct ipr_dump *dump;
 	unsigned long lock_flags = 0;
 
-	ENTER;
 	dump = kzalloc(sizeof(struct ipr_dump), GFP_KERNEL);
 
 	if (!dump) {
@@ -2996,7 +2995,6 @@ static int ipr_alloc_dump(struct ipr_ioa_cfg *ioa_cfg)
 	}
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 
-	LEAVE;
 	return 0;
 }
 
