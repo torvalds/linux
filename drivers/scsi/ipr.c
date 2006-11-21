@@ -79,7 +79,6 @@
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_cmnd.h>
-#include <scsi/scsi_transport.h>
 #include "ipr.h"
 
 /*
@@ -3643,6 +3642,10 @@ static int __ipr_eh_dev_reset(struct scsi_cmnd * scsi_cmd)
 		if (ipr_cmd->ioarcb.res_handle == res->cfgte.res_handle) {
 			if (ipr_cmd->scsi_cmd)
 				ipr_cmd->done = ipr_scsi_eh_done;
+			if (ipr_cmd->qc && !(ipr_cmd->qc->flags & ATA_QCFLAG_FAILED)) {
+				ipr_cmd->qc->err_mask |= AC_ERR_TIMEOUT;
+				ipr_cmd->qc->flags |= ATA_QCFLAG_FAILED;
+			}
 		}
 	}
 
@@ -4654,40 +4657,6 @@ static const char * ipr_ioa_info(struct Scsi_Host *host)
 
 	return buffer;
 }
-
-/**
- * ipr_scsi_timed_out - Handle scsi command timeout
- * @scsi_cmd:	scsi command struct
- *
- * Return value:
- * 	EH_NOT_HANDLED
- **/
-enum scsi_eh_timer_return ipr_scsi_timed_out(struct scsi_cmnd *scsi_cmd)
-{
-	struct ipr_ioa_cfg *ioa_cfg;
-	struct ipr_cmnd *ipr_cmd;
-	unsigned long flags;
-
-	ENTER;
-	spin_lock_irqsave(scsi_cmd->device->host->host_lock, flags);
-	ioa_cfg = (struct ipr_ioa_cfg *)scsi_cmd->device->host->hostdata;
-
-	list_for_each_entry(ipr_cmd, &ioa_cfg->pending_q, queue) {
-		if (ipr_cmd->qc && ipr_cmd->qc->scsicmd == scsi_cmd) {
-			ipr_cmd->qc->err_mask |= AC_ERR_TIMEOUT;
-			ipr_cmd->qc->flags |= ATA_QCFLAG_FAILED;
-			break;
-		}
-	}
-
-	spin_unlock_irqrestore(scsi_cmd->device->host->host_lock, flags);
-	LEAVE;
-	return EH_NOT_HANDLED;
-}
-
-static struct scsi_transport_template ipr_transport_template = {
-	.eh_timed_out = ipr_scsi_timed_out
-};
 
 static struct scsi_host_template driver_template = {
 	.module = THIS_MODULE,
@@ -7030,7 +6999,6 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 
 	ioa_cfg = (struct ipr_ioa_cfg *)host->hostdata;
 	memset(ioa_cfg, 0, sizeof(struct ipr_ioa_cfg));
-	host->transportt = &ipr_transport_template;
 	ata_host_init(&ioa_cfg->ata_host, &pdev->dev,
 		      sata_port_info.flags, &ipr_sata_ops);
 
