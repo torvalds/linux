@@ -165,7 +165,7 @@ static void sctp_seq_dump_local_addrs(struct seq_file *seq, struct sctp_ep_commo
 		if (primary && af->cmp_addr(addr, primary)) {
 			seq_printf(seq, "*");
 		}
-		af->seq_dump_addr(seq, addr);
+		af->seq_dump_addr(seq, &laddr->a);
 	}
 }
 
@@ -185,7 +185,7 @@ static void sctp_seq_dump_remote_addrs(struct seq_file *seq, struct sctp_associa
 		if (af->cmp_addr(addr, primary)) {
 			seq_printf(seq, "*");
 		}
-		af->seq_dump_addr(seq, addr);
+		af->seq_dump_addr(seq, &transport->ipaddr);
 	}
 }
 
