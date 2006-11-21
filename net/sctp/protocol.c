@@ -292,7 +292,7 @@ static void sctp_v4_to_sk_daddr(union sctp_addr *addr, struct sock *sk)
 /* Initialize a sctp_addr from an address parameter. */
 static void sctp_v4_from_addr_param(union sctp_addr *addr,
 				    union sctp_addr_param *param,
-				    __u16 port, int iif)
+				    __be16 port, int iif)
 {
 	addr->v4.sin_family = AF_INET;
 	addr->v4.sin_port = port;

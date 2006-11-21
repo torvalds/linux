@@ -575,7 +575,7 @@ struct sctp_af {
 					 struct sock *sk);
 	void		(*from_addr_param) (union sctp_addr *,
 					    union sctp_addr_param *,
-					    __u16 port, int iif);	
+					    __be16 port, int iif);
 	int		(*to_addr_param) (const union sctp_addr *,
 					  union sctp_addr_param *); 
 	int		(*addr_valid)	(union sctp_addr *,

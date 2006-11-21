@@ -408,7 +408,7 @@ static void sctp_v6_to_sk_daddr(union sctp_addr *addr, struct sock *sk)
 /* Initialize a sctp_addr from an address parameter. */
 static void sctp_v6_from_addr_param(union sctp_addr *addr,
 				    union sctp_addr_param *param,
-				    __u16 port, int iif)
+				    __be16 port, int iif)
 {
 	addr->v6.sin6_family = AF_INET6;
 	addr->v6.sin6_port = port;

@@ -2021,7 +2021,6 @@ static int sctp_process_param(struct sctp_association *asoc,
 	sctp_scope_t scope;
 	time_t stale;
 	struct sctp_af *af;
-	union sctp_addr tmp;
 
 	/* We maintain all INIT parameters in network byte order all the
 	 * time.  This allows us to not worry about whether the parameters
@@ -2034,11 +2033,10 @@ static int sctp_process_param(struct sctp_association *asoc,
 		/* Fall through. */
 	case SCTP_PARAM_IPV4_ADDRESS:
 		af = sctp_get_af_specific(param_type2af(param.p->type));
-		af->from_addr_param(&addr, param.addr, asoc->peer.port, 0);
-		flip_to_n(&tmp, &addr);
+		af->from_addr_param(&addr, param.addr, htons(asoc->peer.port), 0);
 		scope = sctp_scope(peer_addr);
-		if (sctp_in_scope(&tmp, scope))
-			if (!sctp_assoc_add_peer(asoc, &tmp, gfp, SCTP_UNCONFIRMED))
+		if (sctp_in_scope(&addr, scope))
+			if (!sctp_assoc_add_peer(asoc, &addr, gfp, SCTP_UNCONFIRMED))
 				return 0;
 		break;
 
@@ -2421,7 +2419,7 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 	union sctp_addr	addr;
 	struct list_head *pos;
 	union sctp_addr_param *addr_param;
-	union sctp_addr tmp, tmp_addr;
+	union sctp_addr tmp;
 
 	addr_param = (union sctp_addr_param *)
 			((void *)asconf_param + sizeof(sctp_addip_param_t));
@@ -2430,8 +2428,7 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 	if (unlikely(!af))
 		return SCTP_ERROR_INV_PARAM;
 
-	af->from_addr_param(&addr, addr_param, asoc->peer.port, 0);
-	flip_to_n(&tmp_addr, &addr);
+	af->from_addr_param(&addr, addr_param, htons(asoc->peer.port), 0);
 	switch (asconf_param->param_hdr.type) {
 	case SCTP_PARAM_ADD_IP:
 		/* ADDIP 4.3 D9) If an endpoint receives an ADD IP address
@@ -2441,7 +2438,7 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 	 	 * Due to Resource Shortage'.
 	 	 */
 
-		peer = sctp_assoc_add_peer(asoc, &tmp_addr, GFP_ATOMIC, SCTP_UNCONFIRMED);
+		peer = sctp_assoc_add_peer(asoc, &addr, GFP_ATOMIC, SCTP_UNCONFIRMED);
 		if (!peer)
 			return SCTP_ERROR_RSRC_LOW;
 
@@ -2467,13 +2464,13 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 		 * Delete Source IP Address'
 		 */
 		flip_to_n(&tmp, sctp_source(asconf));
-		if (sctp_cmp_addr_exact(&tmp, &tmp_addr))
+		if (sctp_cmp_addr_exact(&tmp, &addr))
 			return SCTP_ERROR_DEL_SRC_IP;
 
-		sctp_assoc_del_peer(asoc, &tmp_addr);
+		sctp_assoc_del_peer(asoc, &addr);
 		break;
 	case SCTP_PARAM_SET_PRIMARY:
-		peer = sctp_assoc_lookup_paddr(asoc, &tmp_addr);
+		peer = sctp_assoc_lookup_paddr(asoc, &addr);
 		if (!peer)
 			return SCTP_ERROR_INV_PARAM;
 
@@ -2591,15 +2588,13 @@ static int sctp_asconf_param_success(struct sctp_association *asoc,
 	struct sctp_transport *transport;
 	struct sctp_sockaddr_entry *saddr;
 	int retval = 0;
-	union sctp_addr tmp;
 
 	addr_param = (union sctp_addr_param *)
 			((void *)asconf_param + sizeof(sctp_addip_param_t));
 
 	/* We have checked the packet before, so we do not check again.	*/
 	af = sctp_get_af_specific(param_type2af(addr_param->v4.param_hdr.type));
-	af->from_addr_param(&addr, addr_param, bp->port, 0);
-	flip_to_n(&tmp, &addr);
+	af->from_addr_param(&addr, addr_param, htons(bp->port), 0);
 
 	switch (asconf_param->param_hdr.type) {
 	case SCTP_PARAM_ADD_IP:
@@ -2607,7 +2602,7 @@ static int sctp_asconf_param_success(struct sctp_association *asoc,
 		sctp_write_lock(&asoc->base.addr_lock);
 		list_for_each(pos, &bp->address_list) {
 			saddr = list_entry(pos, struct sctp_sockaddr_entry, list);
-			if (sctp_cmp_addr_exact(&saddr->a, &tmp))
+			if (sctp_cmp_addr_exact(&saddr->a, &addr))
 				saddr->use_as_src = 1;
 		}
 		sctp_write_unlock(&asoc->base.addr_lock);
@@ -2616,7 +2611,7 @@ static int sctp_asconf_param_success(struct sctp_association *asoc,
 	case SCTP_PARAM_DEL_IP:
 		sctp_local_bh_disable();
 		sctp_write_lock(&asoc->base.addr_lock);
-		retval = sctp_del_bind_addr(bp, &tmp);
+		retval = sctp_del_bind_addr(bp, &addr);
 		sctp_write_unlock(&asoc->base.addr_lock);
 		sctp_local_bh_enable();
 		list_for_each(pos, &asoc->peer.transport_addr_list) {

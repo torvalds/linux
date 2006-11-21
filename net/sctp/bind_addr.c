@@ -264,7 +264,6 @@ int sctp_raw_to_bind_addrs(struct sctp_bind_addr *bp, __u8 *raw_addr_list,
 	int retval = 0;
 	int len;
 	struct sctp_af *af;
-	union sctp_addr tmp;
 
 	/* Convert the raw address to standard address format */
 	while (addrs_len) {
@@ -278,9 +277,8 @@ int sctp_raw_to_bind_addrs(struct sctp_bind_addr *bp, __u8 *raw_addr_list,
 			break;
 		}
 
-		af->from_addr_param(&addr, rawaddr, port, 0);
-		flip_to_n(&tmp, &addr);
-		retval = sctp_add_bind_addr(bp, &tmp, 1, gfp);
+		af->from_addr_param(&addr, rawaddr, htons(port), 0);
+		retval = sctp_add_bind_addr(bp, &addr, 1, gfp);
 		if (retval) {
 			/* Can't finish building the list, clean up. */
 			sctp_bind_addr_clean(bp);
