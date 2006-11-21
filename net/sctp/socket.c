@@ -1018,7 +1018,7 @@ static int __sctp_connect(struct sock* sk,
 		 * make sure that there is no peeled-off association matching
 		 * the peer address even on another socket.
 		 */
-		if (sctp_endpoint_is_peeled_off(ep, &to)) {
+		if (sctp_endpoint_is_peeled_off(ep, sa_addr)) {
 			err = -EADDRNOTAVAIL;
 			goto out_free;
 		}
@@ -1475,7 +1475,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 			 */
 			if ((sctp_style(sk, TCP) &&
 			     sctp_sstate(sk, ESTABLISHED)) ||
-			    sctp_endpoint_is_peeled_off(ep, &to)) {
+			    sctp_endpoint_is_peeled_off(ep, &tmp)) {
 				err = -EADDRNOTAVAIL;
 				goto out_unlock;
 			}
