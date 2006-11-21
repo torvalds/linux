@@ -307,12 +307,10 @@ int sctp_bind_addr_match(struct sctp_bind_addr *bp,
 {
 	struct sctp_sockaddr_entry *laddr;
 	struct list_head *pos;
-	union sctp_addr tmp;
 
-	flip_to_n(&tmp, addr);
 	list_for_each(pos, &bp->address_list) {
 		laddr = list_entry(pos, struct sctp_sockaddr_entry, list);
-		if (opt->pf->cmp_addr(&laddr->a, &tmp, opt))
+		if (opt->pf->cmp_addr(&laddr->a, addr, opt))
  			return 1;
 	}
 

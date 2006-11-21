@@ -4635,11 +4635,9 @@ static long sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 {
 	struct sctp_bind_hashbucket *head; /* hash list */
 	struct sctp_bind_bucket *pp; /* hash list port iterator */
-	union sctp_addr tmp;
 	unsigned short snum;
 	int ret;
 
-	flip_to_h(&tmp, addr);
 	snum = ntohs(addr->v4.sin_port);
 
 	SCTP_DEBUG_PRINTK("sctp_get_port() begins, snum=%d\n", snum);
@@ -4737,7 +4735,7 @@ pp_found:
 			if (reuse && sk2->sk_reuse)
 				continue;
 
-			if (sctp_bind_addr_match(&ep2->base.bind_addr, &tmp,
+			if (sctp_bind_addr_match(&ep2->base.bind_addr, addr,
 						 sctp_sk(sk))) {
 				ret = (long)sk2;
 				goto fail_unlock;

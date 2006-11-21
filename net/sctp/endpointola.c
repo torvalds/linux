@@ -228,10 +228,12 @@ struct sctp_endpoint *sctp_endpoint_is_match(struct sctp_endpoint *ep,
 					       const union sctp_addr *laddr)
 {
 	struct sctp_endpoint *retval;
+	union sctp_addr tmp;
+	flip_to_n(&tmp, laddr);
 
 	sctp_read_lock(&ep->base.addr_lock);
 	if (ep->base.bind_addr.port == laddr->v4.sin_port) {
-		if (sctp_bind_addr_match(&ep->base.bind_addr, laddr,
+		if (sctp_bind_addr_match(&ep->base.bind_addr, &tmp,
 					 sctp_sk(ep->base.sk))) {
 			retval = ep;
 			goto out;
