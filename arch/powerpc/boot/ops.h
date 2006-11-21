@@ -35,8 +35,7 @@ struct dt_ops {
 			const int buflen);
 	int	(*setprop)(const void *phandle, const char *name,
 			const void *buf, const int buflen);
-	void	(*ft_pack)(void);
-	unsigned long (*ft_addr)(void);
+	unsigned long (*finalize)(void);
 };
 extern struct dt_ops dt_ops;
 

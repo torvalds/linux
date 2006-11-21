@@ -298,6 +298,7 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 {
 	kernel_entry_t kentry;
 	char cmdline[COMMAND_LINE_SIZE];
+	unsigned long ft_addr = 0;
 
 	memset(__bss_start, 0, _end - __bss_start);
 	memset(&platform_ops, 0, sizeof(platform_ops));
@@ -328,14 +329,20 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 		set_cmdline(cmdline);
 	}
 
+	printf("Finalizing device tree...");
+	if (dt_ops.finalize)
+		ft_addr = dt_ops.finalize();
+	if (ft_addr)
+		printf(" flat tree at 0x%lx\n\r", ft_addr);
+	else
+		printf(" using OF tree (promptr=%p)\n\r", promptr);
+
 	if (console_ops.close)
 		console_ops.close();
 
 	kentry = (kernel_entry_t) vmlinux.addr;
-	if (_dtb_end > _dtb_start) {
-		dt_ops.ft_pack();
-		kentry(dt_ops.ft_addr(), 0, NULL);
-	}
+	if (ft_addr)
+		kentry(ft_addr, 0, NULL);
 	else
 		/* XXX initrd addr/size should be passed in properties */
 		kentry(initrd.addr, initrd.size, promptr);

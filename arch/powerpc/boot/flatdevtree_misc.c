@@ -33,13 +33,9 @@ static int ft_setprop(const void *phandle, const char *propname,
 	return ft_set_prop(&cxt, phandle, propname, buf, buflen);
 }
 
-static void ft_pack(void)
+static unsigned long ft_finalize(void)
 {
 	ft_end_tree(&cxt);
-}
-
-static unsigned long ft_addr(void)
-{
 	return (unsigned long)cxt.bph;
 }
 
@@ -48,8 +44,7 @@ int ft_init(void *dt_blob, unsigned int max_size, unsigned int max_find_device)
 	dt_ops.finddevice = ft_finddevice;
 	dt_ops.getprop = ft_getprop;
 	dt_ops.setprop = ft_setprop;
-	dt_ops.ft_pack = ft_pack;
-	dt_ops.ft_addr = ft_addr;
+	dt_ops.finalize = ft_finalize;
 
 	return ft_open(&cxt, dt_blob, max_size, max_find_device,
 			platform_ops.realloc);
