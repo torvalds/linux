@@ -46,6 +46,45 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	mm = tsk->mm;
 	si_code = SEGV_MAPERR;
 
+	if (unlikely(address >= TASK_SIZE)) {
+		/*
+		 * Synchronize this task's top level page-table
+		 * with the 'reference' page table.
+		 *
+		 * Do _not_ use "tsk" here. We might be inside
+		 * an interrupt in the middle of a task switch..
+		 */
+		int offset = pgd_index(address);
+		pgd_t *pgd, *pgd_k;
+		pud_t *pud, *pud_k;
+		pmd_t *pmd, *pmd_k;
+
+		pgd = get_TTB() + offset;
+		pgd_k = swapper_pg_dir + offset;
+
+		/* This will never happen with the folded page table. */
+		if (!pgd_present(*pgd)) {
+			if (!pgd_present(*pgd_k))
+				goto bad_area_nosemaphore;
+			set_pgd(pgd, *pgd_k);
+			return;
+		}
+
+		pud = pud_offset(pgd, address);
+		pud_k = pud_offset(pgd_k, address);
+		if (pud_present(*pud) || !pud_present(*pud_k))
+			goto bad_area_nosemaphore;
+		set_pud(pud, *pud_k);
+
+		pmd = pmd_offset(pud, address);
+		pmd_k = pmd_offset(pud_k, address);
+		if (pmd_present(*pmd) || !pmd_present(*pmd_k))
+			goto bad_area_nosemaphore;
+		set_pmd(pmd, *pmd_k);
+
+		return;
+	}
+
 	/*
 	 * If we're in an interrupt or have no user
 	 * context, we must not take the fault..
@@ -109,6 +148,7 @@ survive:
 bad_area:
 	up_read(&mm->mmap_sem);
 
+bad_area_nosemaphore:
 	if (user_mode(regs)) {
 		info.si_signo = SIGSEGV;
 		info.si_errno = 0;

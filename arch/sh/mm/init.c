@@ -84,30 +84,22 @@ static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 	pmd_t *pmd;
 	pte_t *pte;
 
-	pgd = swapper_pg_dir + pgd_index(addr);
+	pgd = pgd_offset_k(addr);
 	if (pgd_none(*pgd)) {
 		pgd_ERROR(*pgd);
 		return;
 	}
 
-	pud = pud_offset(pgd, addr);
-	if (pud_none(*pud)) {
-		pmd = (pmd_t *)get_zeroed_page(GFP_ATOMIC);
-		set_pud(pud, __pud(__pa(pmd) | _PAGE_TABLE));
-		if (pmd != pmd_offset(pud, 0)) {
-			pud_ERROR(*pud);
-			return;
-		}
+	pud = pud_alloc(NULL, pgd, addr);
+	if (unlikely(!pud)) {
+		pud_ERROR(*pud);
+		return;
 	}
 
-	pmd = pmd_offset(pud, addr);
-	if (pmd_none(*pmd)) {
-		pte = (pte_t *)get_zeroed_page(GFP_ATOMIC);
-		set_pmd(pmd, __pmd(__pa(pte) | _PAGE_TABLE));
-		if (pte != pte_offset_kernel(pmd, 0)) {
-			pmd_ERROR(*pmd);
-			return;
-		}
+	pmd = pmd_alloc(NULL, pud, addr);
+	if (unlikely(!pmd)) {
+		pmd_ERROR(*pmd);
+		return;
 	}
 
 	pte = pte_offset_kernel(pmd, addr);

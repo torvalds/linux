@@ -203,26 +203,18 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #ifndef __ASSEMBLY__
 
 #if defined(CONFIG_X2TLB) /* SH-X2 TLB */
-#define _PAGE_TABLE \
-	(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_DIRTY | \
-	 _PAGE_EXT(_PAGE_EXT_USER_READ | _PAGE_EXT_USER_WRITE))
-
-#define _KERNPG_TABLE \
-	(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_DIRTY | \
-	 _PAGE_EXT(_PAGE_EXT_KERN_READ | _PAGE_EXT_KERN_WRITE))
-
 #define PAGE_NONE	__pgprot(_PAGE_PROTNONE | _PAGE_CACHABLE | \
 				 _PAGE_ACCESSED | _PAGE_FLAGS_HARD)
 
 #define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_ACCESSED | \
 				 _PAGE_CACHABLE | _PAGE_FLAGS_HARD | \
 				 _PAGE_EXT(_PAGE_EXT_USER_READ | \
-				  	   _PAGE_EXT_USER_WRITE))
+					   _PAGE_EXT_USER_WRITE))
 
 #define PAGE_EXECREAD	__pgprot(_PAGE_PRESENT | _PAGE_ACCESSED | \
 				 _PAGE_CACHABLE | _PAGE_FLAGS_HARD | \
 				 _PAGE_EXT(_PAGE_EXT_USER_EXEC | \
-				 	   _PAGE_EXT_USER_READ))
+					   _PAGE_EXT_USER_READ))
 
 #define PAGE_COPY	PAGE_EXECREAD
 
@@ -237,14 +229,14 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define PAGE_RWX	__pgprot(_PAGE_PRESENT | _PAGE_ACCESSED | \
 				 _PAGE_CACHABLE | _PAGE_FLAGS_HARD | \
 				 _PAGE_EXT(_PAGE_EXT_USER_WRITE | \
-				 	   _PAGE_EXT_USER_READ  | \
+					   _PAGE_EXT_USER_READ  | \
 					   _PAGE_EXT_USER_EXEC))
 
 #define PAGE_KERNEL	__pgprot(_PAGE_PRESENT | _PAGE_CACHABLE | \
 				 _PAGE_DIRTY | _PAGE_ACCESSED | \
 				 _PAGE_HW_SHARED | _PAGE_FLAGS_HARD | \
 				 _PAGE_EXT(_PAGE_EXT_KERN_READ | \
-				 	   _PAGE_EXT_KERN_WRITE | \
+					   _PAGE_EXT_KERN_WRITE | \
 					   _PAGE_EXT_KERN_EXEC))
 
 #define PAGE_KERNEL_NOCACHE \
@@ -252,30 +244,25 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 				 _PAGE_ACCESSED | _PAGE_HW_SHARED | \
 				 _PAGE_FLAGS_HARD | \
 				 _PAGE_EXT(_PAGE_EXT_KERN_READ | \
-				 	   _PAGE_EXT_KERN_WRITE | \
+					   _PAGE_EXT_KERN_WRITE | \
 					   _PAGE_EXT_KERN_EXEC))
 
 #define PAGE_KERNEL_RO	__pgprot(_PAGE_PRESENT | _PAGE_CACHABLE | \
 				 _PAGE_DIRTY | _PAGE_ACCESSED | \
 				 _PAGE_HW_SHARED | _PAGE_FLAGS_HARD | \
 				 _PAGE_EXT(_PAGE_EXT_KERN_READ | \
-				 	   _PAGE_EXT_KERN_EXEC))
+					   _PAGE_EXT_KERN_EXEC))
 
 #define PAGE_KERNEL_PCC(slot, type) \
 			__pgprot(_PAGE_PRESENT | _PAGE_DIRTY | \
 				 _PAGE_ACCESSED | _PAGE_FLAGS_HARD | \
 				 _PAGE_EXT(_PAGE_EXT_KERN_READ | \
-				 	   _PAGE_EXT_KERN_WRITE | \
+					   _PAGE_EXT_KERN_WRITE | \
 					   _PAGE_EXT_KERN_EXEC) \
 				 (slot ? _PAGE_PCC_AREA5 : _PAGE_PCC_AREA6) | \
 				 (type))
 
 #elif defined(CONFIG_MMU) /* SH-X TLB */
-#define _PAGE_TABLE \
-	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | _PAGE_ACCESSED | _PAGE_DIRTY)
-#define _KERNPG_TABLE \
-	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED | _PAGE_DIRTY)
-
 #define PAGE_NONE	__pgprot(_PAGE_PROTNONE | _PAGE_CACHABLE | \
 				 _PAGE_ACCESSED | _PAGE_FLAGS_HARD)
 
@@ -390,9 +377,9 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 #define pte_clear(mm,addr,xp) do { set_pte_at(mm, addr, xp, __pte(0)); } while (0)
 
 #define pmd_none(x)	(!pmd_val(x))
-#define pmd_present(x)	(pmd_val(x) & _PAGE_PRESENT)
+#define pmd_present(x)	(pmd_val(x))
 #define pmd_clear(xp)	do { set_pmd(xp, __pmd(0)); } while (0)
-#define	pmd_bad(x)	((pmd_val(x) & (~PAGE_MASK & ~_PAGE_USER)) != _KERNPG_TABLE)
+#define	pmd_bad(x)	(pmd_val(x) & ~PAGE_MASK)
 
 #define pages_to_mb(x)	((x) >> (20-PAGE_SHIFT))
 #define pte_page(x)	phys_to_page(pte_val(x)&PTE_PHYS_MASK)
@@ -477,11 +464,8 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 	return pte;
 }
 
-#define pmd_page_vaddr(pmd) \
-((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
-
-#define pmd_page(pmd) \
-	(phys_to_page(pmd_val(pmd)))
+#define pmd_page_vaddr(pmd)	pmd_val(pmd)
+#define pmd_page(pmd)		(virt_to_page(pmd_val(pmd)))
 
 /* to find an entry in a page-table-directory. */
 #define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
