@@ -84,9 +84,10 @@ static union irq_ctx *softirq_ctx[NR_CPUS];
 
 asmlinkage int do_IRQ(unsigned long r4, unsigned long r5,
 		      unsigned long r6, unsigned long r7,
-		      struct pt_regs regs)
+		      struct pt_regs __regs)
 {
-	struct pt_regs *old_regs = set_irq_regs(&regs);
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
+	struct pt_regs *old_regs = set_irq_regs(regs);
 	int irq;
 #ifdef CONFIG_4KSTACKS
 	union irq_ctx *curctx, *irqctx;

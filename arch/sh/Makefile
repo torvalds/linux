@@ -43,7 +43,7 @@ cflags-$(CONFIG_CPU_SH4A)		:= -m4a $(call cc-option,-m4a-nofpu,)
 cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -mb
 cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -ml
 
-cflags-y	+= $(call as-option,-Wa$(comma)-isa=$(isa-y),)
+cflags-y	+= $(call as-option,-Wa$(comma)-isa=$(isa-y),) -ffreestanding
 
 cflags-$(CONFIG_SH_DSP)			+= -Wa,-dsp
 cflags-$(CONFIG_SH_KGDB)		+= -g

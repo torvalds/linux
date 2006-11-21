@@ -296,16 +296,17 @@ ieee_fpe_handler (struct pt_regs *regs)
 }
 
 asmlinkage void
-do_fpu_error(unsigned long r4, unsigned long r5, unsigned long r6, unsigned long r7,
-	     struct pt_regs regs)
+do_fpu_error(unsigned long r4, unsigned long r5, unsigned long r6,
+	     unsigned long r7, struct pt_regs __regs)
 {
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	struct task_struct *tsk = current;
 
-	if (ieee_fpe_handler (&regs))
+	if (ieee_fpe_handler(regs))
 		return;
 
-	regs.pc += 2;
-	save_fpu(tsk, &regs);
+	regs->pc += 2;
+	save_fpu(tsk, regs);
 	tsk->thread.trap_no = 11;
 	tsk->thread.error_code = 0;
 	force_sig(SIGFPE, tsk);
@@ -313,12 +314,13 @@ do_fpu_error(unsigned long r4, unsigned long r5, unsigned long r6, unsigned long
 
 asmlinkage void
 do_fpu_state_restore(unsigned long r4, unsigned long r5, unsigned long r6,
-		     unsigned long r7, struct pt_regs regs)
+		     unsigned long r7, struct pt_regs __regs)
 {
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	struct task_struct *tsk = current;
 
-	grab_fpu(&regs);
-	if (!user_mode(&regs)) {
+	grab_fpu(regs);
+	if (!user_mode(regs)) {
 		printk(KERN_ERR "BUG: FPU is used in kernel mode.\n");
 		return;
 	}

@@ -37,7 +37,7 @@
 asmlinkage int
 sys_sigsuspend(old_sigset_t mask,
 	       unsigned long r5, unsigned long r6, unsigned long r7,
-	       struct pt_regs regs)
+	       struct pt_regs __regs)
 {
 	mask &= _BLOCKABLE;
 	spin_lock_irq(&current->sighand->siglock);
@@ -52,7 +52,7 @@ sys_sigsuspend(old_sigset_t mask,
 	return -ERESTARTNOHAND;
 }
 
-asmlinkage int 
+asmlinkage int
 sys_sigaction(int sig, const struct old_sigaction __user *act,
 	      struct old_sigaction __user *oact)
 {
@@ -87,9 +87,11 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 asmlinkage int
 sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 		unsigned long r6, unsigned long r7,
-		struct pt_regs regs)
+		struct pt_regs __regs)
 {
-	return do_sigaltstack(uss, uoss, regs.regs[15]);
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
+
+	return do_sigaltstack(uss, uoss, regs->regs[15]);
 }
 
 
@@ -198,9 +200,10 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, int *r0_p
 
 asmlinkage int sys_sigreturn(unsigned long r4, unsigned long r5,
 			     unsigned long r6, unsigned long r7,
-			     struct pt_regs regs)
+			     struct pt_regs __regs)
 {
-	struct sigframe __user *frame = (struct sigframe __user *)regs.regs[15];
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
+	struct sigframe __user *frame = (struct sigframe __user *)regs->regs[15];
 	sigset_t set;
 	int r0;
 
@@ -220,7 +223,7 @@ asmlinkage int sys_sigreturn(unsigned long r4, unsigned long r5,
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if (restore_sigcontext(&regs, &frame->sc, &r0))
+	if (restore_sigcontext(regs, &frame->sc, &r0))
 		goto badframe;
 	return r0;
 
@@ -231,9 +234,10 @@ badframe:
 
 asmlinkage int sys_rt_sigreturn(unsigned long r4, unsigned long r5,
 				unsigned long r6, unsigned long r7,
-				struct pt_regs regs)
+				struct pt_regs __regs)
 {
-	struct rt_sigframe __user *frame = (struct rt_sigframe __user *)regs.regs[15];
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
+	struct rt_sigframe __user *frame = (struct rt_sigframe __user *)regs->regs[15];
 	sigset_t set;
 	stack_t st;
 	int r0;
@@ -250,14 +254,14 @@ asmlinkage int sys_rt_sigreturn(unsigned long r4, unsigned long r5,
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if (restore_sigcontext(&regs, &frame->uc.uc_mcontext, &r0))
+	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &r0))
 		goto badframe;
 
 	if (__copy_from_user(&st, &frame->uc.uc_stack, sizeof(st)))
 		goto badframe;
 	/* It is more difficult to avoid calling this function than to
 	   call it and ignore errors.  */
-	do_sigaltstack(&st, NULL, regs.regs[15]);
+	do_sigaltstack(&st, NULL, regs->regs[15]);
 
 	return r0;
 

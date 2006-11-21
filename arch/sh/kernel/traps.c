@@ -23,8 +23,8 @@
 
 #ifdef CONFIG_SH_KGDB
 #include <asm/kgdb.h>
-#define CHK_REMOTE_DEBUG(regs)                 	\
-{       					\
+#define CHK_REMOTE_DEBUG(regs)			\
+{						\
 	if (kgdb_debug_hook && !user_mode(regs))\
 		(*kgdb_debug_hook)(regs);       \
 }
@@ -501,7 +501,7 @@ static int handle_unaligned_access(u16 instruction, struct pt_regs *regs)
 /*
  * Handle various address error exceptions
  */
-asmlinkage void do_address_error(struct pt_regs *regs, 
+asmlinkage void do_address_error(struct pt_regs *regs,
 				 unsigned long writeaccess,
 				 unsigned long address)
 {
@@ -588,7 +588,7 @@ int is_dsp_inst(struct pt_regs *regs)
 {
 	unsigned short inst;
 
-	/* 
+	/*
 	 * Safe guard if DSP mode is already enabled or we're lacking
 	 * the DSP altogether.
 	 */
@@ -612,8 +612,9 @@ int is_dsp_inst(struct pt_regs *regs)
 #ifdef CONFIG_CPU_SH2A
 asmlinkage void do_divide_error(unsigned long r4, unsigned long r5,
 				unsigned long r6, unsigned long r7,
-				struct pt_regs regs)
+				struct pt_regs __regs)
 {
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	siginfo_t info;
 
 	current->thread.trap_no = r4;
@@ -635,12 +636,13 @@ asmlinkage void do_divide_error(unsigned long r4, unsigned long r5,
 /* arch/sh/kernel/cpu/sh4/fpu.c */
 extern int do_fpu_inst(unsigned short, struct pt_regs *);
 extern asmlinkage void do_fpu_state_restore(unsigned long r4, unsigned long r5,
-		unsigned long r6, unsigned long r7, struct pt_regs regs);
+		unsigned long r6, unsigned long r7, struct pt_regs __regs);
 
 asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
 				unsigned long r6, unsigned long r7,
-				struct pt_regs regs)
+				struct pt_regs __regs)
 {
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	unsigned long error_code;
 	struct task_struct *tsk = current;
 
@@ -648,11 +650,11 @@ asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
 	unsigned short inst = 0;
 	int err;
 
-	get_user(inst, (unsigned short*)regs.pc);
+	get_user(inst, (unsigned short*)regs->pc);
 
-	err = do_fpu_inst(inst, &regs);
+	err = do_fpu_inst(inst, regs);
 	if (!err) {
-		regs.pc += 2;
+		regs->pc += 2;
 		return;
 	}
 	/* not a FPU inst. */
@@ -660,9 +662,9 @@ asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
 
 #ifdef CONFIG_SH_DSP
 	/* Check if it's a DSP instruction */
- 	if (is_dsp_inst(&regs)) {
+ 	if (is_dsp_inst(regs)) {
 		/* Enable DSP mode, and restart instruction. */
-		regs.sr |= SR_DSP;
+		regs->sr |= SR_DSP;
 		return;
 	}
 #endif
@@ -672,9 +674,9 @@ asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
 	local_irq_enable();
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_no = TRAP_RESERVED_INST;
-	CHK_REMOTE_DEBUG(&regs);
+	CHK_REMOTE_DEBUG(regs);
 	force_sig(SIGILL, tsk);
-	die_if_no_fixup("reserved instruction", &regs, error_code);
+	die_if_no_fixup("reserved instruction", regs, error_code);
 }
 
 #ifdef CONFIG_SH_FPU_EMU
@@ -722,17 +724,18 @@ static int emulate_branch(unsigned short inst, struct pt_regs* regs)
 
 asmlinkage void do_illegal_slot_inst(unsigned long r4, unsigned long r5,
 				unsigned long r6, unsigned long r7,
-				struct pt_regs regs)
+				struct pt_regs __regs)
 {
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	unsigned long error_code;
 	struct task_struct *tsk = current;
 #ifdef CONFIG_SH_FPU_EMU
 	unsigned short inst = 0;
 
-	get_user(inst, (unsigned short *)regs.pc + 1);
-	if (!do_fpu_inst(inst, &regs)) {
-		get_user(inst, (unsigned short *)regs.pc);
-		if (!emulate_branch(inst, &regs))
+	get_user(inst, (unsigned short *)regs->pc + 1);
+	if (!do_fpu_inst(inst, regs)) {
+		get_user(inst, (unsigned short *)regs->pc);
+		if (!emulate_branch(inst, regs))
 			return;
 		/* fault in branch.*/
 	}
@@ -744,19 +747,20 @@ asmlinkage void do_illegal_slot_inst(unsigned long r4, unsigned long r5,
 	local_irq_enable();
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_no = TRAP_RESERVED_INST;
-	CHK_REMOTE_DEBUG(&regs);
+	CHK_REMOTE_DEBUG(regs);
 	force_sig(SIGILL, tsk);
-	die_if_no_fixup("illegal slot instruction", &regs, error_code);
+	die_if_no_fixup("illegal slot instruction", regs, error_code);
 }
 
 asmlinkage void do_exception_error(unsigned long r4, unsigned long r5,
 				   unsigned long r6, unsigned long r7,
-				   struct pt_regs regs)
+				   struct pt_regs __regs)
 {
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	long ex;
 
 	lookup_exception_vector(ex);
-	die_if_kernel("exception", &regs, ex);
+	die_if_kernel("exception", regs, ex);
 }
 
 #if defined(CONFIG_SH_STANDARD_BIOS)
@@ -809,7 +813,7 @@ void *set_exception_table_vec(unsigned int vec, void *handler)
 
 extern asmlinkage void address_error_handler(unsigned long r4, unsigned long r5,
 					     unsigned long r6, unsigned long r7,
-					     struct pt_regs regs);
+					     struct pt_regs __regs);
 
 void __init trap_init(void)
 {

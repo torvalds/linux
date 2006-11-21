@@ -33,14 +33,15 @@
  */
 asmlinkage int sys_pipe(unsigned long r4, unsigned long r5,
 	unsigned long r6, unsigned long r7,
-	struct pt_regs regs)
+	struct pt_regs __regs)
 {
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	int fd[2];
 	int error;
 
 	error = do_pipe(fd);
 	if (!error) {
-		regs.regs[1] = fd[1];
+		regs->regs[1] = fd[1];
 		return fd[0];
 	}
 	return error;
