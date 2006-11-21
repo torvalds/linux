@@ -533,6 +533,8 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 	struct sctp_transport *peer;
 	struct sctp_sock *sp;
 	unsigned short port;
+	union sctp_addr tmp;
+	flip_to_n(&tmp, addr);
 
 	sp = sctp_sk(asoc->base.sk);
 
@@ -551,7 +553,7 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 		asoc->peer.port = port;
 
 	/* Check to see if this is a duplicate. */
-	peer = sctp_assoc_lookup_paddr(asoc, addr);
+	peer = sctp_assoc_lookup_paddr(asoc, &tmp);
 	if (peer) {
 		if (peer->state == SCTP_UNKNOWN) {
 			if (peer_state == SCTP_ACTIVE)
@@ -684,14 +686,12 @@ struct sctp_transport *sctp_assoc_lookup_paddr(
 {
 	struct sctp_transport *t;
 	struct list_head *pos;
-	union sctp_addr tmp;
 
-	flip_to_n(&tmp, address);
 	/* Cycle through all transports searching for a peer address. */
 
 	list_for_each(pos, &asoc->peer.transport_addr_list) {
 		t = list_entry(pos, struct sctp_transport, transports);
-		if (sctp_cmp_addr_exact(&tmp, &t->ipaddr))
+		if (sctp_cmp_addr_exact(address, &t->ipaddr))
 			return t;
 	}
 
@@ -927,14 +927,15 @@ struct sctp_transport *sctp_assoc_is_match(struct sctp_association *asoc,
 					   const union sctp_addr *paddr)
 {
 	struct sctp_transport *transport;
-	union sctp_addr tmp;
+	union sctp_addr tmp, tmp2;
 	flip_to_n(&tmp, laddr);
+	flip_to_n(&tmp2, paddr);
 
 	sctp_read_lock(&asoc->base.addr_lock);
 
 	if ((asoc->base.bind_addr.port == laddr->v4.sin_port) &&
 	    (asoc->peer.port == paddr->v4.sin_port)) {
-		transport = sctp_assoc_lookup_paddr(asoc, paddr);
+		transport = sctp_assoc_lookup_paddr(asoc, &tmp2);
 		if (!transport)
 			goto out;
 
@@ -1047,7 +1048,7 @@ void sctp_assoc_update(struct sctp_association *asoc,
 	/* Remove any peer addresses not present in the new association. */
 	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
 		trans = list_entry(pos, struct sctp_transport, transports);
-		if (!sctp_assoc_lookup_paddr(new, &trans->ipaddr_h))
+		if (!sctp_assoc_lookup_paddr(new, &trans->ipaddr))
 			sctp_assoc_del_peer(asoc, &trans->ipaddr);
 	}
 
@@ -1071,7 +1072,7 @@ void sctp_assoc_update(struct sctp_association *asoc,
 		list_for_each(pos, &new->peer.transport_addr_list) {
 			trans = list_entry(pos, struct sctp_transport,
 					   transports);
-			if (!sctp_assoc_lookup_paddr(asoc, &trans->ipaddr_h))
+			if (!sctp_assoc_lookup_paddr(asoc, &trans->ipaddr))
 				sctp_assoc_add_peer(asoc, &trans->ipaddr_h,
 						    GFP_ATOMIC, trans->state);
 		}

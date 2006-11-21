@@ -2466,7 +2466,7 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 		sctp_assoc_del_peer(asoc, &tmp_addr);
 		break;
 	case SCTP_PARAM_SET_PRIMARY:
-		peer = sctp_assoc_lookup_paddr(asoc, &addr);
+		peer = sctp_assoc_lookup_paddr(asoc, &tmp_addr);
 		if (!peer)
 			return SCTP_ERROR_INV_PARAM;
 

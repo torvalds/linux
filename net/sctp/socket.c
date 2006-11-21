@@ -1370,7 +1370,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	struct sctp_association *new_asoc=NULL, *asoc=NULL;
 	struct sctp_transport *transport, *chunk_tp;
 	struct sctp_chunk *chunk;
-	union sctp_addr to;
+	union sctp_addr to, tmp;
 	struct sockaddr *msg_name = NULL;
 	struct sctp_sndrcvinfo default_sinfo = { 0 };
 	struct sctp_sndrcvinfo *sinfo;
@@ -1424,6 +1424,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 		if (msg_namelen > sizeof(to))
 			msg_namelen = sizeof(to);
 		memcpy(&to, msg->msg_name, msg_namelen);
+		memcpy(&tmp, msg->msg_name, msg_namelen);
 		SCTP_DEBUG_PRINTK("Just memcpy'd. msg_name is "
 				  "0x%x:%u.\n",
 				  to.v4.sin_addr.s_addr, to.v4.sin_port);
@@ -1691,7 +1692,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	 */
 	if ((sctp_style(sk, TCP) && msg_name) ||
 	    (sinfo_flags & SCTP_ADDR_OVER)) {
-		chunk_tp = sctp_assoc_lookup_paddr(asoc, &to);
+		chunk_tp = sctp_assoc_lookup_paddr(asoc, &tmp);
 		if (!chunk_tp) {
 			err = -EINVAL;
 			goto out_free;

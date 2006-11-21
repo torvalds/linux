@@ -1018,6 +1018,7 @@ sctp_disposition_t sctp_sf_backbeat_8_3(const struct sctp_endpoint *ep,
 	struct sctp_transport *link;
 	sctp_sender_hb_info_t *hbinfo;
 	unsigned long max_interval;
+	union sctp_addr tmp;
 
 	if (!sctp_vtag_verify(chunk, asoc))
 		return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
@@ -1035,7 +1036,8 @@ sctp_disposition_t sctp_sf_backbeat_8_3(const struct sctp_endpoint *ep,
 	}
 
 	from_addr = hbinfo->daddr;
-	link = sctp_assoc_lookup_paddr(asoc, &from_addr);
+	flip_to_n(&tmp, &from_addr);
+	link = sctp_assoc_lookup_paddr(asoc, &tmp);
 
 	/* This should never happen, but lets log it if so.  */
 	if (unlikely(!link)) {

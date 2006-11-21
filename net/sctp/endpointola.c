@@ -259,6 +259,8 @@ static struct sctp_association *__sctp_endpoint_lookup_assoc(
 	int rport;
 	struct sctp_association *asoc;
 	struct list_head *pos;
+	union sctp_addr tmp;
+	flip_to_n(&tmp, paddr);
 
 	rport = paddr->v4.sin_port;
 
@@ -266,7 +268,7 @@ static struct sctp_association *__sctp_endpoint_lookup_assoc(
 		asoc = list_entry(pos, struct sctp_association, asocs);
 		if (rport == asoc->peer.port) {
 			sctp_read_lock(&asoc->base.addr_lock);
-			*transport = sctp_assoc_lookup_paddr(asoc, paddr);
+			*transport = sctp_assoc_lookup_paddr(asoc, &tmp);
 			sctp_read_unlock(&asoc->base.addr_lock);
 
 			if (*transport)
