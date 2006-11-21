@@ -969,7 +969,7 @@ static int __sctp_connect(struct sock* sk,
 	int err = 0;
 	int addrcnt = 0;
 	int walk_size = 0;
-	struct sockaddr *sa_addr;
+	union sctp_addr *sa_addr;
 	void *addr_buf;
 
 	sp = sctp_sk(sk);
@@ -989,8 +989,8 @@ static int __sctp_connect(struct sock* sk,
 	/* Walk through the addrs buffer and count the number of addresses. */
 	addr_buf = kaddrs;
 	while (walk_size < addrs_size) {
-		sa_addr = (struct sockaddr *)addr_buf;
-		af = sctp_get_af_specific(sa_addr->sa_family);
+		sa_addr = (union sctp_addr *)addr_buf;
+		af = sctp_get_af_specific(sa_addr->sa.sa_family);
 
 		/* If the address family is not supported or if this address
 		 * causes the address buffer to overflow return EINVAL.
@@ -1000,8 +1000,7 @@ static int __sctp_connect(struct sock* sk,
 			goto out_free;
 		}
 
-		err = sctp_verify_addr(sk, (union sctp_addr *)sa_addr,
-				       af->sockaddr_len);
+		err = sctp_verify_addr(sk, sa_addr, af->sockaddr_len);
 		if (err)
 			goto out_free;
 
@@ -1064,7 +1063,7 @@ static int __sctp_connect(struct sock* sk,
 		}
 
 		/* Prime the peer's transport structures.  */
-		transport = sctp_assoc_add_peer(asoc, &to, GFP_KERNEL,
+		transport = sctp_assoc_add_peer(asoc, sa_addr, GFP_KERNEL,
 						SCTP_UNKNOWN);
 		if (!transport) {
 			err = -ENOMEM;
@@ -1618,7 +1617,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 		}
 
 		/* Prime the peer's transport structures.  */
-		transport = sctp_assoc_add_peer(asoc, &to, GFP_KERNEL, SCTP_UNKNOWN);
+		transport = sctp_assoc_add_peer(asoc, &tmp, GFP_KERNEL, SCTP_UNKNOWN);
 		if (!transport) {
 			err = -ENOMEM;
 			goto out_free;

@@ -533,19 +533,17 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 	struct sctp_transport *peer;
 	struct sctp_sock *sp;
 	unsigned short port;
-	union sctp_addr tmp;
-	flip_to_n(&tmp, addr);
 
 	sp = sctp_sk(asoc->base.sk);
 
 	/* AF_INET and AF_INET6 share common port field. */
-	port = addr->v4.sin_port;
+	port = ntohs(addr->v4.sin_port);
 
 	SCTP_DEBUG_PRINTK_IPADDR("sctp_assoc_add_peer:association %p addr: ",
 				 " port: %d state:%d\n",
 				 asoc,
 				 addr,
-				 addr->v4.sin_port,
+				 port,
 				 peer_state);
 
 	/* Set the port if it has not been set yet.  */
@@ -553,7 +551,7 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 		asoc->peer.port = port;
 
 	/* Check to see if this is a duplicate. */
-	peer = sctp_assoc_lookup_paddr(asoc, &tmp);
+	peer = sctp_assoc_lookup_paddr(asoc, addr);
 	if (peer) {
 		if (peer->state == SCTP_UNKNOWN) {
 			if (peer_state == SCTP_ACTIVE)
@@ -564,7 +562,7 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 		return peer;
 	}
 
-	peer = sctp_transport_new(&tmp, gfp);
+	peer = sctp_transport_new(addr, gfp);
 	if (!peer)
 		return NULL;
 
@@ -1070,7 +1068,7 @@ void sctp_assoc_update(struct sctp_association *asoc,
 			trans = list_entry(pos, struct sctp_transport,
 					   transports);
 			if (!sctp_assoc_lookup_paddr(asoc, &trans->ipaddr))
-				sctp_assoc_add_peer(asoc, &trans->ipaddr_h,
+				sctp_assoc_add_peer(asoc, &trans->ipaddr,
 						    GFP_ATOMIC, trans->state);
 		}
 

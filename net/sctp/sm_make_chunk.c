@@ -1842,6 +1842,7 @@ int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 	struct sctp_transport *transport;
 	struct list_head *pos, *temp;
 	char *cookie;
+	union sctp_addr tmp;
 
 	/* We must include the address that the INIT packet came from.
 	 * This is the only address that matters for an INIT packet.
@@ -1853,9 +1854,11 @@ int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 	 * added as the primary transport.  The source address seems to
 	 * be a a better choice than any of the embedded addresses.
 	 */
-	if (peer_addr)
-		if(!sctp_assoc_add_peer(asoc, peer_addr, gfp, SCTP_ACTIVE))
+	if (peer_addr) {
+		flip_to_n(&tmp, peer_addr);
+		if(!sctp_assoc_add_peer(asoc, &tmp, gfp, SCTP_ACTIVE))
 			goto nomem;
+	}
 
 	/* Process the initialization parameters.  */
 
@@ -2016,6 +2019,7 @@ static int sctp_process_param(struct sctp_association *asoc,
 	sctp_scope_t scope;
 	time_t stale;
 	struct sctp_af *af;
+	union sctp_addr tmp;
 
 	/* We maintain all INIT parameters in network byte order all the
 	 * time.  This allows us to not worry about whether the parameters
@@ -2029,9 +2033,10 @@ static int sctp_process_param(struct sctp_association *asoc,
 	case SCTP_PARAM_IPV4_ADDRESS:
 		af = sctp_get_af_specific(param_type2af(param.p->type));
 		af->from_addr_param(&addr, param.addr, asoc->peer.port, 0);
+		flip_to_n(&tmp, &addr);
 		scope = sctp_scope(peer_addr);
-		if (sctp_in_scope(&addr, scope))
-			if (!sctp_assoc_add_peer(asoc, &addr, gfp, SCTP_UNCONFIRMED))
+		if (sctp_in_scope(&tmp, scope))
+			if (!sctp_assoc_add_peer(asoc, &tmp, gfp, SCTP_UNCONFIRMED))
 				return 0;
 		break;
 
@@ -2434,7 +2439,7 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 	 	 * Due to Resource Shortage'.
 	 	 */
 
-		peer = sctp_assoc_add_peer(asoc, &addr, GFP_ATOMIC, SCTP_UNCONFIRMED);
+		peer = sctp_assoc_add_peer(asoc, &tmp_addr, GFP_ATOMIC, SCTP_UNCONFIRMED);
 		if (!peer)
 			return SCTP_ERROR_RSRC_LOW;
 
