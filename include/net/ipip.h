@@ -44,8 +44,4 @@ struct ip_tunnel
 	}								\
 } while (0)
 
-
-extern int	sit_init(void);
-extern void	sit_cleanup(void);
-
 #endif

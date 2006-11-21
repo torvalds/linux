@@ -809,7 +809,7 @@ static void __exit sit_destroy_tunnels(void)
 	}
 }
 
-void __exit sit_cleanup(void)
+static void __exit sit_cleanup(void)
 {
 	inet_del_protocol(&sit_protocol, IPPROTO_IPV6);
 
@@ -819,7 +819,7 @@ void __exit sit_cleanup(void)
 	rtnl_unlock();
 }
 
-int __init sit_init(void)
+static int __init sit_init(void)
 {
 	int err;
 
