@@ -1026,6 +1026,7 @@ config SCSI_IPR
 config SCSI_IPR_TRACE
 	bool "enable driver internal trace"
 	depends on SCSI_IPR
+	default y
 	help
 	  If you say Y here, the driver will trace all commands issued
 	  to the adapter. Performance impact is minimal. Trace can be
@@ -1034,6 +1035,7 @@ config SCSI_IPR_TRACE
 config SCSI_IPR_DUMP
 	bool "enable adapter dump support"
 	depends on SCSI_IPR
+	default y
 	help
 	  If you say Y here, the driver will support adapter crash dump.
 	  If you enable this support, the iprdump daemon can be used
