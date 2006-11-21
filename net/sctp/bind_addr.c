@@ -163,6 +163,8 @@ int sctp_add_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *new,
 	if (!addr->a_h.v4.sin_port)
 		addr->a_h.v4.sin_port = bp->port;
 
+	flip_to_n(&addr->a, &addr->a_h);
+
 	addr->use_as_src = use_as_src;
 
 	INIT_LIST_HEAD(&addr->list);

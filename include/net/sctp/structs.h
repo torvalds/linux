@@ -713,6 +713,7 @@ struct sctp_chunk {
 	unsigned long sent_at;
 
 	/* What is the origin IP address for this chunk?  */
+	union sctp_addr source;
 	union sctp_addr source_h;
 	/* Destination address for this chunk. */
 	union sctp_addr dest;
@@ -756,6 +757,7 @@ const union sctp_addr *sctp_source(const struct sctp_chunk *chunk);
 /* This is a structure for holding either an IPv6 or an IPv4 address.  */
 struct sctp_sockaddr_entry {
 	struct list_head list;
+	union sctp_addr a;
 	union sctp_addr a_h;
 	__u8 use_as_src;
 };
@@ -842,6 +844,7 @@ struct sctp_transport {
 	int	 dead;
 
 	/* This is the peer's IP address and port. */
+	union sctp_addr ipaddr;
 	union sctp_addr ipaddr_h;
 
 	/* These are the functions we call to handle LLP stuff.	 */
@@ -900,6 +903,7 @@ struct sctp_transport {
 	/* Destination */
 	struct dst_entry *dst;
 	/* Source address. */
+	union sctp_addr saddr;
 	union sctp_addr saddr_h;
 
 	/* When was the last time(in jiffies) that a data packet was sent on

@@ -332,10 +332,11 @@ static void sctp_v6_copy_addrlist(struct list_head *addrlist,
 		/* Add the address to the local list.  */
 		addr = t_new(struct sctp_sockaddr_entry, GFP_ATOMIC);
 		if (addr) {
-			addr->a_h.v6.sin6_family = AF_INET6;
-			addr->a_h.v6.sin6_port = 0;
-			addr->a_h.v6.sin6_addr = ifp->addr;
-			addr->a_h.v6.sin6_scope_id = dev->ifindex;
+			addr->a.v6.sin6_family = AF_INET6;
+			addr->a.v6.sin6_port = 0;
+			addr->a.v6.sin6_addr = ifp->addr;
+			addr->a.v6.sin6_scope_id = dev->ifindex;
+			addr->a_h = addr->a;
 			INIT_LIST_HEAD(&addr->list);
 			list_add_tail(&addr->list, addrlist);
 		}

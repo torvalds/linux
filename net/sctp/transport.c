@@ -62,10 +62,12 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 {
 	/* Copy in the address.  */
 	peer->ipaddr_h = *addr;
+	flip_to_n(&peer->ipaddr, &peer->ipaddr_h);
 	peer->af_specific = sctp_get_af_specific(addr->sa.sa_family);
 	peer->asoc = NULL;
 
 	peer->dst = NULL;
+	memset(&peer->saddr, 0, sizeof(union sctp_addr));
 	memset(&peer->saddr_h, 0, sizeof(union sctp_addr));
 
 	/* From 6.3.1 RTO Calculation:
@@ -258,6 +260,7 @@ void sctp_transport_route(struct sctp_transport *transport,
 		memcpy(&transport->saddr_h, saddr, sizeof(union sctp_addr));
 	else
 		af->get_saddr(asoc, dst, daddr, &transport->saddr_h);
+	flip_to_n(&transport->saddr, &transport->saddr_h);
 
 	transport->dst = dst;
 	if ((transport->param_flags & SPP_PMTUD_DISABLE) && transport->pathmtu) {
