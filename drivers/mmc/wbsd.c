@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/mmc/wbsd.c - Winbond W83L51xD SD/MMC driver
  *
- *  Copyright (C) 2004-2005 Pierre Ossman, All Rights Reserved.
+ *  Copyright (C) 2004-2006 Pierre Ossman, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -909,6 +909,45 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	 * transfered.
 	 */
 	if (cmd->data && (cmd->error == MMC_ERR_NONE)) {
+		/*
+		 * The hardware is so delightfully stupid that it has a list
+		 * of "data" commands. If a command isn't on this list, it'll
+		 * just go back to the idle state and won't send any data
+		 * interrupts.
+		 */
+		switch (cmd->opcode) {
+		case 11:
+		case 17:
+		case 18:
+		case 20:
+		case 24:
+		case 25:
+		case 26:
+		case 27:
+		case 30:
+		case 42:
+		case 56:
+			break;
+
+		/* ACMDs. We don't keep track of state, so we just treat them
+		 * like any other command. */
+		case 51:
+			break;
+
+		default:
+#ifdef CONFIG_MMC_DEBUG
+			printk(KERN_WARNING "%s: Data command %d is not "
+				"supported by this controller.\n",
+				mmc_hostname(host->mmc), cmd->opcode);
+#endif
+			cmd->data->error = MMC_ERR_INVALID;
+
+			if (cmd->data->stop)
+				wbsd_send_command(host, cmd->data->stop);
+
+			goto done;
+		};
+
 		/*
 		 * Dirty fix for hardware bug.
 		 */
