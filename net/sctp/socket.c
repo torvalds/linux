@@ -228,12 +228,12 @@ static struct sctp_transport *sctp_addr_id2transport(struct sock *sk,
 	struct sctp_association *addr_asoc = NULL, *id_asoc = NULL;
 	struct sctp_transport *transport;
 	union sctp_addr *laddr = (union sctp_addr *)addr;
+	union sctp_addr tmp;
 
-	laddr->v4.sin_port = ntohs(laddr->v4.sin_port);
+	flip_to_h(&tmp, laddr);
 	addr_asoc = sctp_endpoint_lookup_assoc(sctp_sk(sk)->ep,
-					       (union sctp_addr *)addr,
+					       &tmp,
 					       &transport);
-	laddr->v4.sin_port = htons(laddr->v4.sin_port);
 
 	if (!addr_asoc)
 		return NULL;
@@ -313,6 +313,7 @@ SCTP_STATIC int sctp_do_bind(struct sock *sk, union sctp_addr *addr, int len)
 	struct sctp_af *af;
 	unsigned short snum;
 	int ret = 0;
+	union sctp_addr tmp;
 
 	/* Common sockaddr verification. */
 	af = sctp_sockaddr_af(sp, addr, len);
@@ -368,9 +369,8 @@ SCTP_STATIC int sctp_do_bind(struct sock *sk, union sctp_addr *addr, int len)
 	sctp_write_lock(&ep->base.addr_lock);
 
 	/* Use GFP_ATOMIC since BHs are disabled.  */
-	addr->v4.sin_port = ntohs(addr->v4.sin_port);
-	ret = sctp_add_bind_addr(bp, addr, 1, GFP_ATOMIC);
-	addr->v4.sin_port = htons(addr->v4.sin_port);
+	flip_to_h(&tmp, addr);
+	ret = sctp_add_bind_addr(bp, &tmp, 1, GFP_ATOMIC);
 	sctp_write_unlock(&ep->base.addr_lock);
 	sctp_local_bh_enable();
 
@@ -4194,12 +4194,8 @@ static int sctp_getsockopt_primary_addr(struct sock *sk, int len,
 	if (!asoc->peer.primary_path)
 		return -ENOTCONN;
 	
-	asoc->peer.primary_path->ipaddr.v4.sin_port =
-		htons(asoc->peer.primary_path->ipaddr.v4.sin_port);
-	memcpy(&prim.ssp_addr, &asoc->peer.primary_path->ipaddr,
-	       sizeof(union sctp_addr));
-	asoc->peer.primary_path->ipaddr.v4.sin_port =
-		ntohs(asoc->peer.primary_path->ipaddr.v4.sin_port);
+	flip_to_n((union sctp_addr *)&prim.ssp_addr,
+		  &asoc->peer.primary_path->ipaddr);
 
 	sctp_get_pf_specific(sk->sk_family)->addr_v4map(sp,
 			(union sctp_addr *)&prim.ssp_addr);
@@ -4642,12 +4638,12 @@ static long sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 {
 	struct sctp_bind_hashbucket *head; /* hash list */
 	struct sctp_bind_bucket *pp; /* hash list port iterator */
+	union sctp_addr tmp;
 	unsigned short snum;
 	int ret;
 
-	/* NOTE:  Remember to put this back to net order. */
-	addr->v4.sin_port = ntohs(addr->v4.sin_port);
-	snum = addr->v4.sin_port;
+	flip_to_h(&tmp, addr);
+	snum = ntohs(addr->v4.sin_port);
 
 	SCTP_DEBUG_PRINTK("sctp_get_port() begins, snum=%d\n", snum);
 	sctp_local_bh_disable();
@@ -4744,7 +4740,7 @@ pp_found:
 			if (reuse && sk2->sk_reuse)
 				continue;
 
-			if (sctp_bind_addr_match(&ep2->base.bind_addr, addr,
+			if (sctp_bind_addr_match(&ep2->base.bind_addr, &tmp,
 						 sctp_sk(sk))) {
 				ret = (long)sk2;
 				goto fail_unlock;
@@ -4784,7 +4780,6 @@ fail_unlock:
 
 fail:
 	sctp_local_bh_enable();
-	addr->v4.sin_port = htons(addr->v4.sin_port);
 	return ret;
 }
 

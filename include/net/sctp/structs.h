@@ -74,6 +74,28 @@ union sctp_addr {
 	struct sockaddr sa;
 };
 
+static inline void flip_to_n(union sctp_addr *to, const union sctp_addr *from)
+{
+	size_t len;
+	if (from->sa.sa_family == AF_INET6)
+		len = sizeof(struct sockaddr_in6);
+	else
+		len = sizeof(struct sockaddr);
+	memcpy(to, from, len);
+	to->v4.sin_port = htons(from->v4.sin_port);
+}
+
+static inline void flip_to_h(union sctp_addr *to, const union sctp_addr *from)
+{
+	size_t len;
+	if (from->sa.sa_family == AF_INET6)
+		len = sizeof(struct sockaddr_in6);
+	else
+		len = sizeof(struct sockaddr);
+	memcpy(to, from, len);
+	to->v4.sin_port = ntohs(from->v4.sin_port);
+}
+
 /* Forward declarations for data structures. */
 struct sctp_globals;
 struct sctp_endpoint;
