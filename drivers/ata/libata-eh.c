@@ -1136,19 +1136,21 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 		break;
 
 	case ATA_DEV_ATAPI:
-		tmp = atapi_eh_request_sense(qc->dev,
-					     qc->scsicmd->sense_buffer);
-		if (!tmp) {
-			/* ATA_QCFLAG_SENSE_VALID is used to tell
-			 * atapi_qc_complete() that sense data is
-			 * already valid.
-			 *
-			 * TODO: interpret sense data and set
-			 * appropriate err_mask.
-			 */
-			qc->flags |= ATA_QCFLAG_SENSE_VALID;
-		} else
-			qc->err_mask |= tmp;
+		if (!(qc->ap->pflags & ATA_PFLAG_FROZEN)) {
+			tmp = atapi_eh_request_sense(qc->dev,
+						     qc->scsicmd->sense_buffer);
+			if (!tmp) {
+				/* ATA_QCFLAG_SENSE_VALID is used to
+				 * tell atapi_qc_complete() that sense
+				 * data is already valid.
+				 *
+				 * TODO: interpret sense data and set
+				 * appropriate err_mask.
+				 */
+				qc->flags |= ATA_QCFLAG_SENSE_VALID;
+			} else
+				qc->err_mask |= tmp;
+		}
 	}
 
 	if (qc->err_mask & (AC_ERR_HSM | AC_ERR_TIMEOUT | AC_ERR_ATA_BUS))
