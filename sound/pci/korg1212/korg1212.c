@@ -2356,7 +2356,7 @@ static int __devinit snd_korg1212_create(struct snd_card *card, struct pci_dev *
 
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
 				dsp_code->size, &korg1212->dma_dsp) < 0) {
-		snd_printk(KERN_ERR "korg1212: can not allocate dsp code memory (%d bytes)\n", dsp_code->size);
+		snd_printk(KERN_ERR "korg1212: cannot allocate dsp code memory (%zd bytes)\n", dsp_code->size);
                 snd_korg1212_free(korg1212);
 #ifdef FIRMWARE_IN_THE_KERNEL
 		if (dsp_code != &static_dsp_code)
