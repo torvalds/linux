@@ -775,7 +775,7 @@ struct sctp_chunk *sctp_make_abort_no_data(
 	const struct sctp_chunk *chunk, __u32 tsn)
 {
 	struct sctp_chunk *retval;
-	__u32 payload;
+	__be32 payload;
 
 	retval = sctp_make_abort(asoc, chunk, sizeof(sctp_errhdr_t)
 				 + sizeof(tsn));
@@ -1195,10 +1195,9 @@ void sctp_chunk_assign_ssn(struct sctp_chunk *chunk)
 			ssn = sctp_ssn_next(&chunk->asoc->ssnmap->out, sid);
 		else
 			ssn = sctp_ssn_peek(&chunk->asoc->ssnmap->out, sid);
-		ssn = htons(ssn);
 	}
 
-	chunk->subh.data_hdr->ssn = ssn;
+	chunk->subh.data_hdr->ssn = htons(ssn);
 	chunk->has_ssn = 1;
 }
 
@@ -1539,8 +1538,8 @@ malformed:
  ********************************************************************/
 
 struct __sctp_missing {
-	__u32 num_missing;
-	__u16 type;
+	__be32 num_missing;
+	__be16 type;
 }  __attribute__((packed));
 
 /*
@@ -2364,7 +2363,7 @@ static struct sctp_chunk *sctp_make_asconf_ack(const struct sctp_association *as
 }
 
 /* Add response parameters to an ASCONF_ACK chunk. */
-static void sctp_add_asconf_response(struct sctp_chunk *chunk, __u32 crr_id,
+static void sctp_add_asconf_response(struct sctp_chunk *chunk, __be32 crr_id,
 			      __be16 err_code, sctp_addip_param_t *asconf_param)
 {
 	sctp_addip_param_t 	ack_param;

@@ -1632,7 +1632,7 @@ pass:
 }
 
 static inline int sctp_get_skip_pos(struct sctp_fwdtsn_skip *skiplist,
-				    int nskips, __u16 stream)
+				    int nskips, __be16 stream)
 {
 	int i;
 
