@@ -198,11 +198,10 @@ simple_get_netobj(const void *p, const void *end, struct xdr_netobj *dest)
 	q = (const void *)((const char *)p + len);
 	if (unlikely(q > end || q < p))
 		return ERR_PTR(-EFAULT);
-	dest->data = kmalloc(len, GFP_KERNEL);
+	dest->data = kmemdup(p, len, GFP_KERNEL);
 	if (unlikely(dest->data == NULL))
 		return ERR_PTR(-ENOMEM);
 	dest->len = len;
-	memcpy(dest->data, p, len);
 	return q;
 }
 
