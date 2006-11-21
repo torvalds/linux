@@ -236,7 +236,7 @@ struct sctp_chunk *sctp_make_heartbeat_ack(const struct sctp_association *,
 				      const size_t paylen);
 struct sctp_chunk *sctp_make_op_error(const struct sctp_association *,
 				 const struct sctp_chunk *chunk,
-				 __u16 cause_code,
+				 __be16 cause_code,
 				 const void *payload,
 				 size_t paylen);
 

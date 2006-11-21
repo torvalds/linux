@@ -951,7 +951,7 @@ nodata:
 /* Create an Operation Error chunk.  */
 struct sctp_chunk *sctp_make_op_error(const struct sctp_association *asoc,
 				 const struct sctp_chunk *chunk,
-				 __u16 cause_code, const void *payload,
+				 __be16 cause_code, const void *payload,
 				 size_t paylen)
 {
 	struct sctp_chunk *retval;
