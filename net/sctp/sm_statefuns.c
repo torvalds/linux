@@ -598,6 +598,7 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(const struct sctp_endpoint *ep,
 	struct sctp_ulpevent *ev, *ai_ev = NULL;
 	int error = 0;
 	struct sctp_chunk *err_chk_p;
+	union sctp_addr tmp;
 
 	/* If the packet is an OOTB packet which is temporarily on the
 	 * control endpoint, respond with an ABORT.
@@ -665,8 +666,9 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(const struct sctp_endpoint *ep,
 	 */
 	peer_init = &chunk->subh.cookie_hdr->c.peer_init[0];
 
+	flip_to_h(&tmp, &chunk->subh.cookie_hdr->c.peer_addr);
 	if (!sctp_process_init(new_asoc, chunk->chunk_hdr->type,
-			       &chunk->subh.cookie_hdr->c.peer_addr,
+			       &tmp,
 			       peer_init, GFP_ATOMIC))
 		goto nomem_init;
 
