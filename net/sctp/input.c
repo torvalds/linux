@@ -127,6 +127,7 @@ int sctp_rcv(struct sk_buff *skb)
 	struct sctphdr *sh;
 	union sctp_addr src;
 	union sctp_addr dest;
+	union sctp_addr tmp;
 	int family;
 	struct sctp_af *af;
 
@@ -180,8 +181,10 @@ int sctp_rcv(struct sk_buff *skb)
 
 	asoc = __sctp_rcv_lookup(skb, &src, &dest, &transport);
 
+	flip_to_n(&tmp, &dest);
+
 	if (!asoc)
-		ep = __sctp_rcv_lookup_endpoint(&dest);
+		ep = __sctp_rcv_lookup_endpoint(&tmp);
 
 	/* Retrieve the common input handling substructure. */
 	rcvr = asoc ? &asoc->base : &ep->base;
@@ -726,7 +729,7 @@ static struct sctp_endpoint *__sctp_rcv_lookup_endpoint(const union sctp_addr *l
 	struct sctp_endpoint *ep;
 	int hash;
 
-	hash = sctp_ep_hashfn(laddr->v4.sin_port);
+	hash = sctp_ep_hashfn(ntohs(laddr->v4.sin_port));
 	head = &sctp_ep_hashtable[hash];
 	read_lock(&head->lock);
 	for (epb = head->chain; epb; epb = epb->next) {
