@@ -3217,8 +3217,8 @@ static int sctp_getsockopt_sctp_status(struct sock *sk, int len,
 	status.sstat_outstrms = asoc->c.sinit_num_ostreams;
 	status.sstat_fragmentation_point = asoc->frag_point;
 	status.sstat_primary.spinfo_assoc_id = sctp_assoc2id(transport->asoc);
-	memcpy(&status.sstat_primary.spinfo_address,
-	       &(transport->ipaddr), sizeof(union sctp_addr));
+	flip_to_n((union sctp_addr *)&status.sstat_primary.spinfo_address,
+	       &transport->ipaddr);
 	/* Map ipv4 address into v4-mapped-on-v6 address.  */
 	sctp_get_pf_specific(sk->sk_family)->addr_v4map(sctp_sk(sk),
 		(union sctp_addr *)&status.sstat_primary.spinfo_address);
