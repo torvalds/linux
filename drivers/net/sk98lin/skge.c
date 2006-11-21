@@ -1562,7 +1562,7 @@ struct sk_buff	*pMessage)	/* pointer to send-message              */
 
 	if (pMessage->ip_summed == CHECKSUM_PARTIAL) {
 		u16 hdrlen = pMessage->h.raw - pMessage->data;
-		u16 offset = hdrlen + pMessage->csum;
+		u16 offset = hdrlen + pMessage->csum_offset;
 
 		if ((pMessage->h.ipiph->protocol == IPPROTO_UDP ) &&
 			(pAC->GIni.GIChipRev == 0) &&
@@ -1681,7 +1681,7 @@ struct sk_buff	*pMessage)	/* pointer to send-message              */
 	*/
 	if (pMessage->ip_summed == CHECKSUM_PARTIAL) {
 		u16 hdrlen = pMessage->h.raw - pMessage->data;
-		u16 offset = hdrlen + pMessage->csum;
+		u16 offset = hdrlen + pMessage->csum_offset;
 
 		Control = BMU_STFWD;
 

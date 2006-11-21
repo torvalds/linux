@@ -1955,7 +1955,7 @@ again:
 	flags = (MXGEFW_FLAGS_NO_TSO | MXGEFW_FLAGS_FIRST);
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		cksum_offset = (skb->h.raw - skb->data);
-		pseudo_hdr_offset = (skb->h.raw + skb->csum) - skb->data;
+		pseudo_hdr_offset = cksum_offset + skb->csum_offset;
 		/* If the headers are excessively large, then we must
 		 * fall back to a software checksum */
 		if (unlikely(cksum_offset > 255 || pseudo_hdr_offset > 127)) {

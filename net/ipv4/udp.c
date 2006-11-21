@@ -422,7 +422,7 @@ static void udp4_hwcsum_outgoing(struct sock *sk, struct sk_buff *skb,
 		/*
 		 * Only one fragment on the socket.
 		 */
-		skb->csum = offsetof(struct udphdr, check);
+		skb->csum_offset = offsetof(struct udphdr, check);
 		uh->check = ~csum_tcpudp_magic(src, dst, len, IPPROTO_UDP, 0);
 	} else {
 		/*

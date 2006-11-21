@@ -274,7 +274,10 @@ struct sk_buff {
 	unsigned int		len,
 				data_len,
 				mac_len;
-	__wsum			csum;
+	union {
+		__wsum		csum;
+		__u32		csum_offset;
+	};
 	__u32			priority;
 	__u8			local_df:1,
 				cloned:1,

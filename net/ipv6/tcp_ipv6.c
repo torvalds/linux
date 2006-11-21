@@ -948,7 +948,7 @@ static void tcp_v6_send_check(struct sock *sk, int len, struct sk_buff *skb)
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		th->check = ~csum_ipv6_magic(&np->saddr, &np->daddr, len, IPPROTO_TCP,  0);
-		skb->csum = offsetof(struct tcphdr, check);
+		skb->csum_offset = offsetof(struct tcphdr, check);
 	} else {
 		th->check = csum_ipv6_magic(&np->saddr, &np->daddr, len, IPPROTO_TCP, 
 					    csum_partial((char *)th, th->doff<<2, 
@@ -970,7 +970,7 @@ static int tcp_v6_gso_send_check(struct sk_buff *skb)
 	th->check = 0;
 	th->check = ~csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr, skb->len,
 				     IPPROTO_TCP, 0);
-	skb->csum = offsetof(struct tcphdr, check);
+	skb->csum_offset = offsetof(struct tcphdr, check);
 	skb->ip_summed = CHECKSUM_PARTIAL;
 	return 0;
 }

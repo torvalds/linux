@@ -1414,7 +1414,7 @@ void skb_copy_and_csum_dev(const struct sk_buff *skb, u8 *to)
 					      skb->len - csstart, 0);
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		long csstuff = csstart + skb->csum;
+		long csstuff = csstart + skb->csum_offset;
 
 		*((__sum16 *)(to + csstuff)) = csum_fold(csum);
 	}

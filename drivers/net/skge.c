@@ -2565,7 +2565,7 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 
 		td->csum_offs = 0;
 		td->csum_start = offset;
-		td->csum_write = offset + skb->csum;
+		td->csum_write = offset + skb->csum_offset;
 	} else
 		control = BMU_CHECK;
 
