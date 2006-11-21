@@ -852,7 +852,7 @@ static sctp_disposition_t sctp_sf_heartbeat(const struct sctp_endpoint *ep,
 
 	hbinfo.param_hdr.type = SCTP_PARAM_HEARTBEAT_INFO;
 	hbinfo.param_hdr.length = htons(sizeof(sctp_sender_hb_info_t));
-	hbinfo.daddr = transport->ipaddr_h;
+	hbinfo.daddr = transport->ipaddr;
 	hbinfo.sent_at = jiffies;
 	hbinfo.hb_nonce = transport->hb_nonce;
 
@@ -1018,7 +1018,6 @@ sctp_disposition_t sctp_sf_backbeat_8_3(const struct sctp_endpoint *ep,
 	struct sctp_transport *link;
 	sctp_sender_hb_info_t *hbinfo;
 	unsigned long max_interval;
-	union sctp_addr tmp;
 
 	if (!sctp_vtag_verify(chunk, asoc))
 		return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
@@ -1036,8 +1035,7 @@ sctp_disposition_t sctp_sf_backbeat_8_3(const struct sctp_endpoint *ep,
 	}
 
 	from_addr = hbinfo->daddr;
-	flip_to_n(&tmp, &from_addr);
-	link = sctp_assoc_lookup_paddr(asoc, &tmp);
+	link = sctp_assoc_lookup_paddr(asoc, &from_addr);
 
 	/* This should never happen, but lets log it if so.  */
 	if (unlikely(!link)) {
