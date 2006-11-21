@@ -244,11 +244,10 @@ static int attach_one_algo(struct xfrm_algo **algpp, u8 *props,
 	*props = algo->desc.sadb_alg_id;
 
 	len = sizeof(*ualg) + (ualg->alg_key_len + 7U) / 8;
-	p = kmalloc(len, GFP_KERNEL);
+	p = kmemdup(ualg, len, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
-	memcpy(p, ualg, len);
 	strcpy(p->alg_name, algo->name);
 	*algpp = p;
 	return 0;
@@ -263,11 +262,10 @@ static int attach_encap_tmpl(struct xfrm_encap_tmpl **encapp, struct rtattr *u_a
 		return 0;
 
 	uencap = RTA_DATA(rta);
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	p = kmemdup(uencap, sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
-	memcpy(p, uencap, sizeof(*p));
 	*encapp = p;
 	return 0;
 }
@@ -305,11 +303,10 @@ static int attach_one_addr(xfrm_address_t **addrpp, struct rtattr *u_arg)
 		return 0;
 
 	uaddrp = RTA_DATA(rta);
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	p = kmemdup(uaddrp, sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
-	memcpy(p, uaddrp, sizeof(*p));
 	*addrpp = p;
 	return 0;
 }
