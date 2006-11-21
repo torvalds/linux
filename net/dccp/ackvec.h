@@ -41,7 +41,6 @@
  * Ack Vectors it has recently sent. For each packet sent carrying an
  * Ack Vector, it remembers four variables:
  *
- * @dccpav_ack_ptr - the value of buf_head at the time of acknowledgement.
  * @dccpav_records - list of dccp_ackvec_record
  * @dccpav_ack_nonce - the one-bit sum of the ECN Nonces for all State 0.
  *
@@ -53,7 +52,6 @@ struct dccp_ackvec {
 	struct list_head dccpav_records;
 	struct timeval	dccpav_time;
 	u8		dccpav_buf_head;
-	u8		dccpav_ack_ptr;
 	u8		dccpav_vec_len;
 	u8		dccpav_buf_nonce;
 	u8		dccpav_ack_nonce;
