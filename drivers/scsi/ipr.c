@@ -1321,6 +1321,219 @@ static void ipr_log_dual_ioa_error(struct ipr_ioa_cfg *ioa_cfg,
 			  offsetof(struct ipr_hostrcb_type_07_error, data)));
 }
 
+static const struct {
+	u8 active;
+	char *desc;
+} path_active_desc[] = {
+	{ IPR_PATH_NO_INFO, "Path" },
+	{ IPR_PATH_ACTIVE, "Active path" },
+	{ IPR_PATH_NOT_ACTIVE, "Inactive path" }
+};
+
+static const struct {
+	u8 state;
+	char *desc;
+} path_state_desc[] = {
+	{ IPR_PATH_STATE_NO_INFO, "has no path state information available" },
+	{ IPR_PATH_HEALTHY, "is healthy" },
+	{ IPR_PATH_DEGRADED, "is degraded" },
+	{ IPR_PATH_FAILED, "is failed" }
+};
+
+/**
+ * ipr_log_fabric_path - Log a fabric path error
+ * @hostrcb:	hostrcb struct
+ * @fabric:		fabric descriptor
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log_fabric_path(struct ipr_hostrcb *hostrcb,
+				struct ipr_hostrcb_fabric_desc *fabric)
+{
+	int i, j;
+	u8 path_state = fabric->path_state;
+	u8 active = path_state & IPR_PATH_ACTIVE_MASK;
+	u8 state = path_state & IPR_PATH_STATE_MASK;
+
+	for (i = 0; i < ARRAY_SIZE(path_active_desc); i++) {
+		if (path_active_desc[i].active != active)
+			continue;
+
+		for (j = 0; j < ARRAY_SIZE(path_state_desc); j++) {
+			if (path_state_desc[j].state != state)
+				continue;
+
+			if (fabric->cascaded_expander == 0xff && fabric->phy == 0xff) {
+				ipr_hcam_err(hostrcb, "%s %s: IOA Port=%d\n",
+					     path_active_desc[i].desc, path_state_desc[j].desc,
+					     fabric->ioa_port);
+			} else if (fabric->cascaded_expander == 0xff) {
+				ipr_hcam_err(hostrcb, "%s %s: IOA Port=%d, Phy=%d\n",
+					     path_active_desc[i].desc, path_state_desc[j].desc,
+					     fabric->ioa_port, fabric->phy);
+			} else if (fabric->phy == 0xff) {
+				ipr_hcam_err(hostrcb, "%s %s: IOA Port=%d, Cascade=%d\n",
+					     path_active_desc[i].desc, path_state_desc[j].desc,
+					     fabric->ioa_port, fabric->cascaded_expander);
+			} else {
+				ipr_hcam_err(hostrcb, "%s %s: IOA Port=%d, Cascade=%d, Phy=%d\n",
+					     path_active_desc[i].desc, path_state_desc[j].desc,
+					     fabric->ioa_port, fabric->cascaded_expander, fabric->phy);
+			}
+			return;
+		}
+	}
+
+	ipr_err("Path state=%02X IOA Port=%d Cascade=%d Phy=%d\n", path_state,
+		fabric->ioa_port, fabric->cascaded_expander, fabric->phy);
+}
+
+static const struct {
+	u8 type;
+	char *desc;
+} path_type_desc[] = {
+	{ IPR_PATH_CFG_IOA_PORT, "IOA port" },
+	{ IPR_PATH_CFG_EXP_PORT, "Expander port" },
+	{ IPR_PATH_CFG_DEVICE_PORT, "Device port" },
+	{ IPR_PATH_CFG_DEVICE_LUN, "Device LUN" }
+};
+
+static const struct {
+	u8 status;
+	char *desc;
+} path_status_desc[] = {
+	{ IPR_PATH_CFG_NO_PROB, "Functional" },
+	{ IPR_PATH_CFG_DEGRADED, "Degraded" },
+	{ IPR_PATH_CFG_FAILED, "Failed" },
+	{ IPR_PATH_CFG_SUSPECT, "Suspect" },
+	{ IPR_PATH_NOT_DETECTED, "Missing" },
+	{ IPR_PATH_INCORRECT_CONN, "Incorrectly connected" }
+};
+
+static const char *link_rate[] = {
+	"unknown",
+	"disabled",
+	"phy reset problem",
+	"spinup hold",
+	"port selector",
+	"unknown",
+	"unknown",
+	"unknown",
+	"1.5Gbps",
+	"3.0Gbps",
+	"unknown",
+	"unknown",
+	"unknown",
+	"unknown",
+	"unknown",
+	"unknown"
+};
+
+/**
+ * ipr_log_path_elem - Log a fabric path element.
+ * @hostrcb:	hostrcb struct
+ * @cfg:		fabric path element struct
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log_path_elem(struct ipr_hostrcb *hostrcb,
+			      struct ipr_hostrcb_config_element *cfg)
+{
+	int i, j;
+	u8 type = cfg->type_status & IPR_PATH_CFG_TYPE_MASK;
+	u8 status = cfg->type_status & IPR_PATH_CFG_STATUS_MASK;
+
+	if (type == IPR_PATH_CFG_NOT_EXIST)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(path_type_desc); i++) {
+		if (path_type_desc[i].type != type)
+			continue;
+
+		for (j = 0; j < ARRAY_SIZE(path_status_desc); j++) {
+			if (path_status_desc[j].status != status)
+				continue;
+
+			if (type == IPR_PATH_CFG_IOA_PORT) {
+				ipr_hcam_err(hostrcb, "%s %s: Phy=%d, Link rate=%s, WWN=%08X%08X\n",
+					     path_status_desc[j].desc, path_type_desc[i].desc,
+					     cfg->phy, link_rate[cfg->link_rate & IPR_PHY_LINK_RATE_MASK],
+					     be32_to_cpu(cfg->wwid[0]), be32_to_cpu(cfg->wwid[1]));
+			} else {
+				if (cfg->cascaded_expander == 0xff && cfg->phy == 0xff) {
+					ipr_hcam_err(hostrcb, "%s %s: Link rate=%s, WWN=%08X%08X\n",
+						     path_status_desc[j].desc, path_type_desc[i].desc,
+						     link_rate[cfg->link_rate & IPR_PHY_LINK_RATE_MASK],
+						     be32_to_cpu(cfg->wwid[0]), be32_to_cpu(cfg->wwid[1]));
+				} else if (cfg->cascaded_expander == 0xff) {
+					ipr_hcam_err(hostrcb, "%s %s: Phy=%d, Link rate=%s, "
+						     "WWN=%08X%08X\n", path_status_desc[j].desc,
+						     path_type_desc[i].desc, cfg->phy,
+						     link_rate[cfg->link_rate & IPR_PHY_LINK_RATE_MASK],
+						     be32_to_cpu(cfg->wwid[0]), be32_to_cpu(cfg->wwid[1]));
+				} else if (cfg->phy == 0xff) {
+					ipr_hcam_err(hostrcb, "%s %s: Cascade=%d, Link rate=%s, "
+						     "WWN=%08X%08X\n", path_status_desc[j].desc,
+						     path_type_desc[i].desc, cfg->cascaded_expander,
+						     link_rate[cfg->link_rate & IPR_PHY_LINK_RATE_MASK],
+						     be32_to_cpu(cfg->wwid[0]), be32_to_cpu(cfg->wwid[1]));
+				} else {
+					ipr_hcam_err(hostrcb, "%s %s: Cascade=%d, Phy=%d, Link rate=%s "
+						     "WWN=%08X%08X\n", path_status_desc[j].desc,
+						     path_type_desc[i].desc, cfg->cascaded_expander, cfg->phy,
+						     link_rate[cfg->link_rate & IPR_PHY_LINK_RATE_MASK],
+						     be32_to_cpu(cfg->wwid[0]), be32_to_cpu(cfg->wwid[1]));
+				}
+			}
+			return;
+		}
+	}
+
+	ipr_hcam_err(hostrcb, "Path element=%02X: Cascade=%d Phy=%d Link rate=%s "
+		     "WWN=%08X%08X\n", cfg->type_status, cfg->cascaded_expander, cfg->phy,
+		     link_rate[cfg->link_rate & IPR_PHY_LINK_RATE_MASK],
+		     be32_to_cpu(cfg->wwid[0]), be32_to_cpu(cfg->wwid[1]));
+}
+
+/**
+ * ipr_log_fabric_error - Log a fabric error.
+ * @ioa_cfg:	ioa config struct
+ * @hostrcb:	hostrcb struct
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log_fabric_error(struct ipr_ioa_cfg *ioa_cfg,
+				 struct ipr_hostrcb *hostrcb)
+{
+	struct ipr_hostrcb_type_20_error *error;
+	struct ipr_hostrcb_fabric_desc *fabric;
+	struct ipr_hostrcb_config_element *cfg;
+	int i, add_len;
+
+	error = &hostrcb->hcam.u.error.u.type_20_error;
+	error->failure_reason[sizeof(error->failure_reason) - 1] = '\0';
+	ipr_hcam_err(hostrcb, "%s\n", error->failure_reason);
+
+	add_len = be32_to_cpu(hostrcb->hcam.length) -
+		(offsetof(struct ipr_hostrcb_error, u) +
+		 offsetof(struct ipr_hostrcb_type_20_error, desc));
+
+	for (i = 0, fabric = error->desc; i < error->num_entries; i++) {
+		ipr_log_fabric_path(hostrcb, fabric);
+		for_each_fabric_cfg(fabric, cfg)
+			ipr_log_path_elem(hostrcb, cfg);
+
+		add_len -= be16_to_cpu(fabric->length);
+		fabric = (struct ipr_hostrcb_fabric_desc *)
+			((unsigned long)fabric + be16_to_cpu(fabric->length));
+	}
+
+	ipr_log_hex_data((u32 *)fabric, add_len);
+}
+
 /**
  * ipr_log_generic_error - Log an adapter error.
  * @ioa_cfg:	ioa config struct
@@ -1394,13 +1607,7 @@ static void ipr_handle_log_data(struct ipr_ioa_cfg *ioa_cfg,
 	if (!ipr_error_table[error_index].log_hcam)
 		return;
 
-	if (ipr_is_device(&hostrcb->hcam.u.error.failing_dev_res_addr)) {
-		ipr_ra_err(ioa_cfg, hostrcb->hcam.u.error.failing_dev_res_addr,
-			   "%s\n", ipr_error_table[error_index].error);
-	} else {
-		dev_err(&ioa_cfg->pdev->dev, "%s\n",
-			ipr_error_table[error_index].error);
-	}
+	ipr_hcam_err(hostrcb, "%s\n", ipr_error_table[error_index].error);
 
 	/* Set indication we have logged an error */
 	ioa_cfg->errors_logged++;
@@ -1436,6 +1643,9 @@ static void ipr_handle_log_data(struct ipr_ioa_cfg *ioa_cfg,
 		break;
 	case IPR_HOST_RCB_OVERLAY_ID_17:
 		ipr_log_enhanced_dual_ioa_error(ioa_cfg, hostrcb);
+		break;
+	case IPR_HOST_RCB_OVERLAY_ID_20:
+		ipr_log_fabric_error(ioa_cfg, hostrcb);
 		break;
 	case IPR_HOST_RCB_OVERLAY_ID_1:
 	case IPR_HOST_RCB_OVERLAY_ID_DEFAULT:
@@ -6812,6 +7022,7 @@ static int __devinit ipr_alloc_mem(struct ipr_ioa_cfg *ioa_cfg)
 
 		ioa_cfg->hostrcb[i]->hostrcb_dma =
 			ioa_cfg->hostrcb_dma[i] + offsetof(struct ipr_hostrcb, hcam);
+		ioa_cfg->hostrcb[i]->ioa_cfg = ioa_cfg;
 		list_add_tail(&ioa_cfg->hostrcb[i]->queue, &ioa_cfg->hostrcb_free_q);
 	}
 
