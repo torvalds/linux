@@ -127,7 +127,6 @@ int sctp_rcv(struct sk_buff *skb)
 	struct sctphdr *sh;
 	union sctp_addr src;
 	union sctp_addr dest;
-	union sctp_addr tmp, tmp2;
 	int family;
 	struct sctp_af *af;
 
@@ -179,13 +178,10 @@ int sctp_rcv(struct sk_buff *skb)
 	    !af->addr_valid(&dest, NULL, skb))
 		goto discard_it;
 
-	flip_to_n(&tmp, &dest);
-	flip_to_n(&tmp2, &src);
-
-	asoc = __sctp_rcv_lookup(skb, &tmp2, &tmp, &transport);
+	asoc = __sctp_rcv_lookup(skb, &src, &dest, &transport);
 
 	if (!asoc)
-		ep = __sctp_rcv_lookup_endpoint(&tmp);
+		ep = __sctp_rcv_lookup_endpoint(&dest);
 
 	/* Retrieve the common input handling substructure. */
 	rcvr = asoc ? &asoc->base : &ep->base;
@@ -245,7 +241,7 @@ int sctp_rcv(struct sk_buff *skb)
 	chunk->sctp_hdr = sh;
 
 	/* Set the source and destination addresses of the incoming chunk.  */
-	sctp_init_addrs(chunk, &tmp2, &tmp);
+	sctp_init_addrs(chunk, &src, &dest);
 
 	/* Remember where we came from.  */
 	chunk->transport = transport;
@@ -444,7 +440,6 @@ struct sock *sctp_err_lookup(int family, struct sk_buff *skb,
 	struct sock *sk = NULL;
 	struct sctp_association *asoc;
 	struct sctp_transport *transport = NULL;
-	union sctp_addr tmp, tmp2;
 
 	*app = NULL; *tpp = NULL;
 
@@ -456,13 +451,11 @@ struct sock *sctp_err_lookup(int family, struct sk_buff *skb,
 	/* Initialize local addresses for lookups. */
 	af->from_skb(&saddr, skb, 1);
 	af->from_skb(&daddr, skb, 0);
-	flip_to_n(&tmp, &saddr);
-	flip_to_n(&tmp2, &daddr);
 
 	/* Look for an association that matches the incoming ICMP error
 	 * packet.
 	 */
-	asoc = __sctp_lookup_association(&tmp, &tmp2, &transport);
+	asoc = __sctp_lookup_association(&saddr, &daddr, &transport);
 	if (!asoc)
 		return NULL;
 

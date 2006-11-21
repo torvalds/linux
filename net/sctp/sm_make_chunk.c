@@ -1227,7 +1227,6 @@ struct sctp_association *sctp_make_temp_asoc(const struct sctp_endpoint *ep,
 	struct sk_buff *skb;
 	sctp_scope_t scope;
 	struct sctp_af *af;
-	union sctp_addr tmp;
 
 	/* Create the bare association.  */
 	scope = sctp_scope(sctp_source(chunk));
@@ -1240,8 +1239,7 @@ struct sctp_association *sctp_make_temp_asoc(const struct sctp_endpoint *ep,
 	af = sctp_get_af_specific(ipver2af(skb->nh.iph->version));
 	if (unlikely(!af))
 		goto fail;
-	af->from_skb(&tmp, skb, 1);
-	flip_to_n(&asoc->c.peer_addr, &tmp);
+	af->from_skb(&asoc->c.peer_addr, skb, 1);
 nodata:
 	return asoc;
 

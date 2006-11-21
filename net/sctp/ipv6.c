@@ -351,7 +351,7 @@ static void sctp_v6_from_skb(union sctp_addr *addr,struct sk_buff *skb,
 			     int is_saddr)
 {
 	void *from;
-	__u16 *port;
+	__be16 *port;
 	struct sctphdr *sh;
 
 	port = &addr->v6.sin6_port;
@@ -361,10 +361,10 @@ static void sctp_v6_from_skb(union sctp_addr *addr,struct sk_buff *skb,
 
 	sh = (struct sctphdr *) skb->h.raw;
 	if (is_saddr) {
-		*port  = ntohs(sh->source);
+		*port  = sh->source;
 		from = &skb->nh.ipv6h->saddr;
 	} else {
-		*port = ntohs(sh->dest);
+		*port = sh->dest;
 		from = &skb->nh.ipv6h->daddr;
 	}
 	ipv6_addr_copy(&addr->v6.sin6_addr, from);
