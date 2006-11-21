@@ -1102,6 +1102,20 @@ static int _aac_reset_adapter(struct aac_dev *aac)
 		goto out;
 	}
 
+	/*
+	 *	Loop through the fibs, close the synchronous FIBS
+	 */
+	for (index = 0; index < (aac->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB); index++) {
+		struct fib *fib = &aac->fibs[index];
+		if (!(fib->hw_fib->header.XferState & cpu_to_le32(NoResponseExpected | Async)) &&
+		  (fib->hw_fib->header.XferState & cpu_to_le32(ResponseExpected))) {
+			unsigned long flagv;
+			spin_lock_irqsave(&fib->event_lock, flagv);
+			up(&fib->event_wait);
+			spin_unlock_irqrestore(&fib->event_lock, flagv);
+			schedule();
+		}
+	}
 	index = aac->cardtype;
 
 	/*
