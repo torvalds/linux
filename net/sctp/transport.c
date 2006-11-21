@@ -253,19 +253,15 @@ void sctp_transport_route(struct sctp_transport *transport,
 	struct sctp_af *af = transport->af_specific;
 	union sctp_addr *daddr = &transport->ipaddr;
 	struct dst_entry *dst;
-	union sctp_addr tmp;
-	flip_to_n(&tmp, saddr);
 
-	dst = af->get_dst(asoc, daddr, &tmp);
+	dst = af->get_dst(asoc, daddr, saddr);
 
-	if (saddr) {
-		memcpy(&transport->saddr_h, saddr, sizeof(union sctp_addr));
-		flip_to_n(&transport->saddr, &transport->saddr_h);
-	} else {
+	if (saddr)
+		memcpy(&transport->saddr, saddr, sizeof(union sctp_addr));
+	else
 		af->get_saddr(asoc, dst, daddr, &transport->saddr);
-		flip_to_h(&transport->saddr_h, &transport->saddr);
-	}
 
+	flip_to_h(&transport->saddr_h, &transport->saddr);
 	transport->dst = dst;
 	if ((transport->param_flags & SPP_PMTUD_DISABLE) && transport->pathmtu) {
 		return;
