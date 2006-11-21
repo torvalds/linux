@@ -94,6 +94,7 @@ struct mmc_host {
 	unsigned short		max_phys_segs;	/* see blk_queue_max_phys_segments */
 	unsigned short		max_sectors;	/* see blk_queue_max_sectors */
 	unsigned short		unused;
+	unsigned int		max_blk_size;	/* maximum size of one mmc block */
 
 	/* private data */
 	struct mmc_ios		ios;		/* current io bus settings */

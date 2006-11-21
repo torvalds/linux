@@ -174,7 +174,6 @@ struct sdhci_host {
 
 	unsigned int		max_clk;	/* Max possible freq (MHz) */
 	unsigned int		timeout_clk;	/* Timeout freq (KHz) */
-	unsigned int		max_block;	/* Max block size (bytes) */
 
 	unsigned int		clock;		/* Current clock (MHz) */
 	unsigned short		power;		/* Current voltage */

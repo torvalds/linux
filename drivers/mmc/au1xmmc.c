@@ -922,6 +922,8 @@ static int __devinit au1xmmc_probe(struct platform_device *pdev)
 		mmc->max_seg_size = AU1XMMC_DESCRIPTOR_SIZE;
 		mmc->max_phys_segs = AU1XMMC_DESCRIPTOR_COUNT;
 
+		mmc->max_blk_size = 2048;
+
 		mmc->ocr_avail = AU1XMMC_OCR;
 
 		host = mmc_priv(mmc);

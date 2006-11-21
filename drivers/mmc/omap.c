@@ -1099,6 +1099,7 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 	 */
 	mmc->max_phys_segs = 32;
 	mmc->max_hw_segs = 32;
+	mmc->max_blk_size = 2048;	/* BLEN is 11 bits (+1) */
 	mmc->max_sectors = 256; /* NBLK max 11-bits, OMAP also limited by DMA */
 	mmc->max_seg_size = mmc->max_sectors * 512;
 

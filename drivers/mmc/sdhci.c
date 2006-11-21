@@ -381,7 +381,7 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 
 	/* Sanity checks */
 	BUG_ON(data->blksz * data->blocks > 524288);
-	BUG_ON(data->blksz > host->max_block);
+	BUG_ON(data->blksz > host->mmc->max_blk_size);
 	BUG_ON(data->blocks > 65535);
 
 	/* timeout in us */
@@ -1290,15 +1290,6 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	if (caps & SDHCI_TIMEOUT_CLK_UNIT)
 		host->timeout_clk *= 1000;
 
-	host->max_block = (caps & SDHCI_MAX_BLOCK_MASK) >> SDHCI_MAX_BLOCK_SHIFT;
-	if (host->max_block >= 3) {
-		printk(KERN_ERR "%s: Invalid maximum block size.\n",
-			host->slot_descr);
-		ret = -ENODEV;
-		goto unmap;
-	}
-	host->max_block = 512 << host->max_block;
-
 	/*
 	 * Set host parameters.
 	 */
@@ -1351,6 +1342,19 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	 * of sectors.
 	 */
 	mmc->max_seg_size = mmc->max_sectors * 512;
+
+	/*
+	 * Maximum block size. This varies from controller to controller and
+	 * is specified in the capabilities register.
+	 */
+	mmc->max_blk_size = (caps & SDHCI_MAX_BLOCK_MASK) >> SDHCI_MAX_BLOCK_SHIFT;
+	if (mmc->max_blk_size >= 3) {
+		printk(KERN_ERR "%s: Invalid maximum block size.\n",
+			host->slot_descr);
+		ret = -ENODEV;
+		goto unmap;
+	}
+	mmc->max_blk_size = 512 << mmc->max_blk_size;
 
 	/*
 	 * Init tasklets.

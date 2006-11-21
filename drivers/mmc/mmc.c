@@ -108,6 +108,8 @@ mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 	mrq->cmd->error = 0;
 	mrq->cmd->mrq = mrq;
 	if (mrq->data) {
+		BUG_ON(mrq->data->blksz > host->max_blk_size);
+
 		mrq->cmd->data = mrq->data;
 		mrq->data->error = 0;
 		mrq->data->mrq = mrq;
@@ -1605,6 +1607,8 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 		host->max_phys_segs = 1;
 		host->max_sectors = 1 << (PAGE_CACHE_SHIFT - 9);
 		host->max_seg_size = PAGE_CACHE_SIZE;
+
+		host->max_blk_size = 512;
 	}
 
 	return host;

@@ -960,6 +960,7 @@ static int imxmci_probe(struct platform_device *pdev)
 	mmc->max_phys_segs = 64;
 	mmc->max_sectors = 64;		/* default 1 << (PAGE_CACHE_SHIFT - 9) */
 	mmc->max_seg_size = 64*512;	/* default PAGE_CACHE_SIZE */
+	mmc->max_blk_size = 2048;
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;

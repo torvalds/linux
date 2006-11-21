@@ -534,6 +534,11 @@ static int mmci_probe(struct amba_device *dev, void *id)
 	 */
 	mmc->max_seg_size = mmc->max_sectors << 9;
 
+	/*
+	 * Block size can be up to 2048 bytes, but must be a power of two.
+	 */
+	mmc->max_blk_size = 2048;
+
 	spin_lock_init(&host->lock);
 
 	writel(0, host->base + MMCIMASK0);

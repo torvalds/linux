@@ -886,7 +886,9 @@ static int tifm_sd_probe(struct tifm_dev *sock)
 	mmc->max_hw_segs = 1;
 	mmc->max_phys_segs = 1;
 	mmc->max_sectors = 127;
-	mmc->max_seg_size = mmc->max_sectors << 11; //2k maximum hw block length
+	//2k maximum hw block length
+	mmc->max_seg_size = mmc->max_sectors << 11;
+	mmc->max_blk_size = 2048;
 	sock->signal_irq = tifm_sd_signal_irq;
 	rc = tifm_sd_initialize_host(host);
 

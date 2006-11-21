@@ -1354,6 +1354,12 @@ static int __devinit wbsd_alloc_mmc(struct device *dev)
 	 */
 	mmc->max_seg_size = mmc->max_sectors * 512;
 
+	/*
+	 * Maximum block size. We have 12 bits (= 4095) but have to subtract
+	 * space for CRC. So the maximum is 4095 - 4*2 = 4087.
+	 */
+	mmc->max_blk_size = 4087;
+
 	dev_set_drvdata(dev, mmc);
 
 	return 0;
