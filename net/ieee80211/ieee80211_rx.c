@@ -1078,12 +1078,12 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element
 
 	while (length >= sizeof(*info_element)) {
 		if (sizeof(*info_element) + info_element->len > length) {
-			IEEE80211_ERROR("Info elem: parse failed: "
-					"info_element->len + 2 > left : "
-					"info_element->len+2=%zd left=%d, id=%d.\n",
-					info_element->len +
-					sizeof(*info_element),
-					length, info_element->id);
+			IEEE80211_DEBUG_MGMT("Info elem: parse failed: "
+					     "info_element->len + 2 > left : "
+					     "info_element->len+2=%zd left=%d, id=%d.\n",
+					     info_element->len +
+					     sizeof(*info_element),
+					     length, info_element->id);
 			/* We stop processing but don't return an error here
 			 * because some misbehaviour APs break this rule. ie.
 			 * Orinoco AP1000. */

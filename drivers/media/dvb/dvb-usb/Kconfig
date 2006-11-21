@@ -26,7 +26,7 @@ config DVB_USB_A800
 	tristate "AVerMedia AverTV DVB-T USB 2.0 (A800)"
 	depends on DVB_USB
 	select DVB_DIB3000MC
-	select DVB_TUNER_MT2060
+	select DVB_TUNER_MT2060 if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the AVerMedia AverTV DVB-T USB 2.0 (A800) receiver.
 
@@ -34,7 +34,7 @@ config DVB_USB_DIBUSB_MB
 	tristate "DiBcom USB DVB-T devices (based on the DiB3000M-B) (see help for device list)"
 	depends on DVB_USB
 	select DVB_DIB3000MB
-	select DVB_TUNER_MT2060
+	select DVB_TUNER_MT2060 if !DVB_FE_CUSTOMISE
 	help
 	  Support for USB 1.1 and 2.0 DVB-T receivers based on reference designs made by
 	  DiBcom (<http://www.dibcom.fr>) equipped with a DiB3000M-B demodulator.
@@ -55,7 +55,7 @@ config DVB_USB_DIBUSB_MC
 	tristate "DiBcom USB DVB-T devices (based on the DiB3000M-C/P) (see help for device list)"
 	depends on DVB_USB
 	select DVB_DIB3000MC
-	select DVB_TUNER_MT2060
+	select DVB_TUNER_MT2060 if !DVB_FE_CUSTOMISE
 	help
 	  Support for USB2.0 DVB-T receivers based on reference designs made by
 	  DiBcom (<http://www.dibcom.fr>) equipped with a DiB3000M-C/P demodulator.
@@ -70,7 +70,7 @@ config DVB_USB_DIB0700
 	tristate "DiBcom DiB0700 USB DVB devices (see help for supported devices)"
 	depends on DVB_USB
 	select DVB_DIB3000MC
-	select DVB_TUNER_MT2060
+	select DVB_TUNER_MT2060 if !DVB_FE_CUSTOMISE
 	help
 	  Support for USB2.0/1.1 DVB receivers based on the DiB0700 USB bridge. The
 	  USB bridge is also present in devices having the DiB7700 DVB-T-USB
@@ -87,7 +87,7 @@ config DVB_USB_UMT_010
 	tristate "HanfTek UMT-010 DVB-T USB2.0 support"
 	depends on DVB_USB
 	select DVB_DIB3000MC
-	select DVB_TUNER_MT2060
+	select DVB_TUNER_MT2060 if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the HanfTek UMT-010 USB2.0 stick-sized DVB-T receiver.
 
@@ -153,7 +153,7 @@ config DVB_USB_NOVA_T_USB2
 	tristate "Hauppauge WinTV-NOVA-T usb2 DVB-T USB2.0 support"
 	depends on DVB_USB
 	select DVB_DIB3000MC
-	select DVB_TUNER_MT2060
+	select DVB_TUNER_MT2060 if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the Hauppauge WinTV-NOVA-T usb2 DVB-T USB2.0 receiver.
 

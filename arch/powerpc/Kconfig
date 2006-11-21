@@ -740,7 +740,7 @@ config ARCH_SPARSEMEM_ENABLE
 
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
-	depends on SMP && PPC_PSERIES
+	depends on (SMP && PPC_PSERIES) || PPC_CELL
 
 config ARCH_POPULATES_NODE_MAP
 	def_bool y

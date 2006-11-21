@@ -86,7 +86,8 @@ enum ixp4xx_irq_type {
 	IXP4XX_IRQ_LEVEL, IXP4XX_IRQ_EDGE
 };
 
-static void ixp4xx_config_irq(unsigned irq, enum ixp4xx_irq_type type);
+/* Each bit represents an IRQ: 1: edge-triggered, 0: level triggered */
+static unsigned long long ixp4xx_irq_edge = 0;
 
 /*
  * IRQ -> GPIO mapping table
@@ -135,7 +136,11 @@ static int ixp4xx_set_irq_type(unsigned int irq, unsigned int type)
 	default:
 		return -EINVAL;
 	}
-	ixp4xx_config_irq(irq, irq_type);
+
+	if (irq_type == IXP4XX_IRQ_EDGE)
+		ixp4xx_irq_edge |= (1 << irq);
+	else
+		ixp4xx_irq_edge &= ~(1 << irq);
 
 	if (line >= 8) {	/* pins 8-15 */
 		line -= 8;
@@ -167,14 +172,6 @@ static void ixp4xx_irq_mask(unsigned int irq)
 		*IXP4XX_ICMR &= ~(1 << irq);
 }
 
-static void ixp4xx_irq_unmask(unsigned int irq)
-{
-	if (cpu_is_ixp46x() && irq >= 32)
-		*IXP4XX_ICMR2 |= (1 << (irq - 32));
-	else
-		*IXP4XX_ICMR |= (1 << irq);
-}
-
 static void ixp4xx_irq_ack(unsigned int irq)
 {
 	int line = (irq < 32) ? irq2gpio[irq] : -1;
@@ -187,40 +184,24 @@ static void ixp4xx_irq_ack(unsigned int irq)
  * Level triggered interrupts on GPIO lines can only be cleared when the
  * interrupt condition disappears.
  */
-static void ixp4xx_irq_level_unmask(unsigned int irq)
+static void ixp4xx_irq_unmask(unsigned int irq)
 {
-	ixp4xx_irq_ack(irq);
-	ixp4xx_irq_unmask(irq);
+	if (!(ixp4xx_irq_edge & (1 << irq)))
+		ixp4xx_irq_ack(irq);
+
+	if (cpu_is_ixp46x() && irq >= 32)
+		*IXP4XX_ICMR2 |= (1 << (irq - 32));
+	else
+		*IXP4XX_ICMR |= (1 << irq);
 }
 
-static struct irqchip ixp4xx_irq_level_chip = {
-	.ack		= ixp4xx_irq_mask,
-	.mask		= ixp4xx_irq_mask,
-	.unmask		= ixp4xx_irq_level_unmask,
-	.set_type	= ixp4xx_set_irq_type,
-};
-
-static struct irqchip ixp4xx_irq_edge_chip = {
+static struct irqchip ixp4xx_irq_chip = {
+	.name		= "IXP4xx",
 	.ack		= ixp4xx_irq_ack,
 	.mask		= ixp4xx_irq_mask,
 	.unmask		= ixp4xx_irq_unmask,
 	.set_type	= ixp4xx_set_irq_type,
 };
-
-static void ixp4xx_config_irq(unsigned irq, enum ixp4xx_irq_type type)
-{
-	switch (type) {
-	case IXP4XX_IRQ_LEVEL:
-		set_irq_chip(irq, &ixp4xx_irq_level_chip);
-		set_irq_handler(irq, do_level_IRQ);
-		break;
-	case IXP4XX_IRQ_EDGE:
-		set_irq_chip(irq, &ixp4xx_irq_edge_chip);
-		set_irq_handler(irq, do_edge_IRQ);
-		break;
-	}
-	set_irq_flags(irq, IRQF_VALID);
-}
 
 void __init ixp4xx_init_irq(void)
 {
@@ -241,8 +222,11 @@ void __init ixp4xx_init_irq(void)
 	}
 
         /* Default to all level triggered */
-	for(i = 0; i < NR_IRQS; i++)
-		ixp4xx_config_irq(i, IXP4XX_IRQ_LEVEL);
+	for(i = 0; i < NR_IRQS; i++) {
+		set_irq_chip(i, &ixp4xx_irq_chip);
+		set_irq_handler(i, do_level_IRQ);
+		set_irq_flags(i, IRQF_VALID);
+	}
 }
 
 

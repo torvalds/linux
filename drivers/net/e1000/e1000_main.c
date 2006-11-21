@@ -35,7 +35,7 @@ static char e1000_driver_string[] = "Intel(R) PRO/1000 Network Driver";
 #else
 #define DRIVERNAPI "-NAPI"
 #endif
-#define DRV_VERSION "7.2.9-k2"DRIVERNAPI
+#define DRV_VERSION "7.2.9-k4"DRIVERNAPI
 char e1000_driver_version[] = DRV_VERSION;
 static char e1000_copyright[] = "Copyright (c) 1999-2006 Intel Corporation.";
 
@@ -699,7 +699,10 @@ e1000_reset(struct e1000_adapter *adapter)
 		                    phy_data);
 	}
 
-	if ((adapter->en_mng_pt) && (adapter->hw.mac_type < e1000_82571)) {
+	if ((adapter->en_mng_pt) &&
+	    (adapter->hw.mac_type >= e1000_82540) &&
+	    (adapter->hw.mac_type < e1000_82571) &&
+	    (adapter->hw.media_type == e1000_media_type_copper)) {
 		manc = E1000_READ_REG(&adapter->hw, MANC);
 		manc |= (E1000_MANC_ARP_EN | E1000_MANC_EN_MNG2HOST);
 		E1000_WRITE_REG(&adapter->hw, MANC, manc);
@@ -1076,8 +1079,9 @@ e1000_remove(struct pci_dev *pdev)
 
 	flush_scheduled_work();
 
-	if (adapter->hw.mac_type < e1000_82571 &&
-	   adapter->hw.media_type == e1000_media_type_copper) {
+	if (adapter->hw.mac_type >= e1000_82540 &&
+	    adapter->hw.mac_type < e1000_82571 &&
+	    adapter->hw.media_type == e1000_media_type_copper) {
 		manc = E1000_READ_REG(&adapter->hw, MANC);
 		if (manc & E1000_MANC_SMBUS_EN) {
 			manc |= E1000_MANC_ARP_EN;
@@ -1804,9 +1808,11 @@ e1000_setup_rctl(struct e1000_adapter *adapter)
 	 * followed by the page buffers.  Therefore, skb->data is
 	 * sized to hold the largest protocol header.
 	 */
+	/* allocations using alloc_page take too long for regular MTU
+	 * so only enable packet split for jumbo frames */
 	pages = PAGE_USE_COUNT(adapter->netdev->mtu);
-	if ((adapter->hw.mac_type > e1000_82547_rev_2) && (pages <= 3) &&
-	    PAGE_SIZE <= 16384)
+	if ((adapter->hw.mac_type >= e1000_82571) && (pages <= 3) &&
+	    PAGE_SIZE <= 16384 && (rctl & E1000_RCTL_LPE))
 		adapter->rx_ps_pages = pages;
 	else
 		adapter->rx_ps_pages = 0;
@@ -2986,6 +2992,11 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_OK;
 	}
 
+	/* 82571 and newer doesn't need the workaround that limited descriptor
+	 * length to 4kB */
+	if (adapter->hw.mac_type >= e1000_82571)
+		max_per_txd = 8192;
+
 #ifdef NETIF_F_TSO
 	mss = skb_shinfo(skb)->gso_size;
 	/* The controller does a simple calculation to
@@ -3775,9 +3786,6 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 
 		length = le16_to_cpu(rx_desc->length);
 
-		/* adjust length to remove Ethernet CRC */
-		length -= 4;
-
 		if (unlikely(!(status & E1000_RXD_STAT_EOP))) {
 			/* All receives must fit into a single buffer */
 			E1000_DBG("%s: Receive packet consumed multiple"
@@ -3804,6 +3812,10 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 				goto next_desc;
 			}
 		}
+
+		/* adjust length to remove Ethernet CRC, this must be
+		 * done after the TBI_ACCEPT workaround above */
+		length -= 4;
 
 		/* code added for copybreak, this should improve
 		 * performance for small packets with large amounts
@@ -4773,8 +4785,9 @@ e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 		pci_enable_wake(pdev, PCI_D3cold, 0);
 	}
 
-	if (adapter->hw.mac_type < e1000_82571 &&
-	   adapter->hw.media_type == e1000_media_type_copper) {
+	if (adapter->hw.mac_type >= e1000_82540 &&
+	    adapter->hw.mac_type < e1000_82571 &&
+	    adapter->hw.media_type == e1000_media_type_copper) {
 		manc = E1000_READ_REG(&adapter->hw, MANC);
 		if (manc & E1000_MANC_SMBUS_EN) {
 			manc |= E1000_MANC_ARP_EN;
@@ -4786,6 +4799,9 @@ e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	if (adapter->hw.phy_type == e1000_phy_igp_3)
 		e1000_phy_powerdown_workaround(&adapter->hw);
+
+	if (netif_running(netdev))
+		e1000_free_irq(adapter);
 
 	/* Release control of h/w to f/w.  If f/w is AMT enabled, this
 	 * would have already happened in close and is redundant. */
@@ -4817,6 +4833,10 @@ e1000_resume(struct pci_dev *pdev)
 	pci_enable_wake(pdev, PCI_D3hot, 0);
 	pci_enable_wake(pdev, PCI_D3cold, 0);
 
+	if (netif_running(netdev) && (err = e1000_request_irq(adapter)))
+		return err;
+
+	e1000_power_up_phy(adapter);
 	e1000_reset(adapter);
 	E1000_WRITE_REG(&adapter->hw, WUS, ~0);
 
@@ -4825,8 +4845,9 @@ e1000_resume(struct pci_dev *pdev)
 
 	netif_device_attach(netdev);
 
-	if (adapter->hw.mac_type < e1000_82571 &&
-	   adapter->hw.media_type == e1000_media_type_copper) {
+	if (adapter->hw.mac_type >= e1000_82540 &&
+	    adapter->hw.mac_type < e1000_82571 &&
+	    adapter->hw.media_type == e1000_media_type_copper) {
 		manc = E1000_READ_REG(&adapter->hw, MANC);
 		manc &= ~(E1000_MANC_ARP_EN);
 		E1000_WRITE_REG(&adapter->hw, MANC, manc);
@@ -4944,6 +4965,7 @@ static void e1000_io_resume(struct pci_dev *pdev)
 	netif_device_attach(netdev);
 
 	if (adapter->hw.mac_type >= e1000_82540 &&
+	    adapter->hw.mac_type < e1000_82571 &&
 	    adapter->hw.media_type == e1000_media_type_copper) {
 		manc = E1000_READ_REG(&adapter->hw, MANC);
 		manc &= ~(E1000_MANC_ARP_EN);

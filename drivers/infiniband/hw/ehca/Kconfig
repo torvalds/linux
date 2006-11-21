@@ -10,6 +10,7 @@ config INFINIBAND_EHCA
 config INFINIBAND_EHCA_SCALING
 	bool "Scaling support (EXPERIMENTAL)"
 	depends on IBMEBUS && INFINIBAND_EHCA && HOTPLUG_CPU && EXPERIMENTAL
+	default y
 	---help---
 	eHCA scaling support schedules the CQ callbacks to different CPUs.
 

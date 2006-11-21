@@ -200,7 +200,7 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		from = n_cp->vaddr;
 		port = n_cp->vport;
 		sprintf(buf,"%d,%d,%d,%d,%d,%d", NIPQUAD(from),
-			ntohs(port)&255, (ntohs(port)>>8)&255);
+			(ntohs(port)>>8)&255, ntohs(port)&255);
 		buf_len = strlen(buf);
 
 		/*

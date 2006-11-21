@@ -189,20 +189,24 @@ void bcm43xx_leds_update(struct bcm43xx_private *bcm, int activity)
 		case BCM43xx_LED_INACTIVE:
 			continue;
 		case BCM43xx_LED_OFF:
+		case BCM43xx_LED_BCM4303_3:
 			break;
 		case BCM43xx_LED_ON:
 			turn_on = 1;
 			break;
 		case BCM43xx_LED_ACTIVITY:
+		case BCM43xx_LED_BCM4303_0:
 			turn_on = activity;
 			break;
 		case BCM43xx_LED_RADIO_ALL:
 			turn_on = radio->enabled;
 			break;
 		case BCM43xx_LED_RADIO_A:
+		case BCM43xx_LED_BCM4303_2:
 			turn_on = (radio->enabled && phy->type == BCM43xx_PHYTYPE_A);
 			break;
 		case BCM43xx_LED_RADIO_B:
+		case BCM43xx_LED_BCM4303_1:
 			turn_on = (radio->enabled &&
 				   (phy->type == BCM43xx_PHYTYPE_B ||
 				    phy->type == BCM43xx_PHYTYPE_G));
@@ -257,7 +261,8 @@ void bcm43xx_leds_update(struct bcm43xx_private *bcm, int activity)
 			continue;
 #endif /* CONFIG_BCM43XX_DEBUG */
 		default:
-			assert(0);
+			dprintkl(KERN_INFO PFX "Bad value in leds_update,"
+				" led->behaviour: 0x%x\n", led->behaviour);
 		};
 
 		if (led->activelow)

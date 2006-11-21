@@ -42,13 +42,14 @@ static int c2_alloc_mqsp_chunk(struct c2_dev *c2dev, gfp_t gfp_mask,
 {
 	int i;
 	struct sp_chunk *new_head;
+	dma_addr_t dma_addr;
 
-	new_head = (struct sp_chunk *) __get_free_page(gfp_mask);
+	new_head = dma_alloc_coherent(&c2dev->pcidev->dev, PAGE_SIZE,
+				      &dma_addr, gfp_mask);
 	if (new_head == NULL)
 		return -ENOMEM;
 
-	new_head->dma_addr = dma_map_single(c2dev->ibdev.dma_device, new_head,
-					    PAGE_SIZE, DMA_FROM_DEVICE);
+	new_head->dma_addr = dma_addr;
 	pci_unmap_addr_set(new_head, mapping, new_head->dma_addr);
 
 	new_head->next = NULL;
@@ -80,10 +81,8 @@ void c2_free_mqsp_pool(struct c2_dev *c2dev, struct sp_chunk *root)
 
 	while (root) {
 		next = root->next;
-		dma_unmap_single(c2dev->ibdev.dma_device,
-				 pci_unmap_addr(root, mapping), PAGE_SIZE,
-			         DMA_FROM_DEVICE);
-		__free_page((struct page *) root);
+		dma_free_coherent(&c2dev->pcidev->dev, PAGE_SIZE, root,
+				  pci_unmap_addr(root, mapping));
 		root = next;
 	}
 }

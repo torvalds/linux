@@ -35,7 +35,7 @@ struct tda8083_config
 	u8 demod_address;
 };
 
-#if defined(CONFIG_DVB_TDA8083) || defined(CONFIG_DVB_TDA8083_MODULE)
+#if defined(CONFIG_DVB_TDA8083) || (defined(CONFIG_DVB_TDA8083_MODULE) && defined(MODULE))
 extern struct dvb_frontend* tda8083_attach(const struct tda8083_config* config,
 					   struct i2c_adapter* i2c);
 #else

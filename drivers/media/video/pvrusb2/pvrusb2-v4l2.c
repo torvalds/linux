@@ -711,8 +711,8 @@ static void pvr2_v4l2_dev_destroy(struct pvr2_v4l2_dev *dip)
 	       dip->devbase.minor,pvr2_config_get_name(dip->config));
 
 	/* Paranoia */
-	dip->v4lp = 0;
-	dip->stream = 0;
+	dip->v4lp = NULL;
+	dip->stream = NULL;
 
 	/* Actual deallocation happens later when all internal references
 	   are gone. */
@@ -1076,7 +1076,7 @@ struct pvr2_v4l2 *pvr2_v4l2_create(struct pvr2_context *mnp)
 	vp->vdev = kmalloc(sizeof(*vp->vdev),GFP_KERNEL);
 	if (!vp->vdev) {
 		kfree(vp);
-		return 0;
+		return NULL;
 	}
 	memset(vp->vdev,0,sizeof(*vp->vdev));
 	pvr2_channel_init(&vp->channel,mnp);

@@ -21,15 +21,6 @@ struct tag *bootloader_tags __initdata;
 
 struct lcdc_platform_data __initdata atstk1000_fb0_data;
 
-asmlinkage void __init board_early_init(void)
-{
-	extern void sdram_init(void);
-
-#ifdef CONFIG_LOADER_STANDALONE
-	sdram_init();
-#endif
-}
-
 void __init board_setup_fbmem(unsigned long fbmem_start,
 			      unsigned long fbmem_size)
 {

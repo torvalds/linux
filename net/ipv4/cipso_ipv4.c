@@ -1307,7 +1307,8 @@ int cipso_v4_socket_setattr(const struct socket *sock,
 
 	/* We can't use ip_options_get() directly because it makes a call to
 	 * ip_options_get_alloc() which allocates memory with GFP_KERNEL and
-	 * we can't block here. */
+	 * we won't always have CAP_NET_RAW even though we _always_ want to
+	 * set the IPOPT_CIPSO option. */
 	opt_len = (buf_len + 3) & ~3;
 	opt = kzalloc(sizeof(*opt) + opt_len, GFP_ATOMIC);
 	if (opt == NULL) {
@@ -1317,11 +1318,9 @@ int cipso_v4_socket_setattr(const struct socket *sock,
 	memcpy(opt->__data, buf, buf_len);
 	opt->optlen = opt_len;
 	opt->is_data = 1;
+	opt->cipso = sizeof(struct iphdr);
 	kfree(buf);
 	buf = NULL;
-	ret_val = ip_options_compile(opt, NULL);
-	if (ret_val != 0)
-		goto socket_setattr_failure;
 
 	sk_inet = inet_sk(sk);
 	if (sk_inet->is_icsk) {

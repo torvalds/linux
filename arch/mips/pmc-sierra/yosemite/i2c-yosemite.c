@@ -74,7 +74,7 @@ static int titan_i2c_poll(void)
 int titan_i2c_xfer(unsigned int slave_addr, titan_i2c_command * cmd,
 		   int size, unsigned int *addr)
 {
-	int loop = 0, bytes, i;
+	int loop, bytes = 0, i;
 	unsigned int *write_data, data, *read_data;
 	unsigned long reg_val, val;
 

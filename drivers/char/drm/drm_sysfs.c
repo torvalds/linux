@@ -42,13 +42,24 @@ static CLASS_ATTR(version, S_IRUGO, version_show, NULL);
 struct class *drm_sysfs_create(struct module *owner, char *name)
 {
 	struct class *class;
+	int err;
 
 	class = class_create(owner, name);
-	if (!class)
-		return class;
+	if (!class) {
+		err = -ENOMEM;
+		goto err_out;
+	}
 
-	class_create_file(class, &class_attr_version);
+	err = class_create_file(class, &class_attr_version);
+	if (err)
+		goto err_out_class;
+
 	return class;
+
+err_out_class:
+	class_destroy(class);
+err_out:
+	return ERR_PTR(err);
 }
 
 /**
@@ -96,20 +107,36 @@ static struct class_device_attribute class_device_attrs[] = {
 struct class_device *drm_sysfs_device_add(struct class *cs, drm_head_t *head)
 {
 	struct class_device *class_dev;
-	int i;
+	int i, j, err;
 
 	class_dev = class_device_create(cs, NULL,
 					MKDEV(DRM_MAJOR, head->minor),
 					&(head->dev->pdev)->dev,
 					"card%d", head->minor);
-	if (!class_dev)
-		return NULL;
+	if (!class_dev) {
+		err = -ENOMEM;
+		goto err_out;
+	}
 
 	class_set_devdata(class_dev, head);
 
-	for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++)
-		class_device_create_file(class_dev, &class_device_attrs[i]);
+	for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++) {
+		err = class_device_create_file(class_dev,
+					       &class_device_attrs[i]);
+		if (err)
+			goto err_out_files;
+	}
+
 	return class_dev;
+
+err_out_files:
+	if (i > 0)
+		for (j = 0; j < i; j++)
+			class_device_remove_file(class_dev,
+						 &class_device_attrs[i]);
+	class_device_unregister(class_dev);
+err_out:
+	return ERR_PTR(err);
 }
 
 /**

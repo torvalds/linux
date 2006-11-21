@@ -885,10 +885,14 @@ int cifs_rename(struct inode *source_inode, struct dentry *source_direntry,
 			kmalloc(2 * sizeof(FILE_UNIX_BASIC_INFO), GFP_KERNEL);
 		if (info_buf_source != NULL) {
 			info_buf_target = info_buf_source + 1;
-			rc = CIFSSMBUnixQPathInfo(xid, pTcon, fromName,
-				info_buf_source, cifs_sb_source->local_nls, 
-				cifs_sb_source->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
+			if (pTcon->ses->capabilities & CAP_UNIX)
+				rc = CIFSSMBUnixQPathInfo(xid, pTcon, fromName,
+					info_buf_source, 
+					cifs_sb_source->local_nls,
+					cifs_sb_source->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
+			/* else rc is still EEXIST so will fall through to
+			   unlink the target and retry rename */
 			if (rc == 0) {
 				rc = CIFSSMBUnixQPathInfo(xid, pTcon, toName,
 						info_buf_target,
@@ -937,7 +941,7 @@ int cifs_rename(struct inode *source_inode, struct dentry *source_direntry,
 				 cifs_sb_source->mnt_cifs_flags & 
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 		if (rc==0) {
-			CIFSSMBRenameOpenFile(xid, pTcon, netfid, toName,
+			rc = CIFSSMBRenameOpenFile(xid, pTcon, netfid, toName,
 					      cifs_sb_source->local_nls, 
 					      cifs_sb_source->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
@@ -1085,8 +1089,10 @@ int cifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	struct kstat *stat)
 {
 	int err = cifs_revalidate(dentry);
-	if (!err)
+	if (!err) {
 		generic_fillattr(dentry->d_inode, stat);
+		stat->blksize = CIFS_MAX_MSGSIZE;
+	}
 	return err;
 }
 

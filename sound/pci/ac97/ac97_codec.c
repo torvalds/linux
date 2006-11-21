@@ -570,8 +570,7 @@ int snd_ac97_put_volsw(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value 
 			ac97->power_up &= ~(1 << (reg>>1));
 		else
 			ac97->power_up |= 1 << (reg>>1);
-		if (power_save)
-			update_power_regs(ac97);
+		update_power_regs(ac97);
 	}
 #endif
 	return err;
@@ -2337,10 +2336,7 @@ int snd_ac97_update_power(struct snd_ac97 *ac97, int reg, int powerup)
 		}
 	}
 
-	if (! power_save)
-		return 0;
-
-	if (! powerup && ac97->power_workq)
+	if (power_save && !powerup && ac97->power_workq)
 		/* adjust power-down bits after two seconds delay
 		 * (for avoiding loud click noises for many (OSS) apps
 		 *  that open/close frequently)

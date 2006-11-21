@@ -71,7 +71,7 @@ struct tda1004x_config
 	int (*request_firmware)(struct dvb_frontend* fe, const struct firmware **fw, char* name);
 };
 
-#if defined(CONFIG_DVB_TDA1004X) || defined(CONFIG_DVB_TDA1004X_MODULE)
+#if defined(CONFIG_DVB_TDA1004X) || (defined(CONFIG_DVB_TDA1004X_MODULE) && defined(MODULE))
 extern struct dvb_frontend* tda10045_attach(const struct tda1004x_config* config,
 					    struct i2c_adapter* i2c);
 

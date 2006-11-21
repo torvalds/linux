@@ -14,7 +14,7 @@
 #include <asm/io.h>
 #include <asm/apm.h>
 #include <asm/adc.h>
-#include <asm/hp6xx/hp6xx.h>
+#include <asm/hp6xx.h>
 
 #define SH7709_PGDR			0xa400012c
 

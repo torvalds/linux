@@ -96,22 +96,6 @@ struct _xt_align
 /* Error verdict. */
 #define XT_ERROR_TARGET "ERROR"
 
-/*
- * New IP firewall options for [gs]etsockopt at the RAW IP level.
- * Unlike BSD Linux inherits IP options so you don't have to use a raw
- * socket for this. Instead we check rights in the calls. */
-#define XT_BASE_CTL		64	/* base for firewall socket options */
-
-#define XT_SO_SET_REPLACE	(XT_BASE_CTL)
-#define XT_SO_SET_ADD_COUNTERS	(XT_BASE_CTL + 1)
-#define XT_SO_SET_MAX		XT_SO_SET_ADD_COUNTERS
-
-#define XT_SO_GET_INFO			(XT_BASE_CTL)
-#define XT_SO_GET_ENTRIES		(XT_BASE_CTL + 1)
-#define XT_SO_GET_REVISION_MATCH	(XT_BASE_CTL + 2)
-#define XT_SO_GET_REVISION_TARGET	(XT_BASE_CTL + 3)
-#define XT_SO_GET_MAX			XT_SO_GET_REVISION_TARGET
-
 #define SET_COUNTER(c,b,p) do { (c).bcnt = (b); (c).pcnt = (p); } while(0)
 #define ADD_COUNTER(c,b,p) do { (c).bcnt += (b); (c).pcnt += (p); } while(0)
 

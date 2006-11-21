@@ -54,9 +54,14 @@ match(const struct sk_buff *skb,
 	const struct ip6t_ah *ahinfo = matchinfo;
 	unsigned int ptr;
 	unsigned int hdrlen = 0;
+	int err;
 
-	if (ipv6_find_hdr(skb, &ptr, NEXTHDR_AUTH, NULL) < 0)
+	err = ipv6_find_hdr(skb, &ptr, NEXTHDR_AUTH, NULL);
+	if (err < 0) {
+		if (err != -ENOENT)
+			*hotdrop = 1;
 		return 0;
+	}
 
 	ah = skb_header_pointer(skb, ptr, sizeof(_ah), &_ah);
 	if (ah == NULL) {

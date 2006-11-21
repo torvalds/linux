@@ -6,10 +6,17 @@
  ****************************************************************
  ****************************************************************
  **
+ **  WARNING:
  **  The values in this file are exported to user space via 
- **  the sysctl() binary interface.  However this interface
- **  is unstable and deprecated and will be removed in the future. 
- **  For a stable interface use /proc/sys.
+ **  the sysctl() binary interface.  Do *NOT* change the
+ **  numbering of any existing values here, and do not change
+ **  any numbers within any one set of values.  If you have to
+ **  have to redefine an existing interface, use a new number for it.
+ **  The kernel will then return -ENOTDIR to any application using
+ **  the old binary interface.
+ **
+ **  For new interfaces unless you really need a binary number
+ **  please use CTL_UNNUMBERED.
  **
  ****************************************************************
  ****************************************************************
@@ -48,6 +55,7 @@ struct __sysctl_args {
 #ifdef __KERNEL__
 #define CTL_ANY		-1	/* Matches any name */
 #define CTL_NONE	0
+#define CTL_UNNUMBERED	CTL_NONE	/* sysctl without a binary number */
 #endif
 
 enum
@@ -961,8 +969,8 @@ extern ctl_handler sysctl_ms_jiffies;
 /*
  * Register a set of sysctl names by calling register_sysctl_table
  * with an initialised array of ctl_table's.  An entry with zero
- * ctl_name terminates the table.  table->de will be set up by the
- * registration and need not be initialised in advance.
+ * ctl_name and NULL procname terminates the table.  table->de will be
+ * set up by the registration and need not be initialised in advance.
  *
  * sysctl names can be mirrored automatically under /proc/sys.  The
  * procname supplied controls /proc naming.
@@ -973,7 +981,10 @@ extern ctl_handler sysctl_ms_jiffies;
  * Leaf nodes in the sysctl tree will be represented by a single file
  * under /proc; non-leaf nodes will be represented by directories.  A
  * null procname disables /proc mirroring at this node.
- * 
+ *
+ * sysctl entries with a zero ctl_name will not be available through
+ * the binary sysctl interface.
+ *
  * sysctl(2) can automatically manage read and write requests through
  * the sysctl table.  The data and maxlen fields of the ctl_table
  * struct enable minimal validation of the values being written to be

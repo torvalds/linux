@@ -92,9 +92,9 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 				&tbl->it_index, &offset, &size);
 
 		/* TCE table size - measured in tce entries */
-		tbl->it_size = size >> PAGE_SHIFT;
+		tbl->it_size = size >> IOMMU_PAGE_SHIFT;
 		/* offset for VIO should always be 0 */
-		tbl->it_offset = offset >> PAGE_SHIFT;
+		tbl->it_offset = offset >> IOMMU_PAGE_SHIFT;
 		tbl->it_busno = 0;
 		tbl->it_type = TCE_VB;
 

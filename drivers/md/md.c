@@ -2003,6 +2003,7 @@ static mdk_rdev_t *md_import_device(dev_t newdev, int super_format, int super_mi
 	kobject_init(&rdev->kobj);
 
 	rdev->desc_nr = -1;
+	rdev->saved_raid_disk = -1;
 	rdev->flags = 0;
 	rdev->data_offset = 0;
 	rdev->sb_events = 0;
@@ -3199,6 +3200,7 @@ static int do_md_run(mddev_t * mddev)
 
 	mddev->changed = 1;
 	md_new_event(mddev);
+	kobject_uevent(&mddev->gendisk->kobj, KOBJ_CHANGE);
 	return 0;
 }
 
@@ -4044,11 +4046,8 @@ static int update_size(mddev_t *mddev, unsigned long size)
 		return -EBUSY;
 	ITERATE_RDEV(mddev,rdev,tmp) {
 		sector_t avail;
-		if (rdev->sb_offset > rdev->data_offset)
-			avail = (rdev->sb_offset*2) - rdev->data_offset;
-		else
-			avail = get_capacity(rdev->bdev->bd_disk)
-				- rdev->data_offset;
+		avail = rdev->size * 2;
+
 		if (fit && (size == 0 || size > avail/2))
 			size = avail/2;
 		if (avail < ((sector_t)size << 1))
@@ -4487,6 +4486,7 @@ static int md_thread(void * arg)
 	 * many dirty RAID5 blocks.
 	 */
 
+	current->flags |= PF_NOFREEZE;
 	allow_signal(SIGKILL);
 	while (!kthread_should_stop()) {
 
@@ -4503,7 +4503,6 @@ static int md_thread(void * arg)
 			 test_bit(THREAD_WAKEUP, &thread->flags)
 			 || kthread_should_stop(),
 			 thread->timeout);
-		try_to_freeze();
 
 		clear_bit(THREAD_WAKEUP, &thread->flags);
 

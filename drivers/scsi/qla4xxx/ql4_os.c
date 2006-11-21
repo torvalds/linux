@@ -34,9 +34,9 @@ MODULE_PARM_DESC(ql4xdontresethba,
 		 " default it will reset hba :0"
 		 " set to 1 to avoid resetting HBA");
 
-int qla4_extended_error_logging = 0; /* 0 = off, 1 = log errors */
-module_param(qla4_extended_error_logging, int, S_IRUGO | S_IRUSR);
-MODULE_PARM_DESC(qla4_extended_error_logging,
+int ql4xextended_error_logging = 0; /* 0 = off, 1 = log errors */
+module_param(ql4xextended_error_logging, int, S_IRUGO | S_IRUSR);
+MODULE_PARM_DESC(ql4xextended_error_logging,
 		 "Option to enable extended error logging, "
 		 "Default is 0 - no logging, 1 - debug logging");
 
@@ -1714,7 +1714,7 @@ static int __init qla4xxx_module_init(void)
 
 	/* Derive version string. */
 	strcpy(qla4xxx_version_str, QLA4XXX_DRIVER_VERSION);
-	if (qla4_extended_error_logging)
+	if (ql4xextended_error_logging)
 		strcat(qla4xxx_version_str, "-debug");
 
 	qla4xxx_scsi_transport =
@@ -1724,13 +1724,13 @@ static int __init qla4xxx_module_init(void)
 		goto release_srb_cache;
 	}
 
-	printk(KERN_INFO "QLogic iSCSI HBA Driver\n");
 	ret = pci_register_driver(&qla4xxx_pci_driver);
 	if (ret)
 		goto unregister_transport;
 
 	printk(KERN_INFO "QLogic iSCSI HBA Driver\n");
 	return 0;
+
 unregister_transport:
 	iscsi_unregister_transport(&qla4xxx_iscsi_transport);
 release_srb_cache:

@@ -77,7 +77,8 @@ static int prepare_reply(struct genl_info *info, u8 cmd, struct sk_buff **skbp,
 	/*
 	 * If new attributes are added, please revisit this allocation
 	 */
-	skb = nlmsg_new(genlmsg_total_size(size), GFP_KERNEL);
+	size = nlmsg_total_size(genlmsg_total_size(size));
+	skb = nlmsg_new(size, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 
@@ -174,21 +175,19 @@ static void send_cpu_listeners(struct sk_buff *skb, unsigned int cpu)
 	up_write(&listeners->sem);
 }
 
-static int fill_pid(pid_t pid, struct task_struct *pidtsk,
+static int fill_pid(pid_t pid, struct task_struct *tsk,
 		struct taskstats *stats)
 {
 	int rc = 0;
-	struct task_struct *tsk = pidtsk;
 
-	if (!pidtsk) {
-		read_lock(&tasklist_lock);
+	if (!tsk) {
+		rcu_read_lock();
 		tsk = find_task_by_pid(pid);
-		if (!tsk) {
-			read_unlock(&tasklist_lock);
+		if (tsk)
+			get_task_struct(tsk);
+		rcu_read_unlock();
+		if (!tsk)
 			return -ESRCH;
-		}
-		get_task_struct(tsk);
-		read_unlock(&tasklist_lock);
 	} else
 		get_task_struct(tsk);
 
@@ -214,39 +213,30 @@ static int fill_pid(pid_t pid, struct task_struct *pidtsk,
 
 }
 
-static int fill_tgid(pid_t tgid, struct task_struct *tgidtsk,
+static int fill_tgid(pid_t tgid, struct task_struct *first,
 		struct taskstats *stats)
 {
-	struct task_struct *tsk, *first;
+	struct task_struct *tsk;
 	unsigned long flags;
+	int rc = -ESRCH;
 
 	/*
 	 * Add additional stats from live tasks except zombie thread group
 	 * leaders who are already counted with the dead tasks
 	 */
-	first = tgidtsk;
-	if (!first) {
-		read_lock(&tasklist_lock);
+	rcu_read_lock();
+	if (!first)
 		first = find_task_by_pid(tgid);
-		if (!first) {
-			read_unlock(&tasklist_lock);
-			return -ESRCH;
-		}
-		get_task_struct(first);
-		read_unlock(&tasklist_lock);
-	} else
-		get_task_struct(first);
 
-	/* Start with stats from dead tasks */
-	spin_lock_irqsave(&first->signal->stats_lock, flags);
+	if (!first || !lock_task_sighand(first, &flags))
+		goto out;
+
 	if (first->signal->stats)
 		memcpy(stats, first->signal->stats, sizeof(*stats));
-	spin_unlock_irqrestore(&first->signal->stats_lock, flags);
 
 	tsk = first;
-	read_lock(&tasklist_lock);
 	do {
-		if (tsk->exit_state == EXIT_ZOMBIE && thread_group_leader(tsk))
+		if (tsk->exit_state)
 			continue;
 		/*
 		 * Accounting subsystem can call its functions here to
@@ -257,15 +247,18 @@ static int fill_tgid(pid_t tgid, struct task_struct *tgidtsk,
 		delayacct_add_tsk(stats, tsk);
 
 	} while_each_thread(first, tsk);
-	read_unlock(&tasklist_lock);
-	stats->version = TASKSTATS_VERSION;
 
+	unlock_task_sighand(first, &flags);
+	rc = 0;
+out:
+	rcu_read_unlock();
+
+	stats->version = TASKSTATS_VERSION;
 	/*
 	 * Accounting subsytems can also add calls here to modify
 	 * fields of taskstats.
 	 */
-
-	return 0;
+	return rc;
 }
 
 
@@ -273,7 +266,7 @@ static void fill_tgid_exit(struct task_struct *tsk)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&tsk->signal->stats_lock, flags);
+	spin_lock_irqsave(&tsk->sighand->siglock, flags);
 	if (!tsk->signal->stats)
 		goto ret;
 
@@ -285,7 +278,7 @@ static void fill_tgid_exit(struct task_struct *tsk)
 	 */
 	delayacct_add_tsk(tsk->signal->stats, tsk);
 ret:
-	spin_unlock_irqrestore(&tsk->signal->stats_lock, flags);
+	spin_unlock_irqrestore(&tsk->sighand->siglock, flags);
 	return;
 }
 
@@ -419,7 +412,7 @@ static int taskstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
 	return send_reply(rep_skb, info->snd_pid);
 
 nla_put_failure:
-	return genlmsg_cancel(rep_skb, reply);
+	rc = genlmsg_cancel(rep_skb, reply);
 err:
 	nlmsg_free(rep_skb);
 	return rc;
@@ -461,24 +454,26 @@ void taskstats_exit_send(struct task_struct *tsk, struct taskstats *tidstats,
 	size_t size;
 	int is_thread_group;
 	struct nlattr *na;
-	unsigned long flags;
 
-	if (!family_registered || !tidstats)
+	if (!family_registered)
 		return;
 
-	spin_lock_irqsave(&tsk->signal->stats_lock, flags);
-	is_thread_group = tsk->signal->stats ? 1 : 0;
-	spin_unlock_irqrestore(&tsk->signal->stats_lock, flags);
-
-	rc = 0;
 	/*
 	 * Size includes space for nested attributes
 	 */
 	size = nla_total_size(sizeof(u32)) +
 		nla_total_size(sizeof(struct taskstats)) + nla_total_size(0);
 
-	if (is_thread_group)
-		size = 2 * size;	/* PID + STATS + TGID + STATS */
+	is_thread_group = (tsk->signal->stats != NULL);
+	if (is_thread_group) {
+		/* PID + STATS + TGID + STATS */
+		size = 2 * size;
+		/* fill the tsk->signal->stats structure */
+		fill_tgid_exit(tsk);
+	}
+
+	if (!tidstats)
+		return;
 
 	rc = prepare_reply(NULL, TASKSTATS_CMD_NEW, &rep_skb, &reply, size);
 	if (rc < 0)
@@ -498,11 +493,8 @@ void taskstats_exit_send(struct task_struct *tsk, struct taskstats *tidstats,
 		goto send;
 
 	/*
-	 * tsk has/had a thread group so fill the tsk->signal->stats structure
 	 * Doesn't matter if tsk is the leader or the last group member leaving
 	 */
-
-	fill_tgid_exit(tsk);
 	if (!group_dead)
 		goto send;
 
@@ -519,7 +511,6 @@ send:
 
 nla_put_failure:
 	genlmsg_cancel(rep_skb, reply);
-	goto ret;
 err_skb:
 	nlmsg_free(rep_skb);
 ret:

@@ -4,6 +4,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
+#include <linux/dma-mapping.h>
 #include <linux/linkage.h>
 #include <asm/atomic.h>
 

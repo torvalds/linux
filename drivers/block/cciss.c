@@ -1300,6 +1300,12 @@ static void cciss_softirq_done(struct request *rq)
 
 	complete_buffers(rq->bio, rq->errors);
 
+	if (blk_fs_request(rq)) {
+		const int rw = rq_data_dir(rq);
+
+		disk_stat_add(rq->rq_disk, sectors[rw], rq->nr_sectors);
+	}
+
 #ifdef CCISS_DEBUG
 	printk("Done with %p\n", rq);
 #endif				/* CCISS_DEBUG */
@@ -1992,8 +1998,8 @@ cciss_read_capacity(int ctlr, int logvol, int withirq, sector_t *total_size,
 		*block_size = BLOCK_SIZE;
 	}
 	if (*total_size != (__u32) 0)
-		printk(KERN_INFO "      blocks= %lld block_size= %d\n",
-		*total_size, *block_size);
+		printk(KERN_INFO "      blocks= %llu block_size= %d\n",
+		(unsigned long long)*total_size, *block_size);
 	kfree(buf);
 	return;
 }
@@ -2027,8 +2033,8 @@ cciss_read_capacity_16(int ctlr, int logvol, int withirq, sector_t *total_size, 
 		*total_size = 0;
 		*block_size = BLOCK_SIZE;
 	}
-	printk(KERN_INFO "      blocks= %lld block_size= %d\n",
-	       *total_size, *block_size);
+	printk(KERN_INFO "      blocks= %llu block_size= %d\n",
+	       (unsigned long long)*total_size, *block_size);
 	kfree(buf);
 	return;
 }

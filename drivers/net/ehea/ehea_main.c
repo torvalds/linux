@@ -92,7 +92,7 @@ static struct net_device_stats *ehea_get_stats(struct net_device *dev)
 
 	memset(stats, 0, sizeof(*stats));
 
-	cb2 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb2 = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb2) {
 		ehea_error("no mem for cb2");
 		goto out;
@@ -586,8 +586,8 @@ int ehea_sense_port_attr(struct ehea_port *port)
 	u64 hret;
 	struct hcp_ehea_port_cb0 *cb0;
 
-	cb0 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
-	if (!cb0) {
+	cb0 = kzalloc(PAGE_SIZE, GFP_ATOMIC);   /* May be called via */
+	if (!cb0) {                             /* ehea_neq_tasklet() */
 		ehea_error("no mem for cb0");
 		ret = -ENOMEM;
 		goto out;
@@ -670,7 +670,7 @@ int ehea_set_portspeed(struct ehea_port *port, u32 port_speed)
 	u64 hret;
 	int ret = 0;
 
-	cb4 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb4 = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb4) {
 		ehea_error("no mem for cb4");
 		ret = -ENOMEM;
@@ -765,8 +765,7 @@ static void ehea_parse_eqe(struct ehea_adapter *adapter, u64 eqe)
 
 		if (EHEA_BMASK_GET(NEQE_PORT_UP, eqe)) {
 			if (!netif_carrier_ok(port->netdev)) {
-				ret = ehea_sense_port_attr(
-					port);
+				ret = ehea_sense_port_attr(port);
 				if (ret) {
 					ehea_error("failed resensing port "
 						   "attributes");
@@ -986,7 +985,7 @@ static int ehea_configure_port(struct ehea_port *port)
 	struct hcp_ehea_port_cb0 *cb0;
 
 	ret = -ENOMEM;
-	cb0 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb0 = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb0)
 		goto out;
 
@@ -1444,7 +1443,7 @@ static int ehea_set_mac_addr(struct net_device *dev, void *sa)
 		goto out;
 	}
 
-	cb0 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb0 = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb0) {
 		ehea_error("no mem for cb0");
 		ret = -ENOMEM;
@@ -1502,7 +1501,7 @@ static void ehea_promiscuous(struct net_device *dev, int enable)
 	if ((enable && port->promisc) || (!enable && !port->promisc))
 		return;
 
-	cb7 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb7 = kzalloc(PAGE_SIZE, GFP_ATOMIC);
 	if (!cb7) {
 		ehea_error("no mem for cb7");
 		goto out;
@@ -1606,7 +1605,7 @@ static void ehea_add_multicast_entry(struct ehea_port* port, u8* mc_mac_addr)
 	struct ehea_mc_list *ehea_mcl_entry;
 	u64 hret;
 
-	ehea_mcl_entry = kzalloc(sizeof(*ehea_mcl_entry), GFP_KERNEL);
+	ehea_mcl_entry = kzalloc(sizeof(*ehea_mcl_entry), GFP_ATOMIC);
 	if (!ehea_mcl_entry) {
 		ehea_error("no mem for mcl_entry");
 		return;
@@ -1871,7 +1870,7 @@ static void ehea_vlan_rx_register(struct net_device *dev,
 
 	port->vgrp = grp;
 
-	cb1 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb1 = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb1) {
 		ehea_error("no mem for cb1");
 		goto out;
@@ -1900,7 +1899,7 @@ static void ehea_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	int index;
 	u64 hret;
 
-	cb1 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb1 = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb1) {
 		ehea_error("no mem for cb1");
 		goto out;
@@ -1936,7 +1935,7 @@ static void ehea_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	if (port->vgrp)
 		port->vgrp->vlan_devices[vid] = NULL;
 
-	cb1 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb1 = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb1) {
 		ehea_error("no mem for cb1");
 		goto out;
@@ -1969,7 +1968,7 @@ int ehea_activate_qp(struct ehea_adapter *adapter, struct ehea_qp *qp)
 	u64 dummy64 = 0;
 	struct hcp_modify_qp_cb0* cb0;
 
-	cb0 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb0 = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb0) {
 		ret = -ENOMEM;
 		goto out;
@@ -2270,7 +2269,7 @@ int ehea_sense_adapter_attr(struct ehea_adapter *adapter)
 	u64 hret;
 	int ret;
 
-	cb = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb) {
 		ret = -ENOMEM;
 		goto out;
@@ -2341,7 +2340,7 @@ static int ehea_setup_single_port(struct ehea_port *port,
 		goto out;
 
 	/* Enable Jumbo frames */
-	cb4 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb4 = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb4) {
 		ehea_error("no mem for cb4");
 	} else {

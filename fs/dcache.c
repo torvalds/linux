@@ -478,11 +478,12 @@ static void prune_dcache(int count, struct super_block *sb)
 			up_read(s_umount);
 		}
 		spin_unlock(&dentry->d_lock);
-		/* Cannot remove the first dentry, and it isn't appropriate
-		 * to move it to the head of the list, so give up, and try
-		 * later
+		/*
+		 * Insert dentry at the head of the list as inserting at the
+		 * tail leads to a cycle.
 		 */
-		break;
+ 		list_add(&dentry->d_lru, &dentry_unused);
+		dentry_stat.nr_unused++;
 	}
 	spin_unlock(&dcache_lock);
 }
@@ -556,6 +557,7 @@ repeat:
 static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
 {
 	struct dentry *parent;
+	unsigned detached = 0;
 
 	BUG_ON(!IS_ROOT(dentry));
 
@@ -620,7 +622,7 @@ static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
 				atomic_dec(&parent->d_count);
 
 			list_del(&dentry->d_u.d_child);
-			dentry_stat.nr_dentry--;	/* For d_free, below */
+			detached++;
 
 			inode = dentry->d_inode;
 			if (inode) {
@@ -638,7 +640,7 @@ static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
 			 * otherwise we ascend to the parent and move to the
 			 * next sibling if there is one */
 			if (!parent)
-				return;
+				goto out;
 
 			dentry = parent;
 
@@ -647,6 +649,11 @@ static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
 		dentry = list_entry(dentry->d_subdirs.next,
 				    struct dentry, d_u.d_child);
 	}
+out:
+	/* several dentries were freed, need to correct nr_dentry */
+	spin_lock(&dcache_lock);
+	dentry_stat.nr_dentry -= detached;
+	spin_unlock(&dcache_lock);
 }
 
 /*

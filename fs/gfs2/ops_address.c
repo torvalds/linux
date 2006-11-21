@@ -337,13 +337,6 @@ out:
 out_noerror:
 	ret = 0;
 out_unlock:
-	/* unlock all pages, we can't do any I/O right now */
-	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
-		struct page *page = list_entry(pages->prev, struct page, lru);
-		list_del(&page->lru);
-		unlock_page(page);
-		page_cache_release(page);
-	}
 	if (do_unlock)
 		gfs2_holder_uninit(&gh);
 	goto out;

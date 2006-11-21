@@ -134,7 +134,7 @@ extern struct device_node *of_find_all_nodes(struct device_node *prev);
 extern struct device_node *of_get_parent(const struct device_node *node);
 extern struct device_node *of_get_next_child(const struct device_node *node,
 					     struct device_node *prev);
-extern struct property *of_find_property(struct device_node *np,
+extern struct property *of_find_property(const struct device_node *np,
 					 const char *name,
 					 int *lenp);
 extern struct device_node *of_node_get(struct device_node *node);
@@ -158,10 +158,12 @@ extern void of_detach_node(const struct device_node *);
 extern void finish_device_tree(void);
 extern void unflatten_device_tree(void);
 extern void early_init_devtree(void *);
-extern int device_is_compatible(struct device_node *device, const char *);
+extern int device_is_compatible(const struct device_node *device,
+				const char *);
 extern int machine_is_compatible(const char *compat);
-extern const void *get_property(struct device_node *node, const char *name,
-		int *lenp);
+extern const void *get_property(const struct device_node *node,
+				const char *name,
+				int *lenp);
 extern void print_properties(struct device_node *node);
 extern int prom_n_addr_cells(struct device_node* np);
 extern int prom_n_size_cells(struct device_node* np);

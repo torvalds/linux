@@ -163,6 +163,7 @@ extern u8 x86_acpiid_to_apicid[];
 #define ARCH_HAS_POWER_INIT 1
 
 extern int acpi_skip_timer_override;
+extern int acpi_use_timer_override;
 
 #endif /*__KERNEL__*/
 

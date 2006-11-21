@@ -639,6 +639,7 @@ struct sk_buff *pskb_copy(struct sk_buff *skb, gfp_t gfp_mask)
 	n->csum	     = skb->csum;
 	n->ip_summed = skb->ip_summed;
 
+	n->truesize += skb->data_len;
 	n->data_len  = skb->data_len;
 	n->len	     = skb->len;
 
@@ -1946,7 +1947,7 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 	do {
 		struct sk_buff *nskb;
 		skb_frag_t *frag;
-		int hsize, nsize;
+		int hsize;
 		int k;
 		int size;
 
@@ -1957,11 +1958,10 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 		hsize = skb_headlen(skb) - offset;
 		if (hsize < 0)
 			hsize = 0;
-		nsize = hsize + doffset;
-		if (nsize > len + doffset || !sg)
-			nsize = len + doffset;
+		if (hsize > len || !sg)
+			hsize = len;
 
-		nskb = alloc_skb(nsize + headroom, GFP_ATOMIC);
+		nskb = alloc_skb(hsize + doffset + headroom, GFP_ATOMIC);
 		if (unlikely(!nskb))
 			goto err;
 

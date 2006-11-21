@@ -164,6 +164,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	acpi_skip_timer_override [HW,ACPI]
 			Recognize and ignore IRQ0/pin2 Interrupt Override.
 			For broken nForce2 BIOS resulting in XT-PIC timer.
+	acpi_use_timer_override [HW,ACPI}
+			Use timer override. For some broken Nvidia NF5 boards
+			that require a timer override, but don't have
+			HPET
 
 	acpi_dbg_layer=	[HW,ACPI]
 			Format: <int>

@@ -493,7 +493,7 @@ S:	Maintained
 
 BFS FILE SYSTEM
 P:	Tigran A. Aivazian
-M:	tigran@veritas.com
+M:	tigran@aivazian.fsnet.co.uk
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
@@ -1513,7 +1513,7 @@ S:	Maintained
 
 INTEL IA32 MICROCODE UPDATE SUPPORT
 P:	Tigran Aivazian
-M:	tigran@veritas.com
+M:	tigran@aivazian.fsnet.co.uk
 S:	Maintained
 
 INTEL IXP4XX RANDOM NUMBER GENERATOR SUPPORT
@@ -3072,6 +3072,13 @@ L:	video4linux-list@redhat.com
 W:	http://www.linux-projects.org
 S:	Maintained
 
+USB GADGET/PERIPHERAL SUBSYSTEM
+P:	David Brownell
+M:	dbrownell@users.sourceforge.net
+L:	linux-usb-devel@lists.sourceforge.net
+W:	http://www.linux-usb.org/gadget
+S:	Maintained
+
 USB HID/HIDBP DRIVERS
 P:	Vojtech Pavlik
 M:	vojtech@suse.cz
@@ -3255,10 +3262,11 @@ L:	linux-usb-users@lists.sourceforge.net
 L:	linux-usb-devel@lists.sourceforge.net
 S:	Maintained
 
-USB "USBNET" DRIVER
+USB "USBNET" DRIVER FRAMEWORK
 P:	David Brownell
 M:	dbrownell@users.sourceforge.net
 L:	linux-usb-devel@lists.sourceforge.net
+W:	http://www.linux-usb.org/usbnet
 S:	Maintained
 
 USB W996[87]CF DRIVER

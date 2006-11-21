@@ -59,8 +59,6 @@ extern seqlock_t xtime_lock;
 
 extern int sysctl_vsyscall;
 
-extern void vsyscall_set_cpu(int cpu);
-
 #define ARCH_HAVE_XTIME_LOCK 1
 
 #endif /* __KERNEL__ */

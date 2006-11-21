@@ -14,7 +14,17 @@ struct task_struct;
 #ifdef __powerpc64__
 #include <asm/paca.h>
 
-#define current		(get_paca()->__current)
+static inline struct task_struct *get_current(void)
+{
+	struct task_struct *task;
+
+	__asm__ __volatile__("ld %0,%1(13)"
+	: "=r" (task)
+	: "i" (offsetof(struct paca_struct, __current)));
+
+	return task;
+}
+#define current	get_current()
 
 #else
 

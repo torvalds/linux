@@ -182,7 +182,7 @@ int btext_initialize(struct device_node *np)
 	prop = get_property(np, "linux,bootx-linebytes", NULL);
 	if (prop == NULL)
 		prop = get_property(np, "linebytes", NULL);
-	if (prop)
+	if (prop && *prop != 0xffffffffu)
 		pitch = *prop;
 	if (pitch == 1)
 		pitch = 0x1000;

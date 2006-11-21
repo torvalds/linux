@@ -304,7 +304,7 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	}
 	addr = pci_resource_start(pdev, 0);
 	len = pci_resource_len(pdev, 0);
-	ipath_cdbg(VERBOSE, "regbase (0) %llx len %d irq %x, vend %x/%x "
+	ipath_cdbg(VERBOSE, "regbase (0) %llx len %d pdev->irq %d, vend %x/%x "
 		   "driver_data %lx\n", addr, len, pdev->irq, ent->vendor,
 		   ent->device, ent->driver_data);
 
@@ -390,12 +390,16 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 
 	/* setup the chip-specific functions, as early as possible. */
 	switch (ent->device) {
+#ifdef CONFIG_HT_IRQ
 	case PCI_DEVICE_ID_INFINIPATH_HT:
 		ipath_init_iba6110_funcs(dd);
 		break;
+#endif
+#ifdef CONFIG_PCI_MSI
 	case PCI_DEVICE_ID_INFINIPATH_PE800:
 		ipath_init_iba6120_funcs(dd);
 		break;
+#endif
 	default:
 		ipath_dev_err(dd, "Found unknown QLogic deviceid 0x%x, "
 			      "failing\n", ent->device);
@@ -467,15 +471,15 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	 * check 0 irq after we return from chip-specific bus setup, since
 	 * that can affect this due to setup
 	 */
-	if (!pdev->irq)
+	if (!dd->ipath_irq)
 		ipath_dev_err(dd, "irq is 0, BIOS error?  Interrupts won't "
 			      "work\n");
 	else {
-		ret = request_irq(pdev->irq, ipath_intr, IRQF_SHARED,
+		ret = request_irq(dd->ipath_irq, ipath_intr, IRQF_SHARED,
 				  IPATH_DRV_NAME, dd);
 		if (ret) {
 			ipath_dev_err(dd, "Couldn't setup irq handler, "
-				      "irq=%u: %d\n", pdev->irq, ret);
+				      "irq=%d: %d\n", dd->ipath_irq, ret);
 			goto bail_iounmap;
 		}
 	}
@@ -637,11 +641,10 @@ static void __devexit ipath_remove_one(struct pci_dev *pdev)
 	 * free up port 0 (kernel) rcvhdr, egr bufs, and eventually tid bufs
 	 * for all versions of the driver, if they were allocated
 	 */
-	if (pdev->irq) {
-		ipath_cdbg(VERBOSE,
-			   "unit %u free_irq of irq %x\n",
-			   dd->ipath_unit, pdev->irq);
-		free_irq(pdev->irq, dd);
+	if (dd->ipath_irq) {
+		ipath_cdbg(VERBOSE, "unit %u free irq %d\n",
+			   dd->ipath_unit, dd->ipath_irq);
+		dd->ipath_f_free_irq(dd);
 	} else
 		ipath_dbg("irq is 0, not doing free_irq "
 			  "for unit %u\n", dd->ipath_unit);

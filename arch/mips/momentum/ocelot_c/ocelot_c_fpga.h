@@ -53,7 +53,9 @@
 #define OCELOT_C_REG_INTSET		0xe
 #define OCELOT_C_REG_INTCLR		0xf
 
-#define OCELOT_FPGA_WRITE(x, y) writeb(x, OCELOT_C_CS0_ADDR + OCELOT_C_REG_##y)
-#define OCELOT_FPGA_READ(x) readb(OCELOT_C_CS0_ADDR + OCELOT_C_REG_##x)
+#define __FPGA_REG_TO_ADDR(reg)						\
+	((void *) OCELOT_C_CS0_ADDR + OCELOT_C_REG_##reg)
+#define OCELOT_FPGA_WRITE(x, reg) writeb(x, __FPGA_REG_TO_ADDR(reg))
+#define OCELOT_FPGA_READ(reg) readb(__FPGA_REG_TO_ADDR(reg))
 
 #endif

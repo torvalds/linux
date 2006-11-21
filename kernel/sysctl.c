@@ -1315,7 +1315,9 @@ repeat:
 		return -ENOTDIR;
 	if (get_user(n, name))
 		return -EFAULT;
-	for ( ; table->ctl_name; table++) {
+	for ( ; table->ctl_name || table->procname; table++) {
+		if (!table->ctl_name)
+			continue;
 		if (n == table->ctl_name || table->ctl_name == CTL_ANY) {
 			int error;
 			if (table->child) {
@@ -1532,7 +1534,7 @@ static void register_proc_table(ctl_table * table, struct proc_dir_entry *root, 
 	int len;
 	mode_t mode;
 	
-	for (; table->ctl_name; table++) {
+	for (; table->ctl_name || table->procname; table++) {
 		/* Can't do anything without a proc name. */
 		if (!table->procname)
 			continue;
@@ -1579,7 +1581,7 @@ static void register_proc_table(ctl_table * table, struct proc_dir_entry *root, 
 static void unregister_proc_table(ctl_table * table, struct proc_dir_entry *root)
 {
 	struct proc_dir_entry *de;
-	for (; table->ctl_name; table++) {
+	for (; table->ctl_name || table->procname; table++) {
 		if (!(de = table->de))
 			continue;
 		if (de->mode & S_IFDIR) {
@@ -2680,13 +2682,33 @@ int sysctl_ms_jiffies(ctl_table *table, int __user *name, int nlen,
 asmlinkage long sys_sysctl(struct __sysctl_args __user *args)
 {
 	static int msg_count;
+	struct __sysctl_args tmp;
+	int name[CTL_MAXNAME];
+	int i;
+
+	/* Read in the sysctl name for better debug message logging */
+	if (copy_from_user(&tmp, args, sizeof(tmp)))
+		return -EFAULT;
+	if (tmp.nlen <= 0 || tmp.nlen >= CTL_MAXNAME)
+		return -ENOTDIR;
+	for (i = 0; i < tmp.nlen; i++)
+		if (get_user(name[i], tmp.name + i))
+			return -EFAULT;
+
+	/* Ignore accesses to kernel.version */
+	if ((tmp.nlen == 2) && (name[0] == CTL_KERN) && (name[1] == KERN_VERSION))
+		goto out;
 
 	if (msg_count < 5) {
 		msg_count++;
 		printk(KERN_INFO
 			"warning: process `%s' used the removed sysctl "
-			"system call\n", current->comm);
+			"system call with ", current->comm);
+		for (i = 0; i < tmp.nlen; i++)
+			printk("%d.", name[i]);
+		printk("\n");
 	}
+out:
 	return -ENOSYS;
 }
 

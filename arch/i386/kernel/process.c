@@ -205,7 +205,7 @@ void cpu_idle(void)
 void cpu_idle_wait(void)
 {
 	unsigned int cpu, this_cpu = get_cpu();
-	cpumask_t map;
+	cpumask_t map, tmp = current->cpus_allowed;
 
 	set_cpus_allowed(current, cpumask_of_cpu(this_cpu));
 	put_cpu();
@@ -227,6 +227,8 @@ void cpu_idle_wait(void)
 		}
 		cpus_and(map, map, cpu_online_map);
 	} while (!cpus_empty(map));
+
+	set_cpus_allowed(current, tmp);
 }
 EXPORT_SYMBOL_GPL(cpu_idle_wait);
 

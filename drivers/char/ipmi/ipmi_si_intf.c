@@ -1211,7 +1211,7 @@ static void intf_mem_outb(struct si_sm_io *io, unsigned int offset,
 static unsigned char intf_mem_inw(struct si_sm_io *io, unsigned int offset)
 {
 	return (readw((io->addr)+(offset * io->regspacing)) >> io->regshift)
-		&& 0xff;
+		& 0xff;
 }
 
 static void intf_mem_outw(struct si_sm_io *io, unsigned int offset,
@@ -1223,7 +1223,7 @@ static void intf_mem_outw(struct si_sm_io *io, unsigned int offset,
 static unsigned char intf_mem_inl(struct si_sm_io *io, unsigned int offset)
 {
 	return (readl((io->addr)+(offset * io->regspacing)) >> io->regshift)
-		&& 0xff;
+		& 0xff;
 }
 
 static void intf_mem_outl(struct si_sm_io *io, unsigned int offset,
@@ -1236,7 +1236,7 @@ static void intf_mem_outl(struct si_sm_io *io, unsigned int offset,
 static unsigned char mem_inq(struct si_sm_io *io, unsigned int offset)
 {
 	return (readq((io->addr)+(offset * io->regspacing)) >> io->regshift)
-		&& 0xff;
+		& 0xff;
 }
 
 static void mem_outq(struct si_sm_io *io, unsigned int offset,
@@ -1867,7 +1867,7 @@ static int ipmi_pci_resume(struct pci_dev *pdev)
 
 static struct pci_device_id ipmi_pci_devices[] = {
 	{ PCI_DEVICE(PCI_HP_VENDOR_ID, PCI_MMC_DEVICE_ID) },
-	{ PCI_DEVICE_CLASS(PCI_ERMC_CLASSCODE, PCI_ERMC_CLASSCODE) }
+	{ PCI_DEVICE_CLASS(PCI_ERMC_CLASSCODE, PCI_ERMC_CLASSCODE_MASK) }
 };
 MODULE_DEVICE_TABLE(pci, ipmi_pci_devices);
 
@@ -2346,7 +2346,7 @@ static int try_smi_init(struct smi_info *new_smi)
 		new_smi->dev = &new_smi->pdev->dev;
 		new_smi->dev->driver = &ipmi_driver;
 
-		rv = platform_device_register(new_smi->pdev);
+		rv = platform_device_add(new_smi->pdev);
 		if (rv) {
 			printk(KERN_ERR
 			       "ipmi_si_intf:"

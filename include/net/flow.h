@@ -68,9 +68,6 @@ struct flowi {
 		struct {
 			__le16	sport;
 			__le16	dport;
-			__u8	objnum;
-			__u8	objnamel; /* Not 16 bits since max val is 16 */
-			__u8	objname[16]; /* Not zero terminated */
 		} dnports;
 
 		__be32		spi;

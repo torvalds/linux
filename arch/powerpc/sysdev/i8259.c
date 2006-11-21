@@ -224,6 +224,11 @@ static struct irq_host_ops i8259_host_ops = {
 	.xlate = i8259_host_xlate,
 };
 
+struct irq_host *i8259_get_host(void)
+{
+	return i8259_host;
+}
+
 /**
  * i8259_init - Initialize the legacy controller
  * @node: device node of the legacy PIC (can be NULL, but then, it will match

@@ -230,34 +230,43 @@ static struct kobj_type ktype_memctrl = {
  */
 static int edac_sysfs_memctrl_setup(void)
 {
-	int err=0;
+	int err = 0;
 
 	debugf1("%s()\n", __func__);
 
 	/* create the /sys/devices/system/edac directory */
 	err = sysdev_class_register(&edac_class);
 
-	if (!err) {
-		/* Init the MC's kobject */
-		memset(&edac_memctrl_kobj, 0, sizeof (edac_memctrl_kobj));
-		edac_memctrl_kobj.parent = &edac_class.kset.kobj;
-		edac_memctrl_kobj.ktype = &ktype_memctrl;
-
-		/* generate sysfs "..../edac/mc"   */
-		err = kobject_set_name(&edac_memctrl_kobj,"mc");
-
-		if (!err) {
-			/* FIXME: maybe new sysdev_create_subdir() */
-			err = kobject_register(&edac_memctrl_kobj);
-
-			if (err)
-				debugf1("Failed to register '.../edac/mc'\n");
-			else
-				debugf1("Registered '.../edac/mc' kobject\n");
-		}
-	} else
+	if (err) {
 		debugf1("%s() error=%d\n", __func__, err);
+		return err;
+	}
 
+	/* Init the MC's kobject */
+	memset(&edac_memctrl_kobj, 0, sizeof (edac_memctrl_kobj));
+	edac_memctrl_kobj.parent = &edac_class.kset.kobj;
+	edac_memctrl_kobj.ktype = &ktype_memctrl;
+
+	/* generate sysfs "..../edac/mc"   */
+	err = kobject_set_name(&edac_memctrl_kobj,"mc");
+
+	if (err)
+		goto fail;
+
+	/* FIXME: maybe new sysdev_create_subdir() */
+	err = kobject_register(&edac_memctrl_kobj);
+
+	if (err) {
+		debugf1("Failed to register '.../edac/mc'\n");
+		goto fail;
+	}
+
+	debugf1("Registered '.../edac/mc' kobject\n");
+
+	return 0;
+
+fail:
+	sysdev_class_unregister(&edac_class);
 	return err;
 }
 

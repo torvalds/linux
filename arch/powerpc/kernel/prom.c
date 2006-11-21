@@ -1014,7 +1014,7 @@ EXPORT_SYMBOL(find_all_nodes);
 /** Checks if the given "compat" string matches one of the strings in
  * the device's "compatible" property
  */
-int device_is_compatible(struct device_node *device, const char *compat)
+int device_is_compatible(const struct device_node *device, const char *compat)
 {
 	const char* cp;
 	int cplen, l;
@@ -1491,7 +1491,8 @@ static int __init prom_reconfig_setup(void)
 __initcall(prom_reconfig_setup);
 #endif
 
-struct property *of_find_property(struct device_node *np, const char *name,
+struct property *of_find_property(const struct device_node *np,
+				  const char *name,
 				  int *lenp)
 {
 	struct property *pp;
@@ -1512,7 +1513,8 @@ struct property *of_find_property(struct device_node *np, const char *name,
  * Find a property with a given name for a given node
  * and return the value.
  */
-const void *get_property(struct device_node *np, const char *name, int *lenp)
+const void *get_property(const struct device_node *np, const char *name,
+			 int *lenp)
 {
 	struct property *pp = of_find_property(np,name,lenp);
 	return pp ? pp->value : NULL;

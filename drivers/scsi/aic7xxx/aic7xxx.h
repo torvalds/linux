@@ -54,14 +54,6 @@ struct scb_platform_data;
 struct seeprom_descriptor;
 
 /****************************** Useful Macros *********************************/
-#ifndef MAX
-#define MAX(a,b) (((a) > (b)) ? (a) : (b))
-#endif
-
-#ifndef MIN
-#define MIN(a,b) (((a) < (b)) ? (a) : (b))
-#endif
-
 #ifndef TRUE
 #define TRUE 1
 #endif
@@ -1135,8 +1127,6 @@ struct ahc_pci_identity {
 	char			*name;
 	ahc_device_setup_t	*setup;
 };
-extern struct ahc_pci_identity ahc_pci_ident_table[];
-extern const u_int ahc_num_pci_devs;
 
 /***************************** VL/EISA Declarations ***************************/
 struct aic7770_identity {
@@ -1289,6 +1279,7 @@ typedef enum {
 } ahc_queue_alg;
 
 void			ahc_set_tags(struct ahc_softc *ahc,
+				     struct scsi_cmnd *cmd,
 				     struct ahc_devinfo *devinfo,
 				     ahc_queue_alg alg);
 

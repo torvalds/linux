@@ -19,23 +19,34 @@
 #include <asm/io.h>
 #include "dma-sh.h"
 
-static inline unsigned int get_dmte_irq(unsigned int chan)
-{
-	unsigned int irq = 0;
 
+
+#ifdef CONFIG_CPU_SH4
+static struct ipr_data dmae_ipr_map[] = {
+	{ DMAE_IRQ, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY },
+};
+#endif
+static struct ipr_data dmte_ipr_map[] = {
 	/*
 	 * Normally we could just do DMTE0_IRQ + chan outright, though in the
 	 * case of the 7751R, the DMTE IRQs for channels > 4 start right above
 	 * the SCIF
 	 */
-	if (chan < 4) {
-		irq = DMTE0_IRQ + chan;
-	} else {
-#ifdef DMTE4_IRQ
-		irq = DMTE4_IRQ + chan - 4;
-#endif
-	}
+	{ DMTE0_IRQ + 0, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY },
+	{ DMTE0_IRQ + 1, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY },
+	{ DMTE0_IRQ + 2, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY },
+	{ DMTE0_IRQ + 3, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY },
+	{ DMTE4_IRQ + 0, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY },
+	{ DMTE4_IRQ + 1, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY },
+	{ DMTE4_IRQ + 2, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY },
+	{ DMTE4_IRQ + 3, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY },
+};
 
+static inline unsigned int get_dmte_irq(unsigned int chan)
+{
+	unsigned int irq = 0;
+	if (chan < ARRAY_SIZE(dmte_ipr_map))
+		irq = dmte_ipr_map[chan].irq;
 	return irq;
 }
 
@@ -258,17 +269,16 @@ static int __init sh_dmac_init(void)
 	int i;
 
 #ifdef CONFIG_CPU_SH4
-	make_ipr_irq(DMAE_IRQ, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY);
+	make_ipr_irq(dmae_ipr_map, ARRAY_SIZE(dmae_ipr_map));
 	i = request_irq(DMAE_IRQ, dma_err, IRQF_DISABLED, "DMAC Address Error", 0);
 	if (unlikely(i < 0))
 		return i;
 #endif
 
-	for (i = 0; i < info->nr_channels; i++) {
-		int irq = get_dmte_irq(i);
-
-		make_ipr_irq(irq, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY);
-	}
+	i = info->nr_channels;
+	if (i > ARRAY_SIZE(dmte_ipr_map))
+		i = ARRAY_SIZE(dmte_ipr_map);
+	make_ipr_irq(dmte_ipr_map, i);
 
 	/*
 	 * Initialize DMAOR, and clean up any error flags that may have

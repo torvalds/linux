@@ -105,7 +105,7 @@ void show_regs(struct pt_regs * regs)
 {
 	printk("\n");
 	printk("Pid : %d, Comm: %20s\n", current->pid, current->comm);
-	print_symbol("PC is at %s\n", regs->pc);
+	print_symbol("PC is at %s\n", instruction_pointer(regs));
 	printk("PC  : %08lx SP  : %08lx SR  : %08lx ",
 	       regs->pc, regs->regs[15], regs->sr);
 #ifdef CONFIG_MMU
@@ -130,15 +130,7 @@ void show_regs(struct pt_regs * regs)
 	printk("MACH: %08lx MACL: %08lx GBR : %08lx PR  : %08lx\n",
 	       regs->mach, regs->macl, regs->gbr, regs->pr);
 
-	/*
-	 * If we're in kernel mode, dump the stack too..
-	 */
-	if (!user_mode(regs)) {
-		extern void show_task(unsigned long *sp);
-		unsigned long sp = regs->regs[15];
-
-		show_task((unsigned long *)sp);
-	}
+	show_trace(NULL, (unsigned long *)regs->regs[15], regs);
 }
 
 /*

@@ -1470,8 +1470,8 @@ static void fix_read_error(conf_t *conf, mddev_t *mddev, r10bio_t *r10_bio)
 					       "raid10:%s: read error corrected"
 					       " (%d sectors at %llu on %s)\n",
 					       mdname(mddev), s,
-					       (unsigned long long)sect+
-					            rdev->data_offset,
+					       (unsigned long long)(sect+
+					            rdev->data_offset),
 					       bdevname(rdev->bdev, b));
 
 				rdev_dec_pending(rdev, mddev);

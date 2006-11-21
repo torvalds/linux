@@ -117,7 +117,7 @@ tcp_fast_csum_update(struct tcphdr *tcph, __be32 oldip, __be32 newip,
 {
 	tcph->check =
 		ip_vs_check_diff(~oldip, newip,
-				 ip_vs_check_diff(oldport ^ htonl(0xFFFF),
+				 ip_vs_check_diff(oldport ^ htons(0xFFFF),
 						  newport, tcph->check));
 }
 

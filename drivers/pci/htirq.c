@@ -25,97 +25,72 @@ static DEFINE_SPINLOCK(ht_irq_lock);
 
 struct ht_irq_cfg {
 	struct pci_dev *dev;
+	 /* Update callback used to cope with buggy hardware */
+	ht_irq_update_t *update;
 	unsigned pos;
 	unsigned idx;
+	struct ht_irq_msg msg;
 };
 
-void write_ht_irq_low(unsigned int irq, u32 data)
+
+void write_ht_irq_msg(unsigned int irq, struct ht_irq_msg *msg)
 {
 	struct ht_irq_cfg *cfg = get_irq_data(irq);
 	unsigned long flags;
 	spin_lock_irqsave(&ht_irq_lock, flags);
-	pci_write_config_byte(cfg->dev, cfg->pos + 2, cfg->idx);
-	pci_write_config_dword(cfg->dev, cfg->pos + 4, data);
+	if (cfg->msg.address_lo != msg->address_lo) {
+		pci_write_config_byte(cfg->dev, cfg->pos + 2, cfg->idx);
+		pci_write_config_dword(cfg->dev, cfg->pos + 4, msg->address_lo);
+	}
+	if (cfg->msg.address_hi != msg->address_hi) {
+		pci_write_config_byte(cfg->dev, cfg->pos + 2, cfg->idx + 1);
+		pci_write_config_dword(cfg->dev, cfg->pos + 4, msg->address_hi);
+	}
+	if (cfg->update)
+		cfg->update(cfg->dev, irq, msg);
 	spin_unlock_irqrestore(&ht_irq_lock, flags);
+	cfg->msg = *msg;
 }
 
-void write_ht_irq_high(unsigned int irq, u32 data)
+void fetch_ht_irq_msg(unsigned int irq, struct ht_irq_msg *msg)
 {
 	struct ht_irq_cfg *cfg = get_irq_data(irq);
-	unsigned long flags;
-	spin_lock_irqsave(&ht_irq_lock, flags);
-	pci_write_config_byte(cfg->dev, cfg->pos + 2, cfg->idx + 1);
-	pci_write_config_dword(cfg->dev, cfg->pos + 4, data);
-	spin_unlock_irqrestore(&ht_irq_lock, flags);
-}
-
-u32 read_ht_irq_low(unsigned int irq)
-{
-	struct ht_irq_cfg *cfg = get_irq_data(irq);
-	unsigned long flags;
-	u32 data;
-	spin_lock_irqsave(&ht_irq_lock, flags);
-	pci_write_config_byte(cfg->dev, cfg->pos + 2, cfg->idx);
-	pci_read_config_dword(cfg->dev, cfg->pos + 4, &data);
-	spin_unlock_irqrestore(&ht_irq_lock, flags);
-	return data;
-}
-
-u32 read_ht_irq_high(unsigned int irq)
-{
-	struct ht_irq_cfg *cfg = get_irq_data(irq);
-	unsigned long flags;
-	u32 data;
-	spin_lock_irqsave(&ht_irq_lock, flags);
-	pci_write_config_byte(cfg->dev, cfg->pos + 2, cfg->idx + 1);
-	pci_read_config_dword(cfg->dev, cfg->pos + 4, &data);
-	spin_unlock_irqrestore(&ht_irq_lock, flags);
-	return data;
+	*msg = cfg->msg;
 }
 
 void mask_ht_irq(unsigned int irq)
 {
 	struct ht_irq_cfg *cfg;
-	unsigned long flags;
-	u32 data;
+	struct ht_irq_msg msg;
 
 	cfg = get_irq_data(irq);
 
-	spin_lock_irqsave(&ht_irq_lock, flags);
-	pci_write_config_byte(cfg->dev, cfg->pos + 2, cfg->idx);
-	pci_read_config_dword(cfg->dev, cfg->pos + 4, &data);
-	data |= 1;
-	pci_write_config_dword(cfg->dev, cfg->pos + 4, data);
-	spin_unlock_irqrestore(&ht_irq_lock, flags);
+	msg = cfg->msg;
+	msg.address_lo |= 1;
+	write_ht_irq_msg(irq, &msg);
 }
 
 void unmask_ht_irq(unsigned int irq)
 {
 	struct ht_irq_cfg *cfg;
-	unsigned long flags;
-	u32 data;
+	struct ht_irq_msg msg;
 
 	cfg = get_irq_data(irq);
 
-	spin_lock_irqsave(&ht_irq_lock, flags);
-	pci_write_config_byte(cfg->dev, cfg->pos + 2, cfg->idx);
-	pci_read_config_dword(cfg->dev, cfg->pos + 4, &data);
-	data &= ~1;
-	pci_write_config_dword(cfg->dev, cfg->pos + 4, data);
-	spin_unlock_irqrestore(&ht_irq_lock, flags);
+	msg = cfg->msg;
+	msg.address_lo &= ~1;
+	write_ht_irq_msg(irq, &msg);
 }
 
 /**
- * ht_create_irq - create an irq and attach it to a device.
+ * __ht_create_irq - create an irq and attach it to a device.
  * @dev: The hypertransport device to find the irq capability on.
  * @idx: Which of the possible irqs to attach to.
- *
- * ht_create_irq is needs to be called for all hypertransport devices
- * that generate irqs.
+ * @update: Function to be called when changing the htirq message
  *
  * The irq number of the new irq or a negative error value is returned.
  */
-int ht_create_irq(struct pci_dev *dev, int idx)
+int __ht_create_irq(struct pci_dev *dev, int idx, ht_irq_update_t *update)
 {
 	struct ht_irq_cfg *cfg;
 	unsigned long flags;
@@ -150,8 +125,12 @@ int ht_create_irq(struct pci_dev *dev, int idx)
 		return -ENOMEM;
 
 	cfg->dev = dev;
+	cfg->update = update;
 	cfg->pos = pos;
 	cfg->idx = 0x10 + (idx * 2);
+	/* Initialize msg to a value that will never match the first write. */
+	cfg->msg.address_lo = 0xffffffff;
+	cfg->msg.address_hi = 0xffffffff;
 
 	irq = create_irq();
 	if (irq < 0) {
@@ -166,6 +145,21 @@ int ht_create_irq(struct pci_dev *dev, int idx)
 	}
 
 	return irq;
+}
+
+/**
+ * ht_create_irq - create an irq and attach it to a device.
+ * @dev: The hypertransport device to find the irq capability on.
+ * @idx: Which of the possible irqs to attach to.
+ *
+ * ht_create_irq needs to be called for all hypertransport devices
+ * that generate irqs.
+ *
+ * The irq number of the new irq or a negative error value is returned.
+ */
+int ht_create_irq(struct pci_dev *dev, int idx)
+{
+	return __ht_create_irq(dev, idx, NULL);
 }
 
 /**
@@ -186,5 +180,6 @@ void ht_destroy_irq(unsigned int irq)
 	kfree(cfg);
 }
 
+EXPORT_SYMBOL(__ht_create_irq);
 EXPORT_SYMBOL(ht_create_irq);
 EXPORT_SYMBOL(ht_destroy_irq);

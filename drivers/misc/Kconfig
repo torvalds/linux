@@ -30,6 +30,7 @@ config IBM_ASM
 
 config SGI_IOC4
 	tristate "SGI IOC4 Base IO support"
+	depends on PCI
 	---help---
 	  This option enables basic support for the IOC4 chip on certain
 	  SGI IO controller cards (IO9, IO10, and PCI-RT).  This option

@@ -288,6 +288,8 @@ static void tx_branch_likely_bug_fixup(void)
 
 static void jmr3927_spurious(void)
 {
+	struct pt_regs * regs = get_irq_regs();
+
 #ifdef CONFIG_TX_BRANCH_LIKELY_BUG_WORKAROUND
 	tx_branch_likely_bug_fixup();
 #endif
@@ -297,6 +299,7 @@ static void jmr3927_spurious(void)
 
 asmlinkage void plat_irq_dispatch(void)
 {
+	struct pt_regs * regs = get_irq_regs();
 	int irq;
 
 #ifdef CONFIG_TX_BRANCH_LIKELY_BUG_WORKAROUND

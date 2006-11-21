@@ -830,7 +830,7 @@ static inline int copy_signal(unsigned long clone_flags, struct task_struct * ts
 	if (clone_flags & CLONE_THREAD) {
 		atomic_inc(&current->signal->count);
 		atomic_inc(&current->signal->live);
-		taskstats_tgid_alloc(current->signal);
+		taskstats_tgid_alloc(current);
 		return 0;
 	}
 	sig = kmem_cache_alloc(signal_cachep, GFP_KERNEL);
@@ -897,7 +897,6 @@ static inline int copy_signal(unsigned long clone_flags, struct task_struct * ts
 void __cleanup_signal(struct signal_struct *sig)
 {
 	exit_thread_group_keys(sig);
-	taskstats_tgid_free(sig);
 	kmem_cache_free(signal_cachep, sig);
 }
 

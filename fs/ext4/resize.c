@@ -69,44 +69,49 @@ static int verify_group_input(struct super_block *sb,
 	else if (outside(input->block_bitmap, start, end))
 		ext4_warning(sb, __FUNCTION__,
 			     "Block bitmap not in group (block %llu)",
-			     input->block_bitmap);
+			     (unsigned long long)input->block_bitmap);
 	else if (outside(input->inode_bitmap, start, end))
 		ext4_warning(sb, __FUNCTION__,
 			     "Inode bitmap not in group (block %llu)",
-			     input->inode_bitmap);
+			     (unsigned long long)input->inode_bitmap);
 	else if (outside(input->inode_table, start, end) ||
 	         outside(itend - 1, start, end))
 		ext4_warning(sb, __FUNCTION__,
 			     "Inode table not in group (blocks %llu-%llu)",
-			     input->inode_table, itend - 1);
+			     (unsigned long long)input->inode_table, itend - 1);
 	else if (input->inode_bitmap == input->block_bitmap)
 		ext4_warning(sb, __FUNCTION__,
 			     "Block bitmap same as inode bitmap (%llu)",
-			     input->block_bitmap);
+			     (unsigned long long)input->block_bitmap);
 	else if (inside(input->block_bitmap, input->inode_table, itend))
 		ext4_warning(sb, __FUNCTION__,
 			     "Block bitmap (%llu) in inode table (%llu-%llu)",
-			     input->block_bitmap, input->inode_table, itend-1);
+			     (unsigned long long)input->block_bitmap,
+			     (unsigned long long)input->inode_table, itend - 1);
 	else if (inside(input->inode_bitmap, input->inode_table, itend))
 		ext4_warning(sb, __FUNCTION__,
 			     "Inode bitmap (%llu) in inode table (%llu-%llu)",
-			     input->inode_bitmap, input->inode_table, itend-1);
+			     (unsigned long long)input->inode_bitmap,
+			     (unsigned long long)input->inode_table, itend - 1);
 	else if (inside(input->block_bitmap, start, metaend))
 		ext4_warning(sb, __FUNCTION__,
 			     "Block bitmap (%llu) in GDT table"
 			     " (%llu-%llu)",
-			     input->block_bitmap, start, metaend - 1);
+			     (unsigned long long)input->block_bitmap,
+			     start, metaend - 1);
 	else if (inside(input->inode_bitmap, start, metaend))
 		ext4_warning(sb, __FUNCTION__,
 			     "Inode bitmap (%llu) in GDT table"
 			     " (%llu-%llu)",
-			     input->inode_bitmap, start, metaend - 1);
+			     (unsigned long long)input->inode_bitmap,
+			     start, metaend - 1);
 	else if (inside(input->inode_table, start, metaend) ||
 	         inside(itend - 1, start, metaend))
 		ext4_warning(sb, __FUNCTION__,
 			     "Inode table (%llu-%llu) overlaps"
 			     "GDT table (%llu-%llu)",
-			     input->inode_table, itend - 1, start, metaend - 1);
+			     (unsigned long long)input->inode_table,
+			     itend - 1, start, metaend - 1);
 	else
 		err = 0;
 	brelse(bh);

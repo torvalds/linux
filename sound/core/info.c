@@ -120,7 +120,10 @@ int snd_iprintf(struct snd_info_buffer *buffer, char *fmt,...)
 	len = buffer->len - buffer->size;
 	va_start(args, fmt);
 	for (;;) {
-		res = vsnprintf(buffer->buffer + buffer->curr, len, fmt, args);
+		va_list ap;
+		va_copy(ap, args);
+		res = vsnprintf(buffer->buffer + buffer->curr, len, fmt, ap);
+		va_end(ap);
 		if (res < len)
 			break;
 		err = resize_info_buffer(buffer, buffer->len + PAGE_SIZE);

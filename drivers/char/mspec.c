@@ -72,7 +72,11 @@ enum {
 	MSPEC_UNCACHED
 };
 
+#ifdef CONFIG_SGI_SN
 static int is_sn2;
+#else
+#define is_sn2		0
+#endif
 
 /*
  * One of these structures is allocated when an mspec region is mmaped. The
@@ -211,7 +215,7 @@ mspec_nopfn(struct vm_area_struct *vma, unsigned long address)
 	if (vdata->type == MSPEC_FETCHOP)
 		paddr = TO_AMO(maddr);
 	else
-		paddr = __pa(TO_CAC(maddr));
+		paddr = maddr & ~__IA64_UNCACHED_OFFSET;
 
 	pfn = paddr >> PAGE_SHIFT;
 
@@ -335,6 +339,7 @@ mspec_init(void)
 	 * The fetchop device only works on SN2 hardware, uncached and cached
 	 * memory drivers should both be valid on all ia64 hardware
 	 */
+#ifdef CONFIG_SGI_SN
 	if (ia64_platform_is("sn2")) {
 		is_sn2 = 1;
 		if (is_shub2()) {
@@ -363,6 +368,7 @@ mspec_init(void)
 			goto free_scratch_pages;
 		}
 	}
+#endif
 	ret = misc_register(&cached_miscdev);
 	if (ret) {
 		printk(KERN_ERR "%s: failed to register device %i\n",

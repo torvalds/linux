@@ -169,7 +169,6 @@ static __inline__ void rt6_release(struct rt6_info *rt)
 
 static struct fib6_table fib6_main_tbl = {
 	.tb6_id		= RT6_TABLE_MAIN,
-	.tb6_lock	= RW_LOCK_UNLOCKED,
 	.tb6_root	= {
 		.leaf		= &ip6_null_entry,
 		.fn_flags	= RTN_ROOT | RTN_TL_ROOT | RTN_RTINFO,
@@ -187,6 +186,12 @@ static void fib6_link_table(struct fib6_table *tb)
 {
 	unsigned int h;
 
+	/*
+	 * Initialize table lock at a single place to give lockdep a key,
+	 * tables aren't visible prior to being linked to the list.
+	 */
+	rwlock_init(&tb->tb6_lock);
+
 	h = tb->tb6_id & (FIB_TABLE_HASHSZ - 1);
 
 	/*
@@ -199,7 +204,6 @@ static void fib6_link_table(struct fib6_table *tb)
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 static struct fib6_table fib6_local_tbl = {
 	.tb6_id		= RT6_TABLE_LOCAL,
-	.tb6_lock	= RW_LOCK_UNLOCKED,
 	.tb6_root 	= {
 		.leaf		= &ip6_null_entry,
 		.fn_flags	= RTN_ROOT | RTN_TL_ROOT | RTN_RTINFO,
@@ -213,7 +217,6 @@ static struct fib6_table *fib6_alloc_table(u32 id)
 	table = kzalloc(sizeof(*table), GFP_ATOMIC);
 	if (table != NULL) {
 		table->tb6_id = id;
-		table->tb6_lock = RW_LOCK_UNLOCKED;
 		table->tb6_root.leaf = &ip6_null_entry;
 		table->tb6_root.fn_flags = RTN_ROOT | RTN_TL_ROOT | RTN_RTINFO;
 	}

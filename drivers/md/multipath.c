@@ -277,6 +277,7 @@ static void multipath_error (mddev_t *mddev, mdk_rdev_t *rdev)
 			set_bit(Faulty, &rdev->flags);
 			set_bit(MD_CHANGE_DEVS, &mddev->flags);
 			conf->working_disks--;
+			mddev->degraded++;
 			printk(KERN_ALERT "multipath: IO failure on %s,"
 				" disabling IO path. \n	Operation continuing"
 				" on %d IO paths.\n",
@@ -336,6 +337,7 @@ static int multipath_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 				blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
 
 			conf->working_disks++;
+			mddev->degraded--;
 			rdev->raid_disk = path;
 			set_bit(In_sync, &rdev->flags);
 			rcu_assign_pointer(p->rdev, rdev);

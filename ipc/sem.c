@@ -161,6 +161,7 @@ void sem_exit_ns(struct ipc_namespace *ns)
 	}
 	mutex_unlock(&sem_ids(ns).mutex);
 
+	ipc_fini_ids(ns->ids[IPC_SEM_IDS]);
 	kfree(ns->ids[IPC_SEM_IDS]);
 	ns->ids[IPC_SEM_IDS] = NULL;
 }

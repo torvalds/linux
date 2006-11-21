@@ -73,9 +73,10 @@ int snd_cs5535audio_suspend(struct pci_dev *pci, pm_message_t state)
 	snd_ac97_suspend(cs5535au->ac97);
 	/* save important regs, then disable aclink in hw */
 	snd_cs5535audio_stop_hardware(cs5535au);
+
 	pci_disable_device(pci);
 	pci_save_state(pci);
-
+	pci_set_power_state(pci, pci_choose_state(pci, state));
 	return 0;
 }
 
@@ -87,8 +88,14 @@ int snd_cs5535audio_resume(struct pci_dev *pci)
 	int timeout;
 	int i;
 
+	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
-	pci_enable_device(pci);
+	if (pci_enable_device(pci) < 0) {
+		printk(KERN_ERR "cs5535audio: pci_enable_device failed, "
+		       "disabling device\n");
+		snd_card_disconnect(card);
+		return -EIO;
+	}
 	pci_set_master(pci);
 
 	/* set LNK_WRM_RST to reset AC link */

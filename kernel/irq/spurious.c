@@ -147,7 +147,11 @@ void note_interrupt(unsigned int irq, struct irq_desc *desc,
 	if (unlikely(irqfixup)) {
 		/* Don't punish working computers */
 		if ((irqfixup == 2 && irq == 0) || action_ret == IRQ_NONE) {
-			int ok = misrouted_irq(irq);
+			int ok;
+
+			spin_unlock(&desc->lock);
+			ok = misrouted_irq(irq);
+			spin_lock(&desc->lock);
 			if (action_ret == IRQ_NONE)
 				desc->irqs_unhandled -= ok;
 		}

@@ -116,7 +116,9 @@ typedef int __bitwise suspend_disk_method_t;
 #define	PM_DISK_PLATFORM	((__force suspend_disk_method_t) 2)
 #define	PM_DISK_SHUTDOWN	((__force suspend_disk_method_t) 3)
 #define	PM_DISK_REBOOT		((__force suspend_disk_method_t) 4)
-#define	PM_DISK_MAX		((__force suspend_disk_method_t) 5)
+#define	PM_DISK_TEST		((__force suspend_disk_method_t) 5)
+#define	PM_DISK_TESTPROC	((__force suspend_disk_method_t) 6)
+#define	PM_DISK_MAX		((__force suspend_disk_method_t) 7)
 
 struct pm_ops {
 	suspend_disk_method_t pm_disk_mode;

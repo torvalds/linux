@@ -320,6 +320,7 @@ static struct usb_device_id ipaq_id_table [] = {
 	{ USB_DEVICE(0x0B05, 0x9200) }, /* ASUS USB Sync */
 	{ USB_DEVICE(0x0B05, 0x9202) }, /* ASUS USB Sync */
 	{ USB_DEVICE(0x0BB4, 0x00CE) }, /* HTC USB Sync */
+	{ USB_DEVICE(0x0BB4, 0x00CF) }, /* HTC USB Modem */
 	{ USB_DEVICE(0x0BB4, 0x0A01) }, /* PocketPC USB Sync */
 	{ USB_DEVICE(0x0BB4, 0x0A02) }, /* PocketPC USB Sync */
 	{ USB_DEVICE(0x0BB4, 0x0A03) }, /* PocketPC USB Sync */

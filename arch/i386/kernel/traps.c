@@ -129,15 +129,19 @@ static inline unsigned long print_context_stack(struct thread_info *tinfo,
 
 #ifdef	CONFIG_FRAME_POINTER
 	while (valid_stack_ptr(tinfo, (void *)ebp)) {
+		unsigned long new_ebp;
 		addr = *(unsigned long *)(ebp + 4);
 		ops->address(data, addr);
 		/*
 		 * break out of recursive entries (such as
-		 * end_of_stack_stop_unwind_function):
+		 * end_of_stack_stop_unwind_function). Also,
+		 * we can never allow a frame pointer to
+		 * move downwards!
 	 	 */
-		if (ebp == *(unsigned long *)ebp)
+	 	new_ebp = *(unsigned long *)ebp;
+		if (new_ebp <= ebp)
 			break;
-		ebp = *(unsigned long *)ebp;
+		ebp = new_ebp;
 	}
 #else
 	while (valid_stack_ptr(tinfo, stack)) {

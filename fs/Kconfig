@@ -1777,6 +1777,7 @@ config RPCSEC_GSS_KRB5
 	select CRYPTO
 	select CRYPTO_MD5
 	select CRYPTO_DES
+	select CRYPTO_CBC
 	help
 	  Provides for secure RPC calls by means of a gss-api
 	  mechanism based on Kerberos V5. This is required for
@@ -1795,6 +1796,7 @@ config RPCSEC_GSS_SPKM3
 	select CRYPTO_MD5
 	select CRYPTO_DES
 	select CRYPTO_CAST5
+	select CRYPTO_CBC
 	help
 	  Provides for secure RPC calls by means of a gss-api
 	  mechanism based on the SPKM3 public-key mechanism.
@@ -2058,8 +2060,7 @@ config CODA_FS_OLD_API
 	  For most cases you probably want to say N.
 
 config AFS_FS
-# for fs/nls/Config.in
-	tristate "Andrew File System support (AFS) (Experimental)"
+	tristate "Andrew File System support (AFS) (EXPERIMENTAL)"
 	depends on INET && EXPERIMENTAL
 	select RXRPC
 	help

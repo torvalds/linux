@@ -128,6 +128,7 @@ static void __exit_signal(struct task_struct *tsk)
 	flush_sigqueue(&tsk->pending);
 	if (sig) {
 		flush_sigqueue(&sig->shared_pending);
+		taskstats_tgid_free(sig);
 		__cleanup_signal(sig);
 	}
 }

@@ -346,11 +346,18 @@ void sctp_association_free(struct sctp_association *asoc)
 	struct list_head *pos, *temp;
 	int i;
 
-	list_del(&asoc->asocs);
+	/* Only real associations count against the endpoint, so
+	 * don't bother for if this is a temporary association.
+	 */
+	if (!asoc->temp) {
+		list_del(&asoc->asocs);
 
-	/* Decrement the backlog value for a TCP-style listening socket. */
-	if (sctp_style(sk, TCP) && sctp_sstate(sk, LISTENING))
-		sk->sk_ack_backlog--;
+		/* Decrement the backlog value for a TCP-style listening
+		 * socket.
+		 */
+		if (sctp_style(sk, TCP) && sctp_sstate(sk, LISTENING))
+			sk->sk_ack_backlog--;
+	}
 
 	/* Mark as dead, so other users can know this structure is
 	 * going away.

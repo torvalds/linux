@@ -135,6 +135,9 @@ int sctp_rcv(struct sk_buff *skb)
 
 	SCTP_INC_STATS_BH(SCTP_MIB_INSCTPPACKS);
 
+	if (skb_linearize(skb))
+		goto discard_it;
+
 	sh = (struct sctphdr *) skb->h.raw;
 
 	/* Pull up the IP and SCTP headers. */
@@ -768,6 +771,9 @@ static void __sctp_hash_established(struct sctp_association *asoc)
 /* Add an association to the hash. Local BH-safe. */
 void sctp_hash_established(struct sctp_association *asoc)
 {
+	if (asoc->temp)
+		return;
+
 	sctp_local_bh_disable();
 	__sctp_hash_established(asoc);
 	sctp_local_bh_enable();
@@ -801,6 +807,9 @@ static void __sctp_unhash_established(struct sctp_association *asoc)
 /* Remove association from the hash table.  Local BH-safe. */
 void sctp_unhash_established(struct sctp_association *asoc)
 {
+	if (asoc->temp)
+		return;
+
 	sctp_local_bh_disable();
 	__sctp_unhash_established(asoc);
 	sctp_local_bh_enable();

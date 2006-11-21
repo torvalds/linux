@@ -14,7 +14,7 @@
 #include <linux/irq.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/hs7751rvoip/hs7751rvoip.h>
+#include <asm/hs7751rvoip.h>
 
 static int mask_pos[] = {8, 9, 10, 11, 12, 13, 0, 1, 2, 3, 4, 5, 6, 7};
 

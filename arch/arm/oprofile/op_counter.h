@@ -10,8 +10,6 @@
 #ifndef OP_COUNTER_H
 #define OP_COUNTER_H
 
-#define OP_MAX_COUNTER 5
-
 /* Per performance monitor configuration as set via
  * oprofilefs.
  */

@@ -13,4 +13,4 @@ DRIVER_OBJS := $(addprefix ../../../drivers/oprofile/, \
 oprofile-y := $(DRIVER_OBJS) common.o backtrace.o
 oprofile-$(CONFIG_PPC64) += op_model_rs64.o op_model_power4.o
 oprofile-$(CONFIG_FSL_BOOKE) += op_model_fsl_booke.o
-oprofile-$(CONFIG_PPC32) += op_model_7450.o
+oprofile-$(CONFIG_6xx) += op_model_7450.o

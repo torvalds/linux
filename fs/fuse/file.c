@@ -397,14 +397,14 @@ static int fuse_readpages(struct file *file, struct address_space *mapping,
 
 	err = -EIO;
 	if (is_bad_inode(inode))
-		goto clean_pages_up;
+		goto out;
 
 	data.file = file;
 	data.inode = inode;
 	data.req = fuse_get_req(fc);
 	err = PTR_ERR(data.req);
 	if (IS_ERR(data.req))
-		goto clean_pages_up;
+		goto out;
 
 	err = read_cache_pages(mapping, pages, fuse_readpages_fill, &data);
 	if (!err) {
@@ -413,10 +413,7 @@ static int fuse_readpages(struct file *file, struct address_space *mapping,
 		else
 			fuse_put_request(fc, data.req);
 	}
-	return err;
-
-clean_pages_up:
-	put_pages_list(pages);
+out:
 	return err;
 }
 

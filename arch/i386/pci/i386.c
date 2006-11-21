@@ -242,15 +242,6 @@ int pcibios_enable_resources(struct pci_dev *dev, int mask)
 	return 0;
 }
 
-void pcibios_disable_resources(struct pci_dev *dev)
-{
-	u16 cmd;
-
-	pci_read_config_word(dev, PCI_COMMAND, &cmd);
-	cmd &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY);
-	pci_write_config_word(dev, PCI_COMMAND, cmd);
-}
-
 /*
  *  If we set up a device for bus mastering, we need to check the latency
  *  timer as certain crappy BIOSes forget to set it properly.

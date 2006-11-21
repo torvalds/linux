@@ -216,6 +216,7 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 {
 	struct irq_desc *desc = irq_desc + irq;
 	struct irqaction *old, **p;
+	const char *old_name = NULL;
 	unsigned long flags;
 	int shared = 0;
 
@@ -255,8 +256,10 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 		 * set the trigger type must match.
 		 */
 		if (!((old->flags & new->flags) & IRQF_SHARED) ||
-		    ((old->flags ^ new->flags) & IRQF_TRIGGER_MASK))
+		    ((old->flags ^ new->flags) & IRQF_TRIGGER_MASK)) {
+			old_name = old->name;
 			goto mismatch;
+		}
 
 #if defined(CONFIG_IRQ_PER_CPU)
 		/* All handlers must agree on per-cpuness */
@@ -322,11 +325,13 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 	return 0;
 
 mismatch:
-	spin_unlock_irqrestore(&desc->lock, flags);
 	if (!(new->flags & IRQF_PROBE_SHARED)) {
 		printk(KERN_ERR "IRQ handler type mismatch for IRQ %d\n", irq);
+		if (old_name)
+			printk(KERN_ERR "current handler: %s\n", old_name);
 		dump_stack();
 	}
+	spin_unlock_irqrestore(&desc->lock, flags);
 	return -EBUSY;
 }
 

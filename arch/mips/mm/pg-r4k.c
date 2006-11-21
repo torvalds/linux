@@ -270,6 +270,20 @@ static inline void build_addiu_a2_a0(unsigned long offset)
 	emit_instruction(mi);
 }
 
+static inline void build_addiu_a2(unsigned long offset)
+{
+	union mips_instruction mi;
+
+	BUG_ON(offset > 0x7fff);
+
+	mi.i_format.opcode     = cpu_has_64bit_gp_regs ? daddiu_op : addiu_op;
+	mi.i_format.rs         = 6;		/* $a2 */
+	mi.i_format.rt         = 6;		/* $a2 */
+	mi.i_format.simmediate = offset;
+
+	emit_instruction(mi);
+}
+
 static inline void build_addiu_a1(unsigned long offset)
 {
 	union mips_instruction mi;
@@ -333,6 +347,7 @@ static inline void build_jr_ra(void)
 void __init build_clear_page(void)
 {
 	unsigned int loop_start;
+	unsigned long off;
 
 	epc = (unsigned int *) &clear_page_array;
 	instruction_pending = 0;
@@ -369,7 +384,12 @@ void __init build_clear_page(void)
 		}
 	}
 
-	build_addiu_a2_a0(PAGE_SIZE - (cpu_has_prefetch ? pref_offset_clear : 0));
+        off = PAGE_SIZE - (cpu_has_prefetch ? pref_offset_clear : 0);
+	if (off > 0x7fff) {
+		build_addiu_a2_a0(off >> 1);
+		build_addiu_a2(off >> 1);
+	} else
+		build_addiu_a2_a0(off);
 
 	if (R4600_V2_HIT_CACHEOP_WAR && cpu_is_r4600_v2_x())
 		build_insn_word(0x3c01a000);	/* lui     $at, 0xa000  */
@@ -420,12 +440,18 @@ dest = label();
 void __init build_copy_page(void)
 {
 	unsigned int loop_start;
+	unsigned long off;
 
 	epc = (unsigned int *) &copy_page_array;
 	store_offset = load_offset = 0;
 	instruction_pending = 0;
 
-	build_addiu_a2_a0(PAGE_SIZE - (cpu_has_prefetch ? pref_offset_copy : 0));
+	off = PAGE_SIZE - (cpu_has_prefetch ? pref_offset_copy : 0);
+	if (off > 0x7fff) {
+		build_addiu_a2_a0(off >> 1);
+		build_addiu_a2(off >> 1);
+	} else
+		build_addiu_a2_a0(off);
 
 	if (R4600_V2_HIT_CACHEOP_WAR && cpu_is_r4600_v2_x())
 		build_insn_word(0x3c01a000);	/* lui     $at, 0xa000  */

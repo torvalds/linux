@@ -207,6 +207,7 @@ int ucc_set_qe_mux_rxtx(int ucc_num, enum qe_clock clock, enum comm_dir mode)
 		case QE_CLK18:	source = 8; break;
 		case QE_CLK7:	source = 9; break;
 		case QE_CLK8:	source = 10; break;
+		case QE_CLK16:	source = 11; break;
 		default:	source = -1; break;
 		}
 		break;
@@ -222,6 +223,7 @@ int ucc_set_qe_mux_rxtx(int ucc_num, enum qe_clock clock, enum comm_dir mode)
 		case QE_CLK22:	source = 8; break;
 		case QE_CLK7:	source = 9; break;
 		case QE_CLK8:	source = 10; break;
+		case QE_CLK16:	source = 11; break;
 		default: 	source = -1; break;
 		}
 		break;

@@ -36,14 +36,18 @@ void __init txx9_spi_init(unsigned long base, int (*cs_func)(int chipid, int on)
 
 static DECLARE_WAIT_QUEUE_HEAD(txx9_spi_wait);
 
-static void txx9_spi_interrupt(int irq, void *dev_id)
+static irqreturn_t txx9_spi_interrupt(int irq, void *dev_id)
 {
 	/* disable rx intr */
 	tx4938_spiptr->cr0 &= ~TXx9_SPCR0_RBSIE;
 	wake_up(&txx9_spi_wait);
+
+	return IRQ_HANDLED;
 }
+
 static struct irqaction txx9_spi_action = {
-	txx9_spi_interrupt, 0, 0, "spi", NULL, NULL,
+	.handler	= txx9_spi_interrupt,
+	.name		= "spi",
 };
 
 void __init txx9_spi_irqinit(int irc_irq)

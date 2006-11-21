@@ -360,9 +360,9 @@ static void dn_nsp_conn_conf(struct sock *sk, struct sk_buff *skb)
 			scp->max_window = decnet_no_fc_max_cwnd;
 
 		if (skb->len > 0) {
-			unsigned char dlen = *skb->data;
+			u16 dlen = *skb->data;
 			if ((dlen <= 16) && (dlen <= skb->len)) {
-				scp->conndata_in.opt_optl = dn_htons((__u16)dlen);
+				scp->conndata_in.opt_optl = dn_htons(dlen);
 				memcpy(scp->conndata_in.opt_data, skb->data + 1, dlen);
 			}
 		}
@@ -404,9 +404,9 @@ static void dn_nsp_disc_init(struct sock *sk, struct sk_buff *skb)
 	memset(scp->discdata_in.opt_data, 0, 16);
 
 	if (skb->len > 0) {
-		unsigned char dlen = *skb->data;
+		u16 dlen = *skb->data;
 		if ((dlen <= 16) && (dlen <= skb->len)) {
-			scp->discdata_in.opt_optl = dn_htons((__u16)dlen);
+			scp->discdata_in.opt_optl = dn_htons(dlen);
 			memcpy(scp->discdata_in.opt_data, skb->data + 1, dlen);
 		}
 	}

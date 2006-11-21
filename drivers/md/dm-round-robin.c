@@ -136,7 +136,7 @@ static int rr_add_path(struct path_selector *ps, struct path *path,
 
 	path->pscontext = pi;
 
-	list_add(&pi->list, &s->valid_paths);
+	list_add_tail(&pi->list, &s->valid_paths);
 
 	return 0;
 }

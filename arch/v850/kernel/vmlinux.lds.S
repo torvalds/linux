@@ -140,13 +140,7 @@
 		___setup_end = . ;					      \
 		___initcall_start = . ;					      \
 			*(.initcall.init)				      \
-			*(.initcall1.init)				      \
-			*(.initcall2.init)				      \
-			*(.initcall3.init)				      \
-			*(.initcall4.init)				      \
-			*(.initcall5.init)				      \
-			*(.initcall6.init)				      \
-			*(.initcall7.init)				      \
+			INITCALLS					      \
 		. = ALIGN (4) ;						      \
 		___initcall_end = . ;					      \
 		___con_initcall_start = .;				      \

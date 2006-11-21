@@ -81,7 +81,7 @@ static void pmc_stop_ctrs(void)
 
 /* Configures the counters on this CPU based on the global
  * settings */
-static void fsl7450_cpu_setup(void *unused)
+static void fsl7450_cpu_setup(struct op_counter_config *ctr)
 {
 	/* freeze all counters */
 	pmc_stop_ctrs();

@@ -506,7 +506,7 @@ u64 ehea_h_register_rpage_mr(const u64 adapter_handle, const u64 mr_handle,
 			     const u8 pagesize, const u8 queue_type,
 			     const u64 log_pageaddr, const u64 count)
 {
-	if ((count > 1) && (log_pageaddr & 0xfff)) {
+	if ((count > 1) && (log_pageaddr & ~PAGE_MASK)) {
 		ehea_error("not on pageboundary");
 		return H_PARAMETER;
 	}
