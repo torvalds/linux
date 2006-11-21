@@ -1135,7 +1135,7 @@ int cipso_v4_validate(unsigned char **option)
 	}
 
 	rcu_read_lock();
-	doi_def = cipso_v4_doi_search(ntohl(*((u32 *)&opt[2])));
+	doi_def = cipso_v4_doi_search(ntohl(*((__be32 *)&opt[2])));
 	if (doi_def == NULL) {
 		err_offset = 2;
 		goto validate_return_locked;
