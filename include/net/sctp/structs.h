@@ -843,7 +843,6 @@ struct sctp_transport {
 
 	/* This is the peer's IP address and port. */
 	union sctp_addr ipaddr;
-	union sctp_addr ipaddr_h;
 
 	/* These are the functions we call to handle LLP stuff.	 */
 	struct sctp_af *af_specific;
