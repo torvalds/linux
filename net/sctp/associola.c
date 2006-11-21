@@ -868,7 +868,7 @@ struct sctp_transport *sctp_assoc_lookup_tsn(struct sctp_association *asoc,
 	struct list_head *entry, *pos;
 	struct sctp_transport *transport;
 	struct sctp_chunk *chunk;
-	__u32 key = htonl(tsn);
+	__be32 key = htonl(tsn);
 
 	match = NULL;
 

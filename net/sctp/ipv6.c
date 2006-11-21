@@ -239,7 +239,7 @@ static inline int sctp_v6_addr_match_len(union sctp_addr *s1,
 	int i, j;
 
 	for (i = 0; i < 4 ; i++) {
-		__u32 a1xora2;
+		__be32 a1xora2;
 
 		a1xora2 = a1->s6_addr32[i] ^ a2->s6_addr32[i];
 
@@ -425,7 +425,7 @@ static int sctp_v6_to_addr_param(const union sctp_addr *addr,
 	int length = sizeof(sctp_ipv6addr_param_t);
 
 	param->v6.param_hdr.type = SCTP_PARAM_IPV6_ADDRESS;
-	param->v6.param_hdr.length = ntohs(length);
+	param->v6.param_hdr.length = htons(length);
 	ipv6_addr_copy(&param->v6.addr, &addr->v6.sin6_addr);
 
 	return length;

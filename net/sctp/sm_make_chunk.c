@@ -1190,7 +1190,7 @@ void sctp_chunk_assign_ssn(struct sctp_chunk *chunk)
 	if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED) {
 		ssn = 0;
 	} else {
-		sid = htons(chunk->subh.data_hdr->stream);
+		sid = ntohs(chunk->subh.data_hdr->stream);
 		if (chunk->chunk_hdr->flags & SCTP_DATA_LAST_FRAG)
 			ssn = sctp_ssn_next(&chunk->asoc->ssnmap->out, sid);
 		else
@@ -2230,7 +2230,7 @@ struct sctp_chunk *sctp_make_asconf_update_ip(struct sctp_association *asoc,
 					      union sctp_addr	      *laddr,
 					      struct sockaddr	      *addrs,
 					      int		      addrcnt,
-					      __u16		      flags)
+					      __be16		      flags)
 {
 	sctp_addip_param_t	param;
 	struct sctp_chunk	*retval;
@@ -2364,13 +2364,13 @@ static struct sctp_chunk *sctp_make_asconf_ack(const struct sctp_association *as
 
 /* Add response parameters to an ASCONF_ACK chunk. */
 static void sctp_add_asconf_response(struct sctp_chunk *chunk, __u32 crr_id,
-			      __u16 err_code, sctp_addip_param_t *asconf_param)
+			      __be16 err_code, sctp_addip_param_t *asconf_param)
 {
 	sctp_addip_param_t 	ack_param;
 	sctp_errhdr_t		err_param;
 	int			asconf_param_len = 0;
 	int			err_param_len = 0;
-	__u16			response_type;
+	__be16			response_type;
 
 	if (SCTP_ERROR_NO_ERROR == err_code) {
 		response_type = SCTP_PARAM_SUCCESS_REPORT;
@@ -2404,7 +2404,7 @@ static void sctp_add_asconf_response(struct sctp_chunk *chunk, __u32 crr_id,
 }
 
 /* Process a asconf parameter. */
-static __u16 sctp_process_asconf_param(struct sctp_association *asoc,
+static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 				       struct sctp_chunk *asconf,
 				       sctp_addip_param_t *asconf_param)
 {
@@ -2487,7 +2487,7 @@ struct sctp_chunk *sctp_process_asconf(struct sctp_association *asoc,
 	sctp_addip_param_t	*asconf_param;
 	struct sctp_chunk	*asconf_ack;
 
-	__u16	err_code;
+	__be16	err_code;
 	int	length = 0;
 	int	chunk_len = asconf->skb->len;
 	__u32	serial;
@@ -2630,7 +2630,7 @@ static int sctp_asconf_param_success(struct sctp_association *asoc,
  * All TLVs after the failed response are considered unsuccessful unless a
  * specific success indication is present for the parameter.
  */
-static __u16 sctp_get_asconf_response(struct sctp_chunk *asconf_ack,
+static __be16 sctp_get_asconf_response(struct sctp_chunk *asconf_ack,
 				      sctp_addip_param_t *asconf_param,
 				      int no_err)
 {
@@ -2638,7 +2638,7 @@ static __u16 sctp_get_asconf_response(struct sctp_chunk *asconf_ack,
 	sctp_errhdr_t		*err_param;
 	int			length;
 	int			asconf_ack_len = asconf_ack->skb->len;
-	__u16			err_code;
+	__be16			err_code;
 
 	if (no_err)
 		err_code = SCTP_ERROR_NO_ERROR;
@@ -2694,7 +2694,7 @@ int sctp_process_asconf_ack(struct sctp_association *asoc,
 	int	all_param_pass = 0;
 	int	no_err = 1;
 	int	retval = 0;
-	__u16	err_code = SCTP_ERROR_NO_ERROR;
+	__be16	err_code = SCTP_ERROR_NO_ERROR;
 
 	/* Skip the chunkhdr and addiphdr from the last asconf sent and store
 	 * a pointer to address parameter.

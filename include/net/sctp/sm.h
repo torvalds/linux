@@ -243,7 +243,7 @@ struct sctp_chunk *sctp_make_op_error(const struct sctp_association *,
 struct sctp_chunk *sctp_make_asconf_update_ip(struct sctp_association *,
 					      union sctp_addr *,
 					      struct sockaddr *,
-					      int, __u16);
+					      int, __be16);
 struct sctp_chunk *sctp_make_asconf_set_prim(struct sctp_association *asoc,
 					     union sctp_addr *addr);
 struct sctp_chunk *sctp_process_asconf(struct sctp_association *asoc,
