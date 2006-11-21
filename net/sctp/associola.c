@@ -709,6 +709,7 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 	struct sctp_transport *first;
 	struct sctp_transport *second;
 	struct sctp_ulpevent *event;
+	struct sockaddr_storage addr;
 	struct list_head *pos;
 	int spc_state = 0;
 
@@ -731,8 +732,9 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 	/* Generate and send a SCTP_PEER_ADDR_CHANGE notification to the
 	 * user.
 	 */
-	event = sctp_ulpevent_make_peer_addr_change(asoc,
-				(struct sockaddr_storage *) &transport->ipaddr,
+	memset(&addr, 0, sizeof(struct sockaddr_storage));
+	flip_to_n((union sctp_addr *)&addr, &transport->ipaddr);
+	event = sctp_ulpevent_make_peer_addr_change(asoc, &addr,
 				0, spc_state, error, GFP_ATOMIC);
 	if (event)
 		sctp_ulpq_tail_event(&asoc->ulpq, event);
