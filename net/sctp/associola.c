@@ -442,7 +442,7 @@ void sctp_assoc_set_primary(struct sctp_association *asoc,
 	asoc->peer.primary_path = transport;
 
 	/* Set a default msg_name for events. */
-	memcpy(&asoc->peer.primary_addr, &transport->ipaddr_h,
+	memcpy(&asoc->peer.primary_addr, &transport->ipaddr,
 	       sizeof(union sctp_addr));
 
 	/* If the primary path is changing, assume that the

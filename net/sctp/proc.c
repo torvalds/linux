@@ -175,16 +175,14 @@ static void sctp_seq_dump_remote_addrs(struct seq_file *seq, struct sctp_associa
 	struct list_head *pos;
 	struct sctp_transport *transport;
 	union sctp_addr *addr, *primary;
-	union sctp_addr tmp;
 	struct sctp_af *af;
 
-	primary = &(assoc->peer.primary_addr);
-	flip_to_n(&tmp, primary);
+	primary = &assoc->peer.primary_addr;
 	list_for_each(pos, &assoc->peer.transport_addr_list) {
 		transport = list_entry(pos, struct sctp_transport, transports);
 		addr = &transport->ipaddr;
 		af = sctp_get_af_specific(addr->sa.sa_family);
-		if (af->cmp_addr(addr, &tmp)) {
+		if (af->cmp_addr(addr, primary)) {
 			seq_printf(seq, "*");
 		}
 		af->seq_dump_addr(seq, addr);
