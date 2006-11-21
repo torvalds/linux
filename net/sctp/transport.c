@@ -234,7 +234,7 @@ void sctp_transport_pmtu(struct sctp_transport *transport)
 {
 	struct dst_entry *dst;
 
-	dst = transport->af_specific->get_dst(NULL, &transport->ipaddr_h, NULL);
+	dst = transport->af_specific->get_dst(NULL, &transport->ipaddr, NULL);
 
 	if (dst) {
 		transport->pathmtu = dst_mtu(dst);
@@ -251,16 +251,18 @@ void sctp_transport_route(struct sctp_transport *transport,
 {
 	struct sctp_association *asoc = transport->asoc;
 	struct sctp_af *af = transport->af_specific;
-	union sctp_addr *daddr = &transport->ipaddr_h;
+	union sctp_addr *daddr = &transport->ipaddr;
 	struct dst_entry *dst;
+	union sctp_addr tmp;
+	flip_to_n(&tmp, saddr);
 
-	dst = af->get_dst(asoc, daddr, saddr);
+	dst = af->get_dst(asoc, daddr, &tmp);
 
 	if (saddr) {
 		memcpy(&transport->saddr_h, saddr, sizeof(union sctp_addr));
 		flip_to_n(&transport->saddr, &transport->saddr_h);
 	} else {
-		af->get_saddr(asoc, dst, &transport->ipaddr, &transport->saddr);
+		af->get_saddr(asoc, dst, daddr, &transport->saddr);
 		flip_to_h(&transport->saddr_h, &transport->saddr);
 	}
 
