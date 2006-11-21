@@ -338,7 +338,7 @@ static int sctp_v4_cmp_addr(const union sctp_addr *addr1,
 }
 
 /* Initialize addr struct to INADDR_ANY. */
-static void sctp_v4_inaddr_any(union sctp_addr *addr, unsigned short port)
+static void sctp_v4_inaddr_any(union sctp_addr *addr, __be16 port)
 {
 	addr->v4.sin_family = AF_INET;
 	addr->v4.sin_addr.s_addr = INADDR_ANY;

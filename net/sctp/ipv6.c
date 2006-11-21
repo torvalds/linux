@@ -478,7 +478,7 @@ static int sctp_v6_cmp_addr(const union sctp_addr *addr1,
 }
 
 /* Initialize addr struct to INADDR_ANY. */
-static void sctp_v6_inaddr_any(union sctp_addr *addr, unsigned short port)
+static void sctp_v6_inaddr_any(union sctp_addr *addr, __be16 port)
 {
 	memset(addr, 0x00, sizeof(union sctp_addr));
 	addr->v6.sin6_family = AF_INET6;

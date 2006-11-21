@@ -560,7 +560,7 @@ struct sctp_af {
 					 struct sctp_sock *,
 					 const struct sk_buff *);
 	sctp_scope_t	(*scope) (union sctp_addr *);
-	void		(*inaddr_any)	(union sctp_addr *, unsigned short);
+	void		(*inaddr_any)	(union sctp_addr *, __be16);
 	int		(*is_any)	(const union sctp_addr *);
 	int		(*available)	(union sctp_addr *,
 					 struct sctp_sock *);
