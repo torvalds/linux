@@ -927,19 +927,16 @@ struct sctp_transport *sctp_assoc_is_match(struct sctp_association *asoc,
 					   const union sctp_addr *paddr)
 {
 	struct sctp_transport *transport;
-	union sctp_addr tmp, tmp2;
-	flip_to_n(&tmp, laddr);
-	flip_to_n(&tmp2, paddr);
 
 	sctp_read_lock(&asoc->base.addr_lock);
 
-	if ((asoc->base.bind_addr.port == laddr->v4.sin_port) &&
-	    (asoc->peer.port == paddr->v4.sin_port)) {
-		transport = sctp_assoc_lookup_paddr(asoc, &tmp2);
+	if ((htons(asoc->base.bind_addr.port) == laddr->v4.sin_port) &&
+	    (htons(asoc->peer.port) == paddr->v4.sin_port)) {
+		transport = sctp_assoc_lookup_paddr(asoc, paddr);
 		if (!transport)
 			goto out;
 
-		if (sctp_bind_addr_match(&asoc->base.bind_addr, &tmp,
+		if (sctp_bind_addr_match(&asoc->base.bind_addr, laddr,
 					 sctp_sk(asoc->base.sk)))
 			goto out;
 	}

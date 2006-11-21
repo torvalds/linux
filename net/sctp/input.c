@@ -127,7 +127,7 @@ int sctp_rcv(struct sk_buff *skb)
 	struct sctphdr *sh;
 	union sctp_addr src;
 	union sctp_addr dest;
-	union sctp_addr tmp;
+	union sctp_addr tmp, tmp2;
 	int family;
 	struct sctp_af *af;
 
@@ -179,9 +179,10 @@ int sctp_rcv(struct sk_buff *skb)
 	    !af->addr_valid(&dest, NULL, skb))
 		goto discard_it;
 
-	asoc = __sctp_rcv_lookup(skb, &src, &dest, &transport);
-
 	flip_to_n(&tmp, &dest);
+	flip_to_n(&tmp2, &src);
+
+	asoc = __sctp_rcv_lookup(skb, &tmp2, &tmp, &transport);
 
 	if (!asoc)
 		ep = __sctp_rcv_lookup_endpoint(&tmp);
@@ -443,6 +444,7 @@ struct sock *sctp_err_lookup(int family, struct sk_buff *skb,
 	struct sock *sk = NULL;
 	struct sctp_association *asoc;
 	struct sctp_transport *transport = NULL;
+	union sctp_addr tmp, tmp2;
 
 	*app = NULL; *tpp = NULL;
 
@@ -454,11 +456,13 @@ struct sock *sctp_err_lookup(int family, struct sk_buff *skb,
 	/* Initialize local addresses for lookups. */
 	af->from_skb(&saddr, skb, 1);
 	af->from_skb(&daddr, skb, 0);
+	flip_to_n(&tmp, &saddr);
+	flip_to_n(&tmp2, &daddr);
 
 	/* Look for an association that matches the incoming ICMP error
 	 * packet.
 	 */
-	asoc = __sctp_lookup_association(&saddr, &daddr, &transport);
+	asoc = __sctp_lookup_association(&tmp, &tmp2, &transport);
 	if (!asoc)
 		return NULL;
 
@@ -833,7 +837,7 @@ static struct sctp_association *__sctp_lookup_association(
 	/* Optimize here for direct hit, only listening connections can
 	 * have wildcards anyways.
 	 */
-	hash = sctp_assoc_hashfn(local->v4.sin_port, peer->v4.sin_port);
+	hash = sctp_assoc_hashfn(ntohs(local->v4.sin_port), ntohs(peer->v4.sin_port));
 	head = &sctp_assoc_hashtable[hash];
 	read_lock(&head->lock);
 	for (epb = head->chain; epb; epb = epb->next) {
@@ -875,8 +879,11 @@ int sctp_has_association(const union sctp_addr *laddr,
 {
 	struct sctp_association *asoc;
 	struct sctp_transport *transport;
+	union sctp_addr tmp, tmp2;
+	flip_to_n(&tmp, laddr);
+	flip_to_n(&tmp2, paddr);
 
-	if ((asoc = sctp_lookup_association(laddr, paddr, &transport))) {
+	if ((asoc = sctp_lookup_association(&tmp, &tmp2, &transport))) {
 		sctp_association_put(asoc);
 		return 1;
 	}
@@ -914,6 +921,7 @@ static struct sctp_association *__sctp_rcv_init_lookup(struct sk_buff *skb,
 	sctp_init_chunk_t *init;
 	struct sctp_transport *transport;
 	struct sctp_af *af;
+	union sctp_addr tmp2;
 
 	ch = (sctp_chunkhdr_t *) skb->data;
 
@@ -961,8 +969,9 @@ static struct sctp_association *__sctp_rcv_init_lookup(struct sk_buff *skb,
 			continue;
 
 		af->from_addr_param(paddr, params.addr, ntohs(sh->source), 0);
+		flip_to_n(&tmp2, paddr);
 
-		asoc = __sctp_lookup_association(laddr, paddr, &transport);
+		asoc = __sctp_lookup_association(laddr, &tmp2, &transport);
 		if (asoc)
 			return asoc;
 	}
