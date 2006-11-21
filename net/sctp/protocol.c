@@ -224,14 +224,14 @@ int sctp_copy_local_addr_list(struct sctp_bind_addr *bp, sctp_scope_t scope,
 	sctp_spin_lock_irqsave(&sctp_local_addr_lock, flags);
 	list_for_each(pos, &sctp_local_addr_list) {
 		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
-		if (sctp_in_scope(&addr->a_h, scope)) {
+		if (sctp_in_scope(&addr->a, scope)) {
 			/* Now that the address is in scope, check to see if
 			 * the address type is really supported by the local
 			 * sock as well as the remote peer.
 			 */
-			if ((((AF_INET == addr->a_h.sa.sa_family) &&
+			if ((((AF_INET == addr->a.sa.sa_family) &&
 			      (copy_flags & SCTP_ADDR4_PEERSUPP))) ||
-			    (((AF_INET6 == addr->a_h.sa.sa_family) &&
+			    (((AF_INET6 == addr->a.sa.sa_family) &&
 			      (copy_flags & SCTP_ADDR6_ALLOWED) &&
 			      (copy_flags & SCTP_ADDR6_PEERSUPP)))) {
 				error = sctp_add_bind_addr(bp, &addr->a, 1,
@@ -503,8 +503,8 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 		laddr = list_entry(pos, struct sctp_sockaddr_entry, list);
 
 		if ((laddr->use_as_src) &&
-		    (AF_INET == laddr->a_h.sa.sa_family)) {
-			fl.fl4_src = laddr->a_h.v4.sin_addr.s_addr;
+		    (AF_INET == laddr->a.sa.sa_family)) {
+			fl.fl4_src = laddr->a.v4.sin_addr.s_addr;
 			if (!ip_route_output_key(&rt, &fl)) {
 				dst = &rt->u.dst;
 				goto out_unlock;

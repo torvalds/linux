@@ -239,8 +239,8 @@ union sctp_params sctp_bind_addrs_to_raw(const struct sctp_bind_addr *bp,
 
 	list_for_each(pos, &bp->address_list) {
 		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
-		af = sctp_get_af_specific(addr->a_h.v4.sin_family);
-		len = af->to_addr_param(&addr->a_h, &rawaddr);
+		af = sctp_get_af_specific(addr->a.v4.sin_family);
+		len = af->to_addr_param(&addr->a, &rawaddr);
 		memcpy(addrparms.v, &rawaddr, len);
 		addrparms.v += len;
 		addrparms_len += len;

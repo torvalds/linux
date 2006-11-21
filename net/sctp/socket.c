@@ -3867,14 +3867,14 @@ static int sctp_getsockopt_local_addrs_num_old(struct sock *sk, int len,
 	if (sctp_list_single_entry(&bp->address_list)) {
 		addr = list_entry(bp->address_list.next,
 				  struct sctp_sockaddr_entry, list);
-		if (sctp_is_any(&addr->a_h)) {
+		if (sctp_is_any(&addr->a)) {
 			sctp_spin_lock_irqsave(&sctp_local_addr_lock, flags);
 			list_for_each(pos, &sctp_local_addr_list) {
 				addr = list_entry(pos,
 						  struct sctp_sockaddr_entry,
 						  list);
 				if ((PF_INET == sk->sk_family) && 
-				    (AF_INET6 == addr->a_h.sa.sa_family))
+				    (AF_INET6 == addr->a.sa.sa_family))
 					continue;
 				cnt++;
 			}
@@ -3912,13 +3912,12 @@ static int sctp_copy_laddrs_to_user_old(struct sock *sk, __u16 port, int max_add
 	list_for_each(pos, &sctp_local_addr_list) {
 		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
 		if ((PF_INET == sk->sk_family) && 
-		    (AF_INET6 == addr->a_h.sa.sa_family))
+		    (AF_INET6 == addr->a.sa.sa_family))
 			continue;
-		memcpy(&temp, &addr->a_h, sizeof(temp));
+		memcpy(&temp, &addr->a, sizeof(temp));
 		sctp_get_pf_specific(sk->sk_family)->addr_v4map(sctp_sk(sk),
 								&temp);
 		addrlen = sctp_get_af_specific(temp.sa.sa_family)->sockaddr_len;
-		temp.v4.sin_port = htons(port);
 		if (copy_to_user(to, &temp, addrlen)) {
 			sctp_spin_unlock_irqrestore(&sctp_local_addr_lock,
 						    flags);
@@ -3947,15 +3946,14 @@ static int sctp_copy_laddrs_to_user(struct sock *sk, __u16 port,
 	list_for_each(pos, &sctp_local_addr_list) {
 		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
 		if ((PF_INET == sk->sk_family) && 
-		    (AF_INET6 == addr->a_h.sa.sa_family))
+		    (AF_INET6 == addr->a.sa.sa_family))
 			continue;
-		memcpy(&temp, &addr->a_h, sizeof(temp));
+		memcpy(&temp, &addr->a, sizeof(temp));
 		sctp_get_pf_specific(sk->sk_family)->addr_v4map(sctp_sk(sk),
 								&temp);
 		addrlen = sctp_get_af_specific(temp.sa.sa_family)->sockaddr_len;
 		if(space_left<addrlen)
 			return -ENOMEM;
-		temp.v4.sin_port = htons(port);
 		if (copy_to_user(*to, &temp, addrlen)) {
 			sctp_spin_unlock_irqrestore(&sctp_local_addr_lock,
 						    flags);
@@ -4023,7 +4021,7 @@ static int sctp_getsockopt_local_addrs_old(struct sock *sk, int len,
 	if (sctp_list_single_entry(&bp->address_list)) {
 		addr = list_entry(bp->address_list.next,
 				  struct sctp_sockaddr_entry, list);
-		if (sctp_is_any(&addr->a_h)) {
+		if (sctp_is_any(&addr->a)) {
 			cnt = sctp_copy_laddrs_to_user_old(sk, bp->port,
 							   getaddrs.addr_num,
 							   to);
@@ -4037,10 +4035,9 @@ static int sctp_getsockopt_local_addrs_old(struct sock *sk, int len,
 
 	list_for_each(pos, &bp->address_list) {
 		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
-		memcpy(&temp, &addr->a_h, sizeof(temp));
+		memcpy(&temp, &addr->a, sizeof(temp));
 		sctp_get_pf_specific(sk->sk_family)->addr_v4map(sp, &temp);
 		addrlen = sctp_get_af_specific(temp.sa.sa_family)->sockaddr_len;
-		temp.v4.sin_port = htons(temp.v4.sin_port);
 		if (copy_to_user(to, &temp, addrlen)) {
 			err = -EFAULT;
 			goto unlock;
@@ -4113,7 +4110,7 @@ static int sctp_getsockopt_local_addrs(struct sock *sk, int len,
 	if (sctp_list_single_entry(&bp->address_list)) {
 		addr = list_entry(bp->address_list.next,
 				  struct sctp_sockaddr_entry, list);
-		if (sctp_is_any(&addr->a_h)) {
+		if (sctp_is_any(&addr->a)) {
 			cnt = sctp_copy_laddrs_to_user(sk, bp->port,
 						       &to, space_left);
 			if (cnt < 0) {
@@ -4126,12 +4123,11 @@ static int sctp_getsockopt_local_addrs(struct sock *sk, int len,
 
 	list_for_each(pos, &bp->address_list) {
 		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
-		memcpy(&temp, &addr->a_h, sizeof(temp));
+		memcpy(&temp, &addr->a, sizeof(temp));
 		sctp_get_pf_specific(sk->sk_family)->addr_v4map(sp, &temp);
 		addrlen = sctp_get_af_specific(temp.sa.sa_family)->sockaddr_len;
 		if(space_left < addrlen)
 			return -ENOMEM; /*fixme: right error?*/
-		temp.v4.sin_port = htons(temp.v4.sin_port);
 		if (copy_to_user(to, &temp, addrlen)) {
 			err = -EFAULT;
 			goto unlock;
