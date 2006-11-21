@@ -714,7 +714,6 @@ struct sctp_chunk {
 
 	/* What is the origin IP address for this chunk?  */
 	union sctp_addr source;
-	union sctp_addr source_h;
 	/* Destination address for this chunk. */
 	union sctp_addr dest;
 
