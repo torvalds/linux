@@ -2158,7 +2158,7 @@ static sctp_disposition_t sctp_sf_do_5_2_6_stale(const struct sctp_endpoint *ep,
 	 * to give ample time to retransmit the new cookie and thus
 	 * yield a higher probability of success on the reattempt.
 	 */
-	stale = ntohl(*(suseconds_t *)((u8 *)err + sizeof(sctp_errhdr_t)));
+	stale = ntohl(*(__be32 *)((u8 *)err + sizeof(sctp_errhdr_t)));
 	stale = (stale * 2) / 1000;
 
 	bht.param_hdr.type = SCTP_PARAM_COOKIE_PRESERVATIVE;
@@ -2545,6 +2545,7 @@ sctp_disposition_t sctp_sf_do_ecn_cwr(const struct sctp_endpoint *ep,
 {
 	sctp_cwrhdr_t *cwr;
 	struct sctp_chunk *chunk = arg;
+	u32 lowest_tsn;
 
 	if (!sctp_vtag_verify(chunk, asoc))
 		return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
@@ -2556,14 +2557,14 @@ sctp_disposition_t sctp_sf_do_ecn_cwr(const struct sctp_endpoint *ep,
 	cwr = (sctp_cwrhdr_t *) chunk->skb->data;
 	skb_pull(chunk->skb, sizeof(sctp_cwrhdr_t));
 
-	cwr->lowest_tsn = ntohl(cwr->lowest_tsn);
+	lowest_tsn = ntohl(cwr->lowest_tsn);
 
 	/* Does this CWR ack the last sent congestion notification? */
-	if (TSN_lte(asoc->last_ecne_tsn, cwr->lowest_tsn)) {
+	if (TSN_lte(asoc->last_ecne_tsn, lowest_tsn)) {
 		/* Stop sending ECNE. */
 		sctp_add_cmd_sf(commands,
 				SCTP_CMD_ECN_CWR,
-				SCTP_U32(cwr->lowest_tsn));
+				SCTP_U32(lowest_tsn));
 	}
 	return SCTP_DISPOSITION_CONSUME;
 }

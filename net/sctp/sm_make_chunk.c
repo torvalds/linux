@@ -1472,10 +1472,10 @@ no_hmac:
 			suseconds_t usecs = (tv.tv_sec -
 				bear_cookie->expiration.tv_sec) * 1000000L +
 				tv.tv_usec - bear_cookie->expiration.tv_usec;
+			__be32 n = htonl(usecs);
 
-			usecs = htonl(usecs);
 			sctp_init_cause(*errp, SCTP_ERROR_STALE_COOKIE,
-					&usecs, sizeof(usecs));
+					&n, sizeof(n));
 			*error = -SCTP_IERROR_STALE_COOKIE;
 		} else
 			*error = -SCTP_IERROR_NOMEM;
