@@ -1391,6 +1391,7 @@ static int azx_acquire_irq(struct azx *chip, int do_disconnect)
 		return -1;
 	}
 	chip->irq = chip->pci->irq;
+	pci_intx(chip->pci, !chip->msi);
 	return 0;
 }
 
