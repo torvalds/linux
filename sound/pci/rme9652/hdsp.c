@@ -4934,7 +4934,8 @@ static int __devinit snd_hdsp_create(struct snd_card *card,
 		return -EBUSY;
 	}
 
-	if (request_irq(pci->irq, snd_hdsp_interrupt, IRQF_DISABLED|IRQF_SHARED, "hdsp", (void *)hdsp)) {
+	if (request_irq(pci->irq, snd_hdsp_interrupt, IRQF_SHARED,
+			"hdsp", hdsp)) {
 		snd_printk(KERN_ERR "Hammerfall-DSP: unable to use IRQ %d\n", pci->irq);
 		return -EBUSY;
 	}

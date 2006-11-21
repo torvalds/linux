@@ -1071,7 +1071,7 @@ static int intel8x0m_resume(struct pci_dev *pci)
 	}
 	pci_set_master(pci);
 	if (request_irq(pci->irq, snd_intel8x0_interrupt,
-			IRQF_DISABLED|IRQF_SHARED, card->shortname, chip)) {
+			IRQF_SHARED, card->shortname, chip)) {
 		printk(KERN_ERR "intel8x0m: unable to grab IRQ %d, "
 		       "disabling device\n", pci->irq);
 		snd_card_disconnect(card);
@@ -1205,7 +1205,7 @@ static int __devinit snd_intel8x0m_create(struct snd_card *card,
 	}
 
  port_inited:
-	if (request_irq(pci->irq, snd_intel8x0_interrupt, IRQF_DISABLED|IRQF_SHARED,
+	if (request_irq(pci->irq, snd_intel8x0_interrupt, IRQF_SHARED,
 			card->shortname, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_intel8x0_free(chip);

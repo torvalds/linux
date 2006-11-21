@@ -1250,7 +1250,7 @@ static int __devinit pcxhr_probe(struct pci_dev *pci, const struct pci_device_id
 	mgr->pci = pci;
 	mgr->irq = -1;
 
-	if (request_irq(pci->irq, pcxhr_interrupt, IRQF_DISABLED|IRQF_SHARED,
+	if (request_irq(pci->irq, pcxhr_interrupt, IRQF_SHARED,
 			card_name, mgr)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		pcxhr_free(mgr);

@@ -759,7 +759,7 @@ static int snd_emu10k1_free(struct snd_emu10k1 *emu)
 	free_pm_buffer(emu);
 #endif
 	if (emu->irq >= 0)
-		free_irq(emu->irq, (void *)emu);
+		free_irq(emu->irq, emu);
 	if (emu->port)
 		pci_release_regions(emu->pci);
 	if (emu->card_capabilities->ca0151_chip) /* P16V */	
@@ -1246,7 +1246,8 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 	}
 	emu->port = pci_resource_start(pci, 0);
 
-	if (request_irq(pci->irq, snd_emu10k1_interrupt, IRQF_DISABLED|IRQF_SHARED, "EMU10K1", (void *)emu)) {
+	if (request_irq(pci->irq, snd_emu10k1_interrupt, IRQF_SHARED,
+			"EMU10K1", emu)) {
 		err = -EBUSY;
 		goto error;
 	}

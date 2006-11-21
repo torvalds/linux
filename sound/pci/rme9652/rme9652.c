@@ -2500,7 +2500,8 @@ static int __devinit snd_rme9652_create(struct snd_card *card,
 		return -EBUSY;
 	}
 	
-	if (request_irq(pci->irq, snd_rme9652_interrupt, IRQF_DISABLED|IRQF_SHARED, "rme9652", (void *)rme9652)) {
+	if (request_irq(pci->irq, snd_rme9652_interrupt, IRQF_SHARED,
+			"rme9652", rme9652)) {
 		snd_printk(KERN_ERR "unable to request IRQ %d\n", pci->irq);
 		return -EBUSY;
 	}

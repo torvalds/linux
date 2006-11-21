@@ -2762,7 +2762,7 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 
 	tasklet_init(&chip->hwvol_tq, snd_m3_update_hw_volume, (unsigned long)chip);
 
-	if (request_irq(pci->irq, snd_m3_interrupt, IRQF_DISABLED|IRQF_SHARED,
+	if (request_irq(pci->irq, snd_m3_interrupt, IRQF_SHARED,
 			card->driver, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_m3_free(chip);

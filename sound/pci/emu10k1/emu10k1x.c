@@ -760,7 +760,7 @@ static int snd_emu10k1x_free(struct emu10k1x *chip)
 
 	// release the irq
 	if (chip->irq >= 0)
-		free_irq(chip->irq, (void *)chip);
+		free_irq(chip->irq, chip);
 
 	// release the DMA
 	if (chip->dma_buffer.area) {
@@ -927,8 +927,7 @@ static int __devinit snd_emu10k1x_create(struct snd_card *card,
 	}
 
 	if (request_irq(pci->irq, snd_emu10k1x_interrupt,
-			IRQF_DISABLED|IRQF_SHARED, "EMU10K1X",
-			(void *)chip)) {
+			IRQF_SHARED, "EMU10K1X", chip)) {
 		snd_printk(KERN_ERR "emu10k1x: cannot grab irq %d\n", pci->irq);
 		snd_emu10k1x_free(chip);
 		return -EBUSY;

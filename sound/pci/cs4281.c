@@ -1391,7 +1391,7 @@ static int __devinit snd_cs4281_create(struct snd_card *card,
 		return -ENOMEM;
 	}
 	
-	if (request_irq(pci->irq, snd_cs4281_interrupt, IRQF_DISABLED|IRQF_SHARED,
+	if (request_irq(pci->irq, snd_cs4281_interrupt, IRQF_SHARED,
 			"CS4281", chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_cs4281_free(chip);

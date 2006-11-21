@@ -2154,7 +2154,7 @@ static int snd_ymfpci_free(struct snd_ymfpci *chip)
 		snd_dma_free_pages(&chip->work_ptr);
 	
 	if (chip->irq >= 0)
-		free_irq(chip->irq, (void *)chip);
+		free_irq(chip->irq, chip);
 	release_and_free_resource(chip->res_reg_area);
 
 	pci_write_config_word(chip->pci, 0x40, chip->old_legacy_ctrl);
@@ -2301,7 +2301,8 @@ int __devinit snd_ymfpci_create(struct snd_card *card,
 		snd_ymfpci_free(chip);
 		return -EBUSY;
 	}
-	if (request_irq(pci->irq, snd_ymfpci_interrupt, IRQF_DISABLED|IRQF_SHARED, "YMFPCI", (void *) chip)) {
+	if (request_irq(pci->irq, snd_ymfpci_interrupt, IRQF_SHARED,
+			"YMFPCI", chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_ymfpci_free(chip);
 		return -EBUSY;

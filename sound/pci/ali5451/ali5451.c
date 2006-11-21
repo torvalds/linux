@@ -2095,7 +2095,7 @@ static int snd_ali_free(struct snd_ali * codec)
 		snd_ali_disable_address_interrupt(codec);
 	if (codec->irq >= 0) {
 		synchronize_irq(codec->irq);
-		free_irq(codec->irq, (void *)codec);
+		free_irq(codec->irq, codec);
 	}
 	if (codec->port)
 		pci_release_regions(codec->pci);
@@ -2192,7 +2192,8 @@ static int __devinit snd_ali_resources(struct snd_ali *codec)
 		return err;
 	codec->port = pci_resource_start(codec->pci, 0);
 
-	if (request_irq(codec->pci->irq, snd_ali_card_interrupt, IRQF_DISABLED|IRQF_SHARED, "ALI 5451", (void *)codec)) {
+	if (request_irq(codec->pci->irq, snd_ali_card_interrupt,
+			IRQF_SHARED, "ALI 5451", codec)) {
 		snd_printk(KERN_ERR "Unable to request irq.\n");
 		return -EBUSY;
 	}

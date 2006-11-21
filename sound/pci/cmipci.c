@@ -2862,7 +2862,7 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 	cm->iobase = pci_resource_start(pci, 0);
 
 	if (request_irq(pci->irq, snd_cmipci_interrupt,
-			IRQF_DISABLED|IRQF_SHARED, card->driver, cm)) {
+			IRQF_SHARED, card->driver, cm)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_cmipci_free(cm);
 		return -EBUSY;

@@ -1066,7 +1066,7 @@ static int snd_mixart_free(struct mixart_mgr *mgr)
 
 	/* release irq  */
 	if (mgr->irq >= 0)
-		free_irq(mgr->irq, (void *)mgr);
+		free_irq(mgr->irq, mgr);
 
 	/* reset board if some firmware was loaded */
 	if(mgr->dsp_loaded) {
@@ -1319,7 +1319,8 @@ static int __devinit snd_mixart_probe(struct pci_dev *pci,
 						   pci_resource_len(pci, i));
 	}
 
-	if (request_irq(pci->irq, snd_mixart_interrupt, IRQF_DISABLED|IRQF_SHARED, CARD_NAME, (void *)mgr)) {
+	if (request_irq(pci->irq, snd_mixart_interrupt, IRQF_SHARED,
+			CARD_NAME, mgr)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_mixart_free(mgr);
 		return -EBUSY;

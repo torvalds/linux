@@ -1872,7 +1872,7 @@ static int snd_echo_free(struct echoaudio *chip)
 	DE_INIT(("Stopped.\n"));
 
 	if (chip->irq >= 0)
-		free_irq(chip->irq, (void *)chip);
+		free_irq(chip->irq, chip);
 
 	if (chip->dsp_registers)
 		iounmap(chip->dsp_registers);
@@ -1950,8 +1950,8 @@ static __devinit int snd_echo_create(struct snd_card *card,
 	chip->dsp_registers = (volatile u32 __iomem *)
 		ioremap_nocache(chip->dsp_registers_phys, sz);
 
-	if (request_irq(pci->irq, snd_echo_interrupt, IRQF_DISABLED | IRQF_SHARED,
-						ECHOCARD_NAME, (void *)chip)) {
+	if (request_irq(pci->irq, snd_echo_interrupt, IRQF_SHARED,
+			ECHOCARD_NAME, chip)) {
 		snd_echo_free(chip);
 		snd_printk(KERN_ERR "cannot grab irq\n");
 		return -EBUSY;
