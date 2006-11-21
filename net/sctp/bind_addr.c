@@ -77,7 +77,7 @@ int sctp_bind_addr_copy(struct sctp_bind_addr *dest,
 	/* Extract the addresses which are relevant for this scope.  */
 	list_for_each(pos, &src->address_list) {
 		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
-		error = sctp_copy_one_addr(dest, &addr->a_h, scope,
+		error = sctp_copy_one_addr(dest, &addr->a, scope,
 					   gfp, flags);
 		if (error < 0)
 			goto out;
@@ -91,7 +91,7 @@ int sctp_bind_addr_copy(struct sctp_bind_addr *dest,
 		list_for_each(pos, &src->address_list) {
 			addr = list_entry(pos, struct sctp_sockaddr_entry,
 					  list);
-			error = sctp_copy_one_addr(dest, &addr->a_h,
+			error = sctp_copy_one_addr(dest, &addr->a,
 						   SCTP_SCOPE_LINK, gfp,
 						   flags);
 			if (error < 0)
@@ -358,8 +358,6 @@ static int sctp_copy_one_addr(struct sctp_bind_addr *dest,
 			      int flags)
 {
 	int error = 0;
-	union sctp_addr tmp;
-	flip_to_n(&tmp, addr);
 
 	if (sctp_is_any(addr)) {
 		error = sctp_copy_local_addr_list(dest, scope, gfp, flags);
@@ -373,7 +371,7 @@ static int sctp_copy_one_addr(struct sctp_bind_addr *dest,
 		    (((AF_INET6 == addr->sa.sa_family) &&
 		      (flags & SCTP_ADDR6_ALLOWED) &&
 		      (flags & SCTP_ADDR6_PEERSUPP))))
-			error = sctp_add_bind_addr(dest, &tmp, 1, gfp);
+			error = sctp_add_bind_addr(dest, addr, 1, gfp);
 	}
 
 	return error;
