@@ -155,9 +155,6 @@ extern char __init_begin, __init_end;
 
 /*
  * paging_init() sets up the page tables
- *
- * This routines also unmaps the page at virtual kernel address 0, so
- * that we can trap those pesky NULL-reference errors in the kernel.
  */
 void __init paging_init(void)
 {
@@ -180,14 +177,11 @@ void __init paging_init(void)
 	 */
 	{
 		unsigned long max_dma, low, start_pfn;
-		pgd_t *pg_dir;
-		int i;
 
-		/* We don't need kernel mapping as hardware support that. */
-		pg_dir = swapper_pg_dir;
-
-		for (i = 0; i < PTRS_PER_PGD; i++)
-			pgd_val(pg_dir[i]) = 0;
+		/* We don't need to map the kernel through the TLB, as
+		 * it is permanatly mapped using P1. So clear the
+		 * entire pgd. */
+		memset(swapper_pg_dir, 0, sizeof(swapper_pg_dir));
 
 		/* Turn on the MMU */
 		enable_mmu();
@@ -205,6 +199,10 @@ void __init paging_init(void)
 			zones_size[ZONE_NORMAL] = low - max_dma;
 		}
 	}
+
+	/* Set an initial value for the MMU.TTB so we don't have to
+	 * check for a null value. */
+	set_TTB(swapper_pg_dir);
 
 #elif defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4)
 	/*
