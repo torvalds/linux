@@ -268,7 +268,8 @@ void do_IRQ(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 
 #ifdef CONFIG_PPC_ISERIES
-	if (get_lppaca()->int_dword.fields.decr_int) {
+	if (firmware_has_feature(FW_FEATURE_ISERIES) &&
+			get_lppaca()->int_dword.fields.decr_int) {
 		get_lppaca()->int_dword.fields.decr_int = 0;
 		/* Signal a fake decrementer interrupt */
 		timer_interrupt(regs);
