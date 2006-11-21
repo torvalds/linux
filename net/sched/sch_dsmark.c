@@ -307,7 +307,7 @@ static struct sk_buff *dsmark_dequeue(struct Qdisc *sch)
 			if (p->mask[index] != 0xff || p->value[index])
 				printk(KERN_WARNING "dsmark_dequeue: "
 				       "unsupported protocol %d\n",
-				       htons(skb->protocol));
+				       ntohs(skb->protocol));
 			break;
 	};
 

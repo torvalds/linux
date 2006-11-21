@@ -144,7 +144,7 @@ struct tcf_proto
 	void			*root;
 	int			(*classify)(struct sk_buff*, struct tcf_proto*,
 					struct tcf_result *);
-	u32			protocol;
+	__be16			protocol;
 
 	/* All the rest */
 	u32			prio;

@@ -1112,7 +1112,7 @@ int tc_classify(struct sk_buff *skb, struct tcf_proto *tp,
 	struct tcf_result *res)
 {
 	int err = 0;
-	u32 protocol = skb->protocol;
+	__be16 protocol = skb->protocol;
 #ifdef CONFIG_NET_CLS_ACT
 	struct tcf_proto *otp = tp;
 reclassify:
