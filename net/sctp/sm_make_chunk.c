@@ -1507,7 +1507,9 @@ no_hmac:
 
 	/* Also, add the destination address. */
 	if (list_empty(&retval->base.bind_addr.address_list)) {
-		sctp_add_bind_addr(&retval->base.bind_addr, &chunk->dest, 1,
+		union sctp_addr tmp;
+		flip_to_n(&tmp, &chunk->dest);
+		sctp_add_bind_addr(&retval->base.bind_addr, &tmp, 1,
 				   GFP_ATOMIC);
 	}
 

@@ -234,7 +234,7 @@ int sctp_copy_local_addr_list(struct sctp_bind_addr *bp, sctp_scope_t scope,
 			    (((AF_INET6 == addr->a_h.sa.sa_family) &&
 			      (copy_flags & SCTP_ADDR6_ALLOWED) &&
 			      (copy_flags & SCTP_ADDR6_PEERSUPP)))) {
-				error = sctp_add_bind_addr(bp, &addr->a_h, 1,
+				error = sctp_add_bind_addr(bp, &addr->a, 1,
 							   GFP_ATOMIC);
 				if (error)
 					goto end_copy;

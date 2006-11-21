@@ -155,15 +155,15 @@ int sctp_add_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *new,
 	if (!addr)
 		return -ENOMEM;
 
-	memcpy(&addr->a_h, new, sizeof(*new));
+	memcpy(&addr->a, new, sizeof(*new));
 
 	/* Fix up the port if it has not yet been set.
 	 * Both v4 and v6 have the port at the same offset.
 	 */
-	if (!addr->a_h.v4.sin_port)
-		addr->a_h.v4.sin_port = bp->port;
+	if (!addr->a.v4.sin_port)
+		addr->a.v4.sin_port = htons(bp->port);
 
-	flip_to_n(&addr->a, &addr->a_h);
+	flip_to_h(&addr->a_h, &addr->a);
 
 	addr->use_as_src = use_as_src;
 
@@ -264,6 +264,7 @@ int sctp_raw_to_bind_addrs(struct sctp_bind_addr *bp, __u8 *raw_addr_list,
 	int retval = 0;
 	int len;
 	struct sctp_af *af;
+	union sctp_addr tmp;
 
 	/* Convert the raw address to standard address format */
 	while (addrs_len) {
@@ -278,7 +279,8 @@ int sctp_raw_to_bind_addrs(struct sctp_bind_addr *bp, __u8 *raw_addr_list,
 		}
 
 		af->from_addr_param(&addr, rawaddr, port, 0);
-		retval = sctp_add_bind_addr(bp, &addr, 1, gfp);
+		flip_to_n(&tmp, &addr);
+		retval = sctp_add_bind_addr(bp, &tmp, 1, gfp);
 		if (retval) {
 			/* Can't finish building the list, clean up. */
 			sctp_bind_addr_clean(bp);
@@ -358,6 +360,8 @@ static int sctp_copy_one_addr(struct sctp_bind_addr *dest,
 			      int flags)
 {
 	int error = 0;
+	union sctp_addr tmp;
+	flip_to_n(&tmp, addr);
 
 	if (sctp_is_any(addr)) {
 		error = sctp_copy_local_addr_list(dest, scope, gfp, flags);
@@ -371,7 +375,7 @@ static int sctp_copy_one_addr(struct sctp_bind_addr *dest,
 		    (((AF_INET6 == addr->sa.sa_family) &&
 		      (flags & SCTP_ADDR6_ALLOWED) &&
 		      (flags & SCTP_ADDR6_PEERSUPP))))
-			error = sctp_add_bind_addr(dest, addr, 1, gfp);
+			error = sctp_add_bind_addr(dest, &tmp, 1, gfp);
 	}
 
 	return error;

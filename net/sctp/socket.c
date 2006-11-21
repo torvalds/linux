@@ -313,7 +313,6 @@ SCTP_STATIC int sctp_do_bind(struct sock *sk, union sctp_addr *addr, int len)
 	struct sctp_af *af;
 	unsigned short snum;
 	int ret = 0;
-	union sctp_addr tmp;
 
 	/* Common sockaddr verification. */
 	af = sctp_sockaddr_af(sp, addr, len);
@@ -369,8 +368,7 @@ SCTP_STATIC int sctp_do_bind(struct sock *sk, union sctp_addr *addr, int len)
 	sctp_write_lock(&ep->base.addr_lock);
 
 	/* Use GFP_ATOMIC since BHs are disabled.  */
-	flip_to_h(&tmp, addr);
-	ret = sctp_add_bind_addr(bp, &tmp, 1, GFP_ATOMIC);
+	ret = sctp_add_bind_addr(bp, addr, 1, GFP_ATOMIC);
 	sctp_write_unlock(&ep->base.addr_lock);
 	sctp_local_bh_enable();
 
@@ -572,7 +570,6 @@ static int sctp_send_asconf_add_ip(struct sock		*sk,
 			addr = (union sctp_addr *)addr_buf;
 			af = sctp_get_af_specific(addr->v4.sin_family);
 			memcpy(&saveaddr, addr, af->sockaddr_len);
-			saveaddr.v4.sin_port = ntohs(saveaddr.v4.sin_port);
 			retval = sctp_add_bind_addr(bp, &saveaddr, 0,
 						    GFP_ATOMIC);
 			addr_buf += af->sockaddr_len;
