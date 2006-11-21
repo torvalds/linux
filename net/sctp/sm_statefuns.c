@@ -886,7 +886,7 @@ sctp_disposition_t sctp_sf_sendbeat_8_3(const struct sctp_endpoint *ep,
 				SCTP_ERROR(ETIMEDOUT));
 		/* CMD_ASSOC_FAILED calls CMD_DELETE_TCB. */
 		sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
-				SCTP_U32(SCTP_ERROR_NO_ERROR));
+				SCTP_PERR(SCTP_ERROR_NO_ERROR));
 		SCTP_INC_STATS(SCTP_MIB_ABORTEDS);
 		SCTP_DEC_STATS(SCTP_MIB_CURRESTAB);
 		return SCTP_DISPOSITION_DELETE_TCB;
@@ -2250,7 +2250,7 @@ sctp_disposition_t sctp_sf_do_9_1_abort(const struct sctp_endpoint *ep,
 {
 	struct sctp_chunk *chunk = arg;
 	unsigned len;
-	__u16 error = SCTP_ERROR_NO_ERROR;
+	__be16 error = SCTP_ERROR_NO_ERROR;
 
 	if (!sctp_vtag_verify_either(chunk, asoc))
 		return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
@@ -2275,7 +2275,7 @@ sctp_disposition_t sctp_sf_do_9_1_abort(const struct sctp_endpoint *ep,
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR, SCTP_ERROR(ECONNRESET));
  	/* ASSOC_FAILED will DELETE_TCB. */
-	sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED, SCTP_U32(error));
+	sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED, SCTP_PERR(error));
 	SCTP_INC_STATS(SCTP_MIB_ABORTEDS);
 	SCTP_DEC_STATS(SCTP_MIB_CURRESTAB);
 
@@ -3360,7 +3360,7 @@ sctp_disposition_t sctp_sf_do_asconf_ack(const struct sctp_endpoint *ep,
 		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
 			        SCTP_ERROR(ECONNABORTED));
 		sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
-				SCTP_U32(SCTP_ERROR_ASCONF_ACK));
+				SCTP_PERR(SCTP_ERROR_ASCONF_ACK));
 		SCTP_INC_STATS(SCTP_MIB_ABORTEDS);
 		SCTP_DEC_STATS(SCTP_MIB_CURRESTAB);
 		return SCTP_DISPOSITION_ABORT;
@@ -3388,7 +3388,7 @@ sctp_disposition_t sctp_sf_do_asconf_ack(const struct sctp_endpoint *ep,
 		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
 			        SCTP_ERROR(ECONNABORTED));
 		sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
-				SCTP_U32(SCTP_ERROR_ASCONF_ACK));
+				SCTP_PERR(SCTP_ERROR_ASCONF_ACK));
 		SCTP_INC_STATS(SCTP_MIB_ABORTEDS);
 		SCTP_DEC_STATS(SCTP_MIB_CURRESTAB);
 		return SCTP_DISPOSITION_ABORT;
@@ -3748,7 +3748,7 @@ static sctp_disposition_t sctp_sf_violation_chunklen(
 		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
 			        SCTP_ERROR(ECONNABORTED));
 		sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
-				SCTP_U32(SCTP_ERROR_PROTO_VIOLATION));
+				SCTP_PERR(SCTP_ERROR_PROTO_VIOLATION));
 		SCTP_DEC_STATS(SCTP_MIB_CURRESTAB);
 	}
 
@@ -4062,7 +4062,7 @@ sctp_disposition_t sctp_sf_do_9_1_prm_abort(
 			SCTP_ERROR(ECONNABORTED));
 	/* Delete the established association. */
 	sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
-			SCTP_U32(SCTP_ERROR_USER_ABORT));
+			SCTP_PERR(SCTP_ERROR_USER_ABORT));
 
 	SCTP_INC_STATS(SCTP_MIB_ABORTEDS);
 	SCTP_DEC_STATS(SCTP_MIB_CURRESTAB);
@@ -4571,7 +4571,7 @@ sctp_disposition_t sctp_sf_do_6_3_3_rtx(const struct sctp_endpoint *ep,
 				SCTP_ERROR(ETIMEDOUT));
 		/* CMD_ASSOC_FAILED calls CMD_DELETE_TCB. */
 		sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
-				SCTP_U32(SCTP_ERROR_NO_ERROR));
+				SCTP_PERR(SCTP_ERROR_NO_ERROR));
 		SCTP_INC_STATS(SCTP_MIB_ABORTEDS);
 		SCTP_DEC_STATS(SCTP_MIB_CURRESTAB);
 		return SCTP_DISPOSITION_DELETE_TCB;
@@ -4781,7 +4781,7 @@ sctp_disposition_t sctp_sf_t2_timer_expire(const struct sctp_endpoint *ep,
 				SCTP_ERROR(ETIMEDOUT));
 		/* Note:  CMD_ASSOC_FAILED calls CMD_DELETE_TCB. */
 		sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
-				SCTP_U32(SCTP_ERROR_NO_ERROR));
+				SCTP_PERR(SCTP_ERROR_NO_ERROR));
 		SCTP_INC_STATS(SCTP_MIB_ABORTEDS);
 		SCTP_DEC_STATS(SCTP_MIB_CURRESTAB);
 		return SCTP_DISPOSITION_DELETE_TCB;
@@ -4859,7 +4859,7 @@ sctp_disposition_t sctp_sf_t4_timer_expire(
 		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
 				SCTP_ERROR(ETIMEDOUT));
 		sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
-				SCTP_U32(SCTP_ERROR_NO_ERROR));
+				SCTP_PERR(SCTP_ERROR_NO_ERROR));
 		SCTP_INC_STATS(SCTP_MIB_ABORTEDS);
 		SCTP_INC_STATS(SCTP_MIB_CURRESTAB);
 		return SCTP_DISPOSITION_ABORT;
@@ -4915,7 +4915,7 @@ sctp_disposition_t sctp_sf_t5_timer_expire(const struct sctp_endpoint *ep,
 	sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
 			SCTP_ERROR(ETIMEDOUT));
 	sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
-			SCTP_U32(SCTP_ERROR_NO_ERROR));
+			SCTP_PERR(SCTP_ERROR_NO_ERROR));
 
 	return SCTP_DISPOSITION_DELETE_TCB;
 nomem:
@@ -5365,7 +5365,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
 				SCTP_ERROR(ECONNABORTED));
 		sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
-				SCTP_U32(SCTP_ERROR_NO_DATA));
+				SCTP_PERR(SCTP_ERROR_NO_DATA));
 		SCTP_INC_STATS(SCTP_MIB_ABORTEDS);
 		SCTP_DEC_STATS(SCTP_MIB_CURRESTAB);
 		return SCTP_IERROR_NO_DATA;
