@@ -1249,18 +1249,22 @@ static void ipr_log_array_error(struct ipr_ioa_cfg *ioa_cfg,
 
 /**
  * ipr_log_hex_data - Log additional hex IOA error data.
+ * @ioa_cfg:	ioa config struct
  * @data:		IOA error data
  * @len:		data length
  *
  * Return value:
  * 	none
  **/
-static void ipr_log_hex_data(u32 *data, int len)
+static void ipr_log_hex_data(struct ipr_ioa_cfg *ioa_cfg, u32 *data, int len)
 {
 	int i;
 
 	if (len == 0)
 		return;
+
+	if (ioa_cfg->log_level <= IPR_DEFAULT_LOG_LEVEL)
+		len = min_t(int, len, IPR_DEFAULT_MAX_ERROR_DUMP);
 
 	for (i = 0; i < len / 4; i += 4) {
 		ipr_err("%08X: %08X %08X %08X %08X\n", i*4,
@@ -1290,7 +1294,7 @@ static void ipr_log_enhanced_dual_ioa_error(struct ipr_ioa_cfg *ioa_cfg,
 	ipr_err("%s\n", error->failure_reason);
 	ipr_err("Remote Adapter VPD:\n");
 	ipr_log_ext_vpd(&error->vpd);
-	ipr_log_hex_data(error->data,
+	ipr_log_hex_data(ioa_cfg, error->data,
 			 be32_to_cpu(hostrcb->hcam.length) -
 			 (offsetof(struct ipr_hostrcb_error, u) +
 			  offsetof(struct ipr_hostrcb_type_17_error, data)));
@@ -1315,7 +1319,7 @@ static void ipr_log_dual_ioa_error(struct ipr_ioa_cfg *ioa_cfg,
 	ipr_err("%s\n", error->failure_reason);
 	ipr_err("Remote Adapter VPD:\n");
 	ipr_log_vpd(&error->vpd);
-	ipr_log_hex_data(error->data,
+	ipr_log_hex_data(ioa_cfg, error->data,
 			 be32_to_cpu(hostrcb->hcam.length) -
 			 (offsetof(struct ipr_hostrcb_error, u) +
 			  offsetof(struct ipr_hostrcb_type_07_error, data)));
@@ -1531,7 +1535,7 @@ static void ipr_log_fabric_error(struct ipr_ioa_cfg *ioa_cfg,
 			((unsigned long)fabric + be16_to_cpu(fabric->length));
 	}
 
-	ipr_log_hex_data((u32 *)fabric, add_len);
+	ipr_log_hex_data(ioa_cfg, (u32 *)fabric, add_len);
 }
 
 /**
@@ -1545,7 +1549,7 @@ static void ipr_log_fabric_error(struct ipr_ioa_cfg *ioa_cfg,
 static void ipr_log_generic_error(struct ipr_ioa_cfg *ioa_cfg,
 				  struct ipr_hostrcb *hostrcb)
 {
-	ipr_log_hex_data(hostrcb->hcam.u.raw.data,
+	ipr_log_hex_data(ioa_cfg, hostrcb->hcam.u.raw.data,
 			 be32_to_cpu(hostrcb->hcam.length));
 }
 
