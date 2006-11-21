@@ -36,51 +36,43 @@ static int br_fill_ifinfo(struct sk_buff *skb, const struct net_bridge_port *por
 {
 	const struct net_bridge *br = port->br;
 	const struct net_device *dev = port->dev;
-	struct ifinfomsg *r;
+	struct ifinfomsg *hdr;
 	struct nlmsghdr *nlh;
-	unsigned char *b = skb->tail;
-	u32 mtu = dev->mtu;
 	u8 operstate = netif_running(dev) ? dev->operstate : IF_OPER_DOWN;
-	u8 portstate = port->state;
 
 	pr_debug("br_fill_info event %d port %s master %s\n",
 		 event, dev->name, br->dev->name);
 
-	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*r), flags);
-	r = NLMSG_DATA(nlh);
-	r->ifi_family = AF_BRIDGE;
-	r->__ifi_pad = 0;
-	r->ifi_type = dev->type;
-	r->ifi_index = dev->ifindex;
-	r->ifi_flags = dev_get_flags(dev);
-	r->ifi_change = 0;
+	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*hdr), flags);
+	if (nlh == NULL)
+		return -ENOBUFS;
 
-	RTA_PUT(skb, IFLA_IFNAME, strlen(dev->name)+1, dev->name);
+	hdr = nlmsg_data(nlh);
+	hdr->ifi_family = AF_BRIDGE;
+	hdr->__ifi_pad = 0;
+	hdr->ifi_type = dev->type;
+	hdr->ifi_index = dev->ifindex;
+	hdr->ifi_flags = dev_get_flags(dev);
+	hdr->ifi_change = 0;
 
-	RTA_PUT(skb, IFLA_MASTER, sizeof(int), &br->dev->ifindex);
+	NLA_PUT_STRING(skb, IFLA_IFNAME, dev->name);
+	NLA_PUT_U32(skb, IFLA_MASTER, br->dev->ifindex);
+	NLA_PUT_U32(skb, IFLA_MTU, dev->mtu);
+	NLA_PUT_U8(skb, IFLA_OPERSTATE, operstate);
 
 	if (dev->addr_len)
-		RTA_PUT(skb, IFLA_ADDRESS, dev->addr_len, dev->dev_addr);
+		NLA_PUT(skb, IFLA_ADDRESS, dev->addr_len, dev->dev_addr);
 
-	RTA_PUT(skb, IFLA_MTU, sizeof(mtu), &mtu);
 	if (dev->ifindex != dev->iflink)
-		RTA_PUT(skb, IFLA_LINK, sizeof(int), &dev->iflink);
-
-
-	RTA_PUT(skb, IFLA_OPERSTATE, sizeof(operstate), &operstate);
+		NLA_PUT_U32(skb, IFLA_LINK, dev->iflink);
 
 	if (event == RTM_NEWLINK)
-		RTA_PUT(skb, IFLA_PROTINFO, sizeof(portstate), &portstate);
+		NLA_PUT_U8(skb, IFLA_PROTINFO, port->state);
 
-	nlh->nlmsg_len = skb->tail - b;
+	return nlmsg_end(skb, nlh);
 
-	return skb->len;
-
-nlmsg_failure:
-rtattr_failure:
-
-	skb_trim(skb, b - skb->data);
-	return -EINVAL;
+nla_put_failure:
+	return nlmsg_cancel(skb, nlh);
 }
 
 /*
@@ -113,25 +105,18 @@ static int br_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net_device *dev;
 	int idx;
-	int s_idx = cb->args[0];
-	int err = 0;
 
 	read_lock(&dev_base_lock);
 	for (dev = dev_base, idx = 0; dev; dev = dev->next) {
-		struct net_bridge_port *p = dev->br_port;
-
 		/* not a bridge port */
-		if (!p)
-			continue;
+		if (dev->br_port == NULL || idx < cb->args[0])
+			goto skip;
 
-		if (idx < s_idx)
-			goto cont;
-
-		err = br_fill_ifinfo(skb, p, NETLINK_CB(cb->skb).pid,
-				     cb->nlh->nlmsg_seq, RTM_NEWLINK, NLM_F_MULTI);
-		if (err <= 0)
+		if (br_fill_ifinfo(skb, dev->br_port, NETLINK_CB(cb->skb).pid,
+				   cb->nlh->nlmsg_seq, RTM_NEWLINK,
+				   NLM_F_MULTI) < 0)
 			break;
-cont:
+skip:
 		++idx;
 	}
 	read_unlock(&dev_base_lock);
@@ -147,26 +132,27 @@ cont:
  */
 static int br_rtm_setlink(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
 {
-	struct rtattr  **rta = arg;
-	struct ifinfomsg *ifm = NLMSG_DATA(nlh);
+	struct ifinfomsg *ifm;
+	struct nlattr *protinfo;
 	struct net_device *dev;
 	struct net_bridge_port *p;
 	u8 new_state;
 
+	if (nlmsg_len(nlh) < sizeof(*ifm))
+		return -EINVAL;
+
+	ifm = nlmsg_data(nlh);
 	if (ifm->ifi_family != AF_BRIDGE)
 		return -EPFNOSUPPORT;
 
-	/* Must pass valid state as PROTINFO */
-	if (rta[IFLA_PROTINFO-1]) {
-		u8 *pstate = RTA_DATA(rta[IFLA_PROTINFO-1]);
-		new_state = *pstate;
-	} else
+	protinfo = nlmsg_find_attr(nlh, sizeof(*ifm), IFLA_PROTINFO);
+	if (!protinfo || nla_len(protinfo) < sizeof(u8))
 		return -EINVAL;
 
+	new_state = nla_get_u8(protinfo);
 	if (new_state > BR_STATE_BLOCKING)
 		return -EINVAL;
 
-	/* Find bridge port */
 	dev = __dev_get_by_index(ifm->ifi_index);
 	if (!dev)
 		return -ENODEV;
@@ -179,10 +165,8 @@ static int br_rtm_setlink(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
 	if (p->br->stp_enabled)
 		return -EBUSY;
 
-	if (!netif_running(dev))
-		return -ENETDOWN;
-
-	if (!netif_carrier_ok(dev) && new_state != BR_STATE_DISABLED)
+	if (!netif_running(dev) ||
+	    (!netif_carrier_ok(dev) && new_state != BR_STATE_DISABLED))
 		return -ENETDOWN;
 
 	p->state = new_state;
