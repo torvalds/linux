@@ -161,7 +161,7 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport,
 	/* Fill in the dest address from the route entry passed with the skb
 	 * and the source address from the transport.
 	 */
-	ipv6_addr_copy(&fl.fl6_dst, &transport->ipaddr_h.v6.sin6_addr);
+	ipv6_addr_copy(&fl.fl6_dst, &transport->ipaddr.v6.sin6_addr);
 	ipv6_addr_copy(&fl.fl6_src, &transport->saddr.v6.sin6_addr);
 
 	fl.fl6_flowlabel = np->flow_label;

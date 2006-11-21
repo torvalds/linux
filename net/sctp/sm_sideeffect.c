@@ -441,8 +441,8 @@ static void sctp_do_8_2_transport_strike(struct sctp_association *asoc,
 		SCTP_DEBUG_PRINTK_IPADDR("transport_strike:association %p",
 					 " transport IP: port:%d failed.\n",
 					 asoc,
-					 (&transport->ipaddr_h),
-					 transport->ipaddr_h.v4.sin_port);
+					 (&transport->ipaddr),
+					 ntohs(transport->ipaddr.v4.sin_port));
 		sctp_assoc_control_transport(asoc, transport,
 					     SCTP_TRANSPORT_DOWN,
 					     SCTP_FAILED_THRESHOLD);
