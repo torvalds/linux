@@ -831,10 +831,11 @@ struct dn_fib_table *dn_fib_get_table(u32 n, int create)
                 printk(KERN_DEBUG "DECnet: BUG! Attempt to create routing table from interrupt\n"); 
                 return NULL;
         }
-        if ((t = kmalloc(sizeof(struct dn_fib_table) + sizeof(struct dn_hash), GFP_KERNEL)) == NULL)
-                return NULL;
 
-        memset(t, 0, sizeof(struct dn_fib_table));
+        t = kzalloc(sizeof(struct dn_fib_table) + sizeof(struct dn_hash),
+		    GFP_KERNEL);
+        if (t == NULL)
+                return NULL;
 
         t->n = n;
         t->insert = dn_fib_table_insert;
@@ -842,7 +843,6 @@ struct dn_fib_table *dn_fib_get_table(u32 n, int create)
         t->lookup = dn_fib_table_lookup;
         t->flush  = dn_fib_table_flush;
         t->dump = dn_fib_table_dump;
-	memset(t->data, 0, sizeof(struct dn_hash));
 	hlist_add_head_rcu(&t->hlist, &dn_fib_table_hash[h]);
 
         return t;
