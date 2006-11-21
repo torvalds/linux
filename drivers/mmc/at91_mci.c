@@ -824,6 +824,7 @@ static int __init at91_mci_probe(struct platform_device *pdev)
 	mmc->caps = MMC_CAP_BYTEBLOCK;
 
 	mmc->max_blk_size = 4095;
+	mmc->max_blk_count = mmc->max_req_size;
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;

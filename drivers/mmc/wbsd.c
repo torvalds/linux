@@ -1343,22 +1343,27 @@ static int __devinit wbsd_alloc_mmc(struct device *dev)
 	mmc->max_phys_segs = 128;
 
 	/*
-	 * Maximum number of sectors in one transfer. Also limited by 64kB
-	 * buffer.
+	 * Maximum request size. Also limited by 64KiB buffer.
 	 */
-	mmc->max_sectors = 128;
+	mmc->max_req_size = 65536;
 
 	/*
 	 * Maximum segment size. Could be one segment with the maximum number
-	 * of segments.
+	 * of bytes.
 	 */
-	mmc->max_seg_size = mmc->max_sectors * 512;
+	mmc->max_seg_size = mmc->max_req_size;
 
 	/*
 	 * Maximum block size. We have 12 bits (= 4095) but have to subtract
 	 * space for CRC. So the maximum is 4095 - 4*2 = 4087.
 	 */
 	mmc->max_blk_size = 4087;
+
+	/*
+	 * Maximum block count. There is no real limit so the maximum
+	 * request size will be the only restriction.
+	 */
+	mmc->max_blk_count = mmc->max_req_size;
 
 	dev_set_drvdata(dev, mmc);
 

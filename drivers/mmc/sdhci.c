@@ -1333,15 +1333,15 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 
 	/*
 	 * Maximum number of sectors in one transfer. Limited by DMA boundary
-	 * size (512KiB), which means (512 KiB/512=) 1024 entries.
+	 * size (512KiB).
 	 */
-	mmc->max_sectors = 1024;
+	mmc->max_req_size = 524288;
 
 	/*
 	 * Maximum segment size. Could be one segment with the maximum number
-	 * of sectors.
+	 * of bytes.
 	 */
-	mmc->max_seg_size = mmc->max_sectors * 512;
+	mmc->max_seg_size = mmc->max_req_size;
 
 	/*
 	 * Maximum block size. This varies from controller to controller and
@@ -1355,6 +1355,11 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 		goto unmap;
 	}
 	mmc->max_blk_size = 512 << mmc->max_blk_size;
+
+	/*
+	 * Maximum block count.
+	 */
+	mmc->max_blk_count = 65535;
 
 	/*
 	 * Init tasklets.

@@ -455,6 +455,11 @@ static int pxamci_probe(struct platform_device *pdev)
 	 */
 	mmc->max_blk_size = 1023;
 
+	/*
+	 * Block count register is 16 bits.
+	 */
+	mmc->max_blk_count = 65535;
+
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
 	host->dma = -1;

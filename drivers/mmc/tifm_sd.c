@@ -885,10 +885,13 @@ static int tifm_sd_probe(struct tifm_dev *sock)
 	mmc->f_max = 24000000;
 	mmc->max_hw_segs = 1;
 	mmc->max_phys_segs = 1;
-	mmc->max_sectors = 127;
-	//2k maximum hw block length
-	mmc->max_seg_size = mmc->max_sectors << 11;
+	// limited by DMA counter - it's safer to stick with
+	// block counter has 11 bits though
+	mmc->max_blk_count = 256;
+	// 2k maximum hw block length
 	mmc->max_blk_size = 2048;
+	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
+	mmc->max_seg_size = mmc->max_req_size;
 	sock->signal_irq = tifm_sd_signal_irq;
 	rc = tifm_sd_initialize_host(host);
 
