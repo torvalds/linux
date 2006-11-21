@@ -1179,7 +1179,7 @@ static int sctp_sf_check_restart_addrs(const struct sctp_association *new_asoc,
 
 	/* If a new address was added, ABORT the sender. */
 	if (!found && new_addr) {
-		sctp_sf_send_restart_abort(&new_addr->ipaddr_h, init, commands);
+		sctp_sf_send_restart_abort(&new_addr->ipaddr, init, commands);
 	}
 
 	/* Return success if all addresses were found. */
