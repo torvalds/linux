@@ -5103,7 +5103,6 @@ static struct sctp_packet *sctp_ootb_pkt_new(const struct sctp_association *asoc
 	__u16 sport;
 	__u16 dport;
 	__u32 vtag;
-	union sctp_addr tmp;
 
 	/* Get the source and destination port from the inbound packet.  */
 	sport = ntohs(chunk->sctp_hdr->dest);
@@ -5141,8 +5140,7 @@ static struct sctp_packet *sctp_ootb_pkt_new(const struct sctp_association *asoc
 	/* Cache a route for the transport with the chunk's destination as
 	 * the source address.
 	 */
-	flip_to_n(&tmp, &chunk->dest);
-	sctp_transport_route(transport, &tmp,
+	sctp_transport_route(transport, (union sctp_addr *)&chunk->dest,
 			     sctp_sk(sctp_get_ctl_sock()));
 
 	packet = sctp_packet_init(&transport->packet, transport, sport, dport);

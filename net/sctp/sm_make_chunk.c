@@ -1033,7 +1033,7 @@ void sctp_init_addrs(struct sctp_chunk *chunk, union sctp_addr *src,
 {
 	memcpy(&chunk->source, src, sizeof(union sctp_addr));
 	flip_to_h(&chunk->source_h, &chunk->source);
-	flip_to_h(&chunk->dest, dest);
+	memcpy(&chunk->dest, dest, sizeof(union sctp_addr));
 }
 
 /* Extract the source address from a chunk.  */
@@ -1507,9 +1507,7 @@ no_hmac:
 
 	/* Also, add the destination address. */
 	if (list_empty(&retval->base.bind_addr.address_list)) {
-		union sctp_addr tmp;
-		flip_to_n(&tmp, &chunk->dest);
-		sctp_add_bind_addr(&retval->base.bind_addr, &tmp, 1,
+		sctp_add_bind_addr(&retval->base.bind_addr, &chunk->dest, 1,
 				   GFP_ATOMIC);
 	}
 
