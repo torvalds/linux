@@ -93,7 +93,7 @@ static sctp_disposition_t sctp_sf_shut_8_4_5(const struct sctp_endpoint *ep,
 static struct sctp_sackhdr *sctp_sm_pull_sack(struct sctp_chunk *chunk);
 
 static sctp_disposition_t sctp_stop_t1_and_abort(sctp_cmd_seq_t *commands,
-					   __u16 error, int sk_err,
+					   __be16 error, int sk_err,
 					   const struct sctp_association *asoc,
 					   struct sctp_transport *transport);
 
@@ -443,7 +443,7 @@ sctp_disposition_t sctp_sf_do_5_1C_ack(const struct sctp_endpoint *ep,
 	__u32 init_tag;
 	struct sctp_chunk *err_chunk;
 	struct sctp_packet *packet;
-	__u16 error;
+	sctp_error_t error;
 
 	if (!sctp_vtag_verify(chunk, asoc))
 		return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
@@ -2295,7 +2295,7 @@ sctp_disposition_t sctp_sf_cookie_wait_abort(const struct sctp_endpoint *ep,
 {
 	struct sctp_chunk *chunk = arg;
 	unsigned len;
-	__u16 error = SCTP_ERROR_NO_ERROR;
+	__be16 error = SCTP_ERROR_NO_ERROR;
 
 	if (!sctp_vtag_verify_either(chunk, asoc))
 		return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
@@ -2357,7 +2357,7 @@ sctp_disposition_t sctp_sf_cookie_echoed_abort(const struct sctp_endpoint *ep,
  * This is common code called by several sctp_sf_*_abort() functions above.
  */
 static sctp_disposition_t sctp_stop_t1_and_abort(sctp_cmd_seq_t *commands,
-					   __u16 error, int sk_err,
+					   __be16 error, int sk_err,
 					   const struct sctp_association *asoc,
 					   struct sctp_transport *transport)
 {
