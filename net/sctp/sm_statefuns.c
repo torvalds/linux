@@ -5105,6 +5105,7 @@ static struct sctp_packet *sctp_ootb_pkt_new(const struct sctp_association *asoc
 	__u16 sport;
 	__u16 dport;
 	__u32 vtag;
+	union sctp_addr tmp;
 
 	/* Get the source and destination port from the inbound packet.  */
 	sport = ntohs(chunk->sctp_hdr->dest);
@@ -5135,7 +5136,8 @@ static struct sctp_packet *sctp_ootb_pkt_new(const struct sctp_association *asoc
 	}
 
 	/* Make a transport for the bucket, Eliza... */
-	transport = sctp_transport_new(sctp_source(chunk), GFP_ATOMIC);
+	flip_to_n(&tmp, sctp_source(chunk));
+	transport = sctp_transport_new(&tmp, GFP_ATOMIC);
 	if (!transport)
 		goto nomem;
 

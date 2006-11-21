@@ -61,8 +61,8 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 						  gfp_t gfp)
 {
 	/* Copy in the address.  */
-	peer->ipaddr_h = *addr;
-	flip_to_n(&peer->ipaddr, &peer->ipaddr_h);
+	peer->ipaddr = *addr;
+	flip_to_h(&peer->ipaddr_h, &peer->ipaddr);
 	peer->af_specific = sctp_get_af_specific(addr->sa.sa_family);
 	peer->asoc = NULL;
 
