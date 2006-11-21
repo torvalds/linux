@@ -733,7 +733,7 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 	 * user.
 	 */
 	memset(&addr, 0, sizeof(struct sockaddr_storage));
-	flip_to_n((union sctp_addr *)&addr, &transport->ipaddr_h);
+	memcpy(&addr, &transport->ipaddr, transport->af_specific->sockaddr_len);
 	event = sctp_ulpevent_make_peer_addr_change(asoc, &addr,
 				0, spc_state, error, GFP_ATOMIC);
 	if (event)
