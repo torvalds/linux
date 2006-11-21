@@ -904,7 +904,6 @@ struct sctp_transport {
 	struct dst_entry *dst;
 	/* Source address. */
 	union sctp_addr saddr;
-	union sctp_addr saddr_h;
 
 	/* When was the last time(in jiffies) that a data packet was sent on
 	 * this transport?  This is used to adjust the cwnd when the transport

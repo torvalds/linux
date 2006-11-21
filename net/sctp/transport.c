@@ -68,7 +68,6 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 
 	peer->dst = NULL;
 	memset(&peer->saddr, 0, sizeof(union sctp_addr));
-	memset(&peer->saddr_h, 0, sizeof(union sctp_addr));
 
 	/* From 6.3.1 RTO Calculation:
 	 *
@@ -261,7 +260,6 @@ void sctp_transport_route(struct sctp_transport *transport,
 	else
 		af->get_saddr(asoc, dst, daddr, &transport->saddr);
 
-	flip_to_h(&transport->saddr_h, &transport->saddr);
 	transport->dst = dst;
 	if ((transport->param_flags & SPP_PMTUD_DISABLE) && transport->pathmtu) {
 		return;
@@ -273,7 +271,7 @@ void sctp_transport_route(struct sctp_transport *transport,
 		 * association's active path for getsockname().
 		 */ 
 		if (asoc && (transport == asoc->peer.active_path))
-			opt->pf->af->to_sk_saddr(&transport->saddr_h,
+			opt->pf->af->to_sk_saddr(&transport->saddr,
 						 asoc->base.sk);
 	} else
 		transport->pathmtu = SCTP_DEFAULT_MAXSEGMENT;

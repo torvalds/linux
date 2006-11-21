@@ -162,12 +162,12 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport,
 	 * and the source address from the transport.
 	 */
 	ipv6_addr_copy(&fl.fl6_dst, &transport->ipaddr_h.v6.sin6_addr);
-	ipv6_addr_copy(&fl.fl6_src, &transport->saddr_h.v6.sin6_addr);
+	ipv6_addr_copy(&fl.fl6_src, &transport->saddr.v6.sin6_addr);
 
 	fl.fl6_flowlabel = np->flow_label;
 	IP6_ECN_flow_xmit(sk, fl.fl6_flowlabel);
 	if (ipv6_addr_type(&fl.fl6_src) & IPV6_ADDR_LINKLOCAL)
-		fl.oif = transport->saddr_h.v6.sin6_scope_id;
+		fl.oif = transport->saddr.v6.sin6_scope_id;
 	else
 		fl.oif = sk->sk_bound_dev_if;
 	fl.fl_ip_sport = inet_sk(sk)->sport;
