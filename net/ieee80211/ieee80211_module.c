@@ -67,16 +67,13 @@ static int ieee80211_networks_allocate(struct ieee80211_device *ieee)
 		return 0;
 
 	ieee->networks =
-	    kmalloc(MAX_NETWORK_COUNT * sizeof(struct ieee80211_network),
+	    kzalloc(MAX_NETWORK_COUNT * sizeof(struct ieee80211_network),
 		    GFP_KERNEL);
 	if (!ieee->networks) {
 		printk(KERN_WARNING "%s: Out of memory allocating beacons\n",
 		       ieee->dev->name);
 		return -ENOMEM;
 	}
-
-	memset(ieee->networks, 0,
-	       MAX_NETWORK_COUNT * sizeof(struct ieee80211_network));
 
 	return 0;
 }

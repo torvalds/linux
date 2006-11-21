@@ -216,10 +216,16 @@ ieee80211softmac_auth_resp(struct net_device *dev, struct ieee80211_auth *auth)
 			net->challenge_len = *data++; 	
 			if (net->challenge_len > WLAN_AUTH_CHALLENGE_LEN)
 				net->challenge_len = WLAN_AUTH_CHALLENGE_LEN;
-			if (net->challenge != NULL)
-				kfree(net->challenge);
-			net->challenge = kmalloc(net->challenge_len, GFP_ATOMIC);
-			memcpy(net->challenge, data, net->challenge_len);
+			kfree(net->challenge);
+			net->challenge = kmemdup(data, net->challenge_len,
+						 GFP_ATOMIC);
+			if (net->challenge == NULL) {
+				printkl(KERN_NOTICE PFX "Shared Key "
+					"Authentication failed due to "
+					"memory shortage.\n");
+				spin_unlock_irqrestore(&mac->lock, flags);
+				break;
+			}
 			aq->state = IEEE80211SOFTMAC_AUTH_SHARED_RESPONSE; 
 
 			/* We reuse the work struct from the auth request here.
