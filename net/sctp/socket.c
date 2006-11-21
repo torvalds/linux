@@ -1000,7 +1000,6 @@ static int __sctp_connect(struct sock* sk,
 			goto out_free;
 
 		memcpy(&to, sa_addr, af->sockaddr_len);
-		to.v4.sin_port = ntohs(to.v4.sin_port);
 
 		/* Check if there already is a matching association on the
 		 * endpoint (other than the one created here).
@@ -1049,7 +1048,7 @@ static int __sctp_connect(struct sock* sk,
 				}
 			}
 
-			scope = sctp_scope(&to);
+			scope = sctp_scope(sa_addr);
 			asoc = sctp_association_new(ep, sk, scope, GFP_KERNEL);
 			if (!asoc) {
 				err = -ENOMEM;
@@ -1357,7 +1356,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	struct sctp_association *new_asoc=NULL, *asoc=NULL;
 	struct sctp_transport *transport, *chunk_tp;
 	struct sctp_chunk *chunk;
-	union sctp_addr to, tmp;
+	union sctp_addr to;
 	struct sockaddr *msg_name = NULL;
 	struct sctp_sndrcvinfo default_sinfo = { 0 };
 	struct sctp_sndrcvinfo *sinfo;
@@ -1411,12 +1410,6 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 		if (msg_namelen > sizeof(to))
 			msg_namelen = sizeof(to);
 		memcpy(&to, msg->msg_name, msg_namelen);
-		memcpy(&tmp, msg->msg_name, msg_namelen);
-		SCTP_DEBUG_PRINTK("Just memcpy'd. msg_name is "
-				  "0x%x:%u.\n",
-				  to.v4.sin_addr.s_addr, to.v4.sin_port);
-
-		to.v4.sin_port = ntohs(to.v4.sin_port);
 		msg_name = msg->msg_name;
 	}
 
@@ -1466,7 +1459,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	/* If a msg_name has been specified, assume this is to be used.  */
 	if (msg_name) {
 		/* Look for a matching association on the endpoint. */
-		asoc = sctp_endpoint_lookup_assoc(ep, &tmp, &transport);
+		asoc = sctp_endpoint_lookup_assoc(ep, &to, &transport);
 		if (!asoc) {
 			/* If we could not find a matching association on the
 			 * endpoint, make sure that it is not a TCP-style
@@ -1475,7 +1468,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 			 */
 			if ((sctp_style(sk, TCP) &&
 			     sctp_sstate(sk, ESTABLISHED)) ||
-			    sctp_endpoint_is_peeled_off(ep, &tmp)) {
+			    sctp_endpoint_is_peeled_off(ep, &to)) {
 				err = -EADDRNOTAVAIL;
 				goto out_unlock;
 			}
@@ -1612,7 +1605,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 		}
 
 		/* Prime the peer's transport structures.  */
-		transport = sctp_assoc_add_peer(asoc, &tmp, GFP_KERNEL, SCTP_UNKNOWN);
+		transport = sctp_assoc_add_peer(asoc, &to, GFP_KERNEL, SCTP_UNKNOWN);
 		if (!transport) {
 			err = -ENOMEM;
 			goto out_free;
@@ -1679,7 +1672,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	 */
 	if ((sctp_style(sk, TCP) && msg_name) ||
 	    (sinfo_flags & SCTP_ADDR_OVER)) {
-		chunk_tp = sctp_assoc_lookup_paddr(asoc, &tmp);
+		chunk_tp = sctp_assoc_lookup_paddr(asoc, &to);
 		if (!chunk_tp) {
 			err = -EINVAL;
 			goto out_free;
