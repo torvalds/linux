@@ -607,9 +607,8 @@ int sctp_bindx_rem(struct sock *sk, struct sockaddr *addrs, int addrcnt)
 	int cnt;
 	struct sctp_bind_addr *bp = &ep->base.bind_addr;
 	int retval = 0;
-	union sctp_addr saveaddr;
 	void *addr_buf;
-	struct sockaddr *sa_addr;
+	union sctp_addr *sa_addr;
 	struct sctp_af *af;
 
 	SCTP_DEBUG_PRINTK("sctp_bindx_rem (sk: %p, addrs: %p, addrcnt: %d)\n",
@@ -627,19 +626,13 @@ int sctp_bindx_rem(struct sock *sk, struct sockaddr *addrs, int addrcnt)
 			goto err_bindx_rem;
 		}
 
-		/* The list may contain either IPv4 or IPv6 address;
-		 * determine the address length to copy the address to
-		 * saveaddr. 
-		 */
-		sa_addr = (struct sockaddr *)addr_buf;
-		af = sctp_get_af_specific(sa_addr->sa_family);
+		sa_addr = (union sctp_addr *)addr_buf;
+		af = sctp_get_af_specific(sa_addr->sa.sa_family);
 		if (!af) {
 			retval = -EINVAL;
 			goto err_bindx_rem;
 		}
-		memcpy(&saveaddr, sa_addr, af->sockaddr_len); 
-		saveaddr.v4.sin_port = ntohs(saveaddr.v4.sin_port);
-		if (saveaddr.v4.sin_port != bp->port) {
+		if (sa_addr->v4.sin_port != htons(bp->port)) {
 			retval = -EINVAL;
 			goto err_bindx_rem;
 		}
@@ -654,7 +647,7 @@ int sctp_bindx_rem(struct sock *sk, struct sockaddr *addrs, int addrcnt)
 		sctp_local_bh_disable();
 		sctp_write_lock(&ep->base.addr_lock);
 
-		retval = sctp_del_bind_addr(bp, &saveaddr);
+		retval = sctp_del_bind_addr(bp, sa_addr);
 
 		sctp_write_unlock(&ep->base.addr_lock);
 		sctp_local_bh_enable();

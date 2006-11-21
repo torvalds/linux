@@ -181,13 +181,10 @@ int sctp_del_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *del_addr)
 {
 	struct list_head *pos, *temp;
 	struct sctp_sockaddr_entry *addr;
-	union sctp_addr tmp;
-
-	flip_to_n(&tmp, del_addr);
 
 	list_for_each_safe(pos, temp, &bp->address_list) {
 		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
-		if (sctp_cmp_addr_exact(&addr->a, &tmp)) {
+		if (sctp_cmp_addr_exact(&addr->a, del_addr)) {
 			/* Found the exact match. */
 			list_del(pos);
 			kfree(addr);

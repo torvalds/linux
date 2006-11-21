@@ -2609,7 +2609,7 @@ static int sctp_asconf_param_success(struct sctp_association *asoc,
 	case SCTP_PARAM_DEL_IP:
 		sctp_local_bh_disable();
 		sctp_write_lock(&asoc->base.addr_lock);
-		retval = sctp_del_bind_addr(bp, &addr);
+		retval = sctp_del_bind_addr(bp, &tmp);
 		sctp_write_unlock(&asoc->base.addr_lock);
 		sctp_local_bh_enable();
 		list_for_each(pos, &asoc->peer.transport_addr_list) {
