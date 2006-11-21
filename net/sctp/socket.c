@@ -547,7 +547,7 @@ static int sctp_send_asconf_add_ip(struct sock		*sk,
 		laddr = list_entry(p, struct sctp_sockaddr_entry, list);
 		sctp_read_unlock(&asoc->base.addr_lock);
 
-		chunk = sctp_make_asconf_update_ip(asoc, &laddr->a_h, addrs,
+		chunk = sctp_make_asconf_update_ip(asoc, &laddr->a, addrs,
 						   addrcnt, SCTP_PARAM_ADD_IP);
 		if (!chunk) {
 			retval = -ENOMEM;

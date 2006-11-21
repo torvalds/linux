@@ -345,7 +345,7 @@ union sctp_addr *sctp_find_unmatch_addr(struct sctp_bind_addr	*bp,
 			addr_buf += af->sockaddr_len;
 		}
 		if (i == addrcnt)
-			return &laddr->a_h;
+			return &laddr->a;
 	}
 
 	return NULL;
