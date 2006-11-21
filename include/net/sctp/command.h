@@ -119,6 +119,7 @@ typedef union {
 	__u16 u16;
 	__u8 u8;
 	int error;
+	__be16 err;
 	sctp_state_t state;
 	sctp_event_timeout_t to;
 	unsigned long zero;
@@ -167,6 +168,7 @@ SCTP_ARG_CONSTRUCTOR(U32,	__u32, u32)
 SCTP_ARG_CONSTRUCTOR(U16,	__u16, u16)
 SCTP_ARG_CONSTRUCTOR(U8,	__u8, u8)
 SCTP_ARG_CONSTRUCTOR(ERROR,     int, error)
+SCTP_ARG_CONSTRUCTOR(PERR,      __be16, err)	/* protocol error */
 SCTP_ARG_CONSTRUCTOR(STATE,	sctp_state_t, state)
 SCTP_ARG_CONSTRUCTOR(TO,	sctp_event_timeout_t, to)
 SCTP_ARG_CONSTRUCTOR(PTR,	void *, ptr)

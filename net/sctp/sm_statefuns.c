@@ -2138,7 +2138,7 @@ static sctp_disposition_t sctp_sf_do_5_2_6_stale(const struct sctp_endpoint *ep,
 		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
 				SCTP_ERROR(ETIMEDOUT));
 		sctp_add_cmd_sf(commands, SCTP_CMD_INIT_FAILED,
-				SCTP_U32(SCTP_ERROR_STALE_COOKIE));
+				SCTP_PERR(SCTP_ERROR_STALE_COOKIE));
 		return SCTP_DISPOSITION_DELETE_TCB;
 	}
 
@@ -2370,7 +2370,7 @@ static sctp_disposition_t sctp_stop_t1_and_abort(sctp_cmd_seq_t *commands,
 	sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR, SCTP_ERROR(sk_err));
 	/* CMD_INIT_FAILED will DELETE_TCB. */
 	sctp_add_cmd_sf(commands, SCTP_CMD_INIT_FAILED,
-			SCTP_U32(error));
+			SCTP_PERR(error));
 	return SCTP_DISPOSITION_ABORT;
 }
 
@@ -3743,7 +3743,7 @@ static sctp_disposition_t sctp_sf_violation_chunklen(
 		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
 				SCTP_ERROR(ECONNREFUSED));
 		sctp_add_cmd_sf(commands, SCTP_CMD_INIT_FAILED,
-				SCTP_U32(SCTP_ERROR_PROTO_VIOLATION));
+				SCTP_PERR(SCTP_ERROR_PROTO_VIOLATION));
 	} else {
 		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
 			        SCTP_ERROR(ECONNABORTED));
@@ -4199,7 +4199,7 @@ sctp_disposition_t sctp_sf_cookie_wait_prm_abort(
 			SCTP_ERROR(ECONNREFUSED));
 	/* Delete the established association. */
 	sctp_add_cmd_sf(commands, SCTP_CMD_INIT_FAILED,
-			SCTP_U32(SCTP_ERROR_USER_ABORT));
+			SCTP_PERR(SCTP_ERROR_USER_ABORT));
 
 	return retval;
 }
@@ -4693,7 +4693,7 @@ sctp_disposition_t sctp_sf_t1_init_timer_expire(const struct sctp_endpoint *ep,
 		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
 				SCTP_ERROR(ETIMEDOUT));
 		sctp_add_cmd_sf(commands, SCTP_CMD_INIT_FAILED,
-				SCTP_U32(SCTP_ERROR_NO_ERROR));
+				SCTP_PERR(SCTP_ERROR_NO_ERROR));
 		return SCTP_DISPOSITION_DELETE_TCB;
 	}
 
@@ -4745,7 +4745,7 @@ sctp_disposition_t sctp_sf_t1_cookie_timer_expire(const struct sctp_endpoint *ep
 		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
 				SCTP_ERROR(ETIMEDOUT));
 		sctp_add_cmd_sf(commands, SCTP_CMD_INIT_FAILED,
-				SCTP_U32(SCTP_ERROR_NO_ERROR));
+				SCTP_PERR(SCTP_ERROR_NO_ERROR));
 		return SCTP_DISPOSITION_DELETE_TCB;
 	}
 
