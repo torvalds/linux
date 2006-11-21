@@ -61,12 +61,12 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 						  gfp_t gfp)
 {
 	/* Copy in the address.  */
-	peer->ipaddr = *addr;
+	peer->ipaddr_h = *addr;
 	peer->af_specific = sctp_get_af_specific(addr->sa.sa_family);
 	peer->asoc = NULL;
 
 	peer->dst = NULL;
-	memset(&peer->saddr, 0, sizeof(union sctp_addr));
+	memset(&peer->saddr_h, 0, sizeof(union sctp_addr));
 
 	/* From 6.3.1 RTO Calculation:
 	 *
@@ -232,7 +232,7 @@ void sctp_transport_pmtu(struct sctp_transport *transport)
 {
 	struct dst_entry *dst;
 
-	dst = transport->af_specific->get_dst(NULL, &transport->ipaddr, NULL);
+	dst = transport->af_specific->get_dst(NULL, &transport->ipaddr_h, NULL);
 
 	if (dst) {
 		transport->pathmtu = dst_mtu(dst);
@@ -249,15 +249,15 @@ void sctp_transport_route(struct sctp_transport *transport,
 {
 	struct sctp_association *asoc = transport->asoc;
 	struct sctp_af *af = transport->af_specific;
-	union sctp_addr *daddr = &transport->ipaddr;
+	union sctp_addr *daddr = &transport->ipaddr_h;
 	struct dst_entry *dst;
 
 	dst = af->get_dst(asoc, daddr, saddr);
 
 	if (saddr)
-		memcpy(&transport->saddr, saddr, sizeof(union sctp_addr));
+		memcpy(&transport->saddr_h, saddr, sizeof(union sctp_addr));
 	else
-		af->get_saddr(asoc, dst, daddr, &transport->saddr);
+		af->get_saddr(asoc, dst, daddr, &transport->saddr_h);
 
 	transport->dst = dst;
 	if ((transport->param_flags & SPP_PMTUD_DISABLE) && transport->pathmtu) {
@@ -270,7 +270,7 @@ void sctp_transport_route(struct sctp_transport *transport,
 		 * association's active path for getsockname().
 		 */ 
 		if (asoc && (transport == asoc->peer.active_path))
-			opt->pf->af->to_sk_saddr(&transport->saddr,
+			opt->pf->af->to_sk_saddr(&transport->saddr_h,
 						 asoc->base.sk);
 	} else
 		transport->pathmtu = SCTP_DEFAULT_MAXSEGMENT;

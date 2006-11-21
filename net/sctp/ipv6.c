@@ -161,17 +161,17 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport,
 	/* Fill in the dest address from the route entry passed with the skb
 	 * and the source address from the transport.
 	 */
-	ipv6_addr_copy(&fl.fl6_dst, &transport->ipaddr.v6.sin6_addr);
-	ipv6_addr_copy(&fl.fl6_src, &transport->saddr.v6.sin6_addr);
+	ipv6_addr_copy(&fl.fl6_dst, &transport->ipaddr_h.v6.sin6_addr);
+	ipv6_addr_copy(&fl.fl6_src, &transport->saddr_h.v6.sin6_addr);
 
 	fl.fl6_flowlabel = np->flow_label;
 	IP6_ECN_flow_xmit(sk, fl.fl6_flowlabel);
 	if (ipv6_addr_type(&fl.fl6_src) & IPV6_ADDR_LINKLOCAL)
-		fl.oif = transport->saddr.v6.sin6_scope_id;
+		fl.oif = transport->saddr_h.v6.sin6_scope_id;
 	else
 		fl.oif = sk->sk_bound_dev_if;
 	fl.fl_ip_sport = inet_sk(sk)->sport;
-	fl.fl_ip_dport = transport->ipaddr.v6.sin6_port;
+	fl.fl_ip_dport = transport->ipaddr_h.v6.sin6_port;
 
 	if (np->opt && np->opt->srcrt) {
 		struct rt0_hdr *rt0 = (struct rt0_hdr *) np->opt->srcrt;
@@ -290,11 +290,11 @@ static void sctp_v6_get_saddr(struct sctp_association *asoc,
 	list_for_each(pos, &bp->address_list) {
 		laddr = list_entry(pos, struct sctp_sockaddr_entry, list);
 		if ((laddr->use_as_src) &&
-		    (laddr->a.sa.sa_family == AF_INET6) &&
-		    (scope <= sctp_scope(&laddr->a))) {
-			bmatchlen = sctp_v6_addr_match_len(daddr, &laddr->a);
+		    (laddr->a_h.sa.sa_family == AF_INET6) &&
+		    (scope <= sctp_scope(&laddr->a_h))) {
+			bmatchlen = sctp_v6_addr_match_len(daddr, &laddr->a_h);
 			if (!baddr || (matchlen < bmatchlen)) {
-				baddr = &laddr->a;
+				baddr = &laddr->a_h;
 				matchlen = bmatchlen;
 			}
 		}
@@ -332,10 +332,10 @@ static void sctp_v6_copy_addrlist(struct list_head *addrlist,
 		/* Add the address to the local list.  */
 		addr = t_new(struct sctp_sockaddr_entry, GFP_ATOMIC);
 		if (addr) {
-			addr->a.v6.sin6_family = AF_INET6;
-			addr->a.v6.sin6_port = 0;
-			addr->a.v6.sin6_addr = ifp->addr;
-			addr->a.v6.sin6_scope_id = dev->ifindex;
+			addr->a_h.v6.sin6_family = AF_INET6;
+			addr->a_h.v6.sin6_port = 0;
+			addr->a_h.v6.sin6_addr = ifp->addr;
+			addr->a_h.v6.sin6_scope_id = dev->ifindex;
 			INIT_LIST_HEAD(&addr->list);
 			list_add_tail(&addr->list, addrlist);
 		}

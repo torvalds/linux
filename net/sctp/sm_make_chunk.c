@@ -1031,7 +1031,7 @@ nodata:
 void sctp_init_addrs(struct sctp_chunk *chunk, union sctp_addr *src,
 		     union sctp_addr *dest)
 {
-	memcpy(&chunk->source, src, sizeof(union sctp_addr));
+	memcpy(&chunk->source_h, src, sizeof(union sctp_addr));
 	memcpy(&chunk->dest, dest, sizeof(union sctp_addr));
 }
 
@@ -1040,10 +1040,10 @@ const union sctp_addr *sctp_source(const struct sctp_chunk *chunk)
 {
 	/* If we have a known transport, use that.  */
 	if (chunk->transport) {
-		return &chunk->transport->ipaddr;
+		return &chunk->transport->ipaddr_h;
 	} else {
 		/* Otherwise, extract it from the IP header.  */
-		return &chunk->source;
+		return &chunk->source_h;
 	}
 }
 
@@ -2594,7 +2594,7 @@ static int sctp_asconf_param_success(struct sctp_association *asoc,
 		sctp_write_lock(&asoc->base.addr_lock);
 		list_for_each(pos, &bp->address_list) {
 			saddr = list_entry(pos, struct sctp_sockaddr_entry, list);
-			if (sctp_cmp_addr_exact(&saddr->a, &addr))
+			if (sctp_cmp_addr_exact(&saddr->a_h, &addr))
 				saddr->use_as_src = 1;
 		}
 		sctp_write_unlock(&asoc->base.addr_lock);

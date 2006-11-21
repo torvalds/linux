@@ -442,7 +442,7 @@ void sctp_assoc_set_primary(struct sctp_association *asoc,
 	asoc->peer.primary_path = transport;
 
 	/* Set a default msg_name for events. */
-	memcpy(&asoc->peer.primary_addr, &transport->ipaddr,
+	memcpy(&asoc->peer.primary_addr, &transport->ipaddr_h,
 	       sizeof(union sctp_addr));
 
 	/* If the primary path is changing, assume that the
@@ -487,8 +487,8 @@ void sctp_assoc_rm_peer(struct sctp_association *asoc,
 	SCTP_DEBUG_PRINTK_IPADDR("sctp_assoc_rm_peer:association %p addr: ",
 				 " port: %d\n",
 				 asoc,
-				 (&peer->ipaddr),
-				 peer->ipaddr.v4.sin_port);
+				 (&peer->ipaddr_h),
+				 peer->ipaddr_h.v4.sin_port);
 
 	/* If we are to remove the current retran_path, update it
 	 * to the next peer before removing this peer from the list.
@@ -669,7 +669,7 @@ void sctp_assoc_del_peer(struct sctp_association *asoc,
 
 	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
 		transport = list_entry(pos, struct sctp_transport, transports);
-		if (sctp_cmp_addr_exact(addr, &transport->ipaddr)) {
+		if (sctp_cmp_addr_exact(addr, &transport->ipaddr_h)) {
 			/* Do book keeping for removing the peer and free it. */
 			sctp_assoc_rm_peer(asoc, transport);
 			break;
@@ -689,7 +689,7 @@ struct sctp_transport *sctp_assoc_lookup_paddr(
 
 	list_for_each(pos, &asoc->peer.transport_addr_list) {
 		t = list_entry(pos, struct sctp_transport, transports);
-		if (sctp_cmp_addr_exact(address, &t->ipaddr))
+		if (sctp_cmp_addr_exact(address, &t->ipaddr_h))
 			return t;
 	}
 
@@ -733,7 +733,7 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 	 * user.
 	 */
 	memset(&addr, 0, sizeof(struct sockaddr_storage));
-	flip_to_n((union sctp_addr *)&addr, &transport->ipaddr);
+	flip_to_n((union sctp_addr *)&addr, &transport->ipaddr_h);
 	event = sctp_ulpevent_make_peer_addr_change(asoc, &addr,
 				0, spc_state, error, GFP_ATOMIC);
 	if (event)
@@ -1043,8 +1043,8 @@ void sctp_assoc_update(struct sctp_association *asoc,
 	/* Remove any peer addresses not present in the new association. */
 	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
 		trans = list_entry(pos, struct sctp_transport, transports);
-		if (!sctp_assoc_lookup_paddr(new, &trans->ipaddr))
-			sctp_assoc_del_peer(asoc, &trans->ipaddr);
+		if (!sctp_assoc_lookup_paddr(new, &trans->ipaddr_h))
+			sctp_assoc_del_peer(asoc, &trans->ipaddr_h);
 	}
 
 	/* If the case is A (association restart), use
@@ -1067,8 +1067,8 @@ void sctp_assoc_update(struct sctp_association *asoc,
 		list_for_each(pos, &new->peer.transport_addr_list) {
 			trans = list_entry(pos, struct sctp_transport,
 					   transports);
-			if (!sctp_assoc_lookup_paddr(asoc, &trans->ipaddr))
-				sctp_assoc_add_peer(asoc, &trans->ipaddr,
+			if (!sctp_assoc_lookup_paddr(asoc, &trans->ipaddr_h))
+				sctp_assoc_add_peer(asoc, &trans->ipaddr_h,
 						    GFP_ATOMIC, trans->state);
 		}
 
@@ -1136,8 +1136,8 @@ void sctp_assoc_update_retran_path(struct sctp_association *asoc)
 				 " %p addr: ",
 				 " port: %d\n",
 				 asoc,
-				 (&t->ipaddr),
-				 t->ipaddr.v4.sin_port);
+				 (&t->ipaddr_h),
+				 t->ipaddr_h.v4.sin_port);
 }
 
 /* Choose the transport for sending a INIT packet.  */
@@ -1161,8 +1161,8 @@ struct sctp_transport *sctp_assoc_choose_init_transport(
 				 " %p addr: ",
 				 " port: %d\n",
 				 asoc,
-				 (&t->ipaddr),
-				 t->ipaddr.v4.sin_port);
+				 (&t->ipaddr_h),
+				 t->ipaddr_h.v4.sin_port);
 
 	return t;
 }
@@ -1307,7 +1307,7 @@ int sctp_assoc_set_bind_addr_from_ep(struct sctp_association *asoc,
 	/* Use scoping rules to determine the subset of addresses from
 	 * the endpoint.
 	 */
-	scope = sctp_scope(&asoc->peer.active_path->ipaddr);
+	scope = sctp_scope(&asoc->peer.active_path->ipaddr_h);
 	flags = (PF_INET6 == asoc->base.sk->sk_family) ? SCTP_ADDR6_ALLOWED : 0;
 	if (asoc->peer.ipv4_address)
 		flags |= SCTP_ADDR4_PEERSUPP;

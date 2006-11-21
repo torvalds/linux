@@ -852,7 +852,7 @@ static sctp_disposition_t sctp_sf_heartbeat(const struct sctp_endpoint *ep,
 
 	hbinfo.param_hdr.type = SCTP_PARAM_HEARTBEAT_INFO;
 	hbinfo.param_hdr.length = htons(sizeof(sctp_sender_hb_info_t));
-	hbinfo.daddr = transport->ipaddr;
+	hbinfo.daddr = transport->ipaddr_h;
 	hbinfo.sent_at = jiffies;
 	hbinfo.hb_nonce = transport->hb_nonce;
 
@@ -1167,8 +1167,8 @@ static int sctp_sf_check_restart_addrs(const struct sctp_association *new_asoc,
 		list_for_each(pos2, &asoc->peer.transport_addr_list) {
 			addr = list_entry(pos2, struct sctp_transport,
 					  transports);
-			if (sctp_cmp_addr_exact(&new_addr->ipaddr,
-						&addr->ipaddr)) {
+			if (sctp_cmp_addr_exact(&new_addr->ipaddr_h,
+						&addr->ipaddr_h)) {
 				found = 1;
 				break;
 			}
@@ -1179,7 +1179,7 @@ static int sctp_sf_check_restart_addrs(const struct sctp_association *new_asoc,
 
 	/* If a new address was added, ABORT the sender. */
 	if (!found && new_addr) {
-		sctp_sf_send_restart_abort(&new_addr->ipaddr, init, commands);
+		sctp_sf_send_restart_abort(&new_addr->ipaddr_h, init, commands);
 	}
 
 	/* Return success if all addresses were found. */

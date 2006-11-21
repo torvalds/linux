@@ -150,9 +150,9 @@ static void sctp_v4_copy_addrlist(struct list_head *addrlist,
 		/* Add the address to the local list.  */
 		addr = t_new(struct sctp_sockaddr_entry, GFP_ATOMIC);
 		if (addr) {
-			addr->a.v4.sin_family = AF_INET;
-			addr->a.v4.sin_port = 0;
-			addr->a.v4.sin_addr.s_addr = ifa->ifa_local;
+			addr->a_h.v4.sin_family = AF_INET;
+			addr->a_h.v4.sin_port = 0;
+			addr->a_h.v4.sin_addr.s_addr = ifa->ifa_local;
 			list_add_tail(&addr->list, addrlist);
 		}
 	}
@@ -223,17 +223,17 @@ int sctp_copy_local_addr_list(struct sctp_bind_addr *bp, sctp_scope_t scope,
 	sctp_spin_lock_irqsave(&sctp_local_addr_lock, flags);
 	list_for_each(pos, &sctp_local_addr_list) {
 		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
-		if (sctp_in_scope(&addr->a, scope)) {
+		if (sctp_in_scope(&addr->a_h, scope)) {
 			/* Now that the address is in scope, check to see if
 			 * the address type is really supported by the local
 			 * sock as well as the remote peer.
 			 */
-			if ((((AF_INET == addr->a.sa.sa_family) &&
+			if ((((AF_INET == addr->a_h.sa.sa_family) &&
 			      (copy_flags & SCTP_ADDR4_PEERSUPP))) ||
-			    (((AF_INET6 == addr->a.sa.sa_family) &&
+			    (((AF_INET6 == addr->a_h.sa.sa_family) &&
 			      (copy_flags & SCTP_ADDR6_ALLOWED) &&
 			      (copy_flags & SCTP_ADDR6_PEERSUPP)))) {
-				error = sctp_add_bind_addr(bp, &addr->a, 1,
+				error = sctp_add_bind_addr(bp, &addr->a_h, 1,
 							   GFP_ATOMIC);
 				if (error)
 					goto end_copy;
@@ -482,7 +482,7 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 			if (!laddr->use_as_src)
 				continue;
 			sctp_v4_dst_saddr(&dst_saddr, dst, bp->port);
-			if (sctp_v4_cmp_addr(&dst_saddr, &laddr->a))
+			if (sctp_v4_cmp_addr(&dst_saddr, &laddr->a_h))
 				goto out_unlock;
 		}
 		sctp_read_unlock(addr_lock);
@@ -502,8 +502,8 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 		laddr = list_entry(pos, struct sctp_sockaddr_entry, list);
 
 		if ((laddr->use_as_src) &&
-		    (AF_INET == laddr->a.sa.sa_family)) {
-			fl.fl4_src = laddr->a.v4.sin_addr.s_addr;
+		    (AF_INET == laddr->a_h.sa.sa_family)) {
+			fl.fl4_src = laddr->a_h.v4.sin_addr.s_addr;
 			if (!ip_route_output_key(&rt, &fl)) {
 				dst = &rt->u.dst;
 				goto out_unlock;

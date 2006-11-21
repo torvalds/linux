@@ -155,12 +155,12 @@ static void sctp_seq_dump_local_addrs(struct seq_file *seq, struct sctp_ep_commo
 	if (epb->type == SCTP_EP_TYPE_ASSOCIATION) {
 	    asoc = sctp_assoc(epb);
 	    peer = asoc->peer.primary_path;
-	    primary = &peer->saddr;
+	    primary = &peer->saddr_h;
 	}
 
 	list_for_each(pos, &epb->bind_addr.address_list) {
 		laddr = list_entry(pos, struct sctp_sockaddr_entry, list);
-		addr = (union sctp_addr *)&laddr->a;
+		addr = (union sctp_addr *)&laddr->a_h;
 		af = sctp_get_af_specific(addr->sa.sa_family);
 		if (primary && af->cmp_addr(addr, primary)) {
 			seq_printf(seq, "*");
@@ -180,7 +180,7 @@ static void sctp_seq_dump_remote_addrs(struct seq_file *seq, struct sctp_associa
 	primary = &(assoc->peer.primary_addr);
 	list_for_each(pos, &assoc->peer.transport_addr_list) {
 		transport = list_entry(pos, struct sctp_transport, transports);
-		addr = (union sctp_addr *)&transport->ipaddr;
+		addr = (union sctp_addr *)&transport->ipaddr_h;
 		af = sctp_get_af_specific(addr->sa.sa_family);
 		if (af->cmp_addr(addr, primary)) {
 			seq_printf(seq, "*");

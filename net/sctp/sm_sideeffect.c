@@ -441,8 +441,8 @@ static void sctp_do_8_2_transport_strike(struct sctp_association *asoc,
 		SCTP_DEBUG_PRINTK_IPADDR("transport_strike:association %p",
 					 " transport IP: port:%d failed.\n",
 					 asoc,
-					 (&transport->ipaddr),
-					 transport->ipaddr.v4.sin_port);
+					 (&transport->ipaddr_h),
+					 transport->ipaddr_h.v4.sin_port);
 		sctp_assoc_control_transport(asoc, transport,
 					     SCTP_TRANSPORT_DOWN,
 					     SCTP_FAILED_THRESHOLD);
@@ -833,9 +833,9 @@ static void sctp_cmd_del_non_primary(struct sctp_association *asoc)
 
 	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
 		t = list_entry(pos, struct sctp_transport, transports);
-		if (!sctp_cmp_addr_exact(&t->ipaddr,
+		if (!sctp_cmp_addr_exact(&t->ipaddr_h,
 		                         &asoc->peer.primary_addr)) {
-			sctp_assoc_del_peer(asoc, &t->ipaddr);
+			sctp_assoc_del_peer(asoc, &t->ipaddr_h);
 		}
 	}
 

@@ -77,7 +77,7 @@ int sctp_bind_addr_copy(struct sctp_bind_addr *dest,
 	/* Extract the addresses which are relevant for this scope.  */
 	list_for_each(pos, &src->address_list) {
 		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
-		error = sctp_copy_one_addr(dest, &addr->a, scope,
+		error = sctp_copy_one_addr(dest, &addr->a_h, scope,
 					   gfp, flags);
 		if (error < 0)
 			goto out;
@@ -91,7 +91,7 @@ int sctp_bind_addr_copy(struct sctp_bind_addr *dest,
 		list_for_each(pos, &src->address_list) {
 			addr = list_entry(pos, struct sctp_sockaddr_entry,
 					  list);
-			error = sctp_copy_one_addr(dest, &addr->a,
+			error = sctp_copy_one_addr(dest, &addr->a_h,
 						   SCTP_SCOPE_LINK, gfp,
 						   flags);
 			if (error < 0)
@@ -155,13 +155,13 @@ int sctp_add_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *new,
 	if (!addr)
 		return -ENOMEM;
 
-	memcpy(&addr->a, new, sizeof(*new));
+	memcpy(&addr->a_h, new, sizeof(*new));
 
 	/* Fix up the port if it has not yet been set.
 	 * Both v4 and v6 have the port at the same offset.
 	 */
-	if (!addr->a.v4.sin_port)
-		addr->a.v4.sin_port = bp->port;
+	if (!addr->a_h.v4.sin_port)
+		addr->a_h.v4.sin_port = bp->port;
 
 	addr->use_as_src = use_as_src;
 
@@ -182,7 +182,7 @@ int sctp_del_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *del_addr)
 
 	list_for_each_safe(pos, temp, &bp->address_list) {
 		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
-		if (sctp_cmp_addr_exact(&addr->a, del_addr)) {
+		if (sctp_cmp_addr_exact(&addr->a_h, del_addr)) {
 			/* Found the exact match. */
 			list_del(pos);
 			kfree(addr);
@@ -237,8 +237,8 @@ union sctp_params sctp_bind_addrs_to_raw(const struct sctp_bind_addr *bp,
 
 	list_for_each(pos, &bp->address_list) {
 		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
-		af = sctp_get_af_specific(addr->a.v4.sin_family);
-		len = af->to_addr_param(&addr->a, &rawaddr);
+		af = sctp_get_af_specific(addr->a_h.v4.sin_family);
+		len = af->to_addr_param(&addr->a_h, &rawaddr);
 		memcpy(addrparms.v, &rawaddr, len);
 		addrparms.v += len;
 		addrparms_len += len;
@@ -305,7 +305,7 @@ int sctp_bind_addr_match(struct sctp_bind_addr *bp,
 
 	list_for_each(pos, &bp->address_list) {
 		laddr = list_entry(pos, struct sctp_sockaddr_entry, list);
-		if (opt->pf->cmp_addr(&laddr->a, addr, opt))
+		if (opt->pf->cmp_addr(&laddr->a_h, addr, opt))
  			return 1;
 	}
 
@@ -339,13 +339,13 @@ union sctp_addr *sctp_find_unmatch_addr(struct sctp_bind_addr	*bp,
 				return NULL;
 			flip_to_h(&tmp, addr);
 
-			if (opt->pf->cmp_addr(&laddr->a, &tmp, opt))
+			if (opt->pf->cmp_addr(&laddr->a_h, &tmp, opt))
 				break;
 
 			addr_buf += af->sockaddr_len;
 		}
 		if (i == addrcnt)
-			return &laddr->a;
+			return &laddr->a_h;
 	}
 
 	return NULL;
