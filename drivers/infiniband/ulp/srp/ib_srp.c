@@ -1176,9 +1176,11 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 			break;
 		}
 
-		target->status = srp_alloc_iu_bufs(target);
-		if (target->status)
-			break;
+		if (!target->rx_ring[0]) {
+			target->status = srp_alloc_iu_bufs(target);
+			if (target->status)
+				break;
+		}
 
 		qp_attr = kmalloc(sizeof *qp_attr, GFP_KERNEL);
 		if (!qp_attr) {
