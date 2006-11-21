@@ -225,7 +225,7 @@ static struct cpu_spec cpu_specs[] = {
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_ppc970MP,
 		.cpu_restore		= __restore_cpu_ppc970,
-		.oprofile_cpu_type	= "ppc64/970",
+		.oprofile_cpu_type	= "ppc64/970MP",
 		.oprofile_type		= PPC_OPROFILE_POWER4,
 		.platform		= "ppc970",
 	},
