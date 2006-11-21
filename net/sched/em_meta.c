@@ -546,10 +546,9 @@ static int meta_var_change(struct meta_value *dst, struct rtattr *rta)
 {
 	int len = RTA_PAYLOAD(rta);
 
-	dst->val = (unsigned long) kmalloc(len, GFP_KERNEL);
+	dst->val = (unsigned long)kmemdup(RTA_DATA(rta), len, GFP_KERNEL);
 	if (dst->val == 0UL)
 		return -ENOMEM;
-	memcpy((void *) dst->val, RTA_DATA(rta), len);
 	dst->len = len;
 	return 0;
 }
