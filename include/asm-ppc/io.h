@@ -231,6 +231,14 @@ static inline void __raw_writel(__u32 b, volatile void __iomem *addr)
 #define insl(port, buf, nl)	_insl_ns((port)+___IO_BASE, (buf), (nl))
 #define outsl(port, buf, nl)	_outsl_ns((port)+___IO_BASE, (buf), (nl))
 
+#define readsb(a, b, n)		_insb((a), (b), (n))
+#define readsw(a, b, n)		_insw_ns((a), (b), (n))
+#define readsl(a, b, n)		_insl_ns((a), (b), (n))
+#define writesb(a, b, n)	_outsb((a),(b),(n))
+#define writesw(a, b, n)	_outsw_ns((a),(b),(n))
+#define writesl(a, b, n)	_outsl_ns((a),(b),(n))
+
+
 /*
  * On powermacs and 8xx we will get a machine check exception 
  * if we try to read data from a non-existent I/O port. Because
