@@ -1314,6 +1314,13 @@ int sctp_process_init(struct sctp_association *, sctp_cid_t cid,
 __u32 sctp_generate_tag(const struct sctp_endpoint *);
 __u32 sctp_generate_tsn(const struct sctp_endpoint *);
 
+struct sctp_inithdr_host {
+	__u32 init_tag;
+	__u32 a_rwnd;
+	__u16 num_outbound_streams;
+	__u16 num_inbound_streams;
+	__u32 initial_tsn;
+};
 
 /* RFC2960
  *
@@ -1484,7 +1491,7 @@ struct sctp_association {
 		 */
 		__be16 addip_disabled_mask;
 
-		struct sctp_inithdr i;
+		struct sctp_inithdr_host i;
 		int cookie_len;
 		void *cookie;
 
