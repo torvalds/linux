@@ -172,7 +172,7 @@ struct iriap_cb *iriap_open(__u8 slsap_sel, int mode, void *priv,
 
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
 
-	self = kmalloc(sizeof(struct iriap_cb), GFP_ATOMIC);
+	self = kzalloc(sizeof(*self), GFP_ATOMIC);
 	if (!self) {
 		IRDA_WARNING("%s: Unable to kmalloc!\n", __FUNCTION__);
 		return NULL;
@@ -181,7 +181,6 @@ struct iriap_cb *iriap_open(__u8 slsap_sel, int mode, void *priv,
 	/*
 	 *  Initialize instance
 	 */
-	memset(self, 0, sizeof(struct iriap_cb));
 
 	self->magic = IAS_MAGIC;
 	self->mode = mode;
