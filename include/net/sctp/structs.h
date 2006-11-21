@@ -559,7 +559,7 @@ struct sctp_af {
 					  struct net_device *);
 	void		(*dst_saddr)	(union sctp_addr *saddr,
 					 struct dst_entry *dst,
-					 unsigned short port);
+					 __be16 port);
 	int		(*cmp_addr)	(const union sctp_addr *addr1,
 					 const union sctp_addr *addr2);
 	void		(*addr_copy)	(union sctp_addr *dst,

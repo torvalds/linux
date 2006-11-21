@@ -434,7 +434,7 @@ static int sctp_v6_to_addr_param(const union sctp_addr *addr,
 
 /* Initialize a sctp_addr from a dst_entry. */
 static void sctp_v6_dst_saddr(union sctp_addr *addr, struct dst_entry *dst,
-			      unsigned short port)
+			      __be16 port)
 {
 	struct rt6_info *rt = (struct rt6_info *)dst;
 	addr->sa.sa_family = AF_INET6;

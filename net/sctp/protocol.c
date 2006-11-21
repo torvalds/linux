@@ -316,7 +316,7 @@ static int sctp_v4_to_addr_param(const union sctp_addr *addr,
 
 /* Initialize a sctp_addr from a dst_entry. */
 static void sctp_v4_dst_saddr(union sctp_addr *saddr, struct dst_entry *dst,
-			      unsigned short port)
+			      __be16 port)
 {
 	struct rtable *rt = (struct rtable *)dst;
 	saddr->v4.sin_family = AF_INET;
@@ -478,14 +478,12 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 		 */
 		sctp_read_lock(addr_lock);
 		list_for_each(pos, &bp->address_list) {
-			union sctp_addr tmp;
 			laddr = list_entry(pos, struct sctp_sockaddr_entry,
 					   list);
 			if (!laddr->use_as_src)
 				continue;
-			sctp_v4_dst_saddr(&dst_saddr, dst, bp->port);
-			flip_to_n(&tmp, &dst_saddr);
-			if (sctp_v4_cmp_addr(&tmp, &laddr->a))
+			sctp_v4_dst_saddr(&dst_saddr, dst, htons(bp->port));
+			if (sctp_v4_cmp_addr(&dst_saddr, &laddr->a))
 				goto out_unlock;
 		}
 		sctp_read_unlock(addr_lock);
