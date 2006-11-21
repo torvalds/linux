@@ -6,22 +6,12 @@
  *
  * Released under the terms of the GNU GPL v2.0.
  */
-#include <linux/init.h>
-#include <linux/mman.h>
 #include <linux/mm.h>
-#include <linux/threads.h>
-#include <asm/addrspace.h>
-#include <asm/page.h>
-#include <asm/pgtable.h>
-#include <asm/processor.h>
-#include <asm/cache.h>
-#include <asm/io.h>
-#include <asm/uaccess.h>
-#include <asm/pgalloc.h>
+#include <linux/mutex.h>
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 
-extern struct semaphore p3map_sem[];
+extern struct mutex p3map_mutex[];
 
 #define CACHE_ALIAS (cpu_data->dcache.alias_mask)
 
@@ -47,7 +37,7 @@ void clear_user_page(void *to, unsigned long address, struct page *page)
 		unsigned long flags;
 
 		entry = pfn_pte(phys_addr >> PAGE_SHIFT, PAGE_KERNEL);
-		down(&p3map_sem[(address & CACHE_ALIAS)>>12]);
+		mutex_lock(&p3map_mutex[(address & CACHE_ALIAS)>>12]);
 		set_pte(pte, entry);
 		local_irq_save(flags);
 		__flush_tlb_page(get_asid(), p3_addr);
@@ -55,7 +45,7 @@ void clear_user_page(void *to, unsigned long address, struct page *page)
 		update_mmu_cache(NULL, p3_addr, entry);
 		__clear_user_page((void *)p3_addr, to);
 		pte_clear(&init_mm, p3_addr, pte);
-		up(&p3map_sem[(address & CACHE_ALIAS)>>12]);
+		mutex_unlock(&p3map_mutex[(address & CACHE_ALIAS)>>12]);
 	}
 }
 
@@ -83,7 +73,7 @@ void copy_user_page(void *to, void *from, unsigned long address,
 		unsigned long flags;
 
 		entry = pfn_pte(phys_addr >> PAGE_SHIFT, PAGE_KERNEL);
-		down(&p3map_sem[(address & CACHE_ALIAS)>>12]);
+		mutex_lock(&p3map_mutex[(address & CACHE_ALIAS)>>12]);
 		set_pte(pte, entry);
 		local_irq_save(flags);
 		__flush_tlb_page(get_asid(), p3_addr);
@@ -91,7 +81,7 @@ void copy_user_page(void *to, void *from, unsigned long address,
 		update_mmu_cache(NULL, p3_addr, entry);
 		__copy_user_page((void *)p3_addr, from, to);
 		pte_clear(&init_mm, p3_addr, pte);
-		up(&p3map_sem[(address & CACHE_ALIAS)>>12]);
+		mutex_unlock(&p3map_mutex[(address & CACHE_ALIAS)>>12]);
 	}
 }
 
@@ -114,4 +104,3 @@ inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t 
 	}
 	return pte;
 }
-

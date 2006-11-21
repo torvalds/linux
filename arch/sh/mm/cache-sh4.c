@@ -11,12 +11,8 @@
  */
 #include <linux/init.h>
 #include <linux/mm.h>
-#include <asm/addrspace.h>
-#include <asm/pgtable.h>
-#include <asm/processor.h>
-#include <asm/cache.h>
-#include <asm/io.h>
-#include <asm/pgalloc.h>
+#include <linux/io.h>
+#include <linux/mutex.h>
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 
@@ -83,9 +79,9 @@ static void __init emit_cache_params(void)
  */
 
 /* Worst case assumed to be 64k cache, direct-mapped i.e. 4 synonym bits. */
-#define MAX_P3_SEMAPHORES 16
+#define MAX_P3_MUTEXES 16
 
-struct semaphore p3map_sem[MAX_P3_SEMAPHORES];
+struct mutex p3map_mutex[MAX_P3_MUTEXES];
 
 void __init p3_cache_init(void)
 {
@@ -115,7 +111,7 @@ void __init p3_cache_init(void)
 		panic("%s failed.", __FUNCTION__);
 
 	for (i = 0; i < cpu_data->dcache.n_aliases; i++)
-		sema_init(&p3map_sem[i], 1);
+		mutex_init(&p3map_mutex[i]);
 }
 
 /*
