@@ -1154,7 +1154,7 @@ extern int			tcp_v4_md5_do_add(struct sock *sk,
 						  u8 newkeylen);
 
 extern int			tcp_v4_md5_do_del(struct sock *sk,
-						  u32 addr);
+						  __be32 addr);
 
 extern struct tcp_md5sig_pool	**tcp_alloc_md5sig_pool(void);
 extern void			tcp_free_md5sig_pool(void);

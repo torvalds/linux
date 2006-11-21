@@ -739,7 +739,7 @@ static int tcp_v6_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 	struct scatterlist sg[4];
 	__u16 data_len;
 	int block = 0;
-	__u16 cksum;
+	__sum16 cksum;
 	struct tcp_md5sig_pool *hp;
 	struct tcp6_pseudohdr *bp;
 	struct hash_desc *desc;
@@ -1032,7 +1032,7 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 
 #ifdef CONFIG_TCP_MD5SIG
 	if (key) {
-		u32 *opt = (u32*)(t1 + 1);
+		__be32 *opt = (__be32*)(t1 + 1);
 		opt[0] = htonl((TCPOPT_NOP << 24) |
 			       (TCPOPT_NOP << 16) |
 			       (TCPOPT_MD5SIG << 8) |

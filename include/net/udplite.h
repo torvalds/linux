@@ -90,9 +90,9 @@ static __inline__ int udplite6_csum_init(struct sk_buff *skb, struct udphdr *uh)
 	int rc = udplite_checksum_init(skb, uh);
 
 	if (!rc)
-		skb->csum = ~csum_ipv6_magic(&skb->nh.ipv6h->saddr,
+		skb->csum = ~csum_unfold(csum_ipv6_magic(&skb->nh.ipv6h->saddr,
 					     &skb->nh.ipv6h->daddr,
-					     skb->len, IPPROTO_UDPLITE, 0);
+					     skb->len, IPPROTO_UDPLITE, 0));
 	return rc;
 }
 

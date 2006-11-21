@@ -24,7 +24,7 @@ static __inline__ int udplitev6_rcv(struct sk_buff **pskb)
 
 static __inline__ void udplitev6_err(struct sk_buff *skb,
 				     struct inet6_skb_parm *opt,
-				     int type, int code, int offset, __u32 info)
+				     int type, int code, int offset, __be32 info)
 {
 	return __udp6_lib_err(skb, opt, type, code, offset, info, udplite_hash);
 }

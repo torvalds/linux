@@ -248,7 +248,7 @@ out:
 
 static __inline__ void udpv6_err(struct sk_buff *skb,
 				 struct inet6_skb_parm *opt, int type,
-				 int code, int offset, __u32 info     )
+				 int code, int offset, __be32 info     )
 {
 	return __udp6_lib_err(skb, opt, type, code, offset, info, udp_hash);
 }

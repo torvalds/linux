@@ -114,7 +114,7 @@ DEFINE_RWLOCK(udp_hash_lock);
 
 static int udp_port_rover;
 
-static inline int __udp_lib_lport_inuse(__be16 num, struct hlist_head udptable[])
+static inline int __udp_lib_lport_inuse(__u16 num, struct hlist_head udptable[])
 {
 	struct sock *sk;
 	struct hlist_node *node;
@@ -455,7 +455,7 @@ static int udp_push_pending_frames(struct sock *sk, struct udp_sock *up)
 	struct sk_buff *skb;
 	struct udphdr *uh;
 	int err = 0;
-	u32 csum = 0;
+	__wsum csum = 0;
 
 	/* Grab the skbuff where UDP header space exists. */
 	if ((skb = skb_peek(&sk->sk_write_queue)) == NULL)

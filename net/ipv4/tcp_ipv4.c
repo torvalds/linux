@@ -1020,7 +1020,7 @@ static int tcp_v4_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 #ifdef CONFIG_TCP_MD5SIG_DEBUG
 	int i;
 #endif
-	__u16 old_checksum;
+	__sum16 old_checksum;
 	struct tcp_md5sig_pool *hp;
 	struct tcp4_pseudohdr *bp;
 	struct hash_desc *desc;
