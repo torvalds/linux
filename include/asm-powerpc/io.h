@@ -185,53 +185,6 @@ extern void _memcpy_toio(volatile void __iomem *dest, const void *src,
  * of the accessors.
  */
 
-
-/*
- * Non ordered and non-swapping "raw" accessors
- */
-
-static inline unsigned char __raw_readb(const volatile void __iomem *addr)
-{
-	return *(volatile unsigned char __force *)addr;
-}
-static inline unsigned short __raw_readw(const volatile void __iomem *addr)
-{
-	return *(volatile unsigned short __force *)addr;
-}
-static inline unsigned int __raw_readl(const volatile void __iomem *addr)
-{
-	return *(volatile unsigned int __force *)addr;
-}
-static inline void __raw_writeb(unsigned char v, volatile void __iomem *addr)
-{
-	*(volatile unsigned char __force *)addr = v;
-}
-static inline void __raw_writew(unsigned short v, volatile void __iomem *addr)
-{
-	*(volatile unsigned short __force *)addr = v;
-}
-static inline void __raw_writel(unsigned int v, volatile void __iomem *addr)
-{
-	*(volatile unsigned int __force *)addr = v;
-}
-
-#ifdef __powerpc64__
-static inline unsigned long __raw_readq(const volatile void __iomem *addr)
-{
-	return *(volatile unsigned long __force *)addr;
-}
-static inline void __raw_writeq(unsigned long v, volatile void __iomem *addr)
-{
-	*(volatile unsigned long __force *)addr = v;
-}
-#endif /* __powerpc64__ */
-
-/*
- *
- * PCI PIO and MMIO accessors.
- *
- */
-
 /*
  * Include the EEH definitions when EEH is enabled only so they don't get
  * in the way when building for 32 bits
@@ -291,7 +244,52 @@ do {									\
 #define PCI_FIX_ADDR(addr) (addr)
 #endif
 
+
 /*
+ * Non ordered and non-swapping "raw" accessors
+ */
+
+static inline unsigned char __raw_readb(const volatile void __iomem *addr)
+{
+	return *(volatile unsigned char __force *)PCI_FIX_ADDR(addr);
+}
+static inline unsigned short __raw_readw(const volatile void __iomem *addr)
+{
+	return *(volatile unsigned short __force *)PCI_FIX_ADDR(addr);
+}
+static inline unsigned int __raw_readl(const volatile void __iomem *addr)
+{
+	return *(volatile unsigned int __force *)PCI_FIX_ADDR(addr);
+}
+static inline void __raw_writeb(unsigned char v, volatile void __iomem *addr)
+{
+	*(volatile unsigned char __force *)PCI_FIX_ADDR(addr) = v;
+}
+static inline void __raw_writew(unsigned short v, volatile void __iomem *addr)
+{
+	*(volatile unsigned short __force *)PCI_FIX_ADDR(addr) = v;
+}
+static inline void __raw_writel(unsigned int v, volatile void __iomem *addr)
+{
+	*(volatile unsigned int __force *)PCI_FIX_ADDR(addr) = v;
+}
+
+#ifdef __powerpc64__
+static inline unsigned long __raw_readq(const volatile void __iomem *addr)
+{
+	return *(volatile unsigned long __force *)PCI_FIX_ADDR(addr);
+}
+static inline void __raw_writeq(unsigned long v, volatile void __iomem *addr)
+{
+	*(volatile unsigned long __force *)PCI_FIX_ADDR(addr) = v;
+}
+#endif /* __powerpc64__ */
+
+/*
+ *
+ * PCI PIO and MMIO accessors.
+ *
+ *
  * On 32 bits, PIO operations have a recovery mechanism in case they trigger
  * machine checks (which they occasionally do when probing non existing
  * IO ports on some platforms, like PowerMac and 8xx).
