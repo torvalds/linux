@@ -1279,15 +1279,13 @@ static sctp_cookie_param_t *sctp_pack_cookie(const struct sctp_endpoint *ep,
 			- (bodysize % SCTP_COOKIE_MULTIPLE);
 	*cookie_len = headersize + bodysize;
 
-	retval = kmalloc(*cookie_len, GFP_ATOMIC);
-
-	if (!retval)
-		goto nodata;
-
 	/* Clear this memory since we are sending this data structure
 	 * out on the network.
 	 */
-	memset(retval, 0x00, *cookie_len);
+	retval = kzalloc(*cookie_len, GFP_ATOMIC);
+	if (!retval)
+		goto nodata;
+
 	cookie = (struct sctp_signed_cookie *) retval->body;
 
 	/* Set up the parameter header.  */
@@ -1910,10 +1908,9 @@ int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 	/* Copy cookie in case we need to resend COOKIE-ECHO. */
 	cookie = asoc->peer.cookie;
 	if (cookie) {
-		asoc->peer.cookie = kmalloc(asoc->peer.cookie_len, gfp);
+		asoc->peer.cookie = kmemdup(cookie, asoc->peer.cookie_len, gfp);
 		if (!asoc->peer.cookie)
 			goto clean_up;
-		memcpy(asoc->peer.cookie, cookie, asoc->peer.cookie_len);
 	}
 
 	/* RFC 2960 7.2.1 The initial value of ssthresh MAY be arbitrarily
