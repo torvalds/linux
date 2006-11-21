@@ -27,6 +27,8 @@
 #include <asm/topology.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
+#include <asm/atomic.h>
+
 
 /*
  * The list of OF IDs below is used for matching bus types in the
@@ -50,6 +52,8 @@ static struct of_device_id of_default_bus_ids[] = {
 	{ .type = "opb", },
 	{},
 };
+
+static atomic_t bus_no_reg_magic;
 
 /*
  *
@@ -165,6 +169,7 @@ static void of_platform_make_bus_id(struct of_device *dev)
 	char *name = dev->dev.bus_id;
 	const u32 *reg;
 	u64 addr;
+	long magic;
 
 	/*
 	 * If it's a DCR based device, use 'd' for native DCRs
@@ -203,9 +208,11 @@ static void of_platform_make_bus_id(struct of_device *dev)
 	}
 
 	/*
-	 * No BusID, use the node name and pray
+	 * No BusID, use the node name and add a globally incremented
+	 * counter (and pray...)
 	 */
-	snprintf(name, BUS_ID_SIZE, "%s", node->name);
+	magic = atomic_add_return(1, &bus_no_reg_magic);
+	snprintf(name, BUS_ID_SIZE, "%s.%d", node->name, magic - 1);
 }
 
 struct of_device* of_platform_device_create(struct device_node *np,
