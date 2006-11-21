@@ -245,7 +245,7 @@ int sctp_rcv(struct sk_buff *skb)
 	chunk->sctp_hdr = sh;
 
 	/* Set the source and destination addresses of the incoming chunk.  */
-	sctp_init_addrs(chunk, &src, &dest);
+	sctp_init_addrs(chunk, &tmp2, &tmp);
 
 	/* Remember where we came from.  */
 	chunk->transport = transport;

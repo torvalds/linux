@@ -1031,9 +1031,9 @@ nodata:
 void sctp_init_addrs(struct sctp_chunk *chunk, union sctp_addr *src,
 		     union sctp_addr *dest)
 {
-	memcpy(&chunk->source_h, src, sizeof(union sctp_addr));
-	flip_to_n(&chunk->source, &chunk->source_h);
-	memcpy(&chunk->dest, dest, sizeof(union sctp_addr));
+	memcpy(&chunk->source, src, sizeof(union sctp_addr));
+	flip_to_h(&chunk->source_h, &chunk->source);
+	flip_to_h(&chunk->dest, dest);
 }
 
 /* Extract the source address from a chunk.  */
