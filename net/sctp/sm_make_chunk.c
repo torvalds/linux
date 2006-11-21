@@ -111,7 +111,7 @@ static const struct sctp_paramhdr prsctp_param = {
  * provided chunk, as most cause codes will be embedded inside an
  * abort chunk.
  */
-void  sctp_init_cause(struct sctp_chunk *chunk, __u16 cause_code,
+void  sctp_init_cause(struct sctp_chunk *chunk, __be16 cause_code,
 		      const void *payload, size_t paylen)
 {
 	sctp_errhdr_t err;
