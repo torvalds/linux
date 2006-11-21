@@ -292,9 +292,9 @@ static void sctp_v6_get_saddr(struct sctp_association *asoc,
 		if ((laddr->use_as_src) &&
 		    (laddr->a_h.sa.sa_family == AF_INET6) &&
 		    (scope <= sctp_scope(&laddr->a_h))) {
-			bmatchlen = sctp_v6_addr_match_len(daddr, &laddr->a_h);
+			bmatchlen = sctp_v6_addr_match_len(daddr, &laddr->a);
 			if (!baddr || (matchlen < bmatchlen)) {
-				baddr = &laddr->a_h;
+				baddr = &laddr->a;
 				matchlen = bmatchlen;
 			}
 		}

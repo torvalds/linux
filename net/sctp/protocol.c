@@ -539,7 +539,7 @@ static void sctp_v4_get_saddr(struct sctp_association *asoc,
 
 	if (rt) {
 		saddr->v4.sin_family = AF_INET;
-		saddr->v4.sin_port = asoc->base.bind_addr.port;  
+		saddr->v4.sin_port = htons(asoc->base.bind_addr.port);
 		saddr->v4.sin_addr.s_addr = rt->rt_src; 
 	}
 }
