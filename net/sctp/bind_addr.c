@@ -332,12 +332,14 @@ union sctp_addr *sctp_find_unmatch_addr(struct sctp_bind_addr	*bp,
 		
 		addr_buf = (union sctp_addr *)addrs;
 		for (i = 0; i < addrcnt; i++) {
+			union sctp_addr tmp;
 			addr = (union sctp_addr *)addr_buf;
 			af = sctp_get_af_specific(addr->v4.sin_family);
 			if (!af) 
 				return NULL;
+			flip_to_h(&tmp, addr);
 
-			if (opt->pf->cmp_addr(&laddr->a, addr, opt))
+			if (opt->pf->cmp_addr(&laddr->a, &tmp, opt))
 				break;
 
 			addr_buf += af->sockaddr_len;
