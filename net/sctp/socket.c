@@ -228,11 +228,9 @@ static struct sctp_transport *sctp_addr_id2transport(struct sock *sk,
 	struct sctp_association *addr_asoc = NULL, *id_asoc = NULL;
 	struct sctp_transport *transport;
 	union sctp_addr *laddr = (union sctp_addr *)addr;
-	union sctp_addr tmp;
 
-	flip_to_h(&tmp, laddr);
 	addr_asoc = sctp_endpoint_lookup_assoc(sctp_sk(sk)->ep,
-					       &tmp,
+					       laddr,
 					       &transport);
 
 	if (!addr_asoc)
@@ -1007,7 +1005,7 @@ static int __sctp_connect(struct sock* sk,
 		/* Check if there already is a matching association on the
 		 * endpoint (other than the one created here).
 		 */
-		asoc2 = sctp_endpoint_lookup_assoc(ep, &to, &transport);
+		asoc2 = sctp_endpoint_lookup_assoc(ep, sa_addr, &transport);
 		if (asoc2 && asoc2 != asoc) {
 			if (asoc2->state >= SCTP_STATE_ESTABLISHED)
 				err = -EISCONN;
@@ -1468,7 +1466,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	/* If a msg_name has been specified, assume this is to be used.  */
 	if (msg_name) {
 		/* Look for a matching association on the endpoint. */
-		asoc = sctp_endpoint_lookup_assoc(ep, &to, &transport);
+		asoc = sctp_endpoint_lookup_assoc(ep, &tmp, &transport);
 		if (!asoc) {
 			/* If we could not find a matching association on the
 			 * endpoint, make sure that it is not a TCP-style
