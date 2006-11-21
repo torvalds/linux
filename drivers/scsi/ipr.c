@@ -3776,7 +3776,7 @@ static int ipr_cancel_op(struct scsi_cmnd * scsi_cmd)
 	 */
 	if (ioa_cfg->in_reset_reload || ioa_cfg->ioa_is_dead)
 		return FAILED;
-	if (!res || (!ipr_is_gscsi(res) && !ipr_is_vset_device(res)))
+	if (!res || !ipr_is_gscsi(res))
 		return FAILED;
 
 	list_for_each_entry(ipr_cmd, &ioa_cfg->pending_q, queue) {
