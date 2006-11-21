@@ -1322,13 +1322,12 @@ static void set_mps_mac_addr_rcvd(struct k_message *msg, struct mpoa_client *cli
 	if(client->number_of_mps_macs)
 		kfree(client->mps_macs);
 	client->number_of_mps_macs = 0;
-	client->mps_macs = kmalloc(ETH_ALEN,GFP_KERNEL);
+	client->mps_macs = kmemdup(msg->MPS_ctrl, ETH_ALEN, GFP_KERNEL);
 	if (client->mps_macs == NULL) {
 		printk("mpoa: set_mps_mac_addr_rcvd: out of memory\n");
 		return;
 	}
 	client->number_of_mps_macs = 1;
-	memcpy(client->mps_macs, msg->MPS_ctrl, ETH_ALEN);
 	
 	return;
 }

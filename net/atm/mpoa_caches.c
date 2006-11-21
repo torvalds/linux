@@ -87,7 +87,7 @@ static in_cache_entry *in_cache_get_by_vcc(struct atm_vcc *vcc,
 static in_cache_entry *in_cache_add_entry(__be32 dst_ip,
 					  struct mpoa_client *client)
 {
-	in_cache_entry* entry = kmalloc(sizeof(in_cache_entry), GFP_KERNEL);
+	in_cache_entry *entry = kzalloc(sizeof(in_cache_entry), GFP_KERNEL);
 
 	if (entry == NULL) {
 		printk("mpoa: mpoa_caches.c: new_in_cache_entry: out of memory\n");
@@ -95,7 +95,6 @@ static in_cache_entry *in_cache_add_entry(__be32 dst_ip,
 	}
 
 	dprintk("mpoa: mpoa_caches.c: adding an ingress entry, ip = %u.%u.%u.%u\n", NIPQUAD(dst_ip));
-	memset(entry,0,sizeof(in_cache_entry));
 
 	atomic_set(&entry->use, 1);
 	dprintk("mpoa: mpoa_caches.c: new_in_cache_entry: about to lock\n");
@@ -447,7 +446,7 @@ static void eg_cache_remove_entry(eg_cache_entry *entry,
 
 static eg_cache_entry *eg_cache_add_entry(struct k_message *msg, struct mpoa_client *client)
 {
-	eg_cache_entry *entry = kmalloc(sizeof(eg_cache_entry), GFP_KERNEL);
+	eg_cache_entry *entry = kzalloc(sizeof(eg_cache_entry), GFP_KERNEL);
 
 	if (entry == NULL) {
 		printk("mpoa: mpoa_caches.c: new_eg_cache_entry: out of memory\n");
@@ -455,7 +454,6 @@ static eg_cache_entry *eg_cache_add_entry(struct k_message *msg, struct mpoa_cli
 	}
 
 	dprintk("mpoa: mpoa_caches.c: adding an egress entry, ip = %u.%u.%u.%u, this should be our IP\n", NIPQUAD(msg->content.eg_info.eg_dst_ip));
-	memset(entry, 0, sizeof(eg_cache_entry));
 
 	atomic_set(&entry->use, 1);
 	dprintk("mpoa: mpoa_caches.c: new_eg_cache_entry: about to lock\n");

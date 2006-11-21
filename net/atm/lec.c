@@ -1321,11 +1321,10 @@ static int lane2_resolve(struct net_device *dev, u8 *dst_mac, int force,
 		if (table == NULL)
 			return -1;
 
-		*tlvs = kmalloc(table->sizeoftlvs, GFP_ATOMIC);
+		*tlvs = kmemdup(table->tlvs, table->sizeoftlvs, GFP_ATOMIC);
 		if (*tlvs == NULL)
 			return -1;
 
-		memcpy(*tlvs, table->tlvs, table->sizeoftlvs);
 		*sizeoftlvs = table->sizeoftlvs;
 
 		return 0;
@@ -1364,11 +1363,10 @@ static int lane2_associate_req(struct net_device *dev, u8 *lan_dst,
 
 	kfree(priv->tlvs);	/* NULL if there was no previous association */
 
-	priv->tlvs = kmalloc(sizeoftlvs, GFP_KERNEL);
+	priv->tlvs = kmemdup(tlvs, sizeoftlvs, GFP_KERNEL);
 	if (priv->tlvs == NULL)
 		return (0);
 	priv->sizeoftlvs = sizeoftlvs;
-	memcpy(priv->tlvs, tlvs, sizeoftlvs);
 
 	skb = alloc_skb(sizeoftlvs, GFP_ATOMIC);
 	if (skb == NULL)
@@ -1409,12 +1407,10 @@ static void lane2_associate_ind(struct net_device *dev, u8 *mac_addr,
 
 	kfree(entry->tlvs);
 
-	entry->tlvs = kmalloc(sizeoftlvs, GFP_KERNEL);
+	entry->tlvs = kmemdup(tlvs, sizeoftlvs, GFP_KERNEL);
 	if (entry->tlvs == NULL)
 		return;
-
 	entry->sizeoftlvs = sizeoftlvs;
-	memcpy(entry->tlvs, tlvs, sizeoftlvs);
 #endif
 #if 0
 	printk("lec.c: lane2_associate_ind()\n");
