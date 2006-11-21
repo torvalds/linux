@@ -2466,7 +2466,7 @@ sctp_disposition_t sctp_sf_do_9_2_shutdown(const struct sctp_endpoint *ep,
 	 *    received by the SHUTDOWN sender.
 	 */
 	sctp_add_cmd_sf(commands, SCTP_CMD_PROCESS_CTSN,
-			SCTP_U32(chunk->subh.shutdown_hdr->cum_tsn_ack));
+			SCTP_BE32(chunk->subh.shutdown_hdr->cum_tsn_ack));
 
 out:
 	return disposition;

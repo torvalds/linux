@@ -1420,7 +1420,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 
 		case SCTP_CMD_PROCESS_CTSN:
 			/* Dummy up a SACK for processing. */
-			sackh.cum_tsn_ack = cmd->obj.u32;
+			sackh.cum_tsn_ack = cmd->obj.be32;
 			sackh.a_rwnd = 0;
 			sackh.num_gap_ack_blocks = 0;
 			sackh.num_dup_tsns = 0;
