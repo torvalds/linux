@@ -37,8 +37,8 @@
 /*
  * Literals
  */
-#define IPR_DRIVER_VERSION "2.2.0"
-#define IPR_DRIVER_DATE "(September 25, 2006)"
+#define IPR_DRIVER_VERSION "2.3.0"
+#define IPR_DRIVER_DATE "(November 8, 2006)"
 
 /*
  * IPR_MAX_CMD_PER_LUN: This defines the maximum number of outstanding
