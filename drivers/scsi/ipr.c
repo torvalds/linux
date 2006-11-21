@@ -3573,6 +3573,12 @@ static int ipr_sata_reset(struct ata_port *ap, unsigned int *classes)
 
 	ENTER;
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	while(ioa_cfg->in_reset_reload) {
+		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+		wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
+		spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	}
+
 	res = sata_port->res;
 	if (res) {
 		rc = ipr_device_reset(ioa_cfg, res);
@@ -4776,6 +4782,12 @@ static void ipr_ata_post_internal(struct ata_queued_cmd *qc)
 	unsigned long flags;
 
 	spin_lock_irqsave(ioa_cfg->host->host_lock, flags);
+	while(ioa_cfg->in_reset_reload) {
+		spin_unlock_irqrestore(ioa_cfg->host->host_lock, flags);
+		wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
+		spin_lock_irqsave(ioa_cfg->host->host_lock, flags);
+	}
+
 	list_for_each_entry(ipr_cmd, &ioa_cfg->pending_q, queue) {
 		if (ipr_cmd->qc == qc) {
 			ipr_device_reset(ioa_cfg, sata_port->res);
