@@ -294,12 +294,20 @@ config CF_BASE_ADDR
 
 menu "Processor features"
 
-config CPU_LITTLE_ENDIAN
-	bool "Little Endian"
+choice
+	prompt "Endianess selection" 
+	default CPU_LITTLE_ENDIAN
 	help
 	  Some SuperH machines can be configured for either little or big
-	  endian byte order. These modes require different kernels. Say Y if
-	  your machine is little endian, N if it's a big endian machine.
+	  endian byte order. These modes require different kernels.
+
+config CPU_LITTLE_ENDIAN
+	bool "Little Endian"
+
+config CPU_BIG_ENDIAN
+	bool "Big Endian"
+
+endchoice
 
 config SH_FPU
 	bool "FPU support"

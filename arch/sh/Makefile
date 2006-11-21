@@ -13,10 +13,6 @@
 # for "archclean" and "archdep" for cleaning up and making dependencies for
 # this architecture
 #
-
-cflags-y				:= -mb
-cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	:= -ml
-
 isa-y					:= any
 isa-$(CONFIG_SH_DSP)			:= sh
 isa-$(CONFIG_CPU_SH2)			:= sh2
@@ -38,13 +34,16 @@ isa-y			:= $(isa-y)-nofpu
 endif
 endif
 
-cflags-y	+= $(call as-option,-Wa$(comma)-isa=$(isa-y),)
-
-cflags-$(CONFIG_CPU_SH2)		+= -m2
-cflags-$(CONFIG_CPU_SH3)		+= -m3
-cflags-$(CONFIG_CPU_SH4)		+= -m4 \
+cflags-$(CONFIG_CPU_SH2)		:= -m2
+cflags-$(CONFIG_CPU_SH3)		:= -m3
+cflags-$(CONFIG_CPU_SH4)		:= -m4 \
 	$(call cc-option,-mno-implicit-fp,-m4-nofpu)
-cflags-$(CONFIG_CPU_SH4A)		+= $(call cc-option,-m4a-nofpu,)
+cflags-$(CONFIG_CPU_SH4A)		:= -m4a $(call cc-option,-m4a-nofpu,)
+
+cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -mb
+cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -ml
+
+cflags-y	+= $(call as-option,-Wa$(comma)-isa=$(isa-y),)
 
 cflags-$(CONFIG_SH_DSP)			+= -Wa,-dsp
 cflags-$(CONFIG_SH_KGDB)		+= -g
