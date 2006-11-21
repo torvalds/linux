@@ -2463,7 +2463,7 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 		if (sctp_cmp_addr_exact(&tmp, &tmp_addr))
 			return SCTP_ERROR_DEL_SRC_IP;
 
-		sctp_assoc_del_peer(asoc, &addr);
+		sctp_assoc_del_peer(asoc, &tmp_addr);
 		break;
 	case SCTP_PARAM_SET_PRIMARY:
 		peer = sctp_assoc_lookup_paddr(asoc, &addr);

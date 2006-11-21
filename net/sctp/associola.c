@@ -666,13 +666,10 @@ void sctp_assoc_del_peer(struct sctp_association *asoc,
 	struct list_head	*pos;
 	struct list_head	*temp;
 	struct sctp_transport	*transport;
-	union sctp_addr tmp;
-
-	flip_to_n(&tmp, addr);
 
 	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
 		transport = list_entry(pos, struct sctp_transport, transports);
-		if (sctp_cmp_addr_exact(&tmp, &transport->ipaddr)) {
+		if (sctp_cmp_addr_exact(addr, &transport->ipaddr)) {
 			/* Do book keeping for removing the peer and free it. */
 			sctp_assoc_rm_peer(asoc, transport);
 			break;
@@ -1051,7 +1048,7 @@ void sctp_assoc_update(struct sctp_association *asoc,
 	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
 		trans = list_entry(pos, struct sctp_transport, transports);
 		if (!sctp_assoc_lookup_paddr(new, &trans->ipaddr_h))
-			sctp_assoc_del_peer(asoc, &trans->ipaddr_h);
+			sctp_assoc_del_peer(asoc, &trans->ipaddr);
 	}
 
 	/* If the case is A (association restart), use
