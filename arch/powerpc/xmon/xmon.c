@@ -155,6 +155,7 @@ static int do_spu_cmd(void);
 int xmon_no_auto_backtrace;
 
 extern int print_insn_powerpc(unsigned long insn, unsigned long memaddr);
+extern int print_insn_spu(unsigned long insn, unsigned long memaddr);
 
 extern void xmon_enter(void);
 extern void xmon_leave(void);
@@ -219,7 +220,8 @@ Commands:\n\
 "  ss	stop execution on all spus\n\
   sr	restore execution on stopped spus\n\
   sf  #	dump spu fields for spu # (in hex)\n\
-  sd  #	dump spu local store for spu # (in hex)\n"
+  sd  #	dump spu local store for spu # (in hex)\
+  sdi #	disassemble spu local store for spu # (in hex)\n"
 #endif
 "  S	print special registers\n\
   t	print backtrace\n\
@@ -2828,7 +2830,13 @@ static void dump_spu_fields(struct spu *spu)
 	DUMP_FIELD(spu, "0x%p", priv2);
 }
 
-static void dump_spu_ls(unsigned long num)
+int
+spu_inst_dump(unsigned long adr, long count, int praddr)
+{
+	return generic_inst_dump(adr, count, praddr, print_insn_spu);
+}
+
+static void dump_spu_ls(unsigned long num, int subcmd)
 {
 	unsigned long offset, addr, ls_addr;
 
@@ -2855,9 +2863,17 @@ static void dump_spu_ls(unsigned long num)
 		return;
 	}
 
-	prdump(addr, 64);
-	addr += 64;
-	last_cmd = "sd\n";
+	switch (subcmd) {
+	case 'i':
+		addr += spu_inst_dump(addr, 16, 1);
+		last_cmd = "sdi\n";
+		break;
+	default:
+		prdump(addr, 64);
+		addr += 64;
+		last_cmd = "sd\n";
+		break;
+	}
 
 	spu_info[num].dump_addr = addr;
 }
@@ -2865,7 +2881,7 @@ static void dump_spu_ls(unsigned long num)
 static int do_spu_cmd(void)
 {
 	static unsigned long num = 0;
-	int cmd;
+	int cmd, subcmd = 0;
 
 	cmd = inchar();
 	switch (cmd) {
@@ -2875,8 +2891,11 @@ static int do_spu_cmd(void)
 	case 'r':
 		restart_spus();
 		break;
-	case 'f':
 	case 'd':
+		subcmd = inchar();
+		if (isxdigit(subcmd) || subcmd == '\n')
+			termch = subcmd;
+	case 'f':
 		scanhex(&num);
 		if (num >= XMON_NUM_SPUS || !spu_info[num].spu) {
 			printf("*** Error: invalid spu number\n");
@@ -2888,7 +2907,7 @@ static int do_spu_cmd(void)
 			dump_spu_fields(spu_info[num].spu);
 			break;
 		default:
-			dump_spu_ls(num);
+			dump_spu_ls(num, subcmd);
 			break;
 		}
 

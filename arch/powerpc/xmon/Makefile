@@ -5,3 +5,4 @@ EXTRA_CFLAGS += -mno-minimal-toc
 endif
 obj-y			+= xmon.o ppc-dis.o ppc-opc.o setjmp.o start.o \
 			   nonstdio.o
+obj-$(CONFIG_PPC_CELL)	+= spu-dis.o spu-opc.o
