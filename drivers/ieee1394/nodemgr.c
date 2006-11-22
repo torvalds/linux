@@ -100,7 +100,7 @@ static int nodemgr_check_speed(struct nodemgr_csr_info *ci, u64 addr,
 }
 
 static int nodemgr_bus_read(struct csr1212_csr *csr, u64 addr, u16 length,
-                            void *buffer, void *__ci)
+			    void *buffer, void *__ci)
 {
 	struct nodemgr_csr_info *ci = (struct nodemgr_csr_info*)__ci;
 	int i, error;
@@ -319,8 +319,8 @@ static ssize_t fw_drv_show_##field (struct device_driver *drv, char *buf) \
 	return sprintf(buf, format_string, (type)driver->field);\
 }								\
 static struct driver_attribute driver_attr_drv_##field = {	\
-        .attr = {.name = __stringify(field), .mode = S_IRUGO },	\
-        .show   = fw_drv_show_##field,				\
+	.attr = {.name = __stringify(field), .mode = S_IRUGO },	\
+	.show   = fw_drv_show_##field,				\
 };
 
 
@@ -541,7 +541,7 @@ static ssize_t fw_show_drv_device_ids(struct device_driver *drv, char *buf)
 	int length = 0;
 	char *scratch = buf;
 
-        driver = container_of(drv, struct hpsb_protocol_driver, driver);
+	driver = container_of(drv, struct hpsb_protocol_driver, driver);
 
 	for (id = driver->id_table; id->match_flags != 0; id++) {
 		int need_coma = 0;
@@ -708,8 +708,8 @@ fail:
 
 static int nodemgr_bus_match(struct device * dev, struct device_driver * drv)
 {
-        struct hpsb_protocol_driver *driver;
-        struct unit_directory *ud;
+	struct hpsb_protocol_driver *driver;
+	struct unit_directory *ud;
 	struct ieee1394_device_id *id;
 
 	/* We only match unit directories */
@@ -725,25 +725,25 @@ static int nodemgr_bus_match(struct device * dev, struct device_driver * drv)
 		return 0;
 
 	driver = container_of(drv, struct hpsb_protocol_driver, driver);
-        for (id = driver->id_table; id->match_flags != 0; id++) {
-                if ((id->match_flags & IEEE1394_MATCH_VENDOR_ID) &&
-                    id->vendor_id != ud->vendor_id)
-                        continue;
+	for (id = driver->id_table; id->match_flags != 0; id++) {
+		if ((id->match_flags & IEEE1394_MATCH_VENDOR_ID) &&
+		    id->vendor_id != ud->vendor_id)
+			continue;
 
-                if ((id->match_flags & IEEE1394_MATCH_MODEL_ID) &&
-                    id->model_id != ud->model_id)
-                        continue;
+		if ((id->match_flags & IEEE1394_MATCH_MODEL_ID) &&
+		    id->model_id != ud->model_id)
+			continue;
 
-                if ((id->match_flags & IEEE1394_MATCH_SPECIFIER_ID) &&
-                    id->specifier_id != ud->specifier_id)
-                        continue;
+		if ((id->match_flags & IEEE1394_MATCH_SPECIFIER_ID) &&
+		    id->specifier_id != ud->specifier_id)
+			continue;
 
-                if ((id->match_flags & IEEE1394_MATCH_VERSION) &&
-                    id->version != ud->version)
-                        continue;
+		if ((id->match_flags & IEEE1394_MATCH_VERSION) &&
+		    id->version != ud->version)
+			continue;
 
 		return 1;
-        }
+	}
 
 	return 0;
 }
@@ -852,16 +852,16 @@ static void nodemgr_update_bus_options(struct node_entry *ne)
 #endif
 	quadlet_t busoptions = be32_to_cpu(ne->csr->bus_info_data[2]);
 
-	ne->busopt.irmc         = (busoptions >> 31) & 1;
-	ne->busopt.cmc          = (busoptions >> 30) & 1;
-	ne->busopt.isc          = (busoptions >> 29) & 1;
-	ne->busopt.bmc          = (busoptions >> 28) & 1;
-	ne->busopt.pmc          = (busoptions >> 27) & 1;
-	ne->busopt.cyc_clk_acc  = (busoptions >> 16) & 0xff;
-	ne->busopt.max_rec      = 1 << (((busoptions >> 12) & 0xf) + 1);
+	ne->busopt.irmc		= (busoptions >> 31) & 1;
+	ne->busopt.cmc		= (busoptions >> 30) & 1;
+	ne->busopt.isc		= (busoptions >> 29) & 1;
+	ne->busopt.bmc		= (busoptions >> 28) & 1;
+	ne->busopt.pmc		= (busoptions >> 27) & 1;
+	ne->busopt.cyc_clk_acc	= (busoptions >> 16) & 0xff;
+	ne->busopt.max_rec	= 1 << (((busoptions >> 12) & 0xf) + 1);
 	ne->busopt.max_rom	= (busoptions >> 8) & 0x3;
-	ne->busopt.generation   = (busoptions >> 4) & 0xf;
-	ne->busopt.lnkspd       = busoptions & 0x7;
+	ne->busopt.generation	= (busoptions >> 4) & 0xf;
+	ne->busopt.lnkspd	= busoptions & 0x7;
 
 	HPSB_VERBOSE("NodeMgr: raw=0x%08x irmc=%d cmc=%d isc=%d bmc=%d pmc=%d "
 		     "cyc_clk_acc=%d max_rec=%d max_rom=%d gen=%d lspd=%d",
@@ -954,7 +954,7 @@ static struct node_entry *find_entry_by_guid(u64 guid)
 	}
 	up(&nodemgr_ne_class.sem);
 
-        return ret_ne;
+	return ret_ne;
 }
 
 
@@ -1416,22 +1416,22 @@ static void nodemgr_node_scan_one(struct host_info *hi,
 
 static void nodemgr_node_scan(struct host_info *hi, int generation)
 {
-        int count;
-        struct hpsb_host *host = hi->host;
-        struct selfid *sid = (struct selfid *)host->topology_map;
-        nodeid_t nodeid = LOCAL_BUS;
+	int count;
+	struct hpsb_host *host = hi->host;
+	struct selfid *sid = (struct selfid *)host->topology_map;
+	nodeid_t nodeid = LOCAL_BUS;
 
-        /* Scan each node on the bus */
-        for (count = host->selfid_count; count; count--, sid++) {
-                if (sid->extended)
-                        continue;
+	/* Scan each node on the bus */
+	for (count = host->selfid_count; count; count--, sid++) {
+		if (sid->extended)
+			continue;
 
-                if (!sid->link_active) {
-                        nodeid++;
-                        continue;
-                }
-                nodemgr_node_scan_one(hi, nodeid++, generation);
-        }
+		if (!sid->link_active) {
+			nodeid++;
+			continue;
+		}
+		nodemgr_node_scan_one(hi, nodeid++, generation);
+	}
 }
 
 
@@ -1597,7 +1597,7 @@ static void nodemgr_node_probe(struct host_info *hi, int generation)
 		if (ne->needs_probe)
 			nodemgr_probe_ne(hi, ne, generation);
 	}
-        up(&nodemgr_ne_class.sem);
+	up(&nodemgr_ne_class.sem);
 
 
 	/* If we had a bus reset while we were scanning the bus, it is
@@ -1841,10 +1841,10 @@ int nodemgr_for_each_host(void *__data, int (*cb)(struct hpsb_host *, void *))
 
 void hpsb_node_fill_packet(struct node_entry *ne, struct hpsb_packet *pkt)
 {
-        pkt->host = ne->host;
-        pkt->generation = ne->generation;
+	pkt->host = ne->host;
+	pkt->generation = ne->generation;
 	barrier();
-        pkt->node_id = ne->nodeid;
+	pkt->node_id = ne->nodeid;
 }
 
 int hpsb_node_write(struct node_entry *ne, u64 addr,
@@ -1922,7 +1922,7 @@ int init_ieee1394_nodemgr(void)
 
 void cleanup_ieee1394_nodemgr(void)
 {
-        hpsb_unregister_highlevel(&nodemgr_highlevel);
+	hpsb_unregister_highlevel(&nodemgr_highlevel);
 
 	class_unregister(&nodemgr_ud_class);
 	class_unregister(&nodemgr_ne_class);
