@@ -96,10 +96,10 @@ int pci_find_next_capability(struct pci_dev *dev, u8 pos, int cap)
 }
 EXPORT_SYMBOL_GPL(pci_find_next_capability);
 
-static int __pci_bus_find_cap(struct pci_bus *bus, unsigned int devfn, u8 hdr_type, int cap)
+static int __pci_bus_find_cap_start(struct pci_bus *bus,
+				    unsigned int devfn, u8 hdr_type)
 {
 	u16 status;
-	u8 pos;
 
 	pci_bus_read_config_word(bus, devfn, PCI_STATUS, &status);
 	if (!(status & PCI_STATUS_CAP_LIST))
@@ -108,15 +108,14 @@ static int __pci_bus_find_cap(struct pci_bus *bus, unsigned int devfn, u8 hdr_ty
 	switch (hdr_type) {
 	case PCI_HEADER_TYPE_NORMAL:
 	case PCI_HEADER_TYPE_BRIDGE:
-		pos = PCI_CAPABILITY_LIST;
-		break;
+		return PCI_CAPABILITY_LIST;
 	case PCI_HEADER_TYPE_CARDBUS:
-		pos = PCI_CB_CAPABILITY_LIST;
-		break;
+		return PCI_CB_CAPABILITY_LIST;
 	default:
 		return 0;
 	}
-	return __pci_find_next_cap(bus, devfn, pos, cap);
+
+	return 0;
 }
 
 /**
@@ -140,7 +139,13 @@ static int __pci_bus_find_cap(struct pci_bus *bus, unsigned int devfn, u8 hdr_ty
  */
 int pci_find_capability(struct pci_dev *dev, int cap)
 {
-	return __pci_bus_find_cap(dev->bus, dev->devfn, dev->hdr_type, cap);
+	int pos;
+
+	pos = __pci_bus_find_cap_start(dev->bus, dev->devfn, dev->hdr_type);
+	if (pos)
+		pos = __pci_find_next_cap(dev->bus, dev->devfn, pos, cap);
+
+	return pos;
 }
 
 /**
@@ -158,11 +163,16 @@ int pci_find_capability(struct pci_dev *dev, int cap)
  */
 int pci_bus_find_capability(struct pci_bus *bus, unsigned int devfn, int cap)
 {
+	int pos;
 	u8 hdr_type;
 
 	pci_bus_read_config_byte(bus, devfn, PCI_HEADER_TYPE, &hdr_type);
 
-	return __pci_bus_find_cap(bus, devfn, hdr_type & 0x7f, cap);
+	pos = __pci_bus_find_cap_start(bus, devfn, hdr_type & 0x7f);
+	if (pos)
+		pos = __pci_find_next_cap(bus, devfn, pos, cap);
+
+	return pos;
 }
 
 /**
