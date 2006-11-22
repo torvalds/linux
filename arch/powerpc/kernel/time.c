@@ -1014,48 +1014,6 @@ void __init time_init(void)
 	set_dec(tb_ticks_per_jiffy);
 }
 
-#ifdef CONFIG_RTC_CLASS
-static int set_rtc_class_time(struct rtc_time *tm)
-{
-	int err;
-	struct class_device *class_dev =
-		rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
-
-	if (class_dev == NULL)
-		return -ENODEV;
-
-	err = rtc_set_time(class_dev, tm);
-
-	rtc_class_close(class_dev);
-
-	return 0;
-}
-
-static void get_rtc_class_time(struct rtc_time *tm)
-{
-	int err;
-	struct class_device *class_dev =
-		rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
-
-	if (class_dev == NULL)
-		return;
-
-	err = rtc_read_time(class_dev, tm);
-
-	rtc_class_close(class_dev);
-
-	return;
-}
-
-int __init rtc_class_hookup(void)
-{
-	ppc_md.get_rtc_time = get_rtc_class_time;
-	ppc_md.set_rtc_time = set_rtc_class_time;
-
-	return 0;
-}
-#endif /* CONFIG_RTC_CLASS */
-
 
 #define FEBRUARY	2
 #define	STARTOFTIME	1970
