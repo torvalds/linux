@@ -1549,6 +1549,9 @@ void scsi_scan_target(struct device *parent, unsigned int channel,
 {
 	struct Scsi_Host *shost = dev_to_shost(parent);
 
+	if (strncmp(scsi_scan_type, "none", 4) == 0)
+		return;
+
 	if (!shost->async_scan)
 		scsi_complete_async_scans();
 
