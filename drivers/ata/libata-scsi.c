@@ -3181,15 +3181,27 @@ static int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
 void ata_scsi_dev_rescan(void *data)
 {
 	struct ata_port *ap = data;
-	struct ata_device *dev;
+	unsigned long flags;
 	unsigned int i;
 
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		dev = &ap->device[i];
+	spin_lock_irqsave(ap->lock, flags);
 
-		if (ata_dev_enabled(dev) && dev->sdev)
-			scsi_rescan_device(&(dev->sdev->sdev_gendev));
+	for (i = 0; i < ATA_MAX_DEVICES; i++) {
+		struct ata_device *dev = &ap->device[i];
+		struct scsi_device *sdev = dev->sdev;
+
+		if (!ata_dev_enabled(dev) || !sdev)
+			continue;
+		if (scsi_device_get(sdev))
+			continue;
+
+		spin_unlock_irqrestore(ap->lock, flags);
+		scsi_rescan_device(&(sdev->sdev_gendev));
+		scsi_device_put(sdev);
+		spin_lock_irqsave(ap->lock, flags);
 	}
+
+	spin_unlock_irqrestore(ap->lock, flags);
 }
 
 /**
