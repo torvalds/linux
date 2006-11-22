@@ -2789,8 +2789,6 @@ static void dump_spu_fields(struct spu *spu)
 
 	DUMP_FIELD(spu, "0x%x", number);
 	DUMP_FIELD(spu, "%s", name);
-	DUMP_FIELD(spu, "%s", devnode->full_name);
-	DUMP_FIELD(spu, "0x%x", nid);
 	DUMP_FIELD(spu, "0x%lx", local_store_phys);
 	DUMP_FIELD(spu, "0x%p", local_store);
 	DUMP_FIELD(spu, "0x%lx", ls_size);
@@ -2817,14 +2815,8 @@ static void dump_spu_fields(struct spu *spu)
 			in_be32(&spu->problem->spu_status_R));
 	DUMP_VALUE("0x%x", problem->spu_npc_RW,
 			in_be32(&spu->problem->spu_npc_RW));
-	DUMP_FIELD(spu, "0x%p", priv1);
-
-	if (spu->priv1) {
-		DUMP_VALUE("0x%lx", priv1->mfc_sr1_RW,
-				in_be64(&spu->priv1->mfc_sr1_RW));
-	}
-
 	DUMP_FIELD(spu, "0x%p", priv2);
+	DUMP_FIELD(spu, "0x%p", pdata);
 }
 
 int
