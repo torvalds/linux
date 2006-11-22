@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
+#include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/freezer.h>
 #include <asm/atomic.h>
@@ -260,9 +261,20 @@ static struct device nodemgr_dev_template_ne = {
 	.release	= nodemgr_release_ne,
 };
 
+/* This dummy driver prevents the host devices from being scanned. We have no
+ * useful drivers for them yet, and there would be a deadlock possible if the
+ * driver core scans the host device while the host's low-level driver (i.e.
+ * the host's parent device) is being removed. */
+static struct device_driver nodemgr_mid_layer_driver = {
+	.bus		= &ieee1394_bus_type,
+	.name		= "nodemgr",
+	.owner		= THIS_MODULE,
+};
+
 struct device nodemgr_dev_template_host = {
 	.bus		= &ieee1394_bus_type,
 	.release	= nodemgr_release_host,
+	.driver		= &nodemgr_mid_layer_driver,
 };
 
 
@@ -705,11 +717,14 @@ static int nodemgr_bus_match(struct device * dev, struct device_driver * drv)
 		return 0;
 
 	ud = container_of(dev, struct unit_directory, device);
-	driver = container_of(drv, struct hpsb_protocol_driver, driver);
-
 	if (ud->ne->in_limbo || ud->ignore_driver)
 		return 0;
 
+	/* We only match drivers of type hpsb_protocol_driver */
+	if (drv == &nodemgr_mid_layer_driver)
+		return 0;
+
+	driver = container_of(drv, struct hpsb_protocol_driver, driver);
         for (id = driver->id_table; id->match_flags != 0; id++) {
                 if ((id->match_flags & IEEE1394_MATCH_VENDOR_ID) &&
                     id->vendor_id != ud->vendor_id)
@@ -1900,7 +1915,7 @@ int init_ieee1394_nodemgr(void)
 		class_unregister(&nodemgr_ne_class);
 		return error;
 	}
-
+	error = driver_register(&nodemgr_mid_layer_driver);
 	hpsb_register_highlevel(&nodemgr_highlevel);
 	return 0;
 }
