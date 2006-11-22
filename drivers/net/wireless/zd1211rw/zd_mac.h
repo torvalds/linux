@@ -116,10 +116,6 @@ struct rx_status {
 #define ZD_RX_CRC16_ERROR		0x40
 #define ZD_RX_ERROR			0x80
 
-enum mac_flags {
-	MAC_FIXED_CHANNEL = 0x01,
-};
-
 struct housekeeping {
 	struct work_struct link_led_work;
 };
@@ -180,7 +176,7 @@ int zd_mac_set_regdomain(struct zd_mac *zd_mac, u8 regdomain);
 u8 zd_mac_get_regdomain(struct zd_mac *zd_mac);
 
 int zd_mac_request_channel(struct zd_mac *mac, u8 channel);
-int zd_mac_get_channel(struct zd_mac *mac, u8 *channel, u8 *flags);
+u8 zd_mac_get_channel(struct zd_mac *mac);
 
 int zd_mac_set_mode(struct zd_mac *mac, u32 mode);
 int zd_mac_get_mode(struct zd_mac *mac, u32 *mode);

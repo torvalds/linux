@@ -133,9 +133,6 @@ int zd_find_channel(u8 *channel, const struct iw_freq *freq)
 	int i, r;
 	u32 mhz;
 
-	if (!(freq->flags & IW_FREQ_FIXED))
-		return 0;
-
 	if (freq->m < 1000) {
 		if (freq->m  > NUM_CHANNELS || freq->m == 0)
 			return -EINVAL;

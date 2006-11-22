@@ -317,21 +317,12 @@ int zd_mac_request_channel(struct zd_mac *mac, u8 channel)
 		return 0;
 }
 
-int zd_mac_get_channel(struct zd_mac *mac, u8 *channel, u8 *flags)
+u8 zd_mac_get_channel(struct zd_mac *mac)
 {
-	struct ieee80211_device *ieee = zd_mac_to_ieee80211(mac);
+	u8 channel = zd_chip_get_channel(&mac->chip);
 
-	*channel = zd_chip_get_channel(&mac->chip);
-	if (ieee->iw_mode != IW_MODE_INFRA) {
-		spin_lock_irq(&mac->lock);
-		*flags = *channel == mac->requested_channel ?
-			MAC_FIXED_CHANNEL : 0;
-		spin_unlock(&mac->lock);
-	} else {
-		*flags = 0;
-	}
-	dev_dbg_f(zd_mac_dev(mac), "channel %u flags %u\n", *channel, *flags);
-	return 0;
+	dev_dbg_f(zd_mac_dev(mac), "channel %u\n", channel);
+	return channel;
 }
 
 /* If wrong rate is given, we are falling back to the slowest rate: 1MBit/s */
