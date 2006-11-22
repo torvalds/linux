@@ -593,6 +593,8 @@ static void handle_rx_packet(struct zd_usb *usb, const u8 *buffer,
 		unsigned int l, k, n;
 		for (i = 0, l = 0;; i++) {
 			k = le16_to_cpu(get_unaligned(&length_info->length[i]));
+			if (k == 0)
+				return;
 			n = l+k;
 			if (n > length)
 				return;
