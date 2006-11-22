@@ -295,7 +295,6 @@ static void set_channel(struct net_device *netdev, u8 channel)
 	zd_chip_set_channel(&mac->chip, channel);
 }
 
-/* TODO: Should not work in Managed mode. */
 int zd_mac_request_channel(struct zd_mac *mac, u8 channel)
 {
 	unsigned long lock_flags;
@@ -773,9 +772,11 @@ static int is_data_packet_for_us(struct ieee80211_device *ieee,
 	       (netdev->flags & IFF_PROMISC);
 }
 
-/* Filters receiving packets. If it returns 1 send it to ieee80211_rx, if 0
- * return. If an error is detected -EINVAL is returned. ieee80211_rx_mgt() is
- * called here.
+/* Filters received packets. The function returns 1 if the packet should be
+ * forwarded to ieee80211_rx(). If the packet should be ignored the function
+ * returns 0. If an invalid packet is found the function returns -EINVAL.
+ *
+ * The function calls ieee80211_rx_mgt() directly.
  *
  * It has been based on ieee80211_rx_any.
  */
@@ -801,9 +802,9 @@ static int filter_rx(struct ieee80211_device *ieee,
 		ieee80211_rx_mgt(ieee, hdr, stats);
 		return 0;
 	case IEEE80211_FTYPE_CTL:
-		/* Ignore invalid short buffers */
 		return 0;
 	case IEEE80211_FTYPE_DATA:
+		/* Ignore invalid short buffers */
 		if (length < sizeof(struct ieee80211_hdr_3addr))
 			return -EINVAL;
 		return is_data_packet_for_us(ieee, hdr);
@@ -1018,66 +1019,6 @@ struct iw_statistics *zd_mac_get_wireless_stats(struct net_device *ndev)
 	/* TODO: update counter */
 	return iw_stats;
 }
-
-#ifdef DEBUG
-static const char* decryption_types[] = {
-	[ZD_RX_NO_WEP] = "none",
-	[ZD_RX_WEP64] = "WEP64",
-	[ZD_RX_TKIP] = "TKIP",
-	[ZD_RX_AES] = "AES",
-	[ZD_RX_WEP128] = "WEP128",
-	[ZD_RX_WEP256] = "WEP256",
-};
-
-static const char *decryption_type_string(u8 type)
-{
-	const char *s;
-
-	if (type < ARRAY_SIZE(decryption_types)) {
-		s = decryption_types[type];
-	} else {
-		s = NULL;
-	}
-	return s ? s : "unknown";
-}
-
-static int is_ofdm(u8 frame_status)
-{
-	return (frame_status & ZD_RX_OFDM);
-}
-
-void zd_dump_rx_status(const struct rx_status *status)
-{
-	const char* modulation;
-	u8 quality;
-
-	if (is_ofdm(status->frame_status)) {
-		modulation = "ofdm";
-		quality = status->signal_quality_ofdm;
-	} else {
-		modulation = "cck";
-		quality = status->signal_quality_cck;
-	}
-	pr_debug("rx status %s strength %#04x qual %#04x decryption %s\n",
-		modulation, status->signal_strength, quality,
-		decryption_type_string(status->decryption_type));
-	if (status->frame_status & ZD_RX_ERROR) {
-		pr_debug("rx error %s%s%s%s%s%s\n",
-			(status->frame_status & ZD_RX_TIMEOUT_ERROR) ?
-				"timeout " : "",
-			(status->frame_status & ZD_RX_FIFO_OVERRUN_ERROR) ?
-				"fifo " : "",
-			(status->frame_status & ZD_RX_DECRYPTION_ERROR) ?
-				"decryption " : "",
-			(status->frame_status & ZD_RX_CRC32_ERROR) ?
-				"crc32 " : "",
-			(status->frame_status & ZD_RX_NO_ADDR1_MATCH_ERROR) ?
-				"addr1 " : "",
-			(status->frame_status & ZD_RX_CRC16_ERROR) ?
-				"crc16" : "");
-	}
-}
-#endif /* DEBUG */
 
 #define LINK_LED_WORK_DELAY HZ
 

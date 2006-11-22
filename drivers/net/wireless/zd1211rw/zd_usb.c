@@ -1116,27 +1116,28 @@ static int __init usb_init(void)
 {
 	int r;
 
-	pr_debug("usb_init()\n");
+	pr_debug("%s usb_init()\n", driver.name);
 
 	zd_workqueue = create_singlethread_workqueue(driver.name);
 	if (zd_workqueue == NULL) {
-		printk(KERN_ERR "%s: couldn't create workqueue\n", driver.name);
+		printk(KERN_ERR "%s couldn't create workqueue\n", driver.name);
 		return -ENOMEM;
 	}
 
 	r = usb_register(&driver);
 	if (r) {
-		printk(KERN_ERR "usb_register() failed. Error number %d\n", r);
+		printk(KERN_ERR "%s usb_register() failed. Error number %d\n",
+		       driver.name, r);
 		return r;
 	}
 
-	pr_debug("zd1211rw initialized\n");
+	pr_debug("%s initialized\n", driver.name);
 	return 0;
 }
 
 static void __exit usb_exit(void)
 {
-	pr_debug("usb_exit()\n");
+	pr_debug("%s usb_exit()\n", driver.name);
 	usb_deregister(&driver);
 	destroy_workqueue(zd_workqueue);
 }

@@ -337,24 +337,24 @@
 #define CR_MAC_PS_STATE			CTL_REG(0x050C)
 
 #define CR_INTERRUPT			CTL_REG(0x0510)
-#define INT_TX_COMPLETE			0x00000001
-#define INT_RX_COMPLETE			0x00000002
-#define INT_RETRY_FAIL			0x00000004
-#define INT_WAKEUP			0x00000008
-#define INT_DTIM_NOTIFY			0x00000020
-#define INT_CFG_NEXT_BCN		0x00000040
-#define INT_BUS_ABORT			0x00000080
-#define INT_TX_FIFO_READY		0x00000100
-#define INT_UART			0x00000200
-#define INT_TX_COMPLETE_EN		0x00010000
-#define INT_RX_COMPLETE_EN		0x00020000
-#define INT_RETRY_FAIL_EN		0x00040000
-#define INT_WAKEUP_EN			0x00080000
-#define INT_DTIM_NOTIFY_EN		0x00200000
-#define INT_CFG_NEXT_BCN_EN		0x00400000
-#define INT_BUS_ABORT_EN		0x00800000
-#define INT_TX_FIFO_READY_EN		0x01000000
-#define INT_UART_EN			0x02000000
+#define INT_TX_COMPLETE			(1 <<  0)
+#define INT_RX_COMPLETE			(1 <<  1)
+#define INT_RETRY_FAIL			(1 <<  2)
+#define INT_WAKEUP			(1 <<  3)
+#define INT_DTIM_NOTIFY			(1 <<  5)
+#define INT_CFG_NEXT_BCN		(1 <<  6)
+#define INT_BUS_ABORT			(1 <<  7)
+#define INT_TX_FIFO_READY		(1 <<  8)
+#define INT_UART			(1 <<  9)
+#define INT_TX_COMPLETE_EN		(1 << 16)
+#define INT_RX_COMPLETE_EN		(1 << 17)
+#define INT_RETRY_FAIL_EN		(1 << 18)
+#define INT_WAKEUP_EN			(1 << 19)
+#define INT_DTIM_NOTIFY_EN		(1 << 21)
+#define INT_CFG_NEXT_BCN_EN		(1 << 22)
+#define INT_BUS_ABORT_EN		(1 << 23)
+#define INT_TX_FIFO_READY_EN		(1 << 24)
+#define INT_UART_EN			(1 << 25)
 
 #define CR_TSF_LOW_PART			CTL_REG(0x0514)
 #define CR_TSF_HIGH_PART		CTL_REG(0x0518)
@@ -398,18 +398,18 @@
  * device will use a rate in this table that is less than or equal to the rate
  * of the incoming frame which prompted the response */
 #define CR_BASIC_RATE_TBL		CTL_REG(0x0630)
-#define CR_RATE_1M	0x0001	/* 802.11b */
-#define CR_RATE_2M	0x0002	/* 802.11b */
-#define CR_RATE_5_5M	0x0004	/* 802.11b */
-#define CR_RATE_11M	0x0008	/* 802.11b */
-#define CR_RATE_6M      0x0100	/* 802.11g */
-#define CR_RATE_9M      0x0200	/* 802.11g */
-#define CR_RATE_12M	0x0400	/* 802.11g */
-#define CR_RATE_18M	0x0800	/* 802.11g */
-#define CR_RATE_24M     0x1000	/* 802.11g */
-#define CR_RATE_36M     0x2000	/* 802.11g */
-#define CR_RATE_48M     0x4000	/* 802.11g */
-#define CR_RATE_54M     0x8000	/* 802.11g */
+#define CR_RATE_1M	(1 <<  0)	/* 802.11b */
+#define CR_RATE_2M	(1 <<  1)	/* 802.11b */
+#define CR_RATE_5_5M	(1 <<  2)	/* 802.11b */
+#define CR_RATE_11M	(1 <<  3)	/* 802.11b */
+#define CR_RATE_6M      (1 <<  8)	/* 802.11g */
+#define CR_RATE_9M      (1 <<  9)	/* 802.11g */
+#define CR_RATE_12M	(1 << 10)	/* 802.11g */
+#define CR_RATE_18M	(1 << 11)	/* 802.11g */
+#define CR_RATE_24M     (1 << 12)	/* 802.11g */
+#define CR_RATE_36M     (1 << 13)	/* 802.11g */
+#define CR_RATE_48M     (1 << 14)	/* 802.11g */
+#define CR_RATE_54M     (1 << 15)	/* 802.11g */
 #define CR_RATES_80211G	0xff00
 #define CR_RATES_80211B	0x000f
 
@@ -426,9 +426,9 @@
 /* register for controlling the LEDS */
 #define CR_LED				CTL_REG(0x0644)
 /* masks for controlling LEDs */
-#define LED1				0x0100
-#define LED2				0x0200
-#define LED_SW				0x0400
+#define LED1				(1 <<  8)
+#define LED2				(1 <<  9)
+#define LED_SW				(1 << 10)
 
 /* Seems to indicate that the configuration is over.
  */
@@ -455,18 +455,18 @@
  * registers, so one could argue it is a LOCK bit. But calling it
  * LOCK_PHY_REGS makes it confusing.
  */
-#define UNLOCK_PHY_REGS			0x0080
+#define UNLOCK_PHY_REGS			(1 << 7)
 
 #define CR_DEVICE_STATE			CTL_REG(0x0684)
 #define CR_UNDERRUN_CNT			CTL_REG(0x0688)
 
 #define CR_RX_FILTER			CTL_REG(0x068c)
-#define RX_FILTER_ASSOC_RESPONSE	0x0002
-#define RX_FILTER_REASSOC_RESPONSE	0x0008
-#define RX_FILTER_PROBE_RESPONSE	0x0020
-#define RX_FILTER_BEACON		0x0100
-#define RX_FILTER_DISASSOC		0x0400
-#define RX_FILTER_AUTH			0x0800
+#define RX_FILTER_ASSOC_RESPONSE	(1 <<  1)
+#define RX_FILTER_REASSOC_RESPONSE	(1 <<  3)
+#define RX_FILTER_PROBE_RESPONSE	(1 <<  5)
+#define RX_FILTER_BEACON		(1 <<  8)
+#define RX_FILTER_DISASSOC		(1 << 10)
+#define RX_FILTER_AUTH			(1 << 11)
 #define AP_RX_FILTER			0x0400feff
 #define STA_RX_FILTER			0x0000ffff
 
