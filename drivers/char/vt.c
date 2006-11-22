@@ -155,7 +155,7 @@ static void con_flush_chars(struct tty_struct *tty);
 static void set_vesa_blanking(char __user *p);
 static void set_cursor(struct vc_data *vc);
 static void hide_cursor(struct vc_data *vc);
-static void console_callback(void *ignored);
+static void console_callback(struct work_struct *ignored);
 static void blank_screen_t(unsigned long dummy);
 static void set_palette(struct vc_data *vc);
 
@@ -174,7 +174,7 @@ static int vesa_blank_mode; /* 0:none 1:suspendV 2:suspendH 3:powerdown */
 static int blankinterval = 10*60*HZ;
 static int vesa_off_interval;
 
-static DECLARE_WORK(console_work, console_callback, NULL);
+static DECLARE_WORK(console_work, console_callback);
 
 /*
  * fg_console is the current virtual console,
@@ -2154,7 +2154,7 @@ out:
  * with other console code and prevention of re-entrancy is
  * ensured with console_sem.
  */
-static void console_callback(void *ignored)
+static void console_callback(struct work_struct *ignored)
 {
 	acquire_console_sem();
 

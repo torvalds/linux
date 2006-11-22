@@ -955,16 +955,16 @@ static void bio_release_pages(struct bio *bio)
  * run one bio_put() against the BIO.
  */
 
-static void bio_dirty_fn(void *data);
+static void bio_dirty_fn(struct work_struct *work);
 
-static DECLARE_WORK(bio_dirty_work, bio_dirty_fn, NULL);
+static DECLARE_WORK(bio_dirty_work, bio_dirty_fn);
 static DEFINE_SPINLOCK(bio_dirty_lock);
 static struct bio *bio_dirty_list;
 
 /*
  * This runs in process context
  */
-static void bio_dirty_fn(void *data)
+static void bio_dirty_fn(struct work_struct *work)
 {
 	unsigned long flags;
 	struct bio *bio;

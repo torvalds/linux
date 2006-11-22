@@ -241,14 +241,14 @@ static void run_workqueue(struct cpu_workqueue_struct *cwq)
 		struct work_struct *work = list_entry(cwq->worklist.next,
 						struct work_struct, entry);
 		work_func_t f = work->func;
-		void *data = work->data;
 
 		list_del_init(cwq->worklist.next);
 		spin_unlock_irqrestore(&cwq->lock, flags);
 
 		BUG_ON(get_wq_data(work) != cwq);
-		clear_bit(WORK_STRUCT_PENDING, &work->management);
-		f(data);
+		if (!test_bit(WORK_STRUCT_NOAUTOREL, &work->management))
+			work_release(work);
+		f(work);
 
 		spin_lock_irqsave(&cwq->lock, flags);
 		cwq->remove_sequence++;
@@ -527,7 +527,6 @@ EXPORT_SYMBOL(schedule_delayed_work_on);
 /**
  * schedule_on_each_cpu - call a function on each online CPU from keventd
  * @func: the function to call
- * @info: a pointer to pass to func()
  *
  * Returns zero on success.
  * Returns -ve errno on failure.
@@ -536,7 +535,7 @@ EXPORT_SYMBOL(schedule_delayed_work_on);
  *
  * schedule_on_each_cpu() is very slow.
  */
-int schedule_on_each_cpu(work_func_t func, void *info)
+int schedule_on_each_cpu(work_func_t func)
 {
 	int cpu;
 	struct work_struct *works;
@@ -547,7 +546,7 @@ int schedule_on_each_cpu(work_func_t func, void *info)
 
 	mutex_lock(&workqueue_mutex);
 	for_each_online_cpu(cpu) {
-		INIT_WORK(per_cpu_ptr(works, cpu), func, info);
+		INIT_WORK(per_cpu_ptr(works, cpu), func);
 		__queue_work(per_cpu_ptr(keventd_wq->cpu_wq, cpu),
 				per_cpu_ptr(works, cpu));
 	}
@@ -591,7 +590,6 @@ EXPORT_SYMBOL(cancel_rearming_delayed_work);
 /**
  * execute_in_process_context - reliably execute the routine with user context
  * @fn:		the function to execute
- * @data:	data to pass to the function
  * @ew:		guaranteed storage for the execute work structure (must
  *		be available when the work executes)
  *
@@ -601,15 +599,14 @@ EXPORT_SYMBOL(cancel_rearming_delayed_work);
  * Returns:	0 - function was executed
  *		1 - function was scheduled for execution
  */
-int execute_in_process_context(work_func_t fn, void *data,
-			       struct execute_work *ew)
+int execute_in_process_context(work_func_t fn, struct execute_work *ew)
 {
 	if (!in_interrupt()) {
-		fn(data);
+		fn(&ew->work);
 		return 0;
 	}
 
-	INIT_WORK(&ew->work, fn, data);
+	INIT_WORK(&ew->work, fn);
 	schedule_work(&ew->work);
 
 	return 1;

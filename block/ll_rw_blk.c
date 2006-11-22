@@ -34,7 +34,7 @@
  */
 #include <scsi/scsi_cmnd.h>
 
-static void blk_unplug_work(void *data);
+static void blk_unplug_work(struct work_struct *work);
 static void blk_unplug_timeout(unsigned long data);
 static void drive_stat_acct(struct request *rq, int nr_sectors, int new_io);
 static void init_request_from_bio(struct request *req, struct bio *bio);
@@ -227,7 +227,7 @@ void blk_queue_make_request(request_queue_t * q, make_request_fn * mfn)
 	if (q->unplug_delay == 0)
 		q->unplug_delay = 1;
 
-	INIT_WORK(&q->unplug_work, blk_unplug_work, q);
+	INIT_WORK(&q->unplug_work, blk_unplug_work);
 
 	q->unplug_timer.function = blk_unplug_timeout;
 	q->unplug_timer.data = (unsigned long)q;
@@ -1631,9 +1631,9 @@ static void blk_backing_dev_unplug(struct backing_dev_info *bdi,
 	}
 }
 
-static void blk_unplug_work(void *data)
+static void blk_unplug_work(struct work_struct *work)
 {
-	request_queue_t *q = data;
+	request_queue_t *q = container_of(work, request_queue_t, unplug_work);
 
 	blk_add_trace_pdu_int(q, BLK_TA_UNPLUG_IO, NULL,
 				q->rq.count[READ] + q->rq.count[WRITE]);

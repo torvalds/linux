@@ -1841,9 +1841,11 @@ queue_fail:
 	return 1;
 }
 
-static void cfq_kick_queue(void *data)
+static void cfq_kick_queue(struct work_struct *work)
 {
-	request_queue_t *q = data;
+	struct cfq_data *cfqd =
+		container_of(work, struct cfq_data, unplug_work);
+	request_queue_t *q = cfqd->queue;
 	unsigned long flags;
 
 	spin_lock_irqsave(q->queue_lock, flags);
@@ -1987,7 +1989,7 @@ static void *cfq_init_queue(request_queue_t *q, elevator_t *e)
 	cfqd->idle_class_timer.function = cfq_idle_class_timer;
 	cfqd->idle_class_timer.data = (unsigned long) cfqd;
 
-	INIT_WORK(&cfqd->unplug_work, cfq_kick_queue, q);
+	INIT_WORK(&cfqd->unplug_work, cfq_kick_queue);
 
 	cfqd->cfq_quantum = cfq_quantum;
 	cfqd->cfq_fifo_expire[0] = cfq_fifo_expire[0];

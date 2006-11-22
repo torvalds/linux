@@ -34,8 +34,8 @@ enum lw_bits {
 static unsigned long linkwatch_flags;
 static unsigned long linkwatch_nextevent;
 
-static void linkwatch_event(void *dummy);
-static DECLARE_DELAYED_WORK(linkwatch_work, linkwatch_event, NULL);
+static void linkwatch_event(struct work_struct *dummy);
+static DECLARE_DELAYED_WORK(linkwatch_work, linkwatch_event);
 
 static LIST_HEAD(lweventlist);
 static DEFINE_SPINLOCK(lweventlist_lock);
@@ -127,7 +127,7 @@ void linkwatch_run_queue(void)
 }       
 
 
-static void linkwatch_event(void *dummy)
+static void linkwatch_event(struct work_struct *dummy)
 {
 	/* Limit the number of linkwatch events to one
 	 * per second so that a runaway driver does not

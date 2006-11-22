@@ -183,7 +183,7 @@ void e1000_set_ethtool_ops(struct net_device *netdev);
 static void e1000_enter_82542_rst(struct e1000_adapter *adapter);
 static void e1000_leave_82542_rst(struct e1000_adapter *adapter);
 static void e1000_tx_timeout(struct net_device *dev);
-static void e1000_reset_task(struct net_device *dev);
+static void e1000_reset_task(struct work_struct *work);
 static void e1000_smartspeed(struct e1000_adapter *adapter);
 static int e1000_82547_fifo_workaround(struct e1000_adapter *adapter,
                                        struct sk_buff *skb);
@@ -908,8 +908,7 @@ e1000_probe(struct pci_dev *pdev,
 	adapter->phy_info_timer.function = &e1000_update_phy_info;
 	adapter->phy_info_timer.data = (unsigned long) adapter;
 
-	INIT_WORK(&adapter->reset_task,
-		(void (*)(void *))e1000_reset_task, netdev);
+	INIT_WORK(&adapter->reset_task, e1000_reset_task);
 
 	e1000_check_options(adapter);
 
@@ -3154,9 +3153,10 @@ e1000_tx_timeout(struct net_device *netdev)
 }
 
 static void
-e1000_reset_task(struct net_device *netdev)
+e1000_reset_task(struct work_struct *work)
 {
-	struct e1000_adapter *adapter = netdev_priv(netdev);
+	struct e1000_adapter *adapter =
+		container_of(work, struct e1000_adapter, reset_task);
 
 	e1000_reinit_locked(adapter);
 }

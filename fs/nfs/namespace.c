@@ -18,11 +18,10 @@
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
-static void nfs_expire_automounts(void *list);
+static void nfs_expire_automounts(struct work_struct *work);
 
 LIST_HEAD(nfs_automount_list);
-static DECLARE_DELAYED_WORK(nfs_automount_task, nfs_expire_automounts,
-			    &nfs_automount_list);
+static DECLARE_DELAYED_WORK(nfs_automount_task, nfs_expire_automounts);
 int nfs_mountpoint_expiry_timeout = 500 * HZ;
 
 static struct vfsmount *nfs_do_submount(const struct vfsmount *mnt_parent,
@@ -165,9 +164,9 @@ struct inode_operations nfs_referral_inode_operations = {
 	.follow_link	= nfs_follow_mountpoint,
 };
 
-static void nfs_expire_automounts(void *data)
+static void nfs_expire_automounts(struct work_struct *work)
 {
-	struct list_head *list = (struct list_head *)data;
+	struct list_head *list = &nfs_automount_list;
 
 	mark_mounts_for_expiry(list);
 	if (!list_empty(list))

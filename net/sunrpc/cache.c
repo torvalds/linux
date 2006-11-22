@@ -284,8 +284,8 @@ static struct file_operations cache_file_operations;
 static struct file_operations content_file_operations;
 static struct file_operations cache_flush_operations;
 
-static void do_cache_clean(void *data);
-static DECLARE_DELAYED_WORK(cache_cleaner, do_cache_clean, NULL);
+static void do_cache_clean(struct work_struct *work);
+static DECLARE_DELAYED_WORK(cache_cleaner, do_cache_clean);
 
 void cache_register(struct cache_detail *cd)
 {
@@ -461,7 +461,7 @@ static int cache_clean(void)
 /*
  * We want to regularly clean the cache, so we need to schedule some work ...
  */
-static void do_cache_clean(void *data)
+static void do_cache_clean(struct work_struct *work)
 {
 	int delay = 5;
 	if (cache_clean() == -1)

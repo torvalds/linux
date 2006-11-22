@@ -31,6 +31,8 @@ struct kthread_create_info
 	/* Result passed back to kthread_create() from keventd. */
 	struct task_struct *result;
 	struct completion done;
+
+	struct work_struct work;
 };
 
 struct kthread_stop_info
@@ -111,9 +113,10 @@ static int kthread(void *_create)
 }
 
 /* We are keventd: create a thread. */
-static void keventd_create_kthread(void *_create)
+static void keventd_create_kthread(struct work_struct *work)
 {
-	struct kthread_create_info *create = _create;
+	struct kthread_create_info *create =
+		container_of(work, struct kthread_create_info, work);
 	int pid;
 
 	/* We want our own signal handler (we take no signals by default). */
@@ -154,20 +157,20 @@ struct task_struct *kthread_create(int (*threadfn)(void *data),
 				   ...)
 {
 	struct kthread_create_info create;
-	DECLARE_WORK(work, keventd_create_kthread, &create);
 
 	create.threadfn = threadfn;
 	create.data = data;
 	init_completion(&create.started);
 	init_completion(&create.done);
+	INIT_WORK(&create.work, keventd_create_kthread);
 
 	/*
 	 * The workqueue needs to start up first:
 	 */
 	if (!helper_wq)
-		work.func(work.data);
+		create.work.func(&create.work);
 	else {
-		queue_work(helper_wq, &work);
+		queue_work(helper_wq, &create.work);
 		wait_for_completion(&create.done);
 	}
 	if (!IS_ERR(create.result)) {

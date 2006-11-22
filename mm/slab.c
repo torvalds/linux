@@ -313,7 +313,7 @@ static int drain_freelist(struct kmem_cache *cache,
 static void free_block(struct kmem_cache *cachep, void **objpp, int len,
 			int node);
 static int enable_cpucache(struct kmem_cache *cachep);
-static void cache_reap(void *unused);
+static void cache_reap(struct work_struct *unused);
 
 /*
  * This function must be completely optimized away if a constant is passed to
@@ -925,7 +925,7 @@ static void __devinit start_cpu_timer(int cpu)
 	 */
 	if (keventd_up() && reap_work->work.func == NULL) {
 		init_reap_node(cpu);
-		INIT_DELAYED_WORK(reap_work, cache_reap, NULL);
+		INIT_DELAYED_WORK(reap_work, cache_reap);
 		schedule_delayed_work_on(cpu, reap_work, HZ + 3 * cpu);
 	}
 }
@@ -3815,7 +3815,7 @@ void drain_array(struct kmem_cache *cachep, struct kmem_list3 *l3,
  * If we cannot acquire the cache chain mutex then just give up - we'll try
  * again on the next iteration.
  */
-static void cache_reap(void *unused)
+static void cache_reap(struct work_struct *unused)
 {
 	struct kmem_cache *searchp;
 	struct kmem_list3 *l3;
