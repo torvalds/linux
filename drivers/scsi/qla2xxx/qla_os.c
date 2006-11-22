@@ -1377,10 +1377,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct Scsi_Host *host;
 	scsi_qla_host_t *ha;
 	unsigned long	flags = 0;
-	unsigned long	wait_switch = 0;
 	char pci_info[20];
 	char fw_str[30];
-	fc_port_t *fcport;
 	struct scsi_host_template *sht;
 
 	if (pci_enable_device(pdev))
@@ -1631,24 +1629,15 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ha->isp_ops.enable_intrs(ha);
 
-	/* v2.19.5b6 */
-	/*
-	 * Wait around max loop_reset_delay secs for the devices to come
-	 * on-line. We don't want Linux scanning before we are ready.
-	 *
-	 */
-	for (wait_switch = jiffies + (ha->loop_reset_delay * HZ);
-	    time_before(jiffies,wait_switch) &&
-	     !(ha->device_flags & (DFLG_NO_CABLE | DFLG_FABRIC_DEVICES))
-	     && (ha->device_flags & SWITCH_FOUND) ;) {
-
-		qla2x00_check_fabric_devices(ha);
-
-		msleep(10);
-	}
-
 	pci_set_drvdata(pdev, ha);
+
+	/* Start link scan. */
+	set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
+	set_bit(LOCAL_LOOP_UPDATE, &ha->dpc_flags);
+	set_bit(RSCN_UPDATE, &ha->dpc_flags);
 	ha->flags.init_done = 1;
+	ha->flags.online = 1;
+
 	num_hosts++;
 
 	ret = scsi_add_host(host, &pdev->dev);
@@ -1668,10 +1657,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	    ha->isp_ops.pci_info_str(ha, pci_info), pci_name(pdev),
 	    ha->flags.enable_64bit_addressing ? '+': '-', ha->host_no,
 	    ha->isp_ops.fw_version_str(ha, fw_str));
-
-	/* Go with fc_rport registration. */
-	list_for_each_entry(fcport, &ha->fcports, list)
-		qla2x00_reg_remote_port(ha, fcport);
 
 	return 0;
 
