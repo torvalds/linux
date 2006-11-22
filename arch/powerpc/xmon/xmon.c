@@ -218,7 +218,8 @@ Commands:\n\
 #ifdef CONFIG_PPC_CELL
 "  ss	stop execution on all spus\n\
   sr	restore execution on stopped spus\n\
-  sf #	dump spu fields for spu # (in hex)\n"
+  sf  #	dump spu fields for spu # (in hex)\n\
+  sd  #	dump spu local store for spu # (in hex)\n"
 #endif
 "  S	print special registers\n\
   t	print backtrace\n\
@@ -2651,6 +2652,7 @@ struct spu_info {
 	struct spu *spu;
 	u64 saved_mfc_sr1_RW;
 	u32 saved_spu_runcntl_RW;
+	unsigned long dump_addr;
 	u8 stopped_ok;
 };
 
@@ -2670,6 +2672,8 @@ void xmon_register_spus(struct list_head *list)
 
 		spu_info[spu->number].spu = spu;
 		spu_info[spu->number].stopped_ok = 0;
+		spu_info[spu->number].dump_addr = (unsigned long)
+				spu_info[spu->number].spu->local_store;
 	}
 }
 
@@ -2815,9 +2819,43 @@ static void dump_spu_fields(struct spu *spu)
 	DUMP_FIELD(spu, "0x%p", priv2);
 }
 
+static void dump_spu_ls(unsigned long num)
+{
+	unsigned long offset, addr, ls_addr;
+
+	if (setjmp(bus_error_jmp) == 0) {
+		catch_memory_errors = 1;
+		sync();
+		ls_addr = (unsigned long)spu_info[num].spu->local_store;
+		sync();
+		__delay(200);
+	} else {
+		catch_memory_errors = 0;
+		printf("*** Error: accessing spu info for spu %d\n", num);
+		return;
+	}
+	catch_memory_errors = 0;
+
+	if (scanhex(&offset))
+		addr = ls_addr + offset;
+	else
+		addr = spu_info[num].dump_addr;
+
+	if (addr >= ls_addr + LS_SIZE) {
+		printf("*** Error: address outside of local store\n");
+		return;
+	}
+
+	prdump(addr, 64);
+	addr += 64;
+	last_cmd = "sd\n";
+
+	spu_info[num].dump_addr = addr;
+}
+
 static int do_spu_cmd(void)
 {
-	unsigned long num = 0;
+	static unsigned long num = 0;
 	int cmd;
 
 	cmd = inchar();
@@ -2829,10 +2867,22 @@ static int do_spu_cmd(void)
 		restart_spus();
 		break;
 	case 'f':
-		if (scanhex(&num) && num < XMON_NUM_SPUS && spu_info[num].spu)
-			dump_spu_fields(spu_info[num].spu);
-		else
+	case 'd':
+		scanhex(&num);
+		if (num >= XMON_NUM_SPUS || !spu_info[num].spu) {
 			printf("*** Error: invalid spu number\n");
+			return 0;
+		}
+
+		switch (cmd) {
+		case 'f':
+			dump_spu_fields(spu_info[num].spu);
+			break;
+		default:
+			dump_spu_ls(num);
+			break;
+		}
+
 		break;
 	default:
 		return -1;
