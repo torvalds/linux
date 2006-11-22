@@ -611,8 +611,8 @@ static int ipgre_rcv(struct sk_buff *skb)
 		 * - When dealing with WCCPv2, Skip extra 4 bytes in GRE header
 		 */
 		if (flags == 0 &&
-		    skb->protocol == __constant_htons(ETH_P_WCCP)) {
-			skb->protocol = __constant_htons(ETH_P_IP);
+		    skb->protocol == htons(ETH_P_WCCP)) {
+			skb->protocol = htons(ETH_P_IP);
 			if ((*(h + offset) & 0xF0) != 0x40) 
 				offset += 4;
 		}

@@ -7,6 +7,7 @@
 #define _IP_VS_H
 
 #include <asm/types.h>		/* For __uXX types */
+#include <linux/types.h>	/* For __beXX types in userland */
 
 #define IP_VS_VERSION_CODE	0x010201
 #define NVERSION(version)			\

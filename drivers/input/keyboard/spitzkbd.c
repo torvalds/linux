@@ -257,7 +257,7 @@ static void spitzkbd_timer_callback(unsigned long data)
 {
 	struct spitzkbd *spitzkbd_data = (struct spitzkbd *) data;
 
-	spitzkbd_scankeyboard(spitzkbd_data, NULL);
+	spitzkbd_scankeyboard(spitzkbd_data);
 }
 
 /*

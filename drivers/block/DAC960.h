@@ -4379,8 +4379,8 @@ static inline void DAC960_P_To_PD_TranslateEnquiry(void *Enquiry)
 static inline void DAC960_P_To_PD_TranslateDeviceState(void *DeviceState)
 {
   memcpy(DeviceState + 2, DeviceState + 3, 1);
-  memcpy(DeviceState + 4, DeviceState + 5, 2);
-  memcpy(DeviceState + 6, DeviceState + 8, 4);
+  memmove(DeviceState + 4, DeviceState + 5, 2);
+  memmove(DeviceState + 6, DeviceState + 8, 4);
 }
 
 static inline

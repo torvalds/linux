@@ -717,6 +717,7 @@ static int pcmcia_requery(struct device *dev, void * _data)
 static void pcmcia_bus_rescan(struct pcmcia_socket *skt)
 {
 	int no_devices=0;
+	int ret = 0;
 	unsigned long flags;
 
 	/* must be called with skt_mutex held */
@@ -729,7 +730,7 @@ static void pcmcia_bus_rescan(struct pcmcia_socket *skt)
 	 * missing resource information or other trouble, we need to
 	 * do this now. */
 	if (no_devices) {
-		int ret = pcmcia_card_add(skt);
+		ret = pcmcia_card_add(skt);
 		if (ret)
 			return;
 	}
@@ -741,7 +742,9 @@ static void pcmcia_bus_rescan(struct pcmcia_socket *skt)
 
 	/* we re-scan all devices, not just the ones connected to this
 	 * socket. This does not matter, though. */
-	bus_rescan_devices(&pcmcia_bus_type);
+	ret = bus_rescan_devices(&pcmcia_bus_type);
+	if (ret)
+		printk(KERN_INFO "pcmcia: bus_rescan_devices failed\n");
 }
 
 static inline int pcmcia_devmatch(struct pcmcia_device *dev,
@@ -1001,6 +1004,7 @@ static ssize_t pcmcia_store_allow_func_id_match(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
+	int ret;
 
 	if (!count)
 		return -EINVAL;
@@ -1009,7 +1013,10 @@ static ssize_t pcmcia_store_allow_func_id_match(struct device *dev,
 	p_dev->allow_func_id_match = 1;
 	mutex_unlock(&p_dev->socket->skt_mutex);
 
-	bus_rescan_devices(&pcmcia_bus_type);
+	ret = bus_rescan_devices(&pcmcia_bus_type);
+	if (ret)
+		printk(KERN_INFO "pcmcia: bus_rescan_devices failed after "
+		       "allowing func_id matches\n");
 
 	return count;
 }
@@ -1264,6 +1271,9 @@ static void pcmcia_bus_remove_socket(struct class_device *class_dev,
 	socket->pcmcia_state.dead = 1;
 	pccard_register_pcmcia(socket, NULL);
 
+	/* unregister any unbound devices */
+	pcmcia_card_remove(socket, NULL);
+
 	pcmcia_put_socket(socket);
 
 	return;
@@ -1292,10 +1302,22 @@ struct bus_type pcmcia_bus_type = {
 
 static int __init init_pcmcia_bus(void)
 {
+	int ret;
+
 	spin_lock_init(&pcmcia_dev_list_lock);
 
-	bus_register(&pcmcia_bus_type);
-	class_interface_register(&pcmcia_bus_interface);
+	ret = bus_register(&pcmcia_bus_type);
+	if (ret < 0) {
+		printk(KERN_WARNING "pcmcia: bus_register error: %d\n", ret);
+		return ret;
+	}
+	ret = class_interface_register(&pcmcia_bus_interface);
+	if (ret < 0) {
+		printk(KERN_WARNING
+			"pcmcia: class_interface_register error: %d\n", ret);
+		bus_unregister(&pcmcia_bus_type);
+		return ret;
+	}
 
 	pcmcia_setup_ioctl();
 

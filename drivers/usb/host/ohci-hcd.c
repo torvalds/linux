@@ -715,13 +715,6 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 		return IRQ_NOTMINE;
 	}
 
-	if (ints & OHCI_INTR_RHSC) {
-		ohci_vdbg (ohci, "rhsc\n");
-		ohci->next_statechange = jiffies + STATECHANGE_DELAY;
-		ohci_writel (ohci, OHCI_INTR_RHSC, &regs->intrstatus);
-		usb_hcd_poll_rh_status(hcd);
-	}
-
 	if (ints & OHCI_INTR_UE) {
 		disable (ohci);
 		ohci_err (ohci, "OHCI Unrecoverable Error, disabled\n");
@@ -731,9 +724,21 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 		ohci_usb_reset (ohci);
 	}
 
-	if (ints & OHCI_INTR_RD) {
-		ohci_vdbg (ohci, "resume detect\n");
-		ohci_writel (ohci, OHCI_INTR_RD, &regs->intrstatus);
+	if (ints & OHCI_INTR_RHSC) {
+		ohci_vdbg(ohci, "rhsc\n");
+		ohci->next_statechange = jiffies + STATECHANGE_DELAY;
+		ohci_writel(ohci, OHCI_INTR_RD | OHCI_INTR_RHSC,
+				&regs->intrstatus);
+		usb_hcd_poll_rh_status(hcd);
+	}
+
+	/* For connect and disconnect events, we expect the controller
+	 * to turn on RHSC along with RD.  But for remote wakeup events
+	 * this might not happen.
+	 */
+	else if (ints & OHCI_INTR_RD) {
+		ohci_vdbg(ohci, "resume detect\n");
+		ohci_writel(ohci, OHCI_INTR_RD, &regs->intrstatus);
 		hcd->poll_rh = 1;
 		if (ohci->autostop) {
 			spin_lock (&ohci->lock);

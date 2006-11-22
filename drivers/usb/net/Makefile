@@ -14,6 +14,7 @@ obj-$(CONFIG_USB_NET_PLUSB)	+= plusb.o
 obj-$(CONFIG_USB_NET_RNDIS_HOST)	+= rndis_host.o
 obj-$(CONFIG_USB_NET_CDC_SUBSET)	+= cdc_subset.o
 obj-$(CONFIG_USB_NET_ZAURUS)	+= zaurus.o
+obj-$(CONFIG_USB_NET_MCS7830)	+= mcs7830.o
 obj-$(CONFIG_USB_USBNET)	+= usbnet.o
 
 ifeq ($(CONFIG_USB_DEBUG),y)

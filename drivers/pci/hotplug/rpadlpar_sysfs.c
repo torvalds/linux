@@ -14,7 +14,7 @@
  */
 #include <linux/kobject.h>
 #include <linux/string.h>
-#include "pci_hotplug.h"
+#include <linux/pci_hotplug.h>
 #include "rpadlpar.h"
 
 #define DLPAR_KOBJ_NAME       "control"

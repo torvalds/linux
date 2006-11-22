@@ -178,9 +178,3 @@ EXPORT_SYMBOL(_find_next_zero_bit_be);
 EXPORT_SYMBOL(_find_first_bit_be);
 EXPORT_SYMBOL(_find_next_bit_be);
 #endif
-
-	/* syscalls */
-EXPORT_SYMBOL(sys_write);
-EXPORT_SYMBOL(sys_lseek);
-EXPORT_SYMBOL(sys_exit);
-EXPORT_SYMBOL(sys_wait4);

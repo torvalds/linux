@@ -213,6 +213,8 @@ struct ipath_devdata {
 	void (*ipath_f_setextled)(struct ipath_devdata *, u64, u64);
 	/* fill out chip-specific fields */
 	int (*ipath_f_get_base_info)(struct ipath_portdata *, void *);
+	/* free irq */
+	void (*ipath_f_free_irq)(struct ipath_devdata *);
 	struct ipath_ibdev *verbs_dev;
 	struct timer_list verbs_timer;
 	/* total dwords sent (summed from counter) */
@@ -328,6 +330,8 @@ struct ipath_devdata {
 	/* so we can rewrite it after a chip reset */
 	u32 ipath_pcibar1;
 
+	/* interrupt number */
+	int ipath_irq;
 	/* HT/PCI Vendor ID (here for NodeInfo) */
 	u16 ipath_vendorid;
 	/* HT/PCI Device ID (here for NodeInfo) */
@@ -868,9 +872,6 @@ void ipath_driver_remove_group(struct device_driver *);
 int ipath_device_create_group(struct device *, struct ipath_devdata *);
 void ipath_device_remove_group(struct device *, struct ipath_devdata *);
 int ipath_expose_reset(struct device *);
-
-int ipath_diagpkt_add(void);
-void ipath_diagpkt_remove(void);
 
 int ipath_init_ipathfs(void);
 void ipath_exit_ipathfs(void);

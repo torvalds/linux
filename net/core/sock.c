@@ -823,7 +823,7 @@ static void inline sock_lock_init(struct sock *sk)
 				   af_family_slock_key_strings[sk->sk_family]);
 	lockdep_init_map(&sk->sk_lock.dep_map,
 			 af_family_key_strings[sk->sk_family],
-			 af_family_keys + sk->sk_family);
+			 af_family_keys + sk->sk_family, 0);
 }
 
 /**
@@ -1160,7 +1160,7 @@ static struct sk_buff *sock_alloc_send_pskb(struct sock *sk,
 			goto failure;
 
 		if (atomic_read(&sk->sk_wmem_alloc) < sk->sk_sndbuf) {
-			skb = alloc_skb(header_len, sk->sk_allocation);
+			skb = alloc_skb(header_len, gfp_mask);
 			if (skb) {
 				int npages;
 				int i;

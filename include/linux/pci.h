@@ -443,6 +443,7 @@ extern void pci_remove_bus(struct pci_bus *b);
 extern void pci_remove_bus_device(struct pci_dev *dev);
 extern void pci_stop_bus_device(struct pci_dev *dev);
 void pci_setup_cardbus(struct pci_bus *bus);
+extern void pci_sort_breadthfirst(void);
 
 /* Generic PCI functions exported to card drivers */
 
@@ -452,13 +453,18 @@ struct pci_dev *pci_find_slot (unsigned int bus, unsigned int devfn);
 int pci_find_capability (struct pci_dev *dev, int cap);
 int pci_find_next_capability (struct pci_dev *dev, u8 pos, int cap);
 int pci_find_ext_capability (struct pci_dev *dev, int cap);
-struct pci_bus * pci_find_next_bus(const struct pci_bus *from);
+struct pci_bus *pci_find_next_bus(const struct pci_bus *from);
 
-struct pci_dev *pci_get_device (unsigned int vendor, unsigned int device, struct pci_dev *from);
+struct pci_dev *pci_get_device(unsigned int vendor, unsigned int device,
+				struct pci_dev *from);
+struct pci_dev *pci_get_device_reverse(unsigned int vendor, unsigned int device,
+				struct pci_dev *from);
+
 struct pci_dev *pci_get_subsys (unsigned int vendor, unsigned int device,
 				unsigned int ss_vendor, unsigned int ss_device,
 				struct pci_dev *from);
 struct pci_dev *pci_get_slot (struct pci_bus *bus, unsigned int devfn);
+struct pci_dev *pci_get_bus_and_slot (unsigned int bus, unsigned int devfn);
 struct pci_dev *pci_get_class (unsigned int class, struct pci_dev *from);
 int pci_dev_present(const struct pci_device_id *ids);
 
@@ -658,7 +664,12 @@ static inline struct pci_dev *pci_find_device(unsigned int vendor, unsigned int 
 static inline struct pci_dev *pci_find_slot(unsigned int bus, unsigned int devfn)
 { return NULL; }
 
-static inline struct pci_dev *pci_get_device (unsigned int vendor, unsigned int device, struct pci_dev *from)
+static inline struct pci_dev *pci_get_device(unsigned int vendor,
+				unsigned int device, struct pci_dev *from)
+{ return NULL; }
+
+static inline struct pci_dev *pci_get_device_reverse(unsigned int vendor,
+				unsigned int device, struct pci_dev *from)
 { return NULL; }
 
 static inline struct pci_dev *pci_get_subsys (unsigned int vendor, unsigned int device,

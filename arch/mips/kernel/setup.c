@@ -223,7 +223,11 @@ disable:
 
 #else  /* !CONFIG_BLK_DEV_INITRD */
 
-#define init_initrd()		0
+static unsigned long __init init_initrd(void)
+{
+	return 0;
+}
+
 #define finalize_initrd()	do {} while (0)
 
 #endif

@@ -397,7 +397,7 @@ static void lubbock_mmc_poll(unsigned long data)
 	if (LUB_IRQ_SET_CLR & (1 << 0))
 		mod_timer(&mmc_timer, jiffies + MMC_POLL_RATE);
 	else {
-		(void) mmc_detect_int(LUBBOCK_SD_IRQ, (void *)data, NULL);
+		(void) mmc_detect_int(LUBBOCK_SD_IRQ, (void *)data);
 		enable_irq(LUBBOCK_SD_IRQ);
 	}
 }

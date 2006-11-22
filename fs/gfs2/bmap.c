@@ -434,8 +434,7 @@ static int lookup_block(struct gfs2_inode *ip, struct buffer_head *bh,
  */
 
 static int gfs2_block_pointers(struct inode *inode, u64 lblock, int create,
-			       struct buffer_head *bh_map, struct metapath *mp,
-			       unsigned int maxlen)
+			       struct buffer_head *bh_map, struct metapath *mp)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
@@ -448,6 +447,7 @@ static int gfs2_block_pointers(struct inode *inode, u64 lblock, int create,
 	int new = 0;
 	u64 dblock = 0;
 	int boundary;
+	unsigned int maxlen = bh_map->b_size >> inode->i_blkbits;
 
 	BUG_ON(maxlen == 0);
 
@@ -541,13 +541,13 @@ static inline void bmap_unlock(struct inode *inode, int create)
 }
 
 int gfs2_block_map(struct inode *inode, u64 lblock, int create,
-		   struct buffer_head *bh, unsigned int maxlen)
+		   struct buffer_head *bh)
 {
 	struct metapath mp;
 	int ret;
 
 	bmap_lock(inode, create);
-	ret = gfs2_block_pointers(inode, lblock, create, bh, &mp, maxlen);
+	ret = gfs2_block_pointers(inode, lblock, create, bh, &mp);
 	bmap_unlock(inode, create);
 	return ret;
 }
@@ -555,7 +555,7 @@ int gfs2_block_map(struct inode *inode, u64 lblock, int create,
 int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsigned *extlen)
 {
 	struct metapath mp;
-	struct buffer_head bh = { .b_state = 0, .b_blocknr = 0, .b_size = 0 };
+	struct buffer_head bh = { .b_state = 0, .b_blocknr = 0 };
 	int ret;
 	int create = *new;
 
@@ -563,8 +563,9 @@ int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsi
 	BUG_ON(!dblock);
 	BUG_ON(!new);
 
+	bh.b_size = 1 << (inode->i_blkbits + 5);
 	bmap_lock(inode, create);
-	ret = gfs2_block_pointers(inode, lblock, create, &bh, &mp, 32);
+	ret = gfs2_block_pointers(inode, lblock, create, &bh, &mp);
 	bmap_unlock(inode, create);
 	*extlen = bh.b_size >> inode->i_blkbits;
 	*dblock = bh.b_blocknr;

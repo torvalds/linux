@@ -57,7 +57,7 @@ static void save_context_stack(struct stack_trace *trace,
 		pc = unwind_stack(task, &sp, pc, &ra);
 	} while (pc);
 #else
-	save_raw_context_stack(sp);
+	save_raw_context_stack(trace, sp);
 #endif
 }
 

@@ -54,13 +54,13 @@ static inline int bad_addr(unsigned long *addrp, unsigned long size)
 
 	/* various gunk below that needed for SMP startup */
 	if (addr < 0x8000) { 
-		*addrp = 0x8000;
+		*addrp = PAGE_ALIGN(0x8000);
 		return 1; 
 	}
 
 	/* direct mapping tables of the kernel */
 	if (last >= table_start<<PAGE_SHIFT && addr < table_end<<PAGE_SHIFT) { 
-		*addrp = table_end << PAGE_SHIFT; 
+		*addrp = PAGE_ALIGN(table_end << PAGE_SHIFT);
 		return 1;
 	} 
 
@@ -68,18 +68,18 @@ static inline int bad_addr(unsigned long *addrp, unsigned long size)
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (LOADER_TYPE && INITRD_START && last >= INITRD_START && 
 	    addr < INITRD_START+INITRD_SIZE) { 
-		*addrp = INITRD_START + INITRD_SIZE; 
+		*addrp = PAGE_ALIGN(INITRD_START + INITRD_SIZE);
 		return 1;
 	} 
 #endif
 	/* kernel code */
-	if (last >= __pa_symbol(&_text) && last < __pa_symbol(&_end)) {
-		*addrp = __pa_symbol(&_end);
+	if (last >= __pa_symbol(&_text) && addr < __pa_symbol(&_end)) {
+		*addrp = PAGE_ALIGN(__pa_symbol(&_end));
 		return 1;
 	}
 
 	if (last >= ebda_addr && addr < ebda_addr + ebda_size) {
-		*addrp = ebda_addr + ebda_size;
+		*addrp = PAGE_ALIGN(ebda_addr + ebda_size);
 		return 1;
 	}
 
@@ -152,7 +152,7 @@ unsigned long __init find_e820_area(unsigned long start, unsigned long end, unsi
 			continue; 
 		while (bad_addr(&addr, size) && addr+size <= ei->addr+ei->size)
 			;
-		last = addr + size;
+		last = PAGE_ALIGN(addr) + size;
 		if (last > ei->addr + ei->size)
 			continue;
 		if (last > end) 
@@ -278,7 +278,7 @@ e820_register_active_regions(int nid, unsigned long start_pfn,
 								>> PAGE_SHIFT;
 
 		/* Skip map entries smaller than a page */
-		if (ei_startpfn > ei_endpfn)
+		if (ei_startpfn >= ei_endpfn)
 			continue;
 
 		/* Check if end_pfn_map should be updated */
@@ -594,7 +594,9 @@ static int __init parse_memmap_opt(char *p)
 		 * size before original memory map is
 		 * reset.
 		 */
+		e820_register_active_regions(0, 0, -1UL);
 		saved_max_pfn = e820_end_of_ram();
+		remove_all_active_ranges();
 #endif
 		end_pfn_map = 0;
 		e820.nr_map = 0;

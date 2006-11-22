@@ -532,8 +532,7 @@ device_remove_files(struct device *dev)
 
 /* this is a simple abstraction for device_register that sets the
  * correct bus type and adds the bus specific files */
-int
-ccw_device_register(struct ccw_device *cdev)
+static int ccw_device_register(struct ccw_device *cdev)
 {
 	struct device *dev = &cdev->dev;
 	int ret;
@@ -552,21 +551,19 @@ ccw_device_register(struct ccw_device *cdev)
 }
 
 struct match_data {
-	unsigned int devno;
-	unsigned int ssid;
+	struct ccw_dev_id dev_id;
 	struct ccw_device * sibling;
 };
 
 static int
 match_devno(struct device * dev, void * data)
 {
-	struct match_data * d = (struct match_data *)data;
+	struct match_data * d = data;
 	struct ccw_device * cdev;
 
 	cdev = to_ccwdev(dev);
 	if ((cdev->private->state == DEV_STATE_DISCONNECTED) &&
-	    (cdev->private->devno == d->devno) &&
-	    (cdev->private->ssid == d->ssid) &&
+	    ccw_dev_id_is_equal(&cdev->private->dev_id, &d->dev_id) &&
 	    (cdev != d->sibling)) {
 		cdev->private->state = DEV_STATE_NOT_OPER;
 		return 1;
@@ -574,15 +571,13 @@ match_devno(struct device * dev, void * data)
 	return 0;
 }
 
-static struct ccw_device *
-get_disc_ccwdev_by_devno(unsigned int devno, unsigned int ssid,
-			 struct ccw_device *sibling)
+static struct ccw_device * get_disc_ccwdev_by_dev_id(struct ccw_dev_id *dev_id,
+						     struct ccw_device *sibling)
 {
 	struct device *dev;
 	struct match_data data;
 
-	data.devno = devno;
-	data.ssid = ssid;
+	data.dev_id = *dev_id;
 	data.sibling = sibling;
 	dev = bus_find_device(&ccw_bus_type, NULL, &data, match_devno);
 
@@ -595,7 +590,7 @@ ccw_device_add_changed(void *data)
 
 	struct ccw_device *cdev;
 
-	cdev = (struct ccw_device *)data;
+	cdev = data;
 	if (device_add(&cdev->dev)) {
 		put_device(&cdev->dev);
 		return;
@@ -616,9 +611,9 @@ ccw_device_do_unreg_rereg(void *data)
 	struct subchannel *sch;
 	int need_rename;
 
-	cdev = (struct ccw_device *)data;
+	cdev = data;
 	sch = to_subchannel(cdev->dev.parent);
-	if (cdev->private->devno != sch->schib.pmcw.dev) {
+	if (cdev->private->dev_id.devno != sch->schib.pmcw.dev) {
 		/*
 		 * The device number has changed. This is usually only when
 		 * a device has been detached under VM and then re-appeared
@@ -633,10 +628,12 @@ ccw_device_do_unreg_rereg(void *data)
 		 *        get possibly sick...
 		 */
 		struct ccw_device *other_cdev;
+		struct ccw_dev_id dev_id;
 
 		need_rename = 1;
-		other_cdev = get_disc_ccwdev_by_devno(sch->schib.pmcw.dev,
-						      sch->schid.ssid, cdev);
+		dev_id.devno = sch->schib.pmcw.dev;
+		dev_id.ssid = sch->schid.ssid;
+		other_cdev = get_disc_ccwdev_by_dev_id(&dev_id, cdev);
 		if (other_cdev) {
 			struct subchannel *other_sch;
 
@@ -652,7 +649,7 @@ ccw_device_do_unreg_rereg(void *data)
 		}
 		/* Update ssd info here. */
 		css_get_ssd_info(sch);
-		cdev->private->devno = sch->schib.pmcw.dev;
+		cdev->private->dev_id.devno = sch->schib.pmcw.dev;
 	} else
 		need_rename = 0;
 	device_remove_files(&cdev->dev);
@@ -662,7 +659,7 @@ ccw_device_do_unreg_rereg(void *data)
 		snprintf (cdev->dev.bus_id, BUS_ID_SIZE, "0.%x.%04x",
 			  sch->schid.ssid, sch->schib.pmcw.dev);
 	PREPARE_WORK(&cdev->private->kick_work,
-		     ccw_device_add_changed, (void *)cdev);
+		     ccw_device_add_changed, cdev);
 	queue_work(ccw_device_work, &cdev->private->kick_work);
 }
 
@@ -687,7 +684,7 @@ io_subchannel_register(void *data)
 	int ret;
 	unsigned long flags;
 
-	cdev = (struct ccw_device *) data;
+	cdev = data;
 	sch = to_subchannel(cdev->dev.parent);
 
 	if (klist_node_attached(&cdev->dev.knode_parent)) {
@@ -759,7 +756,7 @@ io_subchannel_recog_done(struct ccw_device *cdev)
 			break;
 		sch = to_subchannel(cdev->dev.parent);
 		PREPARE_WORK(&cdev->private->kick_work,
-			     ccw_device_call_sch_unregister, (void *) cdev);
+			     ccw_device_call_sch_unregister, cdev);
 		queue_work(slow_path_wq, &cdev->private->kick_work);
 		if (atomic_dec_and_test(&ccw_device_init_count))
 			wake_up(&ccw_device_init_wq);
@@ -774,7 +771,7 @@ io_subchannel_recog_done(struct ccw_device *cdev)
 		if (!get_device(&cdev->dev))
 			break;
 		PREPARE_WORK(&cdev->private->kick_work,
-			     io_subchannel_register, (void *) cdev);
+			     io_subchannel_register, cdev);
 		queue_work(slow_path_wq, &cdev->private->kick_work);
 		break;
 	}
@@ -792,9 +789,9 @@ io_subchannel_recog(struct ccw_device *cdev, struct subchannel *sch)
 
 	/* Init private data. */
 	priv = cdev->private;
-	priv->devno = sch->schib.pmcw.dev;
-	priv->ssid = sch->schid.ssid;
-	priv->sch_no = sch->schid.sch_no;
+	priv->dev_id.devno = sch->schib.pmcw.dev;
+	priv->dev_id.ssid = sch->schid.ssid;
+	priv->schid = sch->schid;
 	priv->state = DEV_STATE_NOT_OPER;
 	INIT_LIST_HEAD(&priv->cmb_list);
 	init_waitqueue_head(&priv->wait_q);
@@ -912,7 +909,7 @@ io_subchannel_remove (struct subchannel *sch)
 	 */
 	if (get_device(&cdev->dev)) {
 		PREPARE_WORK(&cdev->private->kick_work,
-			     ccw_device_unregister, (void *) cdev);
+			     ccw_device_unregister, cdev);
 		queue_work(ccw_device_work, &cdev->private->kick_work);
 	}
 	return 0;
@@ -1055,7 +1052,7 @@ __ccwdev_check_busid(struct device *dev, void *id)
 {
 	char *bus_id;
 
-	bus_id = (char *)id;
+	bus_id = id;
 
 	return (strncmp(bus_id, dev->bus_id, BUS_ID_SIZE) == 0);
 }

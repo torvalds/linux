@@ -321,7 +321,9 @@
 #define INTC_MKBF(name, value)       (((value) & ((1 << INTC_##name##_SIZE) - 1)) << INTC_##name##_OFFSET)
 #define INTC_GETBF(name, value)      (((value) >> INTC_##name##_OFFSET) & ((1 << INTC_##name##_SIZE) - 1))
 
-#define intc_readl(port,reg)         readl((port)->regs + INTC_##reg)
-#define intc_writel(port,reg,value)  writel((value), (port)->regs + INTC_##reg)
+#define intc_readl(port,reg)					\
+	__raw_readl((port)->regs + INTC_##reg)
+#define intc_writel(port,reg,value)				\
+	__raw_writel((value), (port)->regs + INTC_##reg)
 
 #endif /* __ASM_AVR32_PERIHP_INTC_H__ */

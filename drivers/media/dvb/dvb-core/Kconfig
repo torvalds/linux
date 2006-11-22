@@ -19,6 +19,6 @@ config DVB_CORE_ATTACH
 	  allow the card drivers to only load the frontend modules
 	  they require. This saves several KBytes of memory.
 
-	  Note: You will need moudule-init-tools v3.2 or later for this feature.
+	  Note: You will need module-init-tools v3.2 or later for this feature.
 
 	  If unsure say Y.

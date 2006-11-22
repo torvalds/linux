@@ -18,12 +18,8 @@
 
 static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x0c88, 0x17da) }, /* Kyocera Wireless KPC650/Passport */
-	{ USB_DEVICE(0x0f3d, 0x0112) }, /* AirPrime CDMA Wireless PC Card */
-	{ USB_DEVICE(0x1199, 0x0017) }, /* Sierra Wireless EM5625 */
-	{ USB_DEVICE(0x1199, 0x0018) }, /* Sierra Wireless MC5720 */
-	{ USB_DEVICE(0x1199, 0x0112) }, /* Sierra Wireless Aircard 580 */
-	{ USB_DEVICE(0x1199, 0x0218) }, /* Sierra Wireless MC5720 */
 	{ USB_DEVICE(0x1410, 0x1110) }, /* Novatel Wireless Merlin CDMA */
+	{ USB_DEVICE(0x1410, 0x1100) }, /* ExpressCard34 Qualcomm 3G CDMA */
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, id_table);
@@ -133,6 +129,7 @@ static int airprime_open(struct usb_serial_port *port, struct file *filp)
 		}
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
+			kfree(buffer);
 			dev_err(&port->dev, "%s - no more urbs?\n",
 				__FUNCTION__);
 			result = -ENOMEM;

@@ -218,13 +218,9 @@ struct zone {
 	 * under - it drives the swappiness decision: whether to unmap mapped
 	 * pages.
 	 *
-	 * temp_priority is used to remember the scanning priority at which
-	 * this zone was successfully refilled to free_pages == pages_high.
-	 *
-	 * Access to both these fields is quite racy even on uniprocessor.  But
+	 * Access to both this field is quite racy even on uniprocessor.  But
 	 * it is expected to average out OK.
 	 */
-	int temp_priority;
 	int prev_priority;
 
 
@@ -673,6 +669,12 @@ void sparse_init(void);
 #define sparse_init()	do {} while (0)
 #define sparse_index_init(_sec, _nid)  do {} while (0)
 #endif /* CONFIG_SPARSEMEM */
+
+#ifdef CONFIG_NODES_SPAN_OTHER_NODES
+#define early_pfn_in_nid(pfn, nid)	(early_pfn_to_nid(pfn) == (nid))
+#else
+#define early_pfn_in_nid(pfn, nid)	(1)
+#endif
 
 #ifndef early_pfn_valid
 #define early_pfn_valid(pfn)	(1)

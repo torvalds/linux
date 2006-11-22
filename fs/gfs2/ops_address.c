@@ -65,7 +65,7 @@ static void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
 int gfs2_get_block(struct inode *inode, sector_t lblock,
 	           struct buffer_head *bh_result, int create)
 {
-	return gfs2_block_map(inode, lblock, create, bh_result, 32);
+	return gfs2_block_map(inode, lblock, create, bh_result);
 }
 
 /**
@@ -83,7 +83,7 @@ static int gfs2_get_block_noalloc(struct inode *inode, sector_t lblock,
 {
 	int error;
 
-	error = gfs2_block_map(inode, lblock, 0, bh_result, 1);
+	error = gfs2_block_map(inode, lblock, 0, bh_result);
 	if (error)
 		return error;
 	if (bh_result->b_blocknr == 0)
@@ -94,7 +94,7 @@ static int gfs2_get_block_noalloc(struct inode *inode, sector_t lblock,
 static int gfs2_get_block_direct(struct inode *inode, sector_t lblock,
 				 struct buffer_head *bh_result, int create)
 {
-	return gfs2_block_map(inode, lblock, 0, bh_result, 32);
+	return gfs2_block_map(inode, lblock, 0, bh_result);
 }
 
 /**
@@ -162,7 +162,7 @@ static int zero_readpage(struct page *page)
 
 	kaddr = kmap_atomic(page, KM_USER0);
 	memset(kaddr, 0, PAGE_CACHE_SIZE);
-	kunmap_atomic(page, KM_USER0);
+	kunmap_atomic(kaddr, KM_USER0);
 
 	SetPageUptodate(page);
 
@@ -195,7 +195,7 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 	memcpy(kaddr, dibh->b_data + sizeof(struct gfs2_dinode),
 	       ip->i_di.di_size);
 	memset(kaddr + ip->i_di.di_size, 0, PAGE_CACHE_SIZE - ip->i_di.di_size);
-	kunmap_atomic(page, KM_USER0);
+	kunmap_atomic(kaddr, KM_USER0);
 
 	brelse(dibh);
 
@@ -337,13 +337,6 @@ out:
 out_noerror:
 	ret = 0;
 out_unlock:
-	/* unlock all pages, we can't do any I/O right now */
-	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
-		struct page *page = list_entry(pages->prev, struct page, lru);
-		list_del(&page->lru);
-		unlock_page(page);
-		page_cache_release(page);
-	}
 	if (do_unlock)
 		gfs2_holder_uninit(&gh);
 	goto out;
@@ -370,19 +363,22 @@ static int gfs2_prepare_write(struct file *file, struct page *page,
 	loff_t pos = ((loff_t)page->index << PAGE_CACHE_SHIFT) + from;
 	loff_t end = ((loff_t)page->index << PAGE_CACHE_SHIFT) + to;
 	struct gfs2_alloc *al;
+	unsigned int write_len = to - from;
+
 
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_ATIME|GL_AOP, &ip->i_gh);
 	error = gfs2_glock_nq_m_atime(1, &ip->i_gh);
 	if (error)
 		goto out_uninit;
 
-	gfs2_write_calc_reserv(ip, to - from, &data_blocks, &ind_blocks);
+	gfs2_write_calc_reserv(ip, write_len, &data_blocks, &ind_blocks);
 
-	error = gfs2_write_alloc_required(ip, pos, from - to, &alloc_required);
+	error = gfs2_write_alloc_required(ip, pos, write_len, &alloc_required);
 	if (error)
 		goto out_unlock;
 
 
+	ip->i_alloc.al_requested = 0;
 	if (alloc_required) {
 		al = gfs2_alloc_get(ip);
 
@@ -482,7 +478,7 @@ static int gfs2_commit_write(struct file *file, struct page *page,
 		kaddr = kmap_atomic(page, KM_USER0);
 		memcpy(dibh->b_data + sizeof(struct gfs2_dinode) + from,
 		       kaddr + from, to - from);
-		kunmap_atomic(page, KM_USER0);
+		kunmap_atomic(kaddr, KM_USER0);
 
 		SetPageUptodate(page);
 

@@ -427,7 +427,7 @@ __build_packet_message(struct nfulnl_instance *inst,
 	nfmsg->version = NFNETLINK_V0;
 	nfmsg->res_id = htons(inst->group_num);
 
-	pmsg.hw_protocol	= htons(skb->protocol);
+	pmsg.hw_protocol	= skb->protocol;
 	pmsg.hook		= hooknum;
 
 	NFA_PUT(inst->skb, NFULA_PACKET_HDR, sizeof(pmsg), &pmsg);
@@ -544,7 +544,7 @@ __build_packet_message(struct nfulnl_instance *inst,
 	}
 	/* global sequence number */
 	if (inst->flags & NFULNL_CFG_F_SEQ_GLOBAL) {
-		tmp_uint = atomic_inc_return(&global_seq);
+		tmp_uint = htonl(atomic_inc_return(&global_seq));
 		NFA_PUT(inst->skb, NFULA_SEQ_GLOBAL, sizeof(tmp_uint), &tmp_uint);
 	}
 
@@ -878,7 +878,7 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 		params = NFA_DATA(nfula[NFULA_CFG_MODE-1]);
 
 		nfulnl_set_mode(inst, params->copy_mode,
-				ntohs(params->copy_range));
+				ntohl(params->copy_range));
 	}
 
 	if (nfula[NFULA_CFG_TIMEOUT-1]) {
@@ -896,8 +896,8 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 	}
 
 	if (nfula[NFULA_CFG_QTHRESH-1]) {
-		u_int32_t qthresh = 
-			*(u_int16_t *)NFA_DATA(nfula[NFULA_CFG_QTHRESH-1]);
+		__be32 qthresh =
+			*(__be32 *)NFA_DATA(nfula[NFULA_CFG_QTHRESH-1]);
 
 		nfulnl_set_qthresh(inst, ntohl(qthresh));
 	}

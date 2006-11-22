@@ -63,6 +63,7 @@ config INET
 if INET
 source "net/ipv4/Kconfig"
 source "net/ipv6/Kconfig"
+source "net/netlabel/Kconfig"
 
 endif # if INET
 
@@ -248,8 +249,6 @@ source "net/ieee80211/Kconfig"
 
 config WIRELESS_EXT
 	bool
-
-source "net/netlabel/Kconfig"
 
 config FIB_RULES
 	bool

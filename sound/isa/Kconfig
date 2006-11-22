@@ -13,6 +13,7 @@ config SND_CS4231_LIB
 
 config SND_ADLIB
 	tristate "AdLib FM card"
+	depends on SND
 	select SND_OPL3_LIB
 	help
 	  Say Y here to include support for AdLib FM cards.

@@ -252,10 +252,11 @@ MD5Transform(__u32 buf[4], __u32 const in[16])
 	buf[3] += d;
 }
 
+#if 0   /* currently unused */
 /***********************************************************************
  the rfc 2104 version of hmac_md5 initialisation.
 ***********************************************************************/
-void
+static void
 hmac_md5_init_rfc2104(unsigned char *key, int key_len,
 		      struct HMACMD5Context *ctx)
 {
@@ -289,6 +290,7 @@ hmac_md5_init_rfc2104(unsigned char *key, int key_len,
 	MD5Init(&ctx->ctx);
 	MD5Update(&ctx->ctx, ctx->k_ipad, 64);
 }
+#endif
 
 /***********************************************************************
  the microsoft version of hmac_md5 initialisation.
@@ -350,7 +352,8 @@ hmac_md5_final(unsigned char *digest, struct HMACMD5Context *ctx)
  single function to calculate an HMAC MD5 digest from data.
  use the microsoft hmacmd5 init method because the key is 16 bytes.
 ************************************************************/
-void
+#if 0 /* currently unused */
+static void
 hmac_md5(unsigned char key[16], unsigned char *data, int data_len,
 	 unsigned char *digest)
 {
@@ -361,3 +364,4 @@ hmac_md5(unsigned char key[16], unsigned char *data, int data_len,
 	}
 	hmac_md5_final(digest, &ctx);
 }
+#endif

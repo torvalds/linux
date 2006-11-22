@@ -212,7 +212,8 @@ static void ibmveth_replenish_buffer_pool(struct ibmveth_adapter *adapter, struc
 			break;
 		}
 
-		free_index = pool->consumer_index++ % pool->size;
+		free_index = pool->consumer_index;
+		pool->consumer_index = (pool->consumer_index + 1) % pool->size;
 		index = pool->free_map[free_index];
 
 		ibmveth_assert(index != IBM_VETH_INVALID_MAP);
@@ -238,7 +239,10 @@ static void ibmveth_replenish_buffer_pool(struct ibmveth_adapter *adapter, struc
 		if(lpar_rc != H_SUCCESS) {
 			pool->free_map[free_index] = index;
 			pool->skbuff[index] = NULL;
-			pool->consumer_index--;
+			if (pool->consumer_index == 0)
+				pool->consumer_index = pool->size - 1;
+			else
+				pool->consumer_index--;
 			dma_unmap_single(&adapter->vdev->dev,
 					pool->dma_addr[index], pool->buff_size,
 					DMA_FROM_DEVICE);
@@ -325,7 +329,10 @@ static void ibmveth_remove_buffer_from_pool(struct ibmveth_adapter *adapter, u64
 			 adapter->rx_buff_pool[pool].buff_size,
 			 DMA_FROM_DEVICE);
 
-	free_index = adapter->rx_buff_pool[pool].producer_index++ % adapter->rx_buff_pool[pool].size;
+	free_index = adapter->rx_buff_pool[pool].producer_index;
+	adapter->rx_buff_pool[pool].producer_index
+		= (adapter->rx_buff_pool[pool].producer_index + 1)
+		% adapter->rx_buff_pool[pool].size;
 	adapter->rx_buff_pool[pool].free_map[free_index] = index;
 
 	mb();
@@ -437,6 +444,31 @@ static void ibmveth_cleanup(struct ibmveth_adapter *adapter)
 						 &adapter->rx_buff_pool[i]);
 }
 
+static int ibmveth_register_logical_lan(struct ibmveth_adapter *adapter,
+        union ibmveth_buf_desc rxq_desc, u64 mac_address)
+{
+	int rc, try_again = 1;
+
+	/* After a kexec the adapter will still be open, so our attempt to
+	* open it will fail. So if we get a failure we free the adapter and
+	* try again, but only once. */
+retry:
+	rc = h_register_logical_lan(adapter->vdev->unit_address,
+				    adapter->buffer_list_dma, rxq_desc.desc,
+				    adapter->filter_list_dma, mac_address);
+
+	if (rc != H_SUCCESS && try_again) {
+		do {
+			rc = h_free_logical_lan(adapter->vdev->unit_address);
+		} while (H_IS_LONG_BUSY(rc) || (rc == H_BUSY));
+
+		try_again = 0;
+		goto retry;
+	}
+
+	return rc;
+}
+
 static int ibmveth_open(struct net_device *netdev)
 {
 	struct ibmveth_adapter *adapter = netdev->priv;
@@ -502,12 +534,9 @@ static int ibmveth_open(struct net_device *netdev)
 	ibmveth_debug_printk("filter list @ 0x%p\n", adapter->filter_list_addr);
 	ibmveth_debug_printk("receive q   @ 0x%p\n", adapter->rx_queue.queue_addr);
 
+	h_vio_signal(adapter->vdev->unit_address, VIO_IRQ_DISABLE);
 
-	lpar_rc = h_register_logical_lan(adapter->vdev->unit_address,
-					 adapter->buffer_list_dma,
-					 rxq_desc.desc,
-					 adapter->filter_list_dma,
-					 mac_address);
+	lpar_rc = ibmveth_register_logical_lan(adapter, rxq_desc, mac_address);
 
 	if(lpar_rc != H_SUCCESS) {
 		ibmveth_error_printk("h_register_logical_lan failed with %ld\n", lpar_rc);
@@ -905,6 +934,14 @@ static int ibmveth_change_mtu(struct net_device *dev, int new_mtu)
 	return -EINVAL;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void ibmveth_poll_controller(struct net_device *dev)
+{
+	ibmveth_replenish_task(dev->priv);
+	ibmveth_interrupt(dev->irq, dev);
+}
+#endif
+
 static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 {
 	int rc, i;
@@ -977,6 +1014,9 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 	netdev->ethtool_ops           = &netdev_ethtool_ops;
 	netdev->change_mtu         = ibmveth_change_mtu;
 	SET_NETDEV_DEV(netdev, &dev->dev);
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	netdev->poll_controller = ibmveth_poll_controller;
+#endif
  	netdev->features |= NETIF_F_LLTX;
 	spin_lock_init(&adapter->stats_lock);
 
@@ -1132,7 +1172,9 @@ static void ibmveth_proc_register_adapter(struct ibmveth_adapter *adapter)
 {
 	struct proc_dir_entry *entry;
 	if (ibmveth_proc_dir) {
-		entry = create_proc_entry(adapter->netdev->name, S_IFREG, ibmveth_proc_dir);
+		char u_addr[10];
+		sprintf(u_addr, "%x", adapter->vdev->unit_address);
+		entry = create_proc_entry(u_addr, S_IFREG, ibmveth_proc_dir);
 		if (!entry) {
 			ibmveth_error_printk("Cannot create adapter proc entry");
 		} else {
@@ -1147,7 +1189,9 @@ static void ibmveth_proc_register_adapter(struct ibmveth_adapter *adapter)
 static void ibmveth_proc_unregister_adapter(struct ibmveth_adapter *adapter)
 {
 	if (ibmveth_proc_dir) {
-		remove_proc_entry(adapter->netdev->name, ibmveth_proc_dir);
+		char u_addr[10];
+		sprintf(u_addr, "%x", adapter->vdev->unit_address);
+		remove_proc_entry(u_addr, ibmveth_proc_dir);
 	}
 }
 

@@ -14,6 +14,58 @@
 #  define ASM_CONST(x)		__ASM_CONST(x)
 #endif
 
+
+/*
+ * Feature section common macros
+ *
+ * Note that the entries now contain offsets between the table entry
+ * and the code rather than absolute code pointers in order to be
+ * useable with the vdso shared library. There is also an assumption
+ * that values will be negative, that is, the fixup table has to be
+ * located after the code it fixes up.
+ */
+#ifdef CONFIG_PPC64
+#ifdef __powerpc64__
+/* 64 bits kernel, 64 bits code */
+#define MAKE_FTR_SECTION_ENTRY(msk, val, label, sect)	\
+99:							\
+	.section sect,"a";				\
+	.align 3;					\
+98:						       	\
+	.llong msk;					\
+	.llong val;					\
+	.llong label##b-98b;				\
+	.llong 99b-98b;		 			\
+	.previous
+#else /* __powerpc64__ */
+/* 64 bits kernel, 32 bits code (ie. vdso32) */
+#define MAKE_FTR_SECTION_ENTRY(msk, val, label, sect)	\
+99:							\
+	.section sect,"a";				\
+	.align 3;					\
+98:						       	\
+	.llong msk;					\
+	.llong val;					\
+	.long 0xffffffff;      				\
+	.long label##b-98b;				\
+	.long 0xffffffff;	       			\
+	.long 99b-98b;		 			\
+	.previous
+#endif /* !__powerpc64__ */
+#else /* CONFIG_PPC64 */
+/* 32 bits kernel, 32 bits code */
+#define MAKE_FTR_SECTION_ENTRY(msk, val, label, sect)	\
+99:						       	\
+	.section sect,"a";			       	\
+	.align 2;				       	\
+98:						       	\
+	.long msk;				       	\
+	.long val;				       	\
+	.long label##b-98b;			       	\
+	.long 99b-98b;				       	\
+	.previous
+#endif /* !CONFIG_PPC64 */
+
 #ifdef __powerpc64__
 
 /* operations for longs and pointers */

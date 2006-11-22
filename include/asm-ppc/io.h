@@ -439,22 +439,6 @@ extern inline void * phys_to_virt(unsigned long address)
 #define iobarrier_r()  eieio()
 #define iobarrier_w()  eieio()
 
-static inline int check_signature(volatile void __iomem * io_addr,
-	const unsigned char *signature, int length)
-{
-	int retval = 0;
-	do {
-		if (readb(io_addr) != *signature)
-			goto out;
-		io_addr++;
-		signature++;
-		length--;
-	} while (length);
-	retval = 1;
-out:
-	return retval;
-}
-
 /*
  * Here comes the ppc implementation of the IOMAP 
  * interfaces.

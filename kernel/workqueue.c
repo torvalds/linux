@@ -28,6 +28,7 @@
 #include <linux/notifier.h>
 #include <linux/kthread.h>
 #include <linux/hardirq.h>
+#include <linux/mempolicy.h>
 
 /*
  * The per-CPU workqueue (if single thread, we always use the first
@@ -98,7 +99,7 @@ static void __queue_work(struct cpu_workqueue_struct *cwq,
  * @wq: workqueue to use
  * @work: work to queue
  *
- * Returns non-zero if it was successfully added.
+ * Returns 0 if @work was already on a queue, non-zero otherwise.
  *
  * We queue the work to the CPU it was submitted, but there is no
  * guarantee that it will be processed by that CPU.
@@ -137,7 +138,7 @@ static void delayed_work_timer_fn(unsigned long __data)
  * @work: work to queue
  * @delay: number of jiffies to wait before queueing
  *
- * Returns non-zero if it was successfully added.
+ * Returns 0 if @work was already on a queue, non-zero otherwise.
  */
 int fastcall queue_delayed_work(struct workqueue_struct *wq,
 			struct work_struct *work, unsigned long delay)
@@ -168,7 +169,7 @@ EXPORT_SYMBOL_GPL(queue_delayed_work);
  * @work: work to queue
  * @delay: number of jiffies to wait before queueing
  *
- * Returns non-zero if it was successfully added.
+ * Returns 0 if @work was already on a queue, non-zero otherwise.
  */
 int queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 			struct work_struct *work, unsigned long delay)
@@ -244,6 +245,12 @@ static int worker_thread(void *__cwq)
 	sigfillset(&blocked);
 	sigprocmask(SIG_BLOCK, &blocked, NULL);
 	flush_signals(current);
+
+	/*
+	 * We inherited MPOL_INTERLEAVE from the booting kernel.
+	 * Set MPOL_DEFAULT to insure node local allocations.
+	 */
+	numa_default_policy();
 
 	/* SIG_IGN makes children autoreap: see do_notify_parent(). */
 	sa.sa.sa_handler = SIG_IGN;

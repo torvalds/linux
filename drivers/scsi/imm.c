@@ -1153,7 +1153,7 @@ static int __imm_attach(struct parport *pb)
 {
 	struct Scsi_Host *host;
 	imm_struct *dev;
-	DECLARE_WAIT_QUEUE_HEAD(waiting);
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(waiting);
 	DEFINE_WAIT(wait);
 	int ports;
 	int modes, ppb;

@@ -22,11 +22,11 @@ config IP_DCCP_CCID2
 	  for lost packets, would prefer CCID 2 to CCID 3.  On-line games may
 	  also prefer CCID 2.
 
-	  CCID 2 is further described in:
-	  http://www.icir.org/kohler/dccp/draft-ietf-dccp-ccid2-10.txt
+	  CCID 2 is further described in RFC 4341,
+	  http://www.ietf.org/rfc/rfc4341.txt
 
-	  This text was extracted from:
-	  http://www.icir.org/kohler/dccp/draft-ietf-dccp-spec-13.txt
+	  This text was extracted from RFC 4340 (sec. 10.1),
+	  http://www.ietf.org/rfc/rfc4340.txt
 
 	  If in doubt, say M.
 
@@ -53,15 +53,14 @@ config IP_DCCP_CCID3
 	  suitable than CCID 2 for applications such streaming media where a
 	  relatively smooth sending rate is of importance.
 
-	  CCID 3 is further described in:
-
-	  http://www.icir.org/kohler/dccp/draft-ietf-dccp-ccid3-11.txt.
+	  CCID 3 is further described in RFC 4342,
+	  http://www.ietf.org/rfc/rfc4342.txt
 
 	  The TFRC congestion control algorithms were initially described in
 	  RFC 3448.
 
-	  This text was extracted from:
-	  http://www.icir.org/kohler/dccp/draft-ietf-dccp-spec-13.txt
+	  This text was extracted from RFC 4340 (sec. 10.2),
+	  http://www.ietf.org/rfc/rfc4340.txt
 	  
 	  If in doubt, say M.
 

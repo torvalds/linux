@@ -8,6 +8,7 @@
  * for more details.
  */
 
+#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -59,7 +60,7 @@ static inline void do_pmeg_mapin(unsigned long phys, unsigned long virt,
 	}
 }
 
-void *sun3_ioremap(unsigned long phys, unsigned long size,
+void __iomem *sun3_ioremap(unsigned long phys, unsigned long size,
 		   unsigned long type)
 {
 	struct vm_struct *area;
@@ -101,22 +102,24 @@ void *sun3_ioremap(unsigned long phys, unsigned long size,
 		virt += seg_pages * PAGE_SIZE;
 	}
 
-	return (void *)ret;
+	return (void __iomem *)ret;
 
 }
 
 
-void *__ioremap(unsigned long phys, unsigned long size, int cache)
+void __iomem *__ioremap(unsigned long phys, unsigned long size, int cache)
 {
 
 	return sun3_ioremap(phys, size, SUN3_PAGE_TYPE_IO);
 
 }
+EXPORT_SYMBOL(__ioremap);
 
-void iounmap(void *addr)
+void iounmap(void __iomem *addr)
 {
 	vfree((void *)(PAGE_MASK & (unsigned long)addr));
 }
+EXPORT_SYMBOL(iounmap);
 
 /* sun3_map_test(addr, val) -- Reads a byte from addr, storing to val,
  * trapping the potential read fault.  Returns 0 if the access faulted,

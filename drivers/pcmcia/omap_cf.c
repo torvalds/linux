@@ -309,9 +309,10 @@ static int __devinit omap_cf_probe(struct device *dev)
 	return 0;
 
 fail2:
-	iounmap((void __iomem *) cf->socket.io_offset);
 	release_mem_region(cf->phys_cf, SZ_8K);
 fail1:
+	if (cf->socket.io_offset)
+		iounmap((void __iomem *) cf->socket.io_offset);
 	free_irq(irq, cf);
 fail0:
 	kfree(cf);

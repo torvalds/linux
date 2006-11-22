@@ -1,9 +1,8 @@
-/* $Id: entry.S,v 1.37 2004/06/11 13:02:46 doyu Exp $
- *
+/*
  *  linux/arch/sh/entry.S
  *
  *  Copyright (C) 1999, 2000, 2002  Niibe Yutaka
- *  Copyright (C) 2003  Paul Mundt
+ *  Copyright (C) 2003 - 2006  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -78,7 +77,6 @@ OFF_TRA	=  (16*4+6*4)
 #define k3	r3
 #define k4	r4
 
-#define k_ex_code	r2_bank	/* r2_bank1 */
 #define g_imask		r6	/* r6_bank1 */
 #define k_g_imask	r6_bank	/* r6_bank1 */
 #define current		r7	/* r7_bank1 */
@@ -691,7 +689,7 @@ interrupt:
 0:
 #endif /* defined(CONFIG_KGDB_NMI) */
 	bra	handle_exception
-	 mov.l	@k2, k2
+	 mov	#-1, k2		! interrupt exception marker
 
 	.align	2
 1:	.long	EXPEVT
@@ -717,8 +715,7 @@ ENTRY(handle_exception)
 	add	current, k1
 	mov	k1, r15		! change to kernel stack
 	!
-1:  	mov	#-1, k4
-	mov.l	2f, k1
+1:	mov.l	2f, k1
 	!
 #ifdef CONFIG_SH_DSP
 	mov.l	r2, @-r15		! Save r2, we need another reg
@@ -763,6 +760,8 @@ skip_save:
 #endif
 	! Save the user registers on the stack.
 	mov.l	k2, @-r15	! EXPEVT
+
+ 	mov	#-1, k4
 	mov.l	k4, @-r15	! set TRA (default: -1)
 	!
 	sts.l	macl, @-r15
@@ -797,14 +796,29 @@ skip_save:
 	mov.l	r2, @-r15
 	mov.l	r1, @-r15
 	mov.l	r0, @-r15
-	! Then, dispatch to the handler, according to the exception code.
-	stc	k_ex_code, r8
+
+	/*
+	 * This gets a bit tricky.. in the INTEVT case we don't want to use
+	 * the VBR offset as a destination in the jump call table, since all
+	 * of the destinations are the same. In this case, (interrupt) sets
+	 * a marker in r2 (now r2_bank since SR.RB changed), which we check
+	 * to determine the exception type. For all other exceptions, we
+	 * forcibly read EXPEVT from memory and fix up the jump address, in
+	 * the interrupt exception case we jump to do_IRQ() and defer the
+	 * INTEVT read until there. As a bonus, we can also clean up the SR.RB
+	 * checks that do_IRQ() was doing..
+	 */
+	stc	r2_bank, r8
+	cmp/pz	r8
+	bf	interrupt_exception
 	shlr2	r8
 	shlr	r8
 	mov.l	4f, r9
 	add	r8, r9
 	mov.l	@r9, r9
 	jmp	@r9
+	 nop
+	rts
 	 nop
 
 	.align	2
@@ -813,8 +827,17 @@ skip_save:
 3:	.long	0xcfffffff	! RB=0, BL=0
 4:	.long	exception_handling_table
 
+interrupt_exception:
+	mov.l	1f, r9
+	jmp	@r9
+	 nop
+	rts
+	 nop
+
+	.align 2
+1:	.long	do_IRQ
+
 	.align	2
 ENTRY(exception_none)
 	rts
 	 nop
-

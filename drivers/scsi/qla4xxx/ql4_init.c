@@ -978,7 +978,7 @@ static int qla4xxx_start_firmware_from_flash(struct scsi_qla_host *ha)
 	return status;
 }
 
-static int ql4xxx_lock_drvr_wait(struct scsi_qla_host *a)
+int ql4xxx_lock_drvr_wait(struct scsi_qla_host *a)
 {
 #define QL4_LOCK_DRVR_WAIT	300
 #define QL4_LOCK_DRVR_SLEEP	100

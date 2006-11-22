@@ -459,7 +459,7 @@ ok_to_read:
 #ifdef DEBUG
 	printk("%s: read: sector %ld, remaining = %ld, buffer=%p\n",
 		req->rq_disk->disk_name, req->sector, req->nr_sectors,
-		req->buffer+512));
+		req->buffer+512);
 #endif
 	if (req->current_nr_sectors <= 0)
 		end_request(req, 1);

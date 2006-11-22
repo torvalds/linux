@@ -138,16 +138,27 @@ static void gfs2_put_super(struct super_block *sb)
 }
 
 /**
- * gfs2_write_super - disk commit all incore transactions
- * @sb: the filesystem
+ * gfs2_write_super
+ * @sb: the superblock
  *
- * This function is called every time sync(2) is called.
- * After this exits, all dirty buffers are synced.
  */
 
 static void gfs2_write_super(struct super_block *sb)
 {
+	sb->s_dirt = 0;
+}
+
+/**
+ * gfs2_sync_fs - sync the filesystem
+ * @sb: the superblock
+ *
+ * Flushes the log to disk.
+ */
+static int gfs2_sync_fs(struct super_block *sb, int wait)
+{
+	sb->s_dirt = 0;
 	gfs2_log_flush(sb->s_fs_info, NULL);
+	return 0;
 }
 
 /**
@@ -452,17 +463,18 @@ static void gfs2_destroy_inode(struct inode *inode)
 }
 
 struct super_operations gfs2_super_ops = {
-	.alloc_inode = gfs2_alloc_inode,
-	.destroy_inode = gfs2_destroy_inode,
-	.write_inode = gfs2_write_inode,
-	.delete_inode = gfs2_delete_inode,
-	.put_super = gfs2_put_super,
-	.write_super = gfs2_write_super,
-	.write_super_lockfs = gfs2_write_super_lockfs,
-	.unlockfs = gfs2_unlockfs,
-	.statfs = gfs2_statfs,
-	.remount_fs = gfs2_remount_fs,
-	.clear_inode = gfs2_clear_inode,
-	.show_options = gfs2_show_options,
+	.alloc_inode		= gfs2_alloc_inode,
+	.destroy_inode		= gfs2_destroy_inode,
+	.write_inode		= gfs2_write_inode,
+	.delete_inode		= gfs2_delete_inode,
+	.put_super		= gfs2_put_super,
+	.write_super		= gfs2_write_super,
+	.sync_fs		= gfs2_sync_fs,
+	.write_super_lockfs 	= gfs2_write_super_lockfs,
+	.unlockfs		= gfs2_unlockfs,
+	.statfs			= gfs2_statfs,
+	.remount_fs		= gfs2_remount_fs,
+	.clear_inode		= gfs2_clear_inode,
+	.show_options		= gfs2_show_options,
 };
 

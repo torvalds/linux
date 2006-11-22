@@ -47,6 +47,7 @@ unsigned long long __attribute__ ((weak)) sched_clock(void)
 	return (unsigned long long)jiffies * (1000000000 / HZ);
 }
 
+#ifndef CONFIG_GENERIC_TIME
 void do_gettimeofday(struct timeval *tv)
 {
 	unsigned long seq;
@@ -99,6 +100,7 @@ int do_settimeofday(struct timespec *tv)
 	return 0;
 }
 EXPORT_SYMBOL(do_settimeofday);
+#endif /* !CONFIG_GENERIC_TIME */
 
 /* last time the RTC clock got updated */
 static long last_rtc_update;
@@ -107,13 +109,14 @@ static long last_rtc_update;
  * handle_timer_tick() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
  */
-void handle_timer_tick(struct pt_regs *regs)
+void handle_timer_tick(void)
 {
 	do_timer(1);
 #ifndef CONFIG_SMP
-	update_process_times(user_mode(regs));
+	update_process_times(user_mode(get_irq_regs()));
 #endif
-	profile_tick(CPU_PROFILING, regs);
+	if (current->pid)
+		profile_tick(CPU_PROFILING);
 
 #ifdef CONFIG_HEARTBEAT
 	if (sh_mv.mv_heartbeat != NULL)

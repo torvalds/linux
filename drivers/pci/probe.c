@@ -1067,3 +1067,95 @@ EXPORT_SYMBOL(pci_scan_bridge);
 EXPORT_SYMBOL(pci_scan_single_device);
 EXPORT_SYMBOL_GPL(pci_scan_child_bus);
 #endif
+
+static int __init pci_sort_bf_cmp(const struct pci_dev *a, const struct pci_dev *b)
+{
+	if      (pci_domain_nr(a->bus) < pci_domain_nr(b->bus)) return -1;
+	else if (pci_domain_nr(a->bus) > pci_domain_nr(b->bus)) return  1;
+
+	if      (a->bus->number < b->bus->number) return -1;
+	else if (a->bus->number > b->bus->number) return  1;
+
+	if      (a->devfn < b->devfn) return -1;
+	else if (a->devfn > b->devfn) return  1;
+
+	return 0;
+}
+
+/*
+ * Yes, this forcably breaks the klist abstraction temporarily.  It
+ * just wants to sort the klist, not change reference counts and
+ * take/drop locks rapidly in the process.  It does all this while
+ * holding the lock for the list, so objects can't otherwise be
+ * added/removed while we're swizzling.
+ */
+static void __init pci_insertion_sort_klist(struct pci_dev *a, struct list_head *list)
+{
+	struct list_head *pos;
+	struct klist_node *n;
+	struct device *dev;
+	struct pci_dev *b;
+
+	list_for_each(pos, list) {
+		n = container_of(pos, struct klist_node, n_node);
+		dev = container_of(n, struct device, knode_bus);
+		b = to_pci_dev(dev);
+		if (pci_sort_bf_cmp(a, b) <= 0) {
+			list_move_tail(&a->dev.knode_bus.n_node, &b->dev.knode_bus.n_node);
+			return;
+		}
+	}
+	list_move_tail(&a->dev.knode_bus.n_node, list);
+}
+
+static void __init pci_sort_breadthfirst_klist(void)
+{
+	LIST_HEAD(sorted_devices);
+	struct list_head *pos, *tmp;
+	struct klist_node *n;
+	struct device *dev;
+	struct pci_dev *pdev;
+
+	spin_lock(&pci_bus_type.klist_devices.k_lock);
+	list_for_each_safe(pos, tmp, &pci_bus_type.klist_devices.k_list) {
+		n = container_of(pos, struct klist_node, n_node);
+		dev = container_of(n, struct device, knode_bus);
+		pdev = to_pci_dev(dev);
+		pci_insertion_sort_klist(pdev, &sorted_devices);
+	}
+	list_splice(&sorted_devices, &pci_bus_type.klist_devices.k_list);
+	spin_unlock(&pci_bus_type.klist_devices.k_lock);
+}
+
+static void __init pci_insertion_sort_devices(struct pci_dev *a, struct list_head *list)
+{
+	struct pci_dev *b;
+
+	list_for_each_entry(b, list, global_list) {
+		if (pci_sort_bf_cmp(a, b) <= 0) {
+			list_move_tail(&a->global_list, &b->global_list);
+			return;
+		}
+	}
+	list_move_tail(&a->global_list, list);
+}
+
+static void __init pci_sort_breadthfirst_devices(void)
+{
+	LIST_HEAD(sorted_devices);
+	struct pci_dev *dev, *tmp;
+
+	down_write(&pci_bus_sem);
+	list_for_each_entry_safe(dev, tmp, &pci_devices, global_list) {
+		pci_insertion_sort_devices(dev, &sorted_devices);
+	}
+	list_splice(&sorted_devices, &pci_devices);
+	up_write(&pci_bus_sem);
+}
+
+void __init pci_sort_breadthfirst(void)
+{
+	pci_sort_breadthfirst_devices();
+	pci_sort_breadthfirst_klist();
+}
+

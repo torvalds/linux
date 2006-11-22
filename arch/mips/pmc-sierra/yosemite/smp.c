@@ -3,9 +3,7 @@
 
 #include <asm/pmon.h>
 #include <asm/titan_dep.h>
-
-extern unsigned int (*mips_hpt_read)(void);
-extern void (*mips_hpt_init)(unsigned int);
+#include <asm/time.h>
 
 #define LAUNCHSTACK_SIZE 256
 
@@ -101,7 +99,7 @@ void prom_cpus_done(void)
  */
 void prom_init_secondary(void)
 {
-	mips_hpt_init(mips_hpt_read());
+	mips_hpt_init();
 
 	set_c0_status(ST0_CO | ST0_IE | ST0_IM);
 }

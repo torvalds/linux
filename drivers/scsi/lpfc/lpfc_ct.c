@@ -188,7 +188,8 @@ lpfc_alloc_ct_rsp(struct lpfc_hba * phba, int cmdcode, struct ulp_bde64 * bpl,
 
 		if (!mp->virt) {
 			kfree(mp);
-			lpfc_free_ct_rsp(phba, mlist);
+			if (mlist)
+				lpfc_free_ct_rsp(phba, mlist);
 			return NULL;
 		}
 

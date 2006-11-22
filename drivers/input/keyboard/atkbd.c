@@ -221,6 +221,7 @@ struct atkbd {
 	unsigned long xl_bit;
 	unsigned int last;
 	unsigned long time;
+	unsigned long err_count;
 
 	struct work_struct event_work;
 	struct mutex event_mutex;
@@ -234,11 +235,13 @@ static ssize_t atkbd_attr_set_helper(struct device *dev, const char *buf, size_t
 #define ATKBD_DEFINE_ATTR(_name)						\
 static ssize_t atkbd_show_##_name(struct atkbd *, char *);			\
 static ssize_t atkbd_set_##_name(struct atkbd *, const char *, size_t);		\
-static ssize_t atkbd_do_show_##_name(struct device *d, struct device_attribute *attr, char *b)			\
+static ssize_t atkbd_do_show_##_name(struct device *d,				\
+				struct device_attribute *attr, char *b)		\
 {										\
 	return atkbd_attr_show_helper(d, b, atkbd_show_##_name);		\
 }										\
-static ssize_t atkbd_do_set_##_name(struct device *d, struct device_attribute *attr, const char *b, size_t s)	\
+static ssize_t atkbd_do_set_##_name(struct device *d,				\
+			struct device_attribute *attr, const char *b, size_t s)	\
 {										\
 	return atkbd_attr_set_helper(d, b, s, atkbd_set_##_name);		\
 }										\
@@ -250,6 +253,32 @@ ATKBD_DEFINE_ATTR(scroll);
 ATKBD_DEFINE_ATTR(set);
 ATKBD_DEFINE_ATTR(softrepeat);
 ATKBD_DEFINE_ATTR(softraw);
+
+#define ATKBD_DEFINE_RO_ATTR(_name)						\
+static ssize_t atkbd_show_##_name(struct atkbd *, char *);			\
+static ssize_t atkbd_do_show_##_name(struct device *d,				\
+				struct device_attribute *attr, char *b)		\
+{										\
+	return atkbd_attr_show_helper(d, b, atkbd_show_##_name);		\
+}										\
+static struct device_attribute atkbd_attr_##_name =				\
+	__ATTR(_name, S_IRUGO, atkbd_do_show_##_name, NULL);
+
+ATKBD_DEFINE_RO_ATTR(err_count);
+
+static struct attribute *atkbd_attributes[] = {
+	&atkbd_attr_extra.attr,
+	&atkbd_attr_scroll.attr,
+	&atkbd_attr_set.attr,
+	&atkbd_attr_softrepeat.attr,
+	&atkbd_attr_softraw.attr,
+	&atkbd_attr_err_count.attr,
+	NULL
+};
+
+static struct attribute_group atkbd_attribute_group = {
+	.attrs	= atkbd_attributes,
+};
 
 static const unsigned int xl_table[] = {
 	ATKBD_RET_BAT, ATKBD_RET_ERR, ATKBD_RET_ACK,
@@ -396,7 +425,10 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 			add_release_event = 1;
 			break;
 		case ATKBD_RET_ERR:
+			atkbd->err_count++;
+#ifdef ATKBD_DEBUG
 			printk(KERN_DEBUG "atkbd.c: Keyboard on %s reports too many keys pressed.\n", serio->phys);
+#endif
 			goto out;
 	}
 
@@ -786,12 +818,7 @@ static void atkbd_disconnect(struct serio *serio)
 	synchronize_sched();  /* Allow atkbd_interrupt()s to complete. */
 	flush_scheduled_work();
 
-	device_remove_file(&serio->dev, &atkbd_attr_extra);
-	device_remove_file(&serio->dev, &atkbd_attr_scroll);
-	device_remove_file(&serio->dev, &atkbd_attr_set);
-	device_remove_file(&serio->dev, &atkbd_attr_softrepeat);
-	device_remove_file(&serio->dev, &atkbd_attr_softraw);
-
+	sysfs_remove_group(&serio->dev.kobj, &atkbd_attribute_group);
 	input_unregister_device(atkbd->dev);
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
@@ -961,11 +988,7 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 	atkbd_set_keycode_table(atkbd);
 	atkbd_set_device_attrs(atkbd);
 
-	device_create_file(&serio->dev, &atkbd_attr_extra);
-	device_create_file(&serio->dev, &atkbd_attr_scroll);
-	device_create_file(&serio->dev, &atkbd_attr_set);
-	device_create_file(&serio->dev, &atkbd_attr_softrepeat);
-	device_create_file(&serio->dev, &atkbd_attr_softraw);
+	sysfs_create_group(&serio->dev.kobj, &atkbd_attribute_group);
 
 	atkbd_enable(atkbd);
 
@@ -1257,6 +1280,11 @@ static ssize_t atkbd_set_softraw(struct atkbd *atkbd, const char *buf, size_t co
 		input_register_device(atkbd->dev);
 	}
 	return count;
+}
+
+static ssize_t atkbd_show_err_count(struct atkbd *atkbd, char *buf)
+{
+	return sprintf(buf, "%lu\n", atkbd->err_count);
 }
 
 

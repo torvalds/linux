@@ -1507,6 +1507,13 @@ static int futex_fd(u32 __user *uaddr, int signal)
 	struct futex_q *q;
 	struct file *filp;
 	int ret, err;
+	static unsigned long printk_interval;
+
+	if (printk_timed_ratelimit(&printk_interval, 60 * 60 * 1000)) {
+		printk(KERN_WARNING "Process `%s' used FUTEX_FD, which "
+		    	"will be removed from the kernel in June 2007\n",
+			current->comm);
+	}
 
 	ret = -EINVAL;
 	if (!valid_signal(signal))

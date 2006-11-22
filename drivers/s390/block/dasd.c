@@ -203,6 +203,7 @@ dasd_state_basic_to_known(struct dasd_device * device)
 	rc = dasd_flush_ccw_queue(device, 1);
 	if (rc)
 		return rc;
+	dasd_clear_timer(device);
 
 	DBF_DEV_EVENT(DBF_EMERG, device, "%p debug area deleted", device);
 	if (device->debug_area != NULL) {

@@ -1709,9 +1709,12 @@ static struct kobject *floppy_find(dev_t dev, int *part, void *data)
 	return get_disk(unit[drive].gendisk);
 }
 
-int __init amiga_floppy_init(void)
+static int __init amiga_floppy_init(void)
 {
 	int i, ret;
+
+	if (!MACH_IS_AMIGA)
+		return -ENXIO;
 
 	if (!AMIGAHW_PRESENT(AMI_FLOPPY))
 		return -ENXIO;
@@ -1809,14 +1812,8 @@ out_blkdev:
 	return ret;
 }
 
+module_init(amiga_floppy_init);
 #ifdef MODULE
-
-int init_module(void)
-{
-	if (!MACH_IS_AMIGA)
-		return -ENXIO;
-	return amiga_floppy_init();
-}
 
 #if 0 /* not safe to unload */
 void cleanup_module(void)

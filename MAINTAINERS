@@ -493,7 +493,7 @@ S:	Maintained
 
 BFS FILE SYSTEM
 P:	Tigran A. Aivazian
-M:	tigran@veritas.com
+M:	tigran@aivazian.fsnet.co.uk
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
@@ -905,7 +905,8 @@ P:	David Teigland
 M:	teigland@redhat.com
 L:	cluster-devel@redhat.com
 W:	http://sources.redhat.com/cluster/
-T:	git kernel.org:/pub/scm/linux/kernel/git/steve/gfs-2.6.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/steve/gfs2-2.6-fixes.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/steve/gfs2-2.6-nmw.git
 S:	Supported
 
 DAVICOM FAST ETHERNET (DMFE) NETWORK DRIVER
@@ -1188,7 +1189,8 @@ P:	Steven Whitehouse
 M:	swhiteho@redhat.com
 L:	cluster-devel@redhat.com
 W:	http://sources.redhat.com/cluster/
-T:	git kernel.org:/pub/scm/linux/kernel/git/steve/gfs-2.6.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/steve/gfs2-2.6-fixes.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/steve/gfs2-2.6-nmw.git
 S:	Supported
 
 GIGASET ISDN DRIVERS
@@ -1511,7 +1513,7 @@ S:	Maintained
 
 INTEL IA32 MICROCODE UPDATE SUPPORT
 P:	Tigran Aivazian
-M:	tigran@veritas.com
+M:	tigran@aivazian.fsnet.co.uk
 S:	Maintained
 
 INTEL IXP4XX RANDOM NUMBER GENERATOR SUPPORT
@@ -1664,6 +1666,12 @@ JOURNALLING LAYER FOR BLOCK DEVICES (JBD)
 P:	Stephen Tweedie, Andrew Morton
 M:	sct@redhat.com, akpm@osdl.org
 L:	ext2-devel@lists.sourceforge.net
+S:	Maintained
+
+K8TEMP HARDWARE MONITORING DRIVER
+P:	Rudolf Marek
+M:	r.marek@assembler.cz
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
 KCONFIG
@@ -1996,6 +2004,13 @@ M:	rubini@ipvvis.unipv.it
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+MSI LAPTOP SUPPORT
+P:	Lennart Poettering
+M:	mzxreary@0pointer.de
+L:	https://tango.0pointer.de/mailman/listinfo/s270-linux
+W:	http://0pointer.de/lennart/tchibo.html
+S:	Maintained
+
 MTRR AND SIMILAR SUPPORT [i386]
 P:	Richard Gooch
 M:	rgooch@atnf.csiro.au
@@ -2003,8 +2018,11 @@ L:	linux-kernel@vger.kernel.org
 W:	http://www.atnf.csiro.au/~rgooch/linux/kernel-patches.html
 S:	Maintained
 
-MULTIMEDIA CARD (MMC) SUBSYSTEM
-S:	Orphan
+MULTIMEDIA CARD (MMC) AND SECURE DIGITAL (SD) SUBSYSTEM
+P:	Pierre Ossman
+M:	drzeus-mmc@drzeus.cx
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
 
 MULTISOUND SOUND DRIVER
 P:	Andrew Veliath
@@ -2040,11 +2058,13 @@ P:	Marc Boucher
 P:	James Morris
 P:	Harald Welte
 P:	Jozsef Kadlecsik
-M:	coreteam@netfilter.org
+P:	Patrick McHardy
+M:	kaber@trash.net
+L:	netfilter-devel@lists.netfilter.org
+L:	netfilter@lists.netfilter.org
+L:	coreteam@netfilter.org
 W:	http://www.netfilter.org/
 W:	http://www.iptables.org/
-L:	netfilter@lists.netfilter.org
-L:	netfilter-devel@lists.netfilter.org
 S:	Supported
 
 NETLABEL
@@ -2295,8 +2315,8 @@ T:	quilt kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
 S:	Supported
 
 PCI HOTPLUG CORE
-P:	Greg Kroah-Hartman
-M:	gregkh@suse.de
+P: 	Kristen Carlson Accardi
+M:	kristen.c.accardi@intel.com
 S:	Supported
 
 PCI HOTPLUG COMPAQ DRIVER
@@ -3052,6 +3072,13 @@ L:	video4linux-list@redhat.com
 W:	http://www.linux-projects.org
 S:	Maintained
 
+USB GADGET/PERIPHERAL SUBSYSTEM
+P:	David Brownell
+M:	dbrownell@users.sourceforge.net
+L:	linux-usb-devel@lists.sourceforge.net
+W:	http://www.linux-usb.org/gadget
+S:	Maintained
+
 USB HID/HIDBP DRIVERS
 P:	Vojtech Pavlik
 M:	vojtech@suse.cz
@@ -3235,10 +3262,11 @@ L:	linux-usb-users@lists.sourceforge.net
 L:	linux-usb-devel@lists.sourceforge.net
 S:	Maintained
 
-USB "USBNET" DRIVER
+USB "USBNET" DRIVER FRAMEWORK
 P:	David Brownell
 M:	dbrownell@users.sourceforge.net
 L:	linux-usb-devel@lists.sourceforge.net
+W:	http://www.linux-usb.org/usbnet
 S:	Maintained
 
 USB W996[87]CF DRIVER

@@ -57,9 +57,6 @@ static void tce_build_pSeries(struct iommu_table *tbl, long index,
 	u64 *tcep;
 	u64 rpn;
 
-	index <<= TCE_PAGE_FACTOR;
-	npages <<= TCE_PAGE_FACTOR;
-
 	proto_tce = TCE_PCI_READ; // Read allowed
 
 	if (direction != DMA_TO_DEVICE)
@@ -82,9 +79,6 @@ static void tce_free_pSeries(struct iommu_table *tbl, long index, long npages)
 {
 	u64 *tcep;
 
-	npages <<= TCE_PAGE_FACTOR;
-	index <<= TCE_PAGE_FACTOR;
-
 	tcep = ((u64 *)tbl->it_base) + index;
 
 	while (npages--)
@@ -95,7 +89,6 @@ static unsigned long tce_get_pseries(struct iommu_table *tbl, long index)
 {
 	u64 *tcep;
 
-	index <<= TCE_PAGE_FACTOR;
 	tcep = ((u64 *)tbl->it_base) + index;
 
 	return *tcep;
@@ -108,9 +101,6 @@ static void tce_build_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	u64 rc;
 	u64 proto_tce, tce;
 	u64 rpn;
-
-	tcenum <<= TCE_PAGE_FACTOR;
-	npages <<= TCE_PAGE_FACTOR;
 
 	rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;
 	proto_tce = TCE_PCI_READ;
@@ -146,7 +136,7 @@ static void tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	u64 rpn;
 	long l, limit;
 
-	if (TCE_PAGE_FACTOR == 0 && npages == 1)
+	if (npages == 1)
 		return tce_build_pSeriesLP(tbl, tcenum, npages, uaddr,
 					   direction);
 
@@ -163,9 +153,6 @@ static void tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 						   uaddr, direction);
 		__get_cpu_var(tce_page) = tcep;
 	}
-
-	tcenum <<= TCE_PAGE_FACTOR;
-	npages <<= TCE_PAGE_FACTOR;
 
 	rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;
 	proto_tce = TCE_PCI_READ;
@@ -207,9 +194,6 @@ static void tce_free_pSeriesLP(struct iommu_table *tbl, long tcenum, long npages
 {
 	u64 rc;
 
-	tcenum <<= TCE_PAGE_FACTOR;
-	npages <<= TCE_PAGE_FACTOR;
-
 	while (npages--) {
 		rc = plpar_tce_put((u64)tbl->it_index, (u64)tcenum << 12, 0);
 
@@ -229,9 +213,6 @@ static void tce_freemulti_pSeriesLP(struct iommu_table *tbl, long tcenum, long n
 {
 	u64 rc;
 
-	tcenum <<= TCE_PAGE_FACTOR;
-	npages <<= TCE_PAGE_FACTOR;
-
 	rc = plpar_tce_stuff((u64)tbl->it_index, (u64)tcenum << 12, 0, npages);
 
 	if (rc && printk_ratelimit()) {
@@ -248,7 +229,6 @@ static unsigned long tce_get_pSeriesLP(struct iommu_table *tbl, long tcenum)
 	u64 rc;
 	unsigned long tce_ret;
 
-	tcenum <<= TCE_PAGE_FACTOR;
 	rc = plpar_tce_get((u64)tbl->it_index, (u64)tcenum << 12, &tce_ret);
 
 	if (rc && printk_ratelimit()) {
@@ -289,7 +269,7 @@ static void iommu_table_setparms(struct pci_controller *phb,
 	tbl->it_busno = phb->bus->number;
 
 	/* Units of tce entries */
-	tbl->it_offset = phb->dma_window_base_cur >> PAGE_SHIFT;
+	tbl->it_offset = phb->dma_window_base_cur >> IOMMU_PAGE_SHIFT;
 
 	/* Test if we are going over 2GB of DMA space */
 	if (phb->dma_window_base_cur + phb->dma_window_size > 0x80000000ul) {
@@ -300,7 +280,7 @@ static void iommu_table_setparms(struct pci_controller *phb,
 	phb->dma_window_base_cur += phb->dma_window_size;
 
 	/* Set the tce table size - measured in entries */
-	tbl->it_size = phb->dma_window_size >> PAGE_SHIFT;
+	tbl->it_size = phb->dma_window_size >> IOMMU_PAGE_SHIFT;
 
 	tbl->it_index = 0;
 	tbl->it_blocksize = 16;
@@ -325,8 +305,8 @@ static void iommu_table_setparms_lpar(struct pci_controller *phb,
 	tbl->it_base   = 0;
 	tbl->it_blocksize  = 16;
 	tbl->it_type = TCE_PCI;
-	tbl->it_offset = offset >> PAGE_SHIFT;
-	tbl->it_size = size >> PAGE_SHIFT;
+	tbl->it_offset = offset >> IOMMU_PAGE_SHIFT;
+	tbl->it_size = size >> IOMMU_PAGE_SHIFT;
 }
 
 static void iommu_bus_setup_pSeries(struct pci_bus *bus)
@@ -522,8 +502,6 @@ static void iommu_dev_setup_pSeriesLP(struct pci_dev *dev)
 	const void *dma_window = NULL;
 	struct pci_dn *pci;
 
-	DBG("iommu_dev_setup_pSeriesLP, dev %p (%s)\n", dev, pci_name(dev));
-
 	/* dev setup for LPAR is a little tricky, since the device tree might
 	 * contain the dma-window properties per-device and not neccesarily
 	 * for the bus. So we need to search upwards in the tree until we
@@ -531,6 +509,9 @@ static void iommu_dev_setup_pSeriesLP(struct pci_dev *dev)
 	 * already allocated.
 	 */
 	dn = pci_device_to_OF_node(dev);
+
+	DBG("iommu_dev_setup_pSeriesLP, dev %p (%s) %s\n",
+	     dev, pci_name(dev), dn->full_name);
 
 	for (pdn = dn; pdn && PCI_DN(pdn) && !PCI_DN(pdn)->iommu_table;
 	     pdn = pdn->parent) {

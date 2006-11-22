@@ -1799,7 +1799,7 @@ static int alc_build_pcms(struct hda_codec *codec)
 	/* SPDIF for stream index #1 */
 	if (spec->multiout.dig_out_nid || spec->dig_in_nid) {
 		codec->num_pcms = 2;
-		info++;
+		info = spec->pcm_rec + 1;
 		info->name = spec->stream_name_digital;
 		if (spec->multiout.dig_out_nid &&
 		    spec->stream_digital_playback) {
@@ -1820,7 +1820,7 @@ static int alc_build_pcms(struct hda_codec *codec)
 	if (spec->num_adc_nids > 1 && spec->stream_analog_capture &&
 	    spec->adc_nids) {
 		codec->num_pcms = 3;
-		info++;
+		info = spec->pcm_rec + 2;
 		info->name = spec->stream_name_analog;
 		/* No playback stream for second PCM */
 		info->stream[SNDRV_PCM_STREAM_PLAYBACK] = alc_pcm_null_playback;

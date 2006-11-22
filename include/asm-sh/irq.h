@@ -14,16 +14,6 @@
 #include <asm/machvec.h>
 #include <asm/ptrace.h>		/* for pt_regs */
 
-#if defined(CONFIG_SH_HP6XX) || \
-    defined(CONFIG_SH_RTS7751R2D) || \
-    defined(CONFIG_SH_HS7751RVOIP) || \
-    defined(CONFIG_SH_HS7751RVOIP) || \
-    defined(CONFIG_SH_SH03) || \
-    defined(CONFIG_SH_R7780RP) || \
-    defined(CONFIG_SH_LANDISK)
-#include <asm/mach/ide.h>
-#endif
-
 #ifndef CONFIG_CPU_SUBTYPE_SH7780
 
 #define INTC_DMAC0_MSK	0
@@ -36,15 +26,6 @@
 #define INTC_IPRB	0xffd00008UL
 #define INTC_IPRC	0xffd0000cUL
 #define INTC_IPRD	0xffd00010UL
-#endif
-
-#ifdef CONFIG_IDE
-# ifndef IRQ_CFCARD
-#  define IRQ_CFCARD	14
-# endif
-# ifndef IRQ_PCMCIA
-#  define IRQ_PCMCIA	15
-# endif
 #endif
 
 #define TIMER_IRQ	16
@@ -346,11 +327,17 @@ extern unsigned short *irq_mask_register;
  */
 void init_IRQ_pint(void);
 
+struct ipr_data {
+	unsigned int irq;
+	unsigned int addr;	/* Address of Interrupt Priority Register */
+	int shift;		/* Shifts of the 16-bit data */
+	int priority;		/* The priority */
+};
+
 /*
  * Function for "on chip support modules".
  */
-extern void make_ipr_irq(unsigned int irq, unsigned int addr,
-			 int pos,  int priority);
+extern void make_ipr_irq(struct ipr_data *table, unsigned int nr_irqs);
 extern void make_imask_irq(unsigned int irq);
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7300)
@@ -697,13 +684,15 @@ extern int ipr_irq_demux(int irq);
 
 #define INTC2_INTPRI_OFFSET	0x00
 
-void make_intc2_irq(unsigned int irq,
-		    unsigned int ipr_offset, unsigned int ipr_shift,
-		    unsigned int msk_offset, unsigned int msk_shift,
-		    unsigned int priority);
-void init_IRQ_intc2(void);
-void intc2_add_clear_irq(int irq, int (*fn)(int));
+struct intc2_data {
+	unsigned short irq;
+	unsigned char ipr_offset, ipr_shift;
+	unsigned char msk_offset, msk_shift;
+	unsigned char priority;
+};
 
+void make_intc2_irq(struct intc2_data *, unsigned int nr_irqs);
+void init_IRQ_intc2(void);
 #endif
 
 extern int shmse_irq_demux(int irq);

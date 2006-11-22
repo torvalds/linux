@@ -193,23 +193,6 @@ extern void _memset_io(volatile void __iomem *, int, size_t);
 #define eth_io_copy_and_sum(s,c,l,b) \
 				eth_copy_and_sum((s),__mem_pci(c),(l),(b))
 
-static inline int
-check_signature(void __iomem *io_addr, const unsigned char *signature,
-		int length)
-{
-	int retval = 0;
-	do {
-		if (readb(io_addr) != *signature)
-			goto out;
-		io_addr++;
-		signature++;
-		length--;
-	} while (length);
-	retval = 1;
-out:
-	return retval;
-}
-
 #elif !defined(readb)
 
 #define readb(c)			(__readwrite_bug("readb"),0)

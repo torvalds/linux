@@ -125,6 +125,10 @@
 		*(__param)						\
 		VMLINUX_SYMBOL(__stop___param) = .;			\
 	}								\
+									\
+	/* Unwind data binary search table */				\
+	EH_FRAME_HDR							\
+									\
 	__end_rodata = .;						\
 	. = ALIGN(4096);
 
@@ -156,6 +160,18 @@
 		VMLINUX_SYMBOL(__kprobes_text_start) = .;		\
 		*(.kprobes.text)					\
 		VMLINUX_SYMBOL(__kprobes_text_end) = .;
+
+#ifdef CONFIG_STACK_UNWIND
+		/* Unwind data binary search table */
+#define EH_FRAME_HDR							\
+        	.eh_frame_hdr : AT(ADDR(.eh_frame_hdr) - LOAD_OFFSET) {	\
+			VMLINUX_SYMBOL(__start_unwind_hdr) = .;		\
+			*(.eh_frame_hdr)				\
+			VMLINUX_SYMBOL(__end_unwind_hdr) = .;		\
+		}
+#else
+#define EH_FRAME_HDR
+#endif
 
 		/* DWARF debug sections.
 		Symbols in the DWARF debugging sections are relative to
@@ -197,3 +213,22 @@
 
 #define NOTES								\
 		.notes : { *(.note.*) } :note
+
+#define INITCALLS							\
+  	*(.initcall0.init)						\
+  	*(.initcall0s.init)						\
+  	*(.initcall1.init)						\
+  	*(.initcall1s.init)						\
+  	*(.initcall2.init)						\
+  	*(.initcall2s.init)						\
+  	*(.initcall3.init)						\
+  	*(.initcall3s.init)						\
+  	*(.initcall4.init)						\
+  	*(.initcall4s.init)						\
+  	*(.initcall5.init)						\
+  	*(.initcall5s.init)						\
+  	*(.initcall6.init)						\
+  	*(.initcall6s.init)						\
+  	*(.initcall7.init)						\
+  	*(.initcall7s.init)
+

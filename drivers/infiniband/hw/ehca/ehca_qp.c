@@ -811,8 +811,8 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 	unsigned long spl_flags = 0;
 
 	/* do query_qp to obtain current attr values */
-	mqpcb = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
-	if (mqpcb == NULL) {
+	mqpcb = ehca_alloc_fw_ctrlblock();
+	if (!mqpcb) {
 		ehca_err(ibqp->device, "Could not get zeroed page for mqpcb "
 			 "ehca_qp=%p qp_num=%x ", my_qp, ibqp->qp_num);
 		return -ENOMEM;
@@ -1225,7 +1225,7 @@ modify_qp_exit2:
 	}
 
 modify_qp_exit1:
-	kfree(mqpcb);
+	ehca_free_fw_ctrlblock(mqpcb);
 
 	return ret;
 }
@@ -1277,7 +1277,7 @@ int ehca_query_qp(struct ib_qp *qp,
 		return -EINVAL;
 	}
 
-	qpcb = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL );
+	qpcb = ehca_alloc_fw_ctrlblock();
 	if (!qpcb) {
 		ehca_err(qp->device,"Out of memory for qpcb "
 			 "ehca_qp=%p qp_num=%x", my_qp, qp->qp_num);
@@ -1401,7 +1401,7 @@ int ehca_query_qp(struct ib_qp *qp,
 		ehca_dmp(qpcb, 4*70, "qp_num=%x", qp->qp_num);
 
 query_qp_exit1:
-	kfree(qpcb);
+	ehca_free_fw_ctrlblock(qpcb);
 
 	return ret;
 }

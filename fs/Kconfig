@@ -140,6 +140,73 @@ config EXT3_FS_SECURITY
 	  If you are not using a security module that requires using
 	  extended attributes for file security labels, say N.
 
+config EXT4DEV_FS
+	tristate "Ext4dev/ext4 extended fs support development (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	select JBD2
+	help
+	  Ext4dev is a predecessor filesystem of the next generation
+	  extended fs ext4, based on ext3 filesystem code. It will be
+	  renamed ext4 fs later, once ext4dev is mature and stabilized.
+
+	  Unlike the change from ext2 filesystem to ext3 filesystem,
+	  the on-disk format of ext4dev is not the same as ext3 any more:
+	  it is based on extent maps and it supports 48-bit physical block
+	  numbers. These combined on-disk format changes will allow
+	  ext4dev/ext4 to handle more than 16 TB filesystem volumes --
+	  a hard limit that ext3 cannot overcome without changing the
+	  on-disk format.
+
+	  Other than extent maps and 48-bit block numbers, ext4dev also is
+	  likely to have other new features such as persistent preallocation,
+	  high resolution time stamps, and larger file support etc.  These
+	  features will be added to ext4dev gradually.
+
+	  To compile this file system support as a module, choose M here. The
+	  module will be called ext4dev.  Be aware, however, that the filesystem
+	  of your root partition (the one containing the directory /) cannot
+	  be compiled as a module, and so this could be dangerous.
+
+	  If unsure, say N.
+
+config EXT4DEV_FS_XATTR
+	bool "Ext4dev extended attributes"
+	depends on EXT4DEV_FS
+	default y
+	help
+	  Extended attributes are name:value pairs associated with inodes by
+	  the kernel or by users (see the attr(5) manual page, or visit
+	  <http://acl.bestbits.at/> for details).
+
+	  If unsure, say N.
+
+	  You need this for POSIX ACL support on ext4dev/ext4.
+
+config EXT4DEV_FS_POSIX_ACL
+	bool "Ext4dev POSIX Access Control Lists"
+	depends on EXT4DEV_FS_XATTR
+	select FS_POSIX_ACL
+	help
+	  POSIX Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+
+	  To learn more about Access Control Lists, visit the POSIX ACLs for
+	  Linux website <http://acl.bestbits.at/>.
+
+	  If you don't know what Access Control Lists are, say N
+
+config EXT4DEV_FS_SECURITY
+	bool "Ext4dev Security Labels"
+	depends on EXT4DEV_FS_XATTR
+	help
+	  Security labels support alternative access control models
+	  implemented by security modules like SELinux.  This option
+	  enables an extended attribute handler for file security
+	  labels in the ext4dev/ext4 filesystem.
+
+	  If you are not using a security module that requires using
+	  extended attributes for file security labels, say N.
+
 config JBD
 	tristate
 	help
@@ -172,12 +239,44 @@ config JBD_DEBUG
 	  generated.  To turn debugging off again, do
 	  "echo 0 > /proc/sys/fs/jbd-debug".
 
-config FS_MBCACHE
-# Meta block cache for Extended Attributes (ext2/ext3)
+config JBD2
 	tristate
-	depends on EXT2_FS_XATTR || EXT3_FS_XATTR
-	default y if EXT2_FS=y || EXT3_FS=y
-	default m if EXT2_FS=m || EXT3_FS=m
+	help
+	  This is a generic journaling layer for block devices that support
+	  both 32-bit and 64-bit block numbers.  It is currently used by
+	  the ext4dev/ext4 filesystem, but it could also be used to add
+	  journal support to other file systems or block devices such
+	  as RAID or LVM.
+
+	  If you are using ext4dev/ext4, you need to say Y here. If you are not
+	  using ext4dev/ext4 then you will probably want to say N.
+
+	  To compile this device as a module, choose M here. The module will be
+	  called jbd2.  If you are compiling ext4dev/ext4 into the kernel,
+	  you cannot compile this code as a module.
+
+config JBD2_DEBUG
+	bool "JBD2 (ext4dev/ext4) debugging support"
+	depends on JBD2
+	help
+	  If you are using the ext4dev/ext4 journaled file system (or
+	  potentially any other filesystem/device using JBD2), this option
+	  allows you to enable debugging output while the system is running,
+	  in order to help track down any problems you are having.
+	  By default, the debugging output will be turned off.
+
+	  If you select Y here, then you will be able to turn on debugging
+	  with "echo N > /proc/sys/fs/jbd2-debug", where N is a number between
+	  1 and 5. The higher the number, the more debugging output is
+	  generated.  To turn debugging off again, do
+	  "echo 0 > /proc/sys/fs/jbd2-debug".
+
+config FS_MBCACHE
+# Meta block cache for Extended Attributes (ext2/ext3/ext4)
+	tristate
+	depends on EXT2_FS_XATTR || EXT3_FS_XATTR || EXT4DEV_FS_XATTR
+	default y if EXT2_FS=y || EXT3_FS=y || EXT4DEV_FS=y
+	default m if EXT2_FS=m || EXT3_FS=m || EXT4DEV_FS=m
 
 config REISERFS_FS
 	tristate "Reiserfs support"
@@ -534,6 +633,10 @@ config FUSE_FS
 
 	  If you want to develop a userspace FS, or if you want to use
 	  a filesystem based on FUSE, answer Y or M.
+
+config GENERIC_ACL
+	bool
+	select FS_POSIX_ACL
 
 if BLOCK
 menu "CD-ROM/DVD Filesystems"
@@ -1674,6 +1777,7 @@ config RPCSEC_GSS_KRB5
 	select CRYPTO
 	select CRYPTO_MD5
 	select CRYPTO_DES
+	select CRYPTO_CBC
 	help
 	  Provides for secure RPC calls by means of a gss-api
 	  mechanism based on Kerberos V5. This is required for
@@ -1692,6 +1796,7 @@ config RPCSEC_GSS_SPKM3
 	select CRYPTO_MD5
 	select CRYPTO_DES
 	select CRYPTO_CAST5
+	select CRYPTO_CBC
 	help
 	  Provides for secure RPC calls by means of a gss-api
 	  mechanism based on the SPKM3 public-key mechanism.
@@ -1887,7 +1992,7 @@ config CIFS_EXPERIMENTAL
 config CIFS_UPCALL
 	  bool "Kerberos/SPNEGO advanced session setup (EXPERIMENTAL)"
 	  depends on CIFS_EXPERIMENTAL
-	  select CONNECTOR
+	  depends on CONNECTOR
 	  help
 	    Enables an upcall mechanism for CIFS which will be used to contact
 	    userspace helper utilities to provide SPNEGO packaged Kerberos
@@ -1955,8 +2060,7 @@ config CODA_FS_OLD_API
 	  For most cases you probably want to say N.
 
 config AFS_FS
-# for fs/nls/Config.in
-	tristate "Andrew File System support (AFS) (Experimental)"
+	tristate "Andrew File System support (AFS) (EXPERIMENTAL)"
 	depends on INET && EXPERIMENTAL
 	select RXRPC
 	help
@@ -1980,10 +2084,6 @@ config 9P_FS
 	  See <http://v9fs.sf.net> for more information.
 
 	  If unsure, say N.
-
-config GENERIC_ACL
-	bool
-	select FS_POSIX_ACL
 
 endmenu
 

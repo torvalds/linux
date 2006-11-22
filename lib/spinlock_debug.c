@@ -20,7 +20,7 @@ void __spin_lock_init(spinlock_t *lock, const char *name,
 	 * Make sure we are not reinitializing a held lock:
 	 */
 	debug_check_no_locks_freed((void *)lock, sizeof(*lock));
-	lockdep_init_map(&lock->dep_map, name, key);
+	lockdep_init_map(&lock->dep_map, name, key, 0);
 #endif
 	lock->raw_lock = (raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
 	lock->magic = SPINLOCK_MAGIC;
@@ -38,7 +38,7 @@ void __rwlock_init(rwlock_t *lock, const char *name,
 	 * Make sure we are not reinitializing a held lock:
 	 */
 	debug_check_no_locks_freed((void *)lock, sizeof(*lock));
-	lockdep_init_map(&lock->dep_map, name, key);
+	lockdep_init_map(&lock->dep_map, name, key, 0);
 #endif
 	lock->raw_lock = (raw_rwlock_t) __RAW_RW_LOCK_UNLOCKED;
 	lock->magic = RWLOCK_MAGIC;

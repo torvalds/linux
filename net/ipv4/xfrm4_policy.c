@@ -52,7 +52,7 @@ __xfrm4_find_bundle(struct flowi *fl, struct xfrm_policy *policy)
 		    xdst->u.rt.fl.fl4_dst == fl->fl4_dst &&
 	    	    xdst->u.rt.fl.fl4_src == fl->fl4_src &&
 	    	    xdst->u.rt.fl.fl4_tos == fl->fl4_tos &&
-		    xfrm_bundle_ok(xdst, fl, AF_INET, 0)) {
+		    xfrm_bundle_ok(policy, xdst, fl, AF_INET, 0)) {
 			dst_clone(dst);
 			break;
 		}

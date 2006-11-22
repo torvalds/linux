@@ -6,13 +6,22 @@
 
 #define ETH_JUMBO_MTU		9000	/* Maximum MTU supported */
 
-/* PCI device specific config registers */
+/* PCI config registers */
 enum {
 	PCI_DEV_REG1	= 0x40,
 	PCI_DEV_REG2	= 0x44,
+	PCI_DEV_STATUS  = 0x7c,
 	PCI_DEV_REG3	= 0x80,
 	PCI_DEV_REG4	= 0x84,
 	PCI_DEV_REG5    = 0x88,
+};
+
+enum {
+	PEX_DEV_CAP	= 0xe4,
+	PEX_DEV_CTRL	= 0xe8,
+	PEX_DEV_STA	= 0xea,
+	PEX_LNK_STAT	= 0xf2,
+	PEX_UNC_ERR_STAT= 0x104,
 };
 
 /* Yukon-2 */
@@ -63,6 +72,39 @@ enum pci_dev_reg_4 {
 			       PCI_STATUS_REC_MASTER_ABORT | \
 			       PCI_STATUS_REC_TARGET_ABORT | \
 			       PCI_STATUS_PARITY)
+
+enum pex_dev_ctrl {
+	PEX_DC_MAX_RRS_MSK	= 7<<12, /* Bit 14..12:	Max. Read Request Size */
+	PEX_DC_EN_NO_SNOOP	= 1<<11,/* Enable No Snoop */
+	PEX_DC_EN_AUX_POW	= 1<<10,/* Enable AUX Power */
+	PEX_DC_EN_PHANTOM	= 1<<9,	/* Enable Phantom Functions */
+	PEX_DC_EN_EXT_TAG	= 1<<8,	/* Enable Extended Tag Field */
+	PEX_DC_MAX_PLS_MSK	= 7<<5,	/* Bit  7.. 5:	Max. Payload Size Mask */
+	PEX_DC_EN_REL_ORD	= 1<<4,	/* Enable Relaxed Ordering */
+	PEX_DC_EN_UNS_RQ_RP	= 1<<3,	/* Enable Unsupported Request Reporting */
+	PEX_DC_EN_FAT_ER_RP	= 1<<2,	/* Enable Fatal Error Reporting */
+	PEX_DC_EN_NFA_ER_RP	= 1<<1,	/* Enable Non-Fatal Error Reporting */
+	PEX_DC_EN_COR_ER_RP	= 1<<0,	/* Enable Correctable Error Reporting */
+};
+#define  PEX_DC_MAX_RD_RQ_SIZE(x) (((x)<<12) & PEX_DC_MAX_RRS_MSK)
+
+/* PEX_UNC_ERR_STAT	 PEX Uncorrectable Errors Status Register (Yukon-2) */
+enum pex_err {
+	PEX_UNSUP_REQ 	= 1<<20, /* Unsupported Request Error */
+
+	PEX_MALFOR_TLP	= 1<<18, /* Malformed TLP */
+
+	PEX_UNEXP_COMP	= 1<<16, /* Unexpected Completion */
+
+	PEX_COMP_TO	= 1<<14, /* Completion Timeout */
+	PEX_FLOW_CTRL_P	= 1<<13, /* Flow Control Protocol Error */
+	PEX_POIS_TLP	= 1<<12, /* Poisoned TLP */
+
+	PEX_DATA_LINK_P = 1<<4,	/* Data Link Protocol Error */
+	PEX_FATAL_ERRORS= (PEX_MALFOR_TLP | PEX_FLOW_CTRL_P | PEX_DATA_LINK_P),
+};
+
+
 enum csr_regs {
 	B0_RAP		= 0x0000,
 	B0_CTST		= 0x0004,
@@ -1534,7 +1576,7 @@ enum {
 
 	GMR_FS_ANY_ERR	= GMR_FS_RX_FF_OV | GMR_FS_CRC_ERR |
 			  GMR_FS_FRAGMENT | GMR_FS_LONG_ERR |
-		  	  GMR_FS_MII_ERR | GMR_FS_BAD_FC |
+		  	  GMR_FS_MII_ERR | GMR_FS_GOOD_FC | GMR_FS_BAD_FC |
 			  GMR_FS_UN_SIZE | GMR_FS_JABBER,
 };
 
@@ -1786,6 +1828,13 @@ struct rx_ring_info {
 	dma_addr_t	frag_addr[ETH_JUMBO_MTU >> PAGE_SHIFT];
 };
 
+enum flow_control {
+	FC_NONE	= 0,
+	FC_TX	= 1,
+	FC_RX	= 2,
+	FC_BOTH	= 3,
+};
+
 struct sky2_port {
 	struct sky2_hw	     *hw;
 	struct net_device    *netdev;
@@ -1818,13 +1867,13 @@ struct sky2_port {
 
 	dma_addr_t	     rx_le_map;
 	dma_addr_t	     tx_le_map;
-	u32		     advertising;	/* ADVERTISED_ bits */
+	u16		     advertising;	/* ADVERTISED_ bits */
 	u16		     speed;	/* SPEED_1000, SPEED_100, ... */
 	u8		     autoneg;	/* AUTONEG_ENABLE, AUTONEG_DISABLE */
 	u8		     duplex;	/* DUPLEX_HALF, DUPLEX_FULL */
-	u8		     rx_pause;
-	u8		     tx_pause;
 	u8		     rx_csum;
+ 	enum flow_control    flow_mode;
+ 	enum flow_control    flow_status;
 
 	struct net_device_stats net_stats;
 
@@ -1836,7 +1885,6 @@ struct sky2_hw {
 	struct net_device    *dev[2];
 
 	int		     pm_cap;
-	int		     err_cap;
 	u8	     	     chip_id;
 	u8		     chip_rev;
 	u8		     pmd_type;

@@ -870,7 +870,11 @@ static unsigned int ata_id_xfermask(const u16 *id)
 		 * the PIO timing number for the maximum. Turn it into
 		 * a mask.
 		 */
-		pio_mask = (2 << (id[ATA_ID_OLD_PIO_MODES] & 0xFF)) - 1 ;
+		u8 mode = id[ATA_ID_OLD_PIO_MODES] & 0xFF;
+		if (mode < 5)	/* Valid PIO range */
+                	pio_mask = (2 << mode) - 1;
+		else
+			pio_mask = 1;
 
 		/* But wait.. there's more. Design your standards by
 		 * committee and you too can get a free iordy field to
@@ -5953,7 +5957,7 @@ static void __exit ata_exit(void)
 	destroy_workqueue(ata_aux_wq);
 }
 
-module_init(ata_init);
+subsys_initcall(ata_init);
 module_exit(ata_exit);
 
 static unsigned long ratelimit_time;
@@ -6118,7 +6122,6 @@ EXPORT_SYMBOL_GPL(ata_std_prereset);
 EXPORT_SYMBOL_GPL(ata_std_softreset);
 EXPORT_SYMBOL_GPL(sata_std_hardreset);
 EXPORT_SYMBOL_GPL(ata_std_postreset);
-EXPORT_SYMBOL_GPL(ata_dev_revalidate);
 EXPORT_SYMBOL_GPL(ata_dev_classify);
 EXPORT_SYMBOL_GPL(ata_dev_pair);
 EXPORT_SYMBOL_GPL(ata_port_disable);

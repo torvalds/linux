@@ -44,12 +44,14 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/fs.h>
 #include <linux/module.h>
+#include <linux/buffer_head.h>
 #include <linux/kprobes.h>
-#include <linux/kallsyms.h>
+#include <linux/list.h>
 #include <linux/init.h>
-#include <linux/irq.h>
 #include <linux/interrupt.h>
+#include <linux/hrtimer.h>
 #include <scsi/scsi_cmnd.h>
 
 #ifdef CONFIG_IDE
@@ -116,16 +118,16 @@ static enum ctype cptype = NONE;
 static int count = DEFAULT_COUNT;
 
 module_param(recur_count, int, 0644);
-MODULE_PARM_DESC(recur_count, "Recurcion level for the stack overflow test,\
-				 default is 10");
+MODULE_PARM_DESC(recur_count, " Recursion level for the stack overflow test, "\
+				 "default is 10");
 module_param(cpoint_name, charp, 0644);
-MODULE_PARM_DESC(cpoint_name, "Crash Point, where kernel is to be crashed");
-module_param(cpoint_type, charp, 06444);
-MODULE_PARM_DESC(cpoint_type, "Crash Point Type, action to be taken on\
-				hitting the crash point");
-module_param(cpoint_count, int, 06444);
-MODULE_PARM_DESC(cpoint_count, "Crash Point Count, number of times the \
-				crash point is to be hit to trigger action");
+MODULE_PARM_DESC(cpoint_name, " Crash Point, where kernel is to be crashed");
+module_param(cpoint_type, charp, 0644);
+MODULE_PARM_DESC(cpoint_type, " Crash Point Type, action to be taken on "\
+				"hitting the crash point");
+module_param(cpoint_count, int, 0644);
+MODULE_PARM_DESC(cpoint_count, " Crash Point Count, number of times the "\
+				"crash point is to be hit to trigger action");
 
 unsigned int jp_do_irq(unsigned int irq)
 {
@@ -155,8 +157,8 @@ void jp_ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
 
 struct scan_control;
 
-unsigned long jp_shrink_page_list(struct list_head *page_list,
-                                        struct scan_control *sc)
+unsigned long jp_shrink_inactive_list(unsigned long max_scan,
+				struct zone *zone, struct scan_control *sc)
 {
 	lkdtm_handler();
 	jprobe_return();
@@ -295,8 +297,8 @@ int lkdtm_module_init(void)
 		lkdtm.entry = (kprobe_opcode_t*) jp_ll_rw_block;
 		break;
 	case MEM_SWAPOUT:
-		lkdtm.kp.symbol_name = "shrink_page_list";
-		lkdtm.entry = (kprobe_opcode_t*) jp_shrink_page_list;
+		lkdtm.kp.symbol_name = "shrink_inactive_list";
+		lkdtm.entry = (kprobe_opcode_t*) jp_shrink_inactive_list;
 		break;
 	case TIMERADD:
 		lkdtm.kp.symbol_name = "hrtimer_start";

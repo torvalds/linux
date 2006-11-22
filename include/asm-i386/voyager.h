@@ -118,33 +118,33 @@ typedef struct voyager_module {
 } voyager_module_t;
 
 typedef struct voyager_eeprom_hdr {
-	 __u8  module_id[4] __attribute__((packed)); 
-	 __u8  version_id __attribute__((packed));
-	 __u8  config_id __attribute__((packed)); 
-	 __u16 boundry_id __attribute__((packed));	/* boundary scan id */
-	 __u16 ee_size __attribute__((packed));		/* size of EEPROM */
-	 __u8  assembly[11] __attribute__((packed));	/* assembly # */
-	 __u8  assembly_rev __attribute__((packed));	/* assembly rev */
-	 __u8  tracer[4] __attribute__((packed));	/* tracer number */
-	 __u16 assembly_cksum __attribute__((packed));	/* asm checksum */
-	 __u16 power_consump __attribute__((packed));	/* pwr requirements */
-	 __u16 num_asics __attribute__((packed));	/* number of asics */
-	 __u16 bist_time __attribute__((packed));	/* min. bist time */
-	 __u16 err_log_offset __attribute__((packed));	/* error log offset */
-	 __u16 scan_path_offset __attribute__((packed));/* scan path offset */
-	 __u16 cct_offset __attribute__((packed));
-	 __u16 log_length __attribute__((packed));	/* length of err log */
-	 __u16 xsum_end __attribute__((packed));	/* offset to end of
+	 __u8  module_id[4];
+	 __u8  version_id;
+	 __u8  config_id;
+	 __u16 boundry_id;	/* boundary scan id */
+	 __u16 ee_size;		/* size of EEPROM */
+	 __u8  assembly[11];	/* assembly # */
+	 __u8  assembly_rev;	/* assembly rev */
+	 __u8  tracer[4];	/* tracer number */
+	 __u16 assembly_cksum;	/* asm checksum */
+	 __u16 power_consump;	/* pwr requirements */
+	 __u16 num_asics;	/* number of asics */
+	 __u16 bist_time;	/* min. bist time */
+	 __u16 err_log_offset;	/* error log offset */
+	 __u16 scan_path_offset;/* scan path offset */
+	 __u16 cct_offset;
+	 __u16 log_length;	/* length of err log */
+	 __u16 xsum_end;	/* offset to end of
 							   checksum */
-	 __u8  reserved[4] __attribute__((packed));
-	 __u8  sflag __attribute__((packed));		/* starting sentinal */
-	 __u8  part_number[13] __attribute__((packed));	/* prom part number */
-	 __u8  version[10] __attribute__((packed));	/* version number */
-	 __u8  signature[8] __attribute__((packed));
-	 __u16 eeprom_chksum __attribute__((packed));
-	 __u32  data_stamp_offset __attribute__((packed));
-	 __u8  eflag  __attribute__((packed));		 /* ending sentinal */
-} voyager_eprom_hdr_t;
+	 __u8  reserved[4];
+	 __u8  sflag;		/* starting sentinal */
+	 __u8  part_number[13];	/* prom part number */
+	 __u8  version[10];	/* version number */
+	 __u8  signature[8];
+	 __u16 eeprom_chksum;
+	 __u32  data_stamp_offset;
+	 __u8  eflag ;		 /* ending sentinal */
+} __attribute__((packed)) voyager_eprom_hdr_t;
 
 
 
@@ -155,30 +155,30 @@ typedef struct voyager_eeprom_hdr {
  * in the module EPROMs.  We really only care about the IDs and
  * offsets */
 typedef struct voyager_sp_table {
-	__u8 asic_id __attribute__((packed));
-	__u8 bypass_flag __attribute__((packed));
-	__u16 asic_data_offset __attribute__((packed));
-	__u16 config_data_offset __attribute__((packed));
-} voyager_sp_table_t;
+	__u8 asic_id;
+	__u8 bypass_flag;
+	__u16 asic_data_offset;
+	__u16 config_data_offset;
+} __attribute__((packed)) voyager_sp_table_t;
 
 typedef struct voyager_jtag_table {
-	__u8 icode[4] __attribute__((packed));
-	__u8 runbist[4] __attribute__((packed));
-	__u8 intest[4] __attribute__((packed));
-	__u8 samp_preld[4] __attribute__((packed));
-	__u8 ireg_len __attribute__((packed));
-} voyager_jtt_t;
+	__u8 icode[4];
+	__u8 runbist[4];
+	__u8 intest[4];
+	__u8 samp_preld[4];
+	__u8 ireg_len;
+} __attribute__((packed)) voyager_jtt_t;
 
 typedef struct voyager_asic_data_table {
-	__u8 jtag_id[4] __attribute__((packed));
-	__u16 length_bsr __attribute__((packed));
-	__u16 length_bist_reg __attribute__((packed));
-	__u32 bist_clk __attribute__((packed));
-	__u16 subaddr_bits __attribute__((packed));
-	__u16 seed_bits __attribute__((packed));
-	__u16 sig_bits __attribute__((packed));
-	__u16 jtag_offset __attribute__((packed));
-} voyager_at_t;
+	__u8 jtag_id[4];
+	__u16 length_bsr;
+	__u16 length_bist_reg;
+	__u32 bist_clk;
+	__u16 subaddr_bits;
+	__u16 seed_bits;
+	__u16 sig_bits;
+	__u16 jtag_offset;
+} __attribute__((packed)) voyager_at_t;
 
 /* Voyager Interrupt Controller (VIC) registers */
 
@@ -328,52 +328,52 @@ struct voyager_bios_info {
 #define NUMBER_OF_POS_REGS	8
 
 typedef struct {
-	__u8	MC_Slot __attribute__((packed));
-	__u8	POS_Values[NUMBER_OF_POS_REGS] __attribute__((packed));
-} MC_SlotInformation_t;
+	__u8	MC_Slot;
+	__u8	POS_Values[NUMBER_OF_POS_REGS];
+} __attribute__((packed)) MC_SlotInformation_t;
 
 struct QuadDescription {
-	__u8  Type __attribute__((packed));	/* for type 0 (DYADIC or MONADIC) all fields
+	__u8  Type;	/* for type 0 (DYADIC or MONADIC) all fields
                          * will be zero except for slot */
-	__u8 StructureVersion __attribute__((packed));
-	__u32 CPI_BaseAddress __attribute__((packed));
-	__u32  LARC_BankSize __attribute__((packed));	
-	__u32 LocalMemoryStateBits __attribute__((packed));
-	__u8  Slot __attribute__((packed)); /* Processor slots 1 - 4 */
-}; 
+	__u8 StructureVersion;
+	__u32 CPI_BaseAddress;
+	__u32  LARC_BankSize;
+	__u32 LocalMemoryStateBits;
+	__u8  Slot; /* Processor slots 1 - 4 */
+} __attribute__((packed));
 
 struct ProcBoardInfo { 
-	__u8 Type __attribute__((packed));    
-	__u8 StructureVersion __attribute__((packed));
-	__u8 NumberOfBoards __attribute__((packed));
-	struct QuadDescription QuadData[MAX_PROCESSOR_BOARDS] __attribute__((packed));
-};
+	__u8 Type;
+	__u8 StructureVersion;
+	__u8 NumberOfBoards;
+	struct QuadDescription QuadData[MAX_PROCESSOR_BOARDS];
+} __attribute__((packed));
 
 struct CacheDescription {
-	__u8 Level __attribute__((packed));
-	__u32 TotalSize __attribute__((packed));
-	__u16 LineSize __attribute__((packed));
-	__u8  Associativity __attribute__((packed));
-	__u8  CacheType __attribute__((packed));
-	__u8  WriteType __attribute__((packed));
-	__u8  Number_CPUs_SharedBy __attribute__((packed));
-	__u8  Shared_CPUs_Hardware_IDs[MAX_SHARED_CPUS] __attribute__((packed));
+	__u8 Level;
+	__u32 TotalSize;
+	__u16 LineSize;
+	__u8  Associativity;
+	__u8  CacheType;
+	__u8  WriteType;
+	__u8  Number_CPUs_SharedBy;
+	__u8  Shared_CPUs_Hardware_IDs[MAX_SHARED_CPUS];
 
-};
+} __attribute__((packed));
 
 struct CPU_Description {
-	__u8 CPU_HardwareId __attribute__((packed));
-	char *FRU_String __attribute__((packed));
-	__u8 NumberOfCacheLevels __attribute__((packed));
-	struct CacheDescription CacheLevelData[MAX_CACHE_LEVELS] __attribute__((packed));
-};
+	__u8 CPU_HardwareId;
+	char *FRU_String;
+	__u8 NumberOfCacheLevels;
+	struct CacheDescription CacheLevelData[MAX_CACHE_LEVELS];
+} __attribute__((packed));
 
 struct CPU_Info {
-	__u8 Type __attribute__((packed));
-	__u8 StructureVersion __attribute__((packed));
-	__u8 NumberOf_CPUs __attribute__((packed));
-	struct CPU_Description CPU_Data[MAX_CPUS] __attribute__((packed));
-};
+	__u8 Type;
+	__u8 StructureVersion;
+	__u8 NumberOf_CPUs;
+	struct CPU_Description CPU_Data[MAX_CPUS];
+} __attribute__((packed));
 
 
 /*

@@ -202,14 +202,6 @@ EXPORT_SYMBOL(_find_next_zero_bit_le);
 EXPORT_SYMBOL(elf_platform);
 EXPORT_SYMBOL(elf_hwcap);
 
-	/* syscalls */
-EXPORT_SYMBOL(sys_write);
-EXPORT_SYMBOL(sys_read);
-EXPORT_SYMBOL(sys_lseek);
-EXPORT_SYMBOL(sys_open);
-EXPORT_SYMBOL(sys_exit);
-EXPORT_SYMBOL(sys_wait4);
-
 #ifdef CONFIG_PREEMPT
 EXPORT_SYMBOL(kernel_flag);
 #endif

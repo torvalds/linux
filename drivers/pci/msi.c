@@ -627,22 +627,24 @@ static int msix_capability_init(struct pci_dev *dev,
  * pci_msi_supported - check whether MSI may be enabled on device
  * @dev: pointer to the pci_dev data structure of MSI device function
  *
- * MSI must be globally enabled and supported by the device and its root
- * bus. But, the root bus is not easy to find since some architectures
- * have virtual busses on top of the PCI hierarchy (for instance the
- * hypertransport bus), while the actual bus where MSI must be supported
- * is below. So we test the MSI flag on all parent busses and assume
- * that no quirk will ever set the NO_MSI flag on a non-root bus.
+ * Look at global flags, the device itself, and its parent busses
+ * to return 0 if MSI are supported for the device.
  **/
 static
 int pci_msi_supported(struct pci_dev * dev)
 {
 	struct pci_bus *bus;
 
+	/* MSI must be globally enabled and supported by the device */
 	if (!pci_msi_enable || !dev || dev->no_msi)
 		return -EINVAL;
 
-	/* check MSI flags of all parent busses */
+	/* Any bridge which does NOT route MSI transactions from it's
+	 * secondary bus to it's primary bus must set NO_MSI flag on
+	 * the secondary pci_bus.
+	 * We expect only arch-specific PCI host bus controller driver
+	 * or quirks for specific PCI bridges to be setting NO_MSI.
+	 */
 	for (bus = dev->bus; bus; bus = bus->parent)
 		if (bus->bus_flags & PCI_BUS_FLAGS_NO_MSI)
 			return -EINVAL;

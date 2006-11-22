@@ -256,10 +256,10 @@ static int itm_read_data(unsigned char *pkt, int *x, int *y, int *touch, int *pr
 {
 	*x = ((pkt[0] & 0x1F) << 7) | (pkt[3] & 0x7F);
 	*y = ((pkt[1] & 0x1F) << 7) | (pkt[4] & 0x7F);
-	*press = ((pkt[2] & 0x1F) << 7) | (pkt[5] & 0x7F);
+	*press = ((pkt[2] & 0x01) << 7) | (pkt[5] & 0x7F);
 	*touch = ~pkt[7] & 0x20;
 
-	return 1;
+	return *touch;
 }
 #endif
 
@@ -640,7 +640,7 @@ static int usbtouch_probe(struct usb_interface *intf,
 		                     type->max_press, 0, 0);
 
 	usb_fill_int_urb(usbtouch->irq, usbtouch->udev,
-			 usb_rcvintpipe(usbtouch->udev, 0x81),
+			 usb_rcvintpipe(usbtouch->udev, endpoint->bEndpointAddress),
 			 usbtouch->data, type->rept_size,
 			 usbtouch_irq, usbtouch, endpoint->bInterval);
 

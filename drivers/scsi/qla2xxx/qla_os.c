@@ -61,9 +61,9 @@ MODULE_PARM_DESC(ql2xallocfwdump,
 		"during HBA initialization.  Memory allocation requirements "
 		"vary by ISP type.  Default is 1 - allocate memory.");
 
-int qla2_extended_error_logging;
-module_param(qla2_extended_error_logging, int, S_IRUGO|S_IRUSR);
-MODULE_PARM_DESC(qla2_extended_error_logging,
+int ql2xextended_error_logging;
+module_param(ql2xextended_error_logging, int, S_IRUGO|S_IRUSR);
+MODULE_PARM_DESC(ql2xextended_error_logging,
 		"Option to enable extended error logging, "
 		"Default is 0 - no logging. 1 - log errors.");
 
@@ -76,6 +76,19 @@ module_param(ql2xfdmienable, int, S_IRUGO|S_IRUSR);
 MODULE_PARM_DESC(ql2xfdmienable,
 		"Enables FDMI registratons "
 		"Default is 0 - no FDMI. 1 - perfom FDMI.");
+
+#define MAX_Q_DEPTH    32
+static int ql2xmaxqdepth = MAX_Q_DEPTH;
+module_param(ql2xmaxqdepth, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(ql2xmaxqdepth,
+		"Maximum queue depth to report for target devices.");
+
+int ql2xqfullrampup = 120;
+module_param(ql2xqfullrampup, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(ql2xqfullrampup,
+		"Number of seconds to wait to begin to ramp-up the queue "
+		"depth for a device after a queue-full condition has been "
+		"detected.  Default is 120 seconds.");
 
 /*
  * SCSI host template entry points
@@ -1104,9 +1117,9 @@ qla2xxx_slave_configure(struct scsi_device *sdev)
 	struct fc_rport *rport = starget_to_rport(sdev->sdev_target);
 
 	if (sdev->tagged_supported)
-		scsi_activate_tcq(sdev, 32);
+		scsi_activate_tcq(sdev, ha->max_q_depth);
 	else
-		scsi_deactivate_tcq(sdev, 32);
+		scsi_deactivate_tcq(sdev, ha->max_q_depth);
 
 	rport->dev_loss_tmo = ha->port_down_retry_count + 5;
 
@@ -1413,6 +1426,10 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ha->link_data_rate = PORT_SPEED_UNKNOWN;
 	ha->optrom_size = OPTROM_SIZE_2300;
 
+	ha->max_q_depth = MAX_Q_DEPTH;
+	if (ql2xmaxqdepth != 0 && ql2xmaxqdepth <= 0xffffU)
+		ha->max_q_depth = ql2xmaxqdepth;
+
 	/* Assign ISP specific operations. */
 	ha->isp_ops.pci_config		= qla2100_pci_config;
 	ha->isp_ops.reset_chip		= qla2x00_reset_chip;
@@ -1712,16 +1729,16 @@ qla2x00_free_device(scsi_qla_host_t *ha)
 	if (ha->eft)
 		qla2x00_trace_control(ha, TC_DISABLE, 0, 0);
 
+	ha->flags.online = 0;
+
 	/* Stop currently executing firmware. */
-	qla2x00_stop_firmware(ha);
+	qla2x00_try_to_stop_firmware(ha);
 
 	/* turn-off interrupts on the card */
 	if (ha->interrupts_on)
 		ha->isp_ops.disable_intrs(ha);
 
 	qla2x00_mem_free(ha);
-
-	ha->flags.online = 0;
 
 	/* Detach interrupts */
 	if (ha->host->irq)
@@ -2697,7 +2714,7 @@ qla2x00_module_init(void)
 
 	/* Derive version string. */
 	strcpy(qla2x00_version_str, QLA2XXX_VERSION);
-	if (qla2_extended_error_logging)
+	if (ql2xextended_error_logging)
 		strcat(qla2x00_version_str, "-debug");
 
 	qla2xxx_transport_template =

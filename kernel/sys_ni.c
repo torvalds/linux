@@ -49,6 +49,7 @@ cond_syscall(compat_sys_get_robust_list);
 cond_syscall(sys_epoll_create);
 cond_syscall(sys_epoll_ctl);
 cond_syscall(sys_epoll_wait);
+cond_syscall(sys_epoll_pwait);
 cond_syscall(sys_semget);
 cond_syscall(sys_semop);
 cond_syscall(sys_semtimedop);
@@ -134,6 +135,7 @@ cond_syscall(sys_madvise);
 cond_syscall(sys_mremap);
 cond_syscall(sys_remap_file_pages);
 cond_syscall(compat_sys_move_pages);
+cond_syscall(compat_sys_migrate_pages);
 
 /* block-layer dependent */
 cond_syscall(sys_bdflush);

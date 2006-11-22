@@ -492,7 +492,7 @@ static int gfs2_check_magic(struct buffer_head *bh)
 	ptr = kaddr + bh_offset(bh);
 	if (*ptr == cpu_to_be32(GFS2_MAGIC))
 		rv = 1;
-	kunmap_atomic(page, KM_USER0);
+	kunmap_atomic(kaddr, KM_USER0);
 
 	return rv;
 }
@@ -626,7 +626,7 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 				memcpy(bh->b_data,
 				       kaddr + bh_offset(bd2->bd_bh),
 				       sdp->sd_sb.sb_bsize);
-				kunmap_atomic(page, KM_USER0);
+				kunmap_atomic(kaddr, KM_USER0);
 				*(__be32 *)bh->b_data = 0;
 			} else {
 				bh = gfs2_log_fake_buf(sdp, bd2->bd_bh);

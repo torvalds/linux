@@ -189,7 +189,7 @@ int ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
 		return -1;
 	}
 
-	mutex_lock_nested(&ps2dev->cmd_mutex, SINGLE_DEPTH_NESTING);
+	mutex_lock(&ps2dev->cmd_mutex);
 
 	serio_pause_rx(ps2dev->serio);
 	ps2dev->flags = command == PS2_CMD_GETID ? PS2_FLAG_WAITID : 0;
@@ -296,6 +296,7 @@ EXPORT_SYMBOL(ps2_schedule_command);
 void ps2_init(struct ps2dev *ps2dev, struct serio *serio)
 {
 	mutex_init(&ps2dev->cmd_mutex);
+	lockdep_set_subclass(&ps2dev->cmd_mutex, serio->depth);
 	init_waitqueue_head(&ps2dev->wait);
 	ps2dev->serio = serio;
 }

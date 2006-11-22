@@ -2248,7 +2248,11 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 		t->type = V4L2_TUNER_RADIO;
 
 		saa7134_i2c_call_clients(dev, VIDIOC_G_TUNER, t);
-
+		if (dev->input->amux == TV) {
+			t->signal = 0xf800 - ((saa_readb(0x581) & 0x1f) << 11);
+			t->rxsubchans = (saa_readb(0x529) & 0x08) ?
+					V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MONO;
+		}
 		return 0;
 	}
 	case VIDIOC_S_TUNER:

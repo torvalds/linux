@@ -341,6 +341,7 @@ config NUMA
 	bool "NUMA support"
 	depends on !IA64_HP_SIM && !FLATMEM
 	default y if IA64_SGI_SN2
+	select ACPI_NUMA if ACPI
 	help
 	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
 	  Access).  This option is for configuring high-end multiprocessor
@@ -482,6 +483,15 @@ endif
 source "net/Kconfig"
 
 source "drivers/Kconfig"
+
+config MSPEC
+	tristate "Memory special operations driver"
+	depends on IA64
+	select IA64_UNCACHED_ALLOCATOR
+	help
+	  If you have an ia64 and you want to enable memory special
+	  operations support (formerly known as fetchop), say Y here,
+	  otherwise say N.
 
 source "fs/Kconfig"
 

@@ -85,7 +85,7 @@ int zft_vmalloc_once(void *new, size_t size)
 		peak_memory = used_memory;
 	}
 	TRACE_ABORT(0, ft_t_noise,
-		    "allocated buffer @ %p, %d bytes", *(void **)new, size);
+		    "allocated buffer @ %p, %zd bytes", *(void **)new, size);
 }
 int zft_vmalloc_always(void *new, size_t size)
 {
@@ -101,7 +101,7 @@ void zft_vfree(void *old, size_t size)
 	if (*(void **)old) {
 		vfree(*(void **)old);
 		used_memory -= size;
-		TRACE(ft_t_noise, "released buffer @ %p, %d bytes",
+		TRACE(ft_t_noise, "released buffer @ %p, %zd bytes",
 		      *(void **)old, size);
 		*(void **)old = NULL;
 	}

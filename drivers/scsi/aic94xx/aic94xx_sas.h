@@ -733,6 +733,7 @@ struct asd_phy {
 
 	struct sas_identify_frame *identify_frame;
 	struct asd_dma_tok  *id_frm_tok;
+	struct asd_port     *asd_port;
 
 	u8         frame_rcvd[ASD_EDB_SIZE];
 };

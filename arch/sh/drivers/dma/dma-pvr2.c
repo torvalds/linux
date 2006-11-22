@@ -21,7 +21,7 @@
 static unsigned int xfer_complete;
 static int count;
 
-static irqreturn_t pvr2_dma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t pvr2_dma_interrupt(int irq, void *dev_id)
 {
 	if (get_dma_residue(PVR2_CASCADE_CHAN)) {
 		printk(KERN_WARNING "DMA: SH DMAC did not complete transfer "

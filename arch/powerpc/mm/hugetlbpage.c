@@ -480,9 +480,6 @@ static int open_high_hpage_areas(struct mm_struct *mm, u16 newareas)
 
 	mm->context.high_htlb_areas |= newareas;
 
-	/* update the paca copy of the context struct */
-	get_paca()->context = mm->context;
-
 	/* the context change must make it to memory before the flush,
 	 * so that further SLB misses do the right thing. */
 	mb();
@@ -494,11 +491,15 @@ static int open_high_hpage_areas(struct mm_struct *mm, u16 newareas)
 	return 0;
 }
 
-int prepare_hugepage_range(unsigned long addr, unsigned long len)
+int prepare_hugepage_range(unsigned long addr, unsigned long len, pgoff_t pgoff)
 {
 	int err = 0;
 
-	if ( (addr+len) < addr )
+	if (pgoff & (~HPAGE_MASK >> PAGE_SHIFT))
+		return -EINVAL;
+	if (len & ~HPAGE_MASK)
+		return -EINVAL;
+	if (addr & ~HPAGE_MASK)
 		return -EINVAL;
 
 	if (addr < 0x100000000UL)

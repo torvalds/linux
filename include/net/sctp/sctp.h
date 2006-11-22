@@ -139,6 +139,7 @@ int sctp_inet_listen(struct socket *sock, int backlog);
 void sctp_write_space(struct sock *sk);
 unsigned int sctp_poll(struct file *file, struct socket *sock,
 		poll_table *wait);
+void sctp_sock_rfree(struct sk_buff *skb);
 
 /*
  * sctp/primitive.c
@@ -442,6 +443,19 @@ static inline struct list_head *sctp_list_dequeue(struct list_head *list)
 		INIT_LIST_HEAD(result);
 	}
 	return result;
+}
+
+/* SCTP version of skb_set_owner_r.  We need this one because
+ * of the way we have to do receive buffer accounting on bundled
+ * chunks.
+ */
+static inline void sctp_skb_set_owner_r(struct sk_buff *skb, struct sock *sk)
+{
+	struct sctp_ulpevent *event = sctp_skb2event(skb);
+
+	skb->sk = sk;
+	skb->destructor = sctp_sock_rfree;
+	atomic_add(event->rmem_len, &sk->sk_rmem_alloc);
 }
 
 /* Tests if the list has one and only one entry. */

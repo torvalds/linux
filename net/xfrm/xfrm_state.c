@@ -505,6 +505,14 @@ __xfrm_state_locate(struct xfrm_state *x, int use_spi, int family)
 						  x->id.proto, family);
 }
 
+static void xfrm_hash_grow_check(int have_hash_collision)
+{
+	if (have_hash_collision &&
+	    (xfrm_state_hmask + 1) < xfrm_state_hashmax &&
+	    xfrm_state_num > xfrm_state_hmask)
+		schedule_work(&xfrm_hash_work);
+}
+
 struct xfrm_state *
 xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr, 
 		struct flowi *fl, struct xfrm_tmpl *tmpl,
@@ -598,6 +606,8 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 			x->lft.hard_add_expires_seconds = XFRM_ACQ_EXPIRES;
 			x->timer.expires = jiffies + XFRM_ACQ_EXPIRES*HZ;
 			add_timer(&x->timer);
+			xfrm_state_num++;
+			xfrm_hash_grow_check(x->bydst.next != NULL);
 		} else {
 			x->km.state = XFRM_STATE_DEAD;
 			xfrm_state_put(x);
@@ -642,10 +652,7 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 
 	xfrm_state_num++;
 
-	if (x->bydst.next != NULL &&
-	    (xfrm_state_hmask + 1) < xfrm_state_hashmax &&
-	    xfrm_state_num > xfrm_state_hmask)
-		schedule_work(&xfrm_hash_work);
+	xfrm_hash_grow_check(x->bydst.next != NULL);
 }
 
 /* xfrm_state_lock is held */
@@ -753,6 +760,10 @@ static struct xfrm_state *__find_acq_core(unsigned short family, u8 mode, u32 re
 		h = xfrm_src_hash(daddr, saddr, family);
 		hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
 		wake_up(&km_waitq);
+
+		xfrm_state_num++;
+
+		xfrm_hash_grow_check(x->bydst.next != NULL);
 	}
 
 	return x;

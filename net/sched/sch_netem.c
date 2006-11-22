@@ -4,7 +4,7 @@
  * 		This program is free software; you can redistribute it and/or
  * 		modify it under the terms of the GNU General Public License
  * 		as published by the Free Software Foundation; either version
- * 		2 of the License, or (at your option) any later version.
+ * 		2 of the License.
  *
  *  		Many of the algorithms and ideas for this came from
  *		NIST Net which is not copyrighted. 
@@ -169,6 +169,8 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		kfree_skb(skb);
 		return NET_XMIT_BYPASS;
 	}
+
+	skb_orphan(skb);
 
 	/*
 	 * If we need to duplicate packet, then re-insert at top of the

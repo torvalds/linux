@@ -190,7 +190,7 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
          */
 
 	/* change the unit from HZ to bictcp_HZ */
-        t = ((tcp_time_stamp + ca->delay_min - ca->epoch_start)
+        t = ((tcp_time_stamp + (ca->delay_min>>3) - ca->epoch_start)
 	     << BICTCP_HZ) / HZ;
 
         if (t < ca->bic_K)		/* t - K */
@@ -259,7 +259,7 @@ static inline void measure_delay(struct sock *sk)
 	    (s32)(tcp_time_stamp - ca->epoch_start) < HZ)
 		return;
 
-	delay = tcp_time_stamp - tp->rx_opt.rcv_tsecr;
+	delay = (tcp_time_stamp - tp->rx_opt.rcv_tsecr)<<3;
 	if (delay == 0)
 		delay = 1;
 
@@ -366,7 +366,7 @@ static int __init cubictcp_register(void)
 
 	beta_scale = 8*(BICTCP_BETA_SCALE+beta)/ 3 / (BICTCP_BETA_SCALE - beta);
 
-	cube_rtt_scale = (bic_scale << 3) / 10;	/* 1024*c/rtt */
+	cube_rtt_scale = (bic_scale * 10);	/* 1024*c/rtt */
 
 	/* calculate the "K" for (wmax-cwnd) = c/rtt * K^3
 	 *  so K = cubic_root( (wmax-cwnd)*rtt/c )

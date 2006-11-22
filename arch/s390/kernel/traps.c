@@ -462,7 +462,8 @@ asmlinkage void illegal_op(struct pt_regs * regs, long interruption_code)
 		local_irq_enable();
 
 	if (regs->psw.mask & PSW_MASK_PSTATE) {
-		get_user(*((__u16 *) opcode), (__u16 __user *) location);
+		if (get_user(*((__u16 *) opcode), (__u16 __user *) location))
+			return;
 		if (*((__u16 *) opcode) == S390_BREAKPOINT_U16) {
 			if (current->ptrace & PT_PTRACED)
 				force_sig(SIGTRAP, current);
@@ -470,20 +471,25 @@ asmlinkage void illegal_op(struct pt_regs * regs, long interruption_code)
 				signal = SIGILL;
 #ifdef CONFIG_MATHEMU
 		} else if (opcode[0] == 0xb3) {
-			get_user(*((__u16 *) (opcode+2)), location+1);
+			if (get_user(*((__u16 *) (opcode+2)), location+1))
+				return;
 			signal = math_emu_b3(opcode, regs);
                 } else if (opcode[0] == 0xed) {
-			get_user(*((__u32 *) (opcode+2)),
-				 (__u32 __user *)(location+1));
+			if (get_user(*((__u32 *) (opcode+2)),
+				     (__u32 __user *)(location+1)))
+				return;
 			signal = math_emu_ed(opcode, regs);
 		} else if (*((__u16 *) opcode) == 0xb299) {
-			get_user(*((__u16 *) (opcode+2)), location+1);
+			if (get_user(*((__u16 *) (opcode+2)), location+1))
+				return;
 			signal = math_emu_srnm(opcode, regs);
 		} else if (*((__u16 *) opcode) == 0xb29c) {
-			get_user(*((__u16 *) (opcode+2)), location+1);
+			if (get_user(*((__u16 *) (opcode+2)), location+1))
+				return;
 			signal = math_emu_stfpc(opcode, regs);
 		} else if (*((__u16 *) opcode) == 0xb29d) {
-			get_user(*((__u16 *) (opcode+2)), location+1);
+			if (get_user(*((__u16 *) (opcode+2)), location+1))
+				return;
 			signal = math_emu_lfpc(opcode, regs);
 #endif
 		} else

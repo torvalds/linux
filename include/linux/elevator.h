@@ -70,7 +70,6 @@ struct elevator_type
 {
 	struct list_head list;
 	struct elevator_ops ops;
-	struct elevator_type *elevator_type;
 	struct elv_fs_entry *elevator_attrs;
 	char elevator_name[ELV_NAME_MAX];
 	struct module *elevator_owner;

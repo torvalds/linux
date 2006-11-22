@@ -577,7 +577,7 @@ static void microcode_init_cpu(int cpu)
 	set_cpus_allowed(current, cpumask_of_cpu(cpu));
 	mutex_lock(&microcode_mutex);
 	collect_cpu_info(cpu);
-	if (uci->valid)
+	if (uci->valid && system_state == SYSTEM_RUNNING)
 		cpu_request_microcode(cpu);
 	mutex_unlock(&microcode_mutex);
 	set_cpus_allowed(current, old);
@@ -656,14 +656,18 @@ static struct attribute_group mc_attr_group = {
 
 static int mc_sysdev_add(struct sys_device *sys_dev)
 {
-	int cpu = sys_dev->id;
+	int err, cpu = sys_dev->id;
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
 	if (!cpu_online(cpu))
 		return 0;
+
 	pr_debug("Microcode:CPU %d added\n", cpu);
 	memset(uci, 0, sizeof(*uci));
-	sysfs_create_group(&sys_dev->kobj, &mc_attr_group);
+
+	err = sysfs_create_group(&sys_dev->kobj, &mc_attr_group);
+	if (err)
+		return err;
 
 	microcode_init_cpu(cpu);
 	return 0;

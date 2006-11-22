@@ -41,7 +41,7 @@ static inline int atomic_sub_return(int i, atomic_t *v)
 		"	stcond	%1, %0\n"
 		"	brne	1b"
 		: "=&r"(result), "=o"(v->counter)
-		: "m"(v->counter), "ir"(i)
+		: "m"(v->counter), "rKs21"(i)
 		: "cc");
 
 	return result;
@@ -58,7 +58,7 @@ static inline int atomic_add_return(int i, atomic_t *v)
 {
 	int result;
 
-	if (__builtin_constant_p(i))
+	if (__builtin_constant_p(i) && (i >= -1048575) && (i <= 1048576))
 		result = atomic_sub_return(-i, v);
 	else
 		asm volatile(
@@ -101,7 +101,7 @@ static inline int atomic_sub_unless(atomic_t *v, int a, int u)
 		"	mov	%1, 1\n"
 		"1:"
 		: "=&r"(tmp), "=&r"(result), "=o"(v->counter)
-		: "m"(v->counter), "ir"(a), "ir"(u)
+		: "m"(v->counter), "rKs21"(a), "rKs21"(u)
 		: "cc", "memory");
 
 	return result;
@@ -121,7 +121,7 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
 {
 	int tmp, result;
 
-	if (__builtin_constant_p(a))
+	if (__builtin_constant_p(a) && (a >= -1048575) && (a <= 1048576))
 		result = atomic_sub_unless(v, -a, u);
 	else {
 		result = 0;

@@ -199,8 +199,14 @@ struct pci_controller * pcibios_alloc_controller(struct device_node *dev)
 	pci_setup_pci_controller(phb);
 	phb->arch_data = dev;
 	phb->is_dynamic = mem_init_done;
-	if (dev)
-		PHB_SET_NODE(phb, of_node_to_nid(dev));
+	if (dev) {
+		int nid = of_node_to_nid(dev);
+
+		if (nid < 0 || !node_online(nid))
+			nid = -1;
+
+		PHB_SET_NODE(phb, nid);
+	}
 	return phb;
 }
 

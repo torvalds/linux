@@ -86,7 +86,7 @@ static inline int ebt_do_match (struct ebt_entry_match *m,
 static inline int ebt_dev_check(char *entry, const struct net_device *device)
 {
 	int i = 0;
-	char *devname = device->name;
+	const char *devname = device->name;
 
 	if (*entry == '\0')
 		return 0;

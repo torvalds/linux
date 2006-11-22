@@ -71,7 +71,11 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 	void __iomem *image;
 	int last_image;
 
-	/* IORESOURCE_ROM_SHADOW only set on x86 */
+	/*
+	 * IORESOURCE_ROM_SHADOW set on x86, x86_64 and IA64 supports legacy
+	 * memory map if the VGA enable bit of the Bridge Control register is
+	 * set for embedded VGA.
+	 */
 	if (res->flags & IORESOURCE_ROM_SHADOW) {
 		/* primary video rom always starts here */
 		start = (loff_t)0xC0000;

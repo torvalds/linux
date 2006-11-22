@@ -178,7 +178,8 @@ void make_8259A_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
 	io_apic_irqs &= ~(1<<irq);
-	set_irq_chip_and_handler(irq, &i8259A_chip, handle_level_irq);
+	set_irq_chip_and_handler_name(irq, &i8259A_chip, handle_level_irq,
+				      "XT");
 	enable_irq(irq);
 }
 
@@ -431,8 +432,8 @@ void __init init_ISA_irqs (void)
 			/*
 			 * 16 old-style INTA-cycle interrupts:
 			 */
-			set_irq_chip_and_handler(i, &i8259A_chip,
-						 handle_level_irq);
+			set_irq_chip_and_handler_name(i, &i8259A_chip,
+						      handle_level_irq, "XT");
 		} else {
 			/*
 			 * 'high' PCI IRQs filled in on demand

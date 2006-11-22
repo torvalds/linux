@@ -14,6 +14,7 @@
 #include <linux/mmc/protocol.h>
 #include <linux/mmc/host.h>
 #include <linux/highmem.h>
+#include <asm/io.h>
 
 #define DRIVER_NAME "tifm_sd"
 #define DRIVER_VERSION "0.6"

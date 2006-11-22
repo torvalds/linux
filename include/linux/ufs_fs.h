@@ -908,7 +908,7 @@ struct ufs_super_block_third {
 			__fs64   fs_csaddr;	/* blk addr of cyl grp summary area */
 			__fs64    fs_pendingblocks;/* blocks in process of being freed */
 			__fs32    fs_pendinginodes;/*inodes in process of being freed */
-		} fs_u2;
+		} __attribute__ ((packed)) fs_u2;
 	} fs_un1;
 	union {
 		struct {

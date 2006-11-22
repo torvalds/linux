@@ -1171,6 +1171,8 @@ xfs_bmap_add_extent_delay_real(
 		xfs_bmap_trace_pre_update(fname, "0", ip, idx, XFS_DATA_FORK);
 		xfs_bmbt_set_blockcount(ep, temp);
 		r[0] = *new;
+		r[1].br_state = PREV.br_state;
+		r[1].br_startblock = 0;
 		r[1].br_startoff = new_endoff;
 		temp2 = PREV.br_startoff + PREV.br_blockcount - new_endoff;
 		r[1].br_blockcount = temp2;

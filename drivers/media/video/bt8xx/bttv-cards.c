@@ -4001,7 +4001,7 @@ static void __devinit init_PXC200(struct bttv *btv)
  *      - sleep 1ms
  *      - write 0x0E
  *     read from GPIO_DATA into buf (uint_32)
- *      - if ( buf>>18 & 0x01 ) || ( buf>>19 && 0x01 != 0 )
+ *      - if ( buf>>18 & 0x01 ) || ( buf>>19 & 0x01 != 0 )
  *                error. ERROR_CPLD_Check_Failed.
  */
 /* ----------------------------------------------------------------------- */

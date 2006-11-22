@@ -48,6 +48,12 @@ ACPI_MODULE_NAME("acpi_motherboard")
  * the io ports if they really know they can use it, while
  * still preventing hotplug PCI devices from using it.
  */
+
+/*
+ * When CONFIG_PNP is enabled, pnp/system.c binds to PNP0C01
+ * and PNP0C02, redundant with acpi_reserve_io_ranges().
+ * But acpi_reserve_io_ranges() is necessary for !CONFIG_PNP.
+ */
 static acpi_status acpi_reserve_io_ranges(struct acpi_resource *res, void *data)
 {
 	struct resource *requested_res = NULL;

@@ -348,8 +348,8 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_MCH_PC1,	pcie_r
  * From information provided by "Jon Smirl" <jonsmirl@gmail.com>
  *
  * The standard boot ROM sequence for an x86 machine uses the BIOS
- * to select an initial video card for boot display. This boot video 
- * card will have it's BIOS copied to C0000 in system RAM. 
+ * to select an initial video card for boot display. This boot video
+ * card will have it's BIOS copied to C0000 in system RAM.
  * IORESOURCE_ROM_SHADOW is used to associate the boot video
  * card with this copy. On laptops this copy has to be used since
  * the main ROM may be compressed or combined with another image.
@@ -371,7 +371,17 @@ static void __devinit pci_fixup_video(struct pci_dev *pdev)
 	bus = pdev->bus;
 	while (bus) {
 		bridge = bus->self;
-		if (bridge) {
+
+		/*
+		 * From information provided by
+		 * "David Miller" <davem@davemloft.net>
+		 * The bridge control register is valid for PCI header
+		 * type BRIDGE, or CARDBUS. Host to PCI controllers use
+		 * PCI header type NORMAL.
+		 */
+		if (bridge
+		    &&((bridge->hdr_type == PCI_HEADER_TYPE_BRIDGE)
+		       ||(bridge->hdr_type == PCI_HEADER_TYPE_CARDBUS))) {
 			pci_read_config_word(bridge, PCI_BRIDGE_CONTROL,
 						&config);
 			if (!(config & PCI_BRIDGE_CTL_VGA))

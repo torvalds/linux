@@ -196,7 +196,7 @@ static void __init mpc8272ads_fixup_enet_pdata(struct platform_device *pdev,
 	bd_t* bi = (void*)__res;
 	int fs_no = fsid_fcc1+pdev->id-1;
 
-	if(fs_no > ARRAY_SIZE(mpc82xx_enet_pdata)) {
+	if(fs_no >= ARRAY_SIZE(mpc82xx_enet_pdata)) {
 		return;
 	}
 
@@ -222,7 +222,7 @@ static void mpc8272ads_fixup_uart_pdata(struct platform_device *pdev,
 	int id = fs_uart_id_scc2fsid(idx);
 
 	/* no need to alter anything if console */
-	if ((id <= num) && (!pdev->dev.platform_data)) {
+	if ((id < num) && (!pdev->dev.platform_data)) {
 		pinfo = &mpc8272_uart_pdata[id];
 		pinfo->uart_clk = bd->bi_intfreq;
 		pdev->dev.platform_data = pinfo;

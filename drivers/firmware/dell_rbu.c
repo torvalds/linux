@@ -249,7 +249,7 @@ static int packetize_data(void *data, size_t length)
 		if ((rc = create_packet(temp, packet_length)))
 			return rc;
 
-		pr_debug("%p:%lu\n", temp, (end - temp));
+		pr_debug("%p:%td\n", temp, (end - temp));
 		temp += packet_length;
 	}
 
@@ -705,27 +705,39 @@ static struct bin_attribute rbu_packet_size_attr = {
 
 static int __init dcdrbu_init(void)
 {
-	int rc = 0;
+	int rc;
 	spin_lock_init(&rbu_data.lock);
 
 	init_packet_head();
-	rbu_device =
-		platform_device_register_simple("dell_rbu", -1, NULL, 0);
-	if (!rbu_device) {
+	rbu_device = platform_device_register_simple("dell_rbu", -1, NULL, 0);
+	if (IS_ERR(rbu_device)) {
 		printk(KERN_ERR
 			"dell_rbu:%s:platform_device_register_simple "
 			"failed\n", __FUNCTION__);
-		return -EIO;
+		return PTR_ERR(rbu_device);
 	}
 
-	sysfs_create_bin_file(&rbu_device->dev.kobj, &rbu_data_attr);
-	sysfs_create_bin_file(&rbu_device->dev.kobj, &rbu_image_type_attr);
-	sysfs_create_bin_file(&rbu_device->dev.kobj,
+	rc = sysfs_create_bin_file(&rbu_device->dev.kobj, &rbu_data_attr);
+	if (rc)
+		goto out_devreg;
+	rc = sysfs_create_bin_file(&rbu_device->dev.kobj, &rbu_image_type_attr);
+	if (rc)
+		goto out_data;
+	rc = sysfs_create_bin_file(&rbu_device->dev.kobj,
 		&rbu_packet_size_attr);
+	if (rc)
+		goto out_imtype;
 
 	rbu_data.entry_created = 0;
-	return rc;
+	return 0;
 
+out_imtype:
+	sysfs_remove_bin_file(&rbu_device->dev.kobj, &rbu_image_type_attr);
+out_data:
+	sysfs_remove_bin_file(&rbu_device->dev.kobj, &rbu_data_attr);
+out_devreg:
+	platform_device_unregister(rbu_device);
+	return rc;
 }
 
 static __exit void dcdrbu_exit(void)

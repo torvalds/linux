@@ -708,7 +708,7 @@ void single_step_exception(struct pt_regs *regs)
 
 void alignment_exception(struct pt_regs *regs)
 {
-	int fixed;
+	int sig, code, fixed = 0;
 
 	fixed = fix_alignment(regs);
 	if (fixed == 1) {
@@ -717,14 +717,16 @@ void alignment_exception(struct pt_regs *regs)
 		return;
 	}
 	if (fixed == -EFAULT) {
-		/* fixed == -EFAULT means the operand address was bad */
-		if (user_mode(regs))
-			_exception(SIGSEGV, regs, SEGV_ACCERR, regs->dar);
-		else
-			bad_page_fault(regs, regs->dar, SIGSEGV);
-		return;
+		sig = SIGSEGV;
+		code = SEGV_ACCERR;
+	} else {
+		sig = SIGBUS;
+		code = BUS_ADRALN;
 	}
-	_exception(SIGBUS, regs, BUS_ADRALN, regs->dar);
+	if (user_mode(regs))
+		_exception(sig, regs, code, regs->dar);
+	else
+		bad_page_fault(regs, regs->dar, sig);
 }
 
 void StackOverflow(struct pt_regs *regs)

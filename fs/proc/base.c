@@ -72,6 +72,7 @@
 #include <linux/audit.h>
 #include <linux/poll.h>
 #include <linux/nsproxy.h>
+#include <linux/oom.h>
 #include "internal.h"
 
 /* NOTE:
@@ -86,7 +87,7 @@
 
 
 /* Worst case buffer size needed for holding an integer. */
-#define PROC_NUMBUF 10
+#define PROC_NUMBUF 13
 
 struct pid_entry {
 	int len;
@@ -689,7 +690,8 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
 	if (copy_from_user(buffer, buf, count))
 		return -EFAULT;
 	oom_adjust = simple_strtol(buffer, &end, 0);
-	if ((oom_adjust < -16 || oom_adjust > 15) && oom_adjust != OOM_DISABLE)
+	if ((oom_adjust < OOM_ADJUST_MIN || oom_adjust > OOM_ADJUST_MAX) &&
+	     oom_adjust != OOM_DISABLE)
 		return -EINVAL;
 	if (*end == '\n')
 		end++;

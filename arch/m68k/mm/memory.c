@@ -4,6 +4,7 @@
  *  Copyright (C) 1995  Hamish Macdonald
  */
 
+#include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -157,9 +158,8 @@ unsigned long mm_vtop(unsigned long vaddr)
 
 	return -1;
 }
-#endif
+EXPORT_SYMBOL(mm_vtop);
 
-#ifndef CONFIG_SINGLE_MEMORY_CHUNK
 unsigned long mm_ptov (unsigned long paddr)
 {
 	int i = 0;
@@ -185,6 +185,7 @@ unsigned long mm_ptov (unsigned long paddr)
 #endif
 	return -1;
 }
+EXPORT_SYMBOL(mm_ptov);
 #endif
 
 /* invalidate page in both caches */
@@ -298,6 +299,7 @@ void cache_clear (unsigned long paddr, int len)
 	mach_l2_flush(0);
 #endif
 }
+EXPORT_SYMBOL(cache_clear);	/* probably can be unexported */
 
 
 /*
@@ -350,6 +352,7 @@ void cache_push (unsigned long paddr, int len)
 	mach_l2_flush(1);
 #endif
 }
+EXPORT_SYMBOL(cache_push);	/* probably can be unexported */
 
 #ifndef CONFIG_SINGLE_MEMORY_CHUNK
 int mm_end_of_chunk (unsigned long addr, int len)
@@ -361,4 +364,5 @@ int mm_end_of_chunk (unsigned long addr, int len)
 			return 1;
 	return 0;
 }
+EXPORT_SYMBOL(mm_end_of_chunk);
 #endif

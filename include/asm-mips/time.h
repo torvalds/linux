@@ -48,7 +48,8 @@ extern void (*mips_timer_ack)(void);
  * If mips_hpt_read is NULL, an R4k-compatible timer setup is attempted.
  */
 extern unsigned int (*mips_hpt_read)(void);
-extern void (*mips_hpt_init)(unsigned int);
+extern void (*mips_hpt_init)(void);
+extern unsigned int mips_hpt_mask;
 
 /*
  * to_tm() converts system time back to (year, mon, day, hour, min, sec).
@@ -56,13 +57,6 @@ extern void (*mips_hpt_init)(unsigned int);
  * Copied from PPC implementation.
  */
 extern void to_tm(unsigned long tim, struct rtc_time *tm);
-
-/*
- * do_gettimeoffset(). By default, this func pointer points to
- * do_null_gettimeoffset(), which leads to the same resolution as HZ.
- * Higher resolution versions are available, which give ~1us resolution.
- */
-extern unsigned long (*do_gettimeoffset)(void);
 
 /*
  * high-level timer interrupt routines.

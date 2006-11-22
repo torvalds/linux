@@ -850,3 +850,8 @@ int __init sit_init(void)
 	inet_del_protocol(&sit_protocol, IPPROTO_IPV6);
 	goto out;
 }
+
+module_init(sit_init);
+module_exit(sit_cleanup);
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("sit0");

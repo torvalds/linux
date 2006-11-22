@@ -246,6 +246,7 @@ static int spufs_cntl_open(struct inode *inode, struct file *file)
 
 static struct file_operations spufs_cntl_fops = {
 	.open = spufs_cntl_open,
+	.release = simple_attr_close,
 	.read = simple_attr_read,
 	.write = simple_attr_write,
 	.mmap = spufs_cntl_mmap,
@@ -384,7 +385,7 @@ static ssize_t spufs_mbox_read(struct file *file, char __user *buf,
 	udata = (void __user *)buf;
 
 	spu_acquire(ctx);
-	for (count = 0; count <= len; count += 4, udata++) {
+	for (count = 0; (count + 4) <= len; count += 4, udata++) {
 		int ret;
 		ret = ctx->ops->mbox_read(ctx, &mbox_data);
 		if (ret == 0)

@@ -881,7 +881,8 @@ static int dummy_xfrm_state_pol_flow_match(struct xfrm_state *x,
 	return 1;
 }
 
-static int dummy_xfrm_flow_state_match(struct flowi *fl, struct xfrm_state *xfrm)
+static int dummy_xfrm_flow_state_match(struct flowi *fl, struct xfrm_state *xfrm,
+				struct xfrm_policy *xp)
 {
 	return 1;
 }

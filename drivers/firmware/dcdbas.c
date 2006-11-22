@@ -8,7 +8,7 @@
  *
  *  See Documentation/dcdbas.txt for more information.
  *
- *  Copyright (C) 1995-2005 Dell Inc.
+ *  Copyright (C) 1995-2006 Dell Inc.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License v2.0 as published by
@@ -40,7 +40,7 @@
 #include "dcdbas.h"
 
 #define DRIVER_NAME		"dcdbas"
-#define DRIVER_VERSION		"5.6.0-2"
+#define DRIVER_VERSION		"5.6.0-3.2"
 #define DRIVER_DESCRIPTION	"Dell Systems Management Base Driver"
 
 static struct platform_device *dcdbas_pdev;
@@ -174,6 +174,9 @@ static ssize_t smi_data_write(struct kobject *kobj, char *buf, loff_t pos,
 			      size_t count)
 {
 	ssize_t ret;
+
+	if ((pos + count) > MAX_SMI_DATA_BUF_SIZE)
+		return -EINVAL;
 
 	mutex_lock(&smi_data_lock);
 

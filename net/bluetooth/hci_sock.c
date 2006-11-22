@@ -120,10 +120,13 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 			if (!hci_test_bit(evt, &flt->event_mask))
 				continue;
 
-			if (flt->opcode && ((evt == HCI_EV_CMD_COMPLETE && 
-					flt->opcode != *(__u16 *)(skb->data + 3)) ||
-					(evt == HCI_EV_CMD_STATUS && 
-					flt->opcode != *(__u16 *)(skb->data + 4))))
+			if (flt->opcode &&
+			    ((evt == HCI_EV_CMD_COMPLETE &&
+			      flt->opcode !=
+			      get_unaligned((__u16 *)(skb->data + 3))) ||
+			     (evt == HCI_EV_CMD_STATUS &&
+			      flt->opcode !=
+			      get_unaligned((__u16 *)(skb->data + 4)))))
 				continue;
 		}
 
@@ -618,7 +621,7 @@ static int hci_sock_create(struct socket *sock, int protocol)
 
 	sock->ops = &hci_sock_ops;
 
-	sk = sk_alloc(PF_BLUETOOTH, GFP_KERNEL, &hci_sk_proto, 1);
+	sk = sk_alloc(PF_BLUETOOTH, GFP_ATOMIC, &hci_sk_proto, 1);
 	if (!sk)
 		return -ENOMEM;
 

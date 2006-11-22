@@ -69,6 +69,9 @@ extern struct file_operations random_fops, urandom_fops;
 unsigned int get_random_int(void);
 unsigned long randomize_range(unsigned long start, unsigned long end, unsigned long len);
 
+u32 random32(void);
+void srandom32(u32 seed);
+
 #endif /* __KERNEL___ */
 
 #endif /* _LINUX_RANDOM_H */

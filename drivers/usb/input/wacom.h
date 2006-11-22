@@ -63,6 +63,7 @@
  *      v1.46 (pc) - Split wacom.c into wacom_sys.c and wacom_wac.c,
  *		   - where wacom_sys.c deals with system specific code,
  * 		   - and wacom_wac.c deals with Wacom specific code
+ *		   - Support Intuos3 4x6
  */
 
 /*
@@ -118,6 +119,7 @@ extern void wacom_input_sync(void *wcombo);
 extern void wacom_init_input_dev(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_g4(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_g(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
+extern void input_dev_i3s(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_i3(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_i(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_pl(struct input_dev *input_dev, struct wacom_wac *wacom_wac);

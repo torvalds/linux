@@ -851,6 +851,7 @@ static int ipath_setup_pe_config(struct ipath_devdata *dd,
 	int pos, ret;
 
 	dd->ipath_msi_lo = 0;	/* used as a flag during reset processing */
+	dd->ipath_irq = pdev->irq;
 	ret = pci_enable_msi(dd->pcidev);
 	if (ret)
 		ipath_dev_err(dd, "pci_enable_msi failed: %d, "
@@ -1323,6 +1324,12 @@ done:
 	return 0;
 }
 
+static void ipath_pe_free_irq(struct ipath_devdata *dd)
+{
+	free_irq(dd->ipath_irq, dd);
+	dd->ipath_irq = 0;
+}
+
 /**
  * ipath_init_iba6120_funcs - set up the chip-specific function pointers
  * @dd: the infinipath device
@@ -1349,6 +1356,7 @@ void ipath_init_iba6120_funcs(struct ipath_devdata *dd)
 	dd->ipath_f_cleanup = ipath_setup_pe_cleanup;
 	dd->ipath_f_setextled = ipath_setup_pe_setextled;
 	dd->ipath_f_get_base_info = ipath_pe_get_base_info;
+	dd->ipath_f_free_irq = ipath_pe_free_irq;
 
 	/* initialize chip-specific variables */
 	dd->ipath_f_tidtemplate = ipath_pe_tidtemplate;

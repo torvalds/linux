@@ -304,7 +304,7 @@ ieee80211softmac_auth(struct ieee80211_auth **pkt,
 		2 +		/* Auth Transaction Seq */
 		2 +		/* Status Code */
 		 /* Challenge Text IE */
-		is_shared_response ? 0 : 1 + 1 + net->challenge_len
+		(is_shared_response ? 1 + 1 + net->challenge_len : 0)
 	);
 	if (unlikely((*pkt) == NULL))
 		return 0;
@@ -475,8 +475,13 @@ int ieee80211softmac_handle_beacon(struct net_device *dev,
 {
 	struct ieee80211softmac_device *mac = ieee80211_priv(dev);
 
-	if (mac->associated && memcmp(network->bssid, mac->associnfo.bssid, ETH_ALEN) == 0)
-		ieee80211softmac_process_erp(mac, network->erp_value);
+	/* This might race, but we don't really care and it's not worth
+	 * adding heavyweight locking in this fastpath.
+	 */
+	if (mac->associnfo.associated) {
+		if (memcmp(network->bssid, mac->associnfo.bssid, ETH_ALEN) == 0)
+			ieee80211softmac_process_erp(mac, network->erp_value);
+	}
 
 	return 0;
 }

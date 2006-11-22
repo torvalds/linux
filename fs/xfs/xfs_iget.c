@@ -215,7 +215,7 @@ again:
 			 * If INEW is set this inode is being set up
 			 * we need to pause and try again.
 			 */
-			if (ip->i_flags & XFS_INEW) {
+			if (xfs_iflags_test(ip, XFS_INEW)) {
 				read_unlock(&ih->ih_lock);
 				delay(1);
 				XFS_STATS_INC(xs_ig_frecycle);
@@ -230,11 +230,41 @@ again:
 				 * on its way out of the system,
 				 * we need to pause and try again.
 				 */
-				if (ip->i_flags & XFS_IRECLAIM) {
+				if (xfs_iflags_test(ip, XFS_IRECLAIM)) {
 					read_unlock(&ih->ih_lock);
 					delay(1);
 					XFS_STATS_INC(xs_ig_frecycle);
 
+					goto again;
+				}
+				ASSERT(xfs_iflags_test(ip, XFS_IRECLAIMABLE));
+
+				/*
+				 * If lookup is racing with unlink, then we
+				 * should return an error immediately so we
+				 * don't remove it from the reclaim list and
+				 * potentially leak the inode.
+				 */
+				if ((ip->i_d.di_mode == 0) &&
+				    !(flags & XFS_IGET_CREATE)) {
+					read_unlock(&ih->ih_lock);
+					return ENOENT;
+				}
+
+				/*
+				 * There may be transactions sitting in the
+				 * incore log buffers or being flushed to disk
+				 * at this time.  We can't clear the
+				 * XFS_IRECLAIMABLE flag until these
+				 * transactions have hit the disk, otherwise we
+				 * will void the guarantee the flag provides
+				 * xfs_iunpin()
+				 */
+				if (xfs_ipincount(ip)) {
+					read_unlock(&ih->ih_lock);
+					xfs_log_force(mp, 0,
+						XFS_LOG_FORCE|XFS_LOG_SYNC);
+					XFS_STATS_INC(xs_ig_frecycle);
 					goto again;
 				}
 
@@ -243,9 +273,7 @@ again:
 
 				XFS_STATS_INC(xs_ig_found);
 
-				spin_lock(&ip->i_flags_lock);
-				ip->i_flags &= ~XFS_IRECLAIMABLE;
-				spin_unlock(&ip->i_flags_lock);
+				xfs_iflags_clear(ip, XFS_IRECLAIMABLE);
 				version = ih->ih_version;
 				read_unlock(&ih->ih_lock);
 				xfs_ihash_promote(ih, ip, version);
@@ -299,10 +327,7 @@ finish_inode:
 			if (lock_flags != 0)
 				xfs_ilock(ip, lock_flags);
 
-			spin_lock(&ip->i_flags_lock);
-			ip->i_flags &= ~XFS_ISTALE;
-			spin_unlock(&ip->i_flags_lock);
-
+			xfs_iflags_clear(ip, XFS_ISTALE);
 			vn_trace_exit(vp, "xfs_iget.found",
 						(inst_t *)__return_address);
 			goto return_ip;
@@ -371,10 +396,7 @@ finish_inode:
 	ih->ih_next = ip;
 	ip->i_udquot = ip->i_gdquot = NULL;
 	ih->ih_version++;
-	spin_lock(&ip->i_flags_lock);
-	ip->i_flags |= XFS_INEW;
-	spin_unlock(&ip->i_flags_lock);
-
+	xfs_iflags_set(ip, XFS_INEW);
 	write_unlock(&ih->ih_lock);
 
 	/*
@@ -625,7 +647,7 @@ xfs_iput_new(xfs_inode_t	*ip,
 	vn_trace_entry(vp, "xfs_iput_new", (inst_t *)__return_address);
 
 	if ((ip->i_d.di_mode == 0)) {
-		ASSERT(!(ip->i_flags & XFS_IRECLAIMABLE));
+		ASSERT(!xfs_iflags_test(ip, XFS_IRECLAIMABLE));
 		vn_mark_bad(vp);
 	}
 	if (inode->i_state & I_NEW)
@@ -683,6 +705,7 @@ xfs_ireclaim(xfs_inode_t *ip)
 	/*
 	 * Free all memory associated with the inode.
 	 */
+	xfs_iunlock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
 	xfs_idestroy(ip);
 }
 

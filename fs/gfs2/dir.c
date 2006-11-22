@@ -184,7 +184,7 @@ static int gfs2_dir_write_data(struct gfs2_inode *ip, const char *buf,
 	while (copied < size) {
 		unsigned int amount;
 		struct buffer_head *bh;
-		int new;
+		int new = 0;
 
 		amount = size - copied;
 		if (amount > sdp->sd_sb.sb_bsize - o)
@@ -212,8 +212,6 @@ static int gfs2_dir_write_data(struct gfs2_inode *ip, const char *buf,
 		gfs2_trans_add_bh(ip->i_gl, bh, 1);
 		memcpy(bh->b_data + o, buf, amount);
 		brelse(bh);
-		if (error)
-			goto fail;
 
 		buf += amount;
 		copied += amount;
@@ -317,8 +315,7 @@ static int gfs2_dir_read_data(struct gfs2_inode *ip, char *buf, u64 offset,
 			if (!ra)
 				extlen = 1;
 			bh = gfs2_meta_ra(ip->i_gl, dblock, extlen);
-		}
-		if (!bh) {
+		} else {
 			error = gfs2_meta_read(ip->i_gl, dblock, DIO_WAIT, &bh);
 			if (error)
 				goto fail;
@@ -332,7 +329,6 @@ static int gfs2_dir_read_data(struct gfs2_inode *ip, char *buf, u64 offset,
 		extlen--;
 		memcpy(buf, bh->b_data + o, amount);
 		brelse(bh);
-		bh = NULL;
 		buf += amount;
 		copied += amount;
 		lblock++;
@@ -815,7 +811,7 @@ static struct gfs2_leaf *new_leaf(struct inode *inode, struct buffer_head **pbh,
 	leaf = (struct gfs2_leaf *)bh->b_data;
 	leaf->lf_depth = cpu_to_be16(depth);
 	leaf->lf_entries = 0;
-	leaf->lf_dirent_format = cpu_to_be16(GFS2_FORMAT_DE);
+	leaf->lf_dirent_format = cpu_to_be32(GFS2_FORMAT_DE);
 	leaf->lf_next = 0;
 	memset(leaf->lf_reserved, 0, sizeof(leaf->lf_reserved));
 	dent = (struct gfs2_dirent *)(leaf+1);

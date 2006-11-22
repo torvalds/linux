@@ -56,7 +56,7 @@ static void vfp_double_normalise_denormal(struct vfp_double *vd)
 {
 	int bits = 31 - fls(vd->significand >> 32);
 	if (bits == 31)
-		bits = 62 - fls(vd->significand);
+		bits = 63 - fls(vd->significand);
 
 	vfp_double_dump("normalise_denormal: in", vd);
 

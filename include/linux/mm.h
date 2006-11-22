@@ -1103,12 +1103,7 @@ static inline void vm_stat_account(struct mm_struct *mm,
 
 #ifndef CONFIG_DEBUG_PAGEALLOC
 static inline void
-kernel_map_pages(struct page *page, int numpages, int enable)
-{
-	if (!PageHighMem(page) && !enable)
-		debug_check_no_locks_freed(page_address(page),
-					   numpages * PAGE_SIZE);
-}
+kernel_map_pages(struct page *page, int numpages, int enable) {}
 #endif
 
 extern struct vm_area_struct *get_gate_vma(struct task_struct *tsk);
@@ -1119,9 +1114,6 @@ int in_gate_area(struct task_struct *task, unsigned long addr);
 int in_gate_area_no_task(unsigned long addr);
 #define in_gate_area(task, addr) ({(void)task; in_gate_area_no_task(addr);})
 #endif	/* __HAVE_ARCH_GATE_AREA */
-
-/* /proc/<pid>/oom_adj set to -17 protects from the oom-killer */
-#define OOM_DISABLE -17
 
 int drop_caches_sysctl_handler(struct ctl_table *, int, struct file *,
 					void __user *, size_t *, loff_t *);

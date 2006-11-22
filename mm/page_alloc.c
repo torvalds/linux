@@ -39,6 +39,7 @@
 #include <linux/stop_machine.h>
 #include <linux/sort.h>
 #include <linux/pfn.h>
+#include <linux/backing-dev.h>
 
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -495,17 +496,16 @@ static void __free_pages_ok(struct page *page, unsigned int order)
 	int i;
 	int reserved = 0;
 
-	arch_free_page(page, order);
-	if (!PageHighMem(page))
-		debug_check_no_locks_freed(page_address(page),
-					   PAGE_SIZE<<order);
-
 	for (i = 0 ; i < (1 << order) ; ++i)
 		reserved += free_pages_check(page + i);
 	if (reserved)
 		return;
 
+	if (!PageHighMem(page))
+		debug_check_no_locks_freed(page_address(page),PAGE_SIZE<<order);
+	arch_free_page(page, order);
 	kernel_map_pages(page, 1 << order, 0);
+
 	local_irq_save(flags);
 	__count_vm_events(PGFREE, 1 << order);
 	free_one_page(page_zone(page), page, order);
@@ -781,13 +781,14 @@ static void fastcall free_hot_cold_page(struct page *page, int cold)
 	struct per_cpu_pages *pcp;
 	unsigned long flags;
 
-	arch_free_page(page, 0);
-
 	if (PageAnon(page))
 		page->mapping = NULL;
 	if (free_pages_check(page))
 		return;
 
+	if (!PageHighMem(page))
+		debug_check_no_locks_freed(page_address(page), PAGE_SIZE);
+	arch_free_page(page, 0);
 	kernel_map_pages(page, 1, 0);
 
 	pcp = &zone_pcp(zone, get_cpu())->pcp[cold];
@@ -852,7 +853,7 @@ again:
 		pcp = &zone_pcp(zone, cpu)->pcp[cold];
 		local_irq_save(flags);
 		if (!pcp->count) {
-			pcp->count += rmqueue_bulk(zone, 0,
+			pcp->count = rmqueue_bulk(zone, 0,
 						pcp->batch, &pcp->list);
 			if (unlikely(!pcp->count))
 				goto failed;
@@ -1050,7 +1051,7 @@ nofail_alloc:
 			if (page)
 				goto got_pg;
 			if (gfp_mask & __GFP_NOFAIL) {
-				blk_congestion_wait(WRITE, HZ/50);
+				congestion_wait(WRITE, HZ/50);
 				goto nofail_alloc;
 			}
 		}
@@ -1113,7 +1114,7 @@ rebalance:
 			do_retry = 1;
 	}
 	if (do_retry) {
-		blk_congestion_wait(WRITE, HZ/50);
+		congestion_wait(WRITE, HZ/50);
 		goto rebalance;
 	}
 
@@ -1688,6 +1689,8 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
 		if (!early_pfn_valid(pfn))
 			continue;
+		if (!early_pfn_in_nid(pfn, nid))
+			continue;
 		page = pfn_to_page(pfn);
 		set_page_links(page, zone, nid, pfn);
 		init_page_count(page);
@@ -2258,7 +2261,7 @@ unsigned long __init __absent_pages_in_range(int nid,
 
 	/* Account for ranges past physical memory on this node */
 	if (range_end_pfn > prev_end_pfn)
-		hole_pages = range_end_pfn -
+		hole_pages += range_end_pfn -
 				max(range_start_pfn, prev_end_pfn);
 
 	return hole_pages;
@@ -2294,19 +2297,6 @@ unsigned long __init zone_absent_pages_in_node(int nid,
 	return __absent_pages_in_range(nid, zone_start_pfn, zone_end_pfn);
 }
 
-/* Return the zone index a PFN is in */
-int memmap_zone_idx(struct page *lmem_map)
-{
-	int i;
-	unsigned long phys_addr = virt_to_phys(lmem_map);
-	unsigned long pfn = phys_addr >> PAGE_SHIFT;
-
-	for (i = 0; i < MAX_NR_ZONES; i++)
-		if (pfn < arch_zone_highest_possible_pfn[i])
-			break;
-
-	return i;
-}
 #else
 static inline unsigned long zone_spanned_pages_in_node(int nid,
 					unsigned long zone_type,
@@ -2325,10 +2315,6 @@ static inline unsigned long zone_absent_pages_in_node(int nid,
 	return zholes_size[zone_type];
 }
 
-static inline int memmap_zone_idx(struct page *lmem_map)
-{
-	return MAX_NR_ZONES;
-}
 #endif
 
 static void __init calculate_node_totalpages(struct pglist_data *pgdat,
@@ -2421,7 +2407,7 @@ static void __meminit free_area_init_core(struct pglist_data *pgdat,
 		zone->zone_pgdat = pgdat;
 		zone->free_pages = 0;
 
-		zone->temp_priority = zone->prev_priority = DEF_PRIORITY;
+		zone->prev_priority = DEF_PRIORITY;
 
 		zone_pcp_init(zone);
 		INIT_LIST_HEAD(&zone->active_list);
@@ -3136,3 +3122,19 @@ unsigned long page_to_pfn(struct page *page)
 EXPORT_SYMBOL(pfn_to_page);
 EXPORT_SYMBOL(page_to_pfn);
 #endif /* CONFIG_OUT_OF_LINE_PFN_TO_PAGE */
+
+#if MAX_NUMNODES > 1
+/*
+ * Find the highest possible node id.
+ */
+int highest_possible_node_id(void)
+{
+	unsigned int node;
+	unsigned int highest = 0;
+
+	for_each_node_mask(node, node_possible_map)
+		highest = node;
+	return highest;
+}
+EXPORT_SYMBOL(highest_possible_node_id);
+#endif

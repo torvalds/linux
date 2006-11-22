@@ -107,18 +107,21 @@ struct ip6t_entry
 /*
  * New IP firewall options for [gs]etsockopt at the RAW IP level.
  * Unlike BSD Linux inherits IP options so you don't have to use
- * a raw socket for this. Instead we check rights in the calls. */
-#define IP6T_BASE_CTL			XT_BASE_CTL
+ * a raw socket for this. Instead we check rights in the calls.
+ *
+ * ATTENTION: check linux/in6.h before adding new number here.
+ */
+#define IP6T_BASE_CTL			64
 
-#define IP6T_SO_SET_REPLACE		XT_SO_SET_REPLACE
-#define IP6T_SO_SET_ADD_COUNTERS	XT_SO_SET_ADD_COUNTERS
-#define IP6T_SO_SET_MAX			XT_SO_SET_MAX
+#define IP6T_SO_SET_REPLACE		(IP6T_BASE_CTL)
+#define IP6T_SO_SET_ADD_COUNTERS	(IP6T_BASE_CTL + 1)
+#define IP6T_SO_SET_MAX			IP6T_SO_SET_ADD_COUNTERS
 
-#define IP6T_SO_GET_INFO		XT_SO_GET_INFO
-#define IP6T_SO_GET_ENTRIES		XT_SO_GET_ENTRIES
-#define	IP6T_SO_GET_REVISION_MATCH	XT_SO_GET_REVISION_MATCH
-#define	IP6T_SO_GET_REVISION_TARGET	XT_SO_GET_REVISION_TARGET
-#define IP6T_SO_GET_MAX			XT_SO_GET_REVISION_TARGET
+#define IP6T_SO_GET_INFO		(IP6T_BASE_CTL)
+#define IP6T_SO_GET_ENTRIES		(IP6T_BASE_CTL + 1)
+#define IP6T_SO_GET_REVISION_MATCH	(IP6T_BASE_CTL + 4)
+#define IP6T_SO_GET_REVISION_TARGET	(IP6T_BASE_CTL + 5)
+#define IP6T_SO_GET_MAX			IP6T_SO_GET_REVISION_TARGET
 
 /* CONTINUE verdict for targets */
 #define IP6T_CONTINUE XT_CONTINUE

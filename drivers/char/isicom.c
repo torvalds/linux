@@ -1062,11 +1062,12 @@ static void isicom_shutdown_port(struct isi_port *port)
 static void isicom_close(struct tty_struct *tty, struct file *filp)
 {
 	struct isi_port *port = tty->driver_data;
-	struct isi_board *card = port->card;
+	struct isi_board *card;
 	unsigned long flags;
 
 	if (!port)
 		return;
+	card = port->card;
 	if (isicom_paranoia_check(port, tty->name, "isicom_close"))
 		return;
 

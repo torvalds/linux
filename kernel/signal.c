@@ -267,18 +267,25 @@ static struct sigqueue *__sigqueue_alloc(struct task_struct *t, gfp_t flags,
 					 int override_rlimit)
 {
 	struct sigqueue *q = NULL;
+	struct user_struct *user;
 
-	atomic_inc(&t->user->sigpending);
+	/*
+	 * In order to avoid problems with "switch_user()", we want to make
+	 * sure that the compiler doesn't re-load "t->user"
+	 */
+	user = t->user;
+	barrier();
+	atomic_inc(&user->sigpending);
 	if (override_rlimit ||
-	    atomic_read(&t->user->sigpending) <=
+	    atomic_read(&user->sigpending) <=
 			t->signal->rlim[RLIMIT_SIGPENDING].rlim_cur)
 		q = kmem_cache_alloc(sigqueue_cachep, flags);
 	if (unlikely(q == NULL)) {
-		atomic_dec(&t->user->sigpending);
+		atomic_dec(&user->sigpending);
 	} else {
 		INIT_LIST_HEAD(&q->list);
 		q->flags = 0;
-		q->user = get_uid(t->user);
+		q->user = get_uid(user);
 	}
 	return(q);
 }

@@ -542,6 +542,7 @@ ip6ip6_rcv(struct sk_buff *skb)
 		skb->dev = t->dev;
 		dst_release(skb->dst);
 		skb->dst = NULL;
+		nf_reset(skb);
 		if (t->parms.flags & IP6_TNL_F_RCV_DSCP_COPY)
 			ipv6_copy_dscp(ipv6h, skb->nh.ipv6h);
 		ip6ip6_ecn_decapsulate(ipv6h, skb);
@@ -1149,6 +1150,20 @@ fail:
 	return err;
 }
 
+static void __exit ip6ip6_destroy_tunnels(void)
+{
+	int h;
+	struct ip6_tnl *t;
+
+	for (h = 0; h < HASH_SIZE; h++) {
+		while ((t = tnls_r_l[h]) != NULL)
+			unregister_netdevice(t->dev);
+	}
+
+	t = tnls_wc[0];
+	unregister_netdevice(t->dev);
+}
+
 /**
  * ip6_tunnel_cleanup - free resources and unregister protocol
  **/
@@ -1158,7 +1173,9 @@ static void __exit ip6_tunnel_cleanup(void)
 	if (xfrm6_tunnel_deregister(&ip6ip6_handler))
 		printk(KERN_INFO "ip6ip6 close: can't deregister tunnel\n");
 
-	unregister_netdev(ip6ip6_fb_tnl_dev);
+	rtnl_lock();
+	ip6ip6_destroy_tunnels();
+	rtnl_unlock();
 }
 
 module_init(ip6_tunnel_init);

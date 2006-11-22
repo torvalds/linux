@@ -138,10 +138,10 @@ const u32 nfs4_fs_locations_bitmap[2] = {
 	| FATTR4_WORD1_MOUNTED_ON_FILEID
 };
 
-static void nfs4_setup_readdir(u64 cookie, u32 *verifier, struct dentry *dentry,
+static void nfs4_setup_readdir(u64 cookie, __be32 *verifier, struct dentry *dentry,
 		struct nfs4_readdir_arg *readdir)
 {
-	u32 *start, *p;
+	__be32 *start, *p;
 
 	BUG_ON(readdir->count < 80);
 	if (cookie > 2) {
@@ -162,7 +162,7 @@ static void nfs4_setup_readdir(u64 cookie, u32 *verifier, struct dentry *dentry,
 	 * when talking to the server, we always send cookie 0
 	 * instead of 1 or 2.
 	 */
-	start = p = (u32 *)kmap_atomic(*readdir->pages, KM_USER0);
+	start = p = kmap_atomic(*readdir->pages, KM_USER0);
 	
 	if (cookie == 0) {
 		*p++ = xdr_one;                                  /* next */
@@ -1314,11 +1314,9 @@ nfs4_open_revalidate(struct inode *dir, struct dentry *dentry, int openflags, st
 			case -EROFS:
 				lookup_instantiate_filp(nd, (struct dentry *)state, NULL);
 				return 1;
-			case -ENOENT:
-				if (dentry->d_inode == NULL)
-					return 1;
+			default:
+				goto out_drop;
 		}
-		goto out_drop;
 	}
 	if (state->inode == dentry->d_inode) {
 		nfs4_intent_set_file(nd, dentry, state);
@@ -2917,11 +2915,11 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program, unsigned short po
 		.rpc_resp = clp,
 		.rpc_cred = cred,
 	};
-	u32 *p;
+	__be32 *p;
 	int loop = 0;
 	int status;
 
-	p = (u32*)sc_verifier.data;
+	p = (__be32*)sc_verifier.data;
 	*p++ = htonl((u32)clp->cl_boot_time.tv_sec);
 	*p = htonl((u32)clp->cl_boot_time.tv_nsec);
 

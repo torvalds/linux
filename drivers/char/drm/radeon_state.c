@@ -275,6 +275,8 @@ static __inline__ int radeon_check_and_fixup_packet3(drm_radeon_private_t *
 						     unsigned int *cmdsz)
 {
 	u32 *cmd = (u32 *) cmdbuf->buf;
+	u32 offset, narrays;
+	int count, i, k;
 
 	*cmdsz = 2 + ((cmd[0] & RADEON_CP_PACKET_COUNT_MASK) >> 16);
 
@@ -288,10 +290,106 @@ static __inline__ int radeon_check_and_fixup_packet3(drm_radeon_private_t *
 		return DRM_ERR(EINVAL);
 	}
 
-	/* Check client state and fix it up if necessary */
-	if (cmd[0] & 0x8000) {	/* MSB of opcode: next DWORD GUI_CNTL */
-		u32 offset;
+	switch(cmd[0] & 0xff00) {
+	/* XXX Are there old drivers needing other packets? */
 
+	case RADEON_3D_DRAW_IMMD:
+	case RADEON_3D_DRAW_VBUF:
+	case RADEON_3D_DRAW_INDX:
+	case RADEON_WAIT_FOR_IDLE:
+	case RADEON_CP_NOP:
+	case RADEON_3D_CLEAR_ZMASK:
+/*	case RADEON_CP_NEXT_CHAR:
+	case RADEON_CP_PLY_NEXTSCAN:
+	case RADEON_CP_SET_SCISSORS: */ /* probably safe but will never need them? */
+		/* these packets are safe */
+		break;
+
+	case RADEON_CP_3D_DRAW_IMMD_2:
+	case RADEON_CP_3D_DRAW_VBUF_2:
+	case RADEON_CP_3D_DRAW_INDX_2:
+	case RADEON_3D_CLEAR_HIZ:
+		/* safe but r200 only */
+		if (dev_priv->microcode_version != UCODE_R200) {
+			DRM_ERROR("Invalid 3d packet for r100-class chip\n");
+			return DRM_ERR(EINVAL);
+		}
+		break;
+
+	case RADEON_3D_LOAD_VBPNTR:
+		count = (cmd[0] >> 16) & 0x3fff;
+
+		if (count > 18) { /* 12 arrays max */
+			DRM_ERROR("Too large payload in 3D_LOAD_VBPNTR (count=%d)\n",
+				  count);
+			return DRM_ERR(EINVAL);
+		}
+
+		/* carefully check packet contents */
+		narrays = cmd[1] & ~0xc000;
+		k = 0;
+		i = 2;
+		while ((k < narrays) && (i < (count + 2))) {
+			i++;		/* skip attribute field */
+			if (radeon_check_and_fixup_offset(dev_priv, filp_priv, &cmd[i])) {
+				DRM_ERROR
+				    ("Invalid offset (k=%d i=%d) in 3D_LOAD_VBPNTR packet.\n",
+				     k, i);
+				return DRM_ERR(EINVAL);
+			}
+			k++;
+			i++;
+			if (k == narrays)
+				break;
+			/* have one more to process, they come in pairs */
+			if (radeon_check_and_fixup_offset(dev_priv, filp_priv, &cmd[i])) {
+				DRM_ERROR
+				    ("Invalid offset (k=%d i=%d) in 3D_LOAD_VBPNTR packet.\n",
+				     k, i);
+				return DRM_ERR(EINVAL);
+			}
+			k++;
+			i++;
+		}
+		/* do the counts match what we expect ? */
+		if ((k != narrays) || (i != (count + 2))) {
+			DRM_ERROR
+			    ("Malformed 3D_LOAD_VBPNTR packet (k=%d i=%d narrays=%d count+1=%d).\n",
+			      k, i, narrays, count + 1);
+			return DRM_ERR(EINVAL);
+		}
+		break;
+
+	case RADEON_3D_RNDR_GEN_INDX_PRIM:
+		if (dev_priv->microcode_version != UCODE_R100) {
+			DRM_ERROR("Invalid 3d packet for r200-class chip\n");
+			return DRM_ERR(EINVAL);
+		}
+		if (radeon_check_and_fixup_offset(dev_priv, filp_priv, &cmd[1])) {
+				DRM_ERROR("Invalid rndr_gen_indx offset\n");
+				return DRM_ERR(EINVAL);
+		}
+		break;
+
+	case RADEON_CP_INDX_BUFFER:
+		if (dev_priv->microcode_version != UCODE_R200) {
+			DRM_ERROR("Invalid 3d packet for r100-class chip\n");
+			return DRM_ERR(EINVAL);
+		}
+		if ((cmd[1] & 0x8000ffff) != 0x80000810) {
+			DRM_ERROR("Invalid indx_buffer reg address %08X\n", cmd[1]);
+			return DRM_ERR(EINVAL);
+		}
+		if (radeon_check_and_fixup_offset(dev_priv, filp_priv, &cmd[2])) {
+			DRM_ERROR("Invalid indx_buffer offset is %08X\n", cmd[2]);
+			return DRM_ERR(EINVAL);
+		}
+		break;
+
+	case RADEON_CNTL_HOSTDATA_BLT:
+	case RADEON_CNTL_PAINT_MULTI:
+	case RADEON_CNTL_BITBLT_MULTI:
+		/* MSB of opcode: next DWORD GUI_CNTL */
 		if (cmd[1] & (RADEON_GMC_SRC_PITCH_OFFSET_CNTL
 			      | RADEON_GMC_DST_PITCH_OFFSET_CNTL)) {
 			offset = cmd[2] << 10;
@@ -313,6 +411,11 @@ static __inline__ int radeon_check_and_fixup_packet3(drm_radeon_private_t *
 			}
 			cmd[3] = (cmd[3] & 0xffc00000) | offset >> 10;
 		}
+		break;
+
+	default:
+		DRM_ERROR("Invalid packet type %x\n", cmd[0] & 0xff00);
+		return DRM_ERR(EINVAL);
 	}
 
 	return 0;

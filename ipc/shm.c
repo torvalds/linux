@@ -116,6 +116,7 @@ void shm_exit_ns(struct ipc_namespace *ns)
 	}
 	mutex_unlock(&shm_ids(ns).mutex);
 
+	ipc_fini_ids(ns->ids[IPC_SHM_IDS]);
 	kfree(ns->ids[IPC_SHM_IDS]);
 	ns->ids[IPC_SHM_IDS] = NULL;
 }

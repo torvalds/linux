@@ -202,7 +202,7 @@ extern int lockdep_internal(void);
  */
 
 extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
-			     struct lock_class_key *key);
+			     struct lock_class_key *key, int subclass);
 
 /*
  * Reinitialize a lock key - for cases where there is special locking or
@@ -211,9 +211,14 @@ extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
  * or they are too narrow (they suffer from a false class-split):
  */
 #define lockdep_set_class(lock, key) \
-		lockdep_init_map(&(lock)->dep_map, #key, key)
+		lockdep_init_map(&(lock)->dep_map, #key, key, 0)
 #define lockdep_set_class_and_name(lock, key, name) \
-		lockdep_init_map(&(lock)->dep_map, name, key)
+		lockdep_init_map(&(lock)->dep_map, name, key, 0)
+#define lockdep_set_class_and_subclass(lock, key, sub) \
+		lockdep_init_map(&(lock)->dep_map, #key, key, sub)
+#define lockdep_set_subclass(lock, sub)	\
+		lockdep_init_map(&(lock)->dep_map, #lock, \
+				 (lock)->dep_map.key, sub)
 
 /*
  * Acquire a lock.
@@ -257,10 +262,14 @@ static inline int lockdep_internal(void)
 # define lock_release(l, n, i)			do { } while (0)
 # define lockdep_init()				do { } while (0)
 # define lockdep_info()				do { } while (0)
-# define lockdep_init_map(lock, name, key)	do { (void)(key); } while (0)
+# define lockdep_init_map(lock, name, key, sub)	do { (void)(key); } while (0)
 # define lockdep_set_class(lock, key)		do { (void)(key); } while (0)
 # define lockdep_set_class_and_name(lock, key, name) \
 		do { (void)(key); } while (0)
+#define lockdep_set_class_and_subclass(lock, key, sub) \
+		do { (void)(key); } while (0)
+#define lockdep_set_subclass(lock, sub)		do { } while (0)
+
 # define INIT_LOCKDEP
 # define lockdep_reset()		do { debug_locks = 1; } while (0)
 # define lockdep_free_key_range(start, size)	do { } while (0)

@@ -20,6 +20,7 @@ enum {
 	PTU,
 	PL,
 	INTUOS,
+	INTUOS3S,
 	INTUOS3,
 	INTUOS3L,
 	CINTIQ,
@@ -34,7 +35,6 @@ struct wacom_features {
 	int pressure_max;
 	int distance_max;
 	int type;
-	usb_complete_t irq;
 };
 
 struct wacom_wac {

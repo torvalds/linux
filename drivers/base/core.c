@@ -44,7 +44,7 @@ const char *dev_driver_string(struct device *dev)
 	return dev->driver ? dev->driver->name :
 			(dev->bus ? dev->bus->name : "");
 }
-EXPORT_SYMBOL_GPL(dev_driver_string);
+EXPORT_SYMBOL(dev_driver_string);
 
 #define to_dev(obj) container_of(obj, struct device, kobj)
 #define to_dev_attr(_attr) container_of(_attr, struct device_attribute, attr)
@@ -433,14 +433,16 @@ int device_add(struct device *dev)
 	if (dev->driver)
 		dev->uevent_attr.attr.owner = dev->driver->owner;
 	dev->uevent_attr.store = store_uevent;
-	device_create_file(dev, &dev->uevent_attr);
+	error = device_create_file(dev, &dev->uevent_attr);
+	if (error)
+		goto attrError;
 
 	if (MAJOR(dev->devt)) {
 		struct device_attribute *attr;
 		attr = kzalloc(sizeof(*attr), GFP_KERNEL);
 		if (!attr) {
 			error = -ENOMEM;
-			goto PMError;
+			goto ueventattrError;
 		}
 		attr->attr.name = "dev";
 		attr->attr.mode = S_IRUGO;
@@ -450,7 +452,7 @@ int device_add(struct device *dev)
 		error = device_create_file(dev, attr);
 		if (error) {
 			kfree(attr);
-			goto attrError;
+			goto ueventattrError;
 		}
 
 		dev->devt_attr = attr;
@@ -477,7 +479,8 @@ int device_add(struct device *dev)
 	if ((error = bus_add_device(dev)))
 		goto BusError;
 	kobject_uevent(&dev->kobj, KOBJ_ADD);
-	bus_attach_device(dev);
+	if ((error = bus_attach_device(dev)))
+		goto AttachError;
 	if (parent)
 		klist_add_tail(&dev->knode_parent, &parent->klist_children);
 
@@ -496,6 +499,8 @@ int device_add(struct device *dev)
  	kfree(class_name);
 	put_device(dev);
 	return error;
+ AttachError:
+	bus_remove_device(dev);
  BusError:
 	device_pm_remove(dev);
  PMError:
@@ -507,6 +512,8 @@ int device_add(struct device *dev)
 		device_remove_file(dev, dev->devt_attr);
 		kfree(dev->devt_attr);
 	}
+ ueventattrError:
+	device_remove_file(dev, &dev->uevent_attr);
  attrError:
 	kobject_uevent(&dev->kobj, KOBJ_REMOVE);
 	kobject_del(&dev->kobj);
@@ -805,8 +812,10 @@ int device_rename(struct device *dev, char *new_name)
 
 	if (dev->class) {
 		old_symlink_name = kmalloc(BUS_ID_SIZE, GFP_KERNEL);
-		if (!old_symlink_name)
-			return -ENOMEM;
+		if (!old_symlink_name) {
+			error = -ENOMEM;
+			goto out_free_old_class;
+		}
 		strlcpy(old_symlink_name, dev->bus_id, BUS_ID_SIZE);
 	}
 
@@ -830,9 +839,10 @@ int device_rename(struct device *dev, char *new_name)
 	}
 	put_device(dev);
 
-	kfree(old_class_name);
 	kfree(new_class_name);
 	kfree(old_symlink_name);
+ out_free_old_class:
+	kfree(old_class_name);
 
 	return error;
 }

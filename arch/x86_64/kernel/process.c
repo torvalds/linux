@@ -88,9 +88,8 @@ void enter_idle(void)
 
 static void __exit_idle(void)
 {
-	if (read_pda(isidle) == 0)
+	if (test_and_clear_bit_pda(0, isidle) == 0)
 		return;
-	write_pda(isidle, 0);
 	atomic_notifier_call_chain(&idle_notifier, IDLE_END, NULL);
 }
 
@@ -145,7 +144,7 @@ static void poll_idle (void)
 void cpu_idle_wait(void)
 {
 	unsigned int cpu, this_cpu = get_cpu();
-	cpumask_t map;
+	cpumask_t map, tmp = current->cpus_allowed;
 
 	set_cpus_allowed(current, cpumask_of_cpu(this_cpu));
 	put_cpu();
@@ -168,6 +167,8 @@ void cpu_idle_wait(void)
 		}
 		cpus_and(map, map, cpu_online_map);
 	} while (!cpus_empty(map));
+
+	set_cpus_allowed(current, tmp);
 }
 EXPORT_SYMBOL_GPL(cpu_idle_wait);
 
@@ -238,18 +239,26 @@ void cpu_idle (void)
  * We execute MONITOR against need_resched and enter optimized wait state
  * through MWAIT. Whenever someone changes need_resched, we would be woken
  * up from MWAIT (without an IPI).
+ *
+ * New with Core Duo processors, MWAIT can take some hints based on CPU
+ * capability.
  */
+void mwait_idle_with_hints(unsigned long eax, unsigned long ecx)
+{
+	if (!need_resched()) {
+		__monitor((void *)&current_thread_info()->flags, 0, 0);
+		smp_mb();
+		if (!need_resched())
+			__mwait(eax, ecx);
+	}
+}
+
+/* Default MONITOR/MWAIT with no hints, used for default C1 state */
 static void mwait_idle(void)
 {
 	local_irq_enable();
-
-	while (!need_resched()) {
-		__monitor((void *)&current_thread_info()->flags, 0, 0);
-		smp_mb();
-		if (need_resched())
-			break;
-		__mwait(0, 0);
-	}
+	while (!need_resched())
+		mwait_idle_with_hints(0,0);
 }
 
 void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)

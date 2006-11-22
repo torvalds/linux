@@ -1789,7 +1789,7 @@ static inline void CLOCK_IT (const hrz_dev *dev, u32 ctrl)
 	WRITE_IT_WAIT(dev, ctrl | SEEPROM_SK);
 }
 
-static u16 __init read_bia (const hrz_dev * dev, u16 addr)
+static u16 __devinit read_bia (const hrz_dev * dev, u16 addr)
 {
   u32 ctrl = rd_regl (dev, CONTROL_0_REG);
   
@@ -2932,8 +2932,8 @@ static int __init hrz_module_init (void) {
 
 static void __exit hrz_module_exit (void) {
   PRINTD (DBG_FLOW, "cleanup_module");
-  
-  return pci_unregister_driver(&hrz_driver);
+
+  pci_unregister_driver(&hrz_driver);
 }
 
 module_init(hrz_module_init);

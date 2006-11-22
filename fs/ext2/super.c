@@ -364,7 +364,6 @@ static int parse_options (char * options,
 {
 	char * p;
 	substring_t args[MAX_OPT_ARGS];
-	unsigned long kind = EXT2_MOUNT_ERRORS_CONT;
 	int option;
 
 	if (!options)
@@ -404,13 +403,19 @@ static int parse_options (char * options,
 			/* *sb_block = match_int(&args[0]); */
 			break;
 		case Opt_err_panic:
-			kind = EXT2_MOUNT_ERRORS_PANIC;
+			clear_opt (sbi->s_mount_opt, ERRORS_CONT);
+			clear_opt (sbi->s_mount_opt, ERRORS_RO);
+			set_opt (sbi->s_mount_opt, ERRORS_PANIC);
 			break;
 		case Opt_err_ro:
-			kind = EXT2_MOUNT_ERRORS_RO;
+			clear_opt (sbi->s_mount_opt, ERRORS_CONT);
+			clear_opt (sbi->s_mount_opt, ERRORS_PANIC);
+			set_opt (sbi->s_mount_opt, ERRORS_RO);
 			break;
 		case Opt_err_cont:
-			kind = EXT2_MOUNT_ERRORS_CONT;
+			clear_opt (sbi->s_mount_opt, ERRORS_RO);
+			clear_opt (sbi->s_mount_opt, ERRORS_PANIC);
+			set_opt (sbi->s_mount_opt, ERRORS_CONT);
 			break;
 		case Opt_nouid32:
 			set_opt (sbi->s_mount_opt, NO_UID32);
@@ -489,7 +494,6 @@ static int parse_options (char * options,
 			return 0;
 		}
 	}
-	sbi->s_mount_opt |= kind;
 	return 1;
 }
 
@@ -715,6 +719,8 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 		set_opt(sbi->s_mount_opt, ERRORS_PANIC);
 	else if (le16_to_cpu(sbi->s_es->s_errors) == EXT2_ERRORS_RO)
 		set_opt(sbi->s_mount_opt, ERRORS_RO);
+	else
+		set_opt(sbi->s_mount_opt, ERRORS_CONT);
 
 	sbi->s_resuid = le16_to_cpu(es->s_def_resuid);
 	sbi->s_resgid = le16_to_cpu(es->s_def_resgid);

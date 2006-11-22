@@ -352,6 +352,8 @@ do {									\
 #define write_vpe_c0_vpecontrol(val)	mttc0(1, 1, val)
 #define read_vpe_c0_vpeconf0()		mftc0(1, 2)
 #define write_vpe_c0_vpeconf0(val)	mttc0(1, 2, val)
+#define read_vpe_c0_count()		mftc0(9, 0)
+#define write_vpe_c0_count(val)		mttc0(9, 0, val)
 #define read_vpe_c0_status()		mftc0(12, 0)
 #define write_vpe_c0_status(val)	mttc0(12, 0, val)
 #define read_vpe_c0_cause()		mftc0(13, 0)

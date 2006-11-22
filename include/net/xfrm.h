@@ -995,7 +995,8 @@ struct xfrm_state * xfrm_find_acq(u8 mode, u32 reqid, u8 proto,
 				  int create, unsigned short family);
 extern void xfrm_policy_flush(u8 type);
 extern int xfrm_sk_policy_insert(struct sock *sk, int dir, struct xfrm_policy *pol);
-extern int xfrm_bundle_ok(struct xfrm_dst *xdst, struct flowi *fl, int family, int strict);
+extern int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *xdst,
+			  struct flowi *fl, int family, int strict);
 extern void xfrm_init_pmtu(struct dst_entry *dst);
 
 extern wait_queue_head_t km_waitq;

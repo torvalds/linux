@@ -161,9 +161,9 @@ void second_overflow(void)
 			time_adjust += MAX_TICKADJ;
 			tick_length -= MAX_TICKADJ_SCALED;
 		} else {
-			time_adjust = 0;
 			tick_length += (s64)(time_adjust * NSEC_PER_USEC /
 					     HZ) << TICK_LENGTH_SHIFT;
+			time_adjust = 0;
 		}
 	}
 }

@@ -28,8 +28,8 @@
 /*
  * PCI space virtual addresses
  */
-#define VERSATILE_PCI_VIRT_BASE		0xe8000000
-#define VERSATILE_PCI_CFG_VIRT_BASE	0xe9000000
+#define VERSATILE_PCI_VIRT_BASE		(void __iomem *)0xe8000000ul
+#define VERSATILE_PCI_CFG_VIRT_BASE	(void __iomem *)0xe9000000ul
 
 #if 0
 #define VERSATILE_PCI_VIRT_MEM_BASE0	0xf4000000

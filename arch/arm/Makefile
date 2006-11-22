@@ -174,10 +174,12 @@ libs-y				:= arch/arm/lib/ $(libs-y)
 
 # Default target when executing plain make
 ifeq ($(CONFIG_XIP_KERNEL),y)
-all: xipImage
+KBUILD_IMAGE := xipImage
 else
-all: zImage
+KBUILD_IMAGE := zImage
 endif
+
+all:	$(KBUILD_IMAGE)
 
 boot := arch/arm/boot
 

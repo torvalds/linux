@@ -312,10 +312,12 @@ void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks)
 
 static u64 log_bmap(struct gfs2_sbd *sdp, unsigned int lbn)
 {
+	struct inode *inode = sdp->sd_jdesc->jd_inode;
 	int error;
-	struct buffer_head bh_map;
+	struct buffer_head bh_map = { .b_state = 0, .b_blocknr = 0 };
 
-	error = gfs2_block_map(sdp->sd_jdesc->jd_inode, lbn, 0, &bh_map, 1);
+	bh_map.b_size = 1 << inode->i_blkbits;
+	error = gfs2_block_map(inode, lbn, 0, &bh_map);
 	if (error || !bh_map.b_blocknr)
 		printk(KERN_INFO "error=%d, dbn=%llu lbn=%u", error, bh_map.b_blocknr, lbn);
 	gfs2_assert_withdraw(sdp, !error && bh_map.b_blocknr);
@@ -569,16 +571,15 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 	else if (sdp->sd_log_tail != current_tail(sdp) && !sdp->sd_log_idle)
 		log_write_header(sdp, 0, PULL);
 	lops_after_commit(sdp, ai);
+
+	gfs2_log_lock(sdp);
 	sdp->sd_log_head = sdp->sd_log_flush_head;
-
 	sdp->sd_log_blks_free -= sdp->sd_log_num_hdrs;
-
 	sdp->sd_log_blks_reserved = 0;
 	sdp->sd_log_commited_buf = 0;
 	sdp->sd_log_num_hdrs = 0;
 	sdp->sd_log_commited_revoke = 0;
 
-	gfs2_log_lock(sdp);
 	if (!list_empty(&ai->ai_ail1_list)) {
 		list_add(&ai->ai_list, &sdp->sd_ail1_list);
 		ai = NULL;

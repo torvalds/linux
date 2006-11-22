@@ -226,14 +226,26 @@ static int __init eisa_init_device (struct eisa_root_device *root,
 
 static int __init eisa_register_device (struct eisa_device *edev)
 {
-	if (device_register (&edev->dev))
-		return -1;
+	int rc = device_register (&edev->dev);
+	if (rc)
+		return rc;
 
-	device_create_file (&edev->dev, &dev_attr_signature);
-	device_create_file (&edev->dev, &dev_attr_enabled);
-	device_create_file (&edev->dev, &dev_attr_modalias);
+	rc = device_create_file (&edev->dev, &dev_attr_signature);
+	if (rc) goto err_devreg;
+	rc = device_create_file (&edev->dev, &dev_attr_enabled);
+	if (rc) goto err_sig;
+	rc = device_create_file (&edev->dev, &dev_attr_modalias);
+	if (rc) goto err_enab;
 
 	return 0;
+
+err_enab:
+	device_remove_file (&edev->dev, &dev_attr_enabled);
+err_sig:
+	device_remove_file (&edev->dev, &dev_attr_signature);
+err_devreg:
+	device_unregister(&edev->dev);
+	return rc;
 }
 
 static int __init eisa_request_resources (struct eisa_root_device *root,

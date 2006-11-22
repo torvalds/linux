@@ -222,7 +222,7 @@ static void balance_dirty_pages(struct address_space *mapping)
 			if (pages_written >= write_chunk)
 				break;		/* We've done our duty */
 		}
-		blk_congestion_wait(WRITE, HZ/10);
+		congestion_wait(WRITE, HZ/10);
 	}
 
 	if (nr_reclaimable + global_page_state(NR_WRITEBACK)
@@ -314,7 +314,7 @@ void throttle_vm_writeout(void)
                 if (global_page_state(NR_UNSTABLE_NFS) +
 			global_page_state(NR_WRITEBACK) <= dirty_thresh)
                         	break;
-                blk_congestion_wait(WRITE, HZ/10);
+                congestion_wait(WRITE, HZ/10);
         }
 }
 
@@ -351,7 +351,7 @@ static void background_writeout(unsigned long _min_pages)
 		min_pages -= MAX_WRITEBACK_PAGES - wbc.nr_to_write;
 		if (wbc.nr_to_write > 0 || wbc.pages_skipped > 0) {
 			/* Wrote less than expected */
-			blk_congestion_wait(WRITE, HZ/10);
+			congestion_wait(WRITE, HZ/10);
 			if (!wbc.encountered_congestion)
 				break;
 		}
@@ -422,7 +422,7 @@ static void wb_kupdate(unsigned long arg)
 		writeback_inodes(&wbc);
 		if (wbc.nr_to_write > 0) {
 			if (wbc.encountered_congestion)
-				blk_congestion_wait(WRITE, HZ/10);
+				congestion_wait(WRITE, HZ/10);
 			else
 				break;	/* All the old data is written */
 		}
@@ -954,15 +954,6 @@ int test_set_page_writeback(struct page *page)
 
 }
 EXPORT_SYMBOL(test_set_page_writeback);
-
-/*
- * Wakes up tasks that are being throttled due to writeback congestion
- */
-void writeback_congestion_end(void)
-{
-	blk_congestion_end(WRITE);
-}
-EXPORT_SYMBOL(writeback_congestion_end);
 
 /*
  * Return true if any of the pages in the mapping are marged with the

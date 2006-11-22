@@ -9,15 +9,19 @@
 
 extern void __init pcibios_init_platform(void);
 
+static struct ipr_data titan_ipr_map[] = {
+	{ TITAN_IRQ_WAN,	IRL0_IPR_ADDR,	IRL0_IPR_POS,	IRL0_PRIORITY },
+	{ TITAN_IRQ_LAN,	IRL1_IPR_ADDR,	IRL1_IPR_POS,	IRL1_PRIORITY },
+	{ TITAN_IRQ_MPCIA,	IRL2_IPR_ADDR,	IRL2_IPR_POS,	IRL2_PRIORITY },
+	{ TITAN_IRQ_USB,	IRL3_IPR_ADDR,	IRL3_IPR_POS,	IRL3_PRIORITY },
+};
+
 static void __init init_titan_irq(void)
 {
 	/* enable individual interrupt mode for externals */
 	ctrl_outw(ctrl_inw(INTC_ICR) | INTC_ICR_IRLM, INTC_ICR);
 
-	make_ipr_irq( TITAN_IRQ_WAN,   IRL0_IPR_ADDR, IRL0_IPR_POS, IRL0_PRIORITY); /* PCIRQ0 */
-	make_ipr_irq( TITAN_IRQ_LAN,   IRL1_IPR_ADDR, IRL1_IPR_POS, IRL1_PRIORITY); /* PCIRQ1 */
-	make_ipr_irq( TITAN_IRQ_MPCIA, IRL2_IPR_ADDR, IRL2_IPR_POS, IRL2_PRIORITY); /* PCIRQ2 */
-	make_ipr_irq( TITAN_IRQ_USB,   IRL3_IPR_ADDR, IRL3_IPR_POS, IRL3_PRIORITY); /* PCIRQ3 */
+	make_ipr_irq(titan_ipr_map, ARRAY_SIZE(titan_ipr_map));
 }
 
 struct sh_machine_vector mv_titan __initmv = {

@@ -126,6 +126,7 @@ void auth_domain_put(struct auth_domain *dom)
 	if (atomic_dec_and_lock(&dom->ref.refcount, &auth_domain_lock)) {
 		hlist_del(&dom->hash);
 		dom->flavour->domain_release(dom);
+		spin_unlock(&auth_domain_lock);
 	}
 }
 
@@ -147,10 +148,8 @@ auth_domain_lookup(char *name, struct auth_domain *new)
 			return hp;
 		}
 	}
-	if (new) {
+	if (new)
 		hlist_add_head(&new->hash, head);
-		kref_get(&new->ref);
-	}
 	spin_unlock(&auth_domain_lock);
 	return new;
 }

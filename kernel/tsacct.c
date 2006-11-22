@@ -36,7 +36,7 @@ void bacct_add_tsk(struct taskstats *stats, struct task_struct *tsk)
 
 	/* calculate task elapsed time in timespec */
 	do_posix_clock_monotonic_gettime(&uptime);
-	ts = timespec_sub(uptime, current->group_leader->start_time);
+	ts = timespec_sub(uptime, tsk->start_time);
 	/* rebase elapsed time to usec */
 	ac_etime = timespec_to_ns(&ts);
 	do_div(ac_etime, NSEC_PER_USEC);
@@ -58,7 +58,10 @@ void bacct_add_tsk(struct taskstats *stats, struct task_struct *tsk)
 	stats->ac_uid	 = tsk->uid;
 	stats->ac_gid	 = tsk->gid;
 	stats->ac_pid	 = tsk->pid;
-	stats->ac_ppid	 = (tsk->parent) ? tsk->parent->pid : 0;
+	rcu_read_lock();
+	stats->ac_ppid	 = pid_alive(tsk) ?
+				rcu_dereference(tsk->real_parent)->tgid : 0;
+	rcu_read_unlock();
 	stats->ac_utime	 = cputime_to_msecs(tsk->utime) * USEC_PER_MSEC;
 	stats->ac_stime	 = cputime_to_msecs(tsk->stime) * USEC_PER_MSEC;
 	stats->ac_minflt = tsk->min_flt;
@@ -77,13 +80,17 @@ void bacct_add_tsk(struct taskstats *stats, struct task_struct *tsk)
  */
 void xacct_add_tsk(struct taskstats *stats, struct task_struct *p)
 {
+	struct mm_struct *mm;
+
 	/* convert pages-jiffies to Mbyte-usec */
 	stats->coremem = jiffies_to_usecs(p->acct_rss_mem1) * PAGE_SIZE / MB;
 	stats->virtmem = jiffies_to_usecs(p->acct_vm_mem1) * PAGE_SIZE / MB;
-	if (p->mm) {
+	mm = get_task_mm(p);
+	if (mm) {
 		/* adjust to KB unit */
-		stats->hiwater_rss   = p->mm->hiwater_rss * PAGE_SIZE / KB;
-		stats->hiwater_vm    = p->mm->hiwater_vm * PAGE_SIZE / KB;
+		stats->hiwater_rss   = mm->hiwater_rss * PAGE_SIZE / KB;
+		stats->hiwater_vm    = mm->hiwater_vm * PAGE_SIZE / KB;
+		mmput(mm);
 	}
 	stats->read_char	= p->rchar;
 	stats->write_char	= p->wchar;

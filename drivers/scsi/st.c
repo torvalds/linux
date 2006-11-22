@@ -1177,7 +1177,10 @@ static int st_open(struct inode *inode, struct file *filp)
 		goto err_out;
 	if ((filp->f_flags & O_NONBLOCK) == 0 &&
 	    retval != CHKRES_READY) {
-		retval = (-EIO);
+		if (STp->ready == NO_TAPE)
+			retval = (-ENOMEDIUM);
+		else
+			retval = (-EIO);
 		goto err_out;
 	}
 	return 0;

@@ -68,8 +68,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.66"
-#define DRV_MODULE_RELDATE	"September 23, 2006"
+#define DRV_MODULE_VERSION	"3.69"
+#define DRV_MODULE_RELDATE	"November 15, 2006"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -129,7 +129,7 @@
 #define RX_JUMBO_PKT_BUF_SZ	(9046 + tp->rx_offset + 64)
 
 /* minimum number of free TX descriptors required to wake up TX process */
-#define TG3_TX_WAKEUP_THRESH		(TG3_TX_RING_SIZE / 4)
+#define TG3_TX_WAKEUP_THRESH(tp)		((tp)->tx_pending / 4)
 
 /* number of ETHTOOL_GSTATS u64's */
 #define TG3_NUM_STATS		(sizeof(struct tg3_ethtool_stats)/sizeof(u64))
@@ -3075,10 +3075,10 @@ static void tg3_tx(struct tg3 *tp)
 	smp_mb();
 
 	if (unlikely(netif_queue_stopped(tp->dev) &&
-		     (tg3_tx_avail(tp) > TG3_TX_WAKEUP_THRESH))) {
+		     (tg3_tx_avail(tp) > TG3_TX_WAKEUP_THRESH(tp)))) {
 		netif_tx_lock(tp->dev);
 		if (netif_queue_stopped(tp->dev) &&
-		    (tg3_tx_avail(tp) > TG3_TX_WAKEUP_THRESH))
+		    (tg3_tx_avail(tp) > TG3_TX_WAKEUP_THRESH(tp)))
 			netif_wake_queue(tp->dev);
 		netif_tx_unlock(tp->dev);
 	}
@@ -3928,7 +3928,7 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tp->tx_prod = entry;
 	if (unlikely(tg3_tx_avail(tp) <= (MAX_SKB_FRAGS + 1))) {
 		netif_stop_queue(dev);
-		if (tg3_tx_avail(tp) > TG3_TX_WAKEUP_THRESH)
+		if (tg3_tx_avail(tp) > TG3_TX_WAKEUP_THRESH(tp))
 			netif_wake_queue(tp->dev);
 	}
 
@@ -4143,7 +4143,7 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 	tp->tx_prod = entry;
 	if (unlikely(tg3_tx_avail(tp) <= (MAX_SKB_FRAGS + 1))) {
 		netif_stop_queue(dev);
-		if (tg3_tx_avail(tp) > TG3_TX_WAKEUP_THRESH)
+		if (tg3_tx_avail(tp) > TG3_TX_WAKEUP_THRESH(tp))
 			netif_wake_queue(tp->dev);
 	}
 
@@ -4728,10 +4728,11 @@ static int tg3_poll_fw(struct tg3 *tp)
 	u32 val;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
-		for (i = 0; i < 400; i++) {
+		/* Wait up to 20ms for init done. */
+		for (i = 0; i < 200; i++) {
 			if (tr32(VCPU_STATUS) & VCPU_STATUS_INIT_DONE)
 				return 0;
-			udelay(10);
+			udelay(100);
 		}
 		return -ENODEV;
 	}
@@ -6014,7 +6015,7 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		tg3_abort_hw(tp, 1);
 	}
 
-	if ((tp->tg3_flags2 & TG3_FLG2_MII_SERDES) && reset_phy)
+	if (reset_phy)
 		tg3_phy_reset(tp);
 
 	err = tg3_chip_reset(tp);
@@ -6574,7 +6575,7 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		tw32(GRC_LOCAL_CTRL, tp->grc_local_ctrl);
 	}
 
-	err = tg3_setup_phy(tp, reset_phy);
+	err = tg3_setup_phy(tp, 0);
 	if (err)
 		return err;
 
@@ -6978,8 +6979,10 @@ static int tg3_open(struct net_device *dev)
 	tg3_full_lock(tp, 0);
 
 	err = tg3_set_power_state(tp, PCI_D0);
-	if (err)
+	if (err) {
+		tg3_full_unlock(tp);
 		return err;
+	}
 
 	tg3_disable_ints(tp);
 	tp->tg3_flags &= ~TG3_FLAG_INIT_COMPLETE;
@@ -8106,7 +8109,10 @@ static int tg3_set_ringparam(struct net_device *dev, struct ethtool_ringparam *e
 
 	if ((ering->rx_pending > TG3_RX_RING_SIZE - 1) ||
 	    (ering->rx_jumbo_pending > TG3_RX_JUMBO_RING_SIZE - 1) ||
-	    (ering->tx_pending > TG3_TX_RING_SIZE - 1))
+	    (ering->tx_pending > TG3_TX_RING_SIZE - 1) ||
+	    (ering->tx_pending <= MAX_SKB_FRAGS) ||
+	    ((tp->tg3_flags2 & TG3_FLG2_HW_TSO_1_BUG) &&
+	     (ering->tx_pending <= (MAX_SKB_FRAGS * 3))))
 		return -EINVAL;
 
 	if (netif_running(dev)) {
@@ -10209,7 +10215,7 @@ skip_phy_reset:
 static void __devinit tg3_read_partno(struct tg3 *tp)
 {
 	unsigned char vpd_data[256];
-	int i;
+	unsigned int i;
 	u32 magic;
 
 	if (tg3_nvram_read_swab(tp, 0x0, &magic))
@@ -10255,9 +10261,9 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 	}
 
 	/* Now parse and find the part number. */
-	for (i = 0; i < 256; ) {
+	for (i = 0; i < 254; ) {
 		unsigned char val = vpd_data[i];
-		int block_end;
+		unsigned int block_end;
 
 		if (val == 0x82 || val == 0x91) {
 			i = (i + 3 +
@@ -10273,21 +10279,26 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 			     (vpd_data[i + 1] +
 			      (vpd_data[i + 2] << 8)));
 		i += 3;
-		while (i < block_end) {
+
+		if (block_end > 256)
+			goto out_not_found;
+
+		while (i < (block_end - 2)) {
 			if (vpd_data[i + 0] == 'P' &&
 			    vpd_data[i + 1] == 'N') {
 				int partno_len = vpd_data[i + 2];
 
-				if (partno_len > 24)
+				i += 3;
+				if (partno_len > 24 || (partno_len + i) > 256)
 					goto out_not_found;
 
 				memcpy(tp->board_part_number,
-				       &vpd_data[i + 3],
-				       partno_len);
+				       &vpd_data[i], partno_len);
 
 				/* Success. */
 				return;
 			}
+			i += 3 + vpd_data[i + 2];
 		}
 
 		/* Part number not found. */
@@ -10357,7 +10368,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	u32 pci_state_reg, grc_misc_cfg;
 	u32 val;
 	u16 pci_cmd;
-	int err;
+	int err, pcie_cap;
 
 	/* Force memory write invalidate off.  If we leave it on,
 	 * then on 5700_BX chips we have to enable a workaround.
@@ -10532,8 +10543,19 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5906)
 		tp->tg3_flags2 |= TG3_FLG2_JUMBO_CAPABLE;
 
-	if (pci_find_capability(tp->pdev, PCI_CAP_ID_EXP) != 0)
+	pcie_cap = pci_find_capability(tp->pdev, PCI_CAP_ID_EXP);
+	if (pcie_cap != 0) {
 		tp->tg3_flags2 |= TG3_FLG2_PCI_EXPRESS;
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
+			u16 lnkctl;
+
+			pci_read_config_word(tp->pdev,
+					     pcie_cap + PCI_EXP_LNKCTL,
+					     &lnkctl);
+			if (lnkctl & PCI_EXP_LNKCTL_CLKREQ_EN)
+				tp->tg3_flags2 &= ~TG3_FLG2_HW_TSO_2;
+		}
+	}
 
 	/* If we have an AMD 762 or VIA K8T800 chipset, write
 	 * reordering to the mailbox registers done by the host
@@ -11800,6 +11822,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701 ||
 	    tp->pci_chip_rev_id == CHIPREV_ID_5705_A0 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906 ||
 	    (tp->tg3_flags & TG3_FLAG_ENABLE_ASF) != 0) {
 		tp->tg3_flags2 &= ~TG3_FLG2_TSO_CAPABLE;
 	} else {

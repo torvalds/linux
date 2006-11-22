@@ -45,7 +45,8 @@
 	.section .text
 	.align	5
 
-#if defined(CONFIG_PM) || defined(CONFIG_CPU_FREQ_PMAC)
+#if defined(CONFIG_PM) || defined(CONFIG_CPU_FREQ_PMAC) || \
+    (defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PPC32))
 
 /* This gets called by via-pmu.c late during the sleep process.
  * The PMU was already send the sleep command and will shut us down

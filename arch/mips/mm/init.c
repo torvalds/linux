@@ -30,11 +30,34 @@
 #include <asm/cachectl.h>
 #include <asm/cpu.h>
 #include <asm/dma.h>
+#include <asm/kmap_types.h>
 #include <asm/mmu_context.h>
 #include <asm/sections.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
+#include <asm/fixmap.h>
+
+/* Atomicity and interruptability */
+#ifdef CONFIG_MIPS_MT_SMTC
+
+#include <asm/mipsmtregs.h>
+
+#define ENTER_CRITICAL(flags) \
+	{ \
+	unsigned int mvpflags; \
+	local_irq_save(flags);\
+	mvpflags = dvpe()
+#define EXIT_CRITICAL(flags) \
+	evpe(mvpflags); \
+	local_irq_restore(flags); \
+	}
+#else
+
+#define ENTER_CRITICAL(flags) local_irq_save(flags)
+#define EXIT_CRITICAL(flags) local_irq_restore(flags)
+
+#endif /* CONFIG_MIPS_MT_SMTC */
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
@@ -80,12 +103,141 @@ unsigned long setup_zero_pages(void)
 	return 1UL << order;
 }
 
-#ifdef CONFIG_HIGHMEM
-pte_t *kmap_pte;
-pgprot_t kmap_prot;
+/*
+ * These are almost like kmap_atomic / kunmap_atmic except they take an
+ * additional address argument as the hint.
+ */
 
 #define kmap_get_fixmap_pte(vaddr)					\
 	pte_offset_kernel(pmd_offset(pud_offset(pgd_offset_k(vaddr), (vaddr)), (vaddr)), (vaddr))
+
+#ifdef CONFIG_MIPS_MT_SMTC
+static pte_t *kmap_coherent_pte;
+static void __init kmap_coherent_init(void)
+{
+	unsigned long vaddr;
+
+	/* cache the first coherent kmap pte */
+	vaddr = __fix_to_virt(FIX_CMAP_BEGIN);
+	kmap_coherent_pte = kmap_get_fixmap_pte(vaddr);
+}
+#else
+static inline void kmap_coherent_init(void) {}
+#endif
+
+static inline void *kmap_coherent(struct page *page, unsigned long addr)
+{
+	enum fixed_addresses idx;
+	unsigned long vaddr, flags, entrylo;
+	unsigned long old_ctx;
+	pte_t pte;
+	int tlbidx;
+
+	inc_preempt_count();
+	idx = (addr >> PAGE_SHIFT) & (FIX_N_COLOURS - 1);
+#ifdef CONFIG_MIPS_MT_SMTC
+	idx += FIX_N_COLOURS * smp_processor_id();
+#endif
+	vaddr = __fix_to_virt(FIX_CMAP_END - idx);
+	pte = mk_pte(page, PAGE_KERNEL);
+#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32_R1)
+	entrylo = pte.pte_high;
+#else
+	entrylo = pte_val(pte) >> 6;
+#endif
+
+	ENTER_CRITICAL(flags);
+	old_ctx = read_c0_entryhi();
+	write_c0_entryhi(vaddr & (PAGE_MASK << 1));
+	write_c0_entrylo0(entrylo);
+	write_c0_entrylo1(entrylo);
+#ifdef CONFIG_MIPS_MT_SMTC
+	set_pte(kmap_coherent_pte - (FIX_CMAP_END - idx), pte);
+	/* preload TLB instead of local_flush_tlb_one() */
+	mtc0_tlbw_hazard();
+	tlb_probe();
+	tlb_probe_hazard();
+	tlbidx = read_c0_index();
+	mtc0_tlbw_hazard();
+	if (tlbidx < 0)
+		tlb_write_random();
+	else
+		tlb_write_indexed();
+#else
+	tlbidx = read_c0_wired();
+	write_c0_wired(tlbidx + 1);
+	write_c0_index(tlbidx);
+	mtc0_tlbw_hazard();
+	tlb_write_indexed();
+#endif
+	tlbw_use_hazard();
+	write_c0_entryhi(old_ctx);
+	EXIT_CRITICAL(flags);
+
+	return (void*) vaddr;
+}
+
+#define UNIQUE_ENTRYHI(idx) (CKSEG0 + ((idx) << (PAGE_SHIFT + 1)))
+
+static inline void kunmap_coherent(struct page *page)
+{
+#ifndef CONFIG_MIPS_MT_SMTC
+	unsigned int wired;
+	unsigned long flags, old_ctx;
+
+	ENTER_CRITICAL(flags);
+	old_ctx = read_c0_entryhi();
+	wired = read_c0_wired() - 1;
+	write_c0_wired(wired);
+	write_c0_index(wired);
+	write_c0_entryhi(UNIQUE_ENTRYHI(wired));
+	write_c0_entrylo0(0);
+	write_c0_entrylo1(0);
+	mtc0_tlbw_hazard();
+	tlb_write_indexed();
+	tlbw_use_hazard();
+	write_c0_entryhi(old_ctx);
+	EXIT_CRITICAL(flags);
+#endif
+	dec_preempt_count();
+	preempt_check_resched();
+}
+
+void copy_to_user_page(struct vm_area_struct *vma,
+	struct page *page, unsigned long vaddr, void *dst, const void *src,
+	unsigned long len)
+{
+	if (cpu_has_dc_aliases) {
+		void *vto = kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
+		memcpy(vto, src, len);
+		kunmap_coherent(page);
+	} else
+		memcpy(dst, src, len);
+	if ((vma->vm_flags & VM_EXEC) && !cpu_has_ic_fills_f_dc)
+		flush_cache_page(vma, vaddr, page_to_pfn(page));
+}
+
+EXPORT_SYMBOL(copy_to_user_page);
+
+void copy_from_user_page(struct vm_area_struct *vma,
+	struct page *page, unsigned long vaddr, void *dst, const void *src,
+	unsigned long len)
+{
+	if (cpu_has_dc_aliases) {
+		void *vfrom =
+			kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
+		memcpy(dst, vfrom, len);
+		kunmap_coherent(page);
+	} else
+		memcpy(dst, src, len);
+}
+
+EXPORT_SYMBOL(copy_from_user_page);
+
+
+#ifdef CONFIG_HIGHMEM
+pte_t *kmap_pte;
+pgprot_t kmap_prot;
 
 static void __init kmap_init(void)
 {
@@ -97,11 +249,12 @@ static void __init kmap_init(void)
 
 	kmap_prot = PAGE_KERNEL;
 }
+#endif /* CONFIG_HIGHMEM */
 
-#ifdef CONFIG_32BIT
 void __init fixrange_init(unsigned long start, unsigned long end,
 	pgd_t *pgd_base)
 {
+#if defined(CONFIG_HIGHMEM) || defined(CONFIG_MIPS_MT_SMTC)
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
@@ -122,7 +275,7 @@ void __init fixrange_init(unsigned long start, unsigned long end,
 			for (; (k < PTRS_PER_PMD) && (vaddr != end); pmd++, k++) {
 				if (pmd_none(*pmd)) {
 					pte = (pte_t *) alloc_bootmem_low_pages(PAGE_SIZE);
-					set_pmd(pmd, __pmd(pte));
+					set_pmd(pmd, __pmd((unsigned long)pte));
 					if (pte != pte_offset_kernel(pmd, 0))
 						BUG();
 				}
@@ -132,9 +285,8 @@ void __init fixrange_init(unsigned long start, unsigned long end,
 		}
 		j = 0;
 	}
+#endif
 }
-#endif /* CONFIG_32BIT */
-#endif /* CONFIG_HIGHMEM */
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 extern void pagetable_init(void);
@@ -175,6 +327,7 @@ void __init paging_init(void)
 #ifdef CONFIG_HIGHMEM
 	kmap_init();
 #endif
+	kmap_coherent_init();
 
 	max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
 	low = max_low_pfn;

@@ -34,9 +34,9 @@ MODULE_PARM_DESC(ql4xdontresethba,
 		 " default it will reset hba :0"
 		 " set to 1 to avoid resetting HBA");
 
-int qla4_extended_error_logging = 0; /* 0 = off, 1 = log errors */
-module_param(qla4_extended_error_logging, int, S_IRUGO | S_IRUSR);
-MODULE_PARM_DESC(qla4_extended_error_logging,
+int ql4xextended_error_logging = 0; /* 0 = off, 1 = log errors */
+module_param(ql4xextended_error_logging, int, S_IRUGO | S_IRUSR);
+MODULE_PARM_DESC(ql4xextended_error_logging,
 		 "Option to enable extended error logging, "
 		 "Default is 0 - no logging, 1 - debug logging");
 
@@ -919,18 +919,11 @@ static int qla4xxx_recover_adapter(struct scsi_qla_host *ha,
 	if (status == QLA_SUCCESS) {
 		DEBUG2(printk("scsi%ld: %s - Performing soft reset..\n",
 			      ha->host_no, __func__));
-		status = qla4xxx_soft_reset(ha);
-	}
-	/* FIXMEkaren: Do we want to keep interrupts enabled and process
-	   AENs after soft reset */
-
-	/* If firmware (SOFT) reset failed, or if all outstanding
-	 * commands have not returned, then do a HARD reset.
-	 */
-	if (status == QLA_ERROR) {
-		DEBUG2(printk("scsi%ld: %s - Performing hard reset..\n",
-			      ha->host_no, __func__));
-		status = qla4xxx_hard_reset(ha);
+		qla4xxx_flush_active_srbs(ha);
+		if (ql4xxx_lock_drvr_wait(ha) == QLA_SUCCESS)
+			status = qla4xxx_soft_reset(ha);
+		else
+			status = QLA_ERROR;
 	}
 
 	/* Flush any pending ddb changed AENs */
@@ -1016,13 +1009,9 @@ static void qla4xxx_do_dpc(void *data)
 	struct scsi_qla_host *ha = (struct scsi_qla_host *) data;
 	struct ddb_entry *ddb_entry, *dtemp;
 
-	DEBUG2(printk("scsi%ld: %s: DPC handler waking up.\n",
-		      ha->host_no, __func__));
-
-	DEBUG2(printk("scsi%ld: %s: ha->flags = 0x%08lx\n",
-		      ha->host_no, __func__, ha->flags));
-	DEBUG2(printk("scsi%ld: %s: ha->dpc_flags = 0x%08lx\n",
-		      ha->host_no, __func__, ha->dpc_flags));
+	DEBUG2(printk("scsi%ld: %s: DPC handler waking up."
+		"flags = 0x%08lx, dpc_flags = 0x%08lx\n",
+		ha->host_no, __func__, ha->flags, ha->dpc_flags));
 
 	/* Initialization not yet finished. Don't do anything yet. */
 	if (!test_bit(AF_INIT_DONE, &ha->flags))
@@ -1032,16 +1021,8 @@ static void qla4xxx_do_dpc(void *data)
 	    test_bit(DPC_RESET_HA, &ha->dpc_flags) ||
 	    test_bit(DPC_RESET_HA_INTR, &ha->dpc_flags) ||
 	    test_bit(DPC_RESET_HA_DESTROY_DDB_LIST, &ha->dpc_flags)) {
-		if (test_bit(DPC_RESET_HA_DESTROY_DDB_LIST, &ha->dpc_flags))
-			/*
-			 * dg 09/23 Never initialize ddb list
-			 * once we up and running
-			 * qla4xxx_recover_adapter(ha,
-			 *    REBUILD_DDB_LIST);
-			 */
-			qla4xxx_recover_adapter(ha, PRESERVE_DDB_LIST);
-
-		if (test_bit(DPC_RESET_HA, &ha->dpc_flags))
+		if (test_bit(DPC_RESET_HA_DESTROY_DDB_LIST, &ha->dpc_flags) ||
+			test_bit(DPC_RESET_HA, &ha->dpc_flags))
 			qla4xxx_recover_adapter(ha, PRESERVE_DDB_LIST);
 
 		if (test_and_clear_bit(DPC_RESET_HA_INTR, &ha->dpc_flags)) {
@@ -1122,7 +1103,8 @@ static void qla4xxx_free_adapter(struct scsi_qla_host *ha)
 		destroy_workqueue(ha->dpc_thread);
 
 	/* Issue Soft Reset to put firmware in unknown state */
-	qla4xxx_soft_reset(ha);
+	if (ql4xxx_lock_drvr_wait(ha) == QLA_SUCCESS)
+		qla4xxx_soft_reset(ha);
 
 	/* Remove timer thread, if present */
 	if (ha->timer_active)
@@ -1714,7 +1696,7 @@ static int __init qla4xxx_module_init(void)
 
 	/* Derive version string. */
 	strcpy(qla4xxx_version_str, QLA4XXX_DRIVER_VERSION);
-	if (qla4_extended_error_logging)
+	if (ql4xextended_error_logging)
 		strcat(qla4xxx_version_str, "-debug");
 
 	qla4xxx_scsi_transport =
@@ -1724,13 +1706,13 @@ static int __init qla4xxx_module_init(void)
 		goto release_srb_cache;
 	}
 
-	printk(KERN_INFO "QLogic iSCSI HBA Driver\n");
 	ret = pci_register_driver(&qla4xxx_pci_driver);
 	if (ret)
 		goto unregister_transport;
 
 	printk(KERN_INFO "QLogic iSCSI HBA Driver\n");
 	return 0;
+
 unregister_transport:
 	iscsi_unregister_transport(&qla4xxx_iscsi_transport);
 release_srb_cache:

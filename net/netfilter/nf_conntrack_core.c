@@ -1520,9 +1520,10 @@ get_next_corpse(int (*iter)(struct nf_conn *i, void *data),
 		if (iter(ct, data))
 			goto found;
 	}
+	write_unlock_bh(&nf_conntrack_lock);
 	return NULL;
 found:
-	atomic_inc(&nf_ct_tuplehash_to_ctrack(h)->ct_general.use);
+	atomic_inc(&ct->ct_general.use);
 	write_unlock_bh(&nf_conntrack_lock);
 	return ct;
 }

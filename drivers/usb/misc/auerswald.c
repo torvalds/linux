@@ -780,7 +780,7 @@ static int auerbuf_setup (pauerbufctl_t bcp, unsigned int numElements, unsigned 
 
 bl_fail:/* not enough memory. Free allocated elements */
         dbg ("auerbuf_setup: no more memory");
-	kfree(bep);
+	auerbuf_free(bep);
         auerbuf_free_buffers (bcp);
         return -ENOMEM;
 }

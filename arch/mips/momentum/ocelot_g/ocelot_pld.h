@@ -23,8 +23,8 @@
 #define OCELOT_REG_INTSET (12)
 #define OCELOT_REG_INTCLR (13)
 
-#define OCELOT_PLD_WRITE(x, y) writeb(x, OCELOT_CS0_ADDR + OCELOT_REG_##y)
-#define OCELOT_PLD_READ(x) readb(OCELOT_CS0_ADDR + OCELOT_REG_##x)
-
+#define __PLD_REG_TO_ADDR(reg) ((void *) OCELOT_CS0_ADDR + OCELOT_REG_##reg)
+#define OCELOT_PLD_WRITE(x, reg) writeb(x, __PLD_REG_TO_ADDR(reg))
+#define OCELOT_PLD_READ(reg) readb(__PLD_REG_TO_ADDR(reg))
 
 #endif /* __MOMENCO_OCELOT_PLD_H__ */

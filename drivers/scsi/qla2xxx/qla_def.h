@@ -1545,6 +1545,9 @@ typedef struct fc_port {
 	spinlock_t rport_lock;
 	struct fc_rport *rport, *drport;
 	u32 supported_classes;
+
+	unsigned long last_queue_full;
+	unsigned long last_ramp_up;
 } fc_port_t;
 
 /*
@@ -2255,6 +2258,7 @@ typedef struct scsi_qla_host {
 	uint16_t	mgmt_svr_loop_id;
 
         uint32_t	login_retry_count;
+	int		max_q_depth;
 
 	/* Fibre Channel Device List. */
 	struct list_head	fcports;

@@ -266,7 +266,7 @@ struct nfs_writeargs {
 
 struct nfs_writeverf {
 	enum nfs3_stable_how	committed;
-	__u32			verifier[2];
+	__be32			verifier[2];
 };
 
 struct nfs_writeres {
@@ -420,7 +420,7 @@ struct nfs3_createargs {
 	unsigned int		len;
 	struct iattr *		sattr;
 	enum nfs3_createmode	createmode;
-	__u32			verifier[2];
+	__be32			verifier[2];
 };
 
 struct nfs3_mkdirargs {
@@ -467,7 +467,7 @@ struct nfs3_linkargs {
 struct nfs3_readdirargs {
 	struct nfs_fh *		fh;
 	__u64			cookie;
-	__u32			verf[2];
+	__be32			verf[2];
 	int			plus;
 	unsigned int            count;
 	struct page **		pages;
@@ -503,7 +503,7 @@ struct nfs3_linkres {
 
 struct nfs3_readdirres {
 	struct nfs_fattr *	dir_attr;
-	__u32 *			verf;
+	__be32 *		verf;
 	int			plus;
 };
 
@@ -811,7 +811,7 @@ struct nfs_rpc_ops {
 	int	(*pathconf) (struct nfs_server *, struct nfs_fh *,
 			     struct nfs_pathconf *);
 	int	(*set_capabilities)(struct nfs_server *, struct nfs_fh *);
-	u32 *	(*decode_dirent)(u32 *, struct nfs_entry *, int plus);
+	__be32 *(*decode_dirent)(__be32 *, struct nfs_entry *, int plus);
 	void	(*read_setup)   (struct nfs_read_data *);
 	int	(*read_done)  (struct rpc_task *, struct nfs_read_data *);
 	void	(*write_setup)  (struct nfs_write_data *, int how);

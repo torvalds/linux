@@ -109,7 +109,7 @@ static LIST_HEAD(appldata_ops_list);
  *
  * schedule work and reschedule timer
  */
-static void appldata_timer_function(unsigned long data, struct pt_regs *regs)
+static void appldata_timer_function(unsigned long data)
 {
 	P_DEBUG("   -= Timer =-\n");
 	P_DEBUG("CPU: %i, expire_count: %i\n", smp_processor_id(),
@@ -310,6 +310,7 @@ appldata_interval_handler(ctl_table *ctl, int write, struct file *filp,
 	if (copy_from_user(buf, buffer, len > sizeof(buf) ? sizeof(buf) : len)) {
 		return -EFAULT;
 	}
+	interval = 0;
 	sscanf(buf, "%i", &interval);
 	if (interval <= 0) {
 		P_ERROR("Timer CPU interval has to be > 0!\n");

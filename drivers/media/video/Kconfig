@@ -186,7 +186,7 @@ config VIDEO_KS0127
 
 config VIDEO_SAA7110
 	tristate "Philips SAA7110 video decoder"
-	depends on VIDEO_V4L1
+	depends on VIDEO_V4L1 && I2C
 	---help---
 	  Support for the Philips SAA7110 video decoders.
 
@@ -676,6 +676,8 @@ config VIDEO_M32R_AR_M64278
 
 menu "V4L USB devices"
 	depends on USB && VIDEO_DEV
+
+source "drivers/media/video/pvrusb2/Kconfig"
 
 source "drivers/media/video/em28xx/Kconfig"
 

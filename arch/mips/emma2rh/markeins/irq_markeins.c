@@ -86,7 +86,7 @@ void emma2rh_sw_irq_init(u32 irq_base)
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = NULL;
 		irq_desc[i].depth = 2;
-		irq_desc[i].handler = &emma2rh_sw_irq_controller;
+		irq_desc[i].chip = &emma2rh_sw_irq_controller;
 	}
 
 	emma2rh_sw_irq_base = irq_base;
@@ -166,7 +166,7 @@ void emma2rh_gpio_irq_init(u32 irq_base)
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = NULL;
 		irq_desc[i].depth = 2;
-		irq_desc[i].handler = &emma2rh_gpio_irq_controller;
+		irq_desc[i].chip = &emma2rh_gpio_irq_controller;
 	}
 
 	emma2rh_gpio_irq_base = irq_base;

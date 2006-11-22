@@ -141,7 +141,7 @@ static void qdi_data_xfer(struct ata_device *adev, unsigned char *buf, unsigned 
 				memcpy(&pad, buf + buflen - slop, slop);
 				outl(le32_to_cpu(pad), ap->ioaddr.data_addr);
 			} else {
-				pad = cpu_to_le16(inl(ap->ioaddr.data_addr));
+				pad = cpu_to_le32(inl(ap->ioaddr.data_addr));
 				memcpy(buf + buflen - slop, &pad, slop);
 			}
 		}

@@ -71,7 +71,7 @@ static struct hw_interrupt_type hd64461_irq_type = {
 	.end		= end_hd64461_irq,
 };
 
-static irqreturn_t hd64461_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t hd64461_interrupt(int irq, void *dev_id)
 {
 	printk(KERN_INFO
 	       "HD64461: spurious interrupt, nirr: 0x%x nimr: 0x%x\n",

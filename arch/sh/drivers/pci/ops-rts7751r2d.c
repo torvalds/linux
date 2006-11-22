@@ -10,28 +10,24 @@
  *
  * PCI initialization for the Renesas SH7751R RTS7751R2D board
  */
-
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/init.h>
-#include <linux/delay.h>
 #include <linux/pci.h>
-#include <linux/module.h>
-#include <asm/rts7751r2d/rts7751r2d.h>
-#include <asm/io.h>
+#include <linux/io.h>
+#include <asm/rts7751r2d.h>
 #include "pci-sh4.h"
+
+static u8 rts7751r2d_irq_tab[] __initdata = {
+	IRQ_PCISLOT1,
+	IRQ_PCISLOT2,
+	IRQ_PCMCIA,
+	IRQ_PCIETH,
+};
 
 int __init pcibios_map_platform_irq(struct pci_dev *pdev, u8 slot, u8 pin)
 {
-        switch (slot) {
-	case 0: return IRQ_PCISLOT1;	/* PCI Extend slot #1 */
-	case 1: return IRQ_PCISLOT2;	/* PCI Extend slot #2 */
-	case 2: return IRQ_PCMCIA;	/* PCI Cardbus Bridge */
-	case 3: return IRQ_PCIETH;	/* Realtek Ethernet controller */
-	default:
-		printk("PCI: Bad IRQ mapping request for slot %d\n", slot);
-		return -1;
-	}
+	return rts7751r2d_irq_tab[slot];
 }
 
 static struct resource sh7751_io_resource = {

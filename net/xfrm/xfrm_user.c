@@ -323,7 +323,7 @@ static void copy_from_user_state(struct xfrm_state *x, struct xfrm_usersa_info *
 	x->props.replay_window = p->replay_window;
 	x->props.reqid = p->reqid;
 	x->props.family = p->family;
-	x->props.saddr = p->saddr;
+	memcpy(&x->props.saddr, &p->saddr, sizeof(x->props.saddr));
 	x->props.flags = p->flags;
 }
 
@@ -545,7 +545,7 @@ static void copy_to_user_state(struct xfrm_state *x, struct xfrm_usersa_info *p)
 	memcpy(&p->lft, &x->lft, sizeof(p->lft));
 	memcpy(&p->curlft, &x->curlft, sizeof(p->curlft));
 	memcpy(&p->stats, &x->stats, sizeof(p->stats));
-	p->saddr = x->props.saddr;
+	memcpy(&p->saddr, &x->props.saddr, sizeof(p->saddr));
 	p->mode = x->props.mode;
 	p->replay_window = x->props.replay_window;
 	p->reqid = x->props.reqid;
@@ -1927,6 +1927,9 @@ static int xfrm_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *xt,
 	len = RTA_SPACE(sizeof(struct xfrm_user_tmpl) * xp->xfrm_nr);
 	len += NLMSG_SPACE(sizeof(struct xfrm_user_acquire));
 	len += RTA_SPACE(xfrm_user_sec_ctx_size(xp));
+#ifdef CONFIG_XFRM_SUB_POLICY
+	len += RTA_SPACE(sizeof(struct xfrm_userpolicy_type));
+#endif
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (skb == NULL)
 		return -ENOMEM;
@@ -1992,15 +1995,6 @@ static struct xfrm_policy *xfrm_compile_policy(struct sock *sk, int opt,
 	xp->type = XFRM_POLICY_TYPE_MAIN;
 	copy_templates(xp, ut, nr);
 
-	if (!xp->security) {
-		int err = security_xfrm_sock_policy_alloc(xp, sk);
-		if (err) {
-			kfree(xp);
-			*dir = err;
-			return NULL;
-		}
-	}
-
 	*dir = p->dir;
 
 	return xp;
@@ -2043,6 +2037,9 @@ static int xfrm_exp_policy_notify(struct xfrm_policy *xp, int dir, struct km_eve
 	len = RTA_SPACE(sizeof(struct xfrm_user_tmpl) * xp->xfrm_nr);
 	len += NLMSG_SPACE(sizeof(struct xfrm_user_polexpire));
 	len += RTA_SPACE(xfrm_user_sec_ctx_size(xp));
+#ifdef CONFIG_XFRM_SUB_POLICY
+	len += RTA_SPACE(sizeof(struct xfrm_userpolicy_type));
+#endif
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (skb == NULL)
 		return -ENOMEM;
@@ -2069,6 +2066,9 @@ static int xfrm_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *
 		len += RTA_SPACE(headlen);
 		headlen = sizeof(*id);
 	}
+#ifdef CONFIG_XFRM_SUB_POLICY
+	len += RTA_SPACE(sizeof(struct xfrm_userpolicy_type));
+#endif
 	len += NLMSG_SPACE(headlen);
 
 	skb = alloc_skb(len, GFP_ATOMIC);
@@ -2115,10 +2115,12 @@ static int xfrm_notify_policy_flush(struct km_event *c)
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
 	unsigned char *b;
+	int len = 0;
 #ifdef CONFIG_XFRM_SUB_POLICY
 	struct xfrm_userpolicy_type upt;
+	len += RTA_SPACE(sizeof(struct xfrm_userpolicy_type));
 #endif
-	int len = NLMSG_LENGTH(0);
+	len += NLMSG_LENGTH(0);
 
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (skb == NULL)

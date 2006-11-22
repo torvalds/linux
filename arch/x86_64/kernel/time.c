@@ -876,15 +876,6 @@ static struct irqaction irq0 = {
 	timer_interrupt, IRQF_DISABLED, CPU_MASK_NONE, "timer", NULL, NULL
 };
 
-static int __cpuinit
-time_cpu_notifier(struct notifier_block *nb, unsigned long action, void *hcpu)
-{
-	unsigned cpu = (unsigned long) hcpu;
-	if (action == CPU_ONLINE)
-		vsyscall_set_cpu(cpu);
-	return NOTIFY_DONE;
-}
-
 void __init time_init(void)
 {
 	if (nohpet)
@@ -925,8 +916,6 @@ void __init time_init(void)
 	vxtime.last_tsc = get_cycles_sync();
 	set_cyc2ns_scale(cpu_khz);
 	setup_irq(0, &irq0);
-	hotcpu_notifier(time_cpu_notifier, 0);
-	time_cpu_notifier(NULL, CPU_ONLINE, (void *)(long)smp_processor_id());
 
 #ifndef CONFIG_SMP
 	time_init_gtod();
@@ -948,7 +937,7 @@ __cpuinit int unsynchronized_tsc(void)
  	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) {
 #ifdef CONFIG_ACPI
 		/* But TSC doesn't tick in C3 so don't use it there */
-		if (acpi_fadt.length > 0 && acpi_fadt.plvl3_lat < 100)
+		if (acpi_fadt.length > 0 && acpi_fadt.plvl3_lat < 1000)
 			return 1;
 #endif
  		return 0;

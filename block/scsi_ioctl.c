@@ -246,10 +246,10 @@ static int sg_io(struct file *file, request_queue_t *q,
 		switch (hdr->dxfer_direction) {
 		default:
 			return -EINVAL;
-		case SG_DXFER_TO_FROM_DEV:
 		case SG_DXFER_TO_DEV:
 			writing = 1;
 			break;
+		case SG_DXFER_TO_FROM_DEV:
 		case SG_DXFER_FROM_DEV:
 			break;
 		}
@@ -286,9 +286,8 @@ static int sg_io(struct file *file, request_queue_t *q,
 	 * fill in request structure
 	 */
 	rq->cmd_len = hdr->cmd_len;
+	memset(rq->cmd, 0, BLK_MAX_CDB); /* ATAPI hates garbage after CDB */
 	memcpy(rq->cmd, cmd, hdr->cmd_len);
-	if (sizeof(rq->cmd) != hdr->cmd_len)
-		memset(rq->cmd + hdr->cmd_len, 0, sizeof(rq->cmd) - hdr->cmd_len);
 
 	memset(sense, 0, sizeof(sense));
 	rq->sense = sense;

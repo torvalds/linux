@@ -126,6 +126,10 @@ static void probe_other_fhcs(void)
 		int board;
 		u32 tmp;
 
+		if (dp->parent &&
+		    dp->parent->parent != NULL)
+			continue;
+
 		fhc = (struct linux_fhc *)
 			central_alloc_bootmem(sizeof(struct linux_fhc));
 		if (fhc == NULL)

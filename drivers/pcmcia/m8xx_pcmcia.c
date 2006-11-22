@@ -427,7 +427,7 @@ static int voltage_set(int slot, int vcc, int vpp)
 			reg |= BCSR1_PCCVCC1;
 			break;
 		default:
-			return 1;
+			goto out_unmap;
 	}
 
 	switch(vpp) {
@@ -438,15 +438,15 @@ static int voltage_set(int slot, int vcc, int vpp)
 			if(vcc == vpp)
 				reg |= BCSR1_PCCVPP1;
 			else
-				return 1;
+				goto out_unmap;
 			break;
 		case 120:
 			if ((vcc == 33) || (vcc == 50))
 				reg |= BCSR1_PCCVPP0;
 			else
-				return 1;
+				goto out_unmap;
 		default:
-			return 1;
+			goto out_unmap;
 	}
 
 	/* first, turn off all power */
@@ -457,6 +457,10 @@ static int voltage_set(int slot, int vcc, int vpp)
 
 	iounmap(bcsr_io);
 	return 0;
+
+out_unmap:
+	iounmap(bcsr_io);
+	return 1;
 }
 
 #define socket_get(_slot_) PCMCIA_SOCKET_KEY_5V

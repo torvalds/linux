@@ -239,6 +239,9 @@ status - Can be 'online' or 'offline'.
 
 type - The physical type of the channel path.
 
+shared - Whether the channel path is shared.
+
+cmg - The channel measurement group.
 
 3. System devices
 -----------------

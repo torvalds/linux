@@ -14,7 +14,7 @@
 
 #define NFSDBG_FACILITY NFSDBG_CALLBACK
  
-unsigned nfs4_callback_getattr(struct cb_getattrargs *args, struct cb_getattrres *res)
+__be32 nfs4_callback_getattr(struct cb_getattrargs *args, struct cb_getattrres *res)
 {
 	struct nfs_client *clp;
 	struct nfs_delegation *delegation;
@@ -55,11 +55,11 @@ out:
 	return res->status;
 }
 
-unsigned nfs4_callback_recall(struct cb_recallargs *args, void *dummy)
+__be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy)
 {
 	struct nfs_client *clp;
 	struct inode *inode;
-	unsigned res;
+	__be32 res;
 	
 	res = htonl(NFS4ERR_BADHANDLE);
 	clp = nfs_find_client(args->addr, 4);

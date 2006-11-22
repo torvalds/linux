@@ -184,7 +184,7 @@ void cpm_uart_freebuf(struct uart_cpm_port *pinfo)
 }
 
 /* Setup any dynamic params in the uart desc */
-int cpm_uart_init_portdesc(void)
+int __init cpm_uart_init_portdesc(void)
 {
 	pr_debug("CPM uart[-]:init portdesc\n");
 

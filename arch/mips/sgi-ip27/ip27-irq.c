@@ -354,29 +354,6 @@ static struct irq_chip bridge_irq_type = {
 	.end		= end_bridge_irq,
 };
 
-static unsigned long irq_map[NR_IRQS / BITS_PER_LONG];
-
-int allocate_irqno(void)
-{
-	int irq;
-
-again:
-	irq = find_first_zero_bit(irq_map, NR_IRQS);
-
-	if (irq >= NR_IRQS)
-		return -ENOSPC;
-
-	if (test_and_set_bit(irq, irq_map))
-		goto again;
-
-	return irq;
-}
-
-void free_irqno(unsigned int irq)
-{
-	clear_bit(irq, irq_map);
-}
-
 void __devinit register_bridge_irq(unsigned int irq)
 {
 	irq_desc[irq].status	= IRQ_DISABLED;

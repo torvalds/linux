@@ -266,9 +266,9 @@ static int snd_vx222_suspend(struct pci_dev *pci, pm_message_t state)
 	int err;
 
 	err = snd_vx_suspend(&vx->core, state);
-	pci_set_power_state(pci, PCI_D3hot);
 	pci_disable_device(pci);
 	pci_save_state(pci);
+	pci_set_power_state(pci, pci_choose_state(pci, state));
 	return err;
 }
 
@@ -277,9 +277,14 @@ static int snd_vx222_resume(struct pci_dev *pci)
 	struct snd_card *card = pci_get_drvdata(pci);
 	struct snd_vx222 *vx = card->private_data;
 
-	pci_restore_state(pci);
-	pci_enable_device(pci);
 	pci_set_power_state(pci, PCI_D0);
+	pci_restore_state(pci);
+	if (pci_enable_device(pci) < 0) {
+		printk(KERN_ERR "vx222: pci_enable_device failed, "
+		       "disabling device\n");
+		snd_card_disconnect(card);
+		return -EIO;
+	}
 	pci_set_master(pci);
 	return snd_vx_resume(&vx->core);
 }

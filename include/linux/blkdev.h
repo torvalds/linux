@@ -157,6 +157,7 @@ enum rq_cmd_type_bits {
 	REQ_TYPE_ATA_CMD,
 	REQ_TYPE_ATA_TASK,
 	REQ_TYPE_ATA_TASKFILE,
+	REQ_TYPE_ATA_PC,
 };
 
 /*
@@ -650,6 +651,26 @@ extern void blk_recount_segments(request_queue_t *, struct bio *);
 extern int scsi_cmd_ioctl(struct file *, struct gendisk *, unsigned int, void __user *);
 extern int sg_scsi_ioctl(struct file *, struct request_queue *,
 		struct gendisk *, struct scsi_ioctl_command __user *);
+
+/*
+ * A queue has just exitted congestion.  Note this in the global counter of
+ * congested queues, and wake up anyone who was waiting for requests to be
+ * put back.
+ */
+static inline void blk_clear_queue_congested(request_queue_t *q, int rw)
+{
+	clear_bdi_congested(&q->backing_dev_info, rw);
+}
+
+/*
+ * A queue has just entered congestion.  Flag that in the queue's VM-visible
+ * state flags and increment the global gounter of congested queues.
+ */
+static inline void blk_set_queue_congested(request_queue_t *q, int rw)
+{
+	set_bdi_congested(&q->backing_dev_info, rw);
+}
+
 extern void blk_start_queue(request_queue_t *q);
 extern void blk_stop_queue(request_queue_t *q);
 extern void blk_sync_queue(struct request_queue *q);
@@ -764,10 +785,8 @@ extern int blk_queue_init_tags(request_queue_t *, int, struct blk_queue_tag *);
 extern void blk_queue_free_tags(request_queue_t *);
 extern int blk_queue_resize_tags(request_queue_t *, int);
 extern void blk_queue_invalidate_tags(request_queue_t *);
-extern long blk_congestion_wait(int rw, long timeout);
 extern struct blk_queue_tag *blk_init_tags(int);
 extern void blk_free_tags(struct blk_queue_tag *);
-extern void blk_congestion_end(int rw);
 
 static inline struct request *blk_map_queue_find_tag(struct blk_queue_tag *bqt,
 						int tag)

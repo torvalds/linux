@@ -68,9 +68,6 @@ struct flowi {
 		struct {
 			__le16	sport;
 			__le16	dport;
-			__u8	objnum;
-			__u8	objnamel; /* Not 16 bits since max val is 16 */
-			__u8	objname[16]; /* Not zero terminated */
 		} dnports;
 
 		__be32		spi;
@@ -97,7 +94,7 @@ struct flowi {
 #define FLOW_DIR_FWD	2
 
 struct sock;
-typedef void (*flow_resolve_t)(struct flowi *key, u16 family, u8 dir,
+typedef int (*flow_resolve_t)(struct flowi *key, u16 family, u8 dir,
 			       void **objp, atomic_t **obj_refp);
 
 extern void *flow_cache_lookup(struct flowi *key, u16 family, u8 dir,

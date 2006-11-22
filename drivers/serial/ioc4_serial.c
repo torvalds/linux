@@ -921,7 +921,7 @@ static void handle_dma_error_intr(void *arg, uint32_t other_ir)
 {
 	struct ioc4_port *port = (struct ioc4_port *)arg;
 	struct hooks *hooks = port->ip_hooks;
-	unsigned int flags;
+	unsigned long flags;
 
 	spin_lock_irqsave(&port->ip_lock, flags);
 
@@ -1834,7 +1834,7 @@ static void handle_intr(void *arg, uint32_t sio_ir)
 	struct ioc4_port *port = (struct ioc4_port *)arg;
 	struct hooks *hooks = port->ip_hooks;
 	unsigned int rx_high_rd_aborted = 0;
-	unsigned int flags;
+	unsigned long flags;
 	struct uart_port *the_port;
 	int loop_counter;
 
@@ -2935,7 +2935,7 @@ static void __devexit ioc4_serial_exit(void)
 	uart_unregister_driver(&ioc4_uart_rs422);
 }
 
-module_init(ioc4_serial_init);
+late_initcall(ioc4_serial_init); /* Call only after tty init is done */
 module_exit(ioc4_serial_exit);
 
 MODULE_AUTHOR("Pat Gefre - Silicon Graphics Inc. (SGI) <pfg@sgi.com>");

@@ -51,6 +51,7 @@ SECTIONS
   __tracedata_end = .;
 
   /* writeable */
+  . = ALIGN(4096);
   .data : AT(ADDR(.data) - LOAD_OFFSET) {	/* Data */
 	*(.data)
 	CONSTRUCTORS
@@ -126,13 +127,7 @@ SECTIONS
   __setup_end = .;
   __initcall_start = .;
   .initcall.init : AT(ADDR(.initcall.init) - LOAD_OFFSET) {
-	*(.initcall1.init) 
-	*(.initcall2.init) 
-	*(.initcall3.init) 
-	*(.initcall4.init) 
-	*(.initcall5.init) 
-	*(.initcall6.init) 
-	*(.initcall7.init)
+	INITCALLS
   }
   __initcall_end = .;
   __con_initcall_start = .;

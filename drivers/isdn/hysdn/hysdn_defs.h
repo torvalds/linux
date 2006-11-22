@@ -188,6 +188,8 @@ typedef struct HYSDN_CARD {
 	/* init and deinit stopcard for booting, too */
 	void (*stopcard) (struct HYSDN_CARD *);
 	void (*releasehardware) (struct HYSDN_CARD *);
+
+	spinlock_t hysdn_lock;
 #ifdef CONFIG_HYSDN_CAPI
 	struct hycapictrl_info {
 		char cardname[32];

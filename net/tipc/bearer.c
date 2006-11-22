@@ -2,7 +2,7 @@
  * net/tipc/bearer.c: TIPC bearer code
  * 
  * Copyright (c) 1996-2006, Ericsson AB
- * Copyright (c) 2004-2005, Wind River Systems
+ * Copyright (c) 2004-2006, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -191,14 +191,14 @@ void tipc_media_addr_printf(struct print_buf *pb, struct tipc_media_addr *a)
 	if ((i < media_count) && (m_ptr->addr2str != NULL)) {
 		char addr_str[MAX_ADDR_STR];
 
-		tipc_printf(pb, "%s(%s) ", m_ptr->name, 
+		tipc_printf(pb, "%s(%s)", m_ptr->name,
 			    m_ptr->addr2str(a, addr_str, sizeof(addr_str)));
 	} else {
 		unchar *addr = (unchar *)&a->dev_addr;
 
-		tipc_printf(pb, "UNKNOWN(%u):", media_type);
+		tipc_printf(pb, "UNKNOWN(%u)", media_type);
 		for (i = 0; i < (sizeof(*a) - sizeof(a->type)); i++) {
-			tipc_printf(pb, "%02x ", addr[i]);
+			tipc_printf(pb, "-%02x", addr[i]);
 		}
 	}
 }

@@ -339,7 +339,7 @@ static unsigned long long ocfs2_max_file_offset(unsigned int blockshift)
 
 #if BITS_PER_LONG == 32
 # if defined(CONFIG_LBD)
-	BUG_ON(sizeof(sector_t) != 8);
+	BUILD_BUG_ON(sizeof(sector_t) != 8);
 	pagefactor = PAGE_CACHE_SIZE;
 	bitshift = BITS_PER_LONG;
 # else

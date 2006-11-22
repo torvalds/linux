@@ -119,6 +119,7 @@ char *kobject_get_path(struct kobject *kobj, gfp_t gfp_mask)
 
 	return path;
 }
+EXPORT_SYMBOL_GPL(kobject_get_path);
 
 /**
  *	kobject_init - initialize object.

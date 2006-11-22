@@ -34,6 +34,7 @@
 #include <linux/net.h>
 #include <linux/skbuff.h>
 #include <net/netlink.h>
+#include <asm/atomic.h>
 
 /*
  * NetLabel - A management interface for maintaining network packet label
@@ -106,6 +107,7 @@ int netlbl_domhsh_remove(const char *domain, struct netlbl_audit *audit_info);
 
 /* LSM security attributes */
 struct netlbl_lsm_cache {
+	atomic_t refcount;
 	void (*free) (const void *data);
 	void *data;
 };
@@ -117,13 +119,50 @@ struct netlbl_lsm_secattr {
 	unsigned char *mls_cat;
 	size_t mls_cat_len;
 
-	struct netlbl_lsm_cache cache;
+	struct netlbl_lsm_cache *cache;
 };
 
 /*
  * LSM security attribute operations
  */
 
+
+/**
+ * netlbl_secattr_cache_alloc - Allocate and initialize a secattr cache
+ * @flags: the memory allocation flags
+ *
+ * Description:
+ * Allocate and initialize a netlbl_lsm_cache structure.  Returns a pointer
+ * on success, NULL on failure.
+ *
+ */
+static inline struct netlbl_lsm_cache *netlbl_secattr_cache_alloc(gfp_t flags)
+{
+	struct netlbl_lsm_cache *cache;
+
+	cache = kzalloc(sizeof(*cache), flags);
+	if (cache)
+		atomic_set(&cache->refcount, 1);
+	return cache;
+}
+
+/**
+ * netlbl_secattr_cache_free - Frees a netlbl_lsm_cache struct
+ * @cache: the struct to free
+ *
+ * Description:
+ * Frees @secattr including all of the internal buffers.
+ *
+ */
+static inline void netlbl_secattr_cache_free(struct netlbl_lsm_cache *cache)
+{
+	if (!atomic_dec_and_test(&cache->refcount))
+		return;
+
+	if (cache->free)
+		cache->free(cache->data);
+	kfree(cache);
+}
 
 /**
  * netlbl_secattr_init - Initialize a netlbl_lsm_secattr struct
@@ -143,20 +182,16 @@ static inline int netlbl_secattr_init(struct netlbl_lsm_secattr *secattr)
 /**
  * netlbl_secattr_destroy - Clears a netlbl_lsm_secattr struct
  * @secattr: the struct to clear
- * @clear_cache: cache clear flag
  *
  * Description:
  * Destroys the @secattr struct, including freeing all of the internal buffers.
- * If @clear_cache is true then free the cache fields, otherwise leave them
- * intact.  The struct must be reset with a call to netlbl_secattr_init()
- * before reuse.
+ * The struct must be reset with a call to netlbl_secattr_init() before reuse.
  *
  */
-static inline void netlbl_secattr_destroy(struct netlbl_lsm_secattr *secattr,
-					  u32 clear_cache)
+static inline void netlbl_secattr_destroy(struct netlbl_lsm_secattr *secattr)
 {
-	if (clear_cache && secattr->cache.data != NULL && secattr->cache.free)
-		secattr->cache.free(secattr->cache.data);
+	if (secattr->cache)
+		netlbl_secattr_cache_free(secattr->cache);
 	kfree(secattr->domain);
 	kfree(secattr->mls_cat);
 }
@@ -178,17 +213,14 @@ static inline struct netlbl_lsm_secattr *netlbl_secattr_alloc(int flags)
 /**
  * netlbl_secattr_free - Frees a netlbl_lsm_secattr struct
  * @secattr: the struct to free
- * @clear_cache: cache clear flag
  *
  * Description:
- * Frees @secattr including all of the internal buffers.  If @clear_cache is
- * true then free the cache fields, otherwise leave them intact.
+ * Frees @secattr including all of the internal buffers.
  *
  */
-static inline void netlbl_secattr_free(struct netlbl_lsm_secattr *secattr,
-				       u32 clear_cache)
+static inline void netlbl_secattr_free(struct netlbl_lsm_secattr *secattr)
 {
-	netlbl_secattr_destroy(secattr, clear_cache);
+	netlbl_secattr_destroy(secattr);
 	kfree(secattr);
 }
 

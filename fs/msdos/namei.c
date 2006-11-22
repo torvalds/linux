@@ -654,6 +654,7 @@ static struct inode_operations msdos_dir_inode_operations = {
 	.rmdir		= msdos_rmdir,
 	.rename		= msdos_rename,
 	.setattr	= fat_notify_change,
+	.getattr	= fat_getattr,
 };
 
 static int msdos_fill_super(struct super_block *sb, void *data, int silent)

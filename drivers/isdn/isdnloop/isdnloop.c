@@ -100,12 +100,11 @@ isdnloop_pollbchan(unsigned long data)
 		isdnloop_bchan_send(card, 1);
 	if (card->flags & (ISDNLOOP_FLAGS_B1ACTIVE | ISDNLOOP_FLAGS_B2ACTIVE)) {
 		/* schedule b-channel polling again */
-		save_flags(flags);
-		cli();
+		spin_lock_irqsave(&card->isdnloop_lock, flags);
 		card->rb_timer.expires = jiffies + ISDNLOOP_TIMER_BCREAD;
 		add_timer(&card->rb_timer);
 		card->flags |= ISDNLOOP_FLAGS_RBTIMER;
-		restore_flags(flags);
+		spin_unlock_irqrestore(&card->isdnloop_lock, flags);
 	} else
 		card->flags &= ~ISDNLOOP_FLAGS_RBTIMER;
 }
@@ -281,8 +280,7 @@ isdnloop_putmsg(isdnloop_card * card, unsigned char c)
 {
 	ulong flags;
 
-	save_flags(flags);
-	cli();
+	spin_lock_irqsave(&card->isdnloop_lock, flags);
 	*card->msg_buf_write++ = (c == 0xff) ? '\n' : c;
 	if (card->msg_buf_write == card->msg_buf_read) {
 		if (++card->msg_buf_read > card->msg_buf_end)
@@ -290,7 +288,7 @@ isdnloop_putmsg(isdnloop_card * card, unsigned char c)
 	}
 	if (card->msg_buf_write > card->msg_buf_end)
 		card->msg_buf_write = card->msg_buf;
-	restore_flags(flags);
+	spin_unlock_irqrestore(&card->isdnloop_lock, flags);
 }
 
 /*
@@ -372,21 +370,19 @@ isdnloop_polldchan(unsigned long data)
 		if (!(card->flags & ISDNLOOP_FLAGS_RBTIMER)) {
 			/* schedule b-channel polling */
 			card->flags |= ISDNLOOP_FLAGS_RBTIMER;
-			save_flags(flags);
-			cli();
+			spin_lock_irqsave(&card->isdnloop_lock, flags);
 			del_timer(&card->rb_timer);
 			card->rb_timer.function = isdnloop_pollbchan;
 			card->rb_timer.data = (unsigned long) card;
 			card->rb_timer.expires = jiffies + ISDNLOOP_TIMER_BCREAD;
 			add_timer(&card->rb_timer);
-			restore_flags(flags);
+			spin_unlock_irqrestore(&card->isdnloop_lock, flags);
 		}
 	/* schedule again */
-	save_flags(flags);
-	cli();
+	spin_lock_irqsave(&card->isdnloop_lock, flags);
 	card->st_timer.expires = jiffies + ISDNLOOP_TIMER_DCREAD;
 	add_timer(&card->st_timer);
-	restore_flags(flags);
+	spin_unlock_irqrestore(&card->isdnloop_lock, flags);
 }
 
 /*
@@ -416,8 +412,7 @@ isdnloop_sendbuf(int channel, struct sk_buff *skb, isdnloop_card * card)
 			return 0;
 		if (card->sndcount[channel] > ISDNLOOP_MAX_SQUEUE)
 			return 0;
-		save_flags(flags);
-		cli();
+		spin_lock_irqsave(&card->isdnloop_lock, flags);
 		nskb = dev_alloc_skb(skb->len);
 		if (nskb) {
 			memcpy(skb_put(nskb, len), skb->data, len);
@@ -426,7 +421,7 @@ isdnloop_sendbuf(int channel, struct sk_buff *skb, isdnloop_card * card)
 		} else
 			len = 0;
 		card->sndcount[channel] += len;
-		restore_flags(flags);
+		spin_unlock_irqrestore(&card->isdnloop_lock, flags);
 	}
 	return len;
 }
@@ -451,7 +446,8 @@ isdnloop_readstatus(u_char __user *buf, int len, isdnloop_card * card)
 	for (p = buf, count = 0; count < len; p++, count++) {
 		if (card->msg_buf_read == card->msg_buf_write)
 			return count;
-		put_user(*card->msg_buf_read++, p);
+		if (put_user(*card->msg_buf_read++, p))
+			return -EFAULT;
 		if (card->msg_buf_read > card->msg_buf_end)
 			card->msg_buf_read = card->msg_buf;
 	}
@@ -576,8 +572,7 @@ isdnloop_atimeout(isdnloop_card * card, int ch)
 	unsigned long flags;
 	char buf[60];
 
-	save_flags(flags);
-	cli();
+	spin_lock_irqsave(&card->isdnloop_lock, flags);
 	if (card->rcard) {
 		isdnloop_fake(card->rcard[ch], "DDIS_I", card->rch[ch] + 1);
 		card->rcard[ch]->rcard[card->rch[ch]] = NULL;
@@ -587,7 +582,7 @@ isdnloop_atimeout(isdnloop_card * card, int ch)
 	/* No user responding */
 	sprintf(buf, "CAU%s", isdnloop_unicause(card, 1, 3));
 	isdnloop_fake(card, buf, ch + 1);
-	restore_flags(flags);
+	spin_unlock_irqrestore(&card->isdnloop_lock, flags);
 }
 
 /*
@@ -622,8 +617,7 @@ isdnloop_start_ctimer(isdnloop_card * card, int ch)
 {
 	unsigned long flags;
 
-	save_flags(flags);
-	cli();
+	spin_lock_irqsave(&card->isdnloop_lock, flags);
 	init_timer(&card->c_timer[ch]);
 	card->c_timer[ch].expires = jiffies + ISDNLOOP_TIMER_ALERTWAIT;
 	if (ch)
@@ -632,7 +626,7 @@ isdnloop_start_ctimer(isdnloop_card * card, int ch)
 		card->c_timer[ch].function = isdnloop_atimeout0;
 	card->c_timer[ch].data = (unsigned long) card;
 	add_timer(&card->c_timer[ch]);
-	restore_flags(flags);
+	spin_unlock_irqrestore(&card->isdnloop_lock, flags);
 }
 
 /*
@@ -647,10 +641,9 @@ isdnloop_kill_ctimer(isdnloop_card * card, int ch)
 {
 	unsigned long flags;
 
-	save_flags(flags);
-	cli();
+	spin_lock_irqsave(&card->isdnloop_lock, flags);
 	del_timer(&card->c_timer[ch]);
-	restore_flags(flags);
+	spin_unlock_irqrestore(&card->isdnloop_lock, flags);
 }
 
 static u_char si2bit[] =
@@ -706,13 +699,12 @@ isdnloop_try_call(isdnloop_card * card, char *p, int lch, isdn_ctrl * cmd)
 					}
 			}
 			if (num_match) {
-				save_flags(flags);
-				cli();
+				spin_lock_irqsave(&card->isdnloop_lock, flags);
 				/* channel idle? */
 				if (!(cc->rcard[ch])) {
 					/* Check SI */
 					if (!(si2bit[cmd->parm.setup.si1] & cc->sil[ch])) {
-						restore_flags(flags);
+						spin_unlock_irqrestore(&card->isdnloop_lock, flags);
 						return 3;
 					}
 					/* ch is idle, si and number matches */
@@ -720,10 +712,10 @@ isdnloop_try_call(isdnloop_card * card, char *p, int lch, isdn_ctrl * cmd)
 					cc->rch[ch] = lch;
 					card->rcard[lch] = cc;
 					card->rch[lch] = ch;
-					restore_flags(flags);
+					spin_unlock_irqrestore(&card->isdnloop_lock, flags);
 					return 0;
 				} else {
-					restore_flags(flags);
+					spin_unlock_irqrestore(&card->isdnloop_lock, flags);
 					/* num matches, but busy */
 					if (ch == 1)
 						return 1;
@@ -1027,8 +1019,7 @@ isdnloop_stopcard(isdnloop_card * card)
 	unsigned long flags;
 	isdn_ctrl cmd;
 
-	save_flags(flags);
-	cli();
+	spin_lock_irqsave(&card->isdnloop_lock, flags);
 	if (card->flags & ISDNLOOP_FLAGS_RUNNING) {
 		card->flags &= ~ISDNLOOP_FLAGS_RUNNING;
 		del_timer(&card->st_timer);
@@ -1039,7 +1030,7 @@ isdnloop_stopcard(isdnloop_card * card)
 		cmd.driver = card->myid;
 		card->interface.statcallb(&cmd);
 	}
-	restore_flags(flags);
+	spin_unlock_irqrestore(&card->isdnloop_lock, flags);
 }
 
 /*
@@ -1078,18 +1069,17 @@ isdnloop_start(isdnloop_card * card, isdnloop_sdef * sdefp)
 		return -EBUSY;
 	if (copy_from_user((char *) &sdef, (char *) sdefp, sizeof(sdef)))
 		return -EFAULT;
-	save_flags(flags);
-	cli();
+	spin_lock_irqsave(&card->isdnloop_lock, flags);
 	switch (sdef.ptype) {
 		case ISDN_PTYPE_EURO:
 			if (isdnloop_fake(card, "DRV1.23EC-Q.931-CAPI-CNS-BASIS-20.02.96",
 					  -1)) {
-				restore_flags(flags);
+				spin_unlock_irqrestore(&card->isdnloop_lock, flags);
 				return -ENOMEM;
 			}
 			card->sil[0] = card->sil[1] = 4;
 			if (isdnloop_fake(card, "TEI OK", 0)) {
-				restore_flags(flags);
+				spin_unlock_irqrestore(&card->isdnloop_lock, flags);
 				return -ENOMEM;
 			}
 			for (i = 0; i < 3; i++)
@@ -1098,12 +1088,12 @@ isdnloop_start(isdnloop_card * card, isdnloop_sdef * sdefp)
 		case ISDN_PTYPE_1TR6:
 			if (isdnloop_fake(card, "DRV1.04TC-1TR6-CAPI-CNS-BASIS-29.11.95",
 					  -1)) {
-				restore_flags(flags);
+				spin_unlock_irqrestore(&card->isdnloop_lock, flags);
 				return -ENOMEM;
 			}
 			card->sil[0] = card->sil[1] = 4;
 			if (isdnloop_fake(card, "TEI OK", 0)) {
-				restore_flags(flags);
+				spin_unlock_irqrestore(&card->isdnloop_lock, flags);
 				return -ENOMEM;
 			}
 			strcpy(card->s0num[0], sdef.num[0]);
@@ -1111,7 +1101,7 @@ isdnloop_start(isdnloop_card * card, isdnloop_sdef * sdefp)
 			card->s0num[2][0] = '\0';
 			break;
 		default:
-			restore_flags(flags);
+			spin_unlock_irqrestore(&card->isdnloop_lock, flags);
 			printk(KERN_WARNING "isdnloop: Illegal D-channel protocol %d\n",
 			       sdef.ptype);
 			return -EINVAL;
@@ -1122,7 +1112,7 @@ isdnloop_start(isdnloop_card * card, isdnloop_sdef * sdefp)
 	card->st_timer.data = (unsigned long) card;
 	add_timer(&card->st_timer);
 	card->flags |= ISDNLOOP_FLAGS_RUNNING;
-	restore_flags(flags);
+	spin_unlock_irqrestore(&card->isdnloop_lock, flags);
 	return 0;
 }
 
@@ -1472,6 +1462,7 @@ isdnloop_initcard(char *id)
 		skb_queue_head_init(&card->bqueue[i]);
 	}
 	skb_queue_head_init(&card->dqueue);
+	card->isdnloop_lock = SPIN_LOCK_UNLOCKED;
 	card->next = cards;
 	cards = card;
 	if (!register_isdn(&card->interface)) {

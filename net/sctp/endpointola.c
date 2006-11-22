@@ -144,6 +144,13 @@ void sctp_endpoint_add_asoc(struct sctp_endpoint *ep,
 {
 	struct sock *sk = ep->base.sk;
 
+	/* If this is a temporary association, don't bother
+	 * since we'll be removing it shortly and don't
+	 * want anyone to find it anyway.
+	 */
+	if (asoc->temp)
+		return;
+
 	/* Now just add it to our list of asocs */
 	list_add_tail(&asoc->asocs, &ep->asocs);
 

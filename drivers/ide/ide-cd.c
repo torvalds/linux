@@ -597,7 +597,7 @@ static void cdrom_prepare_request(ide_drive_t *drive, struct request *rq)
 	struct cdrom_info *cd = drive->driver_data;
 
 	ide_init_drive_cmd(rq);
-	rq->cmd_type = REQ_TYPE_BLOCK_PC;
+	rq->cmd_type = REQ_TYPE_ATA_PC;
 	rq->rq_disk = cd->disk;
 }
 
@@ -716,7 +716,7 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 		ide_error(drive, "request sense failure", stat);
 		return 1;
 
-	} else if (blk_pc_request(rq)) {
+	} else if (blk_pc_request(rq) || rq->cmd_type == REQ_TYPE_ATA_PC) {
 		/* All other functions, except for READ. */
 		unsigned long flags;
 
@@ -724,7 +724,7 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 		 * if we have an error, pass back CHECK_CONDITION as the
 		 * scsi status byte
 		 */
-		if (!rq->errors)
+		if (blk_pc_request(rq) && !rq->errors)
 			rq->errors = SAM_STAT_CHECK_CONDITION;
 
 		/* Check for tray open. */
@@ -2023,7 +2023,8 @@ ide_do_rw_cdrom (ide_drive_t *drive, struct request *rq, sector_t block)
 		}
 		info->last_block = block;
 		return action;
-	} else if (rq->cmd_type == REQ_TYPE_SENSE) {
+	} else if (rq->cmd_type == REQ_TYPE_SENSE ||
+		   rq->cmd_type == REQ_TYPE_ATA_PC) {
 		return cdrom_do_packet_command(drive);
 	} else if (blk_pc_request(rq)) {
 		return cdrom_do_block_pc(drive, rq);

@@ -2416,7 +2416,6 @@ static void myri10ge_enable_ecrc(struct myri10ge_priv *mgp)
  * firmware image, and set tx.boundary to 4KB.
  */
 
-#define PCI_DEVICE_ID_SERVERWORKS_HT2000_PCIE	0x0132
 #define PCI_DEVICE_ID_INTEL_E5000_PCIE23 0x25f7
 #define PCI_DEVICE_ID_INTEL_E5000_PCIE47 0x25fa
 

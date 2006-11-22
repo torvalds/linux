@@ -128,9 +128,12 @@ static int proc_read_drivers(char *buf, char **start, off_t pos,
 			     int count, int *eof, void *data)
 {
 	char *p = buf;
+	int rc;
 
-	bus_for_each_drv(&pcmcia_bus_type, NULL,
-			 (void *) &p, proc_read_drivers_callback);
+	rc = bus_for_each_drv(&pcmcia_bus_type, NULL,
+			      (void *) &p, proc_read_drivers_callback);
+	if (rc < 0)
+		return rc;
 
 	return (p - buf);
 }
@@ -269,8 +272,10 @@ rescan:
 	 * Prevent this racing with a card insertion.
 	 */
 	mutex_lock(&s->skt_mutex);
-	bus_rescan_devices(&pcmcia_bus_type);
+	ret = bus_rescan_devices(&pcmcia_bus_type);
 	mutex_unlock(&s->skt_mutex);
+	if (ret)
+		goto err_put_module;
 
 	/* check whether the driver indeed matched. I don't care if this
 	 * is racy or not, because it can only happen on cardmgr access

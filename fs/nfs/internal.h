@@ -93,15 +93,15 @@ extern void nfs_destroy_directcache(void);
 /* nfs2xdr.c */
 extern int nfs_stat_to_errno(int);
 extern struct rpc_procinfo nfs_procedures[];
-extern u32 * nfs_decode_dirent(u32 *, struct nfs_entry *, int);
+extern __be32 * nfs_decode_dirent(__be32 *, struct nfs_entry *, int);
 
 /* nfs3xdr.c */
 extern struct rpc_procinfo nfs3_procedures[];
-extern u32 *nfs3_decode_dirent(u32 *, struct nfs_entry *, int);
+extern __be32 *nfs3_decode_dirent(__be32 *, struct nfs_entry *, int);
 
 /* nfs4xdr.c */
 #ifdef CONFIG_NFS_V4
-extern u32 *nfs4_decode_dirent(u32 *p, struct nfs_entry *entry, int plus);
+extern __be32 *nfs4_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus);
 #endif
 
 /* nfs4proc.c */

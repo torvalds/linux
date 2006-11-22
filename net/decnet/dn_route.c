@@ -267,9 +267,14 @@ static void dn_dst_link_failure(struct sk_buff *skb)
 
 static inline int compare_keys(struct flowi *fl1, struct flowi *fl2)
 {
-	return memcmp(&fl1->nl_u.dn_u, &fl2->nl_u.dn_u, sizeof(fl1->nl_u.dn_u)) == 0 &&
-		fl1->oif == fl2->oif &&
-		fl1->iif == fl2->iif;
+	return ((fl1->nl_u.dn_u.daddr ^ fl2->nl_u.dn_u.daddr) |
+		(fl1->nl_u.dn_u.saddr ^ fl2->nl_u.dn_u.saddr) |
+#ifdef CONFIG_DECNET_ROUTE_FWMARK
+		(fl1->nl_u.dn_u.fwmark ^ fl2->nl_u.dn_u.fwmark) |
+#endif
+		(fl1->nl_u.dn_u.scope ^ fl2->nl_u.dn_u.scope) |
+		(fl1->oif ^ fl2->oif) |
+		(fl1->iif ^ fl2->iif)) == 0;
 }
 
 static int dn_insert_route(struct dn_route *rt, unsigned hash, struct dn_route **rp)
@@ -1270,7 +1275,6 @@ static int dn_route_input_slow(struct sk_buff *skb)
 			goto e_inval;
 
 		res.type = RTN_LOCAL;
-		flags |= RTCF_DIRECTSRC;
 	} else {
 		__le16 src_map = fl.fld_src;
 		free_res = 1;
@@ -1341,7 +1345,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 			goto make_route;
 
 		/* Packet was intra-ethernet, so we know its on-link */
-		if (cb->rt_flags | DN_RT_F_IE) {
+		if (cb->rt_flags & DN_RT_F_IE) {
 			gateway = cb->src;
 			flags |= RTCF_DIRECTSRC;
 			goto make_route;

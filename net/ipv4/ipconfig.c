@@ -420,7 +420,7 @@ ic_rarp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 {
 	struct arphdr *rarp;
 	unsigned char *rarp_ptr;
-	unsigned long sip, tip;
+	u32 sip, tip;
 	unsigned char *sha, *tha;		/* s for "source", t for "target" */
 	struct ic_device *d;
 

@@ -32,19 +32,18 @@ ccw_device_msg_control_check(struct ccw_device *cdev, struct irb *irb)
 				 SCHN_STAT_CHN_CTRL_CHK |
 				 SCHN_STAT_INTF_CTRL_CHK)))
 		return;
-		
 	CIO_MSG_EVENT(0, "Channel-Check or Interface-Control-Check "
 		      "received"
 		      " ... device %04x on subchannel 0.%x.%04x, dev_stat "
 		      ": %02X sch_stat : %02X\n",
-		      cdev->private->devno, cdev->private->ssid,
-		      cdev->private->sch_no,
+		      cdev->private->dev_id.devno, cdev->private->schid.ssid,
+		      cdev->private->schid.sch_no,
 		      irb->scsw.dstat, irb->scsw.cstat);
 
 	if (irb->scsw.cc != 3) {
 		char dbf_text[15];
 
-		sprintf(dbf_text, "chk%x", cdev->private->sch_no);
+		sprintf(dbf_text, "chk%x", cdev->private->schid.sch_no);
 		CIO_TRACE_EVENT(0, dbf_text);
 		CIO_HEX_EVENT(0, irb, sizeof (struct irb));
 	}

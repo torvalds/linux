@@ -201,6 +201,7 @@ extern int os_getpgrp(void);
 
 #ifdef UML_CONFIG_MODE_TT
 extern void init_new_thread_stack(void *sig_stack, void (*usr1_handler)(int));
+extern void stop(void);
 #endif
 extern void init_new_thread_signals(void);
 extern int run_kernel_thread(int (*fn)(void *), void *arg, void **jmp_ptr);

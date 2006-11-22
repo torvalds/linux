@@ -299,9 +299,15 @@ void svc_reserve(struct svc_rqst *rqstp, int space)
 static inline void
 svc_sock_put(struct svc_sock *svsk)
 {
-	if (atomic_dec_and_test(&svsk->sk_inuse) && test_bit(SK_DEAD, &svsk->sk_flags)) {
+	if (atomic_dec_and_test(&svsk->sk_inuse) &&
+			test_bit(SK_DEAD, &svsk->sk_flags)) {
 		dprintk("svc: releasing dead socket\n");
-		sock_release(svsk->sk_sock);
+		if (svsk->sk_sock->file)
+			sockfd_put(svsk->sk_sock);
+		else
+			sock_release(svsk->sk_sock);
+		if (svsk->sk_info_authunix != NULL)
+			svcauth_unix_info_release(svsk->sk_info_authunix);
 		kfree(svsk);
 	}
 }
@@ -973,7 +979,7 @@ svc_tcp_recvfrom(struct svc_rqst *rqstp)
 		return 0;
 	}
 
-	if (test_bit(SK_CONN, &svsk->sk_flags)) {
+	if (svsk->sk_sk->sk_state == TCP_LISTEN) {
 		svc_tcp_accept(svsk);
 		svc_sock_received(svsk);
 		return 0;
@@ -1604,20 +1610,13 @@ svc_delete_socket(struct svc_sock *svsk)
 		if (test_bit(SK_TEMP, &svsk->sk_flags))
 			serv->sv_tmpcnt--;
 
-	if (!atomic_read(&svsk->sk_inuse)) {
-		spin_unlock_bh(&serv->sv_lock);
-		if (svsk->sk_sock->file)
-			sockfd_put(svsk->sk_sock);
-		else
-			sock_release(svsk->sk_sock);
-		if (svsk->sk_info_authunix != NULL)
-			svcauth_unix_info_release(svsk->sk_info_authunix);
-		kfree(svsk);
-	} else {
-		spin_unlock_bh(&serv->sv_lock);
-		dprintk(KERN_NOTICE "svc: server socket destroy delayed\n");
-		/* svsk->sk_server = NULL; */
-	}
+	/* This atomic_inc should be needed - svc_delete_socket
+	 * should have the semantic of dropping a reference.
+	 * But it doesn't yet....
+	 */
+	atomic_inc(&svsk->sk_inuse);
+	spin_unlock_bh(&serv->sv_lock);
+	svc_sock_put(svsk);
 }
 
 /*

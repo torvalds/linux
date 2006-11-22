@@ -206,7 +206,7 @@ void __init setup_bootmem(void)
 
 	if (mem_ramdisk) {
 #ifdef CONFIG_BLK_DEV_INITRD
-		initrd_start = __va(mem_ramdisk->addr);
+		initrd_start = (unsigned long)__va(mem_ramdisk->addr);
 		initrd_end = initrd_start + mem_ramdisk->size;
 
 		print_memory_map("RAMDISK images", mem_ramdisk);

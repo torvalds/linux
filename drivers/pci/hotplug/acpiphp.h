@@ -38,7 +38,7 @@
 #include <linux/acpi.h>
 #include <linux/kobject.h>	/* for KOBJ_NAME_LEN */
 #include <linux/mutex.h>
-#include "pci_hotplug.h"
+#include <linux/pci_hotplug.h>
 
 #define dbg(format, arg...)					\
 	do {							\

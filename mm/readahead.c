@@ -173,6 +173,8 @@ static int read_pages(struct address_space *mapping, struct file *filp,
 
 	if (mapping->a_ops->readpages) {
 		ret = mapping->a_ops->readpages(filp, mapping, pages, nr_pages);
+		/* Clean up the remaining pages */
+		put_pages_list(pages);
 		goto out;
 	}
 

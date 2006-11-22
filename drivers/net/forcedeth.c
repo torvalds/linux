@@ -2497,6 +2497,7 @@ static irqreturn_t nv_nic_irq_tx(int foo, void *data)
 	u8 __iomem *base = get_hwbase(dev);
 	u32 events;
 	int i;
+	unsigned long flags;
 
 	dprintk(KERN_DEBUG "%s: nv_nic_irq_tx\n", dev->name);
 
@@ -2508,16 +2509,16 @@ static irqreturn_t nv_nic_irq_tx(int foo, void *data)
 		if (!(events & np->irqmask))
 			break;
 
-		spin_lock_irq(&np->lock);
+		spin_lock_irqsave(&np->lock, flags);
 		nv_tx_done(dev);
-		spin_unlock_irq(&np->lock);
+		spin_unlock_irqrestore(&np->lock, flags);
 
 		if (events & (NVREG_IRQ_TX_ERR)) {
 			dprintk(KERN_DEBUG "%s: received irq with events 0x%x. Probably TX fail.\n",
 						dev->name, events);
 		}
 		if (i > max_interrupt_work) {
-			spin_lock_irq(&np->lock);
+			spin_lock_irqsave(&np->lock, flags);
 			/* disable interrupts on the nic */
 			writel(NVREG_IRQ_TX_ALL, base + NvRegIrqMask);
 			pci_push(base);
@@ -2527,7 +2528,7 @@ static irqreturn_t nv_nic_irq_tx(int foo, void *data)
 				mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
 			}
 			printk(KERN_DEBUG "%s: too many iterations (%d) in nv_nic_irq_tx.\n", dev->name, i);
-			spin_unlock_irq(&np->lock);
+			spin_unlock_irqrestore(&np->lock, flags);
 			break;
 		}
 
@@ -2601,6 +2602,7 @@ static irqreturn_t nv_nic_irq_rx(int foo, void *data)
 	u8 __iomem *base = get_hwbase(dev);
 	u32 events;
 	int i;
+	unsigned long flags;
 
 	dprintk(KERN_DEBUG "%s: nv_nic_irq_rx\n", dev->name);
 
@@ -2614,14 +2616,14 @@ static irqreturn_t nv_nic_irq_rx(int foo, void *data)
 
 		nv_rx_process(dev, dev->weight);
 		if (nv_alloc_rx(dev)) {
-			spin_lock_irq(&np->lock);
+			spin_lock_irqsave(&np->lock, flags);
 			if (!np->in_shutdown)
 				mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
-			spin_unlock_irq(&np->lock);
+			spin_unlock_irqrestore(&np->lock, flags);
 		}
 
 		if (i > max_interrupt_work) {
-			spin_lock_irq(&np->lock);
+			spin_lock_irqsave(&np->lock, flags);
 			/* disable interrupts on the nic */
 			writel(NVREG_IRQ_RX_ALL, base + NvRegIrqMask);
 			pci_push(base);
@@ -2631,7 +2633,7 @@ static irqreturn_t nv_nic_irq_rx(int foo, void *data)
 				mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
 			}
 			printk(KERN_DEBUG "%s: too many iterations (%d) in nv_nic_irq_rx.\n", dev->name, i);
-			spin_unlock_irq(&np->lock);
+			spin_unlock_irqrestore(&np->lock, flags);
 			break;
 		}
 	}
@@ -2648,6 +2650,7 @@ static irqreturn_t nv_nic_irq_other(int foo, void *data)
 	u8 __iomem *base = get_hwbase(dev);
 	u32 events;
 	int i;
+	unsigned long flags;
 
 	dprintk(KERN_DEBUG "%s: nv_nic_irq_other\n", dev->name);
 
@@ -2660,14 +2663,14 @@ static irqreturn_t nv_nic_irq_other(int foo, void *data)
 			break;
 
 		if (events & NVREG_IRQ_LINK) {
-			spin_lock_irq(&np->lock);
+			spin_lock_irqsave(&np->lock, flags);
 			nv_link_irq(dev);
-			spin_unlock_irq(&np->lock);
+			spin_unlock_irqrestore(&np->lock, flags);
 		}
 		if (np->need_linktimer && time_after(jiffies, np->link_timeout)) {
-			spin_lock_irq(&np->lock);
+			spin_lock_irqsave(&np->lock, flags);
 			nv_linkchange(dev);
-			spin_unlock_irq(&np->lock);
+			spin_unlock_irqrestore(&np->lock, flags);
 			np->link_timeout = jiffies + LINK_TIMEOUT;
 		}
 		if (events & (NVREG_IRQ_UNKNOWN)) {
@@ -2675,7 +2678,7 @@ static irqreturn_t nv_nic_irq_other(int foo, void *data)
 						dev->name, events);
 		}
 		if (i > max_interrupt_work) {
-			spin_lock_irq(&np->lock);
+			spin_lock_irqsave(&np->lock, flags);
 			/* disable interrupts on the nic */
 			writel(NVREG_IRQ_OTHER, base + NvRegIrqMask);
 			pci_push(base);
@@ -2685,7 +2688,7 @@ static irqreturn_t nv_nic_irq_other(int foo, void *data)
 				mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
 			}
 			printk(KERN_DEBUG "%s: too many iterations (%d) in nv_nic_irq_other.\n", dev->name, i);
-			spin_unlock_irq(&np->lock);
+			spin_unlock_irqrestore(&np->lock, flags);
 			break;
 		}
 

@@ -63,7 +63,9 @@ cflags-y		+= -mabi=64
 ifdef CONFIG_BUILD_ELF64
 cflags-y		+= $(call cc-option,-mno-explicit-relocs)
 else
-cflags-y		+= $(call cc-option,-msym32)
+# -msym32 can not be used for modules since they are loaded into XKSEG
+CFLAGS_MODULE		+= $(call cc-option,-mno-explicit-relocs)
+CFLAGS_KERNEL		+= $(call cc-option,-msym32)
 endif
 endif
 
@@ -91,8 +93,17 @@ cflags-y += -ffreestanding
 # carefully avoid to add it redundantly because gcc 3.3/3.4 complains
 # when fed the toolchain default!
 #
-cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= $(shell $(CC) -dumpmachine |grep -q 'mips.*el-.*' && echo -EB -D__MIPSEB__)
-cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= $(shell $(CC) -dumpmachine |grep -q 'mips.*el-.*' || echo -EL -D__MIPSEL__)
+# Certain gcc versions upto gcc 4.1.1 (probably 4.2-subversion as of
+# 2006-10-10 don't properly change the the predefined symbols if -EB / -EL
+# are used, so we kludge that here.  A bug has been filed at
+# http://gcc.gnu.org/bugzilla/show_bug.cgi?id=29413.
+#
+undef-all += -UMIPSEB -U_MIPSEB -U__MIPSEB -U__MIPSEB__
+undef-all += -UMIPSEL -U_MIPSEL -U__MIPSEL -U__MIPSEL__
+predef-be += -DMIPSEB -D_MIPSEB -D__MIPSEB -D__MIPSEB__
+predef-le += -DMIPSEL -D_MIPSEL -D__MIPSEL -D__MIPSEL__
+cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= $(shell $(CC) -dumpmachine |grep -q 'mips.*el-.*' && echo -EB $(undef-all) $(predef-be))
+cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= $(shell $(CC) -dumpmachine |grep -q 'mips.*el-.*' || echo -EL $(undef-all) $(predef-le))
 
 cflags-$(CONFIG_SB1XXX_CORELIS)	+= $(call cc-option,-mno-sched-prolog) \
 				   -fno-omit-frame-pointer

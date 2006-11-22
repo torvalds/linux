@@ -342,6 +342,8 @@ struct tcp_sock {
 
 	unsigned long last_synq_overflow; 
 
+	__u32	tso_deferred;
+
 /* Receiver side RTT estimation */
 	struct {
 		__u32	rtt;

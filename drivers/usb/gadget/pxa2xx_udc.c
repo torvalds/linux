@@ -43,11 +43,11 @@
 #include <linux/mm.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/irq.h>
 
 #include <asm/byteorder.h>
 #include <asm/dma.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/mach-types.h>
 #include <asm/unaligned.h>

@@ -56,11 +56,6 @@ static kmem_cache_t *requestq_cachep;
  */
 static kmem_cache_t *iocontext_cachep;
 
-static wait_queue_head_t congestion_wqh[2] = {
-		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[0]),
-		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[1])
-	};
-
 /*
  * Controlling structure to kblockd
  */
@@ -112,35 +107,6 @@ static void blk_queue_congestion_threshold(struct request_queue *q)
 	q->nr_congestion_off = nr;
 }
 
-/*
- * A queue has just exitted congestion.  Note this in the global counter of
- * congested queues, and wake up anyone who was waiting for requests to be
- * put back.
- */
-static void clear_queue_congested(request_queue_t *q, int rw)
-{
-	enum bdi_state bit;
-	wait_queue_head_t *wqh = &congestion_wqh[rw];
-
-	bit = (rw == WRITE) ? BDI_write_congested : BDI_read_congested;
-	clear_bit(bit, &q->backing_dev_info.state);
-	smp_mb__after_clear_bit();
-	if (waitqueue_active(wqh))
-		wake_up(wqh);
-}
-
-/*
- * A queue has just entered congestion.  Flag that in the queue's VM-visible
- * state flags and increment the global gounter of congested queues.
- */
-static void set_queue_congested(request_queue_t *q, int rw)
-{
-	enum bdi_state bit;
-
-	bit = (rw == WRITE) ? BDI_write_congested : BDI_read_congested;
-	set_bit(bit, &q->backing_dev_info.state);
-}
-
 /**
  * blk_get_backing_dev_info - get the address of a queue's backing_dev_info
  * @bdev:	device
@@ -159,7 +125,6 @@ struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev)
 		ret = &q->backing_dev_info;
 	return ret;
 }
-
 EXPORT_SYMBOL(blk_get_backing_dev_info);
 
 void blk_queue_activity_fn(request_queue_t *q, activity_fn *fn, void *data)
@@ -167,7 +132,6 @@ void blk_queue_activity_fn(request_queue_t *q, activity_fn *fn, void *data)
 	q->activity_fn = fn;
 	q->activity_data = data;
 }
-
 EXPORT_SYMBOL(blk_queue_activity_fn);
 
 /**
@@ -2067,7 +2031,7 @@ static void __freed_request(request_queue_t *q, int rw)
 	struct request_list *rl = &q->rq;
 
 	if (rl->count[rw] < queue_congestion_off_threshold(q))
-		clear_queue_congested(q, rw);
+		blk_clear_queue_congested(q, rw);
 
 	if (rl->count[rw] + 1 <= q->nr_requests) {
 		if (waitqueue_active(&rl->wait[rw]))
@@ -2137,7 +2101,7 @@ static struct request *get_request(request_queue_t *q, int rw, struct bio *bio,
 				}
 			}
 		}
-		set_queue_congested(q, rw);
+		blk_set_queue_congested(q, rw);
 	}
 
 	/*
@@ -2755,41 +2719,6 @@ void blk_end_sync_rq(struct request *rq, int error)
 }
 EXPORT_SYMBOL(blk_end_sync_rq);
 
-/**
- * blk_congestion_wait - wait for a queue to become uncongested
- * @rw: READ or WRITE
- * @timeout: timeout in jiffies
- *
- * Waits for up to @timeout jiffies for a queue (any queue) to exit congestion.
- * If no queues are congested then just wait for the next request to be
- * returned.
- */
-long blk_congestion_wait(int rw, long timeout)
-{
-	long ret;
-	DEFINE_WAIT(wait);
-	wait_queue_head_t *wqh = &congestion_wqh[rw];
-
-	prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
-	ret = io_schedule_timeout(timeout);
-	finish_wait(wqh, &wait);
-	return ret;
-}
-
-EXPORT_SYMBOL(blk_congestion_wait);
-
-/**
- * blk_congestion_end - wake up sleepers on a congestion queue
- * @rw: READ or WRITE
- */
-void blk_congestion_end(int rw)
-{
-	wait_queue_head_t *wqh = &congestion_wqh[rw];
-
-	if (waitqueue_active(wqh))
-		wake_up(wqh);
-}
-
 /*
  * Has to be called with the request spinlock acquired
  */
@@ -3070,6 +2999,7 @@ void generic_make_request(struct bio *bio)
 {
 	request_queue_t *q;
 	sector_t maxsector;
+	sector_t old_sector;
 	int ret, nr_sectors = bio_sectors(bio);
 	dev_t old_dev;
 
@@ -3098,7 +3028,7 @@ void generic_make_request(struct bio *bio)
 	 * NOTE: we don't repeat the blk_size check for each new device.
 	 * Stacking drivers are expected to know what they are doing.
 	 */
-	maxsector = -1;
+	old_sector = -1;
 	old_dev = 0;
 	do {
 		char b[BDEVNAME_SIZE];
@@ -3132,14 +3062,30 @@ end_io:
 		 */
 		blk_partition_remap(bio);
 
-		if (maxsector != -1)
+		if (old_sector != -1)
 			blk_add_trace_remap(q, bio, old_dev, bio->bi_sector, 
-					    maxsector);
+					    old_sector);
 
 		blk_add_trace_bio(q, bio, BLK_TA_QUEUE);
 
-		maxsector = bio->bi_sector;
+		old_sector = bio->bi_sector;
 		old_dev = bio->bi_bdev->bd_dev;
+
+		maxsector = bio->bi_bdev->bd_inode->i_size >> 9;
+		if (maxsector) {
+			sector_t sector = bio->bi_sector;
+
+			if (maxsector < nr_sectors ||
+					maxsector - nr_sectors < sector) {
+				/*
+				 * This may well happen - partitions are not
+				 * checked to make sure they are within the size
+				 * of the whole device.
+				 */
+				handle_bad_sector(bio);
+				goto end_io;
+			}
+		}
 
 		ret = q->make_request_fn(q, bio);
 	} while (ret);
@@ -3765,14 +3711,14 @@ queue_requests_store(struct request_queue *q, const char *page, size_t count)
 	blk_queue_congestion_threshold(q);
 
 	if (rl->count[READ] >= queue_congestion_on_threshold(q))
-		set_queue_congested(q, READ);
+		blk_set_queue_congested(q, READ);
 	else if (rl->count[READ] < queue_congestion_off_threshold(q))
-		clear_queue_congested(q, READ);
+		blk_clear_queue_congested(q, READ);
 
 	if (rl->count[WRITE] >= queue_congestion_on_threshold(q))
-		set_queue_congested(q, WRITE);
+		blk_set_queue_congested(q, WRITE);
 	else if (rl->count[WRITE] < queue_congestion_off_threshold(q))
-		clear_queue_congested(q, WRITE);
+		blk_clear_queue_congested(q, WRITE);
 
 	if (rl->count[READ] >= q->nr_requests) {
 		blk_set_queue_full(q, READ);

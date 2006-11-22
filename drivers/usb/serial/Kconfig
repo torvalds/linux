@@ -54,10 +54,10 @@ config USB_SERIAL_GENERIC
 	  properly.
 
 config USB_SERIAL_AIRCABLE
-	tristate "AIRcable USB Bluetooth Dongle Driver (EXPERIMENTAL)"
+	tristate "USB AIRcable Bluetooth Dongle Driver (EXPERIMENTAL)"
 	depends on USB_SERIAL && EXPERIMENTAL
 	help
-	    Say Y here if you want to use AIRcable USB Bluetoot Dongle.
+	    Say Y here if you want to use USB AIRcable Bluetooth Dongle.
 
 	    To compile this driver as a module, choose M here: the module
 	    will be called aircable.
@@ -422,6 +422,16 @@ config USB_SERIAL_MCT_U232
 	  To compile this driver as a module, choose M here: the
 	  module will be called mct_u232.
 
+config USB_SERIAL_MOS7720
+	tristate "USB Moschip 7720 Single Port Serial Driver"
+	depends on USB_SERIAL
+	---help---
+	  Say Y here if you want to use a USB Serial single port adapter from
+	  Moschip Semiconductor Tech.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mos7720.
+
 config USB_SERIAL_MOS7840
 	tristate "USB Moschip 7840/7820 USB Serial Driver"
 	depends on USB_SERIAL
@@ -527,8 +537,7 @@ config USB_SERIAL_OPTION
 	  The USB bus on these cards is not accessible externally.
 
 	  Supported devices include (some of?) those made by:
-	  Option, Huawei, Audiovox, Sierra Wireless, Novatel Wireless, or
-	  Anydata.
+	  Option, Huawei, Audiovox, Novatel Wireless, or Anydata.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called option.

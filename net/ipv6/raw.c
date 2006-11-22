@@ -604,7 +604,7 @@ error:
 	return err; 
 }
 
-static void rawv6_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
+static int rawv6_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 {
 	struct iovec *iov;
 	u8 __user *type = NULL;
@@ -616,7 +616,7 @@ static void rawv6_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 	int i;
 
 	if (!msg->msg_iov)
-		return;
+		return 0;
 
 	for (i = 0; i < msg->msg_iovlen; i++) {
 		iov = &msg->msg_iov[i];
@@ -638,8 +638,9 @@ static void rawv6_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 				code = iov->iov_base;
 
 			if (type && code) {
-				get_user(fl->fl_icmp_type, type);
-				get_user(fl->fl_icmp_code, code);
+				if (get_user(fl->fl_icmp_type, type) ||
+				    get_user(fl->fl_icmp_code, code))
+					return -EFAULT;
 				probed = 1;
 			}
 			break;
@@ -650,7 +651,8 @@ static void rawv6_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 			/* check if type field is readable or not. */
 			if (iov->iov_len > 2 - len) {
 				u8 __user *p = iov->iov_base;
-				get_user(fl->fl_mh_type, &p[2 - len]);
+				if (get_user(fl->fl_mh_type, &p[2 - len]))
+					return -EFAULT;
 				probed = 1;
 			} else
 				len += iov->iov_len;
@@ -664,6 +666,7 @@ static void rawv6_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 		if (probed)
 			break;
 	}
+	return 0;
 }
 
 static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
@@ -787,7 +790,9 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	opt = ipv6_fixup_options(&opt_space, opt);
 
 	fl.proto = proto;
-	rawv6_probe_proto_opt(&fl, msg);
+	err = rawv6_probe_proto_opt(&fl, msg);
+	if (err)
+		goto out;
  
 	ipv6_addr_copy(&fl.fl6_dst, daddr);
 	if (ipv6_addr_any(&fl.fl6_src) && !ipv6_addr_any(&np->saddr))
