@@ -446,7 +446,7 @@ static void escb_tasklet_complete(struct asd_ascb *ascb,
 				continue;
 			dev = task->dev;
 
-			x = (u16)dev->lldd_dev;
+			x = (unsigned long)dev->lldd_dev;
 			if (x == conn_handle) {
 				dev_phy = dev->port->phy;
 				task_kill_later(a);
