@@ -22,7 +22,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_atiixp"
-#define DRV_VERSION "0.4.3"
+#define DRV_VERSION "0.4.4"
 
 enum {
 	ATIIXP_IDE_PIO_TIMING	= 0x40,
@@ -218,6 +218,8 @@ static struct scsi_host_template atiixp_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+	.resume			= ata_scsi_device_resume,
+	.suspend		= ata_scsi_device_suspend,
 };
 
 static struct ata_port_operations atiixp_port_ops = {
@@ -281,7 +283,9 @@ static struct pci_driver atiixp_pci_driver = {
 	.name 		= DRV_NAME,
 	.id_table	= atiixp,
 	.probe 		= atiixp_init_one,
-	.remove		= ata_pci_remove_one
+	.remove		= ata_pci_remove_one,
+	.resume		= ata_pci_device_resume,
+	.suspend	= ata_pci_device_suspend,
 };
 
 static int __init atiixp_init(void)

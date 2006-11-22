@@ -39,7 +39,7 @@
 #include <asm/msr.h>
 
 #define DRV_NAME	"cs5535"
-#define DRV_VERSION	"0.2.10"
+#define DRV_VERSION	"0.2.11"
 
 /*
  *	The Geode (Aka Athlon GX now) uses an internal MSR based
@@ -186,6 +186,8 @@ static struct scsi_host_template cs5535_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+	.resume			= ata_scsi_device_resume,
+	.suspend		= ata_scsi_device_suspend,
 };
 
 static struct ata_port_operations cs5535_port_ops = {
@@ -269,6 +271,8 @@ static struct pci_driver cs5535_pci_driver = {
 	.id_table	= cs5535,
 	.probe 		= cs5535_init_one,
 	.remove		= ata_pci_remove_one
+	.suspend	= ata_pci_device_suspend,
+	.resume		= ata_pci_device_resume,
 };
 
 static int __init cs5535_init(void)

@@ -33,7 +33,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_optidma"
-#define DRV_VERSION "0.2.2"
+#define DRV_VERSION "0.2.3"
 
 enum {
 	READ_REG	= 0,	/* index of Read cycle timing register */
@@ -361,6 +361,8 @@ static struct scsi_host_template optidma_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+	.resume			= ata_scsi_device_resume,
+	.suspend		= ata_scsi_device_suspend,
 };
 
 static struct ata_port_operations optidma_port_ops = {
@@ -522,7 +524,9 @@ static struct pci_driver optidma_pci_driver = {
 	.name 		= DRV_NAME,
 	.id_table	= optidma,
 	.probe 		= optidma_init_one,
-	.remove		= ata_pci_remove_one
+	.remove		= ata_pci_remove_one,
+	.suspend	= ata_pci_device_suspend,
+	.resume		= ata_pci_device_resume,
 };
 
 static int __init optidma_init(void)

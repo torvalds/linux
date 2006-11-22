@@ -40,7 +40,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sc1200"
-#define DRV_VERSION	"0.2.3"
+#define DRV_VERSION	"0.2.4"
 
 #define SC1200_REV_A	0x00
 #define SC1200_REV_B1	0x01
@@ -195,6 +195,8 @@ static struct scsi_host_template sc1200_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+	.resume			= ata_scsi_device_resume,
+	.suspend		= ata_scsi_device_suspend,
 };
 
 static struct ata_port_operations sc1200_port_ops = {
@@ -264,7 +266,9 @@ static struct pci_driver sc1200_pci_driver = {
 	.name 		= DRV_NAME,
 	.id_table	= sc1200,
 	.probe 		= sc1200_init_one,
-	.remove		= ata_pci_remove_one
+	.remove		= ata_pci_remove_one,
+	.suspend	= ata_pci_device_suspend,
+	.resume		= ata_pci_device_resume,
 };
 
 static int __init sc1200_init(void)

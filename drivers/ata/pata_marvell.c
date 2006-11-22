@@ -20,7 +20,7 @@
 #include <linux/ata.h>
 
 #define DRV_NAME	"pata_marvell"
-#define DRV_VERSION	"0.0.5u"
+#define DRV_VERSION	"0.1.1"
 
 /**
  *	marvell_pre_reset	-	check for 40/80 pin
@@ -103,6 +103,8 @@ static struct scsi_host_template marvell_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	/* Use standard CHS mapping rules */
 	.bios_param		= ata_std_bios_param,
+	.resume			= ata_scsi_device_resume,
+	.suspend		= ata_scsi_device_suspend,
 };
 
 static const struct ata_port_operations marvell_ops = {
@@ -197,6 +199,8 @@ static struct pci_driver marvell_pci_driver = {
 	.id_table		= marvell_pci_tbl,
 	.probe			= marvell_init_one,
 	.remove			= ata_pci_remove_one,
+	.suspend		= ata_pci_device_suspend,
+	.resume			= ata_pci_device_resume,
 };
 
 static int __init marvell_init(void)
