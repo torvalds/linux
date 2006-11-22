@@ -95,6 +95,8 @@ MODULE_PARM_DESC(ql2xqfullrampup,
  */
 static int qla2xxx_slave_configure(struct scsi_device * device);
 static int qla2xxx_slave_alloc(struct scsi_device *);
+static int qla2xxx_scan_finished(struct Scsi_Host *, unsigned long time);
+static void qla2xxx_scan_start(struct Scsi_Host *);
 static void qla2xxx_slave_destroy(struct scsi_device *);
 static int qla2x00_queuecommand(struct scsi_cmnd *cmd,
 		void (*fn)(struct scsi_cmnd *));
@@ -124,6 +126,8 @@ static struct scsi_host_template qla2x00_driver_template = {
 
 	.slave_alloc		= qla2xxx_slave_alloc,
 	.slave_destroy		= qla2xxx_slave_destroy,
+	.scan_finished		= qla2xxx_scan_finished,
+	.scan_start		= qla2xxx_scan_start,
 	.change_queue_depth	= qla2x00_change_queue_depth,
 	.change_queue_type	= qla2x00_change_queue_type,
 	.this_id		= -1,
@@ -1366,6 +1370,29 @@ qla24xx_disable_intrs(scsi_qla_host_t *ha)
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
 
+static void
+qla2xxx_scan_start(struct Scsi_Host *shost)
+{
+	scsi_qla_host_t *ha = (scsi_qla_host_t *)shost->hostdata;
+
+	set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
+	set_bit(LOCAL_LOOP_UPDATE, &ha->dpc_flags);
+	set_bit(RSCN_UPDATE, &ha->dpc_flags);
+}
+
+static int
+qla2xxx_scan_finished(struct Scsi_Host *shost, unsigned long time)
+{
+	scsi_qla_host_t *ha = (scsi_qla_host_t *)shost->hostdata;
+
+	if (!ha->host)
+		return 1;
+	if (time > ha->loop_reset_delay * HZ)
+		return 1;
+
+	return atomic_read(&ha->loop_state) == LOOP_READY;
+}
+
 /*
  * PCI driver interface
  */
@@ -1631,10 +1658,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_drvdata(pdev, ha);
 
-	/* Start link scan. */
-	set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
-	set_bit(LOCAL_LOOP_UPDATE, &ha->dpc_flags);
-	set_bit(RSCN_UPDATE, &ha->dpc_flags);
 	ha->flags.init_done = 1;
 	ha->flags.online = 1;
 
@@ -1643,6 +1666,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ret = scsi_add_host(host, &pdev->dev);
 	if (ret)
 		goto probe_failed;
+
+	scsi_scan_host(host);
 
 	qla2x00_alloc_sysfs_attr(ha);
 
