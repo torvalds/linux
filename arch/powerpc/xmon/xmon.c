@@ -2748,13 +2748,13 @@ static void restart_spus(void)
 }
 
 #define DUMP_WIDTH	23
-#define DUMP_FIELD(obj, format, field)					\
+#define DUMP_VALUE(format, field, value)				\
 do {									\
 	if (setjmp(bus_error_jmp) == 0) {				\
 		catch_memory_errors = 1;				\
 		sync();							\
 		printf("  %-*s = "format"\n", DUMP_WIDTH,		\
-				#field, obj->field);			\
+				#field, value);				\
 		sync();							\
 		__delay(200);						\
 	} else {							\
@@ -2764,6 +2764,9 @@ do {									\
 	}								\
 	catch_memory_errors = 0;					\
 } while (0)
+
+#define DUMP_FIELD(obj, format, field)	\
+	DUMP_VALUE(format, field, obj->field)
 
 static void dump_spu_fields(struct spu *spu)
 {
@@ -2793,13 +2796,18 @@ static void dump_spu_fields(struct spu *spu)
 	DUMP_FIELD(spu, "0x%p", timestamp);
 	DUMP_FIELD(spu, "0x%lx", problem_phys);
 	DUMP_FIELD(spu, "0x%p", problem);
-	DUMP_FIELD(spu, "0x%x", problem->spu_runcntl_RW);
-	DUMP_FIELD(spu, "0x%x", problem->spu_status_R);
-	DUMP_FIELD(spu, "0x%x", problem->spu_npc_RW);
+	DUMP_VALUE("0x%x", problem->spu_runcntl_RW,
+			in_be32(&spu->problem->spu_runcntl_RW));
+	DUMP_VALUE("0x%x", problem->spu_status_R,
+			in_be32(&spu->problem->spu_status_R));
+	DUMP_VALUE("0x%x", problem->spu_npc_RW,
+			in_be32(&spu->problem->spu_npc_RW));
 	DUMP_FIELD(spu, "0x%p", priv1);
 
-	if (spu->priv1)
-		DUMP_FIELD(spu, "0x%lx", priv1->mfc_sr1_RW);
+	if (spu->priv1) {
+		DUMP_VALUE("0x%lx", priv1->mfc_sr1_RW,
+				in_be64(&spu->priv1->mfc_sr1_RW));
+	}
 
 	DUMP_FIELD(spu, "0x%p", priv2);
 }
