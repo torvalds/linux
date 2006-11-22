@@ -57,4 +57,12 @@ int ps3_set_rtc_time(struct rtc_time *time);
 int __init ps3_os_area_init(void);
 u64 ps3_os_area_rtc_diff(void);
 
+/* spu */
+
+#if defined(CONFIG_SPU_BASE)
+void ps3_spu_set_platform (void);
+#else
+static inline void ps3_spu_set_platform (void) {}
+#endif
+
 #endif
