@@ -1262,7 +1262,7 @@ static void xs_connect(struct rpc_task *task)
 			xprt->reestablish_timeout = XS_TCP_MAX_REEST_TO;
 	} else {
 		dprintk("RPC:      xs_connect scheduled xprt %p\n", xprt);
-		schedule_work(&xprt->connect_worker);
+		schedule_delayed_work(&xprt->connect_worker, 0);
 
 		/* flush_scheduled_work can sleep... */
 		if (!RPC_IS_ASYNC(task))
@@ -1375,7 +1375,7 @@ int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	/* XXX: header size can vary due to auth type, IPv6, etc. */
 	xprt->max_payload = (1U << 16) - (MAX_HEADER << 3);
 
-	INIT_WORK(&xprt->connect_worker, xs_udp_connect_worker, xprt);
+	INIT_DELAYED_WORK(&xprt->connect_worker, xs_udp_connect_worker, xprt);
 	xprt->bind_timeout = XS_BIND_TO;
 	xprt->connect_timeout = XS_UDP_CONN_TO;
 	xprt->reestablish_timeout = XS_UDP_REEST_TO;
@@ -1420,7 +1420,7 @@ int xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	xprt->tsh_size = sizeof(rpc_fraghdr) / sizeof(u32);
 	xprt->max_payload = RPC_MAX_FRAGMENT_SIZE;
 
-	INIT_WORK(&xprt->connect_worker, xs_tcp_connect_worker, xprt);
+	INIT_DELAYED_WORK(&xprt->connect_worker, xs_tcp_connect_worker, xprt);
 	xprt->bind_timeout = XS_BIND_TO;
 	xprt->connect_timeout = XS_TCP_CONN_TO;
 	xprt->reestablish_timeout = XS_TCP_INIT_REEST_TO;

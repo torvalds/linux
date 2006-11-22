@@ -122,29 +122,33 @@ EXPORT_SYMBOL_GPL(queue_work);
 
 static void delayed_work_timer_fn(unsigned long __data)
 {
-	struct work_struct *work = (struct work_struct *)__data;
-	struct workqueue_struct *wq = work->wq_data;
+	struct delayed_work *dwork = (struct delayed_work *)__data;
+	struct workqueue_struct *wq = dwork->work.wq_data;
 	int cpu = smp_processor_id();
 
 	if (unlikely(is_single_threaded(wq)))
 		cpu = singlethread_cpu;
 
-	__queue_work(per_cpu_ptr(wq->cpu_wq, cpu), work);
+	__queue_work(per_cpu_ptr(wq->cpu_wq, cpu), &dwork->work);
 }
 
 /**
  * queue_delayed_work - queue work on a workqueue after delay
  * @wq: workqueue to use
- * @work: work to queue
+ * @work: delayable work to queue
  * @delay: number of jiffies to wait before queueing
  *
  * Returns 0 if @work was already on a queue, non-zero otherwise.
  */
 int fastcall queue_delayed_work(struct workqueue_struct *wq,
-			struct work_struct *work, unsigned long delay)
+			struct delayed_work *dwork, unsigned long delay)
 {
 	int ret = 0;
-	struct timer_list *timer = &work->timer;
+	struct timer_list *timer = &dwork->timer;
+	struct work_struct *work = &dwork->work;
+
+	if (delay == 0)
+		return queue_work(wq, work);
 
 	if (!test_and_set_bit(0, &work->pending)) {
 		BUG_ON(timer_pending(timer));
@@ -153,7 +157,7 @@ int fastcall queue_delayed_work(struct workqueue_struct *wq,
 		/* This stores wq for the moment, for the timer_fn */
 		work->wq_data = wq;
 		timer->expires = jiffies + delay;
-		timer->data = (unsigned long)work;
+		timer->data = (unsigned long)dwork;
 		timer->function = delayed_work_timer_fn;
 		add_timer(timer);
 		ret = 1;
@@ -172,10 +176,11 @@ EXPORT_SYMBOL_GPL(queue_delayed_work);
  * Returns 0 if @work was already on a queue, non-zero otherwise.
  */
 int queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
-			struct work_struct *work, unsigned long delay)
+			struct delayed_work *dwork, unsigned long delay)
 {
 	int ret = 0;
-	struct timer_list *timer = &work->timer;
+	struct timer_list *timer = &dwork->timer;
+	struct work_struct *work = &dwork->work;
 
 	if (!test_and_set_bit(0, &work->pending)) {
 		BUG_ON(timer_pending(timer));
@@ -184,7 +189,7 @@ int queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 		/* This stores wq for the moment, for the timer_fn */
 		work->wq_data = wq;
 		timer->expires = jiffies + delay;
-		timer->data = (unsigned long)work;
+		timer->data = (unsigned long)dwork;
 		timer->function = delayed_work_timer_fn;
 		add_timer_on(timer, cpu);
 		ret = 1;
@@ -468,31 +473,31 @@ EXPORT_SYMBOL(schedule_work);
 
 /**
  * schedule_delayed_work - put work task in global workqueue after delay
- * @work: job to be done
- * @delay: number of jiffies to wait
+ * @dwork: job to be done
+ * @delay: number of jiffies to wait or 0 for immediate execution
  *
  * After waiting for a given time this puts a job in the kernel-global
  * workqueue.
  */
-int fastcall schedule_delayed_work(struct work_struct *work, unsigned long delay)
+int fastcall schedule_delayed_work(struct delayed_work *dwork, unsigned long delay)
 {
-	return queue_delayed_work(keventd_wq, work, delay);
+	return queue_delayed_work(keventd_wq, dwork, delay);
 }
 EXPORT_SYMBOL(schedule_delayed_work);
 
 /**
  * schedule_delayed_work_on - queue work in global workqueue on CPU after delay
  * @cpu: cpu to use
- * @work: job to be done
+ * @dwork: job to be done
  * @delay: number of jiffies to wait
  *
  * After waiting for a given time this puts a job in the kernel-global
  * workqueue on the specified CPU.
  */
 int schedule_delayed_work_on(int cpu,
-			struct work_struct *work, unsigned long delay)
+			struct delayed_work *dwork, unsigned long delay)
 {
-	return queue_delayed_work_on(cpu, keventd_wq, work, delay);
+	return queue_delayed_work_on(cpu, keventd_wq, dwork, delay);
 }
 EXPORT_SYMBOL(schedule_delayed_work_on);
 
@@ -539,12 +544,12 @@ EXPORT_SYMBOL(flush_scheduled_work);
  * cancel_rearming_delayed_workqueue - reliably kill off a delayed
  *			work whose handler rearms the delayed work.
  * @wq:   the controlling workqueue structure
- * @work: the delayed work struct
+ * @dwork: the delayed work struct
  */
 void cancel_rearming_delayed_workqueue(struct workqueue_struct *wq,
-				       struct work_struct *work)
+				       struct delayed_work *dwork)
 {
-	while (!cancel_delayed_work(work))
+	while (!cancel_delayed_work(dwork))
 		flush_workqueue(wq);
 }
 EXPORT_SYMBOL(cancel_rearming_delayed_workqueue);
@@ -552,11 +557,11 @@ EXPORT_SYMBOL(cancel_rearming_delayed_workqueue);
 /**
  * cancel_rearming_delayed_work - reliably kill off a delayed keventd
  *			work whose handler rearms the delayed work.
- * @work: the delayed work struct
+ * @dwork: the delayed work struct
  */
-void cancel_rearming_delayed_work(struct work_struct *work)
+void cancel_rearming_delayed_work(struct delayed_work *dwork)
 {
-	cancel_rearming_delayed_workqueue(keventd_wq, work);
+	cancel_rearming_delayed_workqueue(keventd_wq, dwork);
 }
 EXPORT_SYMBOL(cancel_rearming_delayed_work);
 

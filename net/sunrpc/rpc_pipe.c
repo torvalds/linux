@@ -837,7 +837,8 @@ init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
 		INIT_LIST_HEAD(&rpci->pipe);
 		rpci->pipelen = 0;
 		init_waitqueue_head(&rpci->waitq);
-		INIT_WORK(&rpci->queue_timeout, rpc_timeout_upcall_queue, rpci);
+		INIT_DELAYED_WORK(&rpci->queue_timeout,
+				    rpc_timeout_upcall_queue, rpci);
 		rpci->ops = NULL;
 	}
 }

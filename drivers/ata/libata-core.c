@@ -937,12 +937,9 @@ void ata_port_queue_task(struct ata_port *ap, void (*fn)(void *), void *data,
 	if (ap->pflags & ATA_PFLAG_FLUSH_PORT_TASK)
 		return;
 
-	PREPARE_WORK(&ap->port_task, fn, data);
+	PREPARE_DELAYED_WORK(&ap->port_task, fn, data);
 
-	if (!delay)
-		rc = queue_work(ata_wq, &ap->port_task);
-	else
-		rc = queue_delayed_work(ata_wq, &ap->port_task, delay);
+	rc = queue_delayed_work(ata_wq, &ap->port_task, delay);
 
 	/* rc == 0 means that another user is using port task */
 	WARN_ON(rc == 0);
@@ -5320,8 +5317,8 @@ void ata_port_init(struct ata_port *ap, struct ata_host *host,
 	ap->msg_enable = ATA_MSG_DRV | ATA_MSG_ERR | ATA_MSG_WARN;
 #endif
 
-	INIT_WORK(&ap->port_task, NULL, NULL);
-	INIT_WORK(&ap->hotplug_task, ata_scsi_hotplug, ap);
+	INIT_DELAYED_WORK(&ap->port_task, NULL, NULL);
+	INIT_DELAYED_WORK(&ap->hotplug_task, ata_scsi_hotplug, ap);
 	INIT_WORK(&ap->scsi_rescan_task, ata_scsi_dev_rescan, ap);
 	INIT_LIST_HEAD(&ap->eh_done_q);
 	init_waitqueue_head(&ap->eh_wait_q);

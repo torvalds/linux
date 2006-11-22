@@ -3580,7 +3580,7 @@ static void initialize_tty_struct(struct tty_struct *tty)
 	tty->overrun_time = jiffies;
 	tty->buf.head = tty->buf.tail = NULL;
 	tty_buffer_init(tty);
-	INIT_WORK(&tty->buf.work, flush_to_ldisc, tty);
+	INIT_DELAYED_WORK(&tty->buf.work, flush_to_ldisc, tty);
 	init_MUTEX(&tty->buf.pty_sem);
 	mutex_init(&tty->termios_mutex);
 	init_waitqueue_head(&tty->write_wait);

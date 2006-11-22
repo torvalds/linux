@@ -1424,7 +1424,7 @@ static unsigned int ip_cnt;
 
 static void rekey_seq_generator(void *private_);
 
-static DECLARE_WORK(rekey_work, rekey_seq_generator, NULL);
+static DECLARE_DELAYED_WORK(rekey_work, rekey_seq_generator, NULL);
 
 /*
  * Lock avoidance:

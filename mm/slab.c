@@ -753,7 +753,7 @@ int slab_is_available(void)
 	return g_cpucache_up == FULL;
 }
 
-static DEFINE_PER_CPU(struct work_struct, reap_work);
+static DEFINE_PER_CPU(struct delayed_work, reap_work);
 
 static inline struct array_cache *cpu_cache_get(struct kmem_cache *cachep)
 {
@@ -916,16 +916,16 @@ static void next_reap_node(void)
  */
 static void __devinit start_cpu_timer(int cpu)
 {
-	struct work_struct *reap_work = &per_cpu(reap_work, cpu);
+	struct delayed_work *reap_work = &per_cpu(reap_work, cpu);
 
 	/*
 	 * When this gets called from do_initcalls via cpucache_init(),
 	 * init_workqueues() has already run, so keventd will be setup
 	 * at that time.
 	 */
-	if (keventd_up() && reap_work->func == NULL) {
+	if (keventd_up() && reap_work->work.func == NULL) {
 		init_reap_node(cpu);
-		INIT_WORK(reap_work, cache_reap, NULL);
+		INIT_DELAYED_WORK(reap_work, cache_reap, NULL);
 		schedule_delayed_work_on(cpu, reap_work, HZ + 3 * cpu);
 	}
 }

@@ -285,7 +285,7 @@ static struct file_operations content_file_operations;
 static struct file_operations cache_flush_operations;
 
 static void do_cache_clean(void *data);
-static DECLARE_WORK(cache_cleaner, do_cache_clean, NULL);
+static DECLARE_DELAYED_WORK(cache_cleaner, do_cache_clean, NULL);
 
 void cache_register(struct cache_detail *cd)
 {
@@ -337,7 +337,7 @@ void cache_register(struct cache_detail *cd)
 	spin_unlock(&cache_list_lock);
 
 	/* start the cleaning process */
-	schedule_work(&cache_cleaner);
+	schedule_delayed_work(&cache_cleaner, 0);
 }
 
 int cache_unregister(struct cache_detail *cd)

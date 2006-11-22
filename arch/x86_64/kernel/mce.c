@@ -307,7 +307,7 @@ void mce_log_therm_throt_event(unsigned int cpu, __u64 status)
 
 static int check_interval = 5 * 60; /* 5 minutes */
 static void mcheck_timer(void *data);
-static DECLARE_WORK(mcheck_work, mcheck_timer, NULL);
+static DECLARE_DELAYED_WORK(mcheck_work, mcheck_timer, NULL);
 
 static void mcheck_check_cpu(void *info)
 {

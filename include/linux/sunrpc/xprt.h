@@ -177,7 +177,7 @@ struct rpc_xprt {
 	unsigned long		connect_timeout,
 				bind_timeout,
 				reestablish_timeout;
-	struct work_struct	connect_worker;
+	struct delayed_work	connect_worker;
 	unsigned short		port;
 
 	/*

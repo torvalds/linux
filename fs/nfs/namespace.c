@@ -21,7 +21,8 @@
 static void nfs_expire_automounts(void *list);
 
 LIST_HEAD(nfs_automount_list);
-static DECLARE_WORK(nfs_automount_task, nfs_expire_automounts, &nfs_automount_list);
+static DECLARE_DELAYED_WORK(nfs_automount_task, nfs_expire_automounts,
+			    &nfs_automount_list);
 int nfs_mountpoint_expiry_timeout = 500 * HZ;
 
 static struct vfsmount *nfs_do_submount(const struct vfsmount *mnt_parent,
