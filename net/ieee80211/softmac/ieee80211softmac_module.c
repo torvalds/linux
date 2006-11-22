@@ -58,8 +58,8 @@ struct net_device *alloc_ieee80211softmac(int sizeof_priv)
 	INIT_LIST_HEAD(&softmac->events);
 
 	mutex_init(&softmac->associnfo.mutex);
-	INIT_WORK(&softmac->associnfo.work, ieee80211softmac_assoc_work, softmac);
-	INIT_WORK(&softmac->associnfo.timeout, ieee80211softmac_assoc_timeout, softmac);
+	INIT_DELAYED_WORK(&softmac->associnfo.work, ieee80211softmac_assoc_work);
+	INIT_DELAYED_WORK(&softmac->associnfo.timeout, ieee80211softmac_assoc_timeout);
 	softmac->start_scan = ieee80211softmac_start_scan_implementation;
 	softmac->wait_for_scan = ieee80211softmac_wait_for_scan_implementation;
 	softmac->stop_scan = ieee80211softmac_stop_scan_implementation;

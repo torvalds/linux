@@ -56,7 +56,7 @@ static atomic_t trapped;
 static void zap_completion_queue(void);
 static void arp_reply(struct sk_buff *skb);
 
-static void queue_process(void *p)
+static void queue_process(struct work_struct *work)
 {
 	unsigned long flags;
 	struct sk_buff *skb;
@@ -77,7 +77,7 @@ static void queue_process(void *p)
 	}
 }
 
-static DECLARE_WORK(send_queue, queue_process, NULL);
+static DECLARE_WORK(send_queue, queue_process);
 
 void netpoll_queue(struct sk_buff *skb)
 {

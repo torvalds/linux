@@ -127,7 +127,7 @@ struct cinergyt2 {
 
 	struct dvbt_set_parameters_msg param;
 	struct dvbt_get_status_msg status;
-	struct work_struct query_work;
+	struct delayed_work query_work;
 
 	wait_queue_head_t poll_wq;
 	int pending_fe_events;
@@ -141,7 +141,7 @@ struct cinergyt2 {
 #ifdef ENABLE_RC
 	struct input_dev *rc_input_dev;
 	char phys[64];
-	struct work_struct rc_query_work;
+	struct delayed_work rc_query_work;
 	int rc_input_event;
 	u32 rc_last_code;
 	unsigned long last_event_jiffies;
@@ -724,9 +724,10 @@ static struct dvb_device cinergyt2_fe_template = {
 
 #ifdef ENABLE_RC
 
-static void cinergyt2_query_rc (void *data)
+static void cinergyt2_query_rc (struct work_struct *work)
 {
-	struct cinergyt2 *cinergyt2 = data;
+	struct cinergyt2 *cinergyt2 =
+		container_of(work, struct cinergyt2, rc_query_work.work);
 	char buf[1] = { CINERGYT2_EP1_GET_RC_EVENTS };
 	struct cinergyt2_rc_event rc_events[12];
 	int n, len, i;
@@ -807,7 +808,7 @@ static int cinergyt2_register_rc(struct cinergyt2 *cinergyt2)
 	strlcat(cinergyt2->phys, "/input0", sizeof(cinergyt2->phys));
 	cinergyt2->rc_input_event = KEY_MAX;
 	cinergyt2->rc_last_code = ~0;
-	INIT_WORK(&cinergyt2->rc_query_work, cinergyt2_query_rc, cinergyt2);
+	INIT_DELAYED_WORK(&cinergyt2->rc_query_work, cinergyt2_query_rc);
 
 	input_dev->name = DRIVER_NAME " remote control";
 	input_dev->phys = cinergyt2->phys;
@@ -848,9 +849,10 @@ static inline void cinergyt2_resume_rc(struct cinergyt2 *cinergyt2) { }
 
 #endif /* ENABLE_RC */
 
-static void cinergyt2_query (void *data)
+static void cinergyt2_query (struct work_struct *work)
 {
-	struct cinergyt2 *cinergyt2 = (struct cinergyt2 *) data;
+	struct cinergyt2 *cinergyt2 =
+		container_of(work, struct cinergyt2, query_work.work);
 	char cmd [] = { CINERGYT2_EP1_GET_TUNER_STATUS };
 	struct dvbt_get_status_msg *s = &cinergyt2->status;
 	uint8_t lock_bits;
@@ -894,7 +896,7 @@ static int cinergyt2_probe (struct usb_interface *intf,
 
 	mutex_init(&cinergyt2->sem);
 	init_waitqueue_head (&cinergyt2->poll_wq);
-	INIT_WORK(&cinergyt2->query_work, cinergyt2_query, cinergyt2);
+	INIT_DELAYED_WORK(&cinergyt2->query_work, cinergyt2_query);
 
 	cinergyt2->udev = interface_to_usbdev(intf);
 	cinergyt2->param.cmd = CINERGYT2_EP1_SET_TUNER_PARAMETERS;

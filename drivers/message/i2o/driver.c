@@ -232,7 +232,7 @@ int i2o_driver_dispatch(struct i2o_controller *c, u32 m)
 			break;
 		}
 
-		INIT_WORK(&evt->work, (void (*)(void *))drv->event, evt);
+		INIT_WORK(&evt->work, drv->event);
 		queue_work(drv->event_queue, &evt->work);
 		return 1;
 	}

@@ -283,7 +283,7 @@ struct ocfs2_super
 	/* Truncate log info */
 	struct inode			*osb_tl_inode;
 	struct buffer_head		*osb_tl_bh;
-	struct work_struct		osb_truncate_log_wq;
+	struct delayed_work		osb_truncate_log_wq;
 
 	struct ocfs2_node_map		osb_recovering_orphan_dirs;
 	unsigned int			*osb_orphan_wipes;

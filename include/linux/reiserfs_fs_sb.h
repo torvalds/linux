@@ -249,7 +249,8 @@ struct reiserfs_journal {
 	int j_errno;
 
 	/* when flushing ordered buffers, throttle new ordered writers */
-	struct work_struct j_work;
+	struct delayed_work j_work;
+	struct super_block *j_work_sb;
 	atomic_t j_async_throttle;
 };
 

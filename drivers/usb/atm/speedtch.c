@@ -142,7 +142,7 @@ struct speedtch_instance_data {
 
 	struct speedtch_params params; /* set in probe, constant afterwards */
 
-	struct work_struct status_checker;
+	struct delayed_work status_checker;
 
 	unsigned char last_status;
 
@@ -498,8 +498,11 @@ static int speedtch_start_synchro(struct speedtch_instance_data *instance)
 	return ret;
 }
 
-static void speedtch_check_status(struct speedtch_instance_data *instance)
+static void speedtch_check_status(struct work_struct *work)
 {
+	struct speedtch_instance_data *instance =
+		container_of(work, struct speedtch_instance_data,
+			     status_checker.work);
 	struct usbatm_data *usbatm = instance->usbatm;
 	struct atm_dev *atm_dev = usbatm->atm_dev;
 	unsigned char *buf = instance->scratch_buffer;
@@ -576,7 +579,7 @@ static void speedtch_status_poll(unsigned long data)
 {
 	struct speedtch_instance_data *instance = (void *)data;
 
-	schedule_work(&instance->status_checker);
+	schedule_delayed_work(&instance->status_checker, 0);
 
 	/* The following check is racy, but the race is harmless */
 	if (instance->poll_delay < MAX_POLL_DELAY)
@@ -596,7 +599,7 @@ static void speedtch_resubmit_int(unsigned long data)
 	if (int_urb) {
 		ret = usb_submit_urb(int_urb, GFP_ATOMIC);
 		if (!ret)
-			schedule_work(&instance->status_checker);
+			schedule_delayed_work(&instance->status_checker, 0);
 		else {
 			atm_dbg(instance->usbatm, "%s: usb_submit_urb failed with result %d\n", __func__, ret);
 			mod_timer(&instance->resubmit_timer, jiffies + msecs_to_jiffies(RESUBMIT_DELAY));
@@ -640,7 +643,7 @@ static void speedtch_handle_int(struct urb *int_urb)
 
 	if ((int_urb = instance->int_urb)) {
 		ret = usb_submit_urb(int_urb, GFP_ATOMIC);
-		schedule_work(&instance->status_checker);
+		schedule_delayed_work(&instance->status_checker, 0);
 		if (ret < 0) {
 			atm_dbg(usbatm, "%s: usb_submit_urb failed with result %d\n", __func__, ret);
 			goto fail;
@@ -855,7 +858,7 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 
 	usbatm->flags |= (use_isoc ? UDSL_USE_ISOC : 0);
 
-	INIT_WORK(&instance->status_checker, (void *)speedtch_check_status, instance);
+	INIT_DELAYED_WORK(&instance->status_checker, speedtch_check_status);
 
 	instance->status_checker.timer.function = speedtch_status_poll;
 	instance->status_checker.timer.data = (unsigned long)instance;

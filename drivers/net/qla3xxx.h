@@ -1186,8 +1186,8 @@ struct ql3_adapter {
 	u32 numPorts;
 	struct net_device_stats stats;
 	struct workqueue_struct *workqueue;
-	struct work_struct reset_work;
-	struct work_struct tx_timeout_work;
+	struct delayed_work reset_work;
+	struct delayed_work tx_timeout_work;
 	u32 max_frame_size;
 };
 

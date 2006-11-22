@@ -4339,9 +4339,9 @@ bnx2_open(struct net_device *dev)
 }
 
 static void
-bnx2_reset_task(void *data)
+bnx2_reset_task(struct work_struct *work)
 {
-	struct bnx2 *bp = data;
+	struct bnx2 *bp = container_of(work, struct bnx2, reset_task);
 
 	if (!netif_running(bp->dev))
 		return;
@@ -5630,7 +5630,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->pdev = pdev;
 
 	spin_lock_init(&bp->phy_lock);
-	INIT_WORK(&bp->reset_task, bnx2_reset_task, bp);
+	INIT_WORK(&bp->reset_task, bnx2_reset_task);
 
 	dev->base_addr = dev->mem_start = pci_resource_start(pdev, 0);
 	mem_len = MB_GET_CID_ADDR(17);

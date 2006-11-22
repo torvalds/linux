@@ -121,7 +121,7 @@ enum mac_flags {
 };
 
 struct housekeeping {
-	struct work_struct link_led_work;
+	struct delayed_work link_led_work;
 };
 
 #define ZD_MAC_STATS_BUFFER_SIZE 16

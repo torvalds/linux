@@ -68,8 +68,6 @@ static void pcbit_set_msn(struct pcbit_dev *dev, char *list);
 static int pcbit_check_msn(struct pcbit_dev *dev, char *msn);
 
 
-extern void pcbit_deliver(void * data);
-
 int pcbit_init_dev(int board, int mem_base, int irq)
 {
 	struct pcbit_dev *dev;
@@ -129,7 +127,7 @@ int pcbit_init_dev(int board, int mem_base, int irq)
 	memset(dev->b2, 0, sizeof(struct pcbit_chan));
 	dev->b2->id = 1;
 
-	INIT_WORK(&dev->qdelivery, pcbit_deliver, dev);
+	INIT_WORK(&dev->qdelivery, pcbit_deliver);
 
 	/*
 	 *  interrupts

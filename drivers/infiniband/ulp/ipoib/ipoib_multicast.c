@@ -399,7 +399,8 @@ static void ipoib_mcast_join_complete(int status,
 		mcast->backoff = 1;
 		mutex_lock(&mcast_mutex);
 		if (test_bit(IPOIB_MCAST_RUN, &priv->flags))
-			queue_work(ipoib_workqueue, &priv->mcast_task);
+			queue_delayed_work(ipoib_workqueue,
+					   &priv->mcast_task, 0);
 		mutex_unlock(&mcast_mutex);
 		complete(&mcast->done);
 		return;
@@ -435,7 +436,8 @@ static void ipoib_mcast_join_complete(int status,
 
 	if (test_bit(IPOIB_MCAST_RUN, &priv->flags)) {
 		if (status == -ETIMEDOUT)
-			queue_work(ipoib_workqueue, &priv->mcast_task);
+			queue_delayed_work(ipoib_workqueue, &priv->mcast_task,
+					   0);
 		else
 			queue_delayed_work(ipoib_workqueue, &priv->mcast_task,
 					   mcast->backoff * HZ);
@@ -517,10 +519,11 @@ static void ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast,
 		mcast->query_id = ret;
 }
 
-void ipoib_mcast_join_task(void *dev_ptr)
+void ipoib_mcast_join_task(struct work_struct *work)
 {
-	struct net_device *dev = dev_ptr;
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv =
+		container_of(work, struct ipoib_dev_priv, mcast_task.work);
+	struct net_device *dev = priv->dev;
 
 	if (!test_bit(IPOIB_MCAST_RUN, &priv->flags))
 		return;
@@ -610,7 +613,7 @@ int ipoib_mcast_start_thread(struct net_device *dev)
 
 	mutex_lock(&mcast_mutex);
 	if (!test_and_set_bit(IPOIB_MCAST_RUN, &priv->flags))
-		queue_work(ipoib_workqueue, &priv->mcast_task);
+		queue_delayed_work(ipoib_workqueue, &priv->mcast_task, 0);
 	mutex_unlock(&mcast_mutex);
 
 	spin_lock_irq(&priv->lock);
@@ -818,10 +821,11 @@ void ipoib_mcast_dev_flush(struct net_device *dev)
 	}
 }
 
-void ipoib_mcast_restart_task(void *dev_ptr)
+void ipoib_mcast_restart_task(struct work_struct *work)
 {
-	struct net_device *dev = dev_ptr;
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv =
+		container_of(work, struct ipoib_dev_priv, restart_task);
+	struct net_device *dev = priv->dev;
 	struct dev_mc_list *mclist;
 	struct ipoib_mcast *mcast, *tmcast;
 	LIST_HEAD(remove_list);

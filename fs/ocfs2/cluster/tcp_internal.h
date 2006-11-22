@@ -86,18 +86,18 @@ struct o2net_node {
 	 * connect attempt fails and so can be self-arming.  shutdown is
 	 * careful to first mark the nn such that no connects will be attempted
 	 * before canceling delayed connect work and flushing the queue. */
-	struct work_struct		nn_connect_work;
+	struct delayed_work		nn_connect_work;
 	unsigned long			nn_last_connect_attempt;
 
 	/* this is queued as nodes come up and is canceled when a connection is
 	 * established.  this expiring gives up on the node and errors out
 	 * transmits */
-	struct work_struct		nn_connect_expired;
+	struct delayed_work		nn_connect_expired;
 
 	/* after we give up on a socket we wait a while before deciding
 	 * that it is still heartbeating and that we should do some
 	 * quorum work */
-	struct work_struct		nn_still_up;
+	struct delayed_work		nn_still_up;
 };
 
 struct o2net_sock_container {
@@ -129,7 +129,7 @@ struct o2net_sock_container {
 	struct work_struct	sc_shutdown_work;
 
 	struct timer_list	sc_idle_timeout;
-	struct work_struct	sc_keepalive_work;
+	struct delayed_work	sc_keepalive_work;
 
 	unsigned		sc_handshake_ok:1;
 

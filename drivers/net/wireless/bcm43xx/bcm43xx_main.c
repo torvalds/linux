@@ -3177,9 +3177,10 @@ static int estimate_periodic_work_badness(unsigned int state)
 	return badness;
 }
 
-static void bcm43xx_periodic_work_handler(void *d)
+static void bcm43xx_periodic_work_handler(struct work_struct *work)
 {
-	struct bcm43xx_private *bcm = d;
+	struct bcm43xx_private *bcm =
+		container_of(work, struct bcm43xx_private, periodic_work.work);
 	struct net_device *net_dev = bcm->net_dev;
 	unsigned long flags;
 	u32 savedirqs = 0;
@@ -3242,11 +3243,11 @@ void bcm43xx_periodic_tasks_delete(struct bcm43xx_private *bcm)
 
 void bcm43xx_periodic_tasks_setup(struct bcm43xx_private *bcm)
 {
-	struct work_struct *work = &(bcm->periodic_work);
+	struct delayed_work *work = &bcm->periodic_work;
 
 	assert(bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED);
-	INIT_WORK(work, bcm43xx_periodic_work_handler, bcm);
-	schedule_work(work);
+	INIT_DELAYED_WORK(work, bcm43xx_periodic_work_handler);
+	schedule_delayed_work(work, 0);
 }
 
 static void bcm43xx_security_init(struct bcm43xx_private *bcm)
@@ -3598,7 +3599,7 @@ static int bcm43xx_init_board(struct bcm43xx_private *bcm)
 	bcm43xx_periodic_tasks_setup(bcm);
 
 	/*FIXME: This should be handled by softmac instead. */
-	schedule_work(&bcm->softmac->associnfo.work);
+	schedule_delayed_work(&bcm->softmac->associnfo.work, 0);
 
 out:
 	mutex_unlock(&(bcm)->mutex);
@@ -4149,9 +4150,10 @@ static void __devexit bcm43xx_remove_one(struct pci_dev *pdev)
 /* Hard-reset the chip. Do not call this directly.
  * Use bcm43xx_controller_restart()
  */
-static void bcm43xx_chip_reset(void *_bcm)
+static void bcm43xx_chip_reset(struct work_struct *work)
 {
-	struct bcm43xx_private *bcm = _bcm;
+	struct bcm43xx_private *bcm =
+		container_of(work, struct bcm43xx_private, restart_work);
 	struct bcm43xx_phyinfo *phy;
 	int err = -ENODEV;
 
@@ -4178,7 +4180,7 @@ void bcm43xx_controller_restart(struct bcm43xx_private *bcm, const char *reason)
 	if (bcm43xx_status(bcm) != BCM43xx_STAT_INITIALIZED)
 		return;
 	printk(KERN_ERR PFX "Controller RESET (%s) ...\n", reason);
-	INIT_WORK(&bcm->restart_work, bcm43xx_chip_reset, bcm);
+	INIT_WORK(&bcm->restart_work, bcm43xx_chip_reset);
 	schedule_work(&bcm->restart_work);
 }
 

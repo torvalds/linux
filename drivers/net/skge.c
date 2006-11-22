@@ -1327,10 +1327,11 @@ static void xm_check_link(struct net_device *dev)
  * Since internal PHY is wired to a level triggered pin, can't
  * get an interrupt when carrier is detected.
  */
-static void xm_link_timer(void *arg)
+static void xm_link_timer(struct work_struct *work)
 {
-	struct net_device *dev = arg;
-	struct skge_port *skge = netdev_priv(arg);
+	struct skge_port *skge =
+		container_of(work, struct skge_port, link_thread.work);
+	struct net_device *dev = skge->netdev;
  	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
 
@@ -3072,9 +3073,9 @@ static void skge_error_irq(struct skge_hw *hw)
  * because accessing phy registers requires spin wait which might
  * cause excess interrupt latency.
  */
-static void skge_extirq(void *arg)
+static void skge_extirq(struct work_struct *work)
 {
-	struct skge_hw *hw = arg;
+	struct skge_hw *hw = container_of(work, struct skge_hw, phy_work);
 	int port;
 
 	mutex_lock(&hw->phy_mutex);
@@ -3456,7 +3457,7 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 	skge->port = port;
 
 	/* Only used for Genesis XMAC */
-	INIT_WORK(&skge->link_thread, xm_link_timer, dev);
+	INIT_DELAYED_WORK(&skge->link_thread, xm_link_timer);
 
 	if (hw->chip_id != CHIP_ID_GENESIS) {
 		dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
@@ -3543,7 +3544,7 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 
 	hw->pdev = pdev;
 	mutex_init(&hw->phy_mutex);
-	INIT_WORK(&hw->phy_work, skge_extirq, hw);
+	INIT_WORK(&hw->phy_work, skge_extirq);
 	spin_lock_init(&hw->hw_lock);
 
 	hw->regs = ioremap_nocache(pci_resource_start(pdev, 0), 0x4000);

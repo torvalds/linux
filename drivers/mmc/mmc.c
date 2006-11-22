@@ -1165,18 +1165,16 @@ static void mmc_setup(struct mmc_host *host)
  */
 void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 {
-	if (delay)
-		mmc_schedule_delayed_work(&host->detect, delay);
-	else
-		mmc_schedule_work(&host->detect);
+	mmc_schedule_delayed_work(&host->detect, delay);
 }
 
 EXPORT_SYMBOL(mmc_detect_change);
 
 
-static void mmc_rescan(void *data)
+static void mmc_rescan(struct work_struct *work)
 {
-	struct mmc_host *host = data;
+	struct mmc_host *host =
+		container_of(work, struct mmc_host, detect.work);
 	struct list_head *l, *n;
 	unsigned char power_mode;
 
@@ -1259,7 +1257,7 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 		spin_lock_init(&host->lock);
 		init_waitqueue_head(&host->wq);
 		INIT_LIST_HEAD(&host->cards);
-		INIT_WORK(&host->detect, mmc_rescan, host);
+		INIT_DELAYED_WORK(&host->detect, mmc_rescan);
 
 		/*
 		 * By default, hosts do not support SGIO or large requests.
@@ -1357,7 +1355,7 @@ EXPORT_SYMBOL(mmc_suspend_host);
  */
 int mmc_resume_host(struct mmc_host *host)
 {
-	mmc_rescan(host);
+	mmc_rescan(&host->detect.work);
 
 	return 0;
 }

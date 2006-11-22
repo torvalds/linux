@@ -933,11 +933,11 @@ static void ipoib_setup(struct net_device *dev)
 	INIT_LIST_HEAD(&priv->dead_ahs);
 	INIT_LIST_HEAD(&priv->multicast_list);
 
-	INIT_WORK(&priv->pkey_task,    ipoib_pkey_poll,          priv->dev);
-	INIT_WORK(&priv->mcast_task,   ipoib_mcast_join_task,    priv->dev);
-	INIT_WORK(&priv->flush_task,   ipoib_ib_dev_flush,       priv->dev);
-	INIT_WORK(&priv->restart_task, ipoib_mcast_restart_task, priv->dev);
-	INIT_WORK(&priv->ah_reap_task, ipoib_reap_ah,            priv->dev);
+	INIT_DELAYED_WORK(&priv->pkey_task,    ipoib_pkey_poll);
+	INIT_DELAYED_WORK(&priv->mcast_task,   ipoib_mcast_join_task);
+	INIT_WORK(&priv->flush_task,   ipoib_ib_dev_flush);
+	INIT_WORK(&priv->restart_task, ipoib_mcast_restart_task);
+	INIT_DELAYED_WORK(&priv->ah_reap_task, ipoib_reap_ah);
 }
 
 struct ipoib_dev_priv *ipoib_intf_alloc(const char *name)

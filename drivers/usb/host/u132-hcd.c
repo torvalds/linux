@@ -163,7 +163,7 @@ struct u132_endp {
         u16 queue_next;
         struct urb *urb_list[ENDP_QUEUE_SIZE];
         struct list_head urb_more;
-        struct work_struct scheduler;
+        struct delayed_work scheduler;
 };
 struct u132_ring {
         unsigned in_use:1;
@@ -171,7 +171,7 @@ struct u132_ring {
         u8 number;
         struct u132 *u132;
         struct u132_endp *curr_endp;
-        struct work_struct scheduler;
+        struct delayed_work scheduler;
 };
 #define OHCI_QUIRK_AMD756 0x01
 #define OHCI_QUIRK_SUPERIO 0x02
@@ -198,7 +198,7 @@ struct u132 {
         u32 hc_roothub_portstatus[MAX_ROOT_PORTS];
         int flags;
         unsigned long next_statechange;
-        struct work_struct monitor;
+        struct delayed_work monitor;
         int num_endpoints;
         struct u132_addr addr[MAX_U132_ADDRS];
         struct u132_udev udev[MAX_U132_UDEVS];
@@ -314,7 +314,7 @@ static void u132_ring_requeue_work(struct u132 *u132, struct u132_ring *ring,
         if (delta > 0) {
                 if (queue_delayed_work(workqueue, &ring->scheduler, delta))
                         return;
-        } else if (queue_work(workqueue, &ring->scheduler))
+        } else if (queue_delayed_work(workqueue, &ring->scheduler, 0))
                 return;
         kref_put(&u132->kref, u132_hcd_delete);
         return;
@@ -393,12 +393,8 @@ static inline void u132_endp_init_kref(struct u132 *u132,
 static void u132_endp_queue_work(struct u132 *u132, struct u132_endp *endp,
         unsigned int delta)
 {
-        if (delta > 0) {
-                if (queue_delayed_work(workqueue, &endp->scheduler, delta))
-                        kref_get(&endp->kref);
-        } else if (queue_work(workqueue, &endp->scheduler))
-                kref_get(&endp->kref);
-        return;
+	if (queue_delayed_work(workqueue, &endp->scheduler, delta))
+		kref_get(&endp->kref);
 }
 
 static void u132_endp_cancel_work(struct u132 *u132, struct u132_endp *endp)
@@ -414,24 +410,14 @@ static inline void u132_monitor_put_kref(struct u132 *u132)
 
 static void u132_monitor_queue_work(struct u132 *u132, unsigned int delta)
 {
-        if (delta > 0) {
-                if (queue_delayed_work(workqueue, &u132->monitor, delta)) {
-                        kref_get(&u132->kref);
-                }
-        } else if (queue_work(workqueue, &u132->monitor))
-                kref_get(&u132->kref);
-        return;
+	if (queue_delayed_work(workqueue, &u132->monitor, delta))
+		kref_get(&u132->kref);
 }
 
 static void u132_monitor_requeue_work(struct u132 *u132, unsigned int delta)
 {
-        if (delta > 0) {
-                if (queue_delayed_work(workqueue, &u132->monitor, delta))
-                        return;
-        } else if (queue_work(workqueue, &u132->monitor))
-                return;
-        kref_put(&u132->kref, u132_hcd_delete);
-        return;
+	if (!queue_delayed_work(workqueue, &u132->monitor, delta))
+		kref_put(&u132->kref, u132_hcd_delete);
 }
 
 static void u132_monitor_cancel_work(struct u132 *u132)
@@ -493,9 +479,9 @@ static int read_roothub_info(struct u132 *u132)
         return 0;
 }
 
-static void u132_hcd_monitor_work(void *data)
+static void u132_hcd_monitor_work(struct work_struct *work)
 {
-        struct u132 *u132 = data;
+        struct u132 *u132 = container_of(work, struct u132, monitor.work);
         if (u132->going > 1) {
                 dev_err(&u132->platform_dev->dev, "device has been removed %d\n"
                         , u132->going);
@@ -1319,15 +1305,14 @@ static void u132_hcd_initial_setup_sent(void *data, struct urb *urb, u8 *buf,
         }
 }
 
-static void u132_hcd_ring_work_scheduler(void *data);
-static void u132_hcd_endp_work_scheduler(void *data);
 /*
 * this work function is only executed from the work queue
 *
 */
-static void u132_hcd_ring_work_scheduler(void *data)
+static void u132_hcd_ring_work_scheduler(struct work_struct *work)
 {
-        struct u132_ring *ring = data;
+        struct u132_ring *ring =
+		container_of(work, struct u132_ring, scheduler.work);
         struct u132 *u132 = ring->u132;
         down(&u132->scheduler_lock);
         if (ring->in_use) {
@@ -1386,10 +1371,11 @@ static void u132_hcd_ring_work_scheduler(void *data)
         }
 }
 
-static void u132_hcd_endp_work_scheduler(void *data)
+static void u132_hcd_endp_work_scheduler(struct work_struct *work)
 {
         struct u132_ring *ring;
-        struct u132_endp *endp = data;
+        struct u132_endp *endp =
+		container_of(work, struct u132_endp, scheduler.work);
         struct u132 *u132 = endp->u132;
         down(&u132->scheduler_lock);
         ring = endp->ring;
@@ -1947,7 +1933,7 @@ static int create_endpoint_and_queue_int(struct u132 *u132,
         if (!endp) {
                 return -ENOMEM;
         }
-        INIT_WORK(&endp->scheduler, u132_hcd_endp_work_scheduler, (void *)endp);
+        INIT_DELAYED_WORK(&endp->scheduler, u132_hcd_endp_work_scheduler);
         spin_lock_init(&endp->queue_lock.slock);
         INIT_LIST_HEAD(&endp->urb_more);
         ring = endp->ring = &u132->ring[0];
@@ -2036,7 +2022,7 @@ static int create_endpoint_and_queue_bulk(struct u132 *u132,
         if (!endp) {
                 return -ENOMEM;
         }
-        INIT_WORK(&endp->scheduler, u132_hcd_endp_work_scheduler, (void *)endp);
+        INIT_DELAYED_WORK(&endp->scheduler, u132_hcd_endp_work_scheduler);
         spin_lock_init(&endp->queue_lock.slock);
         INIT_LIST_HEAD(&endp->urb_more);
         endp->dequeueing = 0;
@@ -2121,7 +2107,7 @@ static int create_endpoint_and_queue_control(struct u132 *u132,
         if (!endp) {
                 return -ENOMEM;
         }
-        INIT_WORK(&endp->scheduler, u132_hcd_endp_work_scheduler, (void *)endp);
+        INIT_DELAYED_WORK(&endp->scheduler, u132_hcd_endp_work_scheduler);
         spin_lock_init(&endp->queue_lock.slock);
         INIT_LIST_HEAD(&endp->urb_more);
         ring = endp->ring = &u132->ring[0];
@@ -3100,10 +3086,10 @@ static void u132_initialise(struct u132 *u132, struct platform_device *pdev)
                 ring->number = rings + 1;
                 ring->length = 0;
                 ring->curr_endp = NULL;
-                INIT_WORK(&ring->scheduler, u132_hcd_ring_work_scheduler,
-                        (void *)ring);
+                INIT_DELAYED_WORK(&ring->scheduler,
+				  u132_hcd_ring_work_scheduler);
         } down(&u132->sw_lock);
-        INIT_WORK(&u132->monitor, u132_hcd_monitor_work, (void *)u132);
+        INIT_DELAYED_WORK(&u132->monitor, u132_hcd_monitor_work);
         while (ports-- > 0) {
                 struct u132_port *port = &u132->port[ports];
                 port->u132 = u132;

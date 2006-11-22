@@ -1927,9 +1927,10 @@ static int snd_ac97_dev_disconnect(struct snd_device *device)
 static struct snd_ac97_build_ops null_build_ops;
 
 #ifdef CONFIG_SND_AC97_POWER_SAVE
-static void do_update_power(void *data)
+static void do_update_power(struct work_struct *work)
 {
-	update_power_regs(data);
+	update_power_regs(
+		container_of(work, struct snd_ac97, power_work.work));
 }
 #endif
 
@@ -1989,7 +1990,7 @@ int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template,
 	mutex_init(&ac97->page_mutex);
 #ifdef CONFIG_SND_AC97_POWER_SAVE
 	ac97->power_workq = create_workqueue("ac97");
-	INIT_WORK(&ac97->power_work, do_update_power, ac97);
+	INIT_DELAYED_WORK(&ac97->power_work, do_update_power);
 #endif
 
 #ifdef CONFIG_PCI

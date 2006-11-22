@@ -222,7 +222,7 @@ struct kaweth_device
 	int suspend_lowmem_ctrl;
 	int linkstate;
 	int opened;
-	struct work_struct lowmem_work;
+	struct delayed_work lowmem_work;
 
 	struct usb_device *dev;
 	struct net_device *net;
@@ -530,9 +530,10 @@ resubmit:
 	kaweth_resubmit_int_urb(kaweth, GFP_ATOMIC);
 }
 
-static void kaweth_resubmit_tl(void *d)
+static void kaweth_resubmit_tl(struct work_struct *work)
 {
-	struct kaweth_device *kaweth = (struct kaweth_device *)d;
+	struct kaweth_device *kaweth =
+		container_of(work, struct kaweth_device, lowmem_work.work);
 
 	if (IS_BLOCKED(kaweth->status))
 		return;
@@ -1126,7 +1127,7 @@ err_fw:
 
 	/* kaweth is zeroed as part of alloc_netdev */
 
-	INIT_WORK(&kaweth->lowmem_work, kaweth_resubmit_tl, (void *)kaweth);
+	INIT_DELAYED_WORK(&kaweth->lowmem_work, kaweth_resubmit_tl);
 
 	SET_MODULE_OWNER(netdev);
 

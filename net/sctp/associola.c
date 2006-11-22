@@ -61,7 +61,7 @@
 #include <net/sctp/sm.h>
 
 /* Forward declarations for internal functions. */
-static void sctp_assoc_bh_rcv(struct sctp_association *asoc);
+static void sctp_assoc_bh_rcv(struct work_struct *work);
 
 
 /* 1st Level Abstractions. */
@@ -269,9 +269,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 
 	/* Create an input queue.  */
 	sctp_inq_init(&asoc->base.inqueue);
-	sctp_inq_set_th_handler(&asoc->base.inqueue,
-				    (void (*)(void *))sctp_assoc_bh_rcv,
-				    asoc);
+	sctp_inq_set_th_handler(&asoc->base.inqueue, sctp_assoc_bh_rcv);
 
 	/* Create an output queue.  */
 	sctp_outq_init(asoc, &asoc->outqueue);
@@ -944,8 +942,11 @@ out:
 }
 
 /* Do delayed input processing.  This is scheduled by sctp_rcv(). */
-static void sctp_assoc_bh_rcv(struct sctp_association *asoc)
+static void sctp_assoc_bh_rcv(struct work_struct *work)
 {
+	struct sctp_association *asoc =
+		container_of(work, struct sctp_association,
+			     base.inqueue.immediate);
 	struct sctp_endpoint *ep;
 	struct sctp_chunk *chunk;
 	struct sock *sk;

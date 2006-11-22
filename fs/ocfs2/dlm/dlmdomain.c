@@ -1296,7 +1296,7 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 
 	spin_lock_init(&dlm->work_lock);
 	INIT_LIST_HEAD(&dlm->work_list);
-	INIT_WORK(&dlm->dispatched_work, dlm_dispatch_work, dlm);
+	INIT_WORK(&dlm->dispatched_work, dlm_dispatch_work);
 
 	kref_init(&dlm->dlm_refs);
 	dlm->dlm_state = DLM_CTXT_NEW;

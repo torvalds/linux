@@ -1011,9 +1011,10 @@ static int qla4xxx_recover_adapter(struct scsi_qla_host *ha,
  * the mid-level tries to sleep when it reaches the driver threshold
  * "host->can_queue". This can cause a panic if we were in our interrupt code.
  **/
-static void qla4xxx_do_dpc(void *data)
+static void qla4xxx_do_dpc(struct work_struct *work)
 {
-	struct scsi_qla_host *ha = (struct scsi_qla_host *) data;
+	struct scsi_qla_host *ha =
+		container_of(work, struct scsi_qla_host, dpc_work);
 	struct ddb_entry *ddb_entry, *dtemp;
 
 	DEBUG2(printk("scsi%ld: %s: DPC handler waking up.\n",
@@ -1315,7 +1316,7 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 		ret = -ENODEV;
 		goto probe_failed;
 	}
-	INIT_WORK(&ha->dpc_work, qla4xxx_do_dpc, ha);
+	INIT_WORK(&ha->dpc_work, qla4xxx_do_dpc);
 
 	ret = request_irq(pdev->irq, qla4xxx_intr_handler,
 			  SA_INTERRUPT|SA_SHIRQ, "qla4xxx", ha);

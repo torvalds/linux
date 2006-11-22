@@ -994,9 +994,10 @@ xfs_buf_wait_unpin(
 
 STATIC void
 xfs_buf_iodone_work(
-	void			*v)
+	struct work_struct	*work)
 {
-	xfs_buf_t		*bp = (xfs_buf_t *)v;
+	xfs_buf_t		*bp =
+		container_of(work, xfs_buf_t, b_iodone_work);
 
 	if (bp->b_iodone)
 		(*(bp->b_iodone))(bp);
@@ -1017,10 +1018,10 @@ xfs_buf_ioend(
 
 	if ((bp->b_iodone) || (bp->b_flags & XBF_ASYNC)) {
 		if (schedule) {
-			INIT_WORK(&bp->b_iodone_work, xfs_buf_iodone_work, bp);
+			INIT_WORK(&bp->b_iodone_work, xfs_buf_iodone_work);
 			queue_work(xfslogd_workqueue, &bp->b_iodone_work);
 		} else {
-			xfs_buf_iodone_work(bp);
+			xfs_buf_iodone_work(&bp->b_iodone_work);
 		}
 	} else {
 		up(&bp->b_iodonesema);

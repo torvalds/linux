@@ -927,10 +927,11 @@ static void t1_netpoll(struct net_device *dev)
  * Periodic accumulation of MAC statistics.  This is used only if the MAC
  * does not have any other way to prevent stats counter overflow.
  */
-static void mac_stats_task(void *data)
+static void mac_stats_task(struct work_struct *work)
 {
 	int i;
-	struct adapter *adapter = data;
+	struct adapter *adapter =
+		container_of(work, struct adapter, stats_update_task.work);
 
 	for_each_port(adapter, i) {
 		struct port_info *p = &adapter->port[i];
@@ -951,9 +952,10 @@ static void mac_stats_task(void *data)
 /*
  * Processes elmer0 external interrupts in process context.
  */
-static void ext_intr_task(void *data)
+static void ext_intr_task(struct work_struct *work)
 {
-	struct adapter *adapter = data;
+	struct adapter *adapter =
+		container_of(work, struct adapter, ext_intr_handler_task);
 
 	elmer0_ext_intr_handler(adapter);
 
@@ -1087,9 +1089,9 @@ static int __devinit init_one(struct pci_dev *pdev,
 			spin_lock_init(&adapter->async_lock);
 
 			INIT_WORK(&adapter->ext_intr_handler_task,
-				  ext_intr_task, adapter);
-			INIT_WORK(&adapter->stats_update_task, mac_stats_task,
-				  adapter);
+				  ext_intr_task);
+			INIT_DELAYED_WORK(&adapter->stats_update_task,
+					  mac_stats_task);
 #ifdef work_struct
 			init_timer(&adapter->stats_update_timer);
 			adapter->stats_update_timer.function = mac_stats_timer;

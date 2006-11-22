@@ -321,17 +321,9 @@ void mmc_free_host_sysfs(struct mmc_host *host)
 static struct workqueue_struct *workqueue;
 
 /*
- * Internal function. Schedule work in the MMC work queue.
- */
-int mmc_schedule_work(struct work_struct *work)
-{
-	return queue_work(workqueue, work);
-}
-
-/*
  * Internal function. Schedule delayed work in the MMC work queue.
  */
-int mmc_schedule_delayed_work(struct work_struct *work, unsigned long delay)
+int mmc_schedule_delayed_work(struct delayed_work *work, unsigned long delay)
 {
 	return queue_delayed_work(workqueue, work, delay);
 }

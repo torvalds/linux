@@ -167,9 +167,10 @@ static void set_port_led(
 
 #define	LED_CYCLE_PERIOD	((2*HZ)/3)
 
-static void led_work (void *__hub)
+static void led_work (struct work_struct *work)
 {
-	struct usb_hub		*hub = __hub;
+	struct usb_hub		*hub =
+		container_of(work, struct usb_hub, leds.work);
 	struct usb_device	*hdev = hub->hdev;
 	unsigned		i;
 	unsigned		changed = 0;
@@ -351,9 +352,10 @@ hub_clear_tt_buffer (struct usb_device *hdev, u16 devinfo, u16 tt)
  * talking to TTs must queue control transfers (not just bulk and iso), so
  * both can talk to the same hub concurrently.
  */
-static void hub_tt_kevent (void *arg)
+static void hub_tt_kevent (struct work_struct *work)
 {
-	struct usb_hub		*hub = arg;
+	struct usb_hub		*hub =
+		container_of(work, struct usb_hub, tt.kevent);
 	unsigned long		flags;
 
 	spin_lock_irqsave (&hub->tt.lock, flags);
@@ -641,7 +643,7 @@ static int hub_configure(struct usb_hub *hub,
 
 	spin_lock_init (&hub->tt.lock);
 	INIT_LIST_HEAD (&hub->tt.clear_list);
-	INIT_WORK (&hub->tt.kevent, hub_tt_kevent, hub);
+	INIT_WORK (&hub->tt.kevent, hub_tt_kevent);
 	switch (hdev->descriptor.bDeviceProtocol) {
 		case 0:
 			break;
@@ -880,7 +882,7 @@ descriptor_error:
 	INIT_LIST_HEAD(&hub->event_list);
 	hub->intfdev = &intf->dev;
 	hub->hdev = hdev;
-	INIT_WORK(&hub->leds, led_work, hub);
+	INIT_DELAYED_WORK(&hub->leds, led_work);
 
 	usb_set_intfdata (intf, hub);
 
@@ -2281,7 +2283,7 @@ check_highspeed (struct usb_hub *hub, struct usb_device *udev, int port1)
 		/* hub LEDs are probably harder to miss than syslog */
 		if (hub->has_indicators) {
 			hub->indicator[port1-1] = INDICATOR_GREEN_BLINK;
-			schedule_work (&hub->leds);
+			schedule_delayed_work (&hub->leds, 0);
 		}
 	}
 	kfree(qual);
@@ -2455,7 +2457,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 				if (hub->has_indicators) {
 					hub->indicator[port1-1] =
 						INDICATOR_AMBER_BLINK;
-					schedule_work (&hub->leds);
+					schedule_delayed_work (&hub->leds, 0);
 				}
 				status = -ENOTCONN;	/* Don't retry */
 				goto loop_disable;

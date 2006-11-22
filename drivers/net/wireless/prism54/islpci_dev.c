@@ -861,11 +861,10 @@ islpci_setup(struct pci_dev *pdev)
 	priv->state_off = 1;
 
 	/* initialize workqueue's */
-	INIT_WORK(&priv->stats_work,
-		  (void (*)(void *)) prism54_update_stats, priv);
+	INIT_WORK(&priv->stats_work, prism54_update_stats);
 	priv->stats_timestamp = 0;
 
-	INIT_WORK(&priv->reset_task, islpci_do_reset_and_wake, priv);
+	INIT_WORK(&priv->reset_task, islpci_do_reset_and_wake);
 	priv->reset_task_pending = 0;
 
 	/* allocate various memory areas */

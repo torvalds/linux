@@ -35,7 +35,7 @@
 
 struct greedy {
 	struct gfs2_holder gr_gh;
-	struct work_struct gr_work;
+	struct delayed_work gr_work;
 };
 
 struct gfs2_gl_hash_bucket {
@@ -1368,9 +1368,9 @@ static void gfs2_glock_prefetch(struct gfs2_glock *gl, unsigned int state,
 	glops->go_xmote_th(gl, state, flags);
 }
 
-static void greedy_work(void *data)
+static void greedy_work(struct work_struct *work)
 {
-	struct greedy *gr = data;
+	struct greedy *gr = container_of(work, struct greedy, gr_work.work);
 	struct gfs2_holder *gh = &gr->gr_gh;
 	struct gfs2_glock *gl = gh->gh_gl;
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
@@ -1422,7 +1422,7 @@ int gfs2_glock_be_greedy(struct gfs2_glock *gl, unsigned int time)
 
 	gfs2_holder_init(gl, 0, 0, gh);
 	set_bit(HIF_GREEDY, &gh->gh_iflags);
-	INIT_WORK(&gr->gr_work, greedy_work, gr);
+	INIT_DELAYED_WORK(&gr->gr_work, greedy_work);
 
 	set_bit(GLF_SKIP_WAITERS2, &gl->gl_flags);
 	schedule_delayed_work(&gr->gr_work, time);

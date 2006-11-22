@@ -61,7 +61,7 @@
 #include <net/sctp/sm.h>
 
 /* Forward declarations for internal helpers. */
-static void sctp_endpoint_bh_rcv(struct sctp_endpoint *ep);
+static void sctp_endpoint_bh_rcv(struct work_struct *work);
 
 /*
  * Initialize the base fields of the endpoint structure.
@@ -85,8 +85,7 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	sctp_inq_init(&ep->base.inqueue);
 
 	/* Set its top-half handler */
-	sctp_inq_set_th_handler(&ep->base.inqueue,
-				(void (*)(void *))sctp_endpoint_bh_rcv, ep);
+	sctp_inq_set_th_handler(&ep->base.inqueue, sctp_endpoint_bh_rcv);
 
 	/* Initialize the bind addr area */
 	sctp_bind_addr_init(&ep->base.bind_addr, 0);
@@ -311,8 +310,11 @@ int sctp_endpoint_is_peeled_off(struct sctp_endpoint *ep,
 /* Do delayed input processing.  This is scheduled by sctp_rcv().
  * This may be called on BH or task time.
  */
-static void sctp_endpoint_bh_rcv(struct sctp_endpoint *ep)
+static void sctp_endpoint_bh_rcv(struct work_struct *work)
 {
+	struct sctp_endpoint *ep =
+		container_of(work, struct sctp_endpoint,
+			     base.inqueue.immediate);
 	struct sctp_association *asoc;
 	struct sock *sk;
 	struct sctp_transport *transport;

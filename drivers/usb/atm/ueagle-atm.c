@@ -658,9 +658,9 @@ static int request_dsp(struct uea_softc *sc)
 /*
  * The uea_load_page() function must be called within a process context
  */
-static void uea_load_page(void *xsc)
+static void uea_load_page(struct work_struct *work)
 {
-	struct uea_softc *sc = xsc;
+	struct uea_softc *sc = container_of(work, struct uea_softc, task);
 	u16 pageno = sc->pageno;
 	u16 ovl = sc->ovl;
 	struct block_info bi;
@@ -1352,7 +1352,7 @@ static int uea_boot(struct uea_softc *sc)
 
 	uea_enters(INS_TO_USBDEV(sc));
 
-	INIT_WORK(&sc->task, uea_load_page, sc);
+	INIT_WORK(&sc->task, uea_load_page);
 	init_waitqueue_head(&sc->sync_q);
 	init_waitqueue_head(&sc->cmv_ack_wait);
 

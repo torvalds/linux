@@ -802,7 +802,7 @@ static int save_tx_buffer_request(struct mgsl_struct *info,const char *Buffer, u
 /*
  * Bottom half interrupt handlers
  */
-static void mgsl_bh_handler(void* Context);
+static void mgsl_bh_handler(struct work_struct *work);
 static void mgsl_bh_receive(struct mgsl_struct *info);
 static void mgsl_bh_transmit(struct mgsl_struct *info);
 static void mgsl_bh_status(struct mgsl_struct *info);
@@ -1071,9 +1071,10 @@ static int mgsl_bh_action(struct mgsl_struct *info)
 /*
  * 	Perform bottom half processing of work items queued by ISR.
  */
-static void mgsl_bh_handler(void* Context)
+static void mgsl_bh_handler(struct work_struct *work)
 {
-	struct mgsl_struct *info = (struct mgsl_struct*)Context;
+	struct mgsl_struct *info =
+		container_of(work, struct mgsl_struct, task);
 	int action;
 
 	if (!info)
@@ -4337,7 +4338,7 @@ static struct mgsl_struct* mgsl_allocate_device(void)
 	} else {
 		memset(info, 0, sizeof(struct mgsl_struct));
 		info->magic = MGSL_MAGIC;
-		INIT_WORK(&info->task, mgsl_bh_handler, info);
+		INIT_WORK(&info->task, mgsl_bh_handler);
 		info->max_frame_size = 4096;
 		info->close_delay = 5*HZ/10;
 		info->closing_wait = 30*HZ;

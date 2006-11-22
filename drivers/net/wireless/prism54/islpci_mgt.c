@@ -387,7 +387,7 @@ islpci_mgt_receive(struct net_device *ndev)
 
 			/* Create work to handle trap out of interrupt
 			 * context. */
-			INIT_WORK(&frame->ws, prism54_process_trap, frame);
+			INIT_WORK(&frame->ws, prism54_process_trap);
 			schedule_work(&frame->ws);
 
 		} else {

@@ -594,7 +594,7 @@ struct rtl8139_private {
 	u32 rx_config;
 	struct rtl_extra_stats xstats;
 
-	struct work_struct thread;
+	struct delayed_work thread;
 
 	struct mii_if_info mii;
 	unsigned int regs_len;
@@ -636,8 +636,8 @@ static struct net_device_stats *rtl8139_get_stats (struct net_device *dev);
 static void rtl8139_set_rx_mode (struct net_device *dev);
 static void __set_rx_mode (struct net_device *dev);
 static void rtl8139_hw_start (struct net_device *dev);
-static void rtl8139_thread (void *_data);
-static void rtl8139_tx_timeout_task(void *_data);
+static void rtl8139_thread (struct work_struct *work);
+static void rtl8139_tx_timeout_task(struct work_struct *work);
 static const struct ethtool_ops rtl8139_ethtool_ops;
 
 /* write MMIO register, with flush */
@@ -1010,7 +1010,7 @@ static int __devinit rtl8139_init_one (struct pci_dev *pdev,
 		(debug < 0 ? RTL8139_DEF_MSG_ENABLE : ((1 << debug) - 1));
 	spin_lock_init (&tp->lock);
 	spin_lock_init (&tp->rx_lock);
-	INIT_WORK(&tp->thread, rtl8139_thread, dev);
+	INIT_DELAYED_WORK(&tp->thread, rtl8139_thread);
 	tp->mii.dev = dev;
 	tp->mii.mdio_read = mdio_read;
 	tp->mii.mdio_write = mdio_write;
@@ -1596,15 +1596,16 @@ static inline void rtl8139_thread_iter (struct net_device *dev,
 		 RTL_R8 (Config1));
 }
 
-static void rtl8139_thread (void *_data)
+static void rtl8139_thread (struct work_struct *work)
 {
-	struct net_device *dev = _data;
-	struct rtl8139_private *tp = netdev_priv(dev);
+	struct rtl8139_private *tp =
+		container_of(work, struct rtl8139_private, thread.work);
+	struct net_device *dev = tp->mii.dev;
 	unsigned long thr_delay = next_tick;
 
 	if (tp->watchdog_fired) {
 		tp->watchdog_fired = 0;
-		rtl8139_tx_timeout_task(_data);
+		rtl8139_tx_timeout_task(work);
 	} else if (rtnl_trylock()) {
 		rtl8139_thread_iter (dev, tp, tp->mmio_addr);
 		rtnl_unlock ();
@@ -1646,10 +1647,11 @@ static inline void rtl8139_tx_clear (struct rtl8139_private *tp)
 	/* XXX account for unsent Tx packets in tp->stats.tx_dropped */
 }
 
-static void rtl8139_tx_timeout_task (void *_data)
+static void rtl8139_tx_timeout_task (struct work_struct *work)
 {
-	struct net_device *dev = _data;
-	struct rtl8139_private *tp = netdev_priv(dev);
+	struct rtl8139_private *tp =
+		container_of(work, struct rtl8139_private, thread.work);
+	struct net_device *dev = tp->mii.dev;
 	void __iomem *ioaddr = tp->mmio_addr;
 	int i;
 	u8 tmp8;
@@ -1695,7 +1697,7 @@ static void rtl8139_tx_timeout (struct net_device *dev)
 	struct rtl8139_private *tp = netdev_priv(dev);
 
 	if (!tp->have_thread) {
-		INIT_WORK(&tp->thread, rtl8139_tx_timeout_task, dev);
+		INIT_DELAYED_WORK(&tp->thread, rtl8139_tx_timeout_task);
 		schedule_delayed_work(&tp->thread, next_tick);
 	} else
 		tp->watchdog_fired = 1;

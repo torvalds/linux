@@ -382,7 +382,7 @@ struct usb_device {
 
 	int pm_usage_cnt;		/* usage counter for autosuspend */
 #ifdef CONFIG_PM
-	struct work_struct autosuspend;	/* for delayed autosuspends */
+	struct delayed_work autosuspend; /* for delayed autosuspends */
 	struct mutex pm_mutex;		/* protects PM operations */
 
 	unsigned auto_pm:1;		/* autosuspend/resume in progress */

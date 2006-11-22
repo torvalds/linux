@@ -356,7 +356,7 @@ extern int actcapi_connect_req(act2000_card *, act2000_chan *, char *, char, int
 extern void actcapi_select_b2_protocol_req(act2000_card *, act2000_chan *);
 extern void actcapi_disconnect_b3_req(act2000_card *, act2000_chan *);
 extern void actcapi_connect_resp(act2000_card *, act2000_chan *, __u8);
-extern void actcapi_dispatch(act2000_card *);
+extern void actcapi_dispatch(struct work_struct *);
 #ifdef DEBUG_MSG
 extern void actcapi_debug_msg(struct sk_buff *skb, int);
 #else

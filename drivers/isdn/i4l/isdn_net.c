@@ -984,9 +984,9 @@ void isdn_net_write_super(isdn_net_local *lp, struct sk_buff *skb)
 /*
  * called from tq_immediate
  */
-static void isdn_net_softint(void *private)
+static void isdn_net_softint(struct work_struct *work)
 {
-	isdn_net_local *lp = private;
+	isdn_net_local *lp = container_of(work, isdn_net_local, tqueue);
 	struct sk_buff *skb;
 
 	spin_lock_bh(&lp->xmit_lock);
@@ -2596,7 +2596,7 @@ isdn_net_new(char *name, struct net_device *master)
 	netdev->local->netdev = netdev;
 	netdev->local->next = netdev->local;
 
-	INIT_WORK(&netdev->local->tqueue, (void *)(void *) isdn_net_softint, netdev->local);
+	INIT_WORK(&netdev->local->tqueue, isdn_net_softint);
 	spin_lock_init(&netdev->local->xmit_lock);
 
 	netdev->local->isdn_device = -1;

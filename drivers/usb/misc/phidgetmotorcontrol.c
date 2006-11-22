@@ -41,7 +41,7 @@ struct motorcontrol {
 	unsigned char *data;
 	dma_addr_t data_dma;
 
-	struct work_struct do_notify;
+	struct delayed_work do_notify;
 	unsigned long input_events;
 	unsigned long speed_events;
 	unsigned long exceed_events;
@@ -148,7 +148,7 @@ static void motorcontrol_irq(struct urb *urb)
 		set_bit(1, &mc->exceed_events);
 
 	if (mc->input_events || mc->exceed_events || mc->speed_events)
-		schedule_work(&mc->do_notify);
+		schedule_delayed_work(&mc->do_notify, 0);
 
 resubmit:
 	status = usb_submit_urb(urb, SLAB_ATOMIC);
@@ -159,9 +159,10 @@ resubmit:
 			mc->udev->devpath, status);
 }
 
-static void do_notify(void *data)
+static void do_notify(struct work_struct *work)
 {
-	struct motorcontrol *mc = data;
+	struct motorcontrol *mc =
+		container_of(work, struct motorcontrol, do_notify.work);
 	int i;
 	char sysfs_file[8];
 
@@ -348,7 +349,7 @@ static int motorcontrol_probe(struct usb_interface *intf, const struct usb_devic
 	mc->udev = usb_get_dev(dev);
 	mc->intf = intf;
 	mc->acceleration[0] = mc->acceleration[1] = 10;
-	INIT_WORK(&mc->do_notify, do_notify, mc);
+	INIT_DELAYED_WORK(&mc->do_notify, do_notify);
 	usb_fill_int_urb(mc->irq, mc->udev, pipe, mc->data,
 			maxp > URB_INT_SIZE ? URB_INT_SIZE : maxp,
 			motorcontrol_irq, mc, endpoint->bInterval);

@@ -127,6 +127,7 @@ struct dvb_net_priv {
 	int in_use;
 	struct net_device_stats stats;
 	u16 pid;
+	struct net_device *net;
 	struct dvb_net *host;
 	struct dmx_demux *demux;
 	struct dmx_section_feed *secfeed;
@@ -1123,10 +1124,11 @@ static int dvb_set_mc_filter (struct net_device *dev, struct dev_mc_list *mc)
 }
 
 
-static void wq_set_multicast_list (void *data)
+static void wq_set_multicast_list (struct work_struct *work)
 {
-	struct net_device *dev = data;
-	struct dvb_net_priv *priv = dev->priv;
+	struct dvb_net_priv *priv =
+		container_of(work, struct dvb_net_priv, set_multicast_list_wq);
+	struct net_device *dev = priv->net;
 
 	dvb_net_feed_stop(dev);
 	priv->rx_mode = RX_MODE_UNI;
@@ -1167,9 +1169,11 @@ static void dvb_net_set_multicast_list (struct net_device *dev)
 }
 
 
-static void wq_restart_net_feed (void *data)
+static void wq_restart_net_feed (struct work_struct *work)
 {
-	struct net_device *dev = data;
+	struct dvb_net_priv *priv =
+		container_of(work, struct dvb_net_priv, restart_net_feed_wq);
+	struct net_device *dev = priv->net;
 
 	if (netif_running(dev)) {
 		dvb_net_feed_stop(dev);
@@ -1276,6 +1280,7 @@ static int dvb_net_add_if(struct dvb_net *dvbnet, u16 pid, u8 feedtype)
 	dvbnet->device[if_num] = net;
 
 	priv = net->priv;
+	priv->net = net;
 	priv->demux = dvbnet->demux;
 	priv->pid = pid;
 	priv->rx_mode = RX_MODE_UNI;
@@ -1284,8 +1289,8 @@ static int dvb_net_add_if(struct dvb_net *dvbnet, u16 pid, u8 feedtype)
 	priv->feedtype = feedtype;
 	reset_ule(priv);
 
-	INIT_WORK(&priv->set_multicast_list_wq, wq_set_multicast_list, net);
-	INIT_WORK(&priv->restart_net_feed_wq, wq_restart_net_feed, net);
+	INIT_WORK(&priv->set_multicast_list_wq, wq_set_multicast_list);
+	INIT_WORK(&priv->restart_net_feed_wq, wq_restart_net_feed);
 	mutex_init(&priv->mutex);
 
 	net->base_addr = pid;

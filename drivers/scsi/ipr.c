@@ -2093,7 +2093,7 @@ static void ipr_release_dump(struct kref *kref)
 
 /**
  * ipr_worker_thread - Worker thread
- * @data:		ioa config struct
+ * @work:		ioa config struct
  *
  * Called at task level from a work thread. This function takes care
  * of adding and removing device from the mid-layer as configuration
@@ -2102,13 +2102,14 @@ static void ipr_release_dump(struct kref *kref)
  * Return value:
  * 	nothing
  **/
-static void ipr_worker_thread(void *data)
+static void ipr_worker_thread(struct work_struct *work)
 {
 	unsigned long lock_flags;
 	struct ipr_resource_entry *res;
 	struct scsi_device *sdev;
 	struct ipr_dump *dump;
-	struct ipr_ioa_cfg *ioa_cfg = data;
+	struct ipr_ioa_cfg *ioa_cfg =
+		container_of(work, struct ipr_ioa_cfg, work_q);
 	u8 bus, target, lun;
 	int did_work;
 
@@ -6926,7 +6927,7 @@ static void __devinit ipr_init_ioa_cfg(struct ipr_ioa_cfg *ioa_cfg,
 	INIT_LIST_HEAD(&ioa_cfg->hostrcb_pending_q);
 	INIT_LIST_HEAD(&ioa_cfg->free_res_q);
 	INIT_LIST_HEAD(&ioa_cfg->used_res_q);
-	INIT_WORK(&ioa_cfg->work_q, ipr_worker_thread, ioa_cfg);
+	INIT_WORK(&ioa_cfg->work_q, ipr_worker_thread);
 	init_waitqueue_head(&ioa_cfg->reset_wait_q);
 	ioa_cfg->sdt_state = INACTIVE;
 	if (ipr_enable_cache)

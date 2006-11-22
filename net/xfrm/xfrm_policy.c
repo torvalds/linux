@@ -358,7 +358,7 @@ static void xfrm_policy_gc_kill(struct xfrm_policy *policy)
 	xfrm_pol_put(policy);
 }
 
-static void xfrm_policy_gc_task(void *data)
+static void xfrm_policy_gc_task(struct work_struct *work)
 {
 	struct xfrm_policy *policy;
 	struct hlist_node *entry, *tmp;
@@ -546,7 +546,7 @@ static inline int xfrm_byidx_should_resize(int total)
 
 static DEFINE_MUTEX(hash_resize_mutex);
 
-static void xfrm_hash_resize(void *__unused)
+static void xfrm_hash_resize(struct work_struct *__unused)
 {
 	int dir, total;
 
@@ -563,7 +563,7 @@ static void xfrm_hash_resize(void *__unused)
 	mutex_unlock(&hash_resize_mutex);
 }
 
-static DECLARE_WORK(xfrm_hash_work, xfrm_hash_resize, NULL);
+static DECLARE_WORK(xfrm_hash_work, xfrm_hash_resize);
 
 /* Generate new index... KAME seems to generate them ordered by cost
  * of an absolute inpredictability of ordering of rules. This will not pass. */
@@ -2080,7 +2080,7 @@ static void __init xfrm_policy_init(void)
 			panic("XFRM: failed to allocate bydst hash\n");
 	}
 
-	INIT_WORK(&xfrm_policy_gc_work, xfrm_policy_gc_task, NULL);
+	INIT_WORK(&xfrm_policy_gc_work, xfrm_policy_gc_task);
 	register_netdevice_notifier(&xfrm_dev_notifier);
 }
 

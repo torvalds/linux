@@ -45,16 +45,21 @@ static void pvr2_context_trigger_poll(struct pvr2_context *mp)
 }
 
 
-static void pvr2_context_poll(struct pvr2_context *mp)
+static void pvr2_context_poll(struct work_struct *work)
 {
+	struct pvr2_context *mp =
+		container_of(work, struct pvr2_context, workpoll);
 	pvr2_context_enter(mp); do {
 		pvr2_hdw_poll(mp->hdw);
 	} while (0); pvr2_context_exit(mp);
 }
 
 
-static void pvr2_context_setup(struct pvr2_context *mp)
+static void pvr2_context_setup(struct work_struct *work)
 {
+	struct pvr2_context *mp =
+		container_of(work, struct pvr2_context, workinit);
+
 	pvr2_context_enter(mp); do {
 		if (!pvr2_hdw_dev_ok(mp->hdw)) break;
 		pvr2_hdw_setup(mp->hdw);
@@ -92,8 +97,8 @@ struct pvr2_context *pvr2_context_create(
 	}
 
 	mp->workqueue = create_singlethread_workqueue("pvrusb2");
-	INIT_WORK(&mp->workinit,(void (*)(void*))pvr2_context_setup,mp);
-	INIT_WORK(&mp->workpoll,(void (*)(void*))pvr2_context_poll,mp);
+	INIT_WORK(&mp->workinit, pvr2_context_setup);
+	INIT_WORK(&mp->workpoll, pvr2_context_poll);
 	queue_work(mp->workqueue,&mp->workinit);
  done:
 	return mp;

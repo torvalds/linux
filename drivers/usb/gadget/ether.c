@@ -1833,9 +1833,9 @@ static void rx_fill (struct eth_dev *dev, gfp_t gfp_flags)
 	spin_unlock_irqrestore(&dev->req_lock, flags);
 }
 
-static void eth_work (void *_dev)
+static void eth_work (struct work_struct *work)
 {
-	struct eth_dev		*dev = _dev;
+	struct eth_dev	*dev = container_of(work, struct eth_dev, work);
 
 	if (test_and_clear_bit (WORK_RX_MEMORY, &dev->todo)) {
 		if (netif_running (dev->net))
@@ -2398,7 +2398,7 @@ autoconf_fail:
 	dev = netdev_priv(net);
 	spin_lock_init (&dev->lock);
 	spin_lock_init (&dev->req_lock);
-	INIT_WORK (&dev->work, eth_work, dev);
+	INIT_WORK (&dev->work, eth_work);
 	INIT_LIST_HEAD (&dev->tx_reqs);
 	INIT_LIST_HEAD (&dev->rx_reqs);
 

@@ -1501,9 +1501,10 @@ struct set_config_request {
 };
 
 /* Worker routine for usb_driver_set_configuration() */
-static void driver_set_config_work(void *_req)
+static void driver_set_config_work(struct work_struct *work)
 {
-	struct set_config_request *req = _req;
+	struct set_config_request *req =
+		container_of(work, struct set_config_request, work);
 
 	usb_lock_device(req->udev);
 	usb_set_configuration(req->udev, req->config);
@@ -1541,7 +1542,7 @@ int usb_driver_set_configuration(struct usb_device *udev, int config)
 		return -ENOMEM;
 	req->udev = udev;
 	req->config = config;
-	INIT_WORK(&req->work, driver_set_config_work, req);
+	INIT_WORK(&req->work, driver_set_config_work);
 
 	usb_get_dev(udev);
 	if (!schedule_work(&req->work)) {

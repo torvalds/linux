@@ -1090,9 +1090,10 @@ void zd_dump_rx_status(const struct rx_status *status)
 
 #define LINK_LED_WORK_DELAY HZ
 
-static void link_led_handler(void *p)
+static void link_led_handler(struct work_struct *work)
 {
-	struct zd_mac *mac = p;
+	struct zd_mac *mac =
+		container_of(work, struct zd_mac, housekeeping.link_led_work.work);
 	struct zd_chip *chip = &mac->chip;
 	struct ieee80211softmac_device *sm = ieee80211_priv(mac->netdev);
 	int is_associated;
@@ -1113,7 +1114,7 @@ static void link_led_handler(void *p)
 
 static void housekeeping_init(struct zd_mac *mac)
 {
-	INIT_WORK(&mac->housekeeping.link_led_work, link_led_handler, mac);
+	INIT_DELAYED_WORK(&mac->housekeeping.link_led_work, link_led_handler);
 }
 
 static void housekeeping_enable(struct zd_mac *mac)

@@ -172,7 +172,7 @@ static inline void ocfs2_handle_set_sync(struct ocfs2_journal_handle *handle, in
 }
 
 /* Exported only for the journal struct init code in super.c. Do not call. */
-void ocfs2_complete_recovery(void *data);
+void ocfs2_complete_recovery(struct work_struct *work);
 
 /*
  *  Journal Control:

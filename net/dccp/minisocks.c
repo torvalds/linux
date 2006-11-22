@@ -31,8 +31,7 @@ struct inet_timewait_death_row dccp_death_row = {
 	.tw_timer	= TIMER_INITIALIZER(inet_twdr_hangman, 0,
 					    (unsigned long)&dccp_death_row),
 	.twkill_work	= __WORK_INITIALIZER(dccp_death_row.twkill_work,
-					     inet_twdr_twkill_work,
-					     &dccp_death_row),
+					     inet_twdr_twkill_work),
 /* Short-time timewait calendar */
 
 	.twcal_hand	= -1,

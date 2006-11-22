@@ -698,9 +698,10 @@ static int pcmcia_card_add(struct pcmcia_socket *s)
 }
 
 
-static void pcmcia_delayed_add_pseudo_device(void *data)
+static void pcmcia_delayed_add_pseudo_device(struct work_struct *work)
 {
-	struct pcmcia_socket *s = data;
+	struct pcmcia_socket *s =
+		container_of(work, struct pcmcia_socket, device_add);
 	pcmcia_device_add(s, 0);
 	s->pcmcia_state.device_add_pending = 0;
 }
@@ -1246,7 +1247,7 @@ static int __devinit pcmcia_bus_add_socket(struct class_device *class_dev,
 	init_waitqueue_head(&socket->queue);
 #endif
 	INIT_LIST_HEAD(&socket->devices_list);
-	INIT_WORK(&socket->device_add, pcmcia_delayed_add_pseudo_device, socket);
+	INIT_WORK(&socket->device_add, pcmcia_delayed_add_pseudo_device);
 	memset(&socket->pcmcia_state, 0, sizeof(u8));
 	socket->device_count = 0;
 

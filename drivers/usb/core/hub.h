@@ -230,7 +230,7 @@ struct usb_hub {
 
 	unsigned		has_indicators:1;
 	enum hub_led_mode	indicator[USB_MAXCHILDREN];
-	struct work_struct	leds;
+	struct delayed_work	leds;
 };
 
 #endif /* __LINUX_HUB_H */

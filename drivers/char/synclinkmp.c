@@ -602,7 +602,7 @@ static void enable_loopback(SLMP_INFO *info, int enable);
 static void set_rate(SLMP_INFO *info, u32 data_rate);
 
 static int  bh_action(SLMP_INFO *info);
-static void bh_handler(void* Context);
+static void bh_handler(struct work_struct *work);
 static void bh_receive(SLMP_INFO *info);
 static void bh_transmit(SLMP_INFO *info);
 static void bh_status(SLMP_INFO *info);
@@ -2063,9 +2063,9 @@ int bh_action(SLMP_INFO *info)
 
 /* Perform bottom half processing of work items queued by ISR.
  */
-void bh_handler(void* Context)
+void bh_handler(struct work_struct *work)
 {
-	SLMP_INFO *info = (SLMP_INFO*)Context;
+	SLMP_INFO *info = container_of(work, SLMP_INFO, task);
 	int action;
 
 	if (!info)
@@ -3805,7 +3805,7 @@ static SLMP_INFO *alloc_dev(int adapter_num, int port_num, struct pci_dev *pdev)
 	} else {
 		memset(info, 0, sizeof(SLMP_INFO));
 		info->magic = MGSL_MAGIC;
-		INIT_WORK(&info->task, bh_handler, info);
+		INIT_WORK(&info->task, bh_handler);
 		info->max_frame_size = 4096;
 		info->close_delay = 5*HZ/10;
 		info->closing_wait = 30*HZ;

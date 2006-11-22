@@ -308,9 +308,10 @@ static struct rchan_callbacks default_channel_callbacks = {
  *	reason waking is deferred is that calling directly from write
  *	causes problems if you're writing from say the scheduler.
  */
-static void wakeup_readers(void *private)
+static void wakeup_readers(struct work_struct *work)
 {
-	struct rchan_buf *buf = private;
+	struct rchan_buf *buf =
+		container_of(work, struct rchan_buf, wake_readers.work);
 	wake_up_interruptible(&buf->read_wait);
 }
 
@@ -328,7 +329,7 @@ static inline void __relay_reset(struct rchan_buf *buf, unsigned int init)
 	if (init) {
 		init_waitqueue_head(&buf->read_wait);
 		kref_init(&buf->kref);
-		INIT_WORK(&buf->wake_readers, NULL, NULL);
+		INIT_DELAYED_WORK(&buf->wake_readers, NULL);
 	} else {
 		cancel_delayed_work(&buf->wake_readers);
 		flush_scheduled_work();
@@ -549,7 +550,8 @@ size_t relay_switch_subbuf(struct rchan_buf *buf, size_t length)
 			buf->padding[old_subbuf];
 		smp_mb();
 		if (waitqueue_active(&buf->read_wait)) {
-			PREPARE_WORK(&buf->wake_readers, wakeup_readers, buf);
+			PREPARE_DELAYED_WORK(&buf->wake_readers,
+					     wakeup_readers);
 			schedule_delayed_work(&buf->wake_readers, 1);
 		}
 	}

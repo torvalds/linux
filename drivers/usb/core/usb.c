@@ -210,9 +210,10 @@ static void ksuspend_usb_cleanup(void)
 #ifdef	CONFIG_USB_SUSPEND
 
 /* usb_autosuspend_work - callback routine to autosuspend a USB device */
-static void usb_autosuspend_work(void *_udev)
+static void usb_autosuspend_work(struct work_struct *work)
 {
-	struct usb_device	*udev = _udev;
+	struct usb_device *udev =
+		container_of(work, struct usb_device, autosuspend.work);
 
 	usb_pm_lock(udev);
 	udev->auto_pm = 1;
@@ -222,7 +223,7 @@ static void usb_autosuspend_work(void *_udev)
 
 #else
 
-static void usb_autosuspend_work(void *_udev)
+static void usb_autosuspend_work(struct work_struct *work)
 {}
 
 #endif
@@ -304,7 +305,7 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 
 #ifdef	CONFIG_PM
 	mutex_init(&dev->pm_mutex);
-	INIT_WORK(&dev->autosuspend, usb_autosuspend_work, dev);
+	INIT_DELAYED_WORK(&dev->autosuspend, usb_autosuspend_work);
 #endif
 	return dev;
 }

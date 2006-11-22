@@ -417,7 +417,7 @@ static int process_jobs(struct list_head *jobs, int (*fn) (struct kcopyd_job *))
 /*
  * kcopyd does this every time it's woken up.
  */
-static void do_work(void *ignored)
+static void do_work(struct work_struct *ignored)
 {
 	/*
 	 * The order that these are called is *very* important.
@@ -628,7 +628,7 @@ static int kcopyd_init(void)
 	}
 
 	kcopyd_clients++;
-	INIT_WORK(&_kcopyd_work, do_work, NULL);
+	INIT_WORK(&_kcopyd_work, do_work);
 	mutex_unlock(&kcopyd_init_lock);
 	return 0;
 }

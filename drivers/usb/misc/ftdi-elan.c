@@ -156,9 +156,9 @@ struct usb_ftdi {
         struct usb_device *udev;
         struct usb_interface *interface;
         struct usb_class_driver *class;
-        struct work_struct status_work;
-        struct work_struct command_work;
-        struct work_struct respond_work;
+        struct delayed_work status_work;
+        struct delayed_work command_work;
+        struct delayed_work respond_work;
         struct u132_platform_data platform_data;
         struct resource resources[0];
         struct platform_device platform_dev;
@@ -210,23 +210,14 @@ static void ftdi_elan_init_kref(struct usb_ftdi *ftdi)
 
 static void ftdi_status_requeue_work(struct usb_ftdi *ftdi, unsigned int delta)
 {
-        if (delta > 0) {
-                if (queue_delayed_work(status_queue, &ftdi->status_work, delta))
-                        return;
-        } else if (queue_work(status_queue, &ftdi->status_work))
-                return;
-        kref_put(&ftdi->kref, ftdi_elan_delete);
-        return;
+	if (!queue_delayed_work(status_queue, &ftdi->status_work, delta))
+		kref_put(&ftdi->kref, ftdi_elan_delete);
 }
 
 static void ftdi_status_queue_work(struct usb_ftdi *ftdi, unsigned int delta)
 {
-        if (delta > 0) {
-                if (queue_delayed_work(status_queue, &ftdi->status_work, delta))
-                        kref_get(&ftdi->kref);
-        } else if (queue_work(status_queue, &ftdi->status_work))
-                kref_get(&ftdi->kref);
-        return;
+	if (queue_delayed_work(status_queue, &ftdi->status_work, delta))
+		kref_get(&ftdi->kref);
 }
 
 static void ftdi_status_cancel_work(struct usb_ftdi *ftdi)
@@ -237,25 +228,14 @@ static void ftdi_status_cancel_work(struct usb_ftdi *ftdi)
 
 static void ftdi_command_requeue_work(struct usb_ftdi *ftdi, unsigned int delta)
 {
-        if (delta > 0) {
-                if (queue_delayed_work(command_queue, &ftdi->command_work,
-                        delta))
-                        return;
-        } else if (queue_work(command_queue, &ftdi->command_work))
-                return;
-        kref_put(&ftdi->kref, ftdi_elan_delete);
-        return;
+	if (!queue_delayed_work(command_queue, &ftdi->command_work, delta))
+		kref_put(&ftdi->kref, ftdi_elan_delete);
 }
 
 static void ftdi_command_queue_work(struct usb_ftdi *ftdi, unsigned int delta)
 {
-        if (delta > 0) {
-                if (queue_delayed_work(command_queue, &ftdi->command_work,
-                        delta))
-                        kref_get(&ftdi->kref);
-        } else if (queue_work(command_queue, &ftdi->command_work))
-                kref_get(&ftdi->kref);
-        return;
+	if (queue_delayed_work(command_queue, &ftdi->command_work, delta))
+		kref_get(&ftdi->kref);
 }
 
 static void ftdi_command_cancel_work(struct usb_ftdi *ftdi)
@@ -267,25 +247,14 @@ static void ftdi_command_cancel_work(struct usb_ftdi *ftdi)
 static void ftdi_response_requeue_work(struct usb_ftdi *ftdi,
         unsigned int delta)
 {
-        if (delta > 0) {
-                if (queue_delayed_work(respond_queue, &ftdi->respond_work,
-                        delta))
-                        return;
-        } else if (queue_work(respond_queue, &ftdi->respond_work))
-                return;
-        kref_put(&ftdi->kref, ftdi_elan_delete);
-        return;
+	if (!queue_delayed_work(respond_queue, &ftdi->respond_work, delta))
+		kref_put(&ftdi->kref, ftdi_elan_delete);
 }
 
 static void ftdi_respond_queue_work(struct usb_ftdi *ftdi, unsigned int delta)
 {
-        if (delta > 0) {
-                if (queue_delayed_work(respond_queue, &ftdi->respond_work,
-                        delta))
-                        kref_get(&ftdi->kref);
-        } else if (queue_work(respond_queue, &ftdi->respond_work))
-                kref_get(&ftdi->kref);
-        return;
+	if (queue_delayed_work(respond_queue, &ftdi->respond_work, delta))
+		kref_get(&ftdi->kref);
 }
 
 static void ftdi_response_cancel_work(struct usb_ftdi *ftdi)
@@ -475,9 +444,11 @@ static void ftdi_elan_kick_command_queue(struct usb_ftdi *ftdi)
         return;
 }
 
-static void ftdi_elan_command_work(void *data)
+static void ftdi_elan_command_work(struct work_struct *work)
 {
-        struct usb_ftdi *ftdi = data;
+        struct usb_ftdi *ftdi =
+		container_of(work, struct usb_ftdi, command_work.work);
+
         if (ftdi->disconnected > 0) {
                 ftdi_elan_put_kref(ftdi);
                 return;
@@ -500,9 +471,10 @@ static void ftdi_elan_kick_respond_queue(struct usb_ftdi *ftdi)
         return;
 }
 
-static void ftdi_elan_respond_work(void *data)
+static void ftdi_elan_respond_work(struct work_struct *work)
 {
-        struct usb_ftdi *ftdi = data;
+        struct usb_ftdi *ftdi =
+		container_of(work, struct usb_ftdi, respond_work.work);
         if (ftdi->disconnected > 0) {
                 ftdi_elan_put_kref(ftdi);
                 return;
@@ -534,9 +506,10 @@ static void ftdi_elan_respond_work(void *data)
 * after the FTDI has been synchronized
 *
 */
-static void ftdi_elan_status_work(void *data)
+static void ftdi_elan_status_work(struct work_struct *work)
 {
-        struct usb_ftdi *ftdi = data;
+        struct usb_ftdi *ftdi =
+		container_of(work, struct usb_ftdi, status_work.work);
         int work_delay_in_msec = 0;
         if (ftdi->disconnected > 0) {
                 ftdi_elan_put_kref(ftdi);
@@ -2691,12 +2664,9 @@ static int ftdi_elan_probe(struct usb_interface *interface,
                 ftdi->class = NULL;
                 dev_info(&ftdi->udev->dev, "USB FDTI=%p ELAN interface %d now a"
                         "ctivated\n", ftdi, iface_desc->desc.bInterfaceNumber);
-                INIT_WORK(&ftdi->status_work, ftdi_elan_status_work,
-                        (void *)ftdi);
-                INIT_WORK(&ftdi->command_work, ftdi_elan_command_work,
-                        (void *)ftdi);
-                INIT_WORK(&ftdi->respond_work, ftdi_elan_respond_work,
-                        (void *)ftdi);
+                INIT_DELAYED_WORK(&ftdi->status_work, ftdi_elan_status_work);
+                INIT_DELAYED_WORK(&ftdi->command_work, ftdi_elan_command_work);
+                INIT_DELAYED_WORK(&ftdi->respond_work, ftdi_elan_respond_work);
                 ftdi_status_queue_work(ftdi, msecs_to_jiffies(3 *1000));
                 return 0;
         } else {

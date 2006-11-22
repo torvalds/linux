@@ -1506,8 +1506,10 @@ setstack_2b(struct PStack *st, struct BCState *bcs)
 /* handle L1 state changes */
 /***************************/
 static void
-hfcpci_bh(struct IsdnCardState *cs)
+hfcpci_bh(struct work_struct *work)
 {
+	struct IsdnCardState *cs =
+		container_of(work, struct IsdnCardState, tqueue);
 	u_long	flags;
 //      struct PStack *stptr;
 
@@ -1722,7 +1724,7 @@ setup_hfcpci(struct IsdnCard *card)
 		Write_hfc(cs, HFCPCI_INT_M2, cs->hw.hfcpci.int_m2);
 		/* At this point the needed PCI config is done */
 		/* fifos are still not enabled */
-		INIT_WORK(&cs->tqueue, (void *)(void *) hfcpci_bh, cs);
+		INIT_WORK(&cs->tqueue,  hfcpci_bh);
 		cs->setstack_d = setstack_hfcpci;
 		cs->BC_Send_Data = &hfcpci_send_data;
 		cs->readisac = NULL;

@@ -1341,9 +1341,9 @@ static int cma_query_ib_route(struct rdma_id_private *id_priv, int timeout_ms,
 	return (id_priv->query_id < 0) ? id_priv->query_id : 0;
 }
 
-static void cma_work_handler(void *data)
+static void cma_work_handler(struct work_struct *_work)
 {
-	struct cma_work *work = data;
+	struct cma_work *work = container_of(_work, struct cma_work, work);
 	struct rdma_id_private *id_priv = work->id;
 	int destroy = 0;
 
@@ -1374,7 +1374,7 @@ static int cma_resolve_ib_route(struct rdma_id_private *id_priv, int timeout_ms)
 		return -ENOMEM;
 
 	work->id = id_priv;
-	INIT_WORK(&work->work, cma_work_handler, work);
+	INIT_WORK(&work->work, cma_work_handler);
 	work->old_state = CMA_ROUTE_QUERY;
 	work->new_state = CMA_ROUTE_RESOLVED;
 	work->event.event = RDMA_CM_EVENT_ROUTE_RESOLVED;
@@ -1431,7 +1431,7 @@ static int cma_resolve_iw_route(struct rdma_id_private *id_priv, int timeout_ms)
 		return -ENOMEM;
 
 	work->id = id_priv;
-	INIT_WORK(&work->work, cma_work_handler, work);
+	INIT_WORK(&work->work, cma_work_handler);
 	work->old_state = CMA_ROUTE_QUERY;
 	work->new_state = CMA_ROUTE_RESOLVED;
 	work->event.event = RDMA_CM_EVENT_ROUTE_RESOLVED;
@@ -1585,7 +1585,7 @@ static int cma_resolve_loopback(struct rdma_id_private *id_priv)
 	}
 
 	work->id = id_priv;
-	INIT_WORK(&work->work, cma_work_handler, work);
+	INIT_WORK(&work->work, cma_work_handler);
 	work->old_state = CMA_ADDR_QUERY;
 	work->new_state = CMA_ADDR_RESOLVED;
 	work->event.event = RDMA_CM_EVENT_ADDR_RESOLVED;

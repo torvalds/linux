@@ -969,9 +969,10 @@ static void hid_retry_timeout(unsigned long _hid)
 }
 
 /* Workqueue routine to reset the device */
-static void hid_reset(void *_hid)
+static void hid_reset(struct work_struct *work)
 {
-	struct hid_device *hid = (struct hid_device *) _hid;
+	struct hid_device *hid =
+		container_of(work, struct hid_device, reset_work);
 	int rc_lock, rc;
 
 	dev_dbg(&hid->intf->dev, "resetting device\n");
@@ -2015,7 +2016,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 
 	init_waitqueue_head(&hid->wait);
 
-	INIT_WORK(&hid->reset_work, hid_reset, hid);
+	INIT_WORK(&hid->reset_work, hid_reset);
 	setup_timer(&hid->io_retry, hid_retry_timeout, (unsigned long) hid);
 
 	spin_lock_init(&hid->inlock);

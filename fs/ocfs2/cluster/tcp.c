@@ -140,11 +140,11 @@ static int o2net_sys_err_translations[O2NET_ERR_MAX] =
 		 [O2NET_ERR_DIED]	= -EHOSTDOWN,};
 
 /* can't quite avoid *all* internal declarations :/ */
-static void o2net_sc_connect_completed(void *arg);
-static void o2net_rx_until_empty(void *arg);
-static void o2net_shutdown_sc(void *arg);
+static void o2net_sc_connect_completed(struct work_struct *work);
+static void o2net_rx_until_empty(struct work_struct *work);
+static void o2net_shutdown_sc(struct work_struct *work);
 static void o2net_listen_data_ready(struct sock *sk, int bytes);
-static void o2net_sc_send_keep_req(void *arg);
+static void o2net_sc_send_keep_req(struct work_struct *work);
 static void o2net_idle_timer(unsigned long data);
 static void o2net_sc_postpone_idle(struct o2net_sock_container *sc);
 
@@ -308,10 +308,10 @@ static struct o2net_sock_container *sc_alloc(struct o2nm_node *node)
 	o2nm_node_get(node);
 	sc->sc_node = node;
 
-	INIT_WORK(&sc->sc_connect_work, o2net_sc_connect_completed, sc);
-	INIT_WORK(&sc->sc_rx_work, o2net_rx_until_empty, sc);
-	INIT_WORK(&sc->sc_shutdown_work, o2net_shutdown_sc, sc);
-	INIT_WORK(&sc->sc_keepalive_work, o2net_sc_send_keep_req, sc);
+	INIT_WORK(&sc->sc_connect_work, o2net_sc_connect_completed);
+	INIT_WORK(&sc->sc_rx_work, o2net_rx_until_empty);
+	INIT_WORK(&sc->sc_shutdown_work, o2net_shutdown_sc);
+	INIT_DELAYED_WORK(&sc->sc_keepalive_work, o2net_sc_send_keep_req);
 
 	init_timer(&sc->sc_idle_timeout);
 	sc->sc_idle_timeout.function = o2net_idle_timer;
@@ -342,7 +342,7 @@ static void o2net_sc_queue_work(struct o2net_sock_container *sc,
 		sc_put(sc);
 }
 static void o2net_sc_queue_delayed_work(struct o2net_sock_container *sc,
-					struct work_struct *work,
+					struct delayed_work *work,
 					int delay)
 {
 	sc_get(sc);
@@ -350,7 +350,7 @@ static void o2net_sc_queue_delayed_work(struct o2net_sock_container *sc,
 		sc_put(sc);
 }
 static void o2net_sc_cancel_delayed_work(struct o2net_sock_container *sc,
-					 struct work_struct *work)
+					 struct delayed_work *work)
 {
 	if (cancel_delayed_work(work))
 		sc_put(sc);
@@ -564,9 +564,11 @@ static void o2net_ensure_shutdown(struct o2net_node *nn,
  * ourselves as state_change couldn't get the nn_lock and call set_nn_state
  * itself.
  */
-static void o2net_shutdown_sc(void *arg)
+static void o2net_shutdown_sc(struct work_struct *work)
 {
-	struct o2net_sock_container *sc = arg;
+	struct o2net_sock_container *sc =
+		container_of(work, struct o2net_sock_container,
+			     sc_shutdown_work);
 	struct o2net_node *nn = o2net_nn_from_num(sc->sc_node->nd_num);
 
 	sclog(sc, "shutting down\n");
@@ -1201,9 +1203,10 @@ out:
 /* this work func is triggerd by data ready.  it reads until it can read no
  * more.  it interprets 0, eof, as fatal.  if data_ready hits while we're doing
  * our work the work struct will be marked and we'll be called again. */
-static void o2net_rx_until_empty(void *arg)
+static void o2net_rx_until_empty(struct work_struct *work)
 {
-	struct o2net_sock_container *sc = arg;
+	struct o2net_sock_container *sc =
+		container_of(work, struct o2net_sock_container, sc_rx_work);
 	int ret;
 
 	do {
@@ -1249,9 +1252,11 @@ static int o2net_set_nodelay(struct socket *sock)
 
 /* called when a connect completes and after a sock is accepted.  the
  * rx path will see the response and mark the sc valid */
-static void o2net_sc_connect_completed(void *arg)
+static void o2net_sc_connect_completed(struct work_struct *work)
 {
-	struct o2net_sock_container *sc = arg;
+	struct o2net_sock_container *sc =
+		container_of(work, struct o2net_sock_container,
+			     sc_connect_work);
 
 	mlog(ML_MSG, "sc sending handshake with ver %llu id %llx\n",
               (unsigned long long)O2NET_PROTOCOL_VERSION,
@@ -1262,9 +1267,11 @@ static void o2net_sc_connect_completed(void *arg)
 }
 
 /* this is called as a work_struct func. */
-static void o2net_sc_send_keep_req(void *arg)
+static void o2net_sc_send_keep_req(struct work_struct *work)
 {
-	struct o2net_sock_container *sc = arg;
+	struct o2net_sock_container *sc =
+		container_of(work, struct o2net_sock_container,
+			     sc_keepalive_work.work);
 
 	o2net_sendpage(sc, o2net_keep_req, sizeof(*o2net_keep_req));
 	sc_put(sc);
@@ -1314,14 +1321,15 @@ static void o2net_sc_postpone_idle(struct o2net_sock_container *sc)
  * having a connect attempt fail, etc. This centralizes the logic which decides
  * if a connect attempt should be made or if we should give up and all future
  * transmit attempts should fail */
-static void o2net_start_connect(void *arg)
+static void o2net_start_connect(struct work_struct *work)
 {
-	struct o2net_node *nn = arg;
+	struct o2net_node *nn =
+		container_of(work, struct o2net_node, nn_connect_work.work);
 	struct o2net_sock_container *sc = NULL;
 	struct o2nm_node *node = NULL, *mynode = NULL;
 	struct socket *sock = NULL;
 	struct sockaddr_in myaddr = {0, }, remoteaddr = {0, };
-	int ret = 0;
+	int ret = 0, stop;
 
 	/* if we're greater we initiate tx, otherwise we accept */
 	if (o2nm_this_node() <= o2net_num_from_nn(nn))
@@ -1342,10 +1350,9 @@ static void o2net_start_connect(void *arg)
 
 	spin_lock(&nn->nn_lock);
 	/* see if we already have one pending or have given up */
-	if (nn->nn_sc || nn->nn_persistent_error)
-		arg = NULL;
+	stop = (nn->nn_sc || nn->nn_persistent_error);
 	spin_unlock(&nn->nn_lock);
-	if (arg == NULL) /* *shrug*, needed some indicator */
+	if (stop)
 		goto out;
 
 	nn->nn_last_connect_attempt = jiffies;
@@ -1421,9 +1428,10 @@ out:
 	return;
 }
 
-static void o2net_connect_expired(void *arg)
+static void o2net_connect_expired(struct work_struct *work)
 {
-	struct o2net_node *nn = arg;
+	struct o2net_node *nn =
+		container_of(work, struct o2net_node, nn_connect_expired.work);
 
 	spin_lock(&nn->nn_lock);
 	if (!nn->nn_sc_valid) {
@@ -1436,9 +1444,10 @@ static void o2net_connect_expired(void *arg)
 	spin_unlock(&nn->nn_lock);
 }
 
-static void o2net_still_up(void *arg)
+static void o2net_still_up(struct work_struct *work)
 {
-	struct o2net_node *nn = arg;
+	struct o2net_node *nn =
+		container_of(work, struct o2net_node, nn_still_up.work);
 
 	o2quo_hb_still_up(o2net_num_from_nn(nn));
 }
@@ -1644,9 +1653,9 @@ out:
 	return ret;
 }
 
-static void o2net_accept_many(void *arg)
+static void o2net_accept_many(struct work_struct *work)
 {
-	struct socket *sock = arg;
+	struct socket *sock = o2net_listen_sock;
 	while (o2net_accept_one(sock) == 0)
 		cond_resched();
 }
@@ -1700,7 +1709,7 @@ static int o2net_open_listening_sock(__be16 port)
 	write_unlock_bh(&sock->sk->sk_callback_lock);
 
 	o2net_listen_sock = sock;
-	INIT_WORK(&o2net_listen_work, o2net_accept_many, sock);
+	INIT_WORK(&o2net_listen_work, o2net_accept_many);
 
 	sock->sk->sk_reuse = 1;
 	ret = sock->ops->bind(sock, (struct sockaddr *)&sin, sizeof(sin));
@@ -1819,9 +1828,10 @@ int o2net_init(void)
 		struct o2net_node *nn = o2net_nn_from_num(i);
 
 		spin_lock_init(&nn->nn_lock);
-		INIT_WORK(&nn->nn_connect_work, o2net_start_connect, nn);
-		INIT_WORK(&nn->nn_connect_expired, o2net_connect_expired, nn);
-		INIT_WORK(&nn->nn_still_up, o2net_still_up, nn);
+		INIT_DELAYED_WORK(&nn->nn_connect_work, o2net_start_connect);
+		INIT_DELAYED_WORK(&nn->nn_connect_expired,
+				  o2net_connect_expired);
+		INIT_DELAYED_WORK(&nn->nn_still_up, o2net_still_up);
 		/* until we see hb from a node we'll return einval */
 		nn->nn_persistent_error = -ENOTCONN;
 		init_waitqueue_head(&nn->nn_sc_wq);

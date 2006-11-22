@@ -421,7 +421,7 @@ static irqreturn_t mgslpc_isr(int irq, void *dev_id);
 /*
  * Bottom half interrupt handlers
  */
-static void bh_handler(void* Context);
+static void bh_handler(struct work_struct *work);
 static void bh_transmit(MGSLPC_INFO *info);
 static void bh_status(MGSLPC_INFO *info);
 
@@ -547,7 +547,7 @@ static int mgslpc_probe(struct pcmcia_device *link)
 
     memset(info, 0, sizeof(MGSLPC_INFO));
     info->magic = MGSLPC_MAGIC;
-    INIT_WORK(&info->task, bh_handler, info);
+    INIT_WORK(&info->task, bh_handler);
     info->max_frame_size = 4096;
     info->close_delay = 5*HZ/10;
     info->closing_wait = 30*HZ;
@@ -842,9 +842,9 @@ static int bh_action(MGSLPC_INFO *info)
 	return rc;
 }
 
-static void bh_handler(void* Context)
+static void bh_handler(struct work_struct *work)
 {
-	MGSLPC_INFO *info = (MGSLPC_INFO*)Context;
+	MGSLPC_INFO *info = container_of(work, MGSLPC_INFO, task);
 	int action;
 
 	if (!info)

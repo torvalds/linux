@@ -33,9 +33,10 @@ static void tifm_7xx1_eject(struct tifm_adapter *fm, struct tifm_dev *sock)
 	spin_unlock_irqrestore(&fm->lock, flags);
 }
 
-static void tifm_7xx1_remove_media(void *adapter)
+static void tifm_7xx1_remove_media(struct work_struct *work)
 {
-	struct tifm_adapter *fm = adapter;
+	struct tifm_adapter *fm =
+		container_of(work, struct tifm_adapter, media_remover);
 	unsigned long flags;
 	int cnt;
 	struct tifm_dev *sock;
@@ -169,9 +170,10 @@ tifm_7xx1_sock_addr(char __iomem *base_addr, unsigned int sock_num)
 	return base_addr + ((sock_num + 1) << 10);
 }
 
-static void tifm_7xx1_insert_media(void *adapter)
+static void tifm_7xx1_insert_media(struct work_struct *work)
 {
-	struct tifm_adapter *fm = adapter;
+	struct tifm_adapter *fm =
+		container_of(work, struct tifm_adapter, media_inserter);
 	unsigned long flags;
 	tifm_media_id media_id;
 	char *card_name = "xx";
@@ -261,7 +263,7 @@ static int tifm_7xx1_suspend(struct pci_dev *dev, pm_message_t state)
 	spin_unlock_irqrestore(&fm->lock, flags);
 	flush_workqueue(fm->wq);
 
-	tifm_7xx1_remove_media(fm);
+	tifm_7xx1_remove_media(&fm->media_remover);
 
 	pci_set_power_state(dev, PCI_D3hot);
         pci_disable_device(dev);
@@ -328,8 +330,8 @@ static int tifm_7xx1_probe(struct pci_dev *dev,
 	if (!fm->sockets)
 		goto err_out_free;
 
-	INIT_WORK(&fm->media_inserter, tifm_7xx1_insert_media, fm);
-	INIT_WORK(&fm->media_remover, tifm_7xx1_remove_media, fm);
+	INIT_WORK(&fm->media_inserter, tifm_7xx1_insert_media);
+	INIT_WORK(&fm->media_remover, tifm_7xx1_remove_media);
 	fm->eject = tifm_7xx1_eject;
 	pci_set_drvdata(dev, fm);
 
@@ -384,7 +386,7 @@ static void tifm_7xx1_remove(struct pci_dev *dev)
 
 	flush_workqueue(fm->wq);
 
-	tifm_7xx1_remove_media(fm);
+	tifm_7xx1_remove_media(&fm->media_remover);
 
 	writel(TIFM_IRQ_SETALL, fm->addr + FM_CLEAR_INTERRUPT_ENABLE);
 	free_irq(dev->irq, fm);

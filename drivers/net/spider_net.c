@@ -1945,10 +1945,11 @@ spider_net_stop(struct net_device *netdev)
  * called as task when tx hangs, resets interface (if interface is up)
  */
 static void
-spider_net_tx_timeout_task(void *data)
+spider_net_tx_timeout_task(struct work_struct *work)
 {
-	struct net_device *netdev = data;
-	struct spider_net_card *card = netdev_priv(netdev);
+	struct spider_net_card *card =
+		container_of(work, struct spider_net_card, tx_timeout_task);
+	struct net_device *netdev = card->netdev;
 
 	if (!(netdev->flags & IFF_UP))
 		goto out;
@@ -2122,7 +2123,7 @@ spider_net_alloc_card(void)
 	card = netdev_priv(netdev);
 	card->netdev = netdev;
 	card->msg_enable = SPIDER_NET_DEFAULT_MSG;
-	INIT_WORK(&card->tx_timeout_task, spider_net_tx_timeout_task, netdev);
+	INIT_WORK(&card->tx_timeout_task, spider_net_tx_timeout_task);
 	init_waitqueue_head(&card->waitq);
 	atomic_set(&card->tx_timeout_task_counter, 0);
 

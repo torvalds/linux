@@ -237,9 +237,9 @@ static void bt_release(struct device *dev)
 	kfree(data);
 }
 
-static void add_conn(void *data)
+static void add_conn(struct work_struct *work)
 {
-	struct hci_conn *conn = data;
+	struct hci_conn *conn = container_of(work, struct hci_conn, work);
 	int i;
 
 	if (device_register(&conn->dev) < 0) {
@@ -272,14 +272,14 @@ void hci_conn_add_sysfs(struct hci_conn *conn)
 
 	dev_set_drvdata(&conn->dev, conn);
 
-	INIT_WORK(&conn->work, add_conn, (void *) conn);
+	INIT_WORK(&conn->work, add_conn);
 
 	schedule_work(&conn->work);
 }
 
-static void del_conn(void *data)
+static void del_conn(struct work_struct *work)
 {
-	struct hci_conn *conn = data;
+	struct hci_conn *conn = container_of(work, struct hci_conn, work);
 	device_del(&conn->dev);
 }
 
@@ -287,7 +287,7 @@ void hci_conn_del_sysfs(struct hci_conn *conn)
 {
 	BT_DBG("conn %p", conn);
 
-	INIT_WORK(&conn->work, del_conn, (void *) conn);
+	INIT_WORK(&conn->work, del_conn);
 
 	schedule_work(&conn->work);
 }

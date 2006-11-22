@@ -209,7 +209,7 @@ struct adapter {
 	struct peespi *espi;
 
 	struct port_info port[MAX_NPORTS];
-	struct work_struct stats_update_task;
+	struct delayed_work stats_update_task;
 	struct timer_list stats_update_timer;
 
 	struct semaphore mib_mutex;

@@ -600,7 +600,7 @@ core_initcall(smu_late_init);
  * sysfs visibility
  */
 
-static void smu_expose_childs(void *unused)
+static void smu_expose_childs(struct work_struct *unused)
 {
 	struct device_node *np;
 
@@ -610,7 +610,7 @@ static void smu_expose_childs(void *unused)
 						  &smu->of_dev->dev);
 }
 
-static DECLARE_WORK(smu_expose_childs_work, smu_expose_childs, NULL);
+static DECLARE_WORK(smu_expose_childs_work, smu_expose_childs);
 
 static int smu_platform_probe(struct of_device* dev,
 			      const struct of_device_id *match)

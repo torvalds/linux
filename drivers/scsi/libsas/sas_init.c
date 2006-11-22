@@ -65,9 +65,11 @@ void sas_hash_addr(u8 *hashed, const u8 *sas_addr)
 
 /* ---------- HA events ---------- */
 
-void sas_hae_reset(void *data)
+void sas_hae_reset(struct work_struct *work)
 {
-	struct sas_ha_struct *ha = data;
+	struct sas_ha_event *ev =
+		container_of(work, struct sas_ha_event, work);
+	struct sas_ha_struct *ha = ev->ha;
 
 	sas_begin_event(HAE_RESET, &ha->event_lock,
 			&ha->pending);

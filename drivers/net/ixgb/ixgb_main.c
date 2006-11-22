@@ -106,7 +106,7 @@ static boolean_t ixgb_clean_rx_irq(struct ixgb_adapter *adapter);
 static void ixgb_alloc_rx_buffers(struct ixgb_adapter *adapter);
 void ixgb_set_ethtool_ops(struct net_device *netdev);
 static void ixgb_tx_timeout(struct net_device *dev);
-static void ixgb_tx_timeout_task(struct net_device *dev);
+static void ixgb_tx_timeout_task(struct work_struct *work);
 static void ixgb_vlan_rx_register(struct net_device *netdev,
 				  struct vlan_group *grp);
 static void ixgb_vlan_rx_add_vid(struct net_device *netdev, uint16_t vid);
@@ -489,8 +489,7 @@ ixgb_probe(struct pci_dev *pdev,
 	adapter->watchdog_timer.function = &ixgb_watchdog;
 	adapter->watchdog_timer.data = (unsigned long)adapter;
 
-	INIT_WORK(&adapter->tx_timeout_task,
-		  (void (*)(void *))ixgb_tx_timeout_task, netdev);
+	INIT_WORK(&adapter->tx_timeout_task, ixgb_tx_timeout_task);
 
 	strcpy(netdev->name, "eth%d");
 	if((err = register_netdev(netdev)))
@@ -1493,9 +1492,10 @@ ixgb_tx_timeout(struct net_device *netdev)
 }
 
 static void
-ixgb_tx_timeout_task(struct net_device *netdev)
+ixgb_tx_timeout_task(struct work_struct *work)
 {
-	struct ixgb_adapter *adapter = netdev_priv(netdev);
+	struct ixgb_adapter *adapter =
+		container_of(work, struct ixgb_adapter, tx_timeout_task);
 
 	adapter->tx_timeout_count++;
 	ixgb_down(adapter, TRUE);

@@ -787,7 +787,7 @@ struct bcm43xx_private {
 	struct tasklet_struct isr_tasklet;
 
 	/* Periodic tasks */
-	struct work_struct periodic_work;
+	struct delayed_work periodic_work;
 	unsigned int periodic_state;
 
 	struct work_struct restart_work;

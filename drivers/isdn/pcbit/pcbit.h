@@ -166,4 +166,6 @@ struct pcbit_ioctl {
 #define L2_RUNNING  5
 #define L2_ERROR    6
 
+extern void pcbit_deliver(struct work_struct *work);
+
 #endif

@@ -189,12 +189,12 @@ static int  ip2_tiocmset(struct tty_struct *tty, struct file *file,
 			 unsigned int set, unsigned int clear);
 
 static void set_irq(int, int);
-static void ip2_interrupt_bh(i2eBordStrPtr pB);
+static void ip2_interrupt_bh(struct work_struct *work);
 static irqreturn_t ip2_interrupt(int irq, void *dev_id);
 static void ip2_poll(unsigned long arg);
 static inline void service_all_boards(void);
-static void do_input(void *p);
-static void do_status(void *p);
+static void do_input(struct work_struct *);
+static void do_status(struct work_struct *);
 
 static void ip2_wait_until_sent(PTTY,int);
 
@@ -918,7 +918,7 @@ ip2_init_board( int boardnum )
 		pCh++;
 	}
 ex_exit:
-	INIT_WORK(&pB->tqueue_interrupt, (void(*)(void*)) ip2_interrupt_bh, pB);
+	INIT_WORK(&pB->tqueue_interrupt, ip2_interrupt_bh);
 	return;
 
 err_release_region:
@@ -1125,8 +1125,8 @@ service_all_boards(void)
 
 
 /******************************************************************************/
-/* Function:   ip2_interrupt_bh(pB)                                           */
-/* Parameters: pB - pointer to the board structure                            */
+/* Function:   ip2_interrupt_bh(work)                                         */
+/* Parameters: work - pointer to the board structure                          */
 /* Returns:    Nothing                                                        */
 /*                                                                            */
 /* Description:                                                               */
@@ -1135,8 +1135,9 @@ service_all_boards(void)
 /*                                                                            */
 /******************************************************************************/
 static void
-ip2_interrupt_bh(i2eBordStrPtr pB)
+ip2_interrupt_bh(struct work_struct *work)
 {
+	i2eBordStrPtr pB = container_of(work, i2eBordStr, tqueue_interrupt);
 //	pB better well be set or we have a problem!  We can only get
 //	here from the IMMEDIATE queue.  Here, we process the boards.
 //	Checking pB doesn't cost much and it saves us from the sanity checkers.
@@ -1245,9 +1246,9 @@ ip2_poll(unsigned long arg)
 	ip2trace (ITRC_NO_PORT, ITRC_INTR, ITRC_RETURN, 0 );
 }
 
-static void do_input(void *p)
+static void do_input(struct work_struct *work)
 {
-	i2ChanStrPtr pCh = p;
+	i2ChanStrPtr pCh = container_of(work, i2ChanStr, tqueue_input);
 	unsigned long flags;
 
 	ip2trace(CHANN, ITRC_INPUT, 21, 0 );
@@ -1279,9 +1280,9 @@ static inline void  isig(int sig, struct tty_struct *tty, int flush)
 	}
 }
 
-static void do_status(void *p)
+static void do_status(struct work_struct *work)
 {
-	i2ChanStrPtr pCh = p;
+	i2ChanStrPtr pCh = container_of(work, i2ChanStr, tqueue_status);
 	int status;
 
 	status =  i2GetStatus( pCh, (I2_BRK|I2_PAR|I2_FRA|I2_OVR) );

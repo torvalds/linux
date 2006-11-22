@@ -394,7 +394,7 @@ out_unlock:
 EXPORT_SYMBOL(phy_start_aneg);
 
 
-static void phy_change(void *data);
+static void phy_change(struct work_struct *work);
 static void phy_timer(unsigned long data);
 
 /* phy_start_machine:
@@ -549,7 +549,7 @@ int phy_start_interrupts(struct phy_device *phydev)
 {
 	int err = 0;
 
-	INIT_WORK(&phydev->phy_queue, phy_change, phydev);
+	INIT_WORK(&phydev->phy_queue, phy_change);
 
 	if (request_irq(phydev->irq, phy_interrupt,
 				IRQF_SHARED,
@@ -585,10 +585,11 @@ EXPORT_SYMBOL(phy_stop_interrupts);
 
 
 /* Scheduled by the phy_interrupt/timer to handle PHY changes */
-static void phy_change(void *data)
+static void phy_change(struct work_struct *work)
 {
 	int err;
-	struct phy_device *phydev = data;
+	struct phy_device *phydev =
+		container_of(work, struct phy_device, phy_queue);
 
 	err = phy_disable_interrupts(phydev);
 

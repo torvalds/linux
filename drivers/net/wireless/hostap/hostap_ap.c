@@ -49,10 +49,10 @@ MODULE_PARM_DESC(autom_ap_wds, "Add WDS connections to other APs "
 static struct sta_info* ap_get_sta(struct ap_data *ap, u8 *sta);
 static void hostap_event_expired_sta(struct net_device *dev,
 				     struct sta_info *sta);
-static void handle_add_proc_queue(void *data);
+static void handle_add_proc_queue(struct work_struct *work);
 
 #ifndef PRISM2_NO_KERNEL_IEEE80211_MGMT
-static void handle_wds_oper_queue(void *data);
+static void handle_wds_oper_queue(struct work_struct *work);
 static void prism2_send_mgmt(struct net_device *dev,
 			     u16 type_subtype, char *body,
 			     int body_len, u8 *addr, u16 tx_cb_idx);
@@ -807,7 +807,7 @@ void hostap_init_data(local_info_t *local)
 	INIT_LIST_HEAD(&ap->sta_list);
 
 	/* Initialize task queue structure for AP management */
-	INIT_WORK(&local->ap->add_sta_proc_queue, handle_add_proc_queue, ap);
+	INIT_WORK(&local->ap->add_sta_proc_queue, handle_add_proc_queue);
 
 	ap->tx_callback_idx =
 		hostap_tx_callback_register(local, hostap_ap_tx_cb, ap);
@@ -815,7 +815,7 @@ void hostap_init_data(local_info_t *local)
 		printk(KERN_WARNING "%s: failed to register TX callback for "
 		       "AP\n", local->dev->name);
 #ifndef PRISM2_NO_KERNEL_IEEE80211_MGMT
-	INIT_WORK(&local->ap->wds_oper_queue, handle_wds_oper_queue, local);
+	INIT_WORK(&local->ap->wds_oper_queue, handle_wds_oper_queue);
 
 	ap->tx_callback_auth =
 		hostap_tx_callback_register(local, hostap_ap_tx_cb_auth, ap);
@@ -1062,9 +1062,10 @@ static int prism2_sta_proc_read(char *page, char **start, off_t off,
 }
 
 
-static void handle_add_proc_queue(void *data)
+static void handle_add_proc_queue(struct work_struct *work)
 {
-	struct ap_data *ap = (struct ap_data *) data;
+	struct ap_data *ap = container_of(work, struct ap_data,
+					  add_sta_proc_queue);
 	struct sta_info *sta;
 	char name[20];
 	struct add_sta_proc_data *entry, *prev;
@@ -1952,9 +1953,11 @@ static void handle_pspoll(local_info_t *local,
 
 #ifndef PRISM2_NO_KERNEL_IEEE80211_MGMT
 
-static void handle_wds_oper_queue(void *data)
+static void handle_wds_oper_queue(struct work_struct *work)
 {
-	local_info_t *local = data;
+	struct ap_data *ap = container_of(work, struct ap_data,
+					  wds_oper_queue);
+	local_info_t *local = ap->local;
 	struct wds_oper_data *entry, *prev;
 
 	spin_lock_bh(&local->lock);
