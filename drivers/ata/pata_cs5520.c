@@ -41,7 +41,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_cs5520"
-#define DRV_VERSION	"0.6.2"
+#define DRV_VERSION	"0.6.3"
 
 struct pio_clocks
 {
@@ -168,6 +168,8 @@ static struct scsi_host_template cs5520_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+	.resume			= ata_scsi_device_resume,
+	.suspend		= ata_scsi_device_suspend,
 };
 
 static struct ata_port_operations cs5520_port_ops = {
@@ -297,6 +299,22 @@ static void __devexit cs5520_remove_one(struct pci_dev *pdev)
 	dev_set_drvdata(dev, NULL);
 }
 
+/**
+ *	cs5520_reinit_one	-	device resume
+ *	@pdev: PCI device
+ *
+ *	Do any reconfiguration work needed by a resume from RAM. We need
+ *	to restore DMA mode support on BIOSen which disabled it
+ */
+ 
+static int cs5520_reinit_one(struct pci_dev *pdev)
+{
+	u8 pcicfg;
+	pci_read_config_byte(pdev, 0x60, &pcicfg);
+	if ((pcicfg & 0x40) == 0)
+		pci_write_config_byte(pdev, 0x60, pcicfg | 0x40);
+	return ata_pci_device_resume(pdev);
+}
 /* For now keep DMA off. We can set it for all but A rev CS5510 once the
    core ATA code can handle it */
 
@@ -311,7 +329,9 @@ static struct pci_driver cs5520_pci_driver = {
 	.name 		= DRV_NAME,
 	.id_table	= pata_cs5520,
 	.probe 		= cs5520_init_one,
-	.remove		= cs5520_remove_one
+	.remove		= cs5520_remove_one,
+	.suspend	= ata_pci_device_suspend,
+	.resume		= cs5520_reinit_one,
 };
 
 static int __init cs5520_init(void)
