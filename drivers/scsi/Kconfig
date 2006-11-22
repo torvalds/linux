@@ -216,6 +216,23 @@ config SCSI_LOGGING
 	  there should be no noticeable performance impact as long as you have
 	  logging turned off.
 
+config SCSI_SCAN_ASYNC
+	bool "Asynchronous SCSI scanning"
+	depends on SCSI
+	help
+	  The SCSI subsystem can probe for devices while the rest of the
+	  system continues booting, and even probe devices on different
+	  busses in parallel, leading to a significant speed-up.
+	  If you have built SCSI as modules, enabling this option can
+	  be a problem as the devices may not have been found by the
+	  time your system expects them to have been.  You can load the
+	  scsi_wait_scan module to ensure that all scans have completed.
+	  If you build your SCSI drivers into the kernel, then everything
+	  will work fine if you say Y here.
+
+	  You can override this choice by specifying scsi_mod.scan="sync"
+	  or "async" on the kernel's command line.
+
 menu "SCSI Transports"
 	depends on SCSI
 

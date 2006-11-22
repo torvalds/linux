@@ -89,7 +89,13 @@ module_param_named(max_luns, max_scsi_luns, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(max_luns,
 		 "last scsi LUN (should be between 1 and 2^32-1)");
 
-static char scsi_scan_type[6] = "sync";
+#ifdef CONFIG_SCSI_SCAN_ASYNC
+#define SCSI_SCAN_TYPE_DEFAULT "async"
+#else
+#define SCSI_SCAN_TYPE_DEFAULT "sync"
+#endif
+
+static char scsi_scan_type[6] = SCSI_SCAN_TYPE_DEFAULT;
 
 module_param_string(scan, scsi_scan_type, sizeof(scsi_scan_type), S_IRUGO);
 MODULE_PARM_DESC(scan, "sync, async or none");
