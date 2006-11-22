@@ -27,14 +27,14 @@ extern void print_address (unsigned long memaddr);
 /* Print a PowerPC or POWER instruction.  */
 
 int
-print_insn_powerpc (unsigned long insn, unsigned long memaddr, int dialect)
+print_insn_powerpc (unsigned long insn, unsigned long memaddr)
 {
   const struct powerpc_opcode *opcode;
   const struct powerpc_opcode *opcode_end;
   unsigned long op;
+  int dialect;
 
-  if (dialect == 0)
-    dialect = PPC_OPCODE_PPC | PPC_OPCODE_CLASSIC | PPC_OPCODE_COMMON
+  dialect = PPC_OPCODE_PPC | PPC_OPCODE_CLASSIC | PPC_OPCODE_COMMON
 	      | PPC_OPCODE_64 | PPC_OPCODE_POWER4 | PPC_OPCODE_ALTIVEC;
 
   /* Get the major opcode of the instruction.  */

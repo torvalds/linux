@@ -154,7 +154,7 @@ static int do_spu_cmd(void);
 
 int xmon_no_auto_backtrace;
 
-extern int print_insn_powerpc(unsigned long, unsigned long, int);
+extern int print_insn_powerpc(unsigned long insn, unsigned long memaddr);
 
 extern void xmon_enter(void);
 extern void xmon_leave(void);
@@ -2068,8 +2068,11 @@ prdump(unsigned long adrs, long ndump)
 	}
 }
 
+typedef int (*instruction_dump_func)(unsigned long inst, unsigned long addr);
+
 int
-ppc_inst_dump(unsigned long adr, long count, int praddr)
+generic_inst_dump(unsigned long adr, long count, int praddr,
+			instruction_dump_func dump_func)
 {
 	int nr, dotted;
 	unsigned long first_adr;
@@ -2099,10 +2102,16 @@ ppc_inst_dump(unsigned long adr, long count, int praddr)
 		if (praddr)
 			printf(REG"  %.8x", adr, inst);
 		printf("\t");
-		print_insn_powerpc(inst, adr, 0);	/* always returns 4 */
+		dump_func(inst, adr);
 		printf("\n");
 	}
 	return adr - first_adr;
+}
+
+int
+ppc_inst_dump(unsigned long adr, long count, int praddr)
+{
+	return generic_inst_dump(adr, count, praddr, print_insn_powerpc);
 }
 
 void
