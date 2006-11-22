@@ -111,13 +111,11 @@ struct spu {
 	u8 *local_store;
 	unsigned long problem_phys;
 	struct spu_problem __iomem *problem;
-	struct spu_priv1 __iomem *priv1;
 	struct spu_priv2 __iomem *priv2;
 	struct list_head list;
 	struct list_head sched_list;
 	struct list_head full_list;
 	int number;
-	int nid;
 	unsigned int irqs[3];
 	u32 node;
 	u64 flags;
@@ -144,8 +142,7 @@ struct spu {
 	char irq_c1[8];
 	char irq_c2[8];
 
-	struct device_node *devnode;
-
+	void* pdata; /* platform private data */
 	struct sys_device sysdev;
 };
 

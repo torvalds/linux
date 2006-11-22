@@ -145,7 +145,8 @@ static void __init cell_init_irq(void)
 static void __init cell_setup_arch(void)
 {
 #ifdef CONFIG_SPU_BASE
-	spu_priv1_ops         = &spu_priv1_mmio_ops;
+	spu_priv1_ops = &spu_priv1_mmio_ops;
+	spu_management_ops = &spu_management_of_ops;
 #endif
 
 	cbe_regs_init();

@@ -29,6 +29,7 @@
 #include <asm/prom.h>
 
 #include "cbe_regs.h"
+#include "spu_priv1_mmio.h"
 
 static struct cbe_pmd_regs __iomem *get_pmd_regs(struct sys_device *sysdev)
 {
@@ -36,7 +37,7 @@ static struct cbe_pmd_regs __iomem *get_pmd_regs(struct sys_device *sysdev)
 
 	spu = container_of(sysdev, struct spu, sysdev);
 
-	return cbe_get_pmd_regs(spu->devnode);
+	return cbe_get_pmd_regs(spu_devnode(spu));
 }
 
 /* returns the value for a given spu in a given register */
@@ -49,7 +50,7 @@ static u8 spu_read_register_value(struct sys_device *sysdev, union spe_reg __iom
 	/* getting the id from the reg attribute will not work on future device-tree layouts
 	 * in future we should store the id to the spu struct and use it here */
 	spu = container_of(sysdev, struct spu, sysdev);
-	id = (unsigned int *)get_property(spu->devnode, "reg", NULL);
+	id = (unsigned int *)get_property(spu_devnode(spu), "reg", NULL);
 	value.val = in_be64(&reg->val);
 
 	return value.spe[*id];
