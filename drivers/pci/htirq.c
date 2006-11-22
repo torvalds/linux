@@ -99,14 +99,7 @@ int __ht_create_irq(struct pci_dev *dev, int idx, ht_irq_update_t *update)
 	int pos;
 	int irq;
 
-	pos = pci_find_capability(dev, PCI_CAP_ID_HT);
-	while (pos) {
-		u8 subtype;
-		pci_read_config_byte(dev, pos + 3, &subtype);
-		if (subtype == HT_CAPTYPE_IRQ)
-			break;
-		pos = pci_find_next_capability(dev, pos, PCI_CAP_ID_HT);
-	}
+	pos = pci_find_ht_capability(dev, HT_CAPTYPE_IRQ);
 	if (!pos)
 		return -EINVAL;
 
