@@ -169,7 +169,7 @@ static void *i8xx_alloc_pages(void)
 {
 	struct page * page;
 
-	page = alloc_pages(GFP_KERNEL, 2);
+	page = alloc_pages(GFP_KERNEL | GFP_DMA32, 2);
 	if (page == NULL)
 		return NULL;
 
