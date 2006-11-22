@@ -1451,6 +1451,7 @@ nothing_to_do:
 
 static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 {
+	struct ata_port *ap = qc->ap;
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	u8 *cdb = cmd->cmnd;
  	int need_sense = (qc->err_mask != 0);
@@ -1459,11 +1460,12 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 	 * schedule EH_REVALIDATE operation to update the IDENTIFY DEVICE
 	 * cache
 	 */
-	if (!need_sense && (qc->tf.command == ATA_CMD_SET_FEATURES) &&
+	if (ap->ops->error_handler &&
+	    !need_sense && (qc->tf.command == ATA_CMD_SET_FEATURES) &&
 	    ((qc->tf.feature == SETFEATURES_WC_ON) ||
 	     (qc->tf.feature == SETFEATURES_WC_OFF))) {
-		qc->ap->eh_info.action |= ATA_EH_REVALIDATE;
-		ata_port_schedule_eh(qc->ap);
+		ap->eh_info.action |= ATA_EH_REVALIDATE;
+		ata_port_schedule_eh(ap);
 	}
 
 	/* For ATA pass thru (SAT) commands, generate a sense block if
@@ -1490,8 +1492,8 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 		}
 	}
 
-	if (need_sense && !qc->ap->ops->error_handler)
-		ata_dump_status(qc->ap->id, &qc->result_tf);
+	if (need_sense && !ap->ops->error_handler)
+		ata_dump_status(ap->id, &qc->result_tf);
 
 	qc->scsidone(cmd);
 
