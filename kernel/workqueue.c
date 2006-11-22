@@ -217,7 +217,7 @@ static void run_workqueue(struct cpu_workqueue_struct *cwq)
 	while (!list_empty(&cwq->worklist)) {
 		struct work_struct *work = list_entry(cwq->worklist.next,
 						struct work_struct, entry);
-		void (*f) (void *) = work->func;
+		work_func_t f = work->func;
 		void *data = work->data;
 
 		list_del_init(cwq->worklist.next);
@@ -513,7 +513,7 @@ EXPORT_SYMBOL(schedule_delayed_work_on);
  *
  * schedule_on_each_cpu() is very slow.
  */
-int schedule_on_each_cpu(void (*func)(void *info), void *info)
+int schedule_on_each_cpu(work_func_t func, void *info)
 {
 	int cpu;
 	struct work_struct *works;
@@ -578,7 +578,7 @@ EXPORT_SYMBOL(cancel_rearming_delayed_work);
  * Returns:	0 - function was executed
  *		1 - function was scheduled for execution
  */
-int execute_in_process_context(void (*fn)(void *data), void *data,
+int execute_in_process_context(work_func_t fn, void *data,
 			       struct execute_work *ew)
 {
 	if (!in_interrupt()) {

@@ -11,10 +11,12 @@
 
 struct workqueue_struct;
 
+typedef void (*work_func_t)(void *data);
+
 struct work_struct {
 	unsigned long pending;
 	struct list_head entry;
-	void (*func)(void *);
+	work_func_t func;
 	void *data;
 	void *wq_data;
 };
@@ -91,7 +93,7 @@ extern int FASTCALL(schedule_work(struct work_struct *work));
 extern int FASTCALL(schedule_delayed_work(struct delayed_work *work, unsigned long delay));
 
 extern int schedule_delayed_work_on(int cpu, struct delayed_work *work, unsigned long delay);
-extern int schedule_on_each_cpu(void (*func)(void *info), void *info);
+extern int schedule_on_each_cpu(work_func_t func, void *info);
 extern void flush_scheduled_work(void);
 extern int current_is_keventd(void);
 extern int keventd_up(void);
@@ -100,8 +102,7 @@ extern void init_workqueues(void);
 void cancel_rearming_delayed_work(struct delayed_work *work);
 void cancel_rearming_delayed_workqueue(struct workqueue_struct *,
 				       struct delayed_work *);
-int execute_in_process_context(void (*fn)(void *), void *,
-			       struct execute_work *);
+int execute_in_process_context(work_func_t fn, void *, struct execute_work *);
 
 /*
  * Kill off a pending schedule_delayed_work().  Note that the work callback
