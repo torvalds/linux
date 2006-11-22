@@ -123,6 +123,13 @@ static int ieee80211_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+static struct net_device_stats *ieee80211_generic_get_stats(
+	struct net_device *dev)
+{
+	struct ieee80211_device *ieee = netdev_priv(dev);
+	return &ieee->stats;
+}
+
 struct net_device *alloc_ieee80211(int sizeof_priv)
 {
 	struct ieee80211_device *ieee;
@@ -139,6 +146,10 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	ieee = netdev_priv(dev);
 	dev->hard_start_xmit = ieee80211_xmit;
 	dev->change_mtu = ieee80211_change_mtu;
+
+	/* Drivers are free to override this if the generic implementation
+	 * does not meet their needs. */
+	dev->get_stats = ieee80211_generic_get_stats;
 
 	ieee->dev = dev;
 

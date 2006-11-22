@@ -5827,19 +5827,6 @@ static void ipw2100_tx_timeout(struct net_device *dev)
 	schedule_reset(priv);
 }
 
-/*
- * TODO: reimplement it so that it reads statistics
- *       from the adapter using ordinal tables
- *       instead of/in addition to collecting them
- *       in the driver
- */
-static struct net_device_stats *ipw2100_stats(struct net_device *dev)
-{
-	struct ipw2100_priv *priv = ieee80211_priv(dev);
-
-	return &priv->ieee->stats;
-}
-
 static int ipw2100_wpa_enable(struct ipw2100_priv *priv, int value)
 {
 	/* This is called when wpa_supplicant loads and closes the driver
@@ -6022,7 +6009,6 @@ static struct net_device *ipw2100_alloc_device(struct pci_dev *pci_dev,
 	dev->open = ipw2100_open;
 	dev->stop = ipw2100_close;
 	dev->init = ipw2100_net_init;
-	dev->get_stats = ipw2100_stats;
 	dev->ethtool_ops = &ipw2100_ethtool_ops;
 	dev->tx_timeout = ipw2100_tx_timeout;
 	dev->wireless_handlers = &ipw2100_wx_handler_def;

@@ -4013,11 +4013,6 @@ static int bcm43xx_ieee80211_hard_start_xmit(struct ieee80211_txb *txb,
 	return NETDEV_TX_OK;
 }
 
-static struct net_device_stats * bcm43xx_net_get_stats(struct net_device *net_dev)
-{
-	return &(bcm43xx_priv(net_dev)->ieee->stats);
-}
-
 static void bcm43xx_net_tx_timeout(struct net_device *net_dev)
 {
 	struct bcm43xx_private *bcm = bcm43xx_priv(net_dev);
@@ -4131,7 +4126,6 @@ static int __devinit bcm43xx_init_one(struct pci_dev *pdev,
 
 	net_dev->open = bcm43xx_net_open;
 	net_dev->stop = bcm43xx_net_stop;
-	net_dev->get_stats = bcm43xx_net_get_stats;
 	net_dev->tx_timeout = bcm43xx_net_tx_timeout;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	net_dev->poll_controller = bcm43xx_net_poll_controller;
