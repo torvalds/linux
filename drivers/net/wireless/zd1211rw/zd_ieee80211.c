@@ -37,7 +37,12 @@ static const struct channel_range channel_ranges[] = {
 	[ZD_REGDOMAIN_JAPAN]	 = { 1, 14},
 	[ZD_REGDOMAIN_SPAIN]	 = { 1, 14},
 	[ZD_REGDOMAIN_FRANCE]	 = { 1, 14},
-	[ZD_REGDOMAIN_JAPAN_ADD] = {14, 15},
+
+	/* Japan originally only had channel 14 available (see CHNL_ID 0x40 in
+	 * 802.11). However, in 2001 the range was extended to include channels
+	 * 1-13. The ZyDAS devices still use the old region code but are
+	 * designed to allow the extra channel access in Japan. */
+	[ZD_REGDOMAIN_JAPAN_ADD] = { 1, 15},
 };
 
 const struct channel_range *zd_channel_range(u8 regdomain)
