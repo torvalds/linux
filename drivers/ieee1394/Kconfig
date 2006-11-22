@@ -120,7 +120,7 @@ comment "SBP-2 support (for storage devices) requires SCSI"
 
 config IEEE1394_SBP2
 	tristate "SBP-2 support (Harddisks etc.)"
-	depends on IEEE1394 && SCSI && (PCI || BROKEN)
+	depends on IEEE1394 && SCSI
 	help
 	  This option enables you to use SBP-2 devices connected to an IEEE
 	  1394 bus.  SBP-2 devices include storage devices like harddisks and

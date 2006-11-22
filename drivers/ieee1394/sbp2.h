@@ -263,7 +263,7 @@ struct sbp2_command_info {
 	dma_addr_t cmd_dma;
 	enum sbp2_dma_types dma_type;
 	unsigned long dma_size;
-	int dma_dir;
+	enum dma_data_direction dma_dir;
 };
 
 /* Per FireWire host */
