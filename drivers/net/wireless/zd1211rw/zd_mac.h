@@ -20,6 +20,7 @@
 
 #include <linux/wireless.h>
 #include <linux/kernel.h>
+#include <linux/workqueue.h>
 #include <net/ieee80211.h>
 #include <net/ieee80211softmac.h>
 
@@ -127,15 +128,33 @@ struct zd_mac {
 	struct zd_chip chip;
 	spinlock_t lock;
 	struct net_device *netdev;
+
 	/* Unlocked reading possible */
 	struct iw_statistics iw_stats;
+
 	struct housekeeping housekeeping;
+	struct work_struct set_rts_cts_work;
+	struct work_struct set_basic_rates_work;
+
 	unsigned int stats_count;
 	u8 qual_buffer[ZD_MAC_STATS_BUFFER_SIZE];
 	u8 rssi_buffer[ZD_MAC_STATS_BUFFER_SIZE];
 	u8 regdomain;
 	u8 default_regdomain;
 	u8 requested_channel;
+
+	/* A bitpattern of cr_rates */
+	u16 basic_rates;
+
+	/* A zd_rate */
+	u8 rts_rate;
+
+	/* Short preamble (used for RTS/CTS) */
+	unsigned int short_preamble:1;
+
+	/* flags to indicate update in progress */
+	unsigned int updating_rts_rate:1;
+	unsigned int updating_basic_rates:1;
 };
 
 static inline struct ieee80211_device *zd_mac_to_ieee80211(struct zd_mac *mac)

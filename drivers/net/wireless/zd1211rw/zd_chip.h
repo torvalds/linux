@@ -420,6 +420,15 @@
 #define CR_MANDATORY_RATE_TBL		CTL_REG(0x0634)
 #define CR_RTS_CTS_RATE			CTL_REG(0x0638)
 
+/* These are all bit indexes in CR_RTS_CTS_RATE, so remember to shift. */
+#define RTSCTS_SH_RTS_RATE		0
+#define RTSCTS_SH_EXP_CTS_RATE		4
+#define RTSCTS_SH_RTS_MOD_TYPE		8
+#define RTSCTS_SH_RTS_PMB_TYPE		9
+#define RTSCTS_SH_CTS_RATE		16
+#define RTSCTS_SH_CTS_MOD_TYPE		24
+#define RTSCTS_SH_CTS_PMB_TYPE		25
+
 #define CR_WEP_PROTECT			CTL_REG(0x063C)
 #define CR_RX_THRESHOLD			CTL_REG(0x0640)
 
@@ -794,6 +803,9 @@ void zd_chip_disable_rx(struct zd_chip *chip);
 int zd_chip_enable_hwint(struct zd_chip *chip);
 int zd_chip_disable_hwint(struct zd_chip *chip);
 
+int zd_chip_set_rts_cts_rate_locked(struct zd_chip *chip,
+	u8 rts_rate, int preamble);
+
 static inline int zd_get_encryption_type(struct zd_chip *chip, u32 *type)
 {
 	return zd_ioread32(chip, CR_ENCRYPTION_TYPE, type);
@@ -809,7 +821,17 @@ static inline int zd_chip_get_basic_rates(struct zd_chip *chip, u16 *cr_rates)
 	return zd_ioread16(chip, CR_BASIC_RATE_TBL, cr_rates);
 }
 
-int zd_chip_set_basic_rates(struct zd_chip *chip, u16 cr_rates);
+int zd_chip_set_basic_rates_locked(struct zd_chip *chip, u16 cr_rates);
+
+static inline int zd_chip_set_basic_rates(struct zd_chip *chip, u16 cr_rates)
+{
+	int r;
+
+	mutex_lock(&chip->mutex);
+	r = zd_chip_set_basic_rates_locked(chip, cr_rates);
+	mutex_unlock(&chip->mutex);
+	return r;
+}
 
 static inline int zd_chip_set_rx_filter(struct zd_chip *chip, u32 filter)
 {
