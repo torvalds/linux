@@ -495,6 +495,14 @@ config UDBG_RTAS_CONSOLE
 	depends on PPC_RTAS
 	default n
 
+config PPC_PS3
+	bool "Sony PS3"
+	depends on PPC_MULTIPLATFORM && PPC64
+	select PPC_CELL
+	help
+	  This option enables support for the Sony PS3 game console
+	  and other platforms using the PS3 hypervisor.
+
 config XICS
 	depends on PPC_PSERIES
 	bool
@@ -647,6 +655,7 @@ source arch/powerpc/platforms/85xx/Kconfig
 source arch/powerpc/platforms/86xx/Kconfig
 source arch/powerpc/platforms/8xx/Kconfig
 source arch/powerpc/platforms/cell/Kconfig
+source arch/powerpc/platforms/ps3/Kconfig
 
 menu "Kernel options"
 
@@ -917,7 +926,7 @@ config MCA
 
 config PCI
 	bool "PCI support" if 40x || CPM2 || PPC_83xx || PPC_85xx || PPC_86xx \
-		|| PPC_MPC52xx || (EMBEDDED && PPC_ISERIES) || MPC7448HPC2
+		|| PPC_MPC52xx || (EMBEDDED && PPC_ISERIES) || MPC7448HPC2 || PPC_PS3
 	default y if !40x && !CPM2 && !8xx && !APUS && !PPC_83xx \
 		&& !PPC_85xx && !PPC_86xx
 	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx && APUS
