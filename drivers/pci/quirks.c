@@ -1644,19 +1644,23 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8131_BRIDGE, quirk_
  * return 1 if a HT MSI capability is found and enabled */
 static int __devinit msi_ht_cap_enabled(struct pci_dev *dev)
 {
-	u8 pos;
-	int ttl;
-	for (pos = pci_find_capability(dev, PCI_CAP_ID_HT), ttl = 48;
-	     pos && ttl;
-	     pos = pci_find_next_capability(dev, pos, PCI_CAP_ID_HT), ttl--) {
-		u32 cap_hdr;
-		/* MSI mapping section according to Hypertransport spec */
-		if (pci_read_config_dword(dev, pos, &cap_hdr) == 0
-		    && (cap_hdr & 0xf8000000) == 0xa8000000 /* MSI mapping */) {
-			printk(KERN_INFO "PCI: Found HT MSI mapping on %s with capability %s\n",
-			       pci_name(dev), cap_hdr & 0x10000 ? "enabled" : "disabled");
-			return (cap_hdr & 0x10000) != 0; /* MSI mapping cap enabled */
+	int pos, ttl = 48;
+
+	pos = pci_find_ht_capability(dev, HT_CAPTYPE_MSI_MAPPING);
+	while (pos && ttl--) {
+		u8 flags;
+
+		if (pci_read_config_byte(dev, pos + HT_MSI_FLAGS,
+					 &flags) == 0)
+		{
+			printk(KERN_INFO "PCI: Found %s HT MSI Mapping on %s\n",
+				flags & HT_MSI_FLAGS_ENABLE ?
+				"enabled" : "disabled", pci_name(dev));
+			return (flags & HT_MSI_FLAGS_ENABLE) != 0;
 		}
+
+		pos = pci_find_next_ht_capability(dev, pos,
+						  HT_CAPTYPE_MSI_MAPPING);
 	}
 	return 0;
 }
