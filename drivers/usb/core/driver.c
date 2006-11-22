@@ -1048,7 +1048,7 @@ int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 
 	/* If the suspend succeeded, propagate it up the tree */
 	} else if (parent)
-		usb_autosuspend_device(parent, 0);
+		usb_autosuspend_device(parent, 1);
 
 	// dev_dbg(&udev->dev, "%s: status %d\n", __FUNCTION__, status);
 	return status;
@@ -1096,9 +1096,25 @@ int usb_resume_both(struct usb_device *udev)
 	/* Propagate the resume up the tree, if necessary */
 	if (udev->state == USB_STATE_SUSPENDED) {
 		if (parent) {
-			usb_pm_lock(parent);
-			parent->auto_pm = 1;
-			status = usb_resume_both(parent);
+			status = usb_autoresume_device(parent, 1);
+			if (status == 0) {
+				status = usb_resume_device(udev);
+				if (status) {
+					usb_autosuspend_device(parent, 1);
+
+					/* It's possible usb_resume_device()
+					 * failed after the port was
+					 * unsuspended, causing udev to be
+					 * logically disconnected.  We don't
+					 * want usb_disconnect() to autosuspend
+					 * the parent again, so tell it that
+					 * udev disconnected while still
+					 * suspended. */
+					if (udev->state ==
+							USB_STATE_NOTATTACHED)
+						udev->discon_suspended = 1;
+				}
+			}
 		} else {
 
 			/* We can't progagate beyond the USB subsystem,
@@ -1107,19 +1123,15 @@ int usb_resume_both(struct usb_device *udev)
 			if (udev->dev.parent->power.power_state.event !=
 					PM_EVENT_ON)
 				status = -EHOSTUNREACH;
-		}
-		if (status == 0)
-			status = usb_resume_device(udev);
-		if (parent)
-			usb_pm_unlock(parent);
+			else
+				status = usb_resume_device(udev);
+ 		}
 	} else {
 
 		/* Needed only for setting udev->dev.power.power_state.event
 		 * and for possible debugging message. */
 		status = usb_resume_device(udev);
 	}
-
-	/* Now the parent won't suspend until we are finished */
 
 	if (status == 0 && udev->actconfig) {
 		for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++) {

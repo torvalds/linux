@@ -1039,6 +1039,8 @@ static void recursively_mark_NOTATTACHED(struct usb_device *udev)
 		if (udev->children[i])
 			recursively_mark_NOTATTACHED(udev->children[i]);
 	}
+	if (udev->state == USB_STATE_SUSPENDED)
+		udev->discon_suspended = 1;
 	udev->state = USB_STATE_NOTATTACHED;
 }
 
@@ -1228,6 +1230,14 @@ void usb_disconnect(struct usb_device **pdev)
 	*pdev = NULL;
 	spin_unlock_irq(&device_state_lock);
 
+	/* Decrement the parent's count of unsuspended children */
+	if (udev->parent) {
+		usb_pm_lock(udev);
+		if (!udev->discon_suspended)
+			usb_autosuspend_device(udev->parent, 1);
+		usb_pm_unlock(udev);
+	}
+
 	put_device(&udev->dev);
 }
 
@@ -1355,6 +1365,10 @@ static int __usb_new_device(void *void_data)
 		dev_err(&udev->dev, "can't device_add, error %d\n", err);
 		goto fail;
 	}
+
+	/* Increment the parent's count of unsuspended children */
+	if (udev->parent)
+		usb_autoresume_device(udev->parent, 1);
 
 exit:
 	module_put(THIS_MODULE);
