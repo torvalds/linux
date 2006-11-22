@@ -22,8 +22,7 @@
 #include "nonstdio.h"
 #include "ansidecl.h"
 #include "spu.h"
-
-extern void print_address (unsigned long memaddr);
+#include "dis-asm.h"
 
 /* This file provides a disassembler function which uses
    the disassembler interface defined in dis-asm.h.   */

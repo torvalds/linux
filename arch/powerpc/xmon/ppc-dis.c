@@ -21,8 +21,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  *
 #include "nonstdio.h"
 #include "ansidecl.h"
 #include "ppc.h"
-
-extern void print_address (unsigned long memaddr);
+#include "dis-asm.h"
 
 /* Print a PowerPC or POWER instruction.  */
 

@@ -98,6 +98,15 @@ config XMON_DEFAULT
 	  xmon is normally disabled unless booted with 'xmon=on'.
 	  Use 'xmon=off' to disable xmon init during runtime.
 
+config XMON_DISASSEMBLY
+	bool "Include disassembly support in xmon"
+	depends on XMON
+	default y
+	help
+	  Include support for disassembling in xmon. You probably want
+	  to say Y here, unless you're building for a memory-constrained
+	  system.
+
 config IRQSTACKS
 	bool "Use separate kernel stacks when processing interrupts"
 	depends on PPC64

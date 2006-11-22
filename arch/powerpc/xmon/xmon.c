@@ -47,6 +47,7 @@
 #endif
 
 #include "nonstdio.h"
+#include "dis-asm.h"
 
 #define scanhex	xmon_scanhex
 #define skipbl	xmon_skipbl
@@ -110,7 +111,6 @@ static int bsesc(void);
 static void dump(void);
 static void prdump(unsigned long, long);
 static int ppc_inst_dump(unsigned long, long, int);
-void print_address(unsigned long);
 static void backtrace(struct pt_regs *);
 static void excprint(struct pt_regs *);
 static void prregs(struct pt_regs *);
@@ -153,9 +153,6 @@ static const char *getvecname(unsigned long vec);
 static int do_spu_cmd(void);
 
 int xmon_no_auto_backtrace;
-
-extern int print_insn_powerpc(unsigned long insn, unsigned long memaddr);
-extern int print_insn_spu(unsigned long insn, unsigned long memaddr);
 
 extern void xmon_enter(void);
 extern void xmon_leave(void);
