@@ -101,6 +101,7 @@ enum {
 	ALC861_UNIWILL_M31,
 	ALC861_TOSHIBA,
 	ALC861_ASUS,
+	ALC861_ASUS_LAPTOP,
 	ALC861_AUTO,
 	ALC861_MODEL_LAST,
 };
@@ -6901,9 +6902,17 @@ static struct snd_kcontrol_new alc861_asus_mixer[] = {
                 .private_value = ARRAY_SIZE(alc861_asus_modes),
 	},
 	{ }
-};			
+};
 
-	
+/* additional mixer */
+static snd_kcontrol_new_t alc861_asus_laptop_mixer[] = {
+	HDA_CODEC_VOLUME("CD Playback Volume", 0x15, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("CD Playback Switch", 0x15, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("PC Beep Playback Volume", 0x23, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("PC Beep Playback Switch", 0x23, 0x0, HDA_OUTPUT),
+	{ }
+};
+
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
@@ -7153,6 +7162,12 @@ static struct hda_verb alc861_asus_init_verbs[] = {
 	{ }
 };
 
+/* additional init verbs for ASUS laptops */
+static struct hda_verb alc861_asus_laptop_init_verbs[] = {
+	{ 0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x45 }, /* HP-out */
+	{ 0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2) }, /* mute line-in */
+	{ }
+};
 
 /*
  * generic initialization of ADC, input mixers and output mixers
@@ -7530,8 +7545,11 @@ static struct hda_board_config alc861_cfg_tbl[] = {
 	{ .modelname = "asus", .config = ALC861_ASUS},
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1393,
 	  .config = ALC861_ASUS },
+	{ .modelname = "asus-laptop", .config = ALC861_ASUS_LAPTOP },
+	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1335,
+	  .config = ALC861_ASUS_LAPTOP }, /* ASUS F2/F3 */
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1338,
-	  .config = ALC861_ASUS },
+	  .config = ALC861_ASUS_LAPTOP }, /* ASUS F2/F3 */
 	{ .modelname = "auto", .config = ALC861_AUTO },
 	{}
 };
@@ -7626,7 +7644,21 @@ static struct alc_config_preset alc861_presets[] = {
 		.adc_nids = alc861_adc_nids,
 		.input_mux = &alc861_capture_source,
 	},
-};	
+	[ALC861_ASUS_LAPTOP] = {
+		.mixers = { alc861_toshiba_mixer, alc861_asus_laptop_mixer },
+		.init_verbs = { alc861_asus_init_verbs,
+				alc861_asus_laptop_init_verbs },
+		.num_dacs = ARRAY_SIZE(alc861_dac_nids),
+		.dac_nids = alc861_dac_nids,
+		.dig_out_nid = ALC861_DIGOUT_NID,
+		.num_channel_mode = ARRAY_SIZE(alc883_3ST_2ch_modes),
+		.channel_mode = alc883_3ST_2ch_modes,
+		.need_dac_fix = 1,
+		.num_adc_nids = ARRAY_SIZE(alc861_adc_nids),
+		.adc_nids = alc861_adc_nids,
+		.input_mux = &alc861_capture_source,
+	},
+};
 
 
 static int patch_alc861(struct hda_codec *codec)

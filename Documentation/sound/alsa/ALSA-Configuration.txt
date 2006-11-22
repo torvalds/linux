@@ -839,6 +839,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  uniwill-m31	Uniwill M31 laptop
 	  toshiba	Toshiba laptop support
 	  asus		Asus laptop support
+	  asus-laptop	ASUS F2/F3 laptops
 	  auto		auto-config reading BIOS (default)
 
 	CMI9880
