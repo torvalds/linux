@@ -461,13 +461,12 @@ static int ti_startup(struct usb_serial *serial)
 
 	/* set up port structures */
 	for (i = 0; i < serial->num_ports; ++i) {
-		tport = kmalloc(sizeof(struct ti_port), GFP_KERNEL);
+		tport = kzalloc(sizeof(struct ti_port), GFP_KERNEL);
 		if (tport == NULL) {
 			dev_err(&dev->dev, "%s - out of memory\n", __FUNCTION__);
 			status = -ENOMEM;
 			goto free_tports;
 		}
-		memset(tport, 0, sizeof(struct ti_port));
 		spin_lock_init(&tport->tp_lock);
 		tport->tp_uart_base_addr = (i == 0 ? TI_UART1_BASE_ADDR : TI_UART2_BASE_ADDR);
 		tport->tp_flags = low_latency ? ASYNC_LOW_LATENCY : 0;
