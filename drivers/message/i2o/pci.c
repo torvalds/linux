@@ -320,7 +320,6 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 	struct i2o_controller *c;
 	int rc;
 	struct pci_dev *i960 = NULL;
-	int enabled = pdev->is_enabled;
 
 	printk(KERN_INFO "i2o: Checking for PCI I2O controllers...\n");
 
@@ -330,12 +329,11 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 		return -ENODEV;
 	}
 
-	if (!enabled)
-		if ((rc = pci_enable_device(pdev))) {
-			printk(KERN_WARNING "i2o: couldn't enable device %s\n",
-			       pci_name(pdev));
-			return rc;
-		}
+	if ((rc = pci_enable_device(pdev))) {
+		printk(KERN_WARNING "i2o: couldn't enable device %s\n",
+		       pci_name(pdev));
+		return rc;
+	}
 
 	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
 		printk(KERN_WARNING "i2o: no suitable DMA found for %s\n",
@@ -442,8 +440,7 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 	i2o_iop_free(c);
 
       disable:
-	if (!enabled)
-		pci_disable_device(pdev);
+	pci_disable_device(pdev);
 
 	return rc;
 }
