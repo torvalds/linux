@@ -870,33 +870,10 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	if (error)
 		goto fail_gunlock;
 
-	if (inum.no_addr < dip->i_num.no_addr) {
-		gfs2_glock_dq(ghs);
-
-		error = gfs2_glock_nq_num(sdp, inum.no_addr,
-					  &gfs2_inode_glops, LM_ST_EXCLUSIVE,
-					  GL_SKIP, ghs + 1);
-		if (error) {
-			return ERR_PTR(error);
-		}
-
-		gfs2_holder_reinit(LM_ST_EXCLUSIVE, 0, ghs);
-		error = gfs2_glock_nq(ghs);
-		if (error) {
-			gfs2_glock_dq_uninit(ghs + 1);
-			return ERR_PTR(error);
-		}
-
-		error = create_ok(dip, name, mode);
-		if (error)
-			goto fail_gunlock2;
-	} else {
-		error = gfs2_glock_nq_num(sdp, inum.no_addr,
-					  &gfs2_inode_glops, LM_ST_EXCLUSIVE,
-					  GL_SKIP, ghs + 1);
-		if (error)
-			goto fail_gunlock;
-	}
+	error = gfs2_glock_nq_num(sdp, inum.no_addr, &gfs2_inode_glops,
+				  LM_ST_EXCLUSIVE, GL_SKIP, ghs + 1);
+	if (error)
+		goto fail_gunlock;
 
 	error = make_dinode(dip, ghs[1].gh_gl, mode, &inum, &generation, dev);
 	if (error)
