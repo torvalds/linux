@@ -612,27 +612,48 @@ pci_enable_device_bars(struct pci_dev *dev, int bars)
 }
 
 /**
+ * __pci_enable_device - Initialize device before it's used by a driver.
+ * @dev: PCI device to be initialized
+ *
+ *  Initialize device before it's used by a driver. Ask low-level code
+ *  to enable I/O and memory. Wake up the device if it was suspended.
+ *  Beware, this function can fail.
+ *
+ * Note this function is a backend and is not supposed to be called by
+ * normal code, use pci_enable_device() instead.
+ */
+int
+__pci_enable_device(struct pci_dev *dev)
+{
+	int err;
+
+	err = pci_enable_device_bars(dev, (1 << PCI_NUM_RESOURCES) - 1);
+	if (err)
+		return err;
+	pci_fixup_device(pci_fixup_enable, dev);
+	return 0;
+}
+
+/**
  * pci_enable_device - Initialize device before it's used by a driver.
  * @dev: PCI device to be initialized
  *
  *  Initialize device before it's used by a driver. Ask low-level code
  *  to enable I/O and memory. Wake up the device if it was suspended.
  *  Beware, this function can fail.
+ *
+ *  Note we don't actually enable the device many times if we call
+ *  this function repeatedly (we just increment the count).
  */
-int
-pci_enable_device(struct pci_dev *dev)
+int pci_enable_device(struct pci_dev *dev)
 {
-	int err;
-
-	if (dev->is_enabled)
-		return 0;
-
-	err = pci_enable_device_bars(dev, (1 << PCI_NUM_RESOURCES) - 1);
-	if (err)
-		return err;
-	pci_fixup_device(pci_fixup_enable, dev);
-	dev->is_enabled = 1;
-	return 0;
+	int result;
+	if (atomic_add_return(1, &dev->enable_cnt) > 1)
+		return 0;		/* already enabled */
+	result = __pci_enable_device(dev);
+	if (result < 0)
+		atomic_dec(&dev->enable_cnt);
+	return result;
 }
 
 /**
@@ -651,11 +672,17 @@ void __attribute__ ((weak)) pcibios_disable_device (struct pci_dev *dev) {}
  *
  * Signal to the system that the PCI device is not in use by the system
  * anymore.  This only involves disabling PCI bus-mastering, if active.
+ *
+ * Note we don't actually disable the device until all callers of
+ * pci_device_enable() have called pci_device_disable().
  */
 void
 pci_disable_device(struct pci_dev *dev)
 {
 	u16 pci_command;
+
+	if (atomic_sub_return(1, &dev->enable_cnt) != 0)
+		return;
 
 	if (dev->msi_enabled)
 		disable_msi_mode(dev, pci_find_capability(dev, PCI_CAP_ID_MSI),
@@ -672,7 +699,6 @@ pci_disable_device(struct pci_dev *dev)
 	dev->is_busmaster = 0;
 
 	pcibios_disable_device(dev);
-	dev->is_enabled = 0;
 }
 
 /**

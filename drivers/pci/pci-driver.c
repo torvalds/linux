@@ -329,8 +329,8 @@ static int pci_default_resume(struct pci_dev *pci_dev)
 	/* restore the PCI config space */
 	pci_restore_state(pci_dev);
 	/* if the device was enabled before suspend, reenable */
-	if (pci_dev->is_enabled)
-		retval = pci_enable_device(pci_dev);
+	if (atomic_read(&pci_dev->enable_cnt))
+		retval = __pci_enable_device(pci_dev);
 	/* if the device was busmaster before the suspend, make it busmaster again */
 	if (pci_dev->is_busmaster)
 		pci_set_master(pci_dev);

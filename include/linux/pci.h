@@ -51,6 +51,7 @@
 #include <linux/list.h>
 #include <linux/compiler.h>
 #include <linux/errno.h>
+#include <asm/atomic.h>
 #include <linux/device.h>
 
 /* File state for mmap()s on /proc/bus/pci/X/Y */
@@ -159,7 +160,6 @@ struct pci_dev {
 	unsigned int	transparent:1;	/* Transparent PCI bridge */
 	unsigned int	multifunction:1;/* Part of multi-function device */
 	/* keep track of device state */
-	unsigned int	is_enabled:1;	/* pci_enable_device has been called */
 	unsigned int	is_busmaster:1; /* device is busmaster */
 	unsigned int	no_msi:1;	/* device may not use msi */
 	unsigned int	no_d1d2:1;   /* only allow d0 or d3 */
@@ -167,6 +167,7 @@ struct pci_dev {
 	unsigned int	broken_parity_status:1;	/* Device generates false positive parity */
 	unsigned int 	msi_enabled:1;
 	unsigned int	msix_enabled:1;
+	atomic_t	enable_cnt;	/* pci_enable_device has been called */
 
 	u32		saved_config_space[16]; /* config space saved at suspend time */
 	struct hlist_head saved_cap_space;
