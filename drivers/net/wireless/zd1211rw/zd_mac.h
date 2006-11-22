@@ -48,10 +48,11 @@ struct zd_ctrlset {
 #define ZD_CS_CCK		0x00
 #define ZD_CS_OFDM		0x10
 
-#define ZD_CS_CCK_RATE_1M	0x00
-#define ZD_CS_CCK_RATE_2M	0x01
-#define ZD_CS_CCK_RATE_5_5M	0x02
-#define ZD_CS_CCK_RATE_11M	0x03
+/* These are referred to as zd_rates */
+#define ZD_CCK_RATE_1M	0x00
+#define ZD_CCK_RATE_2M	0x01
+#define ZD_CCK_RATE_5_5M	0x02
+#define ZD_CCK_RATE_11M	0x03
 /* The rates for OFDM are encoded as in the PLCP header. Use ZD_OFDM_RATE_*.
  */
 

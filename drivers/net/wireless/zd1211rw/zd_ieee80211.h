@@ -50,6 +50,7 @@ static inline u8 zd_ofdm_plcp_header_rate(
 	return header->prefix[0] & 0xf;
 }
 
+/* These are referred to as zd_rates */
 #define ZD_OFDM_RATE_6M		0xb
 #define ZD_OFDM_RATE_9M		0xf
 #define ZD_OFDM_RATE_12M	0xa
