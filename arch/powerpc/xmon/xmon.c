@@ -2702,7 +2702,10 @@ static void stop_spus(void)
 			__delay(200);
 
 			spu_info[i].stopped_ok = 1;
-			printf("Stopped spu %.2d\n", i);
+
+			printf("Stopped spu %.2d (was %s)\n", i,
+					spu_info[i].saved_spu_runcntl_RW ?
+					"running" : "stopped");
 		} else {
 			catch_memory_errors = 0;
 			printf("*** Error stopping spu %.2d\n", i);
