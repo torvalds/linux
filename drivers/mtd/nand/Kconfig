@@ -90,6 +90,7 @@ config MTD_NAND_RTC_FROM4
 	depends on MTD_NAND && SH_SOLUTION_ENGINE
 	select REED_SOLOMON
 	select REED_SOLOMON_DEC8
+	select BITREVERSE
 	help
 	  This enables the driver for the Renesas Technology AG-AND
 	  flash interface board (FROM_BOARD4)
