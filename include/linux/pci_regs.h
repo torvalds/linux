@@ -475,9 +475,19 @@
 #define PCI_PWR_CAP		12	/* Capability */
 #define  PCI_PWR_CAP_BUDGET(x)	((x) & 1)	/* Included in system budget */
 
-/* Hypertransport sub capability types */
+/*
+ * Hypertransport sub capability types
+ *
+ * Unfortunately there are both 3 bit and 5 bit capability types defined
+ * in the HT spec, catering for that is a little messy. You probably don't
+ * want to use these directly, just use pci_find_ht_capability() and it
+ * will do the right thing for you.
+ */
+#define HT_3BIT_CAP_MASK	0xE0
 #define HT_CAPTYPE_SLAVE	0x00	/* Slave/Primary link configuration */
 #define HT_CAPTYPE_HOST		0x20	/* Host/Secondary link configuration */
+
+#define HT_5BIT_CAP_MASK	0xF8
 #define HT_CAPTYPE_IRQ		0x80	/* IRQ Configuration */
 #define HT_CAPTYPE_REMAPPING_40	0xA0	/* 40 bit address remapping */
 #define HT_CAPTYPE_REMAPPING_64 0xA2	/* 64 bit address remapping */
