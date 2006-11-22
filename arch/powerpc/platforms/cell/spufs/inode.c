@@ -232,6 +232,7 @@ struct file_operations spufs_context_fops = {
 	.readdir	= dcache_readdir,
 	.fsync		= simple_sync_file,
 };
+EXPORT_SYMBOL_GPL(spufs_context_fops);
 
 static int
 spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
@@ -647,6 +648,7 @@ static struct file_system_type spufs_type = {
 static int __init spufs_init(void)
 {
 	int ret;
+
 	ret = -ENOMEM;
 	spufs_inode_cache = kmem_cache_create("spufs_inode_cache",
 			sizeof(struct spufs_inode_info), 0,
@@ -664,8 +666,12 @@ static int __init spufs_init(void)
 	ret = register_spu_syscalls(&spufs_calls);
 	if (ret)
 		goto out_fs;
+	ret = register_arch_coredump_calls(&spufs_coredump_calls);
+	if (ret)
+		goto out_fs;
 
 	spufs_init_isolated_loader();
+
 	return 0;
 out_fs:
 	unregister_filesystem(&spufs_type);
@@ -679,6 +685,7 @@ module_init(spufs_init);
 static void __exit spufs_exit(void)
 {
 	spu_sched_exit();
+	unregister_arch_coredump_calls(&spufs_coredump_calls);
 	unregister_spu_syscalls(&spufs_calls);
 	unregister_filesystem(&spufs_type);
 	kmem_cache_destroy(spufs_inode_cache);

@@ -15,5 +15,6 @@ spufs-modular-$(CONFIG_SPU_FS)		+= spu_syscalls.o
 spu-priv1-$(CONFIG_PPC_CELL_NATIVE)	+= spu_priv1_mmio.o
 
 obj-$(CONFIG_SPU_BASE)			+= spu_callbacks.o spu_base.o \
+					   spu_coredump.o \
 					   $(spufs-modular-m) \
 					   $(spu-priv1-y) spufs/

@@ -223,4 +223,15 @@ void spufs_stop_callback(struct spu *spu);
 void spufs_mfc_callback(struct spu *spu);
 void spufs_dma_callback(struct spu *spu, int type);
 
+extern struct spu_coredump_calls spufs_coredump_calls;
+struct spufs_coredump_reader {
+	char *name;
+	ssize_t (*read)(struct spu_context *ctx,
+			char __user *buffer, size_t size, loff_t *pos);
+	u64 (*get)(void *data);
+	size_t size;
+};
+extern struct spufs_coredump_reader spufs_coredump_read[];
+extern int spufs_coredump_num_notes;
+
 #endif

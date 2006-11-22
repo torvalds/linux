@@ -172,6 +172,13 @@ extern struct spufs_calls {
 	struct module *owner;
 } spufs_calls;
 
+/* coredump calls implemented in spufs */
+struct spu_coredump_calls {
+	asmlinkage int (*arch_notes_size)(void);
+	asmlinkage void (*arch_write_notes)(struct file *file);
+	struct module *owner;
+};
+
 /* return status from spu_run, same as in libspe */
 #define SPE_EVENT_DMA_ALIGNMENT		0x0008	/*A DMA alignment error */
 #define SPE_EVENT_SPE_ERROR		0x0010	/*An illegal instruction error*/
@@ -202,6 +209,9 @@ static inline void unregister_spu_syscalls(struct spufs_calls *calls)
 {
 }
 #endif /* MODULE */
+
+int register_arch_coredump_calls(struct spu_coredump_calls *calls);
+void unregister_arch_coredump_calls(struct spu_coredump_calls *calls);
 
 int spu_add_sysdev_attr(struct sysdev_attribute *attr);
 void spu_remove_sysdev_attr(struct sysdev_attribute *attr);
