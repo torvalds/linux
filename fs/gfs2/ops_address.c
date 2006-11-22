@@ -472,8 +472,10 @@ static int gfs2_commit_write(struct file *file, struct page *page,
 
 		SetPageUptodate(page);
 
-		if (inode->i_size < file_size)
+		if (inode->i_size < file_size) {
 			i_size_write(inode, file_size);
+			mark_inode_dirty(inode);
+		}
 	} else {
 		if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED ||
 		    gfs2_is_jdata(ip))
