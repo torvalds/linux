@@ -14,11 +14,15 @@ struct workqueue_struct;
 typedef void (*work_func_t)(void *data);
 
 struct work_struct {
-	unsigned long pending;
+	/* the first word is the work queue pointer and the pending flag
+	 * rolled into one */
+	unsigned long management;
+#define WORK_STRUCT_PENDING 0		/* T if work item pending execution */
+#define WORK_STRUCT_FLAG_MASK (3UL)
+#define WORK_STRUCT_WQ_DATA_MASK (~WORK_STRUCT_FLAG_MASK)
 	struct list_head entry;
 	work_func_t func;
 	void *data;
-	void *wq_data;
 };
 
 struct delayed_work {
@@ -65,7 +69,7 @@ struct execute_work {
 #define INIT_WORK(_work, _func, _data)				\
 	do {							\
 		INIT_LIST_HEAD(&(_work)->entry);		\
-		(_work)->pending = 0;				\
+		(_work)->management = 0;			\
 		PREPARE_WORK((_work), (_func), (_data));	\
 	} while (0)
 
@@ -74,6 +78,21 @@ struct execute_work {
 		INIT_WORK(&(_work)->work, (_func), (_data));	\
 		init_timer(&(_work)->timer);			\
 	} while (0)
+
+/**
+ * work_pending - Find out whether a work item is currently pending
+ * @work: The work item in question
+ */
+#define work_pending(work) \
+	test_bit(WORK_STRUCT_PENDING, &(work)->management)
+
+/**
+ * delayed_work_pending - Find out whether a delayable work item is currently
+ * pending
+ * @work: The work item in question
+ */
+#define delayed_work_pending(work) \
+	test_bit(WORK_STRUCT_PENDING, &(work)->work.management)
 
 
 extern struct workqueue_struct *__create_workqueue(const char *name,
@@ -115,7 +134,7 @@ static inline int cancel_delayed_work(struct delayed_work *work)
 
 	ret = del_timer_sync(&work->timer);
 	if (ret)
-		clear_bit(0, &work->work.pending);
+		clear_bit(WORK_STRUCT_PENDING, &work->work.management);
 	return ret;
 }
 

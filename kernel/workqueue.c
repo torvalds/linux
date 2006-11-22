@@ -80,6 +80,29 @@ static inline int is_single_threaded(struct workqueue_struct *wq)
 	return list_empty(&wq->list);
 }
 
+static inline void set_wq_data(struct work_struct *work, void *wq)
+{
+	unsigned long new, old, res;
+
+	/* assume the pending flag is already set and that the task has already
+	 * been queued on this workqueue */
+	new = (unsigned long) wq | (1UL << WORK_STRUCT_PENDING);
+	res = work->management;
+	if (res != new) {
+		do {
+			old = res;
+			new = (unsigned long) wq;
+			new |= (old & WORK_STRUCT_FLAG_MASK);
+			res = cmpxchg(&work->management, old, new);
+		} while (res != old);
+	}
+}
+
+static inline void *get_wq_data(struct work_struct *work)
+{
+	return (void *) (work->management & WORK_STRUCT_WQ_DATA_MASK);
+}
+
 /* Preempt must be disabled. */
 static void __queue_work(struct cpu_workqueue_struct *cwq,
 			 struct work_struct *work)
@@ -87,7 +110,7 @@ static void __queue_work(struct cpu_workqueue_struct *cwq,
 	unsigned long flags;
 
 	spin_lock_irqsave(&cwq->lock, flags);
-	work->wq_data = cwq;
+	set_wq_data(work, cwq);
 	list_add_tail(&work->entry, &cwq->worklist);
 	cwq->insert_sequence++;
 	wake_up(&cwq->more_work);
@@ -108,7 +131,7 @@ int fastcall queue_work(struct workqueue_struct *wq, struct work_struct *work)
 {
 	int ret = 0, cpu = get_cpu();
 
-	if (!test_and_set_bit(0, &work->pending)) {
+	if (!test_and_set_bit(WORK_STRUCT_PENDING, &work->management)) {
 		if (unlikely(is_single_threaded(wq)))
 			cpu = singlethread_cpu;
 		BUG_ON(!list_empty(&work->entry));
@@ -123,7 +146,7 @@ EXPORT_SYMBOL_GPL(queue_work);
 static void delayed_work_timer_fn(unsigned long __data)
 {
 	struct delayed_work *dwork = (struct delayed_work *)__data;
-	struct workqueue_struct *wq = dwork->work.wq_data;
+	struct workqueue_struct *wq = get_wq_data(&dwork->work);
 	int cpu = smp_processor_id();
 
 	if (unlikely(is_single_threaded(wq)))
@@ -150,12 +173,12 @@ int fastcall queue_delayed_work(struct workqueue_struct *wq,
 	if (delay == 0)
 		return queue_work(wq, work);
 
-	if (!test_and_set_bit(0, &work->pending)) {
+	if (!test_and_set_bit(WORK_STRUCT_PENDING, &work->management)) {
 		BUG_ON(timer_pending(timer));
 		BUG_ON(!list_empty(&work->entry));
 
 		/* This stores wq for the moment, for the timer_fn */
-		work->wq_data = wq;
+		set_wq_data(work, wq);
 		timer->expires = jiffies + delay;
 		timer->data = (unsigned long)dwork;
 		timer->function = delayed_work_timer_fn;
@@ -182,12 +205,12 @@ int queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 	struct timer_list *timer = &dwork->timer;
 	struct work_struct *work = &dwork->work;
 
-	if (!test_and_set_bit(0, &work->pending)) {
+	if (!test_and_set_bit(WORK_STRUCT_PENDING, &work->management)) {
 		BUG_ON(timer_pending(timer));
 		BUG_ON(!list_empty(&work->entry));
 
 		/* This stores wq for the moment, for the timer_fn */
-		work->wq_data = wq;
+		set_wq_data(work, wq);
 		timer->expires = jiffies + delay;
 		timer->data = (unsigned long)dwork;
 		timer->function = delayed_work_timer_fn;
@@ -223,8 +246,8 @@ static void run_workqueue(struct cpu_workqueue_struct *cwq)
 		list_del_init(cwq->worklist.next);
 		spin_unlock_irqrestore(&cwq->lock, flags);
 
-		BUG_ON(work->wq_data != cwq);
-		clear_bit(0, &work->pending);
+		BUG_ON(get_wq_data(work) != cwq);
+		clear_bit(WORK_STRUCT_PENDING, &work->management);
 		f(data);
 
 		spin_lock_irqsave(&cwq->lock, flags);
