@@ -1642,7 +1642,7 @@ static void scsi_sysfs_add_devices(struct Scsi_Host *shost)
  * that other asynchronous scans started after this one won't affect the
  * ordering of the discovered devices.
  */
-struct async_scan_data *scsi_prep_async_scan(struct Scsi_Host *shost)
+static struct async_scan_data *scsi_prep_async_scan(struct Scsi_Host *shost)
 {
 	struct async_scan_data *data;
 
@@ -1686,7 +1686,7 @@ struct async_scan_data *scsi_prep_async_scan(struct Scsi_Host *shost)
  * This function announces all the devices it has found to the rest
  * of the system.
  */
-void scsi_finish_async_scan(struct async_scan_data *data)
+static void scsi_finish_async_scan(struct async_scan_data *data)
 {
 	struct Scsi_Host *shost;
 
@@ -1719,12 +1719,25 @@ void scsi_finish_async_scan(struct async_scan_data *data)
 	kfree(data);
 }
 
+static void do_scsi_scan_host(struct Scsi_Host *shost)
+{
+	if (shost->hostt->scan_finished) {
+		unsigned long start = jiffies;
+		if (shost->hostt->scan_start)
+			shost->hostt->scan_start(shost);
+
+		while (!shost->hostt->scan_finished(shost, jiffies - start))
+			msleep(10);
+	} else {
+		scsi_scan_host_selected(shost, SCAN_WILD_CARD, SCAN_WILD_CARD,
+				SCAN_WILD_CARD, 0);
+	}
+}
+
 static int do_scan_async(void *_data)
 {
 	struct async_scan_data *data = _data;
-	scsi_scan_host_selected(data->shost, SCAN_WILD_CARD, SCAN_WILD_CARD,
-				SCAN_WILD_CARD, 0);
-
+	do_scsi_scan_host(data->shost);
 	scsi_finish_async_scan(data);
 	return 0;
 }
@@ -1742,10 +1755,10 @@ void scsi_scan_host(struct Scsi_Host *shost)
 
 	data = scsi_prep_async_scan(shost);
 	if (!data) {
-		scsi_scan_host_selected(shost, SCAN_WILD_CARD, SCAN_WILD_CARD,
-					SCAN_WILD_CARD, 0);
+		do_scsi_scan_host(shost);
 		return;
 	}
+
 	kthread_run(do_scan_async, data, "scsi_scan_%d", shost->host_no);
 }
 EXPORT_SYMBOL(scsi_scan_host);
