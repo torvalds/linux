@@ -41,6 +41,15 @@
 static void cbe_power_save(void)
 {
 	unsigned long ctrl, thread_switch_control;
+
+	/*
+	 * We need to hard disable interrupts, but we also need to mark them
+	 * hard disabled in the PACA so that the local_irq_enable() done by
+	 * our caller upon return propertly hard enables.
+	 */
+	hard_irq_disable();
+	get_paca()->hard_enabled = 0;
+
 	ctrl = mfspr(SPRN_CTRLF);
 
 	/* Enable DEC and EE interrupt request */
