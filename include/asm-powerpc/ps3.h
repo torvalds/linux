@@ -386,4 +386,77 @@ int ps3_repository_read_num_spu_resource_id(unsigned int *num_resource_id);
 int ps3_repository_read_spu_resource_id(unsigned int res_index,
 	enum ps3_spu_resource_type* resource_type, unsigned int *resource_id);
 
+
+/* system bus routines */
+
+enum ps3_match_id {
+	PS3_MATCH_ID_EHCI = 1,
+	PS3_MATCH_ID_OHCI,
+	PS3_MATCH_ID_GELIC,
+	PS3_MATCH_ID_AV_SETTINGS,
+	PS3_MATCH_ID_SYSTEM_MANAGER,
+};
+
+/**
+ * struct ps3_system_bus_device - a device on the system bus
+ */
+
+struct ps3_system_bus_device {
+	enum ps3_match_id match_id;
+	struct ps3_device_id did;
+	unsigned int interrupt_id;
+/*	struct iommu_table *iommu_table; -- waiting for Ben's cleanups */
+	struct ps3_dma_region *d_region;
+	struct ps3_mmio_region *m_region;
+	struct device core;
+};
+
+/**
+ * struct ps3_system_bus_driver - a driver for a device on the system bus
+ */
+
+struct ps3_system_bus_driver {
+	enum ps3_match_id match_id;
+	struct device_driver core;
+	int (*probe)(struct ps3_system_bus_device *);
+	int (*remove)(struct ps3_system_bus_device *);
+/*	int (*suspend)(struct ps3_system_bus_device *, pm_message_t); */
+/*	int (*resume)(struct ps3_system_bus_device *); */
+};
+
+int ps3_system_bus_device_register(struct ps3_system_bus_device *dev);
+int ps3_system_bus_driver_register(struct ps3_system_bus_driver *drv);
+void ps3_system_bus_driver_unregister(struct ps3_system_bus_driver *drv);
+static inline struct ps3_system_bus_driver *to_ps3_system_bus_driver(
+	struct device_driver *_drv)
+{
+	return container_of(_drv, struct ps3_system_bus_driver, core);
+}
+static inline struct ps3_system_bus_device *to_ps3_system_bus_device(
+	struct device *_dev)
+{
+	return container_of(_dev, struct ps3_system_bus_device, core);
+}
+
+/**
+ * ps3_system_bus_set_drvdata -
+ * @dev: device structure
+ * @data: Data to set
+ */
+
+static inline void ps3_system_bus_set_driver_data(
+	struct ps3_system_bus_device *dev, void *data)
+{
+	dev->core.driver_data = data;
+}
+static inline void *ps3_system_bus_get_driver_data(
+	struct ps3_system_bus_device *dev)
+{
+	return dev->core.driver_data;
+}
+
+/* These two need global scope for get_dma_ops(). */
+
+extern struct bus_type ps3_system_bus_type;
+
 #endif
