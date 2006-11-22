@@ -1022,7 +1022,7 @@ int device_move(struct device *dev, struct device *new_parent)
 	old_parent = dev->parent;
 	dev->parent = new_parent;
 	if (old_parent)
-		klist_del(&dev->knode_parent);
+		klist_remove(&dev->knode_parent);
 	klist_add_tail(&dev->knode_parent, &new_parent->klist_children);
 	if (!dev->class)
 		goto out_put;
@@ -1031,7 +1031,7 @@ int device_move(struct device *dev, struct device *new_parent)
 		/* We ignore errors on cleanup since we're hosed anyway... */
 		device_move_class_links(dev, new_parent, old_parent);
 		if (!kobject_move(&dev->kobj, &old_parent->kobj)) {
-			klist_del(&dev->knode_parent);
+			klist_remove(&dev->knode_parent);
 			if (old_parent)
 				klist_add_tail(&dev->knode_parent,
 					       &old_parent->klist_children);
