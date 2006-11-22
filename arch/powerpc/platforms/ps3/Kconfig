@@ -29,4 +29,15 @@ config PS3_DYNAMIC_DMA
 	  This support is mainly for Linux kernel development.  If unsure,
 	  say N.
 
+config PS3_USE_LPAR_ADDR
+	depends on PPC_PS3 && EXPERIMENTAL
+	bool "PS3 use lpar address space"
+	default y
+	help
+	  This option is solely for experimentation by experts.  Disables
+	  translation of lpar addresses.  SPE support currently won't work
+	  without this set to y.
+
+	  If you have any doubt, choose the default y.
+
 endmenu
