@@ -632,7 +632,7 @@ xpc_process_connect(struct xpc_channel *ch, unsigned long *irq_flags)
 		ch->number, ch->partid);
 
 	spin_unlock_irqrestore(&ch->lock, *irq_flags);
-	xpc_create_kthreads(ch, 1);
+	xpc_create_kthreads(ch, 1, 0);
 	spin_lock_irqsave(&ch->lock, *irq_flags);
 }
 
@@ -754,12 +754,12 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 
 	/* make sure all activity has settled down first */
 
-	if (atomic_read(&ch->references) > 0 ||
-			((ch->flags & XPC_C_CONNECTEDCALLOUT_MADE) &&
-			!(ch->flags & XPC_C_DISCONNECTINGCALLOUT_MADE))) {
+	if (atomic_read(&ch->kthreads_assigned) > 0 ||
+				atomic_read(&ch->references) > 0) {
 		return;
 	}
-	DBUG_ON(atomic_read(&ch->kthreads_assigned) != 0);
+	DBUG_ON((ch->flags & XPC_C_CONNECTEDCALLOUT_MADE) &&
+			!(ch->flags & XPC_C_DISCONNECTINGCALLOUT_MADE));
 
 	if (part->act_state == XPC_P_DEACTIVATING) {
 		/* can't proceed until the other side disengages from us */
@@ -1651,6 +1651,11 @@ xpc_disconnect_channel(const int line, struct xpc_channel *ch,
 	/* wake all idle kthreads so they can exit */
 	if (atomic_read(&ch->kthreads_idle) > 0) {
 		wake_up_all(&ch->idle_wq);
+
+	} else if ((ch->flags & XPC_C_CONNECTEDCALLOUT_MADE) &&
+			!(ch->flags & XPC_C_DISCONNECTINGCALLOUT)) {
+		/* start a kthread that will do the xpcDisconnecting callout */
+		xpc_create_kthreads(ch, 1, 1);
 	}
 
 	/* wake those waiting to allocate an entry from the local msg queue */
