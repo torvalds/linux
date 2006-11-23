@@ -640,6 +640,10 @@ int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count)
 		err = snd_pcm_substream_proc_init(substream);
 		if (err < 0) {
 			snd_printk(KERN_ERR "Error in snd_pcm_stream_proc_init\n");
+			if (prev == NULL)
+				pstr->substream = NULL;
+			else
+				prev->next = NULL;
 			kfree(substream);
 			return err;
 		}
