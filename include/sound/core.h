@@ -427,6 +427,4 @@ void snd_verbose_printd(const char *file, int line, const char *format, ...)
 #endif
 #endif
 
-#include "typedefs.h"
-
 #endif /* __SOUND_CORE_H */
