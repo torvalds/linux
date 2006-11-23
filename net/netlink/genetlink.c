@@ -394,10 +394,7 @@ static struct genl_family genl_ctrl = {
 static int ctrl_fill_info(struct genl_family *family, u32 pid, u32 seq,
 			  u32 flags, struct sk_buff *skb, u8 cmd)
 {
-	struct nlattr *nla_ops;
-	struct genl_ops *ops;
 	void *hdr;
-	int idx = 1;
 
 	hdr = genlmsg_put(skb, pid, seq, &genl_ctrl, flags, cmd);
 	if (hdr == NULL)
@@ -409,33 +406,39 @@ static int ctrl_fill_info(struct genl_family *family, u32 pid, u32 seq,
 	NLA_PUT_U32(skb, CTRL_ATTR_HDRSIZE, family->hdrsize);
 	NLA_PUT_U32(skb, CTRL_ATTR_MAXATTR, family->maxattr);
 
-	nla_ops = nla_nest_start(skb, CTRL_ATTR_OPS);
-	if (nla_ops == NULL)
-		goto nla_put_failure;
+	if (!list_empty(&family->ops_list)) {
+		struct nlattr *nla_ops;
+		struct genl_ops *ops;
+		int idx = 1;
 
-	list_for_each_entry(ops, &family->ops_list, ops_list) {
-		struct nlattr *nest;
-
-		nest = nla_nest_start(skb, idx++);
-		if (nest == NULL)
+		nla_ops = nla_nest_start(skb, CTRL_ATTR_OPS);
+		if (nla_ops == NULL)
 			goto nla_put_failure;
 
-		NLA_PUT_U32(skb, CTRL_ATTR_OP_ID, ops->cmd);
-		NLA_PUT_U32(skb, CTRL_ATTR_OP_FLAGS, ops->flags);
+		list_for_each_entry(ops, &family->ops_list, ops_list) {
+			struct nlattr *nest;
 
-		if (ops->policy)
-			NLA_PUT_FLAG(skb, CTRL_ATTR_OP_POLICY);
+			nest = nla_nest_start(skb, idx++);
+			if (nest == NULL)
+				goto nla_put_failure;
 
-		if (ops->doit)
-			NLA_PUT_FLAG(skb, CTRL_ATTR_OP_DOIT);
+			NLA_PUT_U32(skb, CTRL_ATTR_OP_ID, ops->cmd);
+			NLA_PUT_U32(skb, CTRL_ATTR_OP_FLAGS, ops->flags);
 
-		if (ops->dumpit)
-			NLA_PUT_FLAG(skb, CTRL_ATTR_OP_DUMPIT);
+			if (ops->policy)
+				NLA_PUT_FLAG(skb, CTRL_ATTR_OP_POLICY);
 
-		nla_nest_end(skb, nest);
+			if (ops->doit)
+				NLA_PUT_FLAG(skb, CTRL_ATTR_OP_DOIT);
+
+			if (ops->dumpit)
+				NLA_PUT_FLAG(skb, CTRL_ATTR_OP_DUMPIT);
+
+			nla_nest_end(skb, nest);
+		}
+
+		nla_nest_end(skb, nla_ops);
 	}
-
-	nla_nest_end(skb, nla_ops);
 
 	return genlmsg_end(skb, hdr);
 
