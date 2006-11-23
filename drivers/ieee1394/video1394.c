@@ -1308,12 +1308,8 @@ static struct ieee1394_device_id video1394_id_table[] = {
 MODULE_DEVICE_TABLE(ieee1394, video1394_id_table);
 
 static struct hpsb_protocol_driver video1394_driver = {
-	.name		= "1394 Digital Camera Driver",
+	.name		= VIDEO1394_DRIVER_NAME,
 	.id_table	= video1394_id_table,
-	.driver		= {
-		.name	= VIDEO1394_DRIVER_NAME,
-		.bus	= &ieee1394_bus_type,
-	},
 };
 
 

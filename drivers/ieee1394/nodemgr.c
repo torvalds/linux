@@ -1282,12 +1282,19 @@ static int nodemgr_uevent(struct class_device *cdev, char **envp, int num_envp,
 #endif /* CONFIG_HOTPLUG */
 
 
-int hpsb_register_protocol(struct hpsb_protocol_driver *driver)
+int __hpsb_register_protocol(struct hpsb_protocol_driver *drv,
+			     struct module *owner)
 {
+	int error;
+
+	drv->driver.bus = &ieee1394_bus_type;
+	drv->driver.owner = owner;
+	drv->driver.name = drv->name;
+
 	/* This will cause a probe for devices */
-	int error = driver_register(&driver->driver);
+	error = driver_register(&drv->driver);
 	if (!error)
-		nodemgr_create_drv_files(driver);
+		nodemgr_create_drv_files(drv);
 	return error;
 }
 

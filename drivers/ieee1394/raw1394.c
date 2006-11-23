@@ -2987,12 +2987,8 @@ static struct ieee1394_device_id raw1394_id_table[] = {
 MODULE_DEVICE_TABLE(ieee1394, raw1394_id_table);
 
 static struct hpsb_protocol_driver raw1394_driver = {
-	.name = "raw1394 Driver",
+	.name = "raw1394",
 	.id_table = raw1394_id_table,
-	.driver = {
-		   .name = "raw1394",
-		   .bus = &ieee1394_bus_type,
-		   },
 };
 
 /******************************************************************************/

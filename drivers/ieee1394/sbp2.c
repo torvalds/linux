@@ -259,12 +259,10 @@ static int sbp2_remove(struct device *);
 static int sbp2_update(struct unit_directory *);
 
 static struct hpsb_protocol_driver sbp2_driver = {
-	.name		= "SBP2 Driver",
+	.name		= SBP2_DEVICE_NAME,
 	.id_table	= sbp2_id_table,
 	.update		= sbp2_update,
 	.driver		= {
-		.name		= SBP2_DEVICE_NAME,
-		.bus		= &ieee1394_bus_type,
 		.probe		= sbp2_probe,
 		.remove		= sbp2_remove,
 	},

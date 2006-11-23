@@ -474,12 +474,10 @@ static struct ieee1394_device_id eth1394_id_table[] = {
 MODULE_DEVICE_TABLE(ieee1394, eth1394_id_table);
 
 static struct hpsb_protocol_driver eth1394_proto_driver = {
-	.name		= "IPv4 over 1394 Driver",
+	.name		= ETH1394_DRIVER_NAME,
 	.id_table	= eth1394_id_table,
 	.update		= eth1394_update,
 	.driver		= {
-		.name		= ETH1394_DRIVER_NAME,
-		.bus		= &ieee1394_bus_type,
 		.probe		= eth1394_probe,
 		.remove		= eth1394_remove,
 	},
