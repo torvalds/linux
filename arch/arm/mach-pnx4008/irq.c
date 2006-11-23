@@ -59,22 +59,22 @@ static int pnx4008_set_irq_type(unsigned int irq, unsigned int type)
 	case IRQT_RISING:
 		__raw_writel(__raw_readl(INTC_ATR(irq)) | INTC_BIT(irq), INTC_ATR(irq));	/*edge sensitive */
 		__raw_writel(__raw_readl(INTC_APR(irq)) | INTC_BIT(irq), INTC_APR(irq));	/*rising edge */
-		set_irq_handler(irq, do_edge_IRQ);
+		set_irq_handler(irq, handle_edge_irq);
 		break;
 	case IRQT_FALLING:
 		__raw_writel(__raw_readl(INTC_ATR(irq)) | INTC_BIT(irq), INTC_ATR(irq));	/*edge sensitive */
 		__raw_writel(__raw_readl(INTC_APR(irq)) & ~INTC_BIT(irq), INTC_APR(irq));	/*falling edge */
-		set_irq_handler(irq, do_edge_IRQ);
+		set_irq_handler(irq, handle_edge_irq);
 		break;
 	case IRQT_LOW:
 		__raw_writel(__raw_readl(INTC_ATR(irq)) & ~INTC_BIT(irq), INTC_ATR(irq));	/*level sensitive */
 		__raw_writel(__raw_readl(INTC_APR(irq)) & ~INTC_BIT(irq), INTC_APR(irq));	/*low level */
-		set_irq_handler(irq, do_level_IRQ);
+		set_irq_handler(irq, handle_level_irq);
 		break;
 	case IRQT_HIGH:
 		__raw_writel(__raw_readl(INTC_ATR(irq)) & ~INTC_BIT(irq), INTC_ATR(irq));	/*level sensitive */
 		__raw_writel(__raw_readl(INTC_APR(irq)) | INTC_BIT(irq), INTC_APR(irq));	/* high level */
-		set_irq_handler(irq, do_level_IRQ);
+		set_irq_handler(irq, handle_level_irq);
 		break;
 
 	/* IRQT_BOTHEDGE is not supported */
@@ -85,7 +85,7 @@ static int pnx4008_set_irq_type(unsigned int irq, unsigned int type)
 	return 0;
 }
 
-static struct irqchip pnx4008_irq_chip = {
+static struct irq_chip pnx4008_irq_chip = {
 	.ack = pnx4008_mask_ack_irq,
 	.mask = pnx4008_mask_irq,
 	.unmask = pnx4008_unmask_irq,

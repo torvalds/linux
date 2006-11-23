@@ -195,7 +195,7 @@ static void ixp4xx_irq_unmask(unsigned int irq)
 		*IXP4XX_ICMR |= (1 << irq);
 }
 
-static struct irqchip ixp4xx_irq_chip = {
+static struct irq_chip ixp4xx_irq_chip = {
 	.name		= "IXP4xx",
 	.ack		= ixp4xx_irq_ack,
 	.mask		= ixp4xx_irq_mask,
@@ -224,7 +224,7 @@ void __init ixp4xx_init_irq(void)
         /* Default to all level triggered */
 	for(i = 0; i < NR_IRQS; i++) {
 		set_irq_chip(i, &ixp4xx_irq_chip);
-		set_irq_handler(i, do_level_IRQ);
+		set_irq_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 }

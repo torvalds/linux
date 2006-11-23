@@ -332,10 +332,10 @@ static struct irq_chip gpio_irqchip = {
 	.set_wake	= gpio_irq_set_wake,
 };
 
-static void gpio_irq_handler(unsigned irq, struct irqdesc *desc)
+static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 {
 	unsigned	pin;
-	struct irqdesc	*gpio;
+	struct irq_desc	*gpio;
 	void __iomem	*pio;
 	u32		isr;
 
@@ -396,7 +396,7 @@ void __init at91_gpio_irq_setup(void)
 		__raw_writel(~0, controller + PIO_IDR);
 
 		set_irq_data(id, (void *) pin);
-		set_irq_chipdata(id, controller);
+		set_irq_chip_data(id, controller);
 
 		for (i = 0; i < 32; i++, pin++) {
 			/*
@@ -404,7 +404,7 @@ void __init at91_gpio_irq_setup(void)
 			 * shorter, and the AIC handles interupts sanely.
 			 */
 			set_irq_chip(pin, &gpio_irqchip);
-			set_irq_handler(pin, do_simple_IRQ);
+			set_irq_handler(pin, handle_simple_irq);
 			set_irq_flags(pin, IRQF_VALID);
 		}
 
