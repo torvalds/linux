@@ -67,7 +67,6 @@ static inline int gfs2_meta_inode_buffer(struct gfs2_inode *ip,
 }
 
 struct buffer_head *gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen);
-void gfs2_meta_syncfs(struct gfs2_sbd *sdp);
 
 #define buffer_busy(bh) \
 ((bh)->b_state & ((1ul << BH_Dirty) | (1ul << BH_Lock) | (1ul << BH_Pinned)))

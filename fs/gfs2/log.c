@@ -15,6 +15,7 @@
 #include <linux/gfs2_ondisk.h>
 #include <linux/crc32.h>
 #include <linux/lm_interface.h>
+#include <linux/delay.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -142,7 +143,7 @@ static int gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai, int fl
 	return list_empty(&ai->ai_ail1_list);
 }
 
-void gfs2_ail1_start(struct gfs2_sbd *sdp, int flags)
+static void gfs2_ail1_start(struct gfs2_sbd *sdp, int flags)
 {
 	struct list_head *head = &sdp->sd_ail1_list;
 	u64 sync_gen;
@@ -687,5 +688,23 @@ void gfs2_log_shutdown(struct gfs2_sbd *sdp)
 	sdp->sd_log_tail = sdp->sd_log_head;
 
 	up_write(&sdp->sd_log_flush_lock);
+}
+
+
+/**
+ * gfs2_meta_syncfs - sync all the buffers in a filesystem
+ * @sdp: the filesystem
+ *
+ */
+
+void gfs2_meta_syncfs(struct gfs2_sbd *sdp)
+{
+	gfs2_log_flush(sdp, NULL);
+	for (;;) {
+		gfs2_ail1_start(sdp, DIO_ALL);
+		if (gfs2_ail1_empty(sdp, DIO_ALL))
+			break;
+		msleep(10);
+	}
 }
 

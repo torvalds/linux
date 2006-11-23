@@ -574,20 +574,3 @@ out:
 	return first_bh;
 }
 
-/**
- * gfs2_meta_syncfs - sync all the buffers in a filesystem
- * @sdp: the filesystem
- *
- */
-
-void gfs2_meta_syncfs(struct gfs2_sbd *sdp)
-{
-	gfs2_log_flush(sdp, NULL);
-	for (;;) {
-		gfs2_ail1_start(sdp, DIO_ALL);
-		if (gfs2_ail1_empty(sdp, DIO_ALL))
-			break;
-		msleep(10);
-	}
-}
-
