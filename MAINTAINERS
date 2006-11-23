@@ -353,6 +353,12 @@ P:	Richard Purdie
 M:	rpurdie@rpsys.net
 S:	Maintained
 
+ARM/HP JORNADA 7XX MACHINE SUPPORT
+P:      Kristoffer Ericson
+M:      kristoffer_e1@hotmail.com
+W:      www.jlime.com
+S:      Maintained
+
 ARM/TOSA MACHINE SUPPORT
 P:	Dirk Opfer
 M:	dirk@opfer-online.de
