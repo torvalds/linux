@@ -157,7 +157,8 @@ static void gfs2_write_super(struct super_block *sb)
 static int gfs2_sync_fs(struct super_block *sb, int wait)
 {
 	sb->s_dirt = 0;
-	gfs2_log_flush(sb->s_fs_info, NULL);
+	if (wait)
+		gfs2_log_flush(sb->s_fs_info, NULL);
 	return 0;
 }
 
@@ -293,8 +294,6 @@ static void gfs2_clear_inode(struct inode *inode)
 	 */
 	if (inode->i_private) {
 		struct gfs2_inode *ip = GFS2_I(inode);
-		gfs2_glock_inode_squish(inode);
-		gfs2_assert(inode->i_sb->s_fs_info, ip->i_gl->gl_state == LM_ST_UNLOCKED);
 		ip->i_gl->gl_object = NULL;
 		gfs2_glock_schedule_for_reclaim(ip->i_gl);
 		gfs2_glock_put(ip->i_gl);
@@ -395,7 +394,7 @@ static void gfs2_delete_inode(struct inode *inode)
 	if (!inode->i_private)
 		goto out;
 
-	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, LM_FLAG_TRY_1CB | GL_NOCACHE, &gh);
+	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, LM_FLAG_TRY_1CB, &gh);
 	if (unlikely(error)) {
 		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
 		goto out;

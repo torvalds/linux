@@ -107,70 +107,6 @@ static void gfs2_pte_inval(struct gfs2_glock *gl)
 }
 
 /**
- * gfs2_page_inval - Invalidate all pages associated with a glock
- * @gl: the glock
- *
- */
-
-static void gfs2_page_inval(struct gfs2_glock *gl)
-{
-	struct gfs2_inode *ip;
-	struct inode *inode;
-
-	ip = gl->gl_object;
-	inode = &ip->i_inode;
-	if (!ip || !S_ISREG(inode->i_mode))
-		return;
-
-	truncate_inode_pages(inode->i_mapping, 0);
-	gfs2_assert_withdraw(GFS2_SB(&ip->i_inode), !inode->i_mapping->nrpages);
-	clear_bit(GIF_PAGED, &ip->i_flags);
-}
-
-/**
- * gfs2_page_wait - Wait for writeback of data
- * @gl: the glock
- *
- * Syncs data (not metadata) for a regular file.
- * No-op for all other types.
- */
-
-static void gfs2_page_wait(struct gfs2_glock *gl)
-{
-	struct gfs2_inode *ip = gl->gl_object;
-	struct inode *inode = &ip->i_inode;
-	struct address_space *mapping = inode->i_mapping;
-	int error;
-
-	if (!S_ISREG(inode->i_mode))
-		return;
-
-	error = filemap_fdatawait(mapping);
-
-	/* Put back any errors cleared by filemap_fdatawait()
-	   so they can be caught by someone who can pass them
-	   up to user space. */
-
-	if (error == -ENOSPC)
-		set_bit(AS_ENOSPC, &mapping->flags);
-	else if (error)
-		set_bit(AS_EIO, &mapping->flags);
-
-}
-
-static void gfs2_page_writeback(struct gfs2_glock *gl)
-{
-	struct gfs2_inode *ip = gl->gl_object;
-	struct inode *inode = &ip->i_inode;
-	struct address_space *mapping = inode->i_mapping;
-
-	if (!S_ISREG(inode->i_mode))
-		return;
-
-	filemap_fdatawrite(mapping);
-}
-
-/**
  * meta_go_sync - sync out the metadata for this glock
  * @gl: the glock
  *
@@ -264,11 +200,24 @@ static void inode_go_drop_th(struct gfs2_glock *gl)
 
 static void inode_go_sync(struct gfs2_glock *gl)
 {
+	struct gfs2_inode *ip = gl->gl_object;
+
+	if (ip && !S_ISREG(ip->i_inode.i_mode))
+		ip = NULL;
+
 	if (test_bit(GLF_DIRTY, &gl->gl_flags)) {
-		gfs2_page_writeback(gl);
 		gfs2_log_flush(gl->gl_sbd, gl);
+		if (ip)
+			filemap_fdatawrite(ip->i_inode.i_mapping);
 		gfs2_meta_sync(gl);
-		gfs2_page_wait(gl);
+		if (ip) {
+			struct address_space *mapping = ip->i_inode.i_mapping;
+			int error = filemap_fdatawait(mapping);
+			if (error == -ENOSPC)
+				set_bit(AS_ENOSPC, &mapping->flags);
+			else if (error)
+				set_bit(AS_EIO, &mapping->flags);
+		}
 		clear_bit(GLF_DIRTY, &gl->gl_flags);
 		gfs2_ail_empty_gl(gl);
 	}
@@ -283,14 +232,20 @@ static void inode_go_sync(struct gfs2_glock *gl)
 
 static void inode_go_inval(struct gfs2_glock *gl, int flags)
 {
+	struct gfs2_inode *ip = gl->gl_object;
 	int meta = (flags & DIO_METADATA);
 
 	if (meta) {
-		struct gfs2_inode *ip = gl->gl_object;
 		gfs2_meta_inval(gl);
-		set_bit(GIF_INVALID, &ip->i_flags);
+		if (ip)
+			set_bit(GIF_INVALID, &ip->i_flags);
 	}
-	gfs2_page_inval(gl);
+
+	if (ip && S_ISREG(ip->i_inode.i_mode)) {
+		truncate_inode_pages(ip->i_inode.i_mapping, 0);
+		gfs2_assert_withdraw(GFS2_SB(&ip->i_inode), !ip->i_inode.i_mapping->nrpages);
+		clear_bit(GIF_PAGED, &ip->i_flags);
+	}
 }
 
 /**

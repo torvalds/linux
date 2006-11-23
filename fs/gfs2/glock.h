@@ -106,7 +106,6 @@ void gfs2_glock_dq_uninit_m(unsigned int num_gh, struct gfs2_holder *ghs);
 void gfs2_glock_prefetch_num(struct gfs2_sbd *sdp, u64 number,
 			     const struct gfs2_glock_operations *glops,
 			     unsigned int state, int flags);
-void gfs2_glock_inode_squish(struct inode *inode);
 
 /**
  * gfs2_glock_nq_init - intialize a holder and enqueue it on a glock

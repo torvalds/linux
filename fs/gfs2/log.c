@@ -261,6 +261,12 @@ static void ail2_empty(struct gfs2_sbd *sdp, unsigned int new_tail)
  * @sdp: The GFS2 superblock
  * @blks: The number of blocks to reserve
  *
+ * Note that we never give out the last 6 blocks of the journal. Thats
+ * due to the fact that there is are a small number of header blocks
+ * associated with each log flush. The exact number can't be known until
+ * flush time, so we ensure that we have just enough free blocks at all
+ * times to avoid running out during a log flush.
+ *
  * Returns: errno
  */
 
@@ -274,7 +280,7 @@ int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks)
 
 	mutex_lock(&sdp->sd_log_reserve_mutex);
 	gfs2_log_lock(sdp);
-	while(sdp->sd_log_blks_free <= blks) {
+	while(sdp->sd_log_blks_free <= (blks + 6)) {
 		gfs2_log_unlock(sdp);
 		gfs2_ail1_empty(sdp, 0);
 		gfs2_log_flush(sdp, NULL);
@@ -643,12 +649,9 @@ void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	up_read(&sdp->sd_log_flush_lock);
 
 	gfs2_log_lock(sdp);
-	if (sdp->sd_log_num_buf > gfs2_tune_get(sdp, gt_incore_log_blocks)) {
-		gfs2_log_unlock(sdp);
-		gfs2_log_flush(sdp, NULL);
-	} else {
-		gfs2_log_unlock(sdp);
-	}
+	if (sdp->sd_log_num_buf > gfs2_tune_get(sdp, gt_incore_log_blocks))
+		wake_up_process(sdp->sd_logd_process);
+	gfs2_log_unlock(sdp);
 }
 
 /**

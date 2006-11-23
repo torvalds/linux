@@ -472,6 +472,9 @@ int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, u64 num,
 	struct buffer_head *bh = NULL, **bh_slot = ip->i_cache + height;
 	int in_cache = 0;
 
+	BUG_ON(!gl);
+	BUG_ON(!sdp);
+
 	spin_lock(&ip->i_spin);
 	if (*bh_slot && (*bh_slot)->b_blocknr == num) {
 		bh = *bh_slot;

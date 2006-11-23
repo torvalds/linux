@@ -785,21 +785,6 @@ out:
 		gfs2_holder_put(new_gh);
 }
 
-void gfs2_glock_inode_squish(struct inode *inode)
-{
-	struct gfs2_holder gh;
-	struct gfs2_glock *gl = GFS2_I(inode)->i_gl;
-	gfs2_holder_init(gl, LM_ST_UNLOCKED, 0, &gh);
-	set_bit(HIF_DEMOTE, &gh.gh_iflags);
-	spin_lock(&gl->gl_spin);
-	gfs2_assert(inode->i_sb->s_fs_info, list_empty(&gl->gl_holders));
-	list_add_tail(&gh.gh_list, &gl->gl_waiters2);
-	run_queue(gl);
-	spin_unlock(&gl->gl_spin);
-	wait_for_completion(&gh.gh_wait);
-	gfs2_holder_uninit(&gh);
-}
-
 /**
  * state_change - record that the glock is now in a different state
  * @gl: the glock
@@ -1920,7 +1905,7 @@ out:
 
 static void scan_glock(struct gfs2_glock *gl)
 {
-	if (gl->gl_ops == &gfs2_inode_glops)
+	if (gl->gl_ops == &gfs2_inode_glops && gl->gl_object)
 		return;
 
 	if (gfs2_glmutex_trylock(gl)) {
