@@ -301,7 +301,7 @@ static struct snd_kcontrol_new stac9227_mixer[] = {
 	{ } /* end */
 };
 
-static snd_kcontrol_new_t stac927x_mixer[] = {
+static struct snd_kcontrol_new stac927x_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Input Source",
@@ -316,7 +316,7 @@ static snd_kcontrol_new_t stac927x_mixer[] = {
 	{ } /* end */
 };
 
-static snd_kcontrol_new_t stac9205_mixer[] = {
+static struct snd_kcontrol_new stac9205_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Digital Input Source",

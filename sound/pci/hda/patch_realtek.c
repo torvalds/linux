@@ -5115,7 +5115,7 @@ static struct snd_kcontrol_new alc883_3ST_6ch_mixer[] = {
 	{ } /* end */
 };
 
-static snd_kcontrol_new_t alc883_fivestack_mixer[] = {
+static struct snd_kcontrol_new alc883_fivestack_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Front Playback Switch", 0x14, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
@@ -6799,7 +6799,7 @@ static struct snd_kcontrol_new alc861_3ST_mixer[] = {
 	{ } /* end */
 };
 
-static snd_kcontrol_new_t alc861_toshiba_mixer[] = {
+static struct snd_kcontrol_new alc861_toshiba_mixer[] = {
         /* output mixer control */
 	HDA_CODEC_MUTE("Master Playback Switch", 0x03, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x15, 0x01, HDA_INPUT),
@@ -6905,7 +6905,7 @@ static struct snd_kcontrol_new alc861_asus_mixer[] = {
 };
 
 /* additional mixer */
-static snd_kcontrol_new_t alc861_asus_laptop_mixer[] = {
+static struct snd_kcontrol_new alc861_asus_laptop_mixer[] = {
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x15, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x15, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("PC Beep Playback Volume", 0x23, 0x0, HDA_OUTPUT),
