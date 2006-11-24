@@ -187,56 +187,6 @@ static void msp430_ir_interrupt(unsigned long data)
 	}
 }
 
-static void msp430_ir_debounce(unsigned long data)
-{
-	struct input_dev *dev = (struct input_dev *) data;
-
-	if (dev->rep[0] == 0 || dev->rep[0] == ~0) {
-		input_event(dev, EV_KEY, key_map[dev->repeat_key], 0);
-	} else {
-		dev->rep[0] = 0;
-		dev->timer.expires = jiffies + HZ * 350 / 1000;
-		add_timer(&dev->timer);
-		input_event(dev, EV_KEY, key_map[dev->repeat_key], 2);	/* REPEAT */
-	}
-	input_sync(dev);
-}
-
-static void msp430_ir_interrupt(unsigned long data)
-{
-	struct budget_ci *budget_ci = (struct budget_ci *) data;
-	struct input_dev *dev = budget_ci->ir.dev;
-	unsigned int code =
-		ttpci_budget_debiread(&budget_ci->budget, DEBINOSWAP, DEBIADDR_IR, 2, 1, 0) >> 8;
-
-	if (code & 0x40) {
-		code &= 0x3f;
-
-		if (timer_pending(&dev->timer)) {
-			if (code == dev->repeat_key) {
-				++dev->rep[0];
-				return;
-			}
-			del_timer(&dev->timer);
-			input_event(dev, EV_KEY, key_map[dev->repeat_key], 0);
-		}
-
-		if (!key_map[code]) {
-			printk("DVB (%s): no key for %02x!\n", __FUNCTION__, code);
-			return;
-		}
-
-		input_event(dev, EV_KEY, key_map[code], 1);
-		input_sync(dev);
-
-		/* initialize debounce and repeat */
-		dev->repeat_key = code;
-		/* Zenith remote _always_ sends 2 sequences */
-		dev->rep[0] = ~0;
-		mod_timer(&dev->timer, jiffies + msecs_to_jiffies(350));
-	}
-}
-
 static int msp430_ir_init(struct budget_ci *budget_ci)
 {
 	struct saa7146_dev *saa = budget_ci->budget.dev;
