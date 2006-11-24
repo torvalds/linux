@@ -1820,7 +1820,8 @@ static int fan_init(void)
 	if (sfan_handle) {
 		/* 570, 770x-JL */
 		fan_control_access_mode = IBMACPI_FAN_WR_ACPI_SFAN;
-		fan_control_commands |= IBMACPI_FAN_CMD_LEVEL;
+		fan_control_commands |=
+		    IBMACPI_FAN_CMD_LEVEL | IBMACPI_FAN_CMD_ENABLE;
 	} else {
 		if (!gfan_handle) {
 			/* gfan without sfan means no fan control */
@@ -1980,10 +1981,34 @@ static int fan_set_level(int level)
 
 static int fan_set_enable(void)
 {
+	u8 s;
+	int rc;
+
 	switch (fan_control_access_mode) {
 	case IBMACPI_FAN_WR_ACPI_FANS:
 	case IBMACPI_FAN_WR_TPEC:
-		if (!acpi_ec_write(fan_status_offset, 0x80))
+		if ((rc = fan_get_status(&s)) < 0)
+			return rc;
+
+		/* Don't go out of emergency fan mode */
+		if (s != 7)
+			s = IBMACPI_FAN_EC_AUTO;
+
+		if (!acpi_ec_write(fan_status_offset, s))
+			return -EIO;
+		break;
+
+	case IBMACPI_FAN_WR_ACPI_SFAN:
+		if ((rc = fan_get_status(&s)) < 0)
+			return rc;
+
+		s &= 0x07;
+
+		/* Set fan to at least level 4 */
+		if (s < 4)
+			s = 4;
+
+		if (!acpi_evalf(sfan_handle, NULL, NULL, "vd", s))
 			return -EIO;
 		break;
 
@@ -1999,6 +2024,11 @@ static int fan_set_disable(void)
 	case IBMACPI_FAN_WR_ACPI_FANS:
 	case IBMACPI_FAN_WR_TPEC:
 		if (!acpi_ec_write(fan_status_offset, 0x00))
+			return -EIO;
+		break;
+
+	case IBMACPI_FAN_WR_ACPI_SFAN:
+		if (!acpi_evalf(sfan_handle, NULL, NULL, "vd", 0x00))
 			return -EIO;
 		break;
 
