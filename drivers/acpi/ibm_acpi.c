@@ -231,6 +231,31 @@ struct ibm_thermal_sensors_struct {
 	s32 temp[IBMACPI_MAX_THERMAL_SENSORS];
 };
 
+enum fan_status_access_mode {
+	IBMACPI_FAN_NONE = 0,		/* No fan status or control */
+	IBMACPI_FAN_RD_ACPI_GFAN,	/* Use ACPI GFAN */
+	IBMACPI_FAN_RD_TPEC,		/* Use ACPI EC regs 0x2f, 0x84-0x85 */
+};
+
+enum fan_control_access_mode {
+	IBMACPI_FAN_WR_NONE = 0,	/* No fan control */
+	IBMACPI_FAN_WR_ACPI_SFAN,	/* Use ACPI SFAN */
+	IBMACPI_FAN_WR_TPEC,		/* Use ACPI EC reg 0x2f */
+	IBMACPI_FAN_WR_ACPI_FANS,	/* Use ACPI FANS and EC reg 0x2f */
+};
+
+enum fan_control_commands {
+	IBMACPI_FAN_CMD_SPEED 	= 0x0001,	/* speed command */
+	IBMACPI_FAN_CMD_LEVEL 	= 0x0002,	/* level command  */
+	IBMACPI_FAN_CMD_ENABLE	= 0x0004,	/* enable/disable cmd */
+};
+
+enum {					/* Fan control constants */
+	fan_status_offset = 0x2f,	/* EC register 0x2f */
+	fan_rpm_offset = 0x84,		/* EC register 0x84: LSB, 0x85 MSB (RPM)
+					 * 0x84 must be read before 0x85 */
+};
+
 static int ibm_thinkpad_ec_found;
 
 struct ibm_struct {
@@ -1659,8 +1684,59 @@ static int volume_write(char *buf)
 	return 0;
 }
 
-static int fan_status_offset = 0x2f;
-static int fan_rpm_offset = 0x84;
+static enum fan_status_access_mode fan_status_access_mode;
+static enum fan_control_access_mode fan_control_access_mode;
+static enum fan_control_commands fan_control_commands;
+
+static int fan_init(void)
+{
+	u8 status;
+
+	fan_status_access_mode = IBMACPI_FAN_NONE;
+	fan_control_access_mode = IBMACPI_FAN_WR_NONE;
+	fan_control_commands = 0;
+
+	if (gfan_handle) {
+		/* 570, 600e/x, 770e, 770x */
+		fan_status_access_mode = IBMACPI_FAN_RD_ACPI_GFAN;
+	} else {
+		/* all other ThinkPads: note that even old-style
+		 * ThinkPad ECs supports the fan control register */
+		if (likely(acpi_ec_read(fan_status_offset, &status))) {
+			fan_status_access_mode = IBMACPI_FAN_RD_TPEC;
+		} else {
+			printk(IBM_ERR
+			       "ThinkPad ACPI EC access misbehaving, "
+			       "fan status and control unavailable\n");
+			return 0;
+		}
+	}
+
+	if (sfan_handle) {
+		/* 570, 770x-JL */
+		fan_control_access_mode = IBMACPI_FAN_WR_ACPI_SFAN;
+		fan_control_commands |= IBMACPI_FAN_CMD_LEVEL;
+	} else {
+		if (!gfan_handle) {
+			/* gfan without sfan means no fan control */
+			/* all other models implement TP EC 0x2f control */
+
+			if (fans_handle) {
+				/* X31, X40 */
+				fan_control_access_mode =
+				    IBMACPI_FAN_WR_ACPI_FANS;
+				fan_control_commands |=
+				    IBMACPI_FAN_CMD_SPEED |
+				    IBMACPI_FAN_CMD_ENABLE;
+			} else {
+				fan_control_access_mode = IBMACPI_FAN_WR_TPEC;
+				fan_control_commands |= IBMACPI_FAN_CMD_ENABLE;
+			}
+		}
+	}
+
+	return 0;
+}
 
 static int fan_read(char *p)
 {
@@ -1849,6 +1925,7 @@ static struct ibm_struct ibms[] = {
 	 .name = "fan",
 	 .read = fan_read,
 	 .write = fan_write,
+	 .init = fan_init,
 	 .experimental = 1,
 	 },
 };
