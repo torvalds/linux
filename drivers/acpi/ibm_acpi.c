@@ -217,6 +217,17 @@ IBM_HANDLE(sfan, ec, "SFAN",	/* 570 */
 #define IBM_HKEY_HID	"IBM0068"
 #define IBM_PCI_HID	"PNP0A03"
 
+enum thermal_access_mode {
+	IBMACPI_THERMAL_NONE = 0,	/* No thermal support */
+	IBMACPI_THERMAL_ACPI_TMP07,	/* Use ACPI TMP0-7 */
+	IBMACPI_THERMAL_ACPI_UPDT,	/* Use ACPI TMP0-7 with UPDT */
+};
+
+#define IBMACPI_MAX_THERMAL_SENSORS 8	/* Max thermal sensors supported */
+struct ibm_thermal_sensors_struct {
+	s32 temp[IBMACPI_MAX_THERMAL_SENSORS];
+};
+
 struct ibm_struct {
 	char *name;
 	char param[32];
@@ -1275,50 +1286,79 @@ static int acpi_ec_write(int i, u8 v)
 	return 1;
 }
 
-static int thermal_tmp_supported;
-static int thermal_updt_supported;
+static enum thermal_access_mode thermal_read_mode;
 
 static int thermal_init(void)
 {
-	/* temperatures not supported on 570, G4x, R30, R31, R32 */
-	thermal_tmp_supported = acpi_evalf(ec_handle, NULL, "TMP7", "qv");
-
-	/* 600e/x, 770e, 770x */
-	thermal_updt_supported = acpi_evalf(ec_handle, NULL, "UPDT", "qv");
+	if (acpi_evalf(ec_handle, NULL, "TMP7", "qv")) {
+		if (acpi_evalf(ec_handle, NULL, "UPDT", "qv")) {
+			/* 600e/x, 770e, 770x */
+			thermal_read_mode = IBMACPI_THERMAL_ACPI_UPDT;
+		} else {
+			/* Standard ACPI TMPx access, max 8 sensors */
+			thermal_read_mode = IBMACPI_THERMAL_ACPI_TMP07;
+		}
+	} else {
+		/* temperatures not supported on 570, G4x, R30, R31, R32 */
+		thermal_read_mode = IBMACPI_THERMAL_NONE;
+	}
 
 	return 0;
+}
+
+static int thermal_get_sensors(struct ibm_thermal_sensors_struct *s)
+{
+	int i, t;
+	char tmpi[] = "TMPi";
+
+	if (!s)
+		return -EINVAL;
+
+	switch (thermal_read_mode) {
+	case IBMACPI_THERMAL_ACPI_UPDT:
+		if (!acpi_evalf(ec_handle, NULL, "UPDT", "v"))
+			return -EIO;
+		for (i = 0; i < 8; i++) {
+			tmpi[3] = '0' + i;
+			if (!acpi_evalf(ec_handle, &t, tmpi, "d"))
+				return -EIO;
+			s->temp[i] = (t - 2732) * 100;
+		}
+		return 8;
+
+	case IBMACPI_THERMAL_ACPI_TMP07:
+		for (i = 0; i < 8; i++) {
+			tmpi[3] = '0' + i;
+			if (!acpi_evalf(ec_handle, &t, tmpi, "d"))
+				return -EIO;
+			s->temp[i] = t * 1000;
+		}
+		return 8;
+
+	case IBMACPI_THERMAL_NONE:
+	default:
+		return 0;
+	}
 }
 
 static int thermal_read(char *p)
 {
 	int len = 0;
+	int n, i;
+	struct ibm_thermal_sensors_struct t;
 
-	if (!thermal_tmp_supported)
-		len += sprintf(p + len, "temperatures:\tnot supported\n");
-	else {
-		int i, t;
-		char tmpi[] = "TMPi";
-		s8 tmp[8];
+	n = thermal_get_sensors(&t);
+	if (unlikely(n < 0))
+		return n;
 
-		if (thermal_updt_supported)
-			if (!acpi_evalf(ec_handle, NULL, "UPDT", "v"))
-				return -EIO;
+	len += sprintf(p + len, "temperatures:\t");
 
-		for (i = 0; i < 8; i++) {
-			tmpi[3] = '0' + i;
-			if (!acpi_evalf(ec_handle, &t, tmpi, "d"))
-				return -EIO;
-			if (thermal_updt_supported)
-				tmp[i] = (t - 2732 + 5) / 10;
-			else
-				tmp[i] = t;
-		}
-
-		len += sprintf(p + len,
-			       "temperatures:\t%d %d %d %d %d %d %d %d\n",
-			       tmp[0], tmp[1], tmp[2], tmp[3],
-			       tmp[4], tmp[5], tmp[6], tmp[7]);
-	}
+	if (n > 0) {
+		for (i = 0; i < (n - 1); i++)
+			len += sprintf(p + len, "%d ", t.temp[i] / 1000);
+		len += sprintf(p + len, "%d\n", t.temp[i] / 1000);
+	} else
+		len += sprintf(p + len, "not supported\n");
 
 	return len;
 }
