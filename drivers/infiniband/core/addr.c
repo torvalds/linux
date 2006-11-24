@@ -225,17 +225,16 @@ static void process_req(void *data)
 
 	mutex_lock(&lock);
 	list_for_each_entry_safe(req, temp_req, &req_list, list) {
-		if (req->status) {
+		if (req->status == -ENODATA) {
 			src_in = (struct sockaddr_in *) &req->src_addr;
 			dst_in = (struct sockaddr_in *) &req->dst_addr;
 			req->status = addr_resolve_remote(src_in, dst_in,
 							  req->addr);
+			if (req->status && time_after_eq(jiffies, req->timeout))
+				req->status = -ETIMEDOUT;
+			else if (req->status == -ENODATA)
+				continue;
 		}
-		if (req->status && time_after(jiffies, req->timeout))
-			req->status = -ETIMEDOUT;
-		else if (req->status == -ENODATA)
-			continue;
-
 		list_del(&req->list);
 		list_add_tail(&req->list, &done_list);
 	}
