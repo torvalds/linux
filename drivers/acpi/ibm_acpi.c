@@ -354,6 +354,11 @@ enum {					/* Fan control constants */
 	fan_status_offset = 0x2f,	/* EC register 0x2f */
 	fan_rpm_offset = 0x84,		/* EC register 0x84: LSB, 0x85 MSB (RPM)
 					 * 0x84 must be read before 0x85 */
+
+	IBMACPI_FAN_EC_DISENGAGED 	= 0x40,	/* EC mode: tachometer
+						 * disengaged */
+	IBMACPI_FAN_EC_AUTO		= 0x80, /* EC mode: auto fan
+						 * control */
 };
 
 static int ibm_thinkpad_ec_found;
@@ -1910,8 +1915,9 @@ static int fan_read(char *p)
 		if ((rc = fan_get_status(&status)) < 0)
 			return rc;
 
-		len += sprintf(p + len, "level:\t\t%d\n", status);
-
+		len += sprintf(p + len, "status:\t\t%s\n"
+			       "level:\t\t%d\n",
+			       (status != 0) ? "enabled" : "disabled", status);
 		break;
 
 	case IBMACPI_FAN_RD_TPEC:
@@ -1919,12 +1925,21 @@ static int fan_read(char *p)
 		if ((rc = fan_get_status(&status)) < 0)
 			return rc;
 
-		len += sprintf(p + len, "status:\t\t%s\n", enabled(status, 7));
+		len += sprintf(p + len, "status:\t\t%s\n",
+			       (status != 0) ? "enabled" : "disabled");
 
 		if ((rc = fan_get_speed(&speed)) < 0)
 			return rc;
 
 		len += sprintf(p + len, "speed:\t\t%d\n", speed);
+
+		if (status & IBMACPI_FAN_EC_DISENGAGED)
+			/* Disengaged mode takes precedence */
+			len += sprintf(p + len, "level:\t\tdisengaged\n");
+		else if (status & IBMACPI_FAN_EC_AUTO)
+			len += sprintf(p + len, "level:\t\tauto\n");
+		else
+			len += sprintf(p + len, "level:\t\t%d\n", status);
 		break;
 
 	case IBMACPI_FAN_NONE:
