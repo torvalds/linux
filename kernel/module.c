@@ -1086,22 +1086,35 @@ static int mod_sysfs_setup(struct module *mod,
 		goto out;
 	kobj_set_kset_s(&mod->mkobj, module_subsys);
 	mod->mkobj.mod = mod;
-	err = kobject_register(&mod->mkobj.kobj);
+
+	/* delay uevent until full sysfs population */
+	kobject_init(&mod->mkobj.kobj);
+	err = kobject_add(&mod->mkobj.kobj);
 	if (err)
 		goto out;
 
+	mod->drivers_dir = kobject_add_dir(&mod->mkobj.kobj, "drivers");
+	if (!mod->drivers_dir)
+		goto out_unreg;
+
 	err = module_param_sysfs_setup(mod, kparam, num_params);
 	if (err)
-		goto out_unreg;
+		goto out_unreg_drivers;
 
 	err = module_add_modinfo_attrs(mod);
 	if (err)
-		goto out_unreg;
+		goto out_unreg_param;
 
+	kobject_uevent(&mod->mkobj.kobj, KOBJ_ADD);
 	return 0;
 
+out_unreg_drivers:
+	kobject_unregister(mod->drivers_dir);
+out_unreg_param:
+	module_param_sysfs_remove(mod);
 out_unreg:
-	kobject_unregister(&mod->mkobj.kobj);
+	kobject_del(&mod->mkobj.kobj);
+	kobject_put(&mod->mkobj.kobj);
 out:
 	return err;
 }
@@ -1110,6 +1123,7 @@ static void mod_kobject_remove(struct module *mod)
 {
 	module_remove_modinfo_attrs(mod);
 	module_param_sysfs_remove(mod);
+	kobject_unregister(mod->drivers_dir);
 
 	kobject_unregister(&mod->mkobj.kobj);
 }
@@ -2275,11 +2289,14 @@ void print_modules(void)
 
 void module_add_driver(struct module *mod, struct device_driver *drv)
 {
+	int no_warn;
+
 	if (!mod || !drv)
 		return;
 
-	/* Don't check return code; this call is idempotent */
-	sysfs_create_link(&drv->kobj, &mod->mkobj.kobj, "module");
+	/* Don't check return codes; these calls are idempotent */
+	no_warn = sysfs_create_link(&drv->kobj, &mod->mkobj.kobj, "module");
+	no_warn = sysfs_create_link(mod->drivers_dir, &drv->kobj, drv->name);
 }
 EXPORT_SYMBOL(module_add_driver);
 
@@ -2288,6 +2305,8 @@ void module_remove_driver(struct device_driver *drv)
 	if (!drv)
 		return;
 	sysfs_remove_link(&drv->kobj, "module");
+	if (drv->owner && drv->owner->drivers_dir)
+		sysfs_remove_link(drv->owner->drivers_dir, drv->name);
 }
 EXPORT_SYMBOL(module_remove_driver);
 
