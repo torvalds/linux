@@ -824,9 +824,34 @@ static inline void module_unload_init(struct module *mod)
 }
 #endif /* CONFIG_MODULE_UNLOAD */
 
+static ssize_t show_initstate(struct module_attribute *mattr,
+			   struct module *mod, char *buffer)
+{
+	const char *state = "unknown";
+
+	switch (mod->state) {
+	case MODULE_STATE_LIVE:
+		state = "live";
+		break;
+	case MODULE_STATE_COMING:
+		state = "coming";
+		break;
+	case MODULE_STATE_GOING:
+		state = "going";
+		break;
+	}
+	return sprintf(buffer, "%s\n", state);
+}
+
+static struct module_attribute initstate = {
+	.attr = { .name = "initstate", .mode = 0444, .owner = THIS_MODULE },
+	.show = show_initstate,
+};
+
 static struct module_attribute *modinfo_attrs[] = {
 	&modinfo_version,
 	&modinfo_srcversion,
+	&initstate,
 #ifdef CONFIG_MODULE_UNLOAD
 	&refcnt,
 #endif
