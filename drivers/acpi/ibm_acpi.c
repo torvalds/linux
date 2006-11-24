@@ -1738,16 +1738,74 @@ static int fan_init(void)
 	return 0;
 }
 
-static int fan_read(char *p)
+static int fan_get_status(u8 *status)
 {
-	int len = 0;
-	u8 lo, hi, status;
+	u8 s;
 
 	switch (fan_status_access_mode) {
 	case IBMACPI_FAN_RD_ACPI_GFAN:
 		/* 570, 600e/x, 770e, 770x */
-		if (unlikely(!acpi_evalf(gfan_handle, &status, NULL, "d")))
+
+		if (unlikely(!acpi_evalf(gfan_handle, &s, NULL, "d")))
 			return -EIO;
+
+		if (likely(status))
+			*status = s & 0x07;
+
+		break;
+
+	case IBMACPI_FAN_RD_TPEC:
+		/* all except 570, 600e/x, 770e, 770x */
+		if (unlikely(!acpi_ec_read(fan_status_offset, &s)))
+			return -EIO;
+
+		if (likely(status))
+			*status = s;
+
+		break;
+
+	default:
+		return -ENXIO;
+	}
+
+	return 0;
+}
+
+static int fan_get_speed(unsigned int *speed)
+{
+	u8 hi, lo;
+
+	switch (fan_status_access_mode) {
+	case IBMACPI_FAN_RD_TPEC:
+		/* all except 570, 600e/x, 770e, 770x */
+		if (unlikely(!acpi_ec_read(fan_rpm_offset, &lo) ||
+			     !acpi_ec_read(fan_rpm_offset + 1, &hi)))
+			return -EIO;
+
+		if (likely(speed))
+			*speed = (hi << 8) | lo;
+
+		break;
+
+	default:
+		return -ENXIO;
+	}
+
+	return 0;
+}
+
+static int fan_read(char *p)
+{
+	int len = 0;
+	int rc;
+	u8 status;
+	unsigned int speed = 0;
+
+	switch (fan_status_access_mode) {
+	case IBMACPI_FAN_RD_ACPI_GFAN:
+		/* 570, 600e/x, 770e, 770x */
+		if ((rc = fan_get_status(&status)) < 0)
+			return rc;
 
 		len += sprintf(p + len, "level:\t\t%d\n", status);
 
@@ -1755,19 +1813,15 @@ static int fan_read(char *p)
 
 	case IBMACPI_FAN_RD_TPEC:
 		/* all except 570, 600e/x, 770e, 770x */
-		if (unlikely(!acpi_ec_read(fan_status_offset, &status)))
-			return -EIO;
-		else
-			len += sprintf(p + len, "status:\t\t%s\n",
-				       enabled(status, 7));
+		if ((rc = fan_get_status(&status)) < 0)
+			return rc;
 
-		if (unlikely(!acpi_ec_read(fan_rpm_offset, &lo) ||
-			     !acpi_ec_read(fan_rpm_offset + 1, &hi)))
-			return -EIO;
-		else
-			len += sprintf(p + len, "speed:\t\t%d\n",
-				       (hi << 8) + lo);
+		len += sprintf(p + len, "status:\t\t%s\n", enabled(status, 7));
 
+		if ((rc = fan_get_speed(&speed)) < 0)
+			return rc;
+
+		len += sprintf(p + len, "speed:\t\t%d\n", speed);
 		break;
 
 	case IBMACPI_FAN_NONE:
