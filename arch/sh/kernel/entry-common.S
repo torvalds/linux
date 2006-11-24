@@ -256,8 +256,7 @@ syscall_trace_entry:
 	mov.l	@(OFF_R6,r15), r6
 	mov.l	@(OFF_R7,r15), r7   ! arg3
 	mov.l	@(OFF_R3,r15), r3   ! syscall_nr
-	!   	    	    Arrange for do_syscall_trace to be called
-	!   	    	    again as the system call returns.
+	!
 	mov.l	2f, r10			! Number of syscalls
 	cmp/hs	r10, r3
 	bf	syscall_call
@@ -272,6 +271,18 @@ __restore_all:
 
 	.align	2
 1:	.long	restore_all
+
+	.align	2
+not_syscall_tra:	
+	bra	debug_trap
+	 nop
+
+	.align	2
+syscall_badsys:			! Bad syscall number
+	mov	#-ENOSYS, r0
+	bra	resume_userspace
+	 mov.l	r0, @(OFF_R0,r15)	! Return value
+	
 
 /*
  * Syscall interface:
@@ -316,39 +327,27 @@ ENTRY(system_call)
 	! Is the trap argument >= 0x20? (TRA will be >= 0x80)
 	mov	#0x7f, r9
 	cmp/hi	r9, r8
-	bt/s	0f
+	bt/s	not_syscall_tra
 	 mov	#OFF_TRA, r9
 	add	r15, r9
-	!
 	mov.l	r8, @r9			! set TRA value to tra
 	sti
-	!   	    	    Call the system call handler through the table.
-	!   	    	    First check for bad syscall number
-	mov	r3, r9
-	mov.l	2f, r8			! Number of syscalls
-	cmp/hs	r8, r9
+	!
 	get_current_thread_info r8, r10
-	bf	good_system_call
-syscall_badsys:			! Bad syscall number
-	mov	#-ENOSYS, r0
-	bra	resume_userspace
-	 mov.l	r0, @(OFF_R0,r15)	! Return value
-	!
-0:
-	bra	debug_trap
-	 nop
-	!
-good_system_call:		! Good syscall number
 	mov.l	@(TI_FLAGS,r8), r8
 	mov	#_TIF_SYSCALL_TRACE, r10
 	tst	r10, r8
 	bf	syscall_trace_entry
 	!
+	mov.l	2f, r8			! Number of syscalls
+	cmp/hs	r8, r3
+	bt	syscall_badsys
+	!
 syscall_call:
-	shll2	r9		! x4
+	shll2	r3		! x4
 	mov.l	3f, r8		! Load the address of sys_call_table
-	add	r8, r9
-	mov.l	@r9, r8
+	add	r8, r3
+	mov.l	@r3, r8
 	jsr	@r8	    	! jump to specific syscall handler
 	 nop
 	mov.l	@(OFF_R0,r15), r12		! save r0
