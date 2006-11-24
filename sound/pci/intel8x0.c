@@ -71,6 +71,7 @@ static char *ac97_quirk;
 static int buggy_semaphore;
 static int buggy_irq = -1; /* auto-check */
 static int xbox;
+static int spdif_aclink = -1;
 
 module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for Intel i8x0 soundcard.");
@@ -86,6 +87,8 @@ module_param(buggy_irq, bool, 0444);
 MODULE_PARM_DESC(buggy_irq, "Enable workaround for buggy interrupts on some motherboards.");
 module_param(xbox, bool, 0444);
 MODULE_PARM_DESC(xbox, "Set to 1 for Xbox, if you have problems with the AC'97 codec detection.");
+module_param(spdif_aclink, int, 0444);
+MODULE_PARM_DESC(spdif_aclink, "S/PDIF over AC-link.");
 
 /* just for backward compatibility */
 static int enable;
@@ -1578,10 +1581,14 @@ static int __devinit snd_intel8x0_pcm(struct intel8x0 *chip)
 	case DEVICE_INTEL_ICH4:
 		tbl = intel_pcms;
 		tblsize = ARRAY_SIZE(intel_pcms);
+		if (spdif_aclink)
+			tblsize--;
 		break;
 	case DEVICE_NFORCE:
 		tbl = nforce_pcms;
 		tblsize = ARRAY_SIZE(nforce_pcms);
+		if (spdif_aclink)
+			tblsize--;
 		break;
 	case DEVICE_ALI:
 		tbl = ali_pcms;
@@ -2040,17 +2047,19 @@ static int __devinit snd_intel8x0_mixer(struct intel8x0 *chip, int ac97_clock,
 	};
 
 	chip->spdif_idx = -1; /* use PCMOUT (or disabled) */
-	switch (chip->device_type) {
-	case DEVICE_NFORCE:
-		chip->spdif_idx = NVD_SPBAR;
-		break;
-	case DEVICE_ALI:
-		chip->spdif_idx = ALID_AC97SPDIFOUT;
-		break;
-	case DEVICE_INTEL_ICH4:
-		chip->spdif_idx = ICHD_SPBAR;
-		break;
-	};
+	if (!spdif_aclink) {
+		switch (chip->device_type) {
+		case DEVICE_NFORCE:
+			chip->spdif_idx = NVD_SPBAR;
+			break;
+		case DEVICE_ALI:
+			chip->spdif_idx = ALID_AC97SPDIFOUT;
+			break;
+		case DEVICE_INTEL_ICH4:
+			chip->spdif_idx = ICHD_SPBAR;
+			break;
+		};
+	}
 
 	chip->in_ac97_init = 1;
 	
@@ -2173,11 +2182,11 @@ static int __devinit snd_intel8x0_mixer(struct intel8x0 *chip, int ac97_clock,
 		if ((igetdword(chip, ICHREG(GLOB_STA)) & ICH_SAMPLE_CAP) == ICH_SAMPLE_16_20)
 			chip->smp20bit = 1;
 	}
-	if (chip->device_type == DEVICE_NFORCE) {
+	if (chip->device_type == DEVICE_NFORCE && !spdif_aclink) {
 		/* 48kHz only */
 		chip->ichd[chip->spdif_idx].pcm->rates = SNDRV_PCM_RATE_48000;
 	}
-	if (chip->device_type == DEVICE_INTEL_ICH4) {
+	if (chip->device_type == DEVICE_INTEL_ICH4 && !spdif_aclink) {
 		/* use slot 10/11 for SPDIF */
 		u32 val;
 		val = igetdword(chip, ICHREG(GLOB_CNT)) & ~ICH_PCM_SPDIF_MASK;
@@ -2305,7 +2314,7 @@ static int snd_intel8x0_ich_chip_init(struct intel8x0 *chip, int probing)
 		/* unmute the output on SIS7012 */
 		iputword(chip, 0x4c, igetword(chip, 0x4c) | 1);
 	}
-	if (chip->device_type == DEVICE_NFORCE) {
+	if (chip->device_type == DEVICE_NFORCE && !spdif_aclink) {
 		/* enable SPDIF interrupt */
 		unsigned int val;
 		pci_read_config_dword(chip->pci, 0x4c, &val);
@@ -2398,7 +2407,7 @@ static int snd_intel8x0_free(struct intel8x0 *chip)
 	/* reset channels */
 	for (i = 0; i < chip->bdbars_count; i++)
 		iputbyte(chip, ICH_REG_OFF_CR + chip->ichd[i].reg_offset, ICH_RESETREGS);
-	if (chip->device_type == DEVICE_NFORCE) {
+	if (chip->device_type == DEVICE_NFORCE && !spdif_aclink) {
 		/* stop the spdif interrupt */
 		unsigned int val;
 		pci_read_config_dword(chip->pci, 0x4c, &val);
@@ -2492,7 +2501,7 @@ static int intel8x0_resume(struct pci_dev *pci)
 	snd_intel8x0_chip_init(chip, 0);
 
 	/* re-initialize mixer stuff */
-	if (chip->device_type == DEVICE_INTEL_ICH4) {
+	if (chip->device_type == DEVICE_INTEL_ICH4 && !spdif_aclink) {
 		/* enable separate SDINs for ICH4 */
 		iputbyte(chip, ICHREG(SDM), chip->sdm_saved);
 		/* use slot 10/11 for SPDIF */
@@ -2928,6 +2937,29 @@ static struct shortname_table {
 	{ 0, NULL },
 };
 
+static struct snd_pci_quirk spdif_aclink_defaults[] __devinitdata = {
+	SND_PCI_QUIRK(0x147b, 0x1c1a, "ASUS KN8", 1),
+	{ } /* end */
+};
+
+/* look up white/black list for SPDIF over ac-link */
+static int __devinit check_default_spdif_aclink(struct pci_dev *pci)
+{
+	const struct snd_pci_quirk *w;
+
+	w = snd_pci_quirk_lookup(pci, spdif_aclink_defaults);
+	if (w) {
+		if (w->value)
+			snd_printdd(KERN_INFO "intel8x0: Using SPDIF over "
+				    "AC-Link for %s\n", w->name);
+		else
+			snd_printdd(KERN_INFO "intel8x0: Using integrated "
+				    "SPDIF DMA for %s\n", w->name);
+		return w->value;
+	}
+	return 0;
+}
+
 static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 					const struct pci_device_id *pci_id)
 {
@@ -2940,16 +2972,18 @@ static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 	if (card == NULL)
 		return -ENOMEM;
 
-	switch (pci_id->driver_data) {
-	case DEVICE_NFORCE:
-		strcpy(card->driver, "NFORCE");
-		break;
-	case DEVICE_INTEL_ICH4:
-		strcpy(card->driver, "ICH4");
-		break;
-	default:
-		strcpy(card->driver, "ICH");
-		break;
+	if (spdif_aclink < 0)
+		spdif_aclink = check_default_spdif_aclink(pci);
+
+	strcpy(card->driver, "ICH");
+	if (!spdif_aclink) {
+		switch (pci_id->driver_data) {
+		case DEVICE_NFORCE:
+			strcpy(card->driver, "NFORCE");
+			break;
+		case DEVICE_INTEL_ICH4:
+			strcpy(card->driver, "ICH4");
+		}
 	}
 
 	strcpy(card->shortname, "Intel ICH");
