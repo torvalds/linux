@@ -52,7 +52,8 @@ Who:	Dan Dennedy <dan@dennedy.org>, Stefan Richter <stefanr@s5r6.in-berlin.de>
 
 What:	ieee1394 core's unused exports (CONFIG_IEEE1394_EXPORT_FULL_API)
 When:	January 2007
-Why:	There are no projects known to use these exported symbols.
+Why:	There are no projects known to use these exported symbols, except
+	dfg1394 (uses one symbol whose functionality is core-internal now).
 Who:	Stefan Richter <stefanr@s5r6.in-berlin.de>
 
 ---------------------------

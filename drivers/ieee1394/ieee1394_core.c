@@ -1240,6 +1240,7 @@ EXPORT_SYMBOL(hpsb_node_write);
 EXPORT_SYMBOL(__hpsb_register_protocol);
 EXPORT_SYMBOL(hpsb_unregister_protocol);
 #ifdef CONFIG_IEEE1394_EXPORT_FULL_API
+EXPORT_SYMBOL(ieee1394_bus_type);
 EXPORT_SYMBOL(nodemgr_for_each_host);
 #endif
 
