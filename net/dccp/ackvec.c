@@ -169,13 +169,13 @@ void dccp_ackvec_free(struct dccp_ackvec *av)
 }
 
 static inline u8 dccp_ackvec_state(const struct dccp_ackvec *av,
-				   const u8 index)
+				   const u32 index)
 {
 	return av->dccpav_buf[index] & DCCP_ACKVEC_STATE_MASK;
 }
 
 static inline u8 dccp_ackvec_len(const struct dccp_ackvec *av,
-				 const u8 index)
+				 const u32 index)
 {
 	return av->dccpav_buf[index] & DCCP_ACKVEC_LEN_MASK;
 }
@@ -275,7 +275,7 @@ int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
 		 *	could reduce the complexity of this scan.)
 		 */
 		u64 delta = dccp_delta_seqno(ackno, av->dccpav_buf_ackno);
-		u8 index = av->dccpav_buf_head;
+		u32 index = av->dccpav_buf_head;
 
 		while (1) {
 			const u8 len = dccp_ackvec_len(av, index);
@@ -385,7 +385,7 @@ void dccp_ackvec_check_rcv_ackno(struct dccp_ackvec *av, struct sock *sk,
 }
 
 static void dccp_ackvec_check_rcv_ackvector(struct dccp_ackvec *av,
-					    struct sock *sk, u64 ackno,
+					    struct sock *sk, u64 *ackno,
 					    const unsigned char len,
 					    const unsigned char *vector)
 {
@@ -408,7 +408,7 @@ static void dccp_ackvec_check_rcv_ackvector(struct dccp_ackvec *av,
 		const u8 rl = *vector & DCCP_ACKVEC_LEN_MASK;
 		u64 ackno_end_rl;
 
-		dccp_set_seqno(&ackno_end_rl, ackno - rl);
+		dccp_set_seqno(&ackno_end_rl, *ackno - rl);
 
 		/*
 		 * If our AVR sequence number is greater than the ack, go
@@ -416,13 +416,13 @@ static void dccp_ackvec_check_rcv_ackvector(struct dccp_ackvec *av,
 		 */
 		list_for_each_entry_from(avr, &av->dccpav_records,
 					 dccpavr_node) {
-			if (!after48(avr->dccpavr_ack_seqno, ackno))
+			if (!after48(avr->dccpavr_ack_seqno, *ackno))
 				goto found;
 		}
 		/* End of the dccpav_records list, not found, exit */
 		break;
 found:
-		if (between48(avr->dccpavr_ack_seqno, ackno_end_rl, ackno)) {
+		if (between48(avr->dccpavr_ack_seqno, ackno_end_rl, *ackno)) {
 			const u8 state = *vector & DCCP_ACKVEC_STATE_MASK;
 			if (state != DCCP_ACKVEC_STATE_NOT_RECEIVED) {
 				dccp_pr_debug("%s ACK vector 0, len=%d, "
@@ -442,21 +442,20 @@ found:
 			 */
 		}
 
-		dccp_set_seqno(&ackno, ackno_end_rl - 1);
+		dccp_set_seqno(ackno, ackno_end_rl - 1);
 		++vector;
 	}
 }
 
 int dccp_ackvec_parse(struct sock *sk, const struct sk_buff *skb,
-		      const u8 opt, const u8 *value, const u8 len)
+		      u64 *ackno, const u8 opt, const u8 *value, const u8 len)
 {
-	if (len > DCCP_MAX_ACKVEC_LEN)
+	if (len > DCCP_MAX_ACKVEC_OPT_LEN)
 		return -1;
 
 	/* dccp_ackvector_print(DCCP_SKB_CB(skb)->dccpd_ack_seq, value, len); */
 	dccp_ackvec_check_rcv_ackvector(dccp_sk(sk)->dccps_hc_rx_ackvec, sk,
-					DCCP_SKB_CB(skb)->dccpd_ack_seq,
-				        len, value);
+					ackno, len, value);
 	return 0;
 }
 

@@ -62,6 +62,7 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 	struct dccp_sock *dp = dccp_sk(sk);
 	const struct dccp_hdr *dh = dccp_hdr(skb);
 	const u8 pkt_type = DCCP_SKB_CB(skb)->dccpd_type;
+	u64 ackno = DCCP_SKB_CB(skb)->dccpd_ack_seq;
 	unsigned char *options = (unsigned char *)dh + dccp_hdr_len(skb);
 	unsigned char *opt_ptr = options;
 	const unsigned char *opt_end = (unsigned char *)dh +
@@ -149,7 +150,7 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 				break;
 
 			if (dccp_msk(sk)->dccpms_send_ack_vector &&
-			    dccp_ackvec_parse(sk, skb, opt, value, len))
+			    dccp_ackvec_parse(sk, skb, &ackno, opt, value, len))
 				goto out_invalid_option;
 			break;
 		case DCCPO_TIMESTAMP:
