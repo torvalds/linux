@@ -448,6 +448,17 @@ http://thinkwiki.org/wiki/Thermal_Sensors#ThinkPad_T43.2C_T43p
 10: ICH (southbridge), under Mini-PCI card, under touchpad
 11: Power regulator, underside of system board, below F2 key
 
+The A31 has a very atypical layout for the thermal sensors
+(source: Milos Popovic, http://thinkwiki.org/wiki/Thermal_Sensors#ThinkPad_A31)
+1:  CPU
+2:  Main Battery: main sensor
+3:  Power Converter
+4:  Bay Battery: main sensor
+5:  MCH (northbridge)
+6:  PCMCIA/ambient
+7:  Main Battery: secondary sensor
+8:  Bay Battery: secondary sensor
+
 
 EXPERIMENTAL: Embedded controller register dump -- /proc/acpi/ibm/ecdump
 ------------------------------------------------------------------------
