@@ -296,21 +296,9 @@ static struct pci_device_id snd_atiixp_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, snd_atiixp_ids);
 
-struct atiixp_quirk {
-	unsigned short  subvendor;
-	unsigned short  subdevice;
-	const char *name;
-	int ac97_codec;
-};
-
-static struct atiixp_quirk atiixp_quirks[] __devinitdata = {
-	{
-		.subvendor = 0x15bd,
-		.subdevice = 0x3100,
-		.name = "DFI RS482",
-		.ac97_codec = 0,
-	},
-	{ .subvendor = 0 } /* terminator */
+static struct snd_pci_quirk atiixp_quirks[] __devinitdata = {
+	SND_PCI_QUIRK(0x15bd, 0x3100, "DFI RS482", 0),
+	{ } /* terminator */
 };
 
 /*
@@ -574,17 +562,13 @@ static int snd_atiixp_aclink_down(struct atiixp *chip)
 
 static int ac97_probing_bugs(struct pci_dev *pci)
 {
-	int i = 0;
+	const struct snd_pci_quirk *q;
 
-	while (atiixp_quirks[i].subvendor) {
-		if (pci->subsystem_vendor == atiixp_quirks[i].subvendor  &&
-		    pci->subsystem_device == atiixp_quirks[i].subdevice) {
-			printk(KERN_INFO "Atiixp quirk for %s.  "
-			       "Forcing codec %d\n", atiixp_quirks[i].name, 
-			       atiixp_quirks[i].ac97_codec);
-			return atiixp_quirks[i].ac97_codec;
-		}
-		i++;
+	q = snd_pci_quirk_lookup(pci, atiixp_quirks);
+	if (q) {
+		snd_printdd(KERN_INFO "Atiixp quirk for %s.  "
+			    "Forcing codec %d\n", q->name, q->value);
+		return q->value;
 	}
 	/* this hardware doesn't need workarounds.  Probe for codec */
 	return -1;
