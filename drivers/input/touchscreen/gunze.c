@@ -194,8 +194,7 @@ static struct serio_driver gunze_drv = {
 
 static int __init gunze_init(void)
 {
-	serio_register_driver(&gunze_drv);
-	return 0;
+	return serio_register_driver(&gunze_drv);
 }
 
 static void __exit gunze_exit(void)

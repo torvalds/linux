@@ -208,8 +208,7 @@ static struct serio_driver mtouch_drv = {
 
 static int __init mtouch_init(void)
 {
-	serio_register_driver(&mtouch_drv);
-	return 0;
+	return serio_register_driver(&mtouch_drv);
 }
 
 static void __exit mtouch_exit(void)

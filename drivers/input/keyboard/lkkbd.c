@@ -758,8 +758,7 @@ static struct serio_driver lkkbd_drv = {
 static int __init
 lkkbd_init (void)
 {
-	serio_register_driver(&lkkbd_drv);
-	return 0;
+	return serio_register_driver(&lkkbd_drv);
 }
 
 static void __exit

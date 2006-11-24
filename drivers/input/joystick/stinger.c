@@ -216,8 +216,7 @@ static struct serio_driver stinger_drv = {
 
 static int __init stinger_init(void)
 {
-	serio_register_driver(&stinger_drv);
-	return 0;
+	return serio_register_driver(&stinger_drv);
 }
 
 static void __exit stinger_exit(void)

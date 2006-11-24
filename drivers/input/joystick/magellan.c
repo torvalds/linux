@@ -231,8 +231,7 @@ static struct serio_driver magellan_drv = {
 
 static int __init magellan_init(void)
 {
-	serio_register_driver(&magellan_drv);
-	return 0;
+	return serio_register_driver(&magellan_drv);
 }
 
 static void __exit magellan_exit(void)

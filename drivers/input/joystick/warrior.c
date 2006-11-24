@@ -224,8 +224,7 @@ static struct serio_driver warrior_drv = {
 
 static int __init warrior_init(void)
 {
-	serio_register_driver(&warrior_drv);
-	return 0;
+	return serio_register_driver(&warrior_drv);
 }
 
 static void __exit warrior_exit(void)

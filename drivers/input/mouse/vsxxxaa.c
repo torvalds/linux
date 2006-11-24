@@ -574,8 +574,7 @@ static struct serio_driver vsxxxaa_drv = {
 static int __init
 vsxxxaa_init (void)
 {
-	serio_register_driver(&vsxxxaa_drv);
-	return 0;
+	return serio_register_driver(&vsxxxaa_drv);
 }
 
 static void __exit

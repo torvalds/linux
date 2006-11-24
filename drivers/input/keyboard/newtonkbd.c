@@ -169,8 +169,7 @@ static struct serio_driver nkbd_drv = {
 
 static int __init nkbd_init(void)
 {
-	serio_register_driver(&nkbd_drv);
-	return 0;
+	return serio_register_driver(&nkbd_drv);
 }
 
 static void __exit nkbd_exit(void)

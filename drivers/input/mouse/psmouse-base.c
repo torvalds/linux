@@ -1524,15 +1524,19 @@ static int psmouse_get_maxproto(char *buffer, struct kernel_param *kp)
 
 static int __init psmouse_init(void)
 {
+	int err;
+
 	kpsmoused_wq = create_singlethread_workqueue("kpsmoused");
 	if (!kpsmoused_wq) {
 		printk(KERN_ERR "psmouse: failed to create kpsmoused workqueue\n");
 		return -ENOMEM;
 	}
 
-	serio_register_driver(&psmouse_drv);
+	err = serio_register_driver(&psmouse_drv);
+	if (err)
+		destroy_workqueue(kpsmoused_wq);
 
-	return 0;
+	return err;
 }
 
 static void __exit psmouse_exit(void)

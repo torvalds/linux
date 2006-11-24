@@ -174,8 +174,7 @@ static struct serio_driver xtkbd_drv = {
 
 static int __init xtkbd_init(void)
 {
-	serio_register_driver(&xtkbd_drv);
-	return 0;
+	return serio_register_driver(&xtkbd_drv);
 }
 
 static void __exit xtkbd_exit(void)

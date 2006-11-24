@@ -397,8 +397,7 @@ static struct serio_driver elo_drv = {
 
 static int __init elo_init(void)
 {
-	serio_register_driver(&elo_drv);
-	return 0;
+	return serio_register_driver(&elo_drv);
 }
 
 static void __exit elo_exit(void)

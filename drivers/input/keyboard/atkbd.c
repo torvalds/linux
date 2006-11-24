@@ -1389,8 +1389,7 @@ static ssize_t atkbd_show_err_count(struct atkbd *atkbd, char *buf)
 
 static int __init atkbd_init(void)
 {
-	serio_register_driver(&atkbd_drv);
-	return 0;
+	return serio_register_driver(&atkbd_drv);
 }
 
 static void __exit atkbd_exit(void)

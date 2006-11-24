@@ -417,8 +417,7 @@ static struct serio_driver hil_ptr_serio_driver = {
 
 static int __init hil_ptr_init(void)
 {
-	serio_register_driver(&hil_ptr_serio_driver);
-        return 0;
+	return serio_register_driver(&hil_ptr_serio_driver);
 }
                 
 static void __exit hil_ptr_exit(void)

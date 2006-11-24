@@ -467,13 +467,21 @@ int iforce_init_device(struct iforce *iforce)
 
 static int __init iforce_init(void)
 {
+	int err = 0;
+
 #ifdef CONFIG_JOYSTICK_IFORCE_USB
-	usb_register(&iforce_usb_driver);
+	err = usb_register(&iforce_usb_driver);
+	if (err)
+		return err;
 #endif
 #ifdef CONFIG_JOYSTICK_IFORCE_232
-	serio_register_driver(&iforce_serio_drv);
+	err = serio_register_driver(&iforce_serio_drv);
+#ifdef CONFIG_JOYSTICK_IFORCE_USB
+	if (err)
+		usb_deregister(&iforce_usb_driver);
 #endif
-	return 0;
+#endif
+	return err;
 }
 
 static void __exit iforce_exit(void)

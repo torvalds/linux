@@ -300,8 +300,7 @@ static struct serio_driver spaceball_drv = {
 
 static int __init spaceball_init(void)
 {
-	serio_register_driver(&spaceball_drv);
-	return 0;
+	return serio_register_driver(&spaceball_drv);
 }
 
 static void __exit spaceball_exit(void)

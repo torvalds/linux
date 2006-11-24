@@ -246,8 +246,7 @@ static struct serio_driver spaceorb_drv = {
 
 static int __init spaceorb_init(void)
 {
-	serio_register_driver(&spaceorb_drv);
-	return 0;
+	return serio_register_driver(&spaceorb_drv);
 }
 
 static void __exit spaceorb_exit(void)

@@ -269,8 +269,7 @@ static struct serio_driver twidjoy_drv = {
 
 static int __init twidjoy_init(void)
 {
-	serio_register_driver(&twidjoy_drv);
-	return 0;
+	return serio_register_driver(&twidjoy_drv);
 }
 
 static void __exit twidjoy_exit(void)

@@ -351,8 +351,7 @@ static struct serio_driver sermouse_drv = {
 
 static int __init sermouse_init(void)
 {
-	serio_register_driver(&sermouse_drv);
-	return 0;
+	return serio_register_driver(&sermouse_drv);
 }
 
 static void __exit sermouse_exit(void)
