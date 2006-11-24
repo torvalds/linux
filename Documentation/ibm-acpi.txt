@@ -398,25 +398,56 @@ Temperature sensors -- /proc/acpi/ibm/thermal
 
 Most ThinkPads include six or more separate temperature sensors but
 only expose the CPU temperature through the standard ACPI methods.
-This feature shows readings from up to eight different sensors. Some
-readings may not be valid, e.g. may show large negative values. For
-example, on the X40, a typical output may be:
-
-temperatures:   42 42 45 41 36 -128 33 -128
-
-Thomas Gruber took his R51 apart and traced all six active sensors in
-his laptop (the location of sensors may vary on other models):
-
-1:  CPU
-2:  Mini PCI Module
-3:  HDD
-4:  GPU
-5:  Battery
-6:  N/A
-7:  Battery
-8:  N/A
+This feature shows readings from up to eight different sensors on older
+ThinkPads, and it has experimental support for up to sixteen different
+sensors on newer ThinkPads.  Readings from sensors that are not available
+return -128.
 
 No commands can be written to this file.
+
+EXPERIMENTAL: The 16-sensors feature is marked EXPERIMENTAL because the
+implementation directly accesses hardware registers and may not work as
+expected. USE WITH CAUTION! To use this feature, you need to supply the
+experimental=1 parameter when loading the module.  When EXPERIMENTAL
+mode is enabled, reading the first 8 sensors on newer ThinkPads will
+also use an new experimental thermal sensor access mode.
+
+For example, on the X40, a typical output may be:
+temperatures:   42 42 45 41 36 -128 33 -128
+
+EXPERIMENTAL: On the T43/p, a typical output may be:
+temperatures:   48 48 36 52 38 -128 31 -128 48 52 48 -128 -128 -128 -128 -128
+
+The mapping of thermal sensors to physical locations varies depending on
+system-board model (and thus, on ThinkPad model).
+
+http://thinkwiki.org/wiki/Thermal_Sensors is a public wiki page that
+tries to track down these locations for various models.
+
+Most (newer?) models seem to follow this pattern:
+
+1:  CPU
+2:  (depends on model)
+3:  (depends on model)
+4:  GPU
+5:  Main battery: main sensor
+6:  Bay battery: main sensor
+7:  Main battery: secondary sensor
+8:  Bay battery: secondary sensor
+9-15: (depends on model)
+
+For the R51 (source: Thomas Gruber):
+2:  Mini-PCI
+3:  Internal HDD
+
+For the T43, T43/p (source: Shmidoax/Thinkwiki.org)
+http://thinkwiki.org/wiki/Thermal_Sensors#ThinkPad_T43.2C_T43p
+2:  System board, left side (near PCMCIA slot), reported as HDAPS temp
+3:  PCMCIA slot
+9:  MCH (northbridge) to DRAM Bus
+10: ICH (southbridge), under Mini-PCI card, under touchpad
+11: Power regulator, underside of system board, below F2 key
+
 
 EXPERIMENTAL: Embedded controller register dump -- /proc/acpi/ibm/ecdump
 ------------------------------------------------------------------------

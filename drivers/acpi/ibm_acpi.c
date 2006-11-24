@@ -80,6 +80,7 @@
 #include <linux/proc_fs.h>
 #include <linux/backlight.h>
 #include <asm/uaccess.h>
+#include <linux/dmi.h>
 
 #include <acpi/acpi_drivers.h>
 #include <acpi/acnamesp.h>
@@ -221,12 +222,16 @@ enum thermal_access_mode {
 	IBMACPI_THERMAL_NONE = 0,	/* No thermal support */
 	IBMACPI_THERMAL_ACPI_TMP07,	/* Use ACPI TMP0-7 */
 	IBMACPI_THERMAL_ACPI_UPDT,	/* Use ACPI TMP0-7 with UPDT */
+	IBMACPI_THERMAL_TPEC_8,		/* Use ACPI EC regs, 8 sensors */
+	IBMACPI_THERMAL_TPEC_16,	/* Use ACPI EC regs, 16 sensors */
 };
 
-#define IBMACPI_MAX_THERMAL_SENSORS 8	/* Max thermal sensors supported */
+#define IBMACPI_MAX_THERMAL_SENSORS 16	/* Max thermal sensors supported */
 struct ibm_thermal_sensors_struct {
 	s32 temp[IBMACPI_MAX_THERMAL_SENSORS];
 };
+
+static int ibm_thinkpad_ec_found;
 
 struct ibm_struct {
 	char *name;
@@ -1290,7 +1295,52 @@ static enum thermal_access_mode thermal_read_mode;
 
 static int thermal_init(void)
 {
-	if (acpi_evalf(ec_handle, NULL, "TMP7", "qv")) {
+	u8 t, ta1, ta2;
+	int i;
+	int acpi_tmp7 = acpi_evalf(ec_handle, NULL, "TMP7", "qv");
+
+	if (ibm_thinkpad_ec_found && experimental) {
+		/*
+		 * Direct EC access mode: sensors at registers
+		 * 0x78-0x7F, 0xC0-0xC7.  Registers return 0x00 for
+		 * non-implemented, thermal sensors return 0x80 when
+		 * not available
+		 */
+
+		ta1 = ta2 = 0;
+		for (i = 0; i < 8; i++) {
+			if (likely(acpi_ec_read(0x78 + i, &t))) {
+				ta1 |= t;
+			} else {
+				ta1 = 0;
+				break;
+			}
+			if (likely(acpi_ec_read(0xC0 + i, &t))) {
+				ta2 |= t;
+			} else {
+				ta1 = 0;
+				break;
+			}
+		}
+		if (ta1 == 0) {
+			/* This is sheer paranoia, but we handle it anyway */
+			if (acpi_tmp7) {
+				printk(IBM_ERR
+				       "ThinkPad ACPI EC access misbehaving, "
+				       "falling back to ACPI TMPx access mode\n");
+				thermal_read_mode = IBMACPI_THERMAL_ACPI_TMP07;
+			} else {
+				printk(IBM_ERR
+				       "ThinkPad ACPI EC access misbehaving, "
+				       "disabling thermal sensors access\n");
+				thermal_read_mode = IBMACPI_THERMAL_NONE;
+			}
+		} else {
+			thermal_read_mode =
+			    (ta2 != 0) ?
+			    IBMACPI_THERMAL_TPEC_16 : IBMACPI_THERMAL_TPEC_8;
+		}
+	} else if (acpi_tmp7) {
 		if (acpi_evalf(ec_handle, NULL, "UPDT", "qv")) {
 			/* 600e/x, 770e, 770x */
 			thermal_read_mode = IBMACPI_THERMAL_ACPI_UPDT;
@@ -1309,12 +1359,30 @@ static int thermal_init(void)
 static int thermal_get_sensors(struct ibm_thermal_sensors_struct *s)
 {
 	int i, t;
+	s8 tmp;
 	char tmpi[] = "TMPi";
 
 	if (!s)
 		return -EINVAL;
 
 	switch (thermal_read_mode) {
+#if IBMACPI_MAX_THERMAL_SENSORS >= 16
+	case IBMACPI_THERMAL_TPEC_16:
+		for (i = 0; i < 8; i++) {
+			if (!acpi_ec_read(0xC0 + i, &tmp))
+				return -EIO;
+			s->temp[i + 8] = tmp * 1000;
+		}
+		/* fallthrough */
+#endif
+	case IBMACPI_THERMAL_TPEC_8:
+		for (i = 0; i < 8; i++) {
+			if (!acpi_ec_read(0x78 + i, &tmp))
+				return -EIO;
+			s->temp[i] = tmp * 1000;
+		}
+		return (thermal_read_mode == IBMACPI_THERMAL_TPEC_16) ? 16 : 8;
+
 	case IBMACPI_THERMAL_ACPI_UPDT:
 		if (!acpi_evalf(ec_handle, NULL, "UPDT", "v"))
 			return -EIO;
@@ -2052,6 +2120,24 @@ static void acpi_ibm_exit(void)
 	remove_proc_entry(IBM_DIR, acpi_root_dir);
 }
 
+static int __init check_dmi_for_ec(void)
+{
+	struct dmi_device *dev = NULL;
+
+	/*
+	 * ThinkPad T23 or newer, A31 or newer, R50e or newer,
+	 * X32 or newer, all Z series;  Some models must have an
+	 * up-to-date BIOS or they will not be detected.
+	 *
+	 * See http://thinkwiki.org/wiki/List_of_DMI_IDs
+	 */
+	while ((dev = dmi_find_device(DMI_DEV_TYPE_OEM_STRING, NULL, dev))) {
+		if (strstr(dev->name, "IBM ThinkPad Embedded Controller"))
+			return 1;
+	}
+	return 0;
+}
+
 static int __init acpi_ibm_init(void)
 {
 	int ret, i;
@@ -2070,6 +2156,9 @@ static int __init acpi_ibm_init(void)
 		printk(IBM_ERR "ec object not found\n");
 		return -ENODEV;
 	}
+
+	/* Models with newer firmware report the EC in DMI */
+	ibm_thinkpad_ec_found = check_dmi_for_ec();
 
 	/* these handles are not required */
 	IBM_HANDLE_INIT(vid);
