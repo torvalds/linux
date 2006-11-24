@@ -78,8 +78,8 @@ union irq_ctx {
 	u32			stack[THREAD_SIZE/sizeof(u32)];
 };
 
-static union irq_ctx *hardirq_ctx[NR_CPUS];
-static union irq_ctx *softirq_ctx[NR_CPUS];
+static union irq_ctx *hardirq_ctx[NR_CPUS] __read_mostly;
+static union irq_ctx *softirq_ctx[NR_CPUS] __read_mostly;
 #endif
 
 asmlinkage int do_IRQ(unsigned long r4, unsigned long r5,
@@ -136,17 +136,24 @@ asmlinkage int do_IRQ(unsigned long r4, unsigned long r5,
 		irqctx->tinfo.task = curctx->tinfo.task;
 		irqctx->tinfo.previous_sp = current_stack_pointer;
 
+		/*
+		 * Copy the softirq bits in preempt_count so that the
+		 * softirq checks work in the hardirq context.
+		 */
+		irqctx->tinfo.preempt_count =
+			(irqctx->tinfo.preempt_count & ~SOFTIRQ_MASK) |
+			(curctx->tinfo.preempt_count & SOFTIRQ_MASK);
+
 		__asm__ __volatile__ (
 			"mov	%0, r4		\n"
-			"mov	r15, r9		\n"
+			"mov	r15, r8		\n"
 			"jsr	@%1		\n"
 			/* swith to the irq stack */
 			" mov	%2, r15		\n"
 			/* restore the stack (ring zero) */
-			"mov	r9, r15		\n"
+			"mov	r8, r15		\n"
 			: /* no outputs */
 			: "r" (irq), "r" (generic_handle_irq), "r" (isp)
-			/* XXX: A somewhat excessive clobber list? -PFM */
 			: "memory", "r0", "r1", "r2", "r3", "r4",
 			  "r5", "r6", "r7", "r8", "t", "pr"
 		);
@@ -194,7 +201,7 @@ void irq_ctx_init(int cpu)
 	irqctx->tinfo.task		= NULL;
 	irqctx->tinfo.exec_domain	= NULL;
 	irqctx->tinfo.cpu		= cpu;
-	irqctx->tinfo.preempt_count	= SOFTIRQ_OFFSET;
+	irqctx->tinfo.preempt_count	= 0;
 	irqctx->tinfo.addr_limit	= MAKE_MM_SEG(0);
 
 	softirq_ctx[cpu] = irqctx;
@@ -240,10 +247,14 @@ asmlinkage void do_softirq(void)
 			"mov	r9, r15		\n"
 			: /* no outputs */
 			: "r" (__do_softirq), "r" (isp)
-			/* XXX: A somewhat excessive clobber list? -PFM */
 			: "memory", "r0", "r1", "r2", "r3", "r4",
 			  "r5", "r6", "r7", "r8", "r9", "r15", "t", "pr"
 		);
+
+		/*
+		 * Shouldnt happen, we returned above if in_interrupt():
+		 */
+		WARN_ON_ONCE(softirq_count());
 	}
 
 	local_irq_restore(flags);
