@@ -584,8 +584,7 @@ static int wan_status(void)
 {
 	int status;
 
-	if (!wan_supported ||
-	    !acpi_evalf(hkey_handle, &status, "GWAN", "d"))
+	if (!wan_supported || !acpi_evalf(hkey_handle, &status, "GWAN", "d"))
 		status = 0;
 
 	return status;
@@ -910,6 +909,7 @@ static int _sta(acpi_handle handle)
 
 	return status;
 }
+
 #ifdef CONFIG_ACPI_IBM_DOCK
 #define dock_docked() (_sta(dock_handle) & 1)
 
@@ -1386,12 +1386,12 @@ static int brightness_offset = 0x31;
 
 static int brightness_get(struct backlight_device *bd)
 {
-       u8 level;
-       if (!acpi_ec_read(brightness_offset, &level))
-               return -EIO;
+	u8 level;
+	if (!acpi_ec_read(brightness_offset, &level))
+		return -EIO;
 
-       level &= 0x7;
-       return level;
+	level &= 0x7;
+	return level;
 }
 
 static int brightness_read(char *p)
@@ -1993,10 +1993,10 @@ IBM_PARAM(volume);
 IBM_PARAM(fan);
 
 static struct backlight_properties ibm_backlight_data = {
-        .owner          = THIS_MODULE,
-        .get_brightness = brightness_get,
-        .update_status  = brightness_update_status,
-        .max_brightness = 7,
+	.owner = THIS_MODULE,
+	.get_brightness = brightness_get,
+	.update_status = brightness_update_status,
+	.max_brightness = 7,
 };
 
 static void acpi_ibm_exit(void)
@@ -2075,7 +2075,7 @@ static int __init acpi_ibm_init(void)
 
 	ibm_backlight_device = backlight_device_register("ibm", NULL,
 							 &ibm_backlight_data);
-        if (IS_ERR(ibm_backlight_device)) {
+	if (IS_ERR(ibm_backlight_device)) {
 		printk(IBM_ERR "Could not register ibm backlight device\n");
 		ibm_backlight_device = NULL;
 		acpi_ibm_exit();
