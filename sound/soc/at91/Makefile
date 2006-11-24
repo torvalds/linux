@@ -1,6 +1,6 @@
 # AT91 Platform Support
-snd-soc-at91-objs := at91rm9200-pcm.o
-snd-soc-at91-i2s-objs := at91rm9200-i2s.o
+snd-soc-at91-objs := at91-pcm.o
+snd-soc-at91-i2s-objs := at91-i2s.o
 
 obj-$(CONFIG_SND_AT91_SOC) += snd-soc-at91.o
 obj-$(CONFIG_SND_AT91_SOC_I2S) += snd-soc-at91-i2s.o

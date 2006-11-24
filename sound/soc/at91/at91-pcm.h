@@ -1,5 +1,5 @@
 /*
- * at91rm9200-pcm.h - ALSA PCM interface for the Atmel AT91RM9200 chip
+ * at91-pcm.h - ALSA PCM interface for the Atmel AT91 SoC
  *
  * Author:	Frank Mandarino <fmandarino@endrelia.com>
  *		Endrelia Technologies Inc.
@@ -16,24 +16,26 @@
  * published by the Free Software Foundation.
  */
 
+#include <asm/arch/hardware.h>
+
+struct at91_ssc_periph {
+	void __iomem	*base;
+	u32		pid;
+};
+
+
 /*
  * Registers and status bits that are required by the PCM driver.
  */
-struct at91rm9200_ssc_regs {
-	void __iomem 	*cr;		/* SSC control */
-	void __iomem	*ier;		/* SSC interrupt enable */
-	void __iomem	*idr;		/* SSC interrupt disable */
+struct at91_pdc_regs {
+	unsigned int	xpr;		/* PDC recv/trans pointer */
+	unsigned int	xcr;		/* PDC recv/trans counter */
+	unsigned int	xnpr;		/* PDC next recv/trans pointer */
+	unsigned int	xncr;		/* PDC next recv/trans counter */
+	unsigned int	ptcr;		/* PDC transfer control */
 };
 
-struct at91rm9200_pdc_regs {
-	void __iomem	*xpr;		/* PDC recv/trans pointer */
-	void __iomem	*xcr;		/* PDC recv/trans counter */
-	void __iomem	*xnpr;		/* PDC next recv/trans pointer */
-	void __iomem	*xncr;		/* PDC next recv/trans counter */
-	void __iomem	*ptcr;		/* PDC transfer control */
-};
-
-struct at91rm9200_ssc_mask {
+struct at91_ssc_mask {
 	u32	ssc_enable;		/* SSC recv/trans enable */
 	u32	ssc_disable;		/* SSC recv/trans disable */
 	u32	ssc_endx;		/* SSC ENDTX or ENDRX */
@@ -51,25 +53,19 @@ struct at91rm9200_ssc_mask {
  * driver and called by the interface SSC interrupt handler if it is
  * non-NULL.
  */
-typedef struct {
+struct at91_pcm_dma_params {
 	char *name;			/* stream identifier */
 	int pdc_xfer_size;		/* PDC counter increment in bytes */
-	struct at91rm9200_ssc_regs *ssc; /* SSC register addresses */
-	struct at91rm9200_pdc_regs *pdc; /* PDC receive/transmit registers */
-	struct at91rm9200_ssc_mask *mask;/* SSC & PDC status bits */
-	snd_pcm_substream_t *substream;
-	void (*dma_intr_handler)(u32, snd_pcm_substream_t *);
-} at91rm9200_pcm_dma_params_t;
+	void __iomem *ssc_base;		/* SSC base address */
+	struct at91_pdc_regs *pdc; /* PDC receive or transmit registers */
+	struct at91_ssc_mask *mask;/* SSC & PDC status bits */
+	struct snd_pcm_substream *substream;
+	void (*dma_intr_handler)(u32, struct snd_pcm_substream *);
+};
 
-extern struct snd_soc_cpu_dai at91rm9200_i2s_dai[3];
-extern struct snd_soc_platform at91rm9200_soc_platform;
+extern struct snd_soc_cpu_dai at91_i2s_dai[3];
+extern struct snd_soc_platform at91_soc_platform;
 
 
-/*
- * SSC I/O helpers.
- * E.g., at91_ssc_write(AT91_SSC(1) + AT91_SSC_CR, AT91_SSC_RXEN);
- */
-#define AT91_SSC(x) (((x)==0) ? AT91_VA_BASE_SSC0 :\
-	 ((x)==1) ? AT91_VA_BASE_SSC1 : ((x)==2) ? AT91_VA_BASE_SSC2 : NULL)
 #define at91_ssc_read(a)	((unsigned long) __raw_readl(a))
 #define at91_ssc_write(a,v)	__raw_writel((v),(a))

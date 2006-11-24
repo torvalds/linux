@@ -1,5 +1,5 @@
 /*
- * eti_b1_wm8731  --  SoC audio for Endrelia ETI_B1.
+ * eti_b1_wm8731  --  SoC audio for AT91RM9200-based Endrelia ETI_B1 board.
  *
  * Author:	Frank Mandarino <fmandarino@endrelia.com>
  *		Endrelia Technologies Inc.
@@ -37,12 +37,12 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 
-#include <asm/arch/at91rm9200.h>
-#include <asm/arch/gpio.h>
 #include <asm/arch/hardware.h>
+#include <asm/arch/at91_pio.h>
+#include <asm/arch/gpio.h>
 
 #include "../codecs/wm8731.h"
-#include "at91rm9200-pcm.h"
+#include "at91-pcm.h"
 
 #if 0
 #define	DBG(x...)	printk(KERN_INFO "eti_b1_wm8731:" x)
@@ -50,10 +50,18 @@
 #define	DBG(x...)
 #endif
 
+#define AT91_PIO_TF1	(1 << (AT91_PIN_PB6 - PIN_BASE) % 32)
+#define AT91_PIO_TK1	(1 << (AT91_PIN_PB7 - PIN_BASE) % 32)
+#define AT91_PIO_TD1	(1 << (AT91_PIN_PB8 - PIN_BASE) % 32)
+#define AT91_PIO_RD1	(1 << (AT91_PIN_PB9 - PIN_BASE) % 32)
+#define AT91_PIO_RK1	(1 << (AT91_PIN_PB10 - PIN_BASE) % 32)
+#define AT91_PIO_RF1	(1 << (AT91_PIN_PB11 - PIN_BASE) % 32)
+
+
 static struct clk *pck1_clk;
 static struct clk *pllb_clk;
 
-static int eti_b1_startup(snd_pcm_substream_t *substream)
+static int eti_b1_startup(struct snd_pcm_substream *substream)
 {
 	/* Start PCK1 clock. */
 	clk_enable(pck1_clk);
@@ -62,7 +70,7 @@ static int eti_b1_startup(snd_pcm_substream_t *substream)
 	return 0;
 }
 
-static void eti_b1_shutdown(snd_pcm_substream_t *substream)
+static void eti_b1_shutdown(struct snd_pcm_substream *substream)
 {
 	/* Stop PCK1 clock. */
 	clk_disable(pck1_clk);
@@ -138,7 +146,7 @@ unsigned int eti_b1_config_sysclk(struct snd_soc_pcm_runtime *rtd,
 static struct snd_soc_dai_link eti_b1_dai = {
 	.name = "WM8731",
 	.stream_name = "WM8731",
-	.cpu_dai = &at91rm9200_i2s_dai[1],
+	.cpu_dai = &at91_i2s_dai[1],
 	.codec_dai = &wm8731_dai,
 	.init = eti_b1_wm8731_init,
 	.config_sysclk = eti_b1_config_sysclk,
@@ -157,7 +165,7 @@ static struct wm8731_setup_data eti_b1_wm8731_setup = {
 
 static struct snd_soc_device eti_b1_snd_devdata = {
 	.machine = &snd_soc_machine_eti_b1,
-	.platform = &at91rm9200_soc_platform,
+	.platform = &at91_soc_platform,
 	.codec_dev = &soc_codec_dev_wm8731,
 	.codec_data = &eti_b1_wm8731_setup,
 };
@@ -168,22 +176,41 @@ static int __init eti_b1_init(void)
 {
 	int ret;
 	u32 ssc_pio_lines;
+	struct at91_ssc_periph *ssc = eti_b1_dai.cpu_dai->private_data;
+
+	if (!request_mem_region(AT91RM9200_BASE_SSC1, SZ_16K, "soc-audio")) {
+		DBG("SSC1 memory region is busy\n");
+		return -EBUSY;
+	}
+
+	ssc->base = ioremap(AT91RM9200_BASE_SSC1, SZ_16K);
+	if (!ssc->base) {
+		DBG("SSC1 memory ioremap failed\n");
+		ret = -ENOMEM;
+		goto fail_release_mem;
+	}
+
+	ssc->pid = AT91RM9200_ID_SSC1;
 
 	eti_b1_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!eti_b1_snd_device)
-		return -ENOMEM;
+	if (!eti_b1_snd_device) {
+		DBG("platform device allocation failed\n");
+		ret = -ENOMEM;
+		goto fail_io_unmap;
+	}
 
 	platform_set_drvdata(eti_b1_snd_device, &eti_b1_snd_devdata);
 	eti_b1_snd_devdata.dev = &eti_b1_snd_device->dev;
 
 	ret = platform_device_add(eti_b1_snd_device);
 	if (ret) {
+		DBG("platform device add failed\n");
 		platform_device_put(eti_b1_snd_device);
-		return ret;
+		goto fail_io_unmap;
 	}
 
- 	ssc_pio_lines = AT91_PB6_TF1 | AT91_PB7_TK1 | AT91_PB8_TD1
-			| AT91_PB9_RD1 /* | AT91_PB10_RK1 | AT91_PB11_RF1 */;
+ 	ssc_pio_lines = AT91_PIO_TF1 | AT91_PIO_TK1 | AT91_PIO_TD1
+			| AT91_PIO_RD1 /* | AT91_PIO_RK1 | AT91_PIO_RF1 */;
 
 	/* Reset all PIO registers and assign lines to peripheral A */
  	at91_sys_write(AT91_PIOB + PIO_PDR,  ssc_pio_lines);
@@ -211,14 +238,25 @@ static int __init eti_b1_init(void)
 	at91_set_B_periph(AT91_PIN_PA24, 0);
 
 	return ret;
+
+fail_io_unmap:
+	iounmap(ssc->base);
+fail_release_mem:
+	release_mem_region(AT91RM9200_BASE_SSC1, SZ_16K);
+	return ret;
 }
 
 static void __exit eti_b1_exit(void)
 {
+	struct at91_ssc_periph *ssc = eti_b1_dai.cpu_dai->private_data;
+
 	clk_put(pck1_clk);
 	clk_put(pllb_clk);
 
 	platform_device_unregister(eti_b1_snd_device);
+
+	iounmap(ssc->base);
+	release_mem_region(AT91RM9200_BASE_SSC1, SZ_16K);
 }
 
 module_init(eti_b1_init);
