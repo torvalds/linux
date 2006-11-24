@@ -77,6 +77,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
+#include <linux/string.h>
 #include <linux/proc_fs.h>
 #include <linux/backlight.h>
 #include <asm/uaccess.h>
@@ -361,7 +362,7 @@ enum {					/* Fan control constants */
 						 * control */
 };
 
-static int ibm_thinkpad_ec_found;
+static char* ibm_thinkpad_ec_found = NULL;
 
 struct ibm_struct {
 	char *name;
@@ -2540,11 +2541,15 @@ static void acpi_ibm_exit(void)
 		ibm_exit(&ibms[i]);
 
 	remove_proc_entry(IBM_DIR, acpi_root_dir);
+
+	if (ibm_thinkpad_ec_found)
+		kfree(ibm_thinkpad_ec_found);
 }
 
-static int __init check_dmi_for_ec(void)
+static char* __init check_dmi_for_ec(void)
 {
 	struct dmi_device *dev = NULL;
+	char ec_fw_string[18];
 
 	/*
 	 * ThinkPad T23 or newer, A31 or newer, R50e or newer,
@@ -2554,10 +2559,15 @@ static int __init check_dmi_for_ec(void)
 	 * See http://thinkwiki.org/wiki/List_of_DMI_IDs
 	 */
 	while ((dev = dmi_find_device(DMI_DEV_TYPE_OEM_STRING, NULL, dev))) {
-		if (strstr(dev->name, "IBM ThinkPad Embedded Controller"))
-			return 1;
+		if (sscanf(dev->name,
+			   "IBM ThinkPad Embedded Controller -[%17c",
+			   ec_fw_string) == 1) {
+			ec_fw_string[sizeof(ec_fw_string) - 1] = 0;
+			ec_fw_string[strcspn(ec_fw_string, " ]")] = 0;
+			return kstrdup(ec_fw_string, GFP_KERNEL);
+		}
 	}
-	return 0;
+	return NULL;
 }
 
 static int __init acpi_ibm_init(void)
@@ -2581,6 +2591,9 @@ static int __init acpi_ibm_init(void)
 
 	/* Models with newer firmware report the EC in DMI */
 	ibm_thinkpad_ec_found = check_dmi_for_ec();
+	if (ibm_thinkpad_ec_found)
+		printk(IBM_INFO "ThinkPad EC firmware %s\n",
+		       ibm_thinkpad_ec_found);
 
 	/* these handles are not required */
 	IBM_HANDLE_INIT(vid);
