@@ -473,6 +473,8 @@ config HEARTBEAT
 	  behavior is platform-dependent, but normally the flash frequency is
 	  a hyperbolic function of the 5-minute load average.
 
+source "arch/sh/drivers/Kconfig"
+
 endmenu
 
 config ISA_DMA_API
