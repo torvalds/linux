@@ -259,8 +259,8 @@ void show_trace(struct task_struct *tsk, unsigned long *sp,
 		struct pt_regs *regs);
 extern unsigned long get_wchan(struct task_struct *p);
 
-#define KSTK_EIP(tsk)  ((tsk)->thread.pc)
-#define KSTK_ESP(tsk)  ((tsk)->thread.sp)
+#define KSTK_EIP(tsk)  (task_pt_regs(tsk)->pc)
+#define KSTK_ESP(tsk)  (task_pt_regs(tsk)->regs[15])
 
 #define cpu_sleep()	__asm__ __volatile__ ("sleep" : : : "memory")
 #define cpu_relax()	barrier()
