@@ -2328,162 +2328,108 @@ static struct hda_verb alc880_test_init_verbs[] = {
 /*
  */
 
-static struct hda_board_config alc880_cfg_tbl[] = {
-	/* Back 3 jack, front 2 jack */
-	{ .modelname = "3stack", .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe200, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe201, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe202, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe203, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe204, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe205, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe206, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe207, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe208, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe209, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe20a, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe20b, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe20c, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe20d, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe20e, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe20f, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe210, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe211, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe212, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe213, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe214, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe234, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe302, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe303, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe304, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe306, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe307, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe404, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xa101, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x107b, .pci_subdevice = 0x3031, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x107b, .pci_subdevice = 0x4036, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x107b, .pci_subdevice = 0x4037, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x107b, .pci_subdevice = 0x4038, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x107b, .pci_subdevice = 0x4040, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x107b, .pci_subdevice = 0x4041, .config = ALC880_3ST },
-	/* TCL S700 */
-	{ .modelname = "tcl", .config = ALC880_TCL_S700 },
-	{ .pci_subvendor = 0x19db, .pci_subdevice = 0x4188, .config = ALC880_TCL_S700 },
-
-	/* Back 3 jack, front 2 jack (Internal add Aux-In) */
-	{ .pci_subvendor = 0x1025, .pci_subdevice = 0xe310, .config = ALC880_3ST },
-	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81d6, .config = ALC880_3ST }, 
-	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81a0, .config = ALC880_3ST },
-
-	/* Back 3 jack plus 1 SPDIF out jack, front 2 jack */
-	{ .modelname = "3stack-digout", .config = ALC880_3ST_DIG },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe308, .config = ALC880_3ST_DIG },
-	{ .pci_subvendor = 0x1025, .pci_subdevice = 0x0070, .config = ALC880_3ST_DIG },
-
-	/* Clevo laptops */
-	{ .modelname = "clevo", .config = ALC880_CLEVO },
-	{ .pci_subvendor = 0x1558, .pci_subdevice = 0x0520,
-	  .config = ALC880_CLEVO }, /* Clevo m520G NB */
-	{ .pci_subvendor = 0x1558, .pci_subdevice = 0x0660,
-	  .config = ALC880_CLEVO }, /* Clevo m665n */
-
-	/* Back 3 jack plus 1 SPDIF out jack, front 2 jack (Internal add Aux-In)*/
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe305, .config = ALC880_3ST_DIG },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xd402, .config = ALC880_3ST_DIG },
-	{ .pci_subvendor = 0x1025, .pci_subdevice = 0xe309, .config = ALC880_3ST_DIG },
-
-	/* Back 5 jack, front 2 jack */
-	{ .modelname = "5stack", .config = ALC880_5ST },
-	{ .pci_subvendor = 0x107b, .pci_subdevice = 0x3033, .config = ALC880_5ST },
-	{ .pci_subvendor = 0x107b, .pci_subdevice = 0x4039, .config = ALC880_5ST },
-	{ .pci_subvendor = 0x107b, .pci_subdevice = 0x3032, .config = ALC880_5ST },
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x2a09, .config = ALC880_5ST },
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x814e, .config = ALC880_5ST },
-
-	/* Back 5 jack plus 1 SPDIF out jack, front 2 jack */
-	{ .modelname = "5stack-digout", .config = ALC880_5ST_DIG },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe224, .config = ALC880_5ST_DIG },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe400, .config = ALC880_5ST_DIG },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe401, .config = ALC880_5ST_DIG },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe402, .config = ALC880_5ST_DIG },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xd400, .config = ALC880_5ST_DIG },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xd401, .config = ALC880_5ST_DIG },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xa100, .config = ALC880_5ST_DIG },
-	{ .pci_subvendor = 0x1565, .pci_subdevice = 0x8202, .config = ALC880_5ST_DIG },
-	{ .pci_subvendor = 0x1019, .pci_subdevice = 0xa880, .config = ALC880_5ST_DIG },
-	{ .pci_subvendor = 0xa0a0, .pci_subdevice = 0x0560,
-	  .config = ALC880_5ST_DIG }, /* Aopen i915GMm-HFS */
-	/* { .pci_subvendor = 0x1019, .pci_subdevice = 0xa884, .config = ALC880_5ST_DIG }, */ /* conflict with 6stack */
-	{ .pci_subvendor = 0x1695, .pci_subdevice = 0x400d, .config = ALC880_5ST_DIG },
-	/* note subvendor = 0 below */
-	/* { .pci_subvendor = 0x0000, .pci_subdevice = 0x8086, .config = ALC880_5ST_DIG }, */
-
-	{ .modelname = "w810", .config = ALC880_W810 },
-	{ .pci_subvendor = 0x161f, .pci_subdevice = 0x203d, .config = ALC880_W810 },
-
-	{ .modelname = "z71v", .config = ALC880_Z71V },
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1964, .config = ALC880_Z71V },
-
-	{ .modelname = "6stack", .config = ALC880_6ST },
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x8196, .config = ALC880_6ST }, /* ASUS P5GD1-HVM */
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x81b4, .config = ALC880_6ST },
-	{ .pci_subvendor = 0x1019, .pci_subdevice = 0xa884, .config = ALC880_6ST }, /* Acer APFV */
-
-	{ .modelname = "6stack-digout", .config = ALC880_6ST_DIG },
-	{ .pci_subvendor = 0x2668, .pci_subdevice = 0x8086, .config = ALC880_6ST_DIG },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0x2668, .config = ALC880_6ST_DIG },
-	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x1150, .config = ALC880_6ST_DIG },
-	{ .pci_subvendor = 0xe803, .pci_subdevice = 0x1019, .config = ALC880_6ST_DIG },
-	{ .pci_subvendor = 0x1039, .pci_subdevice = 0x1234, .config = ALC880_6ST_DIG },
-	{ .pci_subvendor = 0x1025, .pci_subdevice = 0x0077, .config = ALC880_6ST_DIG },
-	{ .pci_subvendor = 0x1025, .pci_subdevice = 0x0078, .config = ALC880_6ST_DIG },
-	{ .pci_subvendor = 0x1025, .pci_subdevice = 0x0087, .config = ALC880_6ST_DIG },
-	{ .pci_subvendor = 0x1297, .pci_subdevice = 0xc790, .config = ALC880_6ST_DIG }, /* Shuttle ST20G5 */
-	{ .pci_subvendor = 0x1509, .pci_subdevice = 0x925d, .config = ALC880_6ST_DIG }, /* FIC P4M-915GD1 */
-	{ .pci_subvendor = 0x1695, .pci_subdevice = 0x4012, .config = ALC880_5ST_DIG }, /* Epox EP-5LDA+ GLi */
-	{ .pci_subvendor = 0x1458, .pci_subdevice = 0xa102, .config = ALC880_6ST_DIG }, /* Gigabyte K8N51 */
-
-	{ .modelname = "asus", .config = ALC880_ASUS },
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1964, .config = ALC880_ASUS_DIG },
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1973, .config = ALC880_ASUS_DIG },
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x19b3, .config = ALC880_ASUS_DIG },
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1113, .config = ALC880_ASUS_DIG },
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1173, .config = ALC880_ASUS_DIG },
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1993, .config = ALC880_ASUS },
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x10c2, .config = ALC880_ASUS_DIG }, /* Asus W6A */
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x10c3, .config = ALC880_ASUS_DIG },
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1133, .config = ALC880_ASUS },
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1123, .config = ALC880_ASUS_DIG },
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1143, .config = ALC880_ASUS },
-	{ .modelname = "asus-w1v", .config = ALC880_ASUS_W1V },
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x10b3, .config = ALC880_ASUS_W1V },
-	{ .modelname = "asus-dig", .config = ALC880_ASUS_DIG },
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x8181, .config = ALC880_ASUS_DIG }, /* ASUS P4GPL-X */
-	{ .modelname = "asus-dig2", .config = ALC880_ASUS_DIG2 },
-	{ .pci_subvendor = 0x1558, .pci_subdevice = 0x5401, .config = ALC880_ASUS_DIG2 },
-
-	{ .modelname = "uniwill", .config = ALC880_UNIWILL_DIG },
-	{ .pci_subvendor = 0x1584, .pci_subdevice = 0x9050, .config = ALC880_UNIWILL_DIG },
-	{ .pci_subvendor = 0x1584, .pci_subdevice = 0x9070, .config = ALC880_UNIWILL },
-	{ .pci_subvendor = 0x1734, .pci_subdevice = 0x10ac, .config = ALC880_UNIWILL },
-	{ .pci_subvendor = 0x1584, .pci_subdevice = 0x9077, .config = ALC880_UNIWILL_P53 },		
-
-	{ .modelname = "F1734", .config = ALC880_F1734 },
-	{ .pci_subvendor = 0x1734, .pci_subdevice = 0x107c, .config = ALC880_F1734 },
-	{ .pci_subvendor = 0x1584, .pci_subdevice = 0x9054, .config = ALC880_F1734 },
-
-	{ .modelname = "lg", .config = ALC880_LG },
-	{ .pci_subvendor = 0x1854, .pci_subdevice = 0x003b, .config = ALC880_LG },
-	{ .pci_subvendor = 0x1854, .pci_subdevice = 0x0068, .config = ALC880_LG },
-
-	{ .modelname = "lg-lw", .config = ALC880_LG_LW },
-	{ .pci_subvendor = 0x1854, .pci_subdevice = 0x0018, .config = ALC880_LG_LW },
-	{ .pci_subvendor = 0x1854, .pci_subdevice = 0x0077, .config = ALC880_LG_LW },
-
+static const char *alc880_models[ALC880_MODEL_LAST] = {
+	[ALC880_3ST]		= "3stack",
+	[ALC880_TCL_S700]	= "tcl",
+	[ALC880_3ST_DIG]	= "3stack-digout",
+	[ALC880_CLEVO]		= "clevo",
+	[ALC880_5ST]		= "5stack",
+	[ALC880_5ST_DIG]	= "5stack-digout",
+	[ALC880_W810]		= "w810",
+	[ALC880_Z71V]		= "z71v",
+	[ALC880_6ST]		= "6stack",
+	[ALC880_6ST_DIG]	= "6stack-digout",
+	[ALC880_ASUS]		= "asus",
+	[ALC880_ASUS_W1V]	= "asus-w1v",
+	[ALC880_ASUS_DIG]	= "asus-dig",
+	[ALC880_ASUS_DIG2]	= "asus-dig2",
+	[ALC880_UNIWILL_DIG]	= "uniwill",
+	[ALC880_F1734]		= "F1734",
+	[ALC880_LG]		= "lg",
+	[ALC880_LG_LW]		= "lg-lw",
 #ifdef CONFIG_SND_DEBUG
-	{ .modelname = "test", .config = ALC880_TEST },
+	[ALC880_TEST]		= "test",
 #endif
-	{ .modelname = "auto", .config = ALC880_AUTO },
+	[ALC880_AUTO]		= "auto",
+};
+
+static struct snd_pci_quirk alc880_cfg_tbl[] = {
+	/* Broken BIOS configuration */
+	SND_PCI_QUIRK(0x2668, 0x8086, NULL, ALC880_6ST_DIG),
+	SND_PCI_QUIRK(0x8086, 0x2668, NULL, ALC880_6ST_DIG),
+
+	SND_PCI_QUIRK(0x1019, 0xa880, "ECS", ALC880_5ST_DIG),
+	SND_PCI_QUIRK(0x1019, 0xa884, "Acer APFV", ALC880_6ST),
+	SND_PCI_QUIRK(0x1025, 0x0070, "ULI", ALC880_3ST_DIG),
+	SND_PCI_QUIRK(0x1025, 0x0077, "ULI", ALC880_6ST_DIG),
+	SND_PCI_QUIRK(0x1025, 0x0078, "ULI", ALC880_6ST_DIG),
+	SND_PCI_QUIRK(0x1025, 0x0087, "ULI", ALC880_6ST_DIG),
+	SND_PCI_QUIRK(0x1025, 0xe309, "ULI", ALC880_3ST_DIG),
+	SND_PCI_QUIRK(0x1025, 0xe310, "ULI", ALC880_3ST),
+
+	SND_PCI_QUIRK(0x1039, 0x1234, NULL, ALC880_6ST_DIG),
+	SND_PCI_QUIRK(0x103c, 0x2a09, "HP", ALC880_5ST),
+
+	SND_PCI_QUIRK(0x1043, 0x10b3, "ASUS W1V", ALC880_ASUS_W1V),
+	SND_PCI_QUIRK(0x1043, 0x10c2, "ASUS W6A", ALC880_ASUS_DIG),
+	SND_PCI_QUIRK(0x1043, 0x10c3, "ASUS Wxx", ALC880_ASUS_DIG),
+	SND_PCI_QUIRK(0x1043, 0x1113, "ASUS", ALC880_ASUS_DIG),
+	SND_PCI_QUIRK(0x1043, 0x1123, "ASUS", ALC880_ASUS_DIG),
+	SND_PCI_QUIRK(0x1043, 0x1173, "ASUS", ALC880_ASUS_DIG),
+	SND_PCI_QUIRK(0x1043, 0x1964, "ASUS Z71V", ALC880_Z71V),
+	/* SND_PCI_QUIRK(0x1043, 0x1964, "ASUS", ALC880_ASUS_DIG), */
+	SND_PCI_QUIRK(0x1043, 0x1973, "ASUS", ALC880_ASUS_DIG),
+	SND_PCI_QUIRK(0x1043, 0x19b3, "ASUS", ALC880_ASUS_DIG),
+	SND_PCI_QUIRK(0x1043, 0x814e, "ASUS", ALC880_5ST),
+	SND_PCI_QUIRK(0x1043, 0x8181, "ASUS P4GPL", ALC880_ASUS_DIG),
+	SND_PCI_QUIRK(0x1043, 0x8196, "ASUS P5GD1", ALC880_6ST),
+	SND_PCI_QUIRK(0x1043, 0x81b4, "ASUS", ALC880_6ST),
+	SND_PCI_QUIRK(0x1043, 0, "ASUS", ALC880_ASUS),
+
+	SND_PCI_QUIRK(0x104d, 0x81d6, "Sony", ALC880_3ST),
+	SND_PCI_QUIRK(0x104d, 0x81a0, "Sony", ALC880_3ST),
+	SND_PCI_QUIRK(0x107b, 0x3033, "Gateway", ALC880_5ST),
+	SND_PCI_QUIRK(0x107b, 0x4039, "Gateway", ALC880_5ST),
+	SND_PCI_QUIRK(0x107b, 0x3032, "Gateway", ALC880_5ST),
+	SND_PCI_QUIRK(0x1558, 0x0520, "Clevo m520G", ALC880_CLEVO),
+	SND_PCI_QUIRK(0x1558, 0x0660, "Clevo m655n", ALC880_CLEVO),
+	SND_PCI_QUIRK(0x1565, 0x8202, "Biostar", ALC880_5ST_DIG),
+	SND_PCI_QUIRK(0x161f, 0x203d, "W810", ALC880_W810),
+	SND_PCI_QUIRK(0x1695, 0x400d, "EPoX", ALC880_5ST_DIG),
+	SND_PCI_QUIRK(0x19db, 0x4188, "TCL S700", ALC880_TCL_S700),
+	SND_PCI_QUIRK(0xa0a0, 0x0560, "AOpen i915GMm-HFS", ALC880_5ST_DIG),
+	SND_PCI_QUIRK(0xe803, 0x1019, NULL, ALC880_6ST_DIG),
+	SND_PCI_QUIRK(0x1297, 0xc790, "Shuttle ST20G5", ALC880_6ST_DIG),
+	SND_PCI_QUIRK(0x1458, 0xa102, "Gigabyte K8", ALC880_6ST_DIG),
+	SND_PCI_QUIRK(0x1462, 0x1150, "MSI", ALC880_6ST_DIG),
+	SND_PCI_QUIRK(0x1509, 0x925d, "FIC P4M", ALC880_6ST_DIG),
+	SND_PCI_QUIRK(0x1558, 0x5401, "ASUS", ALC880_ASUS_DIG2),
+
+	SND_PCI_QUIRK(0x1584, 0x9050, "Uniwill", ALC880_UNIWILL_DIG),
+	SND_PCI_QUIRK(0x1584, 0x9070, "Uniwill", ALC880_UNIWILL),
+	SND_PCI_QUIRK(0x1584, 0x9077, "Uniwill P53", ALC880_UNIWILL_P53),
+	SND_PCI_QUIRK(0x1584, 0x9054, "Uniwlll", ALC880_F1734),
+
+	SND_PCI_QUIRK(0x1695, 0x4012, "EPox EP-5LDA", ALC880_5ST_DIG),
+	SND_PCI_QUIRK(0x1734, 0x10ac, "FSC", ALC880_UNIWILL),
+	SND_PCI_QUIRK(0x1734, 0x107c, "FSC F1734", ALC880_F1734),
+
+	SND_PCI_QUIRK(0x1854, 0x003b, "LG", ALC880_LG),
+	SND_PCI_QUIRK(0x1854, 0x0068, "LG w1", ALC880_LG),
+	SND_PCI_QUIRK(0x1854, 0x0018, "LG LW20", ALC880_LG_LW),
+	SND_PCI_QUIRK(0x1854, 0x0077, "LG LW25", ALC880_LG_LW),
+
+	SND_PCI_QUIRK(0x8086, 0xe308, "Intel mobo", ALC880_3ST_DIG),
+	SND_PCI_QUIRK(0x8086, 0xe305, "Intel mobo", ALC880_3ST_DIG),
+	SND_PCI_QUIRK(0x8086, 0xd402, "Intel mobo", ALC880_3ST_DIG),
+	SND_PCI_QUIRK(0x8086, 0xd400, "Intel mobo", ALC880_5ST_DIG),
+	SND_PCI_QUIRK(0x8086, 0xd401, "Intel mobo", ALC880_5ST_DIG),
+	SND_PCI_QUIRK(0x8086, 0xe224, "Intel mobo", ALC880_5ST_DIG),
+	SND_PCI_QUIRK(0x8086, 0xe400, "Intel mobo", ALC880_5ST_DIG),
+	SND_PCI_QUIRK(0x8086, 0xe401, "Intel mobo", ALC880_5ST_DIG),
+	SND_PCI_QUIRK(0x8086, 0xe402, "Intel mobo", ALC880_5ST_DIG),
+	SND_PCI_QUIRK(0x8086, 0xa100, "Intel mobo", ALC880_5ST_DIG),
+	SND_PCI_QUIRK(0x8086, 0, "Intel mobo", ALC880_3ST),
 
 	{}
 };
@@ -3074,8 +3020,10 @@ static int patch_alc880(struct hda_codec *codec)
 
 	codec->spec = spec;
 
-	board_config = snd_hda_check_board_config(codec, alc880_cfg_tbl);
-	if (board_config < 0 || board_config >= ALC880_MODEL_LAST) {
+	board_config = snd_hda_check_board_config(codec, ALC880_MODEL_LAST,
+						  alc880_models,
+						  alc880_cfg_tbl);
+	if (board_config < 0) {
 		printk(KERN_INFO "hda_codec: Unknown model for ALC880, "
 		       "trying auto-probe from BIOS...\n");
 		board_config = ALC880_AUTO;
@@ -4161,33 +4109,32 @@ static void alc260_auto_init(struct hda_codec *codec)
 /*
  * ALC260 configurations
  */
-static struct hda_board_config alc260_cfg_tbl[] = {
-	{ .modelname = "basic", .config = ALC260_BASIC },
-	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81bb,
-	  .config = ALC260_BASIC }, /* Sony VAIO */
-	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81cc,
-	  .config = ALC260_BASIC }, /* Sony VAIO VGN-S3HP */
-	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81cd,
-	  .config = ALC260_BASIC }, /* Sony VAIO */
-	{ .pci_subvendor = 0x152d, .pci_subdevice = 0x0729,
-	  .config = ALC260_BASIC }, /* CTL Travel Master U553W */
-	{ .modelname = "hp", .config = ALC260_HP },
-	{ .modelname = "hp-3013", .config = ALC260_HP_3013 },
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3010, .config = ALC260_HP_3013 },
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3011, .config = ALC260_HP },
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3012, .config = ALC260_HP_3013 },
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3013, .config = ALC260_HP_3013 },
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3014, .config = ALC260_HP },
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3015, .config = ALC260_HP },
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3016, .config = ALC260_HP },
-	{ .modelname = "fujitsu", .config = ALC260_FUJITSU_S702X },
-	{ .pci_subvendor = 0x10cf, .pci_subdevice = 0x1326, .config = ALC260_FUJITSU_S702X },
-	{ .modelname = "acer", .config = ALC260_ACER },
-	{ .pci_subvendor = 0x1025, .pci_subdevice = 0x008f, .config = ALC260_ACER },
+static const char *alc260_models[ALC260_MODEL_LAST] = {
+	[ALC260_BASIC]		= "basic",
+	[ALC260_HP]		= "hp",
+	[ALC260_HP_3013]	= "hp-3013",
+	[ALC260_FUJITSU_S702X]	= "fujitsu",
+	[ALC260_ACER]		= "acer",
 #ifdef CONFIG_SND_DEBUG
-	{ .modelname = "test", .config = ALC260_TEST },
+	[ALC260_TEST]		= "test",
 #endif
-	{ .modelname = "auto", .config = ALC260_AUTO },
+	[ALC260_AUTO]		= "auto",
+};
+
+static struct snd_pci_quirk alc260_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x1025, 0x008f, "Acer", ALC260_ACER),
+	SND_PCI_QUIRK(0x103c, 0x3010, "HP", ALC260_HP_3013),
+	SND_PCI_QUIRK(0x103c, 0x3011, "HP", ALC260_HP),
+	SND_PCI_QUIRK(0x103c, 0x3012, "HP", ALC260_HP_3013),
+	SND_PCI_QUIRK(0x103c, 0x3013, "HP", ALC260_HP_3013),
+	SND_PCI_QUIRK(0x103c, 0x3014, "HP", ALC260_HP),
+	SND_PCI_QUIRK(0x103c, 0x3015, "HP", ALC260_HP),
+	SND_PCI_QUIRK(0x103c, 0x3016, "HP", ALC260_HP),
+	SND_PCI_QUIRK(0x104d, 0x81bb, "Sony VAIO", ALC260_BASIC),
+	SND_PCI_QUIRK(0x104d, 0x81cc, "Sony VAIO", ALC260_BASIC),
+	SND_PCI_QUIRK(0x104d, 0x81cd, "Sony VAIO", ALC260_BASIC),
+	SND_PCI_QUIRK(0x10cf, 0x1326, "Fujitsu S702X", ALC260_FUJITSU_S702X),
+	SND_PCI_QUIRK(0x152d, 0x0729, "CTL U553W", ALC260_BASIC),
 	{}
 };
 
@@ -4286,8 +4233,10 @@ static int patch_alc260(struct hda_codec *codec)
 
 	codec->spec = spec;
 
-	board_config = snd_hda_check_board_config(codec, alc260_cfg_tbl);
-	if (board_config < 0 || board_config >= ALC260_MODEL_LAST) {
+	board_config = snd_hda_check_board_config(codec, ALC260_MODEL_LAST,
+						  alc260_models,
+						  alc260_cfg_tbl);
+	if (board_config < 0) {
 		snd_printd(KERN_INFO "hda_codec: Unknown model for ALC260, "
 			   "trying auto-probe from BIOS...\n");
 		board_config = ALC260_AUTO;
@@ -4668,19 +4617,18 @@ static struct snd_kcontrol_new alc882_capture_mixer[] = {
 /*
  * configuration and preset
  */
-static struct hda_board_config alc882_cfg_tbl[] = {
-	{ .modelname = "3stack-dig", .config = ALC882_3ST_DIG },
-	{ .modelname = "6stack-dig", .config = ALC882_6ST_DIG },
-	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x6668,
-	  .config = ALC882_6ST_DIG }, /* MSI  */
-	{ .pci_subvendor = 0x105b, .pci_subdevice = 0x6668,
-	  .config = ALC882_6ST_DIG }, /* Foxconn */
-	{ .pci_subvendor = 0x1019, .pci_subdevice = 0x6668,
-	  .config = ALC882_6ST_DIG }, /* ECS to Intel*/
-	{ .modelname = "arima", .config = ALC882_ARIMA },
-	{ .pci_subvendor = 0x161f, .pci_subdevice = 0x2054,
-	  .config = ALC882_ARIMA }, /* Arima W820Di1 */
-	{ .modelname = "auto", .config = ALC882_AUTO },
+static const char *alc882_models[ALC882_MODEL_LAST] = {
+	[ALC882_3ST_DIG]	= "3stack-dig",
+	[ALC882_6ST_DIG]	= "6stack-dig",
+	[ALC882_ARIMA]		= "arima",
+	[ALC882_AUTO]		= "auto",
+};
+
+static struct snd_pci_quirk alc882_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x1019, 0x6668, "ECS", ALC882_6ST_DIG),
+	SND_PCI_QUIRK(0x105b, 0x6668, "Foxconn", ALC882_6ST_DIG),
+	SND_PCI_QUIRK(0x1462, 0x6668, "MSI", ALC882_6ST_DIG),
+	SND_PCI_QUIRK(0x161f, 0x2054, "Arima W820", ALC882_ARIMA),
 	{}
 };
 
@@ -4817,7 +4765,9 @@ static int patch_alc882(struct hda_codec *codec)
 
 	codec->spec = spec;
 
-	board_config = snd_hda_check_board_config(codec, alc882_cfg_tbl);
+	board_config = snd_hda_check_board_config(codec, ALC882_MODEL_LAST,
+						  alc882_models,
+						  alc882_cfg_tbl);
 
 	if (board_config < 0 || board_config >= ALC882_MODEL_LAST) {
 		printk(KERN_INFO "hda_codec: Unknown model for ALC882, "
@@ -5427,65 +5377,41 @@ static struct snd_kcontrol_new alc883_capture_mixer[] = {
 /*
  * configuration and preset
  */
-static struct hda_board_config alc883_cfg_tbl[] = {
-	{ .modelname = "3stack-dig", .config = ALC883_3ST_2ch_DIG },
-	{ .modelname = "3stack-6ch-dig", .config = ALC883_3ST_6ch_DIG },
-	{ .pci_subvendor = 0x1019, .pci_subdevice = 0x6668,
-	  .config = ALC883_3ST_6ch_DIG }, /* ECS to Intel*/
-	{ .modelname = "3stack-6ch", .config = ALC883_3ST_6ch },
-	{ .pci_subvendor = 0x108e, .pci_subdevice = 0x534d,
-	  .config = ALC883_3ST_6ch }, 
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xd601,
-	  .config = ALC883_3ST_6ch }, /* D102GGC */
-	{ .modelname = "6stack-dig", .config = ALC883_6ST_DIG },
-	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x6668,
-	  .config = ALC883_6ST_DIG }, /* MSI  */
-	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x7280,
-	  .config = ALC883_6ST_DIG }, /* MSI K9A Platinum (MS-7280) */
-	{ .pci_subvendor = 0x105b, .pci_subdevice = 0x6668,
-	  .config = ALC883_6ST_DIG }, /* Foxconn */
-	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x7187,
-	  .config = ALC883_6ST_DIG }, /* MSI */
-	{ .modelname = "targa-dig", .config = ALC883_TARGA_DIG },
-	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x4314,
-	  .config = ALC883_TARGA_DIG }, /* MSI */
-	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x3fcc,
-	  .config = ALC883_TARGA_DIG }, /* MSI */
-	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x3fc1,
-	  .config = ALC883_TARGA_DIG }, /* MSI */
-	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x3fc3,
-	  .config = ALC883_TARGA_DIG }, /* MSI */
-	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x4314,
-	  .config = ALC883_TARGA_DIG }, /* MSI */
-	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x4319,
-	  .config = ALC883_TARGA_DIG }, /* MSI */
-	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x3ef9,
-	  .config = ALC883_TARGA_DIG }, /* MSI */
-	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x4324,
-	  .config = ALC883_TARGA_DIG }, /* MSI */
-	{ .modelname = "targa-2ch-dig", .config = ALC883_TARGA_2ch_DIG },
-	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x0579,
-	  .config = ALC883_TARGA_2ch_DIG }, /* MSI */
-	{ .pci_subvendor = 0x1462, .pci_subdevice = 0xa422,
-	  .config = ALC883_TARGA_2ch_DIG }, /* MSI */
-	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x3b7f,
-	  .config = ALC883_TARGA_2ch_DIG }, /* MSI */
-	{ .modelname = "6stack-dig-demo", .config = ALC888_DEMO_BOARD },
-	{ .modelname = "acer", .config = ALC883_ACER },
-	{ .pci_subvendor = 0x1025, .pci_subdevice = 0/*0x0102*/,
-	  .config = ALC883_ACER },
-	{ .pci_subvendor = 0x1025, .pci_subdevice = 0x0102,
-	  .config = ALC883_ACER },
-	{ .pci_subvendor = 0x1025, .pci_subdevice = 0x009f,
-	  .config = ALC883_ACER },
-	{ .pci_subvendor = 0x161f, .pci_subdevice = 0x2054,
-	  .modelname = "medion", .config = ALC883_MEDION },
-	{ .modelname = "laptop-eapd", .config = ALC883_LAPTOP_EAPD },
-	{ .pci_subvendor = 0x1071, .pci_subdevice = 0x8258,
-	  .config = ALC883_LAPTOP_EAPD }, /* Evesham Voyager C530RD */
-	{ .pci_subvendor = 0x1558, .pci_subdevice = 0,
-	  .config = ALC883_LAPTOP_EAPD }, /* Clevo */
-	{ .modelname = "auto", .config = ALC883_AUTO },
+static const char *alc883_models[ALC883_MODEL_LAST] = {
+	[ALC883_3ST_2ch_DIG]	= "3stack-dig",
+	[ALC883_3ST_6ch_DIG]	= "3stack-6ch-dig",
+	[ALC883_3ST_6ch]	= "3stack-6ch",
+	[ALC883_6ST_DIG]	= "6stack-dig",
+	[ALC883_TARGA_DIG]	= "targa-dig",
+	[ALC883_TARGA_2ch_DIG]	= "targa-2ch-dig",
+	[ALC888_DEMO_BOARD]	= "6stack-dig-demo",
+	[ALC883_ACER]		= "acer",
+	[ALC883_MEDION]		= "medion",
+	[ALC883_LAPTOP_EAPD]	= "laptop-eapd",
+	[ALC883_AUTO]		= "auto",
+};
+
+static struct snd_pci_quirk alc883_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x1019, 0x6668, "ECS", ALC883_3ST_6ch_DIG),
+	SND_PCI_QUIRK(0x108e, 0x534d, NULL, ALC883_3ST_6ch),
+	SND_PCI_QUIRK(0x1558, 0, "Clevo laptop", ALC883_LAPTOP_EAPD),
+	SND_PCI_QUIRK(0x105b, 0x6668, "Foxconn", ALC883_6ST_DIG),
+	SND_PCI_QUIRK(0x1462, 0x6668, "MSI", ALC883_6ST_DIG),
+	SND_PCI_QUIRK(0x1462, 0x7187, "MSI", ALC883_6ST_DIG),
+	SND_PCI_QUIRK(0x1462, 0x0579, "MSI", ALC883_TARGA_2ch_DIG),
+	SND_PCI_QUIRK(0x1462, 0x3ef9, "MSI", ALC883_TARGA_DIG),
+	SND_PCI_QUIRK(0x1462, 0x3b7f, "MSI", ALC883_TARGA_2ch_DIG),
+	SND_PCI_QUIRK(0x1462, 0x3fcc, "MSI", ALC883_TARGA_DIG),
+	SND_PCI_QUIRK(0x1462, 0x3fc1, "MSI", ALC883_TARGA_DIG),
+	SND_PCI_QUIRK(0x1462, 0x3fc3, "MSI", ALC883_TARGA_DIG),
+	SND_PCI_QUIRK(0x1462, 0x4314, "MSI", ALC883_TARGA_DIG),
+	SND_PCI_QUIRK(0x1462, 0x4319, "MSI", ALC883_TARGA_DIG),
+	SND_PCI_QUIRK(0x1462, 0x4324, "MSI", ALC883_TARGA_DIG),
+	SND_PCI_QUIRK(0x1462, 0xa422, "MSI", ALC883_TARGA_2ch_DIG),
+	SND_PCI_QUIRK(0x1025, 0, "Acer laptop", ALC883_ACER),
+	SND_PCI_QUIRK(0x161f, 0x2054, "Medion laptop", ALC883_MEDION),
+	SND_PCI_QUIRK(0x1071, 0x8258, "Evesham Voyaeger", ALC883_LAPTOP_EAPD),
+	SND_PCI_QUIRK(0x8086, 0xd601, "D102GGC", ALC883_3ST_6ch),
 	{}
 };
 
@@ -5734,8 +5660,10 @@ static int patch_alc883(struct hda_codec *codec)
 
 	codec->spec = spec;
 
-	board_config = snd_hda_check_board_config(codec, alc883_cfg_tbl);
-	if (board_config < 0 || board_config >= ALC883_MODEL_LAST) {
+	board_config = snd_hda_check_board_config(codec, ALC883_MODEL_LAST,
+						  alc883_models,
+						  alc883_cfg_tbl);
+	if (board_config < 0) {
 		printk(KERN_INFO "hda_codec: Unknown model for ALC883, "
 		       "trying auto-probe from BIOS...\n");
 		board_config = ALC883_AUTO;
@@ -6438,35 +6366,27 @@ static void alc262_auto_init(struct hda_codec *codec)
 /*
  * configuration and preset
  */
-static struct hda_board_config alc262_cfg_tbl[] = {
-	{ .modelname = "basic", .config = ALC262_BASIC },
-	{ .modelname = "hippo",
-	  .pci_subvendor =0x1002, .pci_subdevice = 0x437b,
-	  .config = ALC262_HIPPO},
-	{ .modelname = "hippo",
-	  .pci_subvendor = 0x104d, .pci_subdevice = 0x8203,
-	  .config = ALC262_HIPPO }, /* Sony UX-90s */
-	{ .modelname = "hippo_1",
-	  .pci_subvendor =0x17ff, .pci_subdevice = 0x058f,
-	  .config = ALC262_HIPPO_1},
-	{ .modelname = "fujitsu", .config = ALC262_FUJITSU },
-	{ .pci_subvendor = 0x10cf, .pci_subdevice = 0x1397,
-	  .config = ALC262_FUJITSU },
-	{ .modelname = "hp-bpc", .config = ALC262_HP_BPC },
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x280c,
-	  .config = ALC262_HP_BPC }, /* xw4400 */
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x2801,
-	  .config = ALC262_HP_BPC }, /* q965 */
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3014,
-	  .config = ALC262_HP_BPC }, /* xw6400 */
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3015,
-	  .config = ALC262_HP_BPC }, /* xw8400 */
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x12fe,
-	  .config = ALC262_HP_BPC }, /* xw9400 */
-	{ .modelname = "benq", .config = ALC262_BENQ_ED8 },
-	{ .pci_subvendor = 0x17ff, .pci_subdevice = 0x0560,
-	  .config = ALC262_BENQ_ED8 },
-	{ .modelname = "auto", .config = ALC262_AUTO },
+static const char *alc262_models[ALC262_MODEL_LAST] = {
+	[ALC262_BASIC]		= "basic",
+	[ALC262_HIPPO]		= "hippo",
+	[ALC262_HIPPO_1]	= "hippo_1",
+	[ALC262_FUJITSU]	= "fujitsu",
+	[ALC262_HP_BPC]		= "hp-bpc",
+	[ALC262_BENQ_ED8]	= "benq",
+	[ALC262_AUTO]		= "auto",
+};
+
+static struct snd_pci_quirk alc262_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x1002, 0x437b, "Hippo", ALC262_HIPPO),
+	SND_PCI_QUIRK(0x103c, 0x12fe, "HP xw9400", ALC262_HP_BPC),
+	SND_PCI_QUIRK(0x103c, 0x280c, "HP xw4400", ALC262_HP_BPC),
+	SND_PCI_QUIRK(0x103c, 0x2801, "HP q954", ALC262_HP_BPC),
+	SND_PCI_QUIRK(0x103c, 0x3014, "HP xw6400", ALC262_HP_BPC),
+	SND_PCI_QUIRK(0x103c, 0x3015, "HP xw8400", ALC262_HP_BPC),
+	SND_PCI_QUIRK(0x104d, 0x8203, "Sony UX-90", ALC262_HIPPO),
+	SND_PCI_QUIRK(0x10cf, 0x1397, "Fujitsu", ALC262_FUJITSU),
+	SND_PCI_QUIRK(0x17ff, 0x058f, "Benq Hippo", ALC262_HIPPO_1),
+	SND_PCI_QUIRK(0x17ff, 0x0560, "Benq ED8", ALC262_BENQ_ED8),
 	{}
 };
 
@@ -6561,9 +6481,11 @@ static int patch_alc262(struct hda_codec *codec)
 	}
 #endif
 
-	board_config = snd_hda_check_board_config(codec, alc262_cfg_tbl);
+	board_config = snd_hda_check_board_config(codec, ALC262_MODEL_LAST,
+						  alc262_models,
+						  alc262_cfg_tbl);
 	
-	if (board_config < 0 || board_config >= ALC262_MODEL_LAST) {
+	if (board_config < 0) {
 		printk(KERN_INFO "hda_codec: Unknown model for ALC262, "
 		       "trying auto-probe from BIOS...\n");
 		board_config = ALC262_AUTO;
@@ -7527,30 +7449,26 @@ static void alc861_auto_init(struct hda_codec *codec)
 /*
  * configuration and preset
  */
-static struct hda_board_config alc861_cfg_tbl[] = {
-	{ .modelname = "3stack", .config = ALC861_3ST },
-	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xd600,
-	  .config = ALC861_3ST },
-	{ .modelname = "3stack-660", .config = ALC660_3ST },
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x81e7,
-	  .config = ALC660_3ST },
-	{ .modelname = "3stack-dig", .config = ALC861_3ST_DIG },
-	{ .modelname = "6stack-dig", .config = ALC861_6ST_DIG },
-	{ .modelname = "uniwill-m31", .config = ALC861_UNIWILL_M31},
-	{ .pci_subvendor = 0x1584, .pci_subdevice = 0x9072,
-	  .config = ALC861_UNIWILL_M31 },
-	{ .modelname = "toshiba", .config = ALC861_TOSHIBA },
-	{ .pci_subvendor = 0x1179, .pci_subdevice = 0xff10,
-	  .config = ALC861_TOSHIBA },
-	{ .modelname = "asus", .config = ALC861_ASUS},
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1393,
-	  .config = ALC861_ASUS },
-	{ .modelname = "asus-laptop", .config = ALC861_ASUS_LAPTOP },
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1335,
-	  .config = ALC861_ASUS_LAPTOP }, /* ASUS F2/F3 */
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1338,
-	  .config = ALC861_ASUS_LAPTOP }, /* ASUS F2/F3 */
-	{ .modelname = "auto", .config = ALC861_AUTO },
+static const char *alc861_models[ALC861_MODEL_LAST] = {
+	[ALC861_3ST]		= "3stack",
+	[ALC660_3ST]		= "3stack-660",
+	[ALC861_3ST_DIG]	= "3stack-dig",
+	[ALC861_6ST_DIG]	= "6stack-dig",
+	[ALC861_UNIWILL_M31]	= "uniwill-m31",
+	[ALC861_TOSHIBA]	= "toshiba",
+	[ALC861_ASUS]		= "asus",
+	[ALC861_ASUS_LAPTOP]	= "asus-laptop",
+	[ALC861_AUTO]		= "auto",
+};
+
+static struct snd_pci_quirk alc861_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x1043, 0x1335, "ASUS F2/3", ALC861_ASUS_LAPTOP),
+	SND_PCI_QUIRK(0x1043, 0x1338, "ASUS F2/3", ALC861_ASUS_LAPTOP),
+	SND_PCI_QUIRK(0x1043, 0x1393, "ASUS", ALC861_ASUS),
+	SND_PCI_QUIRK(0x1043, 0x81e7, "ASUS", ALC660_3ST),
+	SND_PCI_QUIRK(0x1179, 0xff10, "Toshiba", ALC861_TOSHIBA),
+	SND_PCI_QUIRK(0x1584, 0x9072, "Uniwill m31", ALC861_UNIWILL_M31),
+	SND_PCI_QUIRK(0x8086, 0xd600, "Intel", ALC861_3ST),
 	{}
 };
 
@@ -7673,9 +7591,11 @@ static int patch_alc861(struct hda_codec *codec)
 
 	codec->spec = spec;	
 
-        board_config = snd_hda_check_board_config(codec, alc861_cfg_tbl);
+        board_config = snd_hda_check_board_config(codec, ALC861_MODEL_LAST,
+						  alc861_models,
+						  alc861_cfg_tbl);
 
-	if (board_config < 0 || board_config >= ALC861_MODEL_LAST) {
+	if (board_config < 0) {
 		printk(KERN_INFO "hda_codec: Unknown model for ALC861, "
 		       "trying auto-probe from BIOS...\n");
 		board_config = ALC861_AUTO;

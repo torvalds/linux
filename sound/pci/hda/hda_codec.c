@@ -1714,6 +1714,8 @@ EXPORT_SYMBOL(snd_hda_build_pcms);
 /**
  * snd_hda_check_board_config - compare the current codec with the config table
  * @codec: the HDA codec
+ * @num_configs: number of config enums
+ * @models: array of model name strings
  * @tbl: configuration table, terminated by null entries
  *
  * Compares the modelname or PCI subsystem id of the current codec with the
@@ -1722,33 +1724,44 @@ EXPORT_SYMBOL(snd_hda_build_pcms);
  *
  * If no entries are matching, the function returns a negative value.
  */
-int snd_hda_check_board_config(struct hda_codec *codec, const struct hda_board_config *tbl)
+int snd_hda_check_board_config(struct hda_codec *codec,
+			       int num_configs, const char **models,
+			       const struct snd_pci_quirk *tbl)
 {
-	const struct hda_board_config *c;
-
-	if (codec->bus->modelname) {
-		for (c = tbl; c->modelname || c->pci_subvendor; c++) {
-			if (c->modelname &&
-			    ! strcmp(codec->bus->modelname, c->modelname)) {
-				snd_printd(KERN_INFO "hda_codec: model '%s' is selected\n", c->modelname);
-				return c->config;
+	if (codec->bus->modelname && models) {
+		int i;
+		for (i = 0; i < num_configs; i++) {
+			if (models[i] &&
+			    !strcmp(codec->bus->modelname, models[i])) {
+				snd_printd(KERN_INFO "hda_codec: model '%s' is "
+					   "selected\n", models[i]);
+				return i;
 			}
 		}
 	}
 
-	if (codec->bus->pci) {
-		u16 subsystem_vendor, subsystem_device;
-		pci_read_config_word(codec->bus->pci, PCI_SUBSYSTEM_VENDOR_ID, &subsystem_vendor);
-		pci_read_config_word(codec->bus->pci, PCI_SUBSYSTEM_ID, &subsystem_device);
-		for (c = tbl; c->modelname || c->pci_subvendor; c++) {
-			if (c->pci_subvendor == subsystem_vendor &&
-			    (! c->pci_subdevice /* all match */||
-			     (c->pci_subdevice == subsystem_device))) {
-				snd_printdd(KERN_INFO "hda_codec: PCI %x:%x, codec config %d is selected\n",
-					    subsystem_vendor, subsystem_device, c->config);
-				return c->config;
-			}
+	if (!codec->bus->pci || !tbl)
+		return -1;
+
+	tbl = snd_pci_quirk_lookup(codec->bus->pci, tbl);
+	if (!tbl)
+		return -1;
+	if (tbl->value >= 0 && tbl->value < num_configs) {
+#ifdef CONFIG_SND_DEBUG_DETECT
+		char tmp[10];
+		const char *model = NULL;
+		if (models)
+			model = models[tbl->value];
+		if (!model) {
+			sprintf(tmp, "#%d", tbl->value);
+			model = tmp;
 		}
+		snd_printdd(KERN_INFO "hda_codec: model '%s' is selected "
+			    "for config %x:%x (%s)\n",
+			    model, tbl->subvendor, tbl->subdevice,
+			    (tbl->name ? tbl->name : "Unknown device"));
+#endif
+		return tbl->value;
 	}
 	return -1;
 }

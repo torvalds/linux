@@ -802,22 +802,22 @@ static int cxt5045_init(struct hda_codec *codec)
 
 
 enum {
-	CXT5045_LAPTOP,
+	CXT5045_LAPTOP,	/* Laptops w/ EAPD support */
 #ifdef CONFIG_SND_DEBUG
 	CXT5045_TEST,
 #endif
+	CXT5045_MODELS
 };
 
-static struct hda_board_config cxt5045_cfg_tbl[] = {
-	/* Laptops w/ EAPD support */
-	{ .modelname = "laptop", .config = CXT5045_LAPTOP },
-	 /* HP DV6000Z */
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x30b7, 
-	  .config = CXT5045_LAPTOP },
+static const char *cxt5045_models[CXT5045_MODELS] = {
+	[CXT5045_LAPTOP]	= "laptop",
 #ifdef CONFIG_SND_DEBUG
-	{ .modelname = "test", .config = CXT5045_TEST },
+	[CXT5045_TEST]		= "test",
 #endif
-	
+};
+
+static struct snd_pci_quirk cxt5045_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x103c, 0x30b7, "HP DV6000Z", CXT5045_LAPTOP),
 	{}
 };
 
@@ -852,7 +852,9 @@ static int patch_cxt5045(struct hda_codec *codec)
 	codec->patch_ops = conexant_patch_ops;
 	codec->patch_ops.unsol_event = cxt5045_hp_unsol_event;
 
-	board_config = snd_hda_check_board_config(codec, cxt5045_cfg_tbl);
+	board_config = snd_hda_check_board_config(codec, CXT5045_MODELS,
+						  cxt5045_models,
+						  cxt5045_cfg_tbl);
 	switch (board_config) {
 	case CXT5045_LAPTOP:
 		spec->input_mux = &cxt5045_capture_source;
@@ -1214,36 +1216,29 @@ static int cxt5047_hp_init(struct hda_codec *codec)
 
 
 enum {
-	CXT5047_LAPTOP,
+	CXT5047_LAPTOP,		/* Laptops w/o EAPD support */
+	CXT5047_LAPTOP_HP,	/* Some HP laptops */
+	CXT5047_LAPTOP_EAPD,	/* Laptops with EAPD support */
 #ifdef CONFIG_SND_DEBUG
 	CXT5047_TEST,
 #endif
-	CXT5047_LAPTOP_HP,
-	CXT5047_LAPTOP_EAPD
+	CXT5047_MODELS
 };
 
-static struct hda_board_config cxt5047_cfg_tbl[] = {
-	/* Laptops w/o EAPD support */
-	{ .modelname = "laptop", .config = CXT5047_LAPTOP },
-	 /*HP DV1000 */
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x30a0, 
-	  .config = CXT5047_LAPTOP },
-	/*HP DV2000T/DV3000T */
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x30b2,
-	  .config = CXT5047_LAPTOP }, 
-	/* Not all HP's are created equal */
-	{ .modelname = "laptop-hp", .config = CXT5047_LAPTOP_HP },
-	/*HP DV5200TX/DV8000T / Compaq V5209US/V5204NR */
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x30a5,
-	  .config = CXT5047_LAPTOP_HP }, 
-	/* Laptops with EAPD support */
-	{ .modelname = "laptop-eapd", .config = CXT5047_LAPTOP_EAPD },
-	{ .pci_subvendor = 0x1179, .pci_subdevice = 0xff31,
-	  .config = CXT5047_LAPTOP_EAPD }, /* Toshiba P100 */
+static const char *cxt5047_models[CXT5047_MODELS] = {
+	[CXT5047_LAPTOP]	= "laptop",
+	[CXT5047_LAPTOP_HP]	= "laptop-hp",
+	[CXT5047_LAPTOP_EAPD]	= "laptop-eapd",
 #ifdef CONFIG_SND_DEBUG
-	{ .modelname = "test", .config = CXT5047_TEST },
+	[CXT5047_TEST]		= "test",
 #endif
-	
+};
+
+static struct snd_pci_quirk cxt5047_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x103c, 0x30a0, "HP DV1000", CXT5047_LAPTOP),
+	SND_PCI_QUIRK(0x103c, 0x30b2, "HP DV2000T/DV3000T", CXT5047_LAPTOP),
+	SND_PCI_QUIRK(0x103c, 0x30a5, "HP DV5200T/DV8000T", CXT5047_LAPTOP_HP),
+	SND_PCI_QUIRK(0x1179, 0xff31, "Toshiba P100", CXT5047_LAPTOP_EAPD),
 	{}
 };
 
@@ -1277,7 +1272,9 @@ static int patch_cxt5047(struct hda_codec *codec)
 	codec->patch_ops = conexant_patch_ops;
 	codec->patch_ops.unsol_event = cxt5047_hp_unsol_event;
 
-	board_config = snd_hda_check_board_config(codec, cxt5047_cfg_tbl);
+	board_config = snd_hda_check_board_config(codec, CXT5047_MODELS,
+						  cxt5047_models,
+						  cxt5047_cfg_tbl);
 	switch (board_config) {
 	case CXT5047_LAPTOP:
 		break;
