@@ -1741,40 +1741,48 @@ static int fan_init(void)
 static int fan_read(char *p)
 {
 	int len = 0;
-	int s;
 	u8 lo, hi, status;
 
-	if (gfan_handle) {
+	switch (fan_status_access_mode) {
+	case IBMACPI_FAN_RD_ACPI_GFAN:
 		/* 570, 600e/x, 770e, 770x */
-		if (!acpi_evalf(gfan_handle, &s, NULL, "d"))
+		if (unlikely(!acpi_evalf(gfan_handle, &status, NULL, "d")))
 			return -EIO;
 
-		len += sprintf(p + len, "level:\t\t%d\n", s);
-	} else {
+		len += sprintf(p + len, "level:\t\t%d\n", status);
+
+		break;
+
+	case IBMACPI_FAN_RD_TPEC:
 		/* all except 570, 600e/x, 770e, 770x */
-		if (!acpi_ec_read(fan_status_offset, &status))
-			len += sprintf(p + len, "status:\t\tunreadable\n");
+		if (unlikely(!acpi_ec_read(fan_status_offset, &status)))
+			return -EIO;
 		else
 			len += sprintf(p + len, "status:\t\t%s\n",
 				       enabled(status, 7));
 
-		if (!acpi_ec_read(fan_rpm_offset, &lo) ||
-		    !acpi_ec_read(fan_rpm_offset + 1, &hi))
-			len += sprintf(p + len, "speed:\t\tunreadable\n");
+		if (unlikely(!acpi_ec_read(fan_rpm_offset, &lo) ||
+			     !acpi_ec_read(fan_rpm_offset + 1, &hi)))
+			return -EIO;
 		else
 			len += sprintf(p + len, "speed:\t\t%d\n",
 				       (hi << 8) + lo);
+
+		break;
+
+	case IBMACPI_FAN_NONE:
+	default:
+		len += sprintf(p + len, "status:\t\tnot supported\n");
 	}
 
-	if (sfan_handle)
-		/* 570, 770x-JL */
+	if (fan_control_commands & IBMACPI_FAN_CMD_LEVEL)
 		len += sprintf(p + len, "commands:\tlevel <level>"
 			       " (<level> is 0-7)\n");
-	if (!gfan_handle)
-		/* all except 570, 600e/x, 770e, 770x */
+
+	if (fan_control_commands & IBMACPI_FAN_CMD_ENABLE)
 		len += sprintf(p + len, "commands:\tenable, disable\n");
-	if (fans_handle)
-		/* X31, X40 */
+
+	if (fan_control_commands & IBMACPI_FAN_CMD_SPEED)
 		len += sprintf(p + len, "commands:\tspeed <speed>"
 			       " (<speed> is 0-65535)\n");
 
