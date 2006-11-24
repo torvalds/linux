@@ -12,12 +12,12 @@ The platform DMA driver optionally supports the following alsa operations:-
 
 /* SoC audio ops */
 struct snd_soc_ops {
-	int (*startup)(snd_pcm_substream_t *);
-	void (*shutdown)(snd_pcm_substream_t *);
-	int (*hw_params)(snd_pcm_substream_t *, snd_pcm_hw_params_t *);
-	int (*hw_free)(snd_pcm_substream_t *);
-	int (*prepare)(snd_pcm_substream_t *);
-	int (*trigger)(snd_pcm_substream_t *, int);
+	int (*startup)(struct snd_pcm_substream *);
+	void (*shutdown)(struct snd_pcm_substream *);
+	int (*hw_params)(struct snd_pcm_substream *, struct snd_pcm_hw_params *);
+	int (*hw_free)(struct snd_pcm_substream *);
+	int (*prepare)(struct snd_pcm_substream *);
+	int (*trigger)(struct snd_pcm_substream *, int);
 };
 
 The platform driver exports it's DMA functionailty via struct snd_soc_platform:-
@@ -31,11 +31,11 @@ struct snd_soc_platform {
 	int (*resume)(struct platform_device *pdev, struct snd_soc_cpu_dai *cpu_dai);
 
 	/* pcm creation and destruction */
-	int (*pcm_new)(snd_card_t *, struct snd_soc_codec_dai *, snd_pcm_t *);
-	void (*pcm_free)(snd_pcm_t *);
+	int (*pcm_new)(struct snd_card *, struct snd_soc_codec_dai *, struct snd_pcm *);
+	void (*pcm_free)(struct snd_pcm *);
 
 	/* platform stream ops */
-	snd_pcm_ops_t *pcm_ops;
+	struct snd_pcm_ops *pcm_ops;
 };
 
 Please refer to the alsa driver documentation for details of audio DMA.
