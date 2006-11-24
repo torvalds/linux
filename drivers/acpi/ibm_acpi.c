@@ -1833,10 +1833,13 @@ static int fan_init(void)
 				    IBMACPI_FAN_WR_ACPI_FANS;
 				fan_control_commands |=
 				    IBMACPI_FAN_CMD_SPEED |
+				    IBMACPI_FAN_CMD_LEVEL |
 				    IBMACPI_FAN_CMD_ENABLE;
 			} else {
 				fan_control_access_mode = IBMACPI_FAN_WR_TPEC;
-				fan_control_commands |= IBMACPI_FAN_CMD_ENABLE;
+				fan_control_commands |=
+				    IBMACPI_FAN_CMD_LEVEL |
+				    IBMACPI_FAN_CMD_ENABLE;
 			}
 		}
 	}
@@ -1948,9 +1951,20 @@ static int fan_read(char *p)
 		len += sprintf(p + len, "status:\t\tnot supported\n");
 	}
 
-	if (fan_control_commands & IBMACPI_FAN_CMD_LEVEL)
-		len += sprintf(p + len, "commands:\tlevel <level>"
-			       " (<level> is 0-7)\n");
+	if (fan_control_commands & IBMACPI_FAN_CMD_LEVEL) {
+		len += sprintf(p + len, "commands:\tlevel <level>");
+
+		switch (fan_control_access_mode) {
+		case IBMACPI_FAN_WR_ACPI_SFAN:
+			len += sprintf(p + len, " (<level> is 0-7)\n");
+			break;
+
+		default:
+			len += sprintf(p + len, " (<level> is 0-7, "
+				       "auto, disengaged)\n");
+			break;
+		}
+	}
 
 	if (fan_control_commands & IBMACPI_FAN_CMD_ENABLE)
 		len += sprintf(p + len, "commands:\tenable, disable\n");
@@ -1971,6 +1985,17 @@ static int fan_set_level(int level)
 				return -EIO;
 		} else
 			return -EINVAL;
+		break;
+
+	case IBMACPI_FAN_WR_ACPI_FANS:
+	case IBMACPI_FAN_WR_TPEC:
+		if ((level != IBMACPI_FAN_EC_AUTO) &&
+		    (level != IBMACPI_FAN_EC_DISENGAGED) &&
+		    ((level < 0) || (level > 7)))
+			return -EINVAL;
+
+		if (!acpi_ec_write(fan_status_offset, level))
+			return -EIO;
 		break;
 
 	default:
@@ -2060,7 +2085,11 @@ static int fan_write_cmd_level(const char *cmd, int *rc)
 {
 	int level;
 
-	if (sscanf(cmd, "level %d", &level) != 1)
+	if (strlencmp(cmd, "level auto") == 0)
+		level = IBMACPI_FAN_EC_AUTO;
+	else if (strlencmp(cmd, "level disengaged") == 0)
+		level = IBMACPI_FAN_EC_DISENGAGED;
+	else if (sscanf(cmd, "level %d", &level) != 1)
 		return 0;
 
 	if ((*rc = fan_set_level(level)) == -ENXIO)
