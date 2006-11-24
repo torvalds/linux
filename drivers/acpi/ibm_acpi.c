@@ -1843,38 +1843,141 @@ static int fan_read(char *p)
 	return len;
 }
 
-static int fan_write(char *buf)
+static int fan_set_level(int level)
 {
-	char *cmd;
-	int level, speed;
-
-	while ((cmd = next_cmd(&buf))) {
-		if (sfan_handle &&
-		    sscanf(cmd, "level %d", &level) == 1 &&
-		    level >= 0 && level <= 7) {
-			/* 570, 770x-JL */
+	switch (fan_control_access_mode) {
+	case IBMACPI_FAN_WR_ACPI_SFAN:
+		if (level >= 0 && level <= 7) {
 			if (!acpi_evalf(sfan_handle, NULL, NULL, "vd", level))
 				return -EIO;
-		} else if (!gfan_handle && strlencmp(cmd, "enable") == 0) {
-			/* all except 570, 600e/x, 770e, 770x */
-			if (!acpi_ec_write(fan_status_offset, 0x80))
-				return -EIO;
-		} else if (!gfan_handle && strlencmp(cmd, "disable") == 0) {
-			/* all except 570, 600e/x, 770e, 770x */
-			if (!acpi_ec_write(fan_status_offset, 0x00))
-				return -EIO;
-		} else if (fans_handle &&
-			   sscanf(cmd, "speed %d", &speed) == 1 &&
-			   speed >= 0 && speed <= 65535) {
-			/* X31, X40 */
+		} else
+			return -EINVAL;
+		break;
+
+	default:
+		return -ENXIO;
+	}
+	return 0;
+}
+
+static int fan_set_enable(void)
+{
+	switch (fan_control_access_mode) {
+	case IBMACPI_FAN_WR_ACPI_FANS:
+	case IBMACPI_FAN_WR_TPEC:
+		if (!acpi_ec_write(fan_status_offset, 0x80))
+			return -EIO;
+		break;
+
+	default:
+		return -ENXIO;
+	}
+	return 0;
+}
+
+static int fan_set_disable(void)
+{
+	switch (fan_control_access_mode) {
+	case IBMACPI_FAN_WR_ACPI_FANS:
+	case IBMACPI_FAN_WR_TPEC:
+		if (!acpi_ec_write(fan_status_offset, 0x00))
+			return -EIO;
+		break;
+
+	default:
+		return -ENXIO;
+	}
+	return 0;
+}
+
+static int fan_set_speed(int speed)
+{
+	switch (fan_control_access_mode) {
+	case IBMACPI_FAN_WR_ACPI_FANS:
+		if (speed >= 0 && speed <= 65535) {
 			if (!acpi_evalf(fans_handle, NULL, NULL, "vddd",
 					speed, speed, speed))
 				return -EIO;
 		} else
 			return -EINVAL;
+		break;
+
+	default:
+		return -ENXIO;
+	}
+	return 0;
+}
+
+static int fan_write_cmd_level(const char *cmd, int *rc)
+{
+	int level;
+
+	if (sscanf(cmd, "level %d", &level) != 1)
+		return 0;
+
+	if ((*rc = fan_set_level(level)) == -ENXIO)
+		printk(IBM_ERR "level command accepted for unsupported "
+		       "access mode %d", fan_control_access_mode);
+
+	return 1;
+}
+
+static int fan_write_cmd_enable(const char *cmd, int *rc)
+{
+	if (strlencmp(cmd, "enable") != 0)
+		return 0;
+
+	if ((*rc = fan_set_enable()) == -ENXIO)
+		printk(IBM_ERR "enable command accepted for unsupported "
+		       "access mode %d", fan_control_access_mode);
+
+	return 1;
+}
+
+static int fan_write_cmd_disable(const char *cmd, int *rc)
+{
+	if (strlencmp(cmd, "disable") != 0)
+		return 0;
+
+	if ((*rc = fan_set_disable()) == -ENXIO)
+		printk(IBM_ERR "disable command accepted for unsupported "
+		       "access mode %d", fan_control_access_mode);
+
+	return 1;
+}
+
+static int fan_write_cmd_speed(const char *cmd, int *rc)
+{
+	int speed;
+
+	if (sscanf(cmd, "speed %d", &speed) != 1)
+		return 0;
+
+	if ((*rc = fan_set_speed(speed)) == -ENXIO)
+		printk(IBM_ERR "speed command accepted for unsupported "
+		       "access mode %d", fan_control_access_mode);
+
+	return 1;
+}
+
+static int fan_write(char *buf)
+{
+	char *cmd;
+	int rc = 0;
+
+	while (!rc && (cmd = next_cmd(&buf))) {
+		if (!((fan_control_commands & IBMACPI_FAN_CMD_LEVEL) &&
+		      fan_write_cmd_level(cmd, &rc)) &&
+		    !((fan_control_commands & IBMACPI_FAN_CMD_ENABLE) &&
+		      (fan_write_cmd_enable(cmd, &rc) ||
+		       fan_write_cmd_disable(cmd, &rc))) &&
+		    !((fan_control_commands & IBMACPI_FAN_CMD_SPEED) &&
+		      fan_write_cmd_speed(cmd, &rc))
+		    )
+			rc = -EINVAL;
 	}
 
-	return 0;
+	return rc;
 }
 
 static struct ibm_struct ibms[] = {
