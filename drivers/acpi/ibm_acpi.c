@@ -362,7 +362,7 @@ enum {					/* Fan control constants */
 						 * control */
 };
 
-static char* ibm_thinkpad_ec_found = NULL;
+static char *ibm_thinkpad_ec_found = NULL;
 
 struct ibm_struct {
 	char *name;
@@ -1794,13 +1794,15 @@ static enum fan_status_access_mode fan_status_access_mode;
 static enum fan_control_access_mode fan_control_access_mode;
 static enum fan_control_commands fan_control_commands;
 
+static int fan_control_status_known;
+static u8 fan_control_initial_status;
+
 static int fan_init(void)
 {
-	u8 status;
-
 	fan_status_access_mode = IBMACPI_FAN_NONE;
 	fan_control_access_mode = IBMACPI_FAN_WR_NONE;
 	fan_control_commands = 0;
+	fan_control_status_known = 1;
 
 	if (gfan_handle) {
 		/* 570, 600e/x, 770e, 770x */
@@ -1808,8 +1810,33 @@ static int fan_init(void)
 	} else {
 		/* all other ThinkPads: note that even old-style
 		 * ThinkPad ECs supports the fan control register */
-		if (likely(acpi_ec_read(fan_status_offset, &status))) {
+		if (likely(acpi_ec_read(fan_status_offset,
+					&fan_control_initial_status))) {
 			fan_status_access_mode = IBMACPI_FAN_RD_TPEC;
+
+			/* In some ThinkPads, neither the EC nor the ACPI
+			 * DSDT initialize the fan status, and it ends up
+			 * being set to 0x07 when it *could* be either
+			 * 0x07 or 0x80.
+			 *
+			 * Enable for TP-1Y (T43), TP-78 (R51e),
+			 * TP-76 (R52), TP-70 (T43, R52), which are known
+			 * to be buggy. */
+			if (fan_control_initial_status == 0x07 &&
+			    ibm_thinkpad_ec_found &&
+			    ((ibm_thinkpad_ec_found[0] == '1' &&
+			      ibm_thinkpad_ec_found[1] == 'Y') ||
+			     (ibm_thinkpad_ec_found[0] == '7' &&
+			      (ibm_thinkpad_ec_found[1] == '6' ||
+			       ibm_thinkpad_ec_found[1] == '8' ||
+			       ibm_thinkpad_ec_found[1] == '0'))
+			    )) {
+				printk(IBM_NOTICE
+				       "fan_init: initial fan status is "
+				       "unknown, assuming it is in auto "
+				       "mode\n");
+				fan_control_status_known = 0;
+			}
 		} else {
 			printk(IBM_ERR
 			       "ThinkPad ACPI EC access misbehaving, "
@@ -1930,9 +1957,21 @@ static int fan_read(char *p)
 		if ((rc = fan_get_status(&status)) < 0)
 			return rc;
 
+		if (unlikely(!fan_control_status_known)) {
+			if (status != fan_control_initial_status)
+				fan_control_status_known = 1;
+			else
+				/* Return most likely status. In fact, it
+				 * might be the only possible status */
+				status = IBMACPI_FAN_EC_AUTO;
+		}
+
 		len += sprintf(p + len, "status:\t\t%s\n",
 			       (status != 0) ? "enabled" : "disabled");
 
+		/* No ThinkPad boots on disengaged mode, we can safely
+		 * assume the tachometer is online if fan control status
+		 * was unknown */
 		if ((rc = fan_get_speed(&speed)) < 0)
 			return rc;
 
@@ -1997,6 +2036,8 @@ static int fan_set_level(int level)
 
 		if (!acpi_ec_write(fan_status_offset, level))
 			return -EIO;
+		else
+			fan_control_status_known = 1;
 		break;
 
 	default:
@@ -2022,6 +2063,8 @@ static int fan_set_enable(void)
 
 		if (!acpi_ec_write(fan_status_offset, s))
 			return -EIO;
+		else
+			fan_control_status_known = 1;
 		break;
 
 	case IBMACPI_FAN_WR_ACPI_SFAN:
@@ -2051,6 +2094,8 @@ static int fan_set_disable(void)
 	case IBMACPI_FAN_WR_TPEC:
 		if (!acpi_ec_write(fan_status_offset, 0x00))
 			return -EIO;
+		else
+			fan_control_status_known = 1;
 		break;
 
 	case IBMACPI_FAN_WR_ACPI_SFAN:
