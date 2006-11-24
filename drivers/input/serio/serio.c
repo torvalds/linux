@@ -44,7 +44,7 @@ EXPORT_SYMBOL(serio_interrupt);
 EXPORT_SYMBOL(__serio_register_port);
 EXPORT_SYMBOL(serio_unregister_port);
 EXPORT_SYMBOL(serio_unregister_child_port);
-EXPORT_SYMBOL(__serio_register_driver);
+EXPORT_SYMBOL(serio_register_driver);
 EXPORT_SYMBOL(serio_unregister_driver);
 EXPORT_SYMBOL(serio_open);
 EXPORT_SYMBOL(serio_close);
@@ -61,10 +61,10 @@ static LIST_HEAD(serio_list);
 
 static struct bus_type serio_bus;
 
-static void serio_add_driver(struct serio_driver *drv);
 static void serio_add_port(struct serio *serio);
 static void serio_reconnect_port(struct serio *serio);
 static void serio_disconnect_port(struct serio *serio);
+static void serio_attach_driver(struct serio_driver *drv);
 
 static int serio_connect_driver(struct serio *serio, struct serio_driver *drv)
 {
@@ -168,10 +168,10 @@ static void serio_find_driver(struct serio *serio)
  */
 
 enum serio_event_type {
-	SERIO_RESCAN,
-	SERIO_RECONNECT,
+	SERIO_RESCAN_PORT,
+	SERIO_RECONNECT_PORT,
 	SERIO_REGISTER_PORT,
-	SERIO_REGISTER_DRIVER,
+	SERIO_ATTACH_DRIVER,
 };
 
 struct serio_event {
@@ -186,11 +186,12 @@ static LIST_HEAD(serio_event_list);
 static DECLARE_WAIT_QUEUE_HEAD(serio_wait);
 static struct task_struct *serio_task;
 
-static void serio_queue_event(void *object, struct module *owner,
-			      enum serio_event_type event_type)
+static int serio_queue_event(void *object, struct module *owner,
+			     enum serio_event_type event_type)
 {
 	unsigned long flags;
 	struct serio_event *event;
+	int retval = 0;
 
 	spin_lock_irqsave(&serio_event_lock, flags);
 
@@ -209,24 +210,34 @@ static void serio_queue_event(void *object, struct module *owner,
 		}
 	}
 
-	if ((event = kmalloc(sizeof(struct serio_event), GFP_ATOMIC))) {
-		if (!try_module_get(owner)) {
-			printk(KERN_WARNING "serio: Can't get module reference, dropping event %d\n", event_type);
-			kfree(event);
-			goto out;
-		}
-
-		event->type = event_type;
-		event->object = object;
-		event->owner = owner;
-
-		list_add_tail(&event->node, &serio_event_list);
-		wake_up(&serio_wait);
-	} else {
-		printk(KERN_ERR "serio: Not enough memory to queue event %d\n", event_type);
+	event = kmalloc(sizeof(struct serio_event), GFP_ATOMIC);
+	if (!event) {
+		printk(KERN_ERR
+			"serio: Not enough memory to queue event %d\n",
+			event_type);
+		retval = -ENOMEM;
+		goto out;
 	}
+
+	if (!try_module_get(owner)) {
+		printk(KERN_WARNING
+			"serio: Can't get module reference, dropping event %d\n",
+			event_type);
+		kfree(event);
+		retval = -EINVAL;
+		goto out;
+	}
+
+	event->type = event_type;
+	event->object = object;
+	event->owner = owner;
+
+	list_add_tail(&event->node, &serio_event_list);
+	wake_up(&serio_wait);
+
 out:
 	spin_unlock_irqrestore(&serio_event_lock, flags);
+	return retval;
 }
 
 static void serio_free_event(struct serio_event *event)
@@ -304,17 +315,17 @@ static void serio_handle_event(void)
 				serio_add_port(event->object);
 				break;
 
-			case SERIO_RECONNECT:
+			case SERIO_RECONNECT_PORT:
 				serio_reconnect_port(event->object);
 				break;
 
-			case SERIO_RESCAN:
+			case SERIO_RESCAN_PORT:
 				serio_disconnect_port(event->object);
 				serio_find_driver(event->object);
 				break;
 
-			case SERIO_REGISTER_DRIVER:
-				serio_add_driver(event->object);
+			case SERIO_ATTACH_DRIVER:
+				serio_attach_driver(event->object);
 				break;
 
 			default:
@@ -666,12 +677,12 @@ static void serio_disconnect_port(struct serio *serio)
 
 void serio_rescan(struct serio *serio)
 {
-	serio_queue_event(serio, NULL, SERIO_RESCAN);
+	serio_queue_event(serio, NULL, SERIO_RESCAN_PORT);
 }
 
 void serio_reconnect(struct serio *serio)
 {
-	serio_queue_event(serio, NULL, SERIO_RECONNECT);
+	serio_queue_event(serio, NULL, SERIO_RECONNECT_PORT);
 }
 
 /*
@@ -766,22 +777,52 @@ static int serio_driver_remove(struct device *dev)
 	return 0;
 }
 
-static void serio_add_driver(struct serio_driver *drv)
+static void serio_attach_driver(struct serio_driver *drv)
 {
 	int error;
 
-	error = driver_register(&drv->driver);
+	error = driver_attach(&drv->driver);
 	if (error)
-		printk(KERN_ERR
-			"serio: driver_register() failed for %s, error: %d\n",
+		printk(KERN_WARNING
+			"serio: driver_attach() failed for %s with error %d\n",
 			drv->driver.name, error);
 }
 
-void __serio_register_driver(struct serio_driver *drv, struct module *owner)
+int serio_register_driver(struct serio_driver *drv)
 {
+	int manual_bind = drv->manual_bind;
+	int error;
+
 	drv->driver.bus = &serio_bus;
 
-	serio_queue_event(drv, owner, SERIO_REGISTER_DRIVER);
+	/*
+	 * Temporarily disable automatic binding because probing
+	 * takes long time and we are better off doing it in kseriod
+	 */
+	drv->manual_bind = 1;
+
+	error = driver_register(&drv->driver);
+	if (error) {
+		printk(KERN_ERR
+			"serio: driver_register() failed for %s, error: %d\n",
+			drv->driver.name, error);
+		return error;
+	}
+
+	/*
+	 * Restore original bind mode and let kseriod bind the
+	 * driver to free ports
+	 */
+	if (!manual_bind) {
+		drv->manual_bind = 0;
+		error = serio_queue_event(drv, NULL, SERIO_ATTACH_DRIVER);
+		if (error) {
+			driver_unregister(&drv->driver);
+			return error;
+		}
+	}
+
+	return 0;
 }
 
 void serio_unregister_driver(struct serio_driver *drv)
