@@ -286,6 +286,7 @@ void debugfs_remove(struct dentry *dentry)
 	mutex_lock(&parent->d_inode->i_mutex);
 	if (debugfs_positive(dentry)) {
 		if (dentry->d_inode) {
+			dget(dentry);
 			if (S_ISDIR(dentry->d_inode->i_mode)) {
 				ret = simple_rmdir(parent->d_inode, dentry);
 				if (ret)
@@ -295,6 +296,9 @@ void debugfs_remove(struct dentry *dentry)
 						dentry->d_name.name);
 			} else
 				simple_unlink(parent->d_inode, dentry);
+			if (!ret)
+				d_delete(dentry);
+			dput(dentry);
 		}
 	}
 	mutex_unlock(&parent->d_inode->i_mutex);
