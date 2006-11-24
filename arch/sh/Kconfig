@@ -379,6 +379,9 @@ config CPU_HAS_SR_RB
 	  See <file:Documentation/sh/register-banks.txt> for further
 	  information on SR.RB and register banking in the kernel in general.
 
+config CPU_HAS_PTEA
+	bool
+
 endmenu
 
 menu "Timer support"

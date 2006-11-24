@@ -13,8 +13,10 @@
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
-#include <asm/cpu/mmu_context.h>
 #include <asm/unistd.h>
+#include <asm/cpu/mmu_context.h>
+#include <asm/pgtable.h>
+#include <asm/page.h>
 
 ! NOTE:
 ! GNU as (as of 2.9.1) changes bf/s into bt/s and bra, when the address
@@ -136,29 +138,14 @@ ENTRY(tlb_protection_violation_store)
 
 call_dpf:
 	mov.l	1f, r0
-	mov	r5, r8
-	mov.l	@r0, r6
-	mov	r6, r9
-	mov.l	2f, r0
-	sts	pr, r10
-	jsr	@r0
-	 mov	r15, r4
-	!
-	tst	r0, r0
-	bf/s	0f
-	 lds	r10, pr
-	rts
-	 nop
-0:	sti
+ 	mov.l	@r0, r6		! address
 	mov.l	3f, r0
-	mov	r9, r6
-	mov	r8, r5
+	sti
 	jmp	@r0
-	 mov	r15, r4
+ 	 mov	r15, r4		! regs
 
 	.align 2
 1:	.long	MMU_TEA
-2:	.long	__do_page_fault
 3:	.long	do_page_fault
 
 	.align	2
@@ -344,9 +331,176 @@ general_exception:
 2:	.long	ret_from_exception
 !
 !
+
+/* This code makes some assumptions to improve performance.
+ * Make sure they are stil true. */
+#if PTRS_PER_PGD != PTRS_PER_PTE
+#error PDG and PTE sizes don't match
+#endif
+
+/* gas doesn't flag impossible values for mov #immediate as an error */
+#if (_PAGE_PRESENT >> 2) > 0x7f
+#error cannot load PAGE_PRESENT as an immediate
+#endif
+#if _PAGE_DIRTY > 0x7f
+#error cannot load PAGE_DIRTY as an immediate
+#endif
+#if (_PAGE_PRESENT << 2) != _PAGE_ACCESSED
+#error cannot derive PAGE_ACCESSED from PAGE_PRESENT
+#endif
+
+#if defined(CONFIG_CPU_SH4)
+#define ldmmupteh(r)	mov.l	8f, r
+#else
+#define ldmmupteh(r)	mov	#MMU_PTEH, r
+#endif
+
 	.balign 	1024,0,1024
 tlb_miss:
-	mov.l	1f, k2
+#ifdef COUNT_EXCEPTIONS
+	! Increment the counts
+	mov.l	9f, k1
+	mov.l	@k1, k2
+	add	#1, k2
+	mov.l	k2, @k1
+#endif
+
+	! k0 scratch
+	! k1 pgd and pte pointers
+	! k2 faulting address
+	! k3 pgd and pte index masks
+	! k4 shift
+
+	! Load up the pgd entry (k1)
+
+	ldmmupteh(k0)			!  9 LS (latency=2)	MMU_PTEH
+
+	mov.w	4f, k3			!  8 LS (latency=2)	(PTRS_PER_PGD-1) << 2
+	mov	#-(PGDIR_SHIFT-2), k4	!  6 EX
+
+	mov.l	@(MMU_TEA-MMU_PTEH,k0), k2	! 18 LS (latency=2)
+
+	mov.l	@(MMU_TTB-MMU_PTEH,k0), k1	! 18 LS (latency=2)
+
+	mov	k2, k0			!   5 MT (latency=0)
+	shld	k4, k0			!  99 EX
+
+	and	k3, k0			!  78 EX
+
+	mov.l	@(k0, k1), k1		!  21 LS (latency=2)
+	mov	#-(PAGE_SHIFT-2), k4	!   6 EX
+
+	! Load up the pte entry (k2)
+
+	mov	k2, k0			!   5 MT (latency=0)
+	shld	k4, k0			!  99 EX
+
+	tst	k1, k1			!  86 MT
+
+	bt	20f			! 110 BR
+
+	and	k3, k0			!  78 EX
+	mov.w	5f, k4			!   8 LS (latency=2)	_PAGE_PRESENT
+
+	mov.l	@(k0, k1), k2		!  21 LS (latency=2)
+	add	k0, k1			!  49 EX
+
+#ifdef CONFIG_CPU_HAS_PTEA
+	! Test the entry for present and _PAGE_ACCESSED
+
+	mov	#-28, k3		!   6 EX
+	mov	k2, k0			!   5 MT (latency=0)
+
+	tst	k4, k2			!  68 MT
+	shld	k3, k0			!  99 EX
+
+	bt	20f			! 110 BR
+
+	! Set PTEA register
+	! MMU_PTEA = ((pteval >> 28) & 0xe) | (pteval & 0x1)
+	!
+	! k0=pte>>28, k1=pte*, k2=pte, k3=<unused>, k4=_PAGE_PRESENT
+
+	and	#0xe, k0		!  79 EX
+
+	mov	k0, k3			!   5 MT (latency=0)
+	mov	k2, k0			!   5 MT (latency=0)
+
+	and	#1, k0			!  79 EX
+
+	or	k0, k3			!  82 EX
+
+	ldmmupteh(k0)			!   9 LS (latency=2)
+	shll2	k4			! 101 EX		_PAGE_ACCESSED
+
+	tst	k4, k2			!  68 MT
+
+	mov.l	k3, @(MMU_PTEA-MMU_PTEH,k0)	! 27 LS
+
+	mov.l	7f, k3			!   9 LS (latency=2)	_PAGE_FLAGS_HARDWARE_MASK
+
+	! k0=MMU_PTEH, k1=pte*, k2=pte, k3=_PAGE_FLAGS_HARDWARE, k4=_PAGE_ACCESSED
+#else
+
+	! Test the entry for present and _PAGE_ACCESSED
+
+	mov.l	7f, k3			!   9 LS (latency=2)	_PAGE_FLAGS_HARDWARE_MASK
+	tst	k4, k2			!  68 MT
+
+	shll2	k4			! 101 EX		_PAGE_ACCESSED
+	ldmmupteh(k0)			!   9 LS (latency=2)
+
+	bt	20f			! 110 BR
+	tst	k4, k2			!  68 MT
+
+	! k0=MMU_PTEH, k1=pte*, k2=pte, k3=_PAGE_FLAGS_HARDWARE, k4=_PAGE_ACCESSED
+
+#endif
+
+	! Set up the entry
+
+	and	k2, k3			!  78 EX
+	bt/s	10f			! 108 BR
+
+	 mov.l	k3, @(MMU_PTEL-MMU_PTEH,k0)	! 27 LS
+
+	ldtlb				! 128 CO
+
+	! At least one instruction between ldtlb and rte
+	nop				! 119 NOP
+
+	rte				! 126 CO
+
+	 nop				! 119 NOP
+
+
+10:	or	k4, k2			!  82 EX
+
+	ldtlb				! 128 CO
+
+	! At least one instruction between ldtlb and rte
+	mov.l	k2, @k1			!  27 LS
+
+	rte				! 126 CO
+
+	! Note we cannot execute mov here, because it is executed after
+	! restoring SSR, so would be executed in user space.
+	 nop				! 119 NOP
+
+
+	.align 5
+	! Once cache line if possible...
+1:	.long	swapper_pg_dir
+4:	.short	(PTRS_PER_PGD-1) << 2
+5:	.short	_PAGE_PRESENT
+7:	.long	_PAGE_FLAGS_HARDWARE_MASK
+8:	.long	MMU_PTEH
+#ifdef COUNT_EXCEPTIONS
+9:	.long	exception_count_miss
+#endif
+
+	! Either pgd or pte not present
+20:	mov.l	1f, k2
 	mov.l	4f, k3
 	bra	handle_exception
 	 mov.l	@k2, k2
@@ -496,6 +650,15 @@ skip_save:
 	bf	interrupt_exception
 	shlr2	r8
 	shlr	r8
+
+#ifdef COUNT_EXCEPTIONS
+	mov.l	5f, r9
+	add	r8, r9
+	mov.l	@r9, r10
+	add	#1, r10
+	mov.l	r10, @r9
+#endif
+
 	mov.l	4f, r9
 	add	r8, r9
 	mov.l	@r9, r9
@@ -509,6 +672,9 @@ skip_save:
 2:	.long	0x000080f0	! FD=1, IMASK=15
 3:	.long	0xcfffffff	! RB=0, BL=0
 4:	.long	exception_handling_table
+#ifdef COUNT_EXCEPTIONS
+5:	.long	exception_count_table
+#endif
 
 interrupt_exception:
 	mov.l	1f, r9

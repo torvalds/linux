@@ -43,12 +43,12 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 /* PGD bits */
 #define PGDIR_SHIFT	(PTE_SHIFT + PTE_BITS)
 #define PGDIR_BITS	(32 - PGDIR_SHIFT)
-#define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
+#define PGDIR_SIZE	(1 << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
 /* Entries per level */
-#define PTRS_PER_PTE	(1UL << PTE_BITS)
-#define PTRS_PER_PGD	(1UL << PGDIR_BITS)
+#define PTRS_PER_PTE	(1 << PTE_BITS)
+#define PTRS_PER_PGD	(1 << PGDIR_BITS)
 
 #define USER_PTRS_PER_PGD	(TASK_SIZE/PGDIR_SIZE)
 #define FIRST_USER_ADDRESS	0

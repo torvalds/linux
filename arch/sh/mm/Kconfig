@@ -20,6 +20,7 @@ config CPU_SH4
 	bool
 	select CPU_HAS_INTEVT
 	select CPU_HAS_SR_RB
+	select CPU_HAS_PTEA if !CPU_SUBTYPE_ST40
 
 config CPU_SH4A
 	bool
