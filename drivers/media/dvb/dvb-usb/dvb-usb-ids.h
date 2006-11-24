@@ -32,8 +32,8 @@
 #define USB_VID_PINNACLE			0x2304
 #define USB_VID_VISIONPLUS			0x13d3
 #define USB_VID_TWINHAN				0x1822
-#define USB_VID_UNIWILL				0x1584
 #define USB_VID_ULTIMA_ELECTRONIC		0x05d8
+#define USB_VID_UNIWILL				0x1584
 #define USB_VID_WIDEVIEW			0x14aa
 
 /* Product IDs */
