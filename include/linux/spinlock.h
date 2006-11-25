@@ -52,6 +52,7 @@
 #include <linux/thread_info.h>
 #include <linux/kernel.h>
 #include <linux/stringify.h>
+#include <linux/irqflags.h>
 
 #include <asm/system.h>
 
@@ -183,13 +184,37 @@ do {								\
 #define read_lock(lock)			_read_lock(lock)
 
 #if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
-#define spin_lock_irqsave(lock, flags)	flags = _spin_lock_irqsave(lock)
-#define read_lock_irqsave(lock, flags)	flags = _read_lock_irqsave(lock)
-#define write_lock_irqsave(lock, flags)	flags = _write_lock_irqsave(lock)
+#define spin_lock_irqsave(lock, flags)			\
+	do {						\
+		BUILD_CHECK_IRQ_FLAGS(flags);		\
+		flags = _spin_lock_irqsave(lock);	\
+	} while (0)
+#define read_lock_irqsave(lock, flags)			\
+	do {						\
+		BUILD_CHECK_IRQ_FLAGS(flags);		\
+		flags = _read_lock_irqsave(lock);	\
+	} while (0)
+#define write_lock_irqsave(lock, flags)			\
+	do {						\
+		BUILD_CHECK_IRQ_FLAGS(flags);		\
+		flags = _write_lock_irqsave(lock);	\
+	} while (0)
 #else
-#define spin_lock_irqsave(lock, flags)	_spin_lock_irqsave(lock, flags)
-#define read_lock_irqsave(lock, flags)	_read_lock_irqsave(lock, flags)
-#define write_lock_irqsave(lock, flags)	_write_lock_irqsave(lock, flags)
+#define spin_lock_irqsave(lock, flags)			\
+	do {						\
+		BUILD_CHECK_IRQ_FLAGS(flags);		\
+		_spin_lock_irqsave(lock, flags);	\
+	} while (0)
+#define read_lock_irqsave(lock, flags)			\
+	do {						\
+		BUILD_CHECK_IRQ_FLAGS(flags);		\
+		_read_lock_irqsave(lock, flags);	\
+	} while (0)
+#define write_lock_irqsave(lock, flags)			\
+	do {						\
+		BUILD_CHECK_IRQ_FLAGS(flags);		\
+		_write_lock_irqsave(lock, flags);	\
+	} while (0)
 #endif
 
 #define spin_lock_irq(lock)		_spin_lock_irq(lock)
@@ -225,15 +250,24 @@ do {								\
 #endif
 
 #define spin_unlock_irqrestore(lock, flags) \
-					_spin_unlock_irqrestore(lock, flags)
+	do {						\
+		BUILD_CHECK_IRQ_FLAGS(flags);		\
+		_spin_unlock_irqrestore(lock, flags);	\
+	} while (0)
 #define spin_unlock_bh(lock)		_spin_unlock_bh(lock)
 
 #define read_unlock_irqrestore(lock, flags) \
-					_read_unlock_irqrestore(lock, flags)
+	do {						\
+		BUILD_CHECK_IRQ_FLAGS(flags);		\
+		_read_unlock_irqrestore(lock, flags);	\
+	} while (0)
 #define read_unlock_bh(lock)		_read_unlock_bh(lock)
 
 #define write_unlock_irqrestore(lock, flags) \
-					_write_unlock_irqrestore(lock, flags)
+	do {						\
+		BUILD_CHECK_IRQ_FLAGS(flags);		\
+		_write_unlock_irqrestore(lock, flags);	\
+	} while (0)
 #define write_unlock_bh(lock)		_write_unlock_bh(lock)
 
 #define spin_trylock_bh(lock)	__cond_lock(lock, _spin_trylock_bh(lock))
@@ -247,6 +281,7 @@ do {								\
 
 #define spin_trylock_irqsave(lock, flags) \
 ({ \
+	BUILD_CHECK_IRQ_FLAGS(flags); \
 	local_irq_save(flags); \
 	spin_trylock(lock) ? \
 	1 : ({ local_irq_restore(flags); 0; }); \
