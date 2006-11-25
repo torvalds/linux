@@ -74,7 +74,8 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
 			igrab(inode);
 			reiserfs_warning(inode->i_sb,
 					 "pinning inode %lu because the "
-					 "preallocation can't be freed");
+					 "preallocation can't be freed",
+					 inode->i_ino);
 			goto out;
 		}
 	}
