@@ -38,7 +38,6 @@
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
 #include <linux/skbuff.h>
-#include <linux/rtnetlink.h>
 #include <linux/sysctl.h>
 #include <linux/notifier.h>
 #include <asm/uaccess.h>
@@ -47,6 +46,7 @@
 #include <net/dst.h>
 #include <net/flow.h>
 #include <net/fib_rules.h>
+#include <net/netlink.h>
 #include <net/dn.h>
 #include <net/dn_dev.h>
 #include <net/dn_route.h>
@@ -711,6 +711,14 @@ static int dn_dev_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *a
 	return rv;
 }
 
+static inline size_t dn_ifaddr_nlmsg_size(void)
+{
+	return NLMSG_ALIGN(sizeof(struct ifaddrmsg))
+	       + nla_total_size(IFNAMSIZ) /* IFA_LABEL */
+	       + nla_total_size(2) /* IFA_ADDRESS */
+	       + nla_total_size(2); /* IFA_LOCAL */
+}
+
 static int dn_dev_fill_ifaddr(struct sk_buff *skb, struct dn_ifaddr *ifa,
 				u32 pid, u32 seq, int event, unsigned int flags)
 {
@@ -744,18 +752,15 @@ rtattr_failure:
 static void rtmsg_ifa(int event, struct dn_ifaddr *ifa)
 {
 	struct sk_buff *skb;
-	int payload = sizeof(struct ifaddrmsg) + 128;
 	int err = -ENOBUFS;
 
-	skb = alloc_skb(nlmsg_total_size(payload), GFP_KERNEL);
+	skb = alloc_skb(dn_ifaddr_nlmsg_size(), GFP_KERNEL);
 	if (skb == NULL)
 		goto errout;
 
 	err = dn_dev_fill_ifaddr(skb, ifa, 0, 0, event, 0);
-	if (err < 0) {
-		kfree_skb(skb);
-		goto errout;
-	}
+	/* failure implies BUG in dn_ifaddr_nlmsg_size() */
+	BUG_ON(err < 0);
 
 	err = rtnl_notify(skb, 0, RTNLGRP_DECnet_IFADDR, NULL, GFP_KERNEL);
 errout:
