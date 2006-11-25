@@ -61,7 +61,9 @@ static void rtc_uie_task(void *data)
 	int err;
 
 	err = rtc_read_time(&rtc->class_dev, &tm);
-	spin_lock_irq(&rtc->irq_lock);
+
+	local_irq_disable();
+	spin_lock(&rtc->irq_lock);
 	if (rtc->stop_uie_polling || err) {
 		rtc->uie_task_active = 0;
 	} else if (rtc->oldsecs != tm.tm_sec) {
@@ -74,11 +76,11 @@ static void rtc_uie_task(void *data)
 	} else if (schedule_work(&rtc->uie_task) == 0) {
 		rtc->uie_task_active = 0;
 	}
-	spin_unlock_irq(&rtc->irq_lock);
+	spin_unlock(&rtc->irq_lock);
 	if (num)
 		rtc_update_irq(&rtc->class_dev, num, RTC_UF | RTC_IRQF);
+	local_irq_enable();
 }
-
 static void rtc_uie_timer(unsigned long data)
 {
 	struct rtc_device *rtc = (struct rtc_device *)data;
@@ -238,10 +240,10 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 
 	/* avoid conflicting IRQ users */
 	if (cmd == RTC_PIE_ON || cmd == RTC_PIE_OFF || cmd == RTC_IRQP_SET) {
-		spin_lock(&rtc->irq_task_lock);
+		spin_lock_irq(&rtc->irq_task_lock);
 		if (rtc->irq_task)
 			err = -EBUSY;
-		spin_unlock(&rtc->irq_task_lock);
+		spin_unlock_irq(&rtc->irq_task_lock);
 
 		if (err < 0)
 			return err;
