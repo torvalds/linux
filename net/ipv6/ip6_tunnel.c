@@ -572,31 +572,23 @@ discard:
 	return 0;
 }
 
-static inline struct ipv6_txoptions *create_tel(__u8 encap_limit)
+struct ipv6_tel_txoption {
+	struct ipv6_txoptions ops;
+	__u8 dst_opt[8];
+};
+
+static void init_tel_txopt(struct ipv6_tel_txoption *opt, __u8 encap_limit)
 {
-	struct ipv6_tlv_tnl_enc_lim *tel;
-	struct ipv6_txoptions *opt;
-	__u8 *raw;
+	memset(opt, 0, sizeof(struct ipv6_tel_txoption));
 
-	int opt_len = sizeof(*opt) + 8;
+	opt->dst_opt[2] = IPV6_TLV_TNL_ENCAP_LIMIT;
+	opt->dst_opt[3] = 1;
+	opt->dst_opt[4] = encap_limit;
+	opt->dst_opt[5] = IPV6_TLV_PADN;
+	opt->dst_opt[6] = 1;
 
-	if (!(opt = kzalloc(opt_len, GFP_ATOMIC))) {
-		return NULL;
-	}
-	opt->tot_len = opt_len;
-	opt->dst0opt = (struct ipv6_opt_hdr *) (opt + 1);
-	opt->opt_nflen = 8;
-
-	tel = (struct ipv6_tlv_tnl_enc_lim *) (opt->dst0opt + 1);
-	tel->type = IPV6_TLV_TNL_ENCAP_LIMIT;
-	tel->length = 1;
-	tel->encap_limit = encap_limit;
-
-	raw = (__u8 *) opt->dst0opt;
-	raw[5] = IPV6_TLV_PADN;
-	raw[6] = 1;
-
-	return opt;
+	opt->ops.dst0opt = (struct ipv6_opt_hdr *) opt->dst_opt;
+	opt->ops.opt_nflen = 8;
 }
 
 /**
@@ -666,8 +658,8 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ip6_tnl *t = netdev_priv(dev);
 	struct net_device_stats *stats = &t->stat;
 	struct ipv6hdr *ipv6h = skb->nh.ipv6h;
-	struct ipv6_txoptions *opt = NULL;
 	int encap_limit = -1;
+	struct ipv6_tel_txoption opt;
 	__u16 offset;
 	struct flowi fl;
 	struct dst_entry *dst;
@@ -696,9 +688,9 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 			goto tx_err;
 		}
 		encap_limit = tel->encap_limit - 1;
-	} else if (!(t->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT)) {
+	} else if (!(t->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT))
 		encap_limit = t->parms.encap_limit;
-	}
+
 	memcpy(&fl, &t->fl, sizeof (fl));
 	proto = fl.proto;
 
@@ -707,9 +699,6 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 		fl.fl6_flowlabel |= (*(__be32 *) ipv6h & IPV6_TCLASS_MASK);
 	if ((t->parms.flags & IP6_TNL_F_USE_ORIG_FLOWLABEL))
 		fl.fl6_flowlabel |= (*(__be32 *) ipv6h & IPV6_FLOWLABEL_MASK);
-
-	if (encap_limit >= 0 && (opt = create_tel(encap_limit)) == NULL)
-		goto tx_err;
 
 	if ((dst = ip6_tnl_dst_check(t)) != NULL)
 		dst_hold(dst);
@@ -731,7 +720,7 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto tx_err_dst_release;
 	}
 	mtu = dst_mtu(dst) - sizeof (*ipv6h);
-	if (opt) {
+	if (encap_limit >= 0) {
 		max_headroom += 8;
 		mtu -= 8;
 	}
@@ -769,9 +758,10 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	skb->h.raw = skb->nh.raw;
 
-	if (opt)
-		ipv6_push_nfrag_opts(skb, opt, &proto, NULL);
-
+	if (encap_limit >= 0) {
+		init_tel_txopt(&opt, encap_limit);
+		ipv6_push_nfrag_opts(skb, &opt.ops, &proto, NULL);
+	}
 	skb->nh.raw = skb_push(skb, sizeof(struct ipv6hdr));
 	ipv6h = skb->nh.ipv6h;
 	*(__be32*)ipv6h = fl.fl6_flowlabel | htonl(0x60000000);
@@ -795,9 +785,6 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 		stats->tx_aborted_errors++;
 	}
 	ip6_tnl_dst_store(t, dst);
-
-	kfree(opt);
-
 	t->recursion--;
 	return 0;
 tx_err_link_failure:
@@ -805,7 +792,6 @@ tx_err_link_failure:
 	dst_link_failure(skb);
 tx_err_dst_release:
 	dst_release(dst);
-	kfree(opt);
 tx_err:
 	stats->tx_errors++;
 	stats->tx_dropped++;
