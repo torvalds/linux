@@ -424,12 +424,9 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		}
 		break;
 	case ICMPV6_PARAMPROB:
-		/* ignore if parameter problem not caused by a tunnel
-		   encapsulation limit sub-option */
-		if (code != ICMPV6_HDR_FIELD) {
-			break;
-		}
-		teli = parse_tlv_tnl_enc_lim(skb, skb->data);
+		teli = 0;
+		if (code == ICMPV6_HDR_FIELD)
+			teli = parse_tlv_tnl_enc_lim(skb, skb->data);
 
 		if (teli && teli == ntohl(info) - 2) {
 			tel = (struct ipv6_tlv_tnl_enc_lim *) &skb->data[teli];
@@ -441,6 +438,10 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 					       "tunnel!\n", t->parms.name);
 				rel_msg = 1;
 			}
+		} else if (net_ratelimit()) {
+			printk(KERN_WARNING
+			       "%s: Recipient unable to parse tunneled "
+			       "packet!\n ", t->parms.name);
 		}
 		break;
 	case ICMPV6_PKT_TOOBIG:
