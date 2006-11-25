@@ -397,7 +397,7 @@ struct ibm_struct {
 
 static struct proc_dir_entry *proc_dir = NULL;
 
-static struct backlight_device *ibm_backlight_device;
+static struct backlight_device *ibm_backlight_device = NULL;
 
 #define onoff(status,bit) ((status) & (1 << (bit)) ? "on" : "off")
 #define enabled(status,bit) ((status) & (1 << (bit)) ? "enabled" : "disabled")
@@ -1639,6 +1639,7 @@ static int brightness_get(struct backlight_device *bd)
 		return -EIO;
 
 	level &= 0x7;
+
 	return level;
 }
 
@@ -1711,6 +1712,33 @@ static int brightness_write(char *buf)
 static int brightness_update_status(struct backlight_device *bd)
 {
 	return brightness_set(bd->props->brightness);
+}
+
+static struct backlight_properties ibm_backlight_data = {
+        .owner          = THIS_MODULE,
+        .get_brightness = brightness_get,
+        .update_status  = brightness_update_status,
+        .max_brightness = 7,
+};
+
+static int brightness_init(void)
+{
+	ibm_backlight_device = backlight_device_register("ibm", NULL,
+							 &ibm_backlight_data);
+	if (IS_ERR(ibm_backlight_device)) {
+		printk(IBM_ERR "Could not register backlight device\n");
+		return PTR_ERR(ibm_backlight_device);
+	}
+
+	return 0;
+}
+
+static void brightness_exit(void)
+{
+	if (ibm_backlight_device) {
+		backlight_device_unregister(ibm_backlight_device);
+		ibm_backlight_device = NULL;
+	}
 }
 
 static int volume_offset = 0x30;
@@ -2377,6 +2405,8 @@ static struct ibm_struct ibms[] = {
 	 .name = "brightness",
 	 .read = brightness_read,
 	 .write = brightness_write,
+	 .init = brightness_init,
+	 .exit = brightness_exit,
 	 },
 	{
 	 .name = "volume",
@@ -2642,19 +2672,9 @@ IBM_PARAM(brightness);
 IBM_PARAM(volume);
 IBM_PARAM(fan);
 
-static struct backlight_properties ibm_backlight_data = {
-	.owner = THIS_MODULE,
-	.get_brightness = brightness_get,
-	.update_status = brightness_update_status,
-	.max_brightness = 7,
-};
-
 static void acpi_ibm_exit(void)
 {
 	int i;
-
-	if (ibm_backlight_device)
-		backlight_device_unregister(ibm_backlight_device);
 
 	for (i = ARRAY_SIZE(ibms) - 1; i >= 0; i--)
 		ibm_exit(&ibms[i]);
@@ -2756,14 +2776,6 @@ static int __init acpi_ibm_init(void)
 			acpi_ibm_exit();
 			return ret;
 		}
-	}
-
-	ibm_backlight_device = backlight_device_register("ibm", NULL,
-							 &ibm_backlight_data);
-	if (IS_ERR(ibm_backlight_device)) {
-		printk(IBM_ERR "Could not register ibm backlight device\n");
-		ibm_backlight_device = NULL;
-		acpi_ibm_exit();
 	}
 
 	return 0;
