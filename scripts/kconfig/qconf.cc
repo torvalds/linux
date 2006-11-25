@@ -1259,6 +1259,7 @@ void ConfigSearchWindow::search(void)
  * Construct the complete config widget
  */
 ConfigMainWindow::ConfigMainWindow(void)
+	: searchWindow(0)
 {
 	QMenuBar* menu;
 	bool ok;
