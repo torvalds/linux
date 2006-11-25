@@ -591,8 +591,10 @@ void device_del(struct device * dev)
 
 	if (parent)
 		klist_del(&dev->knode_parent);
-	if (dev->devt_attr)
+	if (dev->devt_attr) {
 		device_remove_file(dev, dev->devt_attr);
+		kfree(dev->devt_attr);
+	}
 	if (dev->class) {
 		sysfs_remove_link(&dev->kobj, "subsystem");
 		sysfs_remove_link(&dev->class->subsys.kset.kobj, dev->bus_id);
