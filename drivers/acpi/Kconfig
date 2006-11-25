@@ -224,6 +224,17 @@ config ACPI_IBM_DOCK
 
 	  If you are not sure, say N here.
 
+config ACPI_IBM_BAY
+	bool "Legacy Removable Bay Support"
+	depends on ACPI_IBM
+	depends on ACPI_BAY=n
+	default n
+	---help---
+	  Allows the ibm_acpi driver to handle removable bays.
+	  This support is obsoleted by CONFIG_ACPI_BAY.
+
+	  If you are not sure, say N here.
+
 config ACPI_TOSHIBA
 	tristate "Toshiba Laptop Extras"
 	depends on X86
