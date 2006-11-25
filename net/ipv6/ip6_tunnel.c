@@ -215,11 +215,10 @@ ip6ip6_tnl_unlink(struct ip6_tnl *t)
  *   Create tunnel matching given parameters.
  * 
  * Return: 
- *   0 on success
+ *   created tunnel or NULL
  **/
 
-static int
-ip6_tnl_create(struct ip6_tnl_parm *p, struct ip6_tnl **pt)
+static struct ip6_tnl *ip6_tnl_create(struct ip6_tnl_parm *p)
 {
 	struct net_device *dev;
 	struct ip6_tnl *t;
@@ -236,11 +235,11 @@ ip6_tnl_create(struct ip6_tnl_parm *p, struct ip6_tnl **pt)
 				break;
 		}
 		if (i == IP6_TNL_MAX) 
-			return -ENOBUFS;
+			goto failed;
 	}
 	dev = alloc_netdev(sizeof (*t), name, ip6ip6_tnl_dev_setup);
 	if (dev == NULL)
-		return -ENOMEM;
+		goto failed;
 
 	t = netdev_priv(dev);
 	dev->init = ip6ip6_tnl_dev_init;
@@ -248,13 +247,13 @@ ip6_tnl_create(struct ip6_tnl_parm *p, struct ip6_tnl **pt)
 
 	if ((err = register_netdevice(dev)) < 0) {
 		free_netdev(dev);
-		return err;
+		goto failed;
 	}
 	dev_hold(dev);
-
 	ip6ip6_tnl_link(t);
-	*pt = t;
-	return 0;
+	return t;
+failed:
+	return NULL;
 }
 
 /**
@@ -268,32 +267,23 @@ ip6_tnl_create(struct ip6_tnl_parm *p, struct ip6_tnl **pt)
  *   tunnel device is created and registered for use.
  *
  * Return:
- *   0 if tunnel located or created,
- *   -EINVAL if parameters incorrect,
- *   -ENODEV if no matching tunnel available
+ *   matching tunnel or NULL
  **/
 
-static int
-ip6ip6_tnl_locate(struct ip6_tnl_parm *p, struct ip6_tnl **pt, int create)
+static struct ip6_tnl *ip6ip6_tnl_locate(struct ip6_tnl_parm *p, int create)
 {
 	struct in6_addr *remote = &p->raddr;
 	struct in6_addr *local = &p->laddr;
 	struct ip6_tnl *t;
 
-	if (p->proto != IPPROTO_IPV6)
-		return -EINVAL;
-
 	for (t = *ip6ip6_bucket(p); t; t = t->next) {
 		if (ipv6_addr_equal(local, &t->parms.laddr) &&
-		    ipv6_addr_equal(remote, &t->parms.raddr)) {
-			*pt = t;
-			return (create ? -EEXIST : 0);
-		}
+		    ipv6_addr_equal(remote, &t->parms.raddr))
+			return t;
 	}
 	if (!create)
-		return -ENODEV;
-	
-	return ip6_tnl_create(p, pt);
+		return NULL;
+	return ip6_tnl_create(p);
 }
 
 /**
@@ -920,26 +910,20 @@ static int
 ip6ip6_tnl_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	int err = 0;
-	int create;
 	struct ip6_tnl_parm p;
 	struct ip6_tnl *t = NULL;
 
 	switch (cmd) {
 	case SIOCGETTUNNEL:
 		if (dev == ip6ip6_fb_tnl_dev) {
-			if (copy_from_user(&p,
-					   ifr->ifr_ifru.ifru_data,
-					   sizeof (p))) {
+			if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof (p))) {
 				err = -EFAULT;
 				break;
 			}
-			if ((err = ip6ip6_tnl_locate(&p, &t, 0)) == -ENODEV)
-				t = netdev_priv(dev);
-			else if (err)
-				break;
-		} else
+			t = ip6ip6_tnl_locate(&p, 0);
+		}
+		if (t == NULL)
 			t = netdev_priv(dev);
-
 		memcpy(&p, &t->parms, sizeof (p));
 		if (copy_to_user(ifr->ifr_ifru.ifru_data, &p, sizeof (p))) {
 			err = -EFAULT;
@@ -948,35 +932,36 @@ ip6ip6_tnl_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCADDTUNNEL:
 	case SIOCCHGTUNNEL:
 		err = -EPERM;
-		create = (cmd == SIOCADDTUNNEL);
 		if (!capable(CAP_NET_ADMIN))
 			break;
-		if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof (p))) {
-			err = -EFAULT;
+		err = -EFAULT;
+		if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof (p)))
 			break;
-		}
-		if (!create && dev != ip6ip6_fb_tnl_dev) {
-			t = netdev_priv(dev);
-		}
-		if (!t && (err = ip6ip6_tnl_locate(&p, &t, create))) {
+		err = -EINVAL;
+		if (p.proto != IPPROTO_IPV6)
 			break;
-		}
-		if (cmd == SIOCCHGTUNNEL) {
-			if (t->dev != dev) {
-				err = -EEXIST;
-				break;
-			}
+		t = ip6ip6_tnl_locate(&p, cmd == SIOCADDTUNNEL);
+		if (dev != ip6ip6_fb_tnl_dev && cmd == SIOCCHGTUNNEL) {
+			if (t != NULL) {
+				if (t->dev != dev) {
+					err = -EEXIST;
+					break;
+				}
+			} else
+				t = netdev_priv(dev);
+
 			ip6ip6_tnl_unlink(t);
 			err = ip6ip6_tnl_change(t, &p);
 			ip6ip6_tnl_link(t);
 			netdev_state_change(dev);
 		}
-		if (copy_to_user(ifr->ifr_ifru.ifru_data,
-				 &t->parms, sizeof (p))) {
-			err = -EFAULT;
-		} else {
+		if (t) {
 			err = 0;
-		}
+			if (copy_to_user(ifr->ifr_ifru.ifru_data, &t->parms, sizeof (p)))
+				err = -EFAULT;
+
+		} else
+			err = (cmd == SIOCADDTUNNEL ? -ENOBUFS : -ENOENT);
 		break;
 	case SIOCDELTUNNEL:
 		err = -EPERM;
@@ -984,22 +969,18 @@ ip6ip6_tnl_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			break;
 
 		if (dev == ip6ip6_fb_tnl_dev) {
-			if (copy_from_user(&p, ifr->ifr_ifru.ifru_data,
-					   sizeof (p))) {
-				err = -EFAULT;
+			err = -EFAULT;
+			if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof (p)))
 				break;
-			}
-			err = ip6ip6_tnl_locate(&p, &t, 0);
-			if (err)
+			err = -ENOENT;
+			if ((t = ip6ip6_tnl_locate(&p, 0)) == NULL)
 				break;
-			if (t == netdev_priv(ip6ip6_fb_tnl_dev)) {
-				err = -EPERM;
+			err = -EPERM;
+			if (t->dev == ip6ip6_fb_tnl_dev)
 				break;
-			}
-		} else {
-			t = netdev_priv(dev);
+			dev = t->dev;
 		}
-		err = unregister_netdevice(t->dev);
+		err = unregister_netdevice(dev);
 		break;
 	default:
 		err = -EINVAL;
