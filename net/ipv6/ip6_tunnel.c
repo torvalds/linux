@@ -494,6 +494,27 @@ static inline void ip6ip6_ecn_decapsulate(struct ipv6hdr *outer_iph,
 	if (INET_ECN_is_ce(ipv6_get_dsfield(outer_iph)))
 		IP6_ECN_set_ce(inner_iph);
 }
+static inline int ip6_tnl_rcv_ctl(struct ip6_tnl *t)
+{
+	struct ip6_tnl_parm *p = &t->parms;
+	int ret = 0;
+
+	if (p->flags & IP6_TNL_F_CAP_RCV) {
+    		struct net_device *ldev = NULL;
+
+		if (p->link)
+			ldev = dev_get_by_index(p->link);
+
+		if ((ipv6_addr_is_multicast(&p->laddr) ||
+		     likely(ipv6_chk_addr(&p->laddr, ldev, 0))) &&
+		    likely(!ipv6_chk_addr(&p->raddr, NULL, 0)))
+			ret = 1;
+
+		if (ldev)
+			dev_put(ldev);
+	}
+	return ret;
+}
 
 /**
  * ip6ip6_rcv - decapsulate IPv6 packet and retransmit it locally
@@ -518,7 +539,7 @@ ip6ip6_rcv(struct sk_buff *skb)
 			goto discard;
 		}
 
-		if (!(t->parms.flags & IP6_TNL_F_CAP_RCV)) {
+		if (!ip6_tnl_rcv_ctl(t)) {
 			t->stat.rx_dropped++;
 			read_unlock(&ip6ip6_lock);
 			goto discard;
@@ -597,6 +618,34 @@ ip6ip6_tnl_addr_conflict(struct ip6_tnl *t, struct ipv6hdr *hdr)
 	return ipv6_addr_equal(&t->parms.raddr, &hdr->saddr);
 }
 
+static inline int ip6_tnl_xmit_ctl(struct ip6_tnl *t)
+{
+	struct ip6_tnl_parm *p = &t->parms;
+	int ret = 0;
+
+ 	if (p->flags & IP6_TNL_F_CAP_XMIT) {
+		struct net_device *ldev = NULL;
+
+		if (p->link)
+			ldev = dev_get_by_index(p->link);
+
+		if (unlikely(!ipv6_chk_addr(&p->laddr, ldev, 0)))
+			printk(KERN_WARNING
+			       "%s xmit: Local address not yet configured!\n",
+			       p->name);
+		else if (!ipv6_addr_is_multicast(&p->raddr) &&
+			 unlikely(ipv6_chk_addr(&p->raddr, NULL, 0)))
+			printk(KERN_WARNING
+			       "%s xmit: Routing loop! "
+			       "Remote address found on this node!\n",
+			       p->name);
+		else
+			ret = 1;
+		if (ldev)
+			dev_put(ldev);
+	}
+	return ret;
+}
 /**
  * ip6ip6_tnl_xmit - encapsulate packet and send 
  *   @skb: the outgoing socket buffer
@@ -634,10 +683,9 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto tx_err;
 	}
 	if (skb->protocol != htons(ETH_P_IPV6) ||
-	    !(t->parms.flags & IP6_TNL_F_CAP_XMIT) ||
-	    ip6ip6_tnl_addr_conflict(t, ipv6h)) {
+	    !ip6_tnl_xmit_ctl(t) || ip6ip6_tnl_addr_conflict(t, ipv6h))
 		goto tx_err;
-	}
+
 	if ((offset = parse_tlv_tnl_enc_lim(skb, skb->nh.raw)) > 0) {
 		struct ipv6_tlv_tnl_enc_lim *tel;
 		tel = (struct ipv6_tlv_tnl_enc_lim *) &skb->nh.raw[offset];
@@ -768,39 +816,19 @@ tx_err:
 static void ip6_tnl_set_cap(struct ip6_tnl *t)
 {
 	struct ip6_tnl_parm *p = &t->parms;
-	struct in6_addr *laddr = &p->laddr;
-	struct in6_addr *raddr = &p->raddr;
-	int ltype = ipv6_addr_type(laddr);
-	int rtype = ipv6_addr_type(raddr);
+	int ltype = ipv6_addr_type(&p->laddr);
+	int rtype = ipv6_addr_type(&p->raddr);
 
 	p->flags &= ~(IP6_TNL_F_CAP_XMIT|IP6_TNL_F_CAP_RCV);
 
-	if (ltype != IPV6_ADDR_ANY && rtype != IPV6_ADDR_ANY &&
-	    ((ltype|rtype) &
-	     (IPV6_ADDR_UNICAST|
-	      IPV6_ADDR_LOOPBACK|IPV6_ADDR_LINKLOCAL|
-	      IPV6_ADDR_MAPPED|IPV6_ADDR_RESERVED)) == IPV6_ADDR_UNICAST) {
-		struct net_device *ldev = NULL;
-		int l_ok = 1;
-		int r_ok = 1;
-
-		if (p->link)
-			ldev = dev_get_by_index(p->link);
-		
-		if (ltype&IPV6_ADDR_UNICAST && !ipv6_chk_addr(laddr, ldev, 0))
-			l_ok = 0;
-		
-		if (rtype&IPV6_ADDR_UNICAST && ipv6_chk_addr(raddr, NULL, 0))
-			r_ok = 0;
-		
-		if (l_ok && r_ok) {
-			if (ltype&IPV6_ADDR_UNICAST)
-				p->flags |= IP6_TNL_F_CAP_XMIT;
-			if (rtype&IPV6_ADDR_UNICAST)
-				p->flags |= IP6_TNL_F_CAP_RCV;
-		}
-		if (ldev)
-			dev_put(ldev);
+	if (ltype & (IPV6_ADDR_UNICAST|IPV6_ADDR_MULTICAST) &&
+	    rtype & (IPV6_ADDR_UNICAST|IPV6_ADDR_MULTICAST) &&
+	    !((ltype|rtype) & IPV6_ADDR_LOOPBACK) &&
+	    !((ltype|rtype) & IPV6_ADDR_LINKLOCAL)) {
+		if (ltype&IPV6_ADDR_UNICAST)
+			p->flags |= IP6_TNL_F_CAP_XMIT;
+		if (rtype&IPV6_ADDR_UNICAST)
+			p->flags |= IP6_TNL_F_CAP_RCV;
 	}
 }
 
