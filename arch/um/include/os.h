@@ -233,6 +233,8 @@ extern unsigned long __do_user_copy(void *to, const void *from, int n,
 				    void (*op)(void *to, const void *from,
 					       int n), int *faulted_out);
 
+/* execvp.c */
+extern int execvp_noalloc(char *buf, const char *file, char *const argv[]);
 /* helper.c */
 extern int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv,
 		      unsigned long *stack_out);
