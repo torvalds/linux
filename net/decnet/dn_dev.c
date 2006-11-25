@@ -73,7 +73,7 @@ static BLOCKING_NOTIFIER_HEAD(dnaddr_chain);
 
 static struct dn_dev *dn_dev_create(struct net_device *dev, int *err);
 static void dn_dev_delete(struct net_device *dev);
-static void rtmsg_ifa(int event, struct dn_ifaddr *ifa);
+static void dn_ifaddr_notify(int event, struct dn_ifaddr *ifa);
 
 static int dn_eth_up(struct net_device *);
 static void dn_eth_down(struct net_device *);
@@ -440,7 +440,7 @@ static void dn_dev_del_ifa(struct dn_dev *dn_db, struct dn_ifaddr **ifap, int de
 		}
 	}
 
-	rtmsg_ifa(RTM_DELADDR, ifa1);
+	dn_ifaddr_notify(RTM_DELADDR, ifa1);
 	blocking_notifier_call_chain(&dnaddr_chain, NETDEV_DOWN, ifa1);
 	if (destroy) {
 		dn_dev_free_ifa(ifa1);
@@ -475,7 +475,7 @@ static int dn_dev_insert_ifa(struct dn_dev *dn_db, struct dn_ifaddr *ifa)
 	ifa->ifa_next = dn_db->ifa_list;
 	dn_db->ifa_list = ifa;
 
-	rtmsg_ifa(RTM_NEWADDR, ifa);
+	dn_ifaddr_notify(RTM_NEWADDR, ifa);
 	blocking_notifier_call_chain(&dnaddr_chain, NETDEV_UP, ifa);
 
 	return 0;
@@ -749,7 +749,7 @@ rtattr_failure:
         return -1;
 }
 
-static void rtmsg_ifa(int event, struct dn_ifaddr *ifa)
+static void dn_ifaddr_notify(int event, struct dn_ifaddr *ifa)
 {
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
