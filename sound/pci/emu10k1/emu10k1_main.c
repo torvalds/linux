@@ -956,6 +956,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0151_chip = 1,
 	 .spk71 = 1,
 	 .spdif_bug = 1,
+	 .adc_1361t = 1,  /* 24 bit capture instead of 16bit. Fixes ALSA bug#324 */
 	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004, .revision = 0x04,
 	 .driver = "Audigy2", .name = "Audigy 2 [Unknown]",
