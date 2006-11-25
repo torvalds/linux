@@ -442,7 +442,8 @@ static int mountstats_open(struct inode *inode, struct file *file)
 
 		if (task) {
 			task_lock(task);
-			namespace = task->nsproxy->namespace;
+			if (task->nsproxy)
+				namespace = task->nsproxy->namespace;
 			if (namespace)
 				get_namespace(namespace);
 			task_unlock(task);

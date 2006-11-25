@@ -45,8 +45,10 @@ static inline void exit_task_namespaces(struct task_struct *p)
 {
 	struct nsproxy *ns = p->nsproxy;
 	if (ns) {
-		put_nsproxy(ns);
+		task_lock(p);
 		p->nsproxy = NULL;
+		task_unlock(p);
+		put_nsproxy(ns);
 	}
 }
 #endif
