@@ -199,6 +199,21 @@ do {								\
 		BUILD_CHECK_IRQ_FLAGS(flags);		\
 		flags = _write_lock_irqsave(lock);	\
 	} while (0)
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#define spin_lock_irqsave_nested(lock, flags, subclass)			\
+	do {								\
+		BUILD_CHECK_IRQ_FLAGS(flags);				\
+		flags = _spin_lock_irqsave_nested(lock, subclass);	\
+	} while (0)
+#else
+#define spin_lock_irqsave_nested(lock, flags, subclass)			\
+	do {								\
+		BUILD_CHECK_IRQ_FLAGS(flags);				\
+		flags = _spin_lock_irqsave(lock);			\
+	} while (0)
+#endif
+
 #else
 #define spin_lock_irqsave(lock, flags)			\
 	do {						\
@@ -215,6 +230,9 @@ do {								\
 		BUILD_CHECK_IRQ_FLAGS(flags);		\
 		_write_lock_irqsave(lock, flags);	\
 	} while (0)
+#define spin_lock_irqsave_nested(lock, flags, subclass)	\
+	spin_lock_irqsave(lock, flags)
+
 #endif
 
 #define spin_lock_irq(lock)		_spin_lock_irq(lock)
