@@ -829,6 +829,9 @@ static inline int nla_put_msecs(struct sk_buff *skb, int attrtype,
 #define NLA_PUT_U16(skb, attrtype, value) \
 	NLA_PUT_TYPE(skb, u16, attrtype, value)
 
+#define NLA_PUT_LE16(skb, attrtype, value) \
+	NLA_PUT_TYPE(skb, __le16, attrtype, value)
+
 #define NLA_PUT_U32(skb, attrtype, value) \
 	NLA_PUT_TYPE(skb, u32, attrtype, value)
 
@@ -872,6 +875,15 @@ static inline __be32 nla_get_be32(struct nlattr *nla)
 static inline u16 nla_get_u16(struct nlattr *nla)
 {
 	return *(u16 *) nla_data(nla);
+}
+
+/**
+ * nla_get_le16 - return payload of __le16 attribute
+ * @nla: __le16 netlink attribute
+ */
+static inline __le16 nla_get_le16(struct nlattr *nla)
+{
+	return *(__le16 *) nla_data(nla);
 }
 
 /**
