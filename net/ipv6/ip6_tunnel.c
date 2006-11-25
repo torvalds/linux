@@ -460,6 +460,7 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (rel_msg &&  pskb_may_pull(skb, offset + sizeof (*ipv6h))) {
 		struct rt6_info *rt;
 		struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
+
 		if (!skb2)
 			goto out;
 
@@ -824,7 +825,7 @@ static void ip6_tnl_set_cap(struct ip6_tnl *t)
 	if (ltype & (IPV6_ADDR_UNICAST|IPV6_ADDR_MULTICAST) &&
 	    rtype & (IPV6_ADDR_UNICAST|IPV6_ADDR_MULTICAST) &&
 	    !((ltype|rtype) & IPV6_ADDR_LOOPBACK) &&
-	    !((ltype|rtype) & IPV6_ADDR_LINKLOCAL)) {
+	    (!((ltype|rtype) & IPV6_ADDR_LINKLOCAL) || p->link)) {
 		if (ltype&IPV6_ADDR_UNICAST)
 			p->flags |= IP6_TNL_F_CAP_XMIT;
 		if (rtype&IPV6_ADDR_UNICAST)
@@ -862,8 +863,11 @@ static void ip6ip6_tnl_link_config(struct ip6_tnl *t)
 	dev->iflink = p->link;
 
 	if (p->flags & IP6_TNL_F_CAP_XMIT) {
+		int strict = (ipv6_addr_type(&p->raddr) &
+			      (IPV6_ADDR_MULTICAST|IPV6_ADDR_LINKLOCAL));
+
 		struct rt6_info *rt = rt6_lookup(&p->raddr, &p->laddr,
-						 p->link, 0);
+						 p->link, strict);
 
 		if (rt == NULL)
 			return;
