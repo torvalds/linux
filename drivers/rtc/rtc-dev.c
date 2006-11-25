@@ -214,7 +214,7 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 	struct rtc_wkalrm alarm;
 	void __user *uarg = (void __user *) arg;
 
-	/* check that the calles has appropriate permissions
+	/* check that the calling task has appropriate permissions
 	 * for certain ioctls. doing this check here is useful
 	 * to avoid duplicate code in each driver.
 	 */
@@ -299,6 +299,17 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 
 		err = rtc_set_time(class_dev, &tm);
 		break;
+
+	case RTC_IRQP_READ:
+		if (ops->irq_set_freq)
+			err = put_user(rtc->irq_freq, (unsigned long *) arg);
+		break;
+
+	case RTC_IRQP_SET:
+		if (ops->irq_set_freq)
+			err = rtc_irq_set_freq(class_dev, rtc->irq_task, arg);
+		break;
+
 #if 0
 	case RTC_EPOCH_SET:
 #ifndef rtc_epoch

@@ -265,3 +265,4 @@ int rtc_irq_set_freq(struct class_device *class_dev, struct rtc_task *task, int 
 	}
 	return err;
 }
+EXPORT_SYMBOL_GPL(rtc_irq_set_freq);
