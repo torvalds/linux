@@ -3,6 +3,7 @@
  *
  *
  *  Copyright (C) 2004-2005 Borislav Deianov <borislav@users.sf.net>
+ *  Copyright (C) 2006 Henrique de Moraes Holschuh <hmh@hmh.eng.br>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,10 +20,14 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#define IBM_VERSION "0.12a"
+#define IBM_VERSION "0.13"
 
 /*
  *  Changelog:
+ *
+ *  2006-11-22	0.13	new maintainer
+ *  			changelog now lives in git commit history, and will
+ *  			not be updated further in-file.
  *  
  *  2005-08-17  0.12	fix compilation on 2.6.13-rc kernels
  *  2005-03-17	0.11	support for 600e, 770x
@@ -95,7 +100,7 @@
 #define IBM_FILE "ibm_acpi"
 #define IBM_URL "http://ibm-acpi.sf.net/"
 
-MODULE_AUTHOR("Borislav Deianov");
+MODULE_AUTHOR("Borislav Deianov, Henrique de Moraes Holschuh");
 MODULE_DESCRIPTION(IBM_DESC);
 MODULE_VERSION(IBM_VERSION);
 MODULE_LICENSE("GPL");
