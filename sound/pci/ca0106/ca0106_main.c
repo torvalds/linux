@@ -204,7 +204,7 @@ static struct snd_ca0106_details ca0106_chip_details[] = {
 	  * DAC: WM8768GEDS
 	  */
 	 { .serial = 0x10111102,
-	   .name   = "Audigy LS [SB0570a]",
+	   .name   = "Audigy SE OEM [SB0570a]",
 	   .gpio_type = 1,
 	   .i2c_adc = 1,
 	   .spi_dac = 1 } ,
@@ -1315,7 +1315,7 @@ static int __devinit snd_ca0106_create(int dev, struct snd_card *card,
 	}
 	chip->details = c;
 	if (subsystem[dev]) {
-		printk(KERN_INFO "snd-ca0106: Sound card name=%s, subsystem=0x%x. Forced to subsytem=0x%x\n",
+		printk(KERN_INFO "snd-ca0106: Sound card name=%s, subsystem=0x%x. Forced to subsystem=0x%x\n",
                         c->name, chip->serial, subsystem[dev]);
 	}
 
