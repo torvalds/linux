@@ -49,7 +49,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME			"sata_nv"
-#define DRV_VERSION			"3.1"
+#define DRV_VERSION			"3.2"
 
 #define NV_ADMA_DMA_BOUNDARY		0xffffffffUL
 
@@ -165,6 +165,7 @@ enum {
 
 	/* port flags */
 	NV_ADMA_PORT_REGISTER_MODE	= (1 << 0),
+	NV_ADMA_ATAPI_SETUP_COMPLETE	= (1 << 1),
 
 };
 
@@ -231,6 +232,7 @@ static void nv_ck804_freeze(struct ata_port *ap);
 static void nv_ck804_thaw(struct ata_port *ap);
 static void nv_error_handler(struct ata_port *ap);
 static int nv_adma_slave_config(struct scsi_device *sdev);
+static int nv_adma_check_atapi_dma(struct ata_queued_cmd *qc);
 static void nv_adma_qc_prep(struct ata_queued_cmd *qc);
 static unsigned int nv_adma_qc_issue(struct ata_queued_cmd *qc);
 static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance);
@@ -415,6 +417,7 @@ static const struct ata_port_operations nv_adma_ops = {
 	.port_disable		= ata_port_disable,
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
+	.check_atapi_dma	= nv_adma_check_atapi_dma,
 	.exec_command		= ata_exec_command,
 	.check_status		= ata_check_status,
 	.dev_select		= ata_std_dev_select,
@@ -489,13 +492,71 @@ MODULE_VERSION(DRV_VERSION);
 
 static int adma_enabled = 1;
 
+static inline void __iomem *__nv_adma_ctl_block(void __iomem *mmio,
+					        unsigned int port_no)
+{
+	mmio += NV_ADMA_PORT + port_no * NV_ADMA_PORT_SIZE;
+	return mmio;
+}
+
+static inline void __iomem *nv_adma_ctl_block(struct ata_port *ap)
+{
+	return __nv_adma_ctl_block(ap->host->mmio_base, ap->port_no);
+}
+
+static inline void __iomem *nv_adma_gen_block(struct ata_port *ap)
+{
+	return (ap->host->mmio_base + NV_ADMA_GEN);
+}
+
+static inline void __iomem *nv_adma_notifier_clear_block(struct ata_port *ap)
+{
+	return (nv_adma_gen_block(ap) + NV_ADMA_NOTIFIER_CLEAR + (4 * ap->port_no));
+}
+
+static void nv_adma_register_mode(struct ata_port *ap)
+{
+	void __iomem *mmio = nv_adma_ctl_block(ap);
+	struct nv_adma_port_priv *pp = ap->private_data;
+	u16 tmp;
+
+	if (pp->flags & NV_ADMA_PORT_REGISTER_MODE)
+		return;
+
+	tmp = readw(mmio + NV_ADMA_CTL);
+	writew(tmp & ~NV_ADMA_CTL_GO, mmio + NV_ADMA_CTL);
+
+	pp->flags |= NV_ADMA_PORT_REGISTER_MODE;
+}
+
+static void nv_adma_mode(struct ata_port *ap)
+{
+	void __iomem *mmio = nv_adma_ctl_block(ap);
+	struct nv_adma_port_priv *pp = ap->private_data;
+	u16 tmp;
+
+	if (!(pp->flags & NV_ADMA_PORT_REGISTER_MODE))
+		return;
+		
+	WARN_ON(pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE);
+
+	tmp = readw(mmio + NV_ADMA_CTL);
+	writew(tmp | NV_ADMA_CTL_GO, mmio + NV_ADMA_CTL);
+
+	pp->flags &= ~NV_ADMA_PORT_REGISTER_MODE;
+}
+
 static int nv_adma_slave_config(struct scsi_device *sdev)
 {
 	struct ata_port *ap = ata_shost_to_port(sdev->host);
+	struct nv_adma_port_priv *pp = ap->private_data;
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u64 bounce_limit;
 	unsigned long segment_boundary;
 	unsigned short sg_tablesize;
 	int rc;
+	int adma_enable;
+	u32 current_reg, new_reg, config_mask;
 
 	rc = ata_scsi_slave_config(sdev);
 
@@ -516,13 +577,40 @@ static int nv_adma_slave_config(struct scsi_device *sdev)
 		/* Subtract 1 since an extra entry may be needed for padding, see
 		   libata-scsi.c */
 		sg_tablesize = LIBATA_MAX_PRD - 1;
+		
+		/* Since the legacy DMA engine is in use, we need to disable ADMA
+		   on the port. */
+		adma_enable = 0;
+		nv_adma_register_mode(ap);
 	}
 	else {
 		bounce_limit = *ap->dev->dma_mask;
 		segment_boundary = NV_ADMA_DMA_BOUNDARY;
 		sg_tablesize = NV_ADMA_SGTBL_TOTAL_LEN;
+		adma_enable = 1;
 	}
+	
+	pci_read_config_dword(pdev, NV_MCP_SATA_CFG_20, &current_reg);
 
+	if(ap->port_no == 1)
+		config_mask = NV_MCP_SATA_CFG_20_PORT1_EN |
+			      NV_MCP_SATA_CFG_20_PORT1_PWB_EN;
+	else
+		config_mask = NV_MCP_SATA_CFG_20_PORT0_EN |
+			      NV_MCP_SATA_CFG_20_PORT0_PWB_EN;
+	
+	if(adma_enable) {
+		new_reg = current_reg | config_mask;
+		pp->flags &= ~NV_ADMA_ATAPI_SETUP_COMPLETE;
+	}
+	else {
+		new_reg = current_reg & ~config_mask;
+		pp->flags |= NV_ADMA_ATAPI_SETUP_COMPLETE;
+	}
+	
+	if(current_reg != new_reg)
+		pci_write_config_dword(pdev, NV_MCP_SATA_CFG_20, new_reg);
+	
 	blk_queue_bounce_limit(sdev->request_queue, bounce_limit);
 	blk_queue_segment_boundary(sdev->request_queue, segment_boundary);
 	blk_queue_max_hw_segments(sdev->request_queue, sg_tablesize);
@@ -532,7 +620,13 @@ static int nv_adma_slave_config(struct scsi_device *sdev)
 	return rc;
 }
 
-static unsigned int nv_adma_tf_to_cpb(struct ata_taskfile *tf, u16 *cpb)
+static int nv_adma_check_atapi_dma(struct ata_queued_cmd *qc)
+{
+	struct nv_adma_port_priv *pp = qc->ap->private_data;
+	return !(pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE);
+}
+
+static unsigned int nv_adma_tf_to_cpb(struct ata_taskfile *tf, __le16 *cpb)
 {
 	unsigned int idx = 0;
 
@@ -563,33 +657,11 @@ static unsigned int nv_adma_tf_to_cpb(struct ata_taskfile *tf, u16 *cpb)
 	return idx;
 }
 
-static inline void __iomem *__nv_adma_ctl_block(void __iomem *mmio,
-					        unsigned int port_no)
-{
-	mmio += NV_ADMA_PORT + port_no * NV_ADMA_PORT_SIZE;
-	return mmio;
-}
-
-static inline void __iomem *nv_adma_ctl_block(struct ata_port *ap)
-{
-	return __nv_adma_ctl_block(ap->host->mmio_base, ap->port_no);
-}
-
-static inline void __iomem *nv_adma_gen_block(struct ata_port *ap)
-{
-	return (ap->host->mmio_base + NV_ADMA_GEN);
-}
-
-static inline void __iomem *nv_adma_notifier_clear_block(struct ata_port *ap)
-{
-	return (nv_adma_gen_block(ap) + NV_ADMA_NOTIFIER_CLEAR + (4 * ap->port_no));
-}
-
 static void nv_adma_check_cpb(struct ata_port *ap, int cpb_num, int force_err)
 {
 	struct nv_adma_port_priv *pp = ap->private_data;
 	int complete = 0, have_err = 0;
-	u16 flags = pp->cpb[cpb_num].resp_flags;
+	u8 flags = pp->cpb[cpb_num].resp_flags;
 
 	VPRINTK("CPB %d, flags=0x%x\n", cpb_num, flags);
 
@@ -634,15 +706,48 @@ static void nv_adma_check_cpb(struct ata_port *ap, int cpb_num, int force_err)
 	}
 }
 
+static int nv_host_intr(struct ata_port *ap, u8 irq_stat)
+{
+	struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->active_tag);
+	int handled;
+
+	/* freeze if hotplugged */
+	if (unlikely(irq_stat & (NV_INT_ADDED | NV_INT_REMOVED))) {
+		ata_port_freeze(ap);
+		return 1;
+	}
+
+	/* bail out if not our interrupt */
+	if (!(irq_stat & NV_INT_DEV))
+		return 0;
+
+	/* DEV interrupt w/ no active qc? */
+	if (unlikely(!qc || (qc->tf.flags & ATA_TFLAG_POLLING))) {
+		ata_check_status(ap);
+		return 1;
+	}
+
+	/* handle interrupt */
+	handled = ata_host_intr(ap, qc);
+	if (unlikely(!handled)) {
+		/* spurious, clear it */
+		ata_check_status(ap);
+	}
+
+	return 1;
+}
+
 static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	int i, handled = 0;
+	u32 notifier_clears[2];
 
 	spin_lock(&host->lock);
 
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
+		notifier_clears[i] = 0;
 
 		if (ap && !(ap->flags & ATA_FLAG_DISABLED)) {
 			struct nv_adma_port_priv *pp = ap->private_data;
@@ -654,29 +759,17 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 
 			/* if in ATA register mode, use standard ata interrupt handler */
 			if (pp->flags & NV_ADMA_PORT_REGISTER_MODE) {
-				struct ata_queued_cmd *qc;
-				VPRINTK("in ATA register mode\n");
-				qc = ata_qc_from_tag(ap, ap->active_tag);
-				if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)))
-					handled += ata_host_intr(ap, qc);
-				else {
-					/* No request pending?  Clear interrupt status
-					   anyway, in case there's one pending. */
-					ap->ops->check_status(ap);
-					handled++;
-				}
+				u8 irq_stat = readb(host->mmio_base + NV_INT_STATUS_CK804)
+					>> (NV_INT_PORT_SHIFT * i);
+				handled += nv_host_intr(ap, irq_stat);
 				continue;
 			}
 
 			notifier = readl(mmio + NV_ADMA_NOTIFIER);
 			notifier_error = readl(mmio + NV_ADMA_NOTIFIER_ERROR);
+			notifier_clears[i] = notifier | notifier_error;
 
 			gen_ctl = readl(nv_adma_gen_block(ap) + NV_ADMA_GEN_CTL);
-
-			/* Seems necessary to clear notifiers even when they were 0.
-			   Otherwise we seem to stop receiving further interrupts.
-			   Unsure why. */
-			writel(notifier | notifier_error, nv_adma_notifier_clear_block(ap));
 
 			if( !NV_ADMA_CHECK_INTR(gen_ctl, ap->port_no) && !notifier &&
 			    !notifier_error)
@@ -730,6 +823,15 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 			handled++; /* irq handled if we got here */
 		}
 	}
+	
+	if(notifier_clears[0] || notifier_clears[1]) {
+		/* Note: Both notifier clear registers must be written
+		   if either is set, even if one is zero, according to NVIDIA. */
+		writel(notifier_clears[0], 
+			nv_adma_notifier_clear_block(host->ports[0]));
+		writel(notifier_clears[1], 
+			nv_adma_notifier_clear_block(host->ports[1]));
+	}
 
 	spin_unlock(&host->lock);
 
@@ -742,6 +844,7 @@ static void nv_adma_irq_clear(struct ata_port *ap)
 	u16 status = readw(mmio + NV_ADMA_STAT);
 	u32 notifier = readl(mmio + NV_ADMA_NOTIFIER);
 	u32 notifier_error = readl(mmio + NV_ADMA_NOTIFIER_ERROR);
+	unsigned long dma_stat_addr = ap->ioaddr.bmdma_addr + ATA_DMA_STATUS;
 
 	/* clear ADMA status */
 	writew(status, mmio + NV_ADMA_STAT);
@@ -749,92 +852,76 @@ static void nv_adma_irq_clear(struct ata_port *ap)
 	       nv_adma_notifier_clear_block(ap));
 
 	/** clear legacy status */
-	ap->flags &= ~ATA_FLAG_MMIO;
-	ata_bmdma_irq_clear(ap);
-	ap->flags |= ATA_FLAG_MMIO;
+	outb(inb(dma_stat_addr), dma_stat_addr);
 }
 
 static void nv_adma_bmdma_setup(struct ata_queued_cmd *qc)
 {
-	struct nv_adma_port_priv *pp = qc->ap->private_data;
+	struct ata_port *ap = qc->ap;
+	unsigned int rw = (qc->tf.flags & ATA_TFLAG_WRITE);
+	struct nv_adma_port_priv *pp = ap->private_data;
+	u8 dmactl;
 
-	if(pp->flags & NV_ADMA_PORT_REGISTER_MODE) {
+	if(!(pp->flags & NV_ADMA_PORT_REGISTER_MODE)) {
 		WARN_ON(1);
 		return;
 	}
 
-	qc->ap->flags &= ~ATA_FLAG_MMIO;
-	ata_bmdma_setup(qc);
-	qc->ap->flags |= ATA_FLAG_MMIO;
+	/* load PRD table addr. */
+	outl(ap->prd_dma, ap->ioaddr.bmdma_addr + ATA_DMA_TABLE_OFS);
+
+	/* specify data direction, triple-check start bit is clear */
+	dmactl = inb(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
+	dmactl &= ~(ATA_DMA_WR | ATA_DMA_START);
+	if (!rw)
+		dmactl |= ATA_DMA_WR;
+
+	outb(dmactl, ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
+
+	/* issue r/w command */
+	ata_exec_command(ap, &qc->tf);
 }
 
 static void nv_adma_bmdma_start(struct ata_queued_cmd *qc)
 {
-	struct nv_adma_port_priv *pp = qc->ap->private_data;
+	struct ata_port *ap = qc->ap;
+	struct nv_adma_port_priv *pp = ap->private_data;
+	u8 dmactl;
 
-	if(pp->flags & NV_ADMA_PORT_REGISTER_MODE) {
+	if(!(pp->flags & NV_ADMA_PORT_REGISTER_MODE)) {
 		WARN_ON(1);
 		return;
 	}
 
-	qc->ap->flags &= ~ATA_FLAG_MMIO;
-	ata_bmdma_start(qc);
-	qc->ap->flags |= ATA_FLAG_MMIO;
+	/* start host DMA transaction */
+	dmactl = inb(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
+	outb(dmactl | ATA_DMA_START,
+	     ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
 }
 
 static void nv_adma_bmdma_stop(struct ata_queued_cmd *qc)
 {
-	struct nv_adma_port_priv *pp = qc->ap->private_data;
+	struct ata_port *ap = qc->ap;
+	struct nv_adma_port_priv *pp = ap->private_data;
 
-	if(pp->flags & NV_ADMA_PORT_REGISTER_MODE)
+	if(!(pp->flags & NV_ADMA_PORT_REGISTER_MODE))
 		return;
 
-	qc->ap->flags &= ~ATA_FLAG_MMIO;
-	ata_bmdma_stop(qc);
-	qc->ap->flags |= ATA_FLAG_MMIO;
+	/* clear start/stop bit */
+	outb(inb(ap->ioaddr.bmdma_addr + ATA_DMA_CMD) & ~ATA_DMA_START,
+		ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
+
+	/* one-PIO-cycle guaranteed wait, per spec, for HDMA1:0 transition */
+	ata_altstatus(ap);        /* dummy read */
 }
 
 static u8 nv_adma_bmdma_status(struct ata_port *ap)
 {
-	u8 status;
 	struct nv_adma_port_priv *pp = ap->private_data;
 
-	WARN_ON(pp->flags & NV_ADMA_PORT_REGISTER_MODE);
+	WARN_ON(!(pp->flags & NV_ADMA_PORT_REGISTER_MODE));
 
-	ap->flags &= ~ATA_FLAG_MMIO;
-	status = ata_bmdma_status(ap);
-	ap->flags |= ATA_FLAG_MMIO;
-	return status;
-}
-
-static void nv_adma_register_mode(struct ata_port *ap)
-{
-	void __iomem *mmio = nv_adma_ctl_block(ap);
-	struct nv_adma_port_priv *pp = ap->private_data;
-	u16 tmp;
-
-	if (pp->flags & NV_ADMA_PORT_REGISTER_MODE)
-		return;
-
-	tmp = readw(mmio + NV_ADMA_CTL);
-	writew(tmp & ~NV_ADMA_CTL_GO, mmio + NV_ADMA_CTL);
-
-	pp->flags |= NV_ADMA_PORT_REGISTER_MODE;
-}
-
-static void nv_adma_mode(struct ata_port *ap)
-{
-	void __iomem *mmio = nv_adma_ctl_block(ap);
-	struct nv_adma_port_priv *pp = ap->private_data;
-	u16 tmp;
-
-	if (!(pp->flags & NV_ADMA_PORT_REGISTER_MODE))
-		return;
-
-	tmp = readw(mmio + NV_ADMA_CTL);
-	writew(tmp | NV_ADMA_CTL_GO, mmio + NV_ADMA_CTL);
-
-	pp->flags &= ~NV_ADMA_PORT_REGISTER_MODE;
+	return inb(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
 }
 
 static int nv_adma_port_start(struct ata_port *ap)
@@ -997,7 +1084,7 @@ static void nv_adma_fill_aprd(struct ata_queued_cmd *qc,
 			      int idx,
 			      struct nv_adma_prd *aprd)
 {
-	u32 flags;
+	u8 flags;
 
 	memset(aprd, 0, sizeof(struct nv_adma_prd));
 
@@ -1011,7 +1098,7 @@ static void nv_adma_fill_aprd(struct ata_queued_cmd *qc,
 
 	aprd->addr  = cpu_to_le64(((u64)sg_dma_address(sg)));
 	aprd->len   = cpu_to_le32(((u32)sg_dma_len(sg))); /* len in bytes */
-	aprd->flags = cpu_to_le32(flags);
+	aprd->flags = flags;
 }
 
 static void nv_adma_fill_sg(struct ata_queued_cmd *qc, struct nv_adma_cpb *cpb)
@@ -1045,7 +1132,8 @@ static void nv_adma_qc_prep(struct ata_queued_cmd *qc)
 	VPRINTK("qc->flags = 0x%lx\n", qc->flags);
 
 	if (!(qc->flags & ATA_QCFLAG_DMAMAP) ||
-	     qc->tf.protocol == ATA_PROT_ATAPI_DMA) {
+	     (pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE)) {
+		nv_adma_register_mode(qc->ap);
 		ata_qc_prep(qc);
 		return;
 	}
@@ -1072,12 +1160,13 @@ static void nv_adma_qc_prep(struct ata_queued_cmd *qc)
 
 static unsigned int nv_adma_qc_issue(struct ata_queued_cmd *qc)
 {
+	struct nv_adma_port_priv *pp = qc->ap->private_data;
 	void __iomem *mmio = nv_adma_ctl_block(qc->ap);
 
 	VPRINTK("ENTER\n");
 
 	if (!(qc->flags & ATA_QCFLAG_DMAMAP) ||
-	     qc->tf.protocol == ATA_PROT_ATAPI_DMA) {
+	     (pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE)) {
 		/* use ATA register mode */
 		VPRINTK("no dmamap or ATAPI, using ATA register mode: 0x%lx\n", qc->flags);
 		nv_adma_register_mode(qc->ap);
@@ -1126,37 +1215,6 @@ static irqreturn_t nv_generic_interrupt(int irq, void *dev_instance)
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	return IRQ_RETVAL(handled);
-}
-
-static int nv_host_intr(struct ata_port *ap, u8 irq_stat)
-{
-	struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->active_tag);
-	int handled;
-
-	/* freeze if hotplugged */
-	if (unlikely(irq_stat & (NV_INT_ADDED | NV_INT_REMOVED))) {
-		ata_port_freeze(ap);
-		return 1;
-	}
-
-	/* bail out if not our interrupt */
-	if (!(irq_stat & NV_INT_DEV))
-		return 0;
-
-	/* DEV interrupt w/ no active qc? */
-	if (unlikely(!qc || (qc->tf.flags & ATA_TFLAG_POLLING))) {
-		ata_check_status(ap);
-		return 1;
-	}
-
-	/* handle interrupt */
-	handled = ata_host_intr(ap, qc);
-	if (unlikely(!handled)) {
-		/* spurious, clear it */
-		ata_check_status(ap);
-	}
-
-	return 1;
 }
 
 static irqreturn_t nv_do_interrupt(struct ata_host *host, u8 irq_stat)
