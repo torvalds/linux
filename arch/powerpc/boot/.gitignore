@@ -19,9 +19,15 @@ kernel-vmlinux.strip.gz
 mktree
 uImage
 zImage
-zImage.vmode
+zImage.chrp
+zImage.coff
 zImage.coff.lds
 zImage.lds
+zImage.miboot
+zImage.pmac
+zImage.pseries
+zImage.sandpoint
+zImage.vmode
 zconf.h
 zlib.h
 zutil.h
