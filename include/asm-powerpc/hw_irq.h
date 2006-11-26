@@ -102,6 +102,9 @@ static inline void local_irq_save_ptr(unsigned long *flags)
 #define local_irq_save(flags)	local_irq_save_ptr(&flags)
 #define irqs_disabled()		((mfmsr() & MSR_EE) == 0)
 
+#define hard_irq_enable()	local_irq_enable()
+#define hard_irq_disable()	local_irq_disable()
+
 #endif /* CONFIG_PPC64 */
 
 #define mask_irq(irq)						\
