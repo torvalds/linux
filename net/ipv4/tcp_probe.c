@@ -156,6 +156,8 @@ static __init int tcpprobe_init(void)
 	init_waitqueue_head(&tcpw.wait);
 	spin_lock_init(&tcpw.lock);
 	tcpw.fifo = kfifo_alloc(bufsize, GFP_KERNEL, &tcpw.lock);
+	if (IS_ERR(tcpw.fifo))
+		return PTR_ERR(tcpw.fifo);
 
 	if (!proc_net_fops_create(procname, S_IRUSR, &tcpprobe_fops))
 		goto err0;

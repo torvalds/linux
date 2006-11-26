@@ -495,6 +495,7 @@ static struct xfrm_state *xfrm_user_state_lookup(struct xfrm_usersa_id *p,
 			goto out;
 		}
 
+		err = -ESRCH;
 		x = xfrm_state_lookup_byaddr(&p->daddr, saddr, p->proto,
 					     p->family);
 	}
