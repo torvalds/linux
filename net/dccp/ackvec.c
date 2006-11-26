@@ -68,10 +68,15 @@ int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct dccp_ackvec *av = dp->dccps_hc_rx_ackvec;
-	int len = av->dccpav_vec_len + 2;
+	/* Figure out how many options do we need to represent the ackvec */
+	const u16 nr_opts = (av->dccpav_vec_len +
+			     DCCP_MAX_ACKVEC_OPT_LEN - 1) /
+			    DCCP_MAX_ACKVEC_OPT_LEN;
+	u16 len = av->dccpav_vec_len + 2 * nr_opts, i;
 	struct timeval now;
 	u32 elapsed_time;
-	unsigned char *to, *from;
+	const unsigned char *tail, *from;
+	unsigned char *to;
 	struct dccp_ackvec_record *avr;
 
 	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN)
@@ -90,24 +95,37 @@ int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 
 	DCCP_SKB_CB(skb)->dccpd_opt_len += len;
 
-	to    = skb_push(skb, len);
-	*to++ = DCCPO_ACK_VECTOR_0;
-	*to++ = len;
-
+	to   = skb_push(skb, len);
 	len  = av->dccpav_vec_len;
 	from = av->dccpav_buf + av->dccpav_buf_head;
+	tail = av->dccpav_buf + DCCP_MAX_ACKVEC_LEN;
 
-	/* Check if buf_head wraps */
-	if ((int)av->dccpav_buf_head + len > DCCP_MAX_ACKVEC_LEN) {
-		const u32 tailsize = DCCP_MAX_ACKVEC_LEN - av->dccpav_buf_head;
+	for (i = 0; i < nr_opts; ++i) {
+		int copylen = len;
 
-		memcpy(to, from, tailsize);
-		to   += tailsize;
-		len  -= tailsize;
-		from = av->dccpav_buf;
+		if (len > DCCP_MAX_ACKVEC_OPT_LEN)
+			copylen = DCCP_MAX_ACKVEC_OPT_LEN;
+
+		*to++ = DCCPO_ACK_VECTOR_0;
+		*to++ = copylen + 2;
+
+		/* Check if buf_head wraps */
+		if (from + copylen > tail) {
+			const u16 tailsize = tail - from;
+
+			memcpy(to, from, tailsize);
+			to	+= tailsize;
+			len	-= tailsize;
+			copylen	-= tailsize;
+			from	= av->dccpav_buf;
+		}
+
+		memcpy(to, from, copylen);
+		from += copylen;
+		to   += copylen;
+		len  -= copylen;
 	}
 
-	memcpy(to, from, len);
 	/*
 	 *	From RFC 4340, A.2:
 	 *
