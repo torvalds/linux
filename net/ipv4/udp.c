@@ -448,8 +448,9 @@ static void udp4_hwcsum_outgoing(struct sock *sk, struct sk_buff *skb,
 /*
  * Push out all pending data as one UDP datagram. Socket is locked.
  */
-static int udp_push_pending_frames(struct sock *sk, struct udp_sock *up)
+static int udp_push_pending_frames(struct sock *sk)
 {
+	struct udp_sock  *up = udp_sk(sk);
 	struct inet_sock *inet = inet_sk(sk);
 	struct flowi *fl = &inet->cork.fl;
 	struct sk_buff *skb;
@@ -673,7 +674,7 @@ do_append_data:
 	if (err)
 		udp_flush_pending_frames(sk);
 	else if (!corkreq)
-		err = udp_push_pending_frames(sk, up);
+		err = udp_push_pending_frames(sk);
 	else if (unlikely(skb_queue_empty(&sk->sk_write_queue)))
 		up->pending = 0;
 	release_sock(sk);
@@ -746,7 +747,7 @@ int udp_sendpage(struct sock *sk, struct page *page, int offset,
 
 	up->len += size;
 	if (!(up->corkflag || (flags&MSG_MORE)))
-		ret = udp_push_pending_frames(sk, up);
+		ret = udp_push_pending_frames(sk);
 	if (!ret)
 		ret = size;
 out:
@@ -1299,8 +1300,9 @@ int udp_destroy_sock(struct sock *sk)
 /*
  *	Socket option code for UDP
  */
-static int do_udp_setsockopt(struct sock *sk, int level, int optname,
-			  char __user *optval, int optlen)
+int udp_lib_setsockopt(struct sock *sk, int level, int optname,
+		       char __user *optval, int optlen,
+		       int (*push_pending_frames)(struct sock *))
 {
 	struct udp_sock *up = udp_sk(sk);
 	int val;
@@ -1319,7 +1321,7 @@ static int do_udp_setsockopt(struct sock *sk, int level, int optname,
 		} else {
 			up->corkflag = 0;
 			lock_sock(sk);
-			udp_push_pending_frames(sk, up);
+			(*push_pending_frames)(sk);
 			release_sock(sk);
 		}
 		break;
@@ -1375,7 +1377,8 @@ int udp_setsockopt(struct sock *sk, int level, int optname,
 		   char __user *optval, int optlen)
 {
 	if (level == SOL_UDP  ||  level == SOL_UDPLITE)
-		return do_udp_setsockopt(sk, level, optname, optval, optlen);
+		return udp_lib_setsockopt(sk, level, optname, optval, optlen,
+					  udp_push_pending_frames);
 	return ip_setsockopt(sk, level, optname, optval, optlen);
 }
 
@@ -1384,13 +1387,14 @@ int compat_udp_setsockopt(struct sock *sk, int level, int optname,
 			  char __user *optval, int optlen)
 {
 	if (level == SOL_UDP  ||  level == SOL_UDPLITE)
-		return do_udp_setsockopt(sk, level, optname, optval, optlen);
+		return udp_lib_setsockopt(sk, level, optname, optval, optlen,
+					  udp_push_pending_frames);
 	return compat_ip_setsockopt(sk, level, optname, optval, optlen);
 }
 #endif
 
-static int do_udp_getsockopt(struct sock *sk, int level, int optname,
-			  char __user *optval, int __user *optlen)
+int udp_lib_getsockopt(struct sock *sk, int level, int optname,
+		       char __user *optval, int __user *optlen)
 {
 	struct udp_sock *up = udp_sk(sk);
 	int val, len;
@@ -1437,7 +1441,7 @@ int udp_getsockopt(struct sock *sk, int level, int optname,
 		   char __user *optval, int __user *optlen)
 {
 	if (level == SOL_UDP  ||  level == SOL_UDPLITE)
-		return do_udp_getsockopt(sk, level, optname, optval, optlen);
+		return udp_lib_getsockopt(sk, level, optname, optval, optlen);
 	return ip_getsockopt(sk, level, optname, optval, optlen);
 }
 
@@ -1446,7 +1450,7 @@ int compat_udp_getsockopt(struct sock *sk, int level, int optname,
 				 char __user *optval, int __user *optlen)
 {
 	if (level == SOL_UDP  ||  level == SOL_UDPLITE)
-		return do_udp_getsockopt(sk, level, optname, optval, optlen);
+		return udp_lib_getsockopt(sk, level, optname, optval, optlen);
 	return compat_ip_getsockopt(sk, level, optname, optval, optlen);
 }
 #endif
@@ -1716,6 +1720,8 @@ EXPORT_SYMBOL(udp_ioctl);
 EXPORT_SYMBOL(udp_get_port);
 EXPORT_SYMBOL(udp_prot);
 EXPORT_SYMBOL(udp_sendmsg);
+EXPORT_SYMBOL(udp_lib_getsockopt);
+EXPORT_SYMBOL(udp_lib_setsockopt);
 EXPORT_SYMBOL(udp_poll);
 
 #ifdef CONFIG_PROC_FS

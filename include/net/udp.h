@@ -134,6 +134,11 @@ extern int	udp_ioctl(struct sock *sk, int cmd, unsigned long arg);
 extern int	udp_disconnect(struct sock *sk, int flags);
 extern unsigned int udp_poll(struct file *file, struct socket *sock,
 			     poll_table *wait);
+extern int 	udp_lib_getsockopt(struct sock *sk, int level, int optname,
+			           char __user *optval, int __user *optlen);
+extern int 	udp_lib_setsockopt(struct sock *sk, int level, int optname,
+				   char __user *optval, int optlen,
+				   int (*push_pending_frames)(struct sock *));
 
 DECLARE_SNMP_STAT(struct udp_mib, udp_statistics);
 /*

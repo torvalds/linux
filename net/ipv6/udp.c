@@ -505,10 +505,11 @@ static void udp_v6_flush_pending_frames(struct sock *sk)
  *	Sending
  */
 
-static int udp_v6_push_pending_frames(struct sock *sk, struct udp_sock *up)
+static int udp_v6_push_pending_frames(struct sock *sk)
 {
 	struct sk_buff *skb;
 	struct udphdr *uh;
+	struct udp_sock  *up = udp_sk(sk);
 	struct inet_sock *inet = inet_sk(sk);
 	struct flowi *fl = &inet->cork.fl;
 	int err = 0;
@@ -782,7 +783,7 @@ do_append_data:
 	if (err)
 		udp_v6_flush_pending_frames(sk);
 	else if (!corkreq)
-		err = udp_v6_push_pending_frames(sk, up);
+		err = udp_v6_push_pending_frames(sk);
 	else if (unlikely(skb_queue_empty(&sk->sk_write_queue)))
 		up->pending = 0;
 
@@ -844,72 +845,12 @@ int udpv6_destroy_sock(struct sock *sk)
 /*
  *	Socket option code for UDP
  */
-static int do_udpv6_setsockopt(struct sock *sk, int level, int optname,
-			  char __user *optval, int optlen)
-{
-	struct udp_sock *up = udp_sk(sk);
-	int val;
-	int err = 0;
-
-	if(optlen<sizeof(int))
-		return -EINVAL;
-
-	if (get_user(val, (int __user *)optval))
-		return -EFAULT;
-
-	switch(optname) {
-	case UDP_CORK:
-		if (val != 0) {
-			up->corkflag = 1;
-		} else {
-			up->corkflag = 0;
-			lock_sock(sk);
-			udp_v6_push_pending_frames(sk, up);
-			release_sock(sk);
-		}
-		break;
-	case UDP_ENCAP:
-		switch (val) {
-		case 0:
-			up->encap_type = val;
-			break;
-		default:
-			err = -ENOPROTOOPT;
-			break;
-		}
-		break;
-
-	case UDPLITE_SEND_CSCOV:
-		if (!up->pcflag)         /* Disable the option on UDP sockets */
-			return -ENOPROTOOPT;
-		if (val != 0 && val < 8) /* Illegal coverage: use default (8) */
-			val = 8;
-		up->pcslen = val;
-		up->pcflag |= UDPLITE_SEND_CC;
-		break;
-
-	case UDPLITE_RECV_CSCOV:
-		if (!up->pcflag)         /* Disable the option on UDP sockets */
-			return -ENOPROTOOPT;
-		if (val != 0 && val < 8) /* Avoid silly minimal values.       */
-			val = 8;
-		up->pcrlen = val;
-		up->pcflag |= UDPLITE_RECV_CC;
-		break;
-
-	default:
-		err = -ENOPROTOOPT;
-		break;
-	};
-
-	return err;
-}
-
 int udpv6_setsockopt(struct sock *sk, int level, int optname,
 		     char __user *optval, int optlen)
 {
 	if (level == SOL_UDP  ||  level == SOL_UDPLITE)
-		return do_udpv6_setsockopt(sk, level, optname, optval, optlen);
+		return udp_lib_setsockopt(sk, level, optname, optval, optlen,
+					  udp_v6_push_pending_frames);
 	return ipv6_setsockopt(sk, level, optname, optval, optlen);
 }
 
@@ -918,58 +859,17 @@ int compat_udpv6_setsockopt(struct sock *sk, int level, int optname,
 			    char __user *optval, int optlen)
 {
 	if (level == SOL_UDP  ||  level == SOL_UDPLITE)
-		return do_udpv6_setsockopt(sk, level, optname, optval, optlen);
+		return udp_lib_setsockopt(sk, level, optname, optval, optlen,
+					  udp_v6_push_pending_frames);
 	return compat_ipv6_setsockopt(sk, level, optname, optval, optlen);
 }
 #endif
-
-static int do_udpv6_getsockopt(struct sock *sk, int level, int optname,
-			  char __user *optval, int __user *optlen)
-{
-	struct udp_sock *up = udp_sk(sk);
-	int val, len;
-
-	if(get_user(len,optlen))
-		return -EFAULT;
-
-	len = min_t(unsigned int, len, sizeof(int));
-	
-	if(len < 0)
-		return -EINVAL;
-
-	switch(optname) {
-	case UDP_CORK:
-		val = up->corkflag;
-		break;
-
-	case UDP_ENCAP:
-		val = up->encap_type;
-		break;
-
-	case UDPLITE_SEND_CSCOV:
-		val = up->pcslen;
-		break;
-
-	case UDPLITE_RECV_CSCOV:
-		val = up->pcrlen;
-		break;
-
-	default:
-		return -ENOPROTOOPT;
-	};
-
-  	if(put_user(len, optlen))
-  		return -EFAULT;
-	if(copy_to_user(optval, &val,len))
-		return -EFAULT;
-  	return 0;
-}
 
 int udpv6_getsockopt(struct sock *sk, int level, int optname,
 		     char __user *optval, int __user *optlen)
 {
 	if (level == SOL_UDP  ||  level == SOL_UDPLITE)
-		return do_udpv6_getsockopt(sk, level, optname, optval, optlen);
+		return udp_lib_getsockopt(sk, level, optname, optval, optlen);
 	return ipv6_getsockopt(sk, level, optname, optval, optlen);
 }
 
@@ -978,7 +878,7 @@ int compat_udpv6_getsockopt(struct sock *sk, int level, int optname,
 			    char __user *optval, int __user *optlen)
 {
 	if (level == SOL_UDP  ||  level == SOL_UDPLITE)
-		return do_udpv6_getsockopt(sk, level, optname, optval, optlen);
+		return udp_lib_getsockopt(sk, level, optname, optval, optlen);
 	return compat_ipv6_getsockopt(sk, level, optname, optval, optlen);
 }
 #endif
