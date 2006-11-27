@@ -893,12 +893,6 @@ __nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 
 	memset(conntrack, 0, nf_ct_cache[features].size);
 	conntrack->features = features;
-	if (helper) {
-		struct nf_conn_help *help = nfct_help(conntrack);
-		NF_CT_ASSERT(help);
-		help->helper = helper;
-	}
-
 	atomic_set(&conntrack->ct_general.use, 1);
 	conntrack->ct_general.destroy = destroy_conntrack;
 	conntrack->tuplehash[IP_CT_DIR_ORIGINAL].tuple = *orig;
@@ -982,8 +976,13 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 #endif
 		nf_conntrack_get(&conntrack->master->ct_general);
 		NF_CT_STAT_INC(expect_new);
-	} else
+	} else {
+		struct nf_conn_help *help = nfct_help(conntrack);
+
+		if (help)
+			help->helper = __nf_ct_helper_find(&repl_tuple);
 		NF_CT_STAT_INC(new);
+	}
 
 	/* Overload tuple linked list to put us in unconfirmed list. */
 	list_add(&conntrack->tuplehash[IP_CT_DIR_ORIGINAL].list, &unconfirmed);
