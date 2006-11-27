@@ -350,12 +350,10 @@ out2:
 	       (status >> SPU_STOP_STATUS_SHIFT != 0x2104)))))
 		ret = status;
 
-	if (unlikely(current->ptrace & PT_PTRACED)) {
-		if ((status & SPU_STATUS_STOPPED_BY_STOP)
-		    && (status >> SPU_STOP_STATUS_SHIFT) == 0x3fff) {
-			force_sig(SIGTRAP, current);
-			ret = -ERESTARTSYS;
-		}
+	if ((status & SPU_STATUS_STOPPED_BY_STOP)
+	    && (status >> SPU_STOP_STATUS_SHIFT) == 0x3fff) {
+		force_sig(SIGTRAP, current);
+		ret = -ERESTARTSYS;
 	}
 
 out:
