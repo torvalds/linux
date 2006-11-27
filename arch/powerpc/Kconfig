@@ -852,7 +852,6 @@ source "arch/powerpc/platforms/prep/Kconfig"
 
 config CMDLINE_BOOL
 	bool "Default bootloader kernel arguments"
-	depends on !PPC_ISERIES
 
 config CMDLINE
 	string "Initial kernel command string"
