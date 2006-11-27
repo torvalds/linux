@@ -103,13 +103,7 @@ static void ccid3_hc_tx_set_state(struct sock *sk,
 /* Calculate new t_ipi (inter packet interval) by t_ipi = s / X_inst */
 static inline void ccid3_calc_new_t_ipi(struct ccid3_hc_tx_sock *hctx)
 {
-	/*
-	 * If no feedback spec says t_ipi is 1 second (set elsewhere and then
-	 * doubles after every no feedback timer (separate function)
-	 */
-	if (hctx->ccid3hctx_state != TFRC_SSTATE_NO_FBACK)
-		hctx->ccid3hctx_t_ipi = usecs_div(hctx->ccid3hctx_s,
-						  hctx->ccid3hctx_x);
+	hctx->ccid3hctx_t_ipi = usecs_div(hctx->ccid3hctx_s, hctx->ccid3hctx_x);
 }
 
 /* Calculate new delta by delta = min(t_ipi / 2, t_gran / 2) */
@@ -395,6 +389,8 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 				  "as a data packet",  dccp_role(sk));
 		return;
 	case TFRC_SSTATE_NO_FBACK:
+		/* t_nom, t_ipi, delta do not change until feedback arrives */
+		return;
 	case TFRC_SSTATE_FBACK:
 		if (len > 0) {
 			timeval_sub_usecs(&hctx->ccid3hctx_t_nom,
