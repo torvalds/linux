@@ -663,6 +663,9 @@ static int __init init_spu_base(void)
 {
 	int i, ret;
 
+	if (!spu_management_ops)
+		return 0;
+
 	/* create sysdev class for spus */
 	ret = sysdev_class_register(&spu_sysdev_class);
 	if (ret)
