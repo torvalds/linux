@@ -527,9 +527,13 @@ int device_add(struct device *dev)
 					  &dev->kobj, dev->bus_id);
 #ifdef CONFIG_SYSFS_DEPRECATED
 		if (parent) {
-			sysfs_create_link(&dev->kobj, &dev->parent->kobj, "device");
-			class_name = make_class_name(dev->class->name, &dev->kobj);
-			sysfs_create_link(&dev->parent->kobj, &dev->kobj, class_name);
+			sysfs_create_link(&dev->kobj, &dev->parent->kobj,
+							"device");
+			class_name = make_class_name(dev->class->name,
+							&dev->kobj);
+			if (class_name)
+				sysfs_create_link(&dev->parent->kobj,
+						  &dev->kobj, class_name);
 		}
 #endif
 	}
@@ -672,7 +676,9 @@ void device_del(struct device * dev)
 		if (parent) {
 			char *class_name = make_class_name(dev->class->name,
 							   &dev->kobj);
-			sysfs_remove_link(&dev->parent->kobj, class_name);
+			if (class_name)
+				sysfs_remove_link(&dev->parent->kobj,
+						  class_name);
 			kfree(class_name);
 			sysfs_remove_link(&dev->kobj, "device");
 		}
@@ -975,8 +981,7 @@ static int device_move_class_links(struct device *dev,
 
 	class_name = make_class_name(dev->class->name, &dev->kobj);
 	if (!class_name) {
-		error = PTR_ERR(class_name);
-		class_name = NULL;
+		error = -ENOMEM;
 		goto out;
 	}
 	if (old_parent) {
