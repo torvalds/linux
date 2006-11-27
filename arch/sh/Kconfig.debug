@@ -17,7 +17,18 @@ config SH_STANDARD_BIOS
 
 config EARLY_SCIF_CONSOLE
 	bool "Use early SCIF console"
-	depends on CPU_SH4 || CPU_SH2A && !SH_STANDARD_BIOS
+	help
+	  This enables an early console using a fixed SCIF port. This can
+	  be used by platforms that are either not running the SH
+	  standard BIOS, or do not wish to use the BIOS callbacks for the
+	  serial I/O.
+
+config EARLY_SCIF_CONSOLE_PORT
+	hex "SCIF port for early console"
+	depends on EARLY_SCIF_CONSOLE
+	default "0xffe00000" if CPU_SUBTYPE_SH7780
+	default "0xfffe9800" if CPU_SUBTYPE_SH72060
+	default "0xffe80000" if CPU_SH4
 
 config EARLY_PRINTK
 	bool "Early printk support"
@@ -29,6 +40,11 @@ config EARLY_PRINTK
 	  This option is only useful porting the kernel to a new machine,
 	  when the kernel may crash or hang before the serial console is
 	  initialised. If unsure, say N.
+
+	  On devices that are running SH-IPL and want to keep the port
+	  initialization consistent while not using the BIOS callbacks,
+	  select both the EARLY_SCIF_CONSOLE and SH_STANDARD_BIOS, using
+	  the kernel command line option to toggle back and forth.
 
 config DEBUG_STACKOVERFLOW
 	bool "Check for stack overflows"
