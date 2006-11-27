@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/memory_hotplug.h>
 
+#include <asm/firmware.h>
 #include <asm/lmb.h>
 #include <asm/udbg.h>
 #include <asm/ps3.h>
@@ -292,6 +293,9 @@ static int __init ps3_mm_add_memory(void)
 	unsigned long start_addr;
 	unsigned long start_pfn;
 	unsigned long nr_pages;
+
+	if (!firmware_has_feature(FW_FEATURE_PS3_LV1))
+		return 0;
 
 	BUG_ON(!mem_init_done);
 

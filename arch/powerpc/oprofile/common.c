@@ -147,7 +147,7 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 
 	switch (cur_cpu_spec->oprofile_type) {
 #ifdef CONFIG_PPC64
-#ifdef CONFIG_PPC_CELL
+#ifdef CONFIG_PPC_CELL_NATIVE
 		case PPC_OPROFILE_CELL:
 			model = &op_model_cell;
 			break;

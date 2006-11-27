@@ -27,6 +27,7 @@
 #include <asm/udbg.h>
 #include <asm/ps3.h>
 #include <asm/lv1call.h>
+#include <asm/firmware.h>
 
 #define dump_mmio_region(_a) _dump_mmio_region(_a, __func__, __LINE__)
 static void _dump_mmio_region(const struct ps3_mmio_region* r,
@@ -166,6 +167,9 @@ struct bus_type ps3_system_bus_type = {
 int __init ps3_system_bus_init(void)
 {
 	int result;
+
+	if (!firmware_has_feature(FW_FEATURE_PS3_LV1))
+		return 0;
 
 	result = bus_register(&ps3_system_bus_type);
 	BUG_ON(result);

@@ -108,7 +108,7 @@ static int __init ps3_probe(void)
 	if (!of_flat_dt_is_compatible(dt_root, "PS3"))
 		return 0;
 
-	powerpc_firmware_features |= FW_FEATURE_LPAR;
+	powerpc_firmware_features |= FW_FEATURE_PS3_POSSIBLE;
 
 	ps3_os_area_init();
 	ps3_mm_init();

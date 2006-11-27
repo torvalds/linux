@@ -8,7 +8,7 @@ endif
 
 obj-y				:= fault.o mem.o lmb.o
 obj-$(CONFIG_PPC32)		+= init_32.o pgtable_32.o mmu_context_32.o
-hash-$(CONFIG_PPC_MULTIPLATFORM) := hash_native_64.o
+hash-$(CONFIG_PPC_NATIVE)	:= hash_native_64.o
 obj-$(CONFIG_PPC64)		+= init_64.o pgtable_64.o mmu_context_64.o \
 				   hash_utils_64.o hash_low_64.o tlb_64.o \
 				   slb_low.o slb.o stab.o mmap.o imalloc.o \
