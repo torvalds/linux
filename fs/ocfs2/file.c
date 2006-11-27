@@ -945,6 +945,28 @@ bail:
 	return err;
 }
 
+int ocfs2_permission(struct inode *inode, int mask, struct nameidata *nd)
+{
+	int ret;
+
+	mlog_entry_void();
+
+	ret = ocfs2_meta_lock(inode, NULL, 0);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = generic_permission(inode, mask, NULL);
+	if (ret)
+		mlog_errno(ret);
+
+	ocfs2_meta_unlock(inode, 0);
+out:
+	mlog_exit(ret);
+	return ret;
+}
+
 static int ocfs2_write_remove_suid(struct inode *inode)
 {
 	int ret;
@@ -1329,11 +1351,13 @@ bail:
 struct inode_operations ocfs2_file_iops = {
 	.setattr	= ocfs2_setattr,
 	.getattr	= ocfs2_getattr,
+	.permission	= ocfs2_permission,
 };
 
 struct inode_operations ocfs2_special_file_iops = {
 	.setattr	= ocfs2_setattr,
 	.getattr	= ocfs2_getattr,
+	.permission	= ocfs2_permission,
 };
 
 const struct file_operations ocfs2_fops = {

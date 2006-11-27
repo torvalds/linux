@@ -2311,4 +2311,5 @@ struct inode_operations ocfs2_dir_iops = {
 	.rename		= ocfs2_rename,
 	.setattr	= ocfs2_setattr,
 	.getattr	= ocfs2_getattr,
+	.permission	= ocfs2_permission,
 };
