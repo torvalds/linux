@@ -323,6 +323,10 @@ static int spufs_create_context(struct inode *inode,
 	    == SPU_CREATE_ISOLATE)
 		goto out_unlock;
 
+	ret = -ENODEV;
+	if ((flags & SPU_CREATE_ISOLATE) && !isolated_loader)
+		goto out_unlock;
+
 	ret = spufs_mkdir(inode, dentry, flags, mode & S_IRWXUGO);
 	if (ret)
 		goto out_unlock;
