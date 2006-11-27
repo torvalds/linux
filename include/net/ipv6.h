@@ -158,9 +158,13 @@ DECLARE_SNMP_STAT(struct icmpv6_mib, icmpv6_statistics);
 	SNMP_INC_STATS_OFFSET_BH(icmpv6_statistics, field, _offset);    	\
 })
 DECLARE_SNMP_STAT(struct udp_mib, udp_stats_in6);
-#define UDP6_INC_STATS(field)		SNMP_INC_STATS(udp_stats_in6, field)
-#define UDP6_INC_STATS_BH(field)	SNMP_INC_STATS_BH(udp_stats_in6, field)
-#define UDP6_INC_STATS_USER(field) 	SNMP_INC_STATS_USER(udp_stats_in6, field)
+DECLARE_SNMP_STAT(struct udp_mib, udplite_stats_in6);
+#define UDP6_INC_STATS_BH(field, is_udplite) 			      do  {  \
+	if (is_udplite) SNMP_INC_STATS_BH(udplite_stats_in6, field);         \
+	else		SNMP_INC_STATS_BH(udp_stats_in6, field);    } while(0)
+#define UDP6_INC_STATS_USER(field, is_udplite)			       do {    \
+	if (is_udplite) SNMP_INC_STATS_USER(udplite_stats_in6, field);         \
+	else		SNMP_INC_STATS_USER(udp_stats_in6, field);    } while(0)
 
 int snmp6_register_dev(struct inet6_dev *idev);
 int snmp6_unregister_dev(struct inet6_dev *idev);
@@ -604,6 +608,8 @@ extern int  tcp6_proc_init(void);
 extern void tcp6_proc_exit(void);
 extern int  udp6_proc_init(void);
 extern void udp6_proc_exit(void);
+extern int  udplite6_proc_init(void);
+extern void udplite6_proc_exit(void);
 extern int  ipv6_misc_proc_init(void);
 extern void ipv6_misc_proc_exit(void);
 

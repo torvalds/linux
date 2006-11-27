@@ -1,5 +1,5 @@
-/* Kernel module to match one of a list of TCP/UDP/SCTP/DCCP ports: ports are in
-   the same place so we can treat them as equal. */
+/* Kernel module to match one of a list of TCP/UDP(-Lite)/SCTP/DCCP ports:
+   ports are in the same place so we can treat them as equal. */
 
 /* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
@@ -162,6 +162,7 @@ check(u_int16_t proto,
 {
 	/* Must specify supported protocol, no unknown flags or bad count */
 	return (proto == IPPROTO_TCP || proto == IPPROTO_UDP
+		|| proto == IPPROTO_UDPLITE
 		|| proto == IPPROTO_SCTP || proto == IPPROTO_DCCP)
 		&& !(ip_invflags & XT_INV_PROTO)
 		&& (match_flags == XT_MULTIPORT_SOURCE

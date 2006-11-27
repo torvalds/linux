@@ -1,0 +1,149 @@
+/*
+ *	Definitions for the UDP-Lite (RFC 3828) code.
+ */
+#ifndef _UDPLITE_H
+#define _UDPLITE_H
+
+/* UDP-Lite socket options */
+#define UDPLITE_SEND_CSCOV   10 /* sender partial coverage (as sent)      */
+#define UDPLITE_RECV_CSCOV   11 /* receiver partial coverage (threshold ) */
+
+extern struct proto 		udplite_prot;
+extern struct hlist_head 	udplite_hash[UDP_HTABLE_SIZE];
+
+/* UDP-Lite does not have a standardized MIB yet, so we inherit from UDP */
+DECLARE_SNMP_STAT(struct udp_mib, udplite_statistics);
+
+/*
+ *	Checksum computation is all in software, hence simpler getfrag.
+ */
+static __inline__ int udplite_getfrag(void *from, char *to, int  offset,
+				      int len, int odd, struct sk_buff *skb)
+{
+	return memcpy_fromiovecend(to, (struct iovec *) from, offset, len);
+}
+
+/* Designate sk as UDP-Lite socket */
+static inline int udplite_sk_init(struct sock *sk)
+{
+	udp_sk(sk)->pcflag = UDPLITE_BIT;
+	return 0;
+}
+
+/*
+ * 	Checksumming routines
+ */
+static inline int udplite_checksum_init(struct sk_buff *skb, struct udphdr *uh)
+{
+	u16 cscov;
+
+        /* In UDPv4 a zero checksum means that the transmitter generated no
+         * checksum. UDP-Lite (like IPv6) mandates checksums, hence packets
+         * with a zero checksum field are illegal.                            */
+	if (uh->check == 0) {
+		LIMIT_NETDEBUG(KERN_DEBUG "UDPLITE: zeroed checksum field\n");
+		return 1;
+	}
+
+        UDP_SKB_CB(skb)->partial_cov = 0;
+	cscov = ntohs(uh->len);
+
+	if (cscov == 0)		 /* Indicates that full coverage is required. */
+		cscov = skb->len;
+	else if (cscov < 8  || cscov > skb->len) {
+		/*
+		 * Coverage length violates RFC 3828: log and discard silently.
+		 */
+		LIMIT_NETDEBUG(KERN_DEBUG "UDPLITE: bad csum coverage %d/%d\n",
+			       cscov, skb->len);
+		return 1;
+
+	} else if (cscov < skb->len)
+        	UDP_SKB_CB(skb)->partial_cov = 1;
+
+        UDP_SKB_CB(skb)->cscov = cscov;
+
+	/*
+	 * There is no known NIC manufacturer supporting UDP-Lite yet,
+	 * hence ip_summed is always (re-)set to CHECKSUM_NONE.
+	 */
+	skb->ip_summed = CHECKSUM_NONE;
+
+	return 0;
+}
+
+static __inline__ int udplite4_csum_init(struct sk_buff *skb, struct udphdr *uh)
+{
+	int rc = udplite_checksum_init(skb, uh);
+
+	if (!rc)
+		skb->csum = csum_tcpudp_nofold(skb->nh.iph->saddr,
+					       skb->nh.iph->daddr,
+					       skb->len, IPPROTO_UDPLITE, 0);
+	return rc;
+}
+
+static __inline__ int udplite6_csum_init(struct sk_buff *skb, struct udphdr *uh)
+{
+	int rc = udplite_checksum_init(skb, uh);
+
+	if (!rc)
+		skb->csum = ~csum_ipv6_magic(&skb->nh.ipv6h->saddr,
+					     &skb->nh.ipv6h->daddr,
+					     skb->len, IPPROTO_UDPLITE, 0);
+	return rc;
+}
+
+static inline int udplite_sender_cscov(struct udp_sock *up, struct udphdr *uh)
+{
+	int cscov = up->len;
+
+	/*
+	 * Sender has set `partial coverage' option on UDP-Lite socket
+	 */
+	if (up->pcflag & UDPLITE_SEND_CC)    {
+		if (up->pcslen < up->len) {
+		/* up->pcslen == 0 means that full coverage is required,
+		 * partial coverage only if  0 < up->pcslen < up->len */
+			if (0 < up->pcslen) {
+			       cscov = up->pcslen;
+			}
+			uh->len = htons(up->pcslen);
+		}
+	/*
+	 * NOTE: Causes for the error case  `up->pcslen > up->len':
+	 *        (i)  Application error (will not be penalized).
+	 *       (ii)  Payload too big for send buffer: data is split
+	 *             into several packets, each with its own header.
+	 *             In this case (e.g. last segment), coverage may
+	 *             exceed packet length.
+	 *       Since packets with coverage length > packet length are
+	 *       illegal, we fall back to the defaults here.
+	 */
+	}
+	return cscov;
+}
+
+static inline u32 udplite_csum_outgoing(struct sock *sk, struct sk_buff *skb)
+{
+	u32 csum = 0;
+	int off, len, cscov = udplite_sender_cscov(udp_sk(sk), skb->h.uh);
+
+	skb->ip_summed = CHECKSUM_NONE;     /* no HW support for checksumming */
+
+	skb_queue_walk(&sk->sk_write_queue, skb) {
+		off = skb->h.raw - skb->data;
+		len = skb->len - off;
+
+		csum = skb_checksum(skb, off, (cscov > len)? len : cscov, csum);
+
+		if ((cscov -= len) <= 0)
+			break;
+	}
+	return csum;
+}
+
+extern void	udplite4_register(void);
+extern int 	udplite_get_port(struct sock *sk, unsigned short snum,
+			int (*scmp)(const struct sock *, const struct sock *));
+#endif	/* _UDPLITE_H */

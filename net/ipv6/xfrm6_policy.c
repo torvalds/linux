@@ -274,6 +274,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl)
 			break;
 
 		case IPPROTO_UDP:
+		case IPPROTO_UDPLITE:
 		case IPPROTO_TCP:
 		case IPPROTO_SCTP:
 		case IPPROTO_DCCP:
