@@ -769,7 +769,7 @@ out_noput:
 	return err;
 }
 
-static int verify_policy_dir(__u8 dir)
+static int verify_policy_dir(u8 dir)
 {
 	switch (dir) {
 	case XFRM_POLICY_IN:
@@ -784,7 +784,7 @@ static int verify_policy_dir(__u8 dir)
 	return 0;
 }
 
-static int verify_policy_type(__u8 type)
+static int verify_policy_type(u8 type)
 {
 	switch (type) {
 	case XFRM_POLICY_TYPE_MAIN:
@@ -897,7 +897,7 @@ static int copy_from_user_policy_type(u8 *tp, struct rtattr **xfrma)
 {
 	struct rtattr *rt = xfrma[XFRMA_POLICY_TYPE-1];
 	struct xfrm_userpolicy_type *upt;
-	__u8 type = XFRM_POLICY_TYPE_MAIN;
+	u8 type = XFRM_POLICY_TYPE_MAIN;
 	int err;
 
 	if (rt) {
@@ -1079,7 +1079,7 @@ static inline int copy_to_user_sec_ctx(struct xfrm_policy *xp, struct sk_buff *s
 }
 
 #ifdef CONFIG_XFRM_SUB_POLICY
-static int copy_to_user_policy_type(__u8 type, struct sk_buff *skb)
+static int copy_to_user_policy_type(u8 type, struct sk_buff *skb)
 {
 	struct xfrm_userpolicy_type upt;
 
@@ -1095,7 +1095,7 @@ rtattr_failure:
 }
 
 #else
-static inline int copy_to_user_policy_type(__u8 type, struct sk_buff *skb)
+static inline int copy_to_user_policy_type(u8 type, struct sk_buff *skb)
 {
 	return 0;
 }
@@ -1185,7 +1185,7 @@ static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfr
 {
 	struct xfrm_policy *xp;
 	struct xfrm_userpolicy_id *p;
-	__u8 type = XFRM_POLICY_TYPE_MAIN;
+	u8 type = XFRM_POLICY_TYPE_MAIN;
 	int err;
 	struct km_event c;
 	int delete;
@@ -1403,7 +1403,7 @@ out:
 static int xfrm_flush_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
 {
 	struct km_event c;
-	__u8 type = XFRM_POLICY_TYPE_MAIN;
+	u8 type = XFRM_POLICY_TYPE_MAIN;
 	int err;
 
 	err = copy_from_user_policy_type(&type, (struct rtattr **)xfrma);
@@ -1424,7 +1424,7 @@ static int xfrm_add_pol_expire(struct sk_buff *skb, struct nlmsghdr *nlh, void *
 	struct xfrm_policy *xp;
 	struct xfrm_user_polexpire *up = NLMSG_DATA(nlh);
 	struct xfrm_userpolicy_info *p = &up->pol;
-	__u8 type = XFRM_POLICY_TYPE_MAIN;
+	u8 type = XFRM_POLICY_TYPE_MAIN;
 	int err = -ENOENT;
 
 	err = copy_from_user_policy_type(&type, (struct rtattr **)xfrma);
