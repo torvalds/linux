@@ -835,6 +835,10 @@ static void *gfs2_follow_link(struct dentry *dentry, struct nameidata *nd)
  * @mask:
  * @nd: passed from Linux VFS, ignored by us
  *
+ * This may be called from the VFS directly, or from within GFS2 with the
+ * inode locked, so we look to see if the glock is already locked and only
+ * lock the glock if its not already been done.
+ *
  * Returns: errno
  */
 
@@ -843,15 +847,18 @@ static int gfs2_permission(struct inode *inode, int mask, struct nameidata *nd)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder i_gh;
 	int error;
+	int unlock = 0;
 
-	if (!test_bit(GIF_INVALID, &ip->i_flags))
-		return generic_permission(inode, mask, gfs2_check_acl);
-
-	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
-	if (!error) {
-		error = generic_permission(inode, mask, gfs2_check_acl_locked);
-		gfs2_glock_dq_uninit(&i_gh);
+	if (gfs2_glock_is_locked_by_me(ip->i_gl) == 0) {
+		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
+		if (error)
+			return error;
+		unlock = 1;
 	}
+
+	error = generic_permission(inode, mask, gfs2_check_acl_locked);
+	if (unlock)
+		gfs2_glock_dq_uninit(&i_gh);
 
 	return error;
 }
