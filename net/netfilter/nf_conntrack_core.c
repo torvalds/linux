@@ -469,10 +469,8 @@ __nf_conntrack_expect_find(const struct nf_conntrack_tuple *tuple)
 	struct nf_conntrack_expect *i;
 	
 	list_for_each_entry(i, &nf_conntrack_expect_list, list) {
-		if (nf_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask)) {
-			atomic_inc(&i->use);
+		if (nf_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask))
 			return i;
-		}
 	}
 	return NULL;
 }
@@ -485,6 +483,8 @@ nf_conntrack_expect_find(const struct nf_conntrack_tuple *tuple)
 	
 	read_lock_bh(&nf_conntrack_lock);
 	i = __nf_conntrack_expect_find(tuple);
+	if (i)
+		atomic_inc(&i->use);
 	read_unlock_bh(&nf_conntrack_lock);
 
 	return i;

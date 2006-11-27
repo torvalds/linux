@@ -225,10 +225,8 @@ __ip_conntrack_expect_find(const struct ip_conntrack_tuple *tuple)
 	struct ip_conntrack_expect *i;
 	
 	list_for_each_entry(i, &ip_conntrack_expect_list, list) {
-		if (ip_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask)) {
-			atomic_inc(&i->use);
+		if (ip_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask))
 			return i;
-		}
 	}
 	return NULL;
 }
@@ -241,6 +239,8 @@ ip_conntrack_expect_find(const struct ip_conntrack_tuple *tuple)
 	
 	read_lock_bh(&ip_conntrack_lock);
 	i = __ip_conntrack_expect_find(tuple);
+	if (i)
+		atomic_inc(&i->use);
 	read_unlock_bh(&ip_conntrack_lock);
 
 	return i;
