@@ -2113,7 +2113,6 @@ static int xfrm_notify_policy_flush(struct km_event *c)
 	unsigned char *b;
 	int len = 0;
 #ifdef CONFIG_XFRM_SUB_POLICY
-	struct xfrm_userpolicy_type upt;
 	len += RTA_SPACE(sizeof(struct xfrm_userpolicy_type));
 #endif
 	len += NLMSG_LENGTH(0);
@@ -2126,12 +2125,8 @@ static int xfrm_notify_policy_flush(struct km_event *c)
 
 	nlh = NLMSG_PUT(skb, c->pid, c->seq, XFRM_MSG_FLUSHPOLICY, 0);
 	nlh->nlmsg_flags = 0;
-
-#ifdef CONFIG_XFRM_SUB_POLICY
-	memset(&upt, 0, sizeof(upt));
-	upt.type = c->data.type;
-	RTA_PUT(skb, XFRMA_POLICY_TYPE, sizeof(upt), &upt);
-#endif
+	if (copy_to_user_policy_type(c->data.type, skb) < 0)
+		goto nlmsg_failure;
 
 	nlh->nlmsg_len = skb->tail - b;
 
@@ -2139,9 +2134,6 @@ static int xfrm_notify_policy_flush(struct km_event *c)
 	return netlink_broadcast(xfrm_nl, skb, 0, XFRMNLGRP_POLICY, GFP_ATOMIC);
 
 nlmsg_failure:
-#ifdef CONFIG_XFRM_SUB_POLICY
-rtattr_failure:
-#endif
 	kfree_skb(skb);
 	return -1;
 }
