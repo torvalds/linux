@@ -97,7 +97,9 @@ BEGIN_FW_FTR_SECTION
 	cmpdi	cr1,r0,0x5555		/* syscall 0x5555 */
 	andi.	r10,r12,MSR_PR		/* from kernel */
 	crand	4*cr0+eq,4*cr1+eq,4*cr0+eq
-	beq	hardware_interrupt_entry
+	bne	2f
+	b	hardware_interrupt_entry
+2:
 END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 #endif
 	mfmsr	r11

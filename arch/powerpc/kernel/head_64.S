@@ -825,7 +825,7 @@ system_reset_iSeries:
 
 	cmpwi	0,r23,0
 	beq	iSeries_secondary_smp_loop	/* Loop until told to go */
-	bne	.__secondary_start		/* Loop until told to go */
+	bne	__secondary_start		/* Loop until told to go */
 iSeries_secondary_smp_loop:
 	/* Let the Hypervisor know we are alive */
 	/* 8002 is a call to HvCallCfg::getLps, a harmless Hypervisor function */
@@ -846,7 +846,6 @@ iSeries_secondary_smp_loop:
 	b	1b			/* If SMP not configured, secondaries
 					 * loop forever */
 
-	.globl decrementer_iSeries_masked
 decrementer_iSeries_masked:
 	/* We may not have a valid TOC pointer in here. */
 	li	r11,1
@@ -857,7 +856,6 @@ decrementer_iSeries_masked:
 	mtspr	SPRN_DEC,r12
 	/* fall through */
 
-	.globl hardware_interrupt_iSeries_masked
 hardware_interrupt_iSeries_masked:
 	mtcrf	0x80,r9		/* Restore regs */
 	ld	r12,PACALPPACAPTR(r13)
@@ -1604,7 +1602,7 @@ _GLOBAL(generic_secondary_smp_init)
 	ld	r1,PACAEMERGSP(r13)
 	subi	r1,r1,STACK_FRAME_OVERHEAD
 
-	b	.__secondary_start
+	b	__secondary_start
 #endif
 
 #ifdef CONFIG_PPC_ISERIES
@@ -1873,7 +1871,7 @@ _GLOBAL(pmac_secondary_start)
 	ld	r1,PACAEMERGSP(r13)
 	subi	r1,r1,STACK_FRAME_OVERHEAD
 
-	b	.__secondary_start
+	b	__secondary_start
 
 #endif /* CONFIG_PPC_PMAC */
 
@@ -1890,7 +1888,7 @@ _GLOBAL(pmac_secondary_start)
  *   r13   = paca virtual address
  *   SPRG3 = paca virtual address
  */
-_GLOBAL(__secondary_start)
+__secondary_start:
 	/* Set thread priority to MEDIUM */
 	HMT_MEDIUM
 
