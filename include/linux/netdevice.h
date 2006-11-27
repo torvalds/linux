@@ -196,7 +196,7 @@ struct hh_cache
                                          *  NOTE:  For VLANs, this will be the
                                          *  encapuslated type. --BLG
                                          */
-	int		hh_len;		/* length of header */
+	u16		hh_len;		/* length of header */
 	int		(*hh_output)(struct sk_buff *skb);
 	rwlock_t	hh_lock;
 
