@@ -16,7 +16,6 @@ obj-$(CONFIG_MTD)		+= rom.o
 ifeq ($(CONFIG_PPC_MERGE),y)
 obj-$(CONFIG_PPC_I8259)		+= i8259.o
 obj-$(CONFIG_PPC_83xx)		+= ipic.o
-obj-$(CONFIG_PPC_MPC52xx)	+= mpc52xx_pic.o
 endif
 
 # Temporary hack until we have migrated to asm-powerpc
