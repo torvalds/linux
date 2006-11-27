@@ -370,9 +370,10 @@ static void receive_rcom_lock_reply(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 static int send_ls_not_ready(int nodeid, struct dlm_rcom *rc_in)
 {
 	struct dlm_rcom *rc;
+	struct rcom_config *rf;
 	struct dlm_mhandle *mh;
 	char *mb;
-	int mb_len = sizeof(struct dlm_rcom);
+	int mb_len = sizeof(struct dlm_rcom) + sizeof(struct rcom_config);
 
 	mh = dlm_lowcomms_get_buffer(nodeid, mb_len, GFP_KERNEL, &mb);
 	if (!mh)
@@ -390,6 +391,9 @@ static int send_ls_not_ready(int nodeid, struct dlm_rcom *rc_in)
 	rc->rc_type = DLM_RCOM_STATUS_REPLY;
 	rc->rc_id = rc_in->rc_id;
 	rc->rc_result = -ESRCH;
+
+	rf = (struct rcom_config *) rc->rc_buf;
+	rf->rf_lvblen = -1;
 
 	dlm_rcom_out(rc);
 	dlm_lowcomms_commit_buffer(mh);
