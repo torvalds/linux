@@ -585,6 +585,9 @@ extern int rtnl_notify(struct sk_buff *skb, u32 pid, u32 group,
 		       struct nlmsghdr *nlh, gfp_t flags);
 extern void rtnl_set_sk_err(u32 group, int error);
 extern int rtnetlink_put_metrics(struct sk_buff *skb, u32 *metrics);
+extern int rtnl_put_cacheinfo(struct sk_buff *skb, struct dst_entry *dst,
+			      u32 id, u32 ts, u32 tsage, long expires,
+			      u32 error);
 
 extern void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const void *data);
 

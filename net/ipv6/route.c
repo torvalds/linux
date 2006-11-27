@@ -2027,7 +2027,7 @@ static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 {
 	struct rtmsg *rtm;
 	struct nlmsghdr *nlh;
-	struct rta_cacheinfo ci;
+	long expires;
 	u32 table;
 
 	if (prefix) {	/* user wants prefix routes only */
@@ -2101,18 +2101,11 @@ static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 		NLA_PUT_U32(skb, RTA_OIF, rt->rt6i_dev->ifindex);
 
 	NLA_PUT_U32(skb, RTA_PRIORITY, rt->rt6i_metric);
-	ci.rta_lastuse = jiffies_to_clock_t(jiffies - rt->u.dst.lastuse);
-	if (rt->rt6i_expires)
-		ci.rta_expires = jiffies_to_clock_t(rt->rt6i_expires - jiffies);
-	else
-		ci.rta_expires = 0;
-	ci.rta_used = rt->u.dst.__use;
-	ci.rta_clntref = atomic_read(&rt->u.dst.__refcnt);
-	ci.rta_error = rt->u.dst.error;
-	ci.rta_id = 0;
-	ci.rta_ts = 0;
-	ci.rta_tsage = 0;
-	NLA_PUT(skb, RTA_CACHEINFO, sizeof(ci), &ci);
+
+	expires = rt->rt6i_expires ? rt->rt6i_expires - jiffies : 0;
+	if (rtnl_put_cacheinfo(skb, &rt->u.dst, 0, 0, 0,
+			       expires, rt->u.dst.error) < 0)
+		goto nla_put_failure;
 
 	return nlmsg_end(skb, nlh);
 
