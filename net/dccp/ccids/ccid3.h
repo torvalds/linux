@@ -46,7 +46,7 @@
 #define TFRC_STD_PACKET_SIZE	  256
 #define TFRC_MAX_PACKET_SIZE	65535
 
-/* Two seconds as per CCID3 spec */
+/* Two seconds as per RFC 3448 4.2 */
 #define TFRC_INITIAL_TIMEOUT	   (2 * USEC_PER_SEC)
 
 /* In usecs - half the scheduling granularity as per RFC3448 4.6 */
