@@ -217,7 +217,6 @@ static struct kcore_list kcore_mem, kcore_vmalloc;
 
 void __init mem_init(void)
 {
-	extern unsigned long empty_zero_page[1024];
 	int codesize, reservedpages, datasize, initsize;
 	int tmp;
 	extern unsigned long memory_start;

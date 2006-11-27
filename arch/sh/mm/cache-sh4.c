@@ -225,7 +225,7 @@ static inline void flush_cache_4096(unsigned long start,
 	 */
 	if ((cpu_data->flags & CPU_HAS_P2_FLUSH_BUG) ||
 	    (start < CACHE_OC_ADDRESS_ARRAY))
-	    	exec_offset = 0x20000000;
+		exec_offset = 0x20000000;
 
 	local_irq_save(flags);
 	__flush_cache_4096(start | SH_CACHE_ASSOC,
@@ -246,7 +246,7 @@ void flush_dcache_page(struct page *page)
 
 		/* Loop all the D-cache */
 		n = cpu_data->dcache.n_aliases;
-		for (i = 0; i < n; i++, addr += PAGE_SIZE)
+		for (i = 0; i < n; i++, addr += 4096)
 			flush_cache_4096(addr, phys);
 	}
 

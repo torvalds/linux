@@ -23,8 +23,9 @@
 #ifdef CONFIG_HAS_SR_RB
 	stc	r7_bank, \ti
 #else
-	mov	#((THREAD_SIZE - 1)>> 8) ^ 0xff, \tmp
+	mov	#((THREAD_SIZE - 1) >> 10) ^ 0xff, \tmp
 	shll8	\tmp
+	shll2	\tmp
 	mov	r15, \ti
 	and	\tmp, \ti
 #endif	

@@ -90,13 +90,7 @@ static inline struct thread_info *current_thread_info(void)
 #endif
 #define free_thread_info(ti)	kfree(ti)
 
-#else /* !__ASSEMBLY__ */
-
-/* how to get the thread information struct from ASM */
-#define GET_THREAD_INFO(reg) \
-	stc     r7_bank, reg
-
-#endif
+#endif /* __ASSEMBLY__ */
 
 /*
  * thread information flags

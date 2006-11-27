@@ -47,8 +47,8 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
 /* Entries per level */
-#define PTRS_PER_PTE	(1 << PTE_BITS)
-#define PTRS_PER_PGD	(1 << PGDIR_BITS)
+#define PTRS_PER_PTE	(PAGE_SIZE / 4)
+#define PTRS_PER_PGD	(PAGE_SIZE / 4)
 
 #define USER_PTRS_PER_PGD	(TASK_SIZE/PGDIR_SIZE)
 #define FIRST_USER_ADDRESS	0
@@ -57,7 +57,7 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 
 /*
  * First 1MB map is used by fixed purpose.
- * Currently only 4-enty (16kB) is used (see arch/sh/mm/cache.c)
+ * Currently only 4-entry (16kB) is used (see arch/sh/mm/cache.c)
  */
 #define VMALLOC_START	(P3SEG+0x00100000)
 #define VMALLOC_END	(FIXADDR_START-2*PAGE_SIZE)

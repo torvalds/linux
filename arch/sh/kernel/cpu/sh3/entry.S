@@ -335,7 +335,7 @@ general_exception:
 /* This code makes some assumptions to improve performance.
  * Make sure they are stil true. */
 #if PTRS_PER_PGD != PTRS_PER_PTE
-#error PDG and PTE sizes don't match
+#error PGD and PTE sizes don't match
 #endif
 
 /* gas doesn't flag impossible values for mov #immediate as an error */
@@ -547,8 +547,9 @@ ENTRY(handle_exception)
 	bt/s	1f		! It's a kernel to kernel transition.
 	 mov	r15, k0		! save original stack to k0
 	/* User space to kernel */
-	mov	#(THREAD_SIZE >> 8), k1
+	mov	#(THREAD_SIZE >> 10), k1
 	shll8	k1		! k1 := THREAD_SIZE
+	shll2	k1
 	add	current, k1
 	mov	k1, r15		! change to kernel stack
 	!

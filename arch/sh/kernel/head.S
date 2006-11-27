@@ -33,7 +33,7 @@ ENTRY(empty_zero_page)
 	.long	0x00360000	/* INITRD_START */
 	.long	0x000a0000	/* INITRD_SIZE */
 	.long	0
-	.balign 4096,0,4096
+	.balign PAGE_SIZE,0,PAGE_SIZE
 
 	.text	
 /*
@@ -70,8 +70,9 @@ ENTRY(_stext)
 	!
 	mov.l	2f, r0
 	mov	r0, r15		! Set initial r15 (stack pointer)
-	mov	#(THREAD_SIZE >> 8), r1
+	mov	#(THREAD_SIZE >> 10), r1
 	shll8	r1		! r1 = THREAD_SIZE
+	shll2	r1
 	sub	r1, r0		!
 #ifdef CONFIG_CPU_HAS_SR_RB
 	ldc	r0, r7_bank	! ... and initial thread_info
