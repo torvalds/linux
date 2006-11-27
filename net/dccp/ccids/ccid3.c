@@ -100,19 +100,24 @@ static void ccid3_hc_tx_set_state(struct sock *sk,
 	hctx->ccid3hctx_state = state;
 }
 
-/* Calculate new t_ipi (inter packet interval) by t_ipi = s / X_inst */
-static inline void ccid3_calc_new_t_ipi(struct ccid3_hc_tx_sock *hctx)
+/*
+ * Recalculate scheduled nominal send time t_nom, inter-packet interval
+ * t_ipi, and delta value. Should be called after each change to X.
+ */
+static inline void ccid3_update_send_time(struct ccid3_hc_tx_sock *hctx)
 {
-	hctx->ccid3hctx_t_ipi = usecs_div(hctx->ccid3hctx_s, hctx->ccid3hctx_x);
-}
+	timeval_sub_usecs(&hctx->ccid3hctx_t_nom, hctx->ccid3hctx_t_ipi);
 
-/* Calculate new delta by delta = min(t_ipi / 2, t_gran / 2) */
-static inline void ccid3_calc_new_delta(struct ccid3_hc_tx_sock *hctx)
-{
+	/* Calculate new t_ipi (inter packet interval) by t_ipi = s / X_inst */
+	hctx->ccid3hctx_t_ipi = usecs_div(hctx->ccid3hctx_s, hctx->ccid3hctx_x);
+
+	/* Update nominal send time with regard to the new t_ipi */
+	timeval_add_usecs(&hctx->ccid3hctx_t_nom, hctx->ccid3hctx_t_ipi);
+
+	/* Calculate new delta by delta = min(t_ipi / 2, t_gran / 2) */
 	hctx->ccid3hctx_delta = min_t(u32, hctx->ccid3hctx_t_ipi / 2,
 					   TFRC_OPSYS_HALF_TIME_GRAN);
 }
-
 /*
  * Update X by
  *    If (p > 0)
@@ -126,6 +131,7 @@ static inline void ccid3_calc_new_delta(struct ccid3_hc_tx_sock *hctx)
 static void ccid3_hc_tx_update_x(struct sock *sk)
 {
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
+	const __u32 old_x = hctx->ccid3hctx_x;
 
 	/* To avoid large error in calcX */
 	if (hctx->ccid3hctx_p >= TFRC_SMALLEST_P) {
@@ -149,6 +155,8 @@ static void ccid3_hc_tx_update_x(struct sock *sk)
 			hctx->ccid3hctx_t_ld = now;
 		}
 	}
+	if (hctx->ccid3hctx_x != old_x)
+		ccid3_update_send_time(hctx);
 }
 
 static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
@@ -184,11 +192,7 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 		/* The value of R is still undefined and so we can not recompute
 		 * the timout value. Keep initial value as per [RFC 4342, 5]. */
 		next_tmout = TFRC_INITIAL_TIMEOUT;
-		/*
-		 * FIXME - not sure above calculation is correct. See section
-		 * 5 of CCID3 11 should adjust tx_t_ipi and double that to
-		 * achieve it really
-		 */
+		ccid3_update_send_time(hctx);
 		break;
 	case TFRC_SSTATE_FBACK:
 		/*
@@ -479,16 +483,8 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		/* unschedule no feedback timer */
 		sk_stop_timer(sk, &hctx->ccid3hctx_no_feedback_timer);
 
-		/* Update sending rate */
+		/* Update sending rate (and likely t_ipi, t_nom, and delta) */
 		ccid3_hc_tx_update_x(sk);
-
-		/* Update next send time */
-		timeval_sub_usecs(&hctx->ccid3hctx_t_nom,
-				  hctx->ccid3hctx_t_ipi);
-		ccid3_calc_new_t_ipi(hctx);
-		timeval_add_usecs(&hctx->ccid3hctx_t_nom,
-				  hctx->ccid3hctx_t_ipi);
-		ccid3_calc_new_delta(hctx);
 
 		/* remove all packets older than the one acked from history */
 		dccp_tx_hist_purge_older(ccid3_tx_hist,
