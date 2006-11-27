@@ -1153,7 +1153,6 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		goto out;
 
 	NETLINK_CB(skb).pid	= nlk->pid;
-	NETLINK_CB(skb).dst_pid = dst_pid;
 	NETLINK_CB(skb).dst_group = dst_group;
 	NETLINK_CB(skb).loginuid = audit_get_loginuid(current->audit_context);
 	selinux_get_task_sid(current, &(NETLINK_CB(skb).sid));

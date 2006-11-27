@@ -650,7 +650,6 @@ static struct sk_buff *xfrm_state_netlink(struct sk_buff *in_skb,
 	if (!skb)
 		return ERR_PTR(-ENOMEM);
 
-	NETLINK_CB(skb).dst_pid = NETLINK_CB(in_skb).pid;
 	info.in_skb = in_skb;
 	info.out_skb = skb;
 	info.nlmsg_seq = seq;
@@ -1168,7 +1167,6 @@ static struct sk_buff *xfrm_policy_netlink(struct sk_buff *in_skb,
 	if (!skb)
 		return ERR_PTR(-ENOMEM);
 
-	NETLINK_CB(skb).dst_pid = NETLINK_CB(in_skb).pid;
 	info.in_skb = in_skb;
 	info.out_skb = skb;
 	info.nlmsg_seq = seq;

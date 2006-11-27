@@ -743,7 +743,6 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 		ip_conntrack_put(ct);
 		return -ENOMEM;
 	}
-	NETLINK_CB(skb2).dst_pid = NETLINK_CB(skb).pid;
 
 	err = ctnetlink_fill_info(skb2, NETLINK_CB(skb).pid, nlh->nlmsg_seq, 
 				  IPCTNL_MSG_CT_NEW, 1, ct);
@@ -1273,8 +1272,7 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 	skb2 = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb2)
 		goto out;
-	NETLINK_CB(skb2).dst_pid = NETLINK_CB(skb).pid;
-	
+
 	err = ctnetlink_exp_fill_info(skb2, NETLINK_CB(skb).pid, 
 				      nlh->nlmsg_seq, IPCTNL_MSG_EXP_NEW,
 				      1, exp);
