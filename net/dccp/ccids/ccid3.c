@@ -264,13 +264,13 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 
 	BUG_ON(hctx == NULL);
 
-	/* Check if pure ACK or Terminating*/
 	/*
-	 * XXX: We only call this function for DATA and DATAACK, on, these
-	 * packets can have zero length, but why the comment about "pure ACK"?
+	 * This function is called only for Data and DataAck packets. Sending
+	 * zero-sized Data(Ack)s is theoretically possible, but for congestion
+	 * control this case is pathological - ignore it.
 	 */
 	if (unlikely(len == 0))
-		return -ENOTCONN;
+		return -EBADMSG;
 
 	/* See if last packet allocated was not sent */
 	new_packet = dccp_tx_hist_head(&hctx->ccid3hctx_hist);
@@ -387,11 +387,7 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 
 	switch (hctx->ccid3hctx_state) {
 	case TFRC_SSTATE_NO_SENT:
-		/* if first wasn't pure ack */
-		if (len != 0)
-			DCCP_CRIT("%s, First packet sent is noted "
-				  "as a data packet",  dccp_role(sk));
-		return;
+		/* fall through */
 	case TFRC_SSTATE_NO_FBACK:
 		/* t_nom, t_ipi, delta do not change until feedback arrives */
 		return;
