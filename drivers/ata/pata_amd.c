@@ -25,7 +25,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_amd"
-#define DRV_VERSION "0.2.4"
+#define DRV_VERSION "0.2.7"
 
 /**
  *	timing_setup		-	shared timing computation and load
@@ -335,6 +335,8 @@ static struct scsi_host_template amd_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+	.resume			= ata_scsi_device_resume,
+	.suspend		= ata_scsi_device_suspend,
 };
 
 static struct ata_port_operations amd33_port_ops = {
@@ -662,6 +664,23 @@ static int amd_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	return ata_pci_init_one(pdev, port_info, 2);
 }
 
+static int amd_reinit_one(struct pci_dev *pdev)
+{
+	if (pdev->vendor == PCI_VENDOR_ID_AMD) {
+		u8 fifo;
+		pci_read_config_byte(pdev, 0x41, &fifo);
+		if (pdev->device == PCI_DEVICE_ID_AMD_VIPER_7411)
+			/* FIFO is broken */
+			pci_write_config_byte(pdev, 0x41, fifo & 0x0F);
+		else
+			pci_write_config_byte(pdev, 0x41, fifo | 0xF0);
+		if (pdev->device == PCI_DEVICE_ID_AMD_VIPER_7409 ||
+		    pdev->device == PCI_DEVICE_ID_AMD_COBRA_7401)
+		    	ata_pci_clear_simplex(pdev);
+	}
+	return ata_pci_device_resume(pdev);
+}
+
 static const struct pci_device_id amd[] = {
 	{ PCI_VDEVICE(AMD,	PCI_DEVICE_ID_AMD_COBRA_7401),		0 },
 	{ PCI_VDEVICE(AMD,	PCI_DEVICE_ID_AMD_VIPER_7409),		1 },
@@ -689,7 +708,9 @@ static struct pci_driver amd_pci_driver = {
 	.name 		= DRV_NAME,
 	.id_table	= amd,
 	.probe 		= amd_init_one,
-	.remove		= ata_pci_remove_one
+	.remove		= ata_pci_remove_one,
+	.suspend	= ata_pci_device_suspend,
+	.resume		= amd_reinit_one,
 };
 
 static int __init amd_init(void)
