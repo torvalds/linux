@@ -384,27 +384,6 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 	} else
 		ccid3_pr_debug("%s, sk=%p, seqno=%llu NOT inserted!\n",
 			       dccp_role(sk), sk, dp->dccps_gss);
-
-	switch (hctx->ccid3hctx_state) {
-	case TFRC_SSTATE_NO_SENT:
-		/* fall through */
-	case TFRC_SSTATE_NO_FBACK:
-		/* t_nom, t_ipi, delta do not change until feedback arrives */
-		return;
-	case TFRC_SSTATE_FBACK:
-		if (len > 0) {
-			timeval_sub_usecs(&hctx->ccid3hctx_t_nom,
-				  hctx->ccid3hctx_t_ipi);
-			ccid3_calc_new_t_ipi(hctx);
-			ccid3_calc_new_delta(hctx);
-			timeval_add_usecs(&hctx->ccid3hctx_t_nom,
-					  hctx->ccid3hctx_t_ipi);
-		}
-		break;
-	case TFRC_SSTATE_TERM:
-		DCCP_BUG("Illegal %s state TERM, sk=%p", dccp_role(sk), sk);
-		break;
-	}
 }
 
 static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
