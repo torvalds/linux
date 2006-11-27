@@ -90,13 +90,28 @@ static int check_config(struct dlm_ls *ls, struct rcom_config *rf, int nodeid)
 	return 0;
 }
 
+static void allow_sync_reply(struct dlm_ls *ls, uint64_t *new_seq)
+{
+	spin_lock(&ls->ls_rcom_spin);
+	*new_seq = ++ls->ls_rcom_seq;
+	set_bit(LSFL_RCOM_WAIT, &ls->ls_flags);
+	spin_unlock(&ls->ls_rcom_spin);
+}
+
+static void disallow_sync_reply(struct dlm_ls *ls)
+{
+	spin_lock(&ls->ls_rcom_spin);
+	clear_bit(LSFL_RCOM_WAIT, &ls->ls_flags);
+	clear_bit(LSFL_RCOM_READY, &ls->ls_flags);
+	spin_unlock(&ls->ls_rcom_spin);
+}
+
 int dlm_rcom_status(struct dlm_ls *ls, int nodeid)
 {
 	struct dlm_rcom *rc;
 	struct dlm_mhandle *mh;
 	int error = 0;
 
-	memset(ls->ls_recover_buf, 0, dlm_config.buffer_size);
 	ls->ls_recover_nodeid = nodeid;
 
 	if (nodeid == dlm_our_nodeid()) {
@@ -108,12 +123,14 @@ int dlm_rcom_status(struct dlm_ls *ls, int nodeid)
 	error = create_rcom(ls, nodeid, DLM_RCOM_STATUS, 0, &rc, &mh);
 	if (error)
 		goto out;
-	rc->rc_id = ++ls->ls_rcom_seq;
+
+	allow_sync_reply(ls, &rc->rc_id);
+	memset(ls->ls_recover_buf, 0, dlm_config.buffer_size);
 
 	send_rcom(ls, mh, rc);
 
 	error = dlm_wait_function(ls, &rcom_response);
-	clear_bit(LSFL_RCOM_READY, &ls->ls_flags);
+	disallow_sync_reply(ls);
 	if (error)
 		goto out;
 
@@ -150,14 +167,20 @@ static void receive_rcom_status(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 
 static void receive_sync_reply(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 {
-	if (rc_in->rc_id != ls->ls_rcom_seq) {
-		log_debug(ls, "reject old reply %d got %llx wanted %llx",
-			  rc_in->rc_type, rc_in->rc_id, ls->ls_rcom_seq);
-		return;
+	spin_lock(&ls->ls_rcom_spin);
+	if (!test_bit(LSFL_RCOM_WAIT, &ls->ls_flags) ||
+	    rc_in->rc_id != ls->ls_rcom_seq) {
+		log_debug(ls, "reject reply %d from %d seq %llx expect %llx",
+			  rc_in->rc_type, rc_in->rc_header.h_nodeid,
+			  rc_in->rc_id, ls->ls_rcom_seq);
+		goto out;
 	}
 	memcpy(ls->ls_recover_buf, rc_in, rc_in->rc_header.h_length);
 	set_bit(LSFL_RCOM_READY, &ls->ls_flags);
+	clear_bit(LSFL_RCOM_WAIT, &ls->ls_flags);
 	wake_up(&ls->ls_wait_general);
+ out:
+	spin_unlock(&ls->ls_rcom_spin);
 }
 
 static void receive_rcom_status_reply(struct dlm_ls *ls, struct dlm_rcom *rc_in)
@@ -171,7 +194,6 @@ int dlm_rcom_names(struct dlm_ls *ls, int nodeid, char *last_name, int last_len)
 	struct dlm_mhandle *mh;
 	int error = 0, len = sizeof(struct dlm_rcom);
 
-	memset(ls->ls_recover_buf, 0, dlm_config.buffer_size);
 	ls->ls_recover_nodeid = nodeid;
 
 	if (nodeid == dlm_our_nodeid()) {
@@ -185,12 +207,14 @@ int dlm_rcom_names(struct dlm_ls *ls, int nodeid, char *last_name, int last_len)
 	if (error)
 		goto out;
 	memcpy(rc->rc_buf, last_name, last_len);
-	rc->rc_id = ++ls->ls_rcom_seq;
+
+	allow_sync_reply(ls, &rc->rc_id);
+	memset(ls->ls_recover_buf, 0, dlm_config.buffer_size);
 
 	send_rcom(ls, mh, rc);
 
 	error = dlm_wait_function(ls, &rcom_response);
-	clear_bit(LSFL_RCOM_READY, &ls->ls_flags);
+	disallow_sync_reply(ls);
  out:
 	return error;
 }
