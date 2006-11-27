@@ -424,7 +424,7 @@ static int soc_hw_match_params(struct snd_pcm_substream *substream,
 				/* normalise cpu bfs div & codec const mult */
 				codec_bfs = soc_bfs_rate_to_div(codec_dai_mode->bfs, rate,
 					mclk, rtd->codec_dai->dai_runtime.pcmfmt, chn);
-				if(codec_dai_mode->bfs & codec_bfs) {
+				if(cpu_dai_mode->bfs & codec_bfs) {
 					rtd->cpu_dai->dai_runtime.bfs = codec_bfs;
 					rtd->codec_dai->dai_runtime.bfs = codec_dai_mode->bfs;
 				} else
