@@ -49,8 +49,6 @@
 /* Two seconds as per CCID3 spec */
 #define TFRC_INITIAL_TIMEOUT	   (2 * USEC_PER_SEC)
 
-#define TFRC_INITIAL_IPI	   (USEC_PER_SEC / 4)
-
 /* In usecs - half the scheduling granularity as per RFC3448 4.6 */
 #define TFRC_OPSYS_HALF_TIME_GRAN  (USEC_PER_SEC / (2 * HZ))
 

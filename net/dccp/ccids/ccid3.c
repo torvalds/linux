@@ -298,13 +298,14 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 		hctx->ccid3hctx_last_win_count	 = 0;
 		hctx->ccid3hctx_t_last_win_count = now;
 		ccid3_hc_tx_set_state(sk, TFRC_SSTATE_NO_FBACK);
-		hctx->ccid3hctx_t_ipi = TFRC_INITIAL_IPI;
 
-		/* Set nominal send time for initial packet */
+		/* First timeout, according to [RFC 3448, 4.2], is 1 second */
+		hctx->ccid3hctx_t_ipi = USEC_PER_SEC;
+		/* Initial delta: minimum of 0.5 sec and t_gran/2 */
+		hctx->ccid3hctx_delta = TFRC_OPSYS_HALF_TIME_GRAN;
+
+		/* Set t_0 for initial packet */
 		hctx->ccid3hctx_t_nom = now;
-		timeval_add_usecs(&hctx->ccid3hctx_t_nom,
-				  hctx->ccid3hctx_t_ipi);
-		ccid3_calc_new_delta(hctx);
 		rc = 0;
 		break;
 	case TFRC_SSTATE_NO_FBACK:
