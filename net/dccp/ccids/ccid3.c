@@ -304,11 +304,19 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 		break;
 	case TFRC_SSTATE_NO_FBACK:
 	case TFRC_SSTATE_FBACK:
-		delay = (timeval_delta(&now, &hctx->ccid3hctx_t_nom) -
-		         hctx->ccid3hctx_delta);
-		delay /= -1000;
-		/* divide by -1000 is to convert to ms and get sign right */
-		rc = delay > 0 ? delay : 0;
+		delay = timeval_delta(&hctx->ccid3hctx_t_nom, &now);
+		/*
+		 * 	Scheduling of packet transmissions [RFC 3448, 4.6]
+		 *
+		 * if (t_now > t_nom - delta)
+		 *       // send the packet now
+		 * else
+		 *       // send the packet in (t_nom - t_now) milliseconds.
+		 */
+		if (delay < hctx->ccid3hctx_delta)
+			rc = 0;
+		else
+			rc = delay/1000L;
 		break;
 	case TFRC_SSTATE_TERM:
 		DCCP_BUG("Illegal %s state TERM, sk=%p", dccp_role(sk), sk);
