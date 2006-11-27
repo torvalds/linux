@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/cache.h>
 #include <asm/uaccess.h>
+#include <linux/audit.h>
 
 #include "xfrm_hash.h"
 
@@ -238,6 +239,7 @@ static void xfrm_timer_handler(unsigned long data)
 	unsigned long now = (unsigned long)xtime.tv_sec;
 	long next = LONG_MAX;
 	int warn = 0;
+	int err = 0;
 
 	spin_lock(&x->lock);
 	if (x->km.state == XFRM_STATE_DEAD)
@@ -295,8 +297,13 @@ expired:
 		next = 2;
 		goto resched;
 	}
-	if (!__xfrm_state_delete(x) && x->id.spi)
+
+	err = __xfrm_state_delete(x);
+	if (!err && x->id.spi)
 		km_state_expired(x, 1, 0);
+
+	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
+		       AUDIT_MAC_IPSEC_DELSA, err ? 0 : 1, NULL, x);
 
 out:
 	spin_unlock(&x->lock);
@@ -384,9 +391,10 @@ int xfrm_state_delete(struct xfrm_state *x)
 }
 EXPORT_SYMBOL(xfrm_state_delete);
 
-void xfrm_state_flush(u8 proto)
+void xfrm_state_flush(u8 proto, struct xfrm_audit *audit_info)
 {
 	int i;
+	int err = 0;
 
 	spin_lock_bh(&xfrm_state_lock);
 	for (i = 0; i <= xfrm_state_hmask; i++) {
@@ -400,6 +408,11 @@ restart:
 				spin_unlock_bh(&xfrm_state_lock);
 
 				xfrm_state_delete(x);
+				err = xfrm_state_delete(x);
+				xfrm_audit_log(audit_info->loginuid,
+					       audit_info->secid,
+					       AUDIT_MAC_IPSEC_DELSA,
+					       err ? 0 : 1, NULL, x);
 				xfrm_state_put(x);
 
 				spin_lock_bh(&xfrm_state_lock);

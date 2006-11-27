@@ -392,6 +392,15 @@ extern int xfrm_unregister_km(struct xfrm_mgr *km);
 
 extern unsigned int xfrm_policy_count[XFRM_POLICY_MAX*2];
 
+/* Audit Information */
+struct xfrm_audit
+{
+	uid_t	loginuid;
+	u32	secid;
+};
+void xfrm_audit_log(uid_t auid, u32 secid, int type, int result,
+		    struct xfrm_policy *xp, struct xfrm_state *x);
+
 static inline void xfrm_pol_hold(struct xfrm_policy *policy)
 {
 	if (likely(policy != NULL))
@@ -906,7 +915,7 @@ static inline int xfrm_state_sort(struct xfrm_state **dst, struct xfrm_state **s
 #endif
 extern struct xfrm_state *xfrm_find_acq_byseq(u32 seq);
 extern int xfrm_state_delete(struct xfrm_state *x);
-extern void xfrm_state_flush(u8 proto);
+extern void xfrm_state_flush(u8 proto, struct xfrm_audit *audit_info);
 extern int xfrm_replay_check(struct xfrm_state *x, __be32 seq);
 extern void xfrm_replay_advance(struct xfrm_state *x, __be32 seq);
 extern void xfrm_replay_notify(struct xfrm_state *x, int event);
@@ -959,13 +968,13 @@ struct xfrm_policy *xfrm_policy_bysel_ctx(u8 type, int dir,
 					  struct xfrm_selector *sel,
 					  struct xfrm_sec_ctx *ctx, int delete);
 struct xfrm_policy *xfrm_policy_byid(u8, int dir, u32 id, int delete);
-void xfrm_policy_flush(u8 type);
+void xfrm_policy_flush(u8 type, struct xfrm_audit *audit_info);
 u32 xfrm_get_acqseq(void);
 void xfrm_alloc_spi(struct xfrm_state *x, __be32 minspi, __be32 maxspi);
-struct xfrm_state * xfrm_find_acq(u8 mode, u32 reqid, u8 proto, 
-				  xfrm_address_t *daddr, xfrm_address_t *saddr, 
+struct xfrm_state * xfrm_find_acq(u8 mode, u32 reqid, u8 proto,
+				  xfrm_address_t *daddr, xfrm_address_t *saddr,
 				  int create, unsigned short family);
-extern void xfrm_policy_flush(u8 type);
+extern void xfrm_policy_flush(u8 type, struct xfrm_audit *audit_info);
 extern int xfrm_sk_policy_insert(struct sock *sk, int dir, struct xfrm_policy *pol);
 extern int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *xdst,
 			  struct flowi *fl, int family, int strict);
