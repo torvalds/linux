@@ -33,6 +33,7 @@
 #include <asm/irq.h>
 #include <asm/prom.h>
 #include <asm/mpc52xx.h>
+#include "mpc52xx_pic.h"
 
 /*
  *
