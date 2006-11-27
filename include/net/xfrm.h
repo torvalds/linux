@@ -340,18 +340,19 @@ struct xfrm_policy
 	atomic_t		refcnt;
 	struct timer_list	timer;
 
-	u8			type;
 	u32			priority;
 	u32			index;
 	struct xfrm_selector	selector;
 	struct xfrm_lifetime_cfg lft;
 	struct xfrm_lifetime_cur curlft;
 	struct dst_entry       *bundles;
-	__u16			family;
-	__u8			action;
-	__u8			flags;
-	__u8			dead;
-	__u8			xfrm_nr;
+	u16			family;
+	u8			type;
+	u8			action;
+	u8			flags;
+	u8			dead;
+	u8			xfrm_nr;
+	/* XXX 1 byte hole, try to pack */
 	struct xfrm_sec_ctx	*security;
 	struct xfrm_tmpl       	xfrm_vec[XFRM_MAX_DEPTH];
 };
