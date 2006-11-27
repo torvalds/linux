@@ -94,14 +94,6 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	}
 
 	/*
-	 * Purge directory-related requests that are saved in requestqueue.
-	 * All dir requests from before recovery are invalid now due to the dir
-	 * rebuild and will be resent by the requesting nodes.
-	 */
-
-	dlm_purge_requestqueue(ls);
-
-	/*
 	 * Wait for all nodes to complete directory rebuild.
 	 */
 
@@ -180,6 +172,14 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	}
 
 	dlm_release_root_list(ls);
+
+	/*
+	 * Purge directory-related requests that are saved in requestqueue.
+	 * All dir requests from before recovery are invalid now due to the dir
+	 * rebuild and will be resent by the requesting nodes.
+	 */
+
+	dlm_purge_requestqueue(ls);
 
 	dlm_set_recover_status(ls, DLM_RS_DONE);
 	error = dlm_recover_done_wait(ls);

@@ -36,9 +36,6 @@ int dlm_add_requestqueue(struct dlm_ls *ls, int nodeid, struct dlm_header *hd)
 	int length = hd->h_length;
 	int rv = 0;
 
-	if (dlm_is_removed(ls, nodeid))
-		return 0;
-
 	e = kmalloc(sizeof(struct rq_entry) + length, GFP_KERNEL);
 	if (!e) {
 		log_print("dlm_add_requestqueue: out of memory\n");
@@ -132,6 +129,10 @@ void dlm_wait_requestqueue(struct dlm_ls *ls)
 static int purge_request(struct dlm_ls *ls, struct dlm_message *ms, int nodeid)
 {
 	uint32_t type = ms->m_type;
+
+	/* the ls is being cleaned up and freed by release_lockspace */
+	if (!ls->ls_count)
+		return 1;
 
 	if (dlm_is_removed(ls, nodeid))
 		return 1;
