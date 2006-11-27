@@ -1754,7 +1754,8 @@ static inline void flush_unauthorized_files(struct files_struct * files)
 						get_file(devnull);
 					} else {
 						devnull = dentry_open(dget(selinux_null), mntget(selinuxfs_mount), O_RDWR);
-						if (!devnull) {
+						if (IS_ERR(devnull)) {
+							devnull = NULL;
 							put_unused_fd(fd);
 							fput(file);
 							continue;
