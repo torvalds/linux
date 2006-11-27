@@ -213,7 +213,7 @@ Commands:\n\
   p 	call a procedure\n\
   r	print registers\n\
   s	single step\n"
-#ifdef CONFIG_PPC_CELL
+#ifdef CONFIG_SPU_BASE
 "  ss	stop execution on all spus\n\
   sr	restore execution on stopped spus\n\
   sf  #	dump spu fields for spu # (in hex)\n\
@@ -2654,7 +2654,7 @@ void __init xmon_setup(void)
 		debugger(NULL);
 }
 
-#ifdef CONFIG_PPC_CELL
+#ifdef CONFIG_SPU_BASE
 
 struct spu_info {
 	struct spu *spu;
@@ -2907,7 +2907,7 @@ static int do_spu_cmd(void)
 
 	return 0;
 }
-#else /* ! CONFIG_PPC_CELL */
+#else /* ! CONFIG_SPU_BASE */
 static int do_spu_cmd(void)
 {
 	return -1;

@@ -411,7 +411,7 @@ do {									\
 /* Keep this the last entry.  */
 #define R_PPC64_NUM		107
 
-#ifdef CONFIG_PPC_CELL
+#ifdef CONFIG_SPU_BASE
 /* Notes used in ET_CORE. Note name is "SPU/<fd>/<filename>". */
 #define NT_SPU		1
 
