@@ -326,7 +326,8 @@ static u64 log_bmap(struct gfs2_sbd *sdp, unsigned int lbn)
 	bh_map.b_size = 1 << inode->i_blkbits;
 	error = gfs2_block_map(inode, lbn, 0, &bh_map);
 	if (error || !bh_map.b_blocknr)
-		printk(KERN_INFO "error=%d, dbn=%llu lbn=%u", error, bh_map.b_blocknr, lbn);
+		printk(KERN_INFO "error=%d, dbn=%llu lbn=%u", error,
+		       (unsigned long long)bh_map.b_blocknr, lbn);
 	gfs2_assert_withdraw(sdp, !error && bh_map.b_blocknr);
 
 	return bh_map.b_blocknr;
