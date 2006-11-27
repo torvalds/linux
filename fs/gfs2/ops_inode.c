@@ -992,6 +992,12 @@ out:
  * @dentry: The dentry to stat
  * @stat: The inode's stats
  *
+ * This may be called from the VFS directly, or from within GFS2 with the
+ * inode locked, so we look to see if the glock is already locked and only
+ * lock the glock if its not already been done. Note that its the NFS
+ * readdirplus operation which causes this to be called (from filldir)
+ * with the glock already held.
+ *
  * Returns: errno
  */
 
@@ -1002,14 +1008,20 @@ static int gfs2_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	int error;
+	int unlock = 0;
 
-	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &gh);
-	if (!error) {
-		generic_fillattr(inode, stat);
-		gfs2_glock_dq_uninit(&gh);
+	if (gfs2_glock_is_locked_by_me(ip->i_gl) == 0) {
+		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &gh);
+		if (error)
+			return error;
+		unlock = 1;
 	}
 
-	return error;
+	generic_fillattr(inode, stat);
+	if (unlock);
+		gfs2_glock_dq_uninit(&gh);
+
+	return 0;
 }
 
 static int gfs2_setxattr(struct dentry *dentry, const char *name,
