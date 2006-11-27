@@ -410,6 +410,10 @@ config PPC_CHRP
 	select PPC_NATIVE
 	default y
 
+config PPC_MPC52xx
+	bool
+	default n
+
 config PPC_EFIKA
 	bool "bPlan Efika 5k2. MPC5200B based computer"
 	depends on PPC_MULTIPLATFORM && PPC32

@@ -146,15 +146,6 @@ config PQ2FADS
 	  Select PQ2FADS if you wish to configure for a Freescale
 	  PQ2FADS board (-VR or -ZU).
 
-config LITE5200
-	bool "Freescale LITE5200 / (IceCube)"
-	select PPC_MPC52xx
-	help
-	  Support for the LITE5200 dev board for the MPC5200 from Freescale.
-	  This is for the LITE5200 version 2.0 board. Don't know if it changes
-	  much but it's only been tested on this board version. I think this
-	  board is also known as IceCube.
-
 config EV64360
 	bool "Marvell-EV64360BP"
 	help
@@ -171,9 +162,6 @@ config TQM8xxL
 	bool
 	depends on 8xx && (TQM823L || TQM850L || FPS850L || TQM855L || TQM860L)
 	default y
-
-config PPC_MPC52xx
-	bool
 
 config 8260
 	bool "CPM2 Support" if WILLOW
