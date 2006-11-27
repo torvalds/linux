@@ -423,6 +423,12 @@ config PPC_EFIKA
 	select PPC_NATIVE
 	default y
 
+config PPC_LITE5200
+	bool "Freescale Lite5200 Eval Board"
+	depends on PPC_MULTIPLATFORM && PPC32
+	select PPC_MPC52xx
+	default n
+
 config PPC_PMAC
 	bool "Apple PowerMac based machines"
 	depends on PPC_MULTIPLATFORM
