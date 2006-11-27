@@ -57,11 +57,11 @@ static int marvell_pre_reset(struct ata_port *ap)
 	switch(ap->port_no)
 	{
 	case 0:
-		/* Might be backward, docs unclear */
 		if (inb(ap->ioaddr.bmdma_addr + 1) & 1)
-			ap->cbl = ATA_CBL_PATA80;
-		else
 			ap->cbl = ATA_CBL_PATA40;
+		else
+			ap->cbl = ATA_CBL_PATA80;
+		break;
 
 	case 1: /* Legacy SATA port */
 		ap->cbl = ATA_CBL_SATA;
