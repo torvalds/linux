@@ -949,6 +949,7 @@ ctnetlink_create_conntrack(struct nfattr *cda[],
 {
 	struct nf_conn *ct;
 	int err = -EINVAL;
+	struct nf_conn_help *help;
 
 	ct = nf_conntrack_alloc(otuple, rtuple);
 	if (ct == NULL || IS_ERR(ct))
@@ -976,8 +977,15 @@ ctnetlink_create_conntrack(struct nfattr *cda[],
 		ct->mark = ntohl(*(u_int32_t *)NFA_DATA(cda[CTA_MARK-1]));
 #endif
 
+	help = nfct_help(ct);
+	if (help)
+		help->helper = nf_ct_helper_find_get(rtuple);
+
 	add_timer(&ct->timeout);
 	nf_conntrack_hash_insert(ct);
+
+	if (help && help->helper)
+		nf_ct_helper_put(help->helper);
 
 	return 0;
 
