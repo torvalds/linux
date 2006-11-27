@@ -161,6 +161,7 @@ ctnetlink_dump_protoinfo(struct sk_buff *skb, const struct nf_conn *ct)
 	return ret;
 
 nfattr_failure:
+	nf_ct_proto_put(proto);
 	return -1;
 }
 
