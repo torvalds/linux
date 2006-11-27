@@ -54,12 +54,12 @@ static unsigned char mpc52xx_map_senses[4] = {
  *
 */
 
-static inline void io_be_setbit(u32 __iomem * addr, int bitno)
+static inline void io_be_setbit(u32 __iomem *addr, int bitno)
 {
 	out_be32(addr, in_be32(addr) | (1 << bitno));
 }
 
-static inline void io_be_clrbit(u32 __iomem * addr, int bitno)
+static inline void io_be_clrbit(u32 __iomem *addr, int bitno)
 {
 	out_be32(addr, in_be32(addr) & ~(1 << bitno));
 }
@@ -104,7 +104,7 @@ static void mpc52xx_extirq_ack(unsigned int virq)
 
 	pr_debug("%s: irq=%x. l2=%d\n", __func__, irq, l2irq);
 
-	io_be_setbit(&intr->ctrl, 27 - l2irq);
+	io_be_setbit(&intr->ctrl, 27-l2irq);
 }
 
 static struct irq_chip mpc52xx_extirq_irqchip = {
@@ -379,81 +379,21 @@ static struct irq_host_ops mpc52xx_irqhost_ops = {
 
 void __init mpc52xx_init_irq(void)
 {
-	struct device_node *picnode = NULL;
-	int picnode_regsize;
-	u32 picnode_regoffset;
-
-	struct device_node *sdmanode = NULL;
-	int sdmanode_regsize;
-	u32 sdmanode_regoffset;
-
-	u64 size64;
-	int flags;
-
 	u32 intr_ctrl;
-
-	picnode = of_find_compatible_node(NULL, "interrupt-controller",
-						"mpc5200-pic");
-	if (picnode == NULL) {
-		printk(KERN_ERR "MPC52xx PIC: "
-			"Unable to find the interrupt controller "
-			"in the OpenFirmware device tree\n");
-		goto end;
-	}
-
-	sdmanode = of_find_compatible_node(NULL, "dma-controller",
-						 "mpc5200-bestcomm");
-	if (sdmanode == NULL) {
-		printk(KERN_ERR "MPC52xx PIC"
-			"Unable to find the Bestcomm DMA controller device "
-			"in the OpenFirmware device tree\n");
-		goto end;
-	}
-
-	/* Retrieve PIC ressources */
-	picnode_regoffset = (u32) of_get_address(picnode, 0, &size64, &flags);
-	if (picnode_regoffset == 0) {
-		printk(KERN_ERR "MPC52xx PIC"
-			"Unable to get the interrupt controller address\n");
-		goto end;
-	}
-
-	picnode_regoffset =
-		of_translate_address(picnode, (u32 *) picnode_regoffset);
-	picnode_regsize = (int)size64;
-
-	/* Retrieve SDMA ressources */
-	sdmanode_regoffset = (u32) of_get_address(sdmanode, 0, &size64, &flags);
-	if (sdmanode_regoffset == 0) {
-		printk(KERN_ERR "MPC52xx PIC: "
-			"Unable to get the Bestcomm DMA controller address\n");
-		goto end;
-	}
-
-	sdmanode_regoffset =
-	    of_translate_address(sdmanode, (u32 *) sdmanode_regoffset);
-	sdmanode_regsize = (int)size64;
+	struct device_node *picnode;
 
 	/* Remap the necessary zones */
-	intr = ioremap(picnode_regoffset, picnode_regsize);
-	if (intr == NULL) {
-		printk(KERN_ERR "MPC52xx PIC: "
-			"Unable to ioremap interrupt controller registers!\n");
-		goto end;
-	}
+	picnode = of_find_compatible_node(NULL, NULL, "mpc52xx-pic");
 
-	sdma = ioremap(sdmanode_regoffset, sdmanode_regsize);
-	if (sdma == NULL) {
-		iounmap(intr);
-		printk(KERN_ERR "MPC52xx PIC: "
-			"Unable to ioremap Bestcomm DMA registers!\n");
-		goto end;
-	}
+	intr = mpc52xx_find_and_map("mpc52xx-pic");
+	if (!intr)
+		panic(__FILE__	": find_and_map failed on 'mpc52xx-pic'. "
+				"Check node !");
 
-	printk(KERN_INFO "MPC52xx PIC: MPC52xx PIC Remapped at 0x%8.8x\n",
-		picnode_regoffset);
-	printk(KERN_INFO "MPC52xx PIC: MPC52xx SDMA Remapped at 0x%8.8x\n",
-		sdmanode_regoffset);
+	sdma = mpc52xx_find_and_map("mpc52xx-bestcomm");
+	if (!sdma)
+		panic(__FILE__	": find_and_map failed on 'mpc52xx-bestcomm'. "
+				"Check node !");
 
 	/* Disable all interrupt sources. */
 	out_be32(&sdma->IntPend, 0xffffffff);	/* 1 means clear pending */
@@ -480,21 +420,15 @@ void __init mpc52xx_init_irq(void)
 	 * hw irq information provided by the ofw to linux virq
 	 */
 
-	mpc52xx_irqhost =
-	    irq_alloc_host(IRQ_HOST_MAP_LINEAR, MPC52xx_IRQ_HIGHTESTHWIRQ,
-			   &mpc52xx_irqhost_ops, -1);
+	mpc52xx_irqhost = irq_alloc_host(IRQ_HOST_MAP_LINEAR,
+	                                 MPC52xx_IRQ_HIGHTESTHWIRQ,
+	                                 &mpc52xx_irqhost_ops, -1);
 
-	if (mpc52xx_irqhost) {
-		mpc52xx_irqhost->host_data = picnode;
-		printk(KERN_INFO "MPC52xx PIC is up and running!\n");
-	} else {
-		printk(KERN_ERR
-			"MPC52xx PIC: Unable to allocate the IRQ host\n");
-	}
+	if (!mpc52xx_irqhost)
+		panic(__FILE__ ": Cannot allocate the IRQ host\n");
 
-end:
-	of_node_put(picnode);
-	of_node_put(sdmanode);
+	mpc52xx_irqhost->host_data = picnode;
+	printk(KERN_INFO "MPC52xx PIC is up and running!\n");
 }
 
 /*
@@ -526,9 +460,10 @@ unsigned int mpc52xx_get_irq(void)
 			irq = ffs(status) - 1;
 			irq |=	(MPC52xx_IRQ_L1_SDMA << MPC52xx_IRQ_L1_OFFSET) &
 				MPC52xx_IRQ_L1_MASK;
-		} else
+		} else {
 			irq |=	(MPC52xx_IRQ_L1_PERP << MPC52xx_IRQ_L1_OFFSET) &
 				MPC52xx_IRQ_L1_MASK;
+		}
 	}
 
 	pr_debug("%s: irq=%x. virq=%d\n", __func__, irq,
@@ -536,4 +471,3 @@ unsigned int mpc52xx_get_irq(void)
 
 	return irq_linear_revmap(mpc52xx_irqhost, irq);
 }
-
