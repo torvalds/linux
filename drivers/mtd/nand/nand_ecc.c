@@ -112,7 +112,7 @@ int nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
 	tmp2 |= (reg2 & 0x01) << 0; /* B7 -> B0 */
 
 	/* Calculate final ECC code */
-#ifdef CONFIG_NAND_ECC_SMC
+#ifdef CONFIG_MTD_NAND_ECC_SMC
 	ecc_code[0] = ~tmp2;
 	ecc_code[1] = ~tmp1;
 #else
@@ -148,7 +148,7 @@ int nand_correct_data(struct mtd_info *mtd, u_char *dat,
 {
 	uint8_t s0, s1, s2;
 
-#ifdef CONFIG_NAND_ECC_SMC
+#ifdef CONFIG_MTD_NAND_ECC_SMC
 	s0 = calc_ecc[0] ^ read_ecc[0];
 	s1 = calc_ecc[1] ^ read_ecc[1];
 	s2 = calc_ecc[2] ^ read_ecc[2];
