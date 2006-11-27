@@ -413,9 +413,6 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	pinv = opt_recv->ccid3or_loss_event_rate;
 
 	switch (hctx->ccid3hctx_state) {
-	case TFRC_SSTATE_NO_SENT:
-		/* FIXME: what to do here? */
-		return;
 	case TFRC_SSTATE_NO_FBACK:
 	case TFRC_SSTATE_FBACK:
 		/* Calculate new round trip sample by
@@ -521,8 +518,10 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		/* set idle flag */
 		hctx->ccid3hctx_idle = 1;   
 		break;
-	case TFRC_SSTATE_TERM:
-		DCCP_BUG("Illegal %s state TERM, sk=%p", dccp_role(sk), sk);
+	case TFRC_SSTATE_NO_SENT:
+		DCCP_WARN("Illegal ACK received - no packet has been sent\n");
+		/* fall through */
+	case TFRC_SSTATE_TERM:		/* ignore feedback when closing */
 		break;
 	}
 }
