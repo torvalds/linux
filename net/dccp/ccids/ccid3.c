@@ -159,6 +159,25 @@ static void ccid3_hc_tx_update_x(struct sock *sk)
 		ccid3_update_send_time(hctx);
 }
 
+/*
+ * 	Track the mean packet size `s' (cf. RFC 4342, 5.3 and  RFC 3448, 4.1)
+ * 	@len: DCCP packet payload size in bytes
+ */
+static inline void ccid3_hc_tx_update_s(struct ccid3_hc_tx_sock *hctx, int len)
+{
+	if (unlikely(len == 0))
+		ccid3_pr_debug("Packet payload length is 0 - not updating\n");
+	else
+		hctx->ccid3hctx_s = hctx->ccid3hctx_s == 0 ? len :
+				    (9 * hctx->ccid3hctx_s + len) / 10;
+	/*
+	 * Note: We could do a potential optimisation here - when `s' changes,
+	 *	 recalculate sending rate and consequently t_ipi, t_delta, and
+	 *	 t_now. This is however non-standard, and the benefits are not
+	 *	 clear, so it is currently left out.
+	 */
+}
+
 static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 {
 	struct sock *sk = (struct sock *)data;
@@ -299,6 +318,10 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 		hctx->ccid3hctx_t_last_win_count = now;
 		ccid3_hc_tx_set_state(sk, TFRC_SSTATE_NO_FBACK);
 
+		/* Set initial sending rate to 1 packet per second */
+		ccid3_hc_tx_update_s(hctx, len);
+		hctx->ccid3hctx_x     = hctx->ccid3hctx_s;
+
 		/* First timeout, according to [RFC 3448, 4.2], is 1 second */
 		hctx->ccid3hctx_t_ipi = USEC_PER_SEC;
 		/* Initial delta: minimum of 0.5 sec and t_gran/2 */
@@ -349,6 +372,8 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 	if (len > 0) {
 		unsigned long quarter_rtt;
 		struct dccp_tx_hist_entry *packet;
+
+		ccid3_hc_tx_update_s(hctx, len);
 
 		packet = dccp_tx_hist_head(&hctx->ccid3hctx_hist);
 		if (unlikely(packet == NULL)) {
@@ -594,17 +619,9 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
 
 static int ccid3_hc_tx_init(struct ccid *ccid, struct sock *sk)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_tx_sock *hctx = ccid_priv(ccid);
 
-	if (dp->dccps_packet_size >= TFRC_MIN_PACKET_SIZE &&
-	    dp->dccps_packet_size <= TFRC_MAX_PACKET_SIZE)
-		hctx->ccid3hctx_s = dp->dccps_packet_size;
-	else
-		hctx->ccid3hctx_s = TFRC_STD_PACKET_SIZE;
-
-	/* Set transmission rate to 1 packet per second */
-	hctx->ccid3hctx_x     = hctx->ccid3hctx_s;
+	hctx->ccid3hctx_s     = 0;
 	hctx->ccid3hctx_state = TFRC_SSTATE_NO_SENT;
 	INIT_LIST_HEAD(&hctx->ccid3hctx_hist);
 
@@ -656,6 +673,15 @@ static void ccid3_hc_rx_set_state(struct sock *sk,
 		       ccid3_rx_state_name(state));
 	WARN_ON(state == oldstate);
 	hcrx->ccid3hcrx_state = state;
+}
+
+static inline void ccid3_hc_rx_update_s(struct ccid3_hc_rx_sock *hcrx, int len)
+{
+	if (unlikely(len == 0))	/* don't update on empty packets (e.g. ACKs) */
+		ccid3_pr_debug("Packet payload length is 0 - not updating\n");
+	else
+		hcrx->ccid3hcrx_s = hcrx->ccid3hcrx_s == 0 ? len :
+				    (9 * hcrx->ccid3hcrx_s + len) / 10;
 }
 
 static void ccid3_hc_rx_send_feedback(struct sock *sk)
@@ -934,7 +960,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	struct dccp_rx_hist_entry *packet;
 	struct timeval now;
 	u32 p_prev, rtt_prev, r_sample, t_elapsed;
-	int loss;
+	int loss, payload_size;
 
 	BUG_ON(hcrx == NULL);
 
@@ -989,6 +1015,9 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	if (DCCP_SKB_CB(skb)->dccpd_type == DCCP_PKT_ACK)
 		return;
 
+	payload_size = skb->len - dccp_hdr(skb)->dccph_doff * 4;
+	ccid3_hc_rx_update_s(hcrx, payload_size);
+
 	switch (hcrx->ccid3hcrx_state) {
 	case TFRC_RSTATE_NO_DATA:
 		ccid3_pr_debug("%s, sk=%p(%s), skb=%p, sending initial "
@@ -999,8 +1028,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		ccid3_hc_rx_set_state(sk, TFRC_RSTATE_DATA);
 		return;
 	case TFRC_RSTATE_DATA:
-		hcrx->ccid3hcrx_bytes_recv += skb->len -
-					      dccp_hdr(skb)->dccph_doff * 4;
+		hcrx->ccid3hcrx_bytes_recv += payload_size;
 		if (loss)
 			break;
 
@@ -1040,22 +1068,16 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 static int ccid3_hc_rx_init(struct ccid *ccid, struct sock *sk)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_rx_sock *hcrx = ccid_priv(ccid);
 
 	ccid3_pr_debug("%s, sk=%p\n", dccp_role(sk), sk);
-
-	if (dp->dccps_packet_size >= TFRC_MIN_PACKET_SIZE &&
-	    dp->dccps_packet_size <= TFRC_MAX_PACKET_SIZE)
-		hcrx->ccid3hcrx_s = dp->dccps_packet_size;
-	else
-		hcrx->ccid3hcrx_s = TFRC_STD_PACKET_SIZE;
 
 	hcrx->ccid3hcrx_state = TFRC_RSTATE_NO_DATA;
 	INIT_LIST_HEAD(&hcrx->ccid3hcrx_hist);
 	INIT_LIST_HEAD(&hcrx->ccid3hcrx_li_hist);
 	dccp_timestamp(sk, &hcrx->ccid3hcrx_tstamp_last_ack);
 	hcrx->ccid3hcrx_tstamp_last_feedback = hcrx->ccid3hcrx_tstamp_last_ack;
+	hcrx->ccid3hcrx_s   = 0;
 	hcrx->ccid3hcrx_rtt = 5000; /* XXX 5ms for now... */
 	return 0;
 }
