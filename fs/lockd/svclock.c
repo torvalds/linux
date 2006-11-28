@@ -261,6 +261,7 @@ static void nlmsvc_free_block(struct kref *kref)
 	nlmsvc_freegrantargs(block->b_call);
 	nlm_release_call(block->b_call);
 	nlm_release_file(block->b_file);
+	kfree(block->b_fl);
 	kfree(block);
 }
 
@@ -528,6 +529,64 @@ nlmsvc_cancel_blocked(struct nlm_file *file, struct nlm_lock *lock)
 }
 
 /*
+ * This is a callback from the filesystem for VFS file lock requests.
+ * It will be used if fl_grant is defined and the filesystem can not
+ * respond to the request immediately.
+ * For GETLK request it will copy the reply to the nlm_block.
+ * For SETLK or SETLKW request it will get the local posix lock.
+ * In all cases it will move the block to the head of nlm_blocked q where
+ * nlmsvc_retry_blocked() can send back a reply for SETLKW or revisit the
+ * deferred rpc for GETLK and SETLK.
+ */
+static void
+nlmsvc_update_deferred_block(struct nlm_block *block, struct file_lock *conf,
+			     int result)
+{
+	block->b_flags |= B_GOT_CALLBACK;
+	if (result == 0)
+		block->b_granted = 1;
+	else
+		block->b_flags |= B_TIMED_OUT;
+	if (conf) {
+		block->b_fl = kzalloc(sizeof(struct file_lock), GFP_KERNEL);
+		if (block->b_fl)
+			locks_copy_lock(block->b_fl, conf);
+	}
+}
+
+static int nlmsvc_grant_deferred(struct file_lock *fl, struct file_lock *conf,
+					int result)
+{
+	struct nlm_block *block;
+	int rc = -ENOENT;
+
+	lock_kernel();
+	list_for_each_entry(block, &nlm_blocked, b_list) {
+		if (nlm_compare_locks(&block->b_call->a_args.lock.fl, fl)) {
+			dprintk("lockd: nlmsvc_notify_blocked block %p flags %d\n",
+							block, block->b_flags);
+			if (block->b_flags & B_QUEUED) {
+				if (block->b_flags & B_TIMED_OUT) {
+					rc = -ENOLCK;
+					break;
+				}
+				nlmsvc_update_deferred_block(block, conf, result);
+			} else if (result == 0)
+				block->b_granted = 1;
+
+			nlmsvc_insert_block(block, 0);
+			svc_wake_up(block->b_daemon);
+			rc = 0;
+			break;
+		}
+	}
+	unlock_kernel();
+	if (rc == -ENOENT)
+		printk(KERN_WARNING "lockd: grant for unknown block\n");
+	return rc;
+}
+
+/*
  * Unblock a blocked lock request. This is a callback invoked from the
  * VFS layer when a lock on which we blocked is removed.
  *
@@ -559,6 +618,7 @@ static int nlmsvc_same_owner(struct file_lock *fl1, struct file_lock *fl2)
 struct lock_manager_operations nlmsvc_lock_operations = {
 	.fl_compare_owner = nlmsvc_same_owner,
 	.fl_notify = nlmsvc_notify_blocked,
+	.fl_grant = nlmsvc_grant_deferred,
 };
 
 /*
@@ -580,6 +640,8 @@ nlmsvc_grant_blocked(struct nlm_block *block)
 	int			error;
 
 	dprintk("lockd: grant blocked lock %p\n", block);
+
+	kref_get(&block->b_count);
 
 	/* Unlink block request from list */
 	nlmsvc_unlink_block(block);
@@ -603,11 +665,13 @@ nlmsvc_grant_blocked(struct nlm_block *block)
 	case -EAGAIN:
 		dprintk("lockd: lock still blocked\n");
 		nlmsvc_insert_block(block, NLM_NEVER);
+		nlmsvc_release_block(block);
 		return;
 	default:
 		printk(KERN_WARNING "lockd: unexpected error %d in %s!\n",
 				-error, __FUNCTION__);
 		nlmsvc_insert_block(block, 10 * HZ);
+		nlmsvc_release_block(block);
 		return;
 	}
 
@@ -620,7 +684,6 @@ callback:
 	nlmsvc_insert_block(block, 30 * HZ);
 
 	/* Call the client */
-	kref_get(&block->b_count);
 	nlm_async_call(block->b_call, NLMPROC_GRANTED_MSG, &nlmsvc_grant_ops);
 }
 
@@ -693,6 +756,23 @@ nlmsvc_grant_reply(struct nlm_cookie *cookie, __be32 status)
 	nlmsvc_release_block(block);
 }
 
+/* Helper function to handle retry of a deferred block.
+ * If it is a blocking lock, call grant_blocked.
+ * For a non-blocking lock or test lock, revisit the request.
+ */
+static void
+retry_deferred_block(struct nlm_block *block)
+{
+	if (!(block->b_flags & B_GOT_CALLBACK))
+		block->b_flags |= B_TIMED_OUT;
+	nlmsvc_insert_block(block, NLM_TIMEOUT);
+	dprintk("revisit block %p flags %d\n",	block, block->b_flags);
+	if (block->b_deferred_req) {
+		block->b_deferred_req->revisit(block->b_deferred_req, 0);
+		block->b_deferred_req = NULL;
+	}
+}
+
 /*
  * Retry all blocked locks that have been notified. This is where lockd
  * picks up locks that can be granted, or grant notifications that must
@@ -716,9 +796,12 @@ nlmsvc_retry_blocked(void)
 
 		dprintk("nlmsvc_retry_blocked(%p, when=%ld)\n",
 			block, block->b_when);
-		kref_get(&block->b_count);
-		nlmsvc_grant_blocked(block);
-		nlmsvc_release_block(block);
+		if (block->b_flags & B_QUEUED) {
+			dprintk("nlmsvc_retry_blocked delete block (%p, granted=%d, flags=%d)\n",
+				block, block->b_granted, block->b_flags);
+			retry_deferred_block(block);
+		} else
+			nlmsvc_grant_blocked(block);
 	}
 
 	return timeout;
