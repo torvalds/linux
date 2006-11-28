@@ -397,6 +397,9 @@ static int conexant_eapd_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
+/* controls for test mode */
+#ifdef CONFIG_SND_DEBUG
+
 static int conexant_ch_mode_info(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_info *uinfo)
 {
@@ -544,6 +547,8 @@ static int cxt_spdif_ctrl_put(struct snd_kcontrol *kcontrol,
 	  .get = cxt_spdif_ctrl_get, \
 	  .put = cxt_spdif_ctrl_put, \
 	  .private_value = nid | (mask<<16) }
+
+#endif /* CONFIG_SND_DEBUG */
 
 /* Conexant 5045 specific */
 
