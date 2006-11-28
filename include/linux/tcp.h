@@ -227,7 +227,8 @@ static inline struct tcp_request_sock *tcp_rsk(const struct request_sock *req)
 struct tcp_sock {
 	/* inet_connection_sock has to be the first member of tcp_sock */
 	struct inet_connection_sock	inet_conn;
-	int	tcp_header_len;	/* Bytes of tcp header to send		*/
+	u16	tcp_header_len;	/* Bytes of tcp header to send		*/
+	u16	xmit_size_goal;	/* Goal for segmenting output packets	*/
 
 /*
  *	Header prediction flags
@@ -268,8 +269,6 @@ struct tcp_sock {
 	__u32	snd_wnd;	/* The window we expect to receive	*/
 	__u32	max_window;	/* Maximal window ever seen from peer	*/
 	__u32	mss_cache;	/* Cached effective mss, not including SACKS */
-	__u16	xmit_size_goal;	/* Goal for segmenting output packets	*/
-	/* XXX Two bytes hole, try to pack */
 
 	__u32	window_clamp;	/* Maximal window to advertise		*/
 	__u32	rcv_ssthresh;	/* Current window clamp			*/
