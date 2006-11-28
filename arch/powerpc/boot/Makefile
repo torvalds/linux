@@ -179,3 +179,4 @@ install: $(CONFIGURE) $(image-y)
 
 clean-files += $(addprefix $(objtree)/, $(obj-boot) vmlinux.strip.gz)
 clean-files += $(addprefix $(objtree)/, $(obj-boot) vmlinux.bin.gz)
+clean-files += $(image-)
