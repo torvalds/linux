@@ -100,6 +100,8 @@ nlm4svc_proc_test(struct svc_rqst *rqstp, struct nlm_args *argp,
 
 	/* Now check for conflicting locks */
 	resp->status = nlmsvc_testlock(rqstp, file, &argp->lock, &resp->lock, &resp->cookie);
+	if (resp->status == nlm_drop_reply)
+		return rpc_drop_reply;
 
 	dprintk("lockd: TEST4          status %d\n", ntohl(resp->status));
 	nlm_release_host(host);

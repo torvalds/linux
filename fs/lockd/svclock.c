@@ -173,7 +173,7 @@ found:
  */
 static inline struct nlm_block *
 nlmsvc_create_block(struct svc_rqst *rqstp, struct nlm_file *file,
-				struct nlm_lock *lock, struct nlm_cookie *cookie)
+		struct nlm_lock *lock, struct nlm_cookie *cookie)
 {
 	struct nlm_block	*block;
 	struct nlm_host		*host;
@@ -210,6 +210,7 @@ nlmsvc_create_block(struct svc_rqst *rqstp, struct nlm_file *file,
 	block->b_daemon = rqstp->rq_server;
 	block->b_host   = host;
 	block->b_file   = file;
+	block->b_fl = NULL;
 	file->f_count++;
 
 	/* Add to file's list of blocks */
@@ -446,6 +447,10 @@ nlmsvc_testlock(struct svc_rqst *rqstp, struct nlm_file *file,
 		struct nlm_lock *lock, struct nlm_lock *conflock,
 		struct nlm_cookie *cookie)
 {
+	struct nlm_block 	*block = NULL;
+	int			error;
+	__be32			ret;
+
 	dprintk("lockd: nlmsvc_testlock(%s/%ld, ty=%d, %Ld-%Ld)\n",
 				file->f_file->f_path.dentry->d_inode->i_sb->s_id,
 				file->f_file->f_path.dentry->d_inode->i_ino,
@@ -453,22 +458,70 @@ nlmsvc_testlock(struct svc_rqst *rqstp, struct nlm_file *file,
 				(long long)lock->fl.fl_start,
 				(long long)lock->fl.fl_end);
 
-	if (posix_test_lock(file->f_file, &lock->fl)) {
-		dprintk("lockd: conflicting lock(ty=%d, %Ld-%Ld)\n",
-				lock->fl.fl_type,
-				(long long)lock->fl.fl_start,
-				(long long)lock->fl.fl_end);
-		conflock->caller = "somehost";	/* FIXME */
-		conflock->len = strlen(conflock->caller);
-		conflock->oh.len = 0;		/* don't return OH info */
-		conflock->svid = lock->fl.fl_pid;
-		conflock->fl.fl_type = lock->fl.fl_type;
-		conflock->fl.fl_start = lock->fl.fl_start;
-		conflock->fl.fl_end = lock->fl.fl_end;
-		return nlm_lck_denied;
+	/* Get existing block (in case client is busy-waiting) */
+	block = nlmsvc_lookup_block(file, lock);
+
+	if (block == NULL) {
+		struct file_lock *conf = kzalloc(sizeof(*conf), GFP_KERNEL);
+
+		if (conf == NULL)
+			return nlm_granted;
+		block = nlmsvc_create_block(rqstp, file, lock, cookie);
+		if (block == NULL) {
+			kfree(conf);
+			return nlm_granted;
+		}
+		block->b_fl = conf;
+	}
+	if (block->b_flags & B_QUEUED) {
+		dprintk("lockd: nlmsvc_testlock deferred block %p flags %d fl %p\n",
+			block, block->b_flags, block->b_fl);
+		if (block->b_flags & B_TIMED_OUT) {
+			nlmsvc_unlink_block(block);
+			return nlm_lck_denied;
+		}
+		if (block->b_flags & B_GOT_CALLBACK) {
+			if (block->b_fl != NULL
+					&& block->b_fl->fl_type != F_UNLCK) {
+				lock->fl = *block->b_fl;
+				goto conf_lock;
+			}
+			else {
+				nlmsvc_unlink_block(block);
+				return nlm_granted;
+			}
+		}
+		return nlm_drop_reply;
 	}
 
-	return nlm_granted;
+	error = vfs_test_lock(file->f_file, &lock->fl);
+	if (error == -EINPROGRESS)
+		return nlmsvc_defer_lock_rqst(rqstp, block);
+	if (error) {
+		ret = nlm_lck_denied_nolocks;
+		goto out;
+	}
+	if (lock->fl.fl_type == F_UNLCK) {
+		ret = nlm_granted;
+		goto out;
+	}
+
+conf_lock:
+	dprintk("lockd: conflicting lock(ty=%d, %Ld-%Ld)\n",
+		lock->fl.fl_type, (long long)lock->fl.fl_start,
+		(long long)lock->fl.fl_end);
+	conflock->caller = "somehost";	/* FIXME */
+	conflock->len = strlen(conflock->caller);
+	conflock->oh.len = 0;		/* don't return OH info */
+	conflock->svid = lock->fl.fl_pid;
+	conflock->fl.fl_type = lock->fl.fl_type;
+	conflock->fl.fl_start = lock->fl.fl_start;
+	conflock->fl.fl_end = lock->fl.fl_end;
+	ret = nlm_lck_denied;
+out:
+	if (block)
+		nlmsvc_release_block(block);
+	return ret;
 }
 
 /*
@@ -549,7 +602,6 @@ nlmsvc_update_deferred_block(struct nlm_block *block, struct file_lock *conf,
 	else
 		block->b_flags |= B_TIMED_OUT;
 	if (conf) {
-		block->b_fl = kzalloc(sizeof(struct file_lock), GFP_KERNEL);
 		if (block->b_fl)
 			locks_copy_lock(block->b_fl, conf);
 	}
