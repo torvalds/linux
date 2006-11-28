@@ -463,7 +463,7 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget)
  *  o Input pin to Output pin (bypass, sidetone)
  *  o DAC to ADC (loopback).
  */
-int dapm_power_widgets(struct snd_soc_codec *codec, int event)
+static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 {
 	struct snd_soc_dapm_widget *w;
 	int in, out, i, c = 1, *seq = NULL, ret = 0, power_change, power;
@@ -664,8 +664,9 @@ static void dbg_dump_dapm(struct snd_soc_codec* codec, const char *action)
 #endif
 
 /* test and update the power status of a mux widget */
-int dapm_mux_update_power(struct snd_soc_dapm_widget *widget,
-	struct snd_kcontrol *kcontrol, int mask, int val, struct soc_enum* e)
+static int dapm_mux_update_power(struct snd_soc_dapm_widget *widget,
+				 struct snd_kcontrol *kcontrol, int mask,
+				 int val, struct soc_enum* e)
 {
 	struct snd_soc_dapm_path *path;
 	int found = 0;
@@ -697,11 +698,11 @@ int dapm_mux_update_power(struct snd_soc_dapm_widget *widget,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(dapm_mux_update_power);
 
 /* test and update the power status of a mixer widget */
-int dapm_mixer_update_power(struct snd_soc_dapm_widget *widget,
-	struct snd_kcontrol *kcontrol, int reg, int val_mask, int val, int invert)
+static int dapm_mixer_update_power(struct snd_soc_dapm_widget *widget,
+				   struct snd_kcontrol *kcontrol, int reg,
+				   int val_mask, int val, int invert)
 {
 	struct snd_soc_dapm_path *path;
 	int found = 0;
@@ -733,7 +734,6 @@ int dapm_mixer_update_power(struct snd_soc_dapm_widget *widget,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(dapm_mixer_update_power);
 
 /* show dapm widget status in sys fs */
 static ssize_t dapm_widget_show(struct device *dev,
@@ -808,7 +808,7 @@ static void snd_soc_dapm_sys_remove(struct device *dev)
 }
 
 /* free all dapm widgets and resources */
-void dapm_free_widgets(struct snd_soc_codec *codec)
+static void dapm_free_widgets(struct snd_soc_codec *codec)
 {
 	struct snd_soc_dapm_widget *w, *next_w;
 	struct snd_soc_dapm_path *p, *next_p;
