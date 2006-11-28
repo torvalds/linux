@@ -529,8 +529,8 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 
 	mutex_lock(&device_add_lock);
 
-	/* max of 2 devices per card */
-	if (s->device_count == 2)
+	/* max of 4 devices per card */
+	if (s->device_count == 4)
 		goto err_put;
 
 	p_dev = kzalloc(sizeof(struct pcmcia_device), GFP_KERNEL);
