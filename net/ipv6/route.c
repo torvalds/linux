@@ -330,6 +330,8 @@ static int inline rt6_check_neigh(struct rt6_info *rt)
 		read_lock_bh(&neigh->lock);
 		if (neigh->nud_state & NUD_VALID)
 			m = 2;
+		else if (!(neigh->nud_state & NUD_FAILED))
+			m = 1;
 		read_unlock_bh(&neigh->lock);
 	}
 	return m;
@@ -347,9 +349,7 @@ static int rt6_score_route(struct rt6_info *rt, int oif,
 	m |= IPV6_DECODE_PREF(IPV6_EXTRACT_PREF(rt->rt6i_flags)) << 2;
 #endif
 	n = rt6_check_neigh(rt);
-	if (n > 1)
-		m |= 16;
-	else if (!n && strict & RT6_LOOKUP_F_REACHABLE)
+	if (!n && (strict & RT6_LOOKUP_F_REACHABLE))
 		return -1;
 	return m;
 }
@@ -380,10 +380,11 @@ static struct rt6_info *rt6_select(struct rt6_info **head, int oif,
 			continue;
 
 		if (m > mpri) {
-			rt6_probe(match);
+			if (strict & RT6_LOOKUP_F_REACHABLE)
+				rt6_probe(match);
 			match = rt;
 			mpri = m;
-		} else {
+		} else if (strict & RT6_LOOKUP_F_REACHABLE) {
 			rt6_probe(rt);
 		}
 	}
@@ -636,7 +637,7 @@ static struct rt6_info *ip6_pol_route_input(struct fib6_table *table,
 	int strict = 0;
 	int attempts = 3;
 	int err;
-	int reachable = RT6_LOOKUP_F_REACHABLE;
+	int reachable = ipv6_devconf.forwarding ? 0 : RT6_LOOKUP_F_REACHABLE;
 
 	strict |= flags & RT6_LOOKUP_F_IFACE;
 
@@ -733,7 +734,7 @@ static struct rt6_info *ip6_pol_route_output(struct fib6_table *table,
 	int strict = 0;
 	int attempts = 3;
 	int err;
-	int reachable = RT6_LOOKUP_F_REACHABLE;
+	int reachable = ipv6_devconf.forwarding ? 0 : RT6_LOOKUP_F_REACHABLE;
 
 	strict |= flags & RT6_LOOKUP_F_IFACE;
 

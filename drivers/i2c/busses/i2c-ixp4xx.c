@@ -138,7 +138,7 @@ static int ixp4xx_i2c_probe(struct platform_device *plat_dev)
 	gpio_line_set(gpio->sda_pin, 0);
 
 	err = i2c_bit_add_bus(&drv_data->adapter);
-	if (err != 0)
+	if (err) {
 		printk(KERN_ERR "ERROR: Could not install %s\n", plat_dev->dev.bus_id);
 
 		kfree(drv_data);

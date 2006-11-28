@@ -928,23 +928,32 @@ static int udp_encap_rcv(struct sock * sk, struct sk_buff *skb)
 	return 1; 
 #else
 	struct udp_sock *up = udp_sk(sk);
-  	struct udphdr *uh = skb->h.uh;
+  	struct udphdr *uh;
 	struct iphdr *iph;
 	int iphlen, len;
   
-	__u8 *udpdata = (__u8 *)uh + sizeof(struct udphdr);
-	__be32 *udpdata32 = (__be32 *)udpdata;
+	__u8 *udpdata;
+	__be32 *udpdata32;
 	__u16 encap_type = up->encap_type;
 
 	/* if we're overly short, let UDP handle it */
-	if (udpdata > skb->tail)
+	len = skb->len - sizeof(struct udphdr);
+	if (len <= 0)
 		return 1;
 
 	/* if this is not encapsulated socket, then just return now */
 	if (!encap_type)
 		return 1;
 
-	len = skb->tail - udpdata;
+	/* If this is a paged skb, make sure we pull up
+	 * whatever data we need to look at. */
+	if (!pskb_may_pull(skb, sizeof(struct udphdr) + min(len, 8)))
+		return 1;
+
+	/* Now we can get the pointers */
+	uh = skb->h.uh;
+	udpdata = (__u8 *)uh + sizeof(struct udphdr);
+	udpdata32 = (__be32 *)udpdata;
 
 	switch (encap_type) {
 	default:

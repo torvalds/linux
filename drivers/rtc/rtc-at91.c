@@ -292,7 +292,8 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 					AT91_RTC_CALEV);
 
 	ret = request_irq(AT91_ID_SYS, at91_rtc_interrupt,
-				IRQF_SHARED, "at91_rtc", pdev);
+				IRQF_DISABLED | IRQF_SHARED,
+				"at91_rtc", pdev);
 	if (ret) {
 		printk(KERN_ERR "at91_rtc: IRQ %d already in use.\n",
 				AT91_ID_SYS);

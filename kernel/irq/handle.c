@@ -231,10 +231,10 @@ fastcall unsigned int __do_IRQ(unsigned int irq)
 		spin_unlock(&desc->lock);
 
 		action_ret = handle_IRQ_event(irq, action);
-
-		spin_lock(&desc->lock);
 		if (!noirqdebug)
 			note_interrupt(irq, desc, action_ret);
+
+		spin_lock(&desc->lock);
 		if (likely(!(desc->status & IRQ_PENDING)))
 			break;
 		desc->status &= ~IRQ_PENDING;

@@ -160,6 +160,8 @@ static __init int dccpprobe_init(void)
 	init_waitqueue_head(&dccpw.wait);
 	spin_lock_init(&dccpw.lock);
 	dccpw.fifo = kfifo_alloc(bufsize, GFP_KERNEL, &dccpw.lock);
+	if (IS_ERR(dccpw.fifo))
+		return PTR_ERR(dccpw.fifo);
 
 	if (!proc_net_fops_create(procname, S_IRUSR, &dccpprobe_fops))
 		goto err0;

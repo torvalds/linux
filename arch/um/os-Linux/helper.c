@@ -8,18 +8,21 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sched.h>
+#include <limits.h>
 #include <sys/signal.h>
 #include <sys/wait.h>
 #include "user.h"
 #include "kern_util.h"
 #include "user_util.h"
 #include "os.h"
+#include "um_malloc.h"
 
 struct helper_data {
 	void (*pre_exec)(void*);
 	void *pre_data;
 	char **argv;
 	int fd;
+	char *buf;
 };
 
 /* Debugging aid, changed only from gdb */
@@ -41,9 +44,8 @@ static int helper_child(void *arg)
 	}
 	if (data->pre_exec != NULL)
 		(*data->pre_exec)(data->pre_data);
-	execvp(argv[0], argv);
-	errval = -errno;
-	printk("helper_child - execve of '%s' failed - errno = %d\n", argv[0], errno);
+	errval = execvp_noalloc(data->buf, argv[0], argv);
+	printk("helper_child - execvp of '%s' failed - errno = %d\n", argv[0], -errval);
 	os_write_file(data->fd, &errval, sizeof(errval));
 	kill(os_getpid(), SIGKILL);
 	return 0;
@@ -84,11 +86,13 @@ int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv,
 	data.pre_data = pre_data;
 	data.argv = argv;
 	data.fd = fds[1];
+	data.buf = __cant_sleep() ? um_kmalloc_atomic(PATH_MAX) :
+					um_kmalloc(PATH_MAX);
 	pid = clone(helper_child, (void *) sp, CLONE_VM | SIGCHLD, &data);
 	if (pid < 0) {
 		ret = -errno;
 		printk("run_helper : clone failed, errno = %d\n", errno);
-		goto out_close;
+		goto out_free2;
 	}
 
 	close(fds[1]);
@@ -109,6 +113,8 @@ int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv,
 		CATCH_EINTR(waitpid(pid, NULL, 0));
 	}
 
+out_free2:
+	kfree(data.buf);
 out_close:
 	if (fds[1] != -1)
 		close(fds[1]);

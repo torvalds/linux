@@ -21,6 +21,7 @@
 #include <linux/mount.h>
 #include <linux/pagemap.h>
 #include <linux/init.h>
+#include <linux/kobject.h>
 #include <linux/namei.h>
 #include <linux/debugfs.h>
 

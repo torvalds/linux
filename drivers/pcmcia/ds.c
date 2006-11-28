@@ -1272,7 +1272,9 @@ static void pcmcia_bus_remove_socket(struct class_device *class_dev,
 	pccard_register_pcmcia(socket, NULL);
 
 	/* unregister any unbound devices */
+	mutex_lock(&socket->skt_mutex);
 	pcmcia_card_remove(socket, NULL);
+	mutex_unlock(&socket->skt_mutex);
 
 	pcmcia_put_socket(socket);
 

@@ -115,7 +115,8 @@ extern __inline__ int down_interruptible(struct semaphore * sem)
  */
 extern __inline__ int down_trylock(struct semaphore * sem)
 {
-	int flags, count;
+	unsigned long flags;
+	int count;
 
 	spin_lock_irqsave(&sem->sentry, flags);
 	count = sem->count - 1;
@@ -131,7 +132,8 @@ extern __inline__ int down_trylock(struct semaphore * sem)
  */
 extern __inline__ void up(struct semaphore * sem)
 {
-	int flags;
+	unsigned long flags;
+
 	spin_lock_irqsave(&sem->sentry, flags);
 	if (sem->count < 0) {
 		__up(sem);
