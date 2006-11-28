@@ -471,7 +471,7 @@ static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
 	switch (optname) {
 	case DCCP_SOCKOPT_PACKET_SIZE:
 		DCCP_WARN("sockopt(PACKET_SIZE) is deprecated: fix your app\n");
-		err = -EINVAL;
+		err = 0;
 		break;
 	case DCCP_SOCKOPT_CHANGE_L:
 		if (optlen != sizeof(struct dccp_so_feat))
@@ -583,7 +583,7 @@ static int do_dccp_getsockopt(struct sock *sk, int level, int optname,
 	switch (optname) {
 	case DCCP_SOCKOPT_PACKET_SIZE:
 		DCCP_WARN("sockopt(PACKET_SIZE) is deprecated: fix your app\n");
-		return -EINVAL;
+		return 0;
 	case DCCP_SOCKOPT_SERVICE:
 		return dccp_getsockopt_service(sk, len,
 					       (__be32 __user *)optval, optlen);
