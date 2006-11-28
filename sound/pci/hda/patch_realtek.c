@@ -3271,11 +3271,20 @@ static struct snd_kcontrol_new alc260_fujitsu_mixer[] = {
  * and the output jack.  If this turns out to be the case for all such
  * models the "Line Jack Mode" mode could be changed from ALC_PIN_DIR_INOUT
  * to ALC_PIN_DIR_INOUT_NOMICBIAS.
+ *
+ * The C20x Tablet series have a mono internal speaker which is controlled
+ * via the chip's Mono sum widget and pin complex, so include the necessary
+ * controls for such models.  On models without a "mono speaker" the control
+ * won't do anything.
  */
 static struct snd_kcontrol_new alc260_acer_mixer[] = {
 	HDA_CODEC_VOLUME("Master Playback Volume", 0x08, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("Master Playback Switch", 0x08, 2, HDA_INPUT),
 	ALC_PIN_MODE("Headphone Jack Mode", 0x0f, ALC_PIN_DIR_INOUT),
+	HDA_CODEC_VOLUME_MONO("Mono Speaker Playback Volume", 0x0a, 1, 0x0,
+			      HDA_OUTPUT),
+	HDA_BIND_MUTE_MONO("Mono Speaker Playback Switch", 0x0a, 1, 2,
+			   HDA_INPUT),
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x07, 0x04, HDA_INPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x07, 0x04, HDA_INPUT),
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x07, 0x0, HDA_INPUT),
@@ -3590,11 +3599,11 @@ static struct hda_verb alc260_acer_init_verbs[] = {
 	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF50},
 	/* Line In jack is connected to Line1 pin */
 	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
+	/* Some Acers (eg: C20x Tablets) use Mono pin for internal speaker */
+	{0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
 	/* Ensure all other unused pins are disabled and muted. */
 	{0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
 	{0x10, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
-	{0x11, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x13, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
 	{0x13, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
@@ -3622,6 +3631,8 @@ static struct hda_verb alc260_acer_init_verbs[] = {
 
 	/* Unmute Line-out pin widget amp left and right (no equiv mixer ctrl) */
 	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	/* Unmute mono pin widget amp output (no equiv mixer ctrl) */
+	{0x11, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	/* Unmute Mic1 and Line1 pin widget input buffers since they start as
 	 * inputs. If the pin mode is changed by the user the pin mode control
 	 * will take care of enabling the pin's input/output buffers as needed.
@@ -4122,6 +4133,7 @@ static const char *alc260_models[ALC260_MODEL_LAST] = {
 };
 
 static struct snd_pci_quirk alc260_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x1025, 0x007b, "Acer C20x", ALC260_ACER),
 	SND_PCI_QUIRK(0x1025, 0x008f, "Acer", ALC260_ACER),
 	SND_PCI_QUIRK(0x103c, 0x3010, "HP", ALC260_HP_3013),
 	SND_PCI_QUIRK(0x103c, 0x3011, "HP", ALC260_HP),
