@@ -42,10 +42,6 @@
 #include <linux/tfrc.h>
 #include "../ccid.h"
 
-#define TFRC_MIN_PACKET_SIZE	   16
-#define TFRC_STD_PACKET_SIZE	  256
-#define TFRC_MAX_PACKET_SIZE	65535
-
 /* Two seconds as per RFC 3448 4.2 */
 #define TFRC_INITIAL_TIMEOUT	   (2 * USEC_PER_SEC)
 
