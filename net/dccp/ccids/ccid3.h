@@ -48,8 +48,8 @@
 /* In usecs - half the scheduling granularity as per RFC3448 4.6 */
 #define TFRC_OPSYS_HALF_TIME_GRAN  (USEC_PER_SEC / (2 * HZ))
 
-/* In seconds */
-#define TFRC_MAX_BACK_OFF_TIME	   64
+/* Parameter t_mbi from [RFC 3448, 4.3]: backoff interval in seconds */
+#define TFRC_T_MBI		   64
 
 #define TFRC_SMALLEST_P		   40
 
