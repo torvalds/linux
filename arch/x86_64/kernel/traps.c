@@ -242,12 +242,19 @@ static int dump_trace_unwind(struct unwind_frame_info *info, void *context)
  * severe exception (double fault, nmi, stack fault, debug, mce) hardware stack
  */
 
+static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
+{
+	void *t = (void *)tinfo;
+        return p > t && p < t + THREAD_SIZE - 3;
+}
+
 void dump_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * stack,
 		struct stacktrace_ops *ops, void *data)
 {
 	const unsigned cpu = smp_processor_id();
 	unsigned long *irqstack_end = (unsigned long *)cpu_pda(cpu)->irqstackptr;
 	unsigned used = 0;
+	struct thread_info *tinfo;
 
 	if (!tsk)
 		tsk = current;
@@ -370,7 +377,8 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 	/*
 	 * This handles the process stack:
 	 */
-	HANDLE_STACK (((long) stack & (THREAD_SIZE-1)) != 0);
+	tinfo = current_thread_info();
+	HANDLE_STACK (valid_stack_ptr(tinfo, stack));
 #undef HANDLE_STACK
 }
 EXPORT_SYMBOL(dump_trace);
