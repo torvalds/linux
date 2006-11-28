@@ -1079,6 +1079,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     buggy_semaphore - Enable workaround for hardwares with buggy
 		    semaphores (e.g. on some ASUS laptops)
 		    (default off)
+    spdif_aclink  - Use S/PDIF over AC-link instead of direct connection
+		    from the controller chip
+		    (0 = off, 1 = on, -1 = default)
 
     This module supports one chip and autoprobe.
 
