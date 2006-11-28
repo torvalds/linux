@@ -437,9 +437,6 @@ static int lgdt3302_read_status(struct dvb_frontend* fe, fe_status_t* status)
 		/* Test signal does not exist flag */
 		/* as well as the AGC lock flag.   */
 		*status |= FE_HAS_SIGNAL;
-	} else {
-		/* Without a signal all other status bits are meaningless */
-		return 0;
 	}
 
 	/*
@@ -502,9 +499,6 @@ static int lgdt3303_read_status(struct dvb_frontend* fe, fe_status_t* status)
 		/* Test input signal does not exist flag */
 		/* as well as the AGC lock flag.   */
 		*status |= FE_HAS_SIGNAL;
-	} else {
-		/* Without a signal all other status bits are meaningless */
-		return 0;
 	}
 
 	/* Carrier Recovery Lock Status Register */
