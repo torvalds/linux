@@ -20,7 +20,6 @@
 
 static struct ctl_table dccp_default_table[] = {
 	{
-		.ctl_name	= NET_DCCP_DEFAULT_SEQ_WINDOW,
 		.procname	= "seq_window",
 		.data		= &sysctl_dccp_feat_sequence_window,
 		.maxlen		= sizeof(sysctl_dccp_feat_sequence_window),
@@ -28,7 +27,6 @@ static struct ctl_table dccp_default_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_DCCP_DEFAULT_RX_CCID,
 		.procname	= "rx_ccid",
 		.data		= &sysctl_dccp_feat_rx_ccid,
 		.maxlen		= sizeof(sysctl_dccp_feat_rx_ccid),
@@ -36,7 +34,6 @@ static struct ctl_table dccp_default_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_DCCP_DEFAULT_TX_CCID,
 		.procname	= "tx_ccid",
 		.data		= &sysctl_dccp_feat_tx_ccid,
 		.maxlen		= sizeof(sysctl_dccp_feat_tx_ccid),
@@ -44,7 +41,6 @@ static struct ctl_table dccp_default_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_DCCP_DEFAULT_ACK_RATIO,
 		.procname	= "ack_ratio",
 		.data		= &sysctl_dccp_feat_ack_ratio,
 		.maxlen		= sizeof(sysctl_dccp_feat_ack_ratio),
@@ -52,7 +48,6 @@ static struct ctl_table dccp_default_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_DCCP_DEFAULT_SEND_ACKVEC,
 		.procname	= "send_ackvec",
 		.data		= &sysctl_dccp_feat_send_ack_vector,
 		.maxlen		= sizeof(sysctl_dccp_feat_send_ack_vector),
@@ -60,7 +55,6 @@ static struct ctl_table dccp_default_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_DCCP_DEFAULT_SEND_NDP,
 		.procname	= "send_ndp",
 		.data		= &sysctl_dccp_feat_send_ndp_count,
 		.maxlen		= sizeof(sysctl_dccp_feat_send_ndp_count),
@@ -68,7 +62,6 @@ static struct ctl_table dccp_default_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_DCCP_DEFAULT_REQ_RETRIES,
 		.procname	= "request_retries",
 		.data		= &sysctl_dccp_request_retries,
 		.maxlen		= sizeof(sysctl_dccp_request_retries),
@@ -76,7 +69,6 @@ static struct ctl_table dccp_default_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_DCCP_DEFAULT_RETRIES1,
 		.procname	= "retries1",
 		.data		= &sysctl_dccp_retries1,
 		.maxlen		= sizeof(sysctl_dccp_retries1),
@@ -84,7 +76,6 @@ static struct ctl_table dccp_default_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_DCCP_DEFAULT_RETRIES2,
 		.procname	= "retries2",
 		.data		= &sysctl_dccp_retries2,
 		.maxlen		= sizeof(sysctl_dccp_retries2),
@@ -92,7 +83,6 @@ static struct ctl_table dccp_default_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_DCCP_DEFAULT_TX_QLEN,
 		.procname	= "tx_qlen",
 		.data		= &sysctl_dccp_tx_qlen,
 		.maxlen		= sizeof(sysctl_dccp_tx_qlen),
