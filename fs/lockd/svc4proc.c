@@ -145,6 +145,8 @@ nlm4svc_proc_lock(struct svc_rqst *rqstp, struct nlm_args *argp,
 	/* Now try to lock the file */
 	resp->status = nlmsvc_lock(rqstp, file, &argp->lock,
 					argp->block, &argp->cookie);
+	if (resp->status == nlm_drop_reply)
+		return rpc_drop_reply;
 
 	dprintk("lockd: LOCK          status %d\n", ntohl(resp->status));
 	nlm_release_host(host);
