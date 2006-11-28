@@ -195,8 +195,7 @@ static int dccp_wait_for_ccid(struct sock *sk, struct sk_buff *skb,
 		if (signal_pending(current))
 			goto do_interrupted;
 
-		rc = ccid_hc_tx_send_packet(dp->dccps_hc_tx_ccid, sk, skb,
-					    skb->len);
+		rc = ccid_hc_tx_send_packet(dp->dccps_hc_tx_ccid, sk, skb);
 		if (rc <= 0)
 			break;
 		delay = msecs_to_jiffies(rc);
@@ -245,8 +244,7 @@ void dccp_write_xmit(struct sock *sk, int block)
 					   this we have other issues */
 
 	while ((skb = skb_peek(&sk->sk_write_queue))) {
-		int err = ccid_hc_tx_send_packet(dp->dccps_hc_tx_ccid, sk, skb,
-					 skb->len);
+		int err = ccid_hc_tx_send_packet(dp->dccps_hc_tx_ccid, sk, skb);
 
 		if (err > 0) {
 			if (!block) {

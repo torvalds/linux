@@ -125,8 +125,7 @@ static int ccid2_hc_tx_alloc_seq(struct ccid2_hc_tx_sock *hctx, int num,
 	return 0;
 }
 
-static int ccid2_hc_tx_send_packet(struct sock *sk,
-				   struct sk_buff *skb, int len)
+static int ccid2_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 {
 	struct ccid2_hc_tx_sock *hctx;
 
@@ -268,7 +267,7 @@ static void ccid2_start_rto_timer(struct sock *sk)
 		       jiffies + hctx->ccid2hctx_rto);
 }
 
-static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, int len)
+static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid2_hc_tx_sock *hctx = ccid2_hc_tx_sk(sk);

@@ -272,8 +272,7 @@ out:
  *   = 0: can send immediately
  *   < 0: error condition; do not send packet
  */
-static int ccid3_hc_tx_send_packet(struct sock *sk,
-				   struct sk_buff *skb, int len)
+static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
@@ -288,7 +287,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 	 * zero-sized Data(Ack)s is theoretically possible, but for congestion
 	 * control this case is pathological - ignore it.
 	 */
-	if (unlikely(len == 0))
+	if (unlikely(skb->len == 0))
 		return -EBADMSG;
 
 	/* See if last packet allocated was not sent */
@@ -317,7 +316,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 		ccid3_hc_tx_set_state(sk, TFRC_SSTATE_NO_FBACK);
 
 		/* Set initial sending rate to 1 packet per second */
-		ccid3_hc_tx_update_s(hctx, len);
+		ccid3_hc_tx_update_s(hctx, skb->len);
 		hctx->ccid3hctx_x     = hctx->ccid3hctx_s;
 
 		/* First timeout, according to [RFC 3448, 4.2], is 1 second */
@@ -356,59 +355,53 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 	return 0;
 }
 
-static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
+static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 {
 	const struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct timeval now;
+	unsigned long quarter_rtt;
+	struct dccp_tx_hist_entry *packet;
 
 	BUG_ON(hctx == NULL);
 
 	dccp_timestamp(sk, &now);
 
-	/* check if we have sent a data packet */
-	if (len > 0) {
-		unsigned long quarter_rtt;
-		struct dccp_tx_hist_entry *packet;
+	ccid3_hc_tx_update_s(hctx, len);
 
-		ccid3_hc_tx_update_s(hctx, len);
+	packet = dccp_tx_hist_head(&hctx->ccid3hctx_hist);
+	if (unlikely(packet == NULL)) {
+		DCCP_WARN("packet doesn't exist in history!\n");
+		return;
+	}
+	if (unlikely(packet->dccphtx_sent)) {
+		DCCP_WARN("no unsent packet in history!\n");
+		return;
+	}
+	packet->dccphtx_tstamp = now;
+	packet->dccphtx_seqno  = dp->dccps_gss;
+	/*
+	 * Check if win_count have changed
+	 * Algorithm in "8.1. Window Counter Value" in RFC 4342.
+	 */
+	quarter_rtt = timeval_delta(&now, &hctx->ccid3hctx_t_last_win_count);
+	if (likely(hctx->ccid3hctx_rtt > 8))
+		quarter_rtt /= hctx->ccid3hctx_rtt / 4;
 
-		packet = dccp_tx_hist_head(&hctx->ccid3hctx_hist);
-		if (unlikely(packet == NULL)) {
-			DCCP_WARN("packet doesn't exist in history!\n");
-			return;
-		}
-		if (unlikely(packet->dccphtx_sent)) {
-			DCCP_WARN("no unsent packet in history!\n");
-			return;
-		}
-		packet->dccphtx_tstamp = now;
-		packet->dccphtx_seqno  = dp->dccps_gss;
-		/*
-		 * Check if win_count have changed
-		 * Algorithm in "8.1. Window Counter Value" in RFC 4342.
-		 */
-		quarter_rtt = timeval_delta(&now, &hctx->ccid3hctx_t_last_win_count);
-		if (likely(hctx->ccid3hctx_rtt > 8))
-			quarter_rtt /= hctx->ccid3hctx_rtt / 4;
+	if (quarter_rtt > 0) {
+		hctx->ccid3hctx_t_last_win_count = now;
+		hctx->ccid3hctx_last_win_count	 = (hctx->ccid3hctx_last_win_count +
+						    min_t(unsigned long, quarter_rtt, 5)) % 16;
+		ccid3_pr_debug("%s, sk=%p, window changed from "
+			       "%u to %u!\n",
+			       dccp_role(sk), sk,
+			       packet->dccphtx_ccval,
+			       hctx->ccid3hctx_last_win_count);
+	}
 
-		if (quarter_rtt > 0) {
-			hctx->ccid3hctx_t_last_win_count = now;
-			hctx->ccid3hctx_last_win_count	 = (hctx->ccid3hctx_last_win_count +
-							    min_t(unsigned long, quarter_rtt, 5)) % 16;
-			ccid3_pr_debug("%s, sk=%p, window changed from "
-				       "%u to %u!\n",
-				       dccp_role(sk), sk,
-				       packet->dccphtx_ccval,
-				       hctx->ccid3hctx_last_win_count);
-		}
-
-		hctx->ccid3hctx_idle = 0;
-		packet->dccphtx_rtt  = hctx->ccid3hctx_rtt;
-		packet->dccphtx_sent = 1;
-	} else
-		ccid3_pr_debug("%s, sk=%p, seqno=%llu NOT inserted!\n",
-			       dccp_role(sk), sk, dp->dccps_gss);
+	hctx->ccid3hctx_idle = 0;
+	packet->dccphtx_rtt  = hctx->ccid3hctx_rtt;
+	packet->dccphtx_sent = 1;
 }
 
 static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
