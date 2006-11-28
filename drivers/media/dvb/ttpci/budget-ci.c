@@ -217,11 +217,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 		input_dev->id.vendor = saa->pci->vendor;
 		input_dev->id.product = saa->pci->device;
 	}
-# if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15)
 	input_dev->cdev.dev = &saa->pci->dev;
-# else
-	input_dev->dev = &saa->pci->dev;
-# endif
 
 	/* Select keymap and address */
 	switch (budget_ci->budget.dev->pci->subsystem_device) {
