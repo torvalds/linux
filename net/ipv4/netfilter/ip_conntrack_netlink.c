@@ -320,8 +320,6 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 	} else if (events & (IPCT_NEW | IPCT_RELATED)) {
 		type = IPCTNL_MSG_CT_NEW;
 		flags = NLM_F_CREATE|NLM_F_EXCL;
-		/* dump everything */
-		events = ~0UL;
 		group = NFNLGRP_CONNTRACK_NEW;
 	} else if (events & (IPCT_STATUS | IPCT_PROTOINFO)) {
 		type = IPCTNL_MSG_CT_NEW;
@@ -356,28 +354,35 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 	if (ctnetlink_dump_tuples(skb, tuple(ct, IP_CT_DIR_REPLY)) < 0)
 		goto nfattr_failure;
 	NFA_NEST_END(skb, nest_parms);
-	
-	/* NAT stuff is now a status flag */
-	if ((events & IPCT_STATUS || events & IPCT_NATINFO)
-	    && ctnetlink_dump_status(skb, ct) < 0)
-		goto nfattr_failure;
-	if (events & IPCT_REFRESH
-	    && ctnetlink_dump_timeout(skb, ct) < 0)
-		goto nfattr_failure;
-	if (events & IPCT_PROTOINFO
-	    && ctnetlink_dump_protoinfo(skb, ct) < 0)
-		goto nfattr_failure;
-	if (events & IPCT_HELPINFO
-	    && ctnetlink_dump_helpinfo(skb, ct) < 0)
-		goto nfattr_failure;
 
-	if (ctnetlink_dump_counters(skb, ct, IP_CT_DIR_ORIGINAL) < 0 ||
-	    ctnetlink_dump_counters(skb, ct, IP_CT_DIR_REPLY) < 0)
-		goto nfattr_failure;
+	if (events & IPCT_DESTROY) {
+		if (ctnetlink_dump_counters(skb, ct, IP_CT_DIR_ORIGINAL) < 0 ||
+		    ctnetlink_dump_counters(skb, ct, IP_CT_DIR_REPLY) < 0)
+			goto nfattr_failure;
+	} else {
+		if (ctnetlink_dump_status(skb, ct) < 0)
+			goto nfattr_failure;
 
-	if (events & IPCT_MARK
-	    && ctnetlink_dump_mark(skb, ct) < 0)
-		goto nfattr_failure;
+		if (ctnetlink_dump_timeout(skb, ct) < 0)
+			goto nfattr_failure;
+
+		if (events & IPCT_PROTOINFO
+		    && ctnetlink_dump_protoinfo(skb, ct) < 0)
+		    	goto nfattr_failure;
+
+		if ((events & IPCT_HELPER || ct->helper)
+		    && ctnetlink_dump_helpinfo(skb, ct) < 0)
+		    	goto nfattr_failure;
+
+		if ((events & IPCT_MARK || ct->mark)
+		    && ctnetlink_dump_mark(skb, ct) < 0)
+		    	goto nfattr_failure;
+
+		if (events & IPCT_COUNTER_FILLING &&
+		    (ctnetlink_dump_counters(skb, ct, IP_CT_DIR_ORIGINAL) < 0 ||
+		     ctnetlink_dump_counters(skb, ct, IP_CT_DIR_REPLY) < 0))
+			goto nfattr_failure;
+	}
 
 	nlh->nlmsg_len = skb->tail - b;
 	nfnetlink_send(skb, 0, group, 0);
