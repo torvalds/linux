@@ -142,7 +142,7 @@ static void pptp_expectfn(struct ip_conntrack *ct,
 		DEBUGP("trying to unexpect other dir: ");
 		DUMP_TUPLE(&inv_t);
 
-		exp_other = ip_conntrack_expect_find(&inv_t);
+		exp_other = ip_conntrack_expect_find_get(&inv_t);
 		if (exp_other) {
 			/* delete other expectation.  */
 			DEBUGP("found\n");
@@ -176,7 +176,7 @@ static int destroy_sibling_or_exp(const struct ip_conntrack_tuple *t)
 		ip_conntrack_put(sibling);
 		return 1;
 	} else {
-		exp = ip_conntrack_expect_find(t);
+		exp = ip_conntrack_expect_find_get(t);
 		if (exp) {
 			DEBUGP("unexpect_related of expect %p\n", exp);
 			ip_conntrack_unexpect_related(exp);

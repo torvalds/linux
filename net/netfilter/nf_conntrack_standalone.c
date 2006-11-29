@@ -549,7 +549,7 @@ EXPORT_SYMBOL(__nf_conntrack_find);
 EXPORT_SYMBOL(nf_ct_unlink_expect);
 EXPORT_SYMBOL(nf_conntrack_hash_insert);
 EXPORT_SYMBOL(__nf_conntrack_expect_find);
-EXPORT_SYMBOL(nf_conntrack_expect_find);
+EXPORT_SYMBOL(nf_conntrack_expect_find_get);
 EXPORT_SYMBOL(nf_conntrack_expect_list);
 #if defined(CONFIG_NF_CT_NETLINK) || \
     defined(CONFIG_NF_CT_NETLINK_MODULE)

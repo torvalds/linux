@@ -68,7 +68,7 @@ __nf_conntrack_expect_find(const struct nf_conntrack_tuple *tuple)
 
 /* Just find a expectation corresponding to a tuple. */
 struct nf_conntrack_expect *
-nf_conntrack_expect_find(const struct nf_conntrack_tuple *tuple)
+nf_conntrack_expect_find_get(const struct nf_conntrack_tuple *tuple)
 {
 	struct nf_conntrack_expect *i;
 

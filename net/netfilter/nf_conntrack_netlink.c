@@ -1284,7 +1284,7 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 	if (err < 0)
 		return err;
 
-	exp = nf_conntrack_expect_find(&tuple);
+	exp = nf_conntrack_expect_find_get(&tuple);
 	if (!exp)
 		return -ENOENT;
 
@@ -1339,7 +1339,7 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 			return err;
 
 		/* bump usage count to 2 */
-		exp = nf_conntrack_expect_find(&tuple);
+		exp = nf_conntrack_expect_find_get(&tuple);
 		if (!exp)
 			return -ENOENT;
 

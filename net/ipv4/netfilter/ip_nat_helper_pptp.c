@@ -101,7 +101,7 @@ static void pptp_nat_expected(struct ip_conntrack *ct,
 
 	DEBUGP("trying to unexpect other dir: ");
 	DUMP_TUPLE(&t);
-	other_exp = ip_conntrack_expect_find(&t);
+	other_exp = ip_conntrack_expect_find_get(&t);
 	if (other_exp) {
 		ip_conntrack_unexpect_related(other_exp);
 		ip_conntrack_expect_put(other_exp);
