@@ -69,12 +69,37 @@ struct sip_header_nfo {
 };
 
 static struct sip_header_nfo ct_sip_hdrs[] = {
-	[POS_REQ_HEADER] = { 	/* SIP Requests headers */
+	[POS_REG_REQ_URI] = { 	/* SIP REGISTER request URI */
+		.lname		= "sip:",
+		.lnlen		= sizeof("sip:") - 1,
+		.ln_str		= ":",
+		.ln_strlen	= sizeof(":") - 1,
+		.match_len	= epaddr_len
+	},
+	[POS_REQ_URI] = { 	/* SIP request URI */
 		.lname		= "sip:",
 		.lnlen		= sizeof("sip:") - 1,
 		.ln_str		= "@",
 		.ln_strlen	= sizeof("@") - 1,
 		.match_len	= epaddr_len
+	},
+	[POS_FROM] = {		/* SIP From header */
+		.lname		= "From:",
+		.lnlen		= sizeof("From:") - 1,
+		.sname		= "\r\nf:",
+		.snlen		= sizeof("\r\nf:") - 1,
+		.ln_str		= "sip:",
+		.ln_strlen	= sizeof("sip:") - 1,
+		.match_len	= skp_epaddr_len,
+	},
+	[POS_TO] = {		/* SIP To header */
+		.lname		= "To:",
+		.lnlen		= sizeof("To:") - 1,
+		.sname		= "\r\nt:",
+		.snlen		= sizeof("\r\nt:") - 1,
+		.ln_str		= "sip:",
+		.ln_strlen	= sizeof("sip:") - 1,
+		.match_len	= skp_epaddr_len,
 	},
 	[POS_VIA] = { 		/* SIP Via header */
 		.lname		= "Via:",
@@ -284,7 +309,7 @@ int ct_sip_get_info(const char *dptr, size_t dlen,
 
 	while (dptr <= limit) {
 		if ((strncmp(dptr, hnfo->lname, hnfo->lnlen) != 0) &&
-		    (hinfo->sname == NULL ||
+		    (hnfo->sname == NULL ||
 		     strncmp(dptr, hnfo->sname, hnfo->snlen) != 0)) {
 			dptr++;
 			continue;

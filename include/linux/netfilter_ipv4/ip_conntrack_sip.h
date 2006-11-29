@@ -6,7 +6,10 @@
 #define SIP_TIMEOUT	3600
 
 enum sip_header_pos {
-	POS_REQ_HEADER,
+	POS_REG_REQ_URI,
+	POS_REQ_URI,
+	POS_FROM,
+	POS_TO,
 	POS_VIA,
 	POS_CONTACT,
 	POS_CONTENT,
