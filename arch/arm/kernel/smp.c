@@ -451,6 +451,7 @@ int smp_call_function(void (*func)(void *info), void *info, int retry,
 	return smp_call_function_on_cpu(func, info, retry, wait,
 					cpu_online_map);
 }
+EXPORT_SYMBOL_GPL(smp_call_function);
 
 void show_ipi_list(struct seq_file *p)
 {
