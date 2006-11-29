@@ -96,7 +96,7 @@ static inline rwlock_t *gl_lock_addr(unsigned int x)
 	return &gl_hash_locks[x & (GL_HASH_LOCK_SZ-1)];
 }
 #else /* not SMP, so no spinlocks required */
-static inline rwlock_t *gl_lock_addr(x)
+static inline rwlock_t *gl_lock_addr(unsigned int x)
 {
 	return NULL;
 }
