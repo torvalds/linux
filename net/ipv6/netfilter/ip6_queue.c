@@ -620,6 +620,7 @@ static ctl_table ipq_root_table[] = {
 	{ .ctl_name = 0 }
 };
 
+#ifdef CONFIG_PROC_FS
 static int
 ipq_get_info(char *buffer, char **start, off_t offset, int length)
 {
@@ -653,6 +654,7 @@ ipq_get_info(char *buffer, char **start, off_t offset, int length)
 		len = 0;
 	return len;
 }
+#endif /* CONFIG_PROC_FS */
 
 static struct nf_queue_handler nfqh = {
 	.name	= "ip6_queue",

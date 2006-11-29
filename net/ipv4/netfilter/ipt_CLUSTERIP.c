@@ -167,7 +167,6 @@ clusterip_config_init(struct ipt_clusterip_tgt_info *i, __be32 ip,
 			struct net_device *dev)
 {
 	struct clusterip_config *c;
-	char buffer[16];
 
 	c = kzalloc(sizeof(*c), GFP_ATOMIC);
 	if (!c)
@@ -184,12 +183,17 @@ clusterip_config_init(struct ipt_clusterip_tgt_info *i, __be32 ip,
 	atomic_set(&c->entries, 1);
 
 #ifdef CONFIG_PROC_FS
-	/* create proc dir entry */
-	sprintf(buffer, "%u.%u.%u.%u", NIPQUAD(ip));
-	c->pde = create_proc_entry(buffer, S_IWUSR|S_IRUSR, clusterip_procdir);
-	if (!c->pde) {
-		kfree(c);
-		return NULL;
+	{
+		char buffer[16];
+
+		/* create proc dir entry */
+		sprintf(buffer, "%u.%u.%u.%u", NIPQUAD(ip));
+		c->pde = create_proc_entry(buffer, S_IWUSR|S_IRUSR,
+					   clusterip_procdir);
+		if (!c->pde) {
+			kfree(c);
+			return NULL;
+		}
 	}
 	c->pde->proc_fops = &clusterip_proc_fops;
 	c->pde->data = c;
@@ -202,6 +206,7 @@ clusterip_config_init(struct ipt_clusterip_tgt_info *i, __be32 ip,
 	return c;
 }
 
+#ifdef CONFIG_PROC_FS
 static int
 clusterip_add_node(struct clusterip_config *c, u_int16_t nodenum)
 {
@@ -229,6 +234,7 @@ clusterip_del_node(struct clusterip_config *c, u_int16_t nodenum)
 
 	return 1;
 }
+#endif
 
 static inline u_int32_t
 clusterip_hashfn(struct sk_buff *skb, struct clusterip_config *config)
@@ -734,8 +740,10 @@ static int __init ipt_clusterip_init(void)
 		CLUSTERIP_VERSION);
 	return 0;
 
+#ifdef CONFIG_PROC_FS
 cleanup_hook:
 	nf_unregister_hook(&cip_arp_ops);
+#endif /* CONFIG_PROC_FS */
 cleanup_target:
 	ipt_unregister_target(&clusterip_tgt);
 	return ret;
