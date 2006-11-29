@@ -514,9 +514,15 @@ static int tas_snd_capture_source_put(struct snd_kcontrol *kcontrol,
 	mutex_lock(&tas->mtx);
 	oldacr = tas->acr;
 
-	tas->acr &= ~TAS_ACR_INPUT_B;
+	/*
+	 * Despite what the data sheet says in one place, the
+	 * TAS_ACR_B_MONAUREAL bit forces mono output even when
+	 * input A (line in) is selected.
+	 */
+	tas->acr &= ~(TAS_ACR_INPUT_B | TAS_ACR_B_MONAUREAL);
 	if (ucontrol->value.enumerated.item[0])
-		tas->acr |= TAS_ACR_INPUT_B;
+		tas->acr |= TAS_ACR_INPUT_B | TAS_ACR_B_MONAUREAL |
+		      TAS_ACR_B_MON_SEL_RIGHT;
 	if (oldacr == tas->acr) {
 		mutex_unlock(&tas->mtx);
 		return 0;
@@ -686,8 +692,7 @@ static int tas_reset_init(struct tas *tas)
 	if (tas_write_reg(tas, TAS_REG_MCS, 1, &tmp))
 		goto outerr;
 
-	tas->acr |= TAS_ACR_ANALOG_PDOWN | TAS_ACR_B_MONAUREAL |
-		TAS_ACR_B_MON_SEL_RIGHT;
+	tas->acr |= TAS_ACR_ANALOG_PDOWN;
 	if (tas_write_reg(tas, TAS_REG_ACR, 1, &tas->acr))
 		goto outerr;
 

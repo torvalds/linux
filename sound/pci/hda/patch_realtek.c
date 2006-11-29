@@ -5870,7 +5870,7 @@ static struct hda_board_config alc262_cfg_tbl[] = {
 	{ .pci_subvendor = 0x10cf, .pci_subdevice = 0x1397,
 	  .config = ALC262_FUJITSU },
 	{ .modelname = "hp-bpc", .config = ALC262_HP_BPC },
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x208c,
+	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x280c,
 	  .config = ALC262_HP_BPC }, /* xw4400 */
 	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3014,
 	  .config = ALC262_HP_BPC }, /* xw6400 */
