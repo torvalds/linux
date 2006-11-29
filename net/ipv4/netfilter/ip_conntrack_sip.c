@@ -72,8 +72,6 @@ static struct sip_header_nfo ct_sip_hdrs[] = {
 	[POS_REQ_HEADER] = { 	/* SIP Requests headers */
 		.lname		= "sip:",
 		.lnlen		= sizeof("sip:") - 1,
-		.sname		= "sip:",
-		.snlen		= sizeof("sip:") - 1, /* yes, i know.. ;) */
 		.ln_str		= "@",
 		.ln_strlen	= sizeof("@") - 1,
 		.match_len	= epaddr_len
@@ -286,7 +284,8 @@ int ct_sip_get_info(const char *dptr, size_t dlen,
 
 	while (dptr <= limit) {
 		if ((strncmp(dptr, hnfo->lname, hnfo->lnlen) != 0) &&
-		    (strncmp(dptr, hnfo->sname, hnfo->snlen) != 0)) {
+		    (hinfo->sname == NULL ||
+		     strncmp(dptr, hnfo->sname, hnfo->snlen) != 0)) {
 			dptr++;
 			continue;
 		}
