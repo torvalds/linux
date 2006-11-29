@@ -1473,8 +1473,8 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct rtl8169_private *tp;
 	struct net_device *dev;
 	void __iomem *ioaddr;
-	unsigned int i, pm_cap;
-	int rc;
+	unsigned int pm_cap;
+	int i, rc;
 
 	if (netif_msg_drv(&debug)) {
 		printk(KERN_INFO "%s Gigabit Ethernet driver %s loaded\n",
