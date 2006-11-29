@@ -273,6 +273,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 
 		SET_MODULE_OWNER(netdev);
+		SET_NETDEV_DEV(netdev, &pdev->dev);
 
 		port = netdev_priv(netdev);
 		port->netdev = netdev;
@@ -1043,7 +1044,7 @@ static int netxen_nic_poll(struct net_device *netdev, int *budget)
 		netxen_nic_enable_int(adapter);
 	}
 
-	return (done ? 0 : 1);
+	return !done;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
