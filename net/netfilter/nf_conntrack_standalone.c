@@ -36,6 +36,7 @@
 #include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_protocol.h>
 #include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 
 #if 0
@@ -66,7 +67,7 @@ static int kill_proto(struct nf_conn *i, void *data)
 }
 
 #ifdef CONFIG_PROC_FS
-static int
+int
 print_tuple(struct seq_file *s, const struct nf_conntrack_tuple *tuple,
 	    struct nf_conntrack_l3proto *l3proto,
 	    struct nf_conntrack_protocol *proto)
@@ -256,84 +257,6 @@ static struct file_operations ct_file_ops = {
 	.read    = seq_read,
 	.llseek  = seq_lseek,
 	.release = seq_release_private,
-};
-
-/* expects */
-static void *exp_seq_start(struct seq_file *s, loff_t *pos)
-{
-	struct list_head *e = &nf_conntrack_expect_list;
-	loff_t i;
-
-	/* strange seq_file api calls stop even if we fail,
-	 * thus we need to grab lock since stop unlocks */
-	read_lock_bh(&nf_conntrack_lock);
-
-	if (list_empty(e))
-		return NULL;
-
-	for (i = 0; i <= *pos; i++) {
-		e = e->next;
-		if (e == &nf_conntrack_expect_list)
-			return NULL;
-	}
-	return e;
-}
-
-static void *exp_seq_next(struct seq_file *s, void *v, loff_t *pos)
-{
-	struct list_head *e = v;
-
-	++*pos;
-	e = e->next;
-
-	if (e == &nf_conntrack_expect_list)
-		return NULL;
-
-	return e;
-}
-
-static void exp_seq_stop(struct seq_file *s, void *v)
-{
-	read_unlock_bh(&nf_conntrack_lock);
-}
-
-static int exp_seq_show(struct seq_file *s, void *v)
-{
-	struct nf_conntrack_expect *expect = v;
-
-	if (expect->timeout.function)
-		seq_printf(s, "%ld ", timer_pending(&expect->timeout)
-			   ? (long)(expect->timeout.expires - jiffies)/HZ : 0);
-	else
-		seq_printf(s, "- ");
-	seq_printf(s, "l3proto = %u proto=%u ",
-		   expect->tuple.src.l3num,
-		   expect->tuple.dst.protonum);
-	print_tuple(s, &expect->tuple,
-		    __nf_ct_l3proto_find(expect->tuple.src.l3num),
-		    __nf_ct_proto_find(expect->tuple.src.l3num,
-				       expect->tuple.dst.protonum));
-	return seq_putc(s, '\n');
-}
-
-static struct seq_operations exp_seq_ops = {
-	.start = exp_seq_start,
-	.next = exp_seq_next,
-	.stop = exp_seq_stop,
-	.show = exp_seq_show
-};
-
-static int exp_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &exp_seq_ops);
-}
-
-static struct file_operations exp_file_ops = {
-	.owner   = THIS_MODULE,
-	.open    = exp_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release
 };
 
 static void *ct_cpu_seq_start(struct seq_file *seq, loff_t *pos)

@@ -13,6 +13,8 @@
 #define _NF_CONNTRACK_CORE_H
 
 #include <linux/netfilter.h>
+#include <net/netfilter/nf_conntrack_l3proto.h>
+#include <net/netfilter/nf_conntrack_protocol.h>
 
 /* This header is used to share core functionality between the
    standalone connection tracking module, and the compatibility layer's use
@@ -69,6 +71,11 @@ static inline int nf_conntrack_confirm(struct sk_buff **pskb)
 }
 
 extern void __nf_conntrack_attach(struct sk_buff *nskb, struct sk_buff *skb);
+
+int
+print_tuple(struct seq_file *s, const struct nf_conntrack_tuple *tuple,
+	    struct nf_conntrack_l3proto *l3proto,
+	    struct nf_conntrack_protocol *proto);
 
 extern struct list_head *nf_conntrack_hash;
 extern struct list_head nf_conntrack_expect_list;

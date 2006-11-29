@@ -124,44 +124,6 @@ struct nf_conn
 	char data[0];
 };
 
-struct nf_conntrack_expect
-{
-	/* Internal linked list (global expectation list) */
-	struct list_head list;
-
-	/* We expect this tuple, with the following mask */
-	struct nf_conntrack_tuple tuple, mask;
- 
-	/* Function to call after setup and insertion */
-	void (*expectfn)(struct nf_conn *new,
-			 struct nf_conntrack_expect *this);
-
-	/* The conntrack of the master connection */
-	struct nf_conn *master;
-
-	/* Timer function; deletes the expectation. */
-	struct timer_list timeout;
-
-	/* Usage count. */
-	atomic_t use;
-
-	/* Unique ID */
-	unsigned int id;
-
-	/* Flags */
-	unsigned int flags;
-
-#ifdef CONFIG_NF_NAT_NEEDED
-	/* This is the original per-proto part, used to map the
-	 * expected connection the way the recipient expects. */
-	union nf_conntrack_manip_proto saved_proto;
-	/* Direction relative to the master connection. */
-	enum ip_conntrack_dir dir;
-#endif
-};
-
-#define NF_CT_EXPECT_PERMANENT 0x1
-
 static inline struct nf_conn *
 nf_ct_tuplehash_to_ctrack(const struct nf_conntrack_tuple_hash *hash)
 {
@@ -207,16 +169,6 @@ __nf_conntrack_find(const struct nf_conntrack_tuple *tuple,
 		    const struct nf_conn *ignored_conntrack);
 
 extern void nf_conntrack_hash_insert(struct nf_conn *ct);
-
-extern struct nf_conntrack_expect *
-__nf_conntrack_expect_find(const struct nf_conntrack_tuple *tuple);
-
-extern struct nf_conntrack_expect *
-nf_conntrack_expect_find(const struct nf_conntrack_tuple *tuple);
-
-extern void nf_ct_unlink_expect(struct nf_conntrack_expect *exp);
-
-extern void nf_ct_remove_expectations(struct nf_conn *ct);
 
 extern void nf_conntrack_flush(void);
 
@@ -295,6 +247,7 @@ extern int nf_conntrack_checksum;
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 #include <linux/notifier.h>
 #include <linux/interrupt.h>
+#include <net/netfilter/nf_conntrack_expect.h>
 
 struct nf_conntrack_ecache {
 	struct nf_conn *ct;

@@ -40,14 +40,4 @@ struct nf_conntrack_helper
 extern int nf_conntrack_helper_register(struct nf_conntrack_helper *);
 extern void nf_conntrack_helper_unregister(struct nf_conntrack_helper *);
 
-/* Allocate space for an expectation: this is mandatory before calling
-   nf_conntrack_expect_related.  You will have to call put afterwards. */
-extern struct nf_conntrack_expect *
-nf_conntrack_expect_alloc(struct nf_conn *master);
-extern void nf_conntrack_expect_put(struct nf_conntrack_expect *exp);
-
-/* Add an expected connection: can have more than one per connection */
-extern int nf_conntrack_expect_related(struct nf_conntrack_expect *exp);
-extern void nf_conntrack_unexpect_related(struct nf_conntrack_expect *exp);
-
 #endif /*_NF_CONNTRACK_HELPER_H*/
