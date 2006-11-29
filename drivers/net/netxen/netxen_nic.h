@@ -63,12 +63,12 @@
 
 #include "netxen_nic_hw.h"
 
-#define NETXEN_NIC_BUILD_NO     "232"
+#define NETXEN_NIC_BUILD_NO     "5"
 #define _NETXEN_NIC_LINUX_MAJOR 2
 #define _NETXEN_NIC_LINUX_MINOR 3
-#define _NETXEN_NIC_LINUX_SUBVERSION 57
-#define NETXEN_NIC_LINUX_VERSIONID  "2.3.57"
-#define NETXEN_NIC_FW_VERSIONID "2.3.57"
+#define _NETXEN_NIC_LINUX_SUBVERSION 59
+#define NETXEN_NIC_LINUX_VERSIONID  "2.3.59" "-" NETXEN_NIC_BUILD_NO
+#define NETXEN_NIC_FW_VERSIONID "2.3.59"
 
 #define RCV_DESC_RINGSIZE	\
 	(sizeof(struct rcv_desc) * adapter->max_rx_desc_count)
@@ -89,9 +89,24 @@
  * normalize a 64MB crb address to 32MB PCI window 
  * To use NETXEN_CRB_NORMALIZE, window _must_ be set to 1
  */
+#define NETXEN_CRB_NORMAL(reg)        \
+	(reg) - NETXEN_CRB_PCIX_HOST2 + NETXEN_CRB_PCIX_HOST
+
 #define NETXEN_CRB_NORMALIZE(adapter, reg) \
-	((adapter)->ahw.pci_base + (reg)	\
-	- NETXEN_CRB_PCIX_HOST2 + NETXEN_CRB_PCIX_HOST)
+	pci_base_offset(adapter, NETXEN_CRB_NORMAL(reg))
+
+#define FIRST_PAGE_GROUP_START	0
+#define FIRST_PAGE_GROUP_END	0x400000
+
+#define SECOND_PAGE_GROUP_START	0x4000000
+#define SECOND_PAGE_GROUP_END	0x66BC000
+
+#define THIRD_PAGE_GROUP_START	0x70E4000
+#define THIRD_PAGE_GROUP_END	0x8000000
+
+#define FIRST_PAGE_GROUP_SIZE  FIRST_PAGE_GROUP_END - FIRST_PAGE_GROUP_START
+#define SECOND_PAGE_GROUP_SIZE SECOND_PAGE_GROUP_END - SECOND_PAGE_GROUP_START
+#define THIRD_PAGE_GROUP_SIZE  THIRD_PAGE_GROUP_END - THIRD_PAGE_GROUP_START
 
 #define MAX_RX_BUFFER_LENGTH		2000
 #define MAX_RX_JUMBO_BUFFER_LENGTH 	9046
@@ -328,6 +343,7 @@ typedef enum {
 	NETXEN_BRDTYPE_P2_SB31_10G_HMEZ = 0x000e,
 	NETXEN_BRDTYPE_P2_SB31_10G_CX4 = 0x000f
 } netxen_brdtype_t;
+#define NUM_SUPPORTED_BOARDS (sizeof(netxen_boards)/sizeof(netxen_brdinfo_t))
 
 typedef enum {
 	NETXEN_BRDMFG_INVENTEC = 1
@@ -615,15 +631,23 @@ struct netxen_rx_buffer {
  */
 struct netxen_hardware_context {
 	struct pci_dev *pdev;
-	void __iomem *pci_base;	/* base of mapped phantom memory */
+	void __iomem *pci_base0;
+	void __iomem *pci_base1;
+	void __iomem *pci_base2;
+
 	u8 revision_id;
 	u16 board_type;
 	u16 max_ports;
 	struct netxen_board_info boardcfg;
 	u32 xg_linkup;
+	u32 qg_linksup;
 	/* Address of cmd ring in Phantom */
 	struct cmd_desc_type0 *cmd_desc_head;
+	char *pauseaddr;
+	struct pci_dev *cmd_desc_pdev;
 	dma_addr_t cmd_desc_phys_addr;
+	dma_addr_t pause_physaddr;
+	struct pci_dev *pause_pdev;
 	struct netxen_adapter *adapter;
 };
 
@@ -654,6 +678,7 @@ struct netxen_rcv_desc_ctx {
 	u32 rcv_pending;	/* Num of bufs posted in phantom */
 	u32 rcv_free;		/* Num of bufs in free list */
 	dma_addr_t phys_addr;
+	struct pci_dev *phys_pdev;
 	struct rcv_desc *desc_head;	/* address of rx ring in Phantom */
 	u32 max_rx_desc_count;
 	u32 dma_size;
@@ -673,6 +698,7 @@ struct netxen_recv_context {
 	u32 status_rx_producer;
 	u32 status_rx_consumer;
 	dma_addr_t rcv_status_desc_phys_addr;
+	struct pci_dev *rcv_status_desc_pdev;
 	struct status_desc *rcv_status_desc_head;
 };
 
@@ -708,6 +734,7 @@ struct netxen_adapter {
 	u32 flags;
 	u32 irq;
 	int driver_mismatch;
+	u32 temp;
 
 	struct netxen_adapter_stats stats;
 
@@ -766,6 +793,43 @@ struct netxen_port {
 	struct netxen_port_stats stats;
 };
 
+#define PCI_OFFSET_FIRST_RANGE(adapter, off)    \
+	((adapter)->ahw.pci_base0 + (off))
+#define PCI_OFFSET_SECOND_RANGE(adapter, off)   \
+	((adapter)->ahw.pci_base1 + (off) - SECOND_PAGE_GROUP_START)
+#define PCI_OFFSET_THIRD_RANGE(adapter, off)    \
+	((adapter)->ahw.pci_base2 + (off) - THIRD_PAGE_GROUP_START)
+
+static inline void __iomem *pci_base_offset(struct netxen_adapter *adapter,
+					    unsigned long off)
+{
+	if ((off < FIRST_PAGE_GROUP_END) && (off >= FIRST_PAGE_GROUP_START)) {
+		return (adapter->ahw.pci_base0 + off);
+	} else if ((off < SECOND_PAGE_GROUP_END) &&
+		   (off >= SECOND_PAGE_GROUP_START)) {
+		return (adapter->ahw.pci_base1 + off - SECOND_PAGE_GROUP_START);
+	} else if ((off < THIRD_PAGE_GROUP_END) &&
+		   (off >= THIRD_PAGE_GROUP_START)) {
+		return (adapter->ahw.pci_base2 + off - THIRD_PAGE_GROUP_START);
+	}
+	return NULL;
+}
+
+static inline void __iomem *pci_base(struct netxen_adapter *adapter,
+				     unsigned long off)
+{
+	if ((off < FIRST_PAGE_GROUP_END) && (off >= FIRST_PAGE_GROUP_START)) {
+		return adapter->ahw.pci_base0;
+	} else if ((off < SECOND_PAGE_GROUP_END) &&
+		   (off >= SECOND_PAGE_GROUP_START)) {
+		return adapter->ahw.pci_base1;
+	} else if ((off < THIRD_PAGE_GROUP_END) &&
+		   (off >= THIRD_PAGE_GROUP_START)) {
+		return adapter->ahw.pci_base2;
+	}
+	return NULL;
+}
+
 struct netxen_drvops {
 	int (*enable_phy_interrupts) (struct netxen_adapter *, int);
 	int (*disable_phy_interrupts) (struct netxen_adapter *, int);
@@ -809,7 +873,6 @@ int netxen_niu_gbe_phy_write(struct netxen_adapter *adapter, long phy,
 			     long reg, __le32 val);
 
 /* Functions available from netxen_nic_hw.c */
-int netxen_niu_xginit(struct netxen_adapter *);
 int netxen_nic_set_mtu_xgb(struct netxen_port *port, int new_mtu);
 int netxen_nic_set_mtu_gb(struct netxen_port *port, int new_mtu);
 void netxen_nic_init_niu_gb(struct netxen_adapter *adapter);
@@ -828,10 +891,13 @@ void netxen_crb_writelit_adapter(struct netxen_adapter *adapter,
 				 unsigned long off, int data);
 
 /* Functions from netxen_nic_init.c */
-void netxen_phantom_init(struct netxen_adapter *adapter);
+void netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val);
 void netxen_load_firmware(struct netxen_adapter *adapter);
 int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose);
 int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr, int *valp);
+int netxen_rom_fast_write(struct netxen_adapter *adapter, int addr, int data);
+int netxen_rom_se(struct netxen_adapter *adapter, int addr);
+int netxen_do_rom_se(struct netxen_adapter *adapter, int addr);
 
 /* Functions from netxen_nic_isr.c */
 void netxen_nic_isr_other(struct netxen_adapter *adapter);
@@ -842,6 +908,8 @@ void netxen_handle_port_int(struct netxen_adapter *adapter, u32 port,
 void netxen_nic_stop_all_ports(struct netxen_adapter *adapter);
 void netxen_initialize_adapter_sw(struct netxen_adapter *adapter);
 void netxen_initialize_adapter_hw(struct netxen_adapter *adapter);
+void *netxen_alloc(struct pci_dev *pdev, size_t sz, dma_addr_t * ptr,
+		   struct pci_dev **used_dev);
 void netxen_initialize_adapter_ops(struct netxen_adapter *adapter);
 int netxen_init_firmware(struct netxen_adapter *adapter);
 void netxen_free_hw_resources(struct netxen_adapter *adapter);
@@ -869,7 +937,10 @@ static inline void netxen_nic_disable_int(struct netxen_adapter *adapter)
 	/*
 	 * ISR_INT_MASK: Can be read from window 0 or 1.
 	 */
-	writel(0x7ff, (void __iomem *)(adapter->ahw.pci_base + ISR_INT_MASK));
+	writel(0x7ff,
+	       (void __iomem
+		*)(PCI_OFFSET_SECOND_RANGE(adapter, ISR_INT_MASK)));
+
 }
 
 static inline void netxen_nic_enable_int(struct netxen_adapter *adapter)
@@ -888,13 +959,83 @@ static inline void netxen_nic_enable_int(struct netxen_adapter *adapter)
 		break;
 	}
 
-	writel(mask, (void __iomem *)(adapter->ahw.pci_base + ISR_INT_MASK));
+	writel(mask,
+	       (void __iomem
+		*)(PCI_OFFSET_SECOND_RANGE(adapter, ISR_INT_MASK)));
 
 	if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
 		mask = 0xbff;
 		writel(mask, (void __iomem *)
-		       (adapter->ahw.pci_base + ISR_INT_TARGET_MASK));
+		       (PCI_OFFSET_SECOND_RANGE(adapter, ISR_INT_TARGET_MASK)));
 	}
+}
+
+/*
+ * NetXen Board information
+ */
+
+#define NETXEN_MAX_SHORT_NAME 16
+typedef struct {
+	netxen_brdtype_t brdtype;	/* type of board */
+	long ports;		/* max no of physical ports */
+	char short_name[NETXEN_MAX_SHORT_NAME];
+} netxen_brdinfo_t;
+
+static const netxen_brdinfo_t netxen_boards[] = {
+	{NETXEN_BRDTYPE_P2_SB31_10G_CX4, 1, "XGb CX4"},
+	{NETXEN_BRDTYPE_P2_SB31_10G_HMEZ, 1, "XGb HMEZ"},
+	{NETXEN_BRDTYPE_P2_SB31_10G_IMEZ, 2, "XGb IMEZ"},
+	{NETXEN_BRDTYPE_P2_SB31_10G, 1, "XGb XFP"},
+	{NETXEN_BRDTYPE_P2_SB35_4G, 4, "Quad Gb"},
+	{NETXEN_BRDTYPE_P2_SB31_2G, 2, "Dual Gb"},
+};
+
+#define NUM_SUPPORTED_BOARDS (sizeof(netxen_boards)/sizeof(netxen_brdinfo_t))
+
+static inline void get_brd_ports_name_by_type(u32 type, int *ports, char *name)
+{
+	int i, found = 0;
+	for (i = 0; i < NUM_SUPPORTED_BOARDS; ++i) {
+		if (netxen_boards[i].brdtype == type) {
+			*ports = netxen_boards[i].ports;
+			strcpy(name, netxen_boards[i].short_name);
+			found = 1;
+			break;
+		}
+	}
+	if (!found) {
+		*ports = 0;
+		name = "Unknown";
+	}
+}
+
+static inline void get_brd_port_by_type(u32 type, int *ports)
+{
+	int i, found = 0;
+	for (i = 0; i < NUM_SUPPORTED_BOARDS; ++i) {
+		if (netxen_boards[i].brdtype == type) {
+			*ports = netxen_boards[i].ports;
+			found = 1;
+			break;
+		}
+	}
+	if (!found)
+		*ports = 0;
+}
+
+static inline void get_brd_name_by_type(u32 type, char *name)
+{
+	int i, found = 0;
+	for (i = 0; i < NUM_SUPPORTED_BOARDS; ++i) {
+		if (netxen_boards[i].brdtype == type) {
+			strcpy(name, netxen_boards[i].short_name);
+			found = 1;
+			break;
+		}
+
+	}
+	if (!found)
+		name = "Unknown";
 }
 
 int netxen_is_flash_supported(struct netxen_adapter *adapter);

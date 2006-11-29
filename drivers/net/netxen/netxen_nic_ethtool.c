@@ -53,6 +53,9 @@ struct netxen_nic_stats {
 #define NETXEN_NIC_STAT(m) sizeof(((struct netxen_port *)0)->m), \
 			offsetof(struct netxen_port, m)
 
+#define NETXEN_NIC_PORT_WINDOW 0x10000
+#define NETXEN_NIC_INVALID_DATA 0xDEADBEEF
+
 static const struct netxen_nic_stats netxen_nic_gstrings_stats[] = {
 	{"rcvd_bad_skb", NETXEN_NIC_STAT(stats.rcvdbadskb)},
 	{"xmit_called", NETXEN_NIC_STAT(stats.xmitcalled)},
@@ -111,9 +114,9 @@ netxen_nic_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 {
 	struct netxen_port *port = netdev_priv(dev);
 	struct netxen_adapter *adapter = port->adapter;
-	uint32_t fw_major = 0;
-	uint32_t fw_minor = 0;
-	uint32_t fw_build = 0;
+	u32 fw_major = 0;
+	u32 fw_minor = 0;
+	u32 fw_build = 0;
 
 	strncpy(drvinfo->driver, "netxen_nic", 32);
 	strncpy(drvinfo->version, NETXEN_NIC_LINUX_VERSIONID, 32);
@@ -136,6 +139,8 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 {
 	struct netxen_port *port = netdev_priv(dev);
 	struct netxen_adapter *adapter = port->adapter;
+	struct netxen_board_info *boardinfo;
+	boardinfo = &adapter->ahw.boardcfg;
 
 	/* read which mode */
 	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
@@ -144,16 +149,12 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 				   SUPPORTED_100baseT_Half |
 				   SUPPORTED_100baseT_Full |
 				   SUPPORTED_1000baseT_Half |
-				   SUPPORTED_1000baseT_Full |
-				   SUPPORTED_TP |
-				   SUPPORTED_MII | SUPPORTED_Autoneg);
+				   SUPPORTED_1000baseT_Full);
 
 		ecmd->advertising = (ADVERTISED_100baseT_Half |
 				     ADVERTISED_100baseT_Full |
 				     ADVERTISED_1000baseT_Half |
-				     ADVERTISED_1000baseT_Full |
-				     ADVERTISED_TP |
-				     ADVERTISED_MII | ADVERTISED_Autoneg);
+				     ADVERTISED_1000baseT_Full);
 
 		ecmd->port = PORT_TP;
 
@@ -162,16 +163,7 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 			ecmd->duplex = port->link_duplex;
 		} else
 			return -EIO;	/* link absent */
-
-		ecmd->phy_address = port->portnum;
-		ecmd->transceiver = XCVR_EXTERNAL;
-
-		/* get autoneg settings */
-		ecmd->autoneg = port->link_autoneg;
-		return 0;
-	}
-
-	if (adapter->ahw.board_type == NETXEN_NIC_XGBE) {
+	} else if (adapter->ahw.board_type == NETXEN_NIC_XGBE) {
 		ecmd->supported = (SUPPORTED_TP |
 				   SUPPORTED_1000baseT_Full |
 				   SUPPORTED_10000baseT_Full);
@@ -182,13 +174,47 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 
 		ecmd->speed = SPEED_10000;
 		ecmd->duplex = DUPLEX_FULL;
-		ecmd->phy_address = port->portnum;
-		ecmd->transceiver = XCVR_EXTERNAL;
 		ecmd->autoneg = AUTONEG_DISABLE;
-		return 0;
+	} else
+		return -EIO;
+
+	ecmd->phy_address = port->portnum;
+	ecmd->transceiver = XCVR_EXTERNAL;
+
+	switch ((netxen_brdtype_t) boardinfo->board_type) {
+	case NETXEN_BRDTYPE_P2_SB35_4G:
+	case NETXEN_BRDTYPE_P2_SB31_2G:
+		ecmd->supported |= SUPPORTED_Autoneg;
+		ecmd->advertising |= ADVERTISED_Autoneg;
+	case NETXEN_BRDTYPE_P2_SB31_10G_CX4:
+		ecmd->supported |= SUPPORTED_TP;
+		ecmd->advertising |= ADVERTISED_TP;
+		ecmd->port = PORT_TP;
+		ecmd->autoneg = (boardinfo->board_type ==
+				 NETXEN_BRDTYPE_P2_SB31_10G_CX4) ?
+		    (AUTONEG_DISABLE) : (port->link_autoneg);
+		break;
+	case NETXEN_BRDTYPE_P2_SB31_10G_HMEZ:
+	case NETXEN_BRDTYPE_P2_SB31_10G_IMEZ:
+		ecmd->supported |= SUPPORTED_MII;
+		ecmd->advertising |= ADVERTISED_MII;
+		ecmd->port = PORT_FIBRE;
+		ecmd->autoneg = AUTONEG_DISABLE;
+		break;
+	case NETXEN_BRDTYPE_P2_SB31_10G:
+		ecmd->supported |= SUPPORTED_FIBRE;
+		ecmd->advertising |= ADVERTISED_FIBRE;
+		ecmd->port = PORT_FIBRE;
+		ecmd->autoneg = AUTONEG_DISABLE;
+		break;
+	default:
+		printk("ERROR: Unsupported board model %d\n",
+		       (netxen_brdtype_t) boardinfo->board_type);
+		return -EIO;
+
 	}
 
-	return -EIO;
+	return 0;
 }
 
 static int
@@ -371,7 +397,7 @@ netxen_nic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 		for (i = 3; niu_registers[mode].reg[i - 3] != -1; i++) {
 			/* GB: port specific registers */
 			if (mode == 0 && i >= 19)
-				window = port->portnum * 0x10000;
+				window = port->portnum * NETXEN_NIC_PORT_WINDOW;
 
 			NETXEN_NIC_LOCKED_READ_REG(niu_registers[mode].
 						   reg[i - 3] + window,
@@ -385,7 +411,8 @@ static void
 netxen_nic_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	wol->supported = WAKE_UCAST | WAKE_MCAST | WAKE_BCAST | WAKE_MAGIC;
-	wol->wolopts = 0;	/* options can be added depending upon the mode */
+	/* options can be added depending upon the mode */
+	wol->wolopts = 0;
 }
 
 static u32 netxen_nic_get_link(struct net_device *dev)
@@ -531,9 +558,9 @@ static int netxen_nic_reg_test(struct net_device *dev)
 
 		save = data_read;
 		if (data_read)
-			data_written = data_read & 0xDEADBEEF;
+			data_written = data_read & NETXEN_NIC_INVALID_DATA;
 		else
-			data_written = 0xDEADBEEF;
+			data_written = NETXEN_NIC_INVALID_DATA;
 		netxen_nic_write_w0(adapter,
 				    NETXEN_NIU_GB_MII_MGMT_STATUS(port->
 								  portnum),
@@ -559,9 +586,9 @@ static int netxen_nic_reg_test(struct net_device *dev)
 
 		save = data_read;
 		if (data_read)
-			data_written = data_read & 0xDEADBEEF;
+			data_written = data_read & NETXEN_NIC_INVALID_DATA;
 		else
-			data_written = 0xDEADBEEF;
+			data_written = NETXEN_NIC_INVALID_DATA;
 		netxen_nic_write_w0(adapter,
 				    NETXEN_NIU_GB_MII_MGMT_INDICATE(port->
 								    portnum),
@@ -587,9 +614,9 @@ static int netxen_nic_reg_test(struct net_device *dev)
 
 		save = data_read;
 		if (data_read)
-			data_written = data_read & 0xDEADBEEF;
+			data_written = data_read & NETXEN_NIC_INVALID_DATA;
 		else
-			data_written = 0xDEADBEEF;
+			data_written = NETXEN_NIC_INVALID_DATA;
 		netxen_nic_write_w0(adapter,
 				    NETXEN_NIU_GB_INTERFACE_STATUS(port->
 								   portnum),

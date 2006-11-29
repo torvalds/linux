@@ -6,12 +6,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- *                            
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *                                   
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
@@ -58,6 +58,9 @@
 #define CRB_CMD_PRODUCER_OFFSET		NETXEN_NIC_REG(0x08)
 #define CRB_CMD_CONSUMER_OFFSET		NETXEN_NIC_REG(0x0c)
 
+#define CRB_PAUSE_ADDR_LO		NETXEN_NIC_REG(0x10)
+#define CRB_PAUSE_ADDR_HI		NETXEN_NIC_REG(0x14)
+
 /* address of command descriptors in the host memory */
 #define CRB_HOST_CMD_ADDR_HI		NETXEN_NIC_REG(0x30)
 #define CRB_HOST_CMD_ADDR_LO		NETXEN_NIC_REG(0x34)
@@ -82,9 +85,17 @@
 #define CRB_TX_PKT_TIMER		NETXEN_NIC_REG(0x94)
 #define CRB_RX_PKT_CNT			NETXEN_NIC_REG(0x98)
 #define CRB_RX_TMR_CNT			NETXEN_NIC_REG(0x9c)
+#define CRB_INT_THRESH		 NETXEN_NIC_REG(0xa4)
 
 /* Register for communicating XG link status */
 #define CRB_XG_STATE			NETXEN_NIC_REG(0xa0)
+
+/* Register for communicating card temperature */
+/* Upper 16 bits are temperature value. Lower 16 bits are the state */
+#define CRB_TEMP_STATE		 NETXEN_NIC_REG(0xa8)
+#define nx_get_temp_val(x)	     ((x) >> 16)
+#define nx_get_temp_state(x)	   ((x) & 0xffff)
+#define nx_encode_temp(val, state)     (((val) << 16) | (state))
 
 /* Debug registers for controlling NIC pkt gen agent */
 #define CRB_AGENT_GO			NETXEN_NIC_REG(0xb0)
@@ -191,5 +202,14 @@ struct netxen_recv_crb recv_crb_registers[] = {
 #else
 extern struct netxen_recv_crb recv_crb_registers[];
 #endif				/* DEFINE_GLOBAL_RECEIVE_CRB */
+
+/*
+ * Temperature control.
+ */
+enum {
+	NX_TEMP_NORMAL = 0x1,	/* Normal operating range */
+	NX_TEMP_WARN,		/* Sound alert, temperature getting high */
+	NX_TEMP_PANIC		/* Fatal error, hardware has shut down. */
+};
 
 #endif				/* __NIC_PHAN_REG_H_ */

@@ -82,9 +82,9 @@ struct netxen_adapter;
 
 #define NETXEN_PCI_MAPSIZE_BYTES  (NETXEN_PCI_MAPSIZE << 20)
 
-#define NETXEN_NIC_LOCKED_READ_REG(X, Y)   			\
-	addr = (adapter->ahw.pci_base + X);     \
-	*(u32 *)Y = readl((void __iomem*) addr);
+#define NETXEN_NIC_LOCKED_READ_REG(X, Y)	\
+	addr = pci_base_offset(adapter, (X));	\
+	*(u32 *)Y = readl(addr);
 
 struct netxen_port;
 void netxen_nic_set_link_parameters(struct netxen_port *port);
@@ -471,6 +471,8 @@ int netxen_niu_xg_macaddr_set(struct netxen_port *port,
 
 /* Generic enable for GbE ports. Will detect the speed of the link. */
 int netxen_niu_gbe_init_port(struct netxen_adapter *adapter, int port);
+
+int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port);
 
 /* Disable a GbE interface */
 int netxen_niu_disable_gbe_port(struct netxen_adapter *adapter, int port);

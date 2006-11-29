@@ -6,12 +6,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- *                            
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *                                   
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
@@ -397,6 +397,7 @@ enum {
 
 #define NETXEN_ROMUSB_ROM_INSTR_OPCODE	(ROMUSB_ROM + 0x0004)
 #define NETXEN_ROMUSB_ROM_ADDRESS	(ROMUSB_ROM + 0x0008)
+#define NETXEN_ROMUSB_ROM_WDATA		(ROMUSB_ROM + 0x000c)
 #define NETXEN_ROMUSB_ROM_ABYTE_CNT	(ROMUSB_ROM + 0x0010)
 #define NETXEN_ROMUSB_ROM_DUMMY_BYTE_CNT (ROMUSB_ROM + 0x0014)
 #define NETXEN_ROMUSB_ROM_RDATA		(ROMUSB_ROM + 0x0018)
@@ -404,7 +405,29 @@ enum {
 /* Lock IDs for ROM lock */
 #define ROM_LOCK_DRIVER	0x0d417340
 
-#define NETXEN_PCI_CRB_WINDOWSIZE	0x00100000	/* all are 1MB windows */
+/******************************************************************************
+*
+*    Definitions specific to M25P flash
+*
+*******************************************************************************
+*   Instructions
+*/
+#define M25P_INSTR_WREN		0x06
+#define M25P_INSTR_WRDI		0x04
+#define M25P_INSTR_RDID		0x9f
+#define M25P_INSTR_RDSR		0x05
+#define M25P_INSTR_WRSR		0x01
+#define M25P_INSTR_READ		0x03
+#define M25P_INSTR_FAST_READ	0x0b
+#define M25P_INSTR_PP		0x02
+#define M25P_INSTR_SE		0xd8
+#define M25P_INSTR_BE		0xc7
+#define M25P_INSTR_DP		0xb9
+#define M25P_INSTR_RES		0xab
+
+/* all are 1MB windows */
+
+#define NETXEN_PCI_CRB_WINDOWSIZE	0x00100000
 #define NETXEN_PCI_CRB_WINDOW(A)	\
 	(NETXEN_PCI_CRBSPACE + (A)*NETXEN_PCI_CRB_WINDOWSIZE)
 
@@ -505,6 +528,12 @@ enum {
 #define	NETXEN_NIU_XG_PAUSE_LEVEL	(NETXEN_CRB_NIU + 0x000dc)
 #define	NETXEN_NIU_XG_SEL		(NETXEN_CRB_NIU + 0x00128)
 
+#define NETXEN_NIU_FULL_LEVEL_XG	(NETXEN_CRB_NIU + 0x00450)
+
+#define NETXEN_NIU_XG1_RESET	    	(NETXEN_CRB_NIU + 0x0011c)
+#define NETXEN_NIU_XG1_POWER_DOWN	(NETXEN_CRB_NIU + 0x00120)
+#define NETXEN_NIU_XG1_RESET_PLL	(NETXEN_CRB_NIU + 0x00124)
+
 #define NETXEN_MAC_ADDR_CNTL_REG	(NETXEN_CRB_NIU + 0x1000)
 
 #define	NETXEN_MULTICAST_ADDR_HI_0	(NETXEN_CRB_NIU + 0x1010)
@@ -568,6 +597,29 @@ enum {
 #define	NETXEN_NIU_XGE_REMOTE_ERROR_CNT		(NETXEN_CRB_NIU + 0x70050)
 #define	NETXEN_NIU_XGE_CONTROL_CHAR_CNT		(NETXEN_CRB_NIU + 0x70054)
 #define	NETXEN_NIU_XGE_PAUSE_FRAME_CNT		(NETXEN_CRB_NIU + 0x70058)
+#define NETXEN_NIU_XG1_CONFIG_0			(NETXEN_CRB_NIU + 0x80000)
+#define NETXEN_NIU_XG1_CONFIG_1			(NETXEN_CRB_NIU + 0x80004)
+#define NETXEN_NIU_XG1_IPG			(NETXEN_CRB_NIU + 0x80008)
+#define NETXEN_NIU_XG1_STATION_ADDR_0_HI	(NETXEN_CRB_NIU + 0x8000c)
+#define NETXEN_NIU_XG1_STATION_ADDR_0_1		(NETXEN_CRB_NIU + 0x80010)
+#define NETXEN_NIU_XG1_STATION_ADDR_1_LO	(NETXEN_CRB_NIU + 0x80014)
+#define NETXEN_NIU_XG1_STATUS		    	(NETXEN_CRB_NIU + 0x80018)
+#define NETXEN_NIU_XG1_MAX_FRAME_SIZE	   	(NETXEN_CRB_NIU + 0x8001c)
+#define NETXEN_NIU_XG1_PAUSE_FRAME_VALUE	(NETXEN_CRB_NIU + 0x80020)
+#define NETXEN_NIU_XG1_TX_BYTE_CNT		(NETXEN_CRB_NIU + 0x80024)
+#define NETXEN_NIU_XG1_TX_FRAME_CNT	 	(NETXEN_CRB_NIU + 0x80028)
+#define NETXEN_NIU_XG1_RX_BYTE_CNT	  	(NETXEN_CRB_NIU + 0x8002c)
+#define NETXEN_NIU_XG1_RX_FRAME_CNT	 	(NETXEN_CRB_NIU + 0x80030)
+#define NETXEN_NIU_XG1_AGGR_ERROR_CNT	   	(NETXEN_CRB_NIU + 0x80034)
+#define NETXEN_NIU_XG1_MULTICAST_FRAME_CNT	(NETXEN_CRB_NIU + 0x80038)
+#define NETXEN_NIU_XG1_UNICAST_FRAME_CNT	(NETXEN_CRB_NIU + 0x8003c)
+#define NETXEN_NIU_XG1_CRC_ERROR_CNT		(NETXEN_CRB_NIU + 0x80040)
+#define NETXEN_NIU_XG1_OVERSIZE_FRAME_ERR	(NETXEN_CRB_NIU + 0x80044)
+#define NETXEN_NIU_XG1_UNDERSIZE_FRAME_ERR	(NETXEN_CRB_NIU + 0x80048)
+#define NETXEN_NIU_XG1_LOCAL_ERROR_CNT		(NETXEN_CRB_NIU + 0x8004c)
+#define NETXEN_NIU_XG1_REMOTE_ERROR_CNT		(NETXEN_CRB_NIU + 0x80050)
+#define NETXEN_NIU_XG1_CONTROL_CHAR_CNT		(NETXEN_CRB_NIU + 0x80054)
+#define NETXEN_NIU_XG1_PAUSE_FRAME_CNT		(NETXEN_CRB_NIU + 0x80058)
 
 /* XG Link status */
 #define XG_LINK_UP	0x10
@@ -580,8 +632,15 @@ enum {
 #define NETXEN_FW_VERSION_SUB	(NETXEN_CAM_RAM(0x158))
 #define NETXEN_ROM_LOCK_ID	(NETXEN_CAM_RAM(0x100))
 
-#define PCIX_PS_OP_ADDR_LO	(0x10000)	/* Used for PS PCI Memory access */
-#define PCIX_PS_OP_ADDR_HI	(0x10004)	/*   via CRB  (PS side only)     */
+#define NETXEN_PHY_LOCK_ID	(NETXEN_CAM_RAM(0x120))
+
+/* Lock IDs for PHY lock */
+#define PHY_LOCK_DRIVER		0x44524956
+
+/* Used for PS PCI Memory access */
+#define PCIX_PS_OP_ADDR_LO	(0x10000)
+/*   via CRB  (PS side only)     */
+#define PCIX_PS_OP_ADDR_HI	(0x10004)
 
 #define PCIX_INT_VECTOR		(0x10100)
 #define PCIX_INT_MASK		(0x10104)
@@ -609,6 +668,8 @@ enum {
 
 #define PCIE_SEM2_LOCK		(0x1c010)	/* Flash lock   */
 #define PCIE_SEM2_UNLOCK	(0x1c014)	/* Flash unlock */
+#define PCIE_SEM3_LOCK	  	(0x1c018)	/* Phy lock     */
+#define PCIE_SEM3_UNLOCK	(0x1c01c)	/* Phy unlock   */
 
 #define PCIE_TGT_SPLIT_CHICKEN	(0x12080)
 

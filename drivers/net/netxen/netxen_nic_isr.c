@@ -149,47 +149,41 @@ void netxen_handle_port_int(struct netxen_adapter *adapter, u32 portno,
 
 void netxen_nic_isr_other(struct netxen_adapter *adapter)
 {
-	u32 enable, portno;
-	u32 i2qhi;
-
-	/*
-	 * bit 3 is for i2qInt, if high its enabled
-	 * check for phy interrupts
-	 * read vector and check for bit 45 for phy
-	 * clear int by writing the same value into ISR_INT_VECTOR REG
-	 */
-
-	DPRINTK(INFO, "I2Q is the source of INT \n");
+	u32 portno;
+	u32 val, linkup, qg_linksup;
 
 	/* verify the offset */
-	i2qhi = readl(NETXEN_CRB_NORMALIZE(adapter, NETXEN_I2Q_CLR_PCI_HI));
+	val = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_XG_STATE));
+	if (val == adapter->ahw.qg_linksup)
+		return;
 
-	DPRINTK(INFO, "isr NETXEN_I2Q_CLR_PCI_HI = 0x%x \n", i2qhi);
+	qg_linksup = adapter->ahw.qg_linksup;
+	adapter->ahw.qg_linksup = val;
+	DPRINTK(1, INFO, "%s: link update 0x%08x\n", netxen_nic_driver_name,
+		val);
+	for (portno = 0; portno < NETXEN_NIU_MAX_GBE_PORTS; portno++) {
+		linkup = val & 1;
+		if (linkup != (qg_linksup & 1)) {
+			printk(KERN_INFO "%s: PORT %d link %s\n",
+			       netxen_nic_driver_name, portno,
+			       ((linkup == 0) ? "down" : "up"));
+			netxen_indicate_link_status(adapter, portno, linkup);
+			if (linkup)
+				netxen_nic_set_link_parameters(adapter->
+							       port[portno]);
 
-	if (i2qhi & 0x4000) {
-		for (portno = 0; portno < NETXEN_NIU_MAX_GBE_PORTS; portno++) {
-			DPRINTK(INFO, "External PHY interrupt ON PORT %d\n",
-				portno);
-
-			enable = 1;
-			netxen_handle_port_int(adapter, portno, enable);
 		}
-
-		/* Clear the interrupt on I2Q */
-		writel((u32) i2qhi,
-		       NETXEN_CRB_NORMALIZE(adapter, NETXEN_I2Q_CLR_PCI_HI));
-
+		val = val >> 1;
+		qg_linksup = qg_linksup >> 1;
 	}
+
+	adapter->stats.otherints++;
+
 }
 
 void netxen_nic_gbe_handle_phy_intr(struct netxen_adapter *adapter)
 {
-	u32 val;
-	val = readl(NETXEN_CRB_NORMALIZE(adapter, ISR_INT_VECTOR));
-	if (val & 0x4) {
-		adapter->stats.otherints++;
-		netxen_nic_isr_other(adapter);
-	}
+	netxen_nic_isr_other(adapter);
 }
 
 void netxen_nic_xgbe_handle_phy_intr(struct netxen_adapter *adapter)

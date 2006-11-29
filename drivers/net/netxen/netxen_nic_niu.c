@@ -6,12 +6,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- *                            
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *                                   
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
@@ -32,19 +32,56 @@
  */
 
 #include "netxen_nic.h"
-#include <linux/delay.h>
+
+#define NETXEN_GB_MAC_SOFT_RESET	0x80000000
+#define NETXEN_GB_MAC_RESET_PROT_BLK   0x000F0000
+#define NETXEN_GB_MAC_ENABLE_TX_RX     0x00000005
+#define NETXEN_GB_MAC_PAUSED_FRMS      0x00000020
+
+static long phy_lock_timeout = 100000000;
+
+static inline int phy_lock(void)
+{
+	int i;
+	int done = 0, timeout = 0;
+
+	while (!done) {
+		done = readl((void __iomem *)NETXEN_PCIE_REG(PCIE_SEM3_LOCK));
+		if (done == 1)
+			break;
+		if (timeout >= phy_lock_timeout) {
+			return -1;
+		}
+		timeout++;
+		if (!in_atomic())
+			schedule();
+		else {
+			for (i = 0; i < 20; i++)
+				cpu_relax();
+		}
+	}
+
+	writel(NETXEN_PHY_LOCK_ID, (void __iomem *)PHY_LOCK_DRIVER);
+	return 0;
+}
+
+static inline int phy_unlock(void)
+{
+	readl((void __iomem *)NETXEN_PCIE_REG(PCIE_SEM3_UNLOCK));
+	return 0;
+}
 
 /* 
  * netxen_niu_gbe_phy_read - read a register from the GbE PHY via
  * mii management interface.
  *
  * Note: The MII management interface goes through port 0.
- *       Individual phys are addressed as follows:
+ *	Individual phys are addressed as follows:
  * @param phy  [15:8]  phy id
  * @param reg  [7:0]   register number
  *
  * @returns  0 on success
- *          -1 on error
+ *	  -1 on error
  *
  */
 int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long phy,
@@ -56,10 +93,17 @@ int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long phy,
 	__le32 address;
 	__le32 command;
 	__le32 status;
-	__le32 mii_cfg;
 	__le32 mac_cfg0;
 
-	/* MII mgmt all goes through port 0 MAC interface, so it cannot be in reset */
+	if (phy_lock() != 0) {
+		return -1;
+	}
+
+	/*
+	 * MII mgmt all goes through port 0 MAC interface,
+	 * so it cannot be in reset
+	 */
+
 	if (netxen_nic_hw_read_wx(adapter, NETXEN_NIU_GB_MAC_CONFIG_0(0),
 				  &mac_cfg0, 4))
 		return -EIO;
@@ -76,18 +120,6 @@ int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long phy,
 			return -EIO;
 		restore = 1;
 	}
-
-	/* reset MII management interface */
-	mii_cfg = 0;
-	netxen_gb_set_mii_mgmt_clockselect(mii_cfg, 7);
-	netxen_gb_mii_mgmt_reset(mii_cfg);
-	if (netxen_nic_hw_write_wx(adapter, NETXEN_NIU_GB_MII_MGMT_CONFIG(0),
-				   &mii_cfg, 4))
-		return -EIO;
-	netxen_gb_mii_mgmt_unset(mii_cfg);
-	if (netxen_nic_hw_write_wx(adapter, NETXEN_NIU_GB_MII_MGMT_CONFIG(0),
-				   &mii_cfg, 4))
-		return -EIO;
 
 	address = 0;
 	netxen_gb_mii_mgmt_reg_addr(address, reg);
@@ -130,7 +162,7 @@ int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long phy,
 					   NETXEN_NIU_GB_MAC_CONFIG_0(0),
 					   &mac_cfg0, 4))
 			return -EIO;
-
+	phy_unlock();
 	return result;
 }
 
@@ -139,12 +171,12 @@ int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long phy,
  * mii management interface.
  *
  * Note: The MII management interface goes through port 0.
- *       Individual phys are addressed as follows:
+ *	Individual phys are addressed as follows:
  * @param phy      [15:8]  phy id
  * @param reg      [7:0]   register number
  *
  * @returns  0 on success
- *          -1 on error
+ *	  -1 on error
  *
  */
 int netxen_niu_gbe_phy_write(struct netxen_adapter *adapter,
@@ -158,7 +190,11 @@ int netxen_niu_gbe_phy_write(struct netxen_adapter *adapter,
 	__le32 status;
 	__le32 mac_cfg0;
 
-	/* MII mgmt all goes through port 0 MAC interface, so it cannot be in reset */
+	/*
+	 * MII mgmt all goes through port 0 MAC interface, so it
+	 * cannot be in reset
+	 */
+
 	if (netxen_nic_hw_read_wx(adapter, NETXEN_NIU_GB_MAC_CONFIG_0(0),
 				  &mac_cfg0, 4))
 		return -EIO;
@@ -382,14 +418,23 @@ int netxen_niu_gbe_init_port(struct netxen_adapter *adapter, int port)
 			}
 
 		} else {
-			/* We don't have link. Cable  must be unconnected. */
-			/* Enable phy interrupts so we take action when plugged in */
+			/*
+			 * We don't have link. Cable  must be unconnected.
+			 * Enable phy interrupts so we take action when
+			 * plugged in.
+			 */
+
 			netxen_crb_writelit_adapter(adapter,
 						    NETXEN_NIU_GB_MAC_CONFIG_0
-						    (port), 0x80000000);
+						    (port),
+						    NETXEN_GB_MAC_SOFT_RESET);
 			netxen_crb_writelit_adapter(adapter,
 						    NETXEN_NIU_GB_MAC_CONFIG_0
-						    (port), 0x0000f0025);
+						    (port),
+						    NETXEN_GB_MAC_RESET_PROT_BLK
+						    | NETXEN_GB_MAC_ENABLE_TX_RX
+						    |
+						    NETXEN_GB_MAC_PAUSED_FRMS);
 			if (netxen_niu_gbe_clear_phy_interrupts(adapter, port))
 				printk(KERN_ERR PFX
 				       "ERROR clearing PHY interrupts\n");
@@ -407,10 +452,34 @@ int netxen_niu_gbe_init_port(struct netxen_adapter *adapter, int port)
 	return result;
 }
 
+int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port)
+{
+	long reg = 0, ret = 0;
+
+	if (adapter->ahw.boardcfg.board_type == NETXEN_BRDTYPE_P2_SB31_10G_IMEZ) {
+		netxen_crb_writelit_adapter(adapter,
+					    NETXEN_NIU_XG1_CONFIG_0, 0x5);
+		/* XXX hack for Mez cards: both ports in promisc mode */
+		netxen_nic_hw_read_wx(adapter,
+				      NETXEN_NIU_XGE_CONFIG_1, &reg, 4);
+		reg = (reg | 0x2000UL);
+		netxen_crb_writelit_adapter(adapter,
+					    NETXEN_NIU_XGE_CONFIG_1, reg);
+		reg = 0;
+		netxen_nic_hw_read_wx(adapter,
+				      NETXEN_NIU_XG1_CONFIG_1, &reg, 4);
+		reg = (reg | 0x2000UL);
+		netxen_crb_writelit_adapter(adapter,
+					    NETXEN_NIU_XG1_CONFIG_1, reg);
+	}
+
+	return ret;
+}
+
 /* 
  * netxen_niu_gbe_handle_phy_interrupt - Handles GbE PHY interrupts
  * @param enable 0 means don't enable the port
- *               1 means enable (or re-enable) the port
+ *		 1 means enable (or re-enable) the port
  */
 int netxen_niu_gbe_handle_phy_interrupt(struct netxen_adapter *adapter,
 					int port, long enable)
@@ -421,7 +490,10 @@ int netxen_niu_gbe_handle_phy_interrupt(struct netxen_adapter *adapter,
 	printk(KERN_INFO PFX "NETXEN: Handling PHY interrupt on port %d"
 	       " (device enable = %d)\n", (int)port, (int)enable);
 
-	/* The read of the PHY INT status will clear the pending interrupt status */
+	/*
+	 * The read of the PHY INT status will clear the pending
+	 * interrupt status
+	 */
 	if (netxen_niu_gbe_phy_read(adapter, port,
 				    NETXEN_NIU_GB_MII_MGMT_ADDR_INT_STATUS,
 				    &int_src) != 0)
@@ -540,20 +612,42 @@ int netxen_niu_macaddr_set(struct netxen_port *port,
 	__le32 temp = 0;
 	struct netxen_adapter *adapter = port->adapter;
 	int phy = port->portnum;
+	unsigned char mac_addr[MAX_ADDR_LEN];
+	int i;
 
-	memcpy(&temp, addr, 2);
-	temp <<= 16;
-	if (netxen_nic_hw_write_wx(adapter, NETXEN_NIU_GB_STATION_ADDR_1(phy),
-				   &temp, 4))
-		return -EIO;
+	for (i = 0; i < 10; i++) {
+		memcpy(&temp, addr, 2);
+		temp <<= 16;
+		if (netxen_nic_hw_write_wx
+		    (adapter, NETXEN_NIU_GB_STATION_ADDR_1(phy), &temp, 4))
+			return -EIO;
 
-	temp = 0;
+		temp = 0;
 
-	memcpy(&temp, ((u8 *) addr) + 2, sizeof(__le32));
-	if (netxen_nic_hw_write_wx(adapter, NETXEN_NIU_GB_STATION_ADDR_0(phy),
-				   &temp, 4))
-		return -2;
+		memcpy(&temp, ((u8 *) addr) + 2, sizeof(__le32));
+		if (netxen_nic_hw_write_wx
+		    (adapter, NETXEN_NIU_GB_STATION_ADDR_0(phy), &temp, 4))
+			return -2;
 
+		netxen_niu_macaddr_get(adapter, phy,
+				       (netxen_ethernet_macaddr_t *) mac_addr);
+		if (memcmp(mac_addr, addr, MAX_ADDR_LEN == 0))
+			break;
+	}
+
+	if (i == 10) {
+		printk(KERN_ERR "%s: cannot set Mac addr for %s\n",
+		       netxen_nic_driver_name, port->netdev->name);
+		printk(KERN_ERR "MAC address set: "
+		       "%02x:%02x:%02x:%02x:%02x:%02x.\n",
+		       addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+
+		printk(KERN_ERR "MAC address get: "
+		       "%02x:%02x:%02x:%02x:%02x:%02x.\n",
+		       mac_addr[0],
+		       mac_addr[1],
+		       mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+	}
 	return 0;
 }
 
