@@ -312,7 +312,7 @@ static void cafe_select_chip(struct mtd_info *mtd, int chipnr)
 	//	cafe_dev_dbg(&cafe->pdev->dev, "select_chip %d\n", chipnr);
 }
 
-static int cafe_nand_interrupt(int irq, void *id, struct pt_regs *regs)
+static int cafe_nand_interrupt(int irq, void *id)
 {
 	struct mtd_info *mtd = id;
 	struct cafe_priv *cafe = mtd->priv;
