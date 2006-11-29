@@ -117,6 +117,16 @@ void nf_unregister_hooks(struct nf_hook_ops *reg, unsigned int n);
 int nf_register_sockopt(struct nf_sockopt_ops *reg);
 void nf_unregister_sockopt(struct nf_sockopt_ops *reg);
 
+#ifdef CONFIG_SYSCTL
+/* Sysctl registration */
+struct ctl_table_header *nf_register_sysctl_table(struct ctl_table *path,
+						  struct ctl_table *table);
+void nf_unregister_sysctl_table(struct ctl_table_header *header,
+				struct ctl_table *table);
+extern struct ctl_table nf_net_netfilter_sysctl_path[];
+extern struct ctl_table nf_net_ipv4_netfilter_sysctl_path[];
+#endif /* CONFIG_SYSCTL */
+
 extern struct list_head nf_hooks[NPROTO][NF_MAX_HOOKS];
 
 /* those NF_LOG_* defines and struct nf_loginfo are legacy definitios that will

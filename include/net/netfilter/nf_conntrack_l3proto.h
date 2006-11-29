@@ -75,6 +75,12 @@ struct nf_conntrack_l3proto
 	int (*nfattr_to_tuple)(struct nfattr *tb[],
 			       struct nf_conntrack_tuple *t);
 
+#ifdef CONFIG_SYSCTL
+	struct ctl_table_header	*ctl_table_header;
+	struct ctl_table	*ctl_table_path;
+	struct ctl_table	*ctl_table;
+#endif /* CONFIG_SYSCTL */
+
 	/* Module (if any) which this is connected to. */
 	struct module *me;
 };

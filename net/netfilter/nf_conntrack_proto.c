@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/netfilter.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/skbuff.h>
 #include <linux/vmalloc.h>
 #include <linux/stddef.h>
@@ -29,6 +30,34 @@
 
 struct nf_conntrack_l4proto **nf_ct_protos[PF_MAX] __read_mostly;
 struct nf_conntrack_l3proto *nf_ct_l3protos[AF_MAX] __read_mostly;
+
+#ifdef CONFIG_SYSCTL
+static DEFINE_MUTEX(nf_ct_proto_sysctl_mutex);
+
+static int
+nf_ct_register_sysctl(struct ctl_table_header **header, struct ctl_table *path,
+		      struct ctl_table *table, unsigned int *users)
+{
+	if (*header == NULL) {
+		*header = nf_register_sysctl_table(path, table);
+		if (*header == NULL)
+			return -ENOMEM;
+	}
+	if (users != NULL)
+		(*users)++;
+	return 0;
+}
+
+static void
+nf_ct_unregister_sysctl(struct ctl_table_header **header,
+			struct ctl_table *table, unsigned int *users)
+{
+	if (users != NULL && --*users > 0)
+		return;
+	nf_unregister_sysctl_table(*header, table);
+	*header = NULL;
+}
+#endif
 
 struct nf_conntrack_l4proto *
 __nf_ct_l4proto_find(u_int16_t l3proto, u_int8_t l4proto)
@@ -124,6 +153,33 @@ static int kill_l4proto(struct nf_conn *i, void *data)
 			l4proto->l3proto);
 }
 
+static int nf_ct_l3proto_register_sysctl(struct nf_conntrack_l3proto *l3proto)
+{
+	int err = 0;
+
+#ifdef CONFIG_SYSCTL
+	mutex_lock(&nf_ct_proto_sysctl_mutex);
+	if (l3proto->ctl_table != NULL) {
+		err = nf_ct_register_sysctl(&l3proto->ctl_table_header,
+					    l3proto->ctl_table_path,
+					    l3proto->ctl_table, NULL);
+	}
+	mutex_unlock(&nf_ct_proto_sysctl_mutex);
+#endif
+	return err;
+}
+
+static void nf_ct_l3proto_unregister_sysctl(struct nf_conntrack_l3proto *l3proto)
+{
+#ifdef CONFIG_SYSCTL
+	mutex_lock(&nf_ct_proto_sysctl_mutex);
+	if (l3proto->ctl_table_header != NULL)
+		nf_ct_unregister_sysctl(&l3proto->ctl_table_header,
+					l3proto->ctl_table, NULL);
+	mutex_unlock(&nf_ct_proto_sysctl_mutex);
+#endif
+}
+
 int nf_conntrack_l3proto_register(struct nf_conntrack_l3proto *proto)
 {
 	int ret = 0;
@@ -139,6 +195,12 @@ int nf_conntrack_l3proto_register(struct nf_conntrack_l3proto *proto)
 		goto out_unlock;
 	}
 	nf_ct_l3protos[proto->l3proto] = proto;
+	write_unlock_bh(&nf_conntrack_lock);
+
+	ret = nf_ct_l3proto_register_sysctl(proto);
+	if (ret < 0)
+		nf_conntrack_l3proto_unregister(proto);
+	return ret;
 
 out_unlock:
 	write_unlock_bh(&nf_conntrack_lock);
@@ -165,6 +227,8 @@ int nf_conntrack_l3proto_unregister(struct nf_conntrack_l3proto *proto)
 	nf_ct_l3protos[proto->l3proto] = &nf_conntrack_l3proto_generic;
 	write_unlock_bh(&nf_conntrack_lock);
 
+	nf_ct_l3proto_unregister_sysctl(proto);
+
 	/* Somebody could be still looking at the proto in bh. */
 	synchronize_net();
 
@@ -173,6 +237,36 @@ int nf_conntrack_l3proto_unregister(struct nf_conntrack_l3proto *proto)
 
 out:
 	return ret;
+}
+
+static int nf_ct_l4proto_register_sysctl(struct nf_conntrack_l4proto *l4proto)
+{
+	int err = 0;
+
+#ifdef CONFIG_SYSCTL
+	mutex_lock(&nf_ct_proto_sysctl_mutex);
+	if (l4proto->ctl_table != NULL) {
+		err = nf_ct_register_sysctl(l4proto->ctl_table_header,
+					    nf_net_netfilter_sysctl_path,
+					    l4proto->ctl_table,
+					    l4proto->ctl_table_users);
+	}
+	mutex_unlock(&nf_ct_proto_sysctl_mutex);
+#endif
+	return err;
+}
+
+static void nf_ct_l4proto_unregister_sysctl(struct nf_conntrack_l4proto *l4proto)
+{
+#ifdef CONFIG_SYSCTL
+	mutex_lock(&nf_ct_proto_sysctl_mutex);
+	if (l4proto->ctl_table_header != NULL &&
+	    *l4proto->ctl_table_header != NULL)
+		nf_ct_unregister_sysctl(l4proto->ctl_table_header,
+					l4proto->ctl_table,
+					l4proto->ctl_table_users);
+	mutex_unlock(&nf_ct_proto_sysctl_mutex);
+#endif
 }
 
 /* FIXME: Allow NULL functions and sub in pointers to generic for
@@ -230,6 +324,12 @@ retry:
 	}
 
 	nf_ct_protos[l4proto->l3proto][l4proto->l4proto] = l4proto;
+	write_unlock_bh(&nf_conntrack_lock);
+
+	ret = nf_ct_l4proto_register_sysctl(l4proto);
+	if (ret < 0)
+		nf_conntrack_l4proto_unregister(l4proto);
+	return ret;
 
 out_unlock:
 	write_unlock_bh(&nf_conntrack_lock);
@@ -256,6 +356,8 @@ int nf_conntrack_l4proto_unregister(struct nf_conntrack_l4proto *l4proto)
 	nf_ct_protos[l4proto->l3proto][l4proto->l4proto]
 		= &nf_conntrack_l4proto_generic;
 	write_unlock_bh(&nf_conntrack_lock);
+
+	nf_ct_l4proto_unregister_sysctl(l4proto);
 
 	/* Somebody could be still looking at the proto in bh. */
 	synchronize_net();
