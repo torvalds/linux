@@ -139,6 +139,16 @@ config CRYPTO_TGR192
 	  See also:
 	  <http://www.cs.technion.ac.il/~biham/Reports/Tiger/>.
 
+config CRYPTO_GF128MUL
+	tristate "GF(2^128) multiplication functions (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  Efficient table driven implementation of multiplications in the
+	  field GF(2^128).  This is needed by some cypher modes. This
+	  option will be selected automatically if you select such a
+	  cipher mode.  Only select this option by hand if you expect to load
+	  an external module that requires these functions.
+
 config CRYPTO_ECB
 	tristate "ECB support"
 	select CRYPTO_BLKCIPHER
