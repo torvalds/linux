@@ -877,9 +877,10 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 		ct->counters[CTINFO2DIR(ctinfo)].packets++;
 		ct->counters[CTINFO2DIR(ctinfo)].bytes +=
 			skb->len - (unsigned int)(skb->nh.raw - skb->data);
-	if ((ct->counters[CTINFO2DIR(ctinfo)].packets & 0x80000000)
-	    || (ct->counters[CTINFO2DIR(ctinfo)].bytes & 0x80000000))
-		event |= IPCT_COUNTER_FILLING;
+
+		if ((ct->counters[CTINFO2DIR(ctinfo)].packets & 0x80000000)
+		    || (ct->counters[CTINFO2DIR(ctinfo)].bytes & 0x80000000))
+			event |= IPCT_COUNTER_FILLING;
 	}
 #endif
 
