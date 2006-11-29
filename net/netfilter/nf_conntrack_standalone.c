@@ -35,7 +35,7 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_l3proto.h>
-#include <net/netfilter/nf_conntrack_protocol.h>
+#include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 
@@ -54,9 +54,9 @@ DECLARE_PER_CPU(struct ip_conntrack_stat, nf_conntrack_stat);
 int
 print_tuple(struct seq_file *s, const struct nf_conntrack_tuple *tuple,
 	    struct nf_conntrack_l3proto *l3proto,
-	    struct nf_conntrack_protocol *proto)
+	    struct nf_conntrack_l4proto *l4proto)
 {
-	return l3proto->print_tuple(s, tuple) || proto->print_tuple(s, tuple);
+	return l3proto->print_tuple(s, tuple) || l4proto->print_tuple(s, tuple);
 }
 
 #ifdef CONFIG_NF_CT_ACCT
@@ -135,7 +135,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	const struct nf_conntrack_tuple_hash *hash = v;
 	const struct nf_conn *conntrack = nf_ct_tuplehash_to_ctrack(hash);
 	struct nf_conntrack_l3proto *l3proto;
-	struct nf_conntrack_protocol *proto;
+	struct nf_conntrack_l4proto *l4proto;
 
 	ASSERT_READ_LOCK(&nf_conntrack_lock);
 	NF_CT_ASSERT(conntrack);
@@ -148,16 +148,16 @@ static int ct_seq_show(struct seq_file *s, void *v)
 				       .tuple.src.l3num);
 
 	NF_CT_ASSERT(l3proto);
-	proto = __nf_ct_proto_find(conntrack->tuplehash[IP_CT_DIR_ORIGINAL]
+	l4proto = __nf_ct_l4proto_find(conntrack->tuplehash[IP_CT_DIR_ORIGINAL]
 				   .tuple.src.l3num,
 				   conntrack->tuplehash[IP_CT_DIR_ORIGINAL]
 				   .tuple.dst.protonum);
-	NF_CT_ASSERT(proto);
+	NF_CT_ASSERT(l4proto);
 
 	if (seq_printf(s, "%-8s %u %-8s %u %ld ",
 		       l3proto->name,
 		       conntrack->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num,
-		       proto->name,
+		       l4proto->name,
 		       conntrack->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum,
 		       timer_pending(&conntrack->timeout)
 		       ? (long)(conntrack->timeout.expires - jiffies)/HZ : 0) != 0)
@@ -166,11 +166,11 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	if (l3proto->print_conntrack(s, conntrack))
 		return -ENOSPC;
 
-	if (proto->print_conntrack(s, conntrack))
+	if (l4proto->print_conntrack(s, conntrack))
 		return -ENOSPC;
 
 	if (print_tuple(s, &conntrack->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
-			l3proto, proto))
+			l3proto, l4proto))
 		return -ENOSPC;
 
 	if (seq_print_counters(s, &conntrack->counters[IP_CT_DIR_ORIGINAL]))
@@ -181,7 +181,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 			return -ENOSPC;
 
 	if (print_tuple(s, &conntrack->tuplehash[IP_CT_DIR_REPLY].tuple,
-			l3proto, proto))
+			l3proto, l4proto))
 		return -ENOSPC;
 
 	if (seq_print_counters(s, &conntrack->counters[IP_CT_DIR_REPLY]))
@@ -655,8 +655,8 @@ EXPORT_SYMBOL(nf_ct_l3proto_try_module_get);
 EXPORT_SYMBOL(nf_ct_l3proto_module_put);
 EXPORT_SYMBOL(nf_conntrack_l3proto_register);
 EXPORT_SYMBOL(nf_conntrack_l3proto_unregister);
-EXPORT_SYMBOL(nf_conntrack_protocol_register);
-EXPORT_SYMBOL(nf_conntrack_protocol_unregister);
+EXPORT_SYMBOL(nf_conntrack_l4proto_register);
+EXPORT_SYMBOL(nf_conntrack_l4proto_unregister);
 EXPORT_SYMBOL(nf_ct_invert_tuplepr);
 EXPORT_SYMBOL(nf_conntrack_destroyed);
 EXPORT_SYMBOL(need_conntrack);
@@ -665,9 +665,9 @@ EXPORT_SYMBOL(nf_conntrack_helper_unregister);
 EXPORT_SYMBOL(nf_ct_iterate_cleanup);
 EXPORT_SYMBOL(__nf_ct_refresh_acct);
 EXPORT_SYMBOL(nf_ct_protos);
-EXPORT_SYMBOL(__nf_ct_proto_find);
-EXPORT_SYMBOL(nf_ct_proto_find_get);
-EXPORT_SYMBOL(nf_ct_proto_put);
+EXPORT_SYMBOL(__nf_ct_l4proto_find);
+EXPORT_SYMBOL(nf_ct_l4proto_find_get);
+EXPORT_SYMBOL(nf_ct_l4proto_put);
 EXPORT_SYMBOL(nf_ct_l3proto_find_get);
 EXPORT_SYMBOL(nf_ct_l3proto_put);
 EXPORT_SYMBOL(nf_ct_l3protos);

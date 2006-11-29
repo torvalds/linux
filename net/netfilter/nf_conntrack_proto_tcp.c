@@ -42,7 +42,7 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
 #include <net/netfilter/nf_conntrack.h>
-#include <net/netfilter/nf_conntrack_protocol.h>
+#include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
 
 #if 0
@@ -1169,10 +1169,10 @@ static int nfattr_to_tcp(struct nfattr *cda[], struct nf_conn *ct)
 }
 #endif
   
-struct nf_conntrack_protocol nf_conntrack_protocol_tcp4 =
+struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4 =
 {
 	.l3proto		= PF_INET,
-	.proto 			= IPPROTO_TCP,
+	.l4proto 		= IPPROTO_TCP,
 	.name 			= "tcp",
 	.pkt_to_tuple 		= tcp_pkt_to_tuple,
 	.invert_tuple 		= tcp_invert_tuple,
@@ -1190,10 +1190,10 @@ struct nf_conntrack_protocol nf_conntrack_protocol_tcp4 =
 #endif
 };
 
-struct nf_conntrack_protocol nf_conntrack_protocol_tcp6 =
+struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp6 =
 {
 	.l3proto		= PF_INET6,
-	.proto 			= IPPROTO_TCP,
+	.l4proto 		= IPPROTO_TCP,
 	.name 			= "tcp",
 	.pkt_to_tuple 		= tcp_pkt_to_tuple,
 	.invert_tuple 		= tcp_invert_tuple,
@@ -1211,5 +1211,5 @@ struct nf_conntrack_protocol nf_conntrack_protocol_tcp6 =
 #endif
 };
 
-EXPORT_SYMBOL(nf_conntrack_protocol_tcp4);
-EXPORT_SYMBOL(nf_conntrack_protocol_tcp6);
+EXPORT_SYMBOL(nf_conntrack_l4proto_tcp4);
+EXPORT_SYMBOL(nf_conntrack_l4proto_tcp6);

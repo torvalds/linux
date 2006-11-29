@@ -29,7 +29,7 @@
 #include <linux/seq_file.h>
 #include <linux/netfilter_ipv6.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
-#include <net/netfilter/nf_conntrack_protocol.h>
+#include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/ipv6/nf_conntrack_icmpv6.h>
 
@@ -155,7 +155,7 @@ icmpv6_error_message(struct sk_buff *skb,
 	struct nf_conntrack_tuple_hash *h;
 	struct icmp6hdr _hdr, *hp;
 	unsigned int inip6off;
-	struct nf_conntrack_protocol *inproto;
+	struct nf_conntrack_l4proto *inproto;
 	u_int8_t inprotonum;
 	unsigned int inprotoff;
 
@@ -185,7 +185,7 @@ icmpv6_error_message(struct sk_buff *skb,
 		return -NF_ACCEPT;
 	}
 
-	inproto = __nf_ct_proto_find(PF_INET6, inprotonum);
+	inproto = __nf_ct_l4proto_find(PF_INET6, inprotonum);
 
 	/* Are they talking about one of our connections? */
 	if (!nf_ct_get_tuple(skb, inip6off, inprotoff, PF_INET6, inprotonum,
@@ -301,10 +301,10 @@ static int icmpv6_nfattr_to_tuple(struct nfattr *tb[],
 }
 #endif
 
-struct nf_conntrack_protocol nf_conntrack_protocol_icmpv6 =
+struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 =
 {
 	.l3proto		= PF_INET6,
-	.proto			= IPPROTO_ICMPV6,
+	.l4proto		= IPPROTO_ICMPV6,
 	.name			= "icmpv6",
 	.pkt_to_tuple		= icmpv6_pkt_to_tuple,
 	.invert_tuple		= icmpv6_invert_tuple,
@@ -320,4 +320,4 @@ struct nf_conntrack_protocol nf_conntrack_protocol_icmpv6 =
 #endif
 };
 
-EXPORT_SYMBOL(nf_conntrack_protocol_icmpv6);
+EXPORT_SYMBOL(nf_conntrack_l4proto_icmpv6);

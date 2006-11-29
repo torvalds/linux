@@ -38,7 +38,7 @@
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_l3proto.h>
-#include <net/netfilter/nf_conntrack_protocol.h>
+#include <net/netfilter/nf_conntrack_l4proto.h>
 #include <linux/netfilter_ipv4/ip_nat_protocol.h>
 
 #include <linux/netfilter/nfnetlink.h>
@@ -51,15 +51,15 @@ static char __initdata version[] = "0.93";
 static inline int
 ctnetlink_dump_tuples_proto(struct sk_buff *skb, 
 			    const struct nf_conntrack_tuple *tuple,
-			    struct nf_conntrack_protocol *proto)
+			    struct nf_conntrack_l4proto *l4proto)
 {
 	int ret = 0;
 	struct nfattr *nest_parms = NFA_NEST(skb, CTA_TUPLE_PROTO);
 
 	NFA_PUT(skb, CTA_PROTO_NUM, sizeof(u_int8_t), &tuple->dst.protonum);
 
-	if (likely(proto->tuple_to_nfattr))
-		ret = proto->tuple_to_nfattr(skb, tuple);
+	if (likely(l4proto->tuple_to_nfattr))
+		ret = l4proto->tuple_to_nfattr(skb, tuple);
 	
 	NFA_NEST_END(skb, nest_parms);
 
@@ -94,7 +94,7 @@ ctnetlink_dump_tuples(struct sk_buff *skb,
 {
 	int ret;
 	struct nf_conntrack_l3proto *l3proto;
-	struct nf_conntrack_protocol *proto;
+	struct nf_conntrack_l4proto *l4proto;
 
 	l3proto = nf_ct_l3proto_find_get(tuple->src.l3num);
 	ret = ctnetlink_dump_tuples_ip(skb, tuple, l3proto);
@@ -103,9 +103,9 @@ ctnetlink_dump_tuples(struct sk_buff *skb,
 	if (unlikely(ret < 0))
 		return ret;
 
-	proto = nf_ct_proto_find_get(tuple->src.l3num, tuple->dst.protonum);
-	ret = ctnetlink_dump_tuples_proto(skb, tuple, proto);
-	nf_ct_proto_put(proto);
+	l4proto = nf_ct_l4proto_find_get(tuple->src.l3num, tuple->dst.protonum);
+	ret = ctnetlink_dump_tuples_proto(skb, tuple, l4proto);
+	nf_ct_l4proto_put(l4proto);
 
 	return ret;
 }
@@ -142,27 +142,27 @@ nfattr_failure:
 static inline int
 ctnetlink_dump_protoinfo(struct sk_buff *skb, const struct nf_conn *ct)
 {
-	struct nf_conntrack_protocol *proto = nf_ct_proto_find_get(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num, ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum);
+	struct nf_conntrack_l4proto *l4proto = nf_ct_l4proto_find_get(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num, ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum);
 	struct nfattr *nest_proto;
 	int ret;
 
-	if (!proto->to_nfattr) {
-		nf_ct_proto_put(proto);
+	if (!l4proto->to_nfattr) {
+		nf_ct_l4proto_put(l4proto);
 		return 0;
 	}
 	
 	nest_proto = NFA_NEST(skb, CTA_PROTOINFO);
 
-	ret = proto->to_nfattr(skb, nest_proto, ct);
+	ret = l4proto->to_nfattr(skb, nest_proto, ct);
 
-	nf_ct_proto_put(proto);
+	nf_ct_l4proto_put(l4proto);
 
 	NFA_NEST_END(skb, nest_proto);
 
 	return ret;
 
 nfattr_failure:
-	nf_ct_proto_put(proto);
+	nf_ct_l4proto_put(l4proto);
 	return -1;
 }
 
@@ -493,7 +493,7 @@ ctnetlink_parse_tuple_proto(struct nfattr *attr,
 			    struct nf_conntrack_tuple *tuple)
 {
 	struct nfattr *tb[CTA_PROTO_MAX];
-	struct nf_conntrack_protocol *proto;
+	struct nf_conntrack_l4proto *l4proto;
 	int ret = 0;
 
 	nfattr_parse_nested(tb, CTA_PROTO_MAX, attr);
@@ -505,12 +505,12 @@ ctnetlink_parse_tuple_proto(struct nfattr *attr,
 		return -EINVAL;
 	tuple->dst.protonum = *(u_int8_t *)NFA_DATA(tb[CTA_PROTO_NUM-1]);
 
-	proto = nf_ct_proto_find_get(tuple->src.l3num, tuple->dst.protonum);
+	l4proto = nf_ct_l4proto_find_get(tuple->src.l3num, tuple->dst.protonum);
 
-	if (likely(proto->nfattr_to_tuple))
-		ret = proto->nfattr_to_tuple(tb, tuple);
+	if (likely(l4proto->nfattr_to_tuple))
+		ret = l4proto->nfattr_to_tuple(tb, tuple);
 
-	nf_ct_proto_put(proto);
+	nf_ct_l4proto_put(l4proto);
 	
 	return ret;
 }
@@ -890,18 +890,18 @@ static inline int
 ctnetlink_change_protoinfo(struct nf_conn *ct, struct nfattr *cda[])
 {
 	struct nfattr *tb[CTA_PROTOINFO_MAX], *attr = cda[CTA_PROTOINFO-1];
-	struct nf_conntrack_protocol *proto;
+	struct nf_conntrack_l4proto *l4proto;
 	u_int16_t npt = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum;
 	u_int16_t l3num = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
 	int err = 0;
 
 	nfattr_parse_nested(tb, CTA_PROTOINFO_MAX, attr);
 
-	proto = nf_ct_proto_find_get(l3num, npt);
+	l4proto = nf_ct_l4proto_find_get(l3num, npt);
 
-	if (proto->from_nfattr)
-		err = proto->from_nfattr(tb, ct);
-	nf_ct_proto_put(proto); 
+	if (l4proto->from_nfattr)
+		err = l4proto->from_nfattr(tb, ct);
+	nf_ct_l4proto_put(l4proto);
 
 	return err;
 }
@@ -1081,7 +1081,7 @@ ctnetlink_exp_dump_mask(struct sk_buff *skb,
 {
 	int ret;
 	struct nf_conntrack_l3proto *l3proto;
-	struct nf_conntrack_protocol *proto;
+	struct nf_conntrack_l4proto *l4proto;
 	struct nfattr *nest_parms = NFA_NEST(skb, CTA_EXPECT_MASK);
 
 	l3proto = nf_ct_l3proto_find_get(tuple->src.l3num);
@@ -1091,9 +1091,9 @@ ctnetlink_exp_dump_mask(struct sk_buff *skb,
 	if (unlikely(ret < 0))
 		goto nfattr_failure;
 
-	proto = nf_ct_proto_find_get(tuple->src.l3num, tuple->dst.protonum);
-	ret = ctnetlink_dump_tuples_proto(skb, mask, proto);
-	nf_ct_proto_put(proto);
+	l4proto = nf_ct_l4proto_find_get(tuple->src.l3num, tuple->dst.protonum);
+	ret = ctnetlink_dump_tuples_proto(skb, mask, l4proto);
+	nf_ct_l4proto_put(l4proto);
 	if (unlikely(ret < 0))
 		goto nfattr_failure;
 

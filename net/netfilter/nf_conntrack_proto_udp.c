@@ -26,7 +26,7 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
-#include <net/netfilter/nf_conntrack_protocol.h>
+#include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
 
 unsigned int nf_ct_udp_timeout __read_mostly = 30*HZ;
@@ -148,10 +148,10 @@ static int udp_error(struct sk_buff *skb, unsigned int dataoff,
 	return NF_ACCEPT;
 }
 
-struct nf_conntrack_protocol nf_conntrack_protocol_udp4 =
+struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4 =
 {
 	.l3proto		= PF_INET,
-	.proto			= IPPROTO_UDP,
+	.l4proto		= IPPROTO_UDP,
 	.name			= "udp",
 	.pkt_to_tuple		= udp_pkt_to_tuple,
 	.invert_tuple		= udp_invert_tuple,
@@ -167,10 +167,10 @@ struct nf_conntrack_protocol nf_conntrack_protocol_udp4 =
 #endif
 };
 
-struct nf_conntrack_protocol nf_conntrack_protocol_udp6 =
+struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6 =
 {
 	.l3proto		= PF_INET6,
-	.proto			= IPPROTO_UDP,
+	.l4proto		= IPPROTO_UDP,
 	.name			= "udp",
 	.pkt_to_tuple		= udp_pkt_to_tuple,
 	.invert_tuple		= udp_invert_tuple,
@@ -186,5 +186,5 @@ struct nf_conntrack_protocol nf_conntrack_protocol_udp6 =
 #endif
 };
 
-EXPORT_SYMBOL(nf_conntrack_protocol_udp4);
-EXPORT_SYMBOL(nf_conntrack_protocol_udp6);
+EXPORT_SYMBOL(nf_conntrack_l4proto_udp4);
+EXPORT_SYMBOL(nf_conntrack_l4proto_udp6);

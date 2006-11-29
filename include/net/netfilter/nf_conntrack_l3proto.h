@@ -96,13 +96,13 @@ extern void nf_ct_l3proto_put(struct nf_conntrack_l3proto *p);
 /* Existing built-in protocols */
 extern struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4;
 extern struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6;
-extern struct nf_conntrack_l3proto nf_conntrack_generic_l3proto;
+extern struct nf_conntrack_l3proto nf_conntrack_l3proto_generic;
 
 static inline struct nf_conntrack_l3proto *
 __nf_ct_l3proto_find(u_int16_t l3proto)
 {
 	if (unlikely(l3proto >= AF_MAX))
-		return &nf_conntrack_generic_l3proto;
+		return &nf_conntrack_l3proto_generic;
 	return nf_ct_l3protos[l3proto];
 }
 

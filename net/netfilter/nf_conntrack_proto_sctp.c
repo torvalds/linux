@@ -32,7 +32,7 @@
 #include <linux/interrupt.h>
 
 #include <net/netfilter/nf_conntrack.h>
-#include <net/netfilter/nf_conntrack_protocol.h>
+#include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
 
 #if 0
@@ -509,9 +509,9 @@ static int sctp_new(struct nf_conn *conntrack, const struct sk_buff *skb,
 	return 1;
 }
 
-struct nf_conntrack_protocol nf_conntrack_protocol_sctp4 = { 
+struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 = {
 	.l3proto	 = PF_INET,
-	.proto 		 = IPPROTO_SCTP, 
+	.l4proto 	 = IPPROTO_SCTP,
 	.name 		 = "sctp",
 	.pkt_to_tuple 	 = sctp_pkt_to_tuple, 
 	.invert_tuple 	 = sctp_invert_tuple, 
@@ -523,9 +523,9 @@ struct nf_conntrack_protocol nf_conntrack_protocol_sctp4 = {
 	.me 		 = THIS_MODULE 
 };
 
-struct nf_conntrack_protocol nf_conntrack_protocol_sctp6 = { 
+struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 = {
 	.l3proto	 = PF_INET6,
-	.proto 		 = IPPROTO_SCTP, 
+	.l4proto 	 = IPPROTO_SCTP,
 	.name 		 = "sctp",
 	.pkt_to_tuple 	 = sctp_pkt_to_tuple, 
 	.invert_tuple 	 = sctp_invert_tuple, 
@@ -625,14 +625,14 @@ int __init nf_conntrack_proto_sctp_init(void)
 {
 	int ret;
 
-	ret = nf_conntrack_protocol_register(&nf_conntrack_protocol_sctp4);
+	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_sctp4);
 	if (ret) {
-		printk("nf_conntrack_proto_sctp4: protocol register failed\n");
+		printk("nf_conntrack_l4proto_sctp4: protocol register failed\n");
 		goto out;
 	}
-	ret = nf_conntrack_protocol_register(&nf_conntrack_protocol_sctp6);
+	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_sctp6);
 	if (ret) {
-		printk("nf_conntrack_proto_sctp6: protocol register failed\n");
+		printk("nf_conntrack_l4proto_sctp6: protocol register failed\n");
 		goto cleanup_sctp4;
 	}
 
@@ -648,10 +648,10 @@ int __init nf_conntrack_proto_sctp_init(void)
 
 #ifdef CONFIG_SYSCTL
  cleanup:
-	nf_conntrack_protocol_unregister(&nf_conntrack_protocol_sctp6);
+	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_sctp6);
 #endif
  cleanup_sctp4:
-	nf_conntrack_protocol_unregister(&nf_conntrack_protocol_sctp4);
+	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_sctp4);
  out:
 	DEBUGP("SCTP conntrack module loading %s\n", 
 					ret ? "failed": "succeeded");
@@ -660,8 +660,8 @@ int __init nf_conntrack_proto_sctp_init(void)
 
 void __exit nf_conntrack_proto_sctp_fini(void)
 {
-	nf_conntrack_protocol_unregister(&nf_conntrack_protocol_sctp6);
-	nf_conntrack_protocol_unregister(&nf_conntrack_protocol_sctp4);
+	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_sctp6);
+	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_sctp4);
 #ifdef CONFIG_SYSCTL
  	unregister_sysctl_table(nf_ct_sysctl_header);
 #endif

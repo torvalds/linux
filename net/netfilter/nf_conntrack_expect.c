@@ -338,7 +338,7 @@ static int exp_seq_show(struct seq_file *s, void *v)
 		   expect->tuple.dst.protonum);
 	print_tuple(s, &expect->tuple,
 		    __nf_ct_l3proto_find(expect->tuple.src.l3num),
-		    __nf_ct_proto_find(expect->tuple.src.l3num,
+		    __nf_ct_l4proto_find(expect->tuple.src.l3num,
 				       expect->tuple.dst.protonum));
 	return seq_putc(s, '\n');
 }

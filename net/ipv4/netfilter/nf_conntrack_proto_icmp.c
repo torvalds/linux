@@ -22,7 +22,7 @@
 #include <net/checksum.h>
 #include <linux/netfilter_ipv4.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
-#include <net/netfilter/nf_conntrack_protocol.h>
+#include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_core.h>
 
 unsigned long nf_ct_icmp_timeout __read_mostly = 30*HZ;
@@ -152,7 +152,7 @@ icmp_error_message(struct sk_buff *skb,
 		struct icmphdr icmp;
 		struct iphdr ip;
 	} _in, *inside;
-	struct nf_conntrack_protocol *innerproto;
+	struct nf_conntrack_l4proto *innerproto;
 	struct nf_conntrack_tuple_hash *h;
 	int dataoff;
 
@@ -170,7 +170,7 @@ icmp_error_message(struct sk_buff *skb,
 		return -NF_ACCEPT;
 	}
 
-	innerproto = __nf_ct_proto_find(PF_INET, inside->ip.protocol);
+	innerproto = __nf_ct_l4proto_find(PF_INET, inside->ip.protocol);
 	dataoff = skb->nh.iph->ihl*4 + sizeof(inside->icmp);
 	/* Are they talking about one of our connections? */
 	if (!nf_ct_get_tuple(skb, dataoff, dataoff + inside->ip.ihl*4, PF_INET,
@@ -321,11 +321,11 @@ static int icmp_nfattr_to_tuple(struct nfattr *tb[],
 }
 #endif
 
-struct nf_conntrack_protocol nf_conntrack_protocol_icmp =
+struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
 {
 	.list			= { NULL, NULL },
 	.l3proto		= PF_INET,
-	.proto			= IPPROTO_ICMP,
+	.l4proto		= IPPROTO_ICMP,
 	.name			= "icmp",
 	.pkt_to_tuple		= icmp_pkt_to_tuple,
 	.invert_tuple		= icmp_invert_tuple,
@@ -343,4 +343,4 @@ struct nf_conntrack_protocol nf_conntrack_protocol_icmp =
 #endif
 };
 
-EXPORT_SYMBOL(nf_conntrack_protocol_icmp);
+EXPORT_SYMBOL(nf_conntrack_l4proto_icmp);

@@ -54,7 +54,7 @@
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_l3proto.h>
-#include <net/netfilter/nf_conntrack_protocol.h>
+#include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_core.h>
@@ -256,7 +256,7 @@ nf_ct_get_tuple(const struct sk_buff *skb,
 		u_int8_t protonum,
 		struct nf_conntrack_tuple *tuple,
 		const struct nf_conntrack_l3proto *l3proto,
-		const struct nf_conntrack_protocol *protocol)
+		const struct nf_conntrack_l4proto *l4proto)
 {
 	NF_CT_TUPLE_U_BLANK(tuple);
 
@@ -267,14 +267,14 @@ nf_ct_get_tuple(const struct sk_buff *skb,
 	tuple->dst.protonum = protonum;
 	tuple->dst.dir = IP_CT_DIR_ORIGINAL;
 
-	return protocol->pkt_to_tuple(skb, dataoff, tuple);
+	return l4proto->pkt_to_tuple(skb, dataoff, tuple);
 }
 
 int
 nf_ct_invert_tuple(struct nf_conntrack_tuple *inverse,
 		   const struct nf_conntrack_tuple *orig,
 		   const struct nf_conntrack_l3proto *l3proto,
-		   const struct nf_conntrack_protocol *protocol)
+		   const struct nf_conntrack_l4proto *l4proto)
 {
 	NF_CT_TUPLE_U_BLANK(inverse);
 
@@ -285,7 +285,7 @@ nf_ct_invert_tuple(struct nf_conntrack_tuple *inverse,
 	inverse->dst.dir = !orig->dst.dir;
 
 	inverse->dst.protonum = orig->dst.protonum;
-	return protocol->invert_tuple(inverse, orig);
+	return l4proto->invert_tuple(inverse, orig);
 }
 
 static void
@@ -305,7 +305,7 @@ destroy_conntrack(struct nf_conntrack *nfct)
 {
 	struct nf_conn *ct = (struct nf_conn *)nfct;
 	struct nf_conntrack_l3proto *l3proto;
-	struct nf_conntrack_protocol *proto;
+	struct nf_conntrack_l4proto *l4proto;
 
 	DEBUGP("destroy_conntrack(%p)\n", ct);
 	NF_CT_ASSERT(atomic_read(&nfct->use) == 0);
@@ -321,9 +321,9 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	if (l3proto && l3proto->destroy)
 		l3proto->destroy(ct);
 
-	proto = __nf_ct_proto_find(ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.l3num, ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.protonum);
-	if (proto && proto->destroy)
-		proto->destroy(ct);
+	l4proto = __nf_ct_l4proto_find(ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.l3num, ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.protonum);
+	if (l4proto && l4proto->destroy)
+		l4proto->destroy(ct);
 
 	if (nf_conntrack_destroyed)
 		nf_conntrack_destroyed(ct);
@@ -647,7 +647,7 @@ void nf_conntrack_free(struct nf_conn *conntrack)
 static struct nf_conntrack_tuple_hash *
 init_conntrack(const struct nf_conntrack_tuple *tuple,
 	       struct nf_conntrack_l3proto *l3proto,
-	       struct nf_conntrack_protocol *protocol,
+	       struct nf_conntrack_l4proto *l4proto,
 	       struct sk_buff *skb,
 	       unsigned int dataoff)
 {
@@ -655,7 +655,7 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 	struct nf_conntrack_tuple repl_tuple;
 	struct nf_conntrack_expect *exp;
 
-	if (!nf_ct_invert_tuple(&repl_tuple, tuple, l3proto, protocol)) {
+	if (!nf_ct_invert_tuple(&repl_tuple, tuple, l3proto, l4proto)) {
 		DEBUGP("Can't invert tuple.\n");
 		return NULL;
 	}
@@ -666,7 +666,7 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 		return (struct nf_conntrack_tuple_hash *)conntrack;
 	}
 
-	if (!protocol->new(conntrack, skb, dataoff)) {
+	if (!l4proto->new(conntrack, skb, dataoff)) {
 		nf_conntrack_free(conntrack);
 		DEBUGP("init conntrack: can't track with proto module\n");
 		return NULL;
@@ -718,7 +718,7 @@ resolve_normal_ct(struct sk_buff *skb,
 		  u_int16_t l3num,
 		  u_int8_t protonum,
 		  struct nf_conntrack_l3proto *l3proto,
-		  struct nf_conntrack_protocol *proto,
+		  struct nf_conntrack_l4proto *l4proto,
 		  int *set_reply,
 		  enum ip_conntrack_info *ctinfo)
 {
@@ -728,7 +728,7 @@ resolve_normal_ct(struct sk_buff *skb,
 
 	if (!nf_ct_get_tuple(skb, (unsigned int)(skb->nh.raw - skb->data),
 			     dataoff, l3num, protonum, &tuple, l3proto,
-			     proto)) {
+			     l4proto)) {
 		DEBUGP("resolve_normal_ct: Can't get tuple\n");
 		return NULL;
 	}
@@ -736,7 +736,7 @@ resolve_normal_ct(struct sk_buff *skb,
 	/* look for tuple match */
 	h = nf_conntrack_find_get(&tuple, NULL);
 	if (!h) {
-		h = init_conntrack(&tuple, l3proto, proto, skb, dataoff);
+		h = init_conntrack(&tuple, l3proto, l4proto, skb, dataoff);
 		if (!h)
 			return NULL;
 		if (IS_ERR(h))
@@ -774,7 +774,7 @@ nf_conntrack_in(int pf, unsigned int hooknum, struct sk_buff **pskb)
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conntrack_l3proto *l3proto;
-	struct nf_conntrack_protocol *proto;
+	struct nf_conntrack_l4proto *l4proto;
 	unsigned int dataoff;
 	u_int8_t protonum;
 	int set_reply = 0;
@@ -792,19 +792,19 @@ nf_conntrack_in(int pf, unsigned int hooknum, struct sk_buff **pskb)
 		return -ret;
 	}
 
-	proto = __nf_ct_proto_find((u_int16_t)pf, protonum);
+	l4proto = __nf_ct_l4proto_find((u_int16_t)pf, protonum);
 
 	/* It may be an special packet, error, unclean...
 	 * inverse of the return code tells to the netfilter
 	 * core what to do with the packet. */
-	if (proto->error != NULL &&
-	    (ret = proto->error(*pskb, dataoff, &ctinfo, pf, hooknum)) <= 0) {
+	if (l4proto->error != NULL &&
+	    (ret = l4proto->error(*pskb, dataoff, &ctinfo, pf, hooknum)) <= 0) {
 		NF_CT_STAT_INC(error);
 		NF_CT_STAT_INC(invalid);
 		return -ret;
 	}
 
-	ct = resolve_normal_ct(*pskb, dataoff, pf, protonum, l3proto, proto,
+	ct = resolve_normal_ct(*pskb, dataoff, pf, protonum, l3proto, l4proto,
 			       &set_reply, &ctinfo);
 	if (!ct) {
 		/* Not valid part of a connection */
@@ -820,7 +820,7 @@ nf_conntrack_in(int pf, unsigned int hooknum, struct sk_buff **pskb)
 
 	NF_CT_ASSERT((*pskb)->nfct);
 
-	ret = proto->packet(ct, *pskb, dataoff, ctinfo, pf, hooknum);
+	ret = l4proto->packet(ct, *pskb, dataoff, ctinfo, pf, hooknum);
 	if (ret < 0) {
 		/* Invalid: inverse of the return code tells
 		 * the netfilter core what to do */
@@ -842,7 +842,7 @@ int nf_ct_invert_tuplepr(struct nf_conntrack_tuple *inverse,
 {
 	return nf_ct_invert_tuple(inverse, orig,
 				  __nf_ct_l3proto_find(orig->src.l3num),
-				  __nf_ct_proto_find(orig->src.l3num,
+				  __nf_ct_l4proto_find(orig->src.l3num,
 						     orig->dst.protonum));
 }
 
@@ -1199,7 +1199,7 @@ int __init nf_conntrack_init(void)
 	/* Don't NEED lock here, but good form anyway. */
 	write_lock_bh(&nf_conntrack_lock);
         for (i = 0; i < PF_MAX; i++)
-		nf_ct_l3protos[i] = &nf_conntrack_generic_l3proto;
+		nf_ct_l3protos[i] = &nf_conntrack_l3proto_generic;
         write_unlock_bh(&nf_conntrack_lock);
 
 	/* For use by REJECT target */

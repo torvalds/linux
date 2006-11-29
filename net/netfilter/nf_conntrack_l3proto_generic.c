@@ -26,7 +26,7 @@
 
 #include <linux/netfilter_ipv4.h>
 #include <net/netfilter/nf_conntrack.h>
-#include <net/netfilter/nf_conntrack_protocol.h>
+#include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
@@ -84,7 +84,7 @@ static u_int32_t generic_get_features(const struct nf_conntrack_tuple *tuple)
 	return NF_CT_F_BASIC;
 }
 
-struct nf_conntrack_l3proto nf_conntrack_generic_l3proto = {
+struct nf_conntrack_l3proto nf_conntrack_l3proto_generic = {
 	.l3proto	 = PF_UNSPEC,
 	.name		 = "unknown",
 	.pkt_to_tuple	 = generic_pkt_to_tuple,
