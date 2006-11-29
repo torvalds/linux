@@ -326,20 +326,6 @@ config IP_NF_MATCH_ADDRTYPE
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/modules.txt>.  If unsure, say `N'.
 
-config IP_NF_MATCH_HASHLIMIT
-	tristate  'hashlimit match support'
-	depends on IP_NF_IPTABLES
-	help
-	  This option adds a new iptables `hashlimit' match.  
-
-	  As opposed to `limit', this match dynamically creates a hash table
-	  of limit buckets, based on your selection of source/destination
-	  ip addresses and/or ports.
-
-	  It enables you to express policies like `10kpps for any given
-	  destination IP' or `500pps from any given source IP'  with a single
-	  IPtables rule.
-
 # `filter', generic and specific targets
 config IP_NF_FILTER
 	tristate "Packet filtering"
