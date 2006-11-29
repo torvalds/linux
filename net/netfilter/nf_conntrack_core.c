@@ -73,8 +73,6 @@ DEFINE_RWLOCK(nf_conntrack_lock);
 atomic_t nf_conntrack_count = ATOMIC_INIT(0);
 
 void (*nf_conntrack_destroyed)(struct nf_conn *conntrack) = NULL;
-struct nf_conntrack_protocol **nf_ct_protos[PF_MAX] __read_mostly;
-struct nf_conntrack_l3proto *nf_ct_l3protos[PF_MAX] __read_mostly;
 unsigned int nf_conntrack_htable_size __read_mostly = 0;
 int nf_conntrack_max __read_mostly;
 struct list_head *nf_conntrack_hash __read_mostly;
@@ -114,85 +112,6 @@ DEFINE_RWLOCK(nf_ct_cache_lock);
 
 /* This avoids calling kmem_cache_create() with same name simultaneously */
 static DEFINE_MUTEX(nf_ct_cache_mutex);
-
-extern struct nf_conntrack_protocol nf_conntrack_generic_protocol;
-struct nf_conntrack_protocol *
-__nf_ct_proto_find(u_int16_t l3proto, u_int8_t protocol)
-{
-	if (unlikely(l3proto >= AF_MAX || nf_ct_protos[l3proto] == NULL))
-		return &nf_conntrack_generic_protocol;
-
-	return nf_ct_protos[l3proto][protocol];
-}
-
-/* this is guaranteed to always return a valid protocol helper, since
- * it falls back to generic_protocol */
-struct nf_conntrack_protocol *
-nf_ct_proto_find_get(u_int16_t l3proto, u_int8_t protocol)
-{
-	struct nf_conntrack_protocol *p;
-
-	preempt_disable();
-	p = __nf_ct_proto_find(l3proto, protocol);
-	if (!try_module_get(p->me))
-		p = &nf_conntrack_generic_protocol;
-	preempt_enable();
-	
-	return p;
-}
-
-void nf_ct_proto_put(struct nf_conntrack_protocol *p)
-{
-	module_put(p->me);
-}
-
-struct nf_conntrack_l3proto *
-nf_ct_l3proto_find_get(u_int16_t l3proto)
-{
-	struct nf_conntrack_l3proto *p;
-
-	preempt_disable();
-	p = __nf_ct_l3proto_find(l3proto);
-	if (!try_module_get(p->me))
-		p = &nf_conntrack_generic_l3proto;
-	preempt_enable();
-
-	return p;
-}
-
-void nf_ct_l3proto_put(struct nf_conntrack_l3proto *p)
-{
-	module_put(p->me);
-}
-
-int
-nf_ct_l3proto_try_module_get(unsigned short l3proto)
-{
-	int ret;
-	struct nf_conntrack_l3proto *p;
-
-retry:	p = nf_ct_l3proto_find_get(l3proto);
-	if (p == &nf_conntrack_generic_l3proto) {
-		ret = request_module("nf_conntrack-%d", l3proto);
-		if (!ret)
-			goto retry;
-
-		return -EPROTOTYPE;
-	}
-
-	return 0;
-}
-
-void nf_ct_l3proto_module_put(unsigned short l3proto)
-{
-	struct nf_conntrack_l3proto *p;
-
-	preempt_disable();
-	p = __nf_ct_l3proto_find(l3proto);
-	preempt_enable();
-
-	module_put(p->me);
-}
 
 static int nf_conntrack_hash_rnd_initted;
 static unsigned int nf_conntrack_hash_rnd;
