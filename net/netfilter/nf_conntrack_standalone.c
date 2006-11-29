@@ -52,6 +52,7 @@ print_tuple(struct seq_file *s, const struct nf_conntrack_tuple *tuple,
 {
 	return l3proto->print_tuple(s, tuple) || l4proto->print_tuple(s, tuple);
 }
+EXPORT_SYMBOL_GPL(print_tuple);
 
 #ifdef CONFIG_NF_CT_ACCT
 static unsigned int

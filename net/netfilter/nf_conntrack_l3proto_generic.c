@@ -92,3 +92,4 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_generic = {
 	.prepare	 = generic_prepare,
 	.get_features	 = generic_get_features,
 };
+EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_generic);
