@@ -172,7 +172,8 @@ static void receive_sync_reply(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 	    rc_in->rc_id != ls->ls_rcom_seq) {
 		log_debug(ls, "reject reply %d from %d seq %llx expect %llx",
 			  rc_in->rc_type, rc_in->rc_header.h_nodeid,
-			  rc_in->rc_id, ls->ls_rcom_seq);
+			  (unsigned long long)rc_in->rc_id,
+			  (unsigned long long)ls->ls_rcom_seq);
 		goto out;
 	}
 	memcpy(ls->ls_recover_buf, rc_in, rc_in->rc_header.h_length);

@@ -45,7 +45,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	unsigned long start;
 	int error, neg = 0;
 
-	log_debug(ls, "recover %llx", rv->seq);
+	log_debug(ls, "recover %llx", (unsigned long long)rv->seq);
 
 	mutex_lock(&ls->ls_recoverd_active);
 
@@ -212,7 +212,8 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	dlm_astd_wake();
 
-	log_debug(ls, "recover %llx done: %u ms", rv->seq,
+	log_debug(ls, "recover %llx done: %u ms",
+		  (unsigned long long)rv->seq,
 		  jiffies_to_msecs(jiffies - start));
 	mutex_unlock(&ls->ls_recoverd_active);
 
@@ -220,7 +221,8 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
  fail:
 	dlm_release_root_list(ls);
-	log_debug(ls, "recover %llx error %d", rv->seq, error);
+	log_debug(ls, "recover %llx error %d",
+		  (unsigned long long)rv->seq, error);
 	mutex_unlock(&ls->ls_recoverd_active);
 	return error;
 }
