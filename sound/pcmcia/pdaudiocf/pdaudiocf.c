@@ -299,7 +299,8 @@ static int pdacf_resume(struct pcmcia_device *link)
  * Module entry points
  */
 static struct pcmcia_device_id snd_pdacf_ids[] = {
-	PCMCIA_DEVICE_MANF_CARD(0x015d, 0x4c45),
+	/* this is too general PCMCIA_DEVICE_MANF_CARD(0x015d, 0x4c45), */
+	PCMCIA_DEVICE_PROD_ID12("Core Sound","PDAudio-CF",0x396d19d2,0x71717b49),
 	PCMCIA_DEVICE_NULL
 };
 MODULE_DEVICE_TABLE(pcmcia, snd_pdacf_ids);
