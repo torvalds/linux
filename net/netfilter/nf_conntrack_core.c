@@ -864,9 +864,14 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 		ct->timeout.expires = extra_jiffies;
 		event = IPCT_REFRESH;
 	} else {
-		/* Need del_timer for race avoidance (may already be dying). */
-		if (del_timer(&ct->timeout)) {
-			ct->timeout.expires = jiffies + extra_jiffies;
+		unsigned long newtime = jiffies + extra_jiffies;
+
+		/* Only update the timeout if the new timeout is at least
+		   HZ jiffies from the old timeout. Need del_timer for race
+		   avoidance (may already be dying). */
+		if (newtime - ct->timeout.expires >= HZ
+		    && del_timer(&ct->timeout)) {
+			ct->timeout.expires = newtime;
 			add_timer(&ct->timeout);
 			event = IPCT_REFRESH;
 		}
