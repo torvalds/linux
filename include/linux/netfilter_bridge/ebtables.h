@@ -26,6 +26,10 @@
 #define EBT_CONTINUE -3
 #define EBT_RETURN   -4
 #define NUM_STANDARD_TARGETS   4
+/* ebtables target modules store the verdict inside an int. We can
+ * reclaim a part of this int for backwards compatible extensions.
+ * The 4 lsb are more than enough to store the verdict. */
+#define EBT_VERDICT_BITS 0x0000000F
 
 struct ebt_counter
 {
