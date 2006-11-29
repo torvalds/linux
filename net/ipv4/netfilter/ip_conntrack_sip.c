@@ -64,6 +64,7 @@ struct sip_header_nfo {
 	size_t		lnlen;
 	size_t		snlen;
 	size_t		ln_strlen;
+	int		case_sensitive;
 	int		(*match_len)(const char *, const char *, int *);
 };
 
@@ -105,6 +106,7 @@ static struct sip_header_nfo ct_sip_hdrs[] = {
 		.match_len	= skp_digits_len
 	},
 	[POS_MEDIA] = {		/* SDP media info */
+		.case_sensitive	= 1,
 		.lname		= "\nm=",
 		.lnlen		= sizeof("\nm=") - 1,
 		.sname		= "\rm=",
@@ -114,6 +116,7 @@ static struct sip_header_nfo ct_sip_hdrs[] = {
 		.match_len	= digits_len
 	},
 	[POS_OWNER] = { 	/* SDP owner address*/
+		.case_sensitive	= 1,
 		.lname		= "\no=",
 		.lnlen		= sizeof("\no=") - 1,
 		.sname		= "\ro=",
@@ -123,6 +126,7 @@ static struct sip_header_nfo ct_sip_hdrs[] = {
 		.match_len	= epaddr_len
 	},
 	[POS_CONNECTION] = { 	/* SDP connection info */
+		.case_sensitive	= 1,
 		.lname		= "\nc=",
 		.lnlen		= sizeof("\nc=") - 1,
 		.sname		= "\rc=",
@@ -132,6 +136,7 @@ static struct sip_header_nfo ct_sip_hdrs[] = {
 		.match_len	= epaddr_len
 	},
 	[POS_SDP_HEADER] = { 	/* SDP version header */
+		.case_sensitive	= 1,
 		.lname		= "\nv=",
 		.lnlen		= sizeof("\nv=") - 1,
 		.sname		= "\rv=",
@@ -161,13 +166,19 @@ EXPORT_SYMBOL_GPL(ct_sip_lnlen);
 
 /* Linear string search, case sensitive. */
 const char *ct_sip_search(const char *needle, const char *haystack,
-                          size_t needle_len, size_t haystack_len)
+			  size_t needle_len, size_t haystack_len,
+			  int case_sensitive)
 {
 	const char *limit = haystack + (haystack_len - needle_len);
 
 	while (haystack <= limit) {
-		if (memcmp(haystack, needle, needle_len) == 0)
-			return haystack;
+		if (case_sensitive) {
+			if (strncmp(haystack, needle, needle_len) == 0)
+				return haystack;
+		} else {
+			if (strnicmp(haystack, needle, needle_len) == 0)
+				return haystack;
+		}
 		haystack++;
 	}
 	return NULL;
@@ -280,7 +291,8 @@ int ct_sip_get_info(const char *dptr, size_t dlen,
 			continue;
 		}
 		aux = ct_sip_search(hnfo->ln_str, dptr, hnfo->ln_strlen,
-		                    ct_sip_lnlen(dptr, limit));
+		                    ct_sip_lnlen(dptr, limit),
+				    hnfo->case_sensitive);
 		if (!aux) {
 			DEBUGP("'%s' not found in '%s'.\n", hnfo->ln_str,
 			       hnfo->lname);

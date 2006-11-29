@@ -87,14 +87,15 @@ static unsigned int ip_nat_sip(struct sk_buff **pskb,
 		                       buffer, bufflen, POS_VIA))
 			return 0;
 
-		/* This search should ignore case, but later.. */
 		aux = ct_sip_search("CSeq:", *dptr, sizeof("CSeq:") - 1,
-		                    (*pskb)->len - dataoff);
+		                    (*pskb)->len - dataoff, 0);
 		if (!aux)
 			return 0;
 
 		if (!ct_sip_search("REGISTER", aux, sizeof("REGISTER"),
-		    ct_sip_lnlen(aux, *dptr + (*pskb)->len - dataoff)))
+				   ct_sip_lnlen(aux,
+				   		*dptr + (*pskb)->len - dataoff),
+				   1))
 			return 1;
 
 		return mangle_sip_packet(pskb, ctinfo, ct, dptr,
