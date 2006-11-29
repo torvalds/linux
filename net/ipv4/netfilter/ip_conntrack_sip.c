@@ -52,74 +52,23 @@ unsigned int (*ip_nat_sdp_hook)(struct sk_buff **pskb,
 				const char *dptr);
 EXPORT_SYMBOL_GPL(ip_nat_sdp_hook);
 
-int ct_sip_get_info(const char *dptr, size_t dlen,
-				unsigned int *matchoff,
-				unsigned int *matchlen,
-				struct sip_header_nfo *hnfo);
-EXPORT_SYMBOL_GPL(ct_sip_get_info);
-
-
 static int digits_len(const char *dptr, const char *limit, int *shift);
 static int epaddr_len(const char *dptr, const char *limit, int *shift);
 static int skp_digits_len(const char *dptr, const char *limit, int *shift);
 static int skp_epaddr_len(const char *dptr, const char *limit, int *shift);
 
-struct sip_header_nfo ct_sip_hdrs[] = {
-	{ 	/* Via header */
-		.lname		= "Via:",
-		.lnlen		= sizeof("Via:") - 1,
-		.sname		= "\r\nv:",
-		.snlen		= sizeof("\r\nv:") - 1, /* rfc3261 "\r\n" */
-		.ln_str		= "UDP ",
-		.ln_strlen	= sizeof("UDP ") - 1,
-		.match_len	= epaddr_len,
-	},
-	{ 	/* Contact header */
-		.lname		= "Contact:",
-		.lnlen		= sizeof("Contact:") - 1,
-		.sname		= "\r\nm:",
-		.snlen		= sizeof("\r\nm:") - 1,
-		.ln_str		= "sip:",
-		.ln_strlen	= sizeof("sip:") - 1,
-		.match_len	= skp_epaddr_len
-	},
-	{ 	/* Content length header */
-		.lname		= "Content-Length:",
-		.lnlen		= sizeof("Content-Length:") - 1,
-		.sname		= "\r\nl:",
-		.snlen		= sizeof("\r\nl:") - 1,
-		.ln_str		= ":",
-		.ln_strlen	= sizeof(":") - 1,
-		.match_len	= skp_digits_len
-	},
-	{	/* SDP media info */
-		.lname		= "\nm=",
-		.lnlen		= sizeof("\nm=") - 1,
-		.sname		= "\rm=",
-		.snlen		= sizeof("\rm=") - 1,
-		.ln_str		= "audio ",
-		.ln_strlen	= sizeof("audio ") - 1,
-		.match_len	= digits_len
-	},
-	{ 	/* SDP owner address*/
-		.lname		= "\no=",
-		.lnlen		= sizeof("\no=") - 1,
-		.sname		= "\ro=",
-		.snlen		= sizeof("\ro=") - 1,
-		.ln_str		= "IN IP4 ",
-		.ln_strlen	= sizeof("IN IP4 ") - 1,
-		.match_len	= epaddr_len
-	},
-	{ 	/* SDP connection info */
-		.lname		= "\nc=",
-		.lnlen		= sizeof("\nc=") - 1,
-		.sname		= "\rc=",
-		.snlen		= sizeof("\rc=") - 1,
-		.ln_str		= "IN IP4 ",
-		.ln_strlen	= sizeof("IN IP4 ") - 1,
-		.match_len	= epaddr_len
-	},
-	{ 	/* Requests headers */
+struct sip_header_nfo {
+	const char	*lname;
+	const char	*sname;
+	const char	*ln_str;
+	size_t		lnlen;
+	size_t		snlen;
+	size_t		ln_strlen;
+	int		(*match_len)(const char *, const char *, int *);
+};
+
+static struct sip_header_nfo ct_sip_hdrs[] = {
+	[POS_REQ_HEADER] = { 	/* SIP Requests headers */
 		.lname		= "sip:",
 		.lnlen		= sizeof("sip:") - 1,
 		.sname		= "sip:",
@@ -128,7 +77,61 @@ struct sip_header_nfo ct_sip_hdrs[] = {
 		.ln_strlen	= sizeof("@") - 1,
 		.match_len	= epaddr_len
 	},
-	{ 	/* SDP version header */
+	[POS_VIA] = { 		/* SIP Via header */
+		.lname		= "Via:",
+		.lnlen		= sizeof("Via:") - 1,
+		.sname		= "\r\nv:",
+		.snlen		= sizeof("\r\nv:") - 1, /* rfc3261 "\r\n" */
+		.ln_str		= "UDP ",
+		.ln_strlen	= sizeof("UDP ") - 1,
+		.match_len	= epaddr_len,
+	},
+	[POS_CONTACT] = { 	/* SIP Contact header */
+		.lname		= "Contact:",
+		.lnlen		= sizeof("Contact:") - 1,
+		.sname		= "\r\nm:",
+		.snlen		= sizeof("\r\nm:") - 1,
+		.ln_str		= "sip:",
+		.ln_strlen	= sizeof("sip:") - 1,
+		.match_len	= skp_epaddr_len
+	},
+	[POS_CONTENT] = { 	/* SIP Content length header */
+		.lname		= "Content-Length:",
+		.lnlen		= sizeof("Content-Length:") - 1,
+		.sname		= "\r\nl:",
+		.snlen		= sizeof("\r\nl:") - 1,
+		.ln_str		= ":",
+		.ln_strlen	= sizeof(":") - 1,
+		.match_len	= skp_digits_len
+	},
+	[POS_MEDIA] = {		/* SDP media info */
+		.lname		= "\nm=",
+		.lnlen		= sizeof("\nm=") - 1,
+		.sname		= "\rm=",
+		.snlen		= sizeof("\rm=") - 1,
+		.ln_str		= "audio ",
+		.ln_strlen	= sizeof("audio ") - 1,
+		.match_len	= digits_len
+	},
+	[POS_OWNER] = { 	/* SDP owner address*/
+		.lname		= "\no=",
+		.lnlen		= sizeof("\no=") - 1,
+		.sname		= "\ro=",
+		.snlen		= sizeof("\ro=") - 1,
+		.ln_str		= "IN IP4 ",
+		.ln_strlen	= sizeof("IN IP4 ") - 1,
+		.match_len	= epaddr_len
+	},
+	[POS_CONNECTION] = { 	/* SDP connection info */
+		.lname		= "\nc=",
+		.lnlen		= sizeof("\nc=") - 1,
+		.sname		= "\rc=",
+		.snlen		= sizeof("\rc=") - 1,
+		.ln_str		= "IN IP4 ",
+		.ln_strlen	= sizeof("IN IP4 ") - 1,
+		.match_len	= epaddr_len
+	},
+	[POS_SDP_HEADER] = { 	/* SDP version header */
 		.lname		= "\nv=",
 		.lnlen		= sizeof("\nv=") - 1,
 		.sname		= "\rv=",
@@ -138,7 +141,6 @@ struct sip_header_nfo ct_sip_hdrs[] = {
 		.match_len	= digits_len
 	}
 };
-EXPORT_SYMBOL_GPL(ct_sip_hdrs);
 
 /* get line lenght until first CR or LF seen. */
 int ct_sip_lnlen(const char *line, const char *limit)
@@ -263,8 +265,9 @@ static int skp_epaddr_len(const char *dptr, const char *limit, int *shift)
 int ct_sip_get_info(const char *dptr, size_t dlen,
 		    unsigned int *matchoff,
 		    unsigned int *matchlen,
-		    struct sip_header_nfo *hnfo)
+		    enum sip_header_pos pos)
 {
+	struct sip_header_nfo *hnfo = &ct_sip_hdrs[pos];
 	const char *limit, *aux, *k = dptr;
 	int shift = 0;
 
@@ -298,6 +301,7 @@ int ct_sip_get_info(const char *dptr, size_t dlen,
 	DEBUGP("%s header not found.\n", hnfo->lname);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ct_sip_get_info);
 
 static int set_expected_rtp(struct sk_buff **pskb,
 			    struct ip_conntrack *ct,
@@ -393,7 +397,7 @@ static int sip_help(struct sk_buff **pskb,
 	}
 	/* Get ip and port address from SDP packet. */
 	if (ct_sip_get_info(dptr, datalen, &matchoff, &matchlen,
-	                    &ct_sip_hdrs[POS_CONNECTION]) > 0) {
+	                    POS_CONNECTION) > 0) {
 
 		/* We'll drop only if there are parse problems. */
 		if (parse_ipaddr(dptr + matchoff, NULL, &ipaddr,
@@ -402,7 +406,7 @@ static int sip_help(struct sk_buff **pskb,
 			goto out;
 		}
 		if (ct_sip_get_info(dptr, datalen, &matchoff, &matchlen,
-		                    &ct_sip_hdrs[POS_MEDIA]) > 0) {
+		                    POS_MEDIA) > 0) {
 
 			port = simple_strtoul(dptr + matchoff, NULL, 10);
 			if (port < 1024) {

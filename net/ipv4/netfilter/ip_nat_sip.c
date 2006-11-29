@@ -29,18 +29,16 @@ MODULE_DESCRIPTION("SIP NAT helper");
 #define DEBUGP(format, args...)
 #endif
 
-extern struct sip_header_nfo ct_sip_hdrs[];
-
 static unsigned int mangle_sip_packet(struct sk_buff **pskb,
 				      enum ip_conntrack_info ctinfo,
 				      struct ip_conntrack *ct,
 				      const char **dptr, size_t dlen,
 				      char *buffer, int bufflen,
-				      struct sip_header_nfo *hnfo)
+				      enum sip_header_pos pos)
 {
 	unsigned int matchlen, matchoff;
 
-	if (ct_sip_get_info(*dptr, dlen, &matchoff, &matchlen, hnfo) <= 0)
+	if (ct_sip_get_info(*dptr, dlen, &matchoff, &matchlen, pos) <= 0)
 		return 0;
 
 	if (!ip_nat_mangle_udp_packet(pskb, ct, ctinfo,
@@ -80,14 +78,13 @@ static unsigned int ip_nat_sip(struct sk_buff **pskb,
 		if ((ctinfo) < IP_CT_IS_REPLY) {
 			mangle_sip_packet(pskb, ctinfo, ct, dptr,
 			                  (*pskb)->len - dataoff,
-			                  buffer, bufflen,
-			                  &ct_sip_hdrs[POS_CONTACT]);
+			                  buffer, bufflen, POS_CONTACT);
 			return 1;
 		}
 
 		if (!mangle_sip_packet(pskb, ctinfo, ct, dptr,
 				       (*pskb)->len - dataoff,
-		                       buffer, bufflen, &ct_sip_hdrs[POS_VIA]))
+		                       buffer, bufflen, POS_VIA))
 			return 0;
 
 		/* This search should ignore case, but later.. */
@@ -102,25 +99,24 @@ static unsigned int ip_nat_sip(struct sk_buff **pskb,
 
 		return mangle_sip_packet(pskb, ctinfo, ct, dptr,
 					 (*pskb)->len - dataoff,
-		                         buffer, bufflen,
-					 &ct_sip_hdrs[POS_CONTACT]);
+		                         buffer, bufflen, POS_CONTACT);
 	}
 	if ((ctinfo) < IP_CT_IS_REPLY) {
 		if (!mangle_sip_packet(pskb, ctinfo, ct, dptr,
 				       (*pskb)->len - dataoff,
-		                       buffer, bufflen, &ct_sip_hdrs[POS_VIA]))
+		                       buffer, bufflen, POS_VIA))
 			return 0;
 
 		/* Mangle Contact if exists only. - watch udp_nat_mangle()! */
 		mangle_sip_packet(pskb, ctinfo, ct, dptr, (*pskb)->len - dataoff,
-		                  buffer, bufflen, &ct_sip_hdrs[POS_CONTACT]);
+		                  buffer, bufflen, POS_CONTACT);
 		return 1;
 	}
 	/* This mangle requests headers. */
 	return mangle_sip_packet(pskb, ctinfo, ct, dptr,
 	                         ct_sip_lnlen(*dptr,
 				              *dptr + (*pskb)->len - dataoff),
-	                         buffer, bufflen, &ct_sip_hdrs[POS_REQ_HEADER]);
+	                         buffer, bufflen, POS_REQ_HEADER);
 }
 
 static int mangle_content_len(struct sk_buff **pskb,
@@ -136,7 +132,7 @@ static int mangle_content_len(struct sk_buff **pskb,
 
 	/* Get actual SDP lenght */
 	if (ct_sip_get_info(dptr, (*pskb)->len - dataoff, &matchoff,
-	                    &matchlen, &ct_sip_hdrs[POS_SDP_HEADER]) > 0) {
+	                    &matchlen, POS_SDP_HEADER) > 0) {
 
 		/* since ct_sip_get_info() give us a pointer passing 'v='
 		   we need to add 2 bytes in this count. */
@@ -144,7 +140,7 @@ static int mangle_content_len(struct sk_buff **pskb,
 
 		/* Now, update SDP lenght */
 		if (ct_sip_get_info(dptr, (*pskb)->len - dataoff, &matchoff,
-		                    &matchlen, &ct_sip_hdrs[POS_CONTENT]) > 0) {
+		                    &matchlen, POS_CONTENT) > 0) {
 
 			bufflen = sprintf(buffer, "%u", c_len);
 
@@ -170,17 +166,17 @@ static unsigned int mangle_sdp(struct sk_buff **pskb,
 	/* Mangle owner and contact info. */
 	bufflen = sprintf(buffer, "%u.%u.%u.%u", NIPQUAD(newip));
 	if (!mangle_sip_packet(pskb, ctinfo, ct, &dptr, (*pskb)->len - dataoff,
-	                       buffer, bufflen, &ct_sip_hdrs[POS_OWNER]))
+	                       buffer, bufflen, POS_OWNER))
 		return 0;
 
 	if (!mangle_sip_packet(pskb, ctinfo, ct, &dptr, (*pskb)->len - dataoff,
-	                       buffer, bufflen, &ct_sip_hdrs[POS_CONNECTION]))
+	                       buffer, bufflen, POS_CONNECTION))
 		return 0;
 
 	/* Mangle media port. */
 	bufflen = sprintf(buffer, "%u", port);
 	if (!mangle_sip_packet(pskb, ctinfo, ct, &dptr, (*pskb)->len - dataoff,
-	                       buffer, bufflen, &ct_sip_hdrs[POS_MEDIA]))
+	                       buffer, bufflen, POS_MEDIA))
 		return 0;
 
 	return mangle_content_len(pskb, ctinfo, ct, dptr);
