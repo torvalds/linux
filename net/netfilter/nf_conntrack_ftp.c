@@ -369,9 +369,9 @@ static int help(struct sk_buff **pskb,
 	struct ip_ct_ftp_master *ct_ftp_info = &nfct_help(ct)->help.ct_ftp_info;
 	struct nf_conntrack_expect *exp;
 	struct nf_conntrack_man cmd = {};
-
 	unsigned int i;
 	int found = 0, ends_in_nl;
+	typeof(nf_nat_ftp_hook) nf_nat_ftp;
 
 	/* Until there's been traffic both ways, don't look in packets. */
 	if (ctinfo != IP_CT_ESTABLISHED
@@ -520,9 +520,10 @@ static int help(struct sk_buff **pskb,
 
 	/* Now, NAT might want to mangle the packet, and register the
 	 * (possibly changed) expectation itself. */
-	if (nf_nat_ftp_hook)
-		ret = nf_nat_ftp_hook(pskb, ctinfo, search[dir][i].ftptype,
-				      matchoff, matchlen, exp, &seq);
+	nf_nat_ftp = rcu_dereference(nf_nat_ftp_hook);
+	if (nf_nat_ftp)
+		ret = nf_nat_ftp(pskb, ctinfo, search[dir][i].ftptype,
+				 matchoff, matchlen, exp, &seq);
 	else {
 		/* Can't expect this?  Best to drop packet now. */
 		if (nf_conntrack_expect_related(exp) != 0)

@@ -230,18 +230,17 @@ static unsigned int ip_nat_sdp(struct sk_buff **pskb,
 
 static void __exit fini(void)
 {
-	ip_nat_sip_hook = NULL;
-	ip_nat_sdp_hook = NULL;
-	/* Make sure noone calls it, meanwhile. */
-	synchronize_net();
+	rcu_assign_pointer(ip_nat_sip_hook, NULL);
+	rcu_assign_pointer(ip_nat_sdp_hook, NULL);
+	synchronize_rcu();
 }
 
 static int __init init(void)
 {
-	BUG_ON(ip_nat_sip_hook);
-	BUG_ON(ip_nat_sdp_hook);
-	ip_nat_sip_hook = ip_nat_sip;
-	ip_nat_sdp_hook = ip_nat_sdp;
+	BUG_ON(rcu_dereference(ip_nat_sip_hook));
+	BUG_ON(rcu_dereference(ip_nat_sdp_hook));
+	rcu_assign_pointer(ip_nat_sip_hook, ip_nat_sip);
+	rcu_assign_pointer(ip_nat_sdp_hook, ip_nat_sdp);
 	return 0;
 }
 

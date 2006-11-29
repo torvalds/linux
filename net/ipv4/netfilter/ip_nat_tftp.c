@@ -55,15 +55,14 @@ static unsigned int help(struct sk_buff **pskb,
 
 static void __exit ip_nat_tftp_fini(void)
 {
-	ip_nat_tftp_hook = NULL;
-	/* Make sure noone calls it, meanwhile. */
-	synchronize_net();
+	rcu_assign_pointer(ip_nat_tftp_hook, NULL);
+	synchronize_rcu();
 }
 
 static int __init ip_nat_tftp_init(void)
 {
-	BUG_ON(ip_nat_tftp_hook);
-	ip_nat_tftp_hook = help;
+	BUG_ON(rcu_dereference(ip_nat_tftp_hook));
+	rcu_assign_pointer(ip_nat_tftp_hook, help);
 	return 0;
 }
 

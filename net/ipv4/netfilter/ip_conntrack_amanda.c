@@ -92,6 +92,7 @@ static int help(struct sk_buff **pskb,
 	char pbuf[sizeof("65535")], *tmp;
 	u_int16_t port, len;
 	int ret = NF_ACCEPT;
+	typeof(ip_nat_amanda_hook) ip_nat_amanda;
 
 	/* Only look at packets from the Amanda server */
 	if (CTINFO2DIR(ctinfo) == IP_CT_DIR_ORIGINAL)
@@ -161,9 +162,11 @@ static int help(struct sk_buff **pskb,
 		exp->mask.dst.protonum = 0xFF;
 		exp->mask.dst.u.tcp.port = htons(0xFFFF);
 
-		if (ip_nat_amanda_hook)
-			ret = ip_nat_amanda_hook(pskb, ctinfo, off - dataoff,
-						 len, exp);
+		/* RCU read locked by nf_hook_slow */
+		ip_nat_amanda = rcu_dereference(ip_nat_amanda_hook);
+		if (ip_nat_amanda)
+			ret = ip_nat_amanda(pskb, ctinfo, off - dataoff,
+					    len, exp);
 		else if (ip_conntrack_expect_related(exp) != 0)
 			ret = NF_DROP;
 		ip_conntrack_expect_put(exp);

@@ -308,6 +308,7 @@ static int set_expected_rtp(struct sk_buff **pskb,
 	struct ip_conntrack_expect *exp;
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	int ret;
+	typeof(ip_nat_sdp_hook) ip_nat_sdp;
 
 	exp = ip_conntrack_expect_alloc(ct);
 	if (exp == NULL)
@@ -328,8 +329,9 @@ static int set_expected_rtp(struct sk_buff **pskb,
 	exp->expectfn = NULL;
 	exp->flags = 0;
 
-	if (ip_nat_sdp_hook)
-		ret = ip_nat_sdp_hook(pskb, ctinfo, exp, dptr);
+	ip_nat_sdp = rcu_dereference(ip_nat_sdp_hook);
+	if (ip_nat_sdp)
+		ret = ip_nat_sdp(pskb, ctinfo, exp, dptr);
 	else {
 		if (ip_conntrack_expect_related(exp) != 0)
 			ret = NF_DROP;
@@ -351,6 +353,7 @@ static int sip_help(struct sk_buff **pskb,
 	int matchoff, matchlen;
 	__be32 ipaddr;
 	u_int16_t port;
+	typeof(ip_nat_sip_hook) ip_nat_sip;
 
 	/* No Data ? */
 	dataoff = (*pskb)->nh.iph->ihl*4 + sizeof(struct udphdr);
@@ -368,8 +371,9 @@ static int sip_help(struct sk_buff **pskb,
 		goto out;
 	}
 
-	if (ip_nat_sip_hook) {
-		if (!ip_nat_sip_hook(pskb, ctinfo, ct, &dptr)) {
+	ip_nat_sip = rcu_dereference(ip_nat_sip_hook);
+	if (ip_nat_sip) {
+		if (!ip_nat_sip(pskb, ctinfo, ct, &dptr)) {
 			ret = NF_DROP;
 			goto out;
 		}

@@ -124,6 +124,8 @@ EXPORT_SYMBOL(pptp_msg_name);
 static void pptp_expectfn(struct ip_conntrack *ct,
 			 struct ip_conntrack_expect *exp)
 {
+	typeof(ip_nat_pptp_hook_expectfn) ip_nat_pptp_expectfn;
+
 	DEBUGP("increasing timeouts\n");
 
 	/* increase timeout of GRE data channel conntrack entry */
@@ -133,7 +135,9 @@ static void pptp_expectfn(struct ip_conntrack *ct,
 	/* Can you see how rusty this code is, compared with the pre-2.6.11
 	 * one? That's what happened to my shiny newnat of 2002 ;( -HW */
 
-	if (!ip_nat_pptp_hook_expectfn) {
+	rcu_read_lock();
+	ip_nat_pptp_expectfn = rcu_dereference(ip_nat_pptp_hook_expectfn);
+	if (!ip_nat_pptp_expectfn) {
 		struct ip_conntrack_tuple inv_t;
 		struct ip_conntrack_expect *exp_other;
 
@@ -153,8 +157,9 @@ static void pptp_expectfn(struct ip_conntrack *ct,
 		}
 	} else {
 		/* we need more than simple inversion */
-		ip_nat_pptp_hook_expectfn(ct, exp);
+		ip_nat_pptp_expectfn(ct, exp);
 	}
+	rcu_read_unlock();
 }
 
 static int destroy_sibling_or_exp(const struct ip_conntrack_tuple *t)
@@ -226,6 +231,7 @@ exp_gre(struct ip_conntrack *ct,
 {
 	struct ip_conntrack_expect *exp_orig, *exp_reply;
 	int ret = 1;
+	typeof(ip_nat_pptp_hook_exp_gre) ip_nat_pptp_exp_gre;
 
 	exp_orig = ip_conntrack_expect_alloc(ct);
 	if (exp_orig == NULL)
@@ -262,8 +268,9 @@ exp_gre(struct ip_conntrack *ct,
 	exp_reply->tuple.dst.u.gre.key = peer_callid;
 	exp_reply->tuple.dst.protonum = IPPROTO_GRE;
 
-	if (ip_nat_pptp_hook_exp_gre)
-		ip_nat_pptp_hook_exp_gre(exp_orig, exp_reply);
+	ip_nat_pptp_exp_gre = rcu_dereference(ip_nat_pptp_hook_exp_gre);
+	if (ip_nat_pptp_exp_gre)
+		ip_nat_pptp_exp_gre(exp_orig, exp_reply);
 	if (ip_conntrack_expect_related(exp_orig) != 0)
 		goto out_put_both;
 	if (ip_conntrack_expect_related(exp_reply) != 0)
@@ -303,6 +310,7 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 	struct ip_ct_pptp_master *info = &ct->help.ct_pptp_info;
 	u_int16_t msg;
 	__be16 cid = 0, pcid = 0;
+	typeof(ip_nat_pptp_hook_inbound) ip_nat_pptp_inbound;
 
 	msg = ntohs(ctlh->messageType);
 	DEBUGP("inbound control message %s\n", pptp_msg_name[msg]);
@@ -402,9 +410,9 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 		goto invalid;
 	}
 
-	if (ip_nat_pptp_hook_inbound)
-		return ip_nat_pptp_hook_inbound(pskb, ct, ctinfo, ctlh,
-						pptpReq);
+	ip_nat_pptp_inbound = rcu_dereference(ip_nat_pptp_hook_inbound);
+	if (ip_nat_pptp_inbound)
+		return ip_nat_pptp_inbound(pskb, ct, ctinfo, ctlh, pptpReq);
 	return NF_ACCEPT;
 
 invalid:
@@ -427,6 +435,7 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 	struct ip_ct_pptp_master *info = &ct->help.ct_pptp_info;
 	u_int16_t msg;
 	__be16 cid = 0, pcid = 0;
+	typeof(ip_nat_pptp_hook_outbound) ip_nat_pptp_outbound;
 
 	msg = ntohs(ctlh->messageType);
 	DEBUGP("outbound control message %s\n", pptp_msg_name[msg]);
@@ -492,9 +501,9 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 		goto invalid;
 	}
 
-	if (ip_nat_pptp_hook_outbound)
-		return ip_nat_pptp_hook_outbound(pskb, ct, ctinfo, ctlh,
-						 pptpReq);
+	ip_nat_pptp_outbound = rcu_dereference(ip_nat_pptp_hook_outbound);
+	if (ip_nat_pptp_outbound)
+		return ip_nat_pptp_outbound(pskb, ct, ctinfo, ctlh, pptpReq);
 	return NF_ACCEPT;
 
 invalid:
