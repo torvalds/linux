@@ -235,8 +235,7 @@ static void process_req(void *data)
 			else if (req->status == -ENODATA)
 				continue;
 		}
-		list_del(&req->list);
-		list_add_tail(&req->list, &done_list);
+		list_move_tail(&req->list, &done_list);
 	}
 
 	if (!list_empty(&req_list)) {
@@ -346,8 +345,7 @@ void rdma_addr_cancel(struct rdma_dev_addr *addr)
 		if (req->addr == addr) {
 			req->status = -ECANCELED;
 			req->timeout = jiffies;
-			list_del(&req->list);
-			list_add(&req->list, &req_list);
+			list_move(&req->list, &req_list);
 			set_timeout(req->timeout);
 			break;
 		}
