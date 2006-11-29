@@ -1102,7 +1102,7 @@ reset_tx (struct net_device *dev)
 	np->cur_tx = np->dirty_tx = 0;
 	np->cur_task = 0;
 
-	np->last_tx = 0;
+	np->last_tx = NULL;
 	iowrite8(127, ioaddr + TxDMAPollPeriod);
 
 	iowrite16 (StatsEnable | RxEnable | TxEnable, ioaddr + MACCtrl1);
@@ -1648,7 +1648,7 @@ static int netdev_close(struct net_device *dev)
 	np->cur_tx = 0;
 	np->dirty_tx = 0;
 	np->cur_task = 0;
-	np->last_tx = 0;
+	np->last_tx = NULL;
 
 	netif_stop_queue(dev);
 
