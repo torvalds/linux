@@ -28,7 +28,6 @@
 
 LIST_HEAD(nf_conntrack_expect_list);
 kmem_cache_t *nf_conntrack_expect_cachep __read_mostly;
-DECLARE_PER_CPU(struct ip_conntrack_stat, nf_conntrack_stat);
 static unsigned int nf_conntrack_expect_next_id;
 
 /* nf_conntrack_expect helper functions */

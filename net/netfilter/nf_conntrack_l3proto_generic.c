@@ -37,8 +37,6 @@
 #define DEBUGP(format, args...)
 #endif
 
-DECLARE_PER_CPU(struct nf_conntrack_stat, nf_conntrack_stat);
-
 static int generic_pkt_to_tuple(const struct sk_buff *skb, unsigned int nhoff,
 				struct nf_conntrack_tuple *tuple)
 {

@@ -44,9 +44,6 @@
 
 MODULE_LICENSE("GPL");
 
-extern atomic_t nf_conntrack_count;
-DECLARE_PER_CPU(struct ip_conntrack_stat, nf_conntrack_stat);
-
 #ifdef CONFIG_PROC_FS
 int
 print_tuple(struct seq_file *s, const struct nf_conntrack_tuple *tuple,
@@ -333,10 +330,6 @@ static struct file_operations ct_cpu_seq_fops = {
 int nf_conntrack_checksum __read_mostly = 1;
 
 #ifdef CONFIG_SYSCTL
-
-/* From nf_conntrack_core.c */
-extern int nf_conntrack_max;
-extern unsigned int nf_conntrack_htable_size;
 
 /* From nf_conntrack_proto_tcp.c */
 extern unsigned int nf_ct_tcp_timeout_syn_sent;

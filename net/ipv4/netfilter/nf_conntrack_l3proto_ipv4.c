@@ -38,8 +38,6 @@
 #define DEBUGP(format, args...)
 #endif
 
-DECLARE_PER_CPU(struct nf_conntrack_stat, nf_conntrack_stat);
-
 static int ipv4_pkt_to_tuple(const struct sk_buff *skb, unsigned int nhoff,
 			     struct nf_conntrack_tuple *tuple)
 {
@@ -428,10 +426,6 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4 = {
 #endif
 	.me		 = THIS_MODULE,
 };
-
-extern struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4;
-extern struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4;
-extern struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp;
 
 MODULE_ALIAS("nf_conntrack-" __stringify(AF_INET));
 MODULE_LICENSE("GPL");

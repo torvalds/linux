@@ -79,6 +79,8 @@ struct nf_conn_help {
 
 
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
+#include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
+
 struct nf_conn
 {
 	/* Usage count in here is 1 for hash table/destruct timer, 1 per skb,
@@ -241,7 +243,10 @@ static inline int nf_ct_is_dying(struct nf_conn *ct)
 
 extern unsigned int nf_conntrack_htable_size;
 extern int nf_conntrack_checksum;
+extern atomic_t nf_conntrack_count;
+extern int nf_conntrack_max;
 
+DECLARE_PER_CPU(struct ip_conntrack_stat, nf_conntrack_stat);
 #define NF_CT_STAT_INC(count) (__get_cpu_var(nf_conntrack_stat).count++)
 
 /* no helper, no nat */

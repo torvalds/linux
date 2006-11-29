@@ -43,8 +43,6 @@
 #define DEBUGP(format, args...)
 #endif
 
-DECLARE_PER_CPU(struct ip_conntrack_stat, nf_conntrack_stat);
-
 static int ipv6_pkt_to_tuple(const struct sk_buff *skb, unsigned int nhoff,
 			     struct nf_conntrack_tuple *tuple)
 {
@@ -211,11 +209,6 @@ out:
 	return nf_conntrack_confirm(pskb);
 }
 
-extern struct sk_buff *nf_ct_frag6_gather(struct sk_buff *skb);
-extern void nf_ct_frag6_output(unsigned int hooknum, struct sk_buff *skb,
-			       struct net_device *in,
-			       struct net_device *out,
-			       int (*okfn)(struct sk_buff *));
 static unsigned int ipv6_defrag(unsigned int hooknum,
 				struct sk_buff **pskb,
 				const struct net_device *in,
@@ -335,11 +328,6 @@ static struct nf_hook_ops ipv6_conntrack_ops[] = {
 /* From nf_conntrack_proto_icmpv6.c */
 extern unsigned int nf_ct_icmpv6_timeout;
 
-/* From nf_conntrack_reasm.c */
-extern unsigned int nf_ct_frag6_timeout;
-extern unsigned int nf_ct_frag6_low_thresh;
-extern unsigned int nf_ct_frag6_high_thresh;
-
 static struct ctl_table_header *nf_ct_ipv6_sysctl_header;
 
 static ctl_table nf_ct_sysctl_table[] = {
@@ -457,12 +445,6 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6 = {
 	.get_features		= ipv6_get_features,
 	.me			= THIS_MODULE,
 };
-
-extern struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp6;
-extern struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6;
-extern struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6;
-extern int nf_ct_frag6_init(void);
-extern void nf_ct_frag6_cleanup(void);
 
 MODULE_ALIAS("nf_conntrack-" __stringify(AF_INET6));
 MODULE_LICENSE("GPL");

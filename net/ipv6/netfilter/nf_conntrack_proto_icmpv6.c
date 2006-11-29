@@ -142,9 +142,6 @@ static int icmpv6_new(struct nf_conn *conntrack,
 	return 1;
 }
 
-extern int
-nf_ct_ipv6_skip_exthdr(struct sk_buff *skb, int start, u8 *nexthdrp, int len);
-extern struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6;
 static int
 icmpv6_error_message(struct sk_buff *skb,
 		     unsigned int icmp6off,
