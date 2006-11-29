@@ -34,7 +34,6 @@
  */
 
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/errno.h>
 
 #include "mthca_dev.h"
@@ -135,7 +134,7 @@ static void mthca_buddy_free(struct mthca_buddy *buddy, u32 seg, int order)
 	spin_unlock(&buddy->lock);
 }
 
-static int __devinit mthca_buddy_init(struct mthca_buddy *buddy, int max_order)
+static int mthca_buddy_init(struct mthca_buddy *buddy, int max_order)
 {
 	int i, s;
 
@@ -759,7 +758,7 @@ void mthca_arbel_fmr_unmap(struct mthca_dev *dev, struct mthca_fmr *fmr)
 	*(u8 *) fmr->mem.arbel.mpt = MTHCA_MPT_STATUS_SW;
 }
 
-int __devinit mthca_init_mr_table(struct mthca_dev *dev)
+int mthca_init_mr_table(struct mthca_dev *dev)
 {
 	unsigned long addr;
 	int err, i;

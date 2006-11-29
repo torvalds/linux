@@ -33,7 +33,6 @@
  * $Id: mthca_av.c 1349 2004-12-16 21:09:43Z roland $
  */
 
-#include <linux/init.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 
@@ -323,7 +322,7 @@ int mthca_ah_query(struct ib_ah *ibah, struct ib_ah_attr *attr)
 	return 0;
 }
 
-int __devinit mthca_init_av_table(struct mthca_dev *dev)
+int mthca_init_av_table(struct mthca_dev *dev)
 {
 	int err;
 

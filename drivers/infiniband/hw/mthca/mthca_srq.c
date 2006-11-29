@@ -715,7 +715,7 @@ int mthca_max_srq_sge(struct mthca_dev *dev)
 		     sizeof (struct mthca_data_seg));
 }
 
-int __devinit mthca_init_srq_table(struct mthca_dev *dev)
+int mthca_init_srq_table(struct mthca_dev *dev)
 {
 	int err;
 

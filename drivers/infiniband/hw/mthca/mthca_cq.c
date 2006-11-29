@@ -36,7 +36,6 @@
  * $Id: mthca_cq.c 1369 2004-12-20 16:17:07Z roland $
  */
 
-#include <linux/init.h>
 #include <linux/hardirq.h>
 
 #include <asm/io.h>
@@ -970,7 +969,7 @@ void mthca_free_cq(struct mthca_dev *dev,
 	mthca_free_mailbox(dev, mailbox);
 }
 
-int __devinit mthca_init_cq_table(struct mthca_dev *dev)
+int mthca_init_cq_table(struct mthca_dev *dev)
 {
 	int err;
 
