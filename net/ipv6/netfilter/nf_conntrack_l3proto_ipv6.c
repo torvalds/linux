@@ -324,21 +324,7 @@ static struct nf_hook_ops ipv6_conntrack_ops[] = {
 };
 
 #ifdef CONFIG_SYSCTL
-
-/* From nf_conntrack_proto_icmpv6.c */
-extern unsigned int nf_ct_icmpv6_timeout;
-
-static struct ctl_table_header *nf_ct_ipv6_sysctl_header;
-
-static ctl_table nf_ct_sysctl_table[] = {
-	{
-		.ctl_name	= NET_NF_CONNTRACK_ICMPV6_TIMEOUT,
-		.procname	= "nf_conntrack_icmpv6_timeout",
-		.data		= &nf_ct_icmpv6_timeout,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
+static ctl_table nf_ct_ipv6_sysctl_table[] = {
 	{
 		.ctl_name	= NET_NF_CONNTRACK_FRAG6_TIMEOUT,
 		.procname	= "nf_conntrack_frag6_timeout",
@@ -364,26 +350,6 @@ static ctl_table nf_ct_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec,
 	},
         { .ctl_name = 0 }
-};
-
-static ctl_table nf_ct_netfilter_table[] = {
-	{
-		.ctl_name	= NET_NETFILTER,
-		.procname	= "netfilter",
-		.mode		= 0555,
-		.child		= nf_ct_sysctl_table,
-	},
-	{ .ctl_name = 0 }
-};
-
-static ctl_table nf_ct_net_table[] = {
-	{
-		.ctl_name	= CTL_NET,
-		.procname	= "net",
-		.mode		= 0555,
-		.child		= nf_ct_netfilter_table,
-	},
-	{ .ctl_name = 0 }
 };
 #endif
 
@@ -442,6 +408,10 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6 = {
 	.tuple_to_nfattr	= ipv6_tuple_to_nfattr,
 	.nfattr_to_tuple	= ipv6_nfattr_to_tuple,
 #endif
+#ifdef CONFIG_SYSCTL
+	.ctl_table_path		= nf_net_netfilter_sysctl_path,
+	.ctl_table		= nf_ct_ipv6_sysctl_table,
+#endif
 	.get_features		= ipv6_get_features,
 	.me			= THIS_MODULE,
 };
@@ -492,20 +462,8 @@ static int __init nf_conntrack_l3proto_ipv6_init(void)
 		       "hook.\n");
 		goto cleanup_ipv6;
 	}
-#ifdef CONFIG_SYSCTL
-	nf_ct_ipv6_sysctl_header = register_sysctl_table(nf_ct_net_table, 0);
-	if (nf_ct_ipv6_sysctl_header == NULL) {
-		printk("nf_conntrack: can't register to sysctl.\n");
-		ret = -ENOMEM;
-		goto cleanup_hooks;
-	}
-#endif
 	return ret;
 
-#ifdef CONFIG_SYSCTL
- cleanup_hooks:
-	nf_unregister_hooks(ipv6_conntrack_ops, ARRAY_SIZE(ipv6_conntrack_ops));
-#endif
  cleanup_ipv6:
 	nf_conntrack_l3proto_unregister(&nf_conntrack_l3proto_ipv6);
  cleanup_icmpv6:
@@ -522,9 +480,6 @@ static int __init nf_conntrack_l3proto_ipv6_init(void)
 static void __exit nf_conntrack_l3proto_ipv6_fini(void)
 {
 	synchronize_net();
-#ifdef CONFIG_SYSCTL
- 	unregister_sysctl_table(nf_ct_ipv6_sysctl_header);
-#endif
 	nf_unregister_hooks(ipv6_conntrack_ops, ARRAY_SIZE(ipv6_conntrack_ops));
 	nf_conntrack_l3proto_unregister(&nf_conntrack_l3proto_ipv6);
 	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_icmpv6);

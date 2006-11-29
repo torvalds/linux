@@ -1070,6 +1070,8 @@ void nf_conntrack_cleanup(void)
 	free_conntrack_hash(nf_conntrack_hash, nf_conntrack_vmalloc,
 			    nf_conntrack_htable_size);
 
+	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_generic);
+
 	/* free l3proto protocol tables */
 	for (i = 0; i < PF_MAX; i++)
 		if (nf_ct_protos[i]) {
@@ -1195,6 +1197,10 @@ int __init nf_conntrack_init(void)
 		goto err_free_conntrack_slab;
 	}
 
+	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_generic);
+	if (ret < 0)
+		goto out_free_expect_slab;
+
 	/* Don't NEED lock here, but good form anyway. */
 	write_lock_bh(&nf_conntrack_lock);
         for (i = 0; i < AF_MAX; i++)
@@ -1212,6 +1218,8 @@ int __init nf_conntrack_init(void)
 
 	return ret;
 
+out_free_expect_slab:
+	kmem_cache_destroy(nf_conntrack_expect_cachep);
 err_free_conntrack_slab:
 	nf_conntrack_unregister_cache(NF_CT_F_BASIC);
 err_free_hash:

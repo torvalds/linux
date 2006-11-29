@@ -33,7 +33,7 @@
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/ipv6/nf_conntrack_icmpv6.h>
 
-unsigned long nf_ct_icmpv6_timeout __read_mostly = 30*HZ;
+static unsigned long nf_ct_icmpv6_timeout __read_mostly = 30*HZ;
 
 #if 0
 #define DEBUGP printk
@@ -298,6 +298,23 @@ static int icmpv6_nfattr_to_tuple(struct nfattr *tb[],
 }
 #endif
 
+#ifdef CONFIG_SYSCTL
+static struct ctl_table_header *icmpv6_sysctl_header;
+static struct ctl_table icmpv6_sysctl_table[] = {
+	{
+		.ctl_name	= NET_NF_CONNTRACK_ICMPV6_TIMEOUT,
+		.procname	= "nf_conntrack_icmpv6_timeout",
+		.data		= &nf_ct_icmpv6_timeout,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+	{
+		.ctl_name	= 0
+	}
+};
+#endif /* CONFIG_SYSCTL */
+
 struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 =
 {
 	.l3proto		= PF_INET6,
@@ -314,6 +331,10 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 =
     defined(CONFIG_NF_CT_NETLINK_MODULE)
 	.tuple_to_nfattr	= icmpv6_tuple_to_nfattr,
 	.nfattr_to_tuple	= icmpv6_nfattr_to_tuple,
+#endif
+#ifdef CONFIG_SYSCTL
+	.ctl_table_header	= &icmpv6_sysctl_header,
+	.ctl_table		= icmpv6_sysctl_table,
 #endif
 };
 

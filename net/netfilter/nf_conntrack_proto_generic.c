@@ -17,7 +17,7 @@
 #include <linux/netfilter.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 
-unsigned int nf_ct_generic_timeout __read_mostly = 600*HZ;
+static unsigned int nf_ct_generic_timeout __read_mostly = 600*HZ;
 
 static int generic_pkt_to_tuple(const struct sk_buff *skb,
 				unsigned int dataoff,
@@ -71,6 +71,23 @@ static int new(struct nf_conn *conntrack, const struct sk_buff *skb,
 	return 1;
 }
 
+#ifdef CONFIG_SYSCTL
+static struct ctl_table_header *generic_sysctl_header;
+static struct ctl_table generic_sysctl_table[] = {
+	{
+		.ctl_name	= NET_NF_CONNTRACK_GENERIC_TIMEOUT,
+		.procname	= "nf_conntrack_generic_timeout",
+		.data		= &nf_ct_generic_timeout,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+	{
+		.ctl_name	= 0
+	}
+};
+#endif /* CONFIG_SYSCTL */
+
 struct nf_conntrack_l4proto nf_conntrack_l4proto_generic =
 {
 	.l3proto		= PF_UNSPEC,
@@ -82,4 +99,8 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_generic =
 	.print_conntrack	= generic_print_conntrack,
 	.packet			= packet,
 	.new			= new,
+#ifdef CONFIG_SYSCTL
+	.ctl_table_header	= &generic_sysctl_header,
+	.ctl_table		= generic_sysctl_table,
+#endif
 };

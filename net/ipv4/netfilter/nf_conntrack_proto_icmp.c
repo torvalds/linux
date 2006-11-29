@@ -25,7 +25,7 @@
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_core.h>
 
-unsigned long nf_ct_icmp_timeout __read_mostly = 30*HZ;
+static unsigned long nf_ct_icmp_timeout __read_mostly = 30*HZ;
 
 #if 0
 #define DEBUGP printk
@@ -321,6 +321,23 @@ static int icmp_nfattr_to_tuple(struct nfattr *tb[],
 }
 #endif
 
+#ifdef CONFIG_SYSCTL
+static struct ctl_table_header *icmp_sysctl_header;
+static struct ctl_table icmp_sysctl_table[] = {
+	{
+		.ctl_name	= NET_NF_CONNTRACK_ICMP_TIMEOUT,
+		.procname	= "nf_conntrack_icmp_timeout",
+		.data		= &nf_ct_icmp_timeout,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+        {
+		.ctl_name = 0
+	}
+};
+#endif /* CONFIG_SYSCTL */
+
 struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
 {
 	.l3proto		= PF_INET,
@@ -339,6 +356,10 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
     defined(CONFIG_NF_CT_NETLINK_MODULE)
 	.tuple_to_nfattr	= icmp_tuple_to_nfattr,
 	.nfattr_to_tuple	= icmp_nfattr_to_tuple,
+#endif
+#ifdef CONFIG_SYSCTL
+	.ctl_table_header	= &icmp_sysctl_header,
+	.ctl_table		= icmp_sysctl_table,
 #endif
 };
 

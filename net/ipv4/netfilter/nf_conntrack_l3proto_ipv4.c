@@ -266,44 +266,6 @@ static struct nf_hook_ops ipv4_conntrack_ops[] = {
 	},
 };
 
-#ifdef CONFIG_SYSCTL
-/* From nf_conntrack_proto_icmp.c */
-extern unsigned int nf_ct_icmp_timeout;
-static struct ctl_table_header *nf_ct_ipv4_sysctl_header;
-
-static ctl_table nf_ct_sysctl_table[] = {
-	{
-		.ctl_name	= NET_NF_CONNTRACK_ICMP_TIMEOUT,
-		.procname	= "nf_conntrack_icmp_timeout",
-		.data		= &nf_ct_icmp_timeout,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-        { .ctl_name = 0 }
-};
-
-static ctl_table nf_ct_netfilter_table[] = {
-	{
-		.ctl_name       = NET_NETFILTER,
-		.procname       = "netfilter",
-		.mode           = 0555,
-		.child          = nf_ct_sysctl_table,
-	},
-	{ .ctl_name = 0 }
-};
-
-static ctl_table nf_ct_net_table[] = {
-	{
-		.ctl_name       = CTL_NET,
-		.procname       = "net",
-		.mode           = 0555,
-		.child          = nf_ct_netfilter_table,
-	},
-	{ .ctl_name = 0 }
-};
-#endif
-
 /* Fast function for those who don't want to parse /proc (and I don't
    blame them). */
 /* Reversing the socket's dst/src point of view gives us the reply
@@ -472,20 +434,8 @@ static int __init nf_conntrack_l3proto_ipv4_init(void)
 		printk("nf_conntrack_ipv4: can't register hooks.\n");
 		goto cleanup_ipv4;
 	}
-#ifdef CONFIG_SYSCTL
-	nf_ct_ipv4_sysctl_header = register_sysctl_table(nf_ct_net_table, 0);
-	if (nf_ct_ipv4_sysctl_header == NULL) {
-		printk("nf_conntrack: can't register to sysctl.\n");
-		ret = -ENOMEM;
-		goto cleanup_hooks;
-	}
-#endif
 	return ret;
 
-#ifdef CONFIG_SYSCTL
- cleanup_hooks:
-	nf_unregister_hooks(ipv4_conntrack_ops, ARRAY_SIZE(ipv4_conntrack_ops));
-#endif
  cleanup_ipv4:
 	nf_conntrack_l3proto_unregister(&nf_conntrack_l3proto_ipv4);
  cleanup_icmp:
@@ -502,9 +452,6 @@ static int __init nf_conntrack_l3proto_ipv4_init(void)
 static void __exit nf_conntrack_l3proto_ipv4_fini(void)
 {
 	synchronize_net();
-#ifdef CONFIG_SYSCTL
- 	unregister_sysctl_table(nf_ct_ipv4_sysctl_header);
-#endif
 	nf_unregister_hooks(ipv4_conntrack_ops, ARRAY_SIZE(ipv4_conntrack_ops));
 	nf_conntrack_l3proto_unregister(&nf_conntrack_l3proto_ipv4);
 	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_icmp);

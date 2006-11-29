@@ -330,28 +330,6 @@ static struct file_operations ct_cpu_seq_fops = {
 int nf_conntrack_checksum __read_mostly = 1;
 
 #ifdef CONFIG_SYSCTL
-
-/* From nf_conntrack_proto_tcp.c */
-extern unsigned int nf_ct_tcp_timeout_syn_sent;
-extern unsigned int nf_ct_tcp_timeout_syn_recv;
-extern unsigned int nf_ct_tcp_timeout_established;
-extern unsigned int nf_ct_tcp_timeout_fin_wait;
-extern unsigned int nf_ct_tcp_timeout_close_wait;
-extern unsigned int nf_ct_tcp_timeout_last_ack;
-extern unsigned int nf_ct_tcp_timeout_time_wait;
-extern unsigned int nf_ct_tcp_timeout_close;
-extern unsigned int nf_ct_tcp_timeout_max_retrans;
-extern int nf_ct_tcp_loose;
-extern int nf_ct_tcp_be_liberal;
-extern int nf_ct_tcp_max_retrans;
-
-/* From nf_conntrack_proto_udp.c */
-extern unsigned int nf_ct_udp_timeout;
-extern unsigned int nf_ct_udp_timeout_stream;
-
-/* From nf_conntrack_proto_generic.c */
-extern unsigned int nf_ct_generic_timeout;
-
 /* Log invalid packets of a given protocol */
 static int log_invalid_proto_min = 0;
 static int log_invalid_proto_max = 255;
@@ -392,94 +370,6 @@ static ctl_table nf_ct_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_SYN_SENT,
-		.procname	= "nf_conntrack_tcp_timeout_syn_sent",
-		.data		= &nf_ct_tcp_timeout_syn_sent,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_SYN_RECV,
-		.procname	= "nf_conntrack_tcp_timeout_syn_recv",
-		.data		= &nf_ct_tcp_timeout_syn_recv,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_ESTABLISHED,
-		.procname	= "nf_conntrack_tcp_timeout_established",
-		.data		= &nf_ct_tcp_timeout_established,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_FIN_WAIT,
-		.procname	= "nf_conntrack_tcp_timeout_fin_wait",
-		.data		= &nf_ct_tcp_timeout_fin_wait,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_CLOSE_WAIT,
-		.procname	= "nf_conntrack_tcp_timeout_close_wait",
-		.data		= &nf_ct_tcp_timeout_close_wait,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_LAST_ACK,
-		.procname	= "nf_conntrack_tcp_timeout_last_ack",
-		.data		= &nf_ct_tcp_timeout_last_ack,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_TIME_WAIT,
-		.procname	= "nf_conntrack_tcp_timeout_time_wait",
-		.data		= &nf_ct_tcp_timeout_time_wait,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_CLOSE,
-		.procname	= "nf_conntrack_tcp_timeout_close",
-		.data		= &nf_ct_tcp_timeout_close,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_NF_CONNTRACK_UDP_TIMEOUT,
-		.procname	= "nf_conntrack_udp_timeout",
-		.data		= &nf_ct_udp_timeout,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_NF_CONNTRACK_UDP_TIMEOUT_STREAM,
-		.procname	= "nf_conntrack_udp_timeout_stream",
-		.data		= &nf_ct_udp_timeout_stream,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_NF_CONNTRACK_GENERIC_TIMEOUT,
-		.procname	= "nf_conntrack_generic_timeout",
-		.data		= &nf_ct_generic_timeout,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
 		.ctl_name	= NET_NF_CONNTRACK_LOG_INVALID,
 		.procname	= "nf_conntrack_log_invalid",
 		.data		= &nf_ct_log_invalid,
@@ -489,38 +379,6 @@ static ctl_table nf_ct_sysctl_table[] = {
 		.strategy	= &sysctl_intvec,
 		.extra1		= &log_invalid_proto_min,
 		.extra2		= &log_invalid_proto_max,
-	},
-	{
-		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_MAX_RETRANS,
-		.procname	= "nf_conntrack_tcp_timeout_max_retrans",
-		.data		= &nf_ct_tcp_timeout_max_retrans,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_NF_CONNTRACK_TCP_LOOSE,
-		.procname	= "nf_conntrack_tcp_loose",
-		.data		= &nf_ct_tcp_loose,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-	},
-	{
-		.ctl_name	= NET_NF_CONNTRACK_TCP_BE_LIBERAL,
-		.procname       = "nf_conntrack_tcp_be_liberal",
-		.data           = &nf_ct_tcp_be_liberal,
-		.maxlen         = sizeof(unsigned int),
-		.mode           = 0644,
-		.proc_handler   = &proc_dointvec,
-	},
-	{
-		.ctl_name	= NET_NF_CONNTRACK_TCP_MAX_RETRANS,
-		.procname	= "nf_conntrack_tcp_max_retrans",
-		.data		= &nf_ct_tcp_max_retrans,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
 	},
 
 	{ .ctl_name = 0 }

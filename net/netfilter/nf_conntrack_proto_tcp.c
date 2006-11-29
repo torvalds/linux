@@ -93,22 +93,22 @@ static const char *tcp_conntrack_names[] = {
 #define HOURS * 60 MINS
 #define DAYS * 24 HOURS
 
-unsigned int nf_ct_tcp_timeout_syn_sent __read_mostly =      2 MINS;
-unsigned int nf_ct_tcp_timeout_syn_recv __read_mostly =     60 SECS;
-unsigned int nf_ct_tcp_timeout_established __read_mostly =   5 DAYS;
-unsigned int nf_ct_tcp_timeout_fin_wait __read_mostly =      2 MINS;
-unsigned int nf_ct_tcp_timeout_close_wait __read_mostly =   60 SECS;
-unsigned int nf_ct_tcp_timeout_last_ack __read_mostly =     30 SECS;
-unsigned int nf_ct_tcp_timeout_time_wait __read_mostly =     2 MINS;
-unsigned int nf_ct_tcp_timeout_close __read_mostly =        10 SECS;
+static unsigned int nf_ct_tcp_timeout_syn_sent __read_mostly =      2 MINS;
+static unsigned int nf_ct_tcp_timeout_syn_recv __read_mostly =     60 SECS;
+static unsigned int nf_ct_tcp_timeout_established __read_mostly =   5 DAYS;
+static unsigned int nf_ct_tcp_timeout_fin_wait __read_mostly =      2 MINS;
+static unsigned int nf_ct_tcp_timeout_close_wait __read_mostly =   60 SECS;
+static unsigned int nf_ct_tcp_timeout_last_ack __read_mostly =     30 SECS;
+static unsigned int nf_ct_tcp_timeout_time_wait __read_mostly =     2 MINS;
+static unsigned int nf_ct_tcp_timeout_close __read_mostly =        10 SECS;
 
 /* RFC1122 says the R2 limit should be at least 100 seconds.
    Linux uses 15 packets as limit, which corresponds 
    to ~13-30min depending on RTO. */
-unsigned int nf_ct_tcp_timeout_max_retrans __read_mostly =   5 MINS;
+static unsigned int nf_ct_tcp_timeout_max_retrans __read_mostly =   5 MINS;
  
-static unsigned int * tcp_timeouts[]
-= { NULL,                              /* TCP_CONNTRACK_NONE */
+static unsigned int * tcp_timeouts[] = {
+    NULL,                              /* TCP_CONNTRACK_NONE */
     &nf_ct_tcp_timeout_syn_sent,       /* TCP_CONNTRACK_SYN_SENT, */
     &nf_ct_tcp_timeout_syn_recv,       /* TCP_CONNTRACK_SYN_RECV, */
     &nf_ct_tcp_timeout_established,    /* TCP_CONNTRACK_ESTABLISHED, */
@@ -1168,7 +1168,113 @@ static int nfattr_to_tcp(struct nfattr *cda[], struct nf_conn *ct)
 	return 0;
 }
 #endif
-  
+
+#ifdef CONFIG_SYSCTL
+static unsigned int tcp_sysctl_table_users;
+static struct ctl_table_header *tcp_sysctl_header;
+static struct ctl_table tcp_sysctl_table[] = {
+	{
+		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_SYN_SENT,
+		.procname	= "nf_conntrack_tcp_timeout_syn_sent",
+		.data		= &nf_ct_tcp_timeout_syn_sent,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+	{
+		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_SYN_RECV,
+		.procname	= "nf_conntrack_tcp_timeout_syn_recv",
+		.data		= &nf_ct_tcp_timeout_syn_recv,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+	{
+		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_ESTABLISHED,
+		.procname	= "nf_conntrack_tcp_timeout_established",
+		.data		= &nf_ct_tcp_timeout_established,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+	{
+		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_FIN_WAIT,
+		.procname	= "nf_conntrack_tcp_timeout_fin_wait",
+		.data		= &nf_ct_tcp_timeout_fin_wait,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+	{
+		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_CLOSE_WAIT,
+		.procname	= "nf_conntrack_tcp_timeout_close_wait",
+		.data		= &nf_ct_tcp_timeout_close_wait,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+	{
+		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_LAST_ACK,
+		.procname	= "nf_conntrack_tcp_timeout_last_ack",
+		.data		= &nf_ct_tcp_timeout_last_ack,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+	{
+		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_TIME_WAIT,
+		.procname	= "nf_conntrack_tcp_timeout_time_wait",
+		.data		= &nf_ct_tcp_timeout_time_wait,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+	{
+		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_CLOSE,
+		.procname	= "nf_conntrack_tcp_timeout_close",
+		.data		= &nf_ct_tcp_timeout_close,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+	{
+		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_MAX_RETRANS,
+		.procname	= "nf_conntrack_tcp_timeout_max_retrans",
+		.data		= &nf_ct_tcp_timeout_max_retrans,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+	{
+		.ctl_name	= NET_NF_CONNTRACK_TCP_LOOSE,
+		.procname	= "nf_conntrack_tcp_loose",
+		.data		= &nf_ct_tcp_loose,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= NET_NF_CONNTRACK_TCP_BE_LIBERAL,
+		.procname       = "nf_conntrack_tcp_be_liberal",
+		.data           = &nf_ct_tcp_be_liberal,
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler   = &proc_dointvec,
+	},
+	{
+		.ctl_name	= NET_NF_CONNTRACK_TCP_MAX_RETRANS,
+		.procname	= "nf_conntrack_tcp_max_retrans",
+		.data		= &nf_ct_tcp_max_retrans,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= 0
+	}
+};
+#endif /* CONFIG_SYSCTL */
+
 struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4 =
 {
 	.l3proto		= PF_INET,
@@ -1187,6 +1293,11 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4 =
 	.from_nfattr		= nfattr_to_tcp,
 	.tuple_to_nfattr	= nf_ct_port_tuple_to_nfattr,
 	.nfattr_to_tuple	= nf_ct_port_nfattr_to_tuple,
+#endif
+#ifdef CONFIG_SYSCTL
+	.ctl_table_users	= &tcp_sysctl_table_users,
+	.ctl_table_header	= &tcp_sysctl_header,
+	.ctl_table		= tcp_sysctl_table,
 #endif
 };
 
@@ -1208,6 +1319,11 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp6 =
 	.from_nfattr		= nfattr_to_tcp,
 	.tuple_to_nfattr	= nf_ct_port_tuple_to_nfattr,
 	.nfattr_to_tuple	= nf_ct_port_nfattr_to_tuple,
+#endif
+#ifdef CONFIG_SYSCTL
+	.ctl_table_users	= &tcp_sysctl_table_users,
+	.ctl_table_header	= &tcp_sysctl_header,
+	.ctl_table		= tcp_sysctl_table,
 #endif
 };
 

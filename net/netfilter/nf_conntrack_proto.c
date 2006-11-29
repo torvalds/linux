@@ -252,7 +252,7 @@ static int nf_ct_l4proto_register_sysctl(struct nf_conntrack_l4proto *l4proto)
 					    l4proto->ctl_table_users);
 	}
 	mutex_unlock(&nf_ct_proto_sysctl_mutex);
-#endif
+#endif /* CONFIG_SYSCTL */
 	return err;
 }
 
@@ -266,7 +266,7 @@ static void nf_ct_l4proto_unregister_sysctl(struct nf_conntrack_l4proto *l4proto
 					l4proto->ctl_table,
 					l4proto->ctl_table_users);
 	mutex_unlock(&nf_ct_proto_sysctl_mutex);
-#endif
+#endif /* CONFIG_SYSCTL */
 }
 
 /* FIXME: Allow NULL functions and sub in pointers to generic for
@@ -279,6 +279,9 @@ int nf_conntrack_l4proto_register(struct nf_conntrack_l4proto *l4proto)
 		ret = -EBUSY;
 		goto out;
 	}
+
+	if (l4proto == &nf_conntrack_l4proto_generic)
+		return nf_ct_l4proto_register_sysctl(l4proto);
 
 retry:
 	write_lock_bh(&nf_conntrack_lock);
@@ -343,6 +346,11 @@ int nf_conntrack_l4proto_unregister(struct nf_conntrack_l4proto *l4proto)
 
 	if (l4proto->l3proto >= PF_MAX) {
 		ret = -EBUSY;
+		goto out;
+	}
+
+	if (l4proto == &nf_conntrack_l4proto_generic) {
+		nf_ct_l4proto_unregister_sysctl(l4proto);
 		goto out;
 	}
 

@@ -509,36 +509,10 @@ static int sctp_new(struct nf_conn *conntrack, const struct sk_buff *skb,
 	return 1;
 }
 
-struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 = {
-	.l3proto	 = PF_INET,
-	.l4proto 	 = IPPROTO_SCTP,
-	.name 		 = "sctp",
-	.pkt_to_tuple 	 = sctp_pkt_to_tuple, 
-	.invert_tuple 	 = sctp_invert_tuple, 
-	.print_tuple 	 = sctp_print_tuple, 
-	.print_conntrack = sctp_print_conntrack,
-	.packet 	 = sctp_packet, 
-	.new 		 = sctp_new, 
-	.destroy 	 = NULL, 
-	.me 		 = THIS_MODULE 
-};
-
-struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 = {
-	.l3proto	 = PF_INET6,
-	.l4proto 	 = IPPROTO_SCTP,
-	.name 		 = "sctp",
-	.pkt_to_tuple 	 = sctp_pkt_to_tuple, 
-	.invert_tuple 	 = sctp_invert_tuple, 
-	.print_tuple 	 = sctp_print_tuple, 
-	.print_conntrack = sctp_print_conntrack,
-	.packet 	 = sctp_packet, 
-	.new 		 = sctp_new, 
-	.destroy 	 = NULL, 
-	.me 		 = THIS_MODULE 
-};
-
 #ifdef CONFIG_SYSCTL
-static ctl_table nf_ct_sysctl_table[] = {
+static unsigned int sctp_sysctl_table_users;
+static struct ctl_table_header *sctp_sysctl_header;
+static struct ctl_table sctp_sysctl_table[] = {
 	{
 		.ctl_name	= NET_NF_CONNTRACK_SCTP_TIMEOUT_CLOSED,
 		.procname	= "nf_conntrack_sctp_timeout_closed",
@@ -595,31 +569,47 @@ static ctl_table nf_ct_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
-	{ .ctl_name = 0 }
-};
-
-static ctl_table nf_ct_netfilter_table[] = {
 	{
-		.ctl_name	= NET_NETFILTER,
-		.procname	= "netfilter",
-		.mode		= 0555,
-		.child		= nf_ct_sysctl_table,
-	},
-	{ .ctl_name = 0 }
+		.ctl_name = 0
+	}
 };
-
-static ctl_table nf_ct_net_table[] = {
-	{
-		.ctl_name	= CTL_NET,
-		.procname	= "net",
-		.mode		= 0555, 
-		.child		= nf_ct_netfilter_table,
-	},
-	{ .ctl_name = 0 }
-};
-
-static struct ctl_table_header *nf_ct_sysctl_header;
 #endif
+
+struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 = {
+	.l3proto		= PF_INET,
+	.l4proto 		= IPPROTO_SCTP,
+	.name 			= "sctp",
+	.pkt_to_tuple 		= sctp_pkt_to_tuple,
+	.invert_tuple 		= sctp_invert_tuple,
+	.print_tuple 		= sctp_print_tuple,
+	.print_conntrack	= sctp_print_conntrack,
+	.packet 		= sctp_packet,
+	.new 			= sctp_new,
+	.me 			= THIS_MODULE,
+#ifdef CONFIG_SYSCTL
+	.ctl_table_users	= &sctp_sysctl_table_users,
+	.ctl_table_header	= &sctp_sysctl_header,
+	.ctl_table		= sctp_sysctl_table,
+#endif
+};
+
+struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 = {
+	.l3proto		= PF_INET6,
+	.l4proto 		= IPPROTO_SCTP,
+	.name 			= "sctp",
+	.pkt_to_tuple 		= sctp_pkt_to_tuple,
+	.invert_tuple 		= sctp_invert_tuple,
+	.print_tuple 		= sctp_print_tuple,
+	.print_conntrack	= sctp_print_conntrack,
+	.packet 		= sctp_packet,
+	.new 			= sctp_new,
+	.me 			= THIS_MODULE,
+#ifdef CONFIG_SYSCTL
+	.ctl_table_users	= &sctp_sysctl_table_users,
+	.ctl_table_header	= &sctp_sysctl_header,
+	.ctl_table		= sctp_sysctl_table,
+#endif
+};
 
 int __init nf_conntrack_proto_sctp_init(void)
 {
@@ -636,20 +626,8 @@ int __init nf_conntrack_proto_sctp_init(void)
 		goto cleanup_sctp4;
 	}
 
-#ifdef CONFIG_SYSCTL
-	nf_ct_sysctl_header = register_sysctl_table(nf_ct_net_table, 0);
-	if (nf_ct_sysctl_header == NULL) {
-		printk("nf_conntrack_proto_sctp: can't register to sysctl.\n");
-		goto cleanup;
-	}
-#endif
-
 	return ret;
 
-#ifdef CONFIG_SYSCTL
- cleanup:
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_sctp6);
-#endif
  cleanup_sctp4:
 	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_sctp4);
  out:
@@ -662,9 +640,6 @@ void __exit nf_conntrack_proto_sctp_fini(void)
 {
 	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_sctp6);
 	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_sctp4);
-#ifdef CONFIG_SYSCTL
- 	unregister_sysctl_table(nf_ct_sysctl_header);
-#endif
 	DEBUGP("SCTP conntrack module unloaded\n");
 }
 
