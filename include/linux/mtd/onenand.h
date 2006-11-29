@@ -13,6 +13,7 @@
 #define __LINUX_MTD_ONENAND_H
 
 #include <linux/spinlock.h>
+#include <linux/completion.h>
 #include <linux/mtd/onenand_regs.h>
 #include <linux/mtd/bbm.h>
 
@@ -33,7 +34,6 @@ typedef enum {
 	FL_WRITING,
 	FL_ERASING,
 	FL_SYNCING,
-	FL_UNLOCKING,
 	FL_LOCKING,
 	FL_RESETING,
 	FL_OTPING,
@@ -119,6 +119,9 @@ struct onenand_chip {
 	void (*mmcontrol)(struct mtd_info *mtd, int sync_read);
 	int (*block_markbad)(struct mtd_info *mtd, loff_t ofs);
 	int (*scan_bbt)(struct mtd_info *mtd);
+
+	struct completion	complete;
+	int			irq;
 
 	spinlock_t		chip_lock;
 	wait_queue_head_t	wq;

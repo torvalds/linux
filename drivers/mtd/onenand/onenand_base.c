@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/onenand.h>
@@ -330,13 +331,121 @@ static int onenand_wait(struct mtd_info *mtd, int state)
 
 	if (interrupt & ONENAND_INT_READ) {
 		ecc = this->read_word(this->base + ONENAND_REG_ECC_STATUS);
-		if (ecc & ONENAND_ECC_2BIT_ALL) {
+		if (ecc) {
 			DEBUG(MTD_DEBUG_LEVEL0, "onenand_wait: ECC error = 0x%04x\n", ecc);
-			return -EBADMSG;
+			if (ecc & ONENAND_ECC_2BIT_ALL)
+				mtd->ecc_stats.failed++;
+			else if (ecc & ONENAND_ECC_1BIT_ALL)
+				mtd->ecc_stats.corrected++;
 		}
 	}
 
 	return 0;
+}
+
+/*
+ * onenand_interrupt - [DEFAULT] onenand interrupt handler
+ * @param irq		onenand interrupt number
+ * @param dev_id	interrupt data
+ *
+ * complete the work
+ */
+static irqreturn_t onenand_interrupt(int irq, void *data)
+{
+	struct onenand_chip *this = (struct onenand_chip *) data;
+
+	/* To handle shared interrupt */
+	if (!this->complete.done)
+		complete(&this->complete);
+
+	return IRQ_HANDLED;
+}
+
+/*
+ * onenand_interrupt_wait - [DEFAULT] wait until the command is done
+ * @param mtd		MTD device structure
+ * @param state		state to select the max. timeout value
+ *
+ * Wait for command done.
+ */
+static int onenand_interrupt_wait(struct mtd_info *mtd, int state)
+{
+	struct onenand_chip *this = mtd->priv;
+
+	/* To prevent soft lockup */
+	touch_softlockup_watchdog();
+
+	wait_for_completion(&this->complete);
+
+	return onenand_wait(mtd, state);
+}
+
+/*
+ * onenand_try_interrupt_wait - [DEFAULT] try interrupt wait
+ * @param mtd		MTD device structure
+ * @param state		state to select the max. timeout value
+ *
+ * Try interrupt based wait (It is used one-time)
+ */
+static int onenand_try_interrupt_wait(struct mtd_info *mtd, int state)
+{
+	struct onenand_chip *this = mtd->priv;
+	unsigned long remain, timeout;
+
+	/* We use interrupt wait first */
+	this->wait = onenand_interrupt_wait;
+
+	/* To prevent soft lockup */
+	touch_softlockup_watchdog();
+
+	timeout = msecs_to_jiffies(100);
+	remain = wait_for_completion_timeout(&this->complete, timeout);
+	if (!remain) {
+		printk(KERN_INFO "OneNAND: There's no interrupt. "
+				"We use the normal wait\n");
+
+		/* Release the irq */
+		free_irq(this->irq, this);
+		
+		this->wait = onenand_wait;
+	}
+
+	return onenand_wait(mtd, state);
+}
+
+/*
+ * onenand_setup_wait - [OneNAND Interface] setup onenand wait method
+ * @param mtd		MTD device structure
+ *
+ * There's two method to wait onenand work
+ * 1. polling - read interrupt status register
+ * 2. interrupt - use the kernel interrupt method
+ */
+static void onenand_setup_wait(struct mtd_info *mtd)
+{
+	struct onenand_chip *this = mtd->priv;
+	int syscfg;
+
+	init_completion(&this->complete);
+
+	if (this->irq <= 0) {
+		this->wait = onenand_wait;
+		return;
+	}
+
+	if (request_irq(this->irq, &onenand_interrupt,
+				IRQF_SHARED, "onenand", this)) {
+		/* If we can't get irq, use the normal wait */
+		this->wait = onenand_wait;
+		return;
+	}
+
+	/* Enable interrupt */
+	syscfg = this->read_word(this->base + ONENAND_REG_SYS_CFG1);
+	syscfg |= ONENAND_SYS_CFG1_IOBE;
+	this->write_word(syscfg, this->base + ONENAND_REG_SYS_CFG1);
+
+	this->wait = onenand_try_interrupt_wait;
 }
 
 /**
@@ -609,6 +718,7 @@ static int onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
 	size_t *retlen, u_char *buf)
 {
 	struct onenand_chip *this = mtd->priv;
+	struct mtd_ecc_stats stats;
 	int read = 0, column;
 	int thislen;
 	int ret = 0;
@@ -627,6 +737,7 @@ static int onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 	/* TODO handling oob */
 
+	stats = mtd->ecc_stats;
 	while (read < len) {
 		thislen = min_t(int, mtd->writesize, len - read);
 
@@ -668,7 +779,11 @@ out:
 	 * retlen == desired len and result == -EBADMSG
 	 */
 	*retlen = read;
-	return ret;
+
+	if (mtd->ecc_stats.failed - stats.failed)
+		return -EBADMSG;
+
+	return mtd->ecc_stats.corrected - stats.corrected ? -EUCLEAN : 0;
 }
 
 /**
@@ -1129,7 +1244,6 @@ static void onenand_sync(struct mtd_info *mtd)
 	onenand_release_device(mtd);
 }
 
-
 /**
  * onenand_block_isbad - [MTD Interface] Check whether the block at the given offset is bad
  * @param mtd		MTD device structure
@@ -1196,20 +1310,26 @@ static int onenand_block_markbad(struct mtd_info *mtd, loff_t ofs)
 }
 
 /**
- * onenand_unlock - [MTD Interface] Unlock block(s)
+ * onenand_do_lock_cmd - [OneNAND Interface] Lock or unlock block(s)
  * @param mtd		MTD device structure
  * @param ofs		offset relative to mtd start
- * @param len		number of bytes to unlock
+ * @param len		number of bytes to lock or unlock
  *
- * Unlock one or more blocks
+ * Lock or unlock one or more blocks
  */
-static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
+static int onenand_do_lock_cmd(struct mtd_info *mtd, loff_t ofs, size_t len, int cmd)
 {
 	struct onenand_chip *this = mtd->priv;
 	int start, end, block, value, status;
+	int wp_status_mask;
 
 	start = ofs >> this->erase_shift;
 	end = len >> this->erase_shift;
+
+	if (cmd == ONENAND_CMD_LOCK)
+		wp_status_mask = ONENAND_WP_LS;
+	else
+		wp_status_mask = ONENAND_WP_US;
 
 	/* Continuous lock scheme */
 	if (this->options & ONENAND_HAS_CONT_LOCK) {
@@ -1217,11 +1337,11 @@ static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 		this->write_word(start, this->base + ONENAND_REG_START_BLOCK_ADDRESS);
 		/* Set end block address */
 		this->write_word(start + end - 1, this->base + ONENAND_REG_END_BLOCK_ADDRESS);
-		/* Write unlock command */
-		this->command(mtd, ONENAND_CMD_UNLOCK, 0, 0);
+		/* Write lock command */
+		this->command(mtd, cmd, 0, 0);
 
 		/* There's no return value */
-		this->wait(mtd, FL_UNLOCKING);
+		this->wait(mtd, FL_LOCKING);
 
 		/* Sanity check */
 		while (this->read_word(this->base + ONENAND_REG_CTRL_STATUS)
@@ -1230,7 +1350,7 @@ static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 
 		/* Check lock status */
 		status = this->read_word(this->base + ONENAND_REG_WP_STATUS);
-		if (!(status & ONENAND_WP_US))
+		if (!(status & wp_status_mask))
 			printk(KERN_ERR "wp status = 0x%x\n", status);
 
 		return 0;
@@ -1246,11 +1366,11 @@ static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 		this->write_word(value, this->base + ONENAND_REG_START_ADDRESS2);
 		/* Set start block address */
 		this->write_word(block, this->base + ONENAND_REG_START_BLOCK_ADDRESS);
-		/* Write unlock command */
-		this->command(mtd, ONENAND_CMD_UNLOCK, 0, 0);
+		/* Write lock command */
+		this->command(mtd, cmd, 0, 0);
 
 		/* There's no return value */
-		this->wait(mtd, FL_UNLOCKING);
+		this->wait(mtd, FL_LOCKING);
 
 		/* Sanity check */
 		while (this->read_word(this->base + ONENAND_REG_CTRL_STATUS)
@@ -1259,11 +1379,37 @@ static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 
 		/* Check lock status */
 		status = this->read_word(this->base + ONENAND_REG_WP_STATUS);
-		if (!(status & ONENAND_WP_US))
+		if (!(status & wp_status_mask))
 			printk(KERN_ERR "block = %d, wp status = 0x%x\n", block, status);
 	}
 
 	return 0;
+}
+
+/**
+ * onenand_lock - [MTD Interface] Lock block(s)
+ * @param mtd		MTD device structure
+ * @param ofs		offset relative to mtd start
+ * @param len		number of bytes to unlock
+ *
+ * Lock one or more blocks
+ */
+static int onenand_lock(struct mtd_info *mtd, loff_t ofs, size_t len)
+{
+	return onenand_do_lock_cmd(mtd, ofs, len, ONENAND_CMD_LOCK);
+}
+
+/**
+ * onenand_unlock - [MTD Interface] Unlock block(s)
+ * @param mtd		MTD device structure
+ * @param ofs		offset relative to mtd start
+ * @param len		number of bytes to unlock
+ *
+ * Unlock one or more blocks
+ */
+static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
+{
+	return onenand_do_lock_cmd(mtd, ofs, len, ONENAND_CMD_UNLOCK);
 }
 
 /**
@@ -1310,7 +1456,7 @@ static int onenand_unlock_all(struct mtd_info *mtd)
 		this->command(mtd, ONENAND_CMD_UNLOCK_ALL, 0, 0);
 
 		/* There's no return value */
-		this->wait(mtd, FL_UNLOCKING);
+		this->wait(mtd, FL_LOCKING);
 
 		/* Sanity check */
 		while (this->read_word(this->base + ONENAND_REG_CTRL_STATUS)
@@ -1334,7 +1480,7 @@ static int onenand_unlock_all(struct mtd_info *mtd)
 		return 0;
 	}
 
-	mtd->unlock(mtd, 0x0, this->chipsize);
+	onenand_unlock(mtd, 0x0, this->chipsize);
 
 	return 0;
 }
@@ -1762,7 +1908,7 @@ static int onenand_probe(struct mtd_info *mtd)
 	/* Read manufacturer and device IDs from Register */
 	maf_id = this->read_word(this->base + ONENAND_REG_MANUFACTURER_ID);
 	dev_id = this->read_word(this->base + ONENAND_REG_DEVICE_ID);
-	ver_id= this->read_word(this->base + ONENAND_REG_VERSION_ID);
+	ver_id = this->read_word(this->base + ONENAND_REG_VERSION_ID);
 
 	/* Check OneNAND device */
 	if (maf_id != bram_maf_id || dev_id != bram_dev_id)
@@ -1846,7 +1992,7 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	if (!this->command)
 		this->command = onenand_command;
 	if (!this->wait)
-		this->wait = onenand_wait;
+		onenand_setup_wait(mtd);
 
 	if (!this->read_bufferram)
 		this->read_bufferram = onenand_read_bufferram;
@@ -1922,7 +2068,7 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	mtd->lock_user_prot_reg = onenand_lock_user_prot_reg;
 #endif
 	mtd->sync = onenand_sync;
-	mtd->lock = NULL;
+	mtd->lock = onenand_lock;
 	mtd->unlock = onenand_unlock;
 	mtd->suspend = onenand_suspend;
 	mtd->resume = onenand_resume;

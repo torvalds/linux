@@ -61,6 +61,7 @@ static int __devinit generic_onenand_probe(struct device *dev)
 	}
 
 	info->onenand.mmcontrol = pdata->mmcontrol;
+	info->onenand.irq = platform_get_irq(pdev, 0);
 
 	info->mtd.name = pdev->dev.bus_id;
 	info->mtd.priv = &info->onenand;
