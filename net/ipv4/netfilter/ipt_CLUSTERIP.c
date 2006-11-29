@@ -40,8 +40,6 @@
 #define DEBUGP
 #endif
 
-#define ASSERT_READ_LOCK(x)
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_DESCRIPTION("iptables target for CLUSTERIP");
@@ -123,7 +121,6 @@ __clusterip_config_find(__be32 clusterip)
 {
 	struct list_head *pos;
 
-	ASSERT_READ_LOCK(&clusterip_lock);
 	list_for_each(pos, &clusterip_configs) {
 		struct clusterip_config *c = list_entry(pos, 
 					struct clusterip_config, list);

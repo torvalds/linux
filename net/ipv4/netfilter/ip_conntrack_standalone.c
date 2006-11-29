@@ -28,9 +28,6 @@
 #include <net/ip.h>
 #include <net/route.h>
 
-#define ASSERT_READ_LOCK(x)
-#define ASSERT_WRITE_LOCK(x)
-
 #include <linux/netfilter_ipv4/ip_conntrack.h>
 #include <linux/netfilter_ipv4/ip_conntrack_protocol.h>
 #include <linux/netfilter_ipv4/ip_conntrack_core.h>
@@ -139,7 +136,6 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	const struct ip_conntrack *conntrack = tuplehash_to_ctrack(hash);
 	struct ip_conntrack_protocol *proto;
 
-	ASSERT_READ_LOCK(&ip_conntrack_lock);
 	IP_NF_ASSERT(conntrack);
 
 	/* we only want to print DIR_ORIGINAL */
