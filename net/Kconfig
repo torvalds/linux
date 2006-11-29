@@ -75,7 +75,7 @@ config NETWORK_SECMARK
 	  If you are unsure how to answer this question, answer N.
 
 menuconfig NETFILTER
-	bool "Network packet filtering (replaces ipchains)"
+	bool "Network packet filtering framework (Netfilter)"
 	---help---
 	  Netfilter is a framework for filtering and mangling network packets
 	  that pass through your Linux box.
