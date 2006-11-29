@@ -32,8 +32,6 @@ struct nfulnl_msg_packet_timestamp {
 	aligned_be64	usec;
 };
 
-#define NFULNL_PREFIXLEN	30	/* just like old log target */
-
 enum nfulnl_attr_type {
 	NFULA_UNSPEC,
 	NFULA_PACKET_HDR,

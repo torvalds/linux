@@ -408,7 +408,7 @@ __build_packet_message(struct nfulnl_instance *inst,
 			const struct net_device *indev,
 			const struct net_device *outdev,
 			const struct nf_loginfo *li,
-			const char *prefix)
+			const char *prefix, unsigned int plen)
 {
 	unsigned char *old_tail;
 	struct nfulnl_msg_packet_hdr pmsg;
@@ -432,12 +432,8 @@ __build_packet_message(struct nfulnl_instance *inst,
 
 	NFA_PUT(inst->skb, NFULA_PACKET_HDR, sizeof(pmsg), &pmsg);
 
-	if (prefix) {
-		int slen = strlen(prefix);
-		if (slen > NFULNL_PREFIXLEN)
-			slen = NFULNL_PREFIXLEN;
-		NFA_PUT(inst->skb, NFULA_PREFIX, slen, prefix);
-	}
+	if (prefix)
+		NFA_PUT(inst->skb, NFULA_PREFIX, plen, prefix);
 
 	if (indev) {
 		tmp_uint = htonl(indev->ifindex);
@@ -601,6 +597,7 @@ nfulnl_log_packet(unsigned int pf,
 	const struct nf_loginfo *li;
 	unsigned int qthreshold;
 	unsigned int nlbufsiz;
+	unsigned int plen;
 
 	if (li_user && li_user->type == NF_LOG_TYPE_ULOG) 
 		li = li_user;
@@ -616,6 +613,10 @@ nfulnl_log_packet(unsigned int pf,
 		return;
 	}
 
+	plen = 0;
+	if (prefix)
+		plen = strlen(prefix);
+
 	/* all macros expand to constant values at compile time */
 	/* FIXME: do we want to make the size calculation conditional based on
 	 * what is actually present?  way more branches and checks, but more
@@ -630,7 +631,7 @@ nfulnl_log_packet(unsigned int pf,
 #endif
 		+ NFA_SPACE(sizeof(u_int32_t))	/* mark */
 		+ NFA_SPACE(sizeof(u_int32_t))	/* uid */
-		+ NFA_SPACE(NFULNL_PREFIXLEN)	/* prefix */
+		+ NFA_SPACE(plen)		/* prefix */
 		+ NFA_SPACE(sizeof(struct nfulnl_msg_packet_hw))
 		+ NFA_SPACE(sizeof(struct nfulnl_msg_packet_timestamp));
 
@@ -701,7 +702,7 @@ nfulnl_log_packet(unsigned int pf,
 	inst->qlen++;
 
 	__build_packet_message(inst, skb, data_len, pf,
-				hooknum, in, out, li, prefix);
+				hooknum, in, out, li, prefix, plen);
 
 	/* timer_pending always called within inst->lock, so there
 	 * is no chance of a race here */
