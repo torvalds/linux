@@ -947,6 +947,14 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 				ntohl(params->copy_range));
 	}
 
+	if (nfqa[NFQA_CFG_QUEUE_MAXLEN-1]) {
+		__be32 *queue_maxlen;
+		queue_maxlen = NFA_DATA(nfqa[NFQA_CFG_QUEUE_MAXLEN-1]);
+		spin_lock_bh(&queue->lock);
+		queue->queue_maxlen = ntohl(*queue_maxlen);
+		spin_unlock_bh(&queue->lock);
+	}
+
 out_put:
 	instance_put(queue);
 	return ret;
