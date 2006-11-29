@@ -29,9 +29,6 @@
 #include <linux/sysctl.h>
 #endif
 
-#define ASSERT_READ_LOCK(x)
-#define ASSERT_WRITE_LOCK(x)
-
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_l3proto.h>
@@ -137,7 +134,6 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	struct nf_conntrack_l3proto *l3proto;
 	struct nf_conntrack_l4proto *l4proto;
 
-	ASSERT_READ_LOCK(&nf_conntrack_lock);
 	NF_CT_ASSERT(conntrack);
 
 	/* we only want to print DIR_ORIGINAL */
