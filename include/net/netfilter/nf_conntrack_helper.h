@@ -37,6 +37,16 @@ struct nf_conntrack_helper
 	int (*to_nfattr)(struct sk_buff *skb, const struct nf_conn *ct);
 };
 
+extern struct nf_conntrack_helper *
+__nf_ct_helper_find(const struct nf_conntrack_tuple *tuple);
+
+extern struct nf_conntrack_helper *
+nf_ct_helper_find_get( const struct nf_conntrack_tuple *tuple);
+
+extern struct nf_conntrack_helper *
+__nf_conntrack_helper_find_byname(const char *name);
+
+extern void nf_ct_helper_put(struct nf_conntrack_helper *helper);
 extern int nf_conntrack_helper_register(struct nf_conntrack_helper *);
 extern void nf_conntrack_helper_unregister(struct nf_conntrack_helper *);
 

@@ -75,13 +75,12 @@ atomic_t nf_conntrack_count = ATOMIC_INIT(0);
 void (*nf_conntrack_destroyed)(struct nf_conn *conntrack) = NULL;
 struct nf_conntrack_protocol **nf_ct_protos[PF_MAX] __read_mostly;
 struct nf_conntrack_l3proto *nf_ct_l3protos[PF_MAX] __read_mostly;
-static LIST_HEAD(helpers);
 unsigned int nf_conntrack_htable_size __read_mostly = 0;
 int nf_conntrack_max __read_mostly;
 struct list_head *nf_conntrack_hash __read_mostly;
 struct nf_conn nf_conntrack_untracked;
 unsigned int nf_ct_log_invalid __read_mostly;
-static LIST_HEAD(unconfirmed);
+LIST_HEAD(unconfirmed);
 static int nf_conntrack_vmalloc __read_mostly;
 
 static unsigned int nf_conntrack_next_id;
@@ -696,46 +695,6 @@ static int early_drop(struct list_head *chain)
 	return dropped;
 }
 
-static struct nf_conntrack_helper *
-__nf_ct_helper_find(const struct nf_conntrack_tuple *tuple)
-{
-	struct nf_conntrack_helper *h;
-
-	list_for_each_entry(h, &helpers, list) {
-		if (nf_ct_tuple_mask_cmp(tuple, &h->tuple, &h->mask))
-			return h;
-	}
-	return NULL;
-}
-
-struct nf_conntrack_helper *
-nf_ct_helper_find_get( const struct nf_conntrack_tuple *tuple)
-{
-	struct nf_conntrack_helper *helper;
-
-	/* need nf_conntrack_lock to assure that helper exists until
-	 * try_module_get() is called */
-	read_lock_bh(&nf_conntrack_lock);
-
-	helper = __nf_ct_helper_find(tuple);
-	if (helper) {
-		/* need to increase module usage count to assure helper will
-		 * not go away while the caller is e.g. busy putting a
-		 * conntrack in the hash that uses the helper */
-		if (!try_module_get(helper->me))
-			helper = NULL;
-	}
-
-	read_unlock_bh(&nf_conntrack_lock);
-
-	return helper;
-}
-
-void nf_ct_helper_put(struct nf_conntrack_helper *helper)
-{
-	module_put(helper->me);
-}
-
 static struct nf_conn *
 __nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 		     const struct nf_conntrack_tuple *repl,
@@ -1033,83 +992,6 @@ int nf_ct_invert_tuplepr(struct nf_conntrack_tuple *inverse,
 				  __nf_ct_l3proto_find(orig->src.l3num),
 				  __nf_ct_proto_find(orig->src.l3num,
 						     orig->dst.protonum));
-}
-
-int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
-{
-	int ret;
-	BUG_ON(me->timeout == 0);
-
-	ret = nf_conntrack_register_cache(NF_CT_F_HELP, "nf_conntrack:help",
-					  sizeof(struct nf_conn)
-					  + sizeof(struct nf_conn_help)
-					  + __alignof__(struct nf_conn_help));
-	if (ret < 0) {
-		printk(KERN_ERR "nf_conntrack_helper_reigster: Unable to create slab cache for conntracks\n");
-		return ret;
-	}
-	write_lock_bh(&nf_conntrack_lock);
-	list_add(&me->list, &helpers);
-	write_unlock_bh(&nf_conntrack_lock);
-
-	return 0;
-}
-
-struct nf_conntrack_helper *
-__nf_conntrack_helper_find_byname(const char *name)
-{
-	struct nf_conntrack_helper *h;
-
-	list_for_each_entry(h, &helpers, list) {
-		if (!strcmp(h->name, name))
-			return h;
-	}
-
-	return NULL;
-}
-
-static inline void unhelp(struct nf_conntrack_tuple_hash *i,
-			  const struct nf_conntrack_helper *me)
-{
-	struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(i);
-	struct nf_conn_help *help = nfct_help(ct);
-
-	if (help && help->helper == me) {
-		nf_conntrack_event(IPCT_HELPER, ct);
-		help->helper = NULL;
-	}
-}
-
-void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
-{
-	unsigned int i;
-	struct nf_conntrack_tuple_hash *h;
-	struct nf_conntrack_expect *exp, *tmp;
-
-	/* Need write lock here, to delete helper. */
-	write_lock_bh(&nf_conntrack_lock);
-	list_del(&me->list);
-
-	/* Get rid of expectations */
-	list_for_each_entry_safe(exp, tmp, &nf_conntrack_expect_list, list) {
-		struct nf_conn_help *help = nfct_help(exp->master);
-		if (help->helper == me && del_timer(&exp->timeout)) {
-			nf_ct_unlink_expect(exp);
-			nf_conntrack_expect_put(exp);
-		}
-	}
-
-	/* Get rid of expecteds, set helpers to NULL. */
-	list_for_each_entry(h, &unconfirmed, list)
-		unhelp(h, me);
-	for (i = 0; i < nf_conntrack_htable_size; i++) {
-		list_for_each_entry(h, &nf_conntrack_hash[i], list)
-			unhelp(h, me);
-	}
-	write_unlock_bh(&nf_conntrack_lock);
-
-	/* Someone could be still looking at the helper in a bh. */
-	synchronize_net();
 }
 
 /* Refresh conntrack for this many jiffies and do accounting if do_acct is 1 */
