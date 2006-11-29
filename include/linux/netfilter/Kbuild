@@ -22,6 +22,7 @@ header-y += xt_mark.h
 header-y += xt_MARK.h
 header-y += xt_multiport.h
 header-y += xt_NFQUEUE.h
+header-y += xt_NFLOG.h
 header-y += xt_pkttype.h
 header-y += xt_policy.h
 header-y += xt_realm.h

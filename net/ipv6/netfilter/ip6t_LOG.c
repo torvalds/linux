@@ -440,13 +440,8 @@ ip6t_log_target(struct sk_buff **pskb,
 	li.u.log.level = loginfo->level;
 	li.u.log.logflags = loginfo->logflags;
 
-	if (loginfo->logflags & IP6T_LOG_NFLOG)
-		nf_log_packet(PF_INET6, hooknum, *pskb, in, out, &li,
-		              "%s", loginfo->prefix);
-	else
-		ip6t_log_packet(PF_INET6, hooknum, *pskb, in, out, &li,
-		                loginfo->prefix);
-
+	ip6t_log_packet(PF_INET6, hooknum, *pskb, in, out, &li,
+	                loginfo->prefix);
 	return IP6T_CONTINUE;
 }
 
