@@ -16,9 +16,6 @@ struct nfattr;
 
 struct nf_conntrack_l4proto
 {
-	/* Next pointer. */
-	struct list_head list;
-
 	/* L3 Protocol number. */
 	u_int16_t l3proto;
 

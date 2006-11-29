@@ -323,7 +323,6 @@ static int icmp_nfattr_to_tuple(struct nfattr *tb[],
 
 struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
 {
-	.list			= { NULL, NULL },
 	.l3proto		= PF_INET,
 	.l4proto		= IPPROTO_ICMP,
 	.name			= "icmp",
