@@ -153,6 +153,7 @@ ctnetlink_dump_protoinfo(struct sk_buff *skb, const struct ip_conntrack *ct)
 	return ret;
 
 nfattr_failure:
+	ip_conntrack_proto_put(proto);
 	return -1;
 }
 
