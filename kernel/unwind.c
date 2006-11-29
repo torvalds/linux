@@ -938,8 +938,11 @@ int unwind(struct unwind_frame_info *frame)
 		else {
 			retAddrReg = state.version <= 1 ? *ptr++ : get_uleb128(&ptr, end);
 			/* skip augmentation */
-			if (((const char *)(cie + 2))[1] == 'z')
-				ptr += get_uleb128(&ptr, end);
+			if (((const char *)(cie + 2))[1] == 'z') {
+				uleb128_t augSize = get_uleb128(&ptr, end);
+
+				ptr += augSize;
+			}
 			if (ptr > end
 			   || retAddrReg >= ARRAY_SIZE(reg_info)
 			   || REG_INVALID(retAddrReg)
@@ -963,9 +966,7 @@ int unwind(struct unwind_frame_info *frame)
 	if (cie == NULL || fde == NULL) {
 #ifdef CONFIG_FRAME_POINTER
 		unsigned long top, bottom;
-#endif
 
-#ifdef CONFIG_FRAME_POINTER
 		top = STACK_TOP(frame->task);
 		bottom = STACK_BOTTOM(frame->task);
 # if FRAME_RETADDR_OFFSET < 0
