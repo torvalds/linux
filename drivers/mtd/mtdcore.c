@@ -298,7 +298,7 @@ void put_mtd_device(struct mtd_info *mtd)
 }
 
 /* default_mtd_writev - default mtd writev method for MTD devices that
- *			dont implement their own
+ *			don't implement their own
  */
 
 int default_mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
@@ -326,14 +326,14 @@ int default_mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	return ret;
 }
 
-EXPORT_SYMBOL(add_mtd_device);
-EXPORT_SYMBOL(del_mtd_device);
-EXPORT_SYMBOL(get_mtd_device);
-EXPORT_SYMBOL(get_mtd_device_nm);
-EXPORT_SYMBOL(put_mtd_device);
-EXPORT_SYMBOL(register_mtd_user);
-EXPORT_SYMBOL(unregister_mtd_user);
-EXPORT_SYMBOL(default_mtd_writev);
+EXPORT_SYMBOL_GPL(add_mtd_device);
+EXPORT_SYMBOL_GPL(del_mtd_device);
+EXPORT_SYMBOL_GPL(get_mtd_device);
+EXPORT_SYMBOL_GPL(get_mtd_device_nm);
+EXPORT_SYMBOL_GPL(put_mtd_device);
+EXPORT_SYMBOL_GPL(register_mtd_user);
+EXPORT_SYMBOL_GPL(unregister_mtd_user);
+EXPORT_SYMBOL_GPL(default_mtd_writev);
 
 #ifdef CONFIG_PROC_FS
 
