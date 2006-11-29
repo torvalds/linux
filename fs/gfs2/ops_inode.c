@@ -856,7 +856,7 @@ static int gfs2_permission(struct inode *inode, int mask, struct nameidata *nd)
 		unlock = 1;
 	}
 
-	error = generic_permission(inode, mask, gfs2_check_acl_locked);
+	error = generic_permission(inode, mask, gfs2_check_acl);
 	if (unlock)
 		gfs2_glock_dq_uninit(&i_gh);
 

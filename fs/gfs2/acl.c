@@ -145,14 +145,14 @@ out:
 }
 
 /**
- * gfs2_check_acl_locked - Check an ACL to see if we're allowed to do something
+ * gfs2_check_acl - Check an ACL to see if we're allowed to do something
  * @inode: the file we want to do something to
  * @mask: what we want to do
  *
  * Returns: errno
  */
 
-int gfs2_check_acl_locked(struct inode *inode, int mask)
+int gfs2_check_acl(struct inode *inode, int mask)
 {
 	struct posix_acl *acl = NULL;
 	int error;
@@ -168,21 +168,6 @@ int gfs2_check_acl_locked(struct inode *inode, int mask)
 	}
 
 	return -EAGAIN;
-}
-
-int gfs2_check_acl(struct inode *inode, int mask)
-{
-	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_holder i_gh;
-	int error;
-
-	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
-	if (!error) {
-		error = gfs2_check_acl_locked(inode, mask);
-		gfs2_glock_dq_uninit(&i_gh);
-	}
-
-	return error;
 }
 
 static int munge_mode(struct gfs2_inode *ip, mode_t mode)
