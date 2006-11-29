@@ -80,7 +80,11 @@ struct nf_conntrack_l4proto
 	struct ctl_table_header	**ctl_table_header;
 	struct ctl_table	*ctl_table;
 	unsigned int		*ctl_table_users;
-#endif /* CONFIG_SYSCTL */
+#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
+	struct ctl_table_header	*ctl_compat_table_header;
+	struct ctl_table	*ctl_compat_table;
+#endif
+#endif
 
 	/* Module (if any) which this is connected to. */
 	struct module *me;

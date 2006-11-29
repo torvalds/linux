@@ -250,7 +250,22 @@ static int nf_ct_l4proto_register_sysctl(struct nf_conntrack_l4proto *l4proto)
 					    nf_net_netfilter_sysctl_path,
 					    l4proto->ctl_table,
 					    l4proto->ctl_table_users);
+		if (err < 0)
+			goto out;
 	}
+#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
+	if (l4proto->ctl_compat_table != NULL) {
+		err = nf_ct_register_sysctl(&l4proto->ctl_compat_table_header,
+					    nf_net_ipv4_netfilter_sysctl_path,
+					    l4proto->ctl_compat_table, NULL);
+		if (err == 0)
+			goto out;
+		nf_ct_unregister_sysctl(l4proto->ctl_table_header,
+					l4proto->ctl_table,
+					l4proto->ctl_table_users);
+	}
+#endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
+out:
 	mutex_unlock(&nf_ct_proto_sysctl_mutex);
 #endif /* CONFIG_SYSCTL */
 	return err;
@@ -265,6 +280,11 @@ static void nf_ct_l4proto_unregister_sysctl(struct nf_conntrack_l4proto *l4proto
 		nf_ct_unregister_sysctl(l4proto->ctl_table_header,
 					l4proto->ctl_table,
 					l4proto->ctl_table_users);
+#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
+	if (l4proto->ctl_compat_table_header != NULL)
+		nf_ct_unregister_sysctl(&l4proto->ctl_compat_table_header,
+					l4proto->ctl_compat_table, NULL);
+#endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 	mutex_unlock(&nf_ct_proto_sysctl_mutex);
 #endif /* CONFIG_SYSCTL */
 }

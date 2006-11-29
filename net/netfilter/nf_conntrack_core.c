@@ -66,10 +66,12 @@ DEFINE_RWLOCK(nf_conntrack_lock);
 
 /* nf_conntrack_standalone needs this */
 atomic_t nf_conntrack_count = ATOMIC_INIT(0);
+EXPORT_SYMBOL_GPL(nf_conntrack_count);
 
 void (*nf_conntrack_destroyed)(struct nf_conn *conntrack) = NULL;
 unsigned int nf_conntrack_htable_size __read_mostly;
 int nf_conntrack_max __read_mostly;
+EXPORT_SYMBOL_GPL(nf_conntrack_max);
 struct list_head *nf_conntrack_hash __read_mostly;
 struct nf_conn nf_conntrack_untracked __read_mostly;
 unsigned int nf_ct_log_invalid __read_mostly;
