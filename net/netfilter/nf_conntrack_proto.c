@@ -28,7 +28,7 @@
 #include <net/netfilter/nf_conntrack_core.h>
 
 struct nf_conntrack_l4proto **nf_ct_protos[PF_MAX] __read_mostly;
-struct nf_conntrack_l3proto *nf_ct_l3protos[PF_MAX] __read_mostly;
+struct nf_conntrack_l3proto *nf_ct_l3protos[AF_MAX] __read_mostly;
 
 struct nf_conntrack_l4proto *
 __nf_ct_l4proto_find(u_int16_t l3proto, u_int8_t l4proto)
@@ -128,21 +128,40 @@ int nf_conntrack_l3proto_register(struct nf_conntrack_l3proto *proto)
 {
 	int ret = 0;
 
-	write_lock_bh(&nf_conntrack_lock);
-	if (nf_ct_l3protos[proto->l3proto] != &nf_conntrack_l3proto_generic) {
+	if (proto->l3proto >= AF_MAX) {
 		ret = -EBUSY;
 		goto out;
 	}
-	nf_ct_l3protos[proto->l3proto] = proto;
-out:
-	write_unlock_bh(&nf_conntrack_lock);
 
+	write_lock_bh(&nf_conntrack_lock);
+	if (nf_ct_l3protos[proto->l3proto] != &nf_conntrack_l3proto_generic) {
+		ret = -EBUSY;
+		goto out_unlock;
+	}
+	nf_ct_l3protos[proto->l3proto] = proto;
+
+out_unlock:
+	write_unlock_bh(&nf_conntrack_lock);
+out:
 	return ret;
 }
 
-void nf_conntrack_l3proto_unregister(struct nf_conntrack_l3proto *proto)
+int nf_conntrack_l3proto_unregister(struct nf_conntrack_l3proto *proto)
 {
+	int ret = 0;
+
+	if (proto->l3proto >= AF_MAX) {
+		ret = -EBUSY;
+		goto out;
+	}
+
 	write_lock_bh(&nf_conntrack_lock);
+	if (nf_ct_l3protos[proto->l3proto] != proto) {
+		write_unlock_bh(&nf_conntrack_lock);
+		ret = -EBUSY;
+		goto out;
+	}
+
 	nf_ct_l3protos[proto->l3proto] = &nf_conntrack_l3proto_generic;
 	write_unlock_bh(&nf_conntrack_lock);
 
@@ -151,6 +170,9 @@ void nf_conntrack_l3proto_unregister(struct nf_conntrack_l3proto *proto)
 
 	/* Remove all contrack entries for this protocol */
 	nf_ct_iterate_cleanup(kill_l3proto, proto);
+
+out:
+	return ret;
 }
 
 /* FIXME: Allow NULL functions and sub in pointers to generic for
@@ -158,6 +180,11 @@ void nf_conntrack_l3proto_unregister(struct nf_conntrack_l3proto *proto)
 int nf_conntrack_l4proto_register(struct nf_conntrack_l4proto *l4proto)
 {
 	int ret = 0;
+
+	if (l4proto->l3proto >= PF_MAX) {
+		ret = -EBUSY;
+		goto out;
+	}
 
 retry:
 	write_lock_bh(&nf_conntrack_lock);
@@ -210,9 +237,22 @@ out:
 	return ret;
 }
 
-void nf_conntrack_l4proto_unregister(struct nf_conntrack_l4proto *l4proto)
+int nf_conntrack_l4proto_unregister(struct nf_conntrack_l4proto *l4proto)
 {
+	int ret = 0;
+
+	if (l4proto->l3proto >= PF_MAX) {
+		ret = -EBUSY;
+		goto out;
+	}
+
 	write_lock_bh(&nf_conntrack_lock);
+	if (nf_ct_protos[l4proto->l3proto][l4proto->l4proto]
+	    != l4proto) {
+		write_unlock_bh(&nf_conntrack_lock);
+		ret = -EBUSY;
+		goto out;
+	}
 	nf_ct_protos[l4proto->l3proto][l4proto->l4proto]
 		= &nf_conntrack_l4proto_generic;
 	write_unlock_bh(&nf_conntrack_lock);
@@ -222,4 +262,7 @@ void nf_conntrack_l4proto_unregister(struct nf_conntrack_l4proto *l4proto)
 
 	/* Remove all contrack entries for this protocol */
 	nf_ct_iterate_cleanup(kill_l4proto, l4proto);
+
+out:
+	return ret;
 }

@@ -102,7 +102,7 @@ extern void nf_ct_l4proto_put(struct nf_conntrack_l4proto *p);
 
 /* Protocol registration. */
 extern int nf_conntrack_l4proto_register(struct nf_conntrack_l4proto *proto);
-extern void nf_conntrack_l4proto_unregister(struct nf_conntrack_l4proto *proto);
+extern int nf_conntrack_l4proto_unregister(struct nf_conntrack_l4proto *proto);
 
 /* Generic netlink helpers */
 extern int nf_ct_port_tuple_to_nfattr(struct sk_buff *skb,

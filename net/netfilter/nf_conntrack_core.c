@@ -1198,7 +1198,7 @@ int __init nf_conntrack_init(void)
 
 	/* Don't NEED lock here, but good form anyway. */
 	write_lock_bh(&nf_conntrack_lock);
-        for (i = 0; i < PF_MAX; i++)
+        for (i = 0; i < AF_MAX; i++)
 		nf_ct_l3protos[i] = &nf_conntrack_l3proto_generic;
         write_unlock_bh(&nf_conntrack_lock);
 
