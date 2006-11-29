@@ -357,7 +357,7 @@ static int rtc_from4_correct_data(struct mtd_info *mtd, const u_char *buf, u_cha
 	/* Read the syndrom pattern from the FPGA and correct the bitorder */
 	rs_ecc = (volatile unsigned short *)(rtc_from4_fio_base + RTC_FROM4_RS_ECC);
 	for (i = 0; i < 8; i++) {
-		ecc[i] = byte_rev_table[(*rs_ecc) & 0xFF];
+		ecc[i] = bitrev8(*rs_ecc);
 		rs_ecc++;
 	}
 
