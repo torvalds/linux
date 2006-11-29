@@ -30,7 +30,7 @@
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_core.h>
 
-static LIST_HEAD(helpers);
+static __read_mostly LIST_HEAD(helpers);
 
 struct nf_conntrack_helper *
 __nf_ct_helper_find(const struct nf_conntrack_tuple *tuple)
