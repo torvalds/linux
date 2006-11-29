@@ -337,9 +337,6 @@ static struct scsi_host_template ali_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	/* Keep LBA28 counts so large I/O's don't turn LBA48 and PIO
-	   with older controllers. Not locked so will grow on C5 or later */
-	.max_sectors		= 255,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
