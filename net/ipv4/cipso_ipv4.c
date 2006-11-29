@@ -819,8 +819,7 @@ static int cipso_v4_map_cat_rbm_valid(const struct cipso_v4_doi *doi_def,
 /**
  * cipso_v4_map_cat_rbm_hton - Perform a category mapping from host to network
  * @doi_def: the DOI definition
- * @host_cat: the category bitmap in host format
- * @host_cat_len: the length of the host's category bitmap in bytes
+ * @secattr: the security attributes
  * @net_cat: the zero'd out category bitmap in network/CIPSO format
  * @net_cat_len: the length of the CIPSO bitmap in bytes
  *
@@ -831,61 +830,51 @@ static int cipso_v4_map_cat_rbm_valid(const struct cipso_v4_doi *doi_def,
  *
  */
 static int cipso_v4_map_cat_rbm_hton(const struct cipso_v4_doi *doi_def,
-				     const unsigned char *host_cat,
-				     u32 host_cat_len,
+				     const struct netlbl_lsm_secattr *secattr,
 				     unsigned char *net_cat,
 				     u32 net_cat_len)
 {
 	int host_spot = -1;
-	u32 net_spot;
+	u32 net_spot = CIPSO_V4_INV_CAT;
 	u32 net_spot_max = 0;
-	u32 host_clen_bits = host_cat_len * 8;
 	u32 net_clen_bits = net_cat_len * 8;
-	u32 host_cat_size;
-	u32 *host_cat_array;
+	u32 host_cat_size = 0;
+	u32 *host_cat_array = NULL;
 
-	switch (doi_def->type) {
-	case CIPSO_V4_MAP_PASS:
-		net_spot_max = host_cat_len;
-		while (net_spot_max > 0 && host_cat[net_spot_max - 1] == 0)
-			net_spot_max--;
-		if (net_spot_max > net_cat_len)
-			return -EINVAL;
-		memcpy(net_cat, host_cat, net_spot_max);
-		return net_spot_max;
-	case CIPSO_V4_MAP_STD:
+	if (doi_def->type == CIPSO_V4_MAP_STD) {
 		host_cat_size = doi_def->map.std->cat.local_size;
 		host_cat_array = doi_def->map.std->cat.local;
-		for (;;) {
-			host_spot = cipso_v4_bitmap_walk(host_cat,
-							 host_clen_bits,
-							 host_spot + 1,
-							 1);
-			if (host_spot < 0)
-				break;
+	}
+
+	for (;;) {
+		host_spot = netlbl_secattr_catmap_walk(secattr->mls_cat,
+						       host_spot + 1);
+		if (host_spot < 0)
+			break;
+
+		switch (doi_def->type) {
+		case CIPSO_V4_MAP_PASS:
+			net_spot = host_spot;
+			break;
+		case CIPSO_V4_MAP_STD:
 			if (host_spot >= host_cat_size)
 				return -EPERM;
-
 			net_spot = host_cat_array[host_spot];
 			if (net_spot >= CIPSO_V4_INV_CAT)
 				return -EPERM;
-			if (net_spot >= net_clen_bits)
-				return -ENOSPC;
-			cipso_v4_bitmap_setbit(net_cat, net_spot, 1);
-
-			if (net_spot > net_spot_max)
-				net_spot_max = net_spot;
+			break;
 		}
+		if (net_spot >= net_clen_bits)
+			return -ENOSPC;
+		cipso_v4_bitmap_setbit(net_cat, net_spot, 1);
 
-		if (host_spot == -2)
-			return -EFAULT;
-
-		if (++net_spot_max % 8)
-			return net_spot_max / 8 + 1;
-		return net_spot_max / 8;
+		if (net_spot > net_spot_max)
+			net_spot_max = net_spot;
 	}
 
-	return -EINVAL;
+	if (++net_spot_max % 8)
+		return net_spot_max / 8 + 1;
+	return net_spot_max / 8;
 }
 
 /**
@@ -893,66 +882,59 @@ static int cipso_v4_map_cat_rbm_hton(const struct cipso_v4_doi *doi_def,
  * @doi_def: the DOI definition
  * @net_cat: the category bitmap in network/CIPSO format
  * @net_cat_len: the length of the CIPSO bitmap in bytes
- * @host_cat: the zero'd out category bitmap in host format
- * @host_cat_len: the length of the host's category bitmap in bytes
+ * @secattr: the security attributes
  *
  * Description:
  * Perform a label mapping to translate a CIPSO bitmap to the correct local
- * MLS category bitmap using the given DOI definition.  Returns the minimum
- * size in bytes of the host bitmap on success, negative values otherwise.
+ * MLS category bitmap using the given DOI definition.  Returns zero on
+ * success, negative values on failure.
  *
  */
 static int cipso_v4_map_cat_rbm_ntoh(const struct cipso_v4_doi *doi_def,
 				     const unsigned char *net_cat,
 				     u32 net_cat_len,
-				     unsigned char *host_cat,
-				     u32 host_cat_len)
+				     struct netlbl_lsm_secattr *secattr)
 {
-	u32 host_spot;
-	u32 host_spot_max = 0;
+	int ret_val;
 	int net_spot = -1;
+	u32 host_spot = CIPSO_V4_INV_CAT;
 	u32 net_clen_bits = net_cat_len * 8;
-	u32 host_clen_bits = host_cat_len * 8;
-	u32 net_cat_size;
-	u32 *net_cat_array;
+	u32 net_cat_size = 0;
+	u32 *net_cat_array = NULL;
 
-	switch (doi_def->type) {
-	case CIPSO_V4_MAP_PASS:
-		if (net_cat_len > host_cat_len)
-			return -EINVAL;
-		memcpy(host_cat, net_cat, net_cat_len);
-		return net_cat_len;
-	case CIPSO_V4_MAP_STD:
+	if (doi_def->type == CIPSO_V4_MAP_STD) {
 		net_cat_size = doi_def->map.std->cat.cipso_size;
 		net_cat_array = doi_def->map.std->cat.cipso;
-		for (;;) {
-			net_spot = cipso_v4_bitmap_walk(net_cat,
-							net_clen_bits,
-							net_spot + 1,
-							1);
-			if (net_spot < 0)
-				break;
-			if (net_spot >= net_cat_size ||
-			    net_cat_array[net_spot] >= CIPSO_V4_INV_CAT)
-				return -EPERM;
+	}
 
+	for (;;) {
+		net_spot = cipso_v4_bitmap_walk(net_cat,
+						net_clen_bits,
+						net_spot + 1,
+						1);
+		if (net_spot < 0) {
+			if (net_spot == -2)
+				return -EFAULT;
+			return 0;
+		}
+
+		switch (doi_def->type) {
+		case CIPSO_V4_MAP_PASS:
+			host_spot = net_spot;
+			break;
+		case CIPSO_V4_MAP_STD:
+			if (net_spot >= net_cat_size)
+				return -EPERM;
 			host_spot = net_cat_array[net_spot];
 			if (host_spot >= CIPSO_V4_INV_CAT)
 				return -EPERM;
-			if (host_spot >= host_clen_bits)
-				return -ENOSPC;
-			cipso_v4_bitmap_setbit(host_cat, host_spot, 1);
-
-			if (host_spot > host_spot_max)
-				host_spot_max = host_spot;
+			break;
 		}
-
-		if (net_spot == -2)
-			return -EFAULT;
-
-		if (++host_spot_max % 8)
-			return host_spot_max / 8 + 1;
-		return host_spot_max / 8;
+		ret_val = netlbl_secattr_catmap_setbit(secattr->mls_cat,
+						       host_spot,
+						       GFP_ATOMIC);
+		if (ret_val != 0)
+			return ret_val;
 	}
 
 	return -EINVAL;
@@ -1016,8 +998,7 @@ static int cipso_v4_gentag_rbm(const struct cipso_v4_doi *doi_def,
 
 	if (secattr->flags & NETLBL_SECATTR_MLS_CAT) {
 		ret_val = cipso_v4_map_cat_rbm_hton(doi_def,
-						    secattr->mls_cat,
-						    secattr->mls_cat_len,
+						    secattr,
 						    &buffer[4],
 						    buffer_len - 4);
 		if (ret_val < 0)
@@ -1067,31 +1048,20 @@ static int cipso_v4_parsetag_rbm(const struct cipso_v4_doi *doi_def,
 	secattr->flags |= NETLBL_SECATTR_MLS_LVL;
 
 	if (tag_len > 4) {
-		switch (doi_def->type) {
-		case CIPSO_V4_MAP_PASS:
-			secattr->mls_cat_len = tag_len - 4;
-			break;
-		case CIPSO_V4_MAP_STD:
-			secattr->mls_cat_len =
-				doi_def->map.std->cat.local_size;
-			break;
-		}
-		secattr->mls_cat = kzalloc(secattr->mls_cat_len, GFP_ATOMIC);
+		secattr->mls_cat = netlbl_secattr_catmap_alloc(GFP_ATOMIC);
 		if (secattr->mls_cat == NULL)
 			return -ENOMEM;
 
 		ret_val = cipso_v4_map_cat_rbm_ntoh(doi_def,
 						    &tag[4],
 						    tag_len - 4,
-						    secattr->mls_cat,
-						    secattr->mls_cat_len);
-		if (ret_val < 0) {
-			kfree(secattr->mls_cat);
+						    secattr);
+		if (ret_val != 0) {
+			netlbl_secattr_catmap_free(secattr->mls_cat);
 			return ret_val;
-		} else if (ret_val > 0) {
-			secattr->mls_cat_len = ret_val;
-			secattr->flags |= NETLBL_SECATTR_MLS_CAT;
 		}
+
+		secattr->flags |= NETLBL_SECATTR_MLS_CAT;
 	}
 
 	return 0;

@@ -55,6 +55,7 @@
 #include "objsec.h"
 #include "selinux_netlabel.h"
 #include "xfrm.h"
+#include "ebitmap.h"
 
 extern void selnl_notify_policyload(u32 seqno);
 unsigned int policydb_loaded_version;
@@ -2384,13 +2385,10 @@ static int selinux_netlbl_secattr_to_sid(struct sk_buff *skb,
 		ctx_new.user = ctx->user;
 		ctx_new.role = ctx->role;
 		ctx_new.type = ctx->type;
-		mls_import_lvl(&ctx_new, secattr->mls_lvl, secattr->mls_lvl);
+		mls_import_netlbl_lvl(&ctx_new, secattr);
 		if (secattr->flags & NETLBL_SECATTR_MLS_CAT) {
-			if (mls_import_cat(&ctx_new,
-					   secattr->mls_cat,
-					   secattr->mls_cat_len,
-					   NULL,
-					   0) != 0)
+			if (ebitmap_netlbl_import(&ctx_new.range.level[0].cat,
+						  secattr->mls_cat) != 0)
 				goto netlbl_secattr_to_sid_return;
 			ctx_new.range.level[1].cat.highbit =
 				ctx_new.range.level[0].cat.highbit;
@@ -2486,18 +2484,11 @@ static int selinux_netlbl_socket_setsid(struct socket *sock, u32 sid)
 
 	secattr.domain = kstrdup(policydb.p_type_val_to_name[ctx->type - 1],
 				 GFP_ATOMIC);
-	mls_export_lvl(ctx, &secattr.mls_lvl, NULL);
-	rc = mls_export_cat(ctx,
-			    &secattr.mls_cat,
-			    &secattr.mls_cat_len,
-			    NULL,
-			    NULL);
+	secattr.flags |= NETLBL_SECATTR_DOMAIN;
+	mls_export_netlbl_lvl(ctx, &secattr);
+	rc = mls_export_netlbl_cat(ctx, &secattr);
 	if (rc != 0)
 		goto netlbl_socket_setsid_return;
-
-	secattr.flags |= NETLBL_SECATTR_DOMAIN | NETLBL_SECATTR_MLS_LVL;
-	if (secattr.mls_cat)
-		secattr.flags |= NETLBL_SECATTR_MLS_CAT;
 
 	rc = netlbl_socket_setattr(sock, &secattr);
 	if (rc == 0) {
