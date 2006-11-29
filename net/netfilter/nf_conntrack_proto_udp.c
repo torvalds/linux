@@ -22,10 +22,12 @@
 #include <linux/ipv6.h>
 #include <net/ip6_checksum.h>
 #include <net/checksum.h>
+
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
 #include <net/netfilter/nf_conntrack_protocol.h>
+#include <net/netfilter/nf_conntrack_ecache.h>
 
 unsigned int nf_ct_udp_timeout __read_mostly = 30*HZ;
 unsigned int nf_ct_udp_timeout_stream __read_mostly = 180*HZ;

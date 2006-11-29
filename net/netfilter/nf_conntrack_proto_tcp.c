@@ -43,6 +43,7 @@
 #include <linux/netfilter_ipv6.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_protocol.h>
+#include <net/netfilter/nf_conntrack_ecache.h>
 
 #if 0
 #define DEBUGP printk
