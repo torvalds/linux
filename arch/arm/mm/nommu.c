@@ -6,10 +6,12 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
+#include <linux/bootmem.h>
 
 #include <asm/cacheflush.h>
 #include <asm/io.h>
 #include <asm/page.h>
+#include <asm/mach/arch.h>
 
 #include "mm.h"
 
@@ -76,7 +78,7 @@ void __iomem *__ioremap(unsigned long phys_addr, size_t size,
 }
 EXPORT_SYMBOL(__ioremap);
 
-void __iounmap(void __iomem *addr)
+void __iounmap(volatile void __iomem *addr)
 {
 }
 EXPORT_SYMBOL(__iounmap);
