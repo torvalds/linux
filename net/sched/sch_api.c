@@ -191,19 +191,25 @@ int unregister_qdisc(struct Qdisc_ops *qops)
    (root qdisc, all its children, children of children etc.)
  */
 
+static struct Qdisc *__qdisc_lookup(struct net_device *dev, u32 handle)
+{
+	struct Qdisc *q;
+
+	list_for_each_entry(q, &dev->qdisc_list, list) {
+		if (q->handle == handle)
+			return q;
+	}
+	return NULL;
+}
+
 struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle)
 {
 	struct Qdisc *q;
 
 	read_lock(&qdisc_tree_lock);
-	list_for_each_entry(q, &dev->qdisc_list, list) {
-		if (q->handle == handle) {
-			read_unlock(&qdisc_tree_lock);
-			return q;
-		}
-	}
+	q = __qdisc_lookup(dev, handle);
 	read_unlock(&qdisc_tree_lock);
-	return NULL;
+	return q;
 }
 
 static struct Qdisc *qdisc_leaf(struct Qdisc *p, u32 classid)
@@ -348,6 +354,26 @@ dev_graft_qdisc(struct net_device *dev, struct Qdisc *qdisc)
 	return oqdisc;
 }
 
+void qdisc_tree_decrease_qlen(struct Qdisc *sch, unsigned int n)
+{
+	struct Qdisc_class_ops *cops;
+	unsigned long cl;
+	u32 parentid;
+
+	if (n == 0)
+		return;
+	while ((parentid = sch->parent)) {
+		sch = __qdisc_lookup(sch->dev, TC_H_MAJ(parentid));
+		cops = sch->ops->cl_ops;
+		if (cops->qlen_notify) {
+			cl = cops->get(sch, parentid);
+			cops->qlen_notify(sch, cl);
+			cops->put(sch, cl);
+		}
+		sch->q.qlen -= n;
+	}
+}
+EXPORT_SYMBOL(qdisc_tree_decrease_qlen);
 
 /* Graft qdisc "new" to class "classid" of qdisc "parent" or
    to device "dev".
