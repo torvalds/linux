@@ -30,6 +30,8 @@
 #include <asm/io.h>
 #include <asm/mach/time.h>
 
+#include <asm/arch/at91_st.h>
+
 static unsigned long last_crtr;
 
 /*

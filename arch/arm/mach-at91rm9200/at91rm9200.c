@@ -15,8 +15,9 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/arch/at91rm9200.h>
+#include <asm/arch/at91_pmc.h>
+#include <asm/arch/at91_st.h>
 
-#include <asm/hardware.h>
 #include "generic.h"
 #include "clock.h"
 

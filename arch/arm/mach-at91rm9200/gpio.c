@@ -19,6 +19,8 @@
 
 #include <asm/io.h>
 #include <asm/hardware.h>
+#include <asm/arch/at91_pio.h>
+#include <asm/arch/at91_pmc.h>
 #include <asm/arch/gpio.h>
 
 #include "generic.h"

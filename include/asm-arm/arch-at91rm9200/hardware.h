@@ -16,8 +16,16 @@
 
 #include <asm/sizes.h>
 
+#if defined(CONFIG_ARCH_AT91RM9200)
 #include <asm/arch/at91rm9200.h>
-#include <asm/arch/at91rm9200_sys.h>
+#elif defined(CONFIG_ARCH_AT91SAM9260)
+#include <asm/arch/at91sam9260.h>
+#elif defined(CONFIG_ARCH_AT91SAM9261)
+#include <asm/arch/at91sam9261.h>
+#else
+#error "Unsupported AT91 processor"
+#endif
+
 
 /*
  * Remap the peripherals from address 0xFFFA0000 .. 0xFFFFFFFF

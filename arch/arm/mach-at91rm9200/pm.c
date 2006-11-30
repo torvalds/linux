@@ -26,6 +26,8 @@
 #include <asm/mach/irq.h>
 #include <asm/mach-types.h>
 
+#include <asm/arch/at91_pmc.h>
+#include <asm/arch/at91rm9200_mc.h>
 #include <asm/arch/gpio.h>
 
 #include "generic.h"
