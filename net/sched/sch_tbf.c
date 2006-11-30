@@ -273,12 +273,14 @@ static void tbf_reset(struct Qdisc* sch)
 	del_timer(&q->wd_timer);
 }
 
-static struct Qdisc *tbf_create_dflt_qdisc(struct net_device *dev, u32 limit)
+static struct Qdisc *tbf_create_dflt_qdisc(struct Qdisc *sch, u32 limit)
 {
-	struct Qdisc *q = qdisc_create_dflt(dev, &bfifo_qdisc_ops);
+	struct Qdisc *q;
         struct rtattr *rta;
 	int ret;
 
+	q = qdisc_create_dflt(sch->dev, &bfifo_qdisc_ops,
+			      TC_H_MAKE(sch->handle, 1));
 	if (q) {
 		rta = kmalloc(RTA_LENGTH(sizeof(struct tc_fifo_qopt)), GFP_KERNEL);
 		if (rta) {
@@ -341,7 +343,7 @@ static int tbf_change(struct Qdisc* sch, struct rtattr *opt)
 		goto done;
 
 	if (qopt->limit > 0) {
-		if ((child = tbf_create_dflt_qdisc(sch->dev, qopt->limit)) == NULL)
+		if ((child = tbf_create_dflt_qdisc(sch, qopt->limit)) == NULL)
 			goto done;
 	}
 

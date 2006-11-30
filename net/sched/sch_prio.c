@@ -230,7 +230,8 @@ static int prio_tune(struct Qdisc *sch, struct rtattr *opt)
 	for (i=0; i<q->bands; i++) {
 		if (q->queues[i] == &noop_qdisc) {
 			struct Qdisc *child;
-			child = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops);
+			child = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops,
+						  TC_H_MAKE(sch->handle, i + 1));
 			if (child) {
 				sch_tree_lock(sch);
 				child = xchg(&q->queues[i], child);
