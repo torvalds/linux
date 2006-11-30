@@ -994,7 +994,7 @@ config HPET
 	help
 	  If you say Y here, you will have a miscdevice named "/dev/hpet/".  Each
 	  open selects one of the timers supported by the HPET.  The timers are
-	  non-periodioc and/or periodic.
+	  non-periodic and/or periodic.
 
 config HPET_RTC_IRQ
 	bool "HPET Control RTC IRQ" if !HPET_EMULATE_RTC

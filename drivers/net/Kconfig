@@ -32,7 +32,7 @@ config IFB
 	tristate "Intermediate Functional Block support"
 	depends on NET_CLS_ACT
 	---help---
-	  This is an intermidiate driver that allows sharing of
+	  This is an intermediate driver that allows sharing of
 	  resources.
 	  To compile this driver as a module, choose M here: the module
 	  will be called ifb.  If you want to use more than one ifb
@@ -2136,7 +2136,7 @@ config SK98LIN
 	  This driver supports the original Yukon chipset. A cleaner driver is 
 	  also available (skge) which seems to work better than this one.
 
-	  This driver does not support the newer Yukon2 chipset. A seperate
+	  This driver does not support the newer Yukon2 chipset. A separate
 	  driver, sky2, is provided to support Yukon2-based adapters.
 
 	  The following adapters are supported by this driver:

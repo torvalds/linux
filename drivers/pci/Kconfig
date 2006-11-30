@@ -27,7 +27,7 @@ config PCI_MULTITHREAD_PROBE
 	  smaller speedup on single processor machines.
 
 	  But it can also cause lots of bad things to happen.  A number
-	  of PCI drivers can not properly handle running in this way,
+	  of PCI drivers cannot properly handle running in this way,
 	  some will just not work properly at all, while others might
 	  decide to blow up power supplies with a huge load all at once,
 	  so use this option at your own risk.

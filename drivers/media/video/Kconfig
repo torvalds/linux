@@ -24,7 +24,7 @@ config VIDEO_HELPER_CHIPS_AUTO
 	  decode audio/video standards. This option will autoselect
 	  all pertinent modules to each selected video module.
 
-	  Unselect this only if you know exaclty what you are doing, since
+	  Unselect this only if you know exactly what you are doing, since
 	  it may break support on some boards.
 
 	  In doubt, say Y.

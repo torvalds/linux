@@ -1145,7 +1145,7 @@ config BEFS_FS
 	help
 	  The BeOS File System (BeFS) is the native file system of Be, Inc's
 	  BeOS. Notable features include support for arbitrary attributes
-	  on files and directories, and database-like indeces on selected
+	  on files and directories, and database-like indices on selected
 	  attributes. (Also note that this driver doesn't make those features
 	  available at this time). It is a 64 bit filesystem, so it supports
 	  extremely large volumes and files.
