@@ -180,6 +180,24 @@ static int end_bio_io_page(struct bio *bio, unsigned int bytes_done, int error)
 	return 0;
 }
 
+/**
+ * gfs2_read_super - Read the gfs2 super block from disk
+ * @sb: The VFS super block
+ * @sector: The location of the super block
+ *
+ * This uses the bio functions to read the super block from disk
+ * because we want to be 100% sure that we never read cached data.
+ * A super block is read twice only during each GFS2 mount and is
+ * never written to by the filesystem. The first time its read no
+ * locks are held, and the only details which are looked at are those
+ * relating to the locking protocol. Once locking is up and working,
+ * the sb is read again under the lock to establish the location of
+ * the master directory (contains pointers to journals etc) and the
+ * root directory.
+ *
+ * Returns: A page containing the sb or NULL
+ */
+
 struct page *gfs2_read_super(struct super_block *sb, sector_t sector)
 {
 	struct page *page;
