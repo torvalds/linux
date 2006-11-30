@@ -583,6 +583,10 @@ static int enable_arbiter_disable(void)
 	if (dev == NULL) {
 		reg = 0x76;
 		dev = pci_find_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_862X_0, NULL);
+		/* Find CN400 V-Link host bridge */
+		if (dev == NULL)
+			dev = pci_find_device(PCI_VENDOR_ID_VIA, 0x7259, NULL);
+
 	}
 	if (dev != NULL) {
 		/* Enable access to port 0x22 */
@@ -734,7 +738,7 @@ print_support_type:
 	return 0;
 
 err_acpi:
-	printk(KERN_ERR PFX "No ACPI support. No VT8601 or VT8623 northbridge. Aborting.\n");
+	printk(KERN_ERR PFX "No ACPI support. Unsupported northbridge. Aborting.\n");
 	return -ENODEV;
 }
 
