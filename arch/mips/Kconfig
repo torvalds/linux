@@ -266,8 +266,8 @@ config MIPS_MALTA
 	select BOOT_ELF32
 	select HAVE_STD_PC_SERIAL_PORT
 	select DMA_NONCOHERENT
-	select IRQ_CPU
 	select GENERIC_ISA_DMA
+	select IRQ_CPU
 	select HW_HAS_PCI
 	select I8259
 	select MIPS_BOARDS_GEN
@@ -534,7 +534,7 @@ config SGI_IP22
 	select HW_HAS_EISA
 	select IP22_CPU_SCACHE
 	select IRQ_CPU
-	select NO_ISA if ISA
+	select GENERIC_ISA_DMA_SUPPORT_BROKEN
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_R4X00
 	select SYS_HAS_CPU_R5000
@@ -879,6 +879,9 @@ config MIPS_NILE4
 	bool
 
 config MIPS_DISABLE_OBSOLETE_IDE
+	bool
+
+config GENERIC_ISA_DMA_SUPPORT_BROKEN
 	bool
 
 #
@@ -1852,13 +1855,11 @@ source "drivers/pci/Kconfig"
 config ISA
 	bool
 
-config NO_ISA
-	bool
-
 config EISA
 	bool "EISA support"
 	depends on HW_HAS_EISA
 	select ISA
+	select GENERIC_ISA_DMA
 	---help---
 	  The Extended Industry Standard Architecture (EISA) bus was
 	  developed as an open alternative to the IBM MicroChannel bus.
