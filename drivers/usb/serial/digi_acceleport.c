@@ -157,7 +157,7 @@
 *       to TASK_RUNNING will be lost and write_chan's subsequent call to
 *       schedule() will never return (unless it catches a signal).
 *       This race condition occurs because write_bulk_callback() (and thus
-*       the wakeup) are called asynchonously from an interrupt, rather than
+*       the wakeup) are called asynchronously from an interrupt, rather than
 *       from the scheduler.  We can avoid the race by calling the wakeup
 *       from the scheduler queue and that's our fix:  Now, at the end of
 *       write_bulk_callback() we queue up a wakeup call on the scheduler

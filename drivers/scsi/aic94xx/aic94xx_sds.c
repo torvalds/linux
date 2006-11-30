@@ -64,7 +64,7 @@ struct asd_ocm_dir {
 
 #define OCM_INIT_DIR_ENTRIES	5
 /***************************************************************************
-*  OCM dircetory default
+*  OCM directory default
 ***************************************************************************/
 static struct asd_ocm_dir OCMDirInit =
 {
@@ -73,7 +73,7 @@ static struct asd_ocm_dir OCMDirInit =
 };
 
 /***************************************************************************
-*  OCM dircetory Entries default
+*  OCM directory Entries default
 ***************************************************************************/
 static struct asd_ocm_dir_ent OCMDirEntriesInit[OCM_INIT_DIR_ENTRIES] =
 {

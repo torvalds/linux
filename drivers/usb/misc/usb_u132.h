@@ -52,7 +52,7 @@
 * the kernel to load the "u132-hcd" module.
 *
 * The "ftdi-u132" module provides the interface to the inserted
-* PC card and the "u132-hcd" module uses the API to send and recieve
+* PC card and the "u132-hcd" module uses the API to send and receive
 * data. The API features call-backs, so that part of the "u132-hcd"
 * module code will run in the context of one of the kernel threads
 * of the "ftdi-u132" module.
