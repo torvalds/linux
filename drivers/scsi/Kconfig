@@ -1760,6 +1760,16 @@ config ZFCP
           called zfcp. If you want to compile it as a module, say M here
           and read <file:Documentation/modules.txt>.
 
+config SCSI_SRP
+	tristate "SCSI RDMA Protocol helper library"
+	depends on SCSI && PCI
+	select SCSI_TGT
+	help
+	  If you wish to use SRP target drivers, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called libsrp.
+
 endmenu
 
 source "drivers/scsi/pcmcia/Kconfig"
