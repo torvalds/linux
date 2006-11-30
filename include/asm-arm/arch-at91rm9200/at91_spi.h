@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/arch-at91rm9200/at91rm9200_spi.h
+ * include/asm-arm/arch-at91rm9200/at91_spi.h
  *
  * Copyright (C) 2005 Ivan Kokshaysky
  * Copyright (C) SAN People
@@ -13,8 +13,8 @@
  * (at your option) any later version.
  */
 
-#ifndef AT91RM9200_SPI_H
-#define AT91RM9200_SPI_H
+#ifndef AT91_SPI_H
+#define AT91_SPI_H
 
 #define AT91_SPI_CR			0x00		/* Control Register */
 #define		AT91_SPI_SPIEN		(1 <<  0)		/* SPI Enable */
@@ -28,7 +28,7 @@
 #define			AT91_SPI_PS_FIXED	(0 << 1)
 #define			AT91_SPI_PS_VARIABLE	(1 << 1)
 #define		AT91_SPI_PCSDEC		(1    <<  2)		/* Chip Select Decode */
-#define		AT91_SPI_DIV32		(1    <<  3)		/* Clock Selection */
+#define		AT91_SPI_DIV32		(1    <<  3)		/* Clock Selection [AT91RM9200 only] */
 #define		AT91_SPI_MODFDIS	(1    <<  4)		/* Mode Fault Detection */
 #define		AT91_SPI_LLB		(1    <<  7)		/* Local Loopback Enable */
 #define		AT91_SPI_PCS		(0xf  << 16)		/* Peripheral Chip Select */
