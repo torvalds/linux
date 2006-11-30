@@ -410,7 +410,7 @@ static int __init longhaul_get_ranges(void)
 			maxmult=longhaul_get_cpu_mult();
 
 			/* Starting with the 1.2GHz parts, theres a 200MHz bus. */
-			if ((cpu_khz/1000) > 1200)
+			if ((cpu_khz/maxmult) > 13400)
 				fsb = 200;
 			else
 				fsb = eblcr_fsb_table_v2[longhaul.bits.MaxMHzFSB];
