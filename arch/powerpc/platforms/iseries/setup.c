@@ -643,6 +643,8 @@ static int __init iseries_probe(void)
 		return 0;
 
 	hpte_init_iSeries();
+	/* iSeries does not support 16M pages */
+	cur_cpu_spec->cpu_features &= ~CPU_FTR_16M_PAGE;
 
 	return 1;
 }

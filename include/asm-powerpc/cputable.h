@@ -155,16 +155,9 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 
 #ifndef __ASSEMBLY__
 
-#define CPU_FTR_PPCAS_ARCH_V2_BASE (CPU_FTR_SLB | \
-					CPU_FTR_TLBIEL | CPU_FTR_NOEXECUTE | \
-					CPU_FTR_NODSISRALIGN)
-
-/* iSeries doesn't support large pages */
-#ifdef CONFIG_PPC_ISERIES
-#define CPU_FTR_PPCAS_ARCH_V2	(CPU_FTR_PPCAS_ARCH_V2_BASE)
-#else
-#define CPU_FTR_PPCAS_ARCH_V2	(CPU_FTR_PPCAS_ARCH_V2_BASE | CPU_FTR_16M_PAGE)
-#endif /* CONFIG_PPC_ISERIES */
+#define CPU_FTR_PPCAS_ARCH_V2	(CPU_FTR_SLB | \
+				 CPU_FTR_TLBIEL | CPU_FTR_NOEXECUTE | \
+				 CPU_FTR_NODSISRALIGN | CPU_FTR_16M_PAGE)
 
 /* We only set the altivec features if the kernel was compiled with altivec
  * support
