@@ -76,7 +76,7 @@ obj-y				+= iomap.o
 endif
 
 ifeq ($(CONFIG_PPC_ISERIES),y)
-$(obj)/head_64.o: $(obj)/lparmap.s
+extra-y += lparmap.s
 AFLAGS_head_64.o += -I$(obj)
 endif
 
