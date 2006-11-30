@@ -50,12 +50,4 @@ static inline void arch_reset(char mode)
 	for (;;) {}	/* wait fovever */
 }
 
-#define ARCH_ID_AT91RM9200	0x09200080
-#define ARCH_ID_AT91SAM9261	0x019000a0
-
-static inline unsigned long arch_identify(void)
-{
-	return at91_sys_read(AT91_DBGU_CIDR) & (AT91_CIDR_EPROC | AT91_CIDR_ARCH);
-}
-
 #endif

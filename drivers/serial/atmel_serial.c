@@ -138,7 +138,7 @@ static void atmel_set_mctrl(struct uart_port *port, u_int mctrl)
 	unsigned int mode;
 
 #ifdef CONFIG_ARM
-	if (arch_identify() == ARCH_ID_AT91RM9200) {
+	if (cpu_is_at91rm9200()) {
 		/*
 		 * AT91RM9200 Errata #39: RTS0 is not internally connected to PA21.
 		 *  We need to drive the pin manually.
