@@ -972,7 +972,7 @@ config SYSFS
 
 	Some system agents rely on the information in sysfs to operate.
 	/sbin/hotplug uses device and object attributes in sysfs to assist in
-	delegating policy decisions, like persistantly naming devices.
+	delegating policy decisions, like persistently naming devices.
 
 	sysfs is currently used by the block subsystem to mount the root
 	partition.  If sysfs is disabled you must specify the boot device on
