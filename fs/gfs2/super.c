@@ -199,7 +199,7 @@ struct page *gfs2_read_super(struct super_block *sb, sector_t sector)
 		return NULL;
 	}
 
-	bio->bi_sector = sector;
+	bio->bi_sector = sector * (sb->s_blocksize >> 9);
 	bio->bi_bdev = sb->s_bdev;
 	bio_add_page(bio, page, PAGE_SIZE, 0);
 
