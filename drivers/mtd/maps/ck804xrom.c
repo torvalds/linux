@@ -26,7 +26,7 @@
 
 #define ADDRESS_NAME_LEN 18
 
-#define ROM_PROBE_STEP_SIZE (64*1024) 
+#define ROM_PROBE_STEP_SIZE (64*1024)
 
 struct ck804xrom_window {
 	void __iomem *virt;

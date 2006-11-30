@@ -283,7 +283,7 @@ static void s3c2410_nand_hwcontrol(struct mtd_info *mtd, int cmd,
 				   unsigned int ctrl)
 {
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
-	
+
 	if (cmd == NAND_CMD_NONE)
 		return;
 

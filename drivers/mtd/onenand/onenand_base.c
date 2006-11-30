@@ -406,7 +406,7 @@ static int onenand_try_interrupt_wait(struct mtd_info *mtd, int state)
 
 		/* Release the irq */
 		free_irq(this->irq, this);
-		
+
 		this->wait = onenand_wait;
 	}
 

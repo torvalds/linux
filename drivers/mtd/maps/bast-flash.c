@@ -131,7 +131,7 @@ static int bast_flash_probe(struct platform_device *pdev)
 
 	info->map.phys = res->start;
 	info->map.size = res->end - res->start + 1;
-	info->map.name = pdev->dev.bus_id;	
+	info->map.name = pdev->dev.bus_id;
 	info->map.bankwidth = 2;
 
 	if (info->map.size > AREA_MAXSIZE)

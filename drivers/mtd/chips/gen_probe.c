@@ -40,7 +40,7 @@ struct mtd_info *mtd_do_chip_probe(struct map_info *map, struct chip_probe *cp)
 	if (mtd) {
 		if (mtd->size > map->size) {
 			printk(KERN_WARNING "Reducing visibility of %ldKiB chip to %ldKiB\n",
-			       (unsigned long)mtd->size >> 10, 
+			       (unsigned long)mtd->size >> 10,
 			       (unsigned long)map->size >> 10);
 			mtd->size = map->size;
 		}

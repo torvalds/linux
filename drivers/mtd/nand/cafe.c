@@ -1,4 +1,4 @@
-/* 
+/*
  * Driver for One Laptop Per Child ‘CAFÉ’ controller, aka Marvell 88ALP01
  *
  * Copyright © 2006 Red Hat, Inc.
@@ -60,7 +60,6 @@ struct cafe_priv {
 	int page_addr;
 	dma_addr_t dmaaddr;
 	unsigned char *dmabuf;
-	
 };
 
 static int usedma = 1;
@@ -217,7 +216,7 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		ctl1 |= ((adrbytes-1)|8) << 27;
 
 	if (command == NAND_CMD_SEQIN || command == NAND_CMD_ERASE1) {
-		/* Ignore the first command of a pair; the hardware 
+		/* Ignore the first command of a pair; the hardware
 		   deals with them both at once, later */
 		cafe->ctl1 = ctl1;
 		cafe_dev_dbg(&cafe->pdev->dev, "Setup for delayed command, ctl1 %08x, dlen %x\n",
@@ -231,7 +230,7 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		cafe_writel(cafe, cafe->ctl2 | 0x100 | NAND_CMD_READSTART, NAND_CTRL2);
 
  do_command:
-	cafe_dev_dbg(&cafe->pdev->dev, "dlen %x, ctl1 %x, ctl2 %x\n", 
+	cafe_dev_dbg(&cafe->pdev->dev, "dlen %x, ctl1 %x, ctl2 %x\n",
 		cafe->datalen, ctl1, cafe_readl(cafe, NAND_CTRL2));
 
 	/* NB: The datasheet lies -- we really should be subtracting 1 here */
@@ -380,7 +379,7 @@ static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 			uint32_t tmp = cafe_readl(cafe, NAND_ECC_SYN01 + (i*2));
 			syn[i] = tmp & 0xfff;
 			syn[i+1] = (tmp >> 16) & 0xfff;
-		} 
+		}
 
 		if ((i = cafe_correct_ecc(buf, syn)) < 0) {
 			dev_dbg(&cafe->pdev->dev, "Failed to correct ECC at %08x\n",
@@ -404,7 +403,7 @@ static struct nand_ecclayout cafe_oobinfo_2048 = {
 	.oobfree = {{14, 50}}
 };
 
-/* Ick. The BBT code really ought to be able to work this bit out 
+/* Ick. The BBT code really ought to be able to work this bit out
    for itself from the above, at least for the 2KiB case */
 static uint8_t cafe_bbt_pattern_2048[] = { 'B', 'b', 't', '0' };
 static uint8_t cafe_mirror_pattern_2048[] = { '1', 't', 'b', 'B' };
@@ -579,7 +578,7 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 		cafe->nand.options |= NAND_SKIP_BBTSCAN;
 		cafe->nand.block_bad = cafe_nand_block_bad;
 	}
-	
+
 	/* Start off by resetting the NAND controller completely */
 	cafe_writel(cafe, 1, NAND_RESET);
 	cafe_writel(cafe, 0, NAND_RESET);
@@ -600,7 +599,7 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 	err = request_irq(pdev->irq, &cafe_nand_interrupt, SA_SHIRQ, "CAFE NAND", mtd);
 	if (err) {
 		dev_warn(&pdev->dev, "Could not register IRQ %d\n", pdev->irq);
-		
+
 		goto out_free_dma;
 	}
 #if 1
@@ -654,7 +653,7 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 	writel(0x84600070, cafe->mmio);
 	udelay(10);
 	cafe_dev_dbg(&cafe->pdev->dev, "Status %x\n", cafe_readl(cafe, NAND_NONMEM));
-#endif		
+#endif
 	/* Scan to find existance of the device */
 	if (nand_scan_ident(mtd, 1)) {
 		err = -ENXIO;

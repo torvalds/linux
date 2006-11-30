@@ -11,7 +11,7 @@
  * published by the Free Software Foundation.
  *
  *  Overview:
- *   This is a device driver for the NAND flash controller found on 
+ *   This is a device driver for the NAND flash controller found on
  *   the AMD CS5535/CS5536 companion chipsets for the Geode processor.
  *
  */
@@ -303,7 +303,7 @@ static int __init cs553x_init(void)
 			err = cs553x_init_one(i, !!(val & FLSH_MEM_IO), val & 0xFFFFFFFF);
 	}
 
-	/* Register all devices together here. This means we can easily hack it to 
+	/* Register all devices together here. This means we can easily hack it to
 	   do mtdconcat etc. if we want to. */
 	for (i = 0; i < NR_CS553X_CONTROLLERS; i++) {
 		if (cs553x_mtd[i]) {
