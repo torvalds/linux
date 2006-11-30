@@ -957,11 +957,7 @@ hfsc_purge_queue(struct Qdisc *sch, struct hfsc_class *cl)
 	unsigned int len = cl->qdisc->q.qlen;
 
 	qdisc_reset(cl->qdisc);
-	if (len > 0) {
-		update_vf(cl, 0, 0);
-		set_passive(cl);
-		sch->q.qlen -= len;
-	}
+	qdisc_tree_decrease_qlen(cl->qdisc, len);
 }
 
 static void
@@ -1293,6 +1289,17 @@ hfsc_class_leaf(struct Qdisc *sch, unsigned long arg)
 		return cl->qdisc;
 
 	return NULL;
+}
+
+static void
+hfsc_qlen_notify(struct Qdisc *sch, unsigned long arg)
+{
+	struct hfsc_class *cl = (struct hfsc_class *)arg;
+
+	if (cl->qdisc->q.qlen == 0) {
+		update_vf(cl, 0, 0);
+		set_passive(cl);
+	}
 }
 
 static unsigned long
@@ -1779,6 +1786,7 @@ static struct Qdisc_class_ops hfsc_class_ops = {
 	.delete		= hfsc_delete_class,
 	.graft		= hfsc_graft_class,
 	.leaf		= hfsc_class_leaf,
+	.qlen_notify	= hfsc_qlen_notify,
 	.get		= hfsc_get_class,
 	.put		= hfsc_put_class,
 	.bind_tcf	= hfsc_bind_tcf,
