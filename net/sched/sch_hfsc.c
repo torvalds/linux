@@ -946,6 +946,7 @@ qdisc_peek_len(struct Qdisc *sch)
 	if (unlikely(sch->ops->requeue(skb, sch) != NET_XMIT_SUCCESS)) {
 		if (net_ratelimit())
 			printk("qdisc_peek_len: failed to requeue\n");
+		qdisc_tree_decrease_qlen(sch, 1);
 		return 0;
 	}
 	return len;

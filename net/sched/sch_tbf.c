@@ -250,7 +250,7 @@ static struct sk_buff *tbf_dequeue(struct Qdisc* sch)
 
 		if (q->qdisc->ops->requeue(skb, q->qdisc) != NET_XMIT_SUCCESS) {
 			/* When requeue fails skb is dropped */
-			sch->q.qlen--;
+			qdisc_tree_decrease_qlen(q->qdisc, 1);
 			sch->qstats.drops++;
 		}
 

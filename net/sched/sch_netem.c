@@ -287,13 +287,10 @@ static struct sk_buff *netem_dequeue(struct Qdisc *sch)
 			psched_tdiff_t delay = PSCHED_TDIFF(cb->time_to_send, now);
 
 			if (q->qdisc->ops->requeue(skb, q->qdisc) != NET_XMIT_SUCCESS) {
+				qdisc_tree_decrease_qlen(q->qdisc, 1);
 				sch->qstats.drops++;
-
-				/* After this qlen is confused */
 				printk(KERN_ERR "netem: queue discpline %s could not requeue\n",
 				       q->qdisc->ops->id);
-
-				sch->q.qlen--;
 			}
 
 			mod_timer(&q->timer, jiffies + PSCHED_US2JIFFIE(delay));
