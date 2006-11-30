@@ -1687,7 +1687,7 @@ static int cbq_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 		sch_tree_lock(sch);
 		*old = cl->q;
 		cl->q = new;
-		sch->q.qlen -= (*old)->q.qlen;
+		qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
 		qdisc_reset(*old);
 		sch_tree_unlock(sch);
 

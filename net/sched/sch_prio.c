@@ -222,8 +222,10 @@ static int prio_tune(struct Qdisc *sch, struct rtattr *opt)
 
 	for (i=q->bands; i<TCQ_PRIO_BANDS; i++) {
 		struct Qdisc *child = xchg(&q->queues[i], &noop_qdisc);
-		if (child != &noop_qdisc)
+		if (child != &noop_qdisc) {
+			qdisc_tree_decrease_qlen(child, child->q.qlen);
 			qdisc_destroy(child);
+		}
 	}
 	sch_tree_unlock(sch);
 
@@ -236,8 +238,11 @@ static int prio_tune(struct Qdisc *sch, struct rtattr *opt)
 				sch_tree_lock(sch);
 				child = xchg(&q->queues[i], child);
 
-				if (child != &noop_qdisc)
+				if (child != &noop_qdisc) {
+					qdisc_tree_decrease_qlen(child,
+								 child->q.qlen);
 					qdisc_destroy(child);
+				}
 				sch_tree_unlock(sch);
 			}
 		}
@@ -295,7 +300,7 @@ static int prio_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 	sch_tree_lock(sch);
 	*old = q->queues[band];
 	q->queues[band] = new;
-	sch->q.qlen -= (*old)->q.qlen;
+	qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
 	qdisc_reset(*old);
 	sch_tree_unlock(sch);
 
