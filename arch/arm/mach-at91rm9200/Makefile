@@ -2,7 +2,7 @@
 # Makefile for the linux kernel.
 #
 
-obj-y		:= clock.o irq.o gpio.o devices.o
+obj-y		:= clock.o irq.o gpio.o
 obj-m		:=
 obj-n		:=
 obj-		:=
@@ -10,7 +10,7 @@ obj-		:=
 obj-$(CONFIG_PM)		+= pm.o
 
 # CPU-specific support
-obj-$(CONFIG_ARCH_AT91RM9200)	+= at91rm9200.o at91rm9200_time.o
+obj-$(CONFIG_ARCH_AT91RM9200)	+= at91rm9200.o at91rm9200_time.o at91rm9200_devices.c
 obj-$(CONFIG_ARCH_AT91SAM9260)	+=
 obj-$(CONFIG_ARCH_AT91SAM9261)	+=
 

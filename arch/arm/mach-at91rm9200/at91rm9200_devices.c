@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-at91rm9200/devices.c
+ * arch/arm/mach-at91rm9200/at91rm9200_devices.c
  *
  *  Copyright (C) 2005 Thibaut VARENE <varenet@parisc-linux.org>
  *  Copyright (C) 2005 David Brownell
