@@ -412,7 +412,7 @@ beta-2.1.4 Jul 2000		o Dynamic interface configuration:
 
 beta3-2.1.4 Jul 2000		o X25 M_BIT Problem fix.
 				o Added the Multi-Port PPP
-				  Updated utilites for the Multi-Port PPP.
+				  Updated utilities for the Multi-Port PPP.
 
 2.1.4	Aut 2000
 				o In X25API:
@@ -450,7 +450,7 @@ beta1-2.1.5 	Nov 15 2000
 
 
 				o Keyboard Led Monitor/Debugger
-					- A new utilty /usr/sbin/wpkbdmon uses keyboard leds
+					- A new utility /usr/sbin/wpkbdmon uses keyboard leds
 					  to convey operational statistic information of the 
 					  Sangoma WANPIPE cards.
 					NUM_LOCK    = Line State  (On=connected,    Off=disconnected)

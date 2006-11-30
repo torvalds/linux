@@ -699,7 +699,7 @@ ACPI integration
 Dax Kelson submitted this so that the ACPI acpid daemon will
 kick off the laptop_mode script and run hdparm. The part that
 automatically disables laptop mode when the battery is low was
-writen by Jan Topinski.
+written by Jan Topinski.
 
 -----------------/etc/acpi/events/ac_adapter BEGIN------------------------------
 event=ac_adapter

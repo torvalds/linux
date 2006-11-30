@@ -103,7 +103,7 @@ LEFT=0x74 & RIGHT=0x75).
 
 5.1 Joystick Event Reporting
 
-In this mode, the ikbd generates a record whever the joystick position is
+In this mode, the ikbd generates a record whenever the joystick position is
 changed (i.e. for each opening or closing of a joystick switch or trigger).
 
 The joystick event record is two bytes of the form:

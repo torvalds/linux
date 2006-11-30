@@ -1220,9 +1220,9 @@ applications are using mlock(), or if you are running with no swap then
 you probably should increase the lower_zone_protection setting.
 
 The units of this tunable are fairly vague.  It is approximately equal
-to "megabytes".  So setting lower_zone_protection=100 will protect around 100
+to "megabytes," so setting lower_zone_protection=100 will protect around 100
 megabytes of the lowmem zone from user allocations.  It will also make
-those 100 megabytes unavaliable for use by applications and by
+those 100 megabytes unavailable for use by applications and by
 pagecache, so there is a cost.
 
 The effects of this tunable may be observed by monitoring

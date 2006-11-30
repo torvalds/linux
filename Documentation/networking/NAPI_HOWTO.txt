@@ -601,7 +601,7 @@ a)
 	
 5) dev->close() and dev->suspend() issues
 ==========================================
-The driver writter neednt worry about this. The top net layer takes
+The driver writer needn't worry about this; the top net layer takes
 care of it.
 
 6) Adding new Stats to /proc 
@@ -622,9 +622,9 @@ FC should be programmed to apply in the case when the system cant pull out
 packets fast enough i.e send a pause only when you run out of rx buffers.
 Note FC in itself is a good solution but we have found it to not be
 much of a commodity feature (both in NICs and switches) and hence falls
-under the same category as using NIC based mitigation. Also experiments
-indicate that its much harder to resolve the resource allocation
-issue (aka lazy receiving that NAPI offers) and hence quantify its usefullness
+under the same category as using NIC based mitigation. Also, experiments
+indicate that it's much harder to resolve the resource allocation
+issue (aka lazy receiving that NAPI offers) and hence quantify its usefulness
 proved harder. In any case, FC works even better with NAPI but is not
 necessary.
 

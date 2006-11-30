@@ -62,7 +62,7 @@ res           : root device I/O resource
 bus_base_addr : slot 0 address on this bus
 slots	      : max slot number to probe
 force_probe   : Probe even when slot 0 is empty (no EISA mainboard)
-dma_mask      : Default DMA mask. Usualy the bridge device dma_mask.
+dma_mask      : Default DMA mask. Usually the bridge device dma_mask.
 bus_nr	      : unique bus id, set by eisa_root_register
 
 ** Driver :

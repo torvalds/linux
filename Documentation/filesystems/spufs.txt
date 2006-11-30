@@ -210,7 +210,7 @@ FILES
    /signal2
        The two signal notification channels of an SPU.  These  are  read-write
        files  that  operate  on  a 32 bit word.  Writing to one of these files
-       triggers an interrupt on the SPU. The  value  writting  to  the  signal
+       triggers an interrupt on the SPU.  The  value  written  to  the  signal
        files can be read from the SPU through a channel read or from host user
        space through the file.  After the value has been read by the  SPU,  it
        is  reset  to zero.  The possible operations on an open signal1 or sig-

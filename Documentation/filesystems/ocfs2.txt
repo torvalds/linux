@@ -30,7 +30,7 @@ Caveats
 Features which OCFS2 does not support yet:
 	- sparse files
 	- extended attributes
-	- shared writeable mmap
+	- shared writable mmap
 	- loopback is supported, but data written will not
 	  be cluster coherent.
 	- quotas

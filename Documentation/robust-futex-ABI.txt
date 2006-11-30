@@ -170,7 +170,7 @@ any point:
  1) the 'head' pointer or an subsequent linked list pointer
     is not a valid address of a user space word
  2) the calculated location of the 'lock word' (address plus
-    'offset') is not the valud address of a 32 bit user space
+    'offset') is not the valid address of a 32 bit user space
     word
  3) if the list contains more than 1 million (subject to
     future kernel configuration changes) elements.

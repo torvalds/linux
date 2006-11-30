@@ -122,12 +122,12 @@ of atomicity).
 
 However, maintaining per-process, in addition to per-task stats, within the
 kernel has space and time overheads. To address this, the taskstats code
-accumalates each exiting task's statistics into a process-wide data structure.
-When the last task of a process exits, the process level data accumalated also
+accumulates each exiting task's statistics into a process-wide data structure.
+When the last task of a process exits, the process level data accumulated also
 gets sent to userspace (along with the per-task data).
 
 When a user queries to get per-tgid data, the sum of all other live threads in
-the group is added up and added to the accumalated total for previously exited
+the group is added up and added to the accumulated total for previously exited
 threads of the same thread group.
 
 Extending taskstats

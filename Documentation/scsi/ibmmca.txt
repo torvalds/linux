@@ -461,7 +461,7 @@
       This needs the RD-Bit to be disabled on IM_OTHER_SCSI_CMD_CMD which 
       allows data to be written from the system to the device. It is a
       necessary step to be allowed to set blocksize of SCSI-tape-drives and 
-      the tape-speed, whithout confusing the SCSI-Subsystem.
+      the tape-speed, without confusing the SCSI-Subsystem.
    2) The recognition of a tape is included in the check_devices routine.
       This is done by checking for TYPE_TAPE, that is already defined in
       the kernel-scsi-environment. The markup of a tape is done in the 
