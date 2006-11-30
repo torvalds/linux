@@ -1269,9 +1269,9 @@ static void htb_destroy_filters(struct tcf_proto **fl)
 static void htb_destroy_class(struct Qdisc *sch, struct htb_class *cl)
 {
 	struct htb_sched *q = qdisc_priv(sch);
+
 	if (!cl->level) {
 		BUG_TRAP(cl->un.leaf.q);
-		sch->q.qlen -= cl->un.leaf.q->q.qlen;
 		qdisc_destroy(cl->un.leaf.q);
 	}
 	qdisc_put_rtab(cl->rate);
@@ -1333,6 +1333,11 @@ static int htb_delete(struct Qdisc *sch, unsigned long arg)
 
 	/* delete from hash and active; remainder in destroy_class */
 	hlist_del_init(&cl->hlist);
+
+	if (!cl->level) {
+		sch->q.qlen -= cl->un.leaf.q->q.qlen;
+		qdisc_reset(cl->un.leaf.q);
+	}
 
 	if (cl->prio_activity)
 		htb_deactivate(q, cl);
