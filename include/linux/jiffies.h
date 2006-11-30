@@ -74,7 +74,7 @@
 #define __jiffy_data  __attribute__((section(".data")))
 
 /*
- * The 64-bit value is not volatile - you MUST NOT read it
+ * The 64-bit value is not atomic - you MUST NOT read it
  * without sampling the sequence number in xtime_lock.
  * get_jiffies_64() will do this for you as appropriate.
  */
