@@ -121,7 +121,7 @@ contains the following options:
 MAX_AGE:
 
 Maximum time, in seconds, of hard drive spindown time that you are
-confortable with. Worst case, it's possible that you could lose this
+comfortable with. Worst case, it's possible that you could lose this
 amount of work if your battery fails while you're in laptop mode.
 
 MINIMUM_BATTERY_MINUTES:
@@ -235,7 +235,7 @@ It should be installed as /etc/default/laptop-mode on Debian, and as
 
 --------------------CONFIG FILE BEGIN-------------------------------------------
 # Maximum time, in seconds, of hard drive spindown time that you are
-# confortable with. Worst case, it's possible that you could lose this
+# comfortable with. Worst case, it's possible that you could lose this
 # amount of work if your battery fails you while in laptop mode.
 #MAX_AGE=600
 
@@ -350,7 +350,7 @@ fi
 # set defaults instead:
 
 # Maximum time, in seconds, of hard drive spindown time that you are
-# confortable with. Worst case, it's possible that you could lose this
+# comfortable with. Worst case, it's possible that you could lose this
 # amount of work if your battery fails you while in laptop mode.
 MAX_AGE=${MAX_AGE:-'600'}
 

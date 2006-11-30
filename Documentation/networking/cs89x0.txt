@@ -620,8 +620,8 @@ I/O Address    	Device                        IRQ      Device
                                                 12       Mouse (PS/2)                              
 Memory Address  Device                          13       Math Coprocessor
 --------------  ---------------------           14       Hard Disk controller
-A000-BFFF	EGA Graphics Adpater
-A000-C7FF	VGA Graphics Adpater
+A000-BFFF	EGA Graphics Adapter
+A000-C7FF	VGA Graphics Adapter
 B000-BFFF	Mono Graphics Adapter
 B800-BFFF	Color Graphics Adapter
 E000-FFFF	AT BIOS

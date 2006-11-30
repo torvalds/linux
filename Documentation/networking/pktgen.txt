@@ -63,8 +63,8 @@ Current:
 Result: OK: 13101142(c12220741+d880401) usec, 10000000 (60byte,0frags)
   763292pps 390Mb/sec (390805504bps) errors: 39664
 
-Confguring threads and devices
-==============================
+Configuring threads and devices
+================================
 This is done via the /proc interface easiest done via pgset in the scripts
 
 Examples:

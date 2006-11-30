@@ -183,7 +183,7 @@ it, the pci dma mapping routines and associated data structures have now been
 modified to accomplish a direct page -> bus translation, without requiring
 a virtual address mapping (unlike the earlier scheme of virtual address
 -> bus translation). So this works uniformly for high-memory pages (which
-do not have a correponding kernel virtual address space mapping) and
+do not have a corresponding kernel virtual address space mapping) and
 low-memory pages.
 
 Note: Please refer to DMA-mapping.txt for a discussion on PCI high mem DMA
@@ -1013,7 +1013,7 @@ Characteristics:
 i. Binary tree
 AS and deadline i/o schedulers use red black binary trees for disk position
 sorting and searching, and a fifo linked list for time-based searching. This
-gives good scalability and good availablility of information. Requests are
+gives good scalability and good availability of information. Requests are
 almost always dispatched in disk sort order, so a cache is kept of the next
 request in sort order to prevent binary tree lookups.
 

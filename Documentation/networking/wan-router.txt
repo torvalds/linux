@@ -444,7 +444,7 @@ beta1-2.1.5 	Nov 15 2000
 					
 				o Cpipemon
 					- Added set FT1 commands to the cpipemon. Thus CSU/DSU
-					  configuraiton can be performed using cpipemon.
+					  configuration can be performed using cpipemon.
 					  All systems that cannot run cfgft1 GUI utility should
 					  use cpipemon to configure the on board CSU/DSU.
 
@@ -464,7 +464,7 @@ beta1-2.1.5 	Nov 15 2000
 					- Appropriate number of devices are dynamically loaded 
 					  based on the number of Sangoma cards found.
 
-					  Note: The kernel configuraiton option 
+					  Note: The kernel configuration option 
 						CONFIG_WANPIPE_CARDS has been taken out.
 					
 				o Fixed the Frame Relay and Chdlc network interfaces so they are

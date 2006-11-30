@@ -54,8 +54,8 @@ additional_cpus=n (*)	Use this to limit hotpluggable cpus. This option sets
 
 ia64 and x86_64 use the number of disabled local apics in ACPI tables MADT
 to determine the number of potentially hot-pluggable cpus. The implementation
-should only rely on this to count the #of cpus, but *MUST* not rely on the
-apicid values in those tables for disabled apics. In the event BIOS doesnt
+should only rely on this to count the # of cpus, but *MUST* not rely on the
+apicid values in those tables for disabled apics. In the event BIOS doesn't
 mark such hot-pluggable cpus as disabled entries, one could use this
 parameter "additional_cpus=x" to represent those cpus in the cpu_possible_map.
 

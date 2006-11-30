@@ -92,7 +92,7 @@ Your cooperation is appreciated.
 		  7 = /dev/full		Returns ENOSPC on write
 		  8 = /dev/random	Nondeterministic random number gen.
 		  9 = /dev/urandom	Faster, less secure random number gen.
-		 10 = /dev/aio		Asyncronous I/O notification interface
+		 10 = /dev/aio		Asynchronous I/O notification interface
 		 11 = /dev/kmsg		Writes to this come out as printk's
   1 block	RAM disk
 		  0 = /dev/ram0		First RAM disk
@@ -1093,7 +1093,7 @@ Your cooperation is appreciated.
 
  55 char	DSP56001 digital signal processor
 		  0 = /dev/dsp56k	First DSP56001
- 55 block	Mylex DAC960 PCI RAID controller; eigth controller
+ 55 block	Mylex DAC960 PCI RAID controller; eighth controller
 		  0 = /dev/rd/c7d0	First disk, whole disk
 		  8 = /dev/rd/c7d1	Second disk, whole disk
 		    ...
@@ -1456,7 +1456,7 @@ Your cooperation is appreciated.
 		  1 = /dev/cum1		Callout device for ttyM1
 		    ...
 
- 79 block	Compaq Intelligent Drive Array, eigth controller
+ 79 block	Compaq Intelligent Drive Array, eighth controller
 		  0 = /dev/ida/c7d0	First logical drive whole disk
 		 16 = /dev/ida/c7d1	Second logical drive whole disk
 		    ...
@@ -1900,7 +1900,7 @@ Your cooperation is appreciated.
 		  1 = /dev/av1		Second A/V card
 		    ...
 
-111 block	Compaq Next Generation Drive Array, eigth controller
+111 block	Compaq Next Generation Drive Array, eighth controller
 		  0 = /dev/cciss/c7d0	First logical drive, whole disk
 		 16 = /dev/cciss/c7d1	Second logical drive, whole disk
 		    ...

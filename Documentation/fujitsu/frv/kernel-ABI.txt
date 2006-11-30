@@ -156,7 +156,7 @@ with the main kernel in this regard. Hence the debug mode code (gdbstub) is
 almost completely self-contained. The only external code used is the
 sprintf family of functions.
 
-Futhermore, break.S is so complicated because single-step mode does not
+Furthermore, break.S is so complicated because single-step mode does not
 switch off on entry to an exception. That means unless manually disabled,
 single-stepping will blithely go on stepping into things like interrupts.
 See gdbstub.txt for more information.

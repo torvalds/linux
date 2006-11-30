@@ -535,11 +535,11 @@ done:
         * 1. it can race with disabling irqs in irq handler (which are done to 
 	* schedule polls)
         * 2. it can race with dis/enabling irqs in other poll threads
-        * 3. if an irq raised after the begining of the outer  beginning 
-        * loop(marked in the code above), it will be immediately
+        * 3. if an irq raised after the beginning of the outer beginning 
+        * loop (marked in the code above), it will be immediately
         * triggered here.
         *
-        * Summarizing: the logic may results in some redundant irqs both
+        * Summarizing: the logic may result in some redundant irqs both
         * due to races in masking and due to too late acking of already
         * processed irqs. The good news: no events are ever lost.
         */
