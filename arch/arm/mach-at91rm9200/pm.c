@@ -112,7 +112,6 @@ EXPORT_SYMBOL(at91_suspend_entering_slow_clock);
 static void (*slow_clock)(void);
 
 
-
 static int at91_pm_enter(suspend_state_t state)
 {
 	at91_gpio_suspend();
@@ -123,13 +122,7 @@ static int at91_pm_enter(suspend_state_t state)
 			(at91_sys_read(AT91_PMC_PCSR)
 					| (1 << AT91_ID_FIQ)
 					| (1 << AT91_ID_SYS)
-					| (1 << AT91RM9200_ID_IRQ0)
-					| (1 << AT91RM9200_ID_IRQ1)
-					| (1 << AT91RM9200_ID_IRQ2)
-					| (1 << AT91RM9200_ID_IRQ3)
-					| (1 << AT91RM9200_ID_IRQ4)
-					| (1 << AT91RM9200_ID_IRQ5)
-					| (1 << AT91RM9200_ID_IRQ6))
+					| (at91_extern_irq))
 				& at91_sys_read(AT91_AIC_IMR),
 			state);
 

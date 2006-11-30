@@ -47,6 +47,10 @@ static void at91_aic_unmask_irq(unsigned int irq)
 	at91_sys_write(AT91_AIC_IECR, 1 << irq);
 }
 
+unsigned int at91_extern_irq;
+
+#define is_extern_irq(irq) ((1 << (irq)) & at91_extern_irq)
+
 static int at91_aic_set_type(unsigned irq, unsigned type)
 {
 	unsigned int smr, srctype;
@@ -59,14 +63,16 @@ static int at91_aic_set_type(unsigned irq, unsigned type)
 		srctype = AT91_AIC_SRCTYPE_RISING;
 		break;
 	case IRQT_LOW:
-		if ((irq > AT91_ID_FIQ) && (irq < AT91RM9200_ID_IRQ0))	/* only supported on external interrupts */
+		if ((irq == AT91_ID_FIQ) || is_extern_irq(irq))		/* only supported on external interrupts */
+			srctype = AT91_AIC_SRCTYPE_LOW;
+		else
 			return -EINVAL;
-		srctype = AT91_AIC_SRCTYPE_LOW;
 		break;
 	case IRQT_FALLING:
-		if ((irq > AT91_ID_FIQ) && (irq < AT91RM9200_ID_IRQ0))	/* only supported on external interrupts */
+		if ((irq == AT91_ID_FIQ) || is_extern_irq(irq))		/* only supported on external interrupts */
+			srctype = AT91_AIC_SRCTYPE_FALLING;
+		else
 			return -EINVAL;
-		srctype = AT91_AIC_SRCTYPE_FALLING;
 		break;
 	default:
 		return -EINVAL;
