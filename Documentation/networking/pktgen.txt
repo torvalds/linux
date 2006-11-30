@@ -116,7 +116,7 @@ Examples:
 					 there must be no spaces between the
 					 arguments. Leading zeros are required.
 					 Do not set the bottom of stack bit,
-					 thats done automatically. If you do
+					 that's done automatically. If you do
 					 set the bottom of stack bit, that
 					 indicates that you want to randomly
 					 generate that address and the flag

@@ -920,7 +920,7 @@
       completed in such a way, that they are now completely conform to the
       demands in the technical description of IBM. Main candidates were the
       DEVICE_INQUIRY, REQUEST_SENSE and DEVICE_CAPACITY commands. They must
-      be tranferred by bypassing the internal command buffer of the adapter
+      be transferred by bypassing the internal command buffer of the adapter
       or else the response can be a random result. GET_POS_INFO would be more
       safe in usage, if one could use the SUPRESS_EXCEPTION_SHORT, but this
       is not allowed by the technical references of IBM. (Sorry, folks, the

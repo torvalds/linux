@@ -1538,10 +1538,10 @@ TCP settings
 tcp_ecn
 -------
 
-This file controls the use of the ECN bit in the IPv4 headers, this is a new
+This file controls the use of the ECN bit in the IPv4 headers. This is a new
 feature about Explicit Congestion Notification, but some routers and firewalls
-block trafic that has this bit set, so it could be necessary to echo 0 to
-/proc/sys/net/ipv4/tcp_ecn, if you want to talk to this sites. For more info
+block traffic that has this bit set, so it could be necessary to echo 0 to
+/proc/sys/net/ipv4/tcp_ecn if you want to talk to these sites. For more info
 you could read RFC2481.
 
 tcp_retrans_collapse

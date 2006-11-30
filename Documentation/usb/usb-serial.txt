@@ -175,7 +175,7 @@ Keyspan USA-series Serial Adapters
   
   Current status:
     The USA-18X, USA-28X, USA-19, USA-19W and USA-49W are supported and
-    have been pretty throughly tested at various baud rates with 8-N-1
+    have been pretty thoroughly tested at various baud rates with 8-N-1
     character settings.  Other character lengths and parity setups are
     presently untested.
 
@@ -253,7 +253,7 @@ Cypress M8 CY4601 Family Serial Driver
 	together without hacking the adapter to set the line high.
 
 	The driver is smp safe.  Performance with the driver is rather low when using
-	it for transfering files.  This is being worked on, but I would be willing to
+	it for transferring files.  This is being worked on, but I would be willing to
 	accept patches.  An urb queue or packet buffer would likely fit the bill here.
 
 	If you have any questions, problems, patches, feature requests, etc. you can

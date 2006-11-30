@@ -127,7 +127,7 @@ The following information is available in this file:
         - Correct a reference to free'ed memory during controller
           shutdown.
         - Reset the bus on an SE->LVD change.  This is required
-          to reset our transcievers.
+          to reset our transceivers.
 
    1.3.5 (March 24th, 2003)
         - Fix a few register window mode bugs.
