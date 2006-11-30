@@ -1095,8 +1095,7 @@ static int pwc_video_open(struct inode *inode, struct file *file)
 	PWC_DEBUG_OPEN(">> video_open called(vdev = 0x%p).\n", vdev);
 
 	pdev = (struct pwc_device *)vdev->priv;
-	if (pdev == NULL)
-		BUG();
+	BUG_ON(!pdev);
 	if (pdev->vopen) {
 		PWC_DEBUG_OPEN("I'm busy, someone is using the device.\n");
 		return -EBUSY;
