@@ -381,17 +381,21 @@ static inline void local_r4k_flush_cache_mm(void * args)
 	if (!cpu_context(smp_processor_id(), mm))
 		return;
 
-	r4k_blast_dcache();
-
 	/*
 	 * Kludge alert.  For obscure reasons R4000SC and R4400SC go nuts if we
 	 * only flush the primary caches but R10000 and R12000 behave sane ...
+	 * R4000SC and R4400SC indexed S-cache ops also invalidate primary
+	 * caches, so we can bail out early.
 	 */
 	if (current_cpu_data.cputype == CPU_R4000SC ||
 	    current_cpu_data.cputype == CPU_R4000MC ||
 	    current_cpu_data.cputype == CPU_R4400SC ||
-	    current_cpu_data.cputype == CPU_R4400MC)
+	    current_cpu_data.cputype == CPU_R4400MC) {
 		r4k_blast_scache();
+		return;
+	}
+
+	r4k_blast_dcache();
 }
 
 static void r4k_flush_cache_mm(struct mm_struct *mm)
