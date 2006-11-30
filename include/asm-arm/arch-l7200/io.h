@@ -17,34 +17,7 @@
 /*
  * There are not real ISA nor PCI buses, so we fake it.
  */
-#define __io_pci(a)		((void __iomem *)(PCIO_BASE + (a)))
 #define __mem_pci(a)		(a)
-
-#define __ioaddr(p)             __io_pci(p)
-
-/*
- * Generic virtual read/write
- */
-#define __arch_getb(a)          (*(volatile unsigned char *)(a))
-#define __arch_getl(a)          (*(volatile unsigned int  *)(a))
-
-static inline unsigned int __arch_getw(unsigned long a)
-{
-	unsigned int value;
-	__asm__ __volatile__("ldrh    %0, [%1, #0]    @ getw"
-		: "=&r" (value)
-		: "r" (a) : "cc");
-	return value;
-}
-
-#define __arch_putb(v,a)        (*(volatile unsigned char *)(a) = (v))
-#define __arch_putl(v,a)        (*(volatile unsigned int  *)(a) = (v))
-
-static inline void __arch_putw(unsigned int value, unsigned long a)
-{
-        __asm__ __volatile__("strh    %0, [%1, #0]    @ putw"
-                : : "r" (value), "r" (a) : "cc");
-}
 
 /*
  * Translated address IO functions
