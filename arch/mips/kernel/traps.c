@@ -399,19 +399,6 @@ asmlinkage void do_be(struct pt_regs *regs)
 	force_sig(SIGBUS, current);
 }
 
-static inline int get_insn_opcode(struct pt_regs *regs, unsigned int *opcode)
-{
-	unsigned int __user *epc;
-
-	epc = (unsigned int __user *) regs->cp0_epc +
-	      ((regs->cp0_cause & CAUSEF_BD) != 0);
-	if (!get_user(*opcode, epc))
-		return 0;
-
-	force_sig(SIGSEGV, current);
-	return 1;
-}
-
 /*
  * ll/sc emulation
  */
@@ -546,8 +533,8 @@ static inline int simulate_llsc(struct pt_regs *regs)
 {
 	unsigned int opcode;
 
-	if (unlikely(get_insn_opcode(regs, &opcode)))
-		return -EFAULT;
+	if (get_user(opcode, (unsigned int __user *) exception_epc(regs)))
+		goto out_sigsegv;
 
 	if ((opcode & OPCODE) == LL) {
 		simulate_ll(regs, opcode);
@@ -559,6 +546,10 @@ static inline int simulate_llsc(struct pt_regs *regs)
 	}
 
 	return -EFAULT;			/* Strange things going on ... */
+
+out_sigsegv:
+	force_sig(SIGSEGV, current);
+	return -EFAULT;
 }
 
 /*
@@ -571,8 +562,8 @@ static inline int simulate_rdhwr(struct pt_regs *regs)
 	struct thread_info *ti = task_thread_info(current);
 	unsigned int opcode;
 
-	if (unlikely(get_insn_opcode(regs, &opcode)))
-		return -EFAULT;
+	if (get_user(opcode, (unsigned int __user *) exception_epc(regs)))
+		goto out_sigsegv;
 
 	if (unlikely(compute_return_epc(regs)))
 		return -EFAULT;
@@ -590,6 +581,10 @@ static inline int simulate_rdhwr(struct pt_regs *regs)
 	}
 
 	/* Not ours.  */
+	return -EFAULT;
+
+out_sigsegv:
+	force_sig(SIGSEGV, current);
 	return -EFAULT;
 }
 
@@ -676,8 +671,8 @@ asmlinkage void do_bp(struct pt_regs *regs)
 
 	die_if_kernel("Break instruction in kernel code", regs);
 
-	if (get_insn_opcode(regs, &opcode))
-		return;
+	if (get_user(opcode, (unsigned int __user *) exception_epc(regs)))
+		goto out_sigsegv;
 
 	/*
 	 * There is the ancient bug in the MIPS assemblers that the break
@@ -710,6 +705,9 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	default:
 		force_sig(SIGTRAP, current);
 	}
+
+out_sigsegv:
+	force_sig(SIGSEGV, current);
 }
 
 asmlinkage void do_tr(struct pt_regs *regs)
@@ -719,8 +717,8 @@ asmlinkage void do_tr(struct pt_regs *regs)
 
 	die_if_kernel("Trap instruction in kernel code", regs);
 
-	if (get_insn_opcode(regs, &opcode))
-		return;
+	if (get_user(opcode, (unsigned int __user *) exception_epc(regs)))
+		goto out_sigsegv;
 
 	/* Immediate versions don't provide a code.  */
 	if (!(opcode & OPCODE))
@@ -747,6 +745,9 @@ asmlinkage void do_tr(struct pt_regs *regs)
 	default:
 		force_sig(SIGTRAP, current);
 	}
+
+out_sigsegv:
+	force_sig(SIGSEGV, current);
 }
 
 asmlinkage void do_ri(struct pt_regs *regs)
