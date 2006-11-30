@@ -112,6 +112,27 @@ static int get_key_purpletv(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	return 1;
 }
 
+static int get_key_hvr1110(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+{
+	unsigned char buf[5], cod4, code3, code4;
+
+	/* poll IR chip */
+	if (5 != i2c_master_recv(&ir->c,buf,5))
+		return -EIO;
+
+	cod4	= buf[4];
+	code4	= (cod4 >> 2);
+	code3	= buf[3];
+	if (code3 == 0)
+		/* no key pressed */
+		return 0;
+
+	/* return key */
+	*ir_key = code4;
+	*ir_raw = code4;
+	return 1;
+}
+
 void saa7134_input_irq(struct saa7134_dev *dev)
 {
 	struct saa7134_ir *ir = dev->remote;
@@ -370,6 +391,11 @@ void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir)
 		snprintf(ir->c.name, sizeof(ir->c.name), "Purple TV");
 		ir->get_key   = get_key_purpletv;
 		ir->ir_codes  = ir_codes_purpletv;
+		break;
+	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
+		snprintf(ir->c.name, sizeof(ir->c.name), "HVR 1110");
+		ir->get_key   = get_key_hvr1110;
+		ir->ir_codes  = ir_codes_hauppauge_new;
 		break;
 	default:
 		dprintk("Shouldn't get here: Unknown board %x for I2C IR?\n",dev->board);

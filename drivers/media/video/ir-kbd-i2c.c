@@ -354,6 +354,7 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 		break;
 	case 0x7a:
 	case 0x47:
+	case 0x71:
 		/* Handled by saa7134-input */
 		name        = "SAA713x remote";
 		ir_type     = IR_TYPE_OTHER;
@@ -448,7 +449,7 @@ static int ir_probe(struct i2c_adapter *adap)
 	*/
 
 	static const int probe_bttv[] = { 0x1a, 0x18, 0x4b, 0x64, 0x30, -1};
-	static const int probe_saa7134[] = { 0x7a, 0x47, -1 };
+	static const int probe_saa7134[] = { 0x7a, 0x47, 0x71, -1 };
 	static const int probe_em28XX[] = { 0x30, 0x47, -1 };
 	const int *probe = NULL;
 	struct i2c_client c;

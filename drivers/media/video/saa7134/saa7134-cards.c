@@ -3135,17 +3135,23 @@ struct saa7134_board saa7134_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.mpeg           = SAA7134_MPEG_DVB,
-		.gpiomask       = 0x000200000,
 		.inputs         = {{
 			.name = name_tv,
 			.vmux = 1,
 			.amux = TV,
 			.tv   = 1,
+		},{
+			.name   = name_comp1,
+			.vmux   = 3,
+			.amux   = LINE2, /* FIXME: audio doesn't work on svideo/composite */
+		},{
+			.name   = name_svideo,
+			.vmux   = 8,
+			.amux   = LINE2, /* FIXME: audio doesn't work on svideo/composite */
 		}},
 		.radio = {
 			.name = name_radio,
 			.amux   = TV,
-			.gpio   = 0x0200000,
 		},
 	},
 	[SAA7134_BOARD_CINERGY_HT_PCMCIA] = {
@@ -3976,6 +3982,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_PINNACLE_PCTV_110i:
 	case SAA7134_BOARD_PINNACLE_PCTV_310i:
 	case SAA7134_BOARD_UPMOST_PURPLE_TV:
+	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
 		dev->has_remote = SAA7134_REMOTE_I2C;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_A169_B:
