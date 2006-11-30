@@ -77,7 +77,7 @@ config KGDB_CONSOLE
 
 config XMON
 	bool "Include xmon kernel debugger"
-	depends on DEBUGGER && !PPC_ISERIES
+	depends on DEBUGGER
 	help
 	  Include in-kernel hooks for the xmon kernel monitor/debugger.
 	  Unless you are intending to debug the kernel, say N here.
