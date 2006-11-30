@@ -366,15 +366,6 @@ error:
 	return r;
 }
 
-static void disable_read_regs_int(struct zd_usb *usb)
-{
-	struct zd_usb_interrupt *intr = &usb->intr;
-
-	spin_lock(&intr->lock);
-	intr->read_regs_enabled = 0;
-	spin_unlock(&intr->lock);
-}
-
 #define urb_dev(urb) (&(urb)->dev->dev)
 
 static inline void handle_regs_int(struct urb *urb)
@@ -1156,10 +1147,19 @@ static void prepare_read_regs_int(struct zd_usb *usb)
 {
 	struct zd_usb_interrupt *intr = &usb->intr;
 
-	spin_lock(&intr->lock);
+	spin_lock_irq(&intr->lock);
 	intr->read_regs_enabled = 1;
 	INIT_COMPLETION(intr->read_regs.completion);
-	spin_unlock(&intr->lock);
+	spin_unlock_irq(&intr->lock);
+}
+
+static void disable_read_regs_int(struct zd_usb *usb)
+{
+	struct zd_usb_interrupt *intr = &usb->intr;
+
+	spin_lock_irq(&intr->lock);
+	intr->read_regs_enabled = 0;
+	spin_unlock_irq(&intr->lock);
 }
 
 static int get_results(struct zd_usb *usb, u16 *values,
@@ -1171,7 +1171,7 @@ static int get_results(struct zd_usb *usb, u16 *values,
 	struct read_regs_int *rr = &intr->read_regs;
 	struct usb_int_regs *regs = (struct usb_int_regs *)rr->buffer;
 
-	spin_lock(&intr->lock);
+	spin_lock_irq(&intr->lock);
 
 	r = -EIO;
 	/* The created block size seems to be larger than expected.
@@ -1204,7 +1204,7 @@ static int get_results(struct zd_usb *usb, u16 *values,
 
 	r = 0;
 error_unlock:
-	spin_unlock(&intr->lock);
+	spin_unlock_irq(&intr->lock);
 	return r;
 }
 

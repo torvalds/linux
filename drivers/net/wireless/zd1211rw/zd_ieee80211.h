@@ -64,7 +64,7 @@ struct cck_plcp_header {
 	u8 service;
 	__le16 length;
 	__le16 crc16;
-};
+} __attribute__((packed));
 
 static inline u8 zd_cck_plcp_header_rate(const struct cck_plcp_header *header)
 {
