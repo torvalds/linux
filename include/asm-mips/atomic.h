@@ -375,7 +375,7 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 
 #ifdef CONFIG_64BIT
 
-typedef struct { volatile __s64 counter; } atomic64_t;
+typedef struct { volatile long counter; } atomic64_t;
 
 #define ATOMIC64_INIT(i)    { (i) }
 
