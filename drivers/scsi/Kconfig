@@ -821,6 +821,20 @@ config SCSI_IBMVSCSI
 	  To compile this driver as a module, choose M here: the
 	  module will be called ibmvscsic.
 
+config SCSI_IBMVSCSIS
+	tristate "IBM Virtual SCSI Server support"
+	depends on PPC_PSERIES && SCSI_TGT && SCSI_SRP
+	help
+	  This is the SRP target driver for IBM pSeries virtual environments.
+
+	  The userspace component needed to initialize the driver and
+	  documentation can be found:
+
+	  http://stgt.berlios.de/
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ibmvstgt.
+
 config SCSI_INITIO
 	tristate "Initio 9100U(W) support"
 	depends on PCI && SCSI
