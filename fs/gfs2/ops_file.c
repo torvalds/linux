@@ -22,6 +22,7 @@
 #include <linux/ext2_fs.h>
 #include <linux/crc32.h>
 #include <linux/lm_interface.h>
+#include <linux/writeback.h>
 #include <asm/uaccess.h>
 
 #include "gfs2.h"
@@ -503,16 +504,39 @@ static int gfs2_close(struct inode *inode, struct file *file)
  * @file: the file that points to the dentry (we ignore this)
  * @dentry: the dentry that points to the inode to sync
  *
+ * The VFS will flush "normal" data for us. We only need to worry
+ * about metadata here. For journaled data, we just do a log flush
+ * as we can't avoid it. Otherwise we can just bale out if datasync
+ * is set. For stuffed inodes we must flush the log in order to
+ * ensure that all data is on disk.
+ *
  * Returns: errno
  */
 
 static int gfs2_fsync(struct file *file, struct dentry *dentry, int datasync)
 {
-	struct gfs2_inode *ip = GFS2_I(dentry->d_inode);
+	struct inode *inode = dentry->d_inode;
+	int sync_state = inode->i_state & (I_DIRTY_SYNC|I_DIRTY_DATASYNC);
+	int ret = 0;
+	struct writeback_control wbc = {
+		.sync_mode = WB_SYNC_ALL,
+		.nr_to_write = 0,
+	};
 
-	gfs2_log_flush(ip->i_gl->gl_sbd, ip->i_gl);
+	if (gfs2_is_jdata(GFS2_I(inode))) {
+		gfs2_log_flush(GFS2_SB(inode), GFS2_I(inode)->i_gl);
+		return 0;
+	}
 
-	return 0;
+	if (sync_state != 0) {
+		if (!datasync)
+			ret = sync_inode(inode, &wbc);
+
+		if (gfs2_is_stuffed(GFS2_I(inode)))
+			gfs2_log_flush(GFS2_SB(inode), GFS2_I(inode)->i_gl);
+	}
+
+	return ret;
 }
 
 /**
