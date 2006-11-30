@@ -10,7 +10,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/sched.h>  /* for jiffies */
+#include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/kallsyms.h>
 #include <linux/signal.h>
@@ -1872,6 +1872,16 @@ void sun4v_resum_error(struct pt_regs *regs, unsigned long offset)
 	wmb();
 
 	put_cpu();
+
+	if (ent->err_type == SUN4V_ERR_TYPE_WARNING_RES) {
+		/* If err_type is 0x4, it's a powerdown request.  Do
+		 * not do the usual resumable error log because that
+		 * makes it look like some abnormal error.
+		 */
+		printk(KERN_INFO "Power down request...\n");
+		kill_cad_pid(SIGINT, 1);
+		return;
+	}
 
 	sun4v_log_error(regs, &local_copy, cpu,
 			KERN_ERR "RESUMABLE ERROR",
