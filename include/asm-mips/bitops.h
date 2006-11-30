@@ -10,10 +10,13 @@
 #define _ASM_BITOPS_H
 
 #include <linux/compiler.h>
+#include <linux/irqflags.h>
 #include <linux/types.h>
 #include <asm/bug.h>
 #include <asm/byteorder.h>		/* sigh ... */
 #include <asm/cpu-features.h>
+#include <asm/sgidefs.h>
+#include <asm/war.h>
 
 #if (_MIPS_SZLONG == 32)
 #define SZLONG_LOG 5
@@ -29,31 +32,11 @@
 #define cpu_to_lelongp(x) cpu_to_le64p((__u64 *) (x))
 #endif
 
-#ifdef __KERNEL__
-
-#include <linux/irqflags.h>
-#include <asm/sgidefs.h>
-#include <asm/war.h>
-
 /*
  * clear_bit() doesn't provide any barrier for the compiler.
  */
 #define smp_mb__before_clear_bit()	smp_mb()
 #define smp_mb__after_clear_bit()	smp_mb()
-
-/*
- * Only disable interrupt for kernel mode stuff to keep usermode stuff
- * that dares to use kernel include files alive.
- */
-
-#define __bi_flags			unsigned long flags
-#define __bi_local_irq_save(x)		local_irq_save(x)
-#define __bi_local_irq_restore(x)	local_irq_restore(x)
-#else
-#define __bi_flags
-#define __bi_local_irq_save(x)
-#define __bi_local_irq_restore(x)
-#endif /* __KERNEL__ */
 
 /*
  * set_bit - Atomically set a bit in memory
@@ -93,13 +76,13 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 	} else {
 		volatile unsigned long *a = addr;
 		unsigned long mask;
-		__bi_flags;
+		unsigned long flags;
 
 		a += nr >> SZLONG_LOG;
 		mask = 1UL << (nr & SZLONG_MASK);
-		__bi_local_irq_save(flags);
+		local_irq_save(flags);
 		*a |= mask;
-		__bi_local_irq_restore(flags);
+		local_irq_restore(flags);
 	}
 }
 
@@ -141,13 +124,13 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 	} else {
 		volatile unsigned long *a = addr;
 		unsigned long mask;
-		__bi_flags;
+		unsigned long flags;
 
 		a += nr >> SZLONG_LOG;
 		mask = 1UL << (nr & SZLONG_MASK);
-		__bi_local_irq_save(flags);
+		local_irq_save(flags);
 		*a &= ~mask;
-		__bi_local_irq_restore(flags);
+		local_irq_restore(flags);
 	}
 }
 
@@ -191,13 +174,13 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *addr)
 	} else {
 		volatile unsigned long *a = addr;
 		unsigned long mask;
-		__bi_flags;
+		unsigned long flags;
 
 		a += nr >> SZLONG_LOG;
 		mask = 1UL << (nr & SZLONG_MASK);
-		__bi_local_irq_save(flags);
+		local_irq_save(flags);
 		*a ^= mask;
-		__bi_local_irq_restore(flags);
+		local_irq_restore(flags);
 	}
 }
 
@@ -258,14 +241,14 @@ static inline int test_and_set_bit(unsigned long nr,
 		volatile unsigned long *a = addr;
 		unsigned long mask;
 		int retval;
-		__bi_flags;
+		unsigned long flags;
 
 		a += nr >> SZLONG_LOG;
 		mask = 1UL << (nr & SZLONG_MASK);
-		__bi_local_irq_save(flags);
+		local_irq_save(flags);
 		retval = (mask & *a) != 0;
 		*a |= mask;
-		__bi_local_irq_restore(flags);
+		local_irq_restore(flags);
 
 		return retval;
 	}
@@ -330,14 +313,14 @@ static inline int test_and_clear_bit(unsigned long nr,
 		volatile unsigned long *a = addr;
 		unsigned long mask;
 		int retval;
-		__bi_flags;
+		unsigned long flags;
 
 		a += nr >> SZLONG_LOG;
 		mask = 1UL << (nr & SZLONG_MASK);
-		__bi_local_irq_save(flags);
+		local_irq_save(flags);
 		retval = (mask & *a) != 0;
 		*a &= ~mask;
-		__bi_local_irq_restore(flags);
+		local_irq_restore(flags);
 
 		return retval;
 	}
@@ -399,22 +382,18 @@ static inline int test_and_change_bit(unsigned long nr,
 	} else {
 		volatile unsigned long *a = addr;
 		unsigned long mask, retval;
-		__bi_flags;
+		unsigned long flags;
 
 		a += nr >> SZLONG_LOG;
 		mask = 1UL << (nr & SZLONG_MASK);
-		__bi_local_irq_save(flags);
+		local_irq_save(flags);
 		retval = (mask & *a) != 0;
 		*a ^= mask;
-		__bi_local_irq_restore(flags);
+		local_irq_restore(flags);
 
 		return retval;
 	}
 }
-
-#undef __bi_flags
-#undef __bi_local_irq_save
-#undef __bi_local_irq_restore
 
 #include <asm-generic/bitops/non-atomic.h>
 
