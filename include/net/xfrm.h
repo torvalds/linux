@@ -398,8 +398,13 @@ struct xfrm_audit
 	uid_t	loginuid;
 	u32	secid;
 };
-void xfrm_audit_log(uid_t auid, u32 secid, int type, int result,
+
+#ifdef CONFIG_AUDITSYSCALL
+extern void xfrm_audit_log(uid_t auid, u32 secid, int type, int result,
 		    struct xfrm_policy *xp, struct xfrm_state *x);
+#else
+#define xfrm_audit_log(a,s,t,r,p,x) do { ; } while (0)
+#endif /* CONFIG_AUDITSYSCALL */
 
 static inline void xfrm_pol_hold(struct xfrm_policy *policy)
 {

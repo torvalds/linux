@@ -407,7 +407,6 @@ restart:
 				xfrm_state_hold(x);
 				spin_unlock_bh(&xfrm_state_lock);
 
-				xfrm_state_delete(x);
 				err = xfrm_state_delete(x);
 				xfrm_audit_log(audit_info->loginuid,
 					       audit_info->secid,

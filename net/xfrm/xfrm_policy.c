@@ -1986,6 +1986,7 @@ int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 
 EXPORT_SYMBOL(xfrm_bundle_ok);
 
+#ifdef CONFIG_AUDITSYSCALL
 /* Audit addition and deletion of SAs and ipsec policy */
 
 void xfrm_audit_log(uid_t auid, u32 sid, int type, int result,
@@ -2094,6 +2095,7 @@ void xfrm_audit_log(uid_t auid, u32 sid, int type, int result,
 }
 
 EXPORT_SYMBOL(xfrm_audit_log);
+#endif /* CONFIG_AUDITSYSCALL */
 
 int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 {
