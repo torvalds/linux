@@ -17,14 +17,14 @@
 
 DEFINE_SNMP_STAT(struct udp_mib, udplite_stats_in6) __read_mostly;
 
-static __inline__ int udplitev6_rcv(struct sk_buff **pskb)
+static int udplitev6_rcv(struct sk_buff **pskb)
 {
 	return __udp6_lib_rcv(pskb, udplite_hash, 1);
 }
 
-static __inline__ void udplitev6_err(struct sk_buff *skb,
-				     struct inet6_skb_parm *opt,
-				     int type, int code, int offset, __be32 info)
+static void udplitev6_err(struct sk_buff *skb,
+			  struct inet6_skb_parm *opt,
+			  int type, int code, int offset, __be32 info)
 {
 	return __udp6_lib_err(skb, opt, type, code, offset, info, udplite_hash);
 }
@@ -35,7 +35,7 @@ static struct inet6_protocol udplitev6_protocol = {
 	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
 };
 
-static __inline__ int udplite_v6_get_port(struct sock *sk, unsigned short snum)
+static int udplite_v6_get_port(struct sock *sk, unsigned short snum)
 {
 	return udplite_get_port(sk, snum, ipv6_rcv_saddr_equal);
 }

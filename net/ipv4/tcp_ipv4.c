@@ -840,8 +840,8 @@ struct tcp_md5sig_key *tcp_v4_md5_lookup(struct sock *sk,
 
 EXPORT_SYMBOL(tcp_v4_md5_lookup);
 
-struct tcp_md5sig_key *tcp_v4_reqsk_md5_lookup(struct sock *sk,
-					       struct request_sock *req)
+static struct tcp_md5sig_key *tcp_v4_reqsk_md5_lookup(struct sock *sk,
+						      struct request_sock *req)
 {
 	return tcp_v4_md5_do_lookup(sk, inet_rsk(req)->rmt_addr);
 }
@@ -1233,7 +1233,7 @@ struct request_sock_ops tcp_request_sock_ops __read_mostly = {
 	.send_reset	=	tcp_v4_send_reset,
 };
 
-struct tcp_request_sock_ops tcp_request_sock_ipv4_ops = {
+static struct tcp_request_sock_ops tcp_request_sock_ipv4_ops = {
 #ifdef CONFIG_TCP_MD5SIG
 	.md5_lookup	=	tcp_v4_reqsk_md5_lookup,
 #endif
@@ -1820,7 +1820,7 @@ struct inet_connection_sock_af_ops ipv4_specific = {
 #endif
 };
 
-struct tcp_sock_af_ops tcp_sock_ipv4_specific = {
+static struct tcp_sock_af_ops tcp_sock_ipv4_specific = {
 #ifdef CONFIG_TCP_MD5SIG
 	.md5_lookup		= tcp_v4_md5_lookup,
 	.calc_md5_hash		= tcp_v4_calc_md5_hash,
