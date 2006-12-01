@@ -760,22 +760,6 @@ static int cma_verify_rep(struct rdma_id_private *id_priv, void *data)
 	return 0;
 }
 
-static int cma_rtu_recv(struct rdma_id_private *id_priv)
-{
-	int ret;
-
-	ret = cma_modify_qp_rts(&id_priv->id);
-	if (ret)
-		goto reject;
-
-	return 0;
-reject:
-	cma_modify_qp_err(&id_priv->id);
-	ib_send_cm_rej(id_priv->cm_id.ib, IB_CM_REJ_CONSUMER_DEFINED,
-		       NULL, 0, NULL, 0);
-	return ret;
-}
-
 static void cma_set_rep_event_data(struct rdma_cm_event *event,
 				   struct ib_cm_rep_event_param *rep_data,
 				   void *private_data)
@@ -821,9 +805,8 @@ static int cma_ib_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 				       ib_event->private_data);
 		break;
 	case IB_CM_RTU_RECEIVED:
-		event.status = cma_rtu_recv(id_priv);
-		event.event = event.status ? RDMA_CM_EVENT_CONNECT_ERROR :
-					     RDMA_CM_EVENT_ESTABLISHED;
+	case IB_CM_USER_ESTABLISHED:
+		event.event = RDMA_CM_EVENT_ESTABLISHED;
 		break;
 	case IB_CM_DREQ_ERROR:
 		event.status = -ETIMEDOUT; /* fall through */
@@ -1989,11 +1972,25 @@ static int cma_accept_ib(struct rdma_id_private *id_priv,
 			 struct rdma_conn_param *conn_param)
 {
 	struct ib_cm_rep_param rep;
-	int ret;
+	struct ib_qp_attr qp_attr;
+	int qp_attr_mask, ret;
 
-	ret = cma_modify_qp_rtr(&id_priv->id);
-	if (ret)
-		return ret;
+	if (id_priv->id.qp) {
+		ret = cma_modify_qp_rtr(&id_priv->id);
+		if (ret)
+			goto out;
+
+		qp_attr.qp_state = IB_QPS_RTS;
+		ret = ib_cm_init_qp_attr(id_priv->cm_id.ib, &qp_attr,
+					 &qp_attr_mask);
+		if (ret)
+			goto out;
+
+		qp_attr.max_rd_atomic = conn_param->initiator_depth;
+		ret = ib_modify_qp(id_priv->id.qp, &qp_attr, qp_attr_mask);
+		if (ret)
+			goto out;
+	}
 
 	memset(&rep, 0, sizeof rep);
 	rep.qp_num = id_priv->qp_num;
@@ -2008,7 +2005,9 @@ static int cma_accept_ib(struct rdma_id_private *id_priv,
 	rep.rnr_retry_count = conn_param->rnr_retry_count;
 	rep.srq = id_priv->srq ? 1 : 0;
 
-	return ib_send_cm_rep(id_priv->cm_id.ib, &rep);
+	ret = ib_send_cm_rep(id_priv->cm_id.ib, &rep);
+out:
+	return ret;
 }
 
 static int cma_accept_iw(struct rdma_id_private *id_priv,
@@ -2072,6 +2071,27 @@ reject:
 	return ret;
 }
 EXPORT_SYMBOL(rdma_accept);
+
+int rdma_notify(struct rdma_cm_id *id, enum ib_event_type event)
+{
+	struct rdma_id_private *id_priv;
+	int ret;
+
+	id_priv = container_of(id, struct rdma_id_private, id);
+	if (!cma_comp(id_priv, CMA_CONNECT))
+		return -EINVAL;
+
+	switch (id->device->node_type) {
+	case RDMA_NODE_IB_CA:
+		ret = ib_cm_notify(id_priv->cm_id.ib, event);
+		break;
+	default:
+		ret = 0;
+		break;
+	}
+	return ret;
+}
+EXPORT_SYMBOL(rdma_notify);
 
 int rdma_reject(struct rdma_cm_id *id, const void *private_data,
 		u8 private_data_len)

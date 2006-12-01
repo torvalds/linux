@@ -253,6 +253,21 @@ int rdma_listen(struct rdma_cm_id *id, int backlog);
 int rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param);
 
 /**
+ * rdma_notify - Notifies the RDMA CM of an asynchronous event that has
+ * occurred on the connection.
+ * @id: Connection identifier to transition to established.
+ * @event: Asynchronous event.
+ *
+ * This routine should be invoked by users to notify the CM of relevant
+ * communication events.  Events that should be reported to the CM and
+ * when to report them are:
+ *
+ * IB_EVENT_COMM_EST - Used when a message is received on a connected
+ *    QP before an RTU has been received.
+ */
+int rdma_notify(struct rdma_cm_id *id, enum ib_event_type event);
+
+/**
  * rdma_reject - Called to reject a connection request or response.
  */
 int rdma_reject(struct rdma_cm_id *id, const void *private_data,

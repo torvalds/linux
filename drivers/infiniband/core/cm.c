@@ -3289,6 +3289,10 @@ static int cm_init_qp_rts_attr(struct cm_id_private *cm_id_priv,
 
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	switch (cm_id_priv->id.state) {
+	/* Allow transition to RTS before sending REP */
+	case IB_CM_REQ_RCVD:
+	case IB_CM_MRA_REQ_SENT:
+
 	case IB_CM_REP_RCVD:
 	case IB_CM_MRA_REP_SENT:
 	case IB_CM_REP_SENT:
