@@ -2154,8 +2154,6 @@ static void yukon_link_down(struct skge_port *skge)
 	int port = skge->port;
 	u16 ctrl;
 
-	gm_phy_write(hw, port, PHY_MARV_INT_MASK, 0);
-
 	ctrl = gma_read16(hw, port, GM_GP_CTRL);
 	ctrl &= ~(GM_GPCR_RX_ENA | GM_GPCR_TX_ENA);
 	gma_write16(hw, port, GM_GP_CTRL, ctrl);
@@ -2167,7 +2165,6 @@ static void yukon_link_down(struct skge_port *skge)
 		gm_phy_write(hw, port, PHY_MARV_AUNE_ADV, ctrl);
 	}
 
-	yukon_reset(hw, port);
 	skge_link_down(skge);
 
 	yukon_init(hw, port);
@@ -2268,6 +2265,8 @@ static void skge_phy_reset(struct skge_port *skge)
 		yukon_init(hw, port);
 	}
 	mutex_unlock(&hw->phy_mutex);
+
+	dev->set_multicast_list(dev);
 }
 
 /* Basic MII support */
