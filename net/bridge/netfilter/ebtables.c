@@ -401,6 +401,12 @@ static int ebt_verify_pointers(struct ebt_replace *repl,
 	unsigned int offset = 0;
 	int i;
 
+	for (i = 0; i < NF_BR_NUMHOOKS; i++)
+		newinfo->hook_entry[i] = NULL;
+
+	newinfo->entries_size = repl->entries_size;
+	newinfo->nentries = repl->nentries;
+
 	while (offset < limit) {
 		size_t left = limit - offset;
 		struct ebt_entry *e = (void *)newinfo->entries + offset;
@@ -439,6 +445,15 @@ static int ebt_verify_pointers(struct ebt_replace *repl,
 	if (offset != limit) {
 		BUGPRINT("entries_size too small\n");
 		return -EINVAL;
+	}
+
+	/* check if all valid hooks have a chain */
+	for (i = 0; i < NF_BR_NUMHOOKS; i++) {
+		if (!newinfo->hook_entry[i] &&
+		   (valid_hooks & (1 << i))) {
+			BUGPRINT("Valid hook without chain\n");
+			return -EINVAL;
+		}
 	}
 	return 0;
 }
@@ -772,6 +787,10 @@ static int translate_table(struct ebt_replace *repl,
 	int ret;
 	struct ebt_cl_stack *cl_s = NULL; /* used in the checking for chain loops */
 
+	ret = ebt_verify_pointers(repl, newinfo);
+	if (ret != 0)
+		return ret;
+
 	i = 0;
 	while (i < NF_BR_NUMHOOKS && !(repl->valid_hooks & (1 << i)))
 		i++;
@@ -795,16 +814,6 @@ static int translate_table(struct ebt_replace *repl,
 		i = j;
 	}
 
-	for (i = 0; i < NF_BR_NUMHOOKS; i++)
-		newinfo->hook_entry[i] = NULL;
-
-	newinfo->entries_size = repl->entries_size;
-	newinfo->nentries = repl->nentries;
-
-	ret = ebt_verify_pointers(repl, newinfo);
-	if (ret != 0)
-		return ret;
-
 	/* do some early checkings and initialize some things */
 	i = 0; /* holds the expected nr. of entries for the chain */
 	j = 0; /* holds the up to now counted entries for the chain */
@@ -827,15 +836,6 @@ static int translate_table(struct ebt_replace *repl,
 	if (k != newinfo->nentries) {
 		BUGPRINT("Total nentries is wrong\n");
 		return -EINVAL;
-	}
-
-	/* check if all valid hooks have a chain */
-	for (i = 0; i < NF_BR_NUMHOOKS; i++) {
-		if (newinfo->hook_entry[i] == NULL &&
-		   (repl->valid_hooks & (1 << i))) {
-			BUGPRINT("Valid hook without chain\n");
-			return -EINVAL;
-		}
 	}
 
 	/* get the location of the udc, put them in an array
