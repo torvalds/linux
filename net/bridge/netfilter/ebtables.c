@@ -464,17 +464,14 @@ static int ebt_verify_pointers(struct ebt_replace *repl,
  */
 static inline int
 ebt_check_entry_size_and_hooks(struct ebt_entry *e,
-   struct ebt_table_info *newinfo, char *base,
-   struct ebt_entries **hook_entries, unsigned int *n, unsigned int *cnt,
-   unsigned int *totalcnt, unsigned int *udc_cnt, unsigned int valid_hooks)
+   struct ebt_table_info *newinfo,
+   unsigned int *n, unsigned int *cnt,
+   unsigned int *totalcnt, unsigned int *udc_cnt)
 {
-	unsigned int offset = (char *)e - newinfo->entries;
 	int i;
 
 	for (i = 0; i < NF_BR_NUMHOOKS; i++) {
-		if ((valid_hooks & (1 << i)) == 0)
-			continue;
-		if ((char *)hook_entries[i] == base + offset)
+		if ((void *)e == (void *)newinfo->hook_entry[i])
 			break;
 	}
 	/* beginning of a new chain
@@ -821,9 +818,8 @@ static int translate_table(struct ebt_replace *repl,
 	          newinfo->nentries afterwards */
 	udc_cnt = 0; /* will hold the nr. of user defined chains (udc) */
 	ret = EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
-	   ebt_check_entry_size_and_hooks, newinfo, repl->entries,
-	   repl->hook_entry, &i, &j, &k,
-	   &udc_cnt, repl->valid_hooks);
+	   ebt_check_entry_size_and_hooks, newinfo,
+	   &i, &j, &k, &udc_cnt);
 
 	if (ret != 0)
 		return ret;
