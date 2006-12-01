@@ -417,7 +417,7 @@ ebt_check_entry_size_and_hooks(struct ebt_entry *e,
 	/* beginning of a new chain
 	   if i == NF_BR_NUMHOOKS it must be a user defined chain */
 	if (i != NF_BR_NUMHOOKS || !(e->bitmask & EBT_ENTRY_OR_ENTRIES)) {
-		if ((e->bitmask & EBT_ENTRY_OR_ENTRIES) != 0) {
+		if (e->bitmask != 0) {
 			/* we make userspace set this right,
 			   so there is no misunderstanding */
 			BUGPRINT("EBT_ENTRY_OR_ENTRIES shouldn't be set "
@@ -500,7 +500,7 @@ ebt_get_udc_positions(struct ebt_entry *e, struct ebt_table_info *newinfo,
 	int i;
 
 	/* we're only interested in chain starts */
-	if (e->bitmask & EBT_ENTRY_OR_ENTRIES)
+	if (e->bitmask)
 		return 0;
 	for (i = 0; i < NF_BR_NUMHOOKS; i++) {
 		if ((valid_hooks & (1 << i)) == 0)
@@ -550,7 +550,7 @@ ebt_cleanup_entry(struct ebt_entry *e, unsigned int *cnt)
 {
 	struct ebt_entry_target *t;
 
-	if ((e->bitmask & EBT_ENTRY_OR_ENTRIES) == 0)
+	if (e->bitmask == 0)
 		return 0;
 	/* we're done */
 	if (cnt && (*cnt)-- == 0)
@@ -576,7 +576,7 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
 	int ret;
 
 	/* don't mess with the struct ebt_entries */
-	if ((e->bitmask & EBT_ENTRY_OR_ENTRIES) == 0)
+	if (e->bitmask == 0)
 		return 0;
 
 	if (e->bitmask & ~EBT_F_MASK) {
@@ -1309,7 +1309,7 @@ static inline int ebt_make_names(struct ebt_entry *e, char *base, char *ubase)
 	char *hlp;
 	struct ebt_entry_target *t;
 
-	if ((e->bitmask & EBT_ENTRY_OR_ENTRIES) == 0)
+	if (e->bitmask == 0)
 		return 0;
 
 	hlp = ubase - base + (char *)e + e->target_offset;
