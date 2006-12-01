@@ -840,6 +840,17 @@ static struct cpu_spec cpu_specs[] = {
 		.cpu_setup		= __setup_cpu_603,
 		.platform		= "ppc603",
 	},
+	{	/* e300c3 on 83xx  */
+		.pvr_mask		= 0x7fff0000,
+		.pvr_value		= 0x00850000,
+		.cpu_name		= "e300c3",
+		.cpu_features		= CPU_FTRS_E300,
+		.cpu_user_features	= COMMON_USER,
+		.icache_bsize		= 32,
+		.dcache_bsize		= 32,
+		.cpu_setup		= __setup_cpu_603,
+		.platform		= "ppc603",
+	},
 	{	/* default match, we assume split I/D cache & TB (non-601)... */
 		.pvr_mask		= 0x00000000,
 		.pvr_value		= 0x00000000,
