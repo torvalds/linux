@@ -612,16 +612,6 @@ static void cafe_ctlr_image(struct cafe_camera *cam)
 			    C0_DF_MASK);
 	    break;
 
-	/*
-	 * For "fake rgb32" get the image pitch right.
-	 */
-	case V4L2_PIX_FMT_RGB32:
-	    cafe_reg_write_mask(cam, REG_IMGPITCH, fmt->bytesperline/2,
-			    IMGP_YP_MASK);
-	    imgsz = ((fmt->height << IMGSZ_V_SHIFT) & IMGSZ_V_MASK) |
-		    ((fmt->bytesperline/2) & IMGSZ_H_MASK);
-	    cafe_reg_write(cam, REG_IMGSIZE, imgsz);
-	    /* fall into ... */
 	case V4L2_PIX_FMT_RGB444:
 	    cafe_reg_write_mask(cam, REG_CTRL0,
 			    C0_DF_RGB|C0_RGBF_444|C0_RGB4_XRGB,
@@ -902,11 +892,8 @@ static int cafe_alloc_dma_bufs(struct cafe_camera *cam, int loadtime)
 	cafe_set_config_needed(cam, 1);
 	if (loadtime)
 		cam->dma_buf_size = dma_buf_size;
-	else {
+	else
 		cam->dma_buf_size = cam->pix_format.sizeimage;
-		if (cam->pix_format.pixelformat == V4L2_PIX_FMT_RGB32)
-			cam->dma_buf_size /= 2;
-	}
 	if (n_dma_bufs > 3)
 		n_dma_bufs = 3;
 
@@ -1751,26 +1738,6 @@ static struct video_device cafe_v4l_template = {
  * Interrupt handler stuff
  */
 
-/*
- * Create RGB32 from RGB444 so it can be displayed before the applications
- * know about the latter format.
- */
-static void cafe_fake_rgb32(struct cafe_camera *cam, char *dest, char *src)
-{
-	int i;
-	u16 *ssrc = (u16 *) src;
-
-	/* RGB444 version */
-	for (i = 0; i < cam->pix_format.sizeimage; i += 4) {
-	//		dest[0] = (*ssrc & 0xf000) >> 8;
-		dest[0] = (*ssrc & 0x000f) << 4;
-		dest[1] = (*ssrc & 0x00f0);
-		dest[2] = (*ssrc & 0x0f00) >> 4;
-		dest[3] = (*ssrc & 0xf000);   /* Alpha */
-		dest += 4;
-		ssrc++;
-	}
-}
 
 
 static void cafe_frame_tasklet(unsigned long data)
@@ -1800,11 +1767,8 @@ static void cafe_frame_tasklet(unsigned long data)
 		 */
 		sbuf = list_entry(cam->sb_avail.next,
 				struct cafe_sio_buffer, list);
-		if (cam->pix_format.pixelformat == V4L2_PIX_FMT_RGB32)
-			cafe_fake_rgb32(cam, sbuf->buffer, cam->dma_bufs[bufno]);
-		else
-			memcpy(sbuf->buffer, cam->dma_bufs[bufno],
-					cam->pix_format.sizeimage);
+		memcpy(sbuf->buffer, cam->dma_bufs[bufno],
+				cam->pix_format.sizeimage);
 		sbuf->v4lbuf.bytesused = cam->pix_format.sizeimage;
 		sbuf->v4lbuf.sequence = cam->buf_seq[bufno];
 		sbuf->v4lbuf.flags &= ~V4L2_BUF_FLAG_QUEUED;

@@ -497,19 +497,6 @@ static struct ov7670_format_struct {
 		.regs		= ov7670_fmt_rgb565,
 		.cmatrix	= { 179, -179, 0, -61, -176, 228 },
 	},
-	/*
-	 * Pretend we do RGB32.  This is here on the assumption that the
-	 * upper layer will reformat RGB444 appropriately.
-	 *
-	 * The entire purpose for this thing's existence is to enable easy
-	 * display of RGB444 for debugging purposes.  It will come out soon.
-	 */
-	{
-		.desc		= "RGB32 (faked)",
-		.pixelformat	= V4L2_PIX_FMT_RGB32,
-		.regs		= ov7670_fmt_rgb444,
-		.cmatrix	= { 179, -179, 0, -61, -176, 228 },
-	},
 };
 #define N_OV7670_FMTS (sizeof(ov7670_formats)/sizeof(ov7670_formats[0]))
 
@@ -694,8 +681,6 @@ static int ov7670_try_fmt(struct i2c_client *c, struct v4l2_format *fmt,
 	pix->width = wsize->width;
 	pix->height = wsize->height;
 	pix->bytesperline = pix->width*BYTES_PER_PIXEL;
-	if (pix->pixelformat == V4L2_PIX_FMT_RGB32)
-		pix->bytesperline *= 2;
 	pix->sizeimage = pix->height*pix->bytesperline;
 	return 0;
 }
