@@ -29,6 +29,7 @@
 #include <asm/arch/at91_pmc.h>
 #include <asm/arch/at91rm9200_mc.h>
 #include <asm/arch/gpio.h>
+#include <asm/arch/cpu.h>
 
 #include "generic.h"
 
@@ -70,9 +71,15 @@ static int at91_pm_verify_clocks(void)
 	scsr = at91_sys_read(AT91_PMC_SCSR);
 
 	/* USB must not be using PLLB */
-	if ((scsr & (AT91_PMC_UHP | AT91_PMC_UDP)) != 0) {
-		pr_debug("AT91: PM - Suspend-to-RAM with USB still active\n");
-		return 0;
+	if (cpu_is_at91rm9200()) {
+		if ((scsr & (AT91RM9200_PMC_UHP | AT91RM9200_PMC_UDP)) != 0) {
+			pr_debug("AT91: PM - Suspend-to-RAM with USB still active\n");
+			return 0;
+		}
+	} else if (cpu_is_at91sam9260()) {
+#warning "Check SAM9260 USB clocks"
+	} else if (cpu_is_at91sam9261()) {
+#warning "Check SAM9261 USB clocks"
 	}
 
 #ifdef CONFIG_AT91_PROGRAMMABLE_CLOCKS
