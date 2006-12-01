@@ -393,48 +393,54 @@ ebt_check_watcher(struct ebt_entry_watcher *w, struct ebt_entry *e,
 	return 0;
 }
 
-static inline int
-__ebt_verify_pointers(struct ebt_entry *e,
-   struct ebt_table_info *newinfo, char *base, char *limit,
-   struct ebt_entries **hook_entries,
-   unsigned int valid_hooks)
+static int ebt_verify_pointers(struct ebt_replace *repl,
+			       struct ebt_table_info *newinfo)
 {
-	unsigned int offset = (char *)e - newinfo->entries;
-	size_t left = (limit - base) - offset;
+	unsigned int limit = repl->entries_size;
+	unsigned int valid_hooks = repl->valid_hooks;
+	unsigned int offset = 0;
 	int i;
 
-	if (left < sizeof(unsigned int))
-		goto Esmall;
+	while (offset < limit) {
+		size_t left = limit - offset;
+		struct ebt_entry *e = (void *)newinfo->entries + offset;
 
-	for (i = 0; i < NF_BR_NUMHOOKS; i++) {
-		if ((valid_hooks & (1 << i)) == 0)
-			continue;
-		if ((char *)hook_entries[i] == base + offset)
+		if (left < sizeof(unsigned int))
 			break;
-	}
-	if (i != NF_BR_NUMHOOKS || !(e->bitmask & EBT_ENTRY_OR_ENTRIES)) {
-		if (e->bitmask != 0) {
-			/* we make userspace set this right,
-			   so there is no misunderstanding */
-			BUGPRINT("EBT_ENTRY_OR_ENTRIES shouldn't be set "
-			         "in distinguisher\n");
-			return -EINVAL;
-		}
-		if (left < sizeof(struct ebt_entries))
-			goto Esmall;
-		if (i != NF_BR_NUMHOOKS)
-			newinfo->hook_entry[i] = (struct ebt_entries *)e;
-		return 0;
-	}
-	if (left < sizeof(struct ebt_entry))
-		goto Esmall;
-	if (left < e->next_offset)
-		goto Esmall;
-	return 0;
 
-Esmall:
-	BUGPRINT("entries_size too small\n");
-	return -EINVAL;
+		for (i = 0; i < NF_BR_NUMHOOKS; i++) {
+			if ((valid_hooks & (1 << i)) == 0)
+				continue;
+			if ((char *)repl->hook_entry[i] == repl->entries + offset)
+				break;
+		}
+
+		if (i != NF_BR_NUMHOOKS || !(e->bitmask & EBT_ENTRY_OR_ENTRIES)) {
+			if (e->bitmask != 0) {
+				/* we make userspace set this right,
+				   so there is no misunderstanding */
+				BUGPRINT("EBT_ENTRY_OR_ENTRIES shouldn't be set "
+					 "in distinguisher\n");
+				return -EINVAL;
+			}
+			if (i != NF_BR_NUMHOOKS)
+				newinfo->hook_entry[i] = (struct ebt_entries *)e;
+			if (left < sizeof(struct ebt_entries))
+				break;
+			offset += sizeof(struct ebt_entries);
+		} else {
+			if (left < sizeof(struct ebt_entry))
+				break;
+			if (left < e->next_offset)
+				break;
+			offset += e->next_offset;
+		}
+	}
+	if (offset != limit) {
+		BUGPRINT("entries_size too small\n");
+		return -EINVAL;
+	}
+	return 0;
 }
 
 /*
@@ -795,9 +801,7 @@ static int translate_table(struct ebt_replace *repl,
 	newinfo->entries_size = repl->entries_size;
 	newinfo->nentries = repl->nentries;
 
-	ret = EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
-	   __ebt_verify_pointers, newinfo, repl->entries,
-	   repl->entries + repl->entries_size, repl->hook_entry, repl->valid_hooks);
+	ret = ebt_verify_pointers(repl, newinfo);
 	if (ret != 0)
 		return ret;
 
