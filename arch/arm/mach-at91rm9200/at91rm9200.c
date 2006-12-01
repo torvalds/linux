@@ -28,32 +28,12 @@ static struct map_desc at91rm9200_io_desc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= AT91_VA_BASE_SPI,
-		.pfn		= __phys_to_pfn(AT91RM9200_BASE_SPI),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
 		.virtual	= AT91_VA_BASE_EMAC,
 		.pfn		= __phys_to_pfn(AT91RM9200_BASE_EMAC),
 		.length		= SZ_16K,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= AT91_VA_BASE_TWI,
-		.pfn		= __phys_to_pfn(AT91RM9200_BASE_TWI),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= AT91_VA_BASE_MCI,
-		.pfn		= __phys_to_pfn(AT91RM9200_BASE_MCI),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= AT91_VA_BASE_UDP,
-		.pfn		= __phys_to_pfn(AT91RM9200_BASE_UDP),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= AT91_SRAM_VIRT_BASE,
+		.virtual	= AT91_IO_VIRT_BASE - AT91RM9200_SRAM_SIZE,
 		.pfn		= __phys_to_pfn(AT91RM9200_SRAM_BASE),
 		.length		= AT91RM9200_SRAM_SIZE,
 		.type		= MT_DEVICE,

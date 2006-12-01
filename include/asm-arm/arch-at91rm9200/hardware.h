@@ -42,29 +42,27 @@
  * Virtual to Physical Address mapping for IO devices.
  */
 #define AT91_VA_BASE_SYS	AT91_IO_P2V(AT91_BASE_SYS)
-#define AT91_VA_BASE_SPI	AT91_IO_P2V(AT91RM9200_BASE_SPI)
 #define AT91_VA_BASE_EMAC	AT91_IO_P2V(AT91RM9200_BASE_EMAC)
-#define AT91_VA_BASE_TWI	AT91_IO_P2V(AT91RM9200_BASE_TWI)
-#define AT91_VA_BASE_MCI	AT91_IO_P2V(AT91RM9200_BASE_MCI)
-#define AT91_VA_BASE_UDP	AT91_IO_P2V(AT91RM9200_BASE_UDP)
 
  /* Internal SRAM is mapped below the IO devices */
-#define AT91_SRAM_VIRT_BASE	(AT91_IO_VIRT_BASE - AT91RM9200_SRAM_SIZE)
+#define AT91_SRAM_MAX		SZ_1M
+#define AT91_VIRT_BASE		(AT91_IO_VIRT_BASE - AT91_SRAM_MAX)
 
 /* Serial ports */
-#define ATMEL_MAX_UART		5		/* 4 USART3's and one DBGU port */
+#define ATMEL_MAX_UART		7		/* 6 USART3's and one DBGU port (SAM9260) */
 
-/* FLASH */
-#define AT91_FLASH_BASE		0x10000000	/* NCS0: Flash physical base address */
+/* External Memory Map */
+#define AT91_CHIPSELECT_0	0x10000000
+#define AT91_CHIPSELECT_1	0x20000000
+#define AT91_CHIPSELECT_2	0x30000000
+#define AT91_CHIPSELECT_3	0x40000000
+#define AT91_CHIPSELECT_4	0x50000000
+#define AT91_CHIPSELECT_5	0x60000000
+#define AT91_CHIPSELECT_6	0x70000000
+#define AT91_CHIPSELECT_7	0x80000000
 
 /* SDRAM */
-#define AT91_SDRAM_BASE		0x20000000	/* NCS1: SDRAM physical base address */
-
-/* SmartMedia */
-#define AT91_SMARTMEDIA_BASE	0x40000000	/* NCS3: Smartmedia physical base address */
-
-/* Compact Flash */
-#define AT91_CF_BASE		0x50000000	/* NCS4-NCS6: Compact Flash physical base address */
+#define AT91_SDRAM_BASE		AT91_CHIPSELECT_1
 
 /* Clocks */
 #define AT91_SLOW_CLOCK		32768		/* slow clock */

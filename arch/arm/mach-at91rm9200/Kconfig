@@ -2,7 +2,8 @@ if ARCH_AT91
 
 menu "Atmel AT91 System-on-Chip"
 
-comment "Atmel AT91 Processors"
+choice
+	prompt "Atmel AT91 Processor"
 
 config ARCH_AT91RM9200
 	bool "AT91RM9200"
@@ -12,6 +13,8 @@ config ARCH_AT91SAM9260
 
 config ARCH_AT91SAM9261
 	bool "AT91SAM9261"
+
+endchoice
 
 # ----------------------------------------------------------
 
@@ -32,7 +35,6 @@ config ARCH_AT91RM9200DK
 	help
 	  Select this if you are using Atmel's AT91RM9200-DK Development board.
 	  (Discontinued)
-
 
 config MACH_AT91RM9200EK
 	bool "Atmel AT91RM9200-EK Evaluation Kit"
