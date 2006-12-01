@@ -174,11 +174,9 @@ no_context:
 		printk(KERN_ALERT "Unable to handle kernel paging request");
 	printk(" at virtual address %08lx\n", address);
 	printk(KERN_ALERT "pc = %08lx\n", regs->pc);
-	asm volatile("mov.l	%1, %0"
-		     : "=r" (page)
-		     : "m" (__m(MMU_TTB)));
+	page = (unsigned long)get_TTB();
 	if (page) {
-		page = ((unsigned long *) page)[address >> 22];
+		page = ((unsigned long *) page)[address >> PGDIR_SHIFT];
 		printk(KERN_ALERT "*pde = %08lx\n", page);
 		if (page & _PAGE_PRESENT) {
 			page &= PAGE_MASK;
