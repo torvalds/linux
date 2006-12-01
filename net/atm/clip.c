@@ -38,7 +38,6 @@
 
 #include "common.h"
 #include "resources.h"
-#include "ipcommon.h"
 #include <net/atmclip.h>
 
 
@@ -469,8 +468,9 @@ static struct net_device_stats *clip_get_stats(struct net_device *dev)
 static int clip_mkip(struct atm_vcc *vcc, int timeout)
 {
 	struct clip_vcc *clip_vcc;
-	struct sk_buff_head copy;
 	struct sk_buff *skb;
+	struct sk_buff_head *rq;
+	unsigned long flags;
 
 	if (!vcc->push)
 		return -EBADFD;
@@ -490,10 +490,26 @@ static int clip_mkip(struct atm_vcc *vcc, int timeout)
 	clip_vcc->old_pop = vcc->pop;
 	vcc->push = clip_push;
 	vcc->pop = clip_pop;
-	skb_queue_head_init(&copy);
-	skb_migrate(&sk_atm(vcc)->sk_receive_queue, &copy);
+
+	rq = &sk_atm(vcc)->sk_receive_queue;
+
+	spin_lock_irqsave(&rq->lock, flags);
+	if (skb_queue_empty(rq)) {
+		skb = NULL;
+	} else {
+		/* NULL terminate the list.  */
+		rq->prev->next = NULL;
+		skb = rq->next;
+	}
+	rq->prev = rq->next = (struct sk_buff *)rq;
+	rq->qlen = 0;
+	spin_unlock_irqrestore(&rq->lock, flags);
+
 	/* re-process everything received between connection setup and MKIP */
-	while ((skb = skb_dequeue(&copy)) != NULL)
+	while (skb) {
+		struct sk_buff *next = skb->next;
+
+		skb->next = skb->prev = NULL;
 		if (!clip_devs) {
 			atm_return(vcc, skb->truesize);
 			kfree_skb(skb);
@@ -506,6 +522,9 @@ static int clip_mkip(struct atm_vcc *vcc, int timeout)
 			PRIV(skb->dev)->stats.rx_bytes -= len;
 			kfree_skb(skb);
 		}
+
+		skb = next;
+	}
 	return 0;
 }
 
