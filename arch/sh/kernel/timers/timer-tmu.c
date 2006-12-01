@@ -144,7 +144,7 @@ static int tmu_timer_init(void)
 
 	setup_irq(CONFIG_SH_TIMER_IRQ, &tmu_irq);
 
-	tmu0_clk.parent = clk_get("module_clk");
+	tmu0_clk.parent = clk_get(NULL, "module_clk");
 
 	/* Start TMU0 */
 	tmu_timer_stop();

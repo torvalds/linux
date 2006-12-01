@@ -161,7 +161,7 @@ static int mtu2_timer_init(void)
 
 	setup_irq(CONFIG_SH_TIMER_IRQ, &mtu2_irq);
 
-	mtu2_clk1.parent = clk_get("module_clk");
+	mtu2_clk1.parent = clk_get(NULL, "module_clk");
 
 	ctrl_outb(ctrl_inb(STBCR3) & (~0x20), STBCR3);
 

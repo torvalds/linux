@@ -124,7 +124,7 @@ static void cmt_clk_init(struct clk *clk)
 	u8 divisor = CMT_CMCSR_INIT & 0x3;
 	ctrl_inw(CMT_CMCSR_0);
 	ctrl_outw(CMT_CMCSR_INIT, CMT_CMCSR_0);
-	clk->parent = clk_get("module_clk");
+	clk->parent = clk_get(NULL, "module_clk");
 	clk->rate = clk->parent->rate / (8 << (divisor << 1));
 }
 
@@ -164,7 +164,7 @@ static int cmt_timer_init(void)
 
 	setup_irq(CONFIG_SH_TIMER_IRQ, &cmt_irq);
 
-	cmt0_clk.parent = clk_get("module_clk");
+	cmt0_clk.parent = clk_get(NULL, "module_clk");
 
 	cmt_timer_stop();
 
