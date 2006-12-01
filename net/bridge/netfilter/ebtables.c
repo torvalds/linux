@@ -417,7 +417,8 @@ static int ebt_verify_pointers(struct ebt_replace *repl,
 		for (i = 0; i < NF_BR_NUMHOOKS; i++) {
 			if ((valid_hooks & (1 << i)) == 0)
 				continue;
-			if ((char *)repl->hook_entry[i] == repl->entries + offset)
+			if ((char __user *)repl->hook_entry[i] ==
+			     repl->entries + offset)
 				break;
 		}
 
@@ -1156,7 +1157,7 @@ int ebt_register_table(struct ebt_table *table)
 {
 	struct ebt_table_info *newinfo;
 	struct ebt_table *t;
-	struct ebt_replace *repl;
+	struct ebt_replace_kernel *repl;
 	int ret, i, countersize;
 	void *p;
 
@@ -1320,33 +1321,33 @@ free_tmp:
 }
 
 static inline int ebt_make_matchname(struct ebt_entry_match *m,
-   char *base, char *ubase)
+   char *base, char __user *ubase)
 {
-	char *hlp = ubase - base + (char *)m;
+	char __user *hlp = ubase + ((char *)m - base);
 	if (copy_to_user(hlp, m->u.match->name, EBT_FUNCTION_MAXNAMELEN))
 		return -EFAULT;
 	return 0;
 }
 
 static inline int ebt_make_watchername(struct ebt_entry_watcher *w,
-   char *base, char *ubase)
+   char *base, char __user *ubase)
 {
-	char *hlp = ubase - base + (char *)w;
+	char __user *hlp = ubase + ((char *)w - base);
 	if (copy_to_user(hlp , w->u.watcher->name, EBT_FUNCTION_MAXNAMELEN))
 		return -EFAULT;
 	return 0;
 }
 
-static inline int ebt_make_names(struct ebt_entry *e, char *base, char *ubase)
+static inline int ebt_make_names(struct ebt_entry *e, char *base, char __user *ubase)
 {
 	int ret;
-	char *hlp;
+	char __user *hlp;
 	struct ebt_entry_target *t;
 
 	if (e->bitmask == 0)
 		return 0;
 
-	hlp = ubase - base + (char *)e + e->target_offset;
+	hlp = ubase + (((char *)e + e->target_offset) - base);
 	t = (struct ebt_entry_target *)(((char *)e) + e->target_offset);
 	
 	ret = EBT_MATCH_ITERATE(e, ebt_make_matchname, base, ubase);

@@ -46,6 +46,23 @@ struct ebt_replace
 	/* total size of the entries */
 	unsigned int entries_size;
 	/* start of the chains */
+	struct ebt_entries __user *hook_entry[NF_BR_NUMHOOKS];
+	/* nr of counters userspace expects back */
+	unsigned int num_counters;
+	/* where the kernel will put the old counters */
+	struct ebt_counter __user *counters;
+	char __user *entries;
+};
+
+struct ebt_replace_kernel
+{
+	char name[EBT_TABLE_MAXNAMELEN];
+	unsigned int valid_hooks;
+	/* nr of rules in the table */
+	unsigned int nentries;
+	/* total size of the entries */
+	unsigned int entries_size;
+	/* start of the chains */
 	struct ebt_entries *hook_entry[NF_BR_NUMHOOKS];
 	/* nr of counters userspace expects back */
 	unsigned int num_counters;
@@ -255,7 +272,7 @@ struct ebt_table
 {
 	struct list_head list;
 	char name[EBT_TABLE_MAXNAMELEN];
-	struct ebt_replace *table;
+	struct ebt_replace_kernel *table;
 	unsigned int valid_hooks;
 	rwlock_t lock;
 	/* e.g. could be the table explicitly only allows certain
