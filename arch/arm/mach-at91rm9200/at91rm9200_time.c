@@ -101,6 +101,9 @@ void at91rm9200_timer_reset(void)
 	/* Set Period Interval timer */
 	at91_sys_write(AT91_ST_PIMR, LATCH);
 
+	/* Clear any pending interrupts */
+	(void) at91_sys_read(AT91_ST_SR);
+
 	/* Enable Period Interval Timer interrupt */
 	at91_sys_write(AT91_ST_IER, AT91_ST_PITS);
 }
