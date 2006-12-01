@@ -533,8 +533,7 @@ struct ebt_cl_stack
  */
 static inline int
 ebt_get_udc_positions(struct ebt_entry *e, struct ebt_table_info *newinfo,
-   struct ebt_entries **hook_entries, unsigned int *n, unsigned int valid_hooks,
-   struct ebt_cl_stack *udc)
+   unsigned int *n, struct ebt_cl_stack *udc)
 {
 	int i;
 
@@ -542,8 +541,6 @@ ebt_get_udc_positions(struct ebt_entry *e, struct ebt_table_info *newinfo,
 	if (e->bitmask)
 		return 0;
 	for (i = 0; i < NF_BR_NUMHOOKS; i++) {
-		if ((valid_hooks & (1 << i)) == 0)
-			continue;
 		if (newinfo->hook_entry[i] == (struct ebt_entries *)e)
 			break;
 	}
@@ -861,8 +858,7 @@ static int translate_table(struct ebt_replace *repl,
 			return -ENOMEM;
 		i = 0; /* the i'th udc */
 		EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
-		   ebt_get_udc_positions, newinfo, repl->hook_entry, &i,
-		   repl->valid_hooks, cl_s);
+		   ebt_get_udc_positions, newinfo, &i, cl_s);
 		/* sanity check */
 		if (i != udc_cnt) {
 			BUGPRINT("i != udc_cnt\n");
