@@ -265,7 +265,7 @@ static void __init build_mem_type_table(void)
 	if (arch_is_coherent()) {
 		if (cpu_is_xsc3()) {
 			mem_types[MT_MEMORY].prot_sect |= PMD_SECT_S;
-			mem_types[MT_MEMORY].prot_pte |= L_PTE_COHERENT;
+			mem_types[MT_MEMORY].prot_pte |= L_PTE_SHARED;
 		}
 	}
 
