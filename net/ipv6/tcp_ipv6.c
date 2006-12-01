@@ -929,11 +929,11 @@ static struct request_sock_ops tcp6_request_sock_ops __read_mostly = {
 	.send_reset	=	tcp_v6_send_reset
 };
 
-static struct tcp_request_sock_ops tcp_request_sock_ipv6_ops = {
 #ifdef CONFIG_TCP_MD5SIG
+static struct tcp_request_sock_ops tcp_request_sock_ipv6_ops = {
 	.md5_lookup	=	tcp_v6_reqsk_md5_lookup,
-#endif
 };
+#endif
 
 static struct timewait_sock_ops tcp6_timewait_sock_ops = {
 	.twsk_obj_size	= sizeof(struct tcp6_timewait_sock),

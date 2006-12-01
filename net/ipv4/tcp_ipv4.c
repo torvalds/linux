@@ -1233,11 +1233,11 @@ struct request_sock_ops tcp_request_sock_ops __read_mostly = {
 	.send_reset	=	tcp_v4_send_reset,
 };
 
-static struct tcp_request_sock_ops tcp_request_sock_ipv4_ops = {
 #ifdef CONFIG_TCP_MD5SIG
+static struct tcp_request_sock_ops tcp_request_sock_ipv4_ops = {
 	.md5_lookup	=	tcp_v4_reqsk_md5_lookup,
-#endif
 };
+#endif
 
 static struct timewait_sock_ops tcp_timewait_sock_ops = {
 	.twsk_obj_size	= sizeof(struct tcp_timewait_sock),
@@ -1820,14 +1820,14 @@ struct inet_connection_sock_af_ops ipv4_specific = {
 #endif
 };
 
-static struct tcp_sock_af_ops tcp_sock_ipv4_specific = {
 #ifdef CONFIG_TCP_MD5SIG
+static struct tcp_sock_af_ops tcp_sock_ipv4_specific = {
 	.md5_lookup		= tcp_v4_md5_lookup,
 	.calc_md5_hash		= tcp_v4_calc_md5_hash,
 	.md5_add		= tcp_v4_md5_add_func,
 	.md5_parse		= tcp_v4_parse_md5_keys,
-#endif
 };
+#endif
 
 /* NOTE: A lot of things set to zero explicitly by call to
  *       sk_alloc() so need not be done here.
