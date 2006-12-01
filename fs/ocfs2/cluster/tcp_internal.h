@@ -38,6 +38,9 @@
  * locking semantics of the file system using the protocol.  It should 
  * be somewhere else, I'm sure, but right now it isn't.
  *
+ * New in version 6:
+ * 	- DLM lockres remote refcount fixes.
+ *
  * New in version 5:
  * 	- Network timeout checking protocol
  *
@@ -51,7 +54,7 @@
  * 	- full 64 bit i_size in the metadata lock lvbs
  * 	- introduction of "rw" lock and pushing meta/data locking down
  */
-#define O2NET_PROTOCOL_VERSION 5ULL
+#define O2NET_PROTOCOL_VERSION 6ULL
 struct o2net_handshake {
 	__be64	protocol_version;
 	__be64	connector_id;

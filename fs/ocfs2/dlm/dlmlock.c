@@ -163,6 +163,10 @@ static enum dlm_status dlmlock_master(struct dlm_ctxt *dlm,
 			kick_thread = 1;
 		}
 	}
+	/* reduce the inflight count, this may result in the lockres
+	 * being purged below during calc_usage */
+	if (lock->ml.node == dlm->node_num)
+		dlm_lockres_drop_inflight_ref(dlm, res);
 
 	spin_unlock(&res->spinlock);
 	wake_up(&res->wq);
