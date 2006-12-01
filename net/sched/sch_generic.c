@@ -609,13 +609,10 @@ void dev_shutdown(struct net_device *dev)
 	qdisc_unlock_tree(dev);
 }
 
-EXPORT_SYMBOL(__netdev_watchdog_up);
 EXPORT_SYMBOL(netif_carrier_on);
 EXPORT_SYMBOL(netif_carrier_off);
 EXPORT_SYMBOL(noop_qdisc);
-EXPORT_SYMBOL(noop_qdisc_ops);
 EXPORT_SYMBOL(qdisc_create_dflt);
-EXPORT_SYMBOL(qdisc_alloc);
 EXPORT_SYMBOL(qdisc_destroy);
 EXPORT_SYMBOL(qdisc_reset);
 EXPORT_SYMBOL(qdisc_lock_tree);
