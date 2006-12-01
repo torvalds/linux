@@ -858,6 +858,7 @@ static void copy_templates(struct xfrm_policy *xp, struct xfrm_user_tmpl *ut,
 	int i;
 
 	xp->xfrm_nr = nr;
+	xp->family = ut->family;
 	for (i = 0; i < nr; i++, ut++) {
 		struct xfrm_tmpl *t = &xp->xfrm_vec[i];
 
@@ -871,6 +872,7 @@ static void copy_templates(struct xfrm_policy *xp, struct xfrm_user_tmpl *ut,
 		t->aalgos = ut->aalgos;
 		t->ealgos = ut->ealgos;
 		t->calgos = ut->calgos;
+		t->encap_family = ut->family;
 	}
 }
 
@@ -1024,7 +1026,7 @@ static int copy_to_user_tmpl(struct xfrm_policy *xp, struct sk_buff *skb)
 		struct xfrm_tmpl *kp = &xp->xfrm_vec[i];
 
 		memcpy(&up->id, &kp->id, sizeof(up->id));
-		up->family = xp->family;
+		up->family = kp->encap_family;
 		memcpy(&up->saddr, &kp->saddr, sizeof(up->saddr));
 		up->reqid = kp->reqid;
 		up->mode = kp->mode;
