@@ -90,11 +90,20 @@ struct rdma_conn_param {
 	u32 qp_num;
 };
 
+struct rdma_ud_param {
+	const void *private_data;
+	u8 private_data_len;
+	struct ib_ah_attr ah_attr;
+	u32 qp_num;
+	u32 qkey;
+};
+
 struct rdma_cm_event {
 	enum rdma_cm_event_type	 event;
 	int			 status;
 	union {
 		struct rdma_conn_param	conn;
+		struct rdma_ud_param	ud;
 	} param;
 };
 
@@ -220,9 +229,15 @@ int rdma_init_qp_attr(struct rdma_cm_id *id, struct ib_qp_attr *qp_attr,
 
 /**
  * rdma_connect - Initiate an active connection request.
+ * @id: Connection identifier to connect.
+ * @conn_param: Connection information used for connected QPs.
  *
  * Users must have resolved a route for the rdma_cm_id to connect with
  * by having called rdma_resolve_route before calling this routine.
+ *
+ * This call will either connect to a remote QP or obtain remote QP
+ * information for unconnected rdma_cm_id's.  The actual operation is
+ * based on the rdma_cm_id's port space.
  */
 int rdma_connect(struct rdma_cm_id *id, struct rdma_conn_param *conn_param);
 
