@@ -792,22 +792,22 @@ static int translate_table(struct ebt_replace *repl,
 		return ret;
 
 	i = 0;
-	while (i < NF_BR_NUMHOOKS && !(repl->valid_hooks & (1 << i)))
+	while (i < NF_BR_NUMHOOKS && !newinfo->hook_entry[i])
 		i++;
 	if (i == NF_BR_NUMHOOKS) {
 		BUGPRINT("No valid hooks specified\n");
 		return -EINVAL;
 	}
-	if (repl->hook_entry[i] != (struct ebt_entries *)repl->entries) {
+	if (newinfo->hook_entry[i] != (struct ebt_entries *)newinfo->entries) {
 		BUGPRINT("Chains don't start at beginning\n");
 		return -EINVAL;
 	}
 	/* make sure chains are ordered after each other in same order
 	   as their corresponding hooks */
 	for (j = i + 1; j < NF_BR_NUMHOOKS; j++) {
-		if (!(repl->valid_hooks & (1 << j)))
+		if (!newinfo->hook_entry[j])
 			continue;
-		if ( repl->hook_entry[j] <= repl->hook_entry[i] ) {
+		if (newinfo->hook_entry[j] <= newinfo->hook_entry[i]) {
 			BUGPRINT("Hook order must be followed\n");
 			return -EINVAL;
 		}
@@ -877,7 +877,7 @@ static int translate_table(struct ebt_replace *repl,
 
 	/* Check for loops */
 	for (i = 0; i < NF_BR_NUMHOOKS; i++)
-		if (repl->valid_hooks & (1 << i))
+		if (newinfo->hook_entry[i])
 			if (check_chainloops(newinfo->hook_entry[i],
 			   cl_s, udc_cnt, i, newinfo->entries)) {
 				vfree(cl_s);
