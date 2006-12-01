@@ -36,6 +36,11 @@ MODULE_LICENSE("GPL");
 #define	QCIF_HEIGHT	144
 
 /*
+ * Our nominal (default) frame rate.
+ */
+#define OV7670_FRAME_RATE 30
+
+/*
  * The 7670 sits on i2c with ID 0x42
  */
 #define OV7670_I2C_ADDR 0x42
@@ -291,7 +296,7 @@ static struct regval_list ov7670_default_regs[] = {
 	{ 0xc9, 0x60 },		{ REG_COM16, 0x38 },
 	{ 0x56, 0x40 },
 
-	{ 0x34, 0x11 },		{ REG_COM11, COM11_EXP },
+	{ 0x34, 0x11 },		{ REG_COM11, COM11_EXP|COM11_HZAUTO },
 	{ 0xa4, 0x88 },		{ 0x96, 0 },
 	{ 0x97, 0x30 },		{ 0x98, 0x20 },
 	{ 0x99, 0x30 },		{ 0x9a, 0x84 },
@@ -720,6 +725,63 @@ static int ov7670_s_fmt(struct i2c_client *c, struct v4l2_format *fmt)
 	info->fmt = ovfmt;
 	return 0;
 }
+
+/*
+ * Implement G/S_PARM.  There is a "high quality" mode we could try
+ * to do someday; for now, we just do the frame rate tweak.
+ */
+static int ov7670_g_parm(struct i2c_client *c, struct v4l2_streamparm *parms)
+{
+	struct v4l2_captureparm *cp = &parms->parm.capture;
+	unsigned char clkrc;
+	int ret;
+
+	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+	ret = ov7670_read(c, REG_CLKRC, &clkrc);
+	if (ret < 0)
+		return ret;
+	memset(cp, 0, sizeof(struct v4l2_captureparm));
+	cp->capability = V4L2_CAP_TIMEPERFRAME;
+	cp->timeperframe.numerator = 1;
+	cp->timeperframe.denominator = OV7670_FRAME_RATE;
+	if ((clkrc & CLK_EXT) == 0 && (clkrc & CLK_SCALE) > 1)
+		cp->timeperframe.denominator /= (clkrc & CLK_SCALE);
+	return 0;
+}
+
+static int ov7670_s_parm(struct i2c_client *c, struct v4l2_streamparm *parms)
+{
+	struct v4l2_captureparm *cp = &parms->parm.capture;
+	struct v4l2_fract *tpf = &cp->timeperframe;
+	unsigned char clkrc;
+	int ret, div;
+
+	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+	if (cp->extendedmode != 0)
+		return -EINVAL;
+	/*
+	 * CLKRC has a reserved bit, so let's preserve it.
+	 */
+	ret = ov7670_read(c, REG_CLKRC, &clkrc);
+	if (ret < 0)
+		return ret;
+	if (tpf->numerator == 0 || tpf->denominator == 0)
+		div = 1;  /* Reset to full rate */
+	else
+		div = (tpf->numerator*OV7670_FRAME_RATE)/tpf->denominator;
+	if (div == 0)
+		div = 1;
+	else if (div > CLK_SCALE)
+		div = CLK_SCALE;
+	clkrc = (clkrc & 0x80) | div;
+	tpf->numerator = 1;
+	tpf->denominator = OV7670_FRAME_RATE/div;
+	return ov7670_write(c, REG_CLKRC, clkrc);
+}
+
+
 
 /*
  * Code for dealing with controls.
@@ -1231,10 +1293,10 @@ static int ov7670_command(struct i2c_client *client, unsigned int cmd,
 		return ov7670_s_ctrl(client, (struct v4l2_control *) arg);
 	case VIDIOC_G_CTRL:
 		return ov7670_g_ctrl(client, (struct v4l2_control *) arg);
-	/* Todo:
-	   g/s_parm
-	   initialization
-	*/
+	case VIDIOC_S_PARM:
+		return ov7670_s_parm(client, (struct v4l2_streamparm *) arg);
+	case VIDIOC_G_PARM:
+		return ov7670_g_parm(client, (struct v4l2_streamparm *) arg);
 	}
 	return -EINVAL;
 }

@@ -1671,6 +1671,37 @@ static int cafe_vidioc_s_std(struct file *filp, void *priv, v4l2_std_id *a)
 	return 0;
 }
 
+/*
+ * G/S_PARM.  Most of this is done by the sensor, but we are
+ * the level which controls the number of read buffers.
+ */
+static int cafe_vidioc_g_parm(struct file *filp, void *priv,
+		struct v4l2_streamparm *parms)
+{
+	struct cafe_camera *cam = priv;
+	int ret;
+
+	mutex_lock(&cam->s_mutex);
+	ret = __cafe_cam_cmd(cam, VIDIOC_G_PARM, parms);
+	mutex_unlock(&cam->s_mutex);
+	parms->parm.capture.readbuffers = n_dma_bufs;
+	return ret;
+}
+
+static int cafe_vidioc_s_parm(struct file *filp, void *priv,
+		struct v4l2_streamparm *parms)
+{
+	struct cafe_camera *cam = priv;
+	int ret;
+
+	mutex_lock(&cam->s_mutex);
+	ret = __cafe_cam_cmd(cam, VIDIOC_S_PARM, parms);
+	mutex_unlock(&cam->s_mutex);
+	parms->parm.capture.readbuffers = n_dma_bufs;
+	return ret;
+}
+
+
 static void cafe_v4l_dev_release(struct video_device *vd)
 {
 	struct cafe_camera *cam = container_of(vd, struct cafe_camera, v4ldev);
@@ -1724,7 +1755,8 @@ static struct video_device cafe_v4l_template = {
 	.vidioc_queryctrl	= cafe_vidioc_queryctrl,
 	.vidioc_g_ctrl		= cafe_vidioc_g_ctrl,
 	.vidioc_s_ctrl		= cafe_vidioc_s_ctrl,
-	/* Do cropping someday */
+	.vidioc_g_parm		= cafe_vidioc_g_parm,
+	.vidioc_s_parm		= cafe_vidioc_s_parm,
 };
 
 
