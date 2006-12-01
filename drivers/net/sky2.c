@@ -2065,7 +2065,7 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 		case OP_RXSTAT:
 			skb = sky2_receive(dev, length, status);
 			if (!skb)
-				break;
+				goto force_update;
 
 			skb->protocol = eth_type_trans(skb, dev);
 			dev->last_rx = jiffies;
@@ -2081,8 +2081,8 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 
 			/* Update receiver after 16 frames */
 			if (++buf_write[le->link] == RX_BUF_WRITE) {
-				sky2_put_idx(hw, rxqaddr[le->link],
-					     sky2->rx_put);
+force_update:
+				sky2_put_idx(hw, rxqaddr[le->link], sky2->rx_put);
 				buf_write[le->link] = 0;
 			}
 
