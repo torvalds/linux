@@ -57,11 +57,6 @@
 #define L2_CACHE_ENABLE	1
 
 /*
- * Enable the Branch Target Buffer (can cause crashes, see erratum #42.)
- */
-#define BTB_ENABLE	0
-
-/*
  * This macro is used to wait for a CP15 write and is needed
  * when we have to ensure that the last operation to the co-pro
  * was completed before continuing with operation.
@@ -434,9 +429,7 @@ __xsc3_setup:
 	mrc	p15, 0, r0, c1, c0, 0		@ get control register
 	bic	r0, r0, r5			@ .... .... .... ..A.
 	orr	r0, r0, r6			@ .... .... .... .C.M
-#if BTB_ENABLE
 	orr	r0, r0, #0x00000800		@ ..VI Z..S .... ....
-#endif
 #if L2_CACHE_ENABLE
 	orr 	r0, r0, #0x04000000		@ L2 enable
 #endif

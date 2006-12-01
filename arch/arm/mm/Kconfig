@@ -580,7 +580,7 @@ config CPU_CACHE_ROUND_ROBIN
 
 config CPU_BPREDICT_DISABLE
 	bool "Disable branch prediction"
-	depends on CPU_ARM1020 || CPU_V6
+	depends on CPU_ARM1020 || CPU_V6 || CPU_XSC3
 	help
 	  Say Y here to disable branch prediction.  If unsure, say N.
 
