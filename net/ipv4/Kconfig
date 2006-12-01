@@ -630,9 +630,5 @@ config TCP_MD5SIG
 
 	  If unsure, say N.
 
-config TCP_MD5SIG_DEBUG
-	bool "TCP: MD5 Signature Option debugging"
-	depends on TCP_MD5SIG
-
 source "net/ipv4/ipvs/Kconfig"
 

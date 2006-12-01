@@ -1017,9 +1017,6 @@ static int tcp_v4_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 	struct scatterlist sg[4];
 	__u16 data_len;
 	int block = 0;
-#ifdef CONFIG_TCP_MD5SIG_DEBUG
-	int i;
-#endif
 	__sum16 old_checksum;
 	struct tcp_md5sig_pool *hp;
 	struct tcp4_pseudohdr *bp;
@@ -1052,13 +1049,6 @@ static int tcp_v4_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 	sg_set_buf(&sg[block++], bp, sizeof(*bp));
 	nbytes += sizeof(*bp);
 
-#ifdef CONFIG_TCP_MD5SIG_DEBUG
-	printk("Calcuating hash for: ");
-	for (i = 0; i < sizeof(*bp); i++)
-		printk("%02x ", (unsigned int)((unsigned char *)bp)[i]);
-	printk(" ");
-#endif
-
 	/* 2. the TCP header, excluding options, and assuming a
 	 * checksum of zero/
 	 */
@@ -1066,10 +1056,7 @@ static int tcp_v4_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 	th->check = 0;
 	sg_set_buf(&sg[block++], th, sizeof(struct tcphdr));
 	nbytes += sizeof(struct tcphdr);
-#ifdef CONFIG_TCP_MD5SIG_DEBUG
-	for (i = 0; i < sizeof(struct tcphdr); i++)
-		printk(" %02x", (unsigned int)((unsigned char *)th)[i]);
-#endif
+
 	/* 3. the TCP segment data (if any) */
 	data_len = tcplen - (th->doff << 2);
 	if (data_len > 0) {
@@ -1083,12 +1070,6 @@ static int tcp_v4_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 	 */
 	sg_set_buf(&sg[block++], key->key, key->keylen);
 	nbytes += key->keylen;
-
-#ifdef CONFIG_TCP_MD5SIG_DEBUG
-	printk("  and password: ");
-	for (i = 0; i < key->keylen; i++)
-		printk("%02x ", (unsigned int)key->key[i]);
-#endif
 
 	/* Now store the Hash into the packet */
 	err = crypto_hash_init(desc);
@@ -1106,12 +1087,6 @@ static int tcp_v4_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 	th->check = old_checksum;
 
 out:
-#ifdef CONFIG_TCP_MD5SIG_DEBUG
-	printk(" result:");
-	for (i = 0; i < 16; i++)
-		printk(" %02x", (unsigned int)(((u8*)md5_hash)[i]));
-	printk("\n");
-#endif
 	return 0;
 clear_hash:
 	tcp_put_md5sig_pool();
@@ -1241,20 +1216,6 @@ done_opts:
 			       NIPQUAD(iph->saddr), ntohs(th->source),
 			       NIPQUAD(iph->daddr), ntohs(th->dest),
 			       genhash ? " tcp_v4_calc_md5_hash failed" : "");
-#ifdef CONFIG_TCP_MD5SIG_DEBUG
-			do {
-				int i;
-				printk("Received: ");
-				for (i = 0; i < 16; i++)
-					printk("%02x ",
-					       0xff & (int)hash_location[i]);
-				printk("\n");
-				printk("Calculated: ");
-				for (i = 0; i < 16; i++)
-					printk("%02x ", 0xff & (int)newhash[i]);
-				printk("\n");
-			} while(0);
-#endif
 		}
 		return 1;
 	}
