@@ -50,15 +50,20 @@ unsigned long long __attribute__ ((weak)) sched_clock(void)
 #ifndef CONFIG_GENERIC_TIME
 void do_gettimeofday(struct timeval *tv)
 {
+	unsigned long flags;
 	unsigned long seq;
 	unsigned long usec, sec;
 
 	do {
-		seq = read_seqbegin(&xtime_lock);
+		/*
+		 * Turn off IRQs when grabbing xtime_lock, so that
+		 * the sys_timer get_offset code doesn't have to handle it.
+		 */
+		seq = read_seqbegin_irqsave(&xtime_lock, flags);
 		usec = get_timer_offset();
 		sec = xtime.tv_sec;
-		usec += xtime.tv_nsec / 1000;
-	} while (read_seqretry(&xtime_lock, seq));
+		usec += xtime.tv_nsec / NSEC_PER_USEC;
+	} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
 
 	while (usec >= 1000000) {
 		usec -= 1000000;
@@ -85,7 +90,7 @@ int do_settimeofday(struct timespec *tv)
 	 * wall time.  Discover what correction gettimeofday() would have
 	 * made, and then undo it!
 	 */
-	nsec -= 1000 * get_timer_offset();
+	nsec -= get_timer_offset() * NSEC_PER_USEC;
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);

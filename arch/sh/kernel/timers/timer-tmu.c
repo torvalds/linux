@@ -17,7 +17,6 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
-#include <linux/spinlock.h>
 #include <linux/seqlock.h>
 #include <asm/timer.h>
 #include <asm/rtc.h>
@@ -31,13 +30,9 @@
 
 #define TMU0_TCR_CALIB	0x0000
 
-static DEFINE_SPINLOCK(tmu0_lock);
-
 static unsigned long tmu_timer_get_offset(void)
 {
 	int count;
-	unsigned long flags;
-
 	static int count_p = 0x7fffffff;    /* for the first call after boot */
 	static unsigned long jiffies_p = 0;
 
@@ -46,7 +41,6 @@ static unsigned long tmu_timer_get_offset(void)
 	 */
 	unsigned long jiffies_t;
 
-	spin_lock_irqsave(&tmu0_lock, flags);
 	/* timer count may underflow right here */
 	count = ctrl_inl(TMU0_TCNT);	/* read the latched count */
 
@@ -72,7 +66,6 @@ static unsigned long tmu_timer_get_offset(void)
 		jiffies_p = jiffies_t;
 
 	count_p = count;
-	spin_unlock_irqrestore(&tmu0_lock, flags);
 
 	count = ((LATCH-1) - count) * TICK_SIZE;
 	count = (count + LATCH/2) / LATCH;
@@ -106,7 +99,7 @@ static irqreturn_t tmu_timer_interrupt(int irq, void *dummy)
 static struct irqaction tmu_irq = {
 	.name		= "timer",
 	.handler	= tmu_timer_interrupt,
-	.flags		= IRQF_DISABLED,
+	.flags		= IRQF_DISABLED | IRQF_TIMER,
 	.mask		= CPU_MASK_NONE,
 };
 

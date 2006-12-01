@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
-#include <linux/spinlock.h>
 #include <linux/seqlock.h>
 #include <asm/timer.h>
 #include <asm/io.h>
@@ -28,9 +27,6 @@
  * However, we can implement channel cascade if we go the overflow route and
  * get away with using 2 MTU2 channels as a 32-bit timer.
  */
-
-static DEFINE_SPINLOCK(mtu2_lock);
-
 #define MTU2_TSTR	0xfffe4280
 #define MTU2_TCR_1	0xfffe4380
 #define MTU2_TMDR_1	0xfffe4381
@@ -55,8 +51,6 @@ static DEFINE_SPINLOCK(mtu2_lock);
 static unsigned long mtu2_timer_get_offset(void)
 {
 	int count;
-	unsigned long flags;
-
 	static int count_p = 0x7fff;	/* for the first call after boot */
 	static unsigned long jiffies_p = 0;
 
@@ -65,7 +59,6 @@ static unsigned long mtu2_timer_get_offset(void)
 	 */
 	unsigned long jiffies_t;
 
-	spin_lock_irqsave(&mtu2_lock, flags);
 	/* timer count may underflow right here */
 	count = ctrl_inw(MTU2_TCNT_1);	/* read the latched count */
 
@@ -90,7 +83,6 @@ static unsigned long mtu2_timer_get_offset(void)
 		jiffies_p = jiffies_t;
 
 	count_p = count;
-	spin_unlock_irqrestore(&mtu2_lock, flags);
 
 	count = ((LATCH-1) - count) * TICK_SIZE;
 	count = (count + LATCH/2) / LATCH;
@@ -118,7 +110,7 @@ static irqreturn_t mtu2_timer_interrupt(int irq, void *dev_id)
 static struct irqaction mtu2_irq = {
 	.name		= "timer",
 	.handler	= mtu2_timer_interrupt,
-	.flags		= IRQF_DISABLED,
+	.flags		= IRQF_DISABLED | IRQF_TIMER,
 	.mask		= CPU_MASK_NONE,
 };
 

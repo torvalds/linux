@@ -11,7 +11,6 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
-#include <linux/spinlock.h>
 #include <linux/seqlock.h>
 #include <asm/timer.h>
 #include <asm/rtc.h>
@@ -46,13 +45,9 @@
 #error "Unknown CPU SUBTYPE"
 #endif
 
-static DEFINE_SPINLOCK(cmt0_lock);
-
 static unsigned long cmt_timer_get_offset(void)
 {
 	int count;
-	unsigned long flags;
-
 	static unsigned short count_p = 0xffff;    /* for the first call after boot */
 	static unsigned long jiffies_p = 0;
 
@@ -61,7 +56,6 @@ static unsigned long cmt_timer_get_offset(void)
 	 */
 	unsigned long jiffies_t;
 
-	spin_lock_irqsave(&cmt0_lock, flags);
 	/* timer count may underflow right here */
 	count =  ctrl_inw(CMT_CMCOR_0);
 	count -= ctrl_inw(CMT_CMCNT_0);
@@ -88,7 +82,6 @@ static unsigned long cmt_timer_get_offset(void)
 		jiffies_p = jiffies_t;
 
 	count_p = count;
-	spin_unlock_irqrestore(&cmt0_lock, flags);
 
 	count = ((LATCH-1) - count) * TICK_SIZE;
 	count = (count + LATCH/2) / LATCH;
@@ -122,7 +115,7 @@ static irqreturn_t cmt_timer_interrupt(int irq, void *dev_id)
 static struct irqaction cmt_irq = {
 	.name		= "timer",
 	.handler	= cmt_timer_interrupt,
-	.flags		= IRQF_DISABLED,
+	.flags		= IRQF_DISABLED | IRQF_TIMER,
 	.mask		= CPU_MASK_NONE,
 };
 
