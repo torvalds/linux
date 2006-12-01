@@ -202,12 +202,18 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir->sampling = 1;
 		break;
 	case CX88_BOARD_WINFAST_DTV2000H:
-	case CX88_BOARD_WINFAST2000XP_EXPERT:
 		ir_codes = ir_codes_winfast;
 		ir->gpio_addr = MO_GP0_IO;
 		ir->mask_keycode = 0x8f8;
 		ir->mask_keyup = 0x100;
 		ir->polling = 50; /* ms */
+		break;
+	case CX88_BOARD_WINFAST2000XP_EXPERT:
+		ir_codes = ir_codes_winfast;
+		ir->gpio_addr = MO_GP0_IO;
+		ir->mask_keycode = 0x8f8;
+		ir->mask_keyup = 0x100;
+		ir->polling = 1; /* ms */
 		break;
 	case CX88_BOARD_IODATA_GVBCTV7E:
 		ir_codes = ir_codes_iodata_bctv7e;
@@ -216,7 +222,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir->mask_keydown = 0x02;
 		ir->polling = 5; /* ms */
 		break;
-       case CX88_BOARD_PROLINK_PLAYTVPVR:
+	case CX88_BOARD_PROLINK_PLAYTVPVR:
 	case CX88_BOARD_PIXELVIEW_PLAYTV_ULTRA_PRO:
 		ir_codes = ir_codes_pixelview;
 		ir->gpio_addr = MO_GP1_IO;

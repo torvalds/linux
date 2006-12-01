@@ -32,6 +32,7 @@
 #include <linux/ktime.h>
 #include <linux/mutex.h>
 #include <linux/time.h>
+#include <asm/io.h>
 
 /***************
  * Definitions *
@@ -209,8 +210,8 @@ ioc4_clock_calibrate(struct ioc4_driver_data *idd)
 
 		do_div(ns, IOC4_EXTINT_COUNT_DIVISOR);
 		printk(KERN_DEBUG
-		       "IOC4 %s: PCI clock is %lld ns.\n",
-		       pci_name(idd->idd_pdev), ns);
+		       "IOC4 %s: PCI clock is %llu ns.\n",
+		       pci_name(idd->idd_pdev), (unsigned long long)ns);
 	}
 
 	/* Remember results.  We store the extint clock period rather

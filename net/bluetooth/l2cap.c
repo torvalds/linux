@@ -1353,12 +1353,12 @@ static inline int l2cap_conf_output(struct sock *sk, void **ptr)
 
 	/* Configure output options and let the other side know
 	 * which ones we don't like. */
-	if (pi->conf_mtu < pi->omtu) {
-		l2cap_add_conf_opt(ptr, L2CAP_CONF_MTU, 2, pi->omtu);
+	if (pi->conf_mtu < pi->omtu)
 		result = L2CAP_CONF_UNACCEPT;
-	} else {
+	else
 		pi->omtu = pi->conf_mtu;
-	}
+
+	l2cap_add_conf_opt(ptr, L2CAP_CONF_MTU, 2, pi->omtu);
 
 	BT_DBG("sk %p result %d", sk, result);
 	return result;
@@ -1532,6 +1532,9 @@ static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 
 	if (!(sk = l2cap_get_chan_by_scid(&conn->chan_list, dcid)))
 		return -ENOENT;
+
+	if (sk->sk_state == BT_DISCONN)
+		goto unlock;
 
 	l2cap_parse_conf_req(sk, req->data, cmd->len - sizeof(*req));
 

@@ -83,7 +83,7 @@ static struct sdram_params sdram_tbl[] __initdata = {
 		.refresh	= 64000,
 		.cas_latency	= 3,
 	}, {    /* Samsung K4S281632B-1H */
-	        .name           = "K4S281632b-1H",
+	        .name           = "K4S281632B-1H",
 		.rows           = 12,
 		.tck            = 10,
 		.trp            = 20,

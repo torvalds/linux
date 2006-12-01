@@ -92,7 +92,7 @@ static int artop6260_pre_reset(struct ata_port *ap)
 		return -ENOENT;
 
 	pci_read_config_byte(pdev, 0x49, &tmp);
-	if (tmp & (1 >> ap->port_no))
+	if (tmp & (1 << ap->port_no))
 		ap->cbl = ATA_CBL_PATA40;
 	else
 		ap->cbl = ATA_CBL_PATA80;

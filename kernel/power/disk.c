@@ -71,7 +71,7 @@ static inline void platform_finish(void)
 
 static int prepare_processes(void)
 {
-	int error;
+	int error = 0;
 
 	pm_prepare_console();
 
@@ -81,6 +81,12 @@ static int prepare_processes(void)
 
 	if (freeze_processes()) {
 		error = -EBUSY;
+		goto thaw;
+	}
+
+	if (pm_disk_mode == PM_DISK_TESTPROC) {
+		printk("swsusp debug: Waiting for 5 seconds.\n");
+		mdelay(5000);
 		goto thaw;
 	}
 
@@ -120,13 +126,21 @@ int pm_suspend_disk(void)
 	if (error)
 		return error;
 
+	if (pm_disk_mode == PM_DISK_TESTPROC)
+		goto Thaw;
+
 	suspend_console();
 	error = device_suspend(PMSG_FREEZE);
 	if (error) {
 		resume_console();
 		printk("Some devices failed to suspend\n");
-		unprepare_processes();
-		return error;
+		goto Thaw;
+	}
+
+	if (pm_disk_mode == PM_DISK_TEST) {
+		printk("swsusp debug: Waiting for 5 seconds.\n");
+		mdelay(5000);
+		goto Done;
 	}
 
 	pr_debug("PM: snapshotting memory.\n");
@@ -143,16 +157,17 @@ int pm_suspend_disk(void)
 			power_down(pm_disk_mode);
 		else {
 			swsusp_free();
-			unprepare_processes();
-			return error;
+			goto Thaw;
 		}
-	} else
+	} else {
 		pr_debug("PM: Image restored successfully.\n");
+	}
 
 	swsusp_free();
  Done:
 	device_resume();
 	resume_console();
+ Thaw:
 	unprepare_processes();
 	return error;
 }
@@ -249,6 +264,8 @@ static const char * const pm_disk_modes[] = {
 	[PM_DISK_PLATFORM]	= "platform",
 	[PM_DISK_SHUTDOWN]	= "shutdown",
 	[PM_DISK_REBOOT]	= "reboot",
+	[PM_DISK_TEST]		= "test",
+	[PM_DISK_TESTPROC]	= "testproc",
 };
 
 /**
@@ -303,17 +320,19 @@ static ssize_t disk_store(struct subsystem * s, const char * buf, size_t n)
 		}
 	}
 	if (mode) {
-		if (mode == PM_DISK_SHUTDOWN || mode == PM_DISK_REBOOT)
+		if (mode == PM_DISK_SHUTDOWN || mode == PM_DISK_REBOOT ||
+		     mode == PM_DISK_TEST || mode == PM_DISK_TESTPROC) {
 			pm_disk_mode = mode;
-		else {
+		} else {
 			if (pm_ops && pm_ops->enter &&
 			    (mode == pm_ops->pm_disk_mode))
 				pm_disk_mode = mode;
 			else
 				error = -EINVAL;
 		}
-	} else
+	} else {
 		error = -EINVAL;
+	}
 
 	pr_debug("PM: suspend-to-disk mode set to '%s'\n",
 		 pm_disk_modes[mode]);

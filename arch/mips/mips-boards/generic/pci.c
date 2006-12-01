@@ -90,7 +90,7 @@ static struct pci_controller msc_controller = {
 void __init mips_pcibios_init(void)
 {
 	struct pci_controller *controller;
-	unsigned long start, end, map, start1, end1, map1, map2, map3, mask;
+	resource_size_t start, end, map, start1, end1, map1, map2, map3, mask;
 
 	switch (mips_revision_corid) {
 	case MIPS_REVISION_CORID_QED_RM5261:

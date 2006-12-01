@@ -623,6 +623,9 @@ enum inode_i_mutex_lock_class
 	I_MUTEX_QUOTA
 };
 
+extern void inode_double_lock(struct inode *inode1, struct inode *inode2);
+extern void inode_double_unlock(struct inode *inode1, struct inode *inode2);
+
 /*
  * NOTE: in a 32bit arch with a preemptable kernel and
  * an UP compile the i_size_read/write must be atomic
@@ -1709,6 +1712,8 @@ extern void __iget(struct inode * inode);
 extern void clear_inode(struct inode *);
 extern void destroy_inode(struct inode *);
 extern struct inode *new_inode(struct super_block *);
+extern int __remove_suid(struct dentry *, int);
+extern int should_remove_suid(struct dentry *);
 extern int remove_suid(struct dentry *);
 extern void remove_dquot_ref(struct super_block *, int, struct list_head *);
 
@@ -1754,6 +1759,8 @@ extern void do_generic_mapping_read(struct address_space *mapping,
 extern ssize_t generic_file_splice_read(struct file *, loff_t *,
 		struct pipe_inode_info *, size_t, unsigned int);
 extern ssize_t generic_file_splice_write(struct pipe_inode_info *,
+		struct file *, loff_t *, size_t, unsigned int);
+extern ssize_t generic_file_splice_write_nolock(struct pipe_inode_info *,
 		struct file *, loff_t *, size_t, unsigned int);
 extern ssize_t generic_splice_sendpage(struct pipe_inode_info *pipe,
 		struct file *out, loff_t *, size_t len, unsigned int flags);

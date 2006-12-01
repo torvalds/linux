@@ -1807,8 +1807,8 @@ u8 acpiphp_get_power_status(struct acpiphp_slot *slot)
 
 
 /*
- * latch closed:  1
- * latch   open:  0
+ * latch   open:  1
+ * latch closed:  0
  */
 u8 acpiphp_get_latch_status(struct acpiphp_slot *slot)
 {
@@ -1816,7 +1816,7 @@ u8 acpiphp_get_latch_status(struct acpiphp_slot *slot)
 
 	sta = get_slot_status(slot);
 
-	return (sta & ACPI_STA_SHOW_IN_UI) ? 1 : 0;
+	return (sta & ACPI_STA_SHOW_IN_UI) ? 0 : 1;
 }
 
 

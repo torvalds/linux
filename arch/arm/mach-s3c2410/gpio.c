@@ -3,7 +3,7 @@
  * Copyright (c) 2004-2005 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * S3C2410 GPIO support
+ * S3C24XX GPIO support
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -163,3 +163,22 @@ unsigned int s3c2410_modify_misccr(unsigned int clear, unsigned int change)
 }
 
 EXPORT_SYMBOL(s3c2410_modify_misccr);
+
+int s3c2410_gpio_getirq(unsigned int pin)
+{
+	if (pin < S3C2410_GPF0 || pin > S3C2410_GPG15)
+		return -1;	/* not valid interrupts */
+
+	if (pin < S3C2410_GPG0 && pin > S3C2410_GPF7)
+		return -1;	/* not valid pin */
+
+	if (pin < S3C2410_GPF4)
+		return (pin - S3C2410_GPF0) + IRQ_EINT0;
+
+	if (pin < S3C2410_GPG0)
+		return (pin - S3C2410_GPF4) + IRQ_EINT4;
+
+	return (pin - S3C2410_GPG0) + IRQ_EINT8;
+}
+
+EXPORT_SYMBOL(s3c2410_gpio_getirq);

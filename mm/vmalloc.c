@@ -160,13 +160,15 @@ int map_vm_area(struct vm_struct *area, pgprot_t prot, struct page ***pages)
 	return err;
 }
 
-struct vm_struct *__get_vm_area_node(unsigned long size, unsigned long flags,
-				unsigned long start, unsigned long end, int node)
+static struct vm_struct *__get_vm_area_node(unsigned long size, unsigned long flags,
+					    unsigned long start, unsigned long end,
+					    int node, gfp_t gfp_mask)
 {
 	struct vm_struct **p, *tmp, *area;
 	unsigned long align = 1;
 	unsigned long addr;
 
+	BUG_ON(in_interrupt());
 	if (flags & VM_IOREMAP) {
 		int bit = fls(size);
 
@@ -179,15 +181,12 @@ struct vm_struct *__get_vm_area_node(unsigned long size, unsigned long flags,
 	}
 	addr = ALIGN(start, align);
 	size = PAGE_ALIGN(size);
+	if (unlikely(!size))
+		return NULL;
 
-	area = kmalloc_node(sizeof(*area), GFP_KERNEL, node);
+	area = kmalloc_node(sizeof(*area), gfp_mask & GFP_LEVEL_MASK, node);
 	if (unlikely(!area))
 		return NULL;
-
-	if (unlikely(!size)) {
-		kfree (area);
-		return NULL;
-	}
 
 	/*
 	 * We always allocate a guard page.
@@ -236,7 +235,7 @@ out:
 struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
 				unsigned long start, unsigned long end)
 {
-	return __get_vm_area_node(size, flags, start, end, -1);
+	return __get_vm_area_node(size, flags, start, end, -1, GFP_KERNEL);
 }
 
 /**
@@ -253,9 +252,11 @@ struct vm_struct *get_vm_area(unsigned long size, unsigned long flags)
 	return __get_vm_area(size, flags, VMALLOC_START, VMALLOC_END);
 }
 
-struct vm_struct *get_vm_area_node(unsigned long size, unsigned long flags, int node)
+struct vm_struct *get_vm_area_node(unsigned long size, unsigned long flags,
+				   int node, gfp_t gfp_mask)
 {
-	return __get_vm_area_node(size, flags, VMALLOC_START, VMALLOC_END, node);
+	return __get_vm_area_node(size, flags, VMALLOC_START, VMALLOC_END, node,
+				  gfp_mask);
 }
 
 /* Caller must hold vmlist_lock */
@@ -487,7 +488,7 @@ static void *__vmalloc_node(unsigned long size, gfp_t gfp_mask, pgprot_t prot,
 	if (!size || (size >> PAGE_SHIFT) > num_physpages)
 		return NULL;
 
-	area = get_vm_area_node(size, VM_ALLOC, node);
+	area = get_vm_area_node(size, VM_ALLOC, node, gfp_mask);
 	if (!area)
 		return NULL;
 
@@ -528,11 +529,12 @@ void *vmalloc_user(unsigned long size)
 	void *ret;
 
 	ret = __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO, PAGE_KERNEL);
-	write_lock(&vmlist_lock);
-	area = __find_vm_area(ret);
-	area->flags |= VM_USERMAP;
-	write_unlock(&vmlist_lock);
-
+	if (ret) {
+		write_lock(&vmlist_lock);
+		area = __find_vm_area(ret);
+		area->flags |= VM_USERMAP;
+		write_unlock(&vmlist_lock);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(vmalloc_user);
@@ -601,11 +603,12 @@ void *vmalloc_32_user(unsigned long size)
 	void *ret;
 
 	ret = __vmalloc(size, GFP_KERNEL | __GFP_ZERO, PAGE_KERNEL);
-	write_lock(&vmlist_lock);
-	area = __find_vm_area(ret);
-	area->flags |= VM_USERMAP;
-	write_unlock(&vmlist_lock);
-
+	if (ret) {
+		write_lock(&vmlist_lock);
+		area = __find_vm_area(ret);
+		area->flags |= VM_USERMAP;
+		write_unlock(&vmlist_lock);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(vmalloc_32_user);

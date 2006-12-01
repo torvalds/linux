@@ -496,19 +496,12 @@ int remove_memory(u64 start, u64 size)
 }
 EXPORT_SYMBOL_GPL(remove_memory);
 
-#ifndef CONFIG_ACPI_NUMA
+#if !defined(CONFIG_ACPI_NUMA) && defined(CONFIG_NUMA)
 int memory_add_physaddr_to_nid(u64 start)
 {
 	return 0;
 }
 EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
-#endif
-
-#ifndef CONFIG_ACPI_NUMA
-int memory_add_physaddr_to_nid(u64 start)
-{
-	return 0;
-}
 #endif
 
 #endif /* CONFIG_MEMORY_HOTPLUG */
@@ -655,9 +648,22 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 
 void __init reserve_bootmem_generic(unsigned long phys, unsigned len) 
 { 
-	/* Should check here against the e820 map to avoid double free */ 
 #ifdef CONFIG_NUMA
 	int nid = phys_to_nid(phys);
+#endif
+	unsigned long pfn = phys >> PAGE_SHIFT;
+	if (pfn >= end_pfn) {
+		/* This can happen with kdump kernels when accessing firmware
+		   tables. */
+		if (pfn < end_pfn_map)
+			return;
+		printk(KERN_ERR "reserve_bootmem: illegal reserve %lx %u\n",
+				phys, len);
+		return;
+	}
+
+	/* Should check here against the e820 map to avoid double free */
+#ifdef CONFIG_NUMA
   	reserve_bootmem_node(NODE_DATA(nid), phys, len);
 #else       		
 	reserve_bootmem(phys, len);    

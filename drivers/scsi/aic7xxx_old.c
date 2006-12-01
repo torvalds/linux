@@ -2646,7 +2646,7 @@ static void aic7xxx_done_cmds_complete(struct aic7xxx_host *p)
 
 	while (p->completeq.head != NULL) {
 		cmd = p->completeq.head;
-		p->completeq.head = (struct scsi_Cmnd *) cmd->host_scribble;
+		p->completeq.head = (struct scsi_cmnd *) cmd->host_scribble;
 		cmd->host_scribble = NULL;
 		cmd->scsi_done(cmd);
 	}

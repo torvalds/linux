@@ -225,7 +225,7 @@ struct in6_flowlabel_req
 #endif
 
 /*
- * Netfilter
+ * Netfilter (1)
  *
  * Following socket options are used in ip6_tables;
  * see include/linux/netfilter_ipv6/ip6_tables.h.
@@ -239,5 +239,15 @@ struct in6_flowlabel_req
  */
 #define IPV6_RECVTCLASS		66
 #define IPV6_TCLASS		67
+
+/*
+ * Netfilter (2)
+ *
+ * Following socket options are used in ip6_tables;
+ * see include/linux/netfilter_ipv6/ip6_tables.h.
+ *
+ * IP6T_SO_GET_REVISION_MATCH	68
+ * IP6T_SO_GET_REVISION_TARGET	69
+ */
 
 #endif

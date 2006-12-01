@@ -183,13 +183,27 @@ do {								\
 #define read_lock(lock)			_read_lock(lock)
 
 #if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
+
 #define spin_lock_irqsave(lock, flags)	flags = _spin_lock_irqsave(lock)
 #define read_lock_irqsave(lock, flags)	flags = _read_lock_irqsave(lock)
 #define write_lock_irqsave(lock, flags)	flags = _write_lock_irqsave(lock)
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#define spin_lock_irqsave_nested(lock, flags, subclass) \
+	flags = _spin_lock_irqsave_nested(lock, subclass)
 #else
+#define spin_lock_irqsave_nested(lock, flags, subclass) \
+	flags = _spin_lock_irqsave(lock)
+#endif
+
+#else
+
 #define spin_lock_irqsave(lock, flags)	_spin_lock_irqsave(lock, flags)
 #define read_lock_irqsave(lock, flags)	_read_lock_irqsave(lock, flags)
 #define write_lock_irqsave(lock, flags)	_write_lock_irqsave(lock, flags)
+#define spin_lock_irqsave_nested(lock, flags, subclass)	\
+	spin_lock_irqsave(lock, flags)
+
 #endif
 
 #define spin_lock_irq(lock)		_spin_lock_irq(lock)

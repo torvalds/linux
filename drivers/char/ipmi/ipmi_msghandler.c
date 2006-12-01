@@ -376,13 +376,23 @@ static void free_recv_msg_list(struct list_head *q)
 	}
 }
 
+static void free_smi_msg_list(struct list_head *q)
+{
+	struct ipmi_smi_msg *msg, *msg2;
+
+	list_for_each_entry_safe(msg, msg2, q, link) {
+		list_del(&msg->link);
+		ipmi_free_smi_msg(msg);
+	}
+}
+
 static void clean_up_interface_data(ipmi_smi_t intf)
 {
 	int              i;
 	struct cmd_rcvr  *rcvr, *rcvr2;
 	struct list_head list;
 
-	free_recv_msg_list(&intf->waiting_msgs);
+	free_smi_msg_list(&intf->waiting_msgs);
 	free_recv_msg_list(&intf->waiting_events);
 
 	/* Wholesale remove all the entries from the list in the
@@ -1844,7 +1854,7 @@ static ssize_t provides_dev_sdrs_show(struct device *dev,
 	struct bmc_device *bmc = dev_get_drvdata(dev);
 
 	return snprintf(buf, 10, "%u\n",
-			bmc->id.device_revision && 0x80 >> 7);
+			(bmc->id.device_revision & 0x80) >> 7);
 }
 
 static ssize_t revision_show(struct device *dev, struct device_attribute *attr,
@@ -1853,7 +1863,7 @@ static ssize_t revision_show(struct device *dev, struct device_attribute *attr,
 	struct bmc_device *bmc = dev_get_drvdata(dev);
 
 	return snprintf(buf, 20, "%u\n",
-			bmc->id.device_revision && 0x0F);
+			bmc->id.device_revision & 0x0F);
 }
 
 static ssize_t firmware_rev_show(struct device *dev,
@@ -2108,7 +2118,7 @@ static int ipmi_bmc_register(ipmi_smi_t intf)
 		dev_set_drvdata(&bmc->dev->dev, bmc);
 		kref_init(&bmc->refcount);
 
-		rv = platform_device_register(bmc->dev);
+		rv = platform_device_add(bmc->dev);
 		mutex_unlock(&ipmidriver_mutex);
 		if (rv) {
 			printk(KERN_ERR
@@ -3232,7 +3242,9 @@ void ipmi_smi_msg_received(ipmi_smi_t          intf,
                    report the error immediately. */
 		if ((msg->rsp_size >= 3) && (msg->rsp[2] != 0)
 		    && (msg->rsp[2] != IPMI_NODE_BUSY_ERR)
-		    && (msg->rsp[2] != IPMI_LOST_ARBITRATION_ERR))
+		    && (msg->rsp[2] != IPMI_LOST_ARBITRATION_ERR)
+		    && (msg->rsp[2] != IPMI_BUS_ERR)
+		    && (msg->rsp[2] != IPMI_NAK_ON_WRITE_ERR))
 		{
 			int chan = msg->rsp[3] & 0xf;
 

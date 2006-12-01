@@ -224,7 +224,7 @@ static int __init setup_early_printk(char *buf)
 		return 0;
 	early_console_initialized = 1;
 
-	if (!strcmp(buf,"keep"))
+	if (strstr(buf, "keep"))
 		keep_early = 1;
 
 	if (!strncmp(buf, "serial", 6)) {

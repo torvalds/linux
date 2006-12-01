@@ -1016,7 +1016,7 @@ There are some more advanced barrier functions:
 
  (*) set_mb(var, value)
 
-     This assigns the value to the variable and then inserts at least a write
+     This assigns the value to the variable and then inserts a full memory
      barrier after it, depending on the function.  It isn't guaranteed to
      insert anything more than a compiler barrier in a UP compilation.
 

@@ -260,22 +260,22 @@ static int ipx_seq_socket_show(struct seq_file *seq, void *v)
 	ipxs = ipx_sk(s);
 #ifdef CONFIG_IPX_INTERN
 	seq_printf(seq, "%08lX:%02X%02X%02X%02X%02X%02X:%04X  ",
-		   (unsigned long)htonl(ipxs->intrfc->if_netnum),
+		   (unsigned long)ntohl(ipxs->intrfc->if_netnum),
 		   ipxs->node[0], ipxs->node[1], ipxs->node[2], ipxs->node[3],
-		   ipxs->node[4], ipxs->node[5], htons(ipxs->port));
+		   ipxs->node[4], ipxs->node[5], ntohs(ipxs->port));
 #else
-	seq_printf(seq, "%08lX:%04X  ", (unsigned long) htonl(ipxs->intrfc->if_netnum),
-		   htons(ipxs->port));
+	seq_printf(seq, "%08lX:%04X  ", (unsigned long) ntohl(ipxs->intrfc->if_netnum),
+		   ntohs(ipxs->port));
 #endif	/* CONFIG_IPX_INTERN */
 	if (s->sk_state != TCP_ESTABLISHED)
 		seq_printf(seq, "%-28s", "Not_Connected");
 	else {
 		seq_printf(seq, "%08lX:%02X%02X%02X%02X%02X%02X:%04X  ",
-			   (unsigned long)htonl(ipxs->dest_addr.net),
+			   (unsigned long)ntohl(ipxs->dest_addr.net),
 			   ipxs->dest_addr.node[0], ipxs->dest_addr.node[1],
 			   ipxs->dest_addr.node[2], ipxs->dest_addr.node[3],
 			   ipxs->dest_addr.node[4], ipxs->dest_addr.node[5],
-			   htons(ipxs->dest_addr.sock));
+			   ntohs(ipxs->dest_addr.sock));
 	}
 
 	seq_printf(seq, "%08X  %08X  %02X     %03d\n",

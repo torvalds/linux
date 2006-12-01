@@ -24,6 +24,8 @@
 #include <linux/kernel.h>
 #include <linux/cache.h>
 
+#include "setup.h"
+
 #if 0
 #define DEBUGP printk
 #else
@@ -269,32 +271,49 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 	return 0;
 }
 
+static const Elf_Shdr *find_section(const Elf_Ehdr *hdr,
+				    const Elf_Shdr *sechdrs,
+				    const char *name)
+{
+	char *secstrings;
+	unsigned int i;
+
+	secstrings = (char *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
+	for (i = 1; i < hdr->e_shnum; i++)
+		if (strcmp(secstrings+sechdrs[i].sh_name, name) == 0)
+			return &sechdrs[i];
+	return NULL;
+}
+
 int module_finalize(const Elf_Ehdr *hdr,
 		    const Elf_Shdr *sechdrs,
 		    struct module *me)
 {
-	char *secstrings;
-	unsigned int i;
+	const Elf_Shdr *sect;
 
 	me->arch.bug_table = NULL;
 	me->arch.num_bugs = 0;
 
 	/* Find the __bug_table section, if present */
-	secstrings = (char *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
-	for (i = 1; i < hdr->e_shnum; i++) {
-		if (strcmp(secstrings+sechdrs[i].sh_name, "__bug_table"))
-			continue;
-		me->arch.bug_table = (void *) sechdrs[i].sh_addr;
-		me->arch.num_bugs = sechdrs[i].sh_size / sizeof(struct bug_entry);
-		break;
+	sect = find_section(hdr, sechdrs, "__bug_table");
+	if (sect != NULL) {
+		me->arch.bug_table = (void *) sect->sh_addr;
+		me->arch.num_bugs = sect->sh_size / sizeof(struct bug_entry);
 	}
 
-	/*
+ 	/*
 	 * Strictly speaking this should have a spinlock to protect against
 	 * traversals, but since we only traverse on BUG()s, a spinlock
 	 * could potentially lead to deadlock and thus be counter-productive.
 	 */
 	list_add(&me->arch.bug_list, &module_bug_list);
+
+	/* Apply feature fixups */
+	sect = find_section(hdr, sechdrs, "__ftr_fixup");
+	if (sect != NULL)
+		do_feature_fixups(cur_cpu_spec->cpu_features,
+				  (void *)sect->sh_addr,
+				  (void *)sect->sh_addr + sect->sh_size);
 
 	return 0;
 }

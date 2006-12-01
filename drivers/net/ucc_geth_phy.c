@@ -42,7 +42,6 @@
 
 #include "ucc_geth.h"
 #include "ucc_geth_phy.h"
-#include <platforms/83xx/mpc8360e_pb.h>
 
 #define ugphy_printk(level, format, arg...)  \
         printk(level format "\n", ## arg)
@@ -72,16 +71,14 @@ static int genmii_read_status(struct ugeth_mii_info *mii_info);
 u16 phy_read(struct ugeth_mii_info *mii_info, u16 regnum);
 void phy_write(struct ugeth_mii_info *mii_info, u16 regnum, u16 val);
 
-static u8 *bcsr_regs = NULL;
-
 /* Write value to the PHY for this device to the register at regnum, */
 /* waiting until the write is done before it returns.  All PHY */
 /* configuration has to be done through the TSEC1 MIIM regs */
 void write_phy_reg(struct net_device *dev, int mii_id, int regnum, int value)
 {
-	ucc_geth_private_t *ugeth = netdev_priv(dev);
-	ucc_mii_mng_t *mii_regs;
-	enet_tbi_mii_reg_e mii_reg = (enet_tbi_mii_reg_e) regnum;
+	struct ucc_geth_private *ugeth = netdev_priv(dev);
+	struct ucc_mii_mng *mii_regs;
+	enum enet_tbi_mii_reg mii_reg = (enum enet_tbi_mii_reg) regnum;
 	u32 tmp_reg;
 
 	ugphy_vdbg("%s: IN", __FUNCTION__);
@@ -116,9 +113,9 @@ void write_phy_reg(struct net_device *dev, int mii_id, int regnum, int value)
 /* configuration has to be done through the TSEC1 MIIM regs */
 int read_phy_reg(struct net_device *dev, int mii_id, int regnum)
 {
-	ucc_geth_private_t *ugeth = netdev_priv(dev);
-	ucc_mii_mng_t *mii_regs;
-	enet_tbi_mii_reg_e mii_reg = (enet_tbi_mii_reg_e) regnum;
+	struct ucc_geth_private *ugeth = netdev_priv(dev);
+	struct ucc_mii_mng *mii_regs;
+	enum enet_tbi_mii_reg mii_reg = (enum enet_tbi_mii_reg) regnum;
 	u32 tmp_reg;
 	u16 value;
 
@@ -634,11 +631,6 @@ static void dm9161_close(struct ugeth_mii_info *mii_info)
 
 static int dm9161_ack_interrupt(struct ugeth_mii_info *mii_info)
 {
-/* FIXME: This lines are for BUG fixing in the mpc8325.
-Remove this from here when it's fixed */
-	if (bcsr_regs == NULL)
-		bcsr_regs = (u8 *) ioremap(BCSR_PHYS_ADDR, BCSR_SIZE);
-	bcsr_regs[14] |= 0x40;
 	ugphy_vdbg("%s: IN", __FUNCTION__);
 
 	/* Clear the interrupts by reading the reg */
@@ -650,12 +642,6 @@ Remove this from here when it's fixed */
 
 static int dm9161_config_intr(struct ugeth_mii_info *mii_info)
 {
-/* FIXME: This lines are for BUG fixing in the mpc8325.
-Remove this from here when it's fixed */
-	if (bcsr_regs == NULL) {
-		bcsr_regs = (u8 *) ioremap(BCSR_PHYS_ADDR, BCSR_SIZE);
-		bcsr_regs[14] &= ~0x40;
-	}
 	ugphy_vdbg("%s: IN", __FUNCTION__);
 
 	if (mii_info->interrupts == MII_INTERRUPT_ENABLED)

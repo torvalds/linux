@@ -379,21 +379,37 @@ static struct bin_attribute sysfs_sfp_attr = {
 	.read = qla2x00_sysfs_read_sfp,
 };
 
+static struct sysfs_entry {
+	char *name;
+	struct bin_attribute *attr;
+	int is4GBp_only;
+} bin_file_entries[] = {
+	{ "fw_dump", &sysfs_fw_dump_attr, },
+	{ "nvram", &sysfs_nvram_attr, },
+	{ "optrom", &sysfs_optrom_attr, },
+	{ "optrom_ctl", &sysfs_optrom_ctl_attr, },
+	{ "vpd", &sysfs_vpd_attr, 1 },
+	{ "sfp", &sysfs_sfp_attr, 1 },
+	{ 0 },
+};
+
 void
 qla2x00_alloc_sysfs_attr(scsi_qla_host_t *ha)
 {
 	struct Scsi_Host *host = ha->host;
+	struct sysfs_entry *iter;
+	int ret;
 
-	sysfs_create_bin_file(&host->shost_gendev.kobj, &sysfs_fw_dump_attr);
-	sysfs_create_bin_file(&host->shost_gendev.kobj, &sysfs_nvram_attr);
-	sysfs_create_bin_file(&host->shost_gendev.kobj, &sysfs_optrom_attr);
-	sysfs_create_bin_file(&host->shost_gendev.kobj,
-	    &sysfs_optrom_ctl_attr);
-	if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
-		sysfs_create_bin_file(&host->shost_gendev.kobj,
-		    &sysfs_vpd_attr);
-		sysfs_create_bin_file(&host->shost_gendev.kobj,
-		    &sysfs_sfp_attr);
+	for (iter = bin_file_entries; iter->name; iter++) {
+		if (iter->is4GBp_only && (!IS_QLA24XX(ha) && !IS_QLA54XX(ha)))
+			continue;
+
+		ret = sysfs_create_bin_file(&host->shost_gendev.kobj,
+		    iter->attr);
+		if (ret)
+			qla_printk(KERN_INFO, ha,
+			    "Unable to create sysfs %s binary attribute "
+			    "(%d).\n", iter->name, ret);
 	}
 }
 
@@ -401,17 +417,14 @@ void
 qla2x00_free_sysfs_attr(scsi_qla_host_t *ha)
 {
 	struct Scsi_Host *host = ha->host;
+	struct sysfs_entry *iter;
 
-	sysfs_remove_bin_file(&host->shost_gendev.kobj, &sysfs_fw_dump_attr);
-	sysfs_remove_bin_file(&host->shost_gendev.kobj, &sysfs_nvram_attr);
-	sysfs_remove_bin_file(&host->shost_gendev.kobj, &sysfs_optrom_attr);
-	sysfs_remove_bin_file(&host->shost_gendev.kobj,
-	    &sysfs_optrom_ctl_attr);
-	if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
+	for (iter = bin_file_entries; iter->name; iter++) {
+		if (iter->is4GBp_only && (!IS_QLA24XX(ha) && !IS_QLA54XX(ha)))
+			continue;
+
 		sysfs_remove_bin_file(&host->shost_gendev.kobj,
-		    &sysfs_vpd_attr);
-		sysfs_remove_bin_file(&host->shost_gendev.kobj,
-		    &sysfs_sfp_attr);
+		    iter->attr);
 	}
 
 	if (ha->beacon_blink_led == 1)

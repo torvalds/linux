@@ -73,7 +73,7 @@
 #define IRQ_TO_GPIO(i)	(((i) < IRQ_GPIO(2)) ? ((i) - IRQ_GPIO0) : IRQ_TO_GPIO_2_x(i))
 
 #if defined(CONFIG_PXA25x)
-#define PXA_LAST_GPIO	80
+#define PXA_LAST_GPIO	84
 #elif defined(CONFIG_PXA27x)
 #define PXA_LAST_GPIO	127
 #endif

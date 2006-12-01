@@ -128,13 +128,7 @@ SECTIONS
   .initcall.init : AT(ADDR(.initcall.init) - LOAD_OFFSET)
 	{
 	  __initcall_start = .;
-	  *(.initcall1.init)
-	  *(.initcall2.init)
-	  *(.initcall3.init)
-	  *(.initcall4.init)
-	  *(.initcall5.init)
-	  *(.initcall6.init)
-	  *(.initcall7.init)
+	INITCALLS
 	  __initcall_end = .;
 	}
 

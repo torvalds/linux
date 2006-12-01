@@ -109,7 +109,7 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	void *addr = (void *)regs->pc;
 	int ret = 0;
 
-	pr_debug("kprobe_handler: kprobe_running=%d\n",
+	pr_debug("kprobe_handler: kprobe_running=%p\n",
 		 kprobe_running());
 
 	/*

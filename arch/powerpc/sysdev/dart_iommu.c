@@ -156,9 +156,6 @@ static void dart_build(struct iommu_table *tbl, long index,
 
 	DBG("dart: build at: %lx, %lx, addr: %x\n", index, npages, uaddr);
 
-	index <<= DART_PAGE_FACTOR;
-	npages <<= DART_PAGE_FACTOR;
-
 	dp = ((unsigned int*)tbl->it_base) + index;
 
 	/* On U3, all memory is contigous, so we can move this
@@ -198,9 +195,6 @@ static void dart_free(struct iommu_table *tbl, long index, long npages)
 	 */
 
 	DBG("dart: free at: %lx, %lx\n", index, npages);
-
-	index <<= DART_PAGE_FACTOR;
-	npages <<= DART_PAGE_FACTOR;
 
 	dp  = ((unsigned int *)tbl->it_base) + index;
 
@@ -281,7 +275,7 @@ static void iommu_table_dart_setup(void)
 	iommu_table_dart.it_busno = 0;
 	iommu_table_dart.it_offset = 0;
 	/* it_size is in number of entries */
-	iommu_table_dart.it_size = (dart_tablesize / sizeof(u32)) >> DART_PAGE_FACTOR;
+	iommu_table_dart.it_size = dart_tablesize / sizeof(u32);
 
 	/* Initialize the common IOMMU code */
 	iommu_table_dart.it_base = (unsigned long)dart_vbase;

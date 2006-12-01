@@ -99,6 +99,7 @@ static ssize_t test_irq_store(struct device *dev,
 	struct rtc_device *rtc = platform_get_drvdata(plat_dev);
 
 	retval = count;
+	local_irq_disable();
 	if (strncmp(buf, "tick", 4) == 0)
 		rtc_update_irq(&rtc->class_dev, 1, RTC_PF | RTC_IRQF);
 	else if (strncmp(buf, "alarm", 5) == 0)
@@ -107,6 +108,7 @@ static ssize_t test_irq_store(struct device *dev,
 		rtc_update_irq(&rtc->class_dev, 1, RTC_UF | RTC_IRQF);
 	else
 		retval = -EINVAL;
+	local_irq_enable();
 
 	return retval;
 }

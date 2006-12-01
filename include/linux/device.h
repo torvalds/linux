@@ -393,7 +393,7 @@ extern void device_unregister(struct device * dev);
 extern void device_initialize(struct device * dev);
 extern int __must_check device_add(struct device * dev);
 extern void device_del(struct device * dev);
-extern int __must_check device_for_each_child(struct device *, void *,
+extern int device_for_each_child(struct device *, void *,
 		     int (*fn)(struct device *, void *));
 extern int device_rename(struct device *dev, char *new_name);
 

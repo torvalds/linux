@@ -102,7 +102,7 @@ static void enable_mac(struct net_device *, int);
 // externs
 extern int get_ethernet_addr(char *ethernet_addr);
 extern void str2eaddr(unsigned char *ea, unsigned char *str);
-extern char * __init prom_getcmdline(void);
+extern char * prom_getcmdline(void);
 
 /*
  * Theory of operation

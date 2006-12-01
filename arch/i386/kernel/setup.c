@@ -846,7 +846,7 @@ efi_find_max_pfn(unsigned long start, unsigned long end, void *arg)
 static int __init
 efi_memory_present_wrapper(unsigned long start, unsigned long end, void *arg)
 {
-	memory_present(0, start, end);
+	memory_present(0, PFN_UP(start), PFN_DOWN(end));
 	return 0;
 }
 

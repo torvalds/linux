@@ -96,7 +96,13 @@ static inline void sysfs_remove_device_from_node(struct sys_device *dev,
 
 #ifdef CONFIG_SMP
 #include <asm/cputable.h>
-#define smt_capable() 		(cpu_has_feature(CPU_FTR_SMT))
+#define smt_capable()		(cpu_has_feature(CPU_FTR_SMT))
+
+#ifdef CONFIG_PPC64
+#include <asm/smp.h>
+
+#define topology_thread_siblings(cpu)	(cpu_sibling_map[cpu])
+#endif
 #endif
 
 #endif /* __KERNEL__ */

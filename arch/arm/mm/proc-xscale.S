@@ -909,7 +909,7 @@ __pxa270_proc_info:
 	b	__xscale_setup
 	.long	cpu_arch_name
 	.long	cpu_elf_name
-	.long	HWCAP_SWP|HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT|HWCAP_EDSP
+	.long	HWCAP_SWP|HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT|HWCAP_EDSP|HWCAP_IWMMXT
 	.long	cpu_pxa270_name
 	.long	xscale_processor_functions
 	.long	v4wbi_tlb_fns

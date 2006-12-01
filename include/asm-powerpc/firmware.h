@@ -96,19 +96,16 @@ extern void machine_check_fwnmi(void);
 /* This is true if we are using the firmware NMI handler (typically LPAR) */
 extern int fwnmi_active;
 
+extern unsigned int __start___fw_ftr_fixup, __stop___fw_ftr_fixup;
+
 #else /* __ASSEMBLY__ */
 
-#define BEGIN_FW_FTR_SECTION		96:
-
+#define BEGIN_FW_FTR_SECTION_NESTED(label)	label:
+#define BEGIN_FW_FTR_SECTION			BEGIN_FW_FTR_SECTION_NESTED(97)
+#define END_FW_FTR_SECTION_NESTED(msk, val, label) \
+	MAKE_FTR_SECTION_ENTRY(msk, val, label, __fw_ftr_fixup)
 #define END_FW_FTR_SECTION(msk, val)		\
-97:						\
-	.section __fw_ftr_fixup,"a";		\
-	.align 3;				\
-	.llong msk;				\
-	.llong val;				\
-	.llong 96b;				\
-	.llong 97b;				\
-	.previous
+	END_FW_FTR_SECTION_NESTED(msk, val, 97)
 
 #define END_FW_FTR_SECTION_IFSET(msk)	END_FW_FTR_SECTION((msk), (msk))
 #define END_FW_FTR_SECTION_IFCLR(msk)	END_FW_FTR_SECTION((msk), 0)

@@ -303,7 +303,17 @@ void fat_truncate(struct inode *inode)
 	fat_flush_inodes(inode->i_sb, inode, NULL);
 }
 
+int fat_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
+{
+	struct inode *inode = dentry->d_inode;
+	generic_fillattr(inode, stat);
+	stat->blksize = MSDOS_SB(inode->i_sb)->cluster_size;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(fat_getattr);
+
 struct inode_operations fat_file_inode_operations = {
 	.truncate	= fat_truncate,
 	.setattr	= fat_notify_change,
+	.getattr	= fat_getattr,
 };

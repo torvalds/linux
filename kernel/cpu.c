@@ -58,8 +58,8 @@ void unlock_cpu_hotplug(void)
 		recursive_depth--;
 		return;
 	}
-	mutex_unlock(&cpu_bitmask_lock);
 	recursive = NULL;
+	mutex_unlock(&cpu_bitmask_lock);
 }
 EXPORT_SYMBOL_GPL(unlock_cpu_hotplug);
 
@@ -150,18 +150,18 @@ static int _cpu_down(unsigned int cpu)
 	p = __stop_machine_run(take_cpu_down, NULL, cpu);
 	mutex_unlock(&cpu_bitmask_lock);
 
-	if (IS_ERR(p)) {
+	if (IS_ERR(p) || cpu_online(cpu)) {
 		/* CPU didn't die: tell everyone.  Can't complain. */
 		if (raw_notifier_call_chain(&cpu_chain, CPU_DOWN_FAILED,
 				(void *)(long)cpu) == NOTIFY_BAD)
 			BUG();
 
-		err = PTR_ERR(p);
-		goto out_allowed;
-	}
-
-	if (cpu_online(cpu))
+		if (IS_ERR(p)) {
+			err = PTR_ERR(p);
+			goto out_allowed;
+		}
 		goto out_thread;
+	}
 
 	/* Wait for it to sleep (leaving idle task). */
 	while (!idle_cpu(cpu))

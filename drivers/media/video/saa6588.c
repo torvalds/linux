@@ -212,8 +212,10 @@ static void read_from_buf(struct saa6588 *s, struct rds_command *a)
 	if (rd_blocks > s->block_count)
 		rd_blocks = s->block_count;
 
-	if (!rd_blocks)
+	if (!rd_blocks) {
+		spin_unlock_irqrestore(&s->lock, flags);
 		return;
+	}
 
 	for (i = 0; i < rd_blocks; i++) {
 		if (block_to_user_buf(s, buf_ptr)) {

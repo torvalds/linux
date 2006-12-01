@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.19-rc1
-# Thu Oct  5 13:04:53 2006
+# Linux kernel version: 2.6.19-rc2-git4
+# Sat Oct 21 03:38:56 2006
 #
 CONFIG_X86_32=y
 CONFIG_GENERIC_TIME=y
@@ -380,8 +380,8 @@ CONFIG_INET6_XFRM_MODE_TRANSPORT=y
 CONFIG_INET6_XFRM_MODE_TUNNEL=y
 # CONFIG_INET6_XFRM_MODE_BEET is not set
 # CONFIG_INET6_XFRM_MODE_ROUTEOPTIMIZATION is not set
+CONFIG_IPV6_SIT=y
 # CONFIG_IPV6_TUNNEL is not set
-# CONFIG_IPV6_SUBTREES is not set
 # CONFIG_IPV6_MULTIPLE_TABLES is not set
 # CONFIG_NETWORK_SECMARK is not set
 # CONFIG_NETFILTER is not set
@@ -481,6 +481,13 @@ CONFIG_BLK_DEV_RAM_BLOCKSIZE=1024
 CONFIG_BLK_DEV_INITRD=y
 # CONFIG_CDROM_PKTCDVD is not set
 # CONFIG_ATA_OVER_ETH is not set
+
+#
+# Misc devices
+#
+# CONFIG_IBM_ASM is not set
+# CONFIG_SGI_IOC4 is not set
+# CONFIG_TIFM_CORE is not set
 
 #
 # ATA/ATAPI/MFM/RLL support
@@ -1024,18 +1031,13 @@ CONFIG_HANGCHECK_TIMER=y
 #
 # Dallas's 1-wire bus
 #
+# CONFIG_W1 is not set
 
 #
 # Hardware Monitoring support
 #
 # CONFIG_HWMON is not set
 # CONFIG_HWMON_VID is not set
-
-#
-# Misc devices
-#
-# CONFIG_IBM_ASM is not set
-# CONFIG_TIFM_CORE is not set
 
 #
 # Multimedia devices
@@ -1169,7 +1171,6 @@ CONFIG_USB_HIDINPUT=y
 # CONFIG_USB_ATI_REMOTE2 is not set
 # CONFIG_USB_KEYSPAN_REMOTE is not set
 # CONFIG_USB_APPLETOUCH is not set
-# CONFIG_USB_TRANCEVIBRATOR is not set
 
 #
 # USB Imaging devices
@@ -1215,6 +1216,7 @@ CONFIG_USB_MON=y
 # CONFIG_USB_APPLEDISPLAY is not set
 # CONFIG_USB_SISUSBVGA is not set
 # CONFIG_USB_LD is not set
+# CONFIG_USB_TRANCEVIBRATOR is not set
 # CONFIG_USB_TEST is not set
 
 #
@@ -1284,6 +1286,7 @@ CONFIG_EXT3_FS=y
 CONFIG_EXT3_FS_XATTR=y
 CONFIG_EXT3_FS_POSIX_ACL=y
 # CONFIG_EXT3_FS_SECURITY is not set
+# CONFIG_EXT4DEV_FS is not set
 CONFIG_JBD=y
 # CONFIG_JBD_DEBUG is not set
 CONFIG_FS_MBCACHE=y
@@ -1307,6 +1310,7 @@ CONFIG_DNOTIFY=y
 # CONFIG_AUTOFS_FS is not set
 CONFIG_AUTOFS4_FS=y
 # CONFIG_FUSE_FS is not set
+CONFIG_GENERIC_ACL=y
 
 #
 # CD-ROM/DVD Filesystems
@@ -1384,7 +1388,6 @@ CONFIG_SUNRPC=y
 # CONFIG_CODA_FS is not set
 # CONFIG_AFS_FS is not set
 # CONFIG_9P_FS is not set
-CONFIG_GENERIC_ACL=y
 
 #
 # Partition Types
@@ -1437,10 +1440,6 @@ CONFIG_NLS_ISO8859_15=y
 CONFIG_NLS_UTF8=y
 
 #
-# Distributed Lock Manager
-#
-
-#
 # Instrumentation Support
 #
 CONFIG_PROFILING=y
@@ -1480,6 +1479,7 @@ CONFIG_DEBUG_BUGVERBOSE=y
 CONFIG_UNWIND_INFO=y
 CONFIG_STACK_UNWIND=y
 # CONFIG_FORCED_INLINING is not set
+# CONFIG_HEADERS_CHECK is not set
 # CONFIG_RCU_TORTURE_TEST is not set
 # CONFIG_LKDTM is not set
 CONFIG_EARLY_PRINTK=y

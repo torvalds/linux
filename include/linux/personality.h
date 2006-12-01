@@ -114,7 +114,7 @@ struct exec_domain {
  * Change personality of the currently running process.
  */
 #define set_personality(pers) \
-	((current->personality == pers) ? 0 : __set_personality(pers))
+	((current->personality == (pers)) ? 0 : __set_personality(pers))
 
 #endif /* __KERNEL__ */
 

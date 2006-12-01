@@ -84,12 +84,16 @@ void make_pint_irq(unsigned int irq)
 	disable_pint_irq(irq);
 }
 
+static struct ipr_data pint_ipr_map[] = {
+	{ PINT0_IRQ, PINT0_IPR_ADDR, PINT0_IPR_POS, PINT0_PRIORITY },
+	{ PINT8_IRQ, PINT8_IPR_ADDR, PINT8_IPR_POS, PINT8_PRIORITY },
+};
+
 void __init init_IRQ_pint(void)
 {
 	int i;
 
-	make_ipr_irq(PINT0_IRQ, PINT0_IPR_ADDR, PINT0_IPR_POS, PINT0_PRIORITY);
-	make_ipr_irq(PINT8_IRQ, PINT8_IPR_ADDR, PINT8_IPR_POS, PINT8_PRIORITY);
+	make_ipr_irq(pint_ipr_map, ARRAY_SIZE(pint_ipr_map));
 
 	enable_irq(PINT0_IRQ);
 	enable_irq(PINT8_IRQ);

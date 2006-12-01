@@ -68,6 +68,7 @@ static struct attribute *aoe_attrs[] = {
 	&disk_attr_mac.attr,
 	&disk_attr_netif.attr,
 	&disk_attr_fwver.attr,
+	NULL
 };
 
 static const struct attribute_group attr_group = {

@@ -473,9 +473,9 @@ static int ipic_set_irq_type(unsigned int virq, unsigned int flow_type)
 	desc->status |= flow_type & IRQ_TYPE_SENSE_MASK;
 	if (flow_type & IRQ_TYPE_LEVEL_LOW)  {
 		desc->status |= IRQ_LEVEL;
-		set_irq_handler(virq, handle_level_irq);
+		desc->handle_irq = handle_level_irq;
 	} else {
-		set_irq_handler(virq, handle_edge_irq);
+		desc->handle_irq = handle_edge_irq;
 	}
 
 	/* only EXT IRQ senses are programmable on ipic

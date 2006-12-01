@@ -740,7 +740,7 @@ config ARCH_SPARSEMEM_ENABLE
 
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
-	depends on SMP && PPC_PSERIES
+	depends on (SMP && PPC_PSERIES) || PPC_CELL
 
 config ARCH_POPULATES_NODE_MAP
 	def_bool y
@@ -750,6 +750,15 @@ source "mm/Kconfig"
 config ARCH_MEMORY_PROBE
 	def_bool y
 	depends on MEMORY_HOTPLUG
+
+# Some NUMA nodes have memory ranges that span
+# other nodes.  Even though a pfn is valid and
+# between a node's start and end pfns, it may not
+# reside on that node.  See memmap_init_zone()
+# for details.
+config NODES_SPAN_OTHER_NODES
+	def_bool y
+	depends on NEED_MULTIPLE_NODES
 
 config PPC_64K_PAGES
 	bool "64k page size"

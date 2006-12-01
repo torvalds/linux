@@ -1451,6 +1451,7 @@ nothing_to_do:
 
 static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 {
+	struct ata_port *ap = qc->ap;
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	u8 *cdb = cmd->cmnd;
  	int need_sense = (qc->err_mask != 0);
@@ -1459,11 +1460,12 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 	 * schedule EH_REVALIDATE operation to update the IDENTIFY DEVICE
 	 * cache
 	 */
-	if (!need_sense && (qc->tf.command == ATA_CMD_SET_FEATURES) &&
+	if (ap->ops->error_handler &&
+	    !need_sense && (qc->tf.command == ATA_CMD_SET_FEATURES) &&
 	    ((qc->tf.feature == SETFEATURES_WC_ON) ||
 	     (qc->tf.feature == SETFEATURES_WC_OFF))) {
-		qc->ap->eh_info.action |= ATA_EH_REVALIDATE;
-		ata_port_schedule_eh(qc->ap);
+		ap->eh_info.action |= ATA_EH_REVALIDATE;
+		ata_port_schedule_eh(ap);
 	}
 
 	/* For ATA pass thru (SAT) commands, generate a sense block if
@@ -1490,8 +1492,8 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 		}
 	}
 
-	if (need_sense && !qc->ap->ops->error_handler)
-		ata_dump_status(qc->ap->id, &qc->result_tf);
+	if (need_sense && !ap->ops->error_handler)
+		ata_dump_status(ap->id, &qc->result_tf);
 
 	qc->scsidone(cmd);
 
@@ -1612,9 +1614,9 @@ early_finish:
 
 err_did:
 	ata_qc_free(qc);
-err_mem:
 	cmd->result = (DID_ERROR << 16);
 	done(cmd);
+err_mem:
 	DPRINTK("EXIT - internal\n");
 	return 0;
 
@@ -3345,20 +3347,23 @@ EXPORT_SYMBOL_GPL(ata_sas_slave_configure);
  *	@ap:	ATA port to which the command is being sent
  *
  *	RETURNS:
- *	Zero.
+ *	Return value from __ata_scsi_queuecmd() if @cmd can be queued,
+ *	0 otherwise.
  */
 
 int ata_sas_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *),
 		     struct ata_port *ap)
 {
+	int rc = 0;
+
 	ata_scsi_dump_cdb(ap, cmd);
 
 	if (likely(ata_scsi_dev_enabled(ap->device)))
-		__ata_scsi_queuecmd(cmd, done, ap->device);
+		rc = __ata_scsi_queuecmd(cmd, done, ap->device);
 	else {
 		cmd->result = (DID_BAD_TARGET << 16);
 		done(cmd);
 	}
-	return 0;
+	return rc;
 }
 EXPORT_SYMBOL_GPL(ata_sas_queuecmd);

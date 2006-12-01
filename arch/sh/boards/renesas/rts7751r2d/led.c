@@ -8,13 +8,9 @@
  *
  * This file contains Renesas Technology Sales RTS7751R2D specific LED code.
  */
-
-#include <asm/io.h>
-#include <asm/rts7751r2d/rts7751r2d.h>
-
-#ifdef CONFIG_HEARTBEAT
-
+#include <linux/io.h>
 #include <linux/sched.h>
+#include <asm/rts7751r2d.h>
 
 /* Cycle the LED's in the clasic Knightriger/Sun pattern */
 void heartbeat_rts7751r2d(void)
@@ -46,10 +42,3 @@ void heartbeat_rts7751r2d(void)
 	else
 		bit--;
 }
-#endif /* CONFIG_HEARTBEAT */
-
-void rts7751r2d_led(unsigned short value)
-{
-	ctrl_outw(value, PA_OUTPORT);
-}
-

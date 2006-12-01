@@ -43,7 +43,6 @@ extern unsigned int pcibios_max_latency;
 
 void pcibios_resource_survey(void);
 int pcibios_enable_resources(struct pci_dev *, int);
-void pcibios_disable_resources(struct pci_dev *);
 
 /* pci-pc.c */
 

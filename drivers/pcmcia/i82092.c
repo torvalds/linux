@@ -41,6 +41,7 @@ static struct pci_device_id i82092aa_pci_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, i82092aa_pci_ids);
 
+#ifdef CONFIG_PM
 static int i82092aa_socket_suspend (struct pci_dev *dev, pm_message_t state)
 {
 	return pcmcia_socket_dev_suspend(&dev->dev, state);
@@ -50,14 +51,17 @@ static int i82092aa_socket_resume (struct pci_dev *dev)
 {
 	return pcmcia_socket_dev_resume(&dev->dev);
 }
+#endif
 
 static struct pci_driver i82092aa_pci_drv = {
 	.name           = "i82092aa",
 	.id_table       = i82092aa_pci_ids,
 	.probe          = i82092aa_pci_probe,
 	.remove         = __devexit_p(i82092aa_pci_remove),
+#ifdef CONFIG_PM
 	.suspend        = i82092aa_socket_suspend,
 	.resume         = i82092aa_socket_resume,
+#endif
 };
 
 
@@ -705,10 +709,7 @@ static int i82092aa_set_mem_map(struct pcmcia_socket *socket, struct pccard_mem_
 
 static int i82092aa_module_init(void)
 {
-	enter("i82092aa_module_init");
-	pci_register_driver(&i82092aa_pci_drv);
-	leave("i82092aa_module_init");
-	return 0;
+	return pci_register_driver(&i82092aa_pci_drv);
 }
 
 static void i82092aa_module_exit(void)

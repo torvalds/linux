@@ -739,11 +739,16 @@ static void ap_scan_bus(void *data)
 		dev = bus_find_device(&ap_bus_type, NULL,
 				      (void *)(unsigned long)qid,
 				      __ap_scan_bus);
+		rc = ap_query_queue(qid, &queue_depth, &device_type);
+		if (dev && rc) {
+			put_device(dev);
+			device_unregister(dev);
+			continue;
+		}
 		if (dev) {
 			put_device(dev);
 			continue;
 		}
-		rc = ap_query_queue(qid, &queue_depth, &device_type);
 		if (rc)
 			continue;
 		rc = ap_init_queue(qid);

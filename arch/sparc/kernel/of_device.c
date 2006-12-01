@@ -651,7 +651,7 @@ build_resources:
 	if (!parent)
 		strcpy(op->dev.bus_id, "root");
 	else
-		strcpy(op->dev.bus_id, dp->path_component_name);
+		sprintf(op->dev.bus_id, "%08x", dp->node);
 
 	if (of_device_register(op)) {
 		printk("%s: Could not register of device.\n",

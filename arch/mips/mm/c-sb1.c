@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 #include <linux/init.h>
+#include <linux/hardirq.h>
 
 #include <asm/asm.h>
 #include <asm/bootinfo.h>
@@ -48,6 +49,15 @@ static unsigned short dcache_sets;
 
 static unsigned int icache_range_cutoff;
 static unsigned int dcache_range_cutoff;
+
+static inline void sb1_on_each_cpu(void (*func) (void *info), void *info,
+				   int retry, int wait)
+{
+	preempt_disable();
+	smp_call_function(func, info, retry, wait);
+	func(info);
+	preempt_enable();
+}
 
 /*
  * The dcache is fully coherent to the system, with one
@@ -226,13 +236,32 @@ static void sb1_flush_cache_page(struct vm_area_struct *vma, unsigned long addr,
 	args.vma = vma;
 	args.addr = addr;
 	args.pfn = pfn;
-	on_each_cpu(sb1_flush_cache_page_ipi, (void *) &args, 1, 1);
+	sb1_on_each_cpu(sb1_flush_cache_page_ipi, (void *) &args, 1, 1);
 }
 #else
 void sb1_flush_cache_page(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn)
 	__attribute__((alias("local_sb1_flush_cache_page")));
 #endif
 
+#ifdef CONFIG_SMP
+static void sb1_flush_cache_data_page_ipi(void *info)
+{
+	unsigned long start = (unsigned long)info;
+
+	__sb1_writeback_inv_dcache_range(start, start + PAGE_SIZE);
+}
+
+static void sb1_flush_cache_data_page(unsigned long addr)
+{
+	if (in_atomic())
+		__sb1_writeback_inv_dcache_range(addr, addr + PAGE_SIZE);
+	else
+		on_each_cpu(sb1_flush_cache_data_page_ipi, (void *) addr, 1, 1);
+}
+#else
+void sb1_flush_cache_data_page(unsigned long)
+	__attribute__((alias("local_sb1_flush_cache_data_page")));
+#endif
 
 /*
  * Invalidate all caches on this CPU
@@ -249,7 +278,7 @@ void sb1___flush_cache_all_ipi(void *ignored)
 
 static void sb1___flush_cache_all(void)
 {
-	on_each_cpu(sb1___flush_cache_all_ipi, 0, 1, 1);
+	sb1_on_each_cpu(sb1___flush_cache_all_ipi, 0, 1, 1);
 }
 #else
 void sb1___flush_cache_all(void)
@@ -299,7 +328,7 @@ void sb1_flush_icache_range(unsigned long start, unsigned long end)
 
 	args.start = start;
 	args.end = end;
-	on_each_cpu(sb1_flush_icache_range_ipi, &args, 1, 1);
+	sb1_on_each_cpu(sb1_flush_icache_range_ipi, &args, 1, 1);
 }
 #else
 void sb1_flush_icache_range(unsigned long start, unsigned long end)
@@ -326,7 +355,7 @@ static void sb1_flush_cache_sigtramp_ipi(void *info)
 
 static void sb1_flush_cache_sigtramp(unsigned long addr)
 {
-	on_each_cpu(sb1_flush_cache_sigtramp_ipi, (void *) addr, 1, 1);
+	sb1_on_each_cpu(sb1_flush_cache_sigtramp_ipi, (void *) addr, 1, 1);
 }
 #else
 void sb1_flush_cache_sigtramp(unsigned long addr)
@@ -444,7 +473,6 @@ static __init void probe_cache_sizes(void)
 void sb1_cache_init(void)
 {
 	extern char except_vec2_sb1;
-	extern char handle_vec2_sb1;
 
 	/* Special cache error handler for SB1 */
 	set_uncached_handler (0x100, &except_vec2_sb1, 0x80);
@@ -473,7 +501,7 @@ void sb1_cache_init(void)
 
 	flush_cache_sigtramp = sb1_flush_cache_sigtramp;
 	local_flush_data_cache_page = (void *) sb1_nop;
-	flush_data_cache_page = (void *) sb1_nop;
+	flush_data_cache_page = sb1_flush_cache_data_page;
 
 	/* Full flush */
 	__flush_cache_all = sb1___flush_cache_all;
@@ -497,5 +525,5 @@ void sb1_cache_init(void)
 	:
 	: "memory");
 
-	flush_cache_all();
+	local_sb1___flush_cache_all();
 }

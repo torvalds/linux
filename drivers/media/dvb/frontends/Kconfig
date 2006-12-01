@@ -276,6 +276,8 @@ config DVB_TDA826X
 
 config DVB_TUNER_MT2060
 	tristate "Microtune MT2060 silicon IF tuner"
+	depends on I2C
+	default m if DVB_FE_CUSTOMISE
 	help
 	  A driver for the silicon IF tuner MT2060 from Microtune.
 

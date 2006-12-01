@@ -425,9 +425,8 @@ config MOMENCO_OCELOT_G
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_RM7000
 	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
+	select SYS_SUPPORTS_64BIT_KERNEL if BROKEN
 	select SYS_SUPPORTS_BIG_ENDIAN
-	select ARCH_SPARSEMEM_ENABLE
 	help
 	  The Ocelot is a MIPS-based Single Board Computer (SBC) made by
 	  Momentum Computer <http://www.momenco.com/>.
@@ -560,6 +559,7 @@ config SGI_IP27
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_NUMA
+	select SYS_SUPPORTS_SMP
 	help
 	  This are the SGI Origin 200, Origin 2000 and Onyx 2 Graphics
 	  workstations.  To compile a Linux kernel that runs on these, say Y
@@ -1633,9 +1633,6 @@ config ARCH_DISCONTIGMEM_ENABLE
 
 config ARCH_SPARSEMEM_ENABLE
 	bool
-
-config ARCH_SPARSEMEM_ENABLE
-	bool
 	select SPARSEMEM_STATIC
 
 config NUMA
@@ -1690,6 +1687,7 @@ config NR_CPUS
 	depends on SMP
 	default "64" if SGI_IP27
 	default "2"
+	default "8" if MIPS_MT_SMTC
 	help
 	  This allows you to specify the maximum number of CPUs which this
 	  kernel will support.  The maximum supported value is 32 for 32-bit

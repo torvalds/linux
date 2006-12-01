@@ -38,7 +38,7 @@
 * Macros use for debugging the driver.
 */
 
-#define DEBUG(x)	do { if (qla2_extended_error_logging) { x; } } while (0)
+#define DEBUG(x)	do { if (ql2xextended_error_logging) { x; } } while (0)
 
 #if defined(QL_DEBUG_LEVEL_1)
 #define DEBUG1(x)	do {x;} while (0)
@@ -46,12 +46,12 @@
 #define DEBUG1(x)	do {} while (0)
 #endif
 
-#define DEBUG2(x)	do { if (qla2_extended_error_logging) { x; } } while (0)
-#define DEBUG2_3(x)	do { if (qla2_extended_error_logging) { x; } } while (0)
-#define DEBUG2_3_11(x)	do { if (qla2_extended_error_logging) { x; } } while (0)
-#define DEBUG2_9_10(x)	do { if (qla2_extended_error_logging) { x; } } while (0)
-#define DEBUG2_11(x)	do { if (qla2_extended_error_logging) { x; } } while (0)
-#define DEBUG2_13(x)	do { if (qla2_extended_error_logging) { x; } } while (0)
+#define DEBUG2(x)	do { if (ql2xextended_error_logging) { x; } } while (0)
+#define DEBUG2_3(x)	do { if (ql2xextended_error_logging) { x; } } while (0)
+#define DEBUG2_3_11(x)	do { if (ql2xextended_error_logging) { x; } } while (0)
+#define DEBUG2_9_10(x)	do { if (ql2xextended_error_logging) { x; } } while (0)
+#define DEBUG2_11(x)	do { if (ql2xextended_error_logging) { x; } } while (0)
+#define DEBUG2_13(x)	do { if (ql2xextended_error_logging) { x; } } while (0)
 
 #if defined(QL_DEBUG_LEVEL_3)
 #define DEBUG3(x)	do {x;} while (0)

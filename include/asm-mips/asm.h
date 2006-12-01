@@ -344,6 +344,7 @@ symbol		=	value
 #define PTR_L		lw
 #define PTR_S		sw
 #define PTR_LA		la
+#define PTR_LI		li
 #define PTR_SLL		sll
 #define PTR_SLLV	sllv
 #define PTR_SRL		srl
@@ -368,6 +369,7 @@ symbol		=	value
 #define PTR_L		ld
 #define PTR_S		sd
 #define PTR_LA		dla
+#define PTR_LI		dli
 #define PTR_SLL		dsll
 #define PTR_SLLV	dsllv
 #define PTR_SRL		dsrl

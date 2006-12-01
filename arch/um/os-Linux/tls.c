@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <unistd.h>
 #include <sys/ptrace.h>
 #include <sys/syscall.h>
 #include <asm/ldt.h>

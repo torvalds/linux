@@ -159,7 +159,7 @@ void __init plat_mem_setup(void)
 				BONITO_PCIMEMBASECFG |=
 					(BONITO_PCIMEMBASECFG_MEMBASE0_CACHED |
 					 BONITO_PCIMEMBASECFG_MEMBASE1_CACHED);
-				printk("Disabled Bonito IOBC coherency\n");
+				printk("Enabled Bonito IOBC coherency\n");
 			}
 		}
 		else

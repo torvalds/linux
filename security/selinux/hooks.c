@@ -1754,7 +1754,8 @@ static inline void flush_unauthorized_files(struct files_struct * files)
 						get_file(devnull);
 					} else {
 						devnull = dentry_open(dget(selinux_null), mntget(selinuxfs_mount), O_RDWR);
-						if (!devnull) {
+						if (IS_ERR(devnull)) {
+							devnull = NULL;
 							put_unused_fd(fd);
 							fput(file);
 							continue;
@@ -3313,7 +3314,13 @@ static int selinux_socket_getpeername(struct socket *sock)
 
 static int selinux_socket_setsockopt(struct socket *sock,int level,int optname)
 {
-	return socket_has_perm(current, sock, SOCKET__SETOPT);
+	int err;
+
+	err = socket_has_perm(current, sock, SOCKET__SETOPT);
+	if (err)
+		return err;
+
+	return selinux_netlbl_socket_setsockopt(sock, level, optname);
 }
 
 static int selinux_socket_getsockopt(struct socket *sock, int level,

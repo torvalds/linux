@@ -113,7 +113,7 @@ int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 
 	memcpy(to, from, len);
 	/*
-	 *	From draft-ietf-dccp-spec-11.txt:
+	 *	From RFC 4340, A.2:
 	 *
 	 *	For each acknowledgement it sends, the HC-Receiver will add an
 	 *	acknowledgement record.  ack_seqno will equal the HC-Receiver
@@ -224,7 +224,7 @@ static inline int dccp_ackvec_set_buf_head_state(struct dccp_ackvec *av,
 }
 
 /*
- * Implements the draft-ietf-dccp-spec-11.txt Appendix A
+ * Implements the RFC 4340, Appendix A
  */
 int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
 		    const u64 ackno, const u8 state)
@@ -237,7 +237,7 @@ int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
 	 * We may well decide to do buffer compression, etc, but for now lets
 	 * just drop.
 	 *
-	 * From Appendix A:
+	 * From Appendix A.1.1 (`New Packets'):
 	 *
 	 *	Of course, the circular buffer may overflow, either when the
 	 *	HC-Sender is sending data at a very high rate, when the
@@ -274,9 +274,9 @@ int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
 		/*
 		 * A.1.2.  Old Packets
 		 *
-		 *	When a packet with Sequence Number S arrives, and
-		 *	S <= buf_ackno, the HC-Receiver will scan the table
-		 *	for the byte corresponding to S. (Indexing structures
+		 *	When a packet with Sequence Number S <= buf_ackno
+		 *	arrives, the HC-Receiver will scan the table for
+		 *	the byte corresponding to S. (Indexing structures
 		 *	could reduce the complexity of this scan.)
 		 */
 		u64 delta = dccp_delta_seqno(ackno, av->dccpav_buf_ackno);

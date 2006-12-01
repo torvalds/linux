@@ -1493,6 +1493,7 @@ static void nand_write_page_syndrome(struct mtd_info *mtd,
  * @buf:	the data to write
  * @page:	page number to write
  * @cached:	cached programming
+ * @raw:	use _raw version of write_page
  */
 static int nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 			   const uint8_t *buf, int page, int cached, int raw)

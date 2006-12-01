@@ -10,8 +10,7 @@
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * the Free Software Foundation; either version 2 of the License.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -699,16 +698,10 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 
 }
 
-/* Assign Ram Buffer allocation.
- * start and end are in units of 4k bytes
- * ram registers are in units of 64bit words
- */
-static void sky2_ramset(struct sky2_hw *hw, u16 q, u8 startk, u8 endk)
+/* Assign Ram Buffer allocation in units of 64bit (8 bytes) */
+static void sky2_ramset(struct sky2_hw *hw, u16 q, u32 start, u32 end)
 {
-	u32 start, end;
-
-	start = startk * 4096/8;
-	end = (endk * 4096/8) - 1;
+	pr_debug(PFX "q %d %#x %#x\n", q, start, end);
 
 	sky2_write8(hw, RB_ADDR(q, RB_CTRL), RB_RST_CLR);
 	sky2_write32(hw, RB_ADDR(q, RB_START), start);
@@ -717,7 +710,7 @@ static void sky2_ramset(struct sky2_hw *hw, u16 q, u8 startk, u8 endk)
 	sky2_write32(hw, RB_ADDR(q, RB_RP), start);
 
 	if (q == Q_R1 || q == Q_R2) {
-		u32 space = (endk - startk) * 4096/8;
+		u32 space = end - start + 1;
 		u32 tp = space - space/4;
 
 		/* On receive queue's set the thresholds
@@ -1199,19 +1192,16 @@ static int sky2_up(struct net_device *dev)
 
 	sky2_mac_init(hw, port);
 
-	/* Determine available ram buffer space (in 4K blocks).
-	 * Note: not sure about the FE setting below yet
-	 */
-	if (hw->chip_id == CHIP_ID_YUKON_FE)
-		ramsize = 4;
+	/* Determine available ram buffer space in qwords.  */
+	ramsize = sky2_read8(hw, B2_E_0) * 4096/8;
+
+	if (ramsize > 6*1024/8)
+		rxspace = ramsize - (ramsize + 2) / 3;
 	else
-		ramsize = sky2_read8(hw, B2_E_0);
+		rxspace = ramsize / 2;
 
-	/* Give transmitter one third (rounded up) */
-	rxspace = ramsize - (ramsize + 2) / 3;
-
-	sky2_ramset(hw, rxqaddr[port], 0, rxspace);
-	sky2_ramset(hw, txqaddr[port], rxspace, ramsize);
+	sky2_ramset(hw, rxqaddr[port], 0, rxspace-1);
+	sky2_ramset(hw, txqaddr[port], rxspace, ramsize-1);
 
 	/* Make sure SyncQ is disabled */
 	sky2_write8(hw, RB_ADDR(port == 0 ? Q_XS1 : Q_XS2, RB_CTRL),
@@ -3248,7 +3238,11 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 		dev->poll = sky2_poll;
 	dev->weight = NAPI_WEIGHT;
 #ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = sky2_netpoll;
+	/* Network console (only works on port 0)
+	 * because netpoll makes assumptions about NAPI
+	 */
+	if (port == 0)
+		dev->poll_controller = sky2_netpoll;
 #endif
 
 	sky2 = netdev_priv(dev);

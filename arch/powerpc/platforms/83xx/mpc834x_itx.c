@@ -108,10 +108,6 @@ static int __init mpc834x_itx_probe(void)
 	return 1;
 }
 
-#ifdef CONFIG_RTC_CLASS
-late_initcall(rtc_class_hookup);
-#endif
-
 define_machine(mpc834x_itx) {
 	.name			= "MPC834x ITX",
 	.probe			= mpc834x_itx_probe,

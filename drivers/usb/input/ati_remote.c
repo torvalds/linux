@@ -636,13 +636,11 @@ static void ati_remote_free_buffers(struct ati_remote *ati_remote)
 	if (ati_remote->out_urb)
 		usb_free_urb(ati_remote->out_urb);
 
-	if (ati_remote->inbuf)
-		usb_buffer_free(ati_remote->udev, DATA_BUFSIZE,
-				ati_remote->inbuf, ati_remote->inbuf_dma);
+	usb_buffer_free(ati_remote->udev, DATA_BUFSIZE,
+		ati_remote->inbuf, ati_remote->inbuf_dma);
 
-	if (ati_remote->outbuf)
-		usb_buffer_free(ati_remote->udev, DATA_BUFSIZE,
-				ati_remote->inbuf, ati_remote->outbuf_dma);
+	usb_buffer_free(ati_remote->udev, DATA_BUFSIZE,
+		ati_remote->outbuf, ati_remote->outbuf_dma);
 }
 
 static void ati_remote_input_init(struct ati_remote *ati_remote)

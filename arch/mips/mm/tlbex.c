@@ -102,7 +102,7 @@ enum opcode {
 	insn_addu, insn_addiu, insn_and, insn_andi, insn_beq,
 	insn_beql, insn_bgez, insn_bgezl, insn_bltz, insn_bltzl,
 	insn_bne, insn_daddu, insn_daddiu, insn_dmfc0, insn_dmtc0,
-	insn_dsll, insn_dsll32, insn_dsra, insn_dsrl,
+	insn_dsll, insn_dsll32, insn_dsra, insn_dsrl, insn_dsrl32,
 	insn_dsubu, insn_eret, insn_j, insn_jal, insn_jr, insn_ld,
 	insn_ll, insn_lld, insn_lui, insn_lw, insn_mfc0, insn_mtc0,
 	insn_ori, insn_rfe, insn_sc, insn_scd, insn_sd, insn_sll,
@@ -145,6 +145,7 @@ static __initdata struct insn insn_table[] = {
 	{ insn_dsll32, M(spec_op,0,0,0,0,dsll32_op), RT | RD | RE },
 	{ insn_dsra, M(spec_op,0,0,0,0,dsra_op), RT | RD | RE },
 	{ insn_dsrl, M(spec_op,0,0,0,0,dsrl_op), RT | RD | RE },
+	{ insn_dsrl32, M(spec_op,0,0,0,0,dsrl32_op), RT | RD | RE },
 	{ insn_dsubu, M(spec_op,0,0,0,0,dsubu_op), RS | RT | RD },
 	{ insn_eret, M(cop0_op,cop_op,0,0,0,eret_op), 0 },
 	{ insn_j, M(j_op,0,0,0,0,0), JIMM },
@@ -385,6 +386,7 @@ I_u2u1u3(_dsll);
 I_u2u1u3(_dsll32);
 I_u2u1u3(_dsra);
 I_u2u1u3(_dsrl);
+I_u2u1u3(_dsrl32);
 I_u3u1u2(_dsubu);
 I_0(_eret);
 I_u1(_j);
@@ -996,7 +998,12 @@ build_get_pmde64(u32 **p, struct label **l, struct reloc **r,
 #endif
 
 	l_vmalloc_done(l, *p);
-	i_dsrl(p, tmp, tmp, PGDIR_SHIFT-3); /* get pgd offset in bytes */
+
+	if (PGDIR_SHIFT - 3 < 32)		/* get pgd offset in bytes */
+		i_dsrl(p, tmp, tmp, PGDIR_SHIFT-3);
+	else
+		i_dsrl32(p, tmp, tmp, PGDIR_SHIFT - 3 - 32);
+
 	i_andi(p, tmp, tmp, (PTRS_PER_PGD - 1)<<3);
 	i_daddu(p, ptr, ptr, tmp); /* add in pgd offset */
 	i_dmfc0(p, tmp, C0_BADVADDR); /* get faulting address */
@@ -1073,7 +1080,7 @@ build_get_pgde32(u32 **p, unsigned int tmp, unsigned int ptr)
 
 static __init void build_adjust_context(u32 **p, unsigned int ctx)
 {
-	unsigned int shift = 4 - (PTE_T_LOG2 + 1);
+	unsigned int shift = 4 - (PTE_T_LOG2 + 1) + PAGE_SHIFT - 12;
 	unsigned int mask = (PTRS_PER_PTE / 2 - 1) << (PTE_T_LOG2 + 1);
 
 	switch (current_cpu_data.cputype) {

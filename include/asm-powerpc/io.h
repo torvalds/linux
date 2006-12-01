@@ -163,8 +163,11 @@ extern void _outsl_ns(volatile u32 __iomem *port, const void *buf, long count);
 
 static inline void mmiowb(void)
 {
-	__asm__ __volatile__ ("sync" : : : "memory");
-	get_paca()->io_sync = 0;
+	unsigned long tmp;
+
+	__asm__ __volatile__("sync; li %0,0; stb %0,%1(13)"
+	: "=&r" (tmp) : "i" (offsetof(struct paca_struct, io_sync))
+	: "memory");
 }
 
 /*

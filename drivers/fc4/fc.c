@@ -70,9 +70,9 @@
 
 #define FCP_CMND(SCpnt) ((fcp_cmnd *)&(SCpnt->SCp))
 #define FC_SCMND(SCpnt) ((fc_channel *)(SCpnt->device->host->hostdata[0]))
-#define SC_FCMND(fcmnd) ((Scsi_Cmnd *)((long)fcmnd - (long)&(((Scsi_Cmnd *)0)->SCp)))
+#define SC_FCMND(fcmnd)	((struct scsi_cmnd *)((long)fcmnd - (long)&(((struct scsi_cmnd *)0)->SCp)))
 
-static int fcp_scsi_queue_it(fc_channel *, Scsi_Cmnd *, fcp_cmnd *, int);
+static int fcp_scsi_queue_it(fc_channel *, struct scsi_cmnd *, fcp_cmnd *, int);
 void fcp_queue_empty(fc_channel *);
 
 static void fcp_scsi_insert_queue (fc_channel *fc, fcp_cmnd *fcmd)
@@ -378,14 +378,14 @@ void fcp_register(fc_channel *fc, u8 type, int unregister)
 		printk ("FC: %segistering unknown type %02x\n", unregister ? "Unr" : "R", type);
 }
 
-static void fcp_scsi_done(Scsi_Cmnd *SCpnt);
+static void fcp_scsi_done(struct scsi_cmnd *SCpnt);
 
 static inline void fcp_scsi_receive(fc_channel *fc, int token, int status, fc_hdr *fch)
 {
 	fcp_cmnd *fcmd;
 	fcp_rsp  *rsp;
 	int host_status;
-	Scsi_Cmnd *SCpnt;
+	struct scsi_cmnd *SCpnt;
 	int sense_len;
 	int rsp_status;
 
@@ -757,13 +757,14 @@ void fcp_release(fc_channel *fcchain, int count)  /* count must > 0 */
 }
 
 
-static void fcp_scsi_done (Scsi_Cmnd *SCpnt)
+static void fcp_scsi_done(struct scsi_cmnd *SCpnt)
 {
 	if (FCP_CMND(SCpnt)->done)
 		FCP_CMND(SCpnt)->done(SCpnt);
 }
 
-static int fcp_scsi_queue_it(fc_channel *fc, Scsi_Cmnd *SCpnt, fcp_cmnd *fcmd, int prepare)
+static int fcp_scsi_queue_it(fc_channel *fc, struct scsi_cmnd *SCpnt,
+			     fcp_cmnd *fcmd, int prepare)
 {
 	long i;
 	fcp_cmd *cmd;
@@ -837,7 +838,8 @@ static int fcp_scsi_queue_it(fc_channel *fc, Scsi_Cmnd *SCpnt, fcp_cmnd *fcmd, i
 	return 0;
 }
 
-int fcp_scsi_queuecommand(Scsi_Cmnd *SCpnt, void (* done)(Scsi_Cmnd *))
+int fcp_scsi_queuecommand(struct scsi_cmnd *SCpnt,
+			  void (* done)(struct scsi_cmnd *))
 {
 	fcp_cmnd *fcmd = FCP_CMND(SCpnt);
 	fc_channel *fc = FC_SCMND(SCpnt);
@@ -873,7 +875,7 @@ void fcp_queue_empty(fc_channel *fc)
 	}
 }
 
-int fcp_scsi_abort(Scsi_Cmnd *SCpnt)
+int fcp_scsi_abort(struct scsi_cmnd *SCpnt)
 {
 	/* Internal bookkeeping only. Lose 1 cmd_slots slot. */
 	fcp_cmnd *fcmd = FCP_CMND(SCpnt);
@@ -910,7 +912,7 @@ int fcp_scsi_abort(Scsi_Cmnd *SCpnt)
 }
 
 #if 0
-void fcp_scsi_reset_done(Scsi_Cmnd *SCpnt)
+void fcp_scsi_reset_done(struct scsi_cmnd *SCpnt)
 {
 	fc_channel *fc = FC_SCMND(SCpnt);
 
@@ -921,7 +923,7 @@ void fcp_scsi_reset_done(Scsi_Cmnd *SCpnt)
 
 #define FCP_RESET_TIMEOUT (2*HZ)
 
-int fcp_scsi_dev_reset(Scsi_Cmnd *SCpnt)
+int fcp_scsi_dev_reset(struct scsi_cmnd *SCpnt)
 {
 #if 0 /* broken junk, but if davem wants to compile this driver, let him.. */
 	unsigned long flags;
@@ -931,7 +933,7 @@ int fcp_scsi_dev_reset(Scsi_Cmnd *SCpnt)
         DECLARE_MUTEX_LOCKED(sem);
 
 	if (!fc->rst_pkt) {
-		fc->rst_pkt = (Scsi_Cmnd *) kmalloc(sizeof(SCpnt), GFP_KERNEL);
+		fc->rst_pkt = (struct scsi_cmnd *) kmalloc(sizeof(SCpnt), GFP_KERNEL);
 		if (!fc->rst_pkt) return FAILED;
 		
 		fcmd = FCP_CMND(fc->rst_pkt);
@@ -999,7 +1001,7 @@ int fcp_scsi_dev_reset(Scsi_Cmnd *SCpnt)
 	return SUCCESS;
 }
 
-static int __fcp_scsi_host_reset(Scsi_Cmnd *SCpnt)
+static int __fcp_scsi_host_reset(struct scsi_cmnd *SCpnt)
 {
 	fc_channel *fc = FC_SCMND(SCpnt);
 	fcp_cmnd *fcmd = FCP_CMND(SCpnt);
@@ -1020,7 +1022,7 @@ static int __fcp_scsi_host_reset(Scsi_Cmnd *SCpnt)
 	else return FAILED;
 }
 
-int fcp_scsi_host_reset(Scsi_Cmnd *SCpnt)
+int fcp_scsi_host_reset(struct scsi_cmnd *SCpnt)
 {
 	unsigned long flags;
 	int rc;

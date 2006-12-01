@@ -19,7 +19,7 @@
 #include <linux/backlight.h>
 
 #include <asm/cpu/dac.h>
-#include <asm/hp6xx/hp6xx.h>
+#include <asm/hp6xx.h>
 #include <asm/hd64461.h>
 
 #define HP680_MAX_INTENSITY 255

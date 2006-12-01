@@ -1284,8 +1284,7 @@ static void htb_destroy_class(struct Qdisc *sch, struct htb_class *cl)
 						  struct htb_class, sibling));
 
 	/* note: this delete may happen twice (see htb_delete) */
-	if (!hlist_unhashed(&cl->hlist))
-		hlist_del(&cl->hlist);
+	hlist_del_init(&cl->hlist);
 	list_del(&cl->sibling);
 
 	if (cl->prio_activity)
@@ -1333,8 +1332,7 @@ static int htb_delete(struct Qdisc *sch, unsigned long arg)
 	sch_tree_lock(sch);
 
 	/* delete from hash and active; remainder in destroy_class */
-	if (!hlist_unhashed(&cl->hlist))
-		hlist_del(&cl->hlist);
+	hlist_del_init(&cl->hlist);
 
 	if (cl->prio_activity)
 		htb_deactivate(q, cl);

@@ -124,10 +124,10 @@ static void i2o_exec_wait_free(struct i2o_exec_wait *wait)
 int i2o_msg_post_wait_mem(struct i2o_controller *c, struct i2o_message *msg,
 			  unsigned long timeout, struct i2o_dma *dma)
 {
-	DECLARE_WAIT_QUEUE_HEAD(wq);
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
 	struct i2o_exec_wait *wait;
 	static u32 tcntxt = 0x80000000;
-	long flags;
+	unsigned long flags;
 	int rc = 0;
 
 	wait = i2o_exec_wait_alloc();

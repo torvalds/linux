@@ -935,8 +935,17 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 
 no_entry:
 	res = d_materialise_unique(dentry, inode);
-	if (res != NULL)
+	if (res != NULL) {
+		struct dentry *parent;
+		if (IS_ERR(res))
+			goto out_unlock;
+		/* Was a directory renamed! */
+		parent = dget_parent(res);
+		if (!IS_ROOT(parent))
+			nfs_mark_for_revalidate(parent->d_inode);
+		dput(parent);
 		dentry = res;
+	}
 	nfs_renew_times(dentry);
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 out_unlock:
@@ -1132,6 +1141,8 @@ static struct dentry *nfs_readdir_lookup(nfs_readdir_descriptor_t *desc)
 	alias = d_materialise_unique(dentry, inode);
 	if (alias != NULL) {
 		dput(dentry);
+		if (IS_ERR(alias))
+			return NULL;
 		dentry = alias;
 	}
 

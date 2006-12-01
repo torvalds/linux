@@ -153,7 +153,7 @@ struct genapic apic_flat =  {
 
 static cpumask_t physflat_target_cpus(void)
 {
-	return cpumask_of_cpu(0);
+	return cpu_online_map;
 }
 
 static cpumask_t physflat_vector_allocation_domain(int cpu)

@@ -76,13 +76,13 @@ static inline int mmcra_must_set_sample(void)
 {
 	if (__is_processor(PV_POWER4) || __is_processor(PV_POWER4p) ||
 	    __is_processor(PV_970) || __is_processor(PV_970FX) ||
-	    __is_processor(PV_970MP))
+	    __is_processor(PV_970MP) || __is_processor(PV_970GX))
 		return 1;
 
 	return 0;
 }
 
-static void power4_cpu_setup(void *unused)
+static void power4_cpu_setup(struct op_counter_config *ctr)
 {
 	unsigned int mmcr0 = mmcr0_val;
 	unsigned long mmcra = mmcra_val;
