@@ -603,7 +603,7 @@ ebt_cleanup_entry(struct ebt_entry *e, unsigned int *cnt)
 
 static inline int
 ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
-   const char *name, unsigned int *cnt, unsigned int valid_hooks,
+   const char *name, unsigned int *cnt,
    struct ebt_cl_stack *cl_s, unsigned int udc_cnt)
 {
 	struct ebt_entry_target *t;
@@ -630,7 +630,7 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
 	}
 	/* what hook do we belong to? */
 	for (i = 0; i < NF_BR_NUMHOOKS; i++) {
-		if ((valid_hooks & (1 << i)) == 0)
+		if (!newinfo->hook_entry[i])
 			continue;
 		if ((char *)newinfo->hook_entry[i] < (char *)e)
 			hook = i;
@@ -889,8 +889,7 @@ static int translate_table(struct ebt_replace *repl,
 	/* used to know what we need to clean up if something goes wrong */
 	i = 0;
 	ret = EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
-	   ebt_check_entry, newinfo, repl->name, &i, repl->valid_hooks,
-	   cl_s, udc_cnt);
+	   ebt_check_entry, newinfo, repl->name, &i, cl_s, udc_cnt);
 	if (ret != 0) {
 		EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
 		   ebt_cleanup_entry, &i);
