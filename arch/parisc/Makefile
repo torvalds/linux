@@ -35,12 +35,8 @@ FINAL_LD=$(CROSS_COMPILE)ld --warn-common --warn-section-align
 
 OBJCOPY_FLAGS =-O binary -R .note -R .comment -S
 
-GCC_VERSION     := $(call cc-version)
-ifneq ($(shell if [ -z $(GCC_VERSION) ] ; then echo "bad"; fi ;),)
-$(error Sorry, couldn't find ($(cc-version)).)
-endif
-ifneq ($(shell if [ $(GCC_VERSION) -lt 0303 ] ; then echo "bad"; fi ;),)
-$(error Sorry, your compiler is too old ($(GCC_VERSION)).  GCC v3.3 or above is required.)
+ifneq ($(call cc-ifversion, -lt, 0303, "bad"),)
+$(error Sorry, GCC v3.3 or above is required.)
 endif
 
 cflags-y	:= -pipe
