@@ -437,7 +437,7 @@ CONFIG_LEGACY_PTY_COUNT=256
 # CONFIG_WATCHDOG is not set
 # CONFIG_NVRAM is not set
 # CONFIG_RTC is not set
-# CONFIG_AT91_RTC is not set
+# CONFIG_AT91RM9200_RTC is not set
 # CONFIG_DTLK is not set
 # CONFIG_R3964 is not set
 

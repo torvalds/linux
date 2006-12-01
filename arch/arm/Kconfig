@@ -583,7 +583,7 @@ config LEDS
 		   ARCH_LUBBOCK || MACH_MAINSTONE || ARCH_NETWINDER || \
 		   ARCH_OMAP || ARCH_P720T || ARCH_PXA_IDP || \
 		   ARCH_SA1100 || ARCH_SHARK || ARCH_VERSATILE || \
-		   ARCH_AT91RM9200 || MACH_TRIZEPS4
+		   ARCH_AT91 || MACH_TRIZEPS4
 	help
 	  If you say Y here, the LEDs on your machine will be used
 	  to provide useful information about your current system status.
