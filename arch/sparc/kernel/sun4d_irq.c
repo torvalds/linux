@@ -546,6 +546,10 @@ void __init sun4d_init_sbi_irq(void)
 	for_each_sbus(sbus)
 		nsbi++;
 	sbus_actions = kzalloc (nsbi * 8 * 4 * sizeof(struct sbus_action), GFP_ATOMIC);
+	if (!sbus_actions) {
+		prom_printf("SUN4D: Cannot allocate sbus_actions, halting.\n");
+		prom_halt();
+	}
 	for_each_sbus(sbus) {
 #ifdef CONFIG_SMP	
 		extern unsigned char boot_cpu_id;

@@ -22,6 +22,7 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/dma.h>
+#include <asm/oplib.h>
 
 /* #define IOUNIT_DEBUG */
 #ifdef IOUNIT_DEBUG
@@ -42,6 +43,10 @@ iounit_init(int sbi_node, int io_node, struct sbus_bus *sbus)
 	struct resource r;
 
 	iounit = kzalloc(sizeof(struct iounit_struct), GFP_ATOMIC);
+	if (!iounit) {
+		prom_printf("SUN4D: Cannot alloc iounit, halting.\n");
+		prom_halt();
+	}
 
 	iounit->limit[0] = IOUNIT_BMAP1_START;
 	iounit->limit[1] = IOUNIT_BMAP2_START;
