@@ -215,7 +215,6 @@ struct rdma_conn_param {
 	/* Fields below ignored if a QP is created on the rdma_cm_id. */
 	u8 srq;
 	u32 qp_num;
-	enum ib_qp_type qp_type;
 };
 
 /**

@@ -133,7 +133,6 @@ struct rdma_id_private {
 
 	u32			seq_num;
 	u32			qp_num;
-	enum ib_qp_type		qp_type;
 	u8			srq;
 };
 
@@ -392,7 +391,6 @@ int rdma_create_qp(struct rdma_cm_id *id, struct ib_pd *pd,
 
 	id->qp = qp;
 	id_priv->qp_num = qp->qp_num;
-	id_priv->qp_type = qp->qp_type;
 	id_priv->srq = (qp->srq != NULL);
 	return 0;
 err:
@@ -1860,7 +1858,7 @@ static int cma_connect_ib(struct rdma_id_private *id_priv,
 	req.service_id = cma_get_service_id(id_priv->id.ps,
 					    &route->addr.dst_addr);
 	req.qp_num = id_priv->qp_num;
-	req.qp_type = id_priv->qp_type;
+	req.qp_type = IB_QPT_RC;
 	req.starting_psn = id_priv->seq_num;
 	req.responder_resources = conn_param->responder_resources;
 	req.initiator_depth = conn_param->initiator_depth;
@@ -1937,7 +1935,6 @@ int rdma_connect(struct rdma_cm_id *id, struct rdma_conn_param *conn_param)
 
 	if (!id->qp) {
 		id_priv->qp_num = conn_param->qp_num;
-		id_priv->qp_type = conn_param->qp_type;
 		id_priv->srq = conn_param->srq;
 	}
 
@@ -2021,7 +2018,6 @@ int rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param)
 
 	if (!id->qp && conn_param) {
 		id_priv->qp_num = conn_param->qp_num;
-		id_priv->qp_type = conn_param->qp_type;
 		id_priv->srq = conn_param->srq;
 	}
 
