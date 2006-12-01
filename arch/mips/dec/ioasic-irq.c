@@ -67,7 +67,6 @@ static struct irq_chip ioasic_irq_type = {
 	.mask = mask_ioasic_irq,
 	.mask_ack = ack_ioasic_irq,
 	.unmask = unmask_ioasic_irq,
-	.end = end_ioasic_irq,
 };
 
 

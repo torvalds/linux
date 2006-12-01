@@ -66,12 +66,10 @@
 #define TX4927_IRQ_CP0_INIT     ( 1 << 10 )
 #define TX4927_IRQ_CP0_ENABLE   ( 1 << 13 )
 #define TX4927_IRQ_CP0_DISABLE  ( 1 << 14 )
-#define TX4927_IRQ_CP0_ENDIRQ   ( 1 << 16 )
 
 #define TX4927_IRQ_PIC_INIT     ( 1 << 20 )
 #define TX4927_IRQ_PIC_ENABLE   ( 1 << 23 )
 #define TX4927_IRQ_PIC_DISABLE  ( 1 << 24 )
-#define TX4927_IRQ_PIC_ENDIRQ   ( 1 << 26 )
 
 #define TX4927_IRQ_ALL         0xffffffff
 #endif
@@ -82,12 +80,10 @@ static const u32 tx4927_irq_debug_flag = (TX4927_IRQ_NONE
 					  | TX4927_IRQ_WARN | TX4927_IRQ_EROR
 //                                       | TX4927_IRQ_CP0_INIT
 //                                       | TX4927_IRQ_CP0_ENABLE
-//                                       | TX4927_IRQ_CP0_DISABLE
 //                                       | TX4927_IRQ_CP0_ENDIRQ
 //                                       | TX4927_IRQ_PIC_INIT
 //                                       | TX4927_IRQ_PIC_ENABLE
 //                                       | TX4927_IRQ_PIC_DISABLE
-//                                       | TX4927_IRQ_PIC_ENDIRQ
 //                                       | TX4927_IRQ_INIT
 //                                       | TX4927_IRQ_NEST1
 //                                       | TX4927_IRQ_NEST2
@@ -114,11 +110,9 @@ static const u32 tx4927_irq_debug_flag = (TX4927_IRQ_NONE
 
 static void tx4927_irq_cp0_enable(unsigned int irq);
 static void tx4927_irq_cp0_disable(unsigned int irq);
-static void tx4927_irq_cp0_end(unsigned int irq);
 
 static void tx4927_irq_pic_enable(unsigned int irq);
 static void tx4927_irq_pic_disable(unsigned int irq);
-static void tx4927_irq_pic_end(unsigned int irq);
 
 /*
  * Kernel structs for all pic's
@@ -131,7 +125,6 @@ static struct irq_chip tx4927_irq_cp0_type = {
 	.mask		= tx4927_irq_cp0_disable,
 	.mask_ack	= tx4927_irq_cp0_disable,
 	.unmask		= tx4927_irq_cp0_enable,
-	.end		= tx4927_irq_cp0_end,
 };
 
 #define TX4927_PIC_NAME "TX4927-PIC"
@@ -141,7 +134,6 @@ static struct irq_chip tx4927_irq_pic_type = {
 	.mask		= tx4927_irq_pic_disable,
 	.mask_ack	= tx4927_irq_pic_disable,
 	.unmask		= tx4927_irq_pic_enable,
-	.end		= tx4927_irq_pic_end,
 };
 
 #define TX4927_PIC_ACTION(s) { no_action, 0, CPU_MASK_NONE, s, NULL, NULL }
@@ -212,15 +204,6 @@ static void tx4927_irq_cp0_disable(unsigned int irq)
 	TX4927_IRQ_DPRINTK(TX4927_IRQ_CP0_DISABLE, "irq=%d \n", irq);
 
 	tx4927_irq_cp0_modify(CCP0_STATUS, tx4927_irq_cp0_mask(irq), 0);
-}
-
-static void tx4927_irq_cp0_end(unsigned int irq)
-{
-	TX4927_IRQ_DPRINTK(TX4927_IRQ_CP0_ENDIRQ, "irq=%d \n", irq);
-
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS))) {
-		tx4927_irq_cp0_enable(irq);
-	}
 }
 
 /*
@@ -374,15 +357,6 @@ static void tx4927_irq_pic_disable(unsigned int irq)
 
 	tx4927_irq_pic_modify(tx4927_irq_pic_addr(irq),
 			      tx4927_irq_pic_mask(irq), 0);
-}
-
-static void tx4927_irq_pic_end(unsigned int irq)
-{
-	TX4927_IRQ_DPRINTK(TX4927_IRQ_PIC_ENDIRQ, "irq=%d\n", irq);
-
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS))) {
-		tx4927_irq_pic_enable(irq);
-	}
 }
 
 /*

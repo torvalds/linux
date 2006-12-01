@@ -158,20 +158,12 @@ int pnx8550_set_gic_priority(int irq, int priority)
 	return prev_priority;
 }
 
-static void end_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS))) {
-		unmask_irq(irq);
-	}
-}
-
 static struct irq_chip level_irq_type = {
 	.typename =	"PNX Level IRQ",
 	.ack =		mask_irq,
 	.mask =		mask_irq,
 	.mask_ack =	mask_irq,
 	.unmask =	unmask_irq,
-	.end =		end_irq,
 };
 
 static struct irqaction gic_action = {

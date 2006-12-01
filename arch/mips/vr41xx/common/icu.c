@@ -427,19 +427,12 @@ static void enable_sysint1_irq(unsigned int irq)
 	icu1_set(MSYSINT1REG, 1 << SYSINT1_IRQ_TO_PIN(irq));
 }
 
-static void end_sysint1_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
-		icu1_set(MSYSINT1REG, 1 << SYSINT1_IRQ_TO_PIN(irq));
-}
-
 static struct irq_chip sysint1_irq_type = {
 	.typename	= "SYSINT1",
 	.ack		= disable_sysint1_irq,
 	.mask		= disable_sysint1_irq,
 	.mask_ack	= disable_sysint1_irq,
 	.unmask		= enable_sysint1_irq,
-	.end		= end_sysint1_irq,
 };
 
 static void disable_sysint2_irq(unsigned int irq)
@@ -452,19 +445,12 @@ static void enable_sysint2_irq(unsigned int irq)
 	icu2_set(MSYSINT2REG, 1 << SYSINT2_IRQ_TO_PIN(irq));
 }
 
-static void end_sysint2_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
-		icu2_set(MSYSINT2REG, 1 << SYSINT2_IRQ_TO_PIN(irq));
-}
-
 static struct irq_chip sysint2_irq_type = {
 	.typename	= "SYSINT2",
 	.ack		= disable_sysint2_irq,
 	.mask		= disable_sysint2_irq,
 	.mask_ack	= disable_sysint2_irq,
 	.unmask		= enable_sysint2_irq,
-	.end		= end_sysint2_irq,
 };
 
 static inline int set_sysint1_assign(unsigned int irq, unsigned char assign)

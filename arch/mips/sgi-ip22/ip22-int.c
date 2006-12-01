@@ -51,19 +51,12 @@ static void disable_local0_irq(unsigned int irq)
 	sgint->imask0 &= ~(1 << (irq - SGINT_LOCAL0));
 }
 
-static void end_local0_irq (unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		enable_local0_irq(irq);
-}
-
 static struct irq_chip ip22_local0_irq_type = {
 	.typename	= "IP22 local 0",
 	.ack		= disable_local0_irq,
 	.mask		= disable_local0_irq,
 	.mask_ack	= disable_local0_irq,
 	.unmask		= enable_local0_irq,
-	.end		= end_local0_irq,
 };
 
 static void enable_local1_irq(unsigned int irq)
@@ -79,19 +72,12 @@ void disable_local1_irq(unsigned int irq)
 	sgint->imask1 &= ~(1 << (irq - SGINT_LOCAL1));
 }
 
-static void end_local1_irq (unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		enable_local1_irq(irq);
-}
-
 static struct irq_chip ip22_local1_irq_type = {
 	.typename	= "IP22 local 1",
 	.ack		= disable_local1_irq,
 	.mask		= disable_local1_irq,
 	.mask_ack	= disable_local1_irq,
 	.unmask		= enable_local1_irq,
-	.end		= end_local1_irq,
 };
 
 static void enable_local2_irq(unsigned int irq)
@@ -107,19 +93,12 @@ void disable_local2_irq(unsigned int irq)
 		sgint->imask0 &= ~(1 << (SGI_MAP_0_IRQ - SGINT_LOCAL0));
 }
 
-static void end_local2_irq (unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		enable_local2_irq(irq);
-}
-
 static struct irq_chip ip22_local2_irq_type = {
 	.typename	= "IP22 local 2",
 	.ack		= disable_local2_irq,
 	.mask		= disable_local2_irq,
 	.mask_ack	= disable_local2_irq,
 	.unmask		= enable_local2_irq,
-	.end		= end_local2_irq,
 };
 
 static void enable_local3_irq(unsigned int irq)
@@ -135,19 +114,12 @@ void disable_local3_irq(unsigned int irq)
 		sgint->imask1 &= ~(1 << (SGI_MAP_1_IRQ - SGINT_LOCAL1));
 }
 
-static void end_local3_irq (unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		enable_local3_irq(irq);
-}
-
 static struct irq_chip ip22_local3_irq_type = {
 	.typename	= "IP22 local 3",
 	.ack		= disable_local3_irq,
 	.mask		= disable_local3_irq,
 	.mask_ack	= disable_local3_irq,
 	.unmask		= enable_local3_irq,
-	.end		= end_local3_irq,
 };
 
 static void indy_local0_irqdispatch(void)

@@ -39,11 +39,9 @@
 
 static void tx4938_irq_cp0_enable(unsigned int irq);
 static void tx4938_irq_cp0_disable(unsigned int irq);
-static void tx4938_irq_cp0_end(unsigned int irq);
 
 static void tx4938_irq_pic_enable(unsigned int irq);
 static void tx4938_irq_pic_disable(unsigned int irq);
-static void tx4938_irq_pic_end(unsigned int irq);
 
 /**********************************************************************************/
 /* Kernel structs for all pic's                                                   */
@@ -56,7 +54,6 @@ static struct irq_chip tx4938_irq_cp0_type = {
 	.mask = tx4938_irq_cp0_disable,
 	.mask_ack = tx4938_irq_cp0_disable,
 	.unmask = tx4938_irq_cp0_enable,
-	.end = tx4938_irq_cp0_end,
 };
 
 #define TX4938_PIC_NAME "TX4938-PIC"
@@ -66,7 +63,6 @@ static struct irq_chip tx4938_irq_pic_type = {
 	.mask = tx4938_irq_pic_disable,
 	.mask_ack = tx4938_irq_pic_disable,
 	.unmask = tx4938_irq_pic_enable,
-	.end = tx4938_irq_pic_end,
 };
 
 static struct irqaction tx4938_irq_pic_action = {
@@ -102,14 +98,6 @@ static void
 tx4938_irq_cp0_disable(unsigned int irq)
 {
 	clear_c0_status(tx4938_irq_cp0_mask(irq));
-}
-
-static void
-tx4938_irq_cp0_end(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS))) {
-		tx4938_irq_cp0_enable(irq);
-	}
 }
 
 /**********************************************************************************/
@@ -267,14 +255,6 @@ tx4938_irq_pic_disable(unsigned int irq)
 {
 	tx4938_irq_pic_modify(tx4938_irq_pic_addr(irq),
 			      tx4938_irq_pic_mask(irq), 0);
-}
-
-static void
-tx4938_irq_pic_end(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS))) {
-		tx4938_irq_pic_enable(irq);
-	}
 }
 
 /**********************************************************************************/
