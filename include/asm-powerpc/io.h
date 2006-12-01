@@ -302,7 +302,7 @@ static inline void __raw_writeq(unsigned long v, volatile void __iomem *addr)
 #ifdef CONFIG_PPC32
 
 #define __do_in_asm(name, op)				\
-extern __inline__ unsigned int name(unsigned int port)	\
+static inline unsigned int name(unsigned int port)	\
 {							\
 	unsigned int x;					\
 	__asm__ __volatile__(				\
@@ -329,7 +329,7 @@ extern __inline__ unsigned int name(unsigned int port)	\
 }
 
 #define __do_out_asm(name, op)				\
-extern __inline__ void name(unsigned int val, unsigned int port) \
+static inline void name(unsigned int val, unsigned int port) \
 {							\
 	__asm__ __volatile__(				\
 		"sync\n"				\

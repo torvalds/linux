@@ -304,7 +304,7 @@ extern unsigned long __copy_tofrom_user(void __user *to,
 
 #ifndef __powerpc64__
 
-extern inline unsigned long copy_from_user(void *to,
+static inline unsigned long copy_from_user(void *to,
 		const void __user *from, unsigned long n)
 {
 	unsigned long over;
@@ -319,7 +319,7 @@ extern inline unsigned long copy_from_user(void *to,
 	return n;
 }
 
-extern inline unsigned long copy_to_user(void __user *to,
+static inline unsigned long copy_to_user(void __user *to,
 		const void *from, unsigned long n)
 {
 	unsigned long over;
