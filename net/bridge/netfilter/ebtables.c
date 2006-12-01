@@ -1156,38 +1156,47 @@ int ebt_register_table(struct ebt_table *table)
 {
 	struct ebt_table_info *newinfo;
 	struct ebt_table *t;
+	struct ebt_replace *repl;
 	int ret, i, countersize;
+	void *p;
 
-	if (!table || !table->table ||!table->table->entries ||
-	    table->table->entries_size == 0 ||
-	    table->table->counters || table->private) {
+	if (!table || !(repl = table->table) || !repl->entries ||
+	    repl->entries_size == 0 ||
+	    repl->counters || table->private) {
 		BUGPRINT("Bad table data for ebt_register_table!!!\n");
 		return -EINVAL;
 	}
 
-	countersize = COUNTER_OFFSET(table->table->nentries) *
+	countersize = COUNTER_OFFSET(repl->nentries) *
 					(highest_possible_processor_id()+1);
 	newinfo = vmalloc(sizeof(*newinfo) + countersize);
 	ret = -ENOMEM;
 	if (!newinfo)
 		return -ENOMEM;
 
-	newinfo->entries = vmalloc(table->table->entries_size);
-	if (!(newinfo->entries))
+	p = vmalloc(repl->entries_size);
+	if (!p)
 		goto free_newinfo;
 
-	memcpy(newinfo->entries, table->table->entries,
-	   table->table->entries_size);
+	memcpy(p, repl->entries, repl->entries_size);
+	newinfo->entries = p;
+
+	newinfo->entries_size = repl->entries_size;
+	newinfo->nentries = repl->nentries;
 
 	if (countersize)
 		memset(newinfo->counters, 0, countersize);
 
 	/* fill in newinfo and parse the entries */
 	newinfo->chainstack = NULL;
-	ret = ebt_verify_pointers(table->table, newinfo);
-	if (ret != 0)
-		goto free_chainstack;
-	ret = translate_table(table->table->name, newinfo);
+	for (i = 0; i < NF_BR_NUMHOOKS; i++) {
+		if ((repl->valid_hooks & (1 << i)) == 0)
+			newinfo->hook_entry[i] = NULL;
+		else
+			newinfo->hook_entry[i] = p +
+				((char *)repl->hook_entry[i] - repl->entries);
+	}
+	ret = translate_table(repl->name, newinfo);
 	if (ret != 0) {
 		BUGPRINT("Translate_table failed\n");
 		goto free_chainstack;
