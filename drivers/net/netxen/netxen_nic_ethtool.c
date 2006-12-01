@@ -139,8 +139,7 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 {
 	struct netxen_port *port = netdev_priv(dev);
 	struct netxen_adapter *adapter = port->adapter;
-	struct netxen_board_info *boardinfo;
-	boardinfo = &adapter->ahw.boardcfg;
+	struct netxen_board_info *boardinfo = &adapter->ahw.boardcfg;
 
 	/* read which mode */
 	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
@@ -208,7 +207,7 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		ecmd->autoneg = AUTONEG_DISABLE;
 		break;
 	default:
-		printk("ERROR: Unsupported board model %d\n",
+		printk(KERN_ERR "netxen-nic: Unsupported board model %d\n",
 		       (netxen_brdtype_t) boardinfo->board_type);
 		return -EIO;
 

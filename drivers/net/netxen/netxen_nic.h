@@ -343,7 +343,6 @@ typedef enum {
 	NETXEN_BRDTYPE_P2_SB31_10G_HMEZ = 0x000e,
 	NETXEN_BRDTYPE_P2_SB31_10G_CX4 = 0x000f
 } netxen_brdtype_t;
-#define NUM_SUPPORTED_BOARDS (sizeof(netxen_boards)/sizeof(netxen_brdinfo_t))
 
 typedef enum {
 	NETXEN_BRDMFG_INVENTEC = 1
@@ -937,9 +936,7 @@ static inline void netxen_nic_disable_int(struct netxen_adapter *adapter)
 	/*
 	 * ISR_INT_MASK: Can be read from window 0 or 1.
 	 */
-	writel(0x7ff,
-	       (void __iomem
-		*)(PCI_OFFSET_SECOND_RANGE(adapter, ISR_INT_MASK)));
+	writel(0x7ff, PCI_OFFSET_SECOND_RANGE(adapter, ISR_INT_MASK));
 
 }
 
@@ -959,14 +956,12 @@ static inline void netxen_nic_enable_int(struct netxen_adapter *adapter)
 		break;
 	}
 
-	writel(mask,
-	       (void __iomem
-		*)(PCI_OFFSET_SECOND_RANGE(adapter, ISR_INT_MASK)));
+	writel(mask, PCI_OFFSET_SECOND_RANGE(adapter, ISR_INT_MASK));
 
 	if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
 		mask = 0xbff;
-		writel(mask, (void __iomem *)
-		       (PCI_OFFSET_SECOND_RANGE(adapter, ISR_INT_TARGET_MASK)));
+		writel(mask, PCI_OFFSET_SECOND_RANGE(adapter,
+						     ISR_INT_TARGET_MASK));
 	}
 }
 
@@ -975,13 +970,13 @@ static inline void netxen_nic_enable_int(struct netxen_adapter *adapter)
  */
 
 #define NETXEN_MAX_SHORT_NAME 16
-typedef struct {
+struct netxen_brdinfo {
 	netxen_brdtype_t brdtype;	/* type of board */
 	long ports;		/* max no of physical ports */
 	char short_name[NETXEN_MAX_SHORT_NAME];
-} netxen_brdinfo_t;
+};
 
-static const netxen_brdinfo_t netxen_boards[] = {
+static const struct netxen_brdinfo netxen_boards[] = {
 	{NETXEN_BRDTYPE_P2_SB31_10G_CX4, 1, "XGb CX4"},
 	{NETXEN_BRDTYPE_P2_SB31_10G_HMEZ, 1, "XGb HMEZ"},
 	{NETXEN_BRDTYPE_P2_SB31_10G_IMEZ, 2, "XGb IMEZ"},
@@ -990,24 +985,7 @@ static const netxen_brdinfo_t netxen_boards[] = {
 	{NETXEN_BRDTYPE_P2_SB31_2G, 2, "Dual Gb"},
 };
 
-#define NUM_SUPPORTED_BOARDS (sizeof(netxen_boards)/sizeof(netxen_brdinfo_t))
-
-static inline void get_brd_ports_name_by_type(u32 type, int *ports, char *name)
-{
-	int i, found = 0;
-	for (i = 0; i < NUM_SUPPORTED_BOARDS; ++i) {
-		if (netxen_boards[i].brdtype == type) {
-			*ports = netxen_boards[i].ports;
-			strcpy(name, netxen_boards[i].short_name);
-			found = 1;
-			break;
-		}
-	}
-	if (!found) {
-		*ports = 0;
-		name = "Unknown";
-	}
-}
+#define NUM_SUPPORTED_BOARDS (sizeof(netxen_boards)/sizeof(struct netxen_brdinfo))
 
 static inline void get_brd_port_by_type(u32 type, int *ports)
 {

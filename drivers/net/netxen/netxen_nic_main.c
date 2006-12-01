@@ -969,11 +969,9 @@ netxen_handle_int(struct netxen_adapter *adapter, struct net_device *netdev)
 		netxen_nic_disable_int(adapter);
 		/* Window = 0 or 1 */
 		do {
-			writel(0xffffffff, (void __iomem *)
-			       (PCI_OFFSET_SECOND_RANGE
-				(adapter, ISR_INT_TARGET_STATUS)));
-			mask = readl((void __iomem *)
-				     pci_base_offset(adapter, ISR_INT_VECTOR));
+			writel(0xffffffff, PCI_OFFSET_SECOND_RANGE(adapter,
+						ISR_INT_TARGET_STATUS));
+			mask = readl(pci_base_offset(adapter, ISR_INT_VECTOR));
 		} while (((mask & 0x80) != 0) && (++count < 32));
 		if ((mask & 0x80) != 0)
 			printk("Could not disable interrupt completely\n");

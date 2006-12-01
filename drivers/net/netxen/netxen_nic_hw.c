@@ -275,10 +275,8 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 			rcv_desc->desc_head = (struct rcv_desc *)addr;
 		}
 
-		addr = netxen_alloc(adapter->ahw.pdev,
-				    STATUS_DESC_RINGSIZE,
-				    &recv_ctx->
-				    rcv_status_desc_phys_addr,
+		addr = netxen_alloc(adapter->ahw.pdev, STATUS_DESC_RINGSIZE,
+				    &recv_ctx->rcv_status_desc_phys_addr,
 				    &recv_ctx->rcv_status_desc_pdev);
 		if (addr == NULL) {
 			DPRINTK(ERR, "bad return from"
@@ -675,7 +673,7 @@ void netxen_nic_write_w0(struct netxen_adapter *adapter, u32 index, u32 value)
 	void __iomem *addr;
 
 	netxen_nic_pci_change_crbwindow(adapter, 0);
-	addr = (void __iomem *)(pci_base_offset(adapter, index));
+	addr = pci_base_offset(adapter, index);
 	writel(value, addr);
 	netxen_nic_pci_change_crbwindow(adapter, 1);
 }
@@ -685,7 +683,7 @@ void netxen_nic_read_w0(struct netxen_adapter *adapter, u32 index, u32 * value)
 {
 	void __iomem *addr;
 
-	addr = (void __iomem *)(pci_base_offset(adapter, index));
+	addr = pci_base_offset(adapter, index);
 
 	netxen_nic_pci_change_crbwindow(adapter, 0);
 	*value = readl(addr);
@@ -865,7 +863,7 @@ netxen_crb_writelit_adapter(struct netxen_adapter *adapter, unsigned long off,
 		writel(data, NETXEN_CRB_NORMALIZE(adapter, off));
 	} else {
 		netxen_nic_pci_change_crbwindow(adapter, 0);
-		addr = (void __iomem *)(pci_base_offset(adapter, off));
+		addr = pci_base_offset(adapter, off);
 		writel(data, addr);
 		netxen_nic_pci_change_crbwindow(adapter, 1);
 	}
