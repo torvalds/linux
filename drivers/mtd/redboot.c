@@ -110,6 +110,9 @@ static int parse_redboot_partitions(struct mtd_info *master,
 				}
 			}
 			break;
+		} else {
+			/* re-calculate of real numslots */
+			numslots = buf[i].size / sizeof(struct fis_image_desc);
 		}
 	}
 	if (i == numslots) {
