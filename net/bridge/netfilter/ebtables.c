@@ -774,16 +774,11 @@ letscontinue:
 }
 
 /* do the parsing of the table/chains/entries/matches/watchers/targets, heh */
-static int translate_table(struct ebt_replace *repl,
-   struct ebt_table_info *newinfo)
+static int translate_table(char *name, struct ebt_table_info *newinfo)
 {
 	unsigned int i, j, k, udc_cnt;
 	int ret;
 	struct ebt_cl_stack *cl_s = NULL; /* used in the checking for chain loops */
-
-	ret = ebt_verify_pointers(repl, newinfo);
-	if (ret != 0)
-		return ret;
 
 	i = 0;
 	while (i < NF_BR_NUMHOOKS && !newinfo->hook_entry[i])
@@ -889,7 +884,7 @@ static int translate_table(struct ebt_replace *repl,
 	/* used to know what we need to clean up if something goes wrong */
 	i = 0;
 	ret = EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
-	   ebt_check_entry, newinfo, repl->name, &i, cl_s, udc_cnt);
+	   ebt_check_entry, newinfo, name, &i, cl_s, udc_cnt);
 	if (ret != 0) {
 		EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
 		   ebt_cleanup_entry, &i);
@@ -986,7 +981,11 @@ static int do_replace(void __user *user, unsigned int len)
 
 	/* this can get initialized by translate_table() */
 	newinfo->chainstack = NULL;
-	ret = translate_table(&tmp, newinfo);
+	ret = ebt_verify_pointers(&tmp, newinfo);
+	if (ret != 0)
+		goto free_counterstmp;
+
+	ret = translate_table(tmp.name, newinfo);
 
 	if (ret != 0)
 		goto free_counterstmp;
@@ -1185,7 +1184,10 @@ int ebt_register_table(struct ebt_table *table)
 
 	/* fill in newinfo and parse the entries */
 	newinfo->chainstack = NULL;
-	ret = translate_table(table->table, newinfo);
+	ret = ebt_verify_pointers(table->table, newinfo);
+	if (ret != 0)
+		goto free_chainstack;
+	ret = translate_table(table->table->name, newinfo);
 	if (ret != 0) {
 		BUGPRINT("Translate_table failed\n");
 		goto free_chainstack;
