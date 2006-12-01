@@ -1453,7 +1453,7 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 			if (unlikely(netif_msg_tx_done(sky2)))
 				printk(KERN_DEBUG "%s: tx done %u\n",
 				       dev->name, idx);
-			dev_kfree_skb(re->skb);
+			dev_kfree_skb_any(re->skb);
 		}
 
 		le->opcode = 0;	/* paranoia */
