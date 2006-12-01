@@ -29,6 +29,7 @@ obj-$(CONFIG_MACH_KAFA)		+= board-kafa.o
 obj-$(CONFIG_MACH_AT91SAM9260EK) += board-sam9260ek.o
 
 # AT91SAM9261 board-specific support
+obj-$(CONFIG_MACH_AT91SAM9261EK) += board-sam9261ek.o
 
 # LEDs support
 led-$(CONFIG_ARCH_AT91RM9200DK)	+= leds.o
