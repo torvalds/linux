@@ -310,6 +310,8 @@ struct xfrm_tmpl
 /* Source address of tunnel. Ignored, if it is not a tunnel. */
 	xfrm_address_t		saddr;
 
+	unsigned short		encap_family;
+
 	__u32			reqid;
 
 /* Mode: transport, tunnel etc. */

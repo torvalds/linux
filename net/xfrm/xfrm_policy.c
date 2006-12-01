@@ -1211,6 +1211,7 @@ xfrm_tmpl_resolve_one(struct xfrm_policy *policy, struct flowi *fl,
 		if (tmpl->mode == XFRM_MODE_TUNNEL) {
 			remote = &tmpl->id.daddr;
 			local = &tmpl->saddr;
+			family = tmpl->encap_family;
 			if (xfrm_addr_any(local, family)) {
 				error = xfrm_get_saddr(&tmp, remote, family);
 				if (error)
