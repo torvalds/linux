@@ -1059,10 +1059,8 @@ int zd_mac_rx(struct zd_mac *mac, const u8 *buffer, unsigned int length)
 	memcpy(skb_put(skb, length), buffer, length);
 
 	r = ieee80211_rx(ieee, skb, &stats);
-	if (!r) {
-		ZD_ASSERT(in_irq());
-		dev_kfree_skb_irq(skb);
-	}
+	if (!r)
+		dev_kfree_skb_any(skb);
 	return 0;
 }
 
