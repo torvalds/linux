@@ -74,6 +74,18 @@ config SANDPOINT
 	  Select SANDPOINT if configuring for a Motorola Sandpoint X3
 	  (any flavor).
 
+config LINKSTATION
+	bool "Linkstation / Kurobox(HG) from Buffalo"
+	select MPIC
+	select FSL_SOC
+	select PPC_UDBG_16550 if SERIAL_8250
+	help
+	  Select LINKSTATION if configuring for one of PPC- (MPC8241)
+	  based NAS systems from Buffalo Technology. So far only
+	  KuroboxHG has been tested. In the future classical Kurobox,
+	  Linkstation-I HD-HLAN and HD-HGLAN versions, and PPC-based
+	  Terastation systems should be supported too.
+
 config MPC7448HPC2
 	bool "Freescale MPC7448HPC2(Taiga)"
 	select TSI108_BRIDGE
@@ -196,7 +208,7 @@ config PPC_GEN550
 	depends on SANDPOINT || SPRUCE || PPLUS || \
 		PRPMC750 || PRPMC800 || LOPEC || \
 		(EV64260 && !SERIAL_MPSC) || CHESTNUT || RADSTONE_PPC7D || \
-		83xx
+		83xx || LINKSTATION
 	default y
 
 config FORCE
@@ -270,13 +282,13 @@ config EPIC_SERIAL_MODE
 
 config MPC10X_BRIDGE
 	bool
-	depends on POWERPMC250 || LOPEC || SANDPOINT
+	depends on POWERPMC250 || LOPEC || SANDPOINT || LINKSTATION
 	select PPC_INDIRECT_PCI
 	default y
 
 config MPC10X_OPENPIC
 	bool
-	depends on POWERPMC250 || LOPEC || SANDPOINT
+	depends on POWERPMC250 || LOPEC || SANDPOINT || LINKSTATION
 	default y
 
 config MPC10X_STORE_GATHERING
