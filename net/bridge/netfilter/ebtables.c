@@ -717,7 +717,9 @@ static int check_chainloops(struct ebt_entries *chain, struct ebt_cl_stack *cl_s
 				BUGPRINT("loop\n");
 				return -1;
 			}
-			/* this can't be 0, so the above test is correct */
+			if (cl_s[i].hookmask & (1 << hooknr))
+				goto letscontinue;
+			/* this can't be 0, so the loop test is correct */
 			cl_s[i].cs.n = pos + 1;
 			pos = 0;
 			cl_s[i].cs.e = ((void *)e + e->next_offset);
