@@ -456,7 +456,7 @@ static int rtc_from4_errstat(struct mtd_info *mtd, struct nand_chip *this,
 		rtn = nand_do_read(mtd, page, len, &retlen, buf);
 
 		/* if read failed or > 1-bit error corrected */
-		if (rtn || (mtd->ecc_stats.corrected - corrected) > 1) {
+		if (rtn || (mtd->ecc_stats.corrected - corrected) > 1)
 			er_stat |= 1 << 1;
 		kfree(buf);
 	}
