@@ -280,6 +280,7 @@ static struct pci_driver pdc_ata_pci_driver = {
 static int pdc_port_start(struct ata_port *ap)
 {
 	struct device *dev = ap->host->dev;
+	struct pdc_host_priv *hp = ap->host->private_data;
 	struct pdc_port_priv *pp;
 	int rc;
 
@@ -300,6 +301,16 @@ static int pdc_port_start(struct ata_port *ap)
 	}
 
 	ap->private_data = pp;
+
+	/* fix up PHYMODE4 align timing */
+	if ((hp->flags & PDC_FLAG_GEN_II) && sata_scr_valid(ap)) {
+		void __iomem *mmio = (void __iomem *) ap->ioaddr.scr_addr;
+		unsigned int tmp;
+
+		tmp = readl(mmio + 0x014);
+		tmp = (tmp & ~3) | 1;	/* set bits 1:0 = 0:1 */
+		writel(tmp, mmio + 0x014);
+	}
 
 	return 0;
 
