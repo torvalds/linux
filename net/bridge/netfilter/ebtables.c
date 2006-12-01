@@ -401,13 +401,17 @@ ebt_check_entry_size_and_hooks(struct ebt_entry *e,
    struct ebt_entries **hook_entries, unsigned int *n, unsigned int *cnt,
    unsigned int *totalcnt, unsigned int *udc_cnt, unsigned int valid_hooks)
 {
+	unsigned int offset = (char *)e - newinfo->entries;
+	size_t left = (limit - base) - offset;
 	int i;
+
+	if (left < sizeof(unsigned int))
+		goto Esmall;
 
 	for (i = 0; i < NF_BR_NUMHOOKS; i++) {
 		if ((valid_hooks & (1 << i)) == 0)
 			continue;
-		if ( (char *)hook_entries[i] - base ==
-		   (char *)e - newinfo->entries)
+		if ((char *)hook_entries[i] == base + offset)
 			break;
 	}
 	/* beginning of a new chain
@@ -428,11 +432,8 @@ ebt_check_entry_size_and_hooks(struct ebt_entry *e,
 			return -EINVAL;
 		}
 		/* before we look at the struct, be sure it is not too big */
-		if ((char *)hook_entries[i] + sizeof(struct ebt_entries)
-		   > limit) {
-			BUGPRINT("entries_size too small\n");
-			return -EINVAL;
-		}
+		if (left < sizeof(struct ebt_entries))
+			goto Esmall;
 		if (((struct ebt_entries *)e)->policy != EBT_DROP &&
 		   ((struct ebt_entries *)e)->policy != EBT_ACCEPT) {
 			/* only RETURN from udc */
@@ -455,6 +456,8 @@ ebt_check_entry_size_and_hooks(struct ebt_entry *e,
 		return 0;
 	}
 	/* a plain old entry, heh */
+	if (left < sizeof(struct ebt_entry))
+		goto Esmall;
 	if (sizeof(struct ebt_entry) > e->watchers_offset ||
 	   e->watchers_offset > e->target_offset ||
 	   e->target_offset >= e->next_offset) {
@@ -466,10 +469,16 @@ ebt_check_entry_size_and_hooks(struct ebt_entry *e,
 		BUGPRINT("target size too small\n");
 		return -EINVAL;
 	}
+	if (left < e->next_offset)
+		goto Esmall;
 
 	(*cnt)++;
 	(*totalcnt)++;
 	return 0;
+
+Esmall:
+	BUGPRINT("entries_size too small\n");
+	return -EINVAL;
 }
 
 struct ebt_cl_stack
