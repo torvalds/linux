@@ -26,6 +26,7 @@ obj-$(CONFIG_MACH_ATEB9200)	+= board-eb9200.o
 obj-$(CONFIG_MACH_KAFA)		+= board-kafa.o
 
 # AT91SAM9260 board-specific support
+obj-$(CONFIG_MACH_AT91SAM9260EK) += board-sam9260ek.o
 
 # AT91SAM9261 board-specific support
 
