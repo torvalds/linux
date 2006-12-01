@@ -615,6 +615,9 @@ int zd_mac_get_range(struct zd_mac *mac, struct iw_range *range)
 	range->we_version_compiled = WIRELESS_EXT;
 	range->we_version_source = 20;
 
+	range->enc_capa = IW_ENC_CAPA_WPA |  IW_ENC_CAPA_WPA2 |
+			  IW_ENC_CAPA_CIPHER_TKIP | IW_ENC_CAPA_CIPHER_CCMP;
+
 	ZD_ASSERT(!irqs_disabled());
 	spin_lock_irq(&mac->lock);
 	regdomain = mac->regdomain;
