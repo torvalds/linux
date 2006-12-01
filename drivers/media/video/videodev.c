@@ -342,7 +342,7 @@ static void dbgbuf(unsigned int cmd, struct video_device *vfd,
 
 	dbgarg (cmd, "%02ld:%02d:%02d.%08ld index=%d, type=%s, "
 		"bytesused=%d, flags=0x%08d, "
-		"field=%0d, sequence=%d, memory=%s, offset/userptr=0x%08lx\n",
+		"field=%0d, sequence=%d, memory=%s, offset/userptr=0x%08lx, length=%d\n",
 			(p->timestamp.tv_sec/3600),
 			(int)(p->timestamp.tv_sec/60)%60,
 			(int)(p->timestamp.tv_sec%60),
@@ -352,7 +352,7 @@ static void dbgbuf(unsigned int cmd, struct video_device *vfd,
 			p->bytesused,p->flags,
 			p->field,p->sequence,
 			prt_names(p->memory,v4l2_memory_names),
-			p->m.userptr);
+			p->m.userptr, p->length);
 	dbgarg2 ("timecode= %02d:%02d:%02d type=%d, "
 		"flags=0x%08d, frames=%d, userbits=0x%08x\n",
 			tc->hours,tc->minutes,tc->seconds,
@@ -369,9 +369,13 @@ static inline void dbgrect(struct video_device *vfd, char *s,
 static inline void v4l_print_pix_fmt (struct video_device *vfd,
 						struct v4l2_pix_format *fmt)
 {
-	dbgarg2 ("width=%d, height=%d, format=0x%08x, field=%s, "
+	dbgarg2 ("width=%d, height=%d, format=%c%c%c%c, field=%s, "
 		"bytesperline=%d sizeimage=%d, colorspace=%d\n",
-		fmt->width,fmt->height,fmt->pixelformat,
+		fmt->width,fmt->height,
+		(fmt->pixelformat & 0xff),
+		(fmt->pixelformat >>  8) & 0xff,
+		(fmt->pixelformat >> 16) & 0xff,
+		(fmt->pixelformat >> 24) & 0xff,
 		prt_names(fmt->field,v4l2_field_names_FIXME),
 		fmt->bytesperline,fmt->sizeimage,fmt->colorspace);
 };
@@ -530,12 +534,13 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 		}
 		if (!ret)
 			dbgarg (cmd, "index=%d, type=%d, flags=%d, "
-					"description=%s,"
-					" pixelformat=0x%8x\n",
+					"pixelformat=%c%c%c%c, description='%s'\n",
 					f->index, f->type, f->flags,
-					f->description,
-					f->pixelformat);
-
+					(f->pixelformat & 0xff),
+					(f->pixelformat >>  8) & 0xff,
+					(f->pixelformat >> 16) & 0xff,
+					(f->pixelformat >> 24) & 0xff,
+					f->description);
 		break;
 	}
 	case VIDIOC_G_FMT:
