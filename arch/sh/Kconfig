@@ -423,6 +423,24 @@ config SH_TIMER_IRQ
 	default "140" if CPU_SUBTYPE_SH7206
 	default "16"
 
+config NO_IDLE_HZ
+	bool "Dynamic tick timer"
+	help
+	  Select this option if you want to disable continuous timer ticks
+	  and have them programmed to occur as required. This option saves
+	  power as the system can remain in idle state for longer.
+
+	  By default dynamic tick is disabled during the boot, and can be
+	  manually enabled with:
+
+	    echo 1 > /sys/devices/system/timer/timer0/dyn_tick
+
+	  Alternatively, if you want dynamic tick automatically enabled
+	  during boot, pass "dyntick=enable" via the kernel command string.
+
+	  Please note that dynamic tick may affect the accuracy of
+	  timekeeping on some platforms depending on the implementation.
+
 config SH_PCLK_FREQ
 	int "Peripheral clock frequency (in Hz)"
 	default "27000000" if CPU_SUBTYPE_SH73180 || CPU_SUBTYPE_SH7343
