@@ -356,7 +356,7 @@ static void deadline_exit_queue(elevator_t *e)
 /*
  * initialize elevator private data (deadline_data).
  */
-static void *deadline_init_queue(request_queue_t *q, elevator_t *e)
+static void *deadline_init_queue(request_queue_t *q)
 {
 	struct deadline_data *dd;
 
