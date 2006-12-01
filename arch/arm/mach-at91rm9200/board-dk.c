@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/mtd/physmap.h>
 
 #include <asm/hardware.h>
 #include <asm/setup.h>
@@ -39,6 +40,7 @@
 
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
+#include <asm/arch/at91rm9200_mc.h>
 
 #include "generic.h"
 
@@ -145,6 +147,30 @@ static struct at91_nand_data __initdata dk_nand_data = {
 	.partition_info	= nand_partitions,
 };
 
+#define DK_FLASH_BASE	AT91_CHIPSELECT_0
+#define DK_FLASH_SIZE	0x200000
+
+static struct physmap_flash_data dk_flash_data = {
+	.width	= 2,
+};
+
+static struct resource dk_flash_resource = {
+	.start		= DK_FLASH_BASE,
+	.end		= DK_FLASH_BASE + DK_FLASH_SIZE - 1,
+	.flags		= IORESOURCE_MEM,
+};
+
+static struct platform_device dk_flash = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.dev		= {
+				.platform_data	= &dk_flash_data,
+			},
+	.resource	= &dk_flash_resource,
+	.num_resources	= 1,
+};
+
+
 static void __init dk_board_init(void)
 {
 	/* Serial */
@@ -172,6 +198,8 @@ static void __init dk_board_init(void)
 #endif
 	/* NAND */
 	at91_add_device_nand(&dk_nand_data);
+	/* NOR Flash */
+	platform_device_register(&dk_flash);
 	/* VGA */
 //	dk_add_device_video();
 }

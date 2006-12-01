@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/mtd/physmap.h>
 
 #include <asm/hardware.h>
 #include <asm/setup.h>
@@ -39,6 +40,7 @@
 
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
+#include <asm/arch/at91rm9200_mc.h>
 
 #include "generic.h"
 
@@ -107,6 +109,30 @@ static struct spi_board_info ek_spi_devices[] = {
 #endif
 };
 
+#define EK_FLASH_BASE	AT91_CHIPSELECT_0
+#define EK_FLASH_SIZE	0x200000
+
+static struct physmap_flash_data ek_flash_data = {
+	.width	= 2,
+};
+
+static struct resource ek_flash_resource = {
+	.start		= EK_FLASH_BASE,
+	.end		= EK_FLASH_BASE + EK_FLASH_SIZE - 1,
+	.flags		= IORESOURCE_MEM,
+};
+
+static struct platform_device ek_flash = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.dev		= {
+				.platform_data	= &ek_flash_data,
+			},
+	.resource	= &ek_flash_resource,
+	.num_resources	= 1,
+};
+
+
 static void __init ek_board_init(void)
 {
 	/* Serial */
@@ -130,6 +156,8 @@ static void __init ek_board_init(void)
 	at91_set_gpio_output(AT91_PIN_PB22, 1);	/* this MMC card slot can optionally use SPI signaling (CS3). */
 	at91_add_device_mmc(&ek_mmc_data);
 #endif
+	/* NOR Flash */
+	platform_device_register(&ek_flash);
 	/* VGA */
 //	ek_add_device_video();
 }
