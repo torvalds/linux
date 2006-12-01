@@ -622,10 +622,9 @@ static struct bio *__bio_map_user_iov(request_queue_t *q,
 
 		nr_pages += end - start;
 		/*
-		 * transfer and buffer must be aligned to at least hardsector
-		 * size for now, in the future we can relax this restriction
+		 * buffer must be aligned to at least hardsector size for now
 		 */
-		if ((uaddr & queue_dma_alignment(q)) || (len & queue_dma_alignment(q)))
+		if (uaddr & queue_dma_alignment(q))
 			return ERR_PTR(-EINVAL);
 	}
 
