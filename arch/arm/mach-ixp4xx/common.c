@@ -28,6 +28,7 @@
 #include <linux/timex.h>
 #include <linux/clocksource.h>
 
+#include <asm/arch/udc.h>
 #include <asm/hardware.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -286,6 +287,44 @@ struct sys_timer ixp4xx_timer = {
 	.init		= ixp4xx_timer_init,
 };
 
+static struct pxa2xx_udc_mach_info ixp4xx_udc_info;
+
+void __init ixp4xx_set_udc_info(struct pxa2xx_udc_mach_info *info)
+{
+	memcpy(&ixp4xx_udc_info, info, sizeof *info);
+}
+
+static struct resource ixp4xx_udc_resources[] = {
+	[0] = {
+		.start  = 0xc800b000,
+		.end    = 0xc800bfff,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = IRQ_IXP4XX_USB,
+		.end    = IRQ_IXP4XX_USB,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+/*
+ * USB device controller. The IXP4xx uses the same controller as PXA2XX,
+ * so we just use the same device.
+ */
+static struct platform_device ixp4xx_udc_device = {
+	.name           = "pxa2xx-udc",
+	.id             = -1,
+	.num_resources  = 2,
+	.resource       = ixp4xx_udc_resources,
+	.dev            = {
+		.platform_data = &ixp4xx_udc_info,
+	},
+};
+
+static struct platform_device *ixp4xx_devices[] __initdata = {
+	&ixp4xx_udc_device,
+};
+
 static struct resource ixp46x_i2c_resources[] = {
 	[0] = {
 		.start 	= 0xc8011000,
@@ -320,6 +359,8 @@ EXPORT_SYMBOL(ixp4xx_exp_bus_size);
 void __init ixp4xx_sys_init(void)
 {
 	ixp4xx_exp_bus_size = SZ_16M;
+
+	platform_add_devices(ixp4xx_devices, ARRAY_SIZE(ixp4xx_devices));
 
 	if (cpu_is_ixp46x()) {
 		int region;
