@@ -77,11 +77,25 @@ struct rdma_route {
 	int num_paths;
 };
 
+struct rdma_conn_param {
+	const void *private_data;
+	u8 private_data_len;
+	u8 responder_resources;
+	u8 initiator_depth;
+	u8 flow_control;
+	u8 retry_count;		/* ignored when accepting */
+	u8 rnr_retry_count;
+	/* Fields below ignored if a QP is created on the rdma_cm_id. */
+	u8 srq;
+	u32 qp_num;
+};
+
 struct rdma_cm_event {
 	enum rdma_cm_event_type	 event;
 	int			 status;
-	void			*private_data;
-	u8			 private_data_len;
+	union {
+		struct rdma_conn_param	conn;
+	} param;
 };
 
 struct rdma_cm_id;
@@ -203,19 +217,6 @@ void rdma_destroy_qp(struct rdma_cm_id *id);
  */
 int rdma_init_qp_attr(struct rdma_cm_id *id, struct ib_qp_attr *qp_attr,
 		       int *qp_attr_mask);
-
-struct rdma_conn_param {
-	const void *private_data;
-	u8 private_data_len;
-	u8 responder_resources;
-	u8 initiator_depth;
-	u8 flow_control;
-	u8 retry_count;		/* ignored when accepting */
-	u8 rnr_retry_count;
-	/* Fields below ignored if a QP is created on the rdma_cm_id. */
-	u8 srq;
-	u32 qp_num;
-};
 
 /**
  * rdma_connect - Initiate an active connection request.

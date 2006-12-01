@@ -592,20 +592,6 @@ static inline int cma_user_data_offset(enum rdma_port_space ps)
 	}
 }
 
-static int cma_notify_user(struct rdma_id_private *id_priv,
-			   enum rdma_cm_event_type type, int status,
-			   void *data, u8 data_len)
-{
-	struct rdma_cm_event event;
-
-	event.event = type;
-	event.status = status;
-	event.private_data = data;
-	event.private_data_len = data_len;
-
-	return id_priv->id.event_handler(&id_priv->id, &event);
-}
-
 static void cma_cancel_route(struct rdma_id_private *id_priv)
 {
 	switch (rdma_node_get_transport(id_priv->id.device->node_type)) {
@@ -790,47 +776,62 @@ reject:
 	return ret;
 }
 
+static void cma_set_rep_event_data(struct rdma_cm_event *event,
+				   struct ib_cm_rep_event_param *rep_data,
+				   void *private_data)
+{
+	event->param.conn.private_data = private_data;
+	event->param.conn.private_data_len = IB_CM_REP_PRIVATE_DATA_SIZE;
+	event->param.conn.responder_resources = rep_data->responder_resources;
+	event->param.conn.initiator_depth = rep_data->initiator_depth;
+	event->param.conn.flow_control = rep_data->flow_control;
+	event->param.conn.rnr_retry_count = rep_data->rnr_retry_count;
+	event->param.conn.srq = rep_data->srq;
+	event->param.conn.qp_num = rep_data->remote_qpn;
+}
+
 static int cma_ib_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 {
 	struct rdma_id_private *id_priv = cm_id->context;
-	enum rdma_cm_event_type event;
-	u8 private_data_len = 0;
-	int ret = 0, status = 0;
+	struct rdma_cm_event event;
+	int ret = 0;
 
 	atomic_inc(&id_priv->dev_remove);
 	if (!cma_comp(id_priv, CMA_CONNECT))
 		goto out;
 
+	memset(&event, 0, sizeof event);
 	switch (ib_event->event) {
 	case IB_CM_REQ_ERROR:
 	case IB_CM_REP_ERROR:
-		event = RDMA_CM_EVENT_UNREACHABLE;
-		status = -ETIMEDOUT;
+		event.event = RDMA_CM_EVENT_UNREACHABLE;
+		event.status = -ETIMEDOUT;
 		break;
 	case IB_CM_REP_RECEIVED:
-		status = cma_verify_rep(id_priv, ib_event->private_data);
-		if (status)
-			event = RDMA_CM_EVENT_CONNECT_ERROR;
+		event.status = cma_verify_rep(id_priv, ib_event->private_data);
+		if (event.status)
+			event.event = RDMA_CM_EVENT_CONNECT_ERROR;
 		else if (id_priv->id.qp && id_priv->id.ps != RDMA_PS_SDP) {
-			status = cma_rep_recv(id_priv);
-			event = status ? RDMA_CM_EVENT_CONNECT_ERROR :
-					 RDMA_CM_EVENT_ESTABLISHED;
+			event.status = cma_rep_recv(id_priv);
+			event.event = event.status ? RDMA_CM_EVENT_CONNECT_ERROR :
+						     RDMA_CM_EVENT_ESTABLISHED;
 		} else
-			event = RDMA_CM_EVENT_CONNECT_RESPONSE;
-		private_data_len = IB_CM_REP_PRIVATE_DATA_SIZE;
+			event.event = RDMA_CM_EVENT_CONNECT_RESPONSE;
+		cma_set_rep_event_data(&event, &ib_event->param.rep_rcvd,
+				       ib_event->private_data);
 		break;
 	case IB_CM_RTU_RECEIVED:
-		status = cma_rtu_recv(id_priv);
-		event = status ? RDMA_CM_EVENT_CONNECT_ERROR :
-				 RDMA_CM_EVENT_ESTABLISHED;
+		event.status = cma_rtu_recv(id_priv);
+		event.event = event.status ? RDMA_CM_EVENT_CONNECT_ERROR :
+					     RDMA_CM_EVENT_ESTABLISHED;
 		break;
 	case IB_CM_DREQ_ERROR:
-		status = -ETIMEDOUT; /* fall through */
+		event.status = -ETIMEDOUT; /* fall through */
 	case IB_CM_DREQ_RECEIVED:
 	case IB_CM_DREP_RECEIVED:
 		if (!cma_comp_exch(id_priv, CMA_CONNECT, CMA_DISCONNECT))
 			goto out;
-		event = RDMA_CM_EVENT_DISCONNECTED;
+		event.event = RDMA_CM_EVENT_DISCONNECTED;
 		break;
 	case IB_CM_TIMEWAIT_EXIT:
 	case IB_CM_MRA_RECEIVED:
@@ -838,9 +839,10 @@ static int cma_ib_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 		goto out;
 	case IB_CM_REJ_RECEIVED:
 		cma_modify_qp_err(&id_priv->id);
-		status = ib_event->param.rej_rcvd.reason;
-		event = RDMA_CM_EVENT_REJECTED;
-		private_data_len = IB_CM_REJ_PRIVATE_DATA_SIZE;
+		event.status = ib_event->param.rej_rcvd.reason;
+		event.event = RDMA_CM_EVENT_REJECTED;
+		event.param.conn.private_data = ib_event->private_data;
+		event.param.conn.private_data_len = IB_CM_REJ_PRIVATE_DATA_SIZE;
 		break;
 	default:
 		printk(KERN_ERR "RDMA CMA: unexpected IB CM event: %d",
@@ -848,8 +850,7 @@ static int cma_ib_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 		goto out;
 	}
 
-	ret = cma_notify_user(id_priv, event, status, ib_event->private_data,
-			      private_data_len);
+	ret = id_priv->id.event_handler(&id_priv->id, &event);
 	if (ret) {
 		/* Destroy the CM ID by returning a non-zero value. */
 		id_priv->cm_id.ib = NULL;
@@ -911,9 +912,25 @@ err:
 	return NULL;
 }
 
+static void cma_set_req_event_data(struct rdma_cm_event *event,
+				   struct ib_cm_req_event_param *req_data,
+				   void *private_data, int offset)
+{
+	event->param.conn.private_data = private_data + offset;
+	event->param.conn.private_data_len = IB_CM_REQ_PRIVATE_DATA_SIZE - offset;
+	event->param.conn.responder_resources = req_data->responder_resources;
+	event->param.conn.initiator_depth = req_data->initiator_depth;
+	event->param.conn.flow_control = req_data->flow_control;
+	event->param.conn.retry_count = req_data->retry_count;
+	event->param.conn.rnr_retry_count = req_data->rnr_retry_count;
+	event->param.conn.srq = req_data->srq;
+	event->param.conn.qp_num = req_data->remote_qpn;
+}
+
 static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 {
 	struct rdma_id_private *listen_id, *conn_id;
+	struct rdma_cm_event event;
 	int offset, ret;
 
 	listen_id = cm_id->context;
@@ -941,9 +958,11 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	cm_id->cm_handler = cma_ib_handler;
 
 	offset = cma_user_data_offset(listen_id->id.ps);
-	ret = cma_notify_user(conn_id, RDMA_CM_EVENT_CONNECT_REQUEST, 0,
-			      ib_event->private_data + offset,
-			      IB_CM_REQ_PRIVATE_DATA_SIZE - offset);
+	memset(&event, 0, sizeof event);
+	event.event = RDMA_CM_EVENT_CONNECT_REQUEST;
+	cma_set_req_event_data(&event, &ib_event->param.req_rcvd,
+			       ib_event->private_data, offset);
+	ret = conn_id->id.event_handler(&conn_id->id, &event);
 	if (!ret)
 		goto out;
 
@@ -1019,15 +1038,16 @@ static void cma_set_compare_data(enum rdma_port_space ps, struct sockaddr *addr,
 static int cma_iw_handler(struct iw_cm_id *iw_id, struct iw_cm_event *iw_event)
 {
 	struct rdma_id_private *id_priv = iw_id->context;
-	enum rdma_cm_event_type event = 0;
+	struct rdma_cm_event event;
 	struct sockaddr_in *sin;
 	int ret = 0;
 
+	memset(&event, 0, sizeof event);
 	atomic_inc(&id_priv->dev_remove);
 
 	switch (iw_event->event) {
 	case IW_CM_EVENT_CLOSE:
-		event = RDMA_CM_EVENT_DISCONNECTED;
+		event.event = RDMA_CM_EVENT_DISCONNECTED;
 		break;
 	case IW_CM_EVENT_CONNECT_REPLY:
 		sin = (struct sockaddr_in *) &id_priv->id.route.addr.src_addr;
@@ -1035,20 +1055,21 @@ static int cma_iw_handler(struct iw_cm_id *iw_id, struct iw_cm_event *iw_event)
 		sin = (struct sockaddr_in *) &id_priv->id.route.addr.dst_addr;
 		*sin = iw_event->remote_addr;
 		if (iw_event->status)
-			event = RDMA_CM_EVENT_REJECTED;
+			event.event = RDMA_CM_EVENT_REJECTED;
 		else
-			event = RDMA_CM_EVENT_ESTABLISHED;
+			event.event = RDMA_CM_EVENT_ESTABLISHED;
 		break;
 	case IW_CM_EVENT_ESTABLISHED:
-		event = RDMA_CM_EVENT_ESTABLISHED;
+		event.event = RDMA_CM_EVENT_ESTABLISHED;
 		break;
 	default:
 		BUG_ON(1);
 	}
 
-	ret = cma_notify_user(id_priv, event, iw_event->status,
-			      iw_event->private_data,
-			      iw_event->private_data_len);
+	event.status = iw_event->status;
+	event.param.conn.private_data = iw_event->private_data;
+	event.param.conn.private_data_len = iw_event->private_data_len;
+	ret = id_priv->id.event_handler(&id_priv->id, &event);
 	if (ret) {
 		/* Destroy the CM ID by returning a non-zero value. */
 		id_priv->cm_id.iw = NULL;
@@ -1069,6 +1090,7 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	struct rdma_id_private *listen_id, *conn_id;
 	struct sockaddr_in *sin;
 	struct net_device *dev = NULL;
+	struct rdma_cm_event event;
 	int ret;
 
 	listen_id = cm_id->context;
@@ -1122,9 +1144,11 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	sin = (struct sockaddr_in *) &new_cm_id->route.addr.dst_addr;
 	*sin = iw_event->remote_addr;
 
-	ret = cma_notify_user(conn_id, RDMA_CM_EVENT_CONNECT_REQUEST, 0,
-			      iw_event->private_data,
-			      iw_event->private_data_len);
+	memset(&event, 0, sizeof event);
+	event.event = RDMA_CM_EVENT_CONNECT_REQUEST;
+	event.param.conn.private_data = iw_event->private_data;
+	event.param.conn.private_data_len = iw_event->private_data_len;
+	ret = conn_id->id.event_handler(&conn_id->id, &event);
 	if (ret) {
 		/* User wants to destroy the CM ID */
 		conn_id->cm_id.iw = NULL;
@@ -1513,8 +1537,9 @@ static void addr_handler(int status, struct sockaddr *src_addr,
 			 struct rdma_dev_addr *dev_addr, void *context)
 {
 	struct rdma_id_private *id_priv = context;
-	enum rdma_cm_event_type event;
+	struct rdma_cm_event event;
 
+	memset(&event, 0, sizeof event);
 	atomic_inc(&id_priv->dev_remove);
 
 	/*
@@ -1534,14 +1559,15 @@ static void addr_handler(int status, struct sockaddr *src_addr,
 	if (status) {
 		if (!cma_comp_exch(id_priv, CMA_ADDR_RESOLVED, CMA_ADDR_BOUND))
 			goto out;
-		event = RDMA_CM_EVENT_ADDR_ERROR;
+		event.event = RDMA_CM_EVENT_ADDR_ERROR;
+		event.status = status;
 	} else {
 		memcpy(&id_priv->id.route.addr.src_addr, src_addr,
 		       ip_addr_size(src_addr));
-		event = RDMA_CM_EVENT_ADDR_RESOLVED;
+		event.event = RDMA_CM_EVENT_ADDR_RESOLVED;
 	}
 
-	if (cma_notify_user(id_priv, event, status, NULL, 0)) {
+	if (id_priv->id.event_handler(&id_priv->id, &event)) {
 		cma_exch(id_priv, CMA_DESTROYING);
 		cma_release_remove(id_priv);
 		cma_deref_id(id_priv);
@@ -2132,6 +2158,7 @@ static void cma_add_one(struct ib_device *device)
 
 static int cma_remove_id_dev(struct rdma_id_private *id_priv)
 {
+	struct rdma_cm_event event;
 	enum cma_state state;
 
 	/* Record that we want to remove the device */
@@ -2146,8 +2173,9 @@ static int cma_remove_id_dev(struct rdma_id_private *id_priv)
 	if (!cma_comp(id_priv, CMA_DEVICE_REMOVAL))
 		return 0;
 
-	return cma_notify_user(id_priv, RDMA_CM_EVENT_DEVICE_REMOVAL,
-			       0, NULL, 0);
+	memset(&event, 0, sizeof event);
+	event.event = RDMA_CM_EVENT_DEVICE_REMOVAL;
+	return id_priv->id.event_handler(&id_priv->id, &event);
 }
 
 static void cma_process_remove(struct cma_device *cma_dev)
