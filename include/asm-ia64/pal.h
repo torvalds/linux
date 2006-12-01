@@ -84,6 +84,11 @@
 #define PAL_SET_PSTATE		263	/* set the P-state */
 #define PAL_BRAND_INFO		274	/* Processor branding information */
 
+#define PAL_GET_PSTATE_TYPE_LASTSET	0
+#define PAL_GET_PSTATE_TYPE_AVGANDRESET	1
+#define PAL_GET_PSTATE_TYPE_AVGNORESET	2
+#define PAL_GET_PSTATE_TYPE_INSTANT	3
+
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>
@@ -1141,10 +1146,10 @@ ia64_pal_halt_info (pal_power_mgmt_info_u_t *power_buf)
 
 /* Get the current P-state information */
 static inline s64
-ia64_pal_get_pstate (u64 *pstate_index)
+ia64_pal_get_pstate (u64 *pstate_index, unsigned long type)
 {
 	struct ia64_pal_retval iprv;
-	PAL_CALL_STK(iprv, PAL_GET_PSTATE, 0, 0, 0);
+	PAL_CALL_STK(iprv, PAL_GET_PSTATE, type, 0, 0);
 	*pstate_index = iprv.v0;
 	return iprv.status;
 }
