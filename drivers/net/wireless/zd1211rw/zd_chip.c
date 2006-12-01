@@ -1673,3 +1673,16 @@ int zd_rfwritev_cr_locked(struct zd_chip *chip,
 
 	return 0;
 }
+
+int zd_chip_set_multicast_hash(struct zd_chip *chip,
+	                       struct zd_mc_hash *hash)
+{
+	struct zd_ioreq32 ioreqs[] = {
+		{ CR_GROUP_HASH_P1, hash->low },
+		{ CR_GROUP_HASH_P2, hash->high },
+	};
+
+	dev_dbg_f(zd_chip_dev(chip), "hash l 0x%08x h 0x%08x\n",
+		ioreqs[0].value, ioreqs[1].value);
+	return zd_iowrite32a(chip, ioreqs, ARRAY_SIZE(ioreqs));
+}

@@ -39,6 +39,8 @@ static void housekeeping_init(struct zd_mac *mac);
 static void housekeeping_enable(struct zd_mac *mac);
 static void housekeeping_disable(struct zd_mac *mac);
 
+static void set_multicast_hash_handler(void *mac_ptr);
+
 int zd_mac_init(struct zd_mac *mac,
 	        struct net_device *netdev,
 	        struct usb_interface *intf)
@@ -55,6 +57,8 @@ int zd_mac_init(struct zd_mac *mac,
 	softmac_init(ieee80211_priv(netdev));
 	zd_chip_init(&mac->chip, netdev, intf);
 	housekeeping_init(mac);
+	INIT_WORK(&mac->set_multicast_hash_work, set_multicast_hash_handler,
+		  mac);
 	return 0;
 }
 
@@ -136,6 +140,7 @@ out:
 
 void zd_mac_clear(struct zd_mac *mac)
 {
+	flush_workqueue(zd_workqueue);
 	zd_chip_clear(&mac->chip);
 	ZD_ASSERT(!spin_is_locked(&mac->lock));
 	ZD_MEMCLEAR(mac, sizeof(struct zd_mac));
@@ -254,6 +259,42 @@ int zd_mac_set_mac_address(struct net_device *netdev, void *p)
 	spin_unlock_irqrestore(&mac->lock, flags);
 
 	return 0;
+}
+
+static void set_multicast_hash_handler(void *mac_ptr)
+{
+	struct zd_mac *mac = mac_ptr;
+	struct zd_mc_hash hash;
+
+	spin_lock_irq(&mac->lock);
+	hash = mac->multicast_hash;
+	spin_unlock_irq(&mac->lock);
+
+	zd_chip_set_multicast_hash(&mac->chip, &hash);
+}
+
+void zd_mac_set_multicast_list(struct net_device *dev)
+{
+	struct zd_mc_hash hash;
+	struct zd_mac *mac = zd_netdev_mac(dev);
+	struct dev_mc_list *mc;
+	unsigned long flags;
+
+	if (dev->flags & (IFF_PROMISC|IFF_ALLMULTI)) {
+		zd_mc_add_all(&hash);
+	} else {
+		zd_mc_clear(&hash);
+		for (mc = dev->mc_list; mc; mc = mc->next) {
+			dev_dbg_f(zd_mac_dev(mac), "mc addr " MAC_FMT "\n",
+				  MAC_ARG(mc->dmi_addr));
+			zd_mc_add_addr(&hash, mc->dmi_addr);
+		}
+	}
+
+	spin_lock_irqsave(&mac->lock, flags);
+	mac->multicast_hash = hash;
+	spin_unlock_irqrestore(&mac->lock, flags);
+	queue_work(zd_workqueue, &mac->set_multicast_hash_work);
 }
 
 int zd_mac_set_regdomain(struct zd_mac *mac, u8 regdomain)
@@ -930,7 +971,8 @@ static int is_data_packet_for_us(struct ieee80211_device *ieee,
 	}
 
 	return memcmp(hdr->addr1, netdev->dev_addr, ETH_ALEN) == 0 ||
-	       is_multicast_ether_addr(hdr->addr1) ||
+	       (is_multicast_ether_addr(hdr->addr1) &&
+		memcmp(hdr->addr3, netdev->dev_addr, ETH_ALEN) != 0) ||
 	       (netdev->flags & IFF_PROMISC);
 }
 
