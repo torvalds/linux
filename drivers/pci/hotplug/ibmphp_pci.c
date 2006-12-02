@@ -1371,12 +1371,12 @@ static int unconfigure_boot_bridge (u8 busno, u8 device, u8 function)
 	}
 
 	bus = ibmphp_find_res_bus (sec_number);
-	debug ("bus->busno is %x\n", bus->busno);
-	debug ("sec_number is %x\n", sec_number);
 	if (!bus) {
 		err ("cannot find Bus structure for the bridged device\n");
 		return -EINVAL;
 	}
+	debug("bus->busno is %x\n", bus->busno);
+	debug("sec_number is %x\n", sec_number);
 
 	ibmphp_remove_bus (bus, busno);
 

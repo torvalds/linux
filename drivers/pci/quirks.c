@@ -797,56 +797,6 @@ static void __init quirk_mediagx_master(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_CYRIX,	PCI_DEVICE_ID_CYRIX_PCI_MASTER, quirk_mediagx_master );
 
 /*
- * As per PCI spec, ignore base address registers 0-3 of the IDE controllers
- * running in Compatible mode (bits 0 and 2 in the ProgIf for primary and
- * secondary channels respectively). If the device reports Compatible mode
- * but does use BAR0-3 for address decoding, we assume that firmware has
- * programmed these BARs with standard values (0x1f0,0x3f4 and 0x170,0x374).
- * Exceptions (if they exist) must be handled in chip/architecture specific
- * fixups.
- *
- * Note: for non x86 people. You may need an arch specific quirk to handle
- * moving IDE devices to native mode as well. Some plug in card devices power
- * up in compatible mode and assume the BIOS will adjust them.
- *
- * Q: should we load the 0x1f0,0x3f4 into the registers or zap them as
- * we do now ? We don't want is pci_enable_device to come along
- * and assign new resources. Both approaches work for that.
- */ 
-static void __devinit quirk_ide_bases(struct pci_dev *dev)
-{
-       struct resource *res;
-       int first_bar = 2, last_bar = 0;
-
-       if ((dev->class >> 8) != PCI_CLASS_STORAGE_IDE)
-               return;
-
-       res = &dev->resource[0];
-
-       /* primary channel: ProgIf bit 0, BAR0, BAR1 */
-       if (!(dev->class & 1) && (res[0].flags || res[1].flags)) { 
-               res[0].start = res[0].end = res[0].flags = 0;
-               res[1].start = res[1].end = res[1].flags = 0;
-               first_bar = 0;
-               last_bar = 1;
-       }
-
-       /* secondary channel: ProgIf bit 2, BAR2, BAR3 */
-       if (!(dev->class & 4) && (res[2].flags || res[3].flags)) { 
-               res[2].start = res[2].end = res[2].flags = 0;
-               res[3].start = res[3].end = res[3].flags = 0;
-               last_bar = 3;
-       }
-
-       if (!last_bar)
-               return;
-
-       printk(KERN_INFO "PCI: Ignoring BAR%d-%d of IDE controller %s\n",
-              first_bar, last_bar, pci_name(dev));
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, quirk_ide_bases);
-
-/*
  *	Ensure C0 rev restreaming is off. This is normally done by
  *	the BIOS but in the odd case it is not the results are corruption
  *	hence the presence of a Linux check
@@ -880,11 +830,10 @@ static void __devinit quirk_svwks_csb5ide(struct pci_dev *pdev)
 		prog &= ~5;
 		pdev->class &= ~5;
 		pci_write_config_byte(pdev, PCI_CLASS_PROG, prog);
-		/* need to re-assign BARs for compat mode */
-		quirk_ide_bases(pdev);
+		/* PCI layer will sort out resources */
 	}
 }
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_CSB5IDE, quirk_svwks_csb5ide );
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_CSB5IDE, quirk_svwks_csb5ide );
 
 /*
  *	Intel 82801CAM ICH3-M datasheet says IDE modes must be the same
@@ -900,11 +849,9 @@ static void __init quirk_ide_samemode(struct pci_dev *pdev)
 		prog &= ~5;
 		pdev->class &= ~5;
 		pci_write_config_byte(pdev, PCI_CLASS_PROG, prog);
-		/* need to re-assign BARs for compat mode */
-		quirk_ide_bases(pdev);
 	}
 }
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_10, quirk_ide_samemode);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_10, quirk_ide_samemode);
 
 /* This was originally an Alpha specific thing, but it really fits here.
  * The i82375 PCI/EISA bridge appears as non-classified. Fix that.

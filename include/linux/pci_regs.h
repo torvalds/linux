@@ -292,6 +292,12 @@
 #define PCI_MSI_DATA_64		12	/* 16 bits of data for 64-bit devices */
 #define PCI_MSI_MASK_BIT	16	/* Mask bits register */
 
+/* MSI-X registers (these are at offset PCI_MSI_FLAGS) */
+#define PCI_MSIX_FLAGS_QSIZE	0x7FF
+#define PCI_MSIX_FLAGS_ENABLE	(1 << 15)
+#define PCI_MSIX_FLAGS_BIRMASK	(7 << 0)
+#define PCI_MSIX_FLAGS_BITMASK	(1 << 0)
+
 /* CompactPCI Hotswap Register */
 
 #define PCI_CHSWP_CSR		2	/* Control and Status Register */
