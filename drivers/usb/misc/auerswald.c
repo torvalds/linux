@@ -704,9 +704,7 @@ static void auerbuf_free (pauerbuf_t bp)
 {
 	kfree(bp->bufp);
 	kfree(bp->dr);
-	if (bp->urbp) {
-		usb_free_urb(bp->urbp);
-	}
+	usb_free_urb(bp->urbp);
 	kfree(bp);
 }
 
@@ -1155,8 +1153,7 @@ static void auerswald_int_release (pauerswald_t cp)
         dbg ("auerswald_int_release");
 
         /* stop the int endpoint */
-        if (cp->inturbp)
-                usb_kill_urb (cp->inturbp);
+	usb_kill_urb (cp->inturbp);
 
         /* deallocate memory */
         auerswald_int_free (cp);

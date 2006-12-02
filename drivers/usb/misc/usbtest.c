@@ -138,7 +138,7 @@ get_endpoints (struct usbtest_dev *dev, struct usb_interface *intf)
 			default:
 				continue;
 			}
-			if (e->desc.bEndpointAddress & USB_DIR_IN) {
+			if (usb_endpoint_dir_in(&e->desc)) {
 				if (!in)
 					in = e;
 			} else {
@@ -147,7 +147,7 @@ get_endpoints (struct usbtest_dev *dev, struct usb_interface *intf)
 			}
 			continue;
 try_iso:
-			if (e->desc.bEndpointAddress & USB_DIR_IN) {
+			if (usb_endpoint_dir_in(&e->desc)) {
 				if (!iso_in)
 					iso_in = e;
 			} else {

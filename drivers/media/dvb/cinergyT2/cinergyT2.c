@@ -275,8 +275,7 @@ static void cinergyt2_free_stream_urbs (struct cinergyt2 *cinergyt2)
 	int i;
 
 	for (i=0; i<STREAM_URB_COUNT; i++)
-		if (cinergyt2->stream_urb[i])
-			usb_free_urb(cinergyt2->stream_urb[i]);
+		usb_free_urb(cinergyt2->stream_urb[i]);
 
 	usb_buffer_free(cinergyt2->udev, STREAM_URB_COUNT*STREAM_BUF_SIZE,
 			    cinergyt2->streambuf, cinergyt2->streambuf_dmahandle);
@@ -320,8 +319,7 @@ static void cinergyt2_stop_stream_xfer (struct cinergyt2 *cinergyt2)
 	cinergyt2_control_stream_transfer(cinergyt2, 0);
 
 	for (i=0; i<STREAM_URB_COUNT; i++)
-		if (cinergyt2->stream_urb[i])
-			usb_kill_urb(cinergyt2->stream_urb[i]);
+		usb_kill_urb(cinergyt2->stream_urb[i]);
 }
 
 static int cinergyt2_start_stream_xfer (struct cinergyt2 *cinergyt2)

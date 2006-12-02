@@ -71,7 +71,7 @@ static int distrust_firmware = 1;
 module_param(distrust_firmware, bool, 0);
 MODULE_PARM_DESC(distrust_firmware, "true to distrust firmware power/overcurren"
         "t setup");
-DECLARE_WAIT_QUEUE_HEAD(u132_hcd_wait);
+static DECLARE_WAIT_QUEUE_HEAD(u132_hcd_wait);
 /*
 * u132_module_lock exists to protect access to global variables
 *
@@ -205,11 +205,7 @@ struct u132 {
         struct u132_port port[MAX_U132_PORTS];
         struct u132_endp *endp[MAX_U132_ENDPS];
 };
-int usb_ftdi_elan_read_reg(struct platform_device *pdev, u32 *data);
-int usb_ftdi_elan_read_pcimem(struct platform_device *pdev, u8 addressofs,
-        u8 width, u32 *data);
-int usb_ftdi_elan_write_pcimem(struct platform_device *pdev, u8 addressofs,
-        u8 width, u32 data);
+
 /*
 * these cannot be inlines because we need the structure offset!!
 * Does anyone have a better way?????

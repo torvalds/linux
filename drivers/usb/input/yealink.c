@@ -859,10 +859,8 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	interface = intf->cur_altsetting;
 	endpoint = &interface->endpoint[0].desc;
-	if (!(endpoint->bEndpointAddress & USB_DIR_IN))
-		return -EIO;
-	if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_INT)
-		return -EIO;
+	if (!usb_endpoint_is_int_in(endpoint))
+		return -ENODEV;
 
 	yld = kzalloc(sizeof(struct yealink_dev), GFP_KERNEL);
 	if (!yld)

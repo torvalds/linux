@@ -385,6 +385,7 @@ struct hid_control_fifo {
 #define HID_IN_RUNNING		3
 #define HID_RESET_PENDING	4
 #define HID_SUSPENDED		5
+#define HID_CLEAR_HALT		6
 
 struct hid_input {
 	struct list_head list;

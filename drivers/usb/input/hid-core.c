@@ -968,20 +968,29 @@ static void hid_retry_timeout(unsigned long _hid)
 		hid_io_error(hid);
 }
 
-/* Workqueue routine to reset the device */
+/* Workqueue routine to reset the device or clear a halt */
 static void hid_reset(void *_hid)
 {
 	struct hid_device *hid = (struct hid_device *) _hid;
-	int rc_lock, rc;
+	int rc_lock, rc = 0;
 
-	dev_dbg(&hid->intf->dev, "resetting device\n");
-	rc = rc_lock = usb_lock_device_for_reset(hid->dev, hid->intf);
-	if (rc_lock >= 0) {
-		rc = usb_reset_composite_device(hid->dev, hid->intf);
-		if (rc_lock)
-			usb_unlock_device(hid->dev);
+	if (test_bit(HID_CLEAR_HALT, &hid->iofl)) {
+		dev_dbg(&hid->intf->dev, "clear halt\n");
+		rc = usb_clear_halt(hid->dev, hid->urbin->pipe);
+		clear_bit(HID_CLEAR_HALT, &hid->iofl);
+		hid_start_in(hid);
 	}
-	clear_bit(HID_RESET_PENDING, &hid->iofl);
+
+	else if (test_bit(HID_RESET_PENDING, &hid->iofl)) {
+		dev_dbg(&hid->intf->dev, "resetting device\n");
+		rc = rc_lock = usb_lock_device_for_reset(hid->dev, hid->intf);
+		if (rc_lock >= 0) {
+			rc = usb_reset_composite_device(hid->dev, hid->intf);
+			if (rc_lock)
+				usb_unlock_device(hid->dev);
+		}
+		clear_bit(HID_RESET_PENDING, &hid->iofl);
+	}
 
 	switch (rc) {
 	case 0:
@@ -1023,9 +1032,8 @@ static void hid_io_error(struct hid_device *hid)
 
 		/* Retries failed, so do a port reset */
 		if (!test_and_set_bit(HID_RESET_PENDING, &hid->iofl)) {
-			if (schedule_work(&hid->reset_work))
-				goto done;
-			clear_bit(HID_RESET_PENDING, &hid->iofl);
+			schedule_work(&hid->reset_work);
+			goto done;
 		}
 	}
 
@@ -1049,6 +1057,11 @@ static void hid_irq_in(struct urb *urb)
 			hid->retry_delay = 0;
 			hid_input_report(HID_INPUT_REPORT, urb, 1);
 			break;
+		case -EPIPE:		/* stall */
+			clear_bit(HID_IN_RUNNING, &hid->iofl);
+			set_bit(HID_CLEAR_HALT, &hid->iofl);
+			schedule_work(&hid->reset_work);
+			return;
 		case -ECONNRESET:	/* unlink */
 		case -ENOENT:
 		case -ESHUTDOWN:	/* unplug */
@@ -1627,6 +1640,19 @@ void hid_init_reports(struct hid_device *hid)
 
 #define USB_VENDOR_ID_APPLE		0x05ac
 #define USB_DEVICE_ID_APPLE_MIGHTYMOUSE	0x0304
+#define USB_DEVICE_ID_APPLE_FOUNTAIN_ANSI	0x020e
+#define USB_DEVICE_ID_APPLE_FOUNTAIN_ISO	0x020f
+#define USB_DEVICE_ID_APPLE_GEYSER_ANSI	0x0214
+#define USB_DEVICE_ID_APPLE_GEYSER_ISO	0x0215
+#define USB_DEVICE_ID_APPLE_GEYSER_JIS	0x0216
+#define USB_DEVICE_ID_APPLE_GEYSER3_ANSI	0x0217
+#define USB_DEVICE_ID_APPLE_GEYSER3_ISO	0x0218
+#define USB_DEVICE_ID_APPLE_GEYSER3_JIS	0x0219
+#define USB_DEVICE_ID_APPLE_GEYSER4_ANSI	0x021a
+#define USB_DEVICE_ID_APPLE_GEYSER4_ISO	0x021b
+#define USB_DEVICE_ID_APPLE_GEYSER4_JIS	0x021c
+#define USB_DEVICE_ID_APPLE_FOUNTAIN_TP_ONLY	0x030a
+#define USB_DEVICE_ID_APPLE_GEYSER1_TP_ONLY	0x030b
 
 #define USB_VENDOR_ID_CHERRY		0x046a
 #define USB_DEVICE_ID_CHERRY_CYMOTION	0x0023
@@ -1794,17 +1820,19 @@ static const struct hid_blacklist {
 
 	{ USB_VENDOR_ID_CHERRY, USB_DEVICE_ID_CHERRY_CYMOTION, HID_QUIRK_CYMOTION },
 
-	{ USB_VENDOR_ID_APPLE, 0x020E, HID_QUIRK_POWERBOOK_HAS_FN },
-	{ USB_VENDOR_ID_APPLE, 0x020F, HID_QUIRK_POWERBOOK_HAS_FN },
-	{ USB_VENDOR_ID_APPLE, 0x0214, HID_QUIRK_POWERBOOK_HAS_FN },
-	{ USB_VENDOR_ID_APPLE, 0x0215, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_POWERBOOK_ISO_KEYBOARD},
-	{ USB_VENDOR_ID_APPLE, 0x0216, HID_QUIRK_POWERBOOK_HAS_FN },
-	{ USB_VENDOR_ID_APPLE, 0x0217, HID_QUIRK_POWERBOOK_HAS_FN },
-	{ USB_VENDOR_ID_APPLE, 0x0218, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_POWERBOOK_ISO_KEYBOARD},
-	{ USB_VENDOR_ID_APPLE, 0x0219, HID_QUIRK_POWERBOOK_HAS_FN },
-	{ USB_VENDOR_ID_APPLE, 0x021B, HID_QUIRK_POWERBOOK_HAS_FN },
-	{ USB_VENDOR_ID_APPLE, 0x030A, HID_QUIRK_POWERBOOK_HAS_FN },
-	{ USB_VENDOR_ID_APPLE, 0x030B, HID_QUIRK_POWERBOOK_HAS_FN },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_FOUNTAIN_ANSI, HID_QUIRK_POWERBOOK_HAS_FN },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_FOUNTAIN_ISO, HID_QUIRK_POWERBOOK_HAS_FN },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER_ANSI, HID_QUIRK_POWERBOOK_HAS_FN },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER_ISO, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_POWERBOOK_ISO_KEYBOARD},
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER_JIS, HID_QUIRK_POWERBOOK_HAS_FN },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER3_ANSI, HID_QUIRK_POWERBOOK_HAS_FN },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER3_ISO, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_POWERBOOK_ISO_KEYBOARD},
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER3_JIS, HID_QUIRK_POWERBOOK_HAS_FN },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER4_ANSI, HID_QUIRK_POWERBOOK_HAS_FN },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER4_ISO, HID_QUIRK_POWERBOOK_HAS_FN },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER4_JIS, HID_QUIRK_POWERBOOK_HAS_FN },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_FOUNTAIN_TP_ONLY, HID_QUIRK_POWERBOOK_HAS_FN },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER1_TP_ONLY, HID_QUIRK_POWERBOOK_HAS_FN },
 
 	{ USB_VENDOR_ID_PANJIT, 0x0001, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_PANJIT, 0x0002, HID_QUIRK_IGNORE },
@@ -1985,7 +2013,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 		if (hid->collection->usage == HID_GD_MOUSE && hid_mousepoll_interval > 0)
 			interval = hid_mousepoll_interval;
 
-		if (endpoint->bEndpointAddress & USB_DIR_IN) {
+		if (usb_endpoint_dir_in(endpoint)) {
 			if (hid->urbin)
 				continue;
 			if (!(hid->urbin = usb_alloc_urb(0, GFP_KERNEL)))
@@ -2067,13 +2095,9 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	return hid;
 
 fail:
-
-	if (hid->urbin)
-		usb_free_urb(hid->urbin);
-	if (hid->urbout)
-		usb_free_urb(hid->urbout);
-	if (hid->urbctrl)
-		usb_free_urb(hid->urbctrl);
+	usb_free_urb(hid->urbin);
+	usb_free_urb(hid->urbout);
+	usb_free_urb(hid->urbctrl);
 	hid_free_buffers(dev, hid);
 	hid_free_device(hid);
 
@@ -2104,8 +2128,7 @@ static void hid_disconnect(struct usb_interface *intf)
 
 	usb_free_urb(hid->urbin);
 	usb_free_urb(hid->urbctrl);
-	if (hid->urbout)
-		usb_free_urb(hid->urbout);
+	usb_free_urb(hid->urbout);
 
 	hid_free_buffers(hid->dev, hid);
 	hid_free_device(hid);

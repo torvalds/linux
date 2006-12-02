@@ -1953,8 +1953,8 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	return hdw;
  fail:
 	if (hdw) {
-		if (hdw->ctl_read_urb) usb_free_urb(hdw->ctl_read_urb);
-		if (hdw->ctl_write_urb) usb_free_urb(hdw->ctl_write_urb);
+		usb_free_urb(hdw->ctl_read_urb);
+		usb_free_urb(hdw->ctl_write_urb);
 		if (hdw->ctl_read_buffer) kfree(hdw->ctl_read_buffer);
 		if (hdw->ctl_write_buffer) kfree(hdw->ctl_write_buffer);
 		if (hdw->controls) kfree(hdw->controls);
@@ -2575,12 +2575,10 @@ static void pvr2_ctl_timeout(unsigned long data)
 	struct pvr2_hdw *hdw = (struct pvr2_hdw *)data;
 	if (hdw->ctl_write_pend_flag || hdw->ctl_read_pend_flag) {
 		hdw->ctl_timeout_flag = !0;
-		if (hdw->ctl_write_pend_flag && hdw->ctl_write_urb) {
+		if (hdw->ctl_write_pend_flag)
 			usb_unlink_urb(hdw->ctl_write_urb);
-		}
-		if (hdw->ctl_read_pend_flag && hdw->ctl_read_urb) {
+		if (hdw->ctl_read_pend_flag)
 			usb_unlink_urb(hdw->ctl_read_urb);
-		}
 	}
 }
 

@@ -775,7 +775,7 @@ static int sn9c102_start_transfer(struct sn9c102_device* cam)
 	return 0;
 
 free_urbs:
-	for (i = 0; (i < SN9C102_URBS) &&  cam->urb[i]; i++)
+	for (i = 0; i < SN9C102_URBS; i++)
 		usb_free_urb(cam->urb[i]);
 
 free_buffers:

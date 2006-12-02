@@ -200,8 +200,7 @@ next_desc:
 
 		dev->status = &info->control->cur_altsetting->endpoint [0];
 		desc = &dev->status->desc;
-		if (desc->bmAttributes != USB_ENDPOINT_XFER_INT
-				|| !(desc->bEndpointAddress & USB_DIR_IN)
+		if (!usb_endpoint_is_int_in(desc)
 				|| (le16_to_cpu(desc->wMaxPacketSize)
 					< sizeof(struct usb_cdc_notification))
 				|| !desc->bInterval) {
