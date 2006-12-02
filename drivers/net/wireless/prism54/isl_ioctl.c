@@ -2140,11 +2140,9 @@ prism54_wpa_bss_ie_add(islpci_private *priv, u8 *bssid,
 					 struct islpci_bss_wpa_ie, list);
 			list_del(&bss->list);
 		} else {
-			bss = kmalloc(sizeof (*bss), GFP_ATOMIC);
-			if (bss != NULL) {
+			bss = kzalloc(sizeof (*bss), GFP_ATOMIC);
+			if (bss != NULL)
 				priv->num_bss_wpa++;
-				memset(bss, 0, sizeof (*bss));
-			}
 		}
 		if (bss != NULL) {
 			memcpy(bss->bssid, bssid, ETH_ALEN);
@@ -2684,11 +2682,10 @@ prism2_ioctl_set_generic_element(struct net_device *ndev,
                return -EINVAL;
 
        alen = sizeof(*attach) + len;
-       attach = kmalloc(alen, GFP_KERNEL);
+       attach = kzalloc(alen, GFP_KERNEL);
        if (attach == NULL)
                return -ENOMEM;
 
-       memset(attach, 0, alen);
 #define WLAN_FC_TYPE_MGMT 0
 #define WLAN_FC_STYPE_ASSOC_REQ 0
 #define WLAN_FC_STYPE_REASSOC_REQ 2

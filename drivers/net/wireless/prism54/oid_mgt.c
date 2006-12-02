@@ -235,11 +235,9 @@ mgt_init(islpci_private *priv)
 {
 	int i;
 
-	priv->mib = kmalloc(OID_NUM_LAST * sizeof (void *), GFP_KERNEL);
+	priv->mib = kcalloc(OID_NUM_LAST, sizeof (void *), GFP_KERNEL);
 	if (!priv->mib)
 		return -ENOMEM;
-
-	memset(priv->mib, 0, OID_NUM_LAST * sizeof (void *));
 
 	/* Alloc the cache */
 	for (i = 0; i < OID_NUM_LAST; i++) {
