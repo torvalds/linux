@@ -159,27 +159,32 @@ static void msp430_ir_interrupt(unsigned long data)
 	if (budget_ci->ir.rc5_device != IR_DEVICE_ANY && budget_ci->ir.rc5_device != device)
 		return;
 
-	/* Are we still waiting for a keyup event while this is a new key? */
-	if ((ir_key != dev->repeat_key || toggle != prev_toggle) && del_timer(&dev->timer))
-		ir_input_nokey(dev, &budget_ci->ir.state);
-
-	prev_toggle = toggle;
-
 	/* Ignore repeated key sequences if requested */
-	if (ir_key == dev->repeat_key && bounces > 0 && timer_pending(&dev->timer)) {
+	if (toggle == prev_toggle && ir_key == dev->repeat_key &&
+	    bounces > 0 && timer_pending(&dev->timer)) {
+		if (ir_debug)
+			printk("budget_ci: debounce logic ignored IR command\n");
 		bounces--;
 		return;
 	}
+	prev_toggle = toggle;
 
-	/* New keypress? */
-	if (!timer_pending(&dev->timer))
+	/* Are we still waiting for a keyup event? */
+	if (del_timer(&dev->timer))
+		ir_input_nokey(dev, &budget_ci->ir.state);
+
+	/* Generate keypress */
+	if (ir_debug)
+		printk("budget_ci: generating keypress 0x%02x\n", ir_key);
+	ir_input_keydown(dev, &budget_ci->ir.state, ir_key, (ir_key & (command << 8)));
+
+	/* Do we want to delay the keyup event? */
+	if (debounce) {
 		bounces = debounce;
-
-	/* Prepare a keyup event sometime in the future */
-	mod_timer(&dev->timer, jiffies + msecs_to_jiffies(IR_REPEAT_TIMEOUT));
-
-	/* Generate a new or repeated keypress */
-	ir_input_keydown(dev, &budget_ci->ir.state, ir_key, ((device << 8) | command));
+		mod_timer(&dev->timer, jiffies + msecs_to_jiffies(IR_REPEAT_TIMEOUT));
+	} else {
+		ir_input_nokey(dev, &budget_ci->ir.state);
+	}
 }
 
 static void msp430_ir_debounce(unsigned long data)
@@ -297,11 +302,9 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 		break;
 	}
 
-	/* initialise the key-up timeout handler */
+	/* initialise the key-up debounce timeout handler */
 	input_dev->timer.function = msp430_ir_keyup;
 	input_dev->timer.data = (unsigned long) &budget_ci->ir;
-	input_dev->rep[REP_DELAY] = 1;
-	input_dev->rep[REP_PERIOD] = 1;
 
 	error = input_register_device(input_dev);
 	if (error) {
