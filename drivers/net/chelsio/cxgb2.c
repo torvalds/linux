@@ -1040,7 +1040,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 			adapter->msg_enable = dflt_msg_enable;
 			adapter->mmio_len = mmio_len;
 
-			init_MUTEX(&adapter->mib_mutex);
 			spin_lock_init(&adapter->tpi_lock);
 			spin_lock_init(&adapter->work_lock);
 			spin_lock_init(&adapter->async_lock);

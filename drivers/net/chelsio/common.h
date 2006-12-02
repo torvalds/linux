@@ -212,7 +212,6 @@ struct adapter {
 	struct work_struct stats_update_task;
 	struct timer_list stats_update_timer;
 
-	struct semaphore mib_mutex;
 	spinlock_t tpi_lock;
 	spinlock_t work_lock;
 	/* guards async operations */
