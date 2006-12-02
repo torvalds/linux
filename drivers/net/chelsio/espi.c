@@ -192,7 +192,7 @@ int t1_espi_intr_handler(struct peespi *espi)
 
 const struct espi_intr_counts *t1_espi_get_intr_counts(struct peespi *espi)
 {
-    return &espi->intr_cnt;
+	return &espi->intr_cnt;
 }
 
 static void espi_setup_for_pm3393(adapter_t *adapter)

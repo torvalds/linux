@@ -729,7 +729,7 @@ static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 
 static int get_eeprom_len(struct net_device *dev)
 {
-    return EEPROM_SIZE;
+	return EEPROM_SIZE;
 }
 
 #define EEPROM_MAGIC(ap) \

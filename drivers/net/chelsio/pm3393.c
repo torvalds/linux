@@ -46,17 +46,17 @@
 /* 802.3ae 10Gb/s MDIO Manageable Device(MMD)
  */
 enum {
-    MMD_RESERVED,
-    MMD_PMAPMD,
-    MMD_WIS,
-    MMD_PCS,
-    MMD_PHY_XGXS,	/* XGMII Extender Sublayer */
-    MMD_DTE_XGXS,
+	MMD_RESERVED,
+	MMD_PMAPMD,
+	MMD_WIS,
+	MMD_PCS,
+	MMD_PHY_XGXS,	/* XGMII Extender Sublayer */
+	MMD_DTE_XGXS,
 };
 
 enum {
-    PHY_XGXS_CTRL_1,
-    PHY_XGXS_STATUS_1
+	PHY_XGXS_CTRL_1,
+	PHY_XGXS_STATUS_1
 };
 
 #define OFFSET(REG_ADDR)    (REG_ADDR << 2)

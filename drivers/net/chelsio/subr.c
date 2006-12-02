@@ -166,11 +166,11 @@ static int t1_pci_intr_handler(adapter_t *adapter)
 {
 	u32 pcix_cause;
 
-    	pci_read_config_dword(adapter->pdev, A_PCICFG_INTR_CAUSE, &pcix_cause);
+	pci_read_config_dword(adapter->pdev, A_PCICFG_INTR_CAUSE, &pcix_cause);
 
 	if (pcix_cause) {
 		pci_write_config_dword(adapter->pdev, A_PCICFG_INTR_CAUSE,
-					 pcix_cause);
+				       pcix_cause);
 		t1_fatal_err(adapter);    /* PCI errors are fatal */
 	}
 	return 0;
@@ -420,9 +420,9 @@ int t1_link_start(struct cphy *phy, struct cmac *mac, struct link_config *lc)
  */
 int elmer0_ext_intr_handler(adapter_t *adapter)
 {
-    	struct cphy *phy;
+	struct cphy *phy;
 	int phy_cause;
-    	u32 cause;
+	u32 cause;
 
 	t1_tpi_read(adapter, A_ELMER0_INT_CAUSE, &cause);
 
@@ -515,7 +515,7 @@ void t1_interrupts_clear(adapter_t* adapter)
 	}
 
 	/* Enable interrupts for external devices. */
-    	pl_intr = readl(adapter->regs + A_PL_CAUSE);
+	pl_intr = readl(adapter->regs + A_PL_CAUSE);
 
 	writel(pl_intr | F_PL_INTR_EXT | F_PL_INTR_PCIX,
 	       adapter->regs + A_PL_CAUSE);
@@ -643,7 +643,7 @@ static int board_init(adapter_t *adapter, const struct board_info *bi)
 	case CHBT_BOARD_N110:
 	case CHBT_BOARD_N210:
 		writel(V_TPIPAR(0xf), adapter->regs + A_TPI_PAR);
-    		t1_tpi_write(adapter, A_ELMER0_GPO, 0x800);
+		t1_tpi_write(adapter, A_ELMER0_GPO, 0x800);
 		break;
 	}
 	return 0;
