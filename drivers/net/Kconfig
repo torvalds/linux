@@ -1769,8 +1769,8 @@ config VIA_RHINE_NAPI
 	  information.
 
 config LAN_SAA9730
-	bool "Philips SAA9730 Ethernet support (EXPERIMENTAL)"
-	depends on NET_PCI && EXPERIMENTAL && MIPS
+	bool "Philips SAA9730 Ethernet support"
+	depends on NET_PCI && PCI && MIPS_ATLAS
 	help
 	  The SAA9730 is a combined multimedia and peripheral controller used
 	  in thin clients, Internet access terminals, and diskless
