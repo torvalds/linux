@@ -1099,15 +1099,13 @@ static struct sta_info * ap_add_sta(struct ap_data *ap, u8 *addr)
 {
 	struct sta_info *sta;
 
-	sta = (struct sta_info *)
-		kmalloc(sizeof(struct sta_info), GFP_ATOMIC);
+	sta = kzalloc(sizeof(struct sta_info), GFP_ATOMIC);
 	if (sta == NULL) {
 		PDEBUG(DEBUG_AP, "AP: kmalloc failed\n");
 		return NULL;
 	}
 
 	/* initialize STA info data */
-	memset(sta, 0, sizeof(struct sta_info));
 	sta->local = ap->local;
 	skb_queue_head_init(&sta->tx_buf);
 	memcpy(sta->addr, addr, ETH_ALEN);

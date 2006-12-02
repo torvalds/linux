@@ -566,12 +566,11 @@ static int prism2_config(struct pcmcia_device *link)
 	PDEBUG(DEBUG_FLOW, "prism2_config()\n");
 
 	parse = kmalloc(sizeof(cisparse_t), GFP_KERNEL);
-	hw_priv = kmalloc(sizeof(*hw_priv), GFP_KERNEL);
+	hw_priv = kzalloc(sizeof(*hw_priv), GFP_KERNEL);
 	if (parse == NULL || hw_priv == NULL) {
 		ret = -ENOMEM;
 		goto failed;
 	}
-	memset(hw_priv, 0, sizeof(*hw_priv));
 
 	tuple.DesiredTuple = CISTPL_CONFIG;
 	tuple.Attributes = 0;
