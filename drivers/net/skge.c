@@ -2252,6 +2252,7 @@ static void skge_phy_reset(struct skge_port *skge)
 {
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
+	struct net_device *dev = hw->dev[port];
 
 	netif_stop_queue(skge->netdev);
 	netif_carrier_off(skge->netdev);
