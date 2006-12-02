@@ -72,15 +72,19 @@
 #define SLOTSTATUS_READY	8
 #define SLOTSTATUS_OCCUPIED	(SLOTSTATUS_PRESENT|SLOTSTATUS_RESET|SLOTSTATUS_READY)
 
+struct budget_ci_ir {
+	struct input_dev *dev;
+	struct tasklet_struct msp430_irq_tasklet;
+	char name[72]; /* 40 + 32 for (struct saa7146_dev).name */
+};
+
 struct budget_ci {
 	struct budget budget;
-	struct input_dev *input_dev;
-	struct tasklet_struct msp430_irq_tasklet;
 	struct tasklet_struct ciintf_irq_tasklet;
 	int slot_status;
 	int ci_irq;
 	struct dvb_ca_en50221 ca;
-	char ir_dev_name[50];
+	struct budget_ci_ir ir;
 	u8 tuner_pll_address; /* used for philips_tdm1316l configs */
 };
 
@@ -156,7 +160,7 @@ static void msp430_ir_debounce(unsigned long data)
 static void msp430_ir_interrupt(unsigned long data)
 {
 	struct budget_ci *budget_ci = (struct budget_ci *) data;
-	struct input_dev *dev = budget_ci->input_dev;
+	struct input_dev *dev = budget_ci->ir.dev;
 	unsigned int code =
 		ttpci_budget_debiread(&budget_ci->budget, DEBINOSWAP, DEBIADDR_IR, 2, 1, 0) >> 8;
 
@@ -191,17 +195,17 @@ static void msp430_ir_interrupt(unsigned long data)
 static int msp430_ir_init(struct budget_ci *budget_ci)
 {
 	struct saa7146_dev *saa = budget_ci->budget.dev;
-	struct input_dev *input_dev;
+	struct input_dev *input_dev = budget_ci->ir.dev;
 	int i;
 	int err;
 
-	input_dev = input_allocate_device();
+	budget_ci->ir.dev = input_dev = input_allocate_device();
 	if (!input_dev)
 		return -ENOMEM;
 
-	sprintf(budget_ci->ir_dev_name, "Budget-CI dvb ir receiver %s", saa->name);
-
-	input_dev->name = budget_ci->ir_dev_name;
+	snprintf(budget_ci->ir.name, sizeof(budget_ci->ir.name),
+		 "Budget-CI dvb ir receiver %s", saa->name);
+	input_dev->name = budget_ci->ir.name;
 
 	set_bit(EV_KEY, input_dev->evbit);
 	for (i = 0; i < ARRAY_SIZE(key_map); i++)
@@ -214,9 +218,9 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 		return err;
 	}
 
-	input_dev->timer.function = msp430_ir_debounce;
+	input_register_device(budget_ci->ir.dev);
 
-	budget_ci->input_dev = input_dev;
+	input_dev->timer.function = msp430_ir_debounce;
 
 	saa7146_write(saa, IER, saa7146_read(saa, IER) | MASK_06);
 	saa7146_setgpio(saa, 3, SAA7146_GPIO_IRQHI);
@@ -227,7 +231,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 static void msp430_ir_deinit(struct budget_ci *budget_ci)
 {
 	struct saa7146_dev *saa = budget_ci->budget.dev;
-	struct input_dev *dev = budget_ci->input_dev;
+	struct input_dev *dev = budget_ci->ir.dev;
 
 	saa7146_write(saa, IER, saa7146_read(saa, IER) & ~MASK_06);
 	saa7146_setgpio(saa, 3, SAA7146_GPIO_INPUT);
@@ -548,7 +552,7 @@ static void budget_ci_irq(struct saa7146_dev *dev, u32 * isr)
 	dprintk(8, "dev: %p, budget_ci: %p\n", dev, budget_ci);
 
 	if (*isr & MASK_06)
-		tasklet_schedule(&budget_ci->msp430_irq_tasklet);
+		tasklet_schedule(&budget_ci->ir.msp430_irq_tasklet);
 
 	if (*isr & MASK_10)
 		ttpci_budget_irq10_handler(dev, isr);
@@ -1105,7 +1109,7 @@ static int budget_ci_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 		return err;
 	}
 
-	tasklet_init(&budget_ci->msp430_irq_tasklet, msp430_ir_interrupt,
+	tasklet_init(&budget_ci->ir.msp430_irq_tasklet, msp430_ir_interrupt,
 		     (unsigned long) budget_ci);
 
 	msp430_ir_init(budget_ci);
@@ -1134,7 +1138,7 @@ static int budget_ci_detach(struct saa7146_dev *dev)
 	}
 	err = ttpci_budget_deinit(&budget_ci->budget);
 
-	tasklet_kill(&budget_ci->msp430_irq_tasklet);
+	tasklet_kill(&budget_ci->ir.msp430_irq_tasklet);
 
 	msp430_ir_deinit(budget_ci);
 
