@@ -53,6 +53,7 @@ struct genl_info
  * @policy: attribute validation policy
  * @doit: standard command callback
  * @dumpit: callback for dumpers
+ * @done: completion callback for dumps
  * @ops_list: operations list
  */
 struct genl_ops
@@ -64,6 +65,7 @@ struct genl_ops
 				       struct genl_info *info);
 	int		       (*dumpit)(struct sk_buff *skb,
 					 struct netlink_callback *cb);
+	int		       (*done)(struct netlink_callback *cb);
 	struct list_head	ops_list;
 };
 

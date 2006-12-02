@@ -331,7 +331,7 @@ static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 		}
 
 		*errp = err = netlink_dump_start(genl_sock, skb, nlh,
-						 ops->dumpit, NULL);
+						 ops->dumpit, ops->done);
 		if (err == 0)
 			skb_pull(skb, min(NLMSG_ALIGN(nlh->nlmsg_len),
 					  skb->len));
