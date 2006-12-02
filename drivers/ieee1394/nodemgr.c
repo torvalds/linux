@@ -754,59 +754,33 @@ static DEFINE_MUTEX(nodemgr_serialize_remove_uds);
 static void nodemgr_remove_uds(struct node_entry *ne)
 {
 	struct class_device *cdev;
-	struct unit_directory *ud, **unreg;
-	size_t i, count;
+	struct unit_directory *tmp, *ud;
 
-	/*
-	 * This is awkward:
-	 * Iteration over nodemgr_ud_class.children has to be protected by
+	/* Iteration over nodemgr_ud_class.children has to be protected by
 	 * nodemgr_ud_class.sem, but class_device_unregister() will eventually
-	 * take nodemgr_ud_class.sem too. Therefore store all uds to be
-	 * unregistered in a temporary array, release the semaphore, and then
-	 * unregister the uds.
-	 *
-	 * Since nodemgr_remove_uds can also run in other contexts than the
-	 * knodemgrds (which are currently globally serialized), protect the
+	 * take nodemgr_ud_class.sem too. Therefore pick out one ud at a time,
+	 * release the semaphore, and then unregister the ud. Since this code
+	 * may be called from other contexts besides the knodemgrds, protect the
 	 * gap after release of the semaphore by nodemgr_serialize_remove_uds.
 	 */
-
 	mutex_lock(&nodemgr_serialize_remove_uds);
-
-	down(&nodemgr_ud_class.sem);
-	count = 0;
-	list_for_each_entry(cdev, &nodemgr_ud_class.children, node) {
-		ud = container_of(cdev, struct unit_directory, class_dev);
-		if (ud->ne == ne)
-			count++;
-	}
-	if (!count) {
-		up(&nodemgr_ud_class.sem);
-		mutex_unlock(&nodemgr_serialize_remove_uds);
-		return;
-	}
-	unreg = kcalloc(count, sizeof(*unreg), GFP_KERNEL);
-	if (!unreg) {
-		HPSB_ERR("NodeMgr: out of memory in nodemgr_remove_uds");
-		up(&nodemgr_ud_class.sem);
-		mutex_unlock(&nodemgr_serialize_remove_uds);
-		return;
-	}
-	i = 0;
-	list_for_each_entry(cdev, &nodemgr_ud_class.children, node) {
-		ud = container_of(cdev, struct unit_directory, class_dev);
-		if (ud->ne == ne) {
-			BUG_ON(i >= count);
-			unreg[i++] = ud;
+	for (;;) {
+		ud = NULL;
+		down(&nodemgr_ud_class.sem);
+		list_for_each_entry(cdev, &nodemgr_ud_class.children, node) {
+			tmp = container_of(cdev, struct unit_directory,
+					   class_dev);
+			if (tmp->ne == ne) {
+				ud = tmp;
+				break;
+			}
 		}
+		up(&nodemgr_ud_class.sem);
+		if (ud == NULL)
+			break;
+		class_device_unregister(&ud->class_dev);
+		device_unregister(&ud->device);
 	}
-	up(&nodemgr_ud_class.sem);
-
-	for (i = 0; i < count; i++) {
-		class_device_unregister(&unreg[i]->class_dev);
-		device_unregister(&unreg[i]->device);
-	}
-	kfree(unreg);
-
 	mutex_unlock(&nodemgr_serialize_remove_uds);
 }
 
