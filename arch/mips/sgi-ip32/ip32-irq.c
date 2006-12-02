@@ -113,12 +113,6 @@ static void inline flush_mace_bus(void)
  * is quite different anyway.
  */
 
-/*
- * IRQ spinlock - Ralf says not to disable CPU interrupts,
- * and I think he knows better.
- */
-static DEFINE_SPINLOCK(ip32_irq_lock);
-
 /* Some initial interrupts to set up */
 extern irqreturn_t crime_memerr_intr(int irq, void *dev_id);
 extern irqreturn_t crime_cpuerr_intr(int irq, void *dev_id);
@@ -138,12 +132,6 @@ static void enable_cpu_irq(unsigned int irq)
 	set_c0_status(STATUSF_IP7);
 }
 
-static unsigned int startup_cpu_irq(unsigned int irq)
-{
-	enable_cpu_irq(irq);
-	return 0;
-}
-
 static void disable_cpu_irq(unsigned int irq)
 {
 	clear_c0_status(STATUSF_IP7);
@@ -155,16 +143,12 @@ static void end_cpu_irq(unsigned int irq)
 		enable_cpu_irq (irq);
 }
 
-#define shutdown_cpu_irq disable_cpu_irq
-#define mask_and_ack_cpu_irq disable_cpu_irq
-
 static struct irq_chip ip32_cpu_interrupt = {
 	.typename = "IP32 CPU",
-	.startup = startup_cpu_irq,
-	.shutdown = shutdown_cpu_irq,
-	.enable = enable_cpu_irq,
-	.disable = disable_cpu_irq,
-	.ack = mask_and_ack_cpu_irq,
+	.ack = disable_cpu_irq,
+	.mask = disable_cpu_irq,
+	.mask_ack = disable_cpu_irq,
+	.unmask = enable_cpu_irq,
 	.end = end_cpu_irq,
 };
 
@@ -177,45 +161,27 @@ static uint64_t crime_mask;
 
 static void enable_crime_irq(unsigned int irq)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&ip32_irq_lock, flags);
 	crime_mask |= 1 << (irq - 1);
 	crime->imask = crime_mask;
-	spin_unlock_irqrestore(&ip32_irq_lock, flags);
-}
-
-static unsigned int startup_crime_irq(unsigned int irq)
-{
-	enable_crime_irq(irq);
-	return 0; /* This is probably not right; we could have pending irqs */
 }
 
 static void disable_crime_irq(unsigned int irq)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&ip32_irq_lock, flags);
 	crime_mask &= ~(1 << (irq - 1));
 	crime->imask = crime_mask;
 	flush_crime_bus();
-	spin_unlock_irqrestore(&ip32_irq_lock, flags);
 }
 
 static void mask_and_ack_crime_irq(unsigned int irq)
 {
-	unsigned long flags;
-
 	/* Edge triggered interrupts must be cleared. */
 	if ((irq >= CRIME_GBE0_IRQ && irq <= CRIME_GBE3_IRQ)
 	    || (irq >= CRIME_RE_EMPTY_E_IRQ && irq <= CRIME_RE_IDLE_E_IRQ)
 	    || (irq >= CRIME_SOFT0_IRQ && irq <= CRIME_SOFT2_IRQ)) {
 	        uint64_t crime_int;
-		spin_lock_irqsave(&ip32_irq_lock, flags);
 		crime_int = crime->hard_int;
 		crime_int &= ~(1 << (irq - 1));
 		crime->hard_int = crime_int;
-		spin_unlock_irqrestore(&ip32_irq_lock, flags);
 	}
 	disable_crime_irq(irq);
 }
@@ -226,15 +192,12 @@ static void end_crime_irq(unsigned int irq)
 		enable_crime_irq(irq);
 }
 
-#define shutdown_crime_irq disable_crime_irq
-
 static struct irq_chip ip32_crime_interrupt = {
 	.typename = "IP32 CRIME",
-	.startup = startup_crime_irq,
-	.shutdown = shutdown_crime_irq,
-	.enable = enable_crime_irq,
-	.disable = disable_crime_irq,
 	.ack = mask_and_ack_crime_irq,
+	.mask = disable_crime_irq,
+	.mask_ack = mask_and_ack_crime_irq,
+	.unmask = enable_crime_irq,
 	.end = end_crime_irq,
 };
 
@@ -248,34 +211,20 @@ static unsigned long macepci_mask;
 
 static void enable_macepci_irq(unsigned int irq)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&ip32_irq_lock, flags);
 	macepci_mask |= MACEPCI_CONTROL_INT(irq - 9);
 	mace->pci.control = macepci_mask;
 	crime_mask |= 1 << (irq - 1);
 	crime->imask = crime_mask;
-	spin_unlock_irqrestore(&ip32_irq_lock, flags);
-}
-
-static unsigned int startup_macepci_irq(unsigned int irq)
-{
-  	enable_macepci_irq (irq);
-	return 0;
 }
 
 static void disable_macepci_irq(unsigned int irq)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&ip32_irq_lock, flags);
 	crime_mask &= ~(1 << (irq - 1));
 	crime->imask = crime_mask;
 	flush_crime_bus();
 	macepci_mask &= ~MACEPCI_CONTROL_INT(irq - 9);
 	mace->pci.control = macepci_mask;
 	flush_mace_bus();
-	spin_unlock_irqrestore(&ip32_irq_lock, flags);
 }
 
 static void end_macepci_irq(unsigned int irq)
@@ -284,16 +233,12 @@ static void end_macepci_irq(unsigned int irq)
 		enable_macepci_irq(irq);
 }
 
-#define shutdown_macepci_irq disable_macepci_irq
-#define mask_and_ack_macepci_irq disable_macepci_irq
-
 static struct irq_chip ip32_macepci_interrupt = {
 	.typename = "IP32 MACE PCI",
-	.startup = startup_macepci_irq,
-	.shutdown = shutdown_macepci_irq,
-	.enable = enable_macepci_irq,
-	.disable = disable_macepci_irq,
-	.ack = mask_and_ack_macepci_irq,
+	.ack = disable_macepci_irq,
+	.mask = disable_macepci_irq,
+	.mask_ack = disable_macepci_irq,
+	.unmask = enable_macepci_irq,
 	.end = end_macepci_irq,
 };
 
@@ -339,7 +284,6 @@ static unsigned long maceisa_mask;
 static void enable_maceisa_irq (unsigned int irq)
 {
 	unsigned int crime_int = 0;
-	unsigned long flags;
 
 	DBG ("maceisa enable: %u\n", irq);
 
@@ -355,26 +299,16 @@ static void enable_maceisa_irq (unsigned int irq)
 		break;
 	}
 	DBG ("crime_int %08x enabled\n", crime_int);
-	spin_lock_irqsave(&ip32_irq_lock, flags);
 	crime_mask |= crime_int;
 	crime->imask = crime_mask;
 	maceisa_mask |= 1 << (irq - 33);
 	mace->perif.ctrl.imask = maceisa_mask;
-	spin_unlock_irqrestore(&ip32_irq_lock, flags);
-}
-
-static unsigned int startup_maceisa_irq(unsigned int irq)
-{
-	enable_maceisa_irq(irq);
-	return 0;
 }
 
 static void disable_maceisa_irq(unsigned int irq)
 {
 	unsigned int crime_int = 0;
-	unsigned long flags;
 
-	spin_lock_irqsave(&ip32_irq_lock, flags);
 	maceisa_mask &= ~(1 << (irq - 33));
         if(!(maceisa_mask & MACEISA_AUDIO_INT))
 		crime_int |= MACE_AUDIO_INT;
@@ -387,23 +321,20 @@ static void disable_maceisa_irq(unsigned int irq)
 	flush_crime_bus();
 	mace->perif.ctrl.imask = maceisa_mask;
 	flush_mace_bus();
-	spin_unlock_irqrestore(&ip32_irq_lock, flags);
 }
 
 static void mask_and_ack_maceisa_irq(unsigned int irq)
 {
-	unsigned long mace_int, flags;
+	unsigned long mace_int;
 
 	switch (irq) {
 	case MACEISA_PARALLEL_IRQ:
 	case MACEISA_SERIAL1_TDMAPR_IRQ:
 	case MACEISA_SERIAL2_TDMAPR_IRQ:
 		/* edge triggered */
-		spin_lock_irqsave(&ip32_irq_lock, flags);
 		mace_int = mace->perif.ctrl.istat;
 		mace_int &= ~(1 << (irq - 33));
 		mace->perif.ctrl.istat = mace_int;
-		spin_unlock_irqrestore(&ip32_irq_lock, flags);
 		break;
 	}
 	disable_maceisa_irq(irq);
@@ -415,15 +346,12 @@ static void end_maceisa_irq(unsigned irq)
 		enable_maceisa_irq(irq);
 }
 
-#define shutdown_maceisa_irq disable_maceisa_irq
-
 static struct irq_chip ip32_maceisa_interrupt = {
 	.typename = "IP32 MACE ISA",
-	.startup = startup_maceisa_irq,
-	.shutdown = shutdown_maceisa_irq,
-	.enable = enable_maceisa_irq,
-	.disable = disable_maceisa_irq,
 	.ack = mask_and_ack_maceisa_irq,
+	.mask = disable_maceisa_irq,
+	.mask_ack = mask_and_ack_maceisa_irq,
+	.unmask = enable_maceisa_irq,
 	.end = end_maceisa_irq,
 };
 
@@ -433,29 +361,15 @@ static struct irq_chip ip32_maceisa_interrupt = {
 
 static void enable_mace_irq(unsigned int irq)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&ip32_irq_lock, flags);
 	crime_mask |= 1 << (irq - 1);
 	crime->imask = crime_mask;
-	spin_unlock_irqrestore(&ip32_irq_lock, flags);
-}
-
-static unsigned int startup_mace_irq(unsigned int irq)
-{
-	enable_mace_irq(irq);
-	return 0;
 }
 
 static void disable_mace_irq(unsigned int irq)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&ip32_irq_lock, flags);
 	crime_mask &= ~(1 << (irq - 1));
 	crime->imask = crime_mask;
 	flush_crime_bus();
-	spin_unlock_irqrestore(&ip32_irq_lock, flags);
 }
 
 static void end_mace_irq(unsigned int irq)
@@ -464,16 +378,12 @@ static void end_mace_irq(unsigned int irq)
 		enable_mace_irq(irq);
 }
 
-#define shutdown_mace_irq disable_mace_irq
-#define mask_and_ack_mace_irq disable_mace_irq
-
 static struct irq_chip ip32_mace_interrupt = {
 	.typename = "IP32 MACE",
-	.startup = startup_mace_irq,
-	.shutdown = shutdown_mace_irq,
-	.enable = enable_mace_irq,
-	.disable = disable_mace_irq,
-	.ack = mask_and_ack_mace_irq,
+	.ack = disable_mace_irq,
+	.mask = disable_mace_irq,
+	.mask_ack = disable_mace_irq,
+	.unmask = enable_mace_irq,
 	.end = end_mace_irq,
 };
 
@@ -586,10 +496,7 @@ void __init arch_init_irq(void)
 		else
 			controller = &ip32_maceisa_interrupt;
 
-		irq_desc[irq].status = IRQ_DISABLED;
-		irq_desc[irq].action = 0;
-		irq_desc[irq].depth = 0;
-		irq_desc[irq].chip = controller;
+		set_irq_chip(irq, controller);
 	}
 	setup_irq(CRIME_MEMERR_IRQ, &memerr_irq);
 	setup_irq(CRIME_CPUERR_IRQ, &cpuerr_irq);

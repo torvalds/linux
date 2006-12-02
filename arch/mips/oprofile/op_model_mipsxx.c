@@ -18,7 +18,7 @@
 #define M_PERFCTL_SUPERVISOR		(1UL      <<  2)
 #define M_PERFCTL_USER			(1UL      <<  3)
 #define M_PERFCTL_INTERRUPT_ENABLE	(1UL      <<  4)
-#define M_PERFCTL_EVENT(event)		((event)  << 5)
+#define M_PERFCTL_EVENT(event)		(((event) & 0x3f)  << 5)
 #define M_PERFCTL_VPEID(vpe)		((vpe)    << 16)
 #define M_PERFCTL_MT_EN(filter)		((filter) << 20)
 #define    M_TC_EN_ALL			M_PERFCTL_MT_EN(0)
@@ -218,13 +218,23 @@ static inline int __n_counters(void)
 
 static inline int n_counters(void)
 {
-	int counters = __n_counters();
+	int counters;
+
+	switch (current_cpu_data.cputype) {
+	case CPU_R10000:
+		counters = 2;
+
+	case CPU_R12000:
+	case CPU_R14000:
+		counters = 4;
+
+	default:
+		counters = __n_counters();
+	}
 
 #ifdef CONFIG_MIPS_MT_SMP
-	if (current_cpu_data.cputype == CPU_34K)
-		return counters >> 1;
+	counters >> 1;
 #endif
-
 	return counters;
 }
 
@@ -282,6 +292,18 @@ static int __init mipsxx_init(void)
 
 	case CPU_5KC:
 		op_model_mipsxx_ops.cpu_type = "mips/5K";
+		break;
+
+	case CPU_R10000:
+		if ((current_cpu_data.processor_id & 0xff) == 0x20)
+			op_model_mipsxx_ops.cpu_type = "mips/r10000-v2.x";
+		else
+			op_model_mipsxx_ops.cpu_type = "mips/r10000";
+		break;
+
+	case CPU_R12000:
+	case CPU_R14000:
+		op_model_mipsxx_ops.cpu_type = "mips/r12000";
 		break;
 
 	case CPU_SB1:
