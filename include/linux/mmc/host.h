@@ -74,8 +74,8 @@ struct mmc_card;
 struct device;
 
 struct mmc_host {
-	struct device		*dev;
-	struct class_device	class_dev;
+	struct device		*parent;
+	struct device		class_dev;
 	int			index;
 	const struct mmc_host_ops *ops;
 	unsigned int		f_min;
@@ -125,8 +125,8 @@ static inline void *mmc_priv(struct mmc_host *host)
 	return (void *)host->private;
 }
 
-#define mmc_dev(x)	((x)->dev)
-#define mmc_hostname(x)	((x)->class_dev.class_id)
+#define mmc_dev(x)	((x)->parent)
+#define mmc_hostname(x)	((x)->class_dev.bus_id)
 
 extern int mmc_suspend_host(struct mmc_host *, pm_message_t);
 extern int mmc_resume_host(struct mmc_host *);

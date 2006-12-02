@@ -264,6 +264,7 @@ struct module
 	struct module_attribute *modinfo_attrs;
 	const char *version;
 	const char *srcversion;
+	struct kobject *drivers_dir;
 
 	/* Exported symbols */
 	const struct kernel_symbol *syms;

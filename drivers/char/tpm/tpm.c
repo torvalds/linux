@@ -1130,7 +1130,7 @@ struct tpm_chip *tpm_register_hardware(struct device *dev, const struct tpm_vend
 	scnprintf(devname, DEVNAME_SIZE, "%s%d", "tpm", chip->dev_num);
 	chip->vendor.miscdev.name = devname;
 
-	chip->vendor.miscdev.dev = dev;
+	chip->vendor.miscdev.parent = dev;
 	chip->dev = get_device(dev);
 
 	if (misc_register(&chip->vendor.miscdev)) {

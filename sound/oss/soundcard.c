@@ -557,17 +557,17 @@ static int __init oss_init(void)
 	sound_dmap_flag = (dmabuf > 0 ? 1 : 0);
 
 	for (i = 0; i < sizeof (dev_list) / sizeof *dev_list; i++) {
-		class_device_create(sound_class, NULL,
-				    MKDEV(SOUND_MAJOR, dev_list[i].minor),
-				    NULL, "%s", dev_list[i].name);
+		device_create(sound_class, NULL,
+			      MKDEV(SOUND_MAJOR, dev_list[i].minor),
+			      "%s", dev_list[i].name);
 
 		if (!dev_list[i].num)
 			continue;
 
 		for (j = 1; j < *dev_list[i].num; j++)
-			class_device_create(sound_class, NULL,
-					    MKDEV(SOUND_MAJOR, dev_list[i].minor + (j*0x10)),
-					    NULL, "%s%d", dev_list[i].name, j);
+			device_create(sound_class, NULL,
+				      MKDEV(SOUND_MAJOR, dev_list[i].minor + (j*0x10)),
+				      "%s%d", dev_list[i].name, j);
 	}
 
 	if (sound_nblocks >= 1024)
@@ -581,11 +581,11 @@ static void __exit oss_cleanup(void)
 	int i, j;
 
 	for (i = 0; i < sizeof (dev_list) / sizeof *dev_list; i++) {
-		class_device_destroy(sound_class, MKDEV(SOUND_MAJOR, dev_list[i].minor));
+		device_destroy(sound_class, MKDEV(SOUND_MAJOR, dev_list[i].minor));
 		if (!dev_list[i].num)
 			continue;
 		for (j = 1; j < *dev_list[i].num; j++)
-			class_device_destroy(sound_class, MKDEV(SOUND_MAJOR, dev_list[i].minor + (j*0x10)));
+			device_destroy(sound_class, MKDEV(SOUND_MAJOR, dev_list[i].minor + (j*0x10)));
 	}
 	
 	unregister_sound_special(1);

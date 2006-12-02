@@ -50,18 +50,22 @@ static char *action_to_string(enum kobject_action action)
 		return "offline";
 	case KOBJ_ONLINE:
 		return "online";
+	case KOBJ_MOVE:
+		return "move";
 	default:
 		return NULL;
 	}
 }
 
 /**
- * kobject_uevent - notify userspace by ending an uevent
+ * kobject_uevent_env - send an uevent with environmental data
  *
- * @action: action that is happening (usually KOBJ_ADD and KOBJ_REMOVE)
+ * @action: action that is happening (usually KOBJ_MOVE)
  * @kobj: struct kobject that the action is happening to
+ * @envp_ext: pointer to environmental data
  */
-void kobject_uevent(struct kobject *kobj, enum kobject_action action)
+void kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
+			char *envp_ext[])
 {
 	char **envp;
 	char *buffer;
@@ -76,6 +80,7 @@ void kobject_uevent(struct kobject *kobj, enum kobject_action action)
 	char *seq_buff;
 	int i = 0;
 	int retval;
+	int j;
 
 	pr_debug("%s\n", __FUNCTION__);
 
@@ -134,7 +139,8 @@ void kobject_uevent(struct kobject *kobj, enum kobject_action action)
 	scratch += sprintf (scratch, "DEVPATH=%s", devpath) + 1;
 	envp [i++] = scratch;
 	scratch += sprintf(scratch, "SUBSYSTEM=%s", subsystem) + 1;
-
+	for (j = 0; envp_ext && envp_ext[j]; j++)
+		envp[i++] = envp_ext[j];
 	/* just reserve the space, overwrite it after kset call has returned */
 	envp[i++] = seq_buff = scratch;
 	scratch += strlen("SEQNUM=18446744073709551616") + 1;
@@ -200,6 +206,20 @@ exit:
 	kfree(envp);
 	return;
 }
+
+EXPORT_SYMBOL_GPL(kobject_uevent_env);
+
+/**
+ * kobject_uevent - notify userspace by ending an uevent
+ *
+ * @action: action that is happening (usually KOBJ_ADD and KOBJ_REMOVE)
+ * @kobj: struct kobject that the action is happening to
+ */
+void kobject_uevent(struct kobject *kobj, enum kobject_action action)
+{
+	kobject_uevent_env(kobj, action, NULL);
+}
+
 EXPORT_SYMBOL_GPL(kobject_uevent);
 
 /**

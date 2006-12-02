@@ -249,6 +249,26 @@ config CPUSETS
 
 	  Say N if unsure.
 
+config SYSFS_DEPRECATED
+	bool "Create deprecated sysfs files"
+	default y
+	help
+	  This option creates deprecated symlinks such as the
+	  "device"-link, the <subsystem>:<name>-link, and the
+	  "bus"-link. It may also add deprecated key in the
+	  uevent environment.
+	  None of these features or values should be used today, as
+	  they export driver core implementation details to userspace
+	  or export properties which can't be kept stable across kernel
+	  releases.
+
+	  If enabled, this option will also move any device structures
+	  that belong to a class, back into the /sys/class heirachy, in
+	  order to support older versions of udev.
+
+	  If you are using a distro that was released in 2006 or later,
+	  it should be safe to say N here.
+
 config RELAY
 	bool "Kernel->user space relay support (formerly relayfs)"
 	help

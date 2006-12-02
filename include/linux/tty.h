@@ -276,9 +276,8 @@ extern int tty_register_ldisc(int disc, struct tty_ldisc *new_ldisc);
 extern int tty_unregister_ldisc(int disc);
 extern int tty_register_driver(struct tty_driver *driver);
 extern int tty_unregister_driver(struct tty_driver *driver);
-extern struct class_device *tty_register_device(struct tty_driver *driver,
-						unsigned index,
-						struct device *dev);
+extern struct device *tty_register_device(struct tty_driver *driver,
+					  unsigned index, struct device *dev);
 extern void tty_unregister_device(struct tty_driver *driver, unsigned index);
 extern int tty_read_raw_data(struct tty_struct *tty, unsigned char *bufp,
 			     int buflen);

@@ -130,8 +130,8 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 	u64 limit = BLK_BOUNCE_HIGH;
 	int ret;
 
-	if (host->dev->dma_mask && *host->dev->dma_mask)
-		limit = *host->dev->dma_mask;
+	if (mmc_dev(host)->dma_mask && *mmc_dev(host)->dma_mask)
+		limit = *mmc_dev(host)->dma_mask;
 
 	mq->card = card;
 	mq->queue = blk_init_queue(mmc_request, lock);

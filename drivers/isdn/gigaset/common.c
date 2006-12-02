@@ -702,7 +702,7 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	cs->open_count = 0;
 	cs->dev = NULL;
 	cs->tty = NULL;
-	cs->class = NULL;
+	cs->tty_dev = NULL;
 	cs->cidmode = cidmode != 0;
 
 	//if(onechannel) { //FIXME
