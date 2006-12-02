@@ -1021,7 +1021,7 @@ static int wbsd_get_ro(struct mmc_host *mmc)
 	return csr & WBSD_WRPT;
 }
 
-static struct mmc_host_ops wbsd_ops = {
+static const struct mmc_host_ops wbsd_ops = {
 	.request	= wbsd_request,
 	.set_ios	= wbsd_set_ios,
 	.get_ro		= wbsd_get_ro,
