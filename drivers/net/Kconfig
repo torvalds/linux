@@ -2376,6 +2376,13 @@ config CHELSIO_T1
           To compile this driver as a module, choose M here: the module
           will be called cxgb.
 
+config CHELSIO_T1_1G
+        bool "Chelsio gigabit Ethernet support"
+        depends on CHELSIO_T1
+        help
+          Enables support for Chelsio's gigabit Ethernet PCI cards.  If you
+          are using only 10G cards say 'N' here.
+
 config EHEA
 	tristate "eHEA Ethernet support"
 	depends on IBMEBUS

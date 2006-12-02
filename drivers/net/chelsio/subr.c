@@ -185,6 +185,66 @@ static int t1_pci_intr_handler(adapter_t *adapter)
 	return 0;
 }
 
+#ifdef CONFIG_CHELSIO_T1_COUGAR
+#include "cspi.h"
+#endif
+#ifdef CONFIG_CHELSIO_T1_1G
+#include "fpga_defs.h"
+
+/*
+ * PHY interrupt handler for FPGA boards.
+ */
+static int fpga_phy_intr_handler(adapter_t *adapter)
+{
+	int p;
+	u32 cause = readl(adapter->regs + FPGA_GMAC_ADDR_INTERRUPT_CAUSE);
+
+	for_each_port(adapter, p)
+		if (cause & (1 << p)) {
+			struct cphy *phy = adapter->port[p].phy;
+			int phy_cause = phy->ops->interrupt_handler(phy);
+
+			if (phy_cause & cphy_cause_link_change)
+				t1_link_changed(adapter, p);
+		}
+	writel(cause, adapter->regs + FPGA_GMAC_ADDR_INTERRUPT_CAUSE);
+	return 0;
+}
+
+/*
+ * Slow path interrupt handler for FPGAs.
+ */
+static int fpga_slow_intr(adapter_t *adapter)
+{
+	u32 cause = readl(adapter->regs + A_PL_CAUSE);
+
+	cause &= ~F_PL_INTR_SGE_DATA;
+	if (cause & F_PL_INTR_SGE_ERR)
+		t1_sge_intr_error_handler(adapter->sge);
+
+	if (cause & FPGA_PCIX_INTERRUPT_GMAC)
+                fpga_phy_intr_handler(adapter);
+
+	if (cause & FPGA_PCIX_INTERRUPT_TP) {
+                /*
+		 * FPGA doesn't support MC4 interrupts and it requires
+		 * this odd layer of indirection for MC5.
+                 */
+		u32 tp_cause = readl(adapter->regs + FPGA_TP_ADDR_INTERRUPT_CAUSE);
+
+		/* Clear TP interrupt */
+		writel(tp_cause, adapter->regs + FPGA_TP_ADDR_INTERRUPT_CAUSE);
+	}
+	if (cause & FPGA_PCIX_INTERRUPT_PCIX)
+		t1_pci_intr_handler(adapter);
+
+	/* Clear the interrupts just processed. */
+	if (cause)
+		writel(cause, adapter->regs + A_PL_CAUSE);
+
+	return cause != 0;
+}
+#endif
 
 /*
  * Wait until Elmer's MI1 interface is ready for new operations.
@@ -220,6 +280,56 @@ static void mi1_mdio_init(adapter_t *adapter, const struct board_info *bi)
 		val |= V_MI1_SOF(1);
 	t1_tpi_write(adapter, A_ELMER0_PORT0_MI1_CFG, val);
 }
+
+#if defined(CONFIG_CHELSIO_T1_1G) || defined(CONFIG_CHELSIO_T1_COUGAR)
+/*
+ * Elmer MI1 MDIO read/write operations.
+ */
+static int mi1_mdio_read(adapter_t *adapter, int phy_addr, int mmd_addr,
+			 int reg_addr, unsigned int *valp)
+{
+	u32 addr = V_MI1_REG_ADDR(reg_addr) | V_MI1_PHY_ADDR(phy_addr);
+
+	if (mmd_addr)
+		return -EINVAL;
+
+	spin_lock(&adapter->tpi_lock);
+	__t1_tpi_write(adapter, A_ELMER0_PORT0_MI1_ADDR, addr);
+	__t1_tpi_write(adapter,
+			A_ELMER0_PORT0_MI1_OP, MI1_OP_DIRECT_READ);
+	mi1_wait_until_ready(adapter, A_ELMER0_PORT0_MI1_OP);
+	__t1_tpi_read(adapter, A_ELMER0_PORT0_MI1_DATA, valp);
+	spin_unlock(&adapter->tpi_lock);
+	return 0;
+}
+
+static int mi1_mdio_write(adapter_t *adapter, int phy_addr, int mmd_addr,
+			  int reg_addr, unsigned int val)
+{
+	u32 addr = V_MI1_REG_ADDR(reg_addr) | V_MI1_PHY_ADDR(phy_addr);
+
+	if (mmd_addr)
+		return -EINVAL;
+
+	spin_lock(&adapter->tpi_lock);
+	__t1_tpi_write(adapter, A_ELMER0_PORT0_MI1_ADDR, addr);
+	__t1_tpi_write(adapter, A_ELMER0_PORT0_MI1_DATA, val);
+	__t1_tpi_write(adapter,
+			A_ELMER0_PORT0_MI1_OP, MI1_OP_DIRECT_WRITE);
+	mi1_wait_until_ready(adapter, A_ELMER0_PORT0_MI1_OP);
+	spin_unlock(&adapter->tpi_lock);
+	return 0;
+}
+
+#if defined(CONFIG_CHELSIO_T1_1G) || defined(CONFIG_CHELSIO_T1_COUGAR)
+static struct mdio_ops mi1_mdio_ops = {
+	mi1_mdio_init,
+	mi1_mdio_read,
+	mi1_mdio_write
+};
+#endif
+
+#endif
 
 static int mi1_mdio_ext_read(adapter_t *adapter, int phy_addr, int mmd_addr,
 			     int reg_addr, unsigned int *valp)
@@ -330,6 +440,17 @@ static struct board_info t1_board[] = {
   &t1_my3126_ops, &mi1_mdio_ext_ops,
   "Chelsio T210 1x10GBase-CX4 TOE" },
 
+#ifdef CONFIG_CHELSIO_T1_1G
+{ CHBT_BOARD_CHN204, 4/*ports#*/,
+  SUPPORTED_10baseT_Half | SUPPORTED_10baseT_Full | SUPPORTED_100baseT_Half |
+  SUPPORTED_100baseT_Full | SUPPORTED_1000baseT_Full | SUPPORTED_Autoneg |
+  SUPPORTED_PAUSE | SUPPORTED_TP /*caps*/, CHBT_TERM_T2, CHBT_MAC_VSC7321, CHBT_PHY_88E1111,
+  100000000/*clk-core*/, 0/*clk-mc3*/, 0/*clk-mc4*/,
+  4/*espi-ports*/, 0/*clk-cspi*/, 44/*clk-elmer0*/, 0/*mdien*/,
+  0/*mdiinv*/, 1/*mdc*/, 4/*phybaseaddr*/, &t1_vsc7326_ops,
+  &t1_mv88e1xxx_ops, &mi1_mdio_ops,
+  "Chelsio N204 4x100/1000BaseT NIC" },
+#endif
 
 };
 
@@ -483,6 +604,48 @@ int t1_elmer0_ext_intr_handler(adapter_t *adapter)
 	t1_tpi_read(adapter, A_ELMER0_INT_CAUSE, &cause);
 
 	switch (board_info(adapter)->board) {
+#ifdef CONFIG_CHELSIO_T1_1G
+        case CHBT_BOARD_CHT204:
+        case CHBT_BOARD_CHT204E:
+        case CHBT_BOARD_CHN204:
+        case CHBT_BOARD_CHT204V: {
+                int i, port_bit;
+		for_each_port(adapter, i) {
+			port_bit = i + 1;
+			if (!(cause & (1 << port_bit))) continue;
+
+	                phy = adapter->port[i].phy;
+			phy_cause = phy->ops->interrupt_handler(phy);
+			if (phy_cause & cphy_cause_link_change)
+				t1_link_changed(adapter, i);
+		}
+                break;
+        }
+	case CHBT_BOARD_CHT101:
+		if (cause & ELMER0_GP_BIT1) { /* Marvell 88E1111 interrupt */
+			phy = adapter->port[0].phy;
+			phy_cause = phy->ops->interrupt_handler(phy);
+			if (phy_cause & cphy_cause_link_change)
+				t1_link_changed(adapter, 0);
+		}
+		break;
+	case CHBT_BOARD_7500: {
+		int p;
+    		/*
+		 * Elmer0's interrupt cause isn't useful here because there is
+		 * only one bit that can be set for all 4 ports.  This means
+		 * we are forced to check every PHY's interrupt status
+		 * register to see who initiated the interrupt.
+     		 */
+    		for_each_port(adapter, p) {
+			phy = adapter->port[p].phy;
+			phy_cause = phy->ops->interrupt_handler(phy);
+			if (phy_cause & cphy_cause_link_change)
+			    t1_link_changed(adapter, p);
+		}
+		break;
+	}
+#endif
 	case CHBT_BOARD_CHT210:
 	case CHBT_BOARD_N210:
 	case CHBT_BOARD_N110:
@@ -511,6 +674,30 @@ int t1_elmer0_ext_intr_handler(adapter_t *adapter)
 			       mod_detect ? "removed" : "inserted");
     		}
 		break;
+#ifdef CONFIG_CHELSIO_T1_COUGAR
+	case CHBT_BOARD_COUGAR:
+		if (adapter->params.nports == 1) {
+			if (cause & ELMER0_GP_BIT1) {         /* Vitesse MAC */
+				struct cmac *mac = adapter->port[0].mac;
+				mac->ops->interrupt_handler(mac);
+			}
+			if (cause & ELMER0_GP_BIT5) {     /* XPAK MOD_DETECT */
+			}
+		} else {
+			int i, port_bit;
+
+			for_each_port(adapter, i) {
+				port_bit = i ? i + 1 : 0;
+				if (!(cause & (1 << port_bit))) continue;
+
+				phy = adapter->port[i].phy;
+				phy_cause = phy->ops->interrupt_handler(phy);
+				if (phy_cause & cphy_cause_link_change)
+					t1_link_changed(adapter, i);
+			}
+		}
+		break;
+#endif
 	}
 	t1_tpi_write(adapter, A_ELMER0_INT_CAUSE, cause);
 	return 0;
@@ -633,6 +820,10 @@ static int asic_slow_intr(adapter_t *adapter)
 
 int t1_slow_intr_handler(adapter_t *adapter)
 {
+#ifdef CONFIG_CHELSIO_T1_1G
+	if (!t1_is_asic(adapter))
+		return fpga_slow_intr(adapter);
+#endif
 	return asic_slow_intr(adapter);
 }
 
@@ -698,6 +889,21 @@ static int board_init(adapter_t *adapter, const struct board_info *bi)
      		 */
     		power_sequence_xpak(adapter);
 		break;
+#ifdef CONFIG_CHELSIO_T1_1G
+    case CHBT_BOARD_CHT204E:
+		        /* add config space write here */
+	case CHBT_BOARD_CHT204:
+	case CHBT_BOARD_CHT204V:
+	case CHBT_BOARD_CHN204:
+                t1_tpi_par(adapter, 0xf);
+                t1_tpi_write(adapter, A_ELMER0_GPO, 0x804);
+                break;
+	case CHBT_BOARD_CHT101:
+	case CHBT_BOARD_7500:
+    		t1_tpi_par(adapter, 0xf);
+    		t1_tpi_write(adapter, A_ELMER0_GPO, 0x1804);
+		break;
+#endif
 	}
 	return 0;
 }
@@ -719,6 +925,10 @@ int t1_init_hw_modules(adapter_t *adapter)
 		       adapter->regs + A_MC5_CONFIG);
 	}
 
+#ifdef CONFIG_CHELSIO_T1_COUGAR
+	if (adapter->cspi && t1_cspi_init(adapter->cspi))
+		goto out_err;
+#endif
 	if (adapter->espi && t1_espi_init(adapter->espi, bi->chip_mac,
 					  bi->espi_nports))
 		goto out_err;
@@ -772,6 +982,10 @@ void t1_free_sw_modules(adapter_t *adapter)
 		t1_tp_destroy(adapter->tp);
 	if (adapter->espi)
 		t1_espi_destroy(adapter->espi);
+#ifdef CONFIG_CHELSIO_T1_COUGAR
+        if (adapter->cspi)
+		t1_cspi_destroy(adapter->cspi);
+#endif
 }
 
 static void __devinit init_link_config(struct link_config *lc,
@@ -791,6 +1005,13 @@ static void __devinit init_link_config(struct link_config *lc,
 	}
 }
 
+#ifdef CONFIG_CHELSIO_T1_COUGAR
+	if (bi->clock_cspi && !(adapter->cspi = t1_cspi_create(adapter))) {
+		CH_ERR("%s: CSPI initialization failed\n",
+		       adapter->name);
+		goto error;
+        }
+#endif
 
 /*
  * Allocate and initialize the data structures that hold the SW state of

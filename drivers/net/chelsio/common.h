@@ -283,6 +283,8 @@ struct adapter {
 
 	spinlock_t tpi_lock;
 	spinlock_t work_lock;
+	spinlock_t mac_lock;
+
 	/* guards async operations */
 	spinlock_t async_lock ____cacheline_aligned;
 	u32 slow_intr_mask;

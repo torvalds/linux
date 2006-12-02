@@ -1094,6 +1094,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 			spin_lock_init(&adapter->tpi_lock);
 			spin_lock_init(&adapter->work_lock);
 			spin_lock_init(&adapter->async_lock);
+			spin_lock_init(&adapter->mac_lock);
 
 			INIT_WORK(&adapter->ext_intr_handler_task,
 				  ext_intr_task, adapter);
