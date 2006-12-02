@@ -1303,7 +1303,7 @@ struct cx88_board cx88_boards[] = {
 			.gpio0	= 0xe780,
 		}},
 		/* fixme: Add radio support */
-		.mpeg           = CX88_MPEG_DVB,
+		.mpeg           = CX88_MPEG_DVB | CX88_MPEG_BLACKBIRD,
 	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
