@@ -274,7 +274,7 @@ struct sge {
 	struct sk_buff	*espibug_skb[MAX_NPORTS];
 	u32		sge_control;	/* shadow value of sge control reg */
 	struct sge_intr_counts stats;
-	struct sge_port_stats port_stats[MAX_NPORTS];
+	struct sge_port_stats *port_stats[MAX_NPORTS];
 	struct sched	*tx_sched;
 	struct cmdQ cmdQ[SGE_CMDQ_N] ____cacheline_aligned_in_smp;
 };
@@ -820,6 +820,11 @@ static inline unsigned int jumbo_payload_capacity(const struct sge *sge)
  */
 void t1_sge_destroy(struct sge *sge)
 {
+	int i;
+
+	for_each_port(sge->adapter, i)
+		free_percpu(sge->port_stats[i]);
+
 	kfree(sge->tx_sched);
 	free_tx_resources(sge);
 	free_rx_resources(sge);
@@ -985,14 +990,28 @@ int t1_sge_intr_error_handler(struct sge *sge)
 	return 0;
 }
 
-const struct sge_intr_counts *t1_sge_get_intr_counts(struct sge *sge)
+const struct sge_intr_counts *t1_sge_get_intr_counts(const struct sge *sge)
 {
 	return &sge->stats;
 }
 
-const struct sge_port_stats *t1_sge_get_port_stats(struct sge *sge, int port)
+void t1_sge_get_port_stats(const struct sge *sge, int port,
+			   struct sge_port_stats *ss)
 {
-	return &sge->port_stats[port];
+	int cpu;
+
+	memset(ss, 0, sizeof(*ss));
+	for_each_possible_cpu(cpu) {
+		struct sge_port_stats *st = per_cpu_ptr(sge->port_stats[port], cpu);
+
+		ss->rx_packets += st->rx_packets;
+		ss->rx_cso_good += st->rx_cso_good;
+		ss->tx_packets += st->tx_packets;
+		ss->tx_cso += st->tx_cso;
+		ss->tx_tso += st->tx_tso;
+		ss->vlan_xtract += st->vlan_xtract;
+		ss->vlan_insert += st->vlan_insert;
+	}
 }
 
 /**
@@ -1361,36 +1380,39 @@ static int sge_rx(struct sge *sge, struct freelQ *fl, unsigned int len)
 	struct sk_buff *skb;
 	struct cpl_rx_pkt *p;
 	struct adapter *adapter = sge->adapter;
+	struct sge_port_stats *st;
 
-	sge->stats.ethernet_pkts++;
 	skb = get_packet(adapter->pdev, fl, len - sge->rx_pkt_pad,
 			 sge->rx_pkt_pad, 2, SGE_RX_COPY_THRES,
 			 SGE_RX_DROP_THRES);
-	if (!skb) {
-		sge->port_stats[0].rx_drops++; /* charge only port 0 for now */
+	if (unlikely(!skb)) {
+		sge->stats.rx_drops++;
 		return 0;
 	}
 
 	p = (struct cpl_rx_pkt *)skb->data;
 	skb_pull(skb, sizeof(*p));
-	skb->dev = adapter->port[p->iff].dev;
 	if (p->iff >= adapter->params.nports) {
 		kfree_skb(skb);
 		return 0;
 	}
 
+	skb->dev = adapter->port[p->iff].dev;
 	skb->dev->last_rx = jiffies;
+	st = per_cpu_ptr(sge->port_stats[p->iff], smp_processor_id());
+	st->rx_packets++;
+
 	skb->protocol = eth_type_trans(skb, skb->dev);
 	if ((adapter->flags & RX_CSUM_ENABLED) && p->csum == 0xffff &&
 	    skb->protocol == htons(ETH_P_IP) &&
 	    (skb->data[9] == IPPROTO_TCP || skb->data[9] == IPPROTO_UDP)) {
-		sge->port_stats[p->iff].rx_cso_good++;
+		++st->rx_cso_good;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	} else
 		skb->ip_summed = CHECKSUM_NONE;
 
 	if (unlikely(adapter->vlan_grp && p->vlan_valid)) {
-		sge->port_stats[p->iff].vlan_xtract++;
+		st->vlan_xtract++;
 		if (adapter->params.sge.polling)
 			vlan_hwaccel_receive_skb(skb, adapter->vlan_grp,
 						 ntohs(p->vlan));
@@ -1862,8 +1884,8 @@ static inline int eth_hdr_len(const void *data)
 int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct adapter *adapter = dev->priv;
-	struct sge_port_stats *st = &adapter->sge->port_stats[dev->if_port];
 	struct sge *sge = adapter->sge;
+	struct sge_port_stats *st = per_cpu_ptr(sge->port_stats[dev->if_port], smp_processor_id());
 	struct cpl_tx_pkt *cpl;
 
 	if (skb->protocol == htons(ETH_P_CPL5))
@@ -1873,7 +1895,7 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		int eth_type;
 		struct cpl_tx_pkt_lso *hdr;
 
-		st->tso++;
+		++st->tx_tso;
 
 		eth_type = skb->nh.raw - skb->data == ETH_HLEN ?
 			CPL_ETH_II : CPL_ETH_II_VLAN;
@@ -1887,7 +1909,6 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 							  skb_shinfo(skb)->gso_size));
 		hdr->len = htonl(skb->len - sizeof(*hdr));
 		cpl = (struct cpl_tx_pkt *)hdr;
-		sge->stats.tx_lso_pkts++;
 	} else {
 		/*
 	 	 * Packets shorter than ETH_HLEN can break the MAC, drop them
@@ -1955,8 +1976,6 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* the length field isn't used so don't bother setting it */
 
 		st->tx_cso += (skb->ip_summed == CHECKSUM_PARTIAL);
-		sge->stats.tx_do_cksum += (skb->ip_summed == CHECKSUM_PARTIAL);
-		sge->stats.tx_reg_pkts++;
 	}
 	cpl->iff = dev->if_port;
 
@@ -1970,6 +1989,7 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		cpl->vlan_valid = 0;
 
 send:
+	st->tx_packets++;
 	dev->trans_start = jiffies;
 	return t1_sge_tx(skb, adapter, 0, dev);
 }
@@ -2151,6 +2171,7 @@ struct sge * __devinit t1_sge_create(struct adapter *adapter,
 				     struct sge_params *p)
 {
 	struct sge *sge = kzalloc(sizeof(*sge), GFP_KERNEL);
+	int i;
 
 	if (!sge)
 		return NULL;
@@ -2159,6 +2180,12 @@ struct sge * __devinit t1_sge_create(struct adapter *adapter,
 	sge->netdev = adapter->port[0].dev;
 	sge->rx_pkt_pad = t1_is_T1B(adapter) ? 0 : 2;
 	sge->jumbo_fl = t1_is_T1B(adapter) ? 1 : 0;
+
+	for_each_port(adapter, i) {
+		sge->port_stats[i] = alloc_percpu(struct sge_port_stats);
+		if (!sge->port_stats[i])
+			goto nomem_port;
+	}
 
 	init_timer(&sge->tx_reclaim_timer);
 	sge->tx_reclaim_timer.data = (unsigned long)sge;
@@ -2199,4 +2226,12 @@ struct sge * __devinit t1_sge_create(struct adapter *adapter,
 	p->polling = 0;
 
 	return sge;
+nomem_port:
+	while (i >= 0) {
+		free_percpu(sge->port_stats[i]);
+		--i;
+	}
+	kfree(sge);
+	return NULL;
+
 }

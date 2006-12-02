@@ -390,13 +390,19 @@ static char stats_strings[][ETH_GSTRING_LEN] = {
 	"RxOutOfRangeLengthField",
 	"RxFrameTooLongErrors",
 
-	"TSO",
-	"VLANextractions",
-	"VLANinsertions",
+	/* Port stats */
+	"RxPackets",
 	"RxCsumGood",
+	"TxPackets",
 	"TxCsumOffload",
-	"RxDrops"
+	"TxTso",
+	"RxVlan",
+	"TxVlan",
 
+	/* Interrupt stats */
+	"rx drops",
+	"pure_rsps",
+	"unhandled irqs",
 	"respQ_empty",
 	"respQ_overflow",
 	"freelistQ_empty",
@@ -404,10 +410,6 @@ static char stats_strings[][ETH_GSTRING_LEN] = {
 	"pkt_mismatch",
 	"cmdQ_full0",
 	"cmdQ_full1",
-	"tx_ipfrags",
-	"tx_reg_pkts",
-	"tx_lso_pkts",
-	"tx_do_cksum",
 
 	"espi_DIP2ParityErr",
 	"espi_DIP4Err",
@@ -451,12 +453,10 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 	struct adapter *adapter = dev->priv;
 	struct cmac *mac = adapter->port[dev->if_port].mac;
 	const struct cmac_statistics *s;
-	const struct sge_port_stats *ss;
 	const struct sge_intr_counts *t;
+	struct sge_port_stats ss;
 
 	s = mac->ops->statistics_update(mac, MAC_STATS_UPDATE_FULL);
-	ss = t1_sge_get_port_stats(adapter->sge, dev->if_port);
-	t = t1_sge_get_intr_counts(adapter->sge);
 
 	*data++ = s->TxOctetsOK;
 	*data++ = s->TxOctetsBad;
@@ -492,35 +492,37 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 	*data++ = s->RxOutOfRangeLengthField;
 	*data++ = s->RxFrameTooLongErrors;
 
-	*data++ = ss->tso;
-	*data++ = ss->vlan_xtract;
-	*data++ = ss->vlan_insert;
-	*data++ = ss->rx_cso_good;
-	*data++ = ss->tx_cso;
-	*data++ = ss->rx_drops;
+	t1_sge_get_port_stats(adapter->sge, dev->if_port, &ss);
+	*data++ = ss.rx_packets;
+	*data++ = ss.rx_cso_good;
+	*data++ = ss.tx_packets;
+	*data++ = ss.tx_cso;
+	*data++ = ss.tx_tso;
+	*data++ = ss.vlan_xtract;
+	*data++ = ss.vlan_insert;
 
-	*data++ = (u64)t->respQ_empty;
-	*data++ = (u64)t->respQ_overflow;
-	*data++ = (u64)t->freelistQ_empty;
-	*data++ = (u64)t->pkt_too_big;
-	*data++ = (u64)t->pkt_mismatch;
-	*data++ = (u64)t->cmdQ_full[0];
-	*data++ = (u64)t->cmdQ_full[1];
-	*data++ = (u64)t->tx_ipfrags;
-	*data++ = (u64)t->tx_reg_pkts;
-	*data++ = (u64)t->tx_lso_pkts;
-	*data++ = (u64)t->tx_do_cksum;
+	t = t1_sge_get_intr_counts(adapter->sge);
+	*data++ = t->rx_drops;
+	*data++ = t->pure_rsps;
+	*data++ = t->unhandled_irqs;
+	*data++ = t->respQ_empty;
+	*data++ = t->respQ_overflow;
+	*data++ = t->freelistQ_empty;
+	*data++ = t->pkt_too_big;
+	*data++ = t->pkt_mismatch;
+	*data++ = t->cmdQ_full[0];
+	*data++ = t->cmdQ_full[1];
 
 	if (adapter->espi) {
 		const struct espi_intr_counts *e;
 
 		e = t1_espi_get_intr_counts(adapter->espi);
-		*data++ = (u64) e->DIP2_parity_err;
-		*data++ = (u64) e->DIP4_err;
-		*data++ = (u64) e->rx_drops;
-		*data++ = (u64) e->tx_drops;
-		*data++ = (u64) e->rx_ovflw;
-		*data++ = (u64) e->parity_err;
+		*data++ = e->DIP2_parity_err;
+		*data++ = e->DIP4_err;
+		*data++ = e->rx_drops;
+		*data++ = e->tx_drops;
+		*data++ = e->rx_ovflw;
+		*data++ = e->parity_err;
 	}
 }
 
