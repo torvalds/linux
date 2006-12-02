@@ -804,19 +804,13 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 {
 	lpfc_vpd_t *vp;
 	uint16_t dev_id = phba->pcidev->device;
-	uint16_t dev_subid = phba->pcidev->subsystem_device;
-	uint8_t hdrtype;
 	int max_speed;
-	char * ports;
 	struct {
 		char * name;
 		int    max_speed;
-		char * ports;
 		char * bus;
-	} m = {"<Unknown>", 0, "", ""};
+	} m = {"<Unknown>", 0, ""};
 
-	pci_read_config_byte(phba->pcidev, PCI_HEADER_TYPE, &hdrtype);
-	ports = (hdrtype == 0x80) ? "2-port " : "";
 	if (mdp && mdp[0] != '\0'
 		&& descp && descp[0] != '\0')
 		return;
@@ -836,130 +830,93 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 
 	switch (dev_id) {
 	case PCI_DEVICE_ID_FIREFLY:
-		m = (typeof(m)){"LP6000", max_speed, "", "PCI"};
+		m = (typeof(m)){"LP6000", max_speed, "PCI"};
 		break;
 	case PCI_DEVICE_ID_SUPERFLY:
 		if (vp->rev.biuRev >= 1 && vp->rev.biuRev <= 3)
-			m = (typeof(m)){"LP7000", max_speed, "", "PCI"};
+			m = (typeof(m)){"LP7000", max_speed,  "PCI"};
 		else
-			m = (typeof(m)){"LP7000E", max_speed, "", "PCI"};
+			m = (typeof(m)){"LP7000E", max_speed, "PCI"};
 		break;
 	case PCI_DEVICE_ID_DRAGONFLY:
-		m = (typeof(m)){"LP8000", max_speed, "", "PCI"};
+		m = (typeof(m)){"LP8000", max_speed, "PCI"};
 		break;
 	case PCI_DEVICE_ID_CENTAUR:
 		if (FC_JEDEC_ID(vp->rev.biuRev) == CENTAUR_2G_JEDEC_ID)
-			m = (typeof(m)){"LP9002", max_speed, "", "PCI"};
+			m = (typeof(m)){"LP9002", max_speed, "PCI"};
 		else
-			m = (typeof(m)){"LP9000", max_speed, "", "PCI"};
+			m = (typeof(m)){"LP9000", max_speed, "PCI"};
 		break;
 	case PCI_DEVICE_ID_RFLY:
-		m = (typeof(m)){"LP952", max_speed, "", "PCI"};
+		m = (typeof(m)){"LP952", max_speed, "PCI"};
 		break;
 	case PCI_DEVICE_ID_PEGASUS:
-		m = (typeof(m)){"LP9802", max_speed, "", "PCI-X"};
+		m = (typeof(m)){"LP9802", max_speed, "PCI-X"};
 		break;
 	case PCI_DEVICE_ID_THOR:
-		if (hdrtype == 0x80)
-			m = (typeof(m)){"LP10000DC",
-					max_speed, ports, "PCI-X"};
-		else
-			m = (typeof(m)){"LP10000",
-					max_speed, ports, "PCI-X"};
+		m = (typeof(m)){"LP10000", max_speed, "PCI-X"};
 		break;
 	case PCI_DEVICE_ID_VIPER:
-		m = (typeof(m)){"LPX1000", max_speed, "", "PCI-X"};
+		m = (typeof(m)){"LPX1000", max_speed,  "PCI-X"};
 		break;
 	case PCI_DEVICE_ID_PFLY:
-		m = (typeof(m)){"LP982", max_speed, "", "PCI-X"};
+		m = (typeof(m)){"LP982", max_speed, "PCI-X"};
 		break;
 	case PCI_DEVICE_ID_TFLY:
-		if (hdrtype == 0x80)
-			m = (typeof(m)){"LP1050DC", max_speed, ports, "PCI-X"};
-		else
-			m = (typeof(m)){"LP1050", max_speed, ports, "PCI-X"};
+		m = (typeof(m)){"LP1050", max_speed, "PCI-X"};
 		break;
 	case PCI_DEVICE_ID_HELIOS:
-		if (hdrtype == 0x80)
-			m = (typeof(m)){"LP11002", max_speed, ports, "PCI-X2"};
-		else
-			m = (typeof(m)){"LP11000", max_speed, ports, "PCI-X2"};
+		m = (typeof(m)){"LP11000", max_speed, "PCI-X2"};
 		break;
 	case PCI_DEVICE_ID_HELIOS_SCSP:
-		m = (typeof(m)){"LP11000-SP", max_speed, ports, "PCI-X2"};
+		m = (typeof(m)){"LP11000-SP", max_speed, "PCI-X2"};
 		break;
 	case PCI_DEVICE_ID_HELIOS_DCSP:
-		m = (typeof(m)){"LP11002-SP", max_speed, ports, "PCI-X2"};
+		m = (typeof(m)){"LP11002-SP", max_speed, "PCI-X2"};
 		break;
 	case PCI_DEVICE_ID_NEPTUNE:
-		if (hdrtype == 0x80)
-			m = (typeof(m)){"LPe1002", max_speed, ports, "PCIe"};
-		else
-			m = (typeof(m)){"LPe1000", max_speed, ports, "PCIe"};
+		m = (typeof(m)){"LPe1000", max_speed, "PCIe"};
 		break;
 	case PCI_DEVICE_ID_NEPTUNE_SCSP:
-		m = (typeof(m)){"LPe1000-SP", max_speed, ports, "PCIe"};
+		m = (typeof(m)){"LPe1000-SP", max_speed, "PCIe"};
 		break;
 	case PCI_DEVICE_ID_NEPTUNE_DCSP:
-		m = (typeof(m)){"LPe1002-SP", max_speed, ports, "PCIe"};
+		m = (typeof(m)){"LPe1002-SP", max_speed, "PCIe"};
 		break;
 	case PCI_DEVICE_ID_BMID:
-		m = (typeof(m)){"LP1150", max_speed, ports, "PCI-X2"};
+		m = (typeof(m)){"LP1150", max_speed, "PCI-X2"};
 		break;
 	case PCI_DEVICE_ID_BSMB:
-		m = (typeof(m)){"LP111", max_speed, ports, "PCI-X2"};
+		m = (typeof(m)){"LP111", max_speed, "PCI-X2"};
 		break;
 	case PCI_DEVICE_ID_ZEPHYR:
-		if (hdrtype == 0x80)
-			m = (typeof(m)){"LPe11002", max_speed, ports, "PCIe"};
-		else
-			m = (typeof(m)){"LPe11000", max_speed, ports, "PCIe"};
+		m = (typeof(m)){"LPe11000", max_speed, "PCIe"};
 		break;
 	case PCI_DEVICE_ID_ZEPHYR_SCSP:
-		m = (typeof(m)){"LPe11000", max_speed, ports, "PCIe"};
+		m = (typeof(m)){"LPe11000", max_speed, "PCIe"};
 		break;
 	case PCI_DEVICE_ID_ZEPHYR_DCSP:
-		m = (typeof(m)){"LPe11002-SP", max_speed, ports, "PCIe"};
+		m = (typeof(m)){"LPe11002-SP", max_speed, "PCIe"};
 		break;
 	case PCI_DEVICE_ID_ZMID:
-		m = (typeof(m)){"LPe1150", max_speed, ports, "PCIe"};
+		m = (typeof(m)){"LPe1150", max_speed, "PCIe"};
 		break;
 	case PCI_DEVICE_ID_ZSMB:
-		m = (typeof(m)){"LPe111", max_speed, ports, "PCIe"};
+		m = (typeof(m)){"LPe111", max_speed, "PCIe"};
 		break;
 	case PCI_DEVICE_ID_LP101:
-		m = (typeof(m)){"LP101", max_speed, ports, "PCI-X"};
+		m = (typeof(m)){"LP101", max_speed, "PCI-X"};
 		break;
 	case PCI_DEVICE_ID_LP10000S:
-		m = (typeof(m)){"LP10000-S", max_speed, ports, "PCI"};
+		m = (typeof(m)){"LP10000-S", max_speed, "PCI"};
 		break;
 	case PCI_DEVICE_ID_LP11000S:
+		m = (typeof(m)){"LP11000-S", max_speed,
+			"PCI-X2"};
+		break;
 	case PCI_DEVICE_ID_LPE11000S:
-		switch (dev_subid) {
-		case PCI_SUBSYSTEM_ID_LP11000S:
-			m = (typeof(m)){"LP11000-S", max_speed,
-					ports, "PCI-X2"};
-			break;
-		case PCI_SUBSYSTEM_ID_LP11002S:
-			m = (typeof(m)){"LP11002-S", max_speed,
-					ports, "PCI-X2"};
-			break;
-		case PCI_SUBSYSTEM_ID_LPE11000S:
-			m = (typeof(m)){"LPe11000-S", max_speed,
-					ports, "PCIe"};
-			break;
-		case PCI_SUBSYSTEM_ID_LPE11002S:
-			m = (typeof(m)){"LPe11002-S", max_speed,
-					ports, "PCIe"};
-			break;
-		case PCI_SUBSYSTEM_ID_LPE11010S:
-			m = (typeof(m)){"LPe11010-S", max_speed,
-					"10-port ", "PCIe"};
-			break;
-		default:
-			m = (typeof(m)){ NULL };
-			break;
-		}
+		m = (typeof(m)){"LPe11000-S", max_speed,
+			"PCIe"};
 		break;
 	default:
 		m = (typeof(m)){ NULL };
@@ -970,8 +927,8 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 		snprintf(mdp, 79,"%s", m.name);
 	if (descp && descp[0] == '\0')
 		snprintf(descp, 255,
-			 "Emulex %s %dGb %s%s Fibre Channel Adapter",
-			 m.name, m.max_speed, m.ports, m.bus);
+			 "Emulex %s %dGb %s Fibre Channel Adapter",
+			 m.name, m.max_speed, m.bus);
 }
 
 /**************************************************/

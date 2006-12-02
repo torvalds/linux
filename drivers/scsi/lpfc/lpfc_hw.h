@@ -1105,12 +1105,6 @@ typedef struct {
 #define PCI_DEVICE_ID_ZEPHYR_SCSP   0xfe11
 #define PCI_DEVICE_ID_ZEPHYR_DCSP   0xfe12
 
-#define PCI_SUBSYSTEM_ID_LP11000S      0xfc11
-#define PCI_SUBSYSTEM_ID_LP11002S      0xfc12
-#define PCI_SUBSYSTEM_ID_LPE11000S     0xfc21
-#define PCI_SUBSYSTEM_ID_LPE11002S     0xfc22
-#define PCI_SUBSYSTEM_ID_LPE11010S     0xfc2A
-
 #define JEDEC_ID_ADDRESS            0x0080001c
 #define FIREFLY_JEDEC_ID            0x1ACC
 #define SUPERFLY_JEDEC_ID           0x0020
