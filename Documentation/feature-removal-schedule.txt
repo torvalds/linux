@@ -70,18 +70,6 @@ Who:	Dominik Brodowski <linux@brodo.de>
 
 ---------------------------
 
-What:	ip_queue and ip6_queue (old ipv4-only and ipv6-only netfilter queue)
-When:	December 2005
-Why:	This interface has been obsoleted by the new layer3-independent
-	"nfnetlink_queue".  The Kernel interface is compatible, so the old
-	ip[6]tables "QUEUE" targets still work and will transparently handle
-	all packets into nfnetlink queue number 0.  Userspace users will have
-	to link against API-compatible library on top of libnfnetlink_queue 
-	instead of the current 'libipq'.
-Who:	Harald Welte <laforge@netfilter.org>
-
----------------------------
-
 What:	remove EXPORT_SYMBOL(kernel_thread)
 When:	August 2006
 Files:	arch/*/kernel/*_ksyms.c
