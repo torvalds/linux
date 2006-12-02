@@ -1778,7 +1778,9 @@ static int t1_sge_tx(struct sk_buff *skb, struct adapter *adapter,
 	struct cmdQ *q = &sge->cmdQ[qid];
 	unsigned int credits, pidx, genbit, count, use_sched_skb = 0;
 
-	spin_lock(&q->lock);
+	if (!spin_trylock(&q->lock))
+		return NETDEV_TX_LOCKED;
+
 	reclaim_completed_tx(sge, q);
 
 	pidx = q->pidx;
@@ -1887,6 +1889,8 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct sge *sge = adapter->sge;
 	struct sge_port_stats *st = per_cpu_ptr(sge->port_stats[dev->if_port], smp_processor_id());
 	struct cpl_tx_pkt *cpl;
+	struct sk_buff *orig_skb = skb;
+	int ret;
 
 	if (skb->protocol == htons(ETH_P_CPL5))
 		goto send;
@@ -1930,8 +1934,6 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * Complain when this happens but try to fix things up.
 		 */
 		if (unlikely(skb_headroom(skb) < dev->hard_header_len - ETH_HLEN)) {
-			struct sk_buff *orig_skb = skb;
-
 			pr_debug("%s: headroom %d header_len %d\n", dev->name,
 				 skb_headroom(skb), dev->hard_header_len);
 
@@ -1991,7 +1993,16 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 send:
 	st->tx_packets++;
 	dev->trans_start = jiffies;
-	return t1_sge_tx(skb, adapter, 0, dev);
+	ret = t1_sge_tx(skb, adapter, 0, dev);
+
+	/* If transmit busy, and we reallocated skb's due to headroom limit,
+	 * then silently discard to avoid leak.
+	 */
+	if (unlikely(ret != NETDEV_TX_OK && skb != orig_skb)) {
+ 		dev_kfree_skb_any(skb);
+		ret = NETDEV_TX_OK;
+ 	}
+	return ret;
 }
 
 /*
