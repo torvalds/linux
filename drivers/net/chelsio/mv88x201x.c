@@ -205,11 +205,11 @@ static struct cphy *mv88x201x_phy_create(adapter_t *adapter, int phy_addr,
 					 struct mdio_ops *mdio_ops)
 {
 	u32 val;
-	struct cphy *cphy = kmalloc(sizeof(*cphy), GFP_KERNEL);
+	struct cphy *cphy = kzalloc(sizeof(*cphy), GFP_KERNEL);
 
 	if (!cphy)
 		return NULL;
-	memset(cphy, 0, sizeof(*cphy));
+
 	cphy_init(cphy, adapter, phy_addr, &mv88x201x_ops, mdio_ops);
 
 	/* Commands the PHY to enable XFP's clock. */

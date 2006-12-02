@@ -631,10 +631,9 @@ static struct cmac *pm3393_mac_create(adapter_t *adapter, int index)
 {
 	struct cmac *cmac;
 
-	cmac = kmalloc(sizeof(*cmac) + sizeof(cmac_instance), GFP_KERNEL);
+	cmac = kzalloc(sizeof(*cmac) + sizeof(cmac_instance), GFP_KERNEL);
 	if (!cmac)
 		return NULL;
-	memset(cmac, 0, sizeof(*cmac));
 
 	cmac->ops = &pm3393_ops;
 	cmac->instance = (cmac_instance *) (cmac + 1);
