@@ -198,11 +198,13 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	struct saa7146_dev *saa = budget_ci->budget.dev;
 	struct input_dev *input_dev = budget_ci->ir.dev;
 	int i;
-	int err;
+	int error;
 
 	budget_ci->ir.dev = input_dev = input_allocate_device();
-	if (!input_dev)
-		return -ENOMEM;
+	if (!input_dev) {
+		error = -ENOMEM;
+		goto out1;
+	}
 
 	snprintf(budget_ci->ir.name, sizeof(budget_ci->ir.name),
 		 "Budget-CI dvb ir receiver %s", saa->name);
@@ -232,20 +234,26 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 		if (key_map[i])
 			set_bit(key_map[i], input_dev->keybit);
 
-	err = input_register_device(input_dev);
-	if (err) {
-		input_free_device(input_dev);
-		return err;
+	error = input_register_device(input_dev);
+	if (error) {
+		printk(KERN_ERR "budget_ci: could not init driver for IR device (code %d)\n", error);
+		goto out2;
 	}
 
-	input_register_device(budget_ci->ir.dev);
-
 	input_dev->timer.function = msp430_ir_debounce;
+
+	tasklet_init(&budget_ci->ir.msp430_irq_tasklet, msp430_ir_interrupt,
+		     (unsigned long) budget_ci);
 
 	saa7146_write(saa, IER, saa7146_read(saa, IER) | MASK_06);
 	saa7146_setgpio(saa, 3, SAA7146_GPIO_IRQHI);
 
 	return 0;
+
+out2:
+	input_free_device(input_dev);
+out1:
+	return error;
 }
 
 static void msp430_ir_deinit(struct budget_ci *budget_ci)
@@ -255,6 +263,7 @@ static void msp430_ir_deinit(struct budget_ci *budget_ci)
 
 	saa7146_write(saa, IER, saa7146_read(saa, IER) & ~MASK_06);
 	saa7146_setgpio(saa, 3, SAA7146_GPIO_INPUT);
+	tasklet_kill(&budget_ci->ir.msp430_irq_tasklet);
 
 	if (del_timer(&dev->timer)) {
 		input_event(dev, EV_KEY, key_map[dev->repeat_key], 0);
@@ -1115,8 +1124,11 @@ static int budget_ci_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 	struct budget_ci *budget_ci;
 	int err;
 
-	if (!(budget_ci = kmalloc(sizeof(struct budget_ci), GFP_KERNEL)))
-		return -ENOMEM;
+	budget_ci = kmalloc(sizeof(struct budget_ci), GFP_KERNEL);
+	if (!budget_ci) {
+		err = -ENOMEM;
+		goto out1;
+	}
 
 	dprintk(2, "budget_ci: %p\n", budget_ci);
 
@@ -1124,15 +1136,13 @@ static int budget_ci_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 	dev->ext_priv = budget_ci;
 
-	if ((err = ttpci_budget_init(&budget_ci->budget, dev, info, THIS_MODULE))) {
-		kfree(budget_ci);
-		return err;
-	}
+	err = ttpci_budget_init(&budget_ci->budget, dev, info, THIS_MODULE);
+	if (err)
+		goto out2;
 
-	tasklet_init(&budget_ci->ir.msp430_irq_tasklet, msp430_ir_interrupt,
-		     (unsigned long) budget_ci);
-
-	msp430_ir_init(budget_ci);
+	err = msp430_ir_init(budget_ci);
+	if (err)
+		goto out3;
 
 	ciintf_init(budget_ci);
 
@@ -1142,6 +1152,13 @@ static int budget_ci_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 	ttpci_budget_init_hooks(&budget_ci->budget);
 
 	return 0;
+
+out3:
+	ttpci_budget_deinit(&budget_ci->budget);
+out2:
+	kfree(budget_ci);
+out1:
+	return err;
 }
 
 static int budget_ci_detach(struct saa7146_dev *dev)
@@ -1152,15 +1169,12 @@ static int budget_ci_detach(struct saa7146_dev *dev)
 
 	if (budget_ci->budget.ci_present)
 		ciintf_deinit(budget_ci);
+	msp430_ir_deinit(budget_ci);
 	if (budget_ci->budget.dvb_frontend) {
 		dvb_unregister_frontend(budget_ci->budget.dvb_frontend);
 		dvb_frontend_detach(budget_ci->budget.dvb_frontend);
 	}
 	err = ttpci_budget_deinit(&budget_ci->budget);
-
-	tasklet_kill(&budget_ci->ir.msp430_irq_tasklet);
-
-	msp430_ir_deinit(budget_ci);
 
 	// disable frontend and CI interface
 	saa7146_setgpio(saa, 2, SAA7146_GPIO_INPUT);
