@@ -92,6 +92,10 @@ static int rc5_device = -1;
 module_param(rc5_device, int, 0644);
 MODULE_PARM_DESC(rc5_device, "only IR commands to given RC5 device (device = 0 - 31, any device = 255, default: autodetect)");
 
+static int ir_debug = 0;
+module_param(ir_debug, int, 0644);
+MODULE_PARM_DESC(ir_debug, "enable debugging information for IR decoding");
+
 struct budget_ci_ir {
 	struct input_dev *dev;
 	struct tasklet_struct msp430_irq_tasklet;
@@ -140,11 +144,15 @@ static void msp430_ir_interrupt(unsigned long data)
 
 	/* Is this a RC5 command byte? */
 	if (command & 0x40) {
+		if (ir_debug)
+			printk("budget_ci: received command byte 0x%02x\n", command);
 		ir_key = command & 0x3f;
 		return;
 	}
 
 	/* It's a RC5 device byte */
+	if (ir_debug)
+		printk("budget_ci: received device byte 0x%02x\n", command);
 	device = command & 0x1f;
 	toggle = command & 0x20;
 
