@@ -214,11 +214,10 @@ static struct ibmebus_dev* __devinit ibmebus_register_device_node(
 		return NULL;
 	}
 
-	dev = kmalloc(sizeof(struct ibmebus_dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(struct ibmebus_dev), GFP_KERNEL);
 	if (!dev) {
 		return NULL;
 	}
-	memset(dev, 0, sizeof(struct ibmebus_dev));
 
 	dev->ofdev.node = of_node_get(dn);
        

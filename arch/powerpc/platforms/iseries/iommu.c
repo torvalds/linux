@@ -115,11 +115,9 @@ void iommu_table_getparms_iSeries(unsigned long busno,
 {
 	struct iommu_table_cb *parms;
 
-	parms = kmalloc(sizeof(*parms), GFP_KERNEL);
+	parms = kzalloc(sizeof(*parms), GFP_KERNEL);
 	if (parms == NULL)
 		panic("PCI_DMA: TCE Table Allocation failed.");
-
-	memset(parms, 0, sizeof(*parms));
 
 	parms->itc_busno = busno;
 	parms->itc_slotno = slotno;

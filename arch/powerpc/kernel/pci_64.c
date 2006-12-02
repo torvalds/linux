@@ -330,7 +330,7 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 	struct pci_dev *dev;
 	const char *type;
 
-	dev = kmalloc(sizeof(struct pci_dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(struct pci_dev), GFP_KERNEL);
 	if (!dev)
 		return NULL;
 	type = get_property(node, "device_type", NULL);
@@ -339,7 +339,6 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 
 	DBG("    create device, devfn: %x, type: %s\n", devfn, type);
 
-	memset(dev, 0, sizeof(struct pci_dev));
 	dev->bus = bus;
 	dev->sysdata = node;
 	dev->dev.parent = bus->bridge;
