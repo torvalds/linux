@@ -1328,6 +1328,15 @@ UNUSUAL_DEV(  0x1210, 0x0003, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
+/* This prevents the kernel from detecting the virtual cd-drive with the
+ * Windows drivers.  <johann.wilhelm@student.tugraz.at>
+*/
+UNUSUAL_DEV( 0x12d1, 0x1003, 0x0000, 0xffff,
+		"HUAWEI",
+		"E220 USB-UMTS Install",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_DEVICE),
+
 /* Reported by Vilius Bilinkevicius <vilisas AT xxx DOT lt) */
 UNUSUAL_DEV(  0x132b, 0x000b, 0x0001, 0x0001,
 		"Minolta",
