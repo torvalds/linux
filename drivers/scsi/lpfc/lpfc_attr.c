@@ -802,7 +802,6 @@ static CLASS_DEVICE_ATTR(lpfc_devloss_tmo, S_IRUGO | S_IWUSR,
 # LOG_MBOX                      0x4        Mailbox events
 # LOG_INIT                      0x8        Initialization events
 # LOG_LINK_EVENT                0x10       Link events
-# LOG_IP                        0x20       IP traffic history
 # LOG_FCP                       0x40       FCP traffic history
 # LOG_NODE                      0x80       Node table events
 # LOG_MISC                      0x400      Miscellaneous events
@@ -916,6 +915,22 @@ LPFC_ATTR_R(multi_ring_support, 1, 1, 2, "Determines number of primary "
 		"SLI rings to spread IOCB entries across");
 
 /*
+# lpfc_multi_ring_rctl:  If lpfc_multi_ring_support is enabled, this
+# identifies what rctl value to configure the additional ring for.
+# Value range is [1,0xff]. Default value is 4 (Unsolicated Data).
+*/
+LPFC_ATTR_R(multi_ring_rctl, FC_UNSOL_DATA, 1,
+	     255, "Identifies RCTL for additional ring configuration");
+
+/*
+# lpfc_multi_ring_type:  If lpfc_multi_ring_support is enabled, this
+# identifies what type value to configure the additional ring for.
+# Value range is [1,0xff]. Default value is 5 (LLC/SNAP).
+*/
+LPFC_ATTR_R(multi_ring_type, FC_LLC_SNAP, 1,
+	     255, "Identifies TYPE for additional ring configuration");
+
+/*
 # lpfc_fdmi_on: controls FDMI support.
 #       0 = no FDMI support
 #       1 = support FDMI without attribute of hostname
@@ -974,6 +989,8 @@ struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_lpfc_cr_delay,
 	&class_device_attr_lpfc_cr_count,
 	&class_device_attr_lpfc_multi_ring_support,
+	&class_device_attr_lpfc_multi_ring_rctl,
+	&class_device_attr_lpfc_multi_ring_type,
 	&class_device_attr_lpfc_fdmi_on,
 	&class_device_attr_lpfc_max_luns,
 	&class_device_attr_nport_evt_cnt,
@@ -1771,6 +1788,8 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_cr_delay_init(phba, lpfc_cr_delay);
 	lpfc_cr_count_init(phba, lpfc_cr_count);
 	lpfc_multi_ring_support_init(phba, lpfc_multi_ring_support);
+	lpfc_multi_ring_rctl_init(phba, lpfc_multi_ring_rctl);
+	lpfc_multi_ring_type_init(phba, lpfc_multi_ring_type);
 	lpfc_lun_queue_depth_init(phba, lpfc_lun_queue_depth);
 	lpfc_fcp_class_init(phba, lpfc_fcp_class);
 	lpfc_use_adisc_init(phba, lpfc_use_adisc);

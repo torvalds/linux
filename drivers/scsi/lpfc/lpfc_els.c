@@ -1128,7 +1128,7 @@ lpfc_cmpl_els_adisc(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 						mempool_free(mbox,
 						     phba->mbox_mem_pool);
 						lpfc_disc_flush_list(phba);
-						psli->ring[(psli->ip_ring)].
+						psli->ring[(psli->extra_ring)].
 						    flag &=
 						    ~LPFC_STOP_IOCB_EVENT;
 						psli->ring[(psli->fcp_ring)].
@@ -3046,7 +3046,7 @@ lpfc_els_rcv_farp(struct lpfc_hba * phba,
 	/* FARP-REQ received from DID <did> */
 	lpfc_printf_log(phba,
 			 KERN_INFO,
-			 LOG_IP,
+			 LOG_ELS,
 			 "%d:0601 FARP-REQ received from DID x%x\n",
 			 phba->brd_no, did);
 
@@ -3108,7 +3108,7 @@ lpfc_els_rcv_farpr(struct lpfc_hba * phba,
 	/* FARP-RSP received from DID <did> */
 	lpfc_printf_log(phba,
 			 KERN_INFO,
-			 LOG_IP,
+			 LOG_ELS,
 			 "%d:0600 FARP-RSP received from DID x%x\n",
 			 phba->brd_no, did);
 

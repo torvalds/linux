@@ -1098,6 +1098,7 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 		lpfc_sli_pcimem_bcopy((uint32_t *) entry,
 				      (uint32_t *) &rspiocbq.iocb,
 				      sizeof (IOCB_t));
+		INIT_LIST_HEAD(&(rspiocbq.list));
 		irsp = &rspiocbq.iocb;
 
 		type = lpfc_sli_iocb_cmd_type(irsp->ulpCommand & CMD_IOCB_MASK);
@@ -1148,6 +1149,11 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 							  iflag);
 				}
 			}
+			break;
+		case LPFC_UNSOL_IOCB:
+			spin_unlock_irqrestore(phba->host->host_lock, iflag);
+			lpfc_sli_process_unsol_iocb(phba, pring, &rspiocbq);
+			spin_lock_irqsave(phba->host->host_lock, iflag);
 			break;
 		default:
 			if (irsp->ulpCommand == CMD_ADAPTER_MSG) {
@@ -2472,13 +2478,17 @@ lpfc_extra_ring_setup( struct lpfc_hba *phba)
 	psli = &phba->sli;
 
 	/* Adjust cmd/rsp ring iocb entries more evenly */
+
+	/* Take some away from the FCP ring */
 	pring = &psli->ring[psli->fcp_ring];
 	pring->numCiocb -= SLI2_IOCB_CMD_R1XTRA_ENTRIES;
 	pring->numRiocb -= SLI2_IOCB_RSP_R1XTRA_ENTRIES;
 	pring->numCiocb -= SLI2_IOCB_CMD_R3XTRA_ENTRIES;
 	pring->numRiocb -= SLI2_IOCB_RSP_R3XTRA_ENTRIES;
 
-	pring = &psli->ring[1];
+	/* and give them to the extra ring */
+	pring = &psli->ring[psli->extra_ring];
+
 	pring->numCiocb += SLI2_IOCB_CMD_R1XTRA_ENTRIES;
 	pring->numRiocb += SLI2_IOCB_RSP_R1XTRA_ENTRIES;
 	pring->numCiocb += SLI2_IOCB_CMD_R3XTRA_ENTRIES;
@@ -2488,8 +2498,8 @@ lpfc_extra_ring_setup( struct lpfc_hba *phba)
 	pring->iotag_max = 4096;
 	pring->num_mask = 1;
 	pring->prt[0].profile = 0;      /* Mask 0 */
-	pring->prt[0].rctl = FC_UNSOL_DATA;
-	pring->prt[0].type = 5;
+	pring->prt[0].rctl = phba->cfg_multi_ring_rctl;
+	pring->prt[0].type = phba->cfg_multi_ring_type;
 	pring->prt[0].lpfc_sli_rcv_unsol_event = NULL;
 	return 0;
 }
@@ -2505,7 +2515,7 @@ lpfc_sli_setup(struct lpfc_hba *phba)
 	psli->sli_flag = 0;
 	psli->fcp_ring = LPFC_FCP_RING;
 	psli->next_ring = LPFC_FCP_NEXT_RING;
-	psli->ip_ring = LPFC_IP_RING;
+	psli->extra_ring = LPFC_EXTRA_RING;
 
 	psli->iocbq_lookup = NULL;
 	psli->iocbq_lookup_len = 0;
@@ -2528,7 +2538,7 @@ lpfc_sli_setup(struct lpfc_hba *phba)
 			pring->fast_iotag = pring->iotag_max;
 			pring->num_mask = 0;
 			break;
-		case LPFC_IP_RING:	/* ring 1 - IP */
+		case LPFC_EXTRA_RING:	/* ring 1 - EXTRA */
 			/* numCiocb and numRiocb are used in config_port */
 			pring->numCiocb = SLI2_IOCB_CMD_R1_ENTRIES;
 			pring->numRiocb = SLI2_IOCB_RSP_R1_ENTRIES;
@@ -3238,6 +3248,21 @@ lpfc_intr_handler(int irq, void *dev_id)
 		lpfc_sli_handle_fast_ring_event(phba,
 						&phba->sli.ring[LPFC_FCP_RING],
 						status);
+
+	if (phba->cfg_multi_ring_support == 2) {
+		/*
+		 * Process all events on extra ring.  Take the optimized path
+		 * for extra ring IO.  Any other IO is slow path and is handled
+		 * by the worker thread.
+		 */
+		status = (ha_copy & (HA_RXMASK  << (4*LPFC_EXTRA_RING)));
+		status >>= (4*LPFC_EXTRA_RING);
+		if (status & HA_RXATT) {
+			lpfc_sli_handle_fast_ring_event(phba,
+					&phba->sli.ring[LPFC_EXTRA_RING],
+					status);
+		}
+	}
 	return IRQ_HANDLED;
 
 } /* lpfc_intr_handler */

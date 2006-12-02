@@ -349,8 +349,8 @@ lpfc_config_port_post(struct lpfc_hba * phba)
 	phba->hba_state = LPFC_LINK_DOWN;
 
 	/* Only process IOCBs on ring 0 till hba_state is READY */
-	if (psli->ring[psli->ip_ring].cmdringaddr)
-		psli->ring[psli->ip_ring].flag |= LPFC_STOP_IOCB_EVENT;
+	if (psli->ring[psli->extra_ring].cmdringaddr)
+		psli->ring[psli->extra_ring].flag |= LPFC_STOP_IOCB_EVENT;
 	if (psli->ring[psli->fcp_ring].cmdringaddr)
 		psli->ring[psli->fcp_ring].flag |= LPFC_STOP_IOCB_EVENT;
 	if (psli->ring[psli->next_ring].cmdringaddr)

@@ -525,7 +525,7 @@ lpfc_mbx_cmpl_clear_la(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 	psli = &phba->sli;
 	mb = &pmb->mb;
 	/* Since we don't do discovery right now, turn these off here */
-	psli->ring[psli->ip_ring].flag &= ~LPFC_STOP_IOCB_EVENT;
+	psli->ring[psli->extra_ring].flag &= ~LPFC_STOP_IOCB_EVENT;
 	psli->ring[psli->fcp_ring].flag &= ~LPFC_STOP_IOCB_EVENT;
 	psli->ring[psli->next_ring].flag &= ~LPFC_STOP_IOCB_EVENT;
 
@@ -641,7 +641,7 @@ out:
 	if (rc == MBX_NOT_FINISHED) {
 		mempool_free(pmb, phba->mbox_mem_pool);
 		lpfc_disc_flush_list(phba);
-		psli->ring[(psli->ip_ring)].flag &= ~LPFC_STOP_IOCB_EVENT;
+		psli->ring[(psli->extra_ring)].flag &= ~LPFC_STOP_IOCB_EVENT;
 		psli->ring[(psli->fcp_ring)].flag &= ~LPFC_STOP_IOCB_EVENT;
 		psli->ring[(psli->next_ring)].flag &= ~LPFC_STOP_IOCB_EVENT;
 		phba->hba_state = LPFC_HBA_READY;
@@ -696,7 +696,7 @@ out:
 		    == MBX_NOT_FINISHED) {
 			mempool_free( pmb, phba->mbox_mem_pool);
 			lpfc_disc_flush_list(phba);
-			psli->ring[(psli->ip_ring)].flag &=
+			psli->ring[(psli->extra_ring)].flag &=
 			    ~LPFC_STOP_IOCB_EVENT;
 			psli->ring[(psli->fcp_ring)].flag &=
 			    ~LPFC_STOP_IOCB_EVENT;
@@ -1424,7 +1424,7 @@ lpfc_check_sli_ndlp(struct lpfc_hba * phba,
 			if (iocb->context1 == (uint8_t *) ndlp)
 				return 1;
 		}
-	} else if (pring->ringno == psli->ip_ring) {
+	} else if (pring->ringno == psli->extra_ring) {
 
 	} else if (pring->ringno == psli->fcp_ring) {
 		/* Skip match check if waiting to relogin to FCP target */
@@ -1889,7 +1889,7 @@ lpfc_disc_start(struct lpfc_hba * phba)
 			if (rc == MBX_NOT_FINISHED) {
 				mempool_free( mbox, phba->mbox_mem_pool);
 				lpfc_disc_flush_list(phba);
-				psli->ring[(psli->ip_ring)].flag &=
+				psli->ring[(psli->extra_ring)].flag &=
 					~LPFC_STOP_IOCB_EVENT;
 				psli->ring[(psli->fcp_ring)].flag &=
 					~LPFC_STOP_IOCB_EVENT;
@@ -2268,7 +2268,7 @@ lpfc_disc_timeout_handler(struct lpfc_hba *phba)
 
 	if (clrlaerr) {
 		lpfc_disc_flush_list(phba);
-		psli->ring[(psli->ip_ring)].flag &= ~LPFC_STOP_IOCB_EVENT;
+		psli->ring[(psli->extra_ring)].flag &= ~LPFC_STOP_IOCB_EVENT;
 		psli->ring[(psli->fcp_ring)].flag &= ~LPFC_STOP_IOCB_EVENT;
 		psli->ring[(psli->next_ring)].flag &= ~LPFC_STOP_IOCB_EVENT;
 		phba->hba_state = LPFC_HBA_READY;
