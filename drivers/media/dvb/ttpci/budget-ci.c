@@ -202,6 +202,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 
 	budget_ci->ir.dev = input_dev = input_allocate_device();
 	if (!input_dev) {
+		printk(KERN_ERR "budget_ci: IR interface initialisation failed\n");
 		error = -ENOMEM;
 		goto out1;
 	}
@@ -1124,15 +1125,13 @@ static int budget_ci_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 	struct budget_ci *budget_ci;
 	int err;
 
-	budget_ci = kmalloc(sizeof(struct budget_ci), GFP_KERNEL);
+	budget_ci = kzalloc(sizeof(struct budget_ci), GFP_KERNEL);
 	if (!budget_ci) {
 		err = -ENOMEM;
 		goto out1;
 	}
 
 	dprintk(2, "budget_ci: %p\n", budget_ci);
-
-	budget_ci->budget.ci_present = 0;
 
 	dev->ext_priv = budget_ci;
 
