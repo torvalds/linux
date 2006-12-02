@@ -9,6 +9,7 @@
 #include "dib0700.h"
 
 #include "dib3000mc.h"
+#include "dib7000m.h"
 #include "mt2060.h"
 
 static int force_lna_activation;

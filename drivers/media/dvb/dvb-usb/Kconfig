@@ -69,6 +69,7 @@ config DVB_USB_DIBUSB_MC
 config DVB_USB_DIB0700
 	tristate "DiBcom DiB0700 USB DVB devices (see help for supported devices)"
 	depends on DVB_USB
+	select DVB_DIB7000M
 	select DVB_DIB3000MC
 	select DVB_TUNER_MT2060 if !DVB_FE_CUSTOMISE
 	help
