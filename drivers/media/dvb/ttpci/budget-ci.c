@@ -76,6 +76,7 @@ struct budget_ci_ir {
 	struct input_dev *dev;
 	struct tasklet_struct msp430_irq_tasklet;
 	char name[72]; /* 40 + 32 for (struct saa7146_dev).name */
+	char phys[32];
 };
 
 struct budget_ci {
@@ -205,7 +206,26 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 
 	snprintf(budget_ci->ir.name, sizeof(budget_ci->ir.name),
 		 "Budget-CI dvb ir receiver %s", saa->name);
+	snprintf(budget_ci->ir.phys, sizeof(budget_ci->ir.phys),
+		 "pci-%s/ir0", pci_name(saa->pci));
+
 	input_dev->name = budget_ci->ir.name;
+
+	input_dev->phys = budget_ci->ir.phys;
+	input_dev->id.bustype = BUS_PCI;
+	input_dev->id.version = 1;
+	if (saa->pci->subsystem_vendor) {
+		input_dev->id.vendor = saa->pci->subsystem_vendor;
+		input_dev->id.product = saa->pci->subsystem_device;
+	} else {
+		input_dev->id.vendor = saa->pci->vendor;
+		input_dev->id.product = saa->pci->device;
+	}
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15)
+	input_dev->cdev.dev = &saa->pci->dev;
+# else
+	input_dev->dev = &saa->pci->dev;
+# endif
 
 	set_bit(EV_KEY, input_dev->evbit);
 	for (i = 0; i < ARRAY_SIZE(key_map); i++)
