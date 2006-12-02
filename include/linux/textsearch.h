@@ -20,7 +20,7 @@ struct ts_config;
 /**
  * struct ts_state - search state
  * @offset: offset for next match
- * @cb: control buffer, for persistant variables of get_next_block()
+ * @cb: control buffer, for persistent variables of get_next_block()
  */
 struct ts_state
 {
@@ -71,7 +71,7 @@ struct ts_config
 	 * Called repeatedly until 0 is returned. Must assign the
 	 * head of the next block of data to &*dst and return the length
 	 * of the block or 0 if at the end. consumed == 0 indicates
-	 * a new search. May store/read persistant values in state->cb.
+	 * a new search. May store/read persistent values in state->cb.
 	 */
 	unsigned int		(*get_next_block)(unsigned int consumed,
 						  const u8 **dst,

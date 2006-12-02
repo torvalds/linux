@@ -81,7 +81,7 @@ Installation
     1M. The RAM size decides the number of buffers and buffer size. The default 
     size and number of buffers are set as following: 
 
-          Totol    Rx RAM   Tx RAM   Rx Buf   Tx Buf   Rx buf   Tx buf
+          Total    Rx RAM   Tx RAM   Rx Buf   Tx Buf   Rx buf   Tx buf
          RAM size   size     size     size     size      cnt      cnt
          --------  ------   ------   ------   ------   ------   ------
            128K      64K      64K      10K      10K       6        6

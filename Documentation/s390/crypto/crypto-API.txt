@@ -75,8 +75,8 @@ name of the respective module is given in square brackets.
 
 - SHA1 Digest Algorithm [sha1 -> sha1_z990]
 - DES Encrypt/Decrypt Algorithm (64bit key) [des -> des_z990]
-- Tripple DES Encrypt/Decrypt Algorithm (128bit key) [des3_ede128 -> des_z990]
-- Tripple DES Encrypt/Decrypt Algorithm (192bit key) [des3_ede -> des_z990]
+- Triple DES Encrypt/Decrypt Algorithm (128bit key) [des3_ede128 -> des_z990]
+- Triple DES Encrypt/Decrypt Algorithm (192bit key) [des3_ede -> des_z990]
 
 In order to load, for example, the sha1_z990 module when the sha1 algorithm is
 requested (see 3.2.) add 'alias sha1 sha1_z990' to /etc/modprobe.conf.

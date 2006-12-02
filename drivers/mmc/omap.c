@@ -640,8 +640,7 @@ mmc_omap_prepare_dma(struct mmc_omap_host *host, struct mmc_data *data)
 	}
 
 	/* Max limit for DMA frame count is 0xffff */
-	if (unlikely(count > 0xffff))
-		BUG();
+	BUG_ON(count > 0xffff);
 
 	OMAP_MMC_WRITE(host->base, BUF, buf);
 	omap_set_dma_transfer_params(dma_ch, OMAP_DMA_DATA_TYPE_S16,

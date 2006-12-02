@@ -284,7 +284,7 @@ the necessary memory, so normally limits can be reached.
 -------------------
 
 If you check the source code you will see that what I draw here as a frame
-is not only the link level frame. At the begining of each frame there is a 
+is not only the link level frame. At the beginning of each frame there is a 
 header called struct tpacket_hdr used in PACKET_MMAP to hold link level's frame
 meta information like timestamp. So what we draw here a frame it's really 
 the following (from include/linux/if_packet.h):

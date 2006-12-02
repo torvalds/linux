@@ -6920,8 +6920,8 @@ static int ipw_qos_association(struct ipw_priv *priv,
 }
 
 /*
-* handling the beaconing responces. if we get different QoS setting
-* of the network from the the associated setting adjust the QoS
+* handling the beaconing responses. if we get different QoS setting
+* off the network from the associated setting, adjust the QoS
 * setting
 */
 static int ipw_qos_association_resp(struct ipw_priv *priv,

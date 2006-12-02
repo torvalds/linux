@@ -3868,7 +3868,7 @@ e1000_phy_hw_reset(struct e1000_hw *hw)
 *
 * hw - Struct containing variables accessed by shared code
 *
-* Sets bit 15 of the MII Control regiser
+* Sets bit 15 of the MII Control register
 ******************************************************************************/
 int32_t
 e1000_phy_reset(struct e1000_hw *hw)

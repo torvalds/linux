@@ -1635,7 +1635,7 @@ static int idefloppy_begin_format(ide_drive_t *drive, int __user *arg)
 /*
 ** Get ATAPI_FORMAT_UNIT progress indication.
 **
-** Userland gives a pointer to an int.  The int is set to a progresss
+** Userland gives a pointer to an int.  The int is set to a progress
 ** indicator 0-65536, with 65536=100%.
 **
 ** If the drive does not support format progress indication, we just check

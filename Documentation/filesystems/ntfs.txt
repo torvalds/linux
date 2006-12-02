@@ -337,7 +337,7 @@ Finally, for a mirrored volume, i.e. raid level 1, the table would look like
 this (note all values are in 512-byte sectors):
 
 --- cut here ---
-# Ofs Size   Raid   Log  Number Region Should Number Source  Start Taget  Start
+# Ofs Size   Raid   Log  Number Region Should Number Source  Start Target Start
 # in  of the type   type of log size   sync?  of     Device  in    Device in
 # vol volume		 params		     mirrors	     Device	  Device
 0    2056320 mirror core 2	16     nosync 2	   /dev/hda1 0   /dev/hdb1 0
@@ -599,7 +599,7 @@ Note, a technical ChangeLog aimed at kernel hackers is in fs/ntfs/ChangeLog.
 	- Major bug fixes for reading files and volumes in corner cases which
 	  were being hit by Windows 2k/XP users.
 2.1.2:
-	- Major bug fixes aleviating the hangs in statfs experienced by some
+	- Major bug fixes alleviating the hangs in statfs experienced by some
 	  users.
 2.1.1:
 	- Update handling of compressed files so people no longer get the

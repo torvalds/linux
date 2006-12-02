@@ -65,7 +65,7 @@ struct user;
  * context (spinlock, irq-handler, ...).
  *
  * This is a useful debugging help to be able to catch problems early and not
- * be biten later when the calling function happens to sleep when it is not
+ * be bitten later when the calling function happens to sleep when it is not
  * supposed to.
  */
 #ifdef CONFIG_PREEMPT_VOLUNTARY

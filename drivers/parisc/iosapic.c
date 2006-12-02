@@ -50,12 +50,12 @@
 **
 ** PA Firmware
 ** -----------
-** PA-RISC platforms have two fundementally different types of firmware.
+** PA-RISC platforms have two fundamentally different types of firmware.
 ** For PCI devices, "Legacy" PDC initializes the "INTERRUPT_LINE" register
 ** and BARs similar to a traditional PC BIOS.
 ** The newer "PAT" firmware supports PDC calls which return tables.
-** PAT firmware only initializes PCI Console and Boot interface.
-** With these tables, the OS can progam all other PCI devices.
+** PAT firmware only initializes the PCI Console and Boot interface.
+** With these tables, the OS can program all other PCI devices.
 **
 ** One such PAT PDC call returns the "Interrupt Routing Table" (IRT).
 ** The IRT maps each PCI slot's INTA-D "output" line to an I/O SAPIC

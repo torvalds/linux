@@ -81,7 +81,7 @@
 #define	JFS_SWAP_BYTES		0x00100000	/* running on big endian computer */
 
 /* Directory index */
-#define JFS_DIR_INDEX		0x00200000	/* Persistant index for */
+#define JFS_DIR_INDEX		0x00200000	/* Persistent index for */
 						/* directory entries    */
 
 

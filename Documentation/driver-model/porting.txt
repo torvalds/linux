@@ -92,7 +92,7 @@ struct device represents a single device. It mainly contains metadata
 describing the relationship the device has to other entities. 
 
 
-- Embedd a struct device in the bus-specific device type. 
+- Embed a struct device in the bus-specific device type. 
 
 
 struct pci_dev {

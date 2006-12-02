@@ -1215,7 +1215,7 @@ static void e100_setup_ucode(struct nic *nic, struct cb *cb, struct sk_buff *skb
 *  the literal in the instruction before the code is loaded, the
 *  driver can change the algorithm.
 *
-*  INTDELAY - This loads the dead-man timer with its inital value.
+*  INTDELAY - This loads the dead-man timer with its initial value.
 *    When this timer expires the interrupt is asserted, and the
 *    timer is reset each time a new packet is received.  (see
 *    BUNDLEMAX below to set the limit on number of chained packets)

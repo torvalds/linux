@@ -922,7 +922,7 @@ int RIOUnUse(unsigned long iPortP, struct CmdBlk *CmdBlkP)
 ** 
 ** Packet is an actual packet structure to be filled in with the packet
 ** information associated with the command. You need to fill in everything,
-** as the command processore doesn't process the command packet in any way.
+** as the command processor doesn't process the command packet in any way.
 ** 
 ** The PreFuncP is called before the packet is enqueued on the host rup.
 ** PreFuncP is called as (*PreFuncP)(PreArg, CmdBlkP);. PreFuncP must

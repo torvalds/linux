@@ -779,7 +779,7 @@ static unsigned int cs_set_adc_rate(struct cs_state *state, unsigned int rate)
 		rate = 48000 / 9;
 
 	/*
-	 *  We can not capture at at rate greater than the Input Rate (48000).
+	 *  We cannot capture at at rate greater than the Input Rate (48000).
 	 *  Return an error if an attempt is made to stray outside that limit.
 	 */
 	if (rate > 48000)
@@ -4754,8 +4754,8 @@ static int cs_hardware_init(struct cs_card *card)
 	mdelay(5 * cs_laptop_wait);		/* Shouldnt be needed ?? */
 	
 /*
-* If we are resuming under 2.2.x then we can not schedule a timeout.
-* so, just spin the CPU.
+* If we are resuming under 2.2.x then we cannot schedule a timeout,
+* so just spin the CPU.
 */
 	if (card->pm.flags & CS46XX_PM_IDLE) {
 	/*

@@ -942,13 +942,13 @@ replicas continue to be exactly same.
 	->mnt_slave
 	->mnt_master
 
-	->mnt_share links togather all the mount to/from which this vfsmount
+	->mnt_share links together all the mount to/from which this vfsmount
 		send/receives propagation events.
 
 	->mnt_slave_list links all the mounts to which this vfsmount propagates
 		to.
 
-	->mnt_slave links togather all the slaves that its master vfsmount
+	->mnt_slave links together all the slaves that its master vfsmount
 		propagates to.
 
 	->mnt_master points to the master vfsmount from which this vfsmount
