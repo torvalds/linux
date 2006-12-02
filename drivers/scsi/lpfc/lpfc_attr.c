@@ -552,10 +552,10 @@ static CLASS_DEVICE_ATTR(board_mode, S_IRUGO | S_IWUSR,
 static CLASS_DEVICE_ATTR(issue_reset, S_IWUSR, NULL, lpfc_issue_reset);
 
 
-static char *lpfc_soft_wwpn_key = "C99G71SL8032A";
+static char *lpfc_soft_wwn_key = "C99G71SL8032A";
 
 static ssize_t
-lpfc_soft_wwpn_enable_store(struct class_device *cdev, const char *buf,
+lpfc_soft_wwn_enable_store(struct class_device *cdev, const char *buf,
 				size_t count)
 {
 	struct Scsi_Host *host = class_to_shost(cdev);
@@ -579,15 +579,15 @@ lpfc_soft_wwpn_enable_store(struct class_device *cdev, const char *buf,
 	if (buf[cnt-1] == '\n')
 		cnt--;
 
-	if ((cnt != strlen(lpfc_soft_wwpn_key)) ||
-	    (strncmp(buf, lpfc_soft_wwpn_key, strlen(lpfc_soft_wwpn_key)) != 0))
+	if ((cnt != strlen(lpfc_soft_wwn_key)) ||
+	    (strncmp(buf, lpfc_soft_wwn_key, strlen(lpfc_soft_wwn_key)) != 0))
 		return -EINVAL;
 
-	phba->soft_wwpn_enable = 1;
+	phba->soft_wwn_enable = 1;
 	return count;
 }
-static CLASS_DEVICE_ATTR(lpfc_soft_wwpn_enable, S_IWUSR, NULL,
-				lpfc_soft_wwpn_enable_store);
+static CLASS_DEVICE_ATTR(lpfc_soft_wwn_enable, S_IWUSR, NULL,
+				lpfc_soft_wwn_enable_store);
 
 static ssize_t
 lpfc_soft_wwpn_show(struct class_device *cdev, char *buf)
@@ -613,12 +613,12 @@ lpfc_soft_wwpn_store(struct class_device *cdev, const char *buf, size_t count)
 	if (buf[cnt-1] == '\n')
 		cnt--;
 
-	if (!phba->soft_wwpn_enable || (cnt < 16) || (cnt > 18) ||
+	if (!phba->soft_wwn_enable || (cnt < 16) || (cnt > 18) ||
 	    ((cnt == 17) && (*buf++ != 'x')) ||
 	    ((cnt == 18) && ((*buf++ != '0') || (*buf++ != 'x'))))
 		return -EINVAL;
 
-	phba->soft_wwpn_enable = 0;
+	phba->soft_wwn_enable = 0;
 
 	memset(wwpn, 0, sizeof(wwpn));
 
@@ -639,6 +639,8 @@ lpfc_soft_wwpn_store(struct class_device *cdev, const char *buf, size_t count)
 	}
 	phba->cfg_soft_wwpn = wwn_to_u64(wwpn);
 	fc_host_port_name(host) = phba->cfg_soft_wwpn;
+	if (phba->cfg_soft_wwnn)
+		fc_host_node_name(host) = phba->cfg_soft_wwnn;
 
 	dev_printk(KERN_NOTICE, &phba->pcidev->dev,
 		   "lpfc%d: Reinitializing to use soft_wwpn\n", phba->brd_no);
@@ -663,6 +665,66 @@ lpfc_soft_wwpn_store(struct class_device *cdev, const char *buf, size_t count)
 }
 static CLASS_DEVICE_ATTR(lpfc_soft_wwpn, S_IRUGO | S_IWUSR,\
 			 lpfc_soft_wwpn_show, lpfc_soft_wwpn_store);
+
+static ssize_t
+lpfc_soft_wwnn_show(struct class_device *cdev, char *buf)
+{
+	struct Scsi_Host *host = class_to_shost(cdev);
+	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	return snprintf(buf, PAGE_SIZE, "0x%llx\n",
+			(unsigned long long)phba->cfg_soft_wwnn);
+}
+
+
+static ssize_t
+lpfc_soft_wwnn_store(struct class_device *cdev, const char *buf, size_t count)
+{
+	struct Scsi_Host *host = class_to_shost(cdev);
+	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	unsigned int i, j, cnt=count;
+	u8 wwnn[8];
+
+	/* count may include a LF at end of string */
+	if (buf[cnt-1] == '\n')
+		cnt--;
+
+	if (!phba->soft_wwn_enable || (cnt < 16) || (cnt > 18) ||
+	    ((cnt == 17) && (*buf++ != 'x')) ||
+	    ((cnt == 18) && ((*buf++ != '0') || (*buf++ != 'x'))))
+		return -EINVAL;
+
+	/*
+	 * Allow wwnn to be set many times, as long as the enable is set.
+	 * However, once the wwpn is set, everything locks.
+	 */
+
+	memset(wwnn, 0, sizeof(wwnn));
+
+	/* Validate and store the new name */
+	for (i=0, j=0; i < 16; i++) {
+		if ((*buf >= 'a') && (*buf <= 'f'))
+			j = ((j << 4) | ((*buf++ -'a') + 10));
+		else if ((*buf >= 'A') && (*buf <= 'F'))
+			j = ((j << 4) | ((*buf++ -'A') + 10));
+		else if ((*buf >= '0') && (*buf <= '9'))
+			j = ((j << 4) | (*buf++ -'0'));
+		else
+			return -EINVAL;
+		if (i % 2) {
+			wwnn[i/2] = j & 0xff;
+			j = 0;
+		}
+	}
+	phba->cfg_soft_wwnn = wwn_to_u64(wwnn);
+
+	dev_printk(KERN_NOTICE, &phba->pcidev->dev,
+		   "lpfc%d: soft_wwnn set. Value will take effect upon "
+		   "setting of the soft_wwpn\n", phba->brd_no);
+
+	return count;
+}
+static CLASS_DEVICE_ATTR(lpfc_soft_wwnn, S_IRUGO | S_IWUSR,\
+			 lpfc_soft_wwnn_show, lpfc_soft_wwnn_store);
 
 
 static int lpfc_poll = 0;
@@ -1009,8 +1071,9 @@ struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_lpfc_poll,
 	&class_device_attr_lpfc_poll_tmo,
 	&class_device_attr_lpfc_use_msi,
+	&class_device_attr_lpfc_soft_wwnn,
 	&class_device_attr_lpfc_soft_wwpn,
-	&class_device_attr_lpfc_soft_wwpn_enable,
+	&class_device_attr_lpfc_soft_wwn_enable,
 	NULL,
 };
 
@@ -1815,6 +1878,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_devloss_tmo_init(phba, lpfc_devloss_tmo);
 	lpfc_nodev_tmo_init(phba, lpfc_nodev_tmo);
 	phba->cfg_poll = lpfc_poll;
+	phba->cfg_soft_wwnn = 0L;
 	phba->cfg_soft_wwpn = 0L;
 
 	/*

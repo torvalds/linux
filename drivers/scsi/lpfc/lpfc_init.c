@@ -268,6 +268,8 @@ lpfc_config_port_post(struct lpfc_hba * phba)
 	kfree(mp);
 	pmb->context1 = NULL;
 
+	if (phba->cfg_soft_wwnn)
+		u64_to_wwn(phba->cfg_soft_wwnn, phba->fc_sparam.nodeName.u.wwn);
 	if (phba->cfg_soft_wwpn)
 		u64_to_wwn(phba->cfg_soft_wwpn, phba->fc_sparam.portName.u.wwn);
 	memcpy(&phba->fc_nodename, &phba->fc_sparam.nodeName,
