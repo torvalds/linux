@@ -48,14 +48,14 @@ static struct tcf_hashinfo gact_hash_info = {
 #ifdef CONFIG_GACT_PROB
 static int gact_net_rand(struct tcf_gact *gact)
 {
-	if (net_random() % gact->tcfg_pval)
+	if (!gact->tcfg_pval || net_random() % gact->tcfg_pval)
 		return gact->tcf_action;
 	return gact->tcfg_paction;
 }
 
 static int gact_determ(struct tcf_gact *gact)
 {
-	if (gact->tcf_bstats.packets % gact->tcfg_pval)
+	if (!gact->tcfg_pval || gact->tcf_bstats.packets % gact->tcfg_pval)
 		return gact->tcf_action;
 	return gact->tcfg_paction;
 }
