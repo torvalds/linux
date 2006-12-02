@@ -243,6 +243,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 		struct serv_parm *sp, IOCB_t *irsp)
 {
 	LPFC_MBOXQ_t *mbox;
+	struct lpfc_dmabuf *mp;
 	int rc;
 
 	spin_lock_irq(phba->host->host_lock);
@@ -307,10 +308,14 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT | MBX_STOP_IOCB);
 	if (rc == MBX_NOT_FINISHED)
-		goto fail_free_mbox;
+		goto fail_issue_reg_login;
 
 	return 0;
 
+ fail_issue_reg_login:
+	mp = (struct lpfc_dmabuf *) mbox->context1;
+	lpfc_mbuf_free(phba, mp->virt, mp->phys);
+	kfree(mp);
  fail_free_mbox:
 	mempool_free(mbox, phba->mbox_mem_pool);
  fail:
@@ -1857,6 +1862,7 @@ lpfc_cmpl_els_acc(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 	IOCB_t *irsp;
 	struct lpfc_nodelist *ndlp;
 	LPFC_MBOXQ_t *mbox = NULL;
+	struct lpfc_dmabuf *mp;
 
 	irsp = &rspiocb->iocb;
 
@@ -1868,6 +1874,11 @@ lpfc_cmpl_els_acc(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 	/* Check to see if link went down during discovery */
 	if ((lpfc_els_chk_latt(phba)) || !ndlp) {
 		if (mbox) {
+			mp = (struct lpfc_dmabuf *) mbox->context1;
+			if (mp) {
+				lpfc_mbuf_free(phba, mp->virt, mp->phys);
+				kfree(mp);
+			}
 			mempool_free( mbox, phba->mbox_mem_pool);
 		}
 		goto out;
@@ -1899,9 +1910,7 @@ lpfc_cmpl_els_acc(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 			}
 			/* NOTE: we should have messages for unsuccessful
 			   reglogin */
-			mempool_free( mbox, phba->mbox_mem_pool);
 		} else {
-			mempool_free( mbox, phba->mbox_mem_pool);
 			/* Do not call NO_LIST for lpfc_els_abort'ed ELS cmds */
 			if (!((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
 			      ((irsp->un.ulpWord[4] == IOERR_SLI_ABORTED) ||
@@ -1913,6 +1922,12 @@ lpfc_cmpl_els_acc(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 				}
 			}
 		}
+		mp = (struct lpfc_dmabuf *) mbox->context1;
+		if (mp) {
+			lpfc_mbuf_free(phba, mp->virt, mp->phys);
+			kfree(mp);
+		}
+		mempool_free(mbox, phba->mbox_mem_pool);
 	}
 out:
 	if (ndlp) {

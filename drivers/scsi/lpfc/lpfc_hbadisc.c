@@ -715,6 +715,9 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 {
 	int i;
 	LPFC_MBOXQ_t *sparam_mbox, *cfglink_mbox;
+	struct lpfc_dmabuf *mp;
+	int rc;
+
 	sparam_mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	cfglink_mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 
@@ -793,16 +796,27 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 	if (sparam_mbox) {
 		lpfc_read_sparam(phba, sparam_mbox);
 		sparam_mbox->mbox_cmpl = lpfc_mbx_cmpl_read_sparam;
-		lpfc_sli_issue_mbox(phba, sparam_mbox,
+		rc = lpfc_sli_issue_mbox(phba, sparam_mbox,
 						(MBX_NOWAIT | MBX_STOP_IOCB));
+		if (rc == MBX_NOT_FINISHED) {
+			mp = (struct lpfc_dmabuf *) sparam_mbox->context1;
+			lpfc_mbuf_free(phba, mp->virt, mp->phys);
+			kfree(mp);
+			mempool_free(sparam_mbox, phba->mbox_mem_pool);
+			if (cfglink_mbox)
+				mempool_free(cfglink_mbox, phba->mbox_mem_pool);
+			return;
+		}
 	}
 
 	if (cfglink_mbox) {
 		phba->hba_state = LPFC_LOCAL_CFG_LINK;
 		lpfc_config_link(phba, cfglink_mbox);
 		cfglink_mbox->mbox_cmpl = lpfc_mbx_cmpl_local_config_link;
-		lpfc_sli_issue_mbox(phba, cfglink_mbox,
+		rc = lpfc_sli_issue_mbox(phba, cfglink_mbox,
 						(MBX_NOWAIT | MBX_STOP_IOCB));
+		if (rc == MBX_NOT_FINISHED)
+			mempool_free(cfglink_mbox, phba->mbox_mem_pool);
 	}
 }
 

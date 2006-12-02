@@ -739,7 +739,7 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_hba * phba,
 			    uint32_t evt)
 {
 	struct lpfc_iocbq *cmdiocb, *rspiocb;
-	struct lpfc_dmabuf *pcmd, *prsp;
+	struct lpfc_dmabuf *pcmd, *prsp, *mp;
 	uint32_t *lp;
 	IOCB_t *irsp;
 	struct serv_parm *sp;
@@ -829,6 +829,9 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_hba * phba,
 				      NLP_REGLOGIN_LIST);
 			return ndlp->nlp_state;
 		}
+		mp = (struct lpfc_dmabuf *)mbox->context1;
+		lpfc_mbuf_free(phba, mp->virt, mp->phys);
+		kfree(mp);
 		mempool_free(mbox, phba->mbox_mem_pool);
 	} else {
 		mempool_free(mbox, phba->mbox_mem_pool);

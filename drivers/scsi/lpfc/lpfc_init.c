@@ -611,7 +611,7 @@ lpfc_handle_latt(struct lpfc_hba * phba)
 	pmb->mbox_cmpl = lpfc_mbx_cmpl_read_la;
 	rc = lpfc_sli_issue_mbox (phba, pmb, (MBX_NOWAIT | MBX_STOP_IOCB));
 	if (rc == MBX_NOT_FINISHED)
-		goto lpfc_handle_latt_free_mp;
+		goto lpfc_handle_latt_free_mbuf;
 
 	/* Clear Link Attention in HA REG */
 	spin_lock_irq(phba->host->host_lock);
@@ -621,6 +621,8 @@ lpfc_handle_latt(struct lpfc_hba * phba)
 
 	return;
 
+lpfc_handle_latt_free_mbuf:
+	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 lpfc_handle_latt_free_mp:
 	kfree(mp);
 lpfc_handle_latt_free_pmb:
