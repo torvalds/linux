@@ -39,6 +39,12 @@
 #ifndef _CXGB_ELMER0_H_
 #define _CXGB_ELMER0_H_
 
+/* ELMER0 flavors */
+enum {
+	ELMER0_XC2S300E_6FT256_C,
+	ELMER0_XC2S100E_6TQ144_C
+};
+
 /* ELMER0 registers */
 #define A_ELMER0_VERSION 0x100000
 #define A_ELMER0_PHY_CFG 0x100004
@@ -149,3 +155,4 @@
 #define MI1_OP_INDIRECT_READ     3
 
 #endif /* _CXGB_ELMER0_H_ */
+

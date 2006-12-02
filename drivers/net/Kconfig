@@ -2361,9 +2361,9 @@ config CHELSIO_T1
         tristate "Chelsio 10Gb Ethernet support"
         depends on PCI
         help
-          This driver supports Chelsio N110 and N210 models 10Gb Ethernet
-          cards. More information about adapter features and performance
-          tuning is in <file:Documentation/networking/cxgb.txt>.
+          This driver supports Chelsio gigabit and 10-gigabit
+          Ethernet cards. More information about adapter features and
+	  performance tuning is in <file:Documentation/networking/cxgb.txt>.
 
           For general information about Chelsio and our products, visit
           our website at <http://www.chelsio.com>.

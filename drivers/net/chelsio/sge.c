@@ -42,12 +42,14 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
+#include <linux/ktime.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/mm.h>
+#include <linux/tcp.h>
 #include <linux/ip.h>
 #include <linux/in.h>
 #include <linux/if_arp.h>
@@ -57,10 +59,8 @@
 #include "regs.h"
 #include "espi.h"
 
-
-#ifdef NETIF_F_TSO
-#include <linux/tcp.h>
-#endif
+/* This belongs in if_ether.h */
+#define ETH_P_CPL5 0xf
 
 #define SGE_CMDQ_N		2
 #define SGE_FREELQ_N		2
@@ -73,6 +73,7 @@
 #define SGE_INTRTIMER_NRES	1000
 #define SGE_RX_COPY_THRES	256
 #define SGE_RX_SM_BUF_SIZE	1536
+#define SGE_TX_DESC_MAX_PLEN	16384
 
 # define SGE_RX_DROP_THRES 2
 
@@ -184,17 +185,17 @@ struct cmdQ {
 	unsigned long   status;         /* HW DMA fetch status */
 	unsigned int    in_use;         /* # of in-use command descriptors */
 	unsigned int	size;	        /* # of descriptors */
-	unsigned int	processed;      /* total # of descs HW has processed */
-	unsigned int	cleaned;        /* total # of descs SW has reclaimed */
-	unsigned int	stop_thres;     /* SW TX queue suspend threshold */
+	unsigned int    processed;      /* total # of descs HW has processed */
+	unsigned int    cleaned;        /* total # of descs SW has reclaimed */
+	unsigned int    stop_thres;     /* SW TX queue suspend threshold */
 	u16		pidx;           /* producer index (SW) */
 	u16		cidx;           /* consumer index (HW) */
 	u8		genbit;         /* current generation (=valid) bit */
-	u8		sop;            /* is next entry start of packet? */
+	u8              sop;            /* is next entry start of packet? */
 	struct cmdQ_e  *entries;        /* HW command descriptor Q */
 	struct cmdQ_ce *centries;       /* SW command context descriptor Q */
-	spinlock_t	lock;           /* Lock to protect cmdQ enqueuing */
 	dma_addr_t	dma_addr;       /* DMA addr HW command descriptor Q */
+ 	spinlock_t	lock;           /* Lock to protect cmdQ enqueuing */
 };
 
 struct freelQ {
@@ -203,8 +204,8 @@ struct freelQ {
 	u16		pidx;           /* producer index (SW) */
 	u16		cidx;           /* consumer index (HW) */
 	u16		rx_buffer_size; /* Buffer size on this free list */
-	u16		dma_offset;     /* DMA offset to align IP headers */
-	u16		recycleq_idx;   /* skb recycle q to use */
+	u16             dma_offset;     /* DMA offset to align IP headers */
+	u16             recycleq_idx;   /* skb recycle q to use */
 	u8		genbit;	        /* current generation (=valid) bit */
 	struct freelQ_e	*entries;       /* HW freelist descriptor Q */
 	struct freelQ_ce *centries;     /* SW freelist context descriptor Q */
@@ -226,6 +227,29 @@ enum {
 	CMDQ_STAT_LAST_PKT_DB = 2       /* last packet rung the doorbell */
 };
 
+/* T204 TX SW scheduler */
+
+/* Per T204 TX port */
+struct sched_port {
+	unsigned int	avail;		/* available bits - quota */
+	unsigned int	drain_bits_per_1024ns; /* drain rate */
+	unsigned int	speed;		/* drain rate, mbps */
+	unsigned int	mtu;		/* mtu size */
+	struct sk_buff_head skbq;	/* pending skbs */
+};
+
+/* Per T204 device */
+struct sched {
+	ktime_t         last_updated;   /* last time quotas were computed */
+	unsigned int 	max_avail;	/* max bits to be sent to any port */
+	unsigned int 	port;		/* port index (round robin ports) */
+	unsigned int 	num;		/* num skbs in per port queues */
+	struct sched_port p[MAX_NPORTS];
+	struct tasklet_struct sched_tsk;/* tasklet used to run scheduler */
+};
+static void restart_sched(unsigned long);
+
+
 /*
  * Main SGE data structure
  *
@@ -243,16 +267,238 @@ struct sge {
 	unsigned int	rx_pkt_pad;     /* RX padding for L2 packets */
 	unsigned int	jumbo_fl;       /* jumbo freelist Q index */
 	unsigned int	intrtimer_nres;	/* no-resource interrupt timer */
-	unsigned int	fixed_intrtimer;/* non-adaptive interrupt timer */
+	unsigned int    fixed_intrtimer;/* non-adaptive interrupt timer */
 	struct timer_list tx_reclaim_timer; /* reclaims TX buffers */
 	struct timer_list espibug_timer;
-	unsigned int	espibug_timeout;
-	struct sk_buff	*espibug_skb;
+	unsigned long	espibug_timeout;
+	struct sk_buff	*espibug_skb[MAX_NPORTS];
 	u32		sge_control;	/* shadow value of sge control reg */
 	struct sge_intr_counts stats;
 	struct sge_port_stats port_stats[MAX_NPORTS];
+	struct sched	*tx_sched;
 	struct cmdQ cmdQ[SGE_CMDQ_N] ____cacheline_aligned_in_smp;
 };
+
+/*
+ * stop tasklet and free all pending skb's
+ */
+static void tx_sched_stop(struct sge *sge)
+{
+	struct sched *s = sge->tx_sched;
+	int i;
+
+	tasklet_kill(&s->sched_tsk);
+
+	for (i = 0; i < MAX_NPORTS; i++)
+		__skb_queue_purge(&s->p[s->port].skbq);
+}
+
+/*
+ * t1_sched_update_parms() is called when the MTU or link speed changes. It
+ * re-computes scheduler parameters to scope with the change.
+ */
+unsigned int t1_sched_update_parms(struct sge *sge, unsigned int port,
+				   unsigned int mtu, unsigned int speed)
+{
+	struct sched *s = sge->tx_sched;
+	struct sched_port *p = &s->p[port];
+	unsigned int max_avail_segs;
+
+	pr_debug("t1_sched_update_params mtu=%d speed=%d\n", mtu, speed);
+	if (speed)
+		p->speed = speed;
+	if (mtu)
+		p->mtu = mtu;
+
+	if (speed || mtu) {
+		unsigned long long drain = 1024ULL * p->speed * (p->mtu - 40);
+		do_div(drain, (p->mtu + 50) * 1000);
+		p->drain_bits_per_1024ns = (unsigned int) drain;
+
+		if (p->speed < 1000)
+			p->drain_bits_per_1024ns =
+				90 * p->drain_bits_per_1024ns / 100;
+	}
+
+	if (board_info(sge->adapter)->board == CHBT_BOARD_CHT204) {
+		p->drain_bits_per_1024ns -= 16;
+		s->max_avail = max(4096U, p->mtu + 16 + 14 + 4);
+		max_avail_segs = max(1U, 4096 / (p->mtu - 40));
+	} else {
+		s->max_avail = 16384;
+		max_avail_segs = max(1U, 9000 / (p->mtu - 40));
+	}
+
+	pr_debug("t1_sched_update_parms: mtu %u speed %u max_avail %u "
+		 "max_avail_segs %u drain_bits_per_1024ns %u\n", p->mtu,
+		 p->speed, s->max_avail, max_avail_segs,
+		 p->drain_bits_per_1024ns);
+
+	return max_avail_segs * (p->mtu - 40);
+}
+
+/*
+ * t1_sched_max_avail_bytes() tells the scheduler the maximum amount of
+ * data that can be pushed per port.
+ */
+void t1_sched_set_max_avail_bytes(struct sge *sge, unsigned int val)
+{
+	struct sched *s = sge->tx_sched;
+	unsigned int i;
+
+	s->max_avail = val;
+	for (i = 0; i < MAX_NPORTS; i++)
+		t1_sched_update_parms(sge, i, 0, 0);
+}
+
+/*
+ * t1_sched_set_drain_bits_per_us() tells the scheduler at which rate a port
+ * is draining.
+ */
+void t1_sched_set_drain_bits_per_us(struct sge *sge, unsigned int port,
+					 unsigned int val)
+{
+	struct sched *s = sge->tx_sched;
+	struct sched_port *p = &s->p[port];
+	p->drain_bits_per_1024ns = val * 1024 / 1000;
+	t1_sched_update_parms(sge, port, 0, 0);
+}
+
+
+/*
+ * get_clock() implements a ns clock (see ktime_get)
+ */
+static inline ktime_t get_clock(void)
+{
+	struct timespec ts;
+
+	ktime_get_ts(&ts);
+	return timespec_to_ktime(ts);
+}
+
+/*
+ * tx_sched_init() allocates resources and does basic initialization.
+ */
+static int tx_sched_init(struct sge *sge)
+{
+	struct sched *s;
+	int i;
+
+	s = kzalloc(sizeof (struct sched), GFP_KERNEL);
+	if (!s)
+		return -ENOMEM;
+
+	pr_debug("tx_sched_init\n");
+	tasklet_init(&s->sched_tsk, restart_sched, (unsigned long) sge);
+	sge->tx_sched = s;
+
+	for (i = 0; i < MAX_NPORTS; i++) {
+		skb_queue_head_init(&s->p[i].skbq);
+		t1_sched_update_parms(sge, i, 1500, 1000);
+	}
+
+	return 0;
+}
+
+/*
+ * sched_update_avail() computes the delta since the last time it was called
+ * and updates the per port quota (number of bits that can be sent to the any
+ * port).
+ */
+static inline int sched_update_avail(struct sge *sge)
+{
+	struct sched *s = sge->tx_sched;
+	ktime_t now = get_clock();
+	unsigned int i;
+	long long delta_time_ns;
+
+	delta_time_ns = ktime_to_ns(ktime_sub(now, s->last_updated));
+
+	pr_debug("sched_update_avail delta=%lld\n", delta_time_ns);
+	if (delta_time_ns < 15000)
+		return 0;
+
+	for (i = 0; i < MAX_NPORTS; i++) {
+		struct sched_port *p = &s->p[i];
+		unsigned int delta_avail;
+
+		delta_avail = (p->drain_bits_per_1024ns * delta_time_ns) >> 13;
+		p->avail = min(p->avail + delta_avail, s->max_avail);
+	}
+
+	s->last_updated = now;
+
+	return 1;
+}
+
+/*
+ * sched_skb() is called from two different places. In the tx path, any
+ * packet generating load on an output port will call sched_skb()
+ * (skb != NULL). In addition, sched_skb() is called from the irq/soft irq
+ * context (skb == NULL).
+ * The scheduler only returns a skb (which will then be sent) if the
+ * length of the skb is <= the current quota of the output port.
+ */
+static struct sk_buff *sched_skb(struct sge *sge, struct sk_buff *skb,
+				unsigned int credits)
+{
+	struct sched *s = sge->tx_sched;
+	struct sk_buff_head *skbq;
+	unsigned int i, len, update = 1;
+
+	pr_debug("sched_skb %p\n", skb);
+	if (!skb) {
+		if (!s->num)
+			return NULL;
+	} else {
+		skbq = &s->p[skb->dev->if_port].skbq;
+		__skb_queue_tail(skbq, skb);
+		s->num++;
+		skb = NULL;
+	}
+
+	if (credits < MAX_SKB_FRAGS + 1)
+		goto out;
+
+ again:
+	for (i = 0; i < MAX_NPORTS; i++) {
+		s->port = ++s->port & (MAX_NPORTS - 1);
+		skbq = &s->p[s->port].skbq;
+
+		skb = skb_peek(skbq);
+
+		if (!skb)
+			continue;
+
+		len = skb->len;
+		if (len <= s->p[s->port].avail) {
+			s->p[s->port].avail -= len;
+			s->num--;
+			__skb_unlink(skb, skbq);
+			goto out;
+		}
+		skb = NULL;
+	}
+
+	if (update-- && sched_update_avail(sge))
+		goto again;
+
+ out:
+ 	/* If there are more pending skbs, we use the hardware to schedule us
+	 * again.
+	 */
+	if (s->num && !skb) {
+		struct cmdQ *q = &sge->cmdQ[0];
+		clear_bit(CMDQ_STAT_LAST_PKT_DB, &q->status);
+		if (test_and_set_bit(CMDQ_STAT_RUNNING, &q->status) == 0) {
+			set_bit(CMDQ_STAT_LAST_PKT_DB, &q->status);
+			writel(F_CMDQ0_ENABLE, sge->adapter->regs + A_SG_DOORBELL);
+		}
+	}
+	pr_debug("sched_skb ret %p\n", skb);
+
+	return skb;
+}
 
 /*
  * PIO to indicate that memory mapped Q contains valid descriptor(s).
@@ -350,8 +596,11 @@ static int alloc_rx_resources(struct sge *sge, struct sge_params *p)
 	sge->freelQ[!sge->jumbo_fl].rx_buffer_size = SGE_RX_SM_BUF_SIZE +
 		sizeof(struct cpl_rx_data) +
 		sge->freelQ[!sge->jumbo_fl].dma_offset;
-	sge->freelQ[sge->jumbo_fl].rx_buffer_size = (16 * 1024) -
-		SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+
+		size = (16 * 1024) -
+		    SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+
+	sge->freelQ[sge->jumbo_fl].rx_buffer_size = size;
 
 	/*
 	 * Setup which skb recycle Q should be used when recycling buffers from
@@ -388,17 +637,23 @@ static void free_cmdQ_buffers(struct sge *sge, struct cmdQ *q, unsigned int n)
 	q->in_use -= n;
 	ce = &q->centries[cidx];
 	while (n--) {
-		if (q->sop)
-			pci_unmap_single(pdev, pci_unmap_addr(ce, dma_addr),
-			 		 pci_unmap_len(ce, dma_len),
-					 PCI_DMA_TODEVICE);
-		else
-			pci_unmap_page(pdev, pci_unmap_addr(ce, dma_addr),
-			 	       pci_unmap_len(ce, dma_len),
-				       PCI_DMA_TODEVICE);
-		q->sop = 0;
+		if (q->sop) {
+			if (likely(pci_unmap_len(ce, dma_len))) {
+				pci_unmap_single(pdev,
+						 pci_unmap_addr(ce, dma_addr),
+			 			 pci_unmap_len(ce, dma_len),
+						 PCI_DMA_TODEVICE);
+				q->sop = 0;
+			}
+		} else {
+			if (likely(pci_unmap_len(ce, dma_len))) {
+				pci_unmap_page(pdev, pci_unmap_addr(ce, dma_addr),
+			 		       pci_unmap_len(ce, dma_len),
+					       PCI_DMA_TODEVICE);
+			}
+		}
 		if (ce->skb) {
-			dev_kfree_skb(ce->skb);
+			dev_kfree_skb_any(ce->skb);
 			q->sop = 1;
 		}
 		ce++;
@@ -504,7 +759,7 @@ void t1_set_vlan_accel(struct adapter *adapter, int on_off)
 		sge->sge_control |= F_VLAN_XTRACT;
 	if (adapter->open_device_map) {
 		writel(sge->sge_control, adapter->regs + A_SG_CONTROL);
-		readl(adapter->regs + A_SG_CONTROL); /* flush */
+		readl(adapter->regs + A_SG_CONTROL);   /* flush */
 	}
 }
 
@@ -538,7 +793,6 @@ static void configure_sge(struct sge *sge, struct sge_params *p)
 	sge->sge_control = F_CMDQ0_ENABLE | F_CMDQ1_ENABLE | F_FL0_ENABLE |
 		F_FL1_ENABLE | F_CPL_ENABLE | F_RESPONSE_QUEUE_ENABLE |
 		V_CMDQ_PRIORITY(2) | F_DISABLE_CMDQ1_GTS | F_ISCSI_COALESCE |
-		F_DISABLE_FL0_GTS | F_DISABLE_FL1_GTS |
 		V_RX_PKT_OFFSET(sge->rx_pkt_pad);
 
 #if defined(__BIG_ENDIAN_BITFIELD)
@@ -566,9 +820,7 @@ static inline unsigned int jumbo_payload_capacity(const struct sge *sge)
  */
 void t1_sge_destroy(struct sge *sge)
 {
-	if (sge->espibug_skb)
-		kfree_skb(sge->espibug_skb);
-
+	kfree(sge->tx_sched);
 	free_tx_resources(sge);
 	free_rx_resources(sge);
 	kfree(sge);
@@ -854,6 +1106,99 @@ static void unexpected_offload(struct adapter *adapter, struct freelQ *fl)
 }
 
 /*
+ * T1/T2 SGE limits the maximum DMA size per TX descriptor to
+ * SGE_TX_DESC_MAX_PLEN (16KB). If the PAGE_SIZE is larger than 16KB, the
+ * stack might send more than SGE_TX_DESC_MAX_PLEN in a contiguous manner.
+ * Note that the *_large_page_tx_descs stuff will be optimized out when
+ * PAGE_SIZE <= SGE_TX_DESC_MAX_PLEN.
+ *
+ * compute_large_page_descs() computes how many additional descriptors are
+ * required to break down the stack's request.
+ */
+static inline unsigned int compute_large_page_tx_descs(struct sk_buff *skb)
+{
+	unsigned int count = 0;
+	if (PAGE_SIZE > SGE_TX_DESC_MAX_PLEN) {
+		unsigned int nfrags = skb_shinfo(skb)->nr_frags;
+		unsigned int i, len = skb->len - skb->data_len;
+		while (len > SGE_TX_DESC_MAX_PLEN) {
+			count++;
+			len -= SGE_TX_DESC_MAX_PLEN;
+		}
+		for (i = 0; nfrags--; i++) {
+			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+			len = frag->size;
+			while (len > SGE_TX_DESC_MAX_PLEN) {
+				count++;
+				len -= SGE_TX_DESC_MAX_PLEN;
+			}
+		}
+	}
+	return count;
+}
+
+/*
+ * Write a cmdQ entry.
+ *
+ * Since this function writes the 'flags' field, it must not be used to
+ * write the first cmdQ entry.
+ */
+static inline void write_tx_desc(struct cmdQ_e *e, dma_addr_t mapping,
+				 unsigned int len, unsigned int gen,
+				 unsigned int eop)
+{
+	if (unlikely(len > SGE_TX_DESC_MAX_PLEN))
+		BUG();
+	e->addr_lo = (u32)mapping;
+	e->addr_hi = (u64)mapping >> 32;
+	e->len_gen = V_CMD_LEN(len) | V_CMD_GEN1(gen);
+	e->flags = F_CMD_DATAVALID | V_CMD_EOP(eop) | V_CMD_GEN2(gen);
+}
+
+/*
+ * See comment for previous function.
+ *
+ * write_tx_descs_large_page() writes additional SGE tx descriptors if
+ * *desc_len exceeds HW's capability.
+ */
+static inline unsigned int write_large_page_tx_descs(unsigned int pidx,
+						     struct cmdQ_e **e,
+						     struct cmdQ_ce **ce,
+						     unsigned int *gen,
+						     dma_addr_t *desc_mapping,
+						     unsigned int *desc_len,
+						     unsigned int nfrags,
+						     struct cmdQ *q)
+{
+	if (PAGE_SIZE > SGE_TX_DESC_MAX_PLEN) {
+		struct cmdQ_e *e1 = *e;
+		struct cmdQ_ce *ce1 = *ce;
+
+		while (*desc_len > SGE_TX_DESC_MAX_PLEN) {
+			*desc_len -= SGE_TX_DESC_MAX_PLEN;
+			write_tx_desc(e1, *desc_mapping, SGE_TX_DESC_MAX_PLEN,
+				      *gen, nfrags == 0 && *desc_len == 0);
+			ce1->skb = NULL;
+			pci_unmap_len_set(ce1, dma_len, 0);
+			*desc_mapping += SGE_TX_DESC_MAX_PLEN;
+			if (*desc_len) {
+				ce1++;
+				e1++;
+				if (++pidx == q->size) {
+					pidx = 0;
+					*gen ^= 1;
+					ce1 = q->centries;
+					e1 = q->entries;
+				}
+			}
+		}
+		*e = e1;
+		*ce = ce1;
+	}
+	return pidx;
+}
+
+/*
  * Write the command descriptors to transmit the given skb starting at
  * descriptor pidx with the given generation.
  */
@@ -861,50 +1206,84 @@ static inline void write_tx_descs(struct adapter *adapter, struct sk_buff *skb,
 				  unsigned int pidx, unsigned int gen,
 				  struct cmdQ *q)
 {
-	dma_addr_t mapping;
+	dma_addr_t mapping, desc_mapping;
 	struct cmdQ_e *e, *e1;
 	struct cmdQ_ce *ce;
-	unsigned int i, flags, nfrags = skb_shinfo(skb)->nr_frags;
+	unsigned int i, flags, first_desc_len, desc_len,
+	    nfrags = skb_shinfo(skb)->nr_frags;
+
+	e = e1 = &q->entries[pidx];
+	ce = &q->centries[pidx];
 
 	mapping = pci_map_single(adapter->pdev, skb->data,
-				 skb->len - skb->data_len, PCI_DMA_TODEVICE);
-	ce = &q->centries[pidx];
+				skb->len - skb->data_len, PCI_DMA_TODEVICE);
+
+	desc_mapping = mapping;
+	desc_len = skb->len - skb->data_len;
+
+	flags = F_CMD_DATAVALID | F_CMD_SOP |
+	    V_CMD_EOP(nfrags == 0 && desc_len <= SGE_TX_DESC_MAX_PLEN) |
+	    V_CMD_GEN2(gen);
+	first_desc_len = (desc_len <= SGE_TX_DESC_MAX_PLEN) ?
+	    desc_len : SGE_TX_DESC_MAX_PLEN;
+	e->addr_lo = (u32)desc_mapping;
+	e->addr_hi = (u64)desc_mapping >> 32;
+	e->len_gen = V_CMD_LEN(first_desc_len) | V_CMD_GEN1(gen);
+	ce->skb = NULL;
+	pci_unmap_len_set(ce, dma_len, 0);
+
+	if (PAGE_SIZE > SGE_TX_DESC_MAX_PLEN &&
+	    desc_len > SGE_TX_DESC_MAX_PLEN) {
+		desc_mapping += first_desc_len;
+		desc_len -= first_desc_len;
+		e1++;
+		ce++;
+		if (++pidx == q->size) {
+			pidx = 0;
+			gen ^= 1;
+			e1 = q->entries;
+			ce = q->centries;
+		}
+		pidx = write_large_page_tx_descs(pidx, &e1, &ce, &gen,
+						 &desc_mapping, &desc_len,
+						 nfrags, q);
+
+		if (likely(desc_len))
+			write_tx_desc(e1, desc_mapping, desc_len, gen,
+				      nfrags == 0);
+	}
+
 	ce->skb = NULL;
 	pci_unmap_addr_set(ce, dma_addr, mapping);
 	pci_unmap_len_set(ce, dma_len, skb->len - skb->data_len);
 
-	flags = F_CMD_DATAVALID | F_CMD_SOP | V_CMD_EOP(nfrags == 0) |
-		V_CMD_GEN2(gen);
-	e = &q->entries[pidx];
-	e->addr_lo = (u32)mapping;
-	e->addr_hi = (u64)mapping >> 32;
-	e->len_gen = V_CMD_LEN(skb->len - skb->data_len) | V_CMD_GEN1(gen);
-	for (e1 = e, i = 0; nfrags--; i++) {
+	for (i = 0; nfrags--; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-
-		ce++;
 		e1++;
+		ce++;
 		if (++pidx == q->size) {
 			pidx = 0;
 			gen ^= 1;
-			ce = q->centries;
 			e1 = q->entries;
+			ce = q->centries;
 		}
 
 		mapping = pci_map_page(adapter->pdev, frag->page,
 				       frag->page_offset, frag->size,
 				       PCI_DMA_TODEVICE);
+		desc_mapping = mapping;
+		desc_len = frag->size;
+
+		pidx = write_large_page_tx_descs(pidx, &e1, &ce, &gen,
+						 &desc_mapping, &desc_len,
+						 nfrags, q);
+		if (likely(desc_len))
+			write_tx_desc(e1, desc_mapping, desc_len, gen,
+				      nfrags == 0);
 		ce->skb = NULL;
 		pci_unmap_addr_set(ce, dma_addr, mapping);
 		pci_unmap_len_set(ce, dma_len, frag->size);
-
-		e1->addr_lo = (u32)mapping;
-		e1->addr_hi = (u64)mapping >> 32;
-		e1->len_gen = V_CMD_LEN(frag->size) | V_CMD_GEN1(gen);
-		e1->flags = F_CMD_DATAVALID | V_CMD_EOP(nfrags == 0) |
-			    V_CMD_GEN2(gen);
 	}
-
 	ce->skb = skb;
 	wmb();
 	e->flags = flags;
@@ -918,14 +1297,56 @@ static inline void reclaim_completed_tx(struct sge *sge, struct cmdQ *q)
 	unsigned int reclaim = q->processed - q->cleaned;
 
 	if (reclaim) {
+		pr_debug("reclaim_completed_tx processed:%d cleaned:%d\n",
+			 q->processed, q->cleaned);
 		free_cmdQ_buffers(sge, q, reclaim);
 		q->cleaned += reclaim;
 	}
 }
 
-#ifndef SET_ETHTOOL_OPS
-# define __netif_rx_complete(dev) netif_rx_complete(dev)
-#endif
+/*
+ * Called from tasklet. Checks the scheduler for any
+ * pending skbs that can be sent.
+ */
+static void restart_sched(unsigned long arg)
+{
+	struct sge *sge = (struct sge *) arg;
+	struct adapter *adapter = sge->adapter;
+	struct cmdQ *q = &sge->cmdQ[0];
+	struct sk_buff *skb;
+	unsigned int credits, queued_skb = 0;
+
+	spin_lock(&q->lock);
+	reclaim_completed_tx(sge, q);
+
+	credits = q->size - q->in_use;
+	pr_debug("restart_sched credits=%d\n", credits);
+	while ((skb = sched_skb(sge, NULL, credits)) != NULL) {
+		unsigned int genbit, pidx, count;
+	        count = 1 + skb_shinfo(skb)->nr_frags;
+       		count += compute_large_page_tx_descs(skb);
+		q->in_use += count;
+		genbit = q->genbit;
+		pidx = q->pidx;
+		q->pidx += count;
+		if (q->pidx >= q->size) {
+			q->pidx -= q->size;
+			q->genbit ^= 1;
+		}
+		write_tx_descs(adapter, skb, pidx, genbit, q);
+	        credits = q->size - q->in_use;
+		queued_skb = 1;
+	}
+
+	if (queued_skb) {
+		clear_bit(CMDQ_STAT_LAST_PKT_DB, &q->status);
+		if (test_and_set_bit(CMDQ_STAT_RUNNING, &q->status) == 0) {
+			set_bit(CMDQ_STAT_LAST_PKT_DB, &q->status);
+			writel(F_CMDQ0_ENABLE, adapter->regs + A_SG_DOORBELL);
+		}
+	}
+	spin_unlock(&q->lock);
+}
 
 /**
  *	sge_rx - process an ingress ethernet packet
@@ -953,6 +1374,11 @@ static int sge_rx(struct sge *sge, struct freelQ *fl, unsigned int len)
 	p = (struct cpl_rx_pkt *)skb->data;
 	skb_pull(skb, sizeof(*p));
 	skb->dev = adapter->port[p->iff].dev;
+	if (p->iff >= adapter->params.nports) {
+		kfree_skb(skb);
+		return 0;
+	}
+
 	skb->dev->last_rx = jiffies;
 	skb->protocol = eth_type_trans(skb, skb->dev);
 	if ((adapter->flags & RX_CSUM_ENABLED) && p->csum == 0xffff &&
@@ -1025,18 +1451,24 @@ static unsigned int update_tx_info(struct adapter *adapter,
 	struct cmdQ *cmdq = &sge->cmdQ[0];
 
 	cmdq->processed += pr0;
-
+	if (flags & (F_FL0_ENABLE | F_FL1_ENABLE)) {
+		freelQs_empty(sge);
+		flags &= ~(F_FL0_ENABLE | F_FL1_ENABLE);
+	}
 	if (flags & F_CMDQ0_ENABLE) {
 		clear_bit(CMDQ_STAT_RUNNING, &cmdq->status);
-	
+
 		if (cmdq->cleaned + cmdq->in_use != cmdq->processed &&
 		    !test_and_set_bit(CMDQ_STAT_LAST_PKT_DB, &cmdq->status)) {
 			set_bit(CMDQ_STAT_RUNNING, &cmdq->status);
 			writel(F_CMDQ0_ENABLE, adapter->regs + A_SG_DOORBELL);
 		}
-	 	flags &= ~F_CMDQ0_ENABLE;
+		if (sge->tx_sched)
+			tasklet_hi_schedule(&sge->tx_sched->sched_tsk);
+
+		flags &= ~F_CMDQ0_ENABLE;
 	}
-	
+
 	if (unlikely(sge->stopped_tx_queues != 0))
 		restart_tx_queues(sge);
 
@@ -1233,14 +1665,15 @@ static irqreturn_t t1_interrupt_napi(int irq, void *data)
 					printk(KERN_INFO
 					       "NAPI schedule failure!\n");
 			} else
-			writel(q->cidx, adapter->regs + A_SG_SLEEPING);
+				writel(q->cidx, adapter->regs + A_SG_SLEEPING);
+
 			handled = 1;
 			goto unlock;
 		} else
-		writel(q->cidx, adapter->regs + A_SG_SLEEPING);
-	}  else
-	if (readl(adapter->regs + A_PL_CAUSE) & F_PL_INTR_SGE_DATA)
-		printk(KERN_ERR "data interrupt while NAPI running\n");
+			writel(q->cidx, adapter->regs + A_SG_SLEEPING);
+	}  else if (readl(adapter->regs + A_PL_CAUSE) & F_PL_INTR_SGE_DATA) {
+	        printk(KERN_ERR "data interrupt while NAPI running\n");
+	}
 	
 	handled = t1_slow_intr_handler(adapter);
 	if (!handled)
@@ -1321,7 +1754,7 @@ static int t1_sge_tx(struct sk_buff *skb, struct adapter *adapter,
 {
 	struct sge *sge = adapter->sge;
 	struct cmdQ *q = &sge->cmdQ[qid];
-	unsigned int credits, pidx, genbit, count;
+	unsigned int credits, pidx, genbit, count, use_sched_skb = 0;
 
 	spin_lock(&q->lock);
 	reclaim_completed_tx(sge, q);
@@ -1329,26 +1762,49 @@ static int t1_sge_tx(struct sk_buff *skb, struct adapter *adapter,
 	pidx = q->pidx;
 	credits = q->size - q->in_use;
 	count = 1 + skb_shinfo(skb)->nr_frags;
+	count += compute_large_page_tx_descs(skb);
 
-	{	/* Ethernet packet */
-	 	if (unlikely(credits < count)) {
+	/* Ethernet packet */
+	if (unlikely(credits < count)) {
+		if (!netif_queue_stopped(dev)) {
 			netif_stop_queue(dev);
 			set_bit(dev->if_port, &sge->stopped_tx_queues);
 			sge->stats.cmdQ_full[2]++;
-			spin_unlock(&q->lock);
-			if (!netif_queue_stopped(dev))
-				CH_ERR("%s: Tx ring full while queue awake!\n",
-				       adapter->name);
-			return NETDEV_TX_BUSY;
+			CH_ERR("%s: Tx ring full while queue awake!\n",
+			       adapter->name);
 		}
-		if (unlikely(credits - count < q->stop_thres)) {
-			sge->stats.cmdQ_full[2]++;
-			netif_stop_queue(dev);
-			set_bit(dev->if_port, &sge->stopped_tx_queues);
-		}
+		spin_unlock(&q->lock);
+		return NETDEV_TX_BUSY;
 	}
+
+	if (unlikely(credits - count < q->stop_thres)) {
+		netif_stop_queue(dev);
+		set_bit(dev->if_port, &sge->stopped_tx_queues);
+		sge->stats.cmdQ_full[2]++;
+	}
+
+	/* T204 cmdQ0 skbs that are destined for a certain port have to go
+	 * through the scheduler.
+	 */
+	if (sge->tx_sched && !qid && skb->dev) {
+	use_sched:
+		use_sched_skb = 1;
+		/* Note that the scheduler might return a different skb than
+		 * the one passed in.
+		 */
+		skb = sched_skb(sge, skb, credits);
+		if (!skb) {
+			spin_unlock(&q->lock);
+			return NETDEV_TX_OK;
+		}
+		pidx = q->pidx;
+		count = 1 + skb_shinfo(skb)->nr_frags;
+		count += compute_large_page_tx_descs(skb);
+	}
+
 	q->in_use += count;
 	genbit = q->genbit;
+	pidx = q->pidx;
 	q->pidx += count;
 	if (q->pidx >= q->size) {
 		q->pidx -= q->size;
@@ -1372,6 +1828,14 @@ static int t1_sge_tx(struct sk_buff *skb, struct adapter *adapter,
 		if (test_and_set_bit(CMDQ_STAT_RUNNING, &q->status) == 0) {
 			set_bit(CMDQ_STAT_LAST_PKT_DB, &q->status);
 			writel(F_CMDQ0_ENABLE, adapter->regs + A_SG_DOORBELL);
+		}
+	}
+
+	if (use_sched_skb) {
+		if (spin_trylock(&q->lock)) {
+			credits = q->size - q->in_use;
+			skb = NULL;
+			goto use_sched;
 		}
 	}
 	return NETDEV_TX_OK;
@@ -1402,8 +1866,10 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct sge *sge = adapter->sge;
 	struct cpl_tx_pkt *cpl;
 
-#ifdef NETIF_F_TSO
-	if (skb_is_gso(skb)) {
+	if (skb->protocol == htons(ETH_P_CPL5))
+		goto send;
+
+	if (skb_shinfo(skb)->gso_size) {
 		int eth_type;
 		struct cpl_tx_pkt_lso *hdr;
 
@@ -1418,13 +1884,11 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		hdr->ip_hdr_words = skb->nh.iph->ihl;
 		hdr->tcp_hdr_words = skb->h.th->doff;
 		hdr->eth_type_mss = htons(MK_ETH_TYPE_MSS(eth_type,
-						skb_shinfo(skb)->gso_size));
+							  skb_shinfo(skb)->gso_size));
 		hdr->len = htonl(skb->len - sizeof(*hdr));
 		cpl = (struct cpl_tx_pkt *)hdr;
 		sge->stats.tx_lso_pkts++;
-	} else
-#endif
-	{
+	} else {
 		/*
 	 	 * Packets shorter than ETH_HLEN can break the MAC, drop them
 		 * early.  Also, we may get oversized packets because some
@@ -1433,6 +1897,8 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 */
 		if (unlikely(skb->len < ETH_HLEN ||
 			     skb->len > dev->mtu + eth_hdr_len(skb->data))) {
+			pr_debug("%s: packet size %d hdr %d mtu%d\n", dev->name,
+				 skb->len, eth_hdr_len(skb->data), dev->mtu);
 			dev_kfree_skb_any(skb);
 			return NETDEV_TX_OK;
 		}
@@ -1442,9 +1908,11 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * components, such as pktgen, do not handle it right.
 		 * Complain when this happens but try to fix things up.
 		 */
-		if (unlikely(skb_headroom(skb) <
-			     dev->hard_header_len - ETH_HLEN)) {
+		if (unlikely(skb_headroom(skb) < dev->hard_header_len - ETH_HLEN)) {
 			struct sk_buff *orig_skb = skb;
+
+			pr_debug("%s: headroom %d header_len %d\n", dev->name,
+				 skb_headroom(skb), dev->hard_header_len);
 
 			if (net_ratelimit())
 				printk(KERN_ERR "%s: inadequate headroom in "
@@ -1457,19 +1925,21 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		if (!(adapter->flags & UDP_CSUM_CAPABLE) &&
 		    skb->ip_summed == CHECKSUM_PARTIAL &&
-		    skb->nh.iph->protocol == IPPROTO_UDP)
+		    skb->nh.iph->protocol == IPPROTO_UDP) {
 			if (unlikely(skb_checksum_help(skb))) {
+				pr_debug("%s: unable to do udp checksum\n", dev->name);
 				dev_kfree_skb_any(skb);
 				return NETDEV_TX_OK;
 			}
+		}
 
 		/* Hmmm, assuming to catch the gratious arp... and we'll use
 		 * it to flush out stuck espi packets...
-		  */
-		if (unlikely(!adapter->sge->espibug_skb)) {
+		 */
+		if ((unlikely(!adapter->sge->espibug_skb[dev->if_port]))) {
 			if (skb->protocol == htons(ETH_P_ARP) &&
 			    skb->nh.arph->ar_op == htons(ARPOP_REQUEST)) {
-				adapter->sge->espibug_skb = skb;
+				adapter->sge->espibug_skb[dev->if_port] = skb;
 				/* We want to re-use this skb later. We
 				 * simply bump the reference count and it
 				 * will not be freed...
@@ -1499,6 +1969,7 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 		cpl->vlan_valid = 0;
 
+send:
 	dev->trans_start = jiffies;
 	return t1_sge_tx(skb, adapter, 0, dev);
 }
@@ -1518,10 +1989,9 @@ static void sge_tx_reclaim_cb(unsigned long data)
 			continue;
 
 		reclaim_completed_tx(sge, q);
-		if (i == 0 && q->in_use)   /* flush pending credits */
-			writel(F_CMDQ0_ENABLE,
-				sge->adapter->regs + A_SG_DOORBELL);
-
+		if (i == 0 && q->in_use) {    /* flush pending credits */
+			writel(F_CMDQ0_ENABLE, sge->adapter->regs + A_SG_DOORBELL);
+		}
 		spin_unlock(&q->lock);
 	}
 	mod_timer(&sge->tx_reclaim_timer, jiffies + TX_RECLAIM_PERIOD);
@@ -1568,11 +2038,20 @@ int t1_sge_configure(struct sge *sge, struct sge_params *p)
  */
 void t1_sge_stop(struct sge *sge)
 {
+	int i;
 	writel(0, sge->adapter->regs + A_SG_CONTROL);
-	(void) readl(sge->adapter->regs + A_SG_CONTROL); /* flush */
+	readl(sge->adapter->regs + A_SG_CONTROL); /* flush */
+
 	if (is_T2(sge->adapter))
 		del_timer_sync(&sge->espibug_timer);
+
 	del_timer_sync(&sge->tx_reclaim_timer);
+	if (sge->tx_sched)
+		tx_sched_stop(sge);
+
+	for (i = 0; i < MAX_NPORTS; i++)
+		if (sge->espibug_skb[i])
+			kfree_skb(sge->espibug_skb[i]);
 }
 
 /*
@@ -1585,44 +2064,82 @@ void t1_sge_start(struct sge *sge)
 
 	writel(sge->sge_control, sge->adapter->regs + A_SG_CONTROL);
 	doorbell_pio(sge->adapter, F_FL0_ENABLE | F_FL1_ENABLE);
-	(void) readl(sge->adapter->regs + A_SG_CONTROL); /* flush */
+	readl(sge->adapter->regs + A_SG_CONTROL); /* flush */
 
 	mod_timer(&sge->tx_reclaim_timer, jiffies + TX_RECLAIM_PERIOD);
 
-	if (is_T2(sge->adapter)) 
+	if (is_T2(sge->adapter))
 		mod_timer(&sge->espibug_timer, jiffies + sge->espibug_timeout);
 }
 
 /*
  * Callback for the T2 ESPI 'stuck packet feature' workaorund
  */
-static void espibug_workaround(void *data)
+static void espibug_workaround_t204(unsigned long data)
+{
+	struct adapter *adapter = (struct adapter *)data;
+	struct sge *sge = adapter->sge;
+	unsigned int nports = adapter->params.nports;
+	u32 seop[MAX_NPORTS];
+
+	if (adapter->open_device_map & PORT_MASK) {
+		int i;
+		if (t1_espi_get_mon_t204(adapter, &(seop[0]), 0) < 0) {
+			return;
+		}
+		for (i = 0; i < nports; i++) {
+	        	struct sk_buff *skb = sge->espibug_skb[i];
+			if ( (netif_running(adapter->port[i].dev)) &&
+			     !(netif_queue_stopped(adapter->port[i].dev)) &&
+			     (seop[i] && ((seop[i] & 0xfff) == 0)) &&
+			     skb ) {
+	                	if (!skb->cb[0]) {
+	                        	u8 ch_mac_addr[ETH_ALEN] =
+	                            	{0x0, 0x7, 0x43, 0x0, 0x0, 0x0};
+	                        	memcpy(skb->data + sizeof(struct cpl_tx_pkt),
+	                               	ch_mac_addr, ETH_ALEN);
+	                        	memcpy(skb->data + skb->len - 10,
+						ch_mac_addr, ETH_ALEN);
+	                        	skb->cb[0] = 0xff;
+	                	}
+
+	                	/* bump the reference count to avoid freeing of
+	                 	 * the skb once the DMA has completed.
+	                 	 */
+	                	skb = skb_get(skb);
+	                	t1_sge_tx(skb, adapter, 0, adapter->port[i].dev);
+			}
+		}
+	}
+	mod_timer(&sge->espibug_timer, jiffies + sge->espibug_timeout);
+}
+
+static void espibug_workaround(unsigned long data)
 {
 	struct adapter *adapter = (struct adapter *)data;
 	struct sge *sge = adapter->sge;
 
 	if (netif_running(adapter->port[0].dev)) {
-		struct sk_buff *skb = sge->espibug_skb;
+	        struct sk_buff *skb = sge->espibug_skb[0];
+	        u32 seop = t1_espi_get_mon(adapter, 0x930, 0);
 
-		u32 seop = t1_espi_get_mon(adapter, 0x930, 0);
+	        if ((seop & 0xfff0fff) == 0xfff && skb) {
+	                if (!skb->cb[0]) {
+	                        u8 ch_mac_addr[ETH_ALEN] =
+	                            {0x0, 0x7, 0x43, 0x0, 0x0, 0x0};
+	                        memcpy(skb->data + sizeof(struct cpl_tx_pkt),
+	                               ch_mac_addr, ETH_ALEN);
+	                        memcpy(skb->data + skb->len - 10, ch_mac_addr,
+	                               ETH_ALEN);
+	                        skb->cb[0] = 0xff;
+	                }
 
-		if ((seop & 0xfff0fff) == 0xfff && skb) {
-			if (!skb->cb[0]) {
-				u8 ch_mac_addr[ETH_ALEN] =
-				    {0x0, 0x7, 0x43, 0x0, 0x0, 0x0};
-				memcpy(skb->data + sizeof(struct cpl_tx_pkt),
-				    ch_mac_addr, ETH_ALEN);
-				memcpy(skb->data + skb->len - 10, ch_mac_addr,
-				    ETH_ALEN);
-				skb->cb[0] = 0xff;
-			}
-
-			/* bump the reference count to avoid freeing of the
-			 * skb once the DMA has completed.
-			 */
-			skb = skb_get(skb);
-			t1_sge_tx(skb, adapter, 0, adapter->port[0].dev);
-		}
+	                /* bump the reference count to avoid freeing of the
+	                 * skb once the DMA has completed.
+	                 */
+	                skb = skb_get(skb);
+	                t1_sge_tx(skb, adapter, 0, adapter->port[0].dev);
+	        }
 	}
 	mod_timer(&sge->espibug_timer, jiffies + sge->espibug_timeout);
 }
@@ -1649,9 +2166,19 @@ struct sge * __devinit t1_sge_create(struct adapter *adapter,
 
 	if (is_T2(sge->adapter)) {
 		init_timer(&sge->espibug_timer);
-		sge->espibug_timer.function = (void *)&espibug_workaround;
+
+		if (adapter->params.nports > 1) {
+			tx_sched_init(sge);
+			sge->espibug_timer.function = espibug_workaround_t204;
+		} else {
+			sge->espibug_timer.function = espibug_workaround;
+		}
 		sge->espibug_timer.data = (unsigned long)sge->adapter;
+
 		sge->espibug_timeout = 1;
+		/* for T204, every 10ms */
+		if (adapter->params.nports > 1)
+			sge->espibug_timeout = HZ/100;
 	}
 	 
 
@@ -1659,7 +2186,14 @@ struct sge * __devinit t1_sge_create(struct adapter *adapter,
 	p->cmdQ_size[1] = SGE_CMDQ1_E_N;
 	p->freelQ_size[!sge->jumbo_fl] = SGE_FREEL_SIZE;
 	p->freelQ_size[sge->jumbo_fl] = SGE_JUMBO_FREEL_SIZE;
-	p->rx_coalesce_usecs =  50;
+	if (sge->tx_sched) {
+		if (board_info(sge->adapter)->board == CHBT_BOARD_CHT204)
+			p->rx_coalesce_usecs = 15;
+		else
+			p->rx_coalesce_usecs = 50;
+	} else
+		p->rx_coalesce_usecs = 50;
+
 	p->coalesce_enable = 0;
 	p->sample_interval_usecs = 0;
 	p->polling = 0;

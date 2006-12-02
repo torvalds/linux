@@ -53,7 +53,9 @@
 #include "gmac.h"
 #include "cphy.h"
 #include "sge.h"
+#include "tp.h"
 #include "espi.h"
+#include "elmer0.h"
 
 #include <linux/workqueue.h>
 
@@ -73,9 +75,8 @@ static inline void cancel_mac_stats_update(struct adapter *ap)
 #define MAX_RX_JUMBO_BUFFERS 16384
 #define MAX_TX_BUFFERS_HIGH	16384U
 #define MAX_TX_BUFFERS_LOW	1536U
+#define MAX_TX_BUFFERS		1460U
 #define MIN_FL_ENTRIES 32
-
-#define PORT_MASK ((1 << MAX_NPORTS) - 1)
 
 #define DFLT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK | \
 			 NETIF_MSG_TIMER | NETIF_MSG_IFDOWN | NETIF_MSG_IFUP |\
@@ -94,8 +95,17 @@ MODULE_LICENSE("GPL");
 static int dflt_msg_enable = DFLT_MSG_ENABLE;
 
 module_param(dflt_msg_enable, int, 0);
-MODULE_PARM_DESC(dflt_msg_enable, "Chelsio T1 message enable bitmap");
+MODULE_PARM_DESC(dflt_msg_enable, "Chelsio T1 default message enable bitmap");
 
+#define HCLOCK 0x0
+#define LCLOCK 0x1
+
+/* T1 cards powersave mode */
+static int t1_clock(struct adapter *adapter, int mode);
+static int t1powersave = 1;	/* HW default is powersave mode. */
+
+module_param(t1powersave, int, 0);
+MODULE_PARM_DESC(t1powersave, "Enable/Disable T1 powersaving mode");
 
 static const char pci_speed[][4] = {
 	"33", "66", "100", "133"
@@ -135,7 +145,7 @@ static void link_report(struct port_info *p)
 	}
 }
 
-void t1_link_changed(struct adapter *adapter, int port_id, int link_stat,
+void t1_link_negotiated(struct adapter *adapter, int port_id, int link_stat,
 			int speed, int duplex, int pause)
 {
 	struct port_info *p = &adapter->port[port_id];
@@ -147,6 +157,22 @@ void t1_link_changed(struct adapter *adapter, int port_id, int link_stat,
 			netif_carrier_off(p->dev);
 		link_report(p);
 
+		/* multi-ports: inform toe */
+		if ((speed > 0) && (adapter->params.nports > 1)) {
+			unsigned int sched_speed = 10;
+			switch (speed) {
+			case SPEED_1000:
+				sched_speed = 1000;
+				break;
+			case SPEED_100:
+				sched_speed = 100;
+				break;
+			case SPEED_10:
+				sched_speed = 10;
+				break;
+			}
+			t1_sched_update_parms(adapter->sge, port_id, 0, sched_speed);
+		}
 	}
 }
 
@@ -165,8 +191,10 @@ static void link_start(struct port_info *p)
 static void enable_hw_csum(struct adapter *adapter)
 {
 	if (adapter->flags & TSO_CAPABLE)
-		t1_tp_set_ip_checksum_offload(adapter, 1); /* for TSO only */
-	t1_tp_set_tcp_checksum_offload(adapter, 1);
+		t1_tp_set_ip_checksum_offload(adapter->tp, 1);	/* for TSO only */
+	if (adapter->flags & UDP_CSUM_CAPABLE)
+		t1_tp_set_udp_checksum_offload(adapter->tp, 1);
+	t1_tp_set_tcp_checksum_offload(adapter->tp, 1);
 }
 
 /*
@@ -468,6 +496,18 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 	*data++ = (u64)t->tx_reg_pkts;
 	*data++ = (u64)t->tx_lso_pkts;
 	*data++ = (u64)t->tx_do_cksum;
+
+	if (adapter->espi) {
+		const struct espi_intr_counts *e;
+
+		e = t1_espi_get_intr_counts(adapter->espi);
+		*data++ = (u64) e->DIP2_parity_err;
+		*data++ = (u64) e->DIP4_err;
+		*data++ = (u64) e->rx_drops;
+		*data++ = (u64) e->tx_drops;
+		*data++ = (u64) e->rx_ovflw;
+		*data++ = (u64) e->parity_err;
+	}
 }
 
 static inline void reg_block_dump(struct adapter *ap, void *buf,
@@ -491,6 +531,15 @@ static void get_regs(struct net_device *dev, struct ethtool_regs *regs,
 
 	memset(buf, 0, T2_REGMAP_SIZE);
 	reg_block_dump(ap, buf, 0, A_SG_RESPACCUTIMER);
+	reg_block_dump(ap, buf, A_MC3_CFG, A_MC4_INT_CAUSE);
+	reg_block_dump(ap, buf, A_TPI_ADDR, A_TPI_PAR);
+	reg_block_dump(ap, buf, A_TP_IN_CONFIG, A_TP_TX_DROP_COUNT);
+	reg_block_dump(ap, buf, A_RAT_ROUTE_CONTROL, A_RAT_INTR_CAUSE);
+	reg_block_dump(ap, buf, A_CSPI_RX_AE_WM, A_CSPI_INTR_ENABLE);
+	reg_block_dump(ap, buf, A_ESPI_SCH_TOKEN0, A_ESPI_GOSTAT);
+	reg_block_dump(ap, buf, A_ULP_ULIMIT, A_ULP_PIO_CTRL);
+	reg_block_dump(ap, buf, A_PL_ENABLE, A_PL_CAUSE);
+	reg_block_dump(ap, buf, A_MC5_CONFIG, A_MC5_MASK_WRITE_CMD);
 }
 
 static int get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -729,7 +778,9 @@ static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 
 static int get_eeprom_len(struct net_device *dev)
 {
-	return EEPROM_SIZE;
+ 	struct adapter *adapter = dev->priv;
+
+ 	return t1_is_asic(adapter) ? EEPROM_SIZE : 0;
 }
 
 #define EEPROM_MAGIC(ap) \
@@ -914,7 +965,7 @@ static void ext_intr_task(void *data)
 {
 	struct adapter *adapter = data;
 
-	elmer0_ext_intr_handler(adapter);
+	t1_elmer0_ext_intr_handler(adapter);
 
 	/* Now reenable external interrupts */
 	spin_lock_irq(&adapter->async_lock);
@@ -1074,16 +1125,19 @@ static int __devinit init_one(struct pci_dev *pdev,
 			netdev->vlan_rx_register = vlan_rx_register;
 			netdev->vlan_rx_kill_vid = vlan_rx_kill_vid;
 #endif
-			adapter->flags |= TSO_CAPABLE;
-			netdev->features |= NETIF_F_TSO;
+
+			/* T204: disable TSO */
+			if (!(is_T2(adapter)) || bi->port_number != 4) {
+				adapter->flags |= TSO_CAPABLE;
+				netdev->features |= NETIF_F_TSO;
+			}
 		}
 
 		netdev->open = cxgb_open;
 		netdev->stop = cxgb_close;
 		netdev->hard_start_xmit = t1_start_xmit;
 		netdev->hard_header_len += (adapter->flags & TSO_CAPABLE) ?
-			sizeof(struct cpl_tx_pkt_lso) :
-			sizeof(struct cpl_tx_pkt);
+			sizeof(struct cpl_tx_pkt_lso) : sizeof(struct cpl_tx_pkt);
 		netdev->get_stats = t1_get_stats;
 		netdev->set_multicast_list = t1_set_rxmode;
 		netdev->do_ioctl = t1_ioctl;
@@ -1134,6 +1188,17 @@ static int __devinit init_one(struct pci_dev *pdev,
 	       bi->desc, adapter->params.chip_revision,
 	       adapter->params.pci.is_pcix ? "PCIX" : "PCI",
 	       adapter->params.pci.speed, adapter->params.pci.width);
+
+	/*
+	 * Set the T1B ASIC and memory clocks.
+	 */
+	if (t1powersave)
+		adapter->t1powersave = LCLOCK;	/* HW default is powersave mode. */
+	else
+		adapter->t1powersave = HCLOCK;
+	if (t1_is_T1B(adapter))
+		t1_clock(adapter, t1powersave);
+
 	return 0;
 
  out_release_adapter_res:
@@ -1151,6 +1216,155 @@ static int __devinit init_one(struct pci_dev *pdev,
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 	return err;
+}
+
+static void bit_bang(struct adapter *adapter, int bitdata, int nbits)
+{
+	int data;
+	int i;
+	u32 val;
+
+	enum {
+		S_CLOCK = 1 << 3,
+		S_DATA = 1 << 4
+	};
+
+	for (i = (nbits - 1); i > -1; i--) {
+
+		udelay(50);
+
+		data = ((bitdata >> i) & 0x1);
+		__t1_tpi_read(adapter, A_ELMER0_GPO, &val);
+
+		if (data)
+			val |= S_DATA;
+		else
+			val &= ~S_DATA;
+
+		udelay(50);
+
+		/* Set SCLOCK low */
+		val &= ~S_CLOCK;
+		__t1_tpi_write(adapter, A_ELMER0_GPO, val);
+
+		udelay(50);
+
+		/* Write SCLOCK high */
+		val |= S_CLOCK;
+		__t1_tpi_write(adapter, A_ELMER0_GPO, val);
+
+	}
+}
+
+static int t1_clock(struct adapter *adapter, int mode)
+{
+	u32 val;
+	int M_CORE_VAL;
+	int M_MEM_VAL;
+
+	enum {
+		M_CORE_BITS = 9,
+		T_CORE_VAL = 0,
+		T_CORE_BITS = 2,
+		N_CORE_VAL = 0,
+		N_CORE_BITS = 2,
+		M_MEM_BITS = 9,
+		T_MEM_VAL = 0,
+		T_MEM_BITS = 2,
+		N_MEM_VAL = 0,
+		N_MEM_BITS = 2,
+		NP_LOAD = 1 << 17,
+		S_LOAD_MEM = 1 << 5,
+		S_LOAD_CORE = 1 << 6,
+		S_CLOCK = 1 << 3
+	};
+
+	if (!t1_is_T1B(adapter))
+		return -ENODEV;	/* Can't re-clock this chip. */
+
+	if (mode & 2) {
+		return 0;	/* show current mode. */
+	}
+
+	if ((adapter->t1powersave & 1) == (mode & 1))
+		return -EALREADY;	/* ASIC already running in mode. */
+
+	if ((mode & 1) == HCLOCK) {
+		M_CORE_VAL = 0x14;
+		M_MEM_VAL = 0x18;
+		adapter->t1powersave = HCLOCK;	/* overclock */
+	} else {
+		M_CORE_VAL = 0xe;
+		M_MEM_VAL = 0x10;
+		adapter->t1powersave = LCLOCK;	/* underclock */
+	}
+
+	/* Don't interrupt this serial stream! */
+	spin_lock(&adapter->tpi_lock);
+
+	/* Initialize for ASIC core */
+	__t1_tpi_read(adapter, A_ELMER0_GPO, &val);
+	val |= NP_LOAD;
+	udelay(50);
+	__t1_tpi_write(adapter, A_ELMER0_GPO, val);
+	udelay(50);
+	__t1_tpi_read(adapter, A_ELMER0_GPO, &val);
+	val &= ~S_LOAD_CORE;
+	val &= ~S_CLOCK;
+	__t1_tpi_write(adapter, A_ELMER0_GPO, val);
+	udelay(50);
+
+	/* Serial program the ASIC clock synthesizer */
+	bit_bang(adapter, T_CORE_VAL, T_CORE_BITS);
+	bit_bang(adapter, N_CORE_VAL, N_CORE_BITS);
+	bit_bang(adapter, M_CORE_VAL, M_CORE_BITS);
+	udelay(50);
+
+	/* Finish ASIC core */
+	__t1_tpi_read(adapter, A_ELMER0_GPO, &val);
+	val |= S_LOAD_CORE;
+	udelay(50);
+	__t1_tpi_write(adapter, A_ELMER0_GPO, val);
+	udelay(50);
+	__t1_tpi_read(adapter, A_ELMER0_GPO, &val);
+	val &= ~S_LOAD_CORE;
+	udelay(50);
+	__t1_tpi_write(adapter, A_ELMER0_GPO, val);
+	udelay(50);
+
+	/* Initialize for memory */
+	__t1_tpi_read(adapter, A_ELMER0_GPO, &val);
+	val |= NP_LOAD;
+	udelay(50);
+	__t1_tpi_write(adapter, A_ELMER0_GPO, val);
+	udelay(50);
+	__t1_tpi_read(adapter, A_ELMER0_GPO, &val);
+	val &= ~S_LOAD_MEM;
+	val &= ~S_CLOCK;
+	udelay(50);
+	__t1_tpi_write(adapter, A_ELMER0_GPO, val);
+	udelay(50);
+
+	/* Serial program the memory clock synthesizer */
+	bit_bang(adapter, T_MEM_VAL, T_MEM_BITS);
+	bit_bang(adapter, N_MEM_VAL, N_MEM_BITS);
+	bit_bang(adapter, M_MEM_VAL, M_MEM_BITS);
+	udelay(50);
+
+	/* Finish memory */
+	__t1_tpi_read(adapter, A_ELMER0_GPO, &val);
+	val |= S_LOAD_MEM;
+	udelay(50);
+	__t1_tpi_write(adapter, A_ELMER0_GPO, val);
+	udelay(50);
+	__t1_tpi_read(adapter, A_ELMER0_GPO, &val);
+	val &= ~S_LOAD_MEM;
+	udelay(50);
+	__t1_tpi_write(adapter, A_ELMER0_GPO, val);
+
+	spin_unlock(&adapter->tpi_lock);
+
+	return 0;
 }
 
 static inline void t1_sw_reset(struct pci_dev *pdev)

@@ -88,6 +88,8 @@ enum {                     /* RMON registers */
 	RxJabbers = SUNI1x10GEXP_REG_MSTAT_COUNTER_16_LOW,
 	RxFragments = SUNI1x10GEXP_REG_MSTAT_COUNTER_17_LOW,
 	RxUndersizedFrames =  SUNI1x10GEXP_REG_MSTAT_COUNTER_18_LOW,
+	RxJumboFramesReceivedOK = SUNI1x10GEXP_REG_MSTAT_COUNTER_25_LOW,
+	RxJumboOctetsReceivedOK = SUNI1x10GEXP_REG_MSTAT_COUNTER_26_LOW,
 
 	TxOctetsTransmittedOK = SUNI1x10GEXP_REG_MSTAT_COUNTER_33_LOW,
 	TxFramesLostDueToInternalMACTransmissionError = SUNI1x10GEXP_REG_MSTAT_COUNTER_35_LOW,
@@ -95,7 +97,9 @@ enum {                     /* RMON registers */
 	TxUnicastFramesTransmittedOK = SUNI1x10GEXP_REG_MSTAT_COUNTER_38_LOW,
 	TxMulticastFramesTransmittedOK = SUNI1x10GEXP_REG_MSTAT_COUNTER_40_LOW,
 	TxBroadcastFramesTransmittedOK = SUNI1x10GEXP_REG_MSTAT_COUNTER_42_LOW,
-	TxPAUSEMACCtrlFramesTransmitted = SUNI1x10GEXP_REG_MSTAT_COUNTER_43_LOW
+	TxPAUSEMACCtrlFramesTransmitted = SUNI1x10GEXP_REG_MSTAT_COUNTER_43_LOW,
+	TxJumboFramesReceivedOK = SUNI1x10GEXP_REG_MSTAT_COUNTER_51_LOW,
+	TxJumboOctetsReceivedOK = SUNI1x10GEXP_REG_MSTAT_COUNTER_52_LOW
 };
 
 struct _cmac_instance {
@@ -265,6 +269,8 @@ static int pm3393_interrupt_handler(struct cmac *cmac)
 	/* Read the master interrupt status register. */
 	pmread(cmac, SUNI1x10GEXP_REG_MASTER_INTERRUPT_STATUS,
 	       &master_intr_status);
+	CH_DBG(cmac->adapter, INTR, "PM3393 intr cause 0x%x\n",
+	       master_intr_status);
 
 	/* TBD XXX Lets just clear everything for now */
 	pm3393_interrupt_clear(cmac);
@@ -307,11 +313,7 @@ static int pm3393_enable_port(struct cmac *cmac, int which)
 	 * The PHY doesn't give us link status indication on its own so have
 	 * the link management code query it instead.
 	 */
-	{
-		extern void link_changed(adapter_t *adapter, int port_id);
-
-		link_changed(cmac->adapter, 0);
-	}
+	t1_link_changed(cmac->adapter, 0);
 	return 0;
 }
 
@@ -519,6 +521,8 @@ static const struct cmac_statistics *pm3393_update_statistics(struct cmac *mac,
 	RMON_UPDATE(mac, RxJabbers, RxJabberErrors);
 	RMON_UPDATE(mac, RxFragments, RxRuntErrors);
 	RMON_UPDATE(mac, RxUndersizedFrames, RxRuntErrors);
+	RMON_UPDATE(mac, RxJumboFramesReceivedOK, RxJumboFramesOK);
+	RMON_UPDATE(mac, RxJumboOctetsReceivedOK, RxJumboOctetsOK);
 
 	/* Tx stats */
 	RMON_UPDATE(mac, TxOctetsTransmittedOK, TxOctetsOK);
@@ -529,6 +533,8 @@ static const struct cmac_statistics *pm3393_update_statistics(struct cmac *mac,
 	RMON_UPDATE(mac, TxMulticastFramesTransmittedOK, TxMulticastFramesOK);
 	RMON_UPDATE(mac, TxBroadcastFramesTransmittedOK, TxBroadcastFramesOK);
 	RMON_UPDATE(mac, TxPAUSEMACCtrlFramesTransmitted, TxPauseFrames);
+	RMON_UPDATE(mac, TxJumboFramesReceivedOK, TxJumboFramesOK);
+	RMON_UPDATE(mac, TxJumboOctetsReceivedOK, TxJumboOctetsOK);
 
 	return &mac->stats;
 }
@@ -814,6 +820,12 @@ static int pm3393_mac_reset(adapter_t * adapter)
 
 		successful_reset = (is_pl4_reset_finished && !is_pl4_outof_lock
 				    && is_xaui_mabc_pll_locked);
+
+		CH_DBG(adapter, HW,
+		       "PM3393 HW reset %d: pl4_reset 0x%x, val 0x%x, "
+		       "is_pl4_outof_lock 0x%x, xaui_locked 0x%x\n",
+		       i, is_pl4_reset_finished, val, is_pl4_outof_lock,
+		       is_xaui_mabc_pll_locked);
 	}
 	return successful_reset ? 0 : 1;
 }
