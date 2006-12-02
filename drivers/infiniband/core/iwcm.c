@@ -80,7 +80,7 @@ struct iwcm_work {
  * 1) in the event upcall, cm_event_handler(), for a listening cm_id.  If
  *    the backlog is exceeded, then no more connection request events will
  *    be processed.  cm_event_handler() returns -ENOMEM in this case.  Its up
- *    to the provider to reject the connectino request.
+ *    to the provider to reject the connection request.
  * 2) in the connection request workqueue handler, cm_conn_req_handler().
  *    If work elements cannot be allocated for the new connect request cm_id,
  *    then IWCM will call the provider reject method.  This is ok since
@@ -131,26 +131,25 @@ static int alloc_work_entries(struct iwcm_id_private *cm_id_priv, int count)
 }
 
 /*
- * Save private data from incoming connection requests in the
- * cm_id_priv so the low level driver doesn't have to.  Adjust
+ * Save private data from incoming connection requests to
+ * iw_cm_event, so the low level driver doesn't have to. Adjust
  * the event ptr to point to the local copy.
  */
-static int copy_private_data(struct iwcm_id_private *cm_id_priv,
-		       struct iw_cm_event *event)
+static int copy_private_data(struct iw_cm_event *event)
 {
 	void *p;
 
-	p = kmalloc(event->private_data_len, GFP_ATOMIC);
+	p = kmemdup(event->private_data, event->private_data_len, GFP_ATOMIC);
 	if (!p)
 		return -ENOMEM;
-	memcpy(p, event->private_data, event->private_data_len);
 	event->private_data = p;
 	return 0;
 }
 
 /*
- * Release a reference on cm_id. If the last reference is being removed
- * and iw_destroy_cm_id is waiting, wake up the waiting thread.
+ * Release a reference on cm_id. If the last reference is being
+ * released, enable the waiting thread (in iw_destroy_cm_id) to
+ * get woken up, and return 1 if a thread is already waiting.
  */
 static int iwcm_deref_id(struct iwcm_id_private *cm_id_priv)
 {
@@ -243,7 +242,7 @@ static int iwcm_modify_qp_sqd(struct ib_qp *qp)
 /*
  * CM_ID <-- CLOSING
  *
- * Block if a passive or active connection is currenlty being processed. Then
+ * Block if a passive or active connection is currently being processed. Then
  * process the event as follows:
  * - If we are ESTABLISHED, move to CLOSING and modify the QP state
  *   based on the abrupt flag
@@ -408,7 +407,7 @@ int iw_cm_listen(struct iw_cm_id *cm_id, int backlog)
 {
 	struct iwcm_id_private *cm_id_priv;
 	unsigned long flags;
-	int ret = 0;
+	int ret;
 
 	cm_id_priv = container_of(cm_id, struct iwcm_id_private, id);
 
@@ -535,7 +534,7 @@ EXPORT_SYMBOL(iw_cm_accept);
 int iw_cm_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *iw_param)
 {
 	struct iwcm_id_private *cm_id_priv;
-	int ret = 0;
+	int ret;
 	unsigned long flags;
 	struct ib_qp *qp;
 
@@ -620,7 +619,7 @@ static void cm_conn_req_handler(struct iwcm_id_private *listen_id_priv,
 	spin_lock_irqsave(&listen_id_priv->lock, flags);
 	if (listen_id_priv->state != IW_CM_STATE_LISTEN) {
 		spin_unlock_irqrestore(&listen_id_priv->lock, flags);
-		return;
+		goto out;
 	}
 	spin_unlock_irqrestore(&listen_id_priv->lock, flags);
 
@@ -629,7 +628,7 @@ static void cm_conn_req_handler(struct iwcm_id_private *listen_id_priv,
 				listen_id_priv->id.context);
 	/* If the cm_id could not be created, ignore the request */
 	if (IS_ERR(cm_id))
-		return;
+		goto out;
 
 	cm_id->provider_data = iw_event->provider_data;
 	cm_id->local_addr = iw_event->local_addr;
@@ -642,7 +641,7 @@ static void cm_conn_req_handler(struct iwcm_id_private *listen_id_priv,
 	if (ret) {
 		iw_cm_reject(cm_id, NULL, 0);
 		iw_destroy_cm_id(cm_id);
-		return;
+		goto out;
 	}
 
 	/* Call the client CM handler */
@@ -654,6 +653,7 @@ static void cm_conn_req_handler(struct iwcm_id_private *listen_id_priv,
 			kfree(cm_id);
 	}
 
+out:
 	if (iw_event->private_data_len)
 		kfree(iw_event->private_data);
 }
@@ -674,7 +674,7 @@ static int cm_conn_est_handler(struct iwcm_id_private *cm_id_priv,
 			       struct iw_cm_event *iw_event)
 {
 	unsigned long flags;
-	int ret = 0;
+	int ret;
 
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 
@@ -704,7 +704,7 @@ static int cm_conn_rep_handler(struct iwcm_id_private *cm_id_priv,
 			       struct iw_cm_event *iw_event)
 {
 	unsigned long flags;
-	int ret = 0;
+	int ret;
 
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	/*
@@ -830,7 +830,8 @@ static int process_event(struct iwcm_id_private *cm_id_priv,
  */
 static void cm_work_handler(void *arg)
 {
-	struct iwcm_work *work = arg, lwork;
+	struct iwcm_work *work = arg;
+	struct iw_cm_event levent;
 	struct iwcm_id_private *cm_id_priv = work->cm_id;
 	unsigned long flags;
 	int empty;
@@ -843,11 +844,11 @@ static void cm_work_handler(void *arg)
 				  struct iwcm_work, list);
 		list_del_init(&work->list);
 		empty = list_empty(&cm_id_priv->work_list);
-		lwork = *work;
+		levent = work->event;
 		put_work(work);
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 
-		ret = process_event(cm_id_priv, &work->event);
+		ret = process_event(cm_id_priv, &levent);
 		if (ret) {
 			set_bit(IWCM_F_CALLBACK_DESTROY, &cm_id_priv->flags);
 			destroy_cm_id(&cm_id_priv->id);
@@ -906,7 +907,7 @@ static int cm_event_handler(struct iw_cm_id *cm_id,
 	if ((work->event.event == IW_CM_EVENT_CONNECT_REQUEST ||
 	     work->event.event == IW_CM_EVENT_CONNECT_REPLY) &&
 	    work->event.private_data_len) {
-		ret = copy_private_data(cm_id_priv, &work->event);
+		ret = copy_private_data(&work->event);
 		if (ret) {
 			put_work(work);
 			goto out;

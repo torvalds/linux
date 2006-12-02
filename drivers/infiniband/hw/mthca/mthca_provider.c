@@ -1100,11 +1100,10 @@ static struct ib_fmr *mthca_alloc_fmr(struct ib_pd *pd, int mr_access_flags,
 	struct mthca_fmr *fmr;
 	int err;
 
-	fmr = kmalloc(sizeof *fmr, GFP_KERNEL);
+	fmr = kmemdup(fmr_attr, sizeof *fmr, GFP_KERNEL);
 	if (!fmr)
 		return ERR_PTR(-ENOMEM);
 
-	memcpy(&fmr->attr, fmr_attr, sizeof *fmr_attr);
 	err = mthca_fmr_alloc(to_mdev(pd->device), to_mpd(pd)->pd_num,
 			     convert_access(mr_access_flags), fmr);
 
