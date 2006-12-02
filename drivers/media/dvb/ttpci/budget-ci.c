@@ -78,6 +78,9 @@
  */
 #define IR_REPEAT_TIMEOUT	350
 
+/* RC5 device wildcard */
+#define IR_DEVICE_ANY		255
+
 /* Some remotes sends multiple sequences per keypress (e.g. Zenith sends two),
  * this setting allows the superflous sequences to be ignored
  */
@@ -85,12 +88,17 @@ static int debounce = 0;
 module_param(debounce, int, 0644);
 MODULE_PARM_DESC(debounce, "ignore repeated IR sequences (default: 0 = ignore no sequences)");
 
+static int rc5_device = -1;
+module_param(rc5_device, int, 0644);
+MODULE_PARM_DESC(rc5_device, "only IR commands to given RC5 device (device = 0 - 31, any device = 255, default: autodetect)");
+
 struct budget_ci_ir {
 	struct input_dev *dev;
 	struct tasklet_struct msp430_irq_tasklet;
 	char name[72]; /* 40 + 32 for (struct saa7146_dev).name */
 	char phys[32];
 	struct ir_input_state state;
+	int rc5_device;
 };
 
 struct budget_ci {
@@ -114,32 +122,56 @@ static void msp430_ir_interrupt(unsigned long data)
 	struct budget_ci *budget_ci = (struct budget_ci *) data;
 	struct input_dev *dev = budget_ci->ir.dev;
 	static int bounces = 0;
-	u32 ir_key;
+	int device;
+	int toggle;
+	static int prev_toggle = -1;
+	static u32 ir_key;
 	u32 command = ttpci_budget_debiread(&budget_ci->budget, DEBINOSWAP, DEBIADDR_IR, 2, 1, 0) >> 8;
 
+	/*
+	 * The msp430 chip can generate two different bytes, command and device
+	 *
+	 * type1: X1CCCCCC, C = command bits (0 - 63)
+	 * type2: X0TDDDDD, D = device bits (0 - 31), T = RC5 toggle bit
+	 *
+	 * More than one command byte may be generated before the device byte
+	 * Only when we have both, a correct keypress is generated
+	 */
+
+	/* Is this a RC5 command byte? */
 	if (command & 0x40) {
 		ir_key = command & 0x3f;
-
-		if (ir_key != dev->repeat_key && del_timer(&dev->timer))
-			/* We were still waiting for a keyup event but this is a new key */
-			ir_input_nokey(dev, &budget_ci->ir.state);
-
-		if (ir_key == dev->repeat_key && bounces > 0 && timer_pending(&dev->timer)) {
-			/* Ignore repeated key sequences if requested */
-			bounces--;
-			return;
-		}
-
-		if (!timer_pending(&dev->timer))
-			/* New keypress */
-			bounces = debounce;
-
-		/* Prepare a keyup event sometime in the future */
-		mod_timer(&dev->timer, jiffies + msecs_to_jiffies(IR_REPEAT_TIMEOUT));
-
-		/* Generate a new or repeated keypress */
-		ir_input_keydown(dev, &budget_ci->ir.state, ir_key, command);
+		return;
 	}
+
+	/* It's a RC5 device byte */
+	device = command & 0x1f;
+	toggle = command & 0x20;
+
+	if (budget_ci->ir.rc5_device != IR_DEVICE_ANY && budget_ci->ir.rc5_device != device)
+		return;
+
+	/* Are we still waiting for a keyup event while this is a new key? */
+	if ((ir_key != dev->repeat_key || toggle != prev_toggle) && del_timer(&dev->timer))
+		ir_input_nokey(dev, &budget_ci->ir.state);
+
+	prev_toggle = toggle;
+
+	/* Ignore repeated key sequences if requested */
+	if (ir_key == dev->repeat_key && bounces > 0 && timer_pending(&dev->timer)) {
+		bounces--;
+		return;
+	}
+
+	/* New keypress? */
+	if (!timer_pending(&dev->timer))
+		bounces = debounce;
+
+	/* Prepare a keyup event sometime in the future */
+	mod_timer(&dev->timer, jiffies + msecs_to_jiffies(IR_REPEAT_TIMEOUT));
+
+	/* Generate a new or repeated keypress */
+	ir_input_keydown(dev, &budget_ci->ir.state, ir_key, ((device << 8) | command));
 }
 
 static void msp430_ir_debounce(unsigned long data)
@@ -228,7 +260,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	input_dev->dev = &saa->pci->dev;
 # endif
 
-	/* Select keymap */
+	/* Select keymap and address */
 	switch (budget_ci->budget.dev->pci->subsystem_device) {
 	case 0x100c:
 	case 0x100f:
@@ -239,11 +271,21 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 		/* The hauppauge keymap is a superset of these remotes */
 		ir_input_init(input_dev, &budget_ci->ir.state,
 			      IR_TYPE_RC5, ir_codes_hauppauge_new);
+
+		if (rc5_device < 0)
+			budget_ci->ir.rc5_device = 0x1f;
+		else
+			budget_ci->ir.rc5_device = rc5_device;
 		break;
 	default:
 		/* unknown remote */
 		ir_input_init(input_dev, &budget_ci->ir.state,
 			      IR_TYPE_RC5, ir_codes_budget_ci_old);
+
+		if (rc5_device < 0)
+			budget_ci->ir.rc5_device = IR_DEVICE_ANY;
+		else
+			budget_ci->ir.rc5_device = rc5_device;
 		break;
 	}
 
