@@ -1620,8 +1620,8 @@ lpfc_rcv_padisc_npr_node(struct lpfc_hba * phba,
 	 * or discovery in progress for this node. Starting discovery
 	 * here will affect the counting of discovery threads.
 	 */
-	if ((!(ndlp->nlp_flag & NLP_DELAY_TMO)) &&
-		(ndlp->nlp_flag & NLP_NPR_2B_DISC)){
+	if (!(ndlp->nlp_flag & NLP_DELAY_TMO) &&
+		!(ndlp->nlp_flag & NLP_NPR_2B_DISC)){
 		if (ndlp->nlp_flag & NLP_NPR_ADISC) {
 			ndlp->nlp_prev_state = NLP_STE_NPR_NODE;
 			ndlp->nlp_state = NLP_STE_ADISC_ISSUE;

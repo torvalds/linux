@@ -657,6 +657,12 @@ lpfc_plogi_confirm_nport(struct lpfc_hba * phba, struct lpfc_dmabuf *prsp,
 	uint8_t name[sizeof (struct lpfc_name)];
 	uint32_t rc;
 
+	/* Fabric nodes can have the same WWPN so we don't bother searching
+	 * by WWPN.  Just return the ndlp that was given to us.
+	 */
+	if (ndlp->nlp_type & NLP_FABRIC)
+		return ndlp;
+
 	lp = (uint32_t *) prsp->virt;
 	sp = (struct serv_parm *) ((uint8_t *) lp + sizeof (uint32_t));
 	memset(name, 0, sizeof (struct lpfc_name));
@@ -2644,6 +2650,7 @@ lpfc_els_handle_rscn(struct lpfc_hba * phba)
 			ndlp->nlp_type |= NLP_FABRIC;
 			ndlp->nlp_prev_state = ndlp->nlp_state;
 			ndlp->nlp_state = NLP_STE_PLOGI_ISSUE;
+			lpfc_nlp_list(phba, ndlp, NLP_PLOGI_LIST);
 			lpfc_issue_els_plogi(phba, NameServer_DID, 0);
 			/* Wait for NameServer login cmpl before we can
 			   continue */

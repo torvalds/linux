@@ -1067,6 +1067,7 @@ lpfc_mbx_cmpl_ns_reg_login(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 		lpfc_ns_cmd(phba, ndlp, SLI_CTNS_RNN_ID);
 		lpfc_ns_cmd(phba, ndlp, SLI_CTNS_RSNN_NN);
 		lpfc_ns_cmd(phba, ndlp, SLI_CTNS_RFT_ID);
+		lpfc_ns_cmd(phba, ndlp, SLI_CTNS_RFF_ID);
 	}
 
 	phba->fc_ns_retry = 0;
@@ -1680,21 +1681,38 @@ lpfc_matchdid(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, uint32_t did)
 struct lpfc_nodelist *
 lpfc_findnode_did(struct lpfc_hba * phba, uint32_t order, uint32_t did)
 {
-	struct lpfc_nodelist *ndlp, *next_ndlp;
+	struct lpfc_nodelist *ndlp;
+	struct list_head *lists[]={&phba->fc_nlpunmap_list,
+				   &phba->fc_nlpmap_list,
+				   &phba->fc_plogi_list,
+				   &phba->fc_adisc_list,
+				   &phba->fc_reglogin_list,
+				   &phba->fc_prli_list,
+				   &phba->fc_npr_list,
+				   &phba->fc_unused_list};
+	uint32_t search[]={NLP_SEARCH_UNMAPPED,
+			   NLP_SEARCH_MAPPED,
+			   NLP_SEARCH_PLOGI,
+			   NLP_SEARCH_ADISC,
+			   NLP_SEARCH_REGLOGIN,
+			   NLP_SEARCH_PRLI,
+			   NLP_SEARCH_NPR,
+			   NLP_SEARCH_UNUSED};
+	int i;
 	uint32_t data1;
 
 	spin_lock_irq(phba->host->host_lock);
-	if (order & NLP_SEARCH_UNMAPPED) {
-		list_for_each_entry_safe(ndlp, next_ndlp,
-					 &phba->fc_nlpunmap_list, nlp_listp) {
+	for (i = 0; i < ARRAY_SIZE(lists); i++ ) {
+		if (!(order & search[i]))
+			continue;
+		list_for_each_entry(ndlp, lists[i], nlp_listp) {
 			if (lpfc_matchdid(phba, ndlp, did)) {
 				data1 = (((uint32_t) ndlp->nlp_state << 24) |
 					 ((uint32_t) ndlp->nlp_xri << 16) |
 					 ((uint32_t) ndlp->nlp_type << 8) |
 					 ((uint32_t) ndlp->nlp_rpi & 0xff));
-				/* FIND node DID unmapped */
 				lpfc_printf_log(phba, KERN_INFO, LOG_NODE,
-						"%d:0929 FIND node DID unmapped"
+						"%d:0929 FIND node DID "
 						" Data: x%p x%x x%x x%x\n",
 						phba->brd_no,
 						ndlp, ndlp->nlp_DID,
@@ -1704,177 +1722,12 @@ lpfc_findnode_did(struct lpfc_hba * phba, uint32_t order, uint32_t did)
 			}
 		}
 	}
-
-	if (order & NLP_SEARCH_MAPPED) {
-		list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_nlpmap_list,
-					nlp_listp) {
-			if (lpfc_matchdid(phba, ndlp, did)) {
-
-				data1 = (((uint32_t) ndlp->nlp_state << 24) |
-					 ((uint32_t) ndlp->nlp_xri << 16) |
-					 ((uint32_t) ndlp->nlp_type << 8) |
-					 ((uint32_t) ndlp->nlp_rpi & 0xff));
-				/* FIND node DID mapped */
-				lpfc_printf_log(phba, KERN_INFO, LOG_NODE,
-						"%d:0930 FIND node DID mapped "
-						"Data: x%p x%x x%x x%x\n",
-						phba->brd_no,
-						ndlp, ndlp->nlp_DID,
-						ndlp->nlp_flag, data1);
-				spin_unlock_irq(phba->host->host_lock);
-				return ndlp;
-			}
-		}
-	}
-
-	if (order & NLP_SEARCH_PLOGI) {
-		list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_plogi_list,
-					nlp_listp) {
-			if (lpfc_matchdid(phba, ndlp, did)) {
-
-				data1 = (((uint32_t) ndlp->nlp_state << 24) |
-					 ((uint32_t) ndlp->nlp_xri << 16) |
-					 ((uint32_t) ndlp->nlp_type << 8) |
-					 ((uint32_t) ndlp->nlp_rpi & 0xff));
-				/* LOG change to PLOGI */
-				/* FIND node DID plogi */
-				lpfc_printf_log(phba, KERN_INFO, LOG_NODE,
-						"%d:0908 FIND node DID plogi "
-						"Data: x%p x%x x%x x%x\n",
-						phba->brd_no,
-						ndlp, ndlp->nlp_DID,
-						ndlp->nlp_flag, data1);
-				spin_unlock_irq(phba->host->host_lock);
-				return ndlp;
-			}
-		}
-	}
-
-	if (order & NLP_SEARCH_ADISC) {
-		list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_adisc_list,
-					nlp_listp) {
-			if (lpfc_matchdid(phba, ndlp, did)) {
-
-				data1 = (((uint32_t) ndlp->nlp_state << 24) |
-					 ((uint32_t) ndlp->nlp_xri << 16) |
-					 ((uint32_t) ndlp->nlp_type << 8) |
-					 ((uint32_t) ndlp->nlp_rpi & 0xff));
-				/* LOG change to ADISC */
-				/* FIND node DID adisc */
-				lpfc_printf_log(phba, KERN_INFO, LOG_NODE,
-						"%d:0931 FIND node DID adisc "
-						"Data: x%p x%x x%x x%x\n",
-						phba->brd_no,
-						ndlp, ndlp->nlp_DID,
-						ndlp->nlp_flag, data1);
-				spin_unlock_irq(phba->host->host_lock);
-				return ndlp;
-			}
-		}
-	}
-
-	if (order & NLP_SEARCH_REGLOGIN) {
-		list_for_each_entry_safe(ndlp, next_ndlp,
-					 &phba->fc_reglogin_list, nlp_listp) {
-			if (lpfc_matchdid(phba, ndlp, did)) {
-
-				data1 = (((uint32_t) ndlp->nlp_state << 24) |
-					 ((uint32_t) ndlp->nlp_xri << 16) |
-					 ((uint32_t) ndlp->nlp_type << 8) |
-					 ((uint32_t) ndlp->nlp_rpi & 0xff));
-				/* LOG change to REGLOGIN */
-				/* FIND node DID reglogin */
-				lpfc_printf_log(phba, KERN_INFO, LOG_NODE,
-						"%d:0901 FIND node DID reglogin"
-						" Data: x%p x%x x%x x%x\n",
-						phba->brd_no,
-						ndlp, ndlp->nlp_DID,
-						ndlp->nlp_flag, data1);
-				spin_unlock_irq(phba->host->host_lock);
-				return ndlp;
-			}
-		}
-	}
-
-	if (order & NLP_SEARCH_PRLI) {
-		list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_prli_list,
-					nlp_listp) {
-			if (lpfc_matchdid(phba, ndlp, did)) {
-
-				data1 = (((uint32_t) ndlp->nlp_state << 24) |
-					 ((uint32_t) ndlp->nlp_xri << 16) |
-					 ((uint32_t) ndlp->nlp_type << 8) |
-					 ((uint32_t) ndlp->nlp_rpi & 0xff));
-				/* LOG change to PRLI */
-				/* FIND node DID prli */
-				lpfc_printf_log(phba, KERN_INFO, LOG_NODE,
-						"%d:0902 FIND node DID prli "
-						"Data: x%p x%x x%x x%x\n",
-						phba->brd_no,
-						ndlp, ndlp->nlp_DID,
-						ndlp->nlp_flag, data1);
-				spin_unlock_irq(phba->host->host_lock);
-				return ndlp;
-			}
-		}
-	}
-
-	if (order & NLP_SEARCH_NPR) {
-		list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_npr_list,
-					nlp_listp) {
-			if (lpfc_matchdid(phba, ndlp, did)) {
-
-				data1 = (((uint32_t) ndlp->nlp_state << 24) |
-					 ((uint32_t) ndlp->nlp_xri << 16) |
-					 ((uint32_t) ndlp->nlp_type << 8) |
-					 ((uint32_t) ndlp->nlp_rpi & 0xff));
-				/* LOG change to NPR */
-				/* FIND node DID npr */
-				lpfc_printf_log(phba, KERN_INFO, LOG_NODE,
-						"%d:0903 FIND node DID npr "
-						"Data: x%p x%x x%x x%x\n",
-						phba->brd_no,
-						ndlp, ndlp->nlp_DID,
-						ndlp->nlp_flag, data1);
-				spin_unlock_irq(phba->host->host_lock);
-				return ndlp;
-			}
-		}
-	}
-
-	if (order & NLP_SEARCH_UNUSED) {
-		list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_adisc_list,
-					nlp_listp) {
-			if (lpfc_matchdid(phba, ndlp, did)) {
-
-				data1 = (((uint32_t) ndlp->nlp_state << 24) |
-					 ((uint32_t) ndlp->nlp_xri << 16) |
-					 ((uint32_t) ndlp->nlp_type << 8) |
-					 ((uint32_t) ndlp->nlp_rpi & 0xff));
-				/* LOG change to UNUSED */
-				/* FIND node DID unused */
-				lpfc_printf_log(phba, KERN_INFO, LOG_NODE,
-						"%d:0905 FIND node DID unused "
-						"Data: x%p x%x x%x x%x\n",
-						phba->brd_no,
-						ndlp, ndlp->nlp_DID,
-						ndlp->nlp_flag, data1);
-				spin_unlock_irq(phba->host->host_lock);
-				return ndlp;
-			}
-		}
-	}
-
 	spin_unlock_irq(phba->host->host_lock);
 
 	/* FIND node did <did> NOT FOUND */
-	lpfc_printf_log(phba,
-			KERN_INFO,
-			LOG_NODE,
+	lpfc_printf_log(phba, KERN_INFO, LOG_NODE,
 			"%d:0932 FIND node did x%x NOT FOUND Data: x%x\n",
 			phba->brd_no, did, order);
-
-	/* no match found */
 	return NULL;
 }
 

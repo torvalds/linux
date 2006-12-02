@@ -121,6 +121,20 @@ struct lpfc_sli_ct_request {
 
 			uint32_t rsvd[7];
 		} rft;
+		struct rff {
+			uint32_t PortId;
+			uint8_t reserved[2];
+#ifdef __BIG_ENDIAN_BITFIELD
+			uint8_t feature_res:6;
+			uint8_t feature_init:1;
+			uint8_t feature_tgt:1;
+#else  /*  __LITTLE_ENDIAN_BITFIELD */
+			uint8_t feature_tgt:1;
+			uint8_t feature_init:1;
+			uint8_t feature_res:6;
+#endif
+			uint8_t type_code;     /* type=8 for FCP */
+		} rff;
 		struct rnn {
 			uint32_t PortId;	/* For RNN_ID requests */
 			uint8_t wwnn[8];
@@ -136,6 +150,7 @@ struct lpfc_sli_ct_request {
 #define  SLI_CT_REVISION        1
 #define  GID_REQUEST_SZ         (sizeof(struct lpfc_sli_ct_request) - 260)
 #define  RFT_REQUEST_SZ         (sizeof(struct lpfc_sli_ct_request) - 228)
+#define  RFF_REQUEST_SZ         (sizeof(struct lpfc_sli_ct_request) - 235)
 #define  RNN_REQUEST_SZ         (sizeof(struct lpfc_sli_ct_request) - 252)
 #define  RSNN_REQUEST_SZ        (sizeof(struct lpfc_sli_ct_request))
 
@@ -225,6 +240,7 @@ struct lpfc_sli_ct_request {
 #define  SLI_CTNS_RNN_ID      0x0213
 #define  SLI_CTNS_RCS_ID      0x0214
 #define  SLI_CTNS_RFT_ID      0x0217
+#define  SLI_CTNS_RFF_ID      0x021F
 #define  SLI_CTNS_RSPN_ID     0x0218
 #define  SLI_CTNS_RPT_ID      0x021A
 #define  SLI_CTNS_RIP_NN      0x0235
