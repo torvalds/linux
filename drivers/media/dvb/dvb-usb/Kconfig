@@ -160,6 +160,17 @@ config DVB_USB_NOVA_T_USB2
 	help
 	  Say Y here to support the Hauppauge WinTV-NOVA-T usb2 DVB-T USB2.0 receiver.
 
+config DVB_USB_TTUSB2
+	tristate "Pinnacle 400e DVB-S USB2.0 support"
+	depends on DVB_USB
+	select DVB_TDA10086 if !DVB_FE_CUSTOMISE
+	select DVB_LNBP21 if !DVB_FE_CUSTOMISE
+	select DVB_TDA826X if !DVB_FE_CUSTOMISE
+	help
+	  Say Y here to support the Pinnacle 400e DVB-S USB2.0 receiver. The
+	  firmware protocol used by this module is similar to the one used by the
+	  old ttusb-driver - that's why the module is called dvb-usb-ttusb2.ko.
+
 config DVB_USB_DTT200U
 	tristate "WideView WT-200U and WT-220U (pen) DVB-T USB2.0 support (Yakumo/Hama/Typhoon/Yuan)"
 	depends on DVB_USB
