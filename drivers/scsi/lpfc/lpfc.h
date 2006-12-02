@@ -303,6 +303,7 @@ struct lpfc_hba {
 	uint32_t cfg_max_luns;
 	uint32_t cfg_poll;
 	uint32_t cfg_poll_tmo;
+	uint32_t cfg_use_msi;
 	uint32_t cfg_sg_seg_cnt;
 	uint32_t cfg_sg_dma_buf_size;
 	uint64_t cfg_soft_wwpn;

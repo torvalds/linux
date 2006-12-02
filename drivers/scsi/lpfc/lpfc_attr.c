@@ -961,6 +961,15 @@ LPFC_ATTR_R(max_luns, 255, 0, 65535,
 LPFC_ATTR_RW(poll_tmo, 10, 1, 255,
 	     "Milliseconds driver will wait between polling FCP ring");
 
+/*
+# lpfc_use_msi: Use MSI (Message Signaled Interrupts) in systems that
+#		support this feature
+#       0  = MSI disabled (default)
+#       1  = MSI enabled
+# Value range is [0,1]. Default value is 0.
+*/
+LPFC_ATTR_R(use_msi, 0, 0, 1, "Use Message Signaled Interrupts, if possible");
+
 
 struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_info,
@@ -999,6 +1008,7 @@ struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_issue_reset,
 	&class_device_attr_lpfc_poll,
 	&class_device_attr_lpfc_poll_tmo,
+	&class_device_attr_lpfc_use_msi,
 	&class_device_attr_lpfc_soft_wwpn,
 	&class_device_attr_lpfc_soft_wwpn_enable,
 	NULL,
@@ -1801,6 +1811,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_discovery_threads_init(phba, lpfc_discovery_threads);
 	lpfc_max_luns_init(phba, lpfc_max_luns);
 	lpfc_poll_tmo_init(phba, lpfc_poll_tmo);
+	lpfc_use_msi_init(phba, lpfc_use_msi);
 	lpfc_devloss_tmo_init(phba, lpfc_devloss_tmo);
 	lpfc_nodev_tmo_init(phba, lpfc_nodev_tmo);
 	phba->cfg_poll = lpfc_poll;

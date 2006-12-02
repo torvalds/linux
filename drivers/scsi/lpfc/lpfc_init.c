@@ -1653,6 +1653,14 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	if (error)
 		goto out_remove_host;
 
+	if (phba->cfg_use_msi) {
+		error = pci_enable_msi(phba->pcidev);
+		if (error)
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT, "%d:0452 "
+					"Enable MSI failed, continuing with "
+					"IRQ\n", phba->brd_no);
+	}
+
 	error =	request_irq(phba->pcidev->irq, lpfc_intr_handler, IRQF_SHARED,
 							LPFC_DRIVER_NAME, phba);
 	if (error) {
@@ -1732,6 +1740,7 @@ out_free_irq:
 	lpfc_stop_timer(phba);
 	phba->work_hba_events = 0;
 	free_irq(phba->pcidev->irq, phba);
+	pci_disable_msi(phba->pcidev);
 out_free_sysfs_attr:
 	lpfc_free_sysfs_attr(phba);
 out_remove_host:
@@ -1798,6 +1807,7 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 
 	/* Release the irq reservation */
 	free_irq(phba->pcidev->irq, phba);
+	pci_disable_msi(phba->pcidev);
 
 	lpfc_cleanup(phba, 0);
 	lpfc_stop_timer(phba);
