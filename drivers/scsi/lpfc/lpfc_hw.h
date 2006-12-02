@@ -1294,6 +1294,10 @@ typedef struct {		/* FireFly BIU registers */
 #define CMD_FCP_IREAD_CX        0x1B
 #define CMD_FCP_ICMND_CR        0x1C
 #define CMD_FCP_ICMND_CX        0x1D
+#define CMD_FCP_TSEND_CX        0x1F
+#define CMD_FCP_TRECEIVE_CX     0x21
+#define CMD_FCP_TRSP_CX	        0x23
+#define CMD_FCP_AUTO_TRSP_CX    0x29
 
 #define CMD_ADAPTER_MSG         0x20
 #define CMD_ADAPTER_DUMP        0x22
@@ -1320,6 +1324,9 @@ typedef struct {		/* FireFly BIU registers */
 #define CMD_FCP_IREAD64_CX      0x9B
 #define CMD_FCP_ICMND64_CR      0x9C
 #define CMD_FCP_ICMND64_CX      0x9D
+#define CMD_FCP_TSEND64_CX      0x9F
+#define CMD_FCP_TRECEIVE64_CX   0xA1
+#define CMD_FCP_TRSP64_CX       0xA3
 
 #define CMD_GEN_REQUEST64_CR    0xC2
 #define CMD_GEN_REQUEST64_CX    0xC3

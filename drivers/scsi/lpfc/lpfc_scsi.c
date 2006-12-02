@@ -679,6 +679,9 @@ lpfc_scsi_tgt_reset(struct lpfc_scsi_buf * lpfc_cmd, struct lpfc_hba * phba,
 	struct lpfc_iocbq *iocbqrsp;
 	int ret;
 
+	if (!rdata->pnode)
+		return FAILED;
+
 	lpfc_cmd->rdata = rdata;
 	ret = lpfc_scsi_prep_task_mgmt_cmd(phba, lpfc_cmd, lun,
 					   FCP_TARGET_RESET);
@@ -985,20 +988,34 @@ lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 
 	lpfc_block_error_handler(cmnd);
 	spin_lock_irq(shost->host_lock);
+	loopcnt = 0;
 	/*
 	 * If target is not in a MAPPED state, delay the reset until
 	 * target is rediscovered or devloss timeout expires.
 	 */
 	while ( 1 ) {
 		if (!pnode)
-			break;
+			return FAILED;
 
 		if (pnode->nlp_state != NLP_STE_MAPPED_NODE) {
 			spin_unlock_irq(phba->host->host_lock);
 			schedule_timeout_uninterruptible(msecs_to_jiffies(500));
 			spin_lock_irq(phba->host->host_lock);
+			loopcnt++;
+			rdata = cmnd->device->hostdata;
+			if (!rdata ||
+				(loopcnt > ((phba->cfg_devloss_tmo * 2) + 1))) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
+		   			"%d:0721 LUN Reset rport failure:"
+					" cnt x%x rdata x%p\n",
+		   			phba->brd_no, loopcnt, rdata);
+				goto out;
+			}
+			pnode = rdata->pnode;
+			if (!pnode)
+				return FAILED;
 		}
-		if ((pnode) && (pnode->nlp_state == NLP_STE_MAPPED_NODE))
+		if (pnode->nlp_state == NLP_STE_MAPPED_NODE)
 			break;
 	}
 

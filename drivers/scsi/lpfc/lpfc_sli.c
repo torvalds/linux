@@ -117,6 +117,10 @@ lpfc_sli_iocb_cmd_type(uint8_t iocb_cmnd)
 	case CMD_FCP_IREAD_CX:
 	case CMD_FCP_ICMND_CR:
 	case CMD_FCP_ICMND_CX:
+	case CMD_FCP_TSEND_CX:
+	case CMD_FCP_TRSP_CX:
+	case CMD_FCP_TRECEIVE_CX:
+	case CMD_FCP_AUTO_TRSP_CX:
 	case CMD_ADAPTER_MSG:
 	case CMD_ADAPTER_DUMP:
 	case CMD_XMIT_SEQUENCE64_CR:
@@ -131,6 +135,9 @@ lpfc_sli_iocb_cmd_type(uint8_t iocb_cmnd)
 	case CMD_FCP_IREAD64_CX:
 	case CMD_FCP_ICMND64_CR:
 	case CMD_FCP_ICMND64_CX:
+	case CMD_FCP_TSEND64_CX:
+	case CMD_FCP_TRSP64_CX:
+	case CMD_FCP_TRECEIVE64_CX:
 	case CMD_GEN_REQUEST64_CR:
 	case CMD_GEN_REQUEST64_CX:
 	case CMD_XMIT_ELS_RSP64_CX:

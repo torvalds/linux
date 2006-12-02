@@ -519,7 +519,8 @@ lpfc_handle_eratt(struct lpfc_hba * phba)
 	struct lpfc_sli_ring  *pring;
 	uint32_t event_data;
 
-	if (phba->work_hs & HS_FFER6) {
+	if (phba->work_hs & HS_FFER6 ||
+	    phba->work_hs & HS_FFER5) {
 		/* Re-establishing Link */
 		lpfc_printf_log(phba, KERN_INFO, LOG_LINK_EVENT,
 				"%d:1301 Re-establishing Link "
