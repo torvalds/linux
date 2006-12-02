@@ -39,7 +39,16 @@
 #include <asm/hwtest.h>
 #include <asm/macints.h>
 
-#include "8390.h"
+static char version[] =
+	"mac8390.c: v0.4 2001-05-15 David Huggins-Daines <dhd@debian.org> and others\n";
+
+#define EI_SHIFT(x)	(ei_local->reg_offset[x])
+#define ei_inb(port)   in_8(port)
+#define ei_outb(val,port)  out_8(port,val)
+#define ei_inb_p(port)   in_8(port)
+#define ei_outb_p(val,port)  out_8(port,val)
+
+#include "lib8390.c"
 
 #define WD_START_PG			0x00	/* First page of TX buffer */
 #define CABLETRON_RX_START_PG		0x00    /* First page of RX buffer */
@@ -115,9 +124,6 @@ static int useresources[] = {
 	1, /* dayna2 */
 	1, /* dayna-lc */
 };
-
-static char version[] __initdata =
-	"mac8390.c: v0.4 2001-05-15 David Huggins-Daines <dhd@debian.org> and others\n";
 
 extern enum mac8390_type mac8390_ident(struct nubus_dev * dev);
 extern int mac8390_memsize(unsigned long membase);
@@ -237,7 +243,7 @@ struct net_device * __init mac8390_probe(int unit)
 	if (!MACH_IS_MAC)
 		return ERR_PTR(-ENODEV);
 
-	dev = alloc_ei_netdev();
+	dev = ____alloc_ei_netdev(0);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -438,7 +444,7 @@ static int __init mac8390_initdev(struct net_device * dev, struct nubus_dev * nd
 	dev->open = &mac8390_open;
 	dev->stop = &mac8390_close;
 #ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
+	dev->poll_controller = __ei_poll;
 #endif
 
 	/* GAR, ei_status is actually a macro even though it looks global */
@@ -510,7 +516,7 @@ static int __init mac8390_initdev(struct net_device * dev, struct nubus_dev * nd
 		return -ENODEV;
 	}
 
-	NS8390_init(dev, 0);
+	__NS8390_init(dev, 0);
 
 	/* Good, done, now spit out some messages */
 	printk(KERN_INFO "%s: %s in slot %X (type %s)\n",
@@ -532,8 +538,8 @@ static int __init mac8390_initdev(struct net_device * dev, struct nubus_dev * nd
 
 static int mac8390_open(struct net_device *dev)
 {
-	ei_open(dev);
-	if (request_irq(dev->irq, ei_interrupt, 0, "8390 Ethernet", dev)) {
+	__ei_open(dev);
+	if (request_irq(dev->irq, __ei_interrupt, 0, "8390 Ethernet", dev)) {
 		printk ("%s: unable to get IRQ %d.\n", dev->name, dev->irq);
 		return -EAGAIN;
 	}
@@ -543,7 +549,7 @@ static int mac8390_open(struct net_device *dev)
 static int mac8390_close(struct net_device *dev)
 {
 	free_irq(dev->irq, dev);
-	ei_close(dev);
+	__ei_close(dev);
 	return 0;
 }
 

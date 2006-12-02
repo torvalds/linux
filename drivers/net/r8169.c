@@ -571,8 +571,8 @@ static void rtl8169_xmii_reset_enable(void __iomem *ioaddr)
 {
 	unsigned int val;
 
-	val = (mdio_read(ioaddr, MII_BMCR) | BMCR_RESET) & 0xffff;
-	mdio_write(ioaddr, MII_BMCR, val);
+	mdio_write(ioaddr, MII_BMCR, BMCR_RESET);
+	val = mdio_read(ioaddr, MII_BMCR);
 }
 
 static void rtl8169_check_link_status(struct net_device *dev,
@@ -1406,6 +1406,22 @@ static void rtl8169_release_board(struct pci_dev *pdev, struct net_device *dev,
 	free_netdev(dev);
 }
 
+static void rtl8169_phy_reset(struct net_device *dev,
+			      struct rtl8169_private *tp)
+{
+	void __iomem *ioaddr = tp->mmio_addr;
+	int i;
+
+	tp->phy_reset_enable(ioaddr);
+	for (i = 0; i < 100; i++) {
+		if (!tp->phy_reset_pending(ioaddr))
+			return;
+		msleep(1);
+	}
+	if (netif_msg_link(tp))
+		printk(KERN_ERR "%s: PHY reset failed.\n", dev->name);
+}
+
 static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 {
 	void __iomem *ioaddr = tp->mmio_addr;
@@ -1433,6 +1449,8 @@ static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 	}
 
 	rtl8169_link_option(board_idx, &autoneg, &speed, &duplex);
+
+	rtl8169_phy_reset(dev, tp);
 
 	rtl8169_set_speed(dev, autoneg, speed, duplex);
 

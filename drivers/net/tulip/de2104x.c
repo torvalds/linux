@@ -1906,9 +1906,7 @@ fill_defaults:
 			de->media[i].csr15 = t21041_csr15[i];
 	}
 
-	de->ee_data = kmalloc(DE_EEPROM_SIZE, GFP_KERNEL);
-	if (de->ee_data)
-		memcpy(de->ee_data, &ee_data[0], DE_EEPROM_SIZE);
+	de->ee_data = kmemdup(&ee_data[0], DE_EEPROM_SIZE, GFP_KERNEL);
 
 	return;
 

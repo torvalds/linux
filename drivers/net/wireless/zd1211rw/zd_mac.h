@@ -20,6 +20,7 @@
 
 #include <linux/wireless.h>
 #include <linux/kernel.h>
+#include <linux/workqueue.h>
 #include <net/ieee80211.h>
 #include <net/ieee80211softmac.h>
 
@@ -48,10 +49,11 @@ struct zd_ctrlset {
 #define ZD_CS_CCK		0x00
 #define ZD_CS_OFDM		0x10
 
-#define ZD_CS_CCK_RATE_1M	0x00
-#define ZD_CS_CCK_RATE_2M	0x01
-#define ZD_CS_CCK_RATE_5_5M	0x02
-#define ZD_CS_CCK_RATE_11M	0x03
+/* These are referred to as zd_rates */
+#define ZD_CCK_RATE_1M	0x00
+#define ZD_CCK_RATE_2M	0x01
+#define ZD_CCK_RATE_5_5M	0x02
+#define ZD_CCK_RATE_11M	0x03
 /* The rates for OFDM are encoded as in the PLCP header. Use ZD_OFDM_RATE_*.
  */
 
@@ -116,10 +118,6 @@ struct rx_status {
 #define ZD_RX_CRC16_ERROR		0x40
 #define ZD_RX_ERROR			0x80
 
-enum mac_flags {
-	MAC_FIXED_CHANNEL = 0x01,
-};
-
 struct housekeeping {
 	struct work_struct link_led_work;
 };
@@ -130,15 +128,33 @@ struct zd_mac {
 	struct zd_chip chip;
 	spinlock_t lock;
 	struct net_device *netdev;
+
 	/* Unlocked reading possible */
 	struct iw_statistics iw_stats;
+
 	struct housekeeping housekeeping;
+	struct work_struct set_rts_cts_work;
+	struct work_struct set_basic_rates_work;
+
 	unsigned int stats_count;
 	u8 qual_buffer[ZD_MAC_STATS_BUFFER_SIZE];
 	u8 rssi_buffer[ZD_MAC_STATS_BUFFER_SIZE];
 	u8 regdomain;
 	u8 default_regdomain;
 	u8 requested_channel;
+
+	/* A bitpattern of cr_rates */
+	u16 basic_rates;
+
+	/* A zd_rate */
+	u8 rts_rate;
+
+	/* Short preamble (used for RTS/CTS) */
+	unsigned int short_preamble:1;
+
+	/* flags to indicate update in progress */
+	unsigned int updating_rts_rate:1;
+	unsigned int updating_basic_rates:1;
 };
 
 static inline struct ieee80211_device *zd_mac_to_ieee80211(struct zd_mac *mac)
@@ -180,7 +196,7 @@ int zd_mac_set_regdomain(struct zd_mac *zd_mac, u8 regdomain);
 u8 zd_mac_get_regdomain(struct zd_mac *zd_mac);
 
 int zd_mac_request_channel(struct zd_mac *mac, u8 channel);
-int zd_mac_get_channel(struct zd_mac *mac, u8 *channel, u8 *flags);
+u8 zd_mac_get_channel(struct zd_mac *mac);
 
 int zd_mac_set_mode(struct zd_mac *mac, u32 mode);
 int zd_mac_get_mode(struct zd_mac *mac, u32 *mode);

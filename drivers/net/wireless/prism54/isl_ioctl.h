@@ -1,5 +1,4 @@
 /*
- *  
  *  Copyright (C) 2002 Intersil Americas Inc.
  *            (C) 2003 Aurelien Alleaume <slts@free.fr>
  *            (C) 2003 Luis R. Rodriguez <mcgrof@ruslug.rutgers.edu>

@@ -7,6 +7,7 @@
  * Author: Andy Fleming
  *
  * Copyright (c) 2004 Freescale Semiconductor, Inc.
+ * Copyright (c) 2006  Maciej W. Rozycki
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -32,6 +33,8 @@
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/phy.h>
+#include <linux/timer.h>
+#include <linux/workqueue.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -484,6 +487,9 @@ static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 {
 	struct phy_device *phydev = phy_dat;
 
+	if (PHY_HALTED == phydev->state)
+		return IRQ_NONE;		/* It can't be ours.  */
+
 	/* The MDIO bus is not allowed to be written in interrupt
 	 * context, so we need to disable the irq here.  A work
 	 * queue will write the PHY to disable and clear the
@@ -577,6 +583,13 @@ int phy_stop_interrupts(struct phy_device *phydev)
 	if (err)
 		phy_error(phydev);
 
+	/*
+	 * Finish any pending work; we might have been scheduled
+	 * to be called from keventd ourselves, though.
+	 */
+	if (!current_is_keventd())
+		flush_scheduled_work();
+
 	free_irq(phydev->irq, phydev);
 
 	return err;
@@ -603,7 +616,8 @@ static void phy_change(void *data)
 	enable_irq(phydev->irq);
 
 	/* Reenable interrupts */
-	err = phy_config_interrupt(phydev, PHY_INTERRUPT_ENABLED);
+	if (PHY_HALTED != phydev->state)
+		err = phy_config_interrupt(phydev, PHY_INTERRUPT_ENABLED);
 
 	if (err)
 		goto irq_enable_err;
@@ -624,18 +638,24 @@ void phy_stop(struct phy_device *phydev)
 	if (PHY_HALTED == phydev->state)
 		goto out_unlock;
 
-	if (phydev->irq != PHY_POLL) {
-		/* Clear any pending interrupts */
-		phy_clear_interrupt(phydev);
+	phydev->state = PHY_HALTED;
 
+	if (phydev->irq != PHY_POLL) {
 		/* Disable PHY Interrupts */
 		phy_config_interrupt(phydev, PHY_INTERRUPT_DISABLED);
-	}
 
-	phydev->state = PHY_HALTED;
+		/* Clear any pending interrupts */
+		phy_clear_interrupt(phydev);
+	}
 
 out_unlock:
 	spin_unlock(&phydev->lock);
+
+	/*
+	 * Cannot call flush_scheduled_work() here as desired because
+	 * of rtnl_lock(), but PHY_HALTED shall guarantee phy_change()
+	 * will not reenable interrupts.
+	 */
 }
 
 
@@ -693,60 +713,57 @@ static void phy_timer(unsigned long data)
 
 			break;
 		case PHY_AN:
+			err = phy_read_status(phydev);
+
+			if (err < 0)
+				break;
+
+			/* If the link is down, give up on
+			 * negotiation for now */
+			if (!phydev->link) {
+				phydev->state = PHY_NOLINK;
+				netif_carrier_off(phydev->attached_dev);
+				phydev->adjust_link(phydev->attached_dev);
+				break;
+			}
+
 			/* Check if negotiation is done.  Break
 			 * if there's an error */
 			err = phy_aneg_done(phydev);
 			if (err < 0)
 				break;
 
-			/* If auto-negotiation is done, we change to
-			 * either RUNNING, or NOLINK */
+			/* If AN is done, we're running */
 			if (err > 0) {
-				err = phy_read_status(phydev);
-
-				if (err)
-					break;
-
-				if (phydev->link) {
-					phydev->state = PHY_RUNNING;
-					netif_carrier_on(phydev->attached_dev);
-				} else {
-					phydev->state = PHY_NOLINK;
-					netif_carrier_off(phydev->attached_dev);
-				}
-
+				phydev->state = PHY_RUNNING;
+				netif_carrier_on(phydev->attached_dev);
 				phydev->adjust_link(phydev->attached_dev);
 
 			} else if (0 == phydev->link_timeout--) {
-				/* The counter expired, so either we
-				 * switch to forced mode, or the
-				 * magic_aneg bit exists, and we try aneg
-				 * again */
-				if (!(phydev->drv->flags & PHY_HAS_MAGICANEG)) {
-					int idx;
-
-					/* We'll start from the
-					 * fastest speed, and work
-					 * our way down */
-					idx = phy_find_valid(0,
-							phydev->supported);
-
-					phydev->speed = settings[idx].speed;
-					phydev->duplex = settings[idx].duplex;
-					
-					phydev->autoneg = AUTONEG_DISABLE;
-					phydev->state = PHY_FORCING;
-					phydev->link_timeout =
-						PHY_FORCE_TIMEOUT;
-
-					pr_info("Trying %d/%s\n",
-							phydev->speed,
-							DUPLEX_FULL ==
-							phydev->duplex ?
-							"FULL" : "HALF");
-				}
+				int idx;
 
 				needs_aneg = 1;
+				/* If we have the magic_aneg bit,
+				 * we try again */
+				if (phydev->drv->flags & PHY_HAS_MAGICANEG)
+					break;
+
+				/* The timer expired, and we still
+				 * don't have a setting, so we try
+				 * forcing it until we find one that
+				 * works, starting from the fastest speed,
+				 * and working our way down */
+				idx = phy_find_valid(0, phydev->supported);
+
+				phydev->speed = settings[idx].speed;
+				phydev->duplex = settings[idx].duplex;
+
+				phydev->autoneg = AUTONEG_DISABLE;
+
+				pr_info("Trying %d/%s\n", phydev->speed,
+						DUPLEX_FULL ==
+						phydev->duplex ?
+						"FULL" : "HALF");
 			}
 			break;
 		case PHY_NOLINK:
@@ -762,7 +779,7 @@ static void phy_timer(unsigned long data)
 			}
 			break;
 		case PHY_FORCING:
-			err = phy_read_status(phydev);
+			err = genphy_update_link(phydev);
 
 			if (err)
 				break;

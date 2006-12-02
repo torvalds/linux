@@ -104,6 +104,7 @@ static const struct pci_device_id sky2_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SYSKONNECT, 0x9E00) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_DLINK, 0x4b00) },	/* DGE-560T */
 	{ PCI_DEVICE(PCI_VENDOR_ID_DLINK, 0x4001) }, 	/* DGE-550SX */
+	{ PCI_DEVICE(PCI_VENDOR_ID_DLINK, 0x4B02) },	/* DGE-560SX */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4340) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4341) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4342) },
@@ -676,17 +677,15 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 	/* Flush Rx MAC FIFO on any flow control or error */
 	sky2_write16(hw, SK_REG(port, RX_GMF_FL_MSK), GMR_FS_ANY_ERR);
 
-	/* Set threshold to 0xa (64 bytes)
-	 *  ASF disabled so no need to do WA dev #4.30
-	 */
-	sky2_write16(hw, SK_REG(port, RX_GMF_FL_THR), RX_GMF_FL_THR_DEF);
+	/* Set threshold to 0xa (64 bytes) + 1 to workaround pause bug  */
+	sky2_write16(hw, SK_REG(port, RX_GMF_FL_THR), RX_GMF_FL_THR_DEF+1);
 
 	/* Configure Tx MAC FIFO */
 	sky2_write8(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_RST_CLR);
 	sky2_write16(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_OPER_ON);
 
 	if (hw->chip_id == CHIP_ID_YUKON_EC_U) {
-		sky2_write8(hw, SK_REG(port, RX_GMF_LP_THR), 512/8);
+		sky2_write8(hw, SK_REG(port, RX_GMF_LP_THR), 768/8);
 		sky2_write8(hw, SK_REG(port, RX_GMF_UP_THR), 1024/8);
 		if (hw->dev[port]->mtu > ETH_DATA_LEN) {
 			/* set Tx GMAC FIFO Almost Empty Threshold */
@@ -1060,7 +1059,8 @@ static int sky2_rx_start(struct sky2_port *sky2)
 	sky2->rx_put = sky2->rx_next = 0;
 	sky2_qset(hw, rxq);
 
-	if (hw->chip_id == CHIP_ID_YUKON_EC_U && hw->chip_rev >= 2) {
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U &&
+	    (hw->chip_rev == CHIP_REV_YU_EC_U_A1 || hw->chip_rev == CHIP_REV_YU_EC_U_B0)) {
 		/* MAC Rx RAM Read is controlled by hardware */
 		sky2_write32(hw, Q_ADDR(rxq, Q_F), F_M_RX_RAM_DIS);
 	}
@@ -1453,7 +1453,7 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 			if (unlikely(netif_msg_tx_done(sky2)))
 				printk(KERN_DEBUG "%s: tx done %u\n",
 				       dev->name, idx);
-			dev_kfree_skb(re->skb);
+			dev_kfree_skb_any(re->skb);
 		}
 
 		le->opcode = 0;	/* paranoia */
@@ -1509,7 +1509,7 @@ static int sky2_down(struct net_device *dev)
 
 	/* WA for dev. #4.209 */
 	if (hw->chip_id == CHIP_ID_YUKON_EC_U
-	    && hw->chip_rev == CHIP_REV_YU_EC_U_A1)
+	    && (hw->chip_rev == CHIP_REV_YU_EC_U_A1 || hw->chip_rev == CHIP_REV_YU_EC_U_B0))
 		sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
 			     sky2->speed != SPEED_1000 ?
 			     TX_STFW_ENA : TX_STFW_DIS);
@@ -2065,7 +2065,7 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 		case OP_RXSTAT:
 			skb = sky2_receive(dev, length, status);
 			if (!skb)
-				break;
+				goto force_update;
 
 			skb->protocol = eth_type_trans(skb, dev);
 			dev->last_rx = jiffies;
@@ -2081,8 +2081,8 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 
 			/* Update receiver after 16 frames */
 			if (++buf_write[le->link] == RX_BUF_WRITE) {
-				sky2_put_idx(hw, rxqaddr[le->link],
-					     sky2->rx_put);
+force_update:
+				sky2_put_idx(hw, rxqaddr[le->link], sky2->rx_put);
 				buf_write[le->link] = 0;
 			}
 
@@ -3311,7 +3311,7 @@ static irqreturn_t __devinit sky2_test_intr(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	if (status & Y2_IS_IRQ_SW) {
-		hw->msi_detected = 1;
+		hw->msi = 1;
 		wake_up(&hw->msi_wait);
 		sky2_write8(hw, B0_CTST, CS_CL_SW_IRQ);
 	}
@@ -3330,7 +3330,7 @@ static int __devinit sky2_test_msi(struct sky2_hw *hw)
 
 	sky2_write32(hw, B0_IMSK, Y2_IS_IRQ_SW);
 
-	err = request_irq(pdev->irq, sky2_test_intr, IRQF_SHARED, DRV_NAME, hw);
+	err = request_irq(pdev->irq, sky2_test_intr, 0, DRV_NAME, hw);
 	if (err) {
 		printk(KERN_ERR PFX "%s: cannot assign irq %d\n",
 		       pci_name(pdev), pdev->irq);
@@ -3340,9 +3340,9 @@ static int __devinit sky2_test_msi(struct sky2_hw *hw)
 	sky2_write8(hw, B0_CTST, CS_ST_SW_IRQ);
 	sky2_read8(hw, B0_CTST);
 
-	wait_event_timeout(hw->msi_wait, hw->msi_detected, HZ/10);
+	wait_event_timeout(hw->msi_wait, hw->msi, HZ/10);
 
-	if (!hw->msi_detected) {
+	if (!hw->msi) {
 		/* MSI test failed, go back to INTx mode */
 		printk(KERN_INFO PFX "%s: No interrupt generated using MSI, "
 		       "switching to INTx mode.\n",
@@ -3475,7 +3475,8 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		goto err_out_free_netdev;
 	}
 
-	err = request_irq(pdev->irq,  sky2_intr, IRQF_SHARED, dev->name, hw);
+	err = request_irq(pdev->irq,  sky2_intr, hw->msi ? 0 : IRQF_SHARED,
+			  dev->name, hw);
 	if (err) {
 		printk(KERN_ERR PFX "%s: cannot assign irq %d\n",
 		       pci_name(pdev), pdev->irq);
@@ -3505,7 +3506,8 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	return 0;
 
 err_out_unregister:
-	pci_disable_msi(pdev);
+	if (hw->msi)
+		pci_disable_msi(pdev);
 	unregister_netdev(dev);
 err_out_free_netdev:
 	free_netdev(dev);
@@ -3548,7 +3550,8 @@ static void __devexit sky2_remove(struct pci_dev *pdev)
 	sky2_read8(hw, B0_CTST);
 
 	free_irq(pdev->irq, hw);
-	pci_disable_msi(pdev);
+	if (hw->msi)
+		pci_disable_msi(pdev);
 	pci_free_consistent(pdev, STATUS_LE_BYTES, hw->st_le, hw->st_dma);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);

@@ -47,11 +47,17 @@ static struct usb_device_id usb_ids[] = {
 	{ USB_DEVICE(0x0586, 0x3402), .driver_info = DEVICE_ZD1211 },
 	{ USB_DEVICE(0x0b3b, 0x5630), .driver_info = DEVICE_ZD1211 },
 	{ USB_DEVICE(0x0b05, 0x170c), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x1435, 0x0711), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x0586, 0x3409), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x0b3b, 0x1630), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x0586, 0x3401), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x14ea, 0xab13), .driver_info = DEVICE_ZD1211 },
 	/* ZD1211B */
 	{ USB_DEVICE(0x0ace, 0x1215), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x157e, 0x300d), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x079b, 0x0062), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x1582, 0x6003), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x050d, 0x705c), .driver_info = DEVICE_ZD1211B },
 	/* "Driverless" devices that need ejecting */
 	{ USB_DEVICE(0x0ace, 0x2011), .driver_info = DEVICE_INSTALLER },
 	{}
@@ -587,6 +593,8 @@ static void handle_rx_packet(struct zd_usb *usb, const u8 *buffer,
 		unsigned int l, k, n;
 		for (i = 0, l = 0;; i++) {
 			k = le16_to_cpu(get_unaligned(&length_info->length[i]));
+			if (k == 0)
+				return;
 			n = l+k;
 			if (n > length)
 				return;
@@ -1110,27 +1118,28 @@ static int __init usb_init(void)
 {
 	int r;
 
-	pr_debug("usb_init()\n");
+	pr_debug("%s usb_init()\n", driver.name);
 
 	zd_workqueue = create_singlethread_workqueue(driver.name);
 	if (zd_workqueue == NULL) {
-		printk(KERN_ERR "%s: couldn't create workqueue\n", driver.name);
+		printk(KERN_ERR "%s couldn't create workqueue\n", driver.name);
 		return -ENOMEM;
 	}
 
 	r = usb_register(&driver);
 	if (r) {
-		printk(KERN_ERR "usb_register() failed. Error number %d\n", r);
+		printk(KERN_ERR "%s usb_register() failed. Error number %d\n",
+		       driver.name, r);
 		return r;
 	}
 
-	pr_debug("zd1211rw initialized\n");
+	pr_debug("%s initialized\n", driver.name);
 	return 0;
 }
 
 static void __exit usb_exit(void)
 {
-	pr_debug("usb_exit()\n");
+	pr_debug("%s usb_exit()\n", driver.name);
 	usb_deregister(&driver);
 	destroy_workqueue(zd_workqueue);
 }

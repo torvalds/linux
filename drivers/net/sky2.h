@@ -383,8 +383,13 @@ enum {
 	CHIP_REV_YU_EC_A2    = 1,  /* Chip Rev. for Yukon-EC A2 */
 	CHIP_REV_YU_EC_A3    = 2,  /* Chip Rev. for Yukon-EC A3 */
 
-	CHIP_REV_YU_EC_U_A0  = 0,
-	CHIP_REV_YU_EC_U_A1  = 1,
+	CHIP_REV_YU_EC_U_A0  = 1,
+	CHIP_REV_YU_EC_U_A1  = 2,
+	CHIP_REV_YU_EC_U_B0  = 3,
+
+	CHIP_REV_YU_FE_A1    = 1,
+	CHIP_REV_YU_FE_A2    = 2,
+
 };
 
 /*	B2_Y2_CLK_GATE	 8 bit	Clock Gating (Yukon-2 only) */
@@ -1895,7 +1900,7 @@ struct sky2_hw {
 	dma_addr_t   	     st_dma;
 
 	struct timer_list    idle_timer;
-	int		     msi_detected;
+	int		     msi;
 	wait_queue_head_t    msi_wait;
 };
 

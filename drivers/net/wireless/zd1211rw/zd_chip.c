@@ -1076,6 +1076,31 @@ static int set_mandatory_rates(struct zd_chip *chip, enum ieee80211_std std)
 	return zd_iowrite32_locked(chip, rates, CR_MANDATORY_RATE_TBL);
 }
 
+int zd_chip_set_rts_cts_rate_locked(struct zd_chip *chip,
+	u8 rts_rate, int preamble)
+{
+	int rts_mod = ZD_RX_CCK;
+	u32 value = 0;
+
+	/* Modulation bit */
+	if (ZD_CS_TYPE(rts_rate) == ZD_CS_OFDM)
+		rts_mod = ZD_RX_OFDM;
+
+	dev_dbg_f(zd_chip_dev(chip), "rts_rate=%x preamble=%x\n",
+		rts_rate, preamble);
+
+	value |= rts_rate << RTSCTS_SH_RTS_RATE;
+	value |= rts_mod << RTSCTS_SH_RTS_MOD_TYPE;
+	value |= preamble << RTSCTS_SH_RTS_PMB_TYPE;
+	value |= preamble << RTSCTS_SH_CTS_PMB_TYPE;
+
+	/* We always send 11M self-CTS messages, like the vendor driver. */
+	value |= ZD_CCK_RATE_11M << RTSCTS_SH_CTS_RATE;
+	value |= ZD_RX_CCK << RTSCTS_SH_CTS_MOD_TYPE;
+
+	return zd_iowrite32_locked(chip, value, CR_RTS_CTS_RATE);
+}
+
 int zd_chip_enable_hwint(struct zd_chip *chip)
 {
 	int r;
@@ -1355,17 +1380,12 @@ out:
 	return r;
 }
 
-int zd_chip_set_basic_rates(struct zd_chip *chip, u16 cr_rates)
+int zd_chip_set_basic_rates_locked(struct zd_chip *chip, u16 cr_rates)
 {
-	int r;
+	ZD_ASSERT((cr_rates & ~(CR_RATES_80211B | CR_RATES_80211G)) == 0);
+	dev_dbg_f(zd_chip_dev(chip), "%x\n", cr_rates);
 
-	if (cr_rates & ~(CR_RATES_80211B|CR_RATES_80211G))
-		return -EINVAL;
-
-	mutex_lock(&chip->mutex);
-	r = zd_iowrite32_locked(chip, cr_rates, CR_BASIC_RATE_TBL);
-	mutex_unlock(&chip->mutex);
-	return r;
+	return zd_iowrite32_locked(chip, cr_rates, CR_BASIC_RATE_TBL);
 }
 
 static int ofdm_qual_db(u8 status_quality, u8 rate, unsigned int size)

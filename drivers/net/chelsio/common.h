@@ -45,6 +45,7 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/ethtool.h>
+#include <linux/if_vlan.h>
 #include <linux/mii.h>
 #include <linux/crc32.h>
 #include <linux/init.h>
@@ -53,12 +54,29 @@
 
 #define DRV_DESCRIPTION "Chelsio 10Gb Ethernet Driver"
 #define DRV_NAME "cxgb"
-#define DRV_VERSION "2.1.1"
+#define DRV_VERSION "2.2"
 #define PFX      DRV_NAME ": "
 
 #define CH_ERR(fmt, ...)   printk(KERN_ERR PFX fmt, ## __VA_ARGS__)
 #define CH_WARN(fmt, ...)  printk(KERN_WARNING PFX fmt, ## __VA_ARGS__)
 #define CH_ALERT(fmt, ...) printk(KERN_ALERT PFX fmt, ## __VA_ARGS__)
+
+/*
+ * More powerful macro that selectively prints messages based on msg_enable.
+ * For info and debugging messages.
+ */
+#define CH_MSG(adapter, level, category, fmt, ...) do { \
+	if ((adapter)->msg_enable & NETIF_MSG_##category) \
+		printk(KERN_##level PFX "%s: " fmt, (adapter)->name, \
+		       ## __VA_ARGS__); \
+} while (0)
+
+#ifdef DEBUG
+# define CH_DBG(adapter, category, fmt, ...) \
+	CH_MSG(adapter, DEBUG, category, fmt, ## __VA_ARGS__)
+#else
+# define CH_DBG(fmt, ...)
+#endif
 
 #define CH_DEVICE(devid, ssid, idx) \
 	{ PCI_VENDOR_ID_CHELSIO, devid, PCI_ANY_ID, ssid, 0, 0, idx }
@@ -70,10 +88,6 @@
 #define ADVERTISED_ASYM_PAUSE (1 << 14)
 
 typedef struct adapter adapter_t;
-
-void t1_elmer0_ext_intr(adapter_t *adapter);
-void t1_link_changed(adapter_t *adapter, int port_id, int link_status,
-			int speed, int duplex, int fc);
 
 struct t1_rx_mode {
 	struct net_device *dev;
@@ -97,26 +111,53 @@ static inline u8 *t1_get_next_mcaddr(struct t1_rx_mode *rm)
 }
 
 #define	MAX_NPORTS 4
+#define PORT_MASK ((1 << MAX_NPORTS) - 1)
+#define NMTUS      8
+#define TCB_SIZE   128
 
 #define SPEED_INVALID 0xffff
 #define DUPLEX_INVALID 0xff
 
 enum {
 	CHBT_BOARD_N110,
-	CHBT_BOARD_N210
+	CHBT_BOARD_N210,
+	CHBT_BOARD_7500,
+	CHBT_BOARD_8000,
+	CHBT_BOARD_CHT101,
+	CHBT_BOARD_CHT110,
+	CHBT_BOARD_CHT210,
+	CHBT_BOARD_CHT204,
+	CHBT_BOARD_CHT204V,
+	CHBT_BOARD_CHT204E,
+	CHBT_BOARD_CHN204,
+	CHBT_BOARD_COUGAR,
+	CHBT_BOARD_6800,
+	CHBT_BOARD_SIMUL,
 };
 
 enum {
+	CHBT_TERM_FPGA,
 	CHBT_TERM_T1,
-	CHBT_TERM_T2
+	CHBT_TERM_T2,
+	CHBT_TERM_T3
 };
 
 enum {
+	CHBT_MAC_CHELSIO_A,
+	CHBT_MAC_IXF1010,
 	CHBT_MAC_PM3393,
+	CHBT_MAC_VSC7321,
+	CHBT_MAC_DUMMY
 };
 
 enum {
+	CHBT_PHY_88E1041,
+	CHBT_PHY_88E1111,
 	CHBT_PHY_88X2010,
+	CHBT_PHY_XPAK,
+	CHBT_PHY_MY3126,
+	CHBT_PHY_8244,
+	CHBT_PHY_DUMMY
 };
 
 enum {
@@ -150,16 +191,44 @@ struct chelsio_pci_params {
 	unsigned char  is_pcix;
 };
 
+struct tp_params {
+	unsigned int pm_size;
+	unsigned int cm_size;
+	unsigned int pm_rx_base;
+	unsigned int pm_tx_base;
+	unsigned int pm_rx_pg_size;
+	unsigned int pm_tx_pg_size;
+	unsigned int pm_rx_num_pgs;
+	unsigned int pm_tx_num_pgs;
+	unsigned int rx_coalescing_size;
+	unsigned int use_5tuple_mode;
+};
+
+struct mc5_params {
+	unsigned int mode;       /* selects MC5 width */
+	unsigned int nservers;   /* size of server region */
+	unsigned int nroutes;    /* size of routing region */
+};
+
+/* Default MC5 region sizes */
+#define DEFAULT_SERVER_REGION_LEN 256
+#define DEFAULT_RT_REGION_LEN 1024
+
 struct adapter_params {
 	struct sge_params sge;
+	struct mc5_params mc5;
+	struct tp_params  tp;
 	struct chelsio_pci_params pci;
 
 	const struct board_info *brd_info;
 
+	unsigned short mtus[NMTUS];
 	unsigned int   nports;          /* # of ethernet ports */
 	unsigned int   stats_update_period;
 	unsigned short chip_revision;
 	unsigned char  chip_version;
+	unsigned char  is_asic;
+	unsigned char  has_msi;
 };
 
 struct link_config {
@@ -207,17 +276,20 @@ struct adapter {
 	/* Terminator modules. */
 	struct sge    *sge;
 	struct peespi *espi;
+	struct petp   *tp;
 
 	struct port_info port[MAX_NPORTS];
 	struct work_struct stats_update_task;
 	struct timer_list stats_update_timer;
 
-	struct semaphore mib_mutex;
 	spinlock_t tpi_lock;
 	spinlock_t work_lock;
+	spinlock_t mac_lock;
+
 	/* guards async operations */
 	spinlock_t async_lock ____cacheline_aligned;
 	u32 slow_intr_mask;
+	int t1powersave;
 };
 
 enum {                                           /* adapter flags */
@@ -256,6 +328,11 @@ struct board_info {
 	const char             *desc;
 };
 
+static inline int t1_is_asic(const adapter_t *adapter)
+{
+	return adapter->params.is_asic;
+}
+
 extern struct pci_device_id t1_pci_tbl[];
 
 static inline int adapter_matches_type(const adapter_t *adapter,
@@ -285,13 +362,15 @@ static inline unsigned int core_ticks_per_usec(const adapter_t *adap)
 	return board_info(adap)->clock_core / 1000000;
 }
 
+extern int __t1_tpi_read(adapter_t *adapter, u32 addr, u32 *valp);
+extern int __t1_tpi_write(adapter_t *adapter, u32 addr, u32 value);
 extern int t1_tpi_write(adapter_t *adapter, u32 addr, u32 value);
 extern int t1_tpi_read(adapter_t *adapter, u32 addr, u32 *value);
 
 extern void t1_interrupts_enable(adapter_t *adapter);
 extern void t1_interrupts_disable(adapter_t *adapter);
 extern void t1_interrupts_clear(adapter_t *adapter);
-extern int elmer0_ext_intr_handler(adapter_t *adapter);
+extern int t1_elmer0_ext_intr_handler(adapter_t *adapter);
 extern int t1_slow_intr_handler(adapter_t *adapter);
 
 extern int t1_link_start(struct cphy *phy, struct cmac *mac, struct link_config *lc);
@@ -305,9 +384,7 @@ extern int t1_init_hw_modules(adapter_t *adapter);
 extern int t1_init_sw_modules(adapter_t *adapter, const struct board_info *bi);
 extern void t1_free_sw_modules(adapter_t *adapter);
 extern void t1_fatal_err(adapter_t *adapter);
-
-extern void t1_tp_set_udp_checksum_offload(adapter_t *adapter, int enable);
-extern void t1_tp_set_tcp_checksum_offload(adapter_t *adapter, int enable);
-extern void t1_tp_set_ip_checksum_offload(adapter_t *adapter, int enable);
-
+extern void t1_link_changed(adapter_t *adapter, int port_id);
+extern void t1_link_negotiated(adapter_t *adapter, int port_id, int link_stat,
+			    int speed, int duplex, int pause);
 #endif /* _CXGB_COMMON_H_ */
