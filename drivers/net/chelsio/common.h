@@ -228,6 +228,7 @@ struct adapter_params {
 	unsigned short chip_revision;
 	unsigned char  chip_version;
 	unsigned char  is_asic;
+	unsigned char  has_msi;
 };
 
 struct link_config {

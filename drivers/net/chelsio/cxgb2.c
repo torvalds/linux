@@ -107,6 +107,10 @@ static int t1powersave = 1;	/* HW default is powersave mode. */
 module_param(t1powersave, int, 0);
 MODULE_PARM_DESC(t1powersave, "Enable/Disable T1 powersaving mode");
 
+static int disable_msi = 0;
+module_param(disable_msi, int, 0);
+MODULE_PARM_DESC(disable_msi, "Disable Message Signaled Interrupt (MSI)");
+
 static const char pci_speed[][4] = {
 	"33", "66", "100", "133"
 };
@@ -215,11 +219,19 @@ static int cxgb_up(struct adapter *adapter)
 	}
 
 	t1_interrupts_clear(adapter);
-	if ((err = request_irq(adapter->pdev->irq,
-			       t1_select_intr_handler(adapter), IRQF_SHARED,
-			       adapter->name, adapter))) {
+
+	adapter->params.has_msi = !disable_msi && pci_enable_msi(adapter->pdev) == 0;
+	err = request_irq(adapter->pdev->irq,
+			  t1_select_intr_handler(adapter),
+			  adapter->params.has_msi ? 0 : IRQF_SHARED,
+			  adapter->name, adapter);
+	if (err) {
+		if (adapter->params.has_msi)
+			pci_disable_msi(adapter->pdev);
+
 		goto out_err;
 	}
+
 	t1_sge_start(adapter->sge);
 	t1_interrupts_enable(adapter);
  out_err:
@@ -234,6 +246,8 @@ static void cxgb_down(struct adapter *adapter)
 	t1_sge_stop(adapter->sge);
 	t1_interrupts_disable(adapter);
 	free_irq(adapter->pdev->irq, adapter);
+	if (adapter->params.has_msi)
+		pci_disable_msi(adapter->pdev);
 }
 
 static int cxgb_open(struct net_device *dev)
