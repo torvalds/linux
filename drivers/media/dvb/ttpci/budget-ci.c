@@ -37,6 +37,7 @@
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/spinlock.h>
+#include <media/ir-common.h>
 
 #include "dvb_ca_en50221.h"
 #include "stv0299.h"
@@ -72,11 +73,24 @@
 #define SLOTSTATUS_READY	8
 #define SLOTSTATUS_OCCUPIED	(SLOTSTATUS_PRESENT|SLOTSTATUS_RESET|SLOTSTATUS_READY)
 
+/* Milliseconds during which key presses are regarded as key repeat and during
+ * which the debounce logic is active
+ */
+#define IR_REPEAT_TIMEOUT	350
+
+/* Some remotes sends multiple sequences per keypress (e.g. Zenith sends two),
+ * this setting allows the superflous sequences to be ignored
+ */
+static int debounce = 0;
+module_param(debounce, int, 0644);
+MODULE_PARM_DESC(debounce, "ignore repeated IR sequences (default: 0 = ignore no sequences)");
+
 struct budget_ci_ir {
 	struct input_dev *dev;
 	struct tasklet_struct msp430_irq_tasklet;
 	char name[72]; /* 40 + 32 for (struct saa7146_dev).name */
 	char phys[32];
+	struct ir_input_state state;
 };
 
 struct budget_ci {
@@ -89,59 +103,44 @@ struct budget_ci {
 	u8 tuner_pll_address; /* used for philips_tdm1316l configs */
 };
 
-/* from reading the following remotes:
-   Zenith Universal 7 / TV Mode 807 / VCR Mode 837
-   Hauppauge (from NOVA-CI-s box product)
-   i've taken a "middle of the road" approach and note the differences
-*/
-static u16 key_map[64] = {
-	/* 0x0X */
-	KEY_0, KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8,
-	KEY_9,
-	KEY_ENTER,
-	KEY_RED,
-	KEY_POWER,		/* RADIO on Hauppauge */
-	KEY_MUTE,
-	0,
-	KEY_A,			/* TV on Hauppauge */
-	/* 0x1X */
-	KEY_VOLUMEUP, KEY_VOLUMEDOWN,
-	0, 0,
-	KEY_B,
-	0, 0, 0, 0, 0, 0, 0,
-	KEY_UP, KEY_DOWN,
-	KEY_OPTION,		/* RESERVED on Hauppauge */
-	KEY_BREAK,
-	/* 0x2X */
-	KEY_CHANNELUP, KEY_CHANNELDOWN,
-	KEY_PREVIOUS,		/* Prev. Ch on Zenith, SOURCE on Hauppauge */
-	0, KEY_RESTART, KEY_OK,
-	KEY_CYCLEWINDOWS,	/* MINIMIZE on Hauppauge */
-	0,
-	KEY_ENTER,		/* VCR mode on Zenith */
-	KEY_PAUSE,
-	0,
-	KEY_RIGHT, KEY_LEFT,
-	0,
-	KEY_MENU,		/* FULL SCREEN on Hauppauge */
-	0,
-	/* 0x3X */
-	KEY_SLOW,
-	KEY_PREVIOUS,		/* VCR mode on Zenith */
-	KEY_REWIND,
-	0,
-	KEY_FASTFORWARD,
-	KEY_PLAY, KEY_STOP,
-	KEY_RECORD,
-	KEY_TUNER,		/* TV/VCR on Zenith */
-	0,
-	KEY_C,
-	0,
-	KEY_EXIT,
-	KEY_POWER2,
-	KEY_TUNER,		/* VCR mode on Zenith */
-	0,
-};
+static void msp430_ir_keyup(unsigned long data)
+{
+	struct budget_ci_ir *ir = (struct budget_ci_ir *) data;
+	ir_input_nokey(ir->dev, &ir->state);
+}
+
+static void msp430_ir_interrupt(unsigned long data)
+{
+	struct budget_ci *budget_ci = (struct budget_ci *) data;
+	struct input_dev *dev = budget_ci->ir.dev;
+	static int bounces = 0;
+	u32 ir_key;
+	u32 command = ttpci_budget_debiread(&budget_ci->budget, DEBINOSWAP, DEBIADDR_IR, 2, 1, 0) >> 8;
+
+	if (command & 0x40) {
+		ir_key = command & 0x3f;
+
+		if (ir_key != dev->repeat_key && del_timer(&dev->timer))
+			/* We were still waiting for a keyup event but this is a new key */
+			ir_input_nokey(dev, &budget_ci->ir.state);
+
+		if (ir_key == dev->repeat_key && bounces > 0 && timer_pending(&dev->timer)) {
+			/* Ignore repeated key sequences if requested */
+			bounces--;
+			return;
+		}
+
+		if (!timer_pending(&dev->timer))
+			/* New keypress */
+			bounces = debounce;
+
+		/* Prepare a keyup event sometime in the future */
+		mod_timer(&dev->timer, jiffies + msecs_to_jiffies(IR_REPEAT_TIMEOUT));
+
+		/* Generate a new or repeated keypress */
+		ir_input_keydown(dev, &budget_ci->ir.state, ir_key, command);
+	}
+}
 
 static void msp430_ir_debounce(unsigned long data)
 {
@@ -197,7 +196,6 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 {
 	struct saa7146_dev *saa = budget_ci->budget.dev;
 	struct input_dev *input_dev = budget_ci->ir.dev;
-	int i;
 	int error;
 
 	budget_ci->ir.dev = input_dev = input_allocate_device();
@@ -230,18 +228,36 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	input_dev->dev = &saa->pci->dev;
 # endif
 
-	set_bit(EV_KEY, input_dev->evbit);
-	for (i = 0; i < ARRAY_SIZE(key_map); i++)
-		if (key_map[i])
-			set_bit(key_map[i], input_dev->keybit);
+	/* Select keymap */
+	switch (budget_ci->budget.dev->pci->subsystem_device) {
+	case 0x100c:
+	case 0x100f:
+	case 0x1010:
+	case 0x1011:
+	case 0x1012:
+	case 0x1017:
+		/* The hauppauge keymap is a superset of these remotes */
+		ir_input_init(input_dev, &budget_ci->ir.state,
+			      IR_TYPE_RC5, ir_codes_hauppauge_new);
+		break;
+	default:
+		/* unknown remote */
+		ir_input_init(input_dev, &budget_ci->ir.state,
+			      IR_TYPE_RC5, ir_codes_budget_ci_old);
+		break;
+	}
+
+	/* initialise the key-up timeout handler */
+	input_dev->timer.function = msp430_ir_keyup;
+	input_dev->timer.data = (unsigned long) &budget_ci->ir;
+	input_dev->rep[REP_DELAY] = 1;
+	input_dev->rep[REP_PERIOD] = 1;
 
 	error = input_register_device(input_dev);
 	if (error) {
 		printk(KERN_ERR "budget_ci: could not init driver for IR device (code %d)\n", error);
 		goto out2;
 	}
-
-	input_dev->timer.function = msp430_ir_debounce;
 
 	tasklet_init(&budget_ci->ir.msp430_irq_tasklet, msp430_ir_interrupt,
 		     (unsigned long) budget_ci);
@@ -267,7 +283,7 @@ static void msp430_ir_deinit(struct budget_ci *budget_ci)
 	tasklet_kill(&budget_ci->ir.msp430_irq_tasklet);
 
 	if (del_timer(&dev->timer)) {
-		input_event(dev, EV_KEY, key_map[dev->repeat_key], 0);
+		ir_input_nokey(dev, &budget_ci->ir.state);
 		input_sync(dev);
 	}
 
