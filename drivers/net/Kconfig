@@ -2360,6 +2360,7 @@ menu "Ethernet (10000 Mbit)"
 config CHELSIO_T1
         tristate "Chelsio 10Gb Ethernet support"
         depends on PCI
+	select CRC32
         help
           This driver supports Chelsio gigabit and 10-gigabit
           Ethernet cards. More information about adapter features and

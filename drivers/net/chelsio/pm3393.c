@@ -43,6 +43,8 @@
 #include "elmer0.h"
 #include "suni1x10gexp_regs.h"
 
+#include <linux/crc32.h>
+
 #define OFFSET(REG_ADDR)    (REG_ADDR << 2)
 
 /* Max frame size PM3393 can handle. Includes Ethernet header and CRC. */
@@ -345,33 +347,6 @@ static int pm3393_set_mtu(struct cmac *cmac, int mtu)
 	return 0;
 }
 
-static u32 calc_crc(u8 *b, int len)
-{
-	int i;
-	u32 crc = (u32)~0;
-
-	/* calculate crc one bit at a time */
-	while (len--) {
-		crc ^= *b++;
-		for (i = 0; i < 8; i++) {
-			if (crc & 0x1)
-				crc = (crc >> 1) ^ 0xedb88320;
-			else
-				crc = (crc >> 1);
-		}
-	}
-
-	/* reverse bits */
-	crc = ((crc >> 4) & 0x0f0f0f0f) | ((crc << 4) & 0xf0f0f0f0);
-	crc = ((crc >> 2) & 0x33333333) | ((crc << 2) & 0xcccccccc);
-	crc = ((crc >> 1) & 0x55555555) | ((crc << 1) & 0xaaaaaaaa);
-	/* swap bytes */
-	crc = (crc >> 16) | (crc << 16);
-	crc = (crc >> 8 & 0x00ff00ff) | (crc << 8 & 0xff00ff00);
-
-	return crc;
-}
-
 static int pm3393_set_rx_mode(struct cmac *cmac, struct t1_rx_mode *rm)
 {
 	int enabled = cmac->instance->enabled & MAC_DIRECTION_RX;
@@ -405,7 +380,7 @@ static int pm3393_set_rx_mode(struct cmac *cmac, struct t1_rx_mode *rm)
 		u16 mc_filter[4] = { 0, };
 
 		while ((addr = t1_get_next_mcaddr(rm))) {
-			bit = (calc_crc(addr, ETH_ALEN) >> 23) & 0x3f;	/* bit[23:28] */
+			bit = (ether_crc(ETH_ALEN, addr) >> 23) & 0x3f;	/* bit[23:28] */
 			mc_filter[bit >> 4] |= 1 << (bit & 0xf);
 		}
 		pmwrite(cmac, SUNI1x10GEXP_REG_RXXG_MULTICAST_HASH_LOW, mc_filter[0]);
