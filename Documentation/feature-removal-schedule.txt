@@ -241,3 +241,12 @@ Why:	Orphaned for ages.  SMP bugs long unfixed.  Few users left
 Who:	Jeff Garzik <jeff@garzik.org>
 
 ---------------------------
+
+What:	IPv4 only connection tracking/NAT/helpers
+When:	2.6.22
+Why:	The new layer 3 independant connection tracking replaces the old
+	IPv4 only version. After some stabilization of the new code the
+	old one will be removed.
+Who:	Patrick McHardy <kaber@trash.net>
+
+---------------------------

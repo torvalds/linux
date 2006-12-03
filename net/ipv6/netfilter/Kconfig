@@ -6,7 +6,7 @@ menu "IPv6: Netfilter Configuration (EXPERIMENTAL)"
 	depends on INET && IPV6 && NETFILTER && EXPERIMENTAL
 
 config NF_CONNTRACK_IPV6
-	tristate "IPv6 support for new connection tracking (EXPERIMENTAL)"
+	tristate "IPv6 connection tracking support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && NF_CONNTRACK
 	---help---
 	  Connection tracking keeps a record of what packets have passed

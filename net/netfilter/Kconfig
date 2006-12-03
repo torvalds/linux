@@ -56,7 +56,7 @@ config NF_CONNTRACK_SUPPORT
 	  below).
 
 config IP_NF_CONNTRACK_SUPPORT
-	bool "Layer 3 Dependent Connection tracking"
+	bool "Layer 3 Dependent Connection tracking (OBSOLETE)"
 	help
 	  The old, Layer 3 dependent ip_conntrack subsystem of netfilter.
 
@@ -125,7 +125,7 @@ config NF_CT_PROTO_GRE
 	depends on EXPERIMENTAL && NF_CONNTRACK
 
 config NF_CT_PROTO_SCTP
-	tristate 'SCTP protocol on new connection tracking support (EXPERIMENTAL)'
+	tristate 'SCTP protocol connection tracking support (EXPERIMENTAL)'
 	depends on EXPERIMENTAL && NF_CONNTRACK
 	default n
 	help
@@ -151,7 +151,7 @@ config NF_CONNTRACK_AMANDA
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config NF_CONNTRACK_FTP
-	tristate "FTP support on new connection tracking (EXPERIMENTAL)"
+	tristate "FTP protocol support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && NF_CONNTRACK
 	help
 	  Tracking FTP connections is problematic: special helpers are
