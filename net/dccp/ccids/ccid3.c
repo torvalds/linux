@@ -137,8 +137,7 @@ static void ccid3_hc_tx_update_x(struct sock *sk, struct timeval *now)
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	const __u32 old_x = hctx->ccid3hctx_x;
 
-	/* To avoid large error in calcX */
-	if (hctx->ccid3hctx_p >= TFRC_SMALLEST_P) {
+	if (hctx->ccid3hctx_p > 0) {
 		hctx->ccid3hctx_x_calc = tfrc_calc_x(hctx->ccid3hctx_s,
 						     hctx->ccid3hctx_rtt,
 						     hctx->ccid3hctx_p);
@@ -226,16 +225,14 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 				       ccid3_tx_state_name(hctx->ccid3hctx_state));
 			/* Halve sending rate */
 
-			/*  If (X_calc > 2 * X_recv)
+			/*  If (p == 0 || X_calc > 2 * X_recv)
 			 *    X_recv = max(X_recv / 2, s / (2 * t_mbi));
 			 *  Else
 			 *    X_recv = X_calc / 4;
 			 */
-			BUG_ON(hctx->ccid3hctx_p >= TFRC_SMALLEST_P &&
-			       hctx->ccid3hctx_x_calc == 0);
+			BUG_ON(hctx->ccid3hctx_p && !hctx->ccid3hctx_x_calc);
 
-			/* check also if p is zero -> x_calc is infinity? */
-			if (hctx->ccid3hctx_p < TFRC_SMALLEST_P ||
+			if (hctx->ccid3hctx_p  == 0 ||
 			    hctx->ccid3hctx_x_calc > 2 * hctx->ccid3hctx_x_recv)
 				hctx->ccid3hctx_x_recv = max_t(u32, hctx->ccid3hctx_x_recv / 2,
 								    hctx->ccid3hctx_s / (2 * TFRC_T_MBI));
@@ -449,15 +446,8 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		pinv = opt_recv->ccid3or_loss_event_rate;
 		if (pinv == ~0U || pinv == 0)
 			hctx->ccid3hctx_p = 0;
-		else {
-			hctx->ccid3hctx_p = 1000000 / pinv;
-
-			if (hctx->ccid3hctx_p < TFRC_SMALLEST_P) {
-				hctx->ccid3hctx_p = TFRC_SMALLEST_P;
-				ccid3_pr_debug("%s, sk=%p, Smallest p used!\n",
-					       dccp_role(sk), sk);
-			}
-		}
+		else
+ 			hctx->ccid3hctx_p = 1000000 / pinv;
 
 		dccp_timestamp(sk, &now);
 
