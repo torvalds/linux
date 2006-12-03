@@ -1281,10 +1281,12 @@ static int build_aevent(struct sk_buff *skb, struct xfrm_state *x, struct km_eve
 	id = NLMSG_DATA(nlh);
 	nlh->nlmsg_flags = 0;
 
-	id->sa_id.daddr = x->id.daddr;
+	memcpy(&id->sa_id.daddr, &x->id.daddr,sizeof(x->id.daddr));
 	id->sa_id.spi = x->id.spi;
 	id->sa_id.family = x->props.family;
 	id->sa_id.proto = x->id.proto;
+	memcpy(&id->saddr, &x->props.saddr,sizeof(x->props.saddr));
+	id->reqid = x->props.reqid;
 	id->flags = c->data.aevent;
 
 	RTA_PUT(skb, XFRMA_REPLAY_VAL, sizeof(x->replay), &x->replay);

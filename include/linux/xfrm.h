@@ -289,7 +289,9 @@ struct xfrm_usersa_id {
 
 struct xfrm_aevent_id {
 	struct xfrm_usersa_id		sa_id;
+	xfrm_address_t			saddr;
 	__u32				flags;
+	__u32				reqid;
 };
 
 struct xfrm_userspi_info {
