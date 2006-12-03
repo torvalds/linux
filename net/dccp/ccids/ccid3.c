@@ -555,7 +555,8 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		hctx->ccid3hctx_idle = 1;   
 		break;
 	case TFRC_SSTATE_NO_SENT:
-		DCCP_WARN("Illegal ACK received - no packet has been sent\n");
+		if (dccp_sk(sk)->dccps_role == DCCP_ROLE_CLIENT)
+			DCCP_WARN("Illegal ACK received - no packet sent\n");
 		/* fall through */
 	case TFRC_SSTATE_TERM:		/* ignore feedback when closing */
 		break;
