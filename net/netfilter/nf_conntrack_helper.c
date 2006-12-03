@@ -97,13 +97,14 @@ static inline int unhelp(struct nf_conntrack_tuple_hash *i,
 
 int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 {
-	int ret;
+	int size, ret;
+
 	BUG_ON(me->timeout == 0);
 
+	size = ALIGN(sizeof(struct nf_conn), __alignof__(struct nf_conn_help)) +
+	       sizeof(struct nf_conn_help);
 	ret = nf_conntrack_register_cache(NF_CT_F_HELP, "nf_conntrack:help",
-					  sizeof(struct nf_conn)
-					  + sizeof(struct nf_conn_help)
-					  + __alignof__(struct nf_conn_help));
+					  size);
 	if (ret < 0) {
 		printk(KERN_ERR "nf_conntrack_helper_register: Unable to create slab cache for conntracks\n");
 		return ret;

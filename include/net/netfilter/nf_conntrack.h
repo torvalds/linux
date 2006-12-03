@@ -273,6 +273,7 @@ static inline struct nf_conn_help *nfct_help(const struct nf_conn *ct)
 	if (!(ct->features & NF_CT_F_HELP))
 		return NULL;
 
+	offset = ALIGN(offset, __alignof__(struct nf_conn_help));
 	return (struct nf_conn_help *) ((void *)ct + offset);
 }
 
