@@ -28,9 +28,13 @@
 #include <net/netfilter/nf_conntrack_core.h>
 
 ATOMIC_NOTIFIER_HEAD(nf_conntrack_chain);
+EXPORT_SYMBOL_GPL(nf_conntrack_chain);
+
 ATOMIC_NOTIFIER_HEAD(nf_conntrack_expect_chain);
+EXPORT_SYMBOL_GPL(nf_conntrack_expect_chain);
 
 DEFINE_PER_CPU(struct nf_conntrack_ecache, nf_conntrack_ecache);
+EXPORT_PER_CPU_SYMBOL_GPL(nf_conntrack_ecache);
 
 /* deliver cached events and clear cache entry - must be called with locally
  * disabled softirqs */
@@ -59,6 +63,7 @@ void nf_ct_deliver_cached_events(const struct nf_conn *ct)
 		__nf_ct_deliver_cached_events(ecache);
 	local_bh_enable();
 }
+EXPORT_SYMBOL_GPL(nf_ct_deliver_cached_events);
 
 /* Deliver cached events for old pending events, if current conntrack != old */
 void __nf_ct_event_cache_init(struct nf_conn *ct)
@@ -74,6 +79,7 @@ void __nf_ct_event_cache_init(struct nf_conn *ct)
 	ecache->ct = ct;
 	nf_conntrack_get(&ct->ct_general);
 }
+EXPORT_SYMBOL_GPL(__nf_ct_event_cache_init);
 
 /* flush the event cache - touches other CPU's data and must not be called
  * while packets are still passing through the code */

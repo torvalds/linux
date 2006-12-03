@@ -63,17 +63,27 @@
 #endif
 
 DEFINE_RWLOCK(nf_conntrack_lock);
+EXPORT_SYMBOL_GPL(nf_conntrack_lock);
 
 /* nf_conntrack_standalone needs this */
 atomic_t nf_conntrack_count = ATOMIC_INIT(0);
 EXPORT_SYMBOL_GPL(nf_conntrack_count);
 
-void (*nf_conntrack_destroyed)(struct nf_conn *conntrack) = NULL;
+void (*nf_conntrack_destroyed)(struct nf_conn *conntrack);
+EXPORT_SYMBOL_GPL(nf_conntrack_destroyed);
+
 unsigned int nf_conntrack_htable_size __read_mostly;
+EXPORT_SYMBOL_GPL(nf_conntrack_htable_size);
+
 int nf_conntrack_max __read_mostly;
 EXPORT_SYMBOL_GPL(nf_conntrack_max);
+
 struct list_head *nf_conntrack_hash __read_mostly;
+EXPORT_SYMBOL_GPL(nf_conntrack_hash);
+
 struct nf_conn nf_conntrack_untracked __read_mostly;
+EXPORT_SYMBOL_GPL(nf_conntrack_untracked);
+
 unsigned int nf_ct_log_invalid __read_mostly;
 LIST_HEAD(unconfirmed);
 static int nf_conntrack_vmalloc __read_mostly;
@@ -210,6 +220,7 @@ out_up_mutex:
 	mutex_unlock(&nf_ct_cache_mutex);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(nf_conntrack_register_cache);
 
 /* FIXME: In the current, only nf_conntrack_cleanup() can call this function. */
 void nf_conntrack_unregister_cache(u_int32_t features)
@@ -244,6 +255,7 @@ void nf_conntrack_unregister_cache(u_int32_t features)
 
 	mutex_unlock(&nf_ct_cache_mutex);
 }
+EXPORT_SYMBOL_GPL(nf_conntrack_unregister_cache);
 
 int
 nf_ct_get_tuple(const struct sk_buff *skb,
@@ -266,6 +278,7 @@ nf_ct_get_tuple(const struct sk_buff *skb,
 
 	return l4proto->pkt_to_tuple(skb, dataoff, tuple);
 }
+EXPORT_SYMBOL_GPL(nf_ct_get_tuple);
 
 int
 nf_ct_invert_tuple(struct nf_conntrack_tuple *inverse,
@@ -284,6 +297,7 @@ nf_ct_invert_tuple(struct nf_conntrack_tuple *inverse,
 	inverse->dst.protonum = orig->dst.protonum;
 	return l4proto->invert_tuple(inverse, orig);
 }
+EXPORT_SYMBOL_GPL(nf_ct_invert_tuple);
 
 static void
 clean_from_lists(struct nf_conn *ct)
@@ -382,6 +396,7 @@ __nf_conntrack_find(const struct nf_conntrack_tuple *tuple,
 
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(__nf_conntrack_find);
 
 /* Find a connection corresponding to a tuple. */
 struct nf_conntrack_tuple_hash *
@@ -398,6 +413,7 @@ nf_conntrack_find_get(const struct nf_conntrack_tuple *tuple,
 
 	return h;
 }
+EXPORT_SYMBOL_GPL(nf_conntrack_find_get);
 
 static void __nf_conntrack_hash_insert(struct nf_conn *ct,
 				       unsigned int hash,
@@ -421,6 +437,7 @@ void nf_conntrack_hash_insert(struct nf_conn *ct)
 	__nf_conntrack_hash_insert(ct, hash, repl_hash);
 	write_unlock_bh(&nf_conntrack_lock);
 }
+EXPORT_SYMBOL_GPL(nf_conntrack_hash_insert);
 
 /* Confirm a connection given skb; places it in hash table */
 int
@@ -498,6 +515,7 @@ out:
 	write_unlock_bh(&nf_conntrack_lock);
 	return NF_DROP;
 }
+EXPORT_SYMBOL_GPL(__nf_conntrack_confirm);
 
 /* Returns true if a connection correspondings to the tuple (required
    for NAT). */
@@ -513,6 +531,7 @@ nf_conntrack_tuple_taken(const struct nf_conntrack_tuple *tuple,
 
 	return h != NULL;
 }
+EXPORT_SYMBOL_GPL(nf_conntrack_tuple_taken);
 
 /* There's a small race here where we may free a just-assured
    connection.  Too bad: we're in trouble anyway. */
@@ -631,6 +650,7 @@ struct nf_conn *nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 	l3proto = __nf_ct_l3proto_find(orig->src.l3num);
 	return __nf_conntrack_alloc(orig, repl, l3proto, 0);
 }
+EXPORT_SYMBOL_GPL(nf_conntrack_alloc);
 
 void nf_conntrack_free(struct nf_conn *conntrack)
 {
@@ -641,6 +661,7 @@ void nf_conntrack_free(struct nf_conn *conntrack)
 	kmem_cache_free(nf_ct_cache[features].cachep, conntrack);
 	atomic_dec(&nf_conntrack_count);
 }
+EXPORT_SYMBOL_GPL(nf_conntrack_free);
 
 /* Allocate a new conntrack: we return -ENOMEM if classification
    failed due to stress.  Otherwise it really is unclassifiable. */
@@ -845,6 +866,7 @@ nf_conntrack_in(int pf, unsigned int hooknum, struct sk_buff **pskb)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(nf_conntrack_in);
 
 int nf_ct_invert_tuplepr(struct nf_conntrack_tuple *inverse,
 			 const struct nf_conntrack_tuple *orig)
@@ -854,6 +876,7 @@ int nf_ct_invert_tuplepr(struct nf_conntrack_tuple *inverse,
 				  __nf_ct_l4proto_find(orig->src.l3num,
 						     orig->dst.protonum));
 }
+EXPORT_SYMBOL_GPL(nf_ct_invert_tuplepr);
 
 /* Alter reply tuple (maybe alter helper).  This is for NAT, and is
    implicitly racy: see __nf_conntrack_confirm */
@@ -874,6 +897,7 @@ void nf_conntrack_alter_reply(struct nf_conn *ct,
 		help->helper = __nf_ct_helper_find(newreply);
 	write_unlock_bh(&nf_conntrack_lock);
 }
+EXPORT_SYMBOL_GPL(nf_conntrack_alter_reply);
 
 /* Refresh conntrack for this many jiffies and do accounting if do_acct is 1 */
 void __nf_ct_refresh_acct(struct nf_conn *ct,
@@ -931,6 +955,7 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 	if (event)
 		nf_conntrack_event_cache(event, skb);
 }
+EXPORT_SYMBOL_GPL(__nf_ct_refresh_acct);
 
 #if defined(CONFIG_NF_CT_NETLINK) || \
     defined(CONFIG_NF_CT_NETLINK_MODULE)
@@ -955,6 +980,7 @@ int nf_ct_port_tuple_to_nfattr(struct sk_buff *skb,
 nfattr_failure:
 	return -1;
 }
+EXPORT_SYMBOL_GPL(nf_ct_port_tuple_to_nfattr);
 
 static const size_t cta_min_proto[CTA_PROTO_MAX] = {
 	[CTA_PROTO_SRC_PORT-1]  = sizeof(u_int16_t),
@@ -975,6 +1001,7 @@ int nf_ct_port_nfattr_to_tuple(struct nfattr *tb[],
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nf_ct_port_nfattr_to_tuple);
 #endif
 
 /* Used by ipt_REJECT and ip6t_REJECT. */
@@ -995,6 +1022,7 @@ void __nf_conntrack_attach(struct sk_buff *nskb, struct sk_buff *skb)
 	nskb->nfctinfo = ctinfo;
 	nf_conntrack_get(nskb->nfct);
 }
+EXPORT_SYMBOL_GPL(__nf_conntrack_attach);
 
 static inline int
 do_iter(const struct nf_conntrack_tuple_hash *i,
@@ -1048,6 +1076,7 @@ nf_ct_iterate_cleanup(int (*iter)(struct nf_conn *i, void *data), void *data)
 		nf_ct_put(ct);
 	}
 }
+EXPORT_SYMBOL_GPL(nf_ct_iterate_cleanup);
 
 static int kill_all(struct nf_conn *i, void *data)
 {
@@ -1067,6 +1096,7 @@ void nf_conntrack_flush()
 {
 	nf_ct_iterate_cleanup(kill_all, NULL);
 }
+EXPORT_SYMBOL_GPL(nf_conntrack_flush);
 
 /* Mishearing the voices in his head, our hero wonders how he's
    supposed to kill the mall. */

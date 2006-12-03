@@ -27,6 +27,8 @@
 #include <net/netfilter/nf_conntrack_tuple.h>
 
 LIST_HEAD(nf_conntrack_expect_list);
+EXPORT_SYMBOL_GPL(nf_conntrack_expect_list);
+
 kmem_cache_t *nf_conntrack_expect_cachep __read_mostly;
 static unsigned int nf_conntrack_expect_next_id;
 
@@ -43,6 +45,7 @@ void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
 	master_help->expecting--;
 	nf_conntrack_expect_put(exp);
 }
+EXPORT_SYMBOL_GPL(nf_ct_unlink_expect);
 
 static void expectation_timed_out(unsigned long ul_expect)
 {
@@ -65,6 +68,7 @@ __nf_conntrack_expect_find(const struct nf_conntrack_tuple *tuple)
 	}
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(__nf_conntrack_expect_find);
 
 /* Just find a expectation corresponding to a tuple. */
 struct nf_conntrack_expect *
@@ -80,6 +84,7 @@ nf_conntrack_expect_find_get(const struct nf_conntrack_tuple *tuple)
 
 	return i;
 }
+EXPORT_SYMBOL_GPL(nf_conntrack_expect_find_get);
 
 /* If an expectation for this connection is found, it gets delete from
  * global list then returned. */
@@ -125,6 +130,7 @@ void nf_ct_remove_expectations(struct nf_conn *ct)
  		}
 	}
 }
+EXPORT_SYMBOL_GPL(nf_ct_remove_expectations);
 
 /* Would two expected things clash? */
 static inline int expect_clash(const struct nf_conntrack_expect *a,
@@ -179,6 +185,7 @@ void nf_conntrack_unexpect_related(struct nf_conntrack_expect *exp)
 	}
 	write_unlock_bh(&nf_conntrack_lock);
 }
+EXPORT_SYMBOL_GPL(nf_conntrack_unexpect_related);
 
 /* We don't increase the master conntrack refcount for non-fulfilled
  * conntracks. During the conntrack destruction, the expectations are
@@ -195,6 +202,7 @@ struct nf_conntrack_expect *nf_conntrack_expect_alloc(struct nf_conn *me)
 	atomic_set(&new->use, 1);
 	return new;
 }
+EXPORT_SYMBOL_GPL(nf_conntrack_expect_alloc);
 
 void nf_conntrack_expect_init(struct nf_conntrack_expect *exp, int family,
 			      union nf_conntrack_address *saddr,
@@ -269,6 +277,7 @@ void nf_conntrack_expect_put(struct nf_conntrack_expect *exp)
 	if (atomic_dec_and_test(&exp->use))
 		kmem_cache_free(nf_conntrack_expect_cachep, exp);
 }
+EXPORT_SYMBOL_GPL(nf_conntrack_expect_put);
 
 static void nf_conntrack_expect_insert(struct nf_conntrack_expect *exp)
 {
@@ -351,6 +360,7 @@ out:
 	write_unlock_bh(&nf_conntrack_lock);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(nf_conntrack_expect_related);
 
 #ifdef CONFIG_PROC_FS
 static void *exp_seq_start(struct seq_file *s, loff_t *pos)

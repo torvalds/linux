@@ -762,7 +762,7 @@ void nf_conntrack_tcp_update(struct sk_buff *skb,
 		receiver->td_end, receiver->td_maxend, receiver->td_maxwin,
 		receiver->td_scale);
 }
- 
+EXPORT_SYMBOL_GPL(nf_conntrack_tcp_update);
 #endif
 
 #define	TH_FIN	0x01
@@ -1405,6 +1405,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4 =
 #endif
 #endif
 };
+EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_tcp4);
 
 struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp6 =
 {
@@ -1431,6 +1432,4 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp6 =
 	.ctl_table		= tcp_sysctl_table,
 #endif
 };
-
-EXPORT_SYMBOL(nf_conntrack_l4proto_tcp4);
-EXPORT_SYMBOL(nf_conntrack_l4proto_tcp6);
+EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_tcp6);

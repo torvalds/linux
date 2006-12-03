@@ -380,5 +380,4 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
 #endif
 #endif
 };
-
-EXPORT_SYMBOL(nf_conntrack_l4proto_icmp);
+EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_icmp);

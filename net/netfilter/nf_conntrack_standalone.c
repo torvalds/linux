@@ -329,6 +329,7 @@ static struct file_operations ct_cpu_seq_fops = {
 /* Sysctl support */
 
 int nf_conntrack_checksum __read_mostly = 1;
+EXPORT_SYMBOL_GPL(nf_conntrack_checksum);
 
 #ifdef CONFIG_SYSCTL
 /* Log invalid packets of a given protocol */
@@ -414,7 +415,7 @@ static ctl_table nf_ct_net_table[] = {
 	},
 	{ .ctl_name = 0 }
 };
-EXPORT_SYMBOL(nf_ct_log_invalid);
+EXPORT_SYMBOL_GPL(nf_ct_log_invalid);
 #endif /* CONFIG_SYSCTL */
 
 static int __init nf_conntrack_standalone_init(void)
@@ -489,73 +490,4 @@ module_exit(nf_conntrack_standalone_fini);
 void need_conntrack(void)
 {
 }
-
-#ifdef CONFIG_NF_CONNTRACK_EVENTS
-EXPORT_SYMBOL_GPL(nf_conntrack_chain);
-EXPORT_SYMBOL_GPL(nf_conntrack_expect_chain);
-EXPORT_SYMBOL_GPL(nf_conntrack_register_notifier);
-EXPORT_SYMBOL_GPL(nf_conntrack_unregister_notifier);
-EXPORT_SYMBOL_GPL(__nf_ct_event_cache_init);
-EXPORT_PER_CPU_SYMBOL_GPL(nf_conntrack_ecache);
-EXPORT_SYMBOL_GPL(nf_ct_deliver_cached_events);
-#endif
-EXPORT_SYMBOL(nf_ct_l3proto_try_module_get);
-EXPORT_SYMBOL(nf_ct_l3proto_module_put);
-EXPORT_SYMBOL(nf_conntrack_l3proto_register);
-EXPORT_SYMBOL(nf_conntrack_l3proto_unregister);
-EXPORT_SYMBOL(nf_conntrack_l4proto_register);
-EXPORT_SYMBOL(nf_conntrack_l4proto_unregister);
-EXPORT_SYMBOL(nf_ct_invert_tuplepr);
-EXPORT_SYMBOL(nf_conntrack_destroyed);
-EXPORT_SYMBOL(need_conntrack);
-EXPORT_SYMBOL(nf_conntrack_helper_register);
-EXPORT_SYMBOL(nf_conntrack_helper_unregister);
-EXPORT_SYMBOL(nf_ct_iterate_cleanup);
-EXPORT_SYMBOL(__nf_ct_refresh_acct);
-EXPORT_SYMBOL(nf_ct_protos);
-EXPORT_SYMBOL(__nf_ct_l4proto_find);
-EXPORT_SYMBOL(nf_ct_l4proto_find_get);
-EXPORT_SYMBOL(nf_ct_l4proto_put);
-EXPORT_SYMBOL(nf_ct_l3proto_find_get);
-EXPORT_SYMBOL(nf_ct_l3proto_put);
-EXPORT_SYMBOL(nf_ct_l3protos);
-EXPORT_SYMBOL_GPL(nf_conntrack_checksum);
-EXPORT_SYMBOL(nf_conntrack_expect_alloc);
-EXPORT_SYMBOL(nf_conntrack_expect_put);
-EXPORT_SYMBOL(nf_conntrack_expect_related);
-EXPORT_SYMBOL(nf_conntrack_unexpect_related);
-EXPORT_SYMBOL(nf_conntrack_tuple_taken);
-EXPORT_SYMBOL(nf_conntrack_htable_size);
-EXPORT_SYMBOL(nf_conntrack_lock);
-EXPORT_SYMBOL(nf_conntrack_hash);
-EXPORT_SYMBOL(nf_conntrack_untracked);
-EXPORT_SYMBOL_GPL(nf_conntrack_find_get);
-#ifdef CONFIG_NF_NAT_NEEDED
-EXPORT_SYMBOL(nf_conntrack_tcp_update);
-EXPORT_SYMBOL(nf_conntrack_register_cache);
-EXPORT_SYMBOL(nf_conntrack_unregister_cache);
-EXPORT_SYMBOL(nf_conntrack_alter_reply);
-#endif
-EXPORT_SYMBOL(__nf_conntrack_confirm);
-EXPORT_SYMBOL(nf_ct_get_tuple);
-EXPORT_SYMBOL(nf_ct_invert_tuple);
-EXPORT_SYMBOL(nf_conntrack_in);
-EXPORT_SYMBOL(__nf_conntrack_attach);
-EXPORT_SYMBOL(nf_conntrack_alloc);
-EXPORT_SYMBOL(nf_conntrack_free);
-EXPORT_SYMBOL(nf_conntrack_flush);
-EXPORT_SYMBOL(nf_ct_remove_expectations);
-EXPORT_SYMBOL(nf_ct_helper_find_get);
-EXPORT_SYMBOL(nf_ct_helper_put);
-EXPORT_SYMBOL(__nf_conntrack_helper_find_byname);
-EXPORT_SYMBOL(__nf_conntrack_find);
-EXPORT_SYMBOL(nf_ct_unlink_expect);
-EXPORT_SYMBOL(nf_conntrack_hash_insert);
-EXPORT_SYMBOL(__nf_conntrack_expect_find);
-EXPORT_SYMBOL(nf_conntrack_expect_find_get);
-EXPORT_SYMBOL(nf_conntrack_expect_list);
-#if defined(CONFIG_NF_CT_NETLINK) || \
-    defined(CONFIG_NF_CT_NETLINK_MODULE)
-EXPORT_SYMBOL(nf_ct_port_tuple_to_nfattr);
-EXPORT_SYMBOL(nf_ct_port_nfattr_to_tuple);
-#endif
+EXPORT_SYMBOL_GPL(need_conntrack);

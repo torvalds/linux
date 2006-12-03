@@ -30,6 +30,7 @@
 
 struct nf_conntrack_l4proto **nf_ct_protos[PF_MAX] __read_mostly;
 struct nf_conntrack_l3proto *nf_ct_l3protos[AF_MAX] __read_mostly;
+EXPORT_SYMBOL_GPL(nf_ct_l3protos);
 
 #ifdef CONFIG_SYSCTL
 static DEFINE_MUTEX(nf_ct_proto_sysctl_mutex);
@@ -67,6 +68,7 @@ __nf_ct_l4proto_find(u_int16_t l3proto, u_int8_t l4proto)
 
 	return nf_ct_protos[l3proto][l4proto];
 }
+EXPORT_SYMBOL_GPL(__nf_ct_l4proto_find);
 
 /* this is guaranteed to always return a valid protocol helper, since
  * it falls back to generic_protocol */
@@ -83,11 +85,13 @@ nf_ct_l4proto_find_get(u_int16_t l3proto, u_int8_t l4proto)
 
 	return p;
 }
+EXPORT_SYMBOL_GPL(nf_ct_l4proto_find_get);
 
 void nf_ct_l4proto_put(struct nf_conntrack_l4proto *p)
 {
 	module_put(p->me);
 }
+EXPORT_SYMBOL_GPL(nf_ct_l4proto_put);
 
 struct nf_conntrack_l3proto *
 nf_ct_l3proto_find_get(u_int16_t l3proto)
@@ -102,11 +106,13 @@ nf_ct_l3proto_find_get(u_int16_t l3proto)
 
 	return p;
 }
+EXPORT_SYMBOL_GPL(nf_ct_l3proto_find_get);
 
 void nf_ct_l3proto_put(struct nf_conntrack_l3proto *p)
 {
 	module_put(p->me);
 }
+EXPORT_SYMBOL_GPL(nf_ct_l3proto_put);
 
 int
 nf_ct_l3proto_try_module_get(unsigned short l3proto)
@@ -125,6 +131,7 @@ retry:	p = nf_ct_l3proto_find_get(l3proto);
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nf_ct_l3proto_try_module_get);
 
 void nf_ct_l3proto_module_put(unsigned short l3proto)
 {
@@ -136,6 +143,7 @@ void nf_ct_l3proto_module_put(unsigned short l3proto)
 
 	module_put(p->me);
 }
+EXPORT_SYMBOL_GPL(nf_ct_l3proto_module_put);
 
 static int kill_l3proto(struct nf_conn *i, void *data)
 {
@@ -207,6 +215,7 @@ out_unlock:
 out:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_register);
 
 int nf_conntrack_l3proto_unregister(struct nf_conntrack_l3proto *proto)
 {
@@ -238,6 +247,7 @@ int nf_conntrack_l3proto_unregister(struct nf_conntrack_l3proto *proto)
 out:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_unregister);
 
 static int nf_ct_l4proto_register_sysctl(struct nf_conntrack_l4proto *l4proto)
 {
@@ -359,6 +369,7 @@ out_unlock:
 out:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_register);
 
 int nf_conntrack_l4proto_unregister(struct nf_conntrack_l4proto *l4proto)
 {
@@ -396,3 +407,4 @@ int nf_conntrack_l4proto_unregister(struct nf_conntrack_l4proto *l4proto)
 out:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_unregister);

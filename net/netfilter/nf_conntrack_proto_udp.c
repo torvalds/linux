@@ -223,6 +223,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4 =
 #endif
 #endif
 };
+EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_udp4);
 
 struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6 =
 {
@@ -247,6 +248,4 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6 =
 	.ctl_table		= udp_sysctl_table,
 #endif
 };
-
-EXPORT_SYMBOL(nf_conntrack_l4proto_udp4);
-EXPORT_SYMBOL(nf_conntrack_l4proto_udp6);
+EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_udp6);

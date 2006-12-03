@@ -63,11 +63,13 @@ nf_ct_helper_find_get( const struct nf_conntrack_tuple *tuple)
 
 	return helper;
 }
+EXPORT_SYMBOL_GPL(nf_ct_helper_find_get);
 
 void nf_ct_helper_put(struct nf_conntrack_helper *helper)
 {
 	module_put(helper->me);
 }
+EXPORT_SYMBOL_GPL(nf_ct_helper_put);
 
 struct nf_conntrack_helper *
 __nf_conntrack_helper_find_byname(const char *name)
@@ -81,6 +83,7 @@ __nf_conntrack_helper_find_byname(const char *name)
 
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(__nf_conntrack_helper_find_byname);
 
 static inline int unhelp(struct nf_conntrack_tuple_hash *i,
 			 const struct nf_conntrack_helper *me)
@@ -115,6 +118,7 @@ int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nf_conntrack_helper_register);
 
 void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 {
@@ -148,3 +152,4 @@ void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 	/* Someone could be still looking at the helper in a bh. */
 	synchronize_net();
 }
+EXPORT_SYMBOL_GPL(nf_conntrack_helper_unregister);
