@@ -42,8 +42,6 @@ struct ata_scsi_args {
 enum {
 	/* flags for ata_dev_read_id() */
 	ATA_READID_POSTRESET	= (1 << 0), /* reading ID after reset */
-	ATA_READID_DETECT	= (1 << 1), /* perform presence detection
-					     * using polling IDENTIFY */
 };
 
 extern struct workqueue_struct *ata_aux_wq;

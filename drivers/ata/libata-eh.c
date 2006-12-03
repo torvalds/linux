@@ -1692,9 +1692,6 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 			   ata_class_enabled(ehc->classes[dev->devno])) {
 			dev->class = ehc->classes[dev->devno];
 
-			if (ap->flags & ATA_FLAG_DETECT_POLLING)
-				readid_flags |= ATA_READID_DETECT;
-
 			rc = ata_dev_read_id(dev, &dev->class, readid_flags,
 					     dev->id);
 			if (rc == 0) {
