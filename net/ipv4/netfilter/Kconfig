@@ -484,6 +484,10 @@ config IP_NF_NAT_SNMP_BASIC
 #           <expr> '&&' <expr>                   (6)
 #
 # (6) Returns the result of min(/expr/, /expr/).
+config NF_NAT_PROTO_GRE
+	tristate
+	depends on NF_NAT && NF_CT_PROTO_GRE
+
 config IP_NF_NAT_FTP
 	tristate
 	depends on IP_NF_IPTABLES && IP_NF_CONNTRACK && IP_NF_NAT
@@ -527,6 +531,12 @@ config IP_NF_NAT_PPTP
 	depends on IP_NF_NAT!=n && IP_NF_PPTP!=n
 	default IP_NF_NAT if IP_NF_PPTP=y
 	default m if IP_NF_PPTP=m
+
+config NF_NAT_PPTP
+	tristate
+	depends on IP_NF_IPTABLES && NF_CONNTRACK && NF_NAT
+	default NF_NAT && NF_CONNTRACK_PPTP
+	select NF_NAT_PROTO_GRE
 
 config IP_NF_NAT_H323
 	tristate

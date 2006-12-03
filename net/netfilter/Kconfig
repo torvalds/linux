@@ -120,6 +120,10 @@ config NF_CONNTRACK_EVENTS
 
 	  If unsure, say `N'.
 
+config NF_CT_PROTO_GRE
+	tristate
+	depends on EXPERIMENTAL && NF_CONNTRACK
+
 config NF_CT_PROTO_SCTP
 	tristate 'SCTP protocol on new connection tracking support (EXPERIMENTAL)'
 	depends on EXPERIMENTAL && NF_CONNTRACK
@@ -210,6 +214,25 @@ config NF_CONNTRACK_NETBIOS_NS
 	  $ ip -4 address show eth0
 	  4: eth0: <BROADCAST,MULTICAST,UP> mtu 1500 qdisc pfifo_fast qlen 1000
 	      inet 172.16.2.252/24 brd 172.16.2.255 scope global eth0
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_CONNTRACK_PPTP
+	tristate "PPtP protocol support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && NF_CONNTRACK
+	select NF_CT_PROTO_GRE
+	help
+	  This module adds support for PPTP (Point to Point Tunnelling
+	  Protocol, RFC2637) connection tracking and NAT.
+
+	  If you are running PPTP sessions over a stateful firewall or NAT
+	  box, you may want to enable this feature.
+
+	  Please note that not all PPTP modes of operation are supported yet.
+	  Specifically these limitations exist:
+	    - Blindy assumes that control connections are always established
+	      in PNS->PAC direction. This is a violation of RFC2637.
+	    - Only supports a single call within each session
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 

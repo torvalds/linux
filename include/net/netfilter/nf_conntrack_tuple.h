@@ -49,6 +49,9 @@ union nf_conntrack_man_proto
 	struct {
 		__be16 port;
 	} sctp;
+	struct {
+		__be16 key;	/* GRE key is 32bit, PPtP only uses 16bit */
+	} gre;
 };
 
 /* The manipulable part of the tuple. */
@@ -84,6 +87,9 @@ struct nf_conntrack_tuple
 			struct {
 				__be16 port;
 			} sctp;
+			struct {
+				__be16 key;
+			} gre;
 		} u;
 
 		/* The protocol. */

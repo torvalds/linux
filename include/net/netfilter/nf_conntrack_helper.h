@@ -34,6 +34,8 @@ struct nf_conntrack_helper
 		    struct nf_conn *ct,
 		    enum ip_conntrack_info conntrackinfo);
 
+	void (*destroy)(struct nf_conn *ct);
+
 	int (*to_nfattr)(struct sk_buff *skb, const struct nf_conn *ct);
 };
 
