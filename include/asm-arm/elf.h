@@ -114,40 +114,24 @@ extern char elf_platform[];
    have no such handler.  */
 #define ELF_PLAT_INIT(_r, load_addr)	(_r)->ARM_r0 = 0
 
-#ifndef CONFIG_IWMMXT
-
-/* Old NetWinder binaries were compiled in such a way that the iBCS
-   heuristic always trips on them.  Until these binaries become uncommon
-   enough not to care, don't trust the `ibcs' flag here.  In any case
-   there is no other ELF system currently supported by iBCS.
-   @@ Could print a warning message to encourage users to upgrade.  */
-#define SET_PERSONALITY(ex,ibcs2) \
-	set_personality(((ex).e_flags & EF_ARM_APCS26 ? PER_LINUX : PER_LINUX_32BIT))
-
-#else
-
 /*
- * All iWMMXt capable CPUs don't support 26-bit mode.  Yet they can run
- * legacy binaries which used to contain FPA11 floating point instructions
- * that have always been emulated by the kernel.  PFA11 and iWMMXt overlap
- * on coprocessor 1 space though.  We therefore must decide if given task
- * is allowed to use CP 0 and 1 for iWMMXt, or if they should be blocked
- * at all times for the prefetch exception handler to catch FPA11 opcodes
- * and emulate them.  The best indication to discriminate those two cases
- * is the SOFT_FLOAT flag in the ELF header.
+ * Since the FPA coprocessor uses CP1 and CP2, and iWMMXt uses CP0
+ * and CP1, we only enable access to the iWMMXt coprocessor if the
+ * binary is EABI or softfloat (and thus, guaranteed not to use
+ * FPA instructions.)
  */
-
-#define SET_PERSONALITY(ex,ibcs2) \
-do { \
-	set_personality(PER_LINUX_32BIT); \
-	if (((ex).e_flags & EF_ARM_EABI_MASK) || \
-	    ((ex).e_flags & EF_ARM_SOFT_FLOAT)) \
-		set_thread_flag(TIF_USING_IWMMXT); \
-	else \
-		clear_thread_flag(TIF_USING_IWMMXT); \
-} while (0)
-
-#endif
+#define SET_PERSONALITY(ex, ibcs2)					\
+	do {								\
+		if ((ex).e_flags & EF_ARM_APCS26) {			\
+			set_personality(PER_LINUX);			\
+		} else {						\
+			set_personality(PER_LINUX_32BIT);		\
+			if (elf_hwcap & HWCAP_IWMMXT && (ex).e_flags & (EF_ARM_EABI_MASK | EF_ARM_SOFT_FLOAT)) \
+				set_thread_flag(TIF_USING_IWMMXT);	\
+			else						\
+				clear_thread_flag(TIF_USING_IWMMXT);	\
+		}							\
+	} while (0)
 
 #endif
 

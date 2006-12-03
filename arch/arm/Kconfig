@@ -374,6 +374,14 @@ config PLAT_IOP
 
 source arch/arm/mm/Kconfig
 
+config IWMMXT
+	bool "Enable iWMMXt support"
+	depends CPU_XSCALE || CPU_XSC3
+	default y if PXA27x
+	help
+	  Enable support for iWMMXt context switching at run time if
+	  running on a CPU that supports it.
+
 #  bool 'Use XScale PMU as timer source' CONFIG_XSCALE_PMU_TIMER
 config XSCALE_PMU
 	bool
