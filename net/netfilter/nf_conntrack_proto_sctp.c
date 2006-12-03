@@ -716,3 +716,4 @@ module_exit(nf_conntrack_proto_sctp_fini);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kiran Kumar Immidi");
 MODULE_DESCRIPTION("Netfilter connection tracking protocol helper for SCTP");
+MODULE_ALIAS("ip_conntrack_proto_sctp");

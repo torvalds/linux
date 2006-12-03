@@ -446,6 +446,7 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4 = {
 };
 
 MODULE_ALIAS("nf_conntrack-" __stringify(AF_INET));
+MODULE_ALIAS("ip_conntrack");
 MODULE_LICENSE("GPL");
 
 static int __init nf_conntrack_l3proto_ipv4_init(void)
