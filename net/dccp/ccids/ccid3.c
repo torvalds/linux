@@ -245,9 +245,10 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 		}
 		/*
 		 * Schedule no feedback timer to expire in
-		 * max(4 * R, 2 * s/X)  =  max(4 * R, 2 * t_ipi)
+		 * max(t_RTO, 2 * s/X)  =  max(t_RTO, 2 * t_ipi)
+		 * See comments in packet_recv() regarding the value of t_RTO.
 		 */
-		t_nfb = max(4 * hctx->ccid3hctx_rtt, 2 * hctx->ccid3hctx_t_ipi);
+		t_nfb = max(hctx->ccid3hctx_t_rto, 2 * hctx->ccid3hctx_t_ipi);
 		break;
 	case TFRC_SSTATE_NO_SENT:
 		DCCP_BUG("Illegal %s state NO_SENT, sk=%p", dccp_role(sk), sk);
@@ -512,16 +513,20 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		 */
 		sk->sk_write_space(sk);
 
-		/* Update timeout interval. We use the alternative variant of
-		 * [RFC 3448, 3.1] which sets the upper bound of t_rto to one
-		 * second, as it is suggested for TCP (see RFC 2988, 2.4). */
+		/*
+		 * Update timeout interval for the nofeedback timer.
+		 * We use a configuration option to increase the lower bound.
+		 * This can help avoid triggering the nofeedback timer too often
+		 * ('spinning') on LANs with small RTTs.
+		 */
 		hctx->ccid3hctx_t_rto = max_t(u32, 4 * hctx->ccid3hctx_rtt,
-					      	   USEC_PER_SEC            );
+						   CONFIG_IP_DCCP_CCID3_RTO *
+						   (USEC_PER_SEC/1000)	     );
 		/*
 		 * Schedule no feedback timer to expire in
-		 * max(4 * R, 2 * s/X)  =  max(4 * R, 2 * t_ipi)
+		 * max(t_RTO, 2 * s/X)  =  max(t_RTO, 2 * t_ipi)
 		 */
-		t_nfb = max(4 * hctx->ccid3hctx_rtt, 2 * hctx->ccid3hctx_t_ipi);
+		t_nfb = max(hctx->ccid3hctx_t_rto, 2 * hctx->ccid3hctx_t_ipi);
 			
 		ccid3_pr_debug("%s, sk=%p, Scheduled no feedback timer to "
 			       "expire in %lu jiffies (%luus)\n",
