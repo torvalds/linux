@@ -40,7 +40,7 @@ obj-$(CONFIG_IP_NF_IRC) += ip_conntrack_irc.o
 obj-$(CONFIG_IP_NF_SIP) += ip_conntrack_sip.o
 obj-$(CONFIG_IP_NF_NETBIOS_NS) += ip_conntrack_netbios_ns.o
 
-# NAT helpers 
+# NAT helpers (ip_conntrack)
 obj-$(CONFIG_IP_NF_NAT_H323) += ip_nat_h323.o
 obj-$(CONFIG_IP_NF_NAT_PPTP) += ip_nat_pptp.o
 obj-$(CONFIG_IP_NF_NAT_AMANDA) += ip_nat_amanda.o
@@ -48,6 +48,9 @@ obj-$(CONFIG_IP_NF_NAT_TFTP) += ip_nat_tftp.o
 obj-$(CONFIG_IP_NF_NAT_FTP) += ip_nat_ftp.o
 obj-$(CONFIG_IP_NF_NAT_IRC) += ip_nat_irc.o
 obj-$(CONFIG_IP_NF_NAT_SIP) += ip_nat_sip.o
+
+# NAT helpers (nf_conntrack)
+obj-$(CONFIG_NF_NAT_FTP) += nf_nat_ftp.o
 
 # generic IP tables 
 obj-$(CONFIG_IP_NF_IPTABLES) += ip_tables.o

@@ -45,7 +45,7 @@ union nf_conntrack_expect_proto {
 /* per conntrack: application helper private data */
 union nf_conntrack_help {
 	/* insert conntrack helper private data (master) here */
-	struct ip_ct_ftp_master ct_ftp_info;
+	struct nf_ct_ftp_master ct_ftp_info;
 };
 
 #include <linux/types.h>

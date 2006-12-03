@@ -477,19 +477,28 @@ config IP_NF_NAT_SNMP_BASIC
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+# If they want FTP, set to $CONFIG_IP_NF_NAT (m or y),
+# or $CONFIG_IP_NF_FTP (m or y), whichever is weaker.
+# From kconfig-language.txt:
+#
+#           <expr> '&&' <expr>                   (6)
+#
+# (6) Returns the result of min(/expr/, /expr/).
+config IP_NF_NAT_FTP
+	tristate
+	depends on IP_NF_IPTABLES && IP_NF_CONNTRACK && IP_NF_NAT
+	default IP_NF_NAT && IP_NF_FTP
+
+config NF_NAT_FTP
+	tristate
+	depends on IP_NF_IPTABLES && NF_CONNTRACK && NF_NAT
+	default NF_NAT && NF_CONNTRACK_FTP
+
 config IP_NF_NAT_IRC
 	tristate
 	depends on IP_NF_IPTABLES!=n && IP_NF_CONNTRACK!=n && IP_NF_NAT!=n
 	default IP_NF_NAT if IP_NF_IRC=y
 	default m if IP_NF_IRC=m
-
-# If they want FTP, set to $CONFIG_IP_NF_NAT (m or y), 
-# or $CONFIG_IP_NF_FTP (m or y), whichever is weaker.  Argh.
-config IP_NF_NAT_FTP
-	tristate
-	depends on IP_NF_IPTABLES!=n && IP_NF_CONNTRACK!=n && IP_NF_NAT!=n
-	default IP_NF_NAT if IP_NF_FTP=y
-	default m if IP_NF_FTP=m
 
 config IP_NF_NAT_TFTP
 	tristate

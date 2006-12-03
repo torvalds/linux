@@ -51,7 +51,7 @@ module_param(loose, bool, 0600);
 
 unsigned int (*nf_nat_ftp_hook)(struct sk_buff **pskb,
 				enum ip_conntrack_info ctinfo,
-				enum ip_ct_ftp_type type,
+				enum nf_ct_ftp_type type,
 				unsigned int matchoff,
 				unsigned int matchlen,
 				struct nf_conntrack_expect *exp,
@@ -74,7 +74,7 @@ static struct ftp_search {
 	size_t plen;
 	char skip;
 	char term;
-	enum ip_ct_ftp_type ftptype;
+	enum nf_ct_ftp_type ftptype;
 	int (*getnum)(const char *, size_t, struct nf_conntrack_man *, char);
 } search[IP_CT_DIR_MAX][2] = {
 	[IP_CT_DIR_ORIGINAL] = {
@@ -83,7 +83,7 @@ static struct ftp_search {
 			.plen		= sizeof("PORT") - 1,
 			.skip		= ' ',
 			.term		= '\r',
-			.ftptype	= IP_CT_FTP_PORT,
+			.ftptype	= NF_CT_FTP_PORT,
 			.getnum		= try_rfc959,
 		},
 		{
@@ -91,7 +91,7 @@ static struct ftp_search {
 			.plen		= sizeof("EPRT") - 1,
 			.skip		= ' ',
 			.term		= '\r',
-			.ftptype	= IP_CT_FTP_EPRT,
+			.ftptype	= NF_CT_FTP_EPRT,
 			.getnum		= try_eprt,
 		},
 	},
@@ -101,7 +101,7 @@ static struct ftp_search {
 			.plen		= sizeof("227 ") - 1,
 			.skip		= '(',
 			.term		= ')',
-			.ftptype	= IP_CT_FTP_PASV,
+			.ftptype	= NF_CT_FTP_PASV,
 			.getnum		= try_rfc959,
 		},
 		{
@@ -109,7 +109,7 @@ static struct ftp_search {
 			.plen		= sizeof("229 ") - 1,
 			.skip		= '(',
 			.term		= ')',
-			.ftptype	= IP_CT_FTP_EPSV,
+			.ftptype	= NF_CT_FTP_EPSV,
 			.getnum		= try_epsv_response,
 		},
 	},
@@ -320,7 +320,7 @@ static int find_pattern(const char *data, size_t dlen,
 }
 
 /* Look up to see if we're just after a \n. */
-static int find_nl_seq(u32 seq, const struct ip_ct_ftp_master *info, int dir)
+static int find_nl_seq(u32 seq, const struct nf_ct_ftp_master *info, int dir)
 {
 	unsigned int i;
 
@@ -331,7 +331,7 @@ static int find_nl_seq(u32 seq, const struct ip_ct_ftp_master *info, int dir)
 }
 
 /* We don't update if it's older than what we have. */
-static void update_nl_seq(u32 nl_seq, struct ip_ct_ftp_master *info, int dir,
+static void update_nl_seq(u32 nl_seq, struct nf_ct_ftp_master *info, int dir,
 			  struct sk_buff *skb)
 {
 	unsigned int i, oldest = NUM_SEQ_TO_REMEMBER;
@@ -367,7 +367,7 @@ static int help(struct sk_buff **pskb,
 	u32 seq;
 	int dir = CTINFO2DIR(ctinfo);
 	unsigned int matchlen, matchoff;
-	struct ip_ct_ftp_master *ct_ftp_info = &nfct_help(ct)->help.ct_ftp_info;
+	struct nf_ct_ftp_master *ct_ftp_info = &nfct_help(ct)->help.ct_ftp_info;
 	struct nf_conntrack_expect *exp;
 	struct nf_conntrack_man cmd = {};
 	unsigned int i;
@@ -523,7 +523,7 @@ static int help(struct sk_buff **pskb,
 	/* Now, NAT might want to mangle the packet, and register the
 	 * (possibly changed) expectation itself. */
 	nf_nat_ftp = rcu_dereference(nf_nat_ftp_hook);
-	if (nf_nat_ftp)
+	if (nf_nat_ftp && ct->status & IPS_NAT_MASK)
 		ret = nf_nat_ftp(pskb, ctinfo, search[dir][i].ftptype,
 				 matchoff, matchlen, exp, &seq);
 	else {
