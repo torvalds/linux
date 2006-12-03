@@ -26,8 +26,8 @@
    network order! */
 union nf_conntrack_man_l3proto {
 	u_int32_t all[NF_CT_TUPLE_L3SIZE];
-	u_int32_t ip;
-	u_int32_t ip6[4];
+	__be32 ip;
+	__be32 ip6[4];
 };
 
 /* The protocol-specific manipulable parts of the tuple: always in
@@ -38,16 +38,16 @@ union nf_conntrack_man_proto
 	u_int16_t all;
 
 	struct {
-		u_int16_t port;
+		__be16 port;
 	} tcp;
 	struct {
-		u_int16_t port;
+		__be16 port;
 	} udp;
 	struct {
-		u_int16_t id;
+		__be16 id;
 	} icmp;
 	struct {
-		u_int16_t port;
+		__be16 port;
 	} sctp;
 };
 
@@ -77,16 +77,16 @@ struct nf_conntrack_tuple
 			u_int16_t all;
 
 			struct {
-				u_int16_t port;
+				__be16 port;
 			} tcp;
 			struct {
-				u_int16_t port;
+				__be16 port;
 			} udp;
 			struct {
 				u_int8_t type, code;
 			} icmp;
 			struct {
-				u_int16_t port;
+				__be16 port;
 			} sctp;
 		} u;
 

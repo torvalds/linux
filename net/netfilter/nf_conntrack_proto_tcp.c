@@ -474,8 +474,8 @@ static void tcp_sack(const struct sk_buff *skb, unsigned int dataoff,
 
 	/* Fast path for timestamp-only option */
 	if (length == TCPOLEN_TSTAMP_ALIGNED*4
-	    && *(__u32 *)ptr ==
-	        __constant_ntohl((TCPOPT_NOP << 24) 
+	    && *(__be32 *)ptr ==
+	        __constant_htonl((TCPOPT_NOP << 24)
 	        		 | (TCPOPT_NOP << 16)
 	        		 | (TCPOPT_TIMESTAMP << 8)
 	        		 | TCPOLEN_TIMESTAMP))
@@ -506,9 +506,7 @@ static void tcp_sack(const struct sk_buff *skb, unsigned int dataoff,
 			    	for (i = 0;
 			    	     i < (opsize - TCPOLEN_SACK_BASE);
 			    	     i += TCPOLEN_SACK_PERBLOCK) {
-					memcpy(&tmp, (__u32 *)(ptr + i) + 1,
-					       sizeof(__u32));
-					tmp = ntohl(tmp);
+				     	tmp = ntohl(*((__be32 *)(ptr+i)+1));
 
 					if (after(tmp, *sack))
 						*sack = tmp;

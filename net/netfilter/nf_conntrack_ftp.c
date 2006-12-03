@@ -173,7 +173,7 @@ static int try_rfc959(const char *data, size_t dlen,
 
 /* Grab port: number up to delimiter */
 static int get_port(const char *data, int start, size_t dlen, char delim,
-		    u_int16_t *port)
+		    __be16 *port)
 {
 	u_int16_t tmp_port = 0;
 	int i;
@@ -502,12 +502,12 @@ static int help(struct sk_buff **pskb,
 			       .u = { .tcp = { 0 }},
 			     },
 		      .dst = { .protonum = 0xFF,
-			       .u = { .tcp = { 0xFFFF }},
+			       .u = { .tcp = { __constant_htons(0xFFFF) }},
 			     },
 		    };
 	if (cmd.l3num == PF_INET) {
-		exp->mask.src.u3.ip = 0xFFFFFFFF;
-		exp->mask.dst.u3.ip = 0xFFFFFFFF;
+		exp->mask.src.u3.ip = htonl(0xFFFFFFFF);
+		exp->mask.dst.u3.ip = htonl(0xFFFFFFFF);
 	} else {
 		memset(exp->mask.src.u3.ip6, 0xFF,
 		       sizeof(exp->mask.src.u3.ip6));
@@ -588,7 +588,7 @@ static int __init nf_conntrack_ftp_init(void)
 			ftp[i][j].tuple.src.u.tcp.port = htons(ports[i]);
 			ftp[i][j].tuple.dst.protonum = IPPROTO_TCP;
 			ftp[i][j].mask.src.l3num = 0xFFFF;
-			ftp[i][j].mask.src.u.tcp.port = 0xFFFF;
+			ftp[i][j].mask.src.u.tcp.port = htons(0xFFFF);
 			ftp[i][j].mask.dst.protonum = 0xFF;
 			ftp[i][j].max_expected = 1;
 			ftp[i][j].timeout = 5 * 60;	/* 5 Minutes */

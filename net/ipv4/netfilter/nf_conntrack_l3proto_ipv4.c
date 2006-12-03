@@ -41,7 +41,7 @@
 static int ipv4_pkt_to_tuple(const struct sk_buff *skb, unsigned int nhoff,
 			     struct nf_conntrack_tuple *tuple)
 {
-	u_int32_t _addrs[2], *ap;
+	__be32 _addrs[2], *ap;
 	ap = skb_header_pointer(skb, nhoff + offsetof(struct iphdr, saddr),
 				sizeof(u_int32_t) * 2, _addrs);
 	if (ap == NULL)
@@ -410,10 +410,8 @@ static int ipv4_nfattr_to_tuple(struct nfattr *tb[],
 	if (nfattr_bad_size(tb, CTA_IP_MAX, cta_min_ip))
 		return -EINVAL;
 
-	t->src.u3.ip =
-		*(u_int32_t *)NFA_DATA(tb[CTA_IP_V4_SRC-1]);
-	t->dst.u3.ip =
-		*(u_int32_t *)NFA_DATA(tb[CTA_IP_V4_DST-1]);
+	t->src.u3.ip = *(__be32 *)NFA_DATA(tb[CTA_IP_V4_SRC-1]);
+	t->dst.u3.ip = *(__be32 *)NFA_DATA(tb[CTA_IP_V4_DST-1]);
 
 	return 0;
 }

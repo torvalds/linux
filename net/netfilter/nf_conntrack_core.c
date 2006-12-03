@@ -936,10 +936,8 @@ int nf_ct_port_nfattr_to_tuple(struct nfattr *tb[],
 	if (nfattr_bad_size(tb, CTA_PROTO_MAX, cta_min_proto))
 		return -EINVAL;
 
-	t->src.u.tcp.port =
-		*(u_int16_t *)NFA_DATA(tb[CTA_PROTO_SRC_PORT-1]);
-	t->dst.u.tcp.port =
-		*(u_int16_t *)NFA_DATA(tb[CTA_PROTO_DST_PORT-1]);
+	t->src.u.tcp.port = *(__be16 *)NFA_DATA(tb[CTA_PROTO_SRC_PORT-1]);
+	t->dst.u.tcp.port = *(__be16 *)NFA_DATA(tb[CTA_PROTO_DST_PORT-1]);
 
 	return 0;
 }

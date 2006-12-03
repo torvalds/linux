@@ -24,8 +24,8 @@ icmp_in_range(const struct ip_conntrack_tuple *tuple,
 	      const union ip_conntrack_manip_proto *min,
 	      const union ip_conntrack_manip_proto *max)
 {
-	return (tuple->src.u.icmp.id >= min->icmp.id
-		&& tuple->src.u.icmp.id <= max->icmp.id);
+	return ntohs(tuple->src.u.icmp.id) >= ntohs(min->icmp.id) &&
+	       ntohs(tuple->src.u.icmp.id) <= ntohs(max->icmp.id);
 }
 
 static int
