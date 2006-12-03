@@ -334,6 +334,8 @@ ieee80211softmac_deauth_from_net(struct ieee80211softmac_device *mac,
 	/* can't transmit data right now... */
 	netif_carrier_off(mac->dev);
 	spin_unlock_irqrestore(&mac->lock, flags);
+
+	ieee80211softmac_try_reassoc(mac);
 }
 
 /* 
