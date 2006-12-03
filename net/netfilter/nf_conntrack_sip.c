@@ -14,6 +14,7 @@
 #include <linux/inet.h>
 #include <linux/in.h>
 #include <linux/udp.h>
+#include <linux/netfilter.h>
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_expect.h>

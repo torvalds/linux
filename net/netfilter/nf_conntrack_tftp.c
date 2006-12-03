@@ -9,6 +9,7 @@
 #include <linux/moduleparam.h>
 #include <linux/in.h>
 #include <linux/udp.h>
+#include <linux/netfilter.h>
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_tuple.h>

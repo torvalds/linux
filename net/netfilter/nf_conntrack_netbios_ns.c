@@ -24,6 +24,7 @@
 #include <linux/if_addr.h>
 #include <linux/in.h>
 #include <linux/ip.h>
+#include <linux/netfilter.h>
 #include <net/route.h>
 
 #include <net/netfilter/nf_conntrack.h>
