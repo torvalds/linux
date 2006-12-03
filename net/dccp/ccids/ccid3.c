@@ -339,7 +339,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 		 * else
 		 *       // send the packet in (t_nom - t_now) milliseconds.
 		 */
-		if (delay >= hctx->ccid3hctx_delta)
+		if (delay - (long)hctx->ccid3hctx_delta >= 0)
 			return delay / 1000L;
 		break;
 	case TFRC_SSTATE_TERM:
