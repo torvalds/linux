@@ -131,6 +131,21 @@ config NF_CT_PROTO_SCTP
 	  If you want to compile it as a module, say M here and read
 	  Documentation/modules.txt.  If unsure, say `N'.
 
+config NF_CONNTRACK_AMANDA
+	tristate "Amanda backup protocol support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && NF_CONNTRACK
+	select TEXTSEARCH
+	select TEXTSEARCH_KMP
+	help
+	  If you are running the Amanda backup package <http://www.amanda.org/>
+	  on this machine or machines that will be MASQUERADED through this
+	  machine, then you may want to enable this feature.  This allows the
+	  connection tracking and natting code to allow the sub-channels that
+	  Amanda requires for communication of the backup data, messages and
+	  index.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NF_CONNTRACK_FTP
 	tristate "FTP support on new connection tracking (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && NF_CONNTRACK

@@ -50,6 +50,7 @@ obj-$(CONFIG_IP_NF_NAT_IRC) += ip_nat_irc.o
 obj-$(CONFIG_IP_NF_NAT_SIP) += ip_nat_sip.o
 
 # NAT helpers (nf_conntrack)
+obj-$(CONFIG_NF_NAT_AMANDA) += nf_nat_amanda.o
 obj-$(CONFIG_NF_NAT_FTP) += nf_nat_ftp.o
 
 # generic IP tables 

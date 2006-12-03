@@ -512,6 +512,11 @@ config IP_NF_NAT_AMANDA
 	default IP_NF_NAT if IP_NF_AMANDA=y
 	default m if IP_NF_AMANDA=m
 
+config NF_NAT_AMANDA
+	tristate
+	depends on IP_NF_IPTABLES && NF_CONNTRACK && NF_NAT
+	default NF_NAT && NF_CONNTRACK_AMANDA
+
 config IP_NF_NAT_PPTP
 	tristate
 	depends on IP_NF_NAT!=n && IP_NF_PPTP!=n
