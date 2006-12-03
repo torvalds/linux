@@ -516,6 +516,7 @@ static int help(struct sk_buff **pskb,
 	}
 
 	exp->expectfn = NULL;
+	exp->helper = NULL;
 	exp->flags = 0;
 
 	/* Now, NAT might want to mangle the packet, and register the

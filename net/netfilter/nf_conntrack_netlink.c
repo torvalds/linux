@@ -1447,6 +1447,7 @@ ctnetlink_create_expect(struct nfattr *cda[], u_int8_t u3)
 	exp->expectfn = NULL;
 	exp->flags = 0;
 	exp->master = ct;
+	exp->helper = NULL;
 	memcpy(&exp->tuple, &tuple, sizeof(struct nf_conntrack_tuple));
 	memcpy(&exp->mask, &mask, sizeof(struct nf_conntrack_tuple));
 

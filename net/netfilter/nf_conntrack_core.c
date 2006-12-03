@@ -545,10 +545,10 @@ static int early_drop(struct list_head *chain)
 static struct nf_conn *
 __nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 		     const struct nf_conntrack_tuple *repl,
-		     const struct nf_conntrack_l3proto *l3proto)
+		     const struct nf_conntrack_l3proto *l3proto,
+		     u_int32_t features)
 {
 	struct nf_conn *conntrack = NULL;
-	u_int32_t features = 0;
 	struct nf_conntrack_helper *helper;
 
 	if (unlikely(!nf_conntrack_hash_rnd_initted)) {
@@ -574,7 +574,7 @@ __nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 	}
 
 	/*  find features needed by this conntrack. */
-	features = l3proto->get_features(orig);
+	features |= l3proto->get_features(orig);
 
 	/* FIXME: protect helper list per RCU */
 	read_lock_bh(&nf_conntrack_lock);
@@ -624,7 +624,7 @@ struct nf_conn *nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 	struct nf_conntrack_l3proto *l3proto;
 
 	l3proto = __nf_ct_l3proto_find(orig->src.l3num);
-	return __nf_conntrack_alloc(orig, repl, l3proto);
+	return __nf_conntrack_alloc(orig, repl, l3proto, 0);
 }
 
 void nf_conntrack_free(struct nf_conn *conntrack)
@@ -649,13 +649,20 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 	struct nf_conn *conntrack;
 	struct nf_conntrack_tuple repl_tuple;
 	struct nf_conntrack_expect *exp;
+	u_int32_t features = 0;
 
 	if (!nf_ct_invert_tuple(&repl_tuple, tuple, l3proto, l4proto)) {
 		DEBUGP("Can't invert tuple.\n");
 		return NULL;
 	}
 
-	conntrack = __nf_conntrack_alloc(tuple, &repl_tuple, l3proto);
+	read_lock_bh(&nf_conntrack_lock);
+	exp = __nf_conntrack_expect_find(tuple);
+	if (exp && exp->helper)
+		features = NF_CT_F_HELP;
+	read_unlock_bh(&nf_conntrack_lock);
+
+	conntrack = __nf_conntrack_alloc(tuple, &repl_tuple, l3proto, features);
 	if (conntrack == NULL || IS_ERR(conntrack)) {
 		DEBUGP("Can't allocate conntrack.\n");
 		return (struct nf_conntrack_tuple_hash *)conntrack;
@@ -676,6 +683,8 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 		/* Welcome, Mr. Bond.  We've been expecting you... */
 		__set_bit(IPS_EXPECTED_BIT, &conntrack->status);
 		conntrack->master = exp->master;
+		if (exp->helper)
+			nfct_help(conntrack)->helper = exp->helper;
 #ifdef CONFIG_NF_CONNTRACK_MARK
 		conntrack->mark = exp->master->mark;
 #endif
