@@ -667,9 +667,9 @@ u32 tfrc_calc_x_reverse_lookup(u32 fvalue)
 		ctr++;
 
 	if (small)
-		return TFRC_CALC_X_SPLIT * ctr / TFRC_CALC_X_ARRSIZE;
+		return (ctr + 1) * TFRC_CALC_X_SPLIT / TFRC_CALC_X_ARRSIZE;
 	else
-		return 1000000 * ctr / TFRC_CALC_X_ARRSIZE;
+		return (ctr + 1) * 1000000 / TFRC_CALC_X_ARRSIZE;
 }
 
 EXPORT_SYMBOL_GPL(tfrc_calc_x_reverse_lookup);
