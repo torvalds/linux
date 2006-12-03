@@ -261,7 +261,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	tasklet_init(&budget_ci->ir.msp430_irq_tasklet, msp430_ir_interrupt,
 		     (unsigned long) budget_ci);
 
-	saa7146_write(saa, IER, saa7146_read(saa, IER) | MASK_06);
+	SAA7146_IER_ENABLE(saa, MASK_06);
 	saa7146_setgpio(saa, 3, SAA7146_GPIO_IRQHI);
 
 	return 0;
@@ -277,7 +277,7 @@ static void msp430_ir_deinit(struct budget_ci *budget_ci)
 	struct saa7146_dev *saa = budget_ci->budget.dev;
 	struct input_dev *dev = budget_ci->ir.dev;
 
-	saa7146_write(saa, IER, saa7146_read(saa, IER) & ~MASK_06);
+	SAA7146_IER_DISABLE(saa, MASK_06);
 	saa7146_setgpio(saa, 3, SAA7146_GPIO_INPUT);
 	tasklet_kill(&budget_ci->ir.msp430_irq_tasklet);
 
@@ -537,7 +537,7 @@ static int ciintf_init(struct budget_ci *budget_ci)
 		} else {
 			saa7146_setgpio(saa, 0, SAA7146_GPIO_IRQHI);
 		}
-		saa7146_write(saa, IER, saa7146_read(saa, IER) | MASK_03);
+		SAA7146_IER_ENABLE(saa, MASK_03);
 	}
 
 	// enable interface
@@ -569,7 +569,7 @@ static void ciintf_deinit(struct budget_ci *budget_ci)
 
 	// disable CI interrupts
 	if (budget_ci->ci_irq) {
-		saa7146_write(saa, IER, saa7146_read(saa, IER) & ~MASK_03);
+		SAA7146_IER_DISABLE(saa, MASK_03);
 		saa7146_setgpio(saa, 0, SAA7146_GPIO_INPUT);
 		tasklet_kill(&budget_ci->ciintf_irq_tasklet);
 	}
