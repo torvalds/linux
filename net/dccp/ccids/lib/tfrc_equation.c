@@ -608,21 +608,18 @@ u32 tfrc_calc_x(u16 s, u32 R, u32 p)
 	u32 f;
 	u64 tmp1, tmp2;
 
+	/* check against invalid parameters and divide-by-zero   */
+	BUG_ON(p >  1000000);		/* p must not exceed 100%   */
+	BUG_ON(p == 0);			/* f(0) = 0, divide by zero */
+	if (R == 0) {			/* possible  divide by zero */
+		DCCP_CRIT("WARNING: RTT is 0, returning maximum X_calc.");
+		return ~0U;
+ 	}
+
 	if (p < TFRC_CALC_X_SPLIT) 		      /* 0      <= p <  0.05  */
 		index = (p / (TFRC_CALC_X_SPLIT / TFRC_CALC_X_ARRSIZE)) - 1;
 	else		 			      /* 0.05   <= p <= 1.00  */
 		index = (p / (1000000 / TFRC_CALC_X_ARRSIZE)) - 1;
-
-	if (index < 0)
-		/* p should be 0 unless there is a bug in my code */
-		index = 0;
-
-	if (R == 0) {
-		DCCP_WARN("RTT==0, setting to 1\n");
-		R = 1; /* RTT can't be zero or else divide by zero */
-	}
-
-	BUG_ON(index >= TFRC_CALC_X_ARRSIZE);
 
 	if (p >= TFRC_CALC_X_SPLIT)
 		f = tfrc_calc_x_lookup[index][0];
@@ -653,13 +650,21 @@ u32 tfrc_calc_x_reverse_lookup(u32 fvalue)
 	int ctr = 0;
 	int small;
 
-	if (fvalue < tfrc_calc_x_lookup[0][1])
+	if (fvalue == 0)	/* f(p) = 0  whenever  p = 0 */
 		return 0;
+
+	/* Error cases. */
+	if (fvalue < tfrc_calc_x_lookup[0][1]) {
+		DCCP_WARN("fvalue %d smaller than resolution\n", fvalue);
+		return tfrc_calc_x_lookup[0][1];
+	}
+	if (fvalue > tfrc_calc_x_lookup[TFRC_CALC_X_ARRSIZE - 1][0]) {
+		DCCP_WARN("fvalue %d exceeds bounds!\n", fvalue);
+		return 1000000;
+	}
 
 	if (fvalue <= tfrc_calc_x_lookup[TFRC_CALC_X_ARRSIZE - 1][1])
 		small = 1;
-	else if (fvalue > tfrc_calc_x_lookup[TFRC_CALC_X_ARRSIZE - 1][0])
-		return 1000000;
 	else
 		small = 0;
 
