@@ -25,19 +25,57 @@ config NETFILTER_NETLINK_LOG
 	  and is also scheduled to replace the old syslog-based ipt_LOG
 	  and ip6t_LOG modules.
 
-config NF_CONNTRACK
-	tristate "Layer 3 Independent Connection tracking (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && IP_NF_CONNTRACK=n
-	default n
-	---help---
+config NF_CONNTRACK_ENABLED
+	tristate "Netfilter connection tracking support"
+	help
 	  Connection tracking keeps a record of what packets have passed
 	  through your machine, in order to figure out how they are related
 	  into connections.
 
+	  This is required to do Masquerading or other kinds of Network
+	  Address Translation (except for Fast NAT).  It can also be used to
+	  enhance packet filtering (see `Connection state match support'
+	  below).
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+choice
+	prompt "Netfilter connection tracking support"
+	depends on NF_CONNTRACK_ENABLED
+
+config NF_CONNTRACK_SUPPORT
+	bool "Layer 3 Independent Connection tracking (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
 	  Layer 3 independent connection tracking is experimental scheme
 	  which generalize ip_conntrack to support other layer 3 protocols.
 
-	  To compile it as a module, choose M here.  If unsure, say N.
+	  This is required to do Masquerading or other kinds of Network
+	  Address Translation (except for Fast NAT).  It can also be used to
+	  enhance packet filtering (see `Connection state match support'
+	  below).
+
+config IP_NF_CONNTRACK_SUPPORT
+	bool "Layer 3 Dependent Connection tracking"
+	help
+	  The old, Layer 3 dependent ip_conntrack subsystem of netfilter.
+
+	  This is required to do Masquerading or other kinds of Network
+	  Address Translation (except for Fast NAT).  It can also be used to
+	  enhance packet filtering (see `Connection state match support'
+	  below).
+
+endchoice
+
+config NF_CONNTRACK
+	tristate
+	default m if NF_CONNTRACK_SUPPORT && NF_CONNTRACK_ENABLED=m
+	default y if NF_CONNTRACK_SUPPORT && NF_CONNTRACK_ENABLED=y
+
+config IP_NF_CONNTRACK
+	tristate
+	default m if IP_NF_CONNTRACK_SUPPORT && NF_CONNTRACK_ENABLED=m
+	default y if IP_NF_CONNTRACK_SUPPORT && NF_CONNTRACK_ENABLED=y
 
 config NF_CT_ACCT
 	bool "Connection tracking flow accounting"

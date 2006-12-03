@@ -31,20 +31,6 @@ config NF_CONNTRACK_PROC_COMPAT
 	  If unsure, say Y.
 
 # connection tracking, helpers and protocols
-config IP_NF_CONNTRACK
-	tristate "Connection tracking (required for masq/NAT)"
-	---help---
-	  Connection tracking keeps a record of what packets have passed
-	  through your machine, in order to figure out how they are related
-	  into connections.
-
-	  This is required to do Masquerading or other kinds of Network
-	  Address Translation (except for Fast NAT).  It can also be used to
-	  enhance packet filtering (see `Connection state match support'
-	  below).
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config IP_NF_CT_ACCT
 	bool "Connection tracking flow accounting"
 	depends on IP_NF_CONNTRACK
