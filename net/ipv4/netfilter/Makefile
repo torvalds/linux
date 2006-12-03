@@ -15,7 +15,7 @@ endif
 ip_conntrack_pptp-objs	:= ip_conntrack_helper_pptp.o ip_conntrack_proto_gre.o
 ip_nat_pptp-objs	:= ip_nat_helper_pptp.o ip_nat_proto_gre.o
 
-ip_conntrack_h323-objs := ip_conntrack_helper_h323.o ip_conntrack_helper_h323_asn1.o
+ip_conntrack_h323-objs := ip_conntrack_helper_h323.o ../../netfilter/nf_conntrack_h323_asn1.o
 ip_nat_h323-objs := ip_nat_helper_h323.o
 
 # connection tracking
@@ -52,6 +52,7 @@ obj-$(CONFIG_IP_NF_NAT_SIP) += ip_nat_sip.o
 # NAT helpers (nf_conntrack)
 obj-$(CONFIG_NF_NAT_AMANDA) += nf_nat_amanda.o
 obj-$(CONFIG_NF_NAT_FTP) += nf_nat_ftp.o
+obj-$(CONFIG_NF_NAT_H323) += nf_nat_h323.o
 
 # generic IP tables 
 obj-$(CONFIG_IP_NF_IPTABLES) += ip_tables.o

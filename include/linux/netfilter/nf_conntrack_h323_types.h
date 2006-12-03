@@ -10,6 +10,11 @@ typedef struct TransportAddress_ipAddress {	/* SEQUENCE */
 	unsigned ip;
 } TransportAddress_ipAddress;
 
+typedef struct TransportAddress_ip6Address {	/* SEQUENCE */
+	int options;		/* No use */
+	unsigned ip6;
+} TransportAddress_ip6Address;
+
 typedef struct TransportAddress {	/* CHOICE */
 	enum {
 		eTransportAddress_ipAddress,
@@ -22,6 +27,7 @@ typedef struct TransportAddress {	/* CHOICE */
 	} choice;
 	union {
 		TransportAddress_ipAddress ipAddress;
+		TransportAddress_ip6Address ip6Address;
 	};
 } TransportAddress;
 
@@ -93,6 +99,11 @@ typedef struct UnicastAddress_iPAddress {	/* SEQUENCE */
 	unsigned network;
 } UnicastAddress_iPAddress;
 
+typedef struct UnicastAddress_iP6Address {	/* SEQUENCE */
+	int options;		/* No use */
+	unsigned network;
+} UnicastAddress_iP6Address;
+
 typedef struct UnicastAddress {	/* CHOICE */
 	enum {
 		eUnicastAddress_iPAddress,
@@ -105,6 +116,7 @@ typedef struct UnicastAddress {	/* CHOICE */
 	} choice;
 	union {
 		UnicastAddress_iPAddress iPAddress;
+		UnicastAddress_iP6Address iP6Address;
 	};
 } UnicastAddress;
 

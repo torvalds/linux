@@ -15,7 +15,7 @@
 #else
 #include <stdio.h>
 #endif
-#include <linux/netfilter_ipv4/ip_conntrack_helper_h323_asn1.h>
+#include <linux/netfilter/nf_conntrack_h323_asn1.h>
 
 /* Trace Flag */
 #ifndef H323_TRACE
@@ -144,7 +144,7 @@ static decoder_t Decoders[] = {
 /****************************************************************************
  * H.323 Types
  ****************************************************************************/
-#include "ip_conntrack_helper_h323_types.c"
+#include "nf_conntrack_h323_types.c"
 
 /****************************************************************************
  * Functions

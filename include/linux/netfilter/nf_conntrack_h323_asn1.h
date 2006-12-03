@@ -1,6 +1,6 @@
 /****************************************************************************
- * ip_conntrack_helper_h323_asn1.h - BER and PER decoding library for H.323
- * 			      	     conntrack/NAT module.
+ * ip_conntrack_h323_asn1.h - BER and PER decoding library for H.323
+ * 			      conntrack/NAT module.
  *
  * Copyright (c) 2006 by Jing Min Zhao <zhaojingmin@users.sourceforge.net>
  *
@@ -34,13 +34,13 @@
  *
  ****************************************************************************/
 
-#ifndef _IP_CONNTRACK_HELPER_H323_ASN1_H_
-#define _IP_CONNTRACK_HELPER_H323_ASN1_H_
+#ifndef _NF_CONNTRACK_HELPER_H323_ASN1_H_
+#define _NF_CONNTRACK_HELPER_H323_ASN1_H_
 
 /*****************************************************************************
  * H.323 Types
  ****************************************************************************/
-#include "ip_conntrack_helper_h323_types.h"
+#include "nf_conntrack_h323_types.h"
 
 typedef struct {
 	enum {

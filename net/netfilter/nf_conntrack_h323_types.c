@@ -36,7 +36,8 @@ static field_t _TransportAddress_ipxAddress[] = {	/* SEQUENCE */
 };
 
 static field_t _TransportAddress_ip6Address[] = {	/* SEQUENCE */
-	{FNAME("ip") OCTSTR, FIXD, 16, 0, SKIP, 0, NULL},
+	{FNAME("ip") OCTSTR, FIXD, 16, 0, DECODE,
+	 offsetof(TransportAddress_ip6Address, ip6), NULL},
 	{FNAME("port") INT, WORD, 0, 0, SKIP, 0, NULL},
 };
 
@@ -65,8 +66,8 @@ static field_t _TransportAddress[] = {	/* CHOICE */
 	 _TransportAddress_ipSourceRoute},
 	{FNAME("ipxAddress") SEQ, 0, 3, 3, SKIP, 0,
 	 _TransportAddress_ipxAddress},
-	{FNAME("ip6Address") SEQ, 0, 2, 2, SKIP | EXT, 0,
-	 _TransportAddress_ip6Address},
+	{FNAME("ip6Address") SEQ, 0, 2, 2, DECODE | EXT,
+	offsetof(TransportAddress, ip6Address), _TransportAddress_ip6Address},
 	{FNAME("netBios") OCTSTR, FIXD, 16, 0, SKIP, 0, NULL},
 	{FNAME("nsap") OCTSTR, 5, 1, 0, SKIP, 0, NULL},
 	{FNAME("nonStandardAddress") SEQ, 0, 2, 2, SKIP, 0,

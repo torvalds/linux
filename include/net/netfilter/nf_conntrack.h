@@ -41,11 +41,13 @@ union nf_conntrack_expect_proto {
 
 /* Add protocol helper include file here */
 #include <linux/netfilter/nf_conntrack_ftp.h>
+#include <linux/netfilter/nf_conntrack_h323.h>
 
 /* per conntrack: application helper private data */
 union nf_conntrack_help {
 	/* insert conntrack helper private data (master) here */
 	struct nf_ct_ftp_master ct_ftp_info;
+	struct nf_ct_h323_master ct_h323_info;
 };
 
 #include <linux/types.h>
