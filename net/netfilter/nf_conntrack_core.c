@@ -579,7 +579,8 @@ __nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 	/* FIXME: protect helper list per RCU */
 	read_lock_bh(&nf_conntrack_lock);
 	helper = __nf_ct_helper_find(repl);
-	if (helper)
+	/* NAT might want to assign a helper later */
+	if (helper || features & NF_CT_F_NAT)
 		features |= NF_CT_F_HELP;
 	read_unlock_bh(&nf_conntrack_lock);
 
@@ -848,6 +849,26 @@ int nf_ct_invert_tuplepr(struct nf_conntrack_tuple *inverse,
 				  __nf_ct_l3proto_find(orig->src.l3num),
 				  __nf_ct_l4proto_find(orig->src.l3num,
 						     orig->dst.protonum));
+}
+
+/* Alter reply tuple (maybe alter helper).  This is for NAT, and is
+   implicitly racy: see __nf_conntrack_confirm */
+void nf_conntrack_alter_reply(struct nf_conn *ct,
+			      const struct nf_conntrack_tuple *newreply)
+{
+	struct nf_conn_help *help = nfct_help(ct);
+
+	write_lock_bh(&nf_conntrack_lock);
+	/* Should be unconfirmed, so not in hash table yet */
+	NF_CT_ASSERT(!nf_ct_is_confirmed(ct));
+
+	DEBUGP("Altering reply tuple of %p to ", ct);
+	NF_CT_DUMP_TUPLE(newreply);
+
+	ct->tuplehash[IP_CT_DIR_REPLY].tuple = *newreply;
+	if (!ct->master && help && help->expecting == 0)
+		help->helper = __nf_ct_helper_find(newreply);
+	write_unlock_bh(&nf_conntrack_lock);
 }
 
 /* Refresh conntrack for this many jiffies and do accounting if do_acct is 1 */

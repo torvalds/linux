@@ -39,7 +39,11 @@
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
-#include <linux/netfilter_ipv4/ip_nat_protocol.h>
+#include <net/netfilter/nf_conntrack_tuple.h>
+#ifdef CONFIG_NF_NAT_NEEDED
+#include <net/netfilter/nf_nat_core.h>
+#include <net/netfilter/nf_nat_protocol.h>
+#endif
 
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
@@ -430,7 +434,7 @@ ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 restart:
 		list_for_each_prev(i, &nf_conntrack_hash[cb->args[0]]) {
 			h = (struct nf_conntrack_tuple_hash *) i;
-			if (DIRECTION(h) != IP_CT_DIR_ORIGINAL)
+			if (NF_CT_DIRECTION(h) != IP_CT_DIR_ORIGINAL)
 				continue;
 			ct = nf_ct_tuplehash_to_ctrack(h);
 			/* Dump entries of a given L3 protocol number.
@@ -556,28 +560,28 @@ ctnetlink_parse_tuple(struct nfattr *cda[], struct nf_conntrack_tuple *tuple,
 	return 0;
 }
 
-#ifdef CONFIG_IP_NF_NAT_NEEDED
+#ifdef CONFIG_NF_NAT_NEEDED
 static const size_t cta_min_protonat[CTA_PROTONAT_MAX] = {
 	[CTA_PROTONAT_PORT_MIN-1]       = sizeof(u_int16_t),
 	[CTA_PROTONAT_PORT_MAX-1]       = sizeof(u_int16_t),
 };
 
-static int ctnetlink_parse_nat_proto(struct nfattr *attr,
+static int nfnetlink_parse_nat_proto(struct nfattr *attr,
 				     const struct nf_conn *ct,
-				     struct ip_nat_range *range)
+				     struct nf_nat_range *range)
 {
 	struct nfattr *tb[CTA_PROTONAT_MAX];
-	struct ip_nat_protocol *npt;
+	struct nf_nat_protocol *npt;
 
 	nfattr_parse_nested(tb, CTA_PROTONAT_MAX, attr);
 
 	if (nfattr_bad_size(tb, CTA_PROTONAT_MAX, cta_min_protonat))
 		return -EINVAL;
 
-	npt = ip_nat_proto_find_get(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum);
+	npt = nf_nat_proto_find_get(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum);
 
 	if (!npt->nfattr_to_range) {
-		ip_nat_proto_put(npt);
+		nf_nat_proto_put(npt);
 		return 0;
 	}
 
@@ -585,7 +589,7 @@ static int ctnetlink_parse_nat_proto(struct nfattr *attr,
 	if (npt->nfattr_to_range(tb, range) > 0)
 		range->flags |= IP_NAT_RANGE_PROTO_SPECIFIED;
 
-	ip_nat_proto_put(npt);
+	nf_nat_proto_put(npt);
 
 	return 0;
 }
@@ -596,8 +600,8 @@ static const size_t cta_min_nat[CTA_NAT_MAX] = {
 };
 
 static inline int
-ctnetlink_parse_nat(struct nfattr *nat,
-		    const struct nf_conn *ct, struct ip_nat_range *range)
+nfnetlink_parse_nat(struct nfattr *nat,
+		    const struct nf_conn *ct, struct nf_nat_range *range)
 {
 	struct nfattr *tb[CTA_NAT_MAX];
 	int err;
@@ -623,7 +627,7 @@ ctnetlink_parse_nat(struct nfattr *nat,
 	if (!tb[CTA_NAT_PROTO-1])
 		return 0;
 
-	err = ctnetlink_parse_nat_proto(tb[CTA_NAT_PROTO-1], ct, range);
+	err = nfnetlink_parse_nat_proto(tb[CTA_NAT_PROTO-1], ct, range);
 	if (err < 0)
 		return err;
 
@@ -798,35 +802,35 @@ ctnetlink_change_status(struct nf_conn *ct, struct nfattr *cda[])
 		return -EINVAL;
 
 	if (cda[CTA_NAT_SRC-1] || cda[CTA_NAT_DST-1]) {
-#ifndef CONFIG_IP_NF_NAT_NEEDED
+#ifndef CONFIG_NF_NAT_NEEDED
 		return -EINVAL;
 #else
-		struct ip_nat_range range;
+		struct nf_nat_range range;
 
 		if (cda[CTA_NAT_DST-1]) {
-			if (ctnetlink_parse_nat(cda[CTA_NAT_DST-1], ct,
+			if (nfnetlink_parse_nat(cda[CTA_NAT_DST-1], ct,
 						&range) < 0)
 				return -EINVAL;
-			if (ip_nat_initialized(ct,
+			if (nf_nat_initialized(ct,
 					       HOOK2MANIP(NF_IP_PRE_ROUTING)))
 				return -EEXIST;
-			ip_nat_setup_info(ct, &range, hooknum);
+			nf_nat_setup_info(ct, &range, NF_IP_PRE_ROUTING);
 		}
 		if (cda[CTA_NAT_SRC-1]) {
-			if (ctnetlink_parse_nat(cda[CTA_NAT_SRC-1], ct,
+			if (nfnetlink_parse_nat(cda[CTA_NAT_SRC-1], ct,
 						&range) < 0)
 				return -EINVAL;
-			if (ip_nat_initialized(ct,
+			if (nf_nat_initialized(ct,
 					       HOOK2MANIP(NF_IP_POST_ROUTING)))
 				return -EEXIST;
-			ip_nat_setup_info(ct, &range, hooknum);
+			nf_nat_setup_info(ct, &range, NF_IP_POST_ROUTING);
 		}
 #endif
 	}
 
 	/* Be careful here, modifying NAT bits can screw up things,
 	 * so don't let users modify them directly if they don't pass
-	 * ip_nat_range. */
+	 * nf_nat_range. */
 	ct->status |= status & ~(IPS_NAT_DONE_MASK | IPS_NAT_MASK);
 	return 0;
 }

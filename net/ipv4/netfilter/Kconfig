@@ -6,7 +6,7 @@ menu "IP: Netfilter Configuration"
 	depends on INET && NETFILTER
 
 config NF_CONNTRACK_IPV4
-	tristate "IPv4 support for new connection tracking (EXPERIMENTAL)"
+	tristate "IPv4 support for new connection tracking (required for NAT) (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && NF_CONNTRACK
 	---help---
 	  Connection tracking keeps a record of what packets have passed
@@ -387,7 +387,7 @@ config IP_NF_TARGET_TCPMSS
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-# NAT + specific targets
+# NAT + specific targets: ip_conntrack
 config IP_NF_NAT
 	tristate "Full NAT"
 	depends on IP_NF_IPTABLES && IP_NF_CONNTRACK
@@ -398,14 +398,30 @@ config IP_NF_NAT
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+# NAT + specific targets: nf_conntrack
+config NF_NAT
+	tristate "Full NAT"
+	depends on IP_NF_IPTABLES && NF_CONNTRACK
+	help
+	  The Full NAT option allows masquerading, port forwarding and other
+	  forms of full Network Address Port Translation.  It is controlled by
+	  the `nat' table in iptables: see the man page for iptables(8).
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config IP_NF_NAT_NEEDED
 	bool
-	depends on IP_NF_NAT != n
+	depends on IP_NF_NAT
+	default y
+
+config NF_NAT_NEEDED
+	bool
+	depends on NF_NAT
 	default y
 
 config IP_NF_TARGET_MASQUERADE
 	tristate "MASQUERADE target support"
-	depends on IP_NF_NAT
+	depends on (NF_NAT || IP_NF_NAT)
 	help
 	  Masquerading is a special case of NAT: all outgoing connections are
 	  changed to seem to come from a particular interface's address, and
@@ -417,7 +433,7 @@ config IP_NF_TARGET_MASQUERADE
 
 config IP_NF_TARGET_REDIRECT
 	tristate "REDIRECT target support"
-	depends on IP_NF_NAT
+	depends on (NF_NAT || IP_NF_NAT)
 	help
 	  REDIRECT is a special case of NAT: all incoming connections are
 	  mapped onto the incoming interface's address, causing the packets to
@@ -428,7 +444,7 @@ config IP_NF_TARGET_REDIRECT
 
 config IP_NF_TARGET_NETMAP
 	tristate "NETMAP target support"
-	depends on IP_NF_NAT
+	depends on (NF_NAT || IP_NF_NAT)
 	help
 	  NETMAP is an implementation of static 1:1 NAT mapping of network
 	  addresses. It maps the network address part, while keeping the host
@@ -439,7 +455,7 @@ config IP_NF_TARGET_NETMAP
 
 config IP_NF_TARGET_SAME
 	tristate "SAME target support"
-	depends on IP_NF_NAT
+	depends on (NF_NAT || IP_NF_NAT)
 	help
 	  This option adds a `SAME' target, which works like the standard SNAT
 	  target, but attempts to give clients the same IP for all connections.

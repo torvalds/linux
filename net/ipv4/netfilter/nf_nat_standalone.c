@@ -1,23 +1,10 @@
-/* This file contains all the functions required for the standalone
-   ip_nat module.
-
-   These are not required by the compatibility layer.
-*/
-
 /* (C) 1999-2001 Paul `Rusty' Russell
- * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
+ * (C) 2002-2006 Netfilter Core Team <coreteam@netfilter.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
-/*
- * 23 Apr 2001: Harald Welte <laforge@gnumonks.org>
- * 	- new API and handling of conntrack/nat helpers
- * 	- now capable of multiple expectations for one master
- * */
-
 #include <linux/types.h>
 #include <linux/icmp.h>
 #include <linux/ip.h>
@@ -30,13 +17,14 @@
 #include <net/checksum.h>
 #include <linux/spinlock.h>
 
-#include <linux/netfilter_ipv4/ip_nat.h>
-#include <linux/netfilter_ipv4/ip_nat_rule.h>
-#include <linux/netfilter_ipv4/ip_nat_protocol.h>
-#include <linux/netfilter_ipv4/ip_nat_core.h>
-#include <linux/netfilter_ipv4/ip_nat_helper.h>
+#include <net/netfilter/nf_conntrack.h>
+#include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_nat.h>
+#include <net/netfilter/nf_nat_rule.h>
+#include <net/netfilter/nf_nat_protocol.h>
+#include <net/netfilter/nf_nat_core.h>
+#include <net/netfilter/nf_nat_helper.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
-#include <linux/netfilter_ipv4/ip_conntrack_core.h>
 
 #if 0
 #define DEBUGP printk
@@ -44,16 +32,22 @@
 #define DEBUGP(format, args...)
 #endif
 
+#define HOOKNAME(hooknum) ((hooknum) == NF_IP_POST_ROUTING ? "POST_ROUTING"  \
+			   : ((hooknum) == NF_IP_PRE_ROUTING ? "PRE_ROUTING" \
+			      : ((hooknum) == NF_IP_LOCAL_OUT ? "LOCAL_OUT"  \
+			         : ((hooknum) == NF_IP_LOCAL_IN ? "LOCAL_IN"  \
+				    : "*ERROR*")))
+
 #ifdef CONFIG_XFRM
 static void nat_decode_session(struct sk_buff *skb, struct flowi *fl)
 {
-	struct ip_conntrack *ct;
-	struct ip_conntrack_tuple *t;
+	struct nf_conn *ct;
+	struct nf_conntrack_tuple *t;
 	enum ip_conntrack_info ctinfo;
 	enum ip_conntrack_dir dir;
 	unsigned long statusbit;
 
-	ct = ip_conntrack_get(skb, &ctinfo);
+	ct = nf_ct_get(skb, &ctinfo);
 	if (ct == NULL)
 		return;
 	dir = CTINFO2DIR(ctinfo);
@@ -65,7 +59,7 @@ static void nat_decode_session(struct sk_buff *skb, struct flowi *fl)
 		statusbit = IPS_SRC_NAT;
 
 	if (ct->status & statusbit) {
-		fl->fl4_dst = t->dst.ip;
+		fl->fl4_dst = t->dst.u3.ip;
 		if (t->dst.protonum == IPPROTO_TCP ||
 		    t->dst.protonum == IPPROTO_UDP)
 			fl->fl_ip_dport = t->dst.u.tcp.port;
@@ -74,33 +68,34 @@ static void nat_decode_session(struct sk_buff *skb, struct flowi *fl)
 	statusbit ^= IPS_NAT_MASK;
 
 	if (ct->status & statusbit) {
-		fl->fl4_src = t->src.ip;
+		fl->fl4_src = t->src.u3.ip;
 		if (t->dst.protonum == IPPROTO_TCP ||
 		    t->dst.protonum == IPPROTO_UDP)
 			fl->fl_ip_sport = t->src.u.tcp.port;
 	}
 }
 #endif
-		
+
 static unsigned int
-ip_nat_fn(unsigned int hooknum,
+nf_nat_fn(unsigned int hooknum,
 	  struct sk_buff **pskb,
 	  const struct net_device *in,
 	  const struct net_device *out,
 	  int (*okfn)(struct sk_buff *))
 {
-	struct ip_conntrack *ct;
+	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
-	struct ip_nat_info *info;
+	struct nf_conn_nat *nat;
+	struct nf_nat_info *info;
 	/* maniptype == SRC for postrouting. */
-	enum ip_nat_manip_type maniptype = HOOK2MANIP(hooknum);
+	enum nf_nat_manip_type maniptype = HOOK2MANIP(hooknum);
 
 	/* We never see fragments: conntrack defrags on pre-routing
-	   and local-out, and ip_nat_out protects post-routing. */
-	IP_NF_ASSERT(!((*pskb)->nh.iph->frag_off
+	   and local-out, and nf_nat_out protects post-routing. */
+	NF_CT_ASSERT(!((*pskb)->nh.iph->frag_off
 		       & htons(IP_MF|IP_OFFSET)));
 
-	ct = ip_conntrack_get(*pskb, &ctinfo);
+	ct = nf_ct_get(*pskb, &ctinfo);
 	/* Can't track?  It's not due to stress, or conntrack would
 	   have dropped it.  Hence it's the user's responsibilty to
 	   packet filter it out, or implement conntrack/NAT for that
@@ -123,14 +118,18 @@ ip_nat_fn(unsigned int hooknum,
 	}
 
 	/* Don't try to NAT if this packet is not conntracked */
-	if (ct == &ip_conntrack_untracked)
+	if (ct == &nf_conntrack_untracked)
 		return NF_ACCEPT;
+
+	nat = nfct_nat(ct);
+	if (!nat)
+		return NF_DROP;
 
 	switch (ctinfo) {
 	case IP_CT_RELATED:
 	case IP_CT_RELATED+IP_CT_IS_REPLY:
 		if ((*pskb)->nh.iph->protocol == IPPROTO_ICMP) {
-			if (!ip_nat_icmp_reply_translation(ct, ctinfo,
+			if (!nf_nat_icmp_reply_translation(ct, ctinfo,
 							   hooknum, pskb))
 				return NF_DROP;
 			else
@@ -138,14 +137,14 @@ ip_nat_fn(unsigned int hooknum,
 		}
 		/* Fall thru... (Only ICMPs can be IP_CT_IS_REPLY) */
 	case IP_CT_NEW:
-		info = &ct->nat.info;
+		info = &nat->info;
 
 		/* Seen it before?  This can happen for loopback, retrans,
 		   or local packets.. */
-		if (!ip_nat_initialized(ct, maniptype)) {
+		if (!nf_nat_initialized(ct, maniptype)) {
 			unsigned int ret;
 
-			if (unlikely(is_confirmed(ct)))
+			if (unlikely(nf_ct_is_confirmed(ct)))
 				/* NAT module was loaded late */
 				ret = alloc_null_binding_confirmed(ct, info,
 				                                   hooknum);
@@ -153,9 +152,8 @@ ip_nat_fn(unsigned int hooknum,
 				/* LOCAL_IN hook doesn't have a chain!  */
 				ret = alloc_null_binding(ct, info, hooknum);
 			else
-				ret = ip_nat_rule_find(pskb, hooknum,
-						       in, out, ct,
-						       info);
+				ret = nf_nat_rule_find(pskb, hooknum, in, out,
+						       ct, info);
 
 			if (ret != NF_ACCEPT) {
 				return ret;
@@ -168,17 +166,17 @@ ip_nat_fn(unsigned int hooknum,
 
 	default:
 		/* ESTABLISHED */
-		IP_NF_ASSERT(ctinfo == IP_CT_ESTABLISHED
-			     || ctinfo == (IP_CT_ESTABLISHED+IP_CT_IS_REPLY));
-		info = &ct->nat.info;
+		NF_CT_ASSERT(ctinfo == IP_CT_ESTABLISHED ||
+			     ctinfo == (IP_CT_ESTABLISHED+IP_CT_IS_REPLY));
+		info = &nat->info;
 	}
 
-	IP_NF_ASSERT(info);
-	return ip_nat_packet(ct, ctinfo, hooknum, pskb);
+	NF_CT_ASSERT(info);
+	return nf_nat_packet(ct, ctinfo, hooknum, pskb);
 }
 
 static unsigned int
-ip_nat_in(unsigned int hooknum,
+nf_nat_in(unsigned int hooknum,
           struct sk_buff **pskb,
           const struct net_device *in,
           const struct net_device *out,
@@ -187,9 +185,9 @@ ip_nat_in(unsigned int hooknum,
 	unsigned int ret;
 	__be32 daddr = (*pskb)->nh.iph->daddr;
 
-	ret = ip_nat_fn(hooknum, pskb, in, out, okfn);
-	if (ret != NF_DROP && ret != NF_STOLEN
-	    && daddr != (*pskb)->nh.iph->daddr) {
+	ret = nf_nat_fn(hooknum, pskb, in, out, okfn);
+	if (ret != NF_DROP && ret != NF_STOLEN &&
+	    daddr != (*pskb)->nh.iph->daddr) {
 		dst_release((*pskb)->dst);
 		(*pskb)->dst = NULL;
 	}
@@ -197,31 +195,31 @@ ip_nat_in(unsigned int hooknum,
 }
 
 static unsigned int
-ip_nat_out(unsigned int hooknum,
+nf_nat_out(unsigned int hooknum,
 	   struct sk_buff **pskb,
 	   const struct net_device *in,
 	   const struct net_device *out,
 	   int (*okfn)(struct sk_buff *))
 {
 #ifdef CONFIG_XFRM
-	struct ip_conntrack *ct;
+	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 #endif
 	unsigned int ret;
 
 	/* root is playing with raw sockets. */
-	if ((*pskb)->len < sizeof(struct iphdr)
-	    || (*pskb)->nh.iph->ihl * 4 < sizeof(struct iphdr))
+	if ((*pskb)->len < sizeof(struct iphdr) ||
+	    (*pskb)->nh.iph->ihl * 4 < sizeof(struct iphdr))
 		return NF_ACCEPT;
 
-	ret = ip_nat_fn(hooknum, pskb, in, out, okfn);
+	ret = nf_nat_fn(hooknum, pskb, in, out, okfn);
 #ifdef CONFIG_XFRM
-	if (ret != NF_DROP && ret != NF_STOLEN
-	    && (ct = ip_conntrack_get(*pskb, &ctinfo)) != NULL) {
+	if (ret != NF_DROP && ret != NF_STOLEN &&
+	    (ct = nf_ct_get(*pskb, &ctinfo)) != NULL) {
 		enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 
-		if (ct->tuplehash[dir].tuple.src.ip !=
-		    ct->tuplehash[!dir].tuple.dst.ip
+		if (ct->tuplehash[dir].tuple.src.u3.ip !=
+		    ct->tuplehash[!dir].tuple.dst.u3.ip
 		    || ct->tuplehash[dir].tuple.src.u.all !=
 		       ct->tuplehash[!dir].tuple.dst.u.all
 		    )
@@ -232,28 +230,28 @@ ip_nat_out(unsigned int hooknum,
 }
 
 static unsigned int
-ip_nat_local_fn(unsigned int hooknum,
+nf_nat_local_fn(unsigned int hooknum,
 		struct sk_buff **pskb,
 		const struct net_device *in,
 		const struct net_device *out,
 		int (*okfn)(struct sk_buff *))
 {
-	struct ip_conntrack *ct;
+	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	unsigned int ret;
 
 	/* root is playing with raw sockets. */
-	if ((*pskb)->len < sizeof(struct iphdr)
-	    || (*pskb)->nh.iph->ihl * 4 < sizeof(struct iphdr))
+	if ((*pskb)->len < sizeof(struct iphdr) ||
+	    (*pskb)->nh.iph->ihl * 4 < sizeof(struct iphdr))
 		return NF_ACCEPT;
 
-	ret = ip_nat_fn(hooknum, pskb, in, out, okfn);
-	if (ret != NF_DROP && ret != NF_STOLEN
-	    && (ct = ip_conntrack_get(*pskb, &ctinfo)) != NULL) {
+	ret = nf_nat_fn(hooknum, pskb, in, out, okfn);
+	if (ret != NF_DROP && ret != NF_STOLEN &&
+	    (ct = nf_ct_get(*pskb, &ctinfo)) != NULL) {
 		enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 
-		if (ct->tuplehash[dir].tuple.dst.ip !=
-		    ct->tuplehash[!dir].tuple.src.ip
+		if (ct->tuplehash[dir].tuple.dst.u3.ip !=
+		    ct->tuplehash[!dir].tuple.src.u3.ip
 #ifdef CONFIG_XFRM
 		    || ct->tuplehash[dir].tuple.dst.u.all !=
 		       ct->tuplehash[!dir].tuple.src.u.all
@@ -266,19 +264,19 @@ ip_nat_local_fn(unsigned int hooknum,
 }
 
 static unsigned int
-ip_nat_adjust(unsigned int hooknum,
+nf_nat_adjust(unsigned int hooknum,
 	      struct sk_buff **pskb,
 	      const struct net_device *in,
 	      const struct net_device *out,
 	      int (*okfn)(struct sk_buff *))
 {
-	struct ip_conntrack *ct;
+	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 
-	ct = ip_conntrack_get(*pskb, &ctinfo);
+	ct = nf_ct_get(*pskb, &ctinfo);
 	if (ct && test_bit(IPS_SEQ_ADJUST_BIT, &ct->status)) {
-	        DEBUGP("ip_nat_standalone: adjusting sequence number\n");
-	        if (!ip_nat_seq_adjust(pskb, ct, ctinfo))
+	        DEBUGP("nf_nat_standalone: adjusting sequence number\n");
+	        if (!nf_nat_seq_adjust(pskb, ct, ctinfo))
 	                return NF_DROP;
 	}
 	return NF_ACCEPT;
@@ -286,10 +284,10 @@ ip_nat_adjust(unsigned int hooknum,
 
 /* We must be after connection tracking and before packet filtering. */
 
-static struct nf_hook_ops ip_nat_ops[] = {
+static struct nf_hook_ops nf_nat_ops[] = {
 	/* Before packet filtering, change destination */
 	{
-		.hook		= ip_nat_in,
+		.hook		= nf_nat_in,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
 		.hooknum	= NF_IP_PRE_ROUTING,
@@ -297,7 +295,7 @@ static struct nf_hook_ops ip_nat_ops[] = {
 	},
 	/* After packet filtering, change source */
 	{
-		.hook		= ip_nat_out,
+		.hook		= nf_nat_out,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
 		.hooknum	= NF_IP_POST_ROUTING,
@@ -305,7 +303,7 @@ static struct nf_hook_ops ip_nat_ops[] = {
 	},
 	/* After conntrack, adjust sequence number */
 	{
-		.hook		= ip_nat_adjust,
+		.hook		= nf_nat_adjust,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
 		.hooknum	= NF_IP_POST_ROUTING,
@@ -313,7 +311,7 @@ static struct nf_hook_ops ip_nat_ops[] = {
 	},
 	/* Before packet filtering, change destination */
 	{
-		.hook		= ip_nat_local_fn,
+		.hook		= nf_nat_local_fn,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
 		.hooknum	= NF_IP_LOCAL_OUT,
@@ -321,7 +319,7 @@ static struct nf_hook_ops ip_nat_ops[] = {
 	},
 	/* After packet filtering, change source */
 	{
-		.hook		= ip_nat_fn,
+		.hook		= nf_nat_fn,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
 		.hooknum	= NF_IP_LOCAL_IN,
@@ -329,7 +327,7 @@ static struct nf_hook_ops ip_nat_ops[] = {
 	},
 	/* After conntrack, adjust sequence number */
 	{
-		.hook		= ip_nat_adjust,
+		.hook		= nf_nat_adjust,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
 		.hooknum	= NF_IP_LOCAL_IN,
@@ -337,49 +335,72 @@ static struct nf_hook_ops ip_nat_ops[] = {
 	},
 };
 
-static int __init ip_nat_standalone_init(void)
+static int __init nf_nat_standalone_init(void)
 {
-	int ret = 0;
+	int size, ret = 0;
 
 	need_conntrack();
 
+	size = ALIGN(sizeof(struct nf_conn), __alignof__(struct nf_conn_nat)) +
+	       sizeof(struct nf_conn_nat);
+	ret = nf_conntrack_register_cache(NF_CT_F_NAT, "nf_nat:base", size);
+	if (ret < 0) {
+		printk(KERN_ERR "nf_nat_init: Unable to create slab cache\n");
+		return ret;
+	}
+
+	size = ALIGN(size, __alignof__(struct nf_conn_help)) +
+	       sizeof(struct nf_conn_help);
+	ret = nf_conntrack_register_cache(NF_CT_F_NAT|NF_CT_F_HELP,
+					  "nf_nat:help", size);
+	if (ret < 0) {
+		printk(KERN_ERR "nf_nat_init: Unable to create slab cache\n");
+		goto cleanup_register_cache;
+	}
 #ifdef CONFIG_XFRM
 	BUG_ON(ip_nat_decode_session != NULL);
 	ip_nat_decode_session = nat_decode_session;
 #endif
-	ret = ip_nat_rule_init();
+	ret = nf_nat_rule_init();
 	if (ret < 0) {
-		printk("ip_nat_init: can't setup rules.\n");
+		printk("nf_nat_init: can't setup rules.\n");
 		goto cleanup_decode_session;
 	}
-	ret = nf_register_hooks(ip_nat_ops, ARRAY_SIZE(ip_nat_ops));
+	ret = nf_register_hooks(nf_nat_ops, ARRAY_SIZE(nf_nat_ops));
 	if (ret < 0) {
-		printk("ip_nat_init: can't register hooks.\n");
+		printk("nf_nat_init: can't register hooks.\n");
 		goto cleanup_rule_init;
 	}
+	nf_nat_module_is_loaded = 1;
 	return ret;
 
  cleanup_rule_init:
-	ip_nat_rule_cleanup();
+	nf_nat_rule_cleanup();
  cleanup_decode_session:
 #ifdef CONFIG_XFRM
 	ip_nat_decode_session = NULL;
 	synchronize_net();
 #endif
+	nf_conntrack_unregister_cache(NF_CT_F_NAT|NF_CT_F_HELP);
+ cleanup_register_cache:
+	nf_conntrack_unregister_cache(NF_CT_F_NAT);
 	return ret;
 }
 
-static void __exit ip_nat_standalone_fini(void)
+static void __exit nf_nat_standalone_fini(void)
 {
-	nf_unregister_hooks(ip_nat_ops, ARRAY_SIZE(ip_nat_ops));
-	ip_nat_rule_cleanup();
+	nf_unregister_hooks(nf_nat_ops, ARRAY_SIZE(nf_nat_ops));
+	nf_nat_rule_cleanup();
+	nf_nat_module_is_loaded = 0;
 #ifdef CONFIG_XFRM
 	ip_nat_decode_session = NULL;
 	synchronize_net();
 #endif
+	/* Conntrack caches are unregistered in nf_conntrack_cleanup */
 }
 
-module_init(ip_nat_standalone_init);
-module_exit(ip_nat_standalone_fini);
+module_init(nf_nat_standalone_init);
+module_exit(nf_nat_standalone_fini);
 
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("ip_nat");

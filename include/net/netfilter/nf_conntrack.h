@@ -264,8 +264,35 @@ nf_conntrack_unregister_cache(u_int32_t features);
 
 /* valid combinations:
  * basic: nf_conn, nf_conn .. nf_conn_help
- * nat: nf_conn .. nf_conn_nat, nf_conn .. nf_conn_nat, nf_conn help
+ * nat: nf_conn .. nf_conn_nat, nf_conn .. nf_conn_nat .. nf_conn help
  */
+#ifdef CONFIG_NF_NAT_NEEDED
+static inline struct nf_conn_nat *nfct_nat(const struct nf_conn *ct)
+{
+	unsigned int offset = sizeof(struct nf_conn);
+
+	if (!(ct->features & NF_CT_F_NAT))
+		return NULL;
+
+	offset = ALIGN(offset, __alignof__(struct nf_conn_nat));
+	return (struct nf_conn_nat *) ((void *)ct + offset);
+}
+
+static inline struct nf_conn_help *nfct_help(const struct nf_conn *ct)
+{
+	unsigned int offset = sizeof(struct nf_conn);
+
+	if (!(ct->features & NF_CT_F_HELP))
+		return NULL;
+	if (ct->features & NF_CT_F_NAT) {
+		offset = ALIGN(offset, __alignof__(struct nf_conn_nat));
+		offset += sizeof(struct nf_conn_nat);
+	}
+
+	offset = ALIGN(offset, __alignof__(struct nf_conn_help));
+	return (struct nf_conn_help *) ((void *)ct + offset);
+}
+#else /* No NAT */
 static inline struct nf_conn_help *nfct_help(const struct nf_conn *ct)
 {
 	unsigned int offset = sizeof(struct nf_conn);
@@ -276,6 +303,6 @@ static inline struct nf_conn_help *nfct_help(const struct nf_conn *ct)
 	offset = ALIGN(offset, __alignof__(struct nf_conn_help));
 	return (struct nf_conn_help *) ((void *)ct + offset);
 }
-
+#endif /* CONFIG_NF_NAT_NEEDED */
 #endif /* __KERNEL__ */
 #endif /* _NF_CONNTRACK_H */

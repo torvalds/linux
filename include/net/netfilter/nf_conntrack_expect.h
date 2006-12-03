@@ -43,7 +43,7 @@ struct nf_conntrack_expect
 #ifdef CONFIG_NF_NAT_NEEDED
 	/* This is the original per-proto part, used to map the
 	 * expected connection the way the recipient expects. */
-	union nf_conntrack_manip_proto saved_proto;
+	union nf_conntrack_man_proto saved_proto;
 	/* Direction relative to the master connection. */
 	enum ip_conntrack_dir dir;
 #endif

@@ -111,10 +111,10 @@ ipv4_prepare(struct sk_buff **pskb, unsigned int hooknum, unsigned int *dataoff,
 	return NF_ACCEPT;
 }
 
-int nat_module_is_loaded = 0;
+int nf_nat_module_is_loaded = 0;
 static u_int32_t ipv4_get_features(const struct nf_conntrack_tuple *tuple)
 {
-	if (nat_module_is_loaded)
+	if (nf_nat_module_is_loaded)
 		return NF_CT_F_NAT;
 
 	return NF_CT_F_BASIC;
@@ -532,3 +532,6 @@ module_init(nf_conntrack_l3proto_ipv4_init);
 module_exit(nf_conntrack_l3proto_ipv4_fini);
 
 EXPORT_SYMBOL(nf_ct_ipv4_gather_frags);
+#ifdef CONFIG_NF_NAT_NEEDED
+EXPORT_SYMBOL(nf_nat_module_is_loaded);
+#endif

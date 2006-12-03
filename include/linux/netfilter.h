@@ -357,7 +357,7 @@ extern void (*ip_nat_decode_session)(struct sk_buff *, struct flowi *);
 static inline void
 nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, int family)
 {
-#ifdef CONFIG_IP_NF_NAT_NEEDED
+#if defined(CONFIG_IP_NF_NAT_NEEDED) || defined(CONFIG_NF_NAT_NEEDED)
 	void (*decodefn)(struct sk_buff *, struct flowi *);
 
 	if (family == AF_INET && (decodefn = ip_nat_decode_session) != NULL)

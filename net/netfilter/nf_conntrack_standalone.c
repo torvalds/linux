@@ -530,8 +530,11 @@ EXPORT_SYMBOL(nf_conntrack_lock);
 EXPORT_SYMBOL(nf_conntrack_hash);
 EXPORT_SYMBOL(nf_conntrack_untracked);
 EXPORT_SYMBOL_GPL(nf_conntrack_find_get);
-#ifdef CONFIG_IP_NF_NAT_NEEDED
+#ifdef CONFIG_NF_NAT_NEEDED
 EXPORT_SYMBOL(nf_conntrack_tcp_update);
+EXPORT_SYMBOL(nf_conntrack_register_cache);
+EXPORT_SYMBOL(nf_conntrack_unregister_cache);
+EXPORT_SYMBOL(nf_conntrack_alter_reply);
 #endif
 EXPORT_SYMBOL(__nf_conntrack_confirm);
 EXPORT_SYMBOL(nf_ct_get_tuple);
