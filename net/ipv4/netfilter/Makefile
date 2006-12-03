@@ -53,6 +53,7 @@ obj-$(CONFIG_IP_NF_NAT_SIP) += ip_nat_sip.o
 obj-$(CONFIG_NF_NAT_AMANDA) += nf_nat_amanda.o
 obj-$(CONFIG_NF_NAT_FTP) += nf_nat_ftp.o
 obj-$(CONFIG_NF_NAT_H323) += nf_nat_h323.o
+obj-$(CONFIG_NF_NAT_IRC) += nf_nat_irc.o
 
 # generic IP tables 
 obj-$(CONFIG_IP_NF_IPTABLES) += ip_tables.o

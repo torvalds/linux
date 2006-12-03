@@ -179,6 +179,21 @@ config NF_CONNTRACK_H323
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NF_CONNTRACK_IRC
+	tristate "IRC protocol support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && NF_CONNTRACK
+	help
+	  There is a commonly-used extension to IRC called
+	  Direct Client-to-Client Protocol (DCC).  This enables users to send
+	  files to each other, and also chat to each other without the need
+	  of a server.  DCC Sending is used anywhere you send files over IRC,
+	  and DCC Chat is most commonly used by Eggdrop bots.  If you are
+	  using NAT, this extension will enable you to send files and initiate
+	  chats.  Note that you do NOT need this extension to get files or
+	  have others initiate chats, or everything else in IRC.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NF_CT_NETLINK
 	tristate 'Connection tracking netlink interface (EXPERIMENTAL)'
 	depends on EXPERIMENTAL && NF_CONNTRACK && NETFILTER_NETLINK

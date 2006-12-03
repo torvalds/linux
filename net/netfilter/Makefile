@@ -25,6 +25,7 @@ nf_conntrack_h323-objs := nf_conntrack_h323_main.o nf_conntrack_h323_asn1.o
 obj-$(CONFIG_NF_CONNTRACK_AMANDA) += nf_conntrack_amanda.o
 obj-$(CONFIG_NF_CONNTRACK_FTP) += nf_conntrack_ftp.o
 obj-$(CONFIG_NF_CONNTRACK_H323) += nf_conntrack_h323.o
+obj-$(CONFIG_NF_CONNTRACK_IRC) += nf_conntrack_irc.o
 
 # generic X tables 
 obj-$(CONFIG_NETFILTER_XTABLES) += x_tables.o xt_tcpudp.o

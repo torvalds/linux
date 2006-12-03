@@ -500,6 +500,11 @@ config IP_NF_NAT_IRC
 	default IP_NF_NAT if IP_NF_IRC=y
 	default m if IP_NF_IRC=m
 
+config NF_NAT_IRC
+	tristate
+	depends on IP_NF_IPTABLES && NF_CONNTRACK && NF_NAT
+	default NF_NAT && NF_CONNTRACK_IRC
+
 config IP_NF_NAT_TFTP
 	tristate
 	depends on IP_NF_IPTABLES!=n && IP_NF_CONNTRACK!=n && IP_NF_NAT!=n
