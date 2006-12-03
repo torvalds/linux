@@ -555,6 +555,11 @@ config IP_NF_NAT_SIP
 	default IP_NF_NAT if IP_NF_SIP=y
 	default m if IP_NF_SIP=m
 
+config NF_NAT_SIP
+	tristate
+	depends on IP_NF_IPTABLES && NF_CONNTRACK && NF_NAT
+	default NF_NAT && NF_CONNTRACK_SIP
+
 # mangle + specific targets
 config IP_NF_MANGLE
 	tristate "Packet mangling"

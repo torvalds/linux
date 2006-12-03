@@ -236,6 +236,18 @@ config NF_CONNTRACK_PPTP
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NF_CONNTRACK_SIP
+	tristate "SIP protocol support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && NF_CONNTRACK
+	help
+	  SIP is an application-layer control protocol that can establish,
+	  modify, and terminate multimedia sessions (conferences) such as
+	  Internet telephony calls. With the ip_conntrack_sip and
+	  the nf_nat_sip modules you can support the protocol on a connection
+	  tracking/NATing firewall.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NF_CT_NETLINK
 	tristate 'Connection tracking netlink interface (EXPERIMENTAL)'
 	depends on EXPERIMENTAL && NF_CONNTRACK && NETFILTER_NETLINK
