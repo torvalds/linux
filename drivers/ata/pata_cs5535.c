@@ -269,7 +269,7 @@ static struct pci_driver cs5535_pci_driver = {
 	.name		= DRV_NAME,
 	.id_table	= cs5535,
 	.probe 		= cs5535_init_one,
-	.remove		= ata_pci_remove_one
+	.remove		= ata_pci_remove_one,
 	.suspend	= ata_pci_device_suspend,
 	.resume		= ata_pci_device_resume,
 };
