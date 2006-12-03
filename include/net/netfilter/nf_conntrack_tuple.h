@@ -24,7 +24,7 @@
 
 /* The l3 protocol-specific manipulable parts of the tuple: always in
    network order! */
-union nf_conntrack_man_l3proto {
+union nf_conntrack_address {
 	u_int32_t all[NF_CT_TUPLE_L3SIZE];
 	__be32 ip;
 	__be32 ip6[4];
@@ -54,7 +54,7 @@ union nf_conntrack_man_proto
 /* The manipulable part of the tuple. */
 struct nf_conntrack_man
 {
-	union nf_conntrack_man_l3proto u3;
+	union nf_conntrack_address u3;
 	union nf_conntrack_man_proto u;
 	/* Layer 3 protocol */
 	u_int16_t l3num;
@@ -67,11 +67,7 @@ struct nf_conntrack_tuple
 
 	/* These are the parts of the tuple which are fixed. */
 	struct {
-		union {
-			u_int32_t all[NF_CT_TUPLE_L3SIZE];
-			u_int32_t ip;
-			u_int32_t ip6[4];
-		} u3;
+		union nf_conntrack_address u3;
 		union {
 			/* Add other protocols here. */
 			u_int16_t all;

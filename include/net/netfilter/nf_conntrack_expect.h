@@ -68,6 +68,10 @@ void nf_conntrack_unexpect_related(struct nf_conntrack_expect *exp);
 /* Allocate space for an expectation: this is mandatory before calling
    nf_conntrack_expect_related.  You will have to call put afterwards. */
 struct nf_conntrack_expect *nf_conntrack_expect_alloc(struct nf_conn *me);
+void nf_conntrack_expect_init(struct nf_conntrack_expect *, int,
+			      union nf_conntrack_address *,
+			      union nf_conntrack_address *,
+			      u_int8_t, __be16 *, __be16 *);
 void nf_conntrack_expect_put(struct nf_conntrack_expect *exp);
 int nf_conntrack_expect_related(struct nf_conntrack_expect *expect);
 

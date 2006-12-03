@@ -196,6 +196,74 @@ struct nf_conntrack_expect *nf_conntrack_expect_alloc(struct nf_conn *me)
 	return new;
 }
 
+void nf_conntrack_expect_init(struct nf_conntrack_expect *exp, int family,
+			      union nf_conntrack_address *saddr,
+			      union nf_conntrack_address *daddr,
+			      u_int8_t proto, __be16 *src, __be16 *dst)
+{
+	int len;
+
+	if (family == AF_INET)
+		len = 4;
+	else
+		len = 16;
+
+	exp->flags = 0;
+	exp->expectfn = NULL;
+	exp->helper = NULL;
+	exp->tuple.src.l3num = family;
+	exp->tuple.dst.protonum = proto;
+	exp->mask.src.l3num = 0xFFFF;
+	exp->mask.dst.protonum = 0xFF;
+
+	if (saddr) {
+		memcpy(&exp->tuple.src.u3, saddr, len);
+		if (sizeof(exp->tuple.src.u3) > len)
+			/* address needs to be cleared for nf_ct_tuple_equal */
+			memset((void *)&exp->tuple.src.u3 + len, 0x00,
+			       sizeof(exp->tuple.src.u3) - len);
+		memset(&exp->mask.src.u3, 0xFF, len);
+		if (sizeof(exp->mask.src.u3) > len)
+			memset((void *)&exp->mask.src.u3 + len, 0x00,
+			       sizeof(exp->mask.src.u3) - len);
+	} else {
+		memset(&exp->tuple.src.u3, 0x00, sizeof(exp->tuple.src.u3));
+		memset(&exp->mask.src.u3, 0x00, sizeof(exp->mask.src.u3));
+	}
+
+	if (daddr) {
+		memcpy(&exp->tuple.dst.u3, daddr, len);
+		if (sizeof(exp->tuple.dst.u3) > len)
+			/* address needs to be cleared for nf_ct_tuple_equal */
+			memset((void *)&exp->tuple.dst.u3 + len, 0x00,
+			       sizeof(exp->tuple.dst.u3) - len);
+		memset(&exp->mask.dst.u3, 0xFF, len);
+		if (sizeof(exp->mask.dst.u3) > len)
+			memset((void *)&exp->mask.dst.u3 + len, 0x00,
+			       sizeof(exp->mask.dst.u3) - len);
+	} else {
+		memset(&exp->tuple.dst.u3, 0x00, sizeof(exp->tuple.dst.u3));
+		memset(&exp->mask.dst.u3, 0x00, sizeof(exp->mask.dst.u3));
+	}
+
+	if (src) {
+		exp->tuple.src.u.all = (__force u16)*src;
+		exp->mask.src.u.all = 0xFFFF;
+	} else {
+		exp->tuple.src.u.all = 0;
+		exp->mask.src.u.all = 0;
+	}
+
+	if (dst) {
+		exp->tuple.dst.u.all = (__force u16)*dst;
+		exp->mask.dst.u.all = 0xFFFF;
+	} else {
+		exp->tuple.dst.u.all = 0;
+		exp->mask.dst.u.all = 0;
+	}
+}
+EXPORT_SYMBOL_GPL(nf_conntrack_expect_init);
+
 void nf_conntrack_expect_put(struct nf_conntrack_expect *exp)
 {
 	if (atomic_dec_and_test(&exp->use))
