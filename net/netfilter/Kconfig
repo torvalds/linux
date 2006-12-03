@@ -248,6 +248,17 @@ config NF_CONNTRACK_SIP
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NF_CONNTRACK_TFTP
+	tristate "TFTP protocol support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && NF_CONNTRACK
+	help
+	  TFTP connection tracking helper, this is required depending
+	  on how restrictive your ruleset is.
+	  If you are using a tftp client behind -j SNAT or -j MASQUERADING
+	  you will need this.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NF_CT_NETLINK
 	tristate 'Connection tracking netlink interface (EXPERIMENTAL)'
 	depends on EXPERIMENTAL && NF_CONNTRACK && NETFILTER_NETLINK

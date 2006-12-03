@@ -515,6 +515,11 @@ config IP_NF_NAT_TFTP
 	default IP_NF_NAT if IP_NF_TFTP=y
 	default m if IP_NF_TFTP=m
 
+config NF_NAT_TFTP
+	tristate
+	depends on IP_NF_IPTABLES && NF_CONNTRACK && NF_NAT
+	default NF_NAT && NF_CONNTRACK_TFTP
+
 config IP_NF_NAT_AMANDA
 	tristate
 	depends on IP_NF_IPTABLES!=n && IP_NF_CONNTRACK!=n && IP_NF_NAT!=n
