@@ -238,7 +238,7 @@ SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 #define SMC_CAN_USE_16BIT	1
 #define SMC_CAN_USE_32BIT	0
 
-#define SMC_inb(a, r)		inb((u32)a) + (r))
+#define SMC_inb(a, r)		inb(((u32)a) + (r))
 #define SMC_inw(a, r)		inw(((u32)a) + (r))
 #define SMC_outb(v, a, r)	outb(v, ((u32)a) + (r))
 #define SMC_outw(v, a, r)	outw(v, ((u32)a) + (r))
