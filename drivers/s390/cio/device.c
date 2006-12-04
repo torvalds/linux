@@ -948,6 +948,9 @@ io_subchannel_ioterm(struct device *dev)
 	cdev = dev->driver_data;
 	if (!cdev)
 		return;
+	/* Internal I/O will be retried by the interrupt handler. */
+	if (cdev->private->flags.intretry)
+		return;
 	cdev->private->state = DEV_STATE_CLEAR_VERIFY;
 	if (cdev->handler)
 		cdev->handler(cdev, cdev->private->intparm,

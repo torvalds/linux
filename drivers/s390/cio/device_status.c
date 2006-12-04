@@ -319,6 +319,9 @@ ccw_device_do_sense(struct ccw_device *cdev, struct irb *irb)
 	sch->sense_ccw.count = SENSE_MAX_COUNT;
 	sch->sense_ccw.flags = CCW_FLAG_SLI;
 
+	/* Reset internal retry indication. */
+	cdev->private->flags.intretry = 0;
+
 	return cio_start (sch, &sch->sense_ccw, 0xff);
 }
 

@@ -251,6 +251,8 @@ s390_subchannel_remove_chpid(struct device *dev, void *data)
 		cc = cio_clear(sch);
 		if (cc == -ENODEV)
 			goto out_unreg;
+		/* Request retry of internal operation. */
+		device_set_intretry(sch);
 		/* Call handler. */
 		if (sch->driver && sch->driver->termination)
 			sch->driver->termination(&sch->dev);
@@ -711,15 +713,32 @@ static inline int check_for_io_on_path(struct subchannel *sch, int index)
 {
 	int cc;
 
-	if (!device_is_online(sch))
-		/* cio could be doing I/O. */
-		return 0;
 	cc = stsch(sch->schid, &sch->schib);
 	if (cc)
 		return 0;
 	if (sch->schib.scsw.actl && sch->schib.pmcw.lpum == (0x80 >> index))
 		return 1;
 	return 0;
+}
+
+static void terminate_internal_io(struct subchannel *sch)
+{
+	if (cio_clear(sch)) {
+		/* Recheck device in case clear failed. */
+		sch->lpm = 0;
+		if (device_trigger_verify(sch) != 0) {
+			if(css_enqueue_subchannel_slow(sch->schid)) {
+				css_clear_subchannel_slow_list();
+				need_rescan = 1;
+			}
+		}
+		return;
+	}
+	/* Request retry of internal operation. */
+	device_set_intretry(sch);
+	/* Call handler. */
+	if (sch->driver && sch->driver->termination)
+		sch->driver->termination(&sch->dev);
 }
 
 static inline void
@@ -748,10 +767,14 @@ __s390_subchannel_vary_chpid(struct subchannel *sch, __u8 chpid, int on)
 		}
 		sch->opm &= ~(0x80 >> chp);
 		sch->lpm &= ~(0x80 >> chp);
-		if (check_for_io_on_path(sch, chp))
-			/* Path verification is done after killing. */
-			device_kill_io(sch);
-		else if (!sch->lpm) {
+		if (check_for_io_on_path(sch, chp)) {
+			if (device_is_online(sch))
+				/* Path verification is done after killing. */
+				device_kill_io(sch);
+			else
+				/* Kill and retry internal I/O. */
+				terminate_internal_io(sch);
+		} else if (!sch->lpm) {
 			if (device_trigger_verify(sch) != 0) {
 				if (css_enqueue_subchannel_slow(sch->schid)) {
 					css_clear_subchannel_slow_list();
