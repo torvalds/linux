@@ -319,8 +319,6 @@ struct usbvision_frame {
 #define BRIDGE_NT1004	1004
 #define BRIDGE_NT1005   1005
 
-#define USBVISION_I2C_CLIENTS_MAX		8
-
 struct usbvision_device_data_st {
 	int idVendor;
 	int idProduct;
@@ -355,8 +353,6 @@ struct usb_usbvision {
 	struct i2c_adapter i2c_adap;
 	struct i2c_algo_usb_data i2c_algo;
 	struct i2c_client i2c_client;
-	int i2c_state, i2c_ok;
-	struct i2c_client *i2c_clients[USBVISION_I2C_CLIENTS_MAX];
 
 	struct urb *ctrlUrb;
 	unsigned char ctrlUrbBuffer[8];
@@ -367,6 +363,7 @@ struct usb_usbvision {
 
 	int have_tuner;
 	int tuner_type;
+	int tuner_addr;
 	int bridgeType;							// NT1003, NT1004, NT1005
 	int channel;
 	int radio;

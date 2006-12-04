@@ -2570,58 +2570,61 @@ static int usbvision_unrequest_intra (struct usb_usbvision *usbvision)
 static void call_i2c_clients(struct usb_usbvision *usbvision, unsigned int cmd,
 			     void *arg)
 {
-
-	int i;
-
-	for (i = 0; i < USBVISION_I2C_CLIENTS_MAX; i++) {
-		if (NULL == usbvision->i2c_clients[i])
-			continue;
-		if (NULL == usbvision->i2c_clients[i]->driver->command)
-			continue;
-		usbvision->i2c_clients[i]->driver->command(usbvision->i2c_clients[i], cmd, arg);
-	}
+	BUG_ON(NULL == usbvision->i2c_adap.algo_data);
+	i2c_clients_command(&usbvision->i2c_adap, cmd, arg);
 }
 
 static int attach_inform(struct i2c_client *client)
 {
 	struct usb_usbvision *usbvision;
-	struct tuner_setup tun_addr;
-	int i;
 
-	#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-		usbvision = (struct usb_usbvision *)client->adapter->data;
-	#else
-		usbvision = (struct usb_usbvision *)i2c_get_adapdata(client->adapter);
-	#endif
+	usbvision = (struct usb_usbvision *)i2c_get_adapdata(client->adapter);
 
-	for (i = 0; i < USBVISION_I2C_CLIENTS_MAX; i++) {
-		if (usbvision->i2c_clients[i] == NULL ||
-		    usbvision->i2c_clients[i]->driver->id ==
-		    client->driver->id) {
-			usbvision->i2c_clients[i] = client;
+	switch (client->addr << 1) {
+		case 0x43:
+		case 0x4b:
+		{
+			struct tuner_setup tun_setup;
+
+			tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
+			tun_setup.type = TUNER_TDA9887;
+			tun_setup.addr = client->addr;
+
+			call_i2c_clients(usbvision, TUNER_SET_TYPE_ADDR, &tun_setup);
 			break;
 		}
-	}
-	if ((usbvision->have_tuner) && (usbvision->tuner_type != -1)) {
-		tun_addr.mode_mask = T_ANALOG_TV;
-		tun_addr.type = usbvision->tuner_type;
-		tun_addr.addr = ADDR_UNSET;
-		client->driver->command(client,TUNER_SET_TYPE_ADDR, &tun_addr);
-		call_i2c_clients(usbvision, VIDIOC_INT_RESET, NULL);
-		call_i2c_clients(usbvision, VIDIOC_S_INPUT, &usbvision->ctl_input);
-		call_i2c_clients(usbvision, VIDIOC_STREAMON, NULL);
-	}
-	call_i2c_clients(usbvision, VIDIOC_S_STD, &usbvision->tvnorm->id);
+		case 0x42:
+			PDEBUG(DBG_I2C,"attach_inform: saa7114 detected.\n");
+			break;
+		case 0x4a:
+			PDEBUG(DBG_I2C,"attach_inform: saa7113 detected.\n");
+			break;
+		case 0xa0:
+			PDEBUG(DBG_I2C,"attach_inform: eeprom detected.\n");
+			break;
 
-	PDEBUG(DBG_I2C, "usbvision[%d] attaches %s", usbvision->nr, client->name);
+		default:
+			PDEBUG(DBG_I2C,"attach inform: detected I2C address %x\n", client->addr << 1);
+			{
+				struct tuner_setup tun_setup;
 
+				usbvision->tuner_addr = client->addr;
+
+				if ((usbvision->have_tuner) && (usbvision->tuner_type != -1)) {
+					tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
+					tun_setup.type = usbvision->tuner_type;
+					tun_setup.addr = usbvision->tuner_addr;
+					call_i2c_clients(usbvision, TUNER_SET_TYPE_ADDR, &tun_setup);
+				}
+			}
+			break;
+	}
 	return 0;
 }
 
 static int detach_inform(struct i2c_client *client)
 {
 	struct usb_usbvision *usbvision;
-	int i;
 
 	#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
 		usbvision = (struct usb_usbvision *)client->adapter->data;
@@ -2630,14 +2633,6 @@ static int detach_inform(struct i2c_client *client)
 	#endif
 
 	PDEBUG(DBG_I2C, "usbvision[%d] detaches %s", usbvision->nr, client->name);
-	for (i = 0; i < USBVISION_I2C_CLIENTS_MAX; i++) {
-		if (NULL != usbvision->i2c_clients[i] &&
-		    usbvision->i2c_clients[i]->driver->id ==
-		    client->driver->id) {
-			usbvision->i2c_clients[i] = NULL;
-			break;
-		}
-	}
 	return 0;
 }
 
@@ -2886,10 +2881,7 @@ static int usbvision_init_i2c(struct usb_usbvision *usbvision)
 	}
 #endif
 
-	usbvision->i2c_ok = usbvision_i2c_usb_add_bus(&usbvision->i2c_adap);
-
-	return usbvision->i2c_ok;
-
+	return usbvision_i2c_usb_add_bus(&usbvision->i2c_adap);
 }
 
 
@@ -3811,6 +3803,8 @@ static int usbvision_v4l2_open(struct inode *inode, struct file *file)
 		if (!errCode) {
 			usbvision_begin_streaming(usbvision);
 			errCode = usbvision_init_isoc(usbvision);
+			/* device needs to be initialized before isoc transfer */
+			usbvision_muxsel(usbvision,0);
 			usbvision->user++;
 		}
 		else {
@@ -4169,7 +4163,7 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			memset(ctrl,0,sizeof(*ctrl));
 			ctrl->id=id;
 
-			i2c_clients_command(&usbvision->i2c_adap, cmd, arg);
+			call_i2c_clients(usbvision, cmd, arg);
 
 			if (ctrl->type)
 				return 0;
@@ -5300,19 +5294,15 @@ static void usbvision_configure_video(struct usb_usbvision *usbvision)
 		(usbvision->have_tuner ? V4L2_CAP_TUNER : 0);
 	usbvision->vcap.version = USBVISION_DRIVER_VERSION; 	    /* version */
 
-
 	for (i = 0; i < TVNORMS; i++)
 		if (usbvision_device_data[model].VideoNorm == tvnorms[i].mode)
 			break;
 	if (i == TVNORMS)
 		i = 0;
-	usbvision->tvnorm = &tvnorms[i];	/* set default norm */
-	call_i2c_clients(usbvision, VIDIOC_S_STD,
-			 &usbvision->tvnorm->id);
+	usbvision->tvnorm = &tvnorms[i];        /* set default norm */
 
 	usbvision->video_inputs = usbvision_device_data[model].VideoChannels;
 	usbvision->ctl_input = 0;
-/* 	usbvision_muxsel(usbvision, usbvision->ctl_input); */
 
 	/* This should be here to make i2c clients to be able to register */
 	usbvision_audio_off(usbvision);	//first switch off audio
@@ -5678,6 +5668,8 @@ static int __devinit usbvision_probe(struct usb_interface *intf, const struct us
 		usbvision->tuner_type = usbvision_device_data[model].TunerType;
 	}
 
+	usbvision->tuner_addr = ADDR_UNSET;
+
 	usbvision->DevModel = model;
 	usbvision->remove_pending = 0;
 	usbvision->last_error = 0;
@@ -5689,7 +5681,6 @@ static int __devinit usbvision_probe(struct usb_interface *intf, const struct us
 	usbvision->usb_bandwidth = 0;
 	usbvision->user = 0;
 	usbvision->streaming = Stream_Off;
-
 	usbvision_register_video(usbvision);
 	usbvision_configure_video(usbvision);
 	up(&usbvision->lock);
