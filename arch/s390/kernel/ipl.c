@@ -697,7 +697,8 @@ void do_reipl(void)
 		diag308(DIAG308_IPL, NULL);
 		break;
 	}
-	panic("reipl failed!\n");
+	printk(KERN_EMERG "reboot failed!\n");
+	signal_processor(smp_processor_id(), sigp_stop_and_store_status);
 }
 
 static void do_dump(void)
