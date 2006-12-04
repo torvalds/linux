@@ -686,17 +686,7 @@ source "drivers/media/video/pvrusb2/Kconfig"
 
 source "drivers/media/video/em28xx/Kconfig"
 
-config VIDEO_USBVISION
-	tristate "USB video devices based on NT1003/1005/1005"
-	depends on I2C && VIDEO_V4L2
-	select VIDEO_SAA711X if VIDEO_HELPER_CHIPS_AUTO
-	---help---
-	  There are more than 50 different USB video devices based on
-	  NT1003/1004/1005 USB Bridges. This driver enables using those
-	  devices.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ovcamchip.
+source "drivers/media/video/usbvision/Kconfig"
 
 source "drivers/media/video/usbvideo/Kconfig"
 
