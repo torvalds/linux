@@ -26,14 +26,12 @@
 
 int jffs2_sum_init(struct jffs2_sb_info *c)
 {
-	c->summary = kmalloc(sizeof(struct jffs2_summary), GFP_KERNEL);
+	c->summary = kzalloc(sizeof(struct jffs2_summary), GFP_KERNEL);
 
 	if (!c->summary) {
 		JFFS2_WARNING("Can't allocate memory for summary information!\n");
 		return -ENOMEM;
 	}
-
-	memset(c->summary, 0, sizeof(struct jffs2_summary));
 
 	c->summary->sum_buf = vmalloc(c->sector_size);
 
