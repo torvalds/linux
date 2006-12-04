@@ -1743,6 +1743,8 @@ static void __devinit quirk_nvidia_ck804_msi_ht_cap(struct pci_dev *dev)
 	 * a single one having MSI is enough to be sure that MSI are supported.
 	 */
 	pdev = pci_get_slot(dev->bus, 0);
+	if (!pdev)
+		return;
 	if (!msi_ht_cap_enabled(dev) && !msi_ht_cap_enabled(pdev)) {
 		printk(KERN_WARNING "PCI: MSI quirk detected. "
 		       "MSI disabled on chipset %s.\n",
