@@ -39,17 +39,13 @@
 #include <linux/i2c.h>
 #include "usbvision-i2c.h"
 
-static int debug = 0;	
+static int debug_i2c_usb = 0;	
 
 #if defined(module_param)                               // Showing parameters under SYSFS
-module_param (debug, int, 0444);			// debug mode of the device driver
+module_param (debug_i2c_usb, int, 0444);			// debug_i2c_usb mode of the device driver
 #else
-MODULE_PARM(debug, "i");				// debug mode of the device driver
+MODULE_PARM(debug_i2c_usb, "i");				// debug_i2c_usb mode of the device driver
 #endif
-
-MODULE_AUTHOR("Joerg Heckenbach");
-MODULE_DESCRIPTION("I2C algorithm for USB-I2C-bridges");
-MODULE_LICENSE("GPL");
 
 
 static inline int try_write_address(struct i2c_adapter *i2c_adap,
@@ -71,7 +67,7 @@ static inline int try_write_address(struct i2c_adapter *i2c_adap,
 			break;
 		udelay(adap->udelay);
 	}
-	if (debug) {
+	if (debug_i2c_usb) {
 		if (i) {
 			info("%s: Needed %d retries for address %#2x", __FUNCTION__, i, addr);
 			info("%s: Maybe there's no device at this address", __FUNCTION__);
@@ -98,7 +94,7 @@ static inline int try_read_address(struct i2c_adapter *i2c_adap,
 			break;
 		udelay(adap->udelay);
 	}
-	if (debug) {
+	if (debug_i2c_usb) {
 		if (i) {
 			info("%s: Needed %d retries for address %#2x", __FUNCTION__, i, addr);
 			info("%s: Maybe there's no device at this address", __FUNCTION__);
@@ -170,7 +166,7 @@ usb_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[], int num)
 		pmsg = &msgs[i];
 		ret = usb_find_address(i2c_adap, pmsg, i2c_adap->retries, &addr);
 		if (ret != 0) {
-			if (debug) {
+			if (debug_i2c_usb) {
 				info("%s: got NAK from device, message #%d\n", __FUNCTION__, i);
 			}
 			return (ret < 0) ? ret : -EREMOTEIO;
@@ -236,7 +232,7 @@ int usbvision_i2c_usb_add_bus(struct i2c_adapter *adap)
 
 	i2c_add_adapter(adap);
 
-	if (debug) {
+	if (debug_i2c_usb) {
 		info("i2c bus for %s registered", adap->name);
 	}
 
@@ -249,7 +245,7 @@ int usbvision_i2c_usb_del_bus(struct i2c_adapter *adap)
 
 	i2c_del_adapter(adap);
 
-	if (debug) {
+	if (debug_i2c_usb) {
 		info("i2c bus for %s unregistered", adap->name);
 	}
 #ifdef MODULE

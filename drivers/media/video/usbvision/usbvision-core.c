@@ -4240,6 +4240,7 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 
 			/* set v4l2_format index */
 			frame->v4l2_format = usbvision->palette;
+			PDEBUG(DBG_IOCTL, "VIDIOC_QBUF frame=%d",vb->index);
 
 			return usbvision_new_frame(usbvision, vb->index);
 		}
@@ -4269,8 +4270,8 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			if (vb->index == -1)
 				return -EINVAL;
 
-			PDEBUG(DBG_IOCTL, "VIDIOC_DQBUF frame=%d, grabstate=%d",
-				       vb->index, usbvision->frame[vb->index].grabstate);
+			PDEBUG(DBG_IOCTL, "VIDIOC_DQBUF frame=%d, grabstate=%d, curframeNum=%d",
+				       vb->index, usbvision->frame[vb->index].grabstate,usbvision->curFrameNum);
 
 			switch (usbvision->frame[vb->index].grabstate) {
 			case FrameState_Unused:
@@ -4295,6 +4296,7 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 				errCode = (usbvision->frame[vb->index].grabstate == FrameState_Error) ? -EIO : 0;
 				vb->memory = V4L2_MEMORY_MMAP;
 				vb->flags = V4L2_BUF_FLAG_MAPPED | V4L2_BUF_FLAG_QUEUED | V4L2_BUF_FLAG_DONE;
+				vb->field = V4L2_FIELD_NONE;
 				vb->sequence = usbvision->frame[vb->index].sequence;
 				usbvision->frame[vb->index].grabstate = FrameState_Unused;
 				break;
