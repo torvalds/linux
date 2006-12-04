@@ -1065,7 +1065,6 @@ static int __init dec_lance_init(const int type, const int slot)
 	lp->type = type;
 	lp->slot = slot;
 	switch (type) {
-#ifdef CONFIG_TC
 	case ASIC_LANCE:
 		dev->base_addr = CKSEG1ADDR(dec_kn_slot_base + IOASIC_LANCE);
 
@@ -1109,7 +1108,7 @@ static int __init dec_lance_init(const int type, const int slot)
 			     CPHYSADDR(dev->mem_start) << 3);
 
 		break;
-
+#ifdef CONFIG_TC
 	case PMAD_LANCE:
 		claim_tc_card(slot);
 
@@ -1140,7 +1139,6 @@ static int __init dec_lance_init(const int type, const int slot)
 
 		break;
 #endif
-
 	case PMAX_LANCE:
 		dev->irq = dec_interrupt[DEC_IRQ_LANCE];
 		dev->base_addr = CKSEG1ADDR(KN01_SLOT_BASE + KN01_LANCE);
@@ -1295,10 +1293,8 @@ static int __init dec_lance_probe(void)
 	/* Then handle onboard devices. */
 	if (dec_interrupt[DEC_IRQ_LANCE] >= 0) {
 		if (dec_interrupt[DEC_IRQ_LANCE_MERR] >= 0) {
-#ifdef CONFIG_TC
 			if (dec_lance_init(ASIC_LANCE, -1) >= 0)
 				count++;
-#endif
 		} else if (!TURBOCHANNEL) {
 			if (dec_lance_init(PMAX_LANCE, -1) >= 0)
 				count++;
