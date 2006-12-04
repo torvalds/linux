@@ -129,7 +129,7 @@ __show_trace(unsigned long sp, unsigned long low, unsigned long high)
 	}
 }
 
-void show_trace(struct task_struct *task, unsigned long * stack)
+void show_trace(struct task_struct *task, unsigned long *stack)
 {
 	register unsigned long __r15 asm ("15");
 	unsigned long sp;
@@ -151,6 +151,9 @@ void show_trace(struct task_struct *task, unsigned long * stack)
 		__show_trace(sp, S390_lowcore.thread_info,
 			     S390_lowcore.thread_info + THREAD_SIZE);
 	printk("\n");
+	if (!task)
+		task = current;
+	debug_show_held_locks(task);
 }
 
 void show_stack(struct task_struct *task, unsigned long *sp)
