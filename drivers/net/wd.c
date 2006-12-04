@@ -538,7 +538,7 @@ static void cleanup_card(struct net_device *dev)
 	iounmap(ei_status.mem);
 }
 
-void
+void __exit
 cleanup_module(void)
 {
 	int this_dev;
