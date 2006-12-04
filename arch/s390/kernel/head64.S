@@ -81,8 +81,6 @@ startup_continue:
 	aghi	%r1,1			# size is one more than end
 	larl	%r2,memory_chunk
 	stg	%r1,8(%r2)		# store size of chunk
-	larl	%r2,memory_size
-	stg	%r1,0(%r2)		# set memory size
 	j	.Ldonemem
 
 .Lslowmemdetect:
@@ -188,8 +186,6 @@ startup_continue:
 	stg	%r0,8(%r3)		# store size of chunk
 	st	%r6,20(%r3)		# store type of chunk
 	la	%r3,24(%r3)
-	larl	%r8,memory_size
-	stg	%r5,0(%r8)		# store memory size
 	ahi	%r10,-1			# update chunk number
 .Lchkloop:
 	lr	%r6,%r7			# set access code to last cc

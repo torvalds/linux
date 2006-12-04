@@ -177,8 +177,6 @@ startup_continue:
 	st	%r0,4(%r3)		# store size of chunk
 	st	%r6,8(%r3)		# store type of chunk
 	la	%r3,12(%r3)
-	l	%r4,.Lmemsize-.LPG1(%r13)	 # address of variable memory_size
-	st	%r5,0(%r4)		# store last end to memory size
 	ahi	%r10,-1			# update chunk number
 .Lchkloop:
 	lr	%r6,%r7			# set access code to last cc
@@ -293,7 +291,6 @@ startup_continue:
 .Lpcmvpg:.long	0x00080000,0x80000000 + .Lchkmvpg
 .Lpcidte:.long	0x00080000,0x80000000 + .Lchkidte
 .Lpcdiag9c:.long 0x00080000,0x80000000 + .Lchkdiag9c
-.Lmemsize:.long memory_size
 .Lmchunk:.long	memory_chunk
 .Lmflags:.long	machine_flags
 .Lbss_bgn:  .long __bss_start

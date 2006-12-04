@@ -62,7 +62,6 @@ EXPORT_SYMBOL_GPL(uaccess);
 unsigned int console_mode = 0;
 unsigned int console_devno = -1;
 unsigned int console_irq = -1;
-unsigned long memory_size = 0;
 unsigned long machine_flags = 0;
 
 struct mem_chunk memory_chunk[MEMORY_CHUNKS];
@@ -486,6 +485,37 @@ setup_resources(void)
 	}
 }
 
+static void __init setup_memory_end(void)
+{
+	unsigned long real_size, memory_size;
+	unsigned long max_mem, max_phys;
+	int i;
+
+	memory_size = real_size = 0;
+	max_phys = VMALLOC_END - VMALLOC_MIN_SIZE;
+	memory_end &= PAGE_MASK;
+
+	max_mem = memory_end ? min(max_phys, memory_end) : max_phys;
+
+	for (i = 0; i < MEMORY_CHUNKS; i++) {
+		struct mem_chunk *chunk = &memory_chunk[i];
+
+		real_size = max(real_size, chunk->addr + chunk->size);
+		if (chunk->addr >= max_mem) {
+			memset(chunk, 0, sizeof(*chunk));
+			continue;
+		}
+		if (chunk->addr + chunk->size > max_mem)
+			chunk->size = max_mem - chunk->addr;
+		memory_size = max(memory_size, chunk->addr + chunk->size);
+	}
+	if (!memory_end)
+		memory_end = memory_size;
+	if (real_size > memory_end)
+		printk("More memory detected than supported. Unused: %luk\n",
+		       (real_size - memory_end) >> 10);
+}
+
 static void __init
 setup_memory(void)
 {
@@ -642,8 +672,6 @@ setup_arch(char **cmdline_p)
 	init_mm.end_data = (unsigned long) &_edata;
 	init_mm.brk = (unsigned long) &_end;
 
-	memory_end = memory_size;
-
 	if (MACHINE_HAS_MVCOS)
 		memcpy(&uaccess, &uaccess_mvcos, sizeof(uaccess));
 	else
@@ -651,20 +679,7 @@ setup_arch(char **cmdline_p)
 
 	parse_early_param();
 
-#ifndef CONFIG_64BIT
-	memory_end &= ~0x400000UL;
-
-        /*
-         * We need some free virtual space to be able to do vmalloc.
-         * On a machine with 2GB memory we make sure that we have at
-         * least 128 MB free space for vmalloc.
-         */
-        if (memory_end > 1920*1024*1024)
-                memory_end = 1920*1024*1024;
-#else /* CONFIG_64BIT */
-	memory_end &= ~0x200000UL;
-#endif /* CONFIG_64BIT */
-
+	setup_memory_end();
 	setup_memory();
 	setup_resources();
 	setup_lowcore();
