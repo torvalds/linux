@@ -22,6 +22,7 @@
 #include <asm/pgalloc.h>
 #include <asm/system.h>
 #include <asm/smp.h>
+#include <asm/reset.h>
 
 static void kexec_halt_all_cpus(void *);
 
@@ -62,12 +63,6 @@ machine_shutdown(void)
 NORET_TYPE void
 machine_kexec(struct kimage *image)
 {
-	clear_all_subchannels();
-	cio_reset_channel_paths();
-
-	/* Disable lowcore protection */
-	ctl_clear_bit(0,28);
-
 	on_each_cpu(kexec_halt_all_cpus, image, 0, 0);
 	for (;;);
 }
@@ -97,6 +92,8 @@ kexec_halt_all_cpus(void *kernel_image)
 		while (!smp_cpu_not_running(cpu))
 			cpu_relax();
 	}
+
+	s390_reset_system();
 
 	image = (struct kimage *) kernel_image;
 	data_mover = (relocate_kernel_t)

@@ -19,6 +19,7 @@
 #include <asm/cpcmd.h>
 #include <asm/cio.h>
 #include <asm/ebcdic.h>
+#include <asm/reset.h>
 
 #define IPL_PARM_BLOCK_VERSION 0
 #define LOADPARM_LEN 8
@@ -1024,3 +1025,56 @@ static int __init s390_ipl_init(void)
 }
 
 __initcall(s390_ipl_init);
+
+static LIST_HEAD(rcall);
+static DEFINE_MUTEX(rcall_mutex);
+
+void register_reset_call(struct reset_call *reset)
+{
+	mutex_lock(&rcall_mutex);
+	list_add(&reset->list, &rcall);
+	mutex_unlock(&rcall_mutex);
+}
+EXPORT_SYMBOL_GPL(register_reset_call);
+
+void unregister_reset_call(struct reset_call *reset)
+{
+	mutex_lock(&rcall_mutex);
+	list_del(&reset->list);
+	mutex_unlock(&rcall_mutex);
+}
+EXPORT_SYMBOL_GPL(unregister_reset_call);
+
+static void do_reset_calls(void)
+{
+	struct reset_call *reset;
+
+	list_for_each_entry(reset, &rcall, list)
+		reset->fn();
+}
+
+extern void reset_mcck_handler(void);
+
+void s390_reset_system(void)
+{
+	struct _lowcore *lc;
+
+	/* Disable all interrupts/machine checks */
+	__load_psw_mask(PSW_KERNEL_BITS & ~PSW_MASK_MCHECK);
+
+	/* Stack for interrupt/machine check handler */
+	lc = (struct _lowcore *)(unsigned long) store_prefix();
+	lc->panic_stack = S390_lowcore.panic_stack;
+
+	/* Disable prefixing */
+	set_prefix(0);
+
+	/* Disable lowcore protection */
+	__ctl_clear_bit(0,28);
+
+	/* Set new machine check handler */
+	S390_lowcore.mcck_new_psw.mask = PSW_KERNEL_BITS & ~PSW_MASK_MCHECK;
+	S390_lowcore.mcck_new_psw.addr =
+		PSW_ADDR_AMODE | (unsigned long) &reset_mcck_handler;
+	do_reset_calls();
+}
