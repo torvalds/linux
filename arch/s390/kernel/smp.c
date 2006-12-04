@@ -460,8 +460,6 @@ __init smp_count_cpus(void)
  */
 extern void init_cpu_timer(void);
 extern void init_cpu_vtimer(void);
-extern int pfault_init(void);
-extern void pfault_fini(void);
 
 int __devinit start_secondary(void *cpuvoid)
 {
@@ -473,11 +471,9 @@ int __devinit start_secondary(void *cpuvoid)
 #ifdef CONFIG_VIRT_TIMER
         init_cpu_vtimer();
 #endif
-#ifdef CONFIG_PFAULT
 	/* Enable pfault pseudo page faults on this cpu. */
-	if (MACHINE_IS_VM)
-		pfault_init();
-#endif
+	pfault_init();
+
 	/* Mark this cpu as online */
 	cpu_set(smp_processor_id(), cpu_online_map);
 	/* Switch on interrupts */
@@ -667,11 +663,8 @@ __cpu_disable(void)
 	}
 	cpu_clear(cpu, cpu_online_map);
 
-#ifdef CONFIG_PFAULT
 	/* Disable pfault pseudo page faults on this cpu. */
-	if (MACHINE_IS_VM)
-		pfault_fini();
-#endif
+	pfault_fini();
 
 	memset(&cr_parms.orvals, 0, sizeof(cr_parms.orvals));
 	memset(&cr_parms.andvals, 0xff, sizeof(cr_parms.andvals));

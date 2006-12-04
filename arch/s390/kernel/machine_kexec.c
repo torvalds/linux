@@ -49,18 +49,12 @@ void machine_shutdown(void)
 	printk(KERN_INFO "kexec: machine_shutdown called\n");
 }
 
-extern void pfault_fini(void);
-
 void machine_kexec(struct kimage *image)
 {
 	relocate_kernel_t data_mover;
 
-	preempt_disable();
-#ifdef CONFIG_PFAULT
-	if (MACHINE_IS_VM)
-		pfault_fini();
-#endif
 	smp_send_stop();
+	pfault_fini();
 	s390_reset_system();
 
 	data_mover = (relocate_kernel_t) page_to_phys(image->control_code_page);
