@@ -21,17 +21,14 @@
 #include <net/fib_rules.h>
 
 struct fib_config {
-	u8			fc_family;
 	u8			fc_dst_len;
-	u8			fc_src_len;
 	u8			fc_tos;
 	u8			fc_protocol;
 	u8			fc_scope;
 	u8			fc_type;
-	/* 1 byte unused */
+	/* 3 bytes unused */
 	u32			fc_table;
 	__be32			fc_dst;
-	__be32			fc_src;
 	__be32			fc_gw;
 	int			fc_oif;
 	u32			fc_flags;
@@ -118,7 +115,7 @@ struct fib_result {
 
 struct fib_result_nl {
 	__be32		fl_addr;   /* To be looked up*/
-	u32		fl_fwmark; 
+	u32		fl_mark;
 	unsigned char	fl_tos;
 	unsigned char   fl_scope;
 	unsigned char   tb_id_in;

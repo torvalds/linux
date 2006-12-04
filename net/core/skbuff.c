@@ -473,8 +473,8 @@ struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 #endif
 	C(protocol);
 	n->destructor = NULL;
+	C(mark);
 #ifdef CONFIG_NETFILTER
-	C(nfmark);
 	C(nfct);
 	nf_conntrack_get(skb->nfct);
 	C(nfctinfo);
@@ -534,8 +534,8 @@ static void copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	new->pkt_type	= old->pkt_type;
 	new->tstamp	= old->tstamp;
 	new->destructor = NULL;
+	new->mark	= old->mark;
 #ifdef CONFIG_NETFILTER
-	new->nfmark	= old->nfmark;
 	new->nfct	= old->nfct;
 	nf_conntrack_get(old->nfct);
 	new->nfctinfo	= old->nfctinfo;
@@ -639,6 +639,7 @@ struct sk_buff *pskb_copy(struct sk_buff *skb, gfp_t gfp_mask)
 	n->csum	     = skb->csum;
 	n->ip_summed = skb->ip_summed;
 
+	n->truesize += skb->data_len;
 	n->data_len  = skb->data_len;
 	n->len	     = skb->len;
 
@@ -1239,8 +1240,8 @@ EXPORT_SYMBOL(skb_store_bits);
 
 /* Checksum skb data. */
 
-unsigned int skb_checksum(const struct sk_buff *skb, int offset,
-			  int len, unsigned int csum)
+__wsum skb_checksum(const struct sk_buff *skb, int offset,
+			  int len, __wsum csum)
 {
 	int start = skb_headlen(skb);
 	int i, copy = start - offset;
@@ -1264,7 +1265,7 @@ unsigned int skb_checksum(const struct sk_buff *skb, int offset,
 
 		end = start + skb_shinfo(skb)->frags[i].size;
 		if ((copy = end - offset) > 0) {
-			unsigned int csum2;
+			__wsum csum2;
 			u8 *vaddr;
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
@@ -1293,7 +1294,7 @@ unsigned int skb_checksum(const struct sk_buff *skb, int offset,
 
 			end = start + list->len;
 			if ((copy = end - offset) > 0) {
-				unsigned int csum2;
+				__wsum csum2;
 				if (copy > len)
 					copy = len;
 				csum2 = skb_checksum(list, offset - start,
@@ -1314,8 +1315,8 @@ unsigned int skb_checksum(const struct sk_buff *skb, int offset,
 
 /* Both of above in one bottle. */
 
-unsigned int skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
-				    u8 *to, int len, unsigned int csum)
+__wsum skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
+				    u8 *to, int len, __wsum csum)
 {
 	int start = skb_headlen(skb);
 	int i, copy = start - offset;
@@ -1341,7 +1342,7 @@ unsigned int skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
 
 		end = start + skb_shinfo(skb)->frags[i].size;
 		if ((copy = end - offset) > 0) {
-			unsigned int csum2;
+			__wsum csum2;
 			u8 *vaddr;
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
@@ -1367,7 +1368,7 @@ unsigned int skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
 		struct sk_buff *list = skb_shinfo(skb)->frag_list;
 
 		for (; list; list = list->next) {
-			unsigned int csum2;
+			__wsum csum2;
 			int end;
 
 			BUG_TRAP(start <= offset + len);
@@ -1395,7 +1396,7 @@ unsigned int skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
 
 void skb_copy_and_csum_dev(const struct sk_buff *skb, u8 *to)
 {
-	unsigned int csum;
+	__wsum csum;
 	long csstart;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
@@ -1413,9 +1414,9 @@ void skb_copy_and_csum_dev(const struct sk_buff *skb, u8 *to)
 					      skb->len - csstart, 0);
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		long csstuff = csstart + skb->csum;
+		long csstuff = csstart + skb->csum_offset;
 
-		*((unsigned short *)(to + csstuff)) = csum_fold(csum);
+		*((__sum16 *)(to + csstuff)) = csum_fold(csum);
 	}
 }
 
@@ -1946,7 +1947,7 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 	do {
 		struct sk_buff *nskb;
 		skb_frag_t *frag;
-		int hsize, nsize;
+		int hsize;
 		int k;
 		int size;
 
@@ -1957,11 +1958,10 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 		hsize = skb_headlen(skb) - offset;
 		if (hsize < 0)
 			hsize = 0;
-		nsize = hsize + doffset;
-		if (nsize > len + doffset || !sg)
-			nsize = len + doffset;
+		if (hsize > len || !sg)
+			hsize = len;
 
-		nskb = alloc_skb(nsize + headroom, GFP_ATOMIC);
+		nskb = alloc_skb(hsize + doffset + headroom, GFP_ATOMIC);
 		if (unlikely(!nskb))
 			goto err;
 

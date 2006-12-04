@@ -39,7 +39,6 @@ static char version[] =
 #include <asm/auxio.h>
 #include <asm/pgtable.h>
 #include <asm/irq.h>
-#include <asm/checksum.h>
 
 #include "myri_sbus.h"
 #include "myri_code.h"
@@ -168,7 +167,7 @@ static int myri_do_handshake(struct myri_eth *mp)
 	return 0;
 }
 
-static int myri_load_lanai(struct myri_eth *mp)
+static int __devinit myri_load_lanai(struct myri_eth *mp)
 {
 	struct net_device	*dev = mp->dev;
 	struct myri_shmem __iomem *shmem = mp->shmem;
@@ -891,7 +890,7 @@ static void dump_eeprom(struct myri_eth *mp)
 }
 #endif
 
-static int __init myri_ether_init(struct sbus_dev *sdev)
+static int __devinit myri_ether_init(struct sbus_dev *sdev)
 {
 	static int num;
 	static unsigned version_printed;

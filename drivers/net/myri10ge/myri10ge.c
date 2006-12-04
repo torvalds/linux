@@ -1955,7 +1955,7 @@ again:
 	flags = (MXGEFW_FLAGS_NO_TSO | MXGEFW_FLAGS_FIRST);
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		cksum_offset = (skb->h.raw - skb->data);
-		pseudo_hdr_offset = (skb->h.raw + skb->csum) - skb->data;
+		pseudo_hdr_offset = cksum_offset + skb->csum_offset;
 		/* If the headers are excessively large, then we must
 		 * fall back to a software checksum */
 		if (unlikely(cksum_offset > 255 || pseudo_hdr_offset > 127)) {
@@ -2416,7 +2416,6 @@ static void myri10ge_enable_ecrc(struct myri10ge_priv *mgp)
  * firmware image, and set tx.boundary to 4KB.
  */
 
-#define PCI_DEVICE_ID_SERVERWORKS_HT2000_PCIE	0x0132
 #define PCI_DEVICE_ID_INTEL_E5000_PCIE23 0x25f7
 #define PCI_DEVICE_ID_INTEL_E5000_PCIE47 0x25fa
 

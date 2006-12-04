@@ -13,9 +13,8 @@
  */
 
 #include <linux/module.h>
-
 #include <asm/div64.h>
-
+#include "../../dccp.h"
 #include "tfrc.h"
 
 #define TFRC_CALC_X_ARRSIZE 500
@@ -588,8 +587,10 @@ u32 tfrc_calc_x(u16 s, u32 R, u32 p)
 		/* p should be 0 unless there is a bug in my code */
 		index = 0;
 
-	if (R == 0)
+	if (R == 0) {
+		DCCP_WARN("RTT==0, setting to 1\n");
 		R = 1; /* RTT can't be zero or else divide by zero */
+	}
 
 	BUG_ON(index >= TFRC_CALC_X_ARRSIZE);
 

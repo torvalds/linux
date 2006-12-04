@@ -2969,7 +2969,7 @@ struct saa7134_board saa7134_boards[] = {
 		/* Petr Baudis <pasky@ucw.cz> */
 		.name           = "AVerMedia TV Hybrid A16AR",
 		.audio_clock    = 0x187de7,
-		.tuner_type     = TUNER_PHILIPS_TDA8290, /* untested */
+		.tuner_type     = TUNER_PHILIPS_TD1316, /* untested */
 		.radio_type     = TUNER_TEA5767, /* untested */
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
@@ -3718,6 +3718,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_AVERMEDIA_STUDIO_307:
 	case SAA7134_BOARD_AVERMEDIA_307:
 	case SAA7134_BOARD_AVERMEDIA_GO_007_FM:
+	case SAA7134_BOARD_AVERMEDIA_777:
 /*      case SAA7134_BOARD_SABRENT_SBTTVFM:  */ /* not finished yet */
 	case SAA7134_BOARD_VIDEOMATE_TV_PVR:
 	case SAA7134_BOARD_VIDEOMATE_GOLD_PLUS:
@@ -3734,6 +3735,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_FLYDVBT_LR301:
 	case SAA7134_BOARD_FLYDVBTDUO:
 	case SAA7134_BOARD_PROTEUS_2309:
+	case SAA7134_BOARD_AVERMEDIA_A16AR:
 		dev->has_remote = SAA7134_REMOTE_GPIO;
 		break;
 	case SAA7134_BOARD_FLYDVBS_LR300:
@@ -3772,7 +3774,6 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		saa_writeb(SAA7134_GPIO_GPMODE3, 0x08);
 		saa_writeb(SAA7134_GPIO_GPSTATUS3, 0x00);
 		break;
-	case SAA7134_BOARD_AVERMEDIA_A16AR:
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS:
 		/* power-up tuner chip */
 		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0xffffffff, 0xffffffff);

@@ -705,17 +705,16 @@ static struct bin_attribute rbu_packet_size_attr = {
 
 static int __init dcdrbu_init(void)
 {
-	int rc = 0;
+	int rc;
 	spin_lock_init(&rbu_data.lock);
 
 	init_packet_head();
-	rbu_device =
-		platform_device_register_simple("dell_rbu", -1, NULL, 0);
-	if (!rbu_device) {
+	rbu_device = platform_device_register_simple("dell_rbu", -1, NULL, 0);
+	if (IS_ERR(rbu_device)) {
 		printk(KERN_ERR
 			"dell_rbu:%s:platform_device_register_simple "
 			"failed\n", __FUNCTION__);
-		return -EIO;
+		return PTR_ERR(rbu_device);
 	}
 
 	rc = sysfs_create_bin_file(&rbu_device->dev.kobj, &rbu_data_attr);

@@ -40,7 +40,7 @@
 #ifdef __KERNEL__
 
 struct tipc_msg {
-	u32 hdr[15];
+	__be32 hdr[15];
 };
 
 

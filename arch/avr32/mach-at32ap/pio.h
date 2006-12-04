@@ -170,8 +170,10 @@
 #define PIO_BFINS(name,value,old)              (((old) & ~(((1 << PIO_##name##_SIZE) - 1) << PIO_##name##_OFFSET)) | PIO_BF(name,value))
 
 /* Register access macros */
-#define pio_readl(port,reg)                    readl((port)->regs + PIO_##reg)
-#define pio_writel(port,reg,value)             writel((value), (port)->regs + PIO_##reg)
+#define pio_readl(port,reg)					\
+	__raw_readl((port)->regs + PIO_##reg)
+#define pio_writel(port,reg,value)				\
+	__raw_writel((value), (port)->regs + PIO_##reg)
 
 void at32_init_pio(struct platform_device *pdev);
 

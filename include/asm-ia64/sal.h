@@ -659,6 +659,7 @@ ia64_sal_freq_base (unsigned long which, unsigned long *ticks_per_second,
 }
 
 extern s64 ia64_sal_cache_flush (u64 cache_type);
+extern void __init check_sal_cache_flush (void);
 
 /* Initialize all the processor and platform level instruction and data caches */
 static inline s64

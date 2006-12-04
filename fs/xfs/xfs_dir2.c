@@ -678,7 +678,7 @@ xfs_dir2_put_dirent64_uio(
 	idbp->d_off = pa->cook;
 	idbp->d_name[namelen] = '\0';
 	memcpy(idbp->d_name, pa->name, namelen);
-	rval = uio_read((caddr_t)idbp, reclen, uio);
+	rval = xfs_uio_read((caddr_t)idbp, reclen, uio);
 	pa->done = (rval == 0);
 	return rval;
 }

@@ -38,7 +38,7 @@ EXPORT_SYMBOL(ip_fast_csum);
 EXPORT_SYMBOL(kernel_thread);
 
 /* Networking helper routines. */
-EXPORT_SYMBOL(csum_partial_copy);
+EXPORT_SYMBOL(csum_partial_copy_nocheck);
 
 /* The following are special because they're not called
    explicitly (the C compiler generates them).  Fortunately,

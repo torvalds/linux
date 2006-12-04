@@ -274,7 +274,7 @@ History
      Fixed race-condition in buffer code - it is in all filesystems in Linux;
         when reading device (cat /dev/hda) while creating files on it, files
         could be damaged
-2.02 Woraround for bug in breada in Linux. breada could cause accesses beyond
+2.02 Workaround for bug in breada in Linux. breada could cause accesses beyond
         end of partition
 2.03 Char, block devices and pipes are correctly created
      Fixed non-crashing race in unlink (Alexander Viro)

@@ -701,7 +701,7 @@ void qla4xxx_get_conn_event_log(struct scsi_qla_host * ha)
 	DEBUG3(printk("scsi%ld: Connection Event Log Dump (%d entries):\n",
 		      ha->host_no, num_valid_entries));
 
-	if (qla4_extended_error_logging == 3) {
+	if (ql4xextended_error_logging == 3) {
 		if (oldest_entry == 0) {
 			/* Circular Buffer has not wrapped around */
 			for (i=0; i < num_valid_entries; i++) {

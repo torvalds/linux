@@ -175,6 +175,7 @@ ecryptfs_get_key_payload_data(struct key *key)
 #define ECRYPTFS_DEFAULT_CIPHER "aes"
 #define ECRYPTFS_DEFAULT_KEY_BYTES 16
 #define ECRYPTFS_DEFAULT_CHAINING_MODE CRYPTO_TFM_MODE_CBC
+#define ECRYPTFS_DEFAULT_HASH "md5"
 #define ECRYPTFS_TAG_3_PACKET_TYPE 0x8C
 #define ECRYPTFS_TAG_11_PACKET_TYPE 0xED
 #define MD5_DIGEST_SIZE 16
@@ -204,15 +205,15 @@ struct ecryptfs_crypt_stat {
 	size_t extent_shift;
 	unsigned int extent_mask;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat;
-	struct crypto_tfm *tfm;
-	struct crypto_tfm *md5_tfm; /* Crypto context for generating
-				     * the initialization vectors */
+	struct crypto_blkcipher *tfm;
+	struct crypto_hash *hash_tfm; /* Crypto context for generating
+				       * the initialization vectors */
 	unsigned char cipher[ECRYPTFS_MAX_CIPHER_NAME_SIZE];
 	unsigned char key[ECRYPTFS_MAX_KEY_BYTES];
 	unsigned char root_iv[ECRYPTFS_MAX_IV_BYTES];
 	unsigned char keysigs[ECRYPTFS_MAX_NUM_KEYSIGS][ECRYPTFS_SIG_SIZE_HEX];
 	struct mutex cs_tfm_mutex;
-	struct mutex cs_md5_tfm_mutex;
+	struct mutex cs_hash_tfm_mutex;
 	struct mutex cs_mutex;
 };
 
@@ -244,7 +245,7 @@ struct ecryptfs_mount_crypt_stat {
 	struct ecryptfs_auth_tok *global_auth_tok;
 	struct key *global_auth_tok_key;
 	size_t global_default_cipher_key_size;
-	struct crypto_tfm *global_key_tfm;
+	struct crypto_blkcipher *global_key_tfm;
 	struct mutex global_key_tfm_mutex;
 	unsigned char global_default_cipher_name[ECRYPTFS_MAX_CIPHER_NAME_SIZE
 						 + 1];
@@ -425,6 +426,9 @@ void ecryptfs_destruct_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat);
 void ecryptfs_destruct_mount_crypt_stat(
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat);
 int ecryptfs_init_crypt_ctx(struct ecryptfs_crypt_stat *crypt_stat);
+int ecryptfs_crypto_api_algify_cipher_name(char **algified_name,
+					   char *cipher_name,
+					   char *chaining_modifier);
 int ecryptfs_write_inode_size_to_header(struct file *lower_file,
 					struct inode *lower_inode,
 					struct inode *inode);
@@ -473,10 +477,14 @@ ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 			  unsigned char *src, struct dentry *ecryptfs_dentry);
 int ecryptfs_truncate(struct dentry *dentry, loff_t new_length);
 int
-ecryptfs_process_cipher(struct crypto_tfm **tfm, struct crypto_tfm **key_tfm,
-			char *cipher_name, size_t key_size);
+ecryptfs_process_cipher(struct crypto_blkcipher **key_tfm, char *cipher_name,
+			size_t *key_size);
 int ecryptfs_inode_test(struct inode *inode, void *candidate_lower_inode);
 int ecryptfs_inode_set(struct inode *inode, void *lower_inode);
 void ecryptfs_init_inode(struct inode *inode, struct inode *lower_inode);
+int ecryptfs_open_lower_file(struct file **lower_file,
+			     struct dentry *lower_dentry,
+			     struct vfsmount *lower_mnt, int flags);
+int ecryptfs_close_lower_file(struct file *lower_file);
 
 #endif /* #ifndef ECRYPTFS_KERNEL_H */

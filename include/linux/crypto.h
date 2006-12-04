@@ -245,7 +245,7 @@ int crypto_alg_available(const char *name, u32 flags)
 	__deprecated_for_modules;
 int crypto_has_alg(const char *name, u32 type, u32 mask);
 #else
-static int crypto_alg_available(const char *name, u32 flags);
+static int crypto_alg_available(const char *name, u32 flags)
 	__deprecated_for_modules;
 static inline int crypto_alg_available(const char *name, u32 flags)
 {

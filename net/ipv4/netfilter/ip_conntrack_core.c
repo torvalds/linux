@@ -40,9 +40,6 @@
 
 /* ip_conntrack_lock protects the main hash table, protocol/helper/expected
    registrations, conntrack timers*/
-#define ASSERT_READ_LOCK(x)
-#define ASSERT_WRITE_LOCK(x)
-
 #include <linux/netfilter_ipv4/ip_conntrack.h>
 #include <linux/netfilter_ipv4/ip_conntrack_protocol.h>
 #include <linux/netfilter_ipv4/ip_conntrack_helper.h>
@@ -201,7 +198,6 @@ ip_ct_invert_tuple(struct ip_conntrack_tuple *inverse,
 /* ip_conntrack_expect helper functions */
 void ip_ct_unlink_expect(struct ip_conntrack_expect *exp)
 {
-	ASSERT_WRITE_LOCK(&ip_conntrack_lock);
 	IP_NF_ASSERT(!timer_pending(&exp->timeout));
 	list_del(&exp->list);
 	CONNTRACK_STAT_INC(expect_delete);
@@ -225,22 +221,22 @@ __ip_conntrack_expect_find(const struct ip_conntrack_tuple *tuple)
 	struct ip_conntrack_expect *i;
 	
 	list_for_each_entry(i, &ip_conntrack_expect_list, list) {
-		if (ip_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask)) {
-			atomic_inc(&i->use);
+		if (ip_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask))
 			return i;
-		}
 	}
 	return NULL;
 }
 
 /* Just find a expectation corresponding to a tuple. */
 struct ip_conntrack_expect *
-ip_conntrack_expect_find(const struct ip_conntrack_tuple *tuple)
+ip_conntrack_expect_find_get(const struct ip_conntrack_tuple *tuple)
 {
 	struct ip_conntrack_expect *i;
 	
 	read_lock_bh(&ip_conntrack_lock);
 	i = __ip_conntrack_expect_find(tuple);
+	if (i)
+		atomic_inc(&i->use);
 	read_unlock_bh(&ip_conntrack_lock);
 
 	return i;
@@ -294,7 +290,6 @@ static void
 clean_from_lists(struct ip_conntrack *ct)
 {
 	DEBUGP("clean_from_lists(%p)\n", ct);
-	ASSERT_WRITE_LOCK(&ip_conntrack_lock);
 	list_del(&ct->tuplehash[IP_CT_DIR_ORIGINAL].list);
 	list_del(&ct->tuplehash[IP_CT_DIR_REPLY].list);
 
@@ -373,7 +368,6 @@ __ip_conntrack_find(const struct ip_conntrack_tuple *tuple,
 	struct ip_conntrack_tuple_hash *h;
 	unsigned int hash = hash_conntrack(tuple);
 
-	ASSERT_READ_LOCK(&ip_conntrack_lock);
 	list_for_each_entry(h, &ip_conntrack_hash[hash], list) {
 		if (tuplehash_to_ctrack(h) != ignored_conntrack &&
 		    ip_ct_tuple_equal(tuple, &h->tuple)) {

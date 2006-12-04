@@ -28,17 +28,16 @@ static inline int
 set_ect_ip(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 {
 	struct iphdr *iph = (*pskb)->nh.iph;
-	__be16 oldtos;
 
 	if ((iph->tos & IPT_ECN_IP_MASK) != (einfo->ip_ect & IPT_ECN_IP_MASK)) {
+		__u8 oldtos;
 		if (!skb_make_writable(pskb, sizeof(struct iphdr)))
 			return 0;
 		iph = (*pskb)->nh.iph;
 		oldtos = iph->tos;
 		iph->tos &= ~IPT_ECN_IP_MASK;
 		iph->tos |= (einfo->ip_ect & IPT_ECN_IP_MASK);
-		iph->check = nf_csum_update(oldtos ^ htons(0xFFFF), iph->tos,
-					    iph->check);
+		nf_csum_replace2(&iph->check, htons(oldtos), htons(iph->tos));
 	} 
 	return 1;
 }
@@ -72,10 +71,8 @@ set_ect_tcp(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 	if (einfo->operation & IPT_ECN_OP_SET_CWR)
 		tcph->cwr = einfo->proto.tcp.cwr;
 
-	tcph->check = nf_proto_csum_update((*pskb),
-					   oldval ^ htons(0xFFFF),
-					   ((__be16 *)tcph)[6],
-					   tcph->check, 0);
+	nf_proto_csum_replace2(&tcph->check, *pskb,
+				oldval, ((__be16 *)tcph)[6], 0);
 	return 1;
 }
 

@@ -578,9 +578,13 @@ ccw_device_verify_done(struct ccw_device *cdev, int err)
 		}
 		break;
 	case -ETIME:
+		/* Reset oper notify indication after verify error. */
+		cdev->private->flags.donotify = 0;
 		ccw_device_done(cdev, DEV_STATE_BOXED);
 		break;
 	default:
+		/* Reset oper notify indication after verify error. */
+		cdev->private->flags.donotify = 0;
 		PREPARE_WORK(&cdev->private->kick_work,
 			     ccw_device_nopath_notify, cdev);
 		queue_work(ccw_device_notify_work, &cdev->private->kick_work);

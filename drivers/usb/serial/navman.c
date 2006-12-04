@@ -95,8 +95,7 @@ static void navman_close(struct usb_serial_port *port, struct file *filp)
 {
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if (port->interrupt_in_urb)
-		usb_kill_urb(port->interrupt_in_urb);
+	usb_kill_urb(port->interrupt_in_urb);
 }
 
 static int navman_write(struct usb_serial_port *port,

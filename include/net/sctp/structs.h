@@ -537,7 +537,7 @@ struct sctp_af {
 					  struct net_device *);
 	void		(*dst_saddr)	(union sctp_addr *saddr,
 					 struct dst_entry *dst,
-					 unsigned short port);
+					 __be16 port);
 	int		(*cmp_addr)	(const union sctp_addr *addr1,
 					 const union sctp_addr *addr2);
 	void		(*addr_copy)	(union sctp_addr *dst,
@@ -553,14 +553,14 @@ struct sctp_af {
 					 struct sock *sk);
 	void		(*from_addr_param) (union sctp_addr *,
 					    union sctp_addr_param *,
-					    __u16 port, int iif);	
+					    __be16 port, int iif);
 	int		(*to_addr_param) (const union sctp_addr *,
 					  union sctp_addr_param *); 
 	int		(*addr_valid)	(union sctp_addr *,
 					 struct sctp_sock *,
 					 const struct sk_buff *);
 	sctp_scope_t	(*scope) (union sctp_addr *);
-	void		(*inaddr_any)	(union sctp_addr *, unsigned short);
+	void		(*inaddr_any)	(union sctp_addr *, __be16);
 	int		(*is_any)	(const union sctp_addr *);
 	int		(*available)	(union sctp_addr *,
 					 struct sctp_sock *);
@@ -587,7 +587,7 @@ struct sctp_pf {
 			  struct sctp_sock *);
 	int  (*bind_verify) (struct sctp_sock *, union sctp_addr *);
 	int  (*send_verify) (struct sctp_sock *, union sctp_addr *);
-	int  (*supported_addrs)(const struct sctp_sock *, __u16 *);
+	int  (*supported_addrs)(const struct sctp_sock *, __be16 *);
 	struct sock *(*create_accept_sk) (struct sock *sk,
 					  struct sctp_association *asoc);
 	void (*addr_v4map) (struct sctp_sock *, union sctp_addr *);
@@ -1270,7 +1270,7 @@ struct sctp_endpoint {
  	 * 	    this here so we pre-allocate this once and can re-use
  	 * 	    on every receive.
  	 */
- 	__u8 digest[SCTP_SIGNATURE_SIZE];
+ 	__u8 *digest;
  
 	/* sendbuf acct. policy.	*/
 	__u32 sndbuf_policy;
@@ -1314,6 +1314,13 @@ int sctp_process_init(struct sctp_association *, sctp_cid_t cid,
 __u32 sctp_generate_tag(const struct sctp_endpoint *);
 __u32 sctp_generate_tsn(const struct sctp_endpoint *);
 
+struct sctp_inithdr_host {
+	__u32 init_tag;
+	__u32 a_rwnd;
+	__u16 num_outbound_streams;
+	__u16 num_inbound_streams;
+	__u32 initial_tsn;
+};
 
 /* RFC2960
  *
@@ -1482,9 +1489,9 @@ struct sctp_association {
 		/* This mask is used to disable sending the ASCONF chunk
 		 * with specified parameter to peer.
 		 */
-		__u16 addip_disabled_mask;
+		__be16 addip_disabled_mask;
 
-		struct sctp_inithdr i;
+		struct sctp_inithdr_host i;
 		int cookie_len;
 		void *cookie;
 

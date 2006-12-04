@@ -187,7 +187,7 @@ out:
 }
 
 /*
- * Estimate CPU frequency.  Sets mips_counter_frequency as a side-effect
+ * Estimate CPU frequency.  Sets mips_hpt_frequency as a side-effect
  */
 static unsigned int __init estimate_cpu_frequency(void)
 {
@@ -208,7 +208,8 @@ static unsigned int __init estimate_cpu_frequency(void)
 		count = 6000000;
 #endif
 #if defined(CONFIG_MIPS_ATLAS) || defined(CONFIG_MIPS_MALTA)
-	unsigned int flags;
+	unsigned long flags;
+	unsigned int start;
 
 	local_irq_save(flags);
 
@@ -217,13 +218,13 @@ static unsigned int __init estimate_cpu_frequency(void)
 	while (!(CMOS_READ(RTC_REG_A) & RTC_UIP));
 
 	/* Start r4k counter. */
-	write_c0_count(0);
+	start = read_c0_count();
 
 	/* Read counter exactly on falling edge of update flag */
 	while (CMOS_READ(RTC_REG_A) & RTC_UIP);
 	while (!(CMOS_READ(RTC_REG_A) & RTC_UIP));
 
-	count = read_c0_count();
+	count = read_c0_count() - start;
 
 	/* restore interrupts */
 	local_irq_restore(flags);
@@ -287,6 +288,7 @@ void __init plat_timer_setup(struct irqaction *irq)
 	   The effect is that the int remains disabled on the second cpu.
 	   Mark the interrupt with IRQ_PER_CPU to avoid any confusion */
 	irq_desc[mips_cpu_timer_irq].status |= IRQ_PER_CPU;
+	set_irq_handler(mips_cpu_timer_irq, handle_percpu_irq);
 #endif
 
         /* to generate the first timer interrupt */

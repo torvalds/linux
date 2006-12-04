@@ -221,16 +221,14 @@ static void init_dialog_colors(void)
  */
 static void color_setup(const char *theme)
 {
-	if (set_theme(theme)) {
-		if (has_colors()) {	/* Terminal supports color? */
-			start_color();
-			init_dialog_colors();
-		}
-	}
-	else
-	{
+	int use_color;
+
+	use_color = set_theme(theme);
+	if (use_color && has_colors()) {
+		start_color();
+		init_dialog_colors();
+	} else
 		set_mono_theme();
-	}
 }
 
 /*

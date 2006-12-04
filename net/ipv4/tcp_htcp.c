@@ -23,15 +23,15 @@ module_param(use_bandwidth_switch, int, 0644);
 MODULE_PARM_DESC(use_bandwidth_switch, "turn on/off bandwidth switcher");
 
 struct htcp {
-	u16	alpha;		/* Fixed point arith, << 7 */
+	u32	alpha;		/* Fixed point arith, << 7 */
 	u8	beta;           /* Fixed point arith, << 7 */
 	u8	modeswitch;     /* Delay modeswitch until we had at least one congestion event */
-	u32	last_cong;	/* Time since last congestion event end */
-	u32	undo_last_cong;
 	u16	pkts_acked;
 	u32	packetcount;
 	u32	minRTT;
 	u32	maxRTT;
+	u32	last_cong;	/* Time since last congestion event end */
+	u32	undo_last_cong;
 
 	u32	undo_maxRTT;
 	u32	undo_old_maxB;

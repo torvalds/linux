@@ -3529,7 +3529,7 @@ do_QDIO(struct ccw_device *cdev,unsigned int callflags,
 #ifdef CONFIG_QDIO_DEBUG
 	char dbf_text[20];
 
-	sprintf(dbf_text,"doQD%04x",cdev->private->sch_no);
+	sprintf(dbf_text,"doQD%04x",cdev->private->schid.sch_no);
  	QDIO_DBF_TEXT3(0,trace,dbf_text);
 #endif /* CONFIG_QDIO_DEBUG */
 

@@ -135,7 +135,7 @@ static inline void ip32_power_button(void)
 	add_timer(&power_timer);
 }
 
-static irqreturn_t ip32_rtc_int(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ip32_rtc_int(int irq, void *dev_id)
 {
 	volatile unsigned char reg_c;
 

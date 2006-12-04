@@ -40,7 +40,7 @@ config MMC_ARMMMCI
 	  If unsure, say N.
 
 config MMC_PXA
-	tristate "Intel PXA255 Multimedia Card Interface support"
+	tristate "Intel PXA25x/26x/27x Multimedia Card Interface support"
 	depends on ARCH_PXA && MMC
 	help
 	  This selects the Intel(R) PXA(R) Multimedia card Interface.

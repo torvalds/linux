@@ -172,12 +172,10 @@ static struct device *rfcomm_get_device(struct rfcomm_dev *dev)
 		return NULL;
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &dev->dst);
-	if (!conn)
-		return NULL;
 
 	hci_dev_put(hdev);
 
-	return &conn->dev;
+	return conn ? &conn->dev : NULL;
 }
 
 static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
@@ -766,6 +764,9 @@ static void rfcomm_tty_set_termios(struct tty_struct *tty, struct termios *old)
 	struct rfcomm_dev *dev = (struct rfcomm_dev *) tty->driver_data;
 
 	BT_DBG("tty %p termios %p", tty, old);
+
+	if (!dev || !dev->dlc || !dev->dlc->session)
+		return;
 
 	/* Handle turning off CRTSCTS */
 	if ((old->c_cflag & CRTSCTS) && !(new->c_cflag & CRTSCTS)) 

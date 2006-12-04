@@ -178,9 +178,9 @@ static int iforce_usb_probe(struct usb_interface *intf,
 
 fail:
 	if (iforce) {
-		if (iforce->irq) usb_free_urb(iforce->irq);
-		if (iforce->out) usb_free_urb(iforce->out);
-		if (iforce->ctrl) usb_free_urb(iforce->ctrl);
+		usb_free_urb(iforce->irq);
+		usb_free_urb(iforce->out);
+		usb_free_urb(iforce->ctrl);
 		kfree(iforce);
 	}
 

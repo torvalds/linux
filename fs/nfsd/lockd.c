@@ -25,7 +25,7 @@
 static u32
 nlm_fopen(struct svc_rqst *rqstp, struct nfs_fh *f, struct file **filp)
 {
-	u32		nfserr;
+	__be32		nfserr;
 	struct svc_fh	fh;
 
 	/* must initialize before using! but maxsize doesn't matter */
@@ -39,18 +39,20 @@ nlm_fopen(struct svc_rqst *rqstp, struct nfs_fh *f, struct file **filp)
 	fh_put(&fh);
 	rqstp->rq_client = NULL;
 	exp_readunlock();
- 	/* nlm and nfsd don't share error codes.
-	 * we invent: 0 = no error
-	 *            1 = stale file handle
-	 *	      2 = other error
+ 	/* We return nlm error codes as nlm doesn't know
+	 * about nfsd, but nfsd does know about nlm..
 	 */
 	switch (nfserr) {
 	case nfs_ok:
 		return 0;
+	case nfserr_dropit:
+		return nlm_drop_reply;
+#ifdef CONFIG_LOCKD_V4
 	case nfserr_stale:
-		return 1;
+		return nlm4_stale_fh;
+#endif
 	default:
-		return 2;
+		return nlm_lck_denied;
 	}
 }
 

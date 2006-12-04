@@ -38,7 +38,7 @@ EXPORT_SYMBOL(disable_irq);
 EXPORT_SYMBOL(kernel_thread);
 
 /* Networking helper routines. */
-EXPORT_SYMBOL(csum_partial_copy);
+EXPORT_SYMBOL(csum_partial_copy_nocheck);
 
 EXPORT_SYMBOL(strstr);
 

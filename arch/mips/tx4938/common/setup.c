@@ -31,7 +31,6 @@
 #include <asm/mipsregs.h>
 #include <asm/system.h>
 #include <asm/time.h>
-#include <asm/time.h>
 #include <asm/tx4938/rbtx4938.h>
 
 extern void toshiba_rbtx4938_setup(void);

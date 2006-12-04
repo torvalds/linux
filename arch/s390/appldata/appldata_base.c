@@ -310,6 +310,7 @@ appldata_interval_handler(ctl_table *ctl, int write, struct file *filp,
 	if (copy_from_user(buf, buffer, len > sizeof(buf) ? sizeof(buf) : len)) {
 		return -EFAULT;
 	}
+	interval = 0;
 	sscanf(buf, "%i", &interval);
 	if (interval <= 0) {
 		P_ERROR("Timer CPU interval has to be > 0!\n");

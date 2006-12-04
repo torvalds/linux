@@ -153,8 +153,6 @@ int bcm43xx_pctl_init(struct bcm43xx_private *bcm)
 	int err, maxfreq;
 	struct bcm43xx_coreinfo *old_core;
 
-	if (!(bcm->chipcommon_capabilities & BCM43xx_CAPABILITIES_PCTL))
-		return 0;
 	old_core = bcm->current_core;
 	err = bcm43xx_switch_core(bcm, &bcm->core_chipcommon);
 	if (err == -ENODEV)
@@ -162,11 +160,27 @@ int bcm43xx_pctl_init(struct bcm43xx_private *bcm)
 	if (err)
 		goto out;
 
-	maxfreq = bcm43xx_pctl_clockfreqlimit(bcm, 1);
-	bcm43xx_write32(bcm, BCM43xx_CHIPCOMMON_PLLONDELAY,
-			(maxfreq * 150 + 999999) / 1000000);
-	bcm43xx_write32(bcm, BCM43xx_CHIPCOMMON_FREFSELDELAY,
-			(maxfreq * 15 + 999999) / 1000000);
+	if (bcm->chip_id == 0x4321) {
+		if (bcm->chip_rev == 0)
+			bcm43xx_write32(bcm, BCM43xx_CHIPCOMMON_CTL, 0x03A4);
+		if (bcm->chip_rev == 1)
+			bcm43xx_write32(bcm, BCM43xx_CHIPCOMMON_CTL, 0x00A4);
+	}
+
+	if (bcm->chipcommon_capabilities & BCM43xx_CAPABILITIES_PCTL) {
+		if (bcm->current_core->rev >= 10) {
+			/* Set Idle Power clock rate to 1Mhz */
+			bcm43xx_write32(bcm, BCM43xx_CHIPCOMMON_SYSCLKCTL,
+				       (bcm43xx_read32(bcm, BCM43xx_CHIPCOMMON_SYSCLKCTL)
+				       & 0x0000FFFF) | 0x40000);
+		} else {
+			maxfreq = bcm43xx_pctl_clockfreqlimit(bcm, 1);
+			bcm43xx_write32(bcm, BCM43xx_CHIPCOMMON_PLLONDELAY,
+				       (maxfreq * 150 + 999999) / 1000000);
+			bcm43xx_write32(bcm, BCM43xx_CHIPCOMMON_FREFSELDELAY,
+				       (maxfreq * 15 + 999999) / 1000000);
+		}
+	}
 
 	err = bcm43xx_switch_core(bcm, old_core);
 	assert(err == 0);

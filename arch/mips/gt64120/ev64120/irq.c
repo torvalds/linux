@@ -66,37 +66,20 @@ asmlinkage void plat_irq_dispatch(void)
 
 static void disable_ev64120_irq(unsigned int irq_nr)
 {
-	unsigned long flags;
-
-	local_irq_save(flags);
 	if (irq_nr >= 8) {	// All PCI interrupts are on line 5 or 2
 		clear_c0_status(9 << 10);
 	} else {
 		clear_c0_status(1 << (irq_nr + 8));
 	}
-	local_irq_restore(flags);
 }
 
 static void enable_ev64120_irq(unsigned int irq_nr)
 {
-	unsigned long flags;
-
-	local_irq_save(flags);
 	if (irq_nr >= 8)	// All PCI interrupts are on line 5 or 2
 		set_c0_status(9 << 10);
 	else
 		set_c0_status(1 << (irq_nr + 8));
-	local_irq_restore(flags);
 }
-
-static unsigned int startup_ev64120_irq(unsigned int irq)
-{
-	enable_ev64120_irq(irq);
-	return 0;		/* Never anything pending  */
-}
-
-#define shutdown_ev64120_irq     disable_ev64120_irq
-#define mask_and_ack_ev64120_irq disable_ev64120_irq
 
 static void end_ev64120_irq(unsigned int irq)
 {
@@ -106,13 +89,11 @@ static void end_ev64120_irq(unsigned int irq)
 
 static struct irq_chip ev64120_irq_type = {
 	.typename	= "EV64120",
-	.startup	= startup_ev64120_irq,
-	.shutdown	= shutdown_ev64120_irq,
-	.enable		= enable_ev64120_irq,
-	.disable	= disable_ev64120_irq,
-	.ack		= mask_and_ack_ev64120_irq,
+	.ack		= disable_ev64120_irq,
+	.mask		= disable_ev64120_irq,
+	.mask_ack	= disable_ev64120_irq,
+	.unmask		= enable_ev64120_irq,
 	.end		= end_ev64120_irq,
-	.set_affinity	= NULL
 };
 
 void gt64120_irq_setup(void)
@@ -121,8 +102,6 @@ void gt64120_irq_setup(void)
 	 * Clear all of the interrupts while we change the able around a bit.
 	 */
 	clear_c0_status(ST0_IM);
-
-	local_irq_disable();
 
 	/*
 	 * Enable timer.  Other interrupts will be enabled as they are
@@ -133,16 +112,5 @@ void gt64120_irq_setup(void)
 
 void __init arch_init_irq(void)
 {
-	int i;
-
-	/*  Let's initialize our IRQ descriptors  */
-	for (i = 0; i < NR_IRQS; i++) {
-		irq_desc[i].status = 0;
-		irq_desc[i].chip = &no_irq_chip;
-		irq_desc[i].action = NULL;
-		irq_desc[i].depth = 0;
-		spin_lock_init(&irq_desc[i].lock);
-	}
-
 	gt64120_irq_setup();
 }

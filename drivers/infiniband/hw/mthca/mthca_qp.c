@@ -35,9 +35,10 @@
  * $Id: mthca_qp.c 1355 2004-12-17 15:23:43Z roland $
  */
 
-#include <linux/init.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+
+#include <asm/io.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_cache.h>
@@ -1732,6 +1733,11 @@ out:
 		mthca_write64(doorbell,
 			      dev->kar + MTHCA_SEND_DOORBELL,
 			      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
+		/*
+		 * Make sure doorbells don't leak out of SQ spinlock
+		 * and reach the HCA out of order:
+		 */
+		mmiowb();
 	}
 
 	qp->sq.next_ind = ind;
@@ -1850,6 +1856,12 @@ out:
 
 	qp->rq.next_ind = ind;
 	qp->rq.head    += nreq;
+
+	/*
+	 * Make sure doorbells don't leak out of RQ spinlock and reach
+	 * the HCA out of order:
+	 */
+	mmiowb();
 
 	spin_unlock_irqrestore(&qp->rq.lock, flags);
 	return err;
@@ -2112,6 +2124,12 @@ out:
 			      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
 	}
 
+	/*
+	 * Make sure doorbells don't leak out of SQ spinlock and reach
+	 * the HCA out of order:
+	 */
+	mmiowb();
+
 	spin_unlock_irqrestore(&qp->sq.lock, flags);
 	return err;
 }
@@ -2222,7 +2240,7 @@ void mthca_free_err_wqe(struct mthca_dev *dev, struct mthca_qp *qp, int is_send,
 		*new_wqe = 0;
 }
 
-int __devinit mthca_init_qp_table(struct mthca_dev *dev)
+int mthca_init_qp_table(struct mthca_dev *dev)
 {
 	int err;
 	u8 status;

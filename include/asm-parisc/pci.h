@@ -149,7 +149,7 @@ extern int parisc_bus_is_phys; 	/* in arch/parisc/kernel/setup.c */
 /*
 ** Most PCI devices (eg Tulip, NCR720) also export the same registers
 ** to both MMIO and I/O port space.  Due to poor performance of I/O Port
-** access under HP PCI bus adapters, strongly reccomend use of MMIO
+** access under HP PCI bus adapters, strongly recommend the use of MMIO
 ** address space.
 **
 ** While I'm at it more PA programming notes:

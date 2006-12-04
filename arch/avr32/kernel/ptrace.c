@@ -157,7 +157,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	unsigned long tmp;
 	int ret;
 
-	pr_debug("arch_ptrace(%ld, %ld, %#lx, %#lx)\n",
+	pr_debug("arch_ptrace(%ld, %d, %#lx, %#lx)\n",
 		 request, child->pid, addr, data);
 
 	pr_debug("ptrace: Enabling monitor mode...\n");

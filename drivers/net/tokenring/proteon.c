@@ -370,6 +370,10 @@ static int __init proteon_init(void)
 		dev->dma = dma[i];
 		pdev = platform_device_register_simple("proteon",
 			i, NULL, 0);
+		if (IS_ERR(pdev)) {
+			free_netdev(dev);
+			continue;
+		}
 		err = setup_card(dev, &pdev->dev);
 		if (!err) {
 			proteon_dev[i] = pdev;
@@ -385,9 +389,10 @@ static int __init proteon_init(void)
 	/* Probe for cards. */
 	if (num == 0) {
 		printk(KERN_NOTICE "proteon.c: No cards found.\n");
-		return (-ENODEV);
+		platform_driver_unregister(&proteon_driver);
+		return -ENODEV;
 	}
-	return (0);
+	return 0;
 }
 
 static void __exit proteon_cleanup(void)

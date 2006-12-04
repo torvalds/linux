@@ -341,7 +341,7 @@ config FRAME_POINTER
 
 config UNWIND_INFO
 	bool "Compile the kernel with frame unwind information"
-	depends on !IA64 && !PARISC
+	depends on !IA64 && !PARISC && !ARM
 	depends on !MODULES || !(MIPS || PPC || SUPERH || V850)
 	help
 	  If you say Y here the resulting kernel image will be slightly larger

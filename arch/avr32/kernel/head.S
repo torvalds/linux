@@ -30,9 +30,6 @@ kernel_entry:
 	mov	r7, 0
 #endif
 
-	/* Set up the PIO, SDRAM controller, early printk, etc. */
-	rcall	board_early_init
-
 	/* Start the show */
 	lddpc   pc, kernel_start_addr
 

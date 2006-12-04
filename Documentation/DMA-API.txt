@@ -489,7 +489,7 @@ size is the size of the area (must be multiples of PAGE_SIZE).
 flags can be or'd together and are
 
 DMA_MEMORY_MAP - request that the memory returned from
-dma_alloc_coherent() be directly writeable.
+dma_alloc_coherent() be directly writable.
 
 DMA_MEMORY_IO - request that the memory returned from
 dma_alloc_coherent() be addressable using read/write/memcpy_toio etc.

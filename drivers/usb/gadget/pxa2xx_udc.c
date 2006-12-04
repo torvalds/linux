@@ -43,11 +43,11 @@
 #include <linux/mm.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/irq.h>
 
 #include <asm/byteorder.h>
 #include <asm/dma.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/mach-types.h>
 #include <asm/unaligned.h>
@@ -2472,6 +2472,7 @@ static struct pxa2xx_udc memory = {
 #define PXA210_B1		0x00000123
 #define PXA210_B0		0x00000122
 #define IXP425_A0		0x000001c1
+#define IXP425_B0		0x000001f1
 #define IXP465_AD		0x00000200
 
 /*
@@ -2509,6 +2510,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 		break;
 #elif	defined(CONFIG_ARCH_IXP4XX)
 	case IXP425_A0:
+	case IXP425_B0:
 	case IXP465_AD:
 		dev->has_cfr = 1;
 		out_dma = 0;

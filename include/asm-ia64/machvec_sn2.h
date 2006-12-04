@@ -69,6 +69,7 @@ extern ia64_mv_dma_supported		sn_dma_supported;
 extern ia64_mv_migrate_t		sn_migrate;
 extern ia64_mv_setup_msi_irq_t		sn_setup_msi_irq;
 extern ia64_mv_teardown_msi_irq_t	sn_teardown_msi_irq;
+extern ia64_mv_pci_fixup_bus_t		sn_pci_fixup_bus;
 
 
 /*
@@ -127,6 +128,7 @@ extern ia64_mv_teardown_msi_irq_t	sn_teardown_msi_irq;
 #define platform_setup_msi_irq		((ia64_mv_setup_msi_irq_t*)NULL)
 #define platform_teardown_msi_irq	((ia64_mv_teardown_msi_irq_t*)NULL)
 #endif
+#define platform_pci_fixup_bus		sn_pci_fixup_bus
 
 #include <asm/sn/io.h>
 

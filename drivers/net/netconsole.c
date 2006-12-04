@@ -60,7 +60,6 @@ static struct netpoll np = {
 	.local_port = 6665,
 	.remote_port = 6666,
 	.remote_mac = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
-	.drop = netpoll_queue,
 };
 static int configured = 0;
 
@@ -102,6 +101,8 @@ __setup("netconsole=", option_setup);
 
 static int init_netconsole(void)
 {
+	int err;
+
 	if(strlen(config))
 		option_setup(config);
 
@@ -110,8 +111,9 @@ static int init_netconsole(void)
 		return 0;
 	}
 
-	if(netpoll_setup(&np))
-		return -EINVAL;
+	err = netpoll_setup(&np);
+	if (err)
+		return err;
 
 	register_console(&netconsole);
 	printk(KERN_INFO "netconsole: network logging started\n");

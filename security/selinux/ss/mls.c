@@ -13,7 +13,7 @@
 /*
  * Updated: Hewlett-Packard <paul.moore@hp.com>
  *
- *      Added support to import/export the MLS label
+ *      Added support to import/export the MLS label from NetLabel
  *
  * (c) Copyright Hewlett-Packard Development Company, L.P., 2006
  */
@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/errno.h>
+#include <net/netlabel.h>
 #include "sidtab.h"
 #include "mls.h"
 #include "policydb.h"
@@ -571,152 +572,108 @@ int mls_compute_sid(struct context *scontext,
 	return -EINVAL;
 }
 
+#ifdef CONFIG_NETLABEL
 /**
- * mls_export_lvl - Export the MLS sensitivity levels
+ * mls_export_netlbl_lvl - Export the MLS sensitivity levels to NetLabel
  * @context: the security context
- * @low: the low sensitivity level
- * @high: the high sensitivity level
+ * @secattr: the NetLabel security attributes
  *
  * Description:
- * Given the security context copy the low MLS sensitivity level into lvl_low
- * and the high sensitivity level in lvl_high.  The MLS levels are only
- * exported if the pointers are not NULL, if they are NULL then that level is
- * not exported.
+ * Given the security context copy the low MLS sensitivity level into the
+ * NetLabel MLS sensitivity level field.
  *
  */
-void mls_export_lvl(const struct context *context, u32 *low, u32 *high)
+void mls_export_netlbl_lvl(struct context *context,
+			   struct netlbl_lsm_secattr *secattr)
 {
 	if (!selinux_mls_enabled)
 		return;
 
-	if (low != NULL)
-		*low = context->range.level[0].sens - 1;
-	if (high != NULL)
-		*high = context->range.level[1].sens - 1;
+	secattr->mls_lvl = context->range.level[0].sens - 1;
+	secattr->flags |= NETLBL_SECATTR_MLS_LVL;
 }
 
 /**
- * mls_import_lvl - Import the MLS sensitivity levels
+ * mls_import_netlbl_lvl - Import the NetLabel MLS sensitivity levels
  * @context: the security context
- * @low: the low sensitivity level
- * @high: the high sensitivity level
+ * @secattr: the NetLabel security attributes
  *
  * Description:
- * Given the security context and the two sensitivty levels, set the MLS levels
- * in the context according the two given as parameters.  Returns zero on
- * success, negative values on failure.
+ * Given the security context and the NetLabel security attributes, copy the
+ * NetLabel MLS sensitivity level into the context.
  *
  */
-void mls_import_lvl(struct context *context, u32 low, u32 high)
+void mls_import_netlbl_lvl(struct context *context,
+			   struct netlbl_lsm_secattr *secattr)
 {
 	if (!selinux_mls_enabled)
 		return;
 
-	context->range.level[0].sens = low + 1;
-	context->range.level[1].sens = high + 1;
+	context->range.level[0].sens = secattr->mls_lvl + 1;
+	context->range.level[1].sens = context->range.level[0].sens;
 }
 
 /**
- * mls_export_cat - Export the MLS categories
+ * mls_export_netlbl_cat - Export the MLS categories to NetLabel
  * @context: the security context
- * @low: the low category
- * @low_len: length of the cat_low bitmap in bytes
- * @high: the high category
- * @high_len: length of the cat_high bitmap in bytes
+ * @secattr: the NetLabel security attributes
  *
  * Description:
- * Given the security context export the low MLS category bitmap into cat_low
- * and the high category bitmap into cat_high.  The MLS categories are only
- * exported if the pointers are not NULL, if they are NULL then that level is
- * not exported.  The caller is responsibile for freeing the memory when
- * finished.  Returns zero on success, negative values on failure.
+ * Given the security context copy the low MLS categories into the NetLabel
+ * MLS category field.  Returns zero on success, negative values on failure.
  *
  */
-int mls_export_cat(const struct context *context,
-		   unsigned char **low,
-		   size_t *low_len,
-		   unsigned char **high,
-		   size_t *high_len)
+int mls_export_netlbl_cat(struct context *context,
+			  struct netlbl_lsm_secattr *secattr)
 {
-	int rc = -EPERM;
+	int rc;
 
 	if (!selinux_mls_enabled)
 		return 0;
 
-	if (low != NULL) {
-		rc = ebitmap_export(&context->range.level[0].cat,
-				    low,
-				    low_len);
-		if (rc != 0)
-			goto export_cat_failure;
-	}
-	if (high != NULL) {
-		rc = ebitmap_export(&context->range.level[1].cat,
-				    high,
-				    high_len);
-		if (rc != 0)
-			goto export_cat_failure;
-	}
+	rc = ebitmap_netlbl_export(&context->range.level[0].cat,
+				   &secattr->mls_cat);
+	if (rc == 0 && secattr->mls_cat != NULL)
+		secattr->flags |= NETLBL_SECATTR_MLS_CAT;
 
-	return 0;
-
-export_cat_failure:
-	if (low != NULL)
-		kfree(*low);
-	if (high != NULL)
-		kfree(*high);
 	return rc;
 }
 
 /**
- * mls_import_cat - Import the MLS categories
+ * mls_import_netlbl_cat - Import the MLS categories from NetLabel
  * @context: the security context
- * @low: the low category
- * @low_len: length of the cat_low bitmap in bytes
- * @high: the high category
- * @high_len: length of the cat_high bitmap in bytes
+ * @secattr: the NetLabel security attributes
  *
  * Description:
- * Given the security context and the two category bitmap strings import the
- * categories into the security context.  The MLS categories are only imported
- * if the pointers are not NULL, if they are NULL they are skipped.  Returns
- * zero on success, negative values on failure.
+ * Copy the NetLabel security attributes into the SELinux context; since the
+ * NetLabel security attribute only contains a single MLS category use it for
+ * both the low and high categories of the context.  Returns zero on success,
+ * negative values on failure.
  *
  */
-int mls_import_cat(struct context *context,
-		   const unsigned char *low,
-		   size_t low_len,
-		   const unsigned char *high,
-		   size_t high_len)
+int mls_import_netlbl_cat(struct context *context,
+			  struct netlbl_lsm_secattr *secattr)
 {
-	int rc = -EPERM;
+	int rc;
 
 	if (!selinux_mls_enabled)
 		return 0;
 
-	if (low != NULL) {
-		rc = ebitmap_import(low,
-				    low_len,
-				    &context->range.level[0].cat);
-		if (rc != 0)
-			goto import_cat_failure;
-	}
-	if (high != NULL) {
-		if (high == low)
-			rc = ebitmap_cpy(&context->range.level[1].cat,
-					 &context->range.level[0].cat);
-		else
-			rc = ebitmap_import(high,
-					    high_len,
-					    &context->range.level[1].cat);
-		if (rc != 0)
-			goto import_cat_failure;
-	}
+	rc = ebitmap_netlbl_import(&context->range.level[0].cat,
+				   secattr->mls_cat);
+	if (rc != 0)
+		goto import_netlbl_cat_failure;
+
+	rc = ebitmap_cpy(&context->range.level[1].cat,
+			 &context->range.level[0].cat);
+	if (rc != 0)
+		goto import_netlbl_cat_failure;
 
 	return 0;
 
-import_cat_failure:
+import_netlbl_cat_failure:
 	ebitmap_destroy(&context->range.level[0].cat);
 	ebitmap_destroy(&context->range.level[1].cat);
 	return rc;
 }
+#endif /* CONFIG_NETLABEL */

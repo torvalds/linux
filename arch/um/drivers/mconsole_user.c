@@ -14,6 +14,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 #include "user.h"
+#include "sysdep/ptrace.h"
 #include "mconsole.h"
 #include "umid.h"
 #include "user_util.h"

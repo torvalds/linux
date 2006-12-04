@@ -14,14 +14,14 @@
 #define LEC_HEADER_LEN 16
 
 struct lecdatahdr_8023 {
-	unsigned short le_header;
+	__be16 le_header;
 	unsigned char h_dest[ETH_ALEN];
 	unsigned char h_source[ETH_ALEN];
-	unsigned short h_type;
+	__be16 h_type;
 };
 
 struct lecdatahdr_8025 {
-	unsigned short le_header;
+	__be16 le_header;
 	unsigned char ac_pad;
 	unsigned char fc;
 	unsigned char h_dest[ETH_ALEN];

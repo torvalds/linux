@@ -114,6 +114,7 @@ static int help(struct sk_buff **pskb,
 	u_int16_t dcc_port;
 	int i, ret = NF_ACCEPT;
 	char *addr_beg_p, *addr_end_p;
+	typeof(ip_nat_irc_hook) ip_nat_irc;
 
 	DEBUGP("entered\n");
 
@@ -222,11 +223,12 @@ static int help(struct sk_buff **pskb,
 					{ .tcp = { htons(0xFFFF) } }, 0xFF }});
 			exp->expectfn = NULL;
 			exp->flags = 0;
-			if (ip_nat_irc_hook)
-				ret = ip_nat_irc_hook(pskb, ctinfo, 
-						      addr_beg_p - ib_ptr,
-						      addr_end_p - addr_beg_p,
-						      exp);
+			ip_nat_irc = rcu_dereference(ip_nat_irc_hook);
+			if (ip_nat_irc)
+				ret = ip_nat_irc(pskb, ctinfo,
+						 addr_beg_p - ib_ptr,
+						 addr_end_p - addr_beg_p,
+						 exp);
 			else if (ip_conntrack_expect_related(exp) != 0)
 				ret = NF_DROP;
 			ip_conntrack_expect_put(exp);

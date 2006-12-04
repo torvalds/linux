@@ -1644,7 +1644,7 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 	 * Set host adapter parameters.
 	 */
 	if (nv->host_p[0] & BIT_7)
-		qla2_extended_error_logging = 1;
+		ql2xextended_error_logging = 1;
 	ha->flags.disable_risc_code_load = ((nv->host_p[0] & BIT_4) ? 1 : 0);
 	/* Always load RISC code on non ISP2[12]00 chips. */
 	if (!IS_QLA2100(ha) && !IS_QLA2200(ha))
@@ -3947,4 +3947,25 @@ qla24xx_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 
 fail_fw_integrity:
 	return QLA_FUNCTION_FAILED;
+}
+
+void
+qla2x00_try_to_stop_firmware(scsi_qla_host_t *ha)
+{
+	int ret, retries;
+
+	if (!IS_QLA24XX(ha) && !IS_QLA54XX(ha))
+		return;
+
+	ret = qla2x00_stop_firmware(ha);
+	for (retries = 5; ret != QLA_SUCCESS && retries ; retries--) {
+		qla2x00_reset_chip(ha);
+		if (qla2x00_chip_diag(ha) != QLA_SUCCESS)
+			continue;
+		if (qla2x00_setup_chip(ha) != QLA_SUCCESS)
+			continue;
+		qla_printk(KERN_INFO, ha,
+		    "Attempting retry of stop-firmware command...\n");
+		ret = qla2x00_stop_firmware(ha);
+	}
 }

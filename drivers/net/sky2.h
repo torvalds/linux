@@ -383,8 +383,13 @@ enum {
 	CHIP_REV_YU_EC_A2    = 1,  /* Chip Rev. for Yukon-EC A2 */
 	CHIP_REV_YU_EC_A3    = 2,  /* Chip Rev. for Yukon-EC A3 */
 
-	CHIP_REV_YU_EC_U_A0  = 0,
-	CHIP_REV_YU_EC_U_A1  = 1,
+	CHIP_REV_YU_EC_U_A0  = 1,
+	CHIP_REV_YU_EC_U_A1  = 2,
+	CHIP_REV_YU_EC_U_B0  = 3,
+
+	CHIP_REV_YU_FE_A1    = 1,
+	CHIP_REV_YU_FE_A2    = 2,
+
 };
 
 /*	B2_Y2_CLK_GATE	 8 bit	Clock Gating (Yukon-2 only) */
@@ -1576,7 +1581,7 @@ enum {
 
 	GMR_FS_ANY_ERR	= GMR_FS_RX_FF_OV | GMR_FS_CRC_ERR |
 			  GMR_FS_FRAGMENT | GMR_FS_LONG_ERR |
-		  	  GMR_FS_MII_ERR | GMR_FS_BAD_FC |
+		  	  GMR_FS_MII_ERR | GMR_FS_GOOD_FC | GMR_FS_BAD_FC |
 			  GMR_FS_UN_SIZE | GMR_FS_JABBER,
 };
 
@@ -1828,6 +1833,13 @@ struct rx_ring_info {
 	dma_addr_t	frag_addr[ETH_JUMBO_MTU >> PAGE_SHIFT];
 };
 
+enum flow_control {
+	FC_NONE	= 0,
+	FC_TX	= 1,
+	FC_RX	= 2,
+	FC_BOTH	= 3,
+};
+
 struct sky2_port {
 	struct sky2_hw	     *hw;
 	struct net_device    *netdev;
@@ -1860,13 +1872,13 @@ struct sky2_port {
 
 	dma_addr_t	     rx_le_map;
 	dma_addr_t	     tx_le_map;
-	u32		     advertising;	/* ADVERTISED_ bits */
+	u16		     advertising;	/* ADVERTISED_ bits */
 	u16		     speed;	/* SPEED_1000, SPEED_100, ... */
 	u8		     autoneg;	/* AUTONEG_ENABLE, AUTONEG_DISABLE */
 	u8		     duplex;	/* DUPLEX_HALF, DUPLEX_FULL */
-	u8		     rx_pause;
-	u8		     tx_pause;
 	u8		     rx_csum;
+ 	enum flow_control    flow_mode;
+ 	enum flow_control    flow_status;
 
 	struct net_device_stats net_stats;
 
@@ -1888,7 +1900,7 @@ struct sky2_hw {
 	dma_addr_t   	     st_dma;
 
 	struct timer_list    idle_timer;
-	int		     msi_detected;
+	int		     msi;
 	wait_queue_head_t    msi_wait;
 };
 

@@ -124,12 +124,13 @@ static __inline__ int inet_ifa_match(__be32 addr, struct in_ifaddr *ifa)
  *	Check if a mask is acceptable.
  */
  
-static __inline__ int bad_mask(u32 mask, u32 addr)
+static __inline__ int bad_mask(__be32 mask, __be32 addr)
 {
+	__u32 hmask;
 	if (addr & (mask = ~mask))
 		return 1;
-	mask = ntohl(mask);
-	if (mask & (mask+1))
+	hmask = ntohl(mask);
+	if (hmask & (hmask+1))
 		return 1;
 	return 0;
 }
@@ -190,11 +191,12 @@ static __inline__ __be32 inet_make_mask(int logmask)
 	return 0;
 }
 
-static __inline__ int inet_mask_len(__u32 mask)
+static __inline__ int inet_mask_len(__be32 mask)
 {
-	if (!(mask = ntohl(mask)))
+	__u32 hmask = ntohl(mask);
+	if (!hmask)
 		return 0;
-	return 32 - ffz(~mask);
+	return 32 - ffz(~hmask);
 }
 
 

@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1992 - 1997, 2000-2005 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 1992 - 1997, 2000-2006 Silicon Graphics, Inc. All rights reserved.
  */
 #ifndef _ASM_IA64_SN_PCI_PCIDEV_H
 #define _ASM_IA64_SN_PCI_PCIDEV_H
@@ -12,31 +12,29 @@
 
 /*
  * In ia64, pci_dev->sysdata must be a *pci_controller. To provide access to
- * the pcidev_info structs for all devices under a controller, we extend the
- * definition of pci_controller, via sn_pci_controller, to include a list
- * of pcidev_info.
+ * the pcidev_info structs for all devices under a controller, we keep a
+ * list of pcidev_info under pci_controller->platform_data.
  */
-struct sn_pci_controller {
-	struct pci_controller pci_controller;
+struct sn_platform_data {
+	void *provider_soft;
 	struct list_head pcidev_info;
 };
 
-#define SN_PCI_CONTROLLER(dev) ((struct sn_pci_controller *) dev->sysdata)
+#define SN_PLATFORM_DATA(busdev) \
+	((struct sn_platform_data *)(PCI_CONTROLLER(busdev)->platform_data))
 
 #define SN_PCIDEV_INFO(dev)	sn_pcidev_info_get(dev)
 
-#define SN_PCIBUS_BUSSOFT_INFO(pci_bus) \
-	(struct pcibus_info *)((struct pcibus_bussoft *)(PCI_CONTROLLER((pci_bus))->platform_data))
 /*
  * Given a pci_bus, return the sn pcibus_bussoft struct.  Note that
  * this only works for root busses, not for busses represented by PPB's.
  */
 
 #define SN_PCIBUS_BUSSOFT(pci_bus) \
-        ((struct pcibus_bussoft *)(PCI_CONTROLLER((pci_bus))->platform_data))
+	((struct pcibus_bussoft *)(SN_PLATFORM_DATA(pci_bus)->provider_soft))
 
 #define SN_PCIBUS_BUSSOFT_INFO(pci_bus) \
-	(struct pcibus_info *)((struct pcibus_bussoft *)(PCI_CONTROLLER((pci_bus))->platform_data))
+	((struct pcibus_info *)(SN_PLATFORM_DATA(pci_bus)->provider_soft))
 /*
  * Given a struct pci_dev, return the sn pcibus_bussoft struct.  Note
  * that this is not equivalent to SN_PCIBUS_BUSSOFT(pci_dev->bus) due
@@ -72,8 +70,6 @@ extern void sn_irq_fixup(struct pci_dev *pci_dev,
 			 struct sn_irq_info *sn_irq_info);
 extern void sn_irq_unfixup(struct pci_dev *pci_dev);
 extern struct pcidev_info * sn_pcidev_info_get(struct pci_dev *);
-extern void sn_pci_controller_fixup(int segment, int busnum,
- 				    struct pci_bus *bus);
 extern void sn_bus_store_sysdata(struct pci_dev *dev);
 extern void sn_bus_free_sysdata(void);
 extern void sn_generate_path(struct pci_bus *pci_bus, char *address);

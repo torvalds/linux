@@ -220,7 +220,7 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *) uaddr;
-	__u32 v4addr = 0;
+	__be32 v4addr = 0;
 	int addr_type;
 	int err;
 
@@ -290,7 +290,7 @@ out:
 
 void rawv6_err(struct sock *sk, struct sk_buff *skb,
 	       struct inet6_skb_parm *opt,
-	       int type, int code, int offset, u32 info)
+	       int type, int code, int offset, __be32 info)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -370,9 +370,9 @@ int rawv6_rcv(struct sock *sk, struct sk_buff *skb)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 	if (skb->ip_summed != CHECKSUM_UNNECESSARY)
-		skb->csum = ~csum_ipv6_magic(&skb->nh.ipv6h->saddr,
+		skb->csum = ~csum_unfold(csum_ipv6_magic(&skb->nh.ipv6h->saddr,
 					     &skb->nh.ipv6h->daddr,
-					     skb->len, inet->num, 0);
+					     skb->len, inet->num, 0));
 
 	if (inet->hdrincl) {
 		if (skb_checksum_complete(skb)) {
@@ -479,8 +479,8 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi *fl,
 	int offset;
 	int len;
 	int total_len;
-	u32 tmp_csum;
-	u16 csum;
+	__wsum tmp_csum;
+	__sum16 csum;
 
 	if (!rp->checksum)
 		goto send;
@@ -530,16 +530,15 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi *fl,
 
 	/* in case cksum was not initialized */
 	if (unlikely(csum))
-		tmp_csum = csum_sub(tmp_csum, csum);
+		tmp_csum = csum_sub(tmp_csum, csum_unfold(csum));
 
-	tmp_csum = csum_ipv6_magic(&fl->fl6_src,
+	csum = csum_ipv6_magic(&fl->fl6_src,
 				   &fl->fl6_dst,
 				   total_len, fl->proto, tmp_csum);
 
-	if (tmp_csum == 0)
-		tmp_csum = -1;
+	if (csum == 0 && fl->proto == IPPROTO_UDP)
+		csum = CSUM_MANGLED_0;
 
-	csum = tmp_csum;
 	if (skb_store_bits(skb, offset, &csum, 2))
 		BUG();
 
@@ -586,7 +585,7 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 	if (err)
 		goto error_fault;
 
-	IP6_INC_STATS(IPSTATS_MIB_OUTREQUESTS);		
+	IP6_INC_STATS(rt->rt6i_idev, IPSTATS_MIB_OUTREQUESTS);
 	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, rt->u.dst.dev,
 		      dst_output);
 	if (err > 0)
@@ -600,11 +599,11 @@ error_fault:
 	err = -EFAULT;
 	kfree_skb(skb);
 error:
-	IP6_INC_STATS(IPSTATS_MIB_OUTDISCARDS);
+	IP6_INC_STATS(rt->rt6i_idev, IPSTATS_MIB_OUTDISCARDS);
 	return err; 
 }
 
-static void rawv6_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
+static int rawv6_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 {
 	struct iovec *iov;
 	u8 __user *type = NULL;
@@ -616,7 +615,7 @@ static void rawv6_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 	int i;
 
 	if (!msg->msg_iov)
-		return;
+		return 0;
 
 	for (i = 0; i < msg->msg_iovlen; i++) {
 		iov = &msg->msg_iov[i];
@@ -638,8 +637,9 @@ static void rawv6_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 				code = iov->iov_base;
 
 			if (type && code) {
-				get_user(fl->fl_icmp_type, type);
-				get_user(fl->fl_icmp_code, code);
+				if (get_user(fl->fl_icmp_type, type) ||
+				    get_user(fl->fl_icmp_code, code))
+					return -EFAULT;
 				probed = 1;
 			}
 			break;
@@ -650,7 +650,8 @@ static void rawv6_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 			/* check if type field is readable or not. */
 			if (iov->iov_len > 2 - len) {
 				u8 __user *p = iov->iov_base;
-				get_user(fl->fl_mh_type, &p[2 - len]);
+				if (get_user(fl->fl_mh_type, &p[2 - len]))
+					return -EFAULT;
 				probed = 1;
 			} else
 				len += iov->iov_len;
@@ -664,6 +665,7 @@ static void rawv6_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 		if (probed)
 			break;
 	}
+	return 0;
 }
 
 static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
@@ -787,7 +789,9 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	opt = ipv6_fixup_options(&opt_space, opt);
 
 	fl.proto = proto;
-	rawv6_probe_proto_opt(&fl, msg);
+	err = rawv6_probe_proto_opt(&fl, msg);
+	if (err)
+		goto out;
  
 	ipv6_addr_copy(&fl.fl6_dst, daddr);
 	if (ipv6_addr_any(&fl.fl6_src) && !ipv6_addr_any(&np->saddr))

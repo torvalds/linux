@@ -129,12 +129,66 @@ static int sysctl_tcp_congestion_control(ctl_table *table, int __user *name,
 	return ret;
 }
 
-static int __init tcp_congestion_default(void)
+static int proc_tcp_available_congestion_control(ctl_table *ctl,
+						 int write, struct file * filp,
+						 void __user *buffer, size_t *lenp,
+						 loff_t *ppos)
 {
-	return tcp_set_default_congestion_control(CONFIG_DEFAULT_TCP_CONG);
+	ctl_table tbl = { .maxlen = TCP_CA_BUF_MAX, };
+	int ret;
+
+	tbl.data = kmalloc(tbl.maxlen, GFP_USER);
+	if (!tbl.data)
+		return -ENOMEM;
+	tcp_get_available_congestion_control(tbl.data, TCP_CA_BUF_MAX);
+	ret = proc_dostring(&tbl, write, filp, buffer, lenp, ppos);
+	kfree(tbl.data);
+	return ret;
 }
 
-late_initcall(tcp_congestion_default);
+static int proc_allowed_congestion_control(ctl_table *ctl,
+					   int write, struct file * filp,
+					   void __user *buffer, size_t *lenp,
+					   loff_t *ppos)
+{
+	ctl_table tbl = { .maxlen = TCP_CA_BUF_MAX };
+	int ret;
+
+	tbl.data = kmalloc(tbl.maxlen, GFP_USER);
+	if (!tbl.data)
+		return -ENOMEM;
+
+	tcp_get_allowed_congestion_control(tbl.data, tbl.maxlen);
+	ret = proc_dostring(&tbl, write, filp, buffer, lenp, ppos);
+	if (write && ret == 0)
+		ret = tcp_set_allowed_congestion_control(tbl.data);
+	kfree(tbl.data);
+	return ret;
+}
+
+static int strategy_allowed_congestion_control(ctl_table *table, int __user *name,
+					       int nlen, void __user *oldval,
+					       size_t __user *oldlenp,
+					       void __user *newval, size_t newlen,
+					       void **context)
+{
+	ctl_table tbl = { .maxlen = TCP_CA_BUF_MAX };
+	int ret;
+
+	tbl.data = kmalloc(tbl.maxlen, GFP_USER);
+	if (!tbl.data)
+		return -ENOMEM;
+
+	tcp_get_available_congestion_control(tbl.data, tbl.maxlen);
+	ret = sysctl_string(&tbl, name, nlen, oldval, oldlenp, newval, newlen,
+			    context);
+	if (ret == 0 && newval && newlen)
+		ret = tcp_set_allowed_congestion_control(tbl.data);
+	kfree(tbl.data);
+
+	return ret;
+
+}
 
 ctl_table ipv4_table[] = {
         {
@@ -738,6 +792,21 @@ ctl_table ipv4_table[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 #endif /* CONFIG_NETLABEL */
+	{
+		.ctl_name	= NET_TCP_AVAIL_CONG_CONTROL,
+		.procname	= "tcp_available_congestion_control",
+		.maxlen		= TCP_CA_BUF_MAX,
+		.mode		= 0444,
+		.proc_handler   = &proc_tcp_available_congestion_control,
+	},
+	{
+		.ctl_name	= NET_TCP_ALLOWED_CONG_CONTROL,
+		.procname	= "tcp_allowed_congestion_control",
+		.maxlen		= TCP_CA_BUF_MAX,
+		.mode		= 0644,
+		.proc_handler   = &proc_allowed_congestion_control,
+		.strategy	= &strategy_allowed_congestion_control,
+	},
 	{ .ctl_name = 0 }
 };
 

@@ -52,7 +52,14 @@ struct mdio_ops {
 /* PHY interrupt types */
 enum {
 	cphy_cause_link_change = 0x1,
-	cphy_cause_error = 0x2
+	cphy_cause_error = 0x2,
+	cphy_cause_fifo_error = 0x3
+};
+
+enum {
+	PHY_LINK_UP = 0x1,
+	PHY_AUTONEG_RDY = 0x2,
+	PHY_AUTONEG_EN = 0x4
 };
 
 struct cphy;
@@ -81,7 +88,18 @@ struct cphy_ops {
 /* A PHY instance */
 struct cphy {
 	int addr;                            /* PHY address */
+	int state;	/* Link status state machine */
 	adapter_t *adapter;                  /* associated adapter */
+
+	struct work_struct phy_update;
+
+	u16 bmsr;
+	int count;
+	int act_count;
+	int act_on;
+
+	u32 elmer_gpo;
+
 	struct cphy_ops *ops;                /* PHY operations */
 	int (*mdio_read)(adapter_t *adapter, int phy_addr, int mmd_addr,
 			 int reg_addr, unsigned int *val);
@@ -142,6 +160,10 @@ struct gphy {
 	int (*reset)(adapter_t *adapter);
 };
 
+extern struct gphy t1_my3126_ops;
+extern struct gphy t1_mv88e1xxx_ops;
+extern struct gphy t1_vsc8244_ops;
+extern struct gphy t1_xpak_ops;
 extern struct gphy t1_mv88x201x_ops;
 extern struct gphy t1_dummy_phy_ops;
 

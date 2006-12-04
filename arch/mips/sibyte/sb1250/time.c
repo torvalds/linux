@@ -47,15 +47,11 @@
 
 #define SB1250_HPT_NUM		3
 #define SB1250_HPT_VALUE	M_SCD_TIMER_CNT /* max value */
-#define SB1250_HPT_SHIFT	((sizeof(unsigned int)*8)-V_SCD_TIMER_WIDTH)
 
 
 extern int sb1250_steal_irq(int irq);
 
-static unsigned int sb1250_hpt_read(void);
-static void sb1250_hpt_init(unsigned int);
-
-static unsigned int hpt_offset;
+static cycle_t sb1250_hpt_read(void);
 
 void __init sb1250_hpt_setup(void)
 {
@@ -69,13 +65,9 @@ void __init sb1250_hpt_setup(void)
 		__raw_writeq(M_SCD_TIMER_ENABLE | M_SCD_TIMER_MODE_CONTINUOUS,
 			     IOADDR(A_SCD_TIMER_REGISTER(SB1250_HPT_NUM, R_SCD_TIMER_CFG)));
 
-		/*
-		 * we need to fill 32 bits, so just use the upper 23 bits and pretend
-		 * the timer is going 512Mhz instead of 1Mhz
-		 */
-		mips_hpt_frequency = V_SCD_TIMER_FREQ << SB1250_HPT_SHIFT;
-		mips_hpt_init = sb1250_hpt_init;
-		mips_hpt_read = sb1250_hpt_read;
+		mips_hpt_frequency = V_SCD_TIMER_FREQ;
+		clocksource_mips.read = sb1250_hpt_read;
+		clocksource_mips.mask = M_SCD_TIMER_INIT;
 	}
 }
 
@@ -149,25 +141,13 @@ void sb1250_timer_interrupt(void)
 
 /*
  * The HPT is free running from SB1250_HPT_VALUE down to 0 then starts over
- * again. There's no easy way to set to a specific value so store init value
- * in hpt_offset and subtract each time.
- *
- * Note: Timer isn't full 32bits so shift it into the upper part making
- *       it appear to run at a higher frequency.
+ * again.
  */
-static unsigned int sb1250_hpt_read(void)
+static cycle_t sb1250_hpt_read(void)
 {
 	unsigned int count;
 
 	count = G_SCD_TIMER_CNT(__raw_readq(IOADDR(A_SCD_TIMER_REGISTER(SB1250_HPT_NUM, R_SCD_TIMER_CNT))));
 
-	count = (SB1250_HPT_VALUE - count) << SB1250_HPT_SHIFT;
-
-	return count - hpt_offset;
-}
-
-static void sb1250_hpt_init(unsigned int count)
-{
-	hpt_offset = count;
-	return;
+	return SB1250_HPT_VALUE - count;
 }

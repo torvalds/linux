@@ -61,7 +61,7 @@ static DEFINE_RWLOCK(ip6_fl_lock);
 static DEFINE_RWLOCK(ip6_sk_fl_lock);
 
 
-static __inline__ struct ip6_flowlabel * __fl_lookup(u32 label)
+static __inline__ struct ip6_flowlabel * __fl_lookup(__be32 label)
 {
 	struct ip6_flowlabel *fl;
 
@@ -72,7 +72,7 @@ static __inline__ struct ip6_flowlabel * __fl_lookup(u32 label)
 	return NULL;
 }
 
-static struct ip6_flowlabel * fl_lookup(u32 label)
+static struct ip6_flowlabel * fl_lookup(__be32 label)
 {
 	struct ip6_flowlabel *fl;
 
@@ -153,7 +153,7 @@ static void ip6_fl_gc(unsigned long dummy)
 	write_unlock(&ip6_fl_lock);
 }
 
-static int fl_intern(struct ip6_flowlabel *fl, __u32 label)
+static int fl_intern(struct ip6_flowlabel *fl, __be32 label)
 {
 	fl->label = label & IPV6_FLOWLABEL_MASK;
 
@@ -182,7 +182,7 @@ static int fl_intern(struct ip6_flowlabel *fl, __u32 label)
 
 /* Socket flowlabel lists */
 
-struct ip6_flowlabel * fl6_sock_lookup(struct sock *sk, u32 label)
+struct ip6_flowlabel * fl6_sock_lookup(struct sock *sk, __be32 label)
 {
 	struct ipv6_fl_socklist *sfl;
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -330,8 +330,10 @@ fl_create(struct in6_flowlabel_req *freq, char __user *optval, int optlen, int *
 	fl->share = freq->flr_share;
 	addr_type = ipv6_addr_type(&freq->flr_dst);
 	if ((addr_type&IPV6_ADDR_MAPPED)
-	    || addr_type == IPV6_ADDR_ANY)
+	    || addr_type == IPV6_ADDR_ANY) {
+		err = -EINVAL;
 		goto done;
+	}
 	ipv6_addr_copy(&fl->dst, &freq->flr_dst);
 	atomic_set(&fl->users, 1);
 	switch (fl->share) {
@@ -587,6 +589,8 @@ static struct ip6_flowlabel *ip6fl_get_next(struct seq_file *seq, struct ip6_flo
 	while (!fl) {
 		if (++state->bucket <= FL_HASH_MASK)
 			fl = fl_ht[state->bucket];
+		else
+			break;
 	}
 	return fl;
 }
@@ -623,9 +627,13 @@ static void ip6fl_seq_stop(struct seq_file *seq, void *v)
 	read_unlock_bh(&ip6_fl_lock);
 }
 
-static void ip6fl_fl_seq_show(struct seq_file *seq, struct ip6_flowlabel *fl)
+static int ip6fl_seq_show(struct seq_file *seq, void *v)
 {
-	while(fl) {
+	if (v == SEQ_START_TOKEN)
+		seq_printf(seq, "%-5s %-1s %-6s %-6s %-6s %-8s %-32s %s\n",
+			   "Label", "S", "Owner", "Users", "Linger", "Expires", "Dst", "Opt");
+	else {
+		struct ip6_flowlabel *fl = v;
 		seq_printf(seq,
 			   "%05X %-1d %-6d %-6d %-6ld %-8ld " NIP6_SEQFMT " %-4d\n",
 			   (unsigned)ntohl(fl->label),
@@ -636,17 +644,7 @@ static void ip6fl_fl_seq_show(struct seq_file *seq, struct ip6_flowlabel *fl)
 			   (long)(fl->expires - jiffies)/HZ,
 			   NIP6(fl->dst),
 			   fl->opt ? fl->opt->opt_nflen : 0);
-		fl = fl->next;
 	}
-}
-
-static int ip6fl_seq_show(struct seq_file *seq, void *v)
-{
-	if (v == SEQ_START_TOKEN)
-		seq_printf(seq, "%-5s %-1s %-6s %-6s %-6s %-8s %-32s %s\n",
-			   "Label", "S", "Owner", "Users", "Linger", "Expires", "Dst", "Opt");
-	else
-		ip6fl_fl_seq_show(seq, v);
 	return 0;
 }
 

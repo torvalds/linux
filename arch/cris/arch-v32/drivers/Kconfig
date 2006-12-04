@@ -88,7 +88,7 @@ config ETRAX_SERIAL_PORT0_DMA7_IN
 	help
 	  Enables the DMA7 input channel for ser0 (ttyS0).
 	  If you do not enable DMA, an interrupt for each character will be
-	  used when receiveing data.
+	  used when receiving data.
 	  Normally you want to use DMA, unless you use the DMA channel for
 	  something else.
 
@@ -157,7 +157,7 @@ config ETRAX_SERIAL_PORT1_DMA5_IN
 	help
 	  Enables the DMA5 input channel for ser1 (ttyS1).
 	  If you do not enable DMA, an interrupt for each character will be
-	  used when receiveing data.
+	  used when receiving data.
 	  Normally you want this on, unless you use the DMA channel for
 	  something else.
 
@@ -228,7 +228,7 @@ config ETRAX_SERIAL_PORT2_DMA3_IN
 	help
 	  Enables the DMA3 input channel for ser2 (ttyS2).
 	  If you do not enable DMA, an interrupt for each character will be
-	  used when receiveing data.
+	  used when receiving data.
 	  Normally you want to use DMA, unless you use the DMA channel for
 	  something else.
 
@@ -297,7 +297,7 @@ config ETRAX_SERIAL_PORT3_DMA9_IN
 	help
 	  Enables the DMA9 input channel for ser3 (ttyS3).
 	  If you do not enable DMA, an interrupt for each character will be
-	  used when receiveing data.
+	  used when receiving data.
 	  Normally you want to use DMA, unless you use the DMA channel for
 	  something else.
 

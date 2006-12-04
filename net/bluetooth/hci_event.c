@@ -57,6 +57,7 @@
 static void hci_cc_link_ctl(struct hci_dev *hdev, __u16 ocf, struct sk_buff *skb)
 {
 	__u8 status;
+	struct hci_conn *pend;
 
 	BT_DBG("%s ocf 0x%x", hdev->name, ocf);
 
@@ -71,6 +72,15 @@ static void hci_cc_link_ctl(struct hci_dev *hdev, __u16 ocf, struct sk_buff *skb
 			clear_bit(HCI_INQUIRY, &hdev->flags);
 			hci_req_complete(hdev, status);
 		}
+
+		hci_dev_lock(hdev);
+
+		pend = hci_conn_hash_lookup_state(hdev, ACL_LINK, BT_CONNECT2);
+		if (pend)
+			hci_acl_connect(pend);
+
+		hci_dev_unlock(hdev);
+
 		break;
 
 	default:
@@ -414,9 +424,12 @@ static inline void hci_cs_create_conn(struct hci_dev *hdev, __u8 status)
 
 	if (status) {
 		if (conn && conn->state == BT_CONNECT) {
-			conn->state = BT_CLOSED;
-			hci_proto_connect_cfm(conn, status);
-			hci_conn_del(conn);
+			if (status != 0x0c || conn->attempt > 2) {
+				conn->state = BT_CLOSED;
+				hci_proto_connect_cfm(conn, status);
+				hci_conn_del(conn);
+			} else
+				conn->state = BT_CONNECT2;
 		}
 	} else {
 		if (!conn) {
@@ -562,11 +575,20 @@ static void hci_cs_info_param(struct hci_dev *hdev, __u16 ocf, __u8 status)
 static inline void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	__u8 status = *((__u8 *) skb->data);
+	struct hci_conn *pend;
 
 	BT_DBG("%s status %d", hdev->name, status);
 
 	clear_bit(HCI_INQUIRY, &hdev->flags);
 	hci_req_complete(hdev, status);
+
+	hci_dev_lock(hdev);
+
+	pend = hci_conn_hash_lookup_state(hdev, ACL_LINK, BT_CONNECT2);
+	if (pend)
+		hci_acl_connect(pend);
+
+	hci_dev_unlock(hdev);
 }
 
 /* Inquiry Result */
@@ -728,7 +750,7 @@ static inline void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *sk
 static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_conn_complete *ev = (struct hci_ev_conn_complete *) skb->data;
-	struct hci_conn *conn;
+	struct hci_conn *conn, *pend;
 
 	BT_DBG("%s", hdev->name);
 
@@ -800,6 +822,10 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 	hci_proto_connect_cfm(conn, ev->status);
 	if (ev->status)
 		hci_conn_del(conn);
+
+	pend = hci_conn_hash_lookup_state(hdev, ACL_LINK, BT_CONNECT2);
+	if (pend)
+		hci_acl_connect(pend);
 
 	hci_dev_unlock(hdev);
 }

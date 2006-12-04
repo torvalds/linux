@@ -662,6 +662,11 @@ void * __init iSeries_early_setup(void)
 {
 	unsigned long phys_mem_size;
 
+	/* Identify CPU type. This is done again by the common code later
+	 * on but calling this function multiple times is fine.
+	 */
+	identify_cpu(0);
+
 	powerpc_firmware_features |= FW_FEATURE_ISERIES;
 	powerpc_firmware_features |= FW_FEATURE_LPAR;
 

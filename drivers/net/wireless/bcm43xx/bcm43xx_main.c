@@ -130,6 +130,10 @@ MODULE_PARM_DESC(fwpostfix, "Postfix for .fw files. Useful for debugging.");
 	{ PCI_VENDOR_ID_BROADCOM, 0x4301, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	/* Broadcom 4307 802.11b */
 	{ PCI_VENDOR_ID_BROADCOM, 0x4307, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	/* Broadcom 4311 802.11(a)/b/g */
+	{ PCI_VENDOR_ID_BROADCOM, 0x4311, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	/* Broadcom 4312 802.11a/b/g */
+	{ PCI_VENDOR_ID_BROADCOM, 0x4312, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	/* Broadcom 4318 802.11b/g */
 	{ PCI_VENDOR_ID_BROADCOM, 0x4318, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	/* Broadcom 4319 802.11a/b/g */
@@ -746,7 +750,7 @@ int bcm43xx_sprom_write(struct bcm43xx_private *bcm, const u16 *sprom)
 	if (err)
 		goto err_ctlreg;
 	spromctl |= 0x10; /* SPROM WRITE enable. */
-	bcm43xx_pci_write_config32(bcm, BCM43xx_PCICFG_SPROMCTL, spromctl);
+	err = bcm43xx_pci_write_config32(bcm, BCM43xx_PCICFG_SPROMCTL, spromctl);
 	if (err)
 		goto err_ctlreg;
 	/* We must burn lots of CPU cycles here, but that does not
@@ -768,7 +772,7 @@ int bcm43xx_sprom_write(struct bcm43xx_private *bcm, const u16 *sprom)
 		mdelay(20);
 	}
 	spromctl &= ~0x10; /* SPROM WRITE enable. */
-	bcm43xx_pci_write_config32(bcm, BCM43xx_PCICFG_SPROMCTL, spromctl);
+	err = bcm43xx_pci_write_config32(bcm, BCM43xx_PCICFG_SPROMCTL, spromctl);
 	if (err)
 		goto err_ctlreg;
 	mdelay(500);
@@ -1460,6 +1464,23 @@ static void handle_irq_transmit_status(struct bcm43xx_private *bcm)
 			bcm43xx_pio_handle_xmitstatus(bcm, &stat);
 		else
 			bcm43xx_dma_handle_xmitstatus(bcm, &stat);
+	}
+}
+
+static void drain_txstatus_queue(struct bcm43xx_private *bcm)
+{
+	u32 dummy;
+
+	if (bcm->current_core->rev < 5)
+		return;
+	/* Read all entries from the microcode TXstatus FIFO
+	 * and throw them away.
+	 */
+	while (1) {
+		dummy = bcm43xx_read32(bcm, BCM43xx_MMIO_XMITSTAT_0);
+		if (!dummy)
+			break;
+		dummy = bcm43xx_read32(bcm, BCM43xx_MMIO_XMITSTAT_1);
 	}
 }
 
@@ -2583,8 +2604,9 @@ static int bcm43xx_probe_cores(struct bcm43xx_private *bcm)
 	/* fetch sb_id_hi from core information registers */
 	sb_id_hi = bcm43xx_read32(bcm, BCM43xx_CIR_SB_ID_HI);
 
-	core_id = (sb_id_hi & 0xFFF0) >> 4;
-	core_rev = (sb_id_hi & 0xF);
+	core_id = (sb_id_hi & 0x8FF0) >> 4;
+	core_rev = (sb_id_hi & 0x7000) >> 8;
+	core_rev |= (sb_id_hi & 0xF);
 	core_vendor = (sb_id_hi & 0xFFFF0000) >> 16;
 
 	/* if present, chipcommon is always core 0; read the chipid from it */
@@ -2662,14 +2684,10 @@ static int bcm43xx_probe_cores(struct bcm43xx_private *bcm)
 		bcm->chip_id, bcm->chip_rev);
 	dprintk(KERN_INFO PFX "Number of cores: %d\n", core_count);
 	if (bcm->core_chipcommon.available) {
-		dprintk(KERN_INFO PFX "Core 0: ID 0x%x, rev 0x%x, vendor 0x%x, %s\n",
-			core_id, core_rev, core_vendor,
-			bcm43xx_core_enabled(bcm) ? "enabled" : "disabled");
-	}
-
-	if (bcm->core_chipcommon.available)
+		dprintk(KERN_INFO PFX "Core 0: ID 0x%x, rev 0x%x, vendor 0x%x\n",
+			core_id, core_rev, core_vendor);
 		current_core = 1;
-	else
+	} else
 		current_core = 0;
 	for ( ; current_core < core_count; current_core++) {
 		struct bcm43xx_coreinfo *core;
@@ -2687,13 +2705,13 @@ static int bcm43xx_probe_cores(struct bcm43xx_private *bcm)
 		core_rev = (sb_id_hi & 0xF);
 		core_vendor = (sb_id_hi & 0xFFFF0000) >> 16;
 
-		dprintk(KERN_INFO PFX "Core %d: ID 0x%x, rev 0x%x, vendor 0x%x, %s\n",
-			current_core, core_id, core_rev, core_vendor,
-			bcm43xx_core_enabled(bcm) ? "enabled" : "disabled" );
+		dprintk(KERN_INFO PFX "Core %d: ID 0x%x, rev 0x%x, vendor 0x%x\n",
+			current_core, core_id, core_rev, core_vendor);
 
 		core = NULL;
 		switch (core_id) {
 		case BCM43xx_COREID_PCI:
+		case BCM43xx_COREID_PCIE:
 			core = &bcm->core_pci;
 			if (core->available) {
 				printk(KERN_WARNING PFX "Multiple PCI cores found.\n");
@@ -2732,12 +2750,12 @@ static int bcm43xx_probe_cores(struct bcm43xx_private *bcm)
 			case 6:
 			case 7:
 			case 9:
+			case 10:
 				break;
 			default:
-				printk(KERN_ERR PFX "Error: Unsupported 80211 core revision %u\n",
+				printk(KERN_WARNING PFX
+				       "Unsupported 80211 core revision %u\n",
 				       core_rev);
-				err = -ENODEV;
-				goto out;
 			}
 			bcm->nr_80211_available++;
 			core->priv = ext_80211;
@@ -2851,16 +2869,11 @@ static int bcm43xx_wireless_core_init(struct bcm43xx_private *bcm,
 	u32 sbimconfiglow;
 	u8 limit;
 
-	if (bcm->chip_rev < 5) {
+	if (bcm->core_pci.rev <= 5 && bcm->core_pci.id != BCM43xx_COREID_PCIE) {
 		sbimconfiglow = bcm43xx_read32(bcm, BCM43xx_CIR_SBIMCONFIGLOW);
 		sbimconfiglow &= ~ BCM43xx_SBIMCONFIGLOW_REQUEST_TOUT_MASK;
 		sbimconfiglow &= ~ BCM43xx_SBIMCONFIGLOW_SERVICE_TOUT_MASK;
-		if (bcm->bustype == BCM43xx_BUSTYPE_PCI)
-			sbimconfiglow |= 0x32;
-		else if (bcm->bustype == BCM43xx_BUSTYPE_SB)
-			sbimconfiglow |= 0x53;
-		else
-			assert(0);
+		sbimconfiglow |= 0x32;
 		bcm43xx_write32(bcm, BCM43xx_CIR_SBIMCONFIGLOW, sbimconfiglow);
 	}
 
@@ -2925,10 +2938,13 @@ static int bcm43xx_wireless_core_init(struct bcm43xx_private *bcm,
 		bcm43xx_write16(bcm, 0x043C, 0x000C);
 
 	if (active_wlcore) {
-		if (bcm43xx_using_pio(bcm))
+		if (bcm43xx_using_pio(bcm)) {
 			err = bcm43xx_pio_init(bcm);
-		else
+		} else {
 			err = bcm43xx_dma_init(bcm);
+			if (err == -ENOSYS)
+				err = bcm43xx_pio_init(bcm);
+		}
 		if (err)
 			goto err_chip_cleanup;
 	}
@@ -2984,20 +3000,62 @@ static void bcm43xx_pcicore_broadcast_value(struct bcm43xx_private *bcm,
 
 static int bcm43xx_pcicore_commit_settings(struct bcm43xx_private *bcm)
 {
-	int err;
-	struct bcm43xx_coreinfo *old_core;
+	int err = 0;
 
-	old_core = bcm->current_core;
-	err = bcm43xx_switch_core(bcm, &bcm->core_pci);
-	if (err)
-		goto out;
+	bcm->irq_savedstate = bcm43xx_interrupt_disable(bcm, BCM43xx_IRQ_ALL);
 
-	bcm43xx_pcicore_broadcast_value(bcm, 0xfd8, 0x00000000);
+	if (bcm->core_chipcommon.available) {
+		err = bcm43xx_switch_core(bcm, &bcm->core_chipcommon);
+		if (err)
+			goto out;
 
-	bcm43xx_switch_core(bcm, old_core);
-	assert(err == 0);
+		bcm43xx_pcicore_broadcast_value(bcm, 0xfd8, 0x00000000);
+
+		/* this function is always called when a PCI core is mapped */
+		err = bcm43xx_switch_core(bcm, &bcm->core_pci);
+		if (err)
+			goto out;
+	} else
+		bcm43xx_pcicore_broadcast_value(bcm, 0xfd8, 0x00000000);
+
+	bcm43xx_interrupt_enable(bcm, bcm->irq_savedstate);
+
 out:
 	return err;
+}
+
+static u32 bcm43xx_pcie_reg_read(struct bcm43xx_private *bcm, u32 address)
+{
+	bcm43xx_write32(bcm, BCM43xx_PCIECORE_REG_ADDR, address);
+	return bcm43xx_read32(bcm, BCM43xx_PCIECORE_REG_DATA);
+}
+
+static void bcm43xx_pcie_reg_write(struct bcm43xx_private *bcm, u32 address,
+				    u32 data)
+{
+	bcm43xx_write32(bcm, BCM43xx_PCIECORE_REG_ADDR, address);
+	bcm43xx_write32(bcm, BCM43xx_PCIECORE_REG_DATA, data);
+}
+
+static void bcm43xx_pcie_mdio_write(struct bcm43xx_private *bcm, u8 dev, u8 reg,
+				    u16 data)
+{
+	int i;
+
+	bcm43xx_write32(bcm, BCM43xx_PCIECORE_MDIO_CTL, 0x0082);
+	bcm43xx_write32(bcm, BCM43xx_PCIECORE_MDIO_DATA, BCM43xx_PCIE_MDIO_ST |
+			BCM43xx_PCIE_MDIO_WT | (dev << BCM43xx_PCIE_MDIO_DEV) |
+			(reg << BCM43xx_PCIE_MDIO_REG) | BCM43xx_PCIE_MDIO_TA |
+			data);
+	udelay(10);
+
+	for (i = 0; i < 10; i++) {
+		if (bcm43xx_read32(bcm, BCM43xx_PCIECORE_MDIO_CTL) &
+		    BCM43xx_PCIE_MDIO_TC)
+			break;
+		msleep(1);
+	}
+	bcm43xx_write32(bcm, BCM43xx_PCIECORE_MDIO_CTL, 0);
 }
 
 /* Make an I/O Core usable. "core_mask" is the bitmask of the cores to enable.
@@ -3019,7 +3077,8 @@ static int bcm43xx_setup_backplane_pci_connection(struct bcm43xx_private *bcm,
 	if (err)
 		goto out;
 
-	if (bcm->core_pci.rev < 6) {
+	if (bcm->current_core->rev < 6 ||
+		bcm->current_core->id == BCM43xx_COREID_PCI) {
 		value = bcm43xx_read32(bcm, BCM43xx_CIR_SBINTVEC);
 		value |= (1 << backplane_flag_nr);
 		bcm43xx_write32(bcm, BCM43xx_CIR_SBINTVEC, value);
@@ -3037,21 +3096,46 @@ static int bcm43xx_setup_backplane_pci_connection(struct bcm43xx_private *bcm,
 		}
 	}
 
-	value = bcm43xx_read32(bcm, BCM43xx_PCICORE_SBTOPCI2);
-	value |= BCM43xx_SBTOPCI2_PREFETCH | BCM43xx_SBTOPCI2_BURST;
-	bcm43xx_write32(bcm, BCM43xx_PCICORE_SBTOPCI2, value);
+	if (bcm->current_core->id == BCM43xx_COREID_PCI) {
+		value = bcm43xx_read32(bcm, BCM43xx_PCICORE_SBTOPCI2);
+		value |= BCM43xx_SBTOPCI2_PREFETCH | BCM43xx_SBTOPCI2_BURST;
+		bcm43xx_write32(bcm, BCM43xx_PCICORE_SBTOPCI2, value);
 
-	if (bcm->core_pci.rev < 5) {
-		value = bcm43xx_read32(bcm, BCM43xx_CIR_SBIMCONFIGLOW);
-		value |= (2 << BCM43xx_SBIMCONFIGLOW_SERVICE_TOUT_SHIFT)
-			 & BCM43xx_SBIMCONFIGLOW_SERVICE_TOUT_MASK;
-		value |= (3 << BCM43xx_SBIMCONFIGLOW_REQUEST_TOUT_SHIFT)
-			 & BCM43xx_SBIMCONFIGLOW_REQUEST_TOUT_MASK;
-		bcm43xx_write32(bcm, BCM43xx_CIR_SBIMCONFIGLOW, value);
-		err = bcm43xx_pcicore_commit_settings(bcm);
-		assert(err == 0);
+		if (bcm->current_core->rev < 5) {
+			value = bcm43xx_read32(bcm, BCM43xx_CIR_SBIMCONFIGLOW);
+			value |= (2 << BCM43xx_SBIMCONFIGLOW_SERVICE_TOUT_SHIFT)
+				 & BCM43xx_SBIMCONFIGLOW_SERVICE_TOUT_MASK;
+			value |= (3 << BCM43xx_SBIMCONFIGLOW_REQUEST_TOUT_SHIFT)
+				 & BCM43xx_SBIMCONFIGLOW_REQUEST_TOUT_MASK;
+			bcm43xx_write32(bcm, BCM43xx_CIR_SBIMCONFIGLOW, value);
+			err = bcm43xx_pcicore_commit_settings(bcm);
+			assert(err == 0);
+		} else if (bcm->current_core->rev >= 11) {
+			value = bcm43xx_read32(bcm, BCM43xx_PCICORE_SBTOPCI2);
+			value |= BCM43xx_SBTOPCI2_MEMREAD_MULTI;
+			bcm43xx_write32(bcm, BCM43xx_PCICORE_SBTOPCI2, value);
+		}
+	} else {
+		if (bcm->current_core->rev == 0 || bcm->current_core->rev == 1) {
+			value = bcm43xx_pcie_reg_read(bcm, BCM43xx_PCIE_TLP_WORKAROUND);
+			value |= 0x8;
+			bcm43xx_pcie_reg_write(bcm, BCM43xx_PCIE_TLP_WORKAROUND,
+					       value);
+		}
+		if (bcm->current_core->rev == 0) {
+			bcm43xx_pcie_mdio_write(bcm, BCM43xx_MDIO_SERDES_RX,
+						BCM43xx_SERDES_RXTIMER, 0x8128);
+			bcm43xx_pcie_mdio_write(bcm, BCM43xx_MDIO_SERDES_RX,
+						BCM43xx_SERDES_CDR, 0x0100);
+			bcm43xx_pcie_mdio_write(bcm, BCM43xx_MDIO_SERDES_RX,
+						BCM43xx_SERDES_CDR_BW, 0x1466);
+		} else if (bcm->current_core->rev == 1) {
+			value = bcm43xx_pcie_reg_read(bcm, BCM43xx_PCIE_DLLP_LINKCTL);
+			value |= 0x40;
+			bcm43xx_pcie_reg_write(bcm, BCM43xx_PCIE_DLLP_LINKCTL,
+					       value);
+		}
 	}
-
 out_switch_back:
 	err = bcm43xx_switch_core(bcm, old_core);
 out:
@@ -3120,57 +3204,42 @@ static void bcm43xx_periodic_every15sec(struct bcm43xx_private *bcm)
 
 static void do_periodic_work(struct bcm43xx_private *bcm)
 {
-	unsigned int state;
-
-	state = bcm->periodic_state;
-	if (state % 8 == 0)
+	if (bcm->periodic_state % 8 == 0)
 		bcm43xx_periodic_every120sec(bcm);
-	if (state % 4 == 0)
+	if (bcm->periodic_state % 4 == 0)
 		bcm43xx_periodic_every60sec(bcm);
-	if (state % 2 == 0)
+	if (bcm->periodic_state % 2 == 0)
 		bcm43xx_periodic_every30sec(bcm);
-	if (state % 1 == 0)
-		bcm43xx_periodic_every15sec(bcm);
-	bcm->periodic_state = state + 1;
+	bcm43xx_periodic_every15sec(bcm);
 
 	schedule_delayed_work(&bcm->periodic_work, HZ * 15);
-}
-
-/* Estimate a "Badness" value based on the periodic work
- * state-machine state. "Badness" is worse (bigger), if the
- * periodic work will take longer.
- */
-static int estimate_periodic_work_badness(unsigned int state)
-{
-	int badness = 0;
-
-	if (state % 8 == 0) /* every 120 sec */
-		badness += 10;
-	if (state % 4 == 0) /* every 60 sec */
-		badness += 5;
-	if (state % 2 == 0) /* every 30 sec */
-		badness += 1;
-	if (state % 1 == 0) /* every 15 sec */
-		badness += 1;
-
-#define BADNESS_LIMIT	4
-	return badness;
 }
 
 static void bcm43xx_periodic_work_handler(void *d)
 {
 	struct bcm43xx_private *bcm = d;
+	struct net_device *net_dev = bcm->net_dev;
 	unsigned long flags;
 	u32 savedirqs = 0;
-	int badness;
+	unsigned long orig_trans_start = 0;
 
-	badness = estimate_periodic_work_badness(bcm->periodic_state);
-	if (badness > BADNESS_LIMIT) {
+	mutex_lock(&bcm->mutex);
+	if (unlikely(bcm->periodic_state % 4 == 0)) {
 		/* Periodic work will take a long time, so we want it to
 		 * be preemtible.
 		 */
-		mutex_lock(&bcm->mutex);
-		netif_tx_disable(bcm->net_dev);
+
+		netif_tx_lock_bh(net_dev);
+		/* We must fake a started transmission here, as we are going to
+		 * disable TX. If we wouldn't fake a TX, it would be possible to
+		 * trigger the netdev watchdog, if the last real TX is already
+		 * some time on the past (slightly less than 5secs)
+		 */
+		orig_trans_start = net_dev->trans_start;
+		net_dev->trans_start = jiffies;
+		netif_stop_queue(net_dev);
+		netif_tx_unlock_bh(net_dev);
+
 		spin_lock_irqsave(&bcm->irq_lock, flags);
 		bcm43xx_mac_suspend(bcm);
 		if (bcm43xx_using_pio(bcm))
@@ -3182,13 +3251,12 @@ static void bcm43xx_periodic_work_handler(void *d)
 		/* Periodic work should take short time, so we want low
 		 * locking overhead.
 		 */
-		mutex_lock(&bcm->mutex);
 		spin_lock_irqsave(&bcm->irq_lock, flags);
 	}
 
 	do_periodic_work(bcm);
 
-	if (badness > BADNESS_LIMIT) {
+	if (unlikely(bcm->periodic_state % 4 == 0)) {
 		spin_lock_irqsave(&bcm->irq_lock, flags);
 		tasklet_enable(&bcm->isr_tasklet);
 		bcm43xx_interrupt_enable(bcm, savedirqs);
@@ -3196,8 +3264,10 @@ static void bcm43xx_periodic_work_handler(void *d)
 			bcm43xx_pio_thaw_txqueues(bcm);
 		bcm43xx_mac_enable(bcm);
 		netif_wake_queue(bcm->net_dev);
+		net_dev->trans_start = orig_trans_start;
 	}
 	mmiowb();
+	bcm->periodic_state++;
 	spin_unlock_irqrestore(&bcm->irq_lock, flags);
 	mutex_unlock(&bcm->mutex);
 }
@@ -3516,6 +3586,7 @@ int bcm43xx_select_wireless_core(struct bcm43xx_private *bcm,
 	bcm43xx_macfilter_clear(bcm, BCM43xx_MACFILTER_ASSOC);
 	bcm43xx_macfilter_set(bcm, BCM43xx_MACFILTER_SELF, (u8 *)(bcm->net_dev->dev_addr));
 	bcm43xx_security_init(bcm);
+	drain_txstatus_queue(bcm);
 	ieee80211softmac_start(bcm->net_dev);
 
 	/* Let's go! Be careful after enabling the IRQs.
@@ -3642,7 +3713,7 @@ static int bcm43xx_read_phyinfo(struct bcm43xx_private *bcm)
 		bcm->ieee->freq_band = IEEE80211_24GHZ_BAND;
 		break;
 	case BCM43xx_PHYTYPE_G:
-		if (phy_rev > 7)
+		if (phy_rev > 8)
 			phy_rev_ok = 0;
 		bcm->ieee->modulation = IEEE80211_OFDM_MODULATION |
 					IEEE80211_CCK_MODULATION;
@@ -3654,6 +3725,8 @@ static int bcm43xx_read_phyinfo(struct bcm43xx_private *bcm)
 		       phy_type);
 		return -ENODEV;
 	};
+	bcm->ieee->perfect_rssi = RX_RSSI_MAX;
+	bcm->ieee->worst_rssi = 0;
 	if (!phy_rev_ok) {
 		printk(KERN_WARNING PFX "Invalid PHY Revision %x\n",
 		       phy_rev);
@@ -3940,11 +4013,6 @@ static int bcm43xx_ieee80211_hard_start_xmit(struct ieee80211_txb *txb,
 	return NETDEV_TX_OK;
 }
 
-static struct net_device_stats * bcm43xx_net_get_stats(struct net_device *net_dev)
-{
-	return &(bcm43xx_priv(net_dev)->ieee->stats);
-}
-
 static void bcm43xx_net_tx_timeout(struct net_device *net_dev)
 {
 	struct bcm43xx_private *bcm = bcm43xx_priv(net_dev);
@@ -3993,8 +4061,6 @@ static int bcm43xx_init_private(struct bcm43xx_private *bcm,
 				struct net_device *net_dev,
 				struct pci_dev *pci_dev)
 {
-	int err;
-
 	bcm43xx_set_status(bcm, BCM43xx_STAT_UNINIT);
 	bcm->ieee = netdev_priv(net_dev);
 	bcm->softmac = ieee80211_priv(net_dev);
@@ -4012,22 +4078,8 @@ static int bcm43xx_init_private(struct bcm43xx_private *bcm,
 		     (void (*)(unsigned long))bcm43xx_interrupt_tasklet,
 		     (unsigned long)bcm);
 	tasklet_disable_nosync(&bcm->isr_tasklet);
-	if (modparam_pio) {
+	if (modparam_pio)
 		bcm->__using_pio = 1;
-	} else {
-		err = pci_set_dma_mask(pci_dev, DMA_30BIT_MASK);
-		err |= pci_set_consistent_dma_mask(pci_dev, DMA_30BIT_MASK);
-		if (err) {
-#ifdef CONFIG_BCM43XX_PIO
-			printk(KERN_WARNING PFX "DMA not supported. Falling back to PIO.\n");
-			bcm->__using_pio = 1;
-#else
-			printk(KERN_ERR PFX "FATAL: DMA not supported and PIO not configured. "
-					    "Recompile the driver with PIO support, please.\n");
-			return -ENODEV;
-#endif /* CONFIG_BCM43XX_PIO */
-		}
-	}
 	bcm->rts_threshold = BCM43xx_DEFAULT_RTS_THRESHOLD;
 
 	/* default to sw encryption for now */
@@ -4074,7 +4126,6 @@ static int __devinit bcm43xx_init_one(struct pci_dev *pdev,
 
 	net_dev->open = bcm43xx_net_open;
 	net_dev->stop = bcm43xx_net_stop;
-	net_dev->get_stats = bcm43xx_net_get_stats;
 	net_dev->tx_timeout = bcm43xx_net_tx_timeout;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	net_dev->poll_controller = bcm43xx_net_poll_controller;
@@ -4208,7 +4259,11 @@ static int bcm43xx_resume(struct pci_dev *pdev)
 	dprintk(KERN_INFO PFX "Resuming...\n");
 
 	pci_set_power_state(pdev, 0);
-	pci_enable_device(pdev);
+	err = pci_enable_device(pdev);
+	if (err) {
+		printk(KERN_ERR PFX "Failure with pci_enable_device!\n");
+		return err;
+	}
 	pci_restore_state(pdev);
 
 	bcm43xx_chipset_attach(bcm);

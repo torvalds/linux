@@ -1085,14 +1085,6 @@ static int ocfs2_rename(struct inode *old_dir,
 			BUG();
 	}
 
-	if (atomic_read(&old_dentry->d_count) > 2) {
-		shrink_dcache_parent(old_dentry);
-		if (atomic_read(&old_dentry->d_count) > 2) {
-			status = -EBUSY;
-			goto bail;
-		}
-	}
-
 	/* Assume a directory heirarchy thusly:
 	 * a/b/c
 	 * a/d

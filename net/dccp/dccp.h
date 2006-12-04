@@ -18,15 +18,33 @@
 #include <net/tcp.h>
 #include "ackvec.h"
 
+/*
+ * 	DCCP - specific warning and debugging macros.
+ */
+#define DCCP_WARN(fmt, a...) LIMIT_NETDEBUG(KERN_WARNING "%s: " fmt,       \
+						        __FUNCTION__, ##a)
+#define DCCP_CRIT(fmt, a...) printk(KERN_CRIT fmt " at %s:%d/%s()\n", ##a, \
+					 __FILE__, __LINE__, __FUNCTION__)
+#define DCCP_BUG(a...)       do { DCCP_CRIT("BUG: " a); dump_stack(); } while(0)
+#define DCCP_BUG_ON(cond)    do { if (unlikely((cond) != 0))		   \
+				     DCCP_BUG("\"%s\" holds (exception!)", \
+					      __stringify(cond));          \
+			     } while (0)
+
+#ifdef MODULE
+#define DCCP_PRINTK(enable, fmt, args...)	do { if (enable)	     \
+							printk(fmt, ##args); \
+					 	} while(0)
+#else
+#define DCCP_PRINTK(enable, fmt, args...)	printk(fmt, ##args)
+#endif
+#define DCCP_PR_DEBUG(enable, fmt, a...)	DCCP_PRINTK(enable, KERN_DEBUG \
+						  "%s: " fmt, __FUNCTION__, ##a)
+
 #ifdef CONFIG_IP_DCCP_DEBUG
 extern int dccp_debug;
-
-#define dccp_pr_debug(format, a...) \
-	do { if (dccp_debug) \
-		printk(KERN_DEBUG "%s: " format, __FUNCTION__ , ##a); \
-	} while (0)
-#define dccp_pr_debug_cat(format, a...) do { if (dccp_debug) \
-					     printk(format, ##a); } while (0)
+#define dccp_pr_debug(format, a...)	  DCCP_PR_DEBUG(dccp_debug, format, ##a)
+#define dccp_pr_debug_cat(format, a...)   DCCP_PRINTK(dccp_debug, format, ##a)
 #else
 #define dccp_pr_debug(format, a...)
 #define dccp_pr_debug_cat(format, a...)
@@ -35,28 +53,46 @@ extern int dccp_debug;
 extern struct inet_hashinfo dccp_hashinfo;
 
 extern atomic_t dccp_orphan_count;
-extern int dccp_tw_count;
-extern void dccp_tw_deschedule(struct inet_timewait_sock *tw);
 
 extern void dccp_time_wait(struct sock *sk, int state, int timeo);
 
-/* FIXME: Right size this */
-#define DCCP_MAX_OPT_LEN 128
-
-#define DCCP_MAX_PACKET_HDR 32
-
-#define MAX_DCCP_HEADER  (DCCP_MAX_PACKET_HDR + DCCP_MAX_OPT_LEN + MAX_HEADER)
+/*
+ *  Set safe upper bounds for header and option length. Since Data Offset is 8
+ *  bits (RFC 4340, sec. 5.1), the total header length can never be more than
+ *  4 * 255 = 1020 bytes. The largest possible header length is 28 bytes (X=1):
+ *    - DCCP-Response with ACK Subheader and 4 bytes of Service code      OR
+ *    - DCCP-Reset    with ACK Subheader and 4 bytes of Reset Code fields
+ *  Hence a safe upper bound for the maximum option length is 1020-28 = 992
+ */
+#define MAX_DCCP_SPECIFIC_HEADER (255 * sizeof(int))
+#define DCCP_MAX_PACKET_HDR 28
+#define DCCP_MAX_OPT_LEN (MAX_DCCP_SPECIFIC_HEADER - DCCP_MAX_PACKET_HDR)
+#define MAX_DCCP_HEADER (MAX_DCCP_SPECIFIC_HEADER + MAX_HEADER)
 
 #define DCCP_TIMEWAIT_LEN (60 * HZ) /* how long to wait to destroy TIME-WAIT
 				     * state, about 60 seconds */
 
-/* draft-ietf-dccp-spec-11.txt initial RTO value */
+/* RFC 1122, 4.2.3.1 initial RTO value */
 #define DCCP_TIMEOUT_INIT ((unsigned)(3 * HZ))
 
 /* Maximal interval between probes for local resources.  */
 #define DCCP_RESOURCE_PROBE_INTERVAL ((unsigned)(HZ / 2U))
 
 #define DCCP_RTO_MAX ((unsigned)(120 * HZ)) /* FIXME: using TCP value */
+
+#define DCCP_XMIT_TIMEO 30000 /* Time/msecs for blocking transmit per packet */
+
+/* sysctl variables for DCCP */
+extern int  sysctl_dccp_request_retries;
+extern int  sysctl_dccp_retries1;
+extern int  sysctl_dccp_retries2;
+extern int  sysctl_dccp_feat_sequence_window;
+extern int  sysctl_dccp_feat_rx_ccid;
+extern int  sysctl_dccp_feat_tx_ccid;
+extern int  sysctl_dccp_feat_ack_ratio;
+extern int  sysctl_dccp_feat_send_ack_vector;
+extern int  sysctl_dccp_feat_send_ndp_count;
+extern int  sysctl_dccp_tx_qlen;
 
 /* is seq1 < seq2 ? */
 static inline int before48(const u64 seq1, const u64 seq2)
@@ -123,10 +159,36 @@ DECLARE_SNMP_STAT(struct dccp_mib, dccp_statistics);
 #define DCCP_ADD_STATS_USER(field, val)	\
 			SNMP_ADD_STATS_USER(dccp_statistics, field, val)
 
+/*
+ * 	Checksumming routines
+ */
+static inline int dccp_csum_coverage(const struct sk_buff *skb)
+{
+	const struct dccp_hdr* dh = dccp_hdr(skb);
+
+	if (dh->dccph_cscov == 0)
+		return skb->len;
+	return (dh->dccph_doff + dh->dccph_cscov - 1) * sizeof(u32);
+}
+
+static inline void dccp_csum_outgoing(struct sk_buff *skb)
+{
+	int cov = dccp_csum_coverage(skb);
+
+	if (cov >= skb->len)
+		dccp_hdr(skb)->dccph_cscov = 0;
+
+	skb->csum = skb_checksum(skb, 0, (cov > skb->len)? skb->len : cov, 0);
+}
+
+extern void dccp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb);
+
 extern int  dccp_retransmit_skb(struct sock *sk, struct sk_buff *skb);
 
 extern void dccp_send_ack(struct sock *sk);
 extern void dccp_send_delayed_ack(struct sock *sk);
+extern void dccp_reqsk_send_ack(struct sk_buff *sk, struct request_sock *rsk);
+
 extern void dccp_send_sync(struct sock *sk, const u64 seq,
 			   const enum dccp_pkt_type pkt_type);
 
@@ -147,18 +209,7 @@ extern const char *dccp_state_name(const int state);
 extern void dccp_set_state(struct sock *sk, const int state);
 extern void dccp_done(struct sock *sk);
 
-static inline void dccp_openreq_init(struct request_sock *req,
-				     struct dccp_sock *dp,
-				     struct sk_buff *skb)
-{
-	/*
-	 * FIXME: fill in the other req fields from the DCCP options
-	 * received
-	 */
-	inet_rsk(req)->rmt_port = dccp_hdr(skb)->dccph_sport;
-	inet_rsk(req)->acked	= 0;
-	req->rcv_wnd = 0;
-}
+extern void dccp_reqsk_init(struct request_sock *req, struct sk_buff *skb);
 
 extern int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb);
 
@@ -217,13 +268,8 @@ extern void	   dccp_shutdown(struct sock *sk, int how);
 extern int	   inet_dccp_listen(struct socket *sock, int backlog);
 extern unsigned int dccp_poll(struct file *file, struct socket *sock,
 			     poll_table *wait);
-extern void	   dccp_v4_send_check(struct sock *sk, int len,
-				      struct sk_buff *skb);
 extern int	   dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr,
 				   int addr_len);
-
-extern int	   dccp_v4_checksum(const struct sk_buff *skb,
-				    const __be32 saddr, const __be32 daddr);
 
 extern int	   dccp_send_reset(struct sock *sk, enum dccp_reset_codes code);
 extern void	   dccp_send_close(struct sock *sk, const int active);

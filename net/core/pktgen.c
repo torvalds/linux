@@ -207,7 +207,7 @@ static struct proc_dir_entry *pg_proc_dir = NULL;
 #define SVLAN_TAG_SIZE(x) ((x)->svlan_id == 0xffff ? 0 : 4)
 
 struct flow_state {
-	__u32 cur_daddr;
+	__be32 cur_daddr;
 	int count;
 };
 
@@ -282,10 +282,10 @@ struct pktgen_dev {
 	/* If we're doing ranges, random or incremental, then this
 	 * defines the min/max for those ranges.
 	 */
-	__u32 saddr_min;	/* inclusive, source IP address */
-	__u32 saddr_max;	/* exclusive, source IP address */
-	__u32 daddr_min;	/* inclusive, dest IP address */
-	__u32 daddr_max;	/* exclusive, dest IP address */
+	__be32 saddr_min;	/* inclusive, source IP address */
+	__be32 saddr_max;	/* exclusive, source IP address */
+	__be32 daddr_min;	/* inclusive, dest IP address */
+	__be32 daddr_max;	/* exclusive, dest IP address */
 
 	__u16 udp_src_min;	/* inclusive, source UDP port */
 	__u16 udp_src_max;	/* exclusive, source UDP port */
@@ -317,8 +317,8 @@ struct pktgen_dev {
 
 	__u32 cur_dst_mac_offset;
 	__u32 cur_src_mac_offset;
-	__u32 cur_saddr;
-	__u32 cur_daddr;
+	__be32 cur_saddr;
+	__be32 cur_daddr;
 	__u16 cur_udp_dst;
 	__u16 cur_udp_src;
 	__u32 cur_pkt_size;
@@ -350,10 +350,10 @@ struct pktgen_dev {
 };
 
 struct pktgen_hdr {
-	__u32 pgh_magic;
-	__u32 seq_num;
-	__u32 tv_sec;
-	__u32 tv_usec;
+	__be32 pgh_magic;
+	__be32 seq_num;
+	__be32 tv_sec;
+	__be32 tv_usec;
 };
 
 struct pktgen_thread {
@@ -2160,7 +2160,7 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 		for(i = 0; i < pkt_dev->nr_labels; i++)
 			if (pkt_dev->labels[i] & MPLS_STACK_BOTTOM)
 				pkt_dev->labels[i] = MPLS_STACK_BOTTOM |
-						     (pktgen_random() &
+					     ((__force __be32)pktgen_random() &
 						      htonl(0x000fffff));
 	}
 
@@ -2220,29 +2220,25 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 		if (pkt_dev->cflows && pkt_dev->flows[flow].count != 0) {
 			pkt_dev->cur_daddr = pkt_dev->flows[flow].cur_daddr;
 		} else {
-
-			if ((imn = ntohl(pkt_dev->daddr_min)) < (imx =
-								 ntohl(pkt_dev->
-								       daddr_max)))
-			{
+			imn = ntohl(pkt_dev->daddr_min);
+			imx = ntohl(pkt_dev->daddr_max);
+			if (imn < imx) {
 				__u32 t;
+				__be32 s;
 				if (pkt_dev->flags & F_IPDST_RND) {
 
-					t = ((pktgen_random() % (imx - imn)) +
-					     imn);
-					t = htonl(t);
+					t = pktgen_random() % (imx - imn) + imn;
+					s = htonl(t);
 
-					while (LOOPBACK(t) || MULTICAST(t)
-					       || BADCLASS(t) || ZERONET(t)
-					       || LOCAL_MCAST(t)) {
-						t = ((pktgen_random() %
-						      (imx - imn)) + imn);
-						t = htonl(t);
+					while (LOOPBACK(s) || MULTICAST(s)
+					       || BADCLASS(s) || ZERONET(s)
+					       || LOCAL_MCAST(s)) {
+						t = (pktgen_random() %
+						      (imx - imn)) + imn;
+						s = htonl(t);
 					}
-					pkt_dev->cur_daddr = t;
-				}
-
-				else {
+					pkt_dev->cur_daddr = s;
+				} else {
 					t = ntohl(pkt_dev->cur_daddr);
 					t++;
 					if (t > imx) {
@@ -2270,7 +2266,7 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 
 			for (i = 0; i < 4; i++) {
 				pkt_dev->cur_in6_daddr.s6_addr32[i] =
-				    ((pktgen_random() |
+				    (((__force __be32)pktgen_random() |
 				      pkt_dev->min_in6_daddr.s6_addr32[i]) &
 				     pkt_dev->max_in6_daddr.s6_addr32[i]);
 			}
@@ -2302,6 +2298,12 @@ static void mpls_push(__be32 *mpls, struct pktgen_dev *pkt_dev)
 	}
 	mpls--;
 	*mpls |= MPLS_STACK_BOTTOM;
+}
+
+static inline __be16 build_tci(unsigned int id, unsigned int cfi,
+			       unsigned int prio)
+{
+	return htons(id | (cfi << 12) | (prio << 13));
 }
 
 static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
@@ -2353,16 +2355,16 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	if (pkt_dev->vlan_id != 0xffff) {
 		if(pkt_dev->svlan_id != 0xffff) {
 			svlan_tci = (__be16 *)skb_put(skb, sizeof(__be16));
-			*svlan_tci = htons(pkt_dev->svlan_id);
-			*svlan_tci |= pkt_dev->svlan_p << 5;
-			*svlan_tci |= pkt_dev->svlan_cfi << 4;
+			*svlan_tci = build_tci(pkt_dev->svlan_id,
+					       pkt_dev->svlan_cfi,
+					       pkt_dev->svlan_p);
 			svlan_encapsulated_proto = (__be16 *)skb_put(skb, sizeof(__be16));
 			*svlan_encapsulated_proto = __constant_htons(ETH_P_8021Q);
 		}
 		vlan_tci = (__be16 *)skb_put(skb, sizeof(__be16));
-		*vlan_tci = htons(pkt_dev->vlan_id);
-		*vlan_tci |= pkt_dev->vlan_p << 5;
-		*vlan_tci |= pkt_dev->vlan_cfi << 4;
+		*vlan_tci = build_tci(pkt_dev->vlan_id,
+				      pkt_dev->vlan_cfi,
+				      pkt_dev->vlan_p);
 		vlan_encapsulated_proto = (__be16 *)skb_put(skb, sizeof(__be16));
 		*vlan_encapsulated_proto = __constant_htons(ETH_P_IP);
 	}
@@ -2371,7 +2373,7 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	udph = (struct udphdr *)skb_put(skb, sizeof(struct udphdr));
 
 	memcpy(eth, pkt_dev->hh, 12);
-	*(u16 *) & eth[12] = protocol;
+	*(__be16 *) & eth[12] = protocol;
 
 	/* Eth + IPh + UDPh + mpls */
 	datalen = pkt_dev->cur_pkt_size - 14 - 20 - 8 -
@@ -2491,7 +2493,7 @@ static unsigned int scan_ip6(const char *s, char ip[16])
 	char suffix[16];
 	unsigned int prefixlen = 0;
 	unsigned int suffixlen = 0;
-	__u32 tmp;
+	__be32 tmp;
 
 	for (i = 0; i < 16; i++)
 		ip[i] = 0;
@@ -2689,16 +2691,16 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	if (pkt_dev->vlan_id != 0xffff) {
 		if(pkt_dev->svlan_id != 0xffff) {
 			svlan_tci = (__be16 *)skb_put(skb, sizeof(__be16));
-			*svlan_tci = htons(pkt_dev->svlan_id);
-			*svlan_tci |= pkt_dev->svlan_p << 5;
-			*svlan_tci |= pkt_dev->svlan_cfi << 4;
+			*svlan_tci = build_tci(pkt_dev->svlan_id,
+					       pkt_dev->svlan_cfi,
+					       pkt_dev->svlan_p);
 			svlan_encapsulated_proto = (__be16 *)skb_put(skb, sizeof(__be16));
 			*svlan_encapsulated_proto = __constant_htons(ETH_P_8021Q);
 		}
 		vlan_tci = (__be16 *)skb_put(skb, sizeof(__be16));
-		*vlan_tci = htons(pkt_dev->vlan_id);
-		*vlan_tci |= pkt_dev->vlan_p << 5;
-		*vlan_tci |= pkt_dev->vlan_cfi << 4;
+		*vlan_tci = build_tci(pkt_dev->vlan_id,
+				      pkt_dev->vlan_cfi,
+				      pkt_dev->vlan_p);
 		vlan_encapsulated_proto = (__be16 *)skb_put(skb, sizeof(__be16));
 		*vlan_encapsulated_proto = __constant_htons(ETH_P_IPV6);
 	}
@@ -2707,7 +2709,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	udph = (struct udphdr *)skb_put(skb, sizeof(struct udphdr));
 
 	memcpy(eth, pkt_dev->hh, 12);
-	*(u16 *) & eth[12] = protocol;
+	*(__be16 *) & eth[12] = protocol;
 
 	/* Eth + IPh + UDPh + mpls */
 	datalen = pkt_dev->cur_pkt_size - 14 -
@@ -2726,11 +2728,11 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	udph->len = htons(datalen + sizeof(struct udphdr));
 	udph->check = 0;	/* No checksum */
 
-	*(u32 *) iph = __constant_htonl(0x60000000);	/* Version + flow */
+	*(__be32 *) iph = __constant_htonl(0x60000000);	/* Version + flow */
 
 	if (pkt_dev->traffic_class) {
 		/* Version + traffic class + flow (0) */
-		*(u32 *)iph |= htonl(0x60000000 | (pkt_dev->traffic_class << 20));
+		*(__be32 *)iph |= htonl(0x60000000 | (pkt_dev->traffic_class << 20));
 	}
 
 	iph->hop_limit = 32;

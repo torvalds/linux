@@ -767,37 +767,37 @@ config SERIAL_CPM_SCC1
 	bool "Support for SCC1 serial port"
 	depends on SERIAL_CPM=y
 	help
-	  Select the is option to use SCC1 as a serial port
+	  Select this option to use SCC1 as a serial port
 
 config SERIAL_CPM_SCC2
 	bool "Support for SCC2 serial port"
 	depends on SERIAL_CPM=y
 	help
-	  Select the is option to use SCC2 as a serial port
+	  Select this option to use SCC2 as a serial port
 
 config SERIAL_CPM_SCC3
 	bool "Support for SCC3 serial port"
 	depends on SERIAL_CPM=y
 	help
-	  Select the is option to use SCC3 as a serial port
+	  Select this option to use SCC3 as a serial port
 
 config SERIAL_CPM_SCC4
 	bool "Support for SCC4 serial port"
 	depends on SERIAL_CPM=y
 	help
-	  Select the is option to use SCC4 as a serial port
+	  Select this option to use SCC4 as a serial port
 
 config SERIAL_CPM_SMC1
 	bool "Support for SMC1 serial port"
 	depends on SERIAL_CPM=y
 	help
-	  Select the is option to use SMC1 as a serial port
+	  Select this option to use SMC1 as a serial port
 
 config SERIAL_CPM_SMC2
 	bool "Support for SMC2 serial port"
 	depends on SERIAL_CPM=y
 	help
-	  Select the is option to use SMC2 as a serial port
+	  Select this option to use SMC2 as a serial port
 
 config SERIAL_SGI_L1_CONSOLE
 	bool "SGI Altix L1 serial console support"

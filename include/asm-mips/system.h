@@ -392,7 +392,7 @@ static inline unsigned long __cmpxchg_u64(volatile int * m, unsigned long old,
 {
 	__u64 retval;
 
-	if (cpu_has_llsc) {
+	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		__asm__ __volatile__(
 		"	.set	push					\n"
 		"	.set	noat					\n"

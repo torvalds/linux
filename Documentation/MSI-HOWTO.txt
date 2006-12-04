@@ -219,7 +219,7 @@ into the field vector of each element contained in a second argument.
 Note that the pre-assigned IOAPIC dev->irq is valid only if the device
 operates in PIN-IRQ assertion mode. In MSI-X mode, any attempt at
 using dev->irq by the device driver to request for interrupt service
-may result unpredictabe behavior.
+may result in unpredictable behavior.
 
 For each MSI-X vector granted, a device driver is responsible for calling
 other functions like request_irq(), enable_irq(), etc. to enable
@@ -470,7 +470,68 @@ LOC:     324553     325068
 ERR:          0
 MIS:          0
 
-6. FAQ
+6. MSI quirks
+
+Several PCI chipsets or devices are known to not support MSI.
+The PCI stack provides 3 possible levels of MSI disabling:
+* on a single device
+* on all devices behind a specific bridge
+* globally
+
+6.1. Disabling MSI on a single device
+
+Under some circumstances, it might be required to disable MSI on a
+single device, It may be achived by either not calling pci_enable_msi()
+or all, or setting the pci_dev->no_msi flag before (most of the time
+in a quirk).
+
+6.2. Disabling MSI below a bridge
+
+The vast majority of MSI quirks are required by PCI bridges not
+being able to route MSI between busses. In this case, MSI have to be
+disabled on all devices behind this bridge. It is achieves by setting
+the PCI_BUS_FLAGS_NO_MSI flag in the pci_bus->bus_flags of the bridge
+subordinate bus. There is no need to set the same flag on bridges that
+are below the broken brigde. When pci_enable_msi() is called to enable
+MSI on a device, pci_msi_supported() takes care of checking the NO_MSI
+flag in all parent busses of the device.
+
+Some bridges actually support dynamic MSI support enabling/disabling
+by changing some bits in their PCI configuration space (especially
+the Hypertransport chipsets such as the nVidia nForce and Serverworks
+HT2000). It may then be required to update the NO_MSI flag on the
+corresponding devices in the sysfs hierarchy. To enable MSI support
+on device "0000:00:0e", do:
+
+	echo 1 > /sys/bus/pci/devices/0000:00:0e/msi_bus
+
+To disable MSI support, echo 0 instead of 1. Note that it should be
+used with caution since changing this value might break interrupts.
+
+6.3. Disabling MSI globally
+
+Some extreme cases may require to disable MSI globally on the system.
+For now, the only known case is a Serverworks PCI-X chipsets (MSI are
+not supported on several busses that are not all connected to the
+chipset in the Linux PCI hierarchy). In the vast majority of other
+cases, disabling only behind a specific bridge is enough.
+
+For debugging purpose, the user may also pass pci=nomsi on the kernel
+command-line to explicitly disable MSI globally. But, once the appro-
+priate quirks are added to the kernel, this option should not be
+required anymore.
+
+6.4. Finding why MSI cannot be enabled on a device
+
+Assuming that MSI are not enabled on a device, you should look at
+dmesg to find messages that quirks may output when disabling MSI
+on some devices, some bridges or even globally.
+Then, lspci -t gives the list of bridges above a device. Reading
+/sys/bus/pci/devices/0000:00:0e/msi_bus will tell you whether MSI
+are enabled (1) or disabled (0). In 0 is found in a single bridge
+msi_bus file above the device, MSI cannot be enabled.
+
+7. FAQ
 
 Q1. Are there any limitations on using the MSI?
 

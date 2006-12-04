@@ -205,7 +205,7 @@ void cpu_idle(void)
 void cpu_idle_wait(void)
 {
 	unsigned int cpu, this_cpu = get_cpu();
-	cpumask_t map;
+	cpumask_t map, tmp = current->cpus_allowed;
 
 	set_cpus_allowed(current, cpumask_of_cpu(this_cpu));
 	put_cpu();
@@ -227,6 +227,8 @@ void cpu_idle_wait(void)
 		}
 		cpus_and(map, map, cpu_online_map);
 	} while (!cpus_empty(map));
+
+	set_cpus_allowed(current, tmp);
 }
 EXPORT_SYMBOL_GPL(cpu_idle_wait);
 
@@ -336,7 +338,6 @@ extern void kernel_thread_helper(void);
 int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 {
 	struct pt_regs regs;
-	int err;
 
 	memset(&regs, 0, sizeof(regs));
 
@@ -351,10 +352,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	regs.eflags = X86_EFLAGS_IF | X86_EFLAGS_SF | X86_EFLAGS_PF | 0x2;
 
 	/* Ok, create the new process.. */
-	err = do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
-	if (err == 0) /* terminate kernel stack */
-		task_pt_regs(current)->eip = 0;
-	return err;
+	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
 }
 EXPORT_SYMBOL(kernel_thread);
 

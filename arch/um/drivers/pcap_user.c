@@ -12,6 +12,7 @@
 #include "net_user.h"
 #include "pcap_user.h"
 #include "user.h"
+#include "um_malloc.h"
 
 #define MAX_PACKET (ETH_MAX_PACKET + ETH_HEADER_OTHER)
 

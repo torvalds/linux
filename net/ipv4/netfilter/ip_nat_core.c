@@ -362,12 +362,10 @@ manip_pkt(u_int16_t proto,
 	iph = (void *)(*pskb)->data + iphdroff;
 
 	if (maniptype == IP_NAT_MANIP_SRC) {
-		iph->check = nf_csum_update(~iph->saddr, target->src.ip,
-					    iph->check);
+		nf_csum_replace4(&iph->check, iph->saddr, target->src.ip);
 		iph->saddr = target->src.ip;
 	} else {
-		iph->check = nf_csum_update(~iph->daddr, target->dst.ip,
-					    iph->check);
+		nf_csum_replace4(&iph->check, iph->daddr, target->dst.ip);
 		iph->daddr = target->dst.ip;
 	}
 	return 1;

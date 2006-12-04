@@ -332,11 +332,6 @@ static inline void disable_bridge_irq(unsigned int irq)
 	intr_disconnect_level(cpu, swlevel);
 }
 
-static void mask_and_ack_bridge_irq(unsigned int irq)
-{
-	disable_bridge_irq(irq);
-}
-
 static void end_bridge_irq(unsigned int irq)
 {
 	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)) &&
@@ -348,41 +343,16 @@ static struct irq_chip bridge_irq_type = {
 	.typename	= "bridge",
 	.startup	= startup_bridge_irq,
 	.shutdown	= shutdown_bridge_irq,
-	.enable		= enable_bridge_irq,
-	.disable	= disable_bridge_irq,
-	.ack		= mask_and_ack_bridge_irq,
+	.ack		= disable_bridge_irq,
+	.mask		= disable_bridge_irq,
+	.mask_ack	= disable_bridge_irq,
+	.unmask		= enable_bridge_irq,
 	.end		= end_bridge_irq,
 };
 
-static unsigned long irq_map[NR_IRQS / BITS_PER_LONG];
-
-int allocate_irqno(void)
-{
-	int irq;
-
-again:
-	irq = find_first_zero_bit(irq_map, NR_IRQS);
-
-	if (irq >= NR_IRQS)
-		return -ENOSPC;
-
-	if (test_and_set_bit(irq, irq_map))
-		goto again;
-
-	return irq;
-}
-
-void free_irqno(unsigned int irq)
-{
-	clear_bit(irq, irq_map);
-}
-
 void __devinit register_bridge_irq(unsigned int irq)
 {
-	irq_desc[irq].status	= IRQ_DISABLED;
-	irq_desc[irq].action	= 0;
-	irq_desc[irq].depth	= 1;
-	irq_desc[irq].chip	= &bridge_irq_type;
+	set_irq_chip_and_handler(irq, &bridge_irq_type, handle_level_irq);
 }
 
 int __devinit request_bridge_irq(struct bridge_controller *bc)

@@ -184,7 +184,7 @@ static const struct pnp_id pnp_dev_table[] = {
 Please note that the character 'X' can be used as a wild card in the function
 portion (last four characters).
 ex:
-	/* Unkown PnP modems */
+	/* Unknown PnP modems */
 	{	"PNPCXXX",		UNKNOWN_DEV	},
 
 Supported PnP card IDs can optionally be defined.

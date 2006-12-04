@@ -1295,7 +1295,7 @@ typedef struct {
 	Proc_Info_Type Info_write;
 	unsigned short frame_count;
 	unsigned int filter_hist[4];
-	unsigned char filter_en[4];
+	unsigned char filter_en[6];
 	unsigned short proc_load;
 	unsigned long framesread;
 	unsigned long frameswritten;

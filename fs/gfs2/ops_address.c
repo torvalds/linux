@@ -65,7 +65,7 @@ static void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
 int gfs2_get_block(struct inode *inode, sector_t lblock,
 	           struct buffer_head *bh_result, int create)
 {
-	return gfs2_block_map(inode, lblock, create, bh_result, 32);
+	return gfs2_block_map(inode, lblock, create, bh_result);
 }
 
 /**
@@ -83,7 +83,7 @@ static int gfs2_get_block_noalloc(struct inode *inode, sector_t lblock,
 {
 	int error;
 
-	error = gfs2_block_map(inode, lblock, 0, bh_result, 1);
+	error = gfs2_block_map(inode, lblock, 0, bh_result);
 	if (error)
 		return error;
 	if (bh_result->b_blocknr == 0)
@@ -94,7 +94,7 @@ static int gfs2_get_block_noalloc(struct inode *inode, sector_t lblock,
 static int gfs2_get_block_direct(struct inode *inode, sector_t lblock,
 				 struct buffer_head *bh_result, int create)
 {
-	return gfs2_block_map(inode, lblock, 0, bh_result, 32);
+	return gfs2_block_map(inode, lblock, 0, bh_result);
 }
 
 /**
@@ -337,13 +337,6 @@ out:
 out_noerror:
 	ret = 0;
 out_unlock:
-	/* unlock all pages, we can't do any I/O right now */
-	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
-		struct page *page = list_entry(pages->prev, struct page, lru);
-		list_del(&page->lru);
-		unlock_page(page);
-		page_cache_release(page);
-	}
 	if (do_unlock)
 		gfs2_holder_uninit(&gh);
 	goto out;

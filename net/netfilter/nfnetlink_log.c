@@ -408,13 +408,13 @@ __build_packet_message(struct nfulnl_instance *inst,
 			const struct net_device *indev,
 			const struct net_device *outdev,
 			const struct nf_loginfo *li,
-			const char *prefix)
+			const char *prefix, unsigned int plen)
 {
 	unsigned char *old_tail;
 	struct nfulnl_msg_packet_hdr pmsg;
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
-	u_int32_t tmp_uint;
+	__be32 tmp_uint;
 
 	UDEBUG("entered\n");
 		
@@ -427,17 +427,13 @@ __build_packet_message(struct nfulnl_instance *inst,
 	nfmsg->version = NFNETLINK_V0;
 	nfmsg->res_id = htons(inst->group_num);
 
-	pmsg.hw_protocol	= htons(skb->protocol);
+	pmsg.hw_protocol	= skb->protocol;
 	pmsg.hook		= hooknum;
 
 	NFA_PUT(inst->skb, NFULA_PACKET_HDR, sizeof(pmsg), &pmsg);
 
-	if (prefix) {
-		int slen = strlen(prefix);
-		if (slen > NFULNL_PREFIXLEN)
-			slen = NFULNL_PREFIXLEN;
-		NFA_PUT(inst->skb, NFULA_PREFIX, slen, prefix);
-	}
+	if (prefix)
+		NFA_PUT(inst->skb, NFULA_PREFIX, plen, prefix);
 
 	if (indev) {
 		tmp_uint = htonl(indev->ifindex);
@@ -501,18 +497,16 @@ __build_packet_message(struct nfulnl_instance *inst,
 #endif
 	}
 
-	if (skb->nfmark) {
-		tmp_uint = htonl(skb->nfmark);
+	if (skb->mark) {
+		tmp_uint = htonl(skb->mark);
 		NFA_PUT(inst->skb, NFULA_MARK, sizeof(tmp_uint), &tmp_uint);
 	}
 
 	if (indev && skb->dev && skb->dev->hard_header_parse) {
 		struct nfulnl_msg_packet_hw phw;
-
-		phw.hw_addrlen = 
-			skb->dev->hard_header_parse((struct sk_buff *)skb, 
+		int len = skb->dev->hard_header_parse((struct sk_buff *)skb,
 						    phw.hw_addr);
-		phw.hw_addrlen = htons(phw.hw_addrlen);
+		phw.hw_addrlen = htons(len);
 		NFA_PUT(inst->skb, NFULA_HWADDR, sizeof(phw), &phw);
 	}
 
@@ -529,7 +523,7 @@ __build_packet_message(struct nfulnl_instance *inst,
 	if (skb->sk) {
 		read_lock_bh(&skb->sk->sk_callback_lock);
 		if (skb->sk->sk_socket && skb->sk->sk_socket->file) {
-			u_int32_t uid = htonl(skb->sk->sk_socket->file->f_uid);
+			__be32 uid = htonl(skb->sk->sk_socket->file->f_uid);
 			/* need to unlock here since NFA_PUT may goto */
 			read_unlock_bh(&skb->sk->sk_callback_lock);
 			NFA_PUT(inst->skb, NFULA_UID, sizeof(uid), &uid);
@@ -544,7 +538,7 @@ __build_packet_message(struct nfulnl_instance *inst,
 	}
 	/* global sequence number */
 	if (inst->flags & NFULNL_CFG_F_SEQ_GLOBAL) {
-		tmp_uint = atomic_inc_return(&global_seq);
+		tmp_uint = htonl(atomic_inc_return(&global_seq));
 		NFA_PUT(inst->skb, NFULA_SEQ_GLOBAL, sizeof(tmp_uint), &tmp_uint);
 	}
 
@@ -603,6 +597,7 @@ nfulnl_log_packet(unsigned int pf,
 	const struct nf_loginfo *li;
 	unsigned int qthreshold;
 	unsigned int nlbufsiz;
+	unsigned int plen;
 
 	if (li_user && li_user->type == NF_LOG_TYPE_ULOG) 
 		li = li_user;
@@ -618,6 +613,10 @@ nfulnl_log_packet(unsigned int pf,
 		return;
 	}
 
+	plen = 0;
+	if (prefix)
+		plen = strlen(prefix);
+
 	/* all macros expand to constant values at compile time */
 	/* FIXME: do we want to make the size calculation conditional based on
 	 * what is actually present?  way more branches and checks, but more
@@ -632,7 +631,7 @@ nfulnl_log_packet(unsigned int pf,
 #endif
 		+ NFA_SPACE(sizeof(u_int32_t))	/* mark */
 		+ NFA_SPACE(sizeof(u_int32_t))	/* uid */
-		+ NFA_SPACE(NFULNL_PREFIXLEN)	/* prefix */
+		+ NFA_SPACE(plen)		/* prefix */
 		+ NFA_SPACE(sizeof(struct nfulnl_msg_packet_hw))
 		+ NFA_SPACE(sizeof(struct nfulnl_msg_packet_timestamp));
 
@@ -703,7 +702,7 @@ nfulnl_log_packet(unsigned int pf,
 	inst->qlen++;
 
 	__build_packet_message(inst, skb, data_len, pf,
-				hooknum, in, out, li, prefix);
+				hooknum, in, out, li, prefix, plen);
 
 	/* timer_pending always called within inst->lock, so there
 	 * is no chance of a race here */
@@ -878,33 +877,33 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 		params = NFA_DATA(nfula[NFULA_CFG_MODE-1]);
 
 		nfulnl_set_mode(inst, params->copy_mode,
-				ntohs(params->copy_range));
+				ntohl(params->copy_range));
 	}
 
 	if (nfula[NFULA_CFG_TIMEOUT-1]) {
-		u_int32_t timeout = 
-			*(u_int32_t *)NFA_DATA(nfula[NFULA_CFG_TIMEOUT-1]);
+		__be32 timeout =
+			*(__be32 *)NFA_DATA(nfula[NFULA_CFG_TIMEOUT-1]);
 
 		nfulnl_set_timeout(inst, ntohl(timeout));
 	}
 
 	if (nfula[NFULA_CFG_NLBUFSIZ-1]) {
-		u_int32_t nlbufsiz = 
-			*(u_int32_t *)NFA_DATA(nfula[NFULA_CFG_NLBUFSIZ-1]);
+		__be32 nlbufsiz =
+			*(__be32 *)NFA_DATA(nfula[NFULA_CFG_NLBUFSIZ-1]);
 
 		nfulnl_set_nlbufsiz(inst, ntohl(nlbufsiz));
 	}
 
 	if (nfula[NFULA_CFG_QTHRESH-1]) {
-		u_int32_t qthresh = 
-			*(u_int16_t *)NFA_DATA(nfula[NFULA_CFG_QTHRESH-1]);
+		__be32 qthresh =
+			*(__be32 *)NFA_DATA(nfula[NFULA_CFG_QTHRESH-1]);
 
 		nfulnl_set_qthresh(inst, ntohl(qthresh));
 	}
 
 	if (nfula[NFULA_CFG_FLAGS-1]) {
-		u_int16_t flags =
-			*(u_int16_t *)NFA_DATA(nfula[NFULA_CFG_FLAGS-1]);
+		__be16 flags =
+			*(__be16 *)NFA_DATA(nfula[NFULA_CFG_FLAGS-1]);
 		nfulnl_set_flags(inst, ntohs(flags));
 	}
 

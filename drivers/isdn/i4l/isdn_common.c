@@ -1134,9 +1134,12 @@ isdn_read(struct file *file, char __user *buf, size_t count, loff_t * off)
 		if (dev->drv[drvidx]->interface->readstat) {
 			if (count > dev->drv[drvidx]->stavail)
 				count = dev->drv[drvidx]->stavail;
-			len = dev->drv[drvidx]->interface->
-				readstat(buf, count, drvidx,
-					 isdn_minor2chan(minor));
+			len = dev->drv[drvidx]->interface->readstat(buf, count,
+						drvidx, isdn_minor2chan(minor));
+			if (len < 0) {
+				retval = len;
+				goto out;
+			}
 		} else {
 			len = 0;
 		}

@@ -506,9 +506,6 @@ struct info_str {
 	int pos;
 };
 
-void	ahd_format_transinfo(struct info_str *info,
-			     struct ahd_transinfo *tinfo);
-
 /******************************** Locking *************************************/
 static __inline void
 ahd_lockinit(struct ahd_softc *ahd)
@@ -581,8 +578,6 @@ ahd_unlock(struct ahd_softc *ahd, unsigned long *flags)
 #define PCIXM_STATUS_MAXSPLITS	0x0380	/* Maximum Split Transactions */
 #define PCIXM_STATUS_MAXCRDS	0x1C00	/* Maximum Cumulative Read Size */
 #define PCIXM_STATUS_RCVDSCEM	0x2000	/* Received a Split Comp w/Error msg */
-
-extern struct pci_driver aic79xx_pci_driver;
 
 typedef enum
 {

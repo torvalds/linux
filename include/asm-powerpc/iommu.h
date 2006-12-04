@@ -22,17 +22,35 @@
 #define _ASM_IOMMU_H
 #ifdef __KERNEL__
 
-#include <asm/types.h>
+#include <linux/compiler.h>
 #include <linux/spinlock.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <asm/types.h>
+#include <asm/bitops.h>
+
+#define IOMMU_PAGE_SHIFT      12
+#define IOMMU_PAGE_SIZE       (ASM_CONST(1) << IOMMU_PAGE_SHIFT)
+#define IOMMU_PAGE_MASK       (~((1 << IOMMU_PAGE_SHIFT) - 1))
+#define IOMMU_PAGE_ALIGN(addr) _ALIGN_UP(addr, IOMMU_PAGE_SIZE)
+
+#ifndef __ASSEMBLY__
+
+/* Pure 2^n version of get_order */
+static __inline__ __attribute_const__ int get_iommu_order(unsigned long size)
+{
+	return __ilog2((size - 1) >> IOMMU_PAGE_SHIFT) + 1;
+}
+
+#endif   /* __ASSEMBLY__ */
+
 
 /*
  * IOMAP_MAX_ORDER defines the largest contiguous block
  * of dma space we can get.  IOMAP_MAX_ORDER = 13
  * allows up to 2**12 pages (4096 * 4096) = 16 MB
  */
-#define IOMAP_MAX_ORDER 13
+#define IOMAP_MAX_ORDER		13
 
 struct iommu_table {
 	unsigned long  it_busno;     /* Bus number this table belongs to */

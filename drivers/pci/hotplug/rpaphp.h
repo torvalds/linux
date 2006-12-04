@@ -28,7 +28,7 @@
 #define _PPC64PHP_H
 
 #include <linux/pci.h>
-#include "pci_hotplug.h"
+#include <linux/pci_hotplug.h>
 
 #define DR_INDICATOR 9002
 #define DR_ENTITY_SENSE 9003

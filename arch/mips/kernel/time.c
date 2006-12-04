@@ -67,14 +67,8 @@ int (*rtc_mips_set_time)(unsigned long) = null_rtc_set_time;
 int (*rtc_mips_set_mmss)(unsigned long);
 
 
-/* usecs per counter cycle, shifted to left by 32 bits */
-static unsigned int sll32_usecs_per_cycle;
-
 /* how many counter cycles in a jiffy */
 static unsigned long cycles_per_jiffy __read_mostly;
-
-/* Cycle counter value at the previous timer interrupt.. */
-static unsigned int timerhi, timerlo;
 
 /* expirelo is the count value for next CPU timer interrupt */
 static unsigned int expirelo;
@@ -88,16 +82,10 @@ static void null_timer_ack(void) { /* nothing */ }
 /*
  * Null high precision timer functions for systems lacking one.
  */
-static unsigned int null_hpt_read(void)
+static cycle_t null_hpt_read(void)
 {
 	return 0;
 }
-
-static void null_hpt_init(unsigned int count)
-{
-	/* nothing */
-}
-
 
 /*
  * Timer ack for an R4k-compatible timer of a known frequency.
@@ -123,191 +111,20 @@ static void c0_timer_ack(void)
 /*
  * High precision timer functions for a R4k-compatible timer.
  */
-static unsigned int c0_hpt_read(void)
+static cycle_t c0_hpt_read(void)
 {
 	return read_c0_count();
 }
 
-/* For use solely as a high precision timer.  */
-static void c0_hpt_init(unsigned int count)
-{
-	write_c0_count(read_c0_count() - count);
-}
-
 /* For use both as a high precision timer and an interrupt source.  */
-static void c0_hpt_timer_init(unsigned int count)
+static void __init c0_hpt_timer_init(void)
 {
-	count = read_c0_count() - count;
-	expirelo = (count / cycles_per_jiffy + 1) * cycles_per_jiffy;
-	write_c0_count(expirelo - cycles_per_jiffy);
+	expirelo = read_c0_count() + cycles_per_jiffy;
 	write_c0_compare(expirelo);
-	write_c0_count(count);
 }
 
 int (*mips_timer_state)(void);
 void (*mips_timer_ack)(void);
-unsigned int (*mips_hpt_read)(void);
-void (*mips_hpt_init)(unsigned int);
-
-/*
- * Gettimeoffset routines.  These routines returns the time duration
- * since last timer interrupt in usecs.
- *
- * If the exact CPU counter frequency is known, use fixed_rate_gettimeoffset.
- * Otherwise use calibrate_gettimeoffset()
- *
- * If the CPU does not have the counter register, you can either supply
- * your own gettimeoffset() routine, or use null_gettimeoffset(), which
- * gives the same resolution as HZ.
- */
-
-static unsigned long null_gettimeoffset(void)
-{
-	return 0;
-}
-
-
-/* The function pointer to one of the gettimeoffset funcs.  */
-unsigned long (*do_gettimeoffset)(void) = null_gettimeoffset;
-
-
-static unsigned long fixed_rate_gettimeoffset(void)
-{
-	u32 count;
-	unsigned long res;
-
-	/* Get last timer tick in absolute kernel time */
-	count = mips_hpt_read();
-
-	/* .. relative to previous jiffy (32 bits is enough) */
-	count -= timerlo;
-
-	__asm__("multu	%1,%2"
-		: "=h" (res)
-		: "r" (count), "r" (sll32_usecs_per_cycle)
-		: "lo", GCC_REG_ACCUM);
-
-	/*
-	 * Due to possible jiffies inconsistencies, we need to check
-	 * the result so that we'll get a timer that is monotonic.
-	 */
-	if (res >= USECS_PER_JIFFY)
-		res = USECS_PER_JIFFY - 1;
-
-	return res;
-}
-
-
-/*
- * Cached "1/(clocks per usec) * 2^32" value.
- * It has to be recalculated once each jiffy.
- */
-static unsigned long cached_quotient;
-
-/* Last jiffy when calibrate_divXX_gettimeoffset() was called. */
-static unsigned long last_jiffies;
-
-/*
- * This is moved from dec/time.c:do_ioasic_gettimeoffset() by Maciej.
- */
-static unsigned long calibrate_div32_gettimeoffset(void)
-{
-	u32 count;
-	unsigned long res, tmp;
-	unsigned long quotient;
-
-	tmp = jiffies;
-
-	quotient = cached_quotient;
-
-	if (last_jiffies != tmp) {
-		last_jiffies = tmp;
-		if (last_jiffies != 0) {
-			unsigned long r0;
-			do_div64_32(r0, timerhi, timerlo, tmp);
-			do_div64_32(quotient, USECS_PER_JIFFY,
-				    USECS_PER_JIFFY_FRAC, r0);
-			cached_quotient = quotient;
-		}
-	}
-
-	/* Get last timer tick in absolute kernel time */
-	count = mips_hpt_read();
-
-	/* .. relative to previous jiffy (32 bits is enough) */
-	count -= timerlo;
-
-	__asm__("multu  %1,%2"
-		: "=h" (res)
-		: "r" (count), "r" (quotient)
-		: "lo", GCC_REG_ACCUM);
-
-	/*
-	 * Due to possible jiffies inconsistencies, we need to check
-	 * the result so that we'll get a timer that is monotonic.
-	 */
-	if (res >= USECS_PER_JIFFY)
-		res = USECS_PER_JIFFY - 1;
-
-	return res;
-}
-
-static unsigned long calibrate_div64_gettimeoffset(void)
-{
-	u32 count;
-	unsigned long res, tmp;
-	unsigned long quotient;
-
-	tmp = jiffies;
-
-	quotient = cached_quotient;
-
-	if (last_jiffies != tmp) {
-		last_jiffies = tmp;
-		if (last_jiffies) {
-			unsigned long r0;
-			__asm__(".set	push\n\t"
-				".set	mips3\n\t"
-				"lwu	%0,%3\n\t"
-				"dsll32	%1,%2,0\n\t"
-				"or	%1,%1,%0\n\t"
-				"ddivu	$0,%1,%4\n\t"
-				"mflo	%1\n\t"
-				"dsll32	%0,%5,0\n\t"
-				"or	%0,%0,%6\n\t"
-				"ddivu	$0,%0,%1\n\t"
-				"mflo	%0\n\t"
-				".set	pop"
-				: "=&r" (quotient), "=&r" (r0)
-				: "r" (timerhi), "m" (timerlo),
-				  "r" (tmp), "r" (USECS_PER_JIFFY),
-				  "r" (USECS_PER_JIFFY_FRAC)
-				: "hi", "lo", GCC_REG_ACCUM);
-			cached_quotient = quotient;
-		}
-	}
-
-	/* Get last timer tick in absolute kernel time */
-	count = mips_hpt_read();
-
-	/* .. relative to previous jiffy (32 bits is enough) */
-	count -= timerlo;
-
-	__asm__("multu	%1,%2"
-		: "=h" (res)
-		: "r" (count), "r" (quotient)
-		: "lo", GCC_REG_ACCUM);
-
-	/*
-	 * Due to possible jiffies inconsistencies, we need to check
-	 * the result so that we'll get a timer that is monotonic.
-	 */
-	if (res >= USECS_PER_JIFFY)
-		res = USECS_PER_JIFFY - 1;
-
-	return res;
-}
-
 
 /* last time when xtime and rtc are sync'ed up */
 static long last_rtc_update;
@@ -334,17 +151,9 @@ void local_timer_interrupt(int irq, void *dev_id)
  */
 irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
-	unsigned long j;
-	unsigned int count;
-
 	write_seqlock(&xtime_lock);
 
-	count = mips_hpt_read();
 	mips_timer_ack();
-
-	/* Update timerhi/timerlo for intra-jiffy calibration. */
-	timerhi += count < timerlo;			/* Wrap around */
-	timerlo = count;
 
 	/*
 	 * call the generic timer interrupt handling
@@ -365,47 +174,6 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 		} else {
 			/* do it again in 60 s */
 			last_rtc_update = xtime.tv_sec - 600;
-		}
-	}
-
-	/*
-	 * If jiffies has overflown in this timer_interrupt, we must
-	 * update the timer[hi]/[lo] to make fast gettimeoffset funcs
-	 * quotient calc still valid. -arca
-	 *
-	 * The first timer interrupt comes late as interrupts are
-	 * enabled long after timers are initialized.  Therefore the
-	 * high precision timer is fast, leading to wrong gettimeoffset()
-	 * calculations.  We deal with it by setting it based on the
-	 * number of its ticks between the second and the third interrupt.
-	 * That is still somewhat imprecise, but it's a good estimate.
-	 * --macro
-	 */
-	j = jiffies;
-	if (j < 4) {
-		static unsigned int prev_count;
-		static int hpt_initialized;
-
-		switch (j) {
-		case 0:
-			timerhi = timerlo = 0;
-			mips_hpt_init(count);
-			break;
-		case 2:
-			prev_count = count;
-			break;
-		case 3:
-			if (!hpt_initialized) {
-				unsigned int c3 = 3 * (count - prev_count);
-
-				timerhi = 0;
-				timerlo = c3;
-				mips_hpt_init(count - c3);
-				hpt_initialized = 1;
-			}
-			break;
-		default:
-			break;
 		}
 	}
 
@@ -476,12 +244,11 @@ asmlinkage void ll_local_timer_interrupt(int irq)
  * 1) board_time_init() -
  * 	a) (optional) set up RTC routines,
  *      b) (optional) calibrate and set the mips_hpt_frequency
- *	    (only needed if you intended to use fixed_rate_gettimeoffset
- *	     or use cpu counter as timer interrupt source)
+ *	    (only needed if you intended to use cpu counter as timer interrupt
+ *	     source)
  * 2) setup xtime based on rtc_mips_get_time().
- * 3) choose a appropriate gettimeoffset routine.
- * 4) calculate a couple of cached variables for later usage
- * 5) plat_timer_setup() -
+ * 3) calculate a couple of cached variables for later usage
+ * 4) plat_timer_setup() -
  *	a) (optional) over-write any choices made above by time_init().
  *	b) machine specific code should setup the timer irqaction.
  *	c) enable the timer interrupt
@@ -499,8 +266,7 @@ static struct irqaction timer_irqaction = {
 
 static unsigned int __init calibrate_hpt(void)
 {
-	u64 frequency;
-	u32 hpt_start, hpt_end, hpt_count, hz;
+	cycle_t frequency, hpt_start, hpt_end, hpt_count, hz;
 
 	const int loops = HZ / 10;
 	int log_2_loops = 0;
@@ -526,18 +292,47 @@ static unsigned int __init calibrate_hpt(void)
 	 * during the calculated number of periods between timer
 	 * interrupts.
 	 */
-	hpt_start = mips_hpt_read();
+	hpt_start = clocksource_mips.read();
 	do {
 		while (mips_timer_state());
 		while (!mips_timer_state());
 	} while (--i);
-	hpt_end = mips_hpt_read();
+	hpt_end = clocksource_mips.read();
 
-	hpt_count = hpt_end - hpt_start;
+	hpt_count = (hpt_end - hpt_start) & clocksource_mips.mask;
 	hz = HZ;
-	frequency = (u64)hpt_count * (u64)hz;
+	frequency = hpt_count * hz;
 
 	return frequency >> log_2_loops;
+}
+
+struct clocksource clocksource_mips = {
+	.name		= "MIPS",
+	.mask		= 0xffffffff,
+	.is_continuous	= 1,
+};
+
+static void __init init_mips_clocksource(void)
+{
+	u64 temp;
+	u32 shift;
+
+	if (!mips_hpt_frequency || clocksource_mips.read == null_hpt_read)
+		return;
+
+	/* Calclate a somewhat reasonable rating value */
+	clocksource_mips.rating = 200 + mips_hpt_frequency / 10000000;
+	/* Find a shift value */
+	for (shift = 32; shift > 0; shift--) {
+		temp = (u64) NSEC_PER_SEC << shift;
+		do_div(temp, mips_hpt_frequency);
+		if ((temp >> 32) == 0)
+			break;
+	}
+	clocksource_mips.shift = shift;
+	clocksource_mips.mult = (u32)temp;
+
+	clocksource_register(&clocksource_mips);
 }
 
 void __init time_init(void)
@@ -555,58 +350,35 @@ void __init time_init(void)
 	                        -xtime.tv_sec, -xtime.tv_nsec);
 
 	/* Choose appropriate high precision timer routines.  */
-	if (!cpu_has_counter && !mips_hpt_read) {
+	if (!cpu_has_counter && !clocksource_mips.read)
 		/* No high precision timer -- sorry.  */
-		mips_hpt_read = null_hpt_read;
-		mips_hpt_init = null_hpt_init;
-	} else if (!mips_hpt_frequency && !mips_timer_state) {
+		clocksource_mips.read = null_hpt_read;
+	else if (!mips_hpt_frequency && !mips_timer_state) {
 		/* A high precision timer of unknown frequency.  */
-		if (!mips_hpt_read) {
+		if (!clocksource_mips.read)
 			/* No external high precision timer -- use R4k.  */
-			mips_hpt_read = c0_hpt_read;
-			mips_hpt_init = c0_hpt_init;
-		}
-
-		if (cpu_has_mips32r1 || cpu_has_mips32r2 ||
-		    (current_cpu_data.isa_level == MIPS_CPU_ISA_I) ||
-		    (current_cpu_data.isa_level == MIPS_CPU_ISA_II))
-			/*
-			 * We need to calibrate the counter but we don't have
-			 * 64-bit division.
-			 */
-			do_gettimeoffset = calibrate_div32_gettimeoffset;
-		else
-			/*
-			 * We need to calibrate the counter but we *do* have
-			 * 64-bit division.
-			 */
-			do_gettimeoffset = calibrate_div64_gettimeoffset;
+			clocksource_mips.read = c0_hpt_read;
 	} else {
 		/* We know counter frequency.  Or we can get it.  */
-		if (!mips_hpt_read) {
+		if (!clocksource_mips.read) {
 			/* No external high precision timer -- use R4k.  */
-			mips_hpt_read = c0_hpt_read;
+			clocksource_mips.read = c0_hpt_read;
 
-			if (mips_timer_state)
-				mips_hpt_init = c0_hpt_init;
-			else {
+			if (!mips_timer_state) {
 				/* No external timer interrupt -- use R4k.  */
-				mips_hpt_init = c0_hpt_timer_init;
 				mips_timer_ack = c0_timer_ack;
+				/* Calculate cache parameters.  */
+				cycles_per_jiffy =
+					(mips_hpt_frequency + HZ / 2) / HZ;
+				/*
+				 * This sets up the high precision
+				 * timer for the first interrupt.
+				 */
+				c0_hpt_timer_init();
 			}
 		}
 		if (!mips_hpt_frequency)
 			mips_hpt_frequency = calibrate_hpt();
-
-		do_gettimeoffset = fixed_rate_gettimeoffset;
-
-		/* Calculate cache parameters.  */
-		cycles_per_jiffy = (mips_hpt_frequency + HZ / 2) / HZ;
-
-		/* sll32_usecs_per_cycle = 10^6 * 2^32 / mips_counter_freq  */
-		do_div64_32(sll32_usecs_per_cycle,
-			    1000000, mips_hpt_frequency / 2,
-			    mips_hpt_frequency);
 
 		/* Report the high precision timer rate for a reference.  */
 		printk("Using %u.%03u MHz high precision timer.\n",
@@ -617,9 +389,6 @@ void __init time_init(void)
 	if (!mips_timer_ack)
 		/* No timer interrupt ack (e.g. i8254).  */
 		mips_timer_ack = null_timer_ack;
-
-	/* This sets up the high precision timer for the first interrupt.  */
-	mips_hpt_init(mips_hpt_read());
 
 	/*
 	 * Call board specific timer interrupt setup.
@@ -633,6 +402,8 @@ void __init time_init(void)
 	 * is not invoked accidentally.
 	 */
 	plat_timer_setup(&timer_irqaction);
+
+	init_mips_clocksource();
 }
 
 #define FEBRUARY		2

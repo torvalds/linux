@@ -10,22 +10,21 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/mm.h>
-#include <linux/vmalloc.h>
-#include <linux/hdreg.h>
-#include <linux/ide.h>
 #include <linux/pm.h>
+#include <asm/hs7751rvoip.h>
 #include <asm/io.h>
-#include <asm/hs7751rvoip/hs7751rvoip.h>
 #include <asm/machvec.h>
-#include <asm/rtc.h>
-#include <asm/irq.h>
+
+static struct ipr_data hs77501rvoip_ipr_map[] = {
+#if defined(CONFIG_HS7751RVOIP_CODEC)
+	{ DMTE0_IRQ, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY },
+	{ DMTE1_IRQ, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY },
+#endif
+};
 
 static void __init hs7751rvoip_init_irq(void)
 {
-#if defined(CONFIG_HS7751RVOIP_CODEC)
-	make_ipr_irq(DMTE0_IRQ, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY);
-	make_ipr_irq(DMTE1_IRQ, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY);
-#endif
+	make_ipr_irq(hs77501rvoip_ipr_map, ARRAY_SIZE(hs77501rvoip_ipr_map));
 
 	init_hs7751rvoip_IRQ();
 }

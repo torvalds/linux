@@ -20,7 +20,7 @@ struct route_info {
 				route_pref:2,
 				reserved_h:3;
 #endif
-	__u32			lifetime;
+	__be32			lifetime;
 	__u8			prefix[0];	/* 0,8 or 16 */
 };
 
@@ -35,13 +35,6 @@ struct route_info {
 #define RT6_LOOKUP_F_IFACE	0x1
 #define RT6_LOOKUP_F_REACHABLE	0x2
 #define RT6_LOOKUP_F_HAS_SADDR	0x4
-
-struct pol_chain {
-	int			type;
-	int			priority;
-	struct fib6_node	*rules;
-	struct pol_chain	*next;
-};
 
 extern struct rt6_info	ip6_null_entry;
 

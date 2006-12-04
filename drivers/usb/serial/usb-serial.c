@@ -952,32 +952,28 @@ probe_error:
 		port = serial->port[i];
 		if (!port)
 			continue;
-		if (port->read_urb)
-			usb_free_urb (port->read_urb);
+		usb_free_urb(port->read_urb);
 		kfree(port->bulk_in_buffer);
 	}
 	for (i = 0; i < num_bulk_out; ++i) {
 		port = serial->port[i];
 		if (!port)
 			continue;
-		if (port->write_urb)
-			usb_free_urb (port->write_urb);
+		usb_free_urb(port->write_urb);
 		kfree(port->bulk_out_buffer);
 	}
 	for (i = 0; i < num_interrupt_in; ++i) {
 		port = serial->port[i];
 		if (!port)
 			continue;
-		if (port->interrupt_in_urb)
-			usb_free_urb (port->interrupt_in_urb);
+		usb_free_urb(port->interrupt_in_urb);
 		kfree(port->interrupt_in_buffer);
 	}
 	for (i = 0; i < num_interrupt_out; ++i) {
 		port = serial->port[i];
 		if (!port)
 			continue;
-		if (port->interrupt_out_urb)
-			usb_free_urb (port->interrupt_out_urb);
+		usb_free_urb(port->interrupt_out_urb);
 		kfree(port->interrupt_out_buffer);
 	}
 

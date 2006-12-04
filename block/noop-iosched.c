@@ -65,7 +65,7 @@ noop_latter_request(request_queue_t *q, struct request *rq)
 	return list_entry(rq->queuelist.next, struct request, queuelist);
 }
 
-static void *noop_init_queue(request_queue_t *q, elevator_t *e)
+static void *noop_init_queue(request_queue_t *q)
 {
 	struct noop_data *nd;
 

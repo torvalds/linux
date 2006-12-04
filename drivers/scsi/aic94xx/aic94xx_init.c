@@ -786,8 +786,6 @@ static void asd_remove_driver_attrs(struct device_driver *driver)
 }
 
 static struct sas_domain_function_template aic94xx_transport_functions = {
-	.lldd_port_formed	= asd_update_port_links,
-
 	.lldd_dev_found		= asd_dev_found,
 	.lldd_dev_gone		= asd_dev_gone,
 
@@ -813,6 +811,8 @@ static const struct pci_device_id aic94xx_pci_table[] __devinitdata = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_RAZOR12),
 	 0, 0, 1},
 	{PCI_DEVICE(PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_RAZOR1E),
+	 0, 0, 1},
+	{PCI_DEVICE(PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_RAZOR1F),
 	 0, 0, 1},
 	{PCI_DEVICE(PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_RAZOR30),
 	 0, 0, 2},

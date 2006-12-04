@@ -52,9 +52,9 @@ struct ccid_operations {
 						    unsigned char len, u16 idx,
 						    unsigned char* value);
 	int		(*ccid_hc_tx_send_packet)(struct sock *sk,
-						  struct sk_buff *skb, int len);
-	void		(*ccid_hc_tx_packet_sent)(struct sock *sk, int more,
-						  int len);
+						  struct sk_buff *skb);
+	void		(*ccid_hc_tx_packet_sent)(struct sock *sk,
+						  int more, unsigned int len);
 	void		(*ccid_hc_rx_get_info)(struct sock *sk,
 					       struct tcp_info *info);
 	void		(*ccid_hc_tx_get_info)(struct sock *sk,
@@ -94,16 +94,16 @@ extern void ccid_hc_rx_delete(struct ccid *ccid, struct sock *sk);
 extern void ccid_hc_tx_delete(struct ccid *ccid, struct sock *sk);
 
 static inline int ccid_hc_tx_send_packet(struct ccid *ccid, struct sock *sk,
-					 struct sk_buff *skb, int len)
+					 struct sk_buff *skb)
 {
 	int rc = 0;
 	if (ccid->ccid_ops->ccid_hc_tx_send_packet != NULL)
-		rc = ccid->ccid_ops->ccid_hc_tx_send_packet(sk, skb, len);
+		rc = ccid->ccid_ops->ccid_hc_tx_send_packet(sk, skb);
 	return rc;
 }
 
 static inline void ccid_hc_tx_packet_sent(struct ccid *ccid, struct sock *sk,
-					  int more, int len)
+					  int more, unsigned int len)
 {
 	if (ccid->ccid_ops->ccid_hc_tx_packet_sent != NULL)
 		ccid->ccid_ops->ccid_hc_tx_packet_sent(sk, more, len);

@@ -330,19 +330,6 @@ __init get_device_resource(struct linux_prom_pci_registers *ap,
 	return res;
 }
 
-static int __init pdev_resource_collisions_expected(struct pci_dev *pdev)
-{
-	if (pdev->vendor != PCI_VENDOR_ID_SUN)
-		return 0;
-
-	if (pdev->device == PCI_DEVICE_ID_SUN_RIO_EBUS ||
-	    pdev->device == PCI_DEVICE_ID_SUN_RIO_1394 ||
-	    pdev->device == PCI_DEVICE_ID_SUN_RIO_USB)
-		return 1;
-
-	return 0;
-}
-
 static void __init pdev_record_assignments(struct pci_pbm_info *pbm,
 					   struct pci_dev *pdev)
 {
@@ -400,19 +387,23 @@ static void __init pdev_record_assignments(struct pci_pbm_info *pbm,
 		pbm->parent->resource_adjust(pdev, res, root);
 
 		if (request_resource(root, res) < 0) {
+			int rnum;
+
 			/* OK, there is some conflict.  But this is fine
 			 * since we'll reassign it in the fixup pass.
 			 *
-			 * We notify the user that OBP made an error if it
-			 * is a case we don't expect.
+			 * Do not print the warning for ROM resources
+			 * as such a conflict is quite common and
+			 * harmless as the ROM bar is disabled.
 			 */
-			if (!pdev_resource_collisions_expected(pdev)) {
-				printk(KERN_ERR "PCI: Address space collision on region %ld "
+			rnum = (res - &pdev->resource[0]);
+			if (rnum != PCI_ROM_RESOURCE)
+				printk(KERN_ERR "PCI: Resource collision, "
+				       "region %d "
 				       "[%016lx:%016lx] of device %s\n",
-				       (res - &pdev->resource[0]),
+				       rnum,
 				       res->start, res->end,
 				       pci_name(pdev));
-			}
 		}
 	}
 }

@@ -284,7 +284,7 @@ static void __init valkyrie_choose_mode(struct fb_info_valkyrie *p)
 	printk(KERN_INFO "Monitor sense value = 0x%x\n", p->sense);
 
 	/* Try to pick a video mode out of NVRAM if we have one. */
-#ifndef CONFIG_MAC
+#if !defined(CONFIG_MAC) && defined(CONFIG_NVRAM)
 	if (default_vmode == VMODE_NVRAM) {
 		default_vmode = nvram_read_byte(NV_VMODE);
 		if (default_vmode <= 0
@@ -297,7 +297,7 @@ static void __init valkyrie_choose_mode(struct fb_info_valkyrie *p)
 		default_vmode = mac_map_monitor_sense(p->sense);
 	if (!valkyrie_reg_init[default_vmode - 1])
 		default_vmode = VMODE_640_480_67;
-#ifndef CONFIG_MAC
+#if !defined(CONFIG_MAC) && defined(CONFIG_NVRAM)
 	if (default_cmode == CMODE_NVRAM)
 		default_cmode = nvram_read_byte(NV_CMODE);
 #endif

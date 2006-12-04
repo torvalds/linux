@@ -263,7 +263,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 			 * value of PC.  Just subtract the value of
 			 * GOT, and we're done.
 			 */
-			pr_debug("GOTPC: PC=0x%lx, got_offset=0x%lx, core=0x%p\n",
+			pr_debug("GOTPC: PC=0x%x, got_offset=0x%lx, core=0x%p\n",
 				 relocation, module->arch.got_offset,
 				 module->module_core);
 			relocation -= ((unsigned long)module->module_core
@@ -282,7 +282,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 			    && (relocation & 0xffff0000) != 0xffff0000)
 				return reloc_overflow(module, "R_AVR32_GOT16S",
 						      relocation);
-			pr_debug("GOT reloc @ 0x%lx -> %lu\n",
+			pr_debug("GOT reloc @ 0x%x -> %u\n",
 				 rel->r_offset, relocation);
 			value = *location;
 			value = ((value & 0xffff0000)

@@ -788,6 +788,7 @@ static int __init wf_smu_init(void)
 		request_module("windfarm_smu_controls");
 		request_module("windfarm_smu_sensors");
 		request_module("windfarm_lm75_sensor");
+		request_module("windfarm_cpufreq_clamp");
 
 #endif /* MODULE */
 		platform_driver_register(&wf_smu_driver);

@@ -2413,10 +2413,11 @@ static int mos7840_ioctl(struct usb_serial_port *port, struct file *file,
 	}
 
 	mos7840_port = mos7840_get_port_private(port);
-	tty = mos7840_port->port->tty;
 
 	if (mos7840_port == NULL)
 		return -1;
+
+	tty = mos7840_port->port->tty;
 
 	dbg("%s - port %d, cmd = 0x%x", __FUNCTION__, port->number, cmd);
 
@@ -2595,12 +2596,11 @@ static int mos7840_startup(struct usb_serial *serial)
 
 	/* set up port private structures */
 	for (i = 0; i < serial->num_ports; ++i) {
-		mos7840_port = kmalloc(sizeof(struct moschip_port), GFP_KERNEL);
+		mos7840_port = kzalloc(sizeof(struct moschip_port), GFP_KERNEL);
 		if (mos7840_port == NULL) {
 			err("%s - Out of memory", __FUNCTION__);
 			return -ENOMEM;
 		}
-		memset(mos7840_port, 0, sizeof(struct moschip_port));
 
 		/* Initialize all port interrupt end point to port 0 int endpoint *
 		 * Our device has only one interrupt end point comman to all port */

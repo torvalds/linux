@@ -201,7 +201,7 @@ struct packet_sock {
 	spinlock_t		bind_lock;
 	char			running;	/* prot_hook is attached*/
 	int			ifindex;	/* bound device		*/
-	unsigned short		num;
+	__be16			num;
 #ifdef CONFIG_PACKET_MULTICAST
 	struct packet_mclist	*mclist;
 #endif
@@ -331,7 +331,7 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 	struct sockaddr_pkt *saddr=(struct sockaddr_pkt *)msg->msg_name;
 	struct sk_buff *skb;
 	struct net_device *dev;
-	unsigned short proto=0;
+	__be16 proto=0;
 	int err;
 	
 	/*
@@ -704,7 +704,7 @@ static int packet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	struct sockaddr_ll *saddr=(struct sockaddr_ll *)msg->msg_name;
 	struct sk_buff *skb;
 	struct net_device *dev;
-	unsigned short proto;
+	__be16 proto;
 	unsigned char *addr;
 	int ifindex, err, reserve = 0;
 
@@ -858,7 +858,7 @@ static int packet_release(struct socket *sock)
  *	Attach a packet hook.
  */
 
-static int packet_do_bind(struct sock *sk, struct net_device *dev, int protocol)
+static int packet_do_bind(struct sock *sk, struct net_device *dev, __be16 protocol)
 {
 	struct packet_sock *po = pkt_sk(sk);
 	/*
@@ -983,6 +983,7 @@ static int packet_create(struct socket *sock, int protocol)
 {
 	struct sock *sk;
 	struct packet_sock *po;
+	__be16 proto = (__force __be16)protocol; /* weird, but documented */
 	int err;
 
 	if (!capable(CAP_NET_RAW))
@@ -1010,7 +1011,7 @@ static int packet_create(struct socket *sock, int protocol)
 
 	po = pkt_sk(sk);
 	sk->sk_family = PF_PACKET;
-	po->num = protocol;
+	po->num = proto;
 
 	sk->sk_destruct = packet_sock_destruct;
 	atomic_inc(&packet_socks_nr);
@@ -1027,8 +1028,8 @@ static int packet_create(struct socket *sock, int protocol)
 #endif
 	po->prot_hook.af_packet_priv = sk;
 
-	if (protocol) {
-		po->prot_hook.type = protocol;
+	if (proto) {
+		po->prot_hook.type = proto;
 		dev_add_pack(&po->prot_hook);
 		sock_hold(sk);
 		po->running = 1;
@@ -1624,7 +1625,8 @@ static int packet_set_ring(struct sock *sk, struct tpacket_req *req, int closing
 {
 	char **pg_vec = NULL;
 	struct packet_sock *po = pkt_sk(sk);
-	int was_running, num, order = 0;
+	int was_running, order = 0;
+	__be16 num;
 	int err = 0;
 	
 	if (req->tp_block_nr) {

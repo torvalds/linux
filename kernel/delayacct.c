@@ -66,6 +66,7 @@ static void delayacct_end(struct timespec *start, struct timespec *end,
 {
 	struct timespec ts;
 	s64 ns;
+	unsigned long flags;
 
 	do_posix_clock_monotonic_gettime(end);
 	ts = timespec_sub(*end, *start);
@@ -73,10 +74,10 @@ static void delayacct_end(struct timespec *start, struct timespec *end,
 	if (ns < 0)
 		return;
 
-	spin_lock(&current->delays->lock);
+	spin_lock_irqsave(&current->delays->lock, flags);
 	*total += ns;
 	(*count)++;
-	spin_unlock(&current->delays->lock);
+	spin_unlock_irqrestore(&current->delays->lock, flags);
 }
 
 void __delayacct_blkio_start(void)
@@ -104,6 +105,7 @@ int __delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
 	s64 tmp;
 	struct timespec ts;
 	unsigned long t1,t2,t3;
+	unsigned long flags;
 
 	/* Though tsk->delays accessed later, early exit avoids
 	 * unnecessary returning of other data
@@ -136,14 +138,14 @@ int __delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
 
 	/* zero XXX_total, non-zero XXX_count implies XXX stat overflowed */
 
-	spin_lock(&tsk->delays->lock);
+	spin_lock_irqsave(&tsk->delays->lock, flags);
 	tmp = d->blkio_delay_total + tsk->delays->blkio_delay;
 	d->blkio_delay_total = (tmp < d->blkio_delay_total) ? 0 : tmp;
 	tmp = d->swapin_delay_total + tsk->delays->swapin_delay;
 	d->swapin_delay_total = (tmp < d->swapin_delay_total) ? 0 : tmp;
 	d->blkio_count += tsk->delays->blkio_count;
 	d->swapin_count += tsk->delays->swapin_count;
-	spin_unlock(&tsk->delays->lock);
+	spin_unlock_irqrestore(&tsk->delays->lock, flags);
 
 done:
 	return 0;
@@ -152,11 +154,12 @@ done:
 __u64 __delayacct_blkio_ticks(struct task_struct *tsk)
 {
 	__u64 ret;
+	unsigned long flags;
 
-	spin_lock(&tsk->delays->lock);
+	spin_lock_irqsave(&tsk->delays->lock, flags);
 	ret = nsec_to_clock_t(tsk->delays->blkio_delay +
 				tsk->delays->swapin_delay);
-	spin_unlock(&tsk->delays->lock);
+	spin_unlock_irqrestore(&tsk->delays->lock, flags);
 	return ret;
 }
 

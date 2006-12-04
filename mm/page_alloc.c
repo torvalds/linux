@@ -39,6 +39,7 @@
 #include <linux/stop_machine.h>
 #include <linux/sort.h>
 #include <linux/pfn.h>
+#include <linux/backing-dev.h>
 
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -852,7 +853,7 @@ again:
 		pcp = &zone_pcp(zone, cpu)->pcp[cold];
 		local_irq_save(flags);
 		if (!pcp->count) {
-			pcp->count += rmqueue_bulk(zone, 0,
+			pcp->count = rmqueue_bulk(zone, 0,
 						pcp->batch, &pcp->list);
 			if (unlikely(!pcp->count))
 				goto failed;
@@ -1050,7 +1051,7 @@ nofail_alloc:
 			if (page)
 				goto got_pg;
 			if (gfp_mask & __GFP_NOFAIL) {
-				blk_congestion_wait(WRITE, HZ/50);
+				congestion_wait(WRITE, HZ/50);
 				goto nofail_alloc;
 			}
 		}
@@ -1113,7 +1114,7 @@ rebalance:
 			do_retry = 1;
 	}
 	if (do_retry) {
-		blk_congestion_wait(WRITE, HZ/50);
+		congestion_wait(WRITE, HZ/50);
 		goto rebalance;
 	}
 
@@ -1688,6 +1689,8 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
 		if (!early_pfn_valid(pfn))
 			continue;
+		if (!early_pfn_in_nid(pfn, nid))
+			continue;
 		page = pfn_to_page(pfn);
 		set_page_links(page, zone, nid, pfn);
 		init_page_count(page);
@@ -2258,7 +2261,7 @@ unsigned long __init __absent_pages_in_range(int nid,
 
 	/* Account for ranges past physical memory on this node */
 	if (range_end_pfn > prev_end_pfn)
-		hole_pages = range_end_pfn -
+		hole_pages += range_end_pfn -
 				max(range_start_pfn, prev_end_pfn);
 
 	return hole_pages;
@@ -2404,7 +2407,7 @@ static void __meminit free_area_init_core(struct pglist_data *pgdat,
 		zone->zone_pgdat = pgdat;
 		zone->free_pages = 0;
 
-		zone->temp_priority = zone->prev_priority = DEF_PRIORITY;
+		zone->prev_priority = DEF_PRIORITY;
 
 		zone_pcp_init(zone);
 		INIT_LIST_HEAD(&zone->active_list);
@@ -2609,6 +2612,9 @@ unsigned long __init find_min_pfn_for_node(unsigned long nid)
 {
 	int i;
 
+	/* Regions in the early_node_map can be in any order */
+	sort_node_map();
+
 	/* Assuming a sorted map, the first range found has the starting pfn */
 	for_each_active_range_index_in_nid(i, nid)
 		return early_node_map[i].start_pfn;
@@ -2676,9 +2682,6 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
 		arch_zone_highest_possible_pfn[i] =
 			max(max_zone_pfn[i], arch_zone_lowest_possible_pfn[i]);
 	}
-
-	/* Regions in the early_node_map can be in any order */
-	sort_node_map();
 
 	/* Print out the zone ranges */
 	printk("Zone PFN ranges:\n");
@@ -3119,3 +3122,19 @@ unsigned long page_to_pfn(struct page *page)
 EXPORT_SYMBOL(pfn_to_page);
 EXPORT_SYMBOL(page_to_pfn);
 #endif /* CONFIG_OUT_OF_LINE_PFN_TO_PAGE */
+
+#if MAX_NUMNODES > 1
+/*
+ * Find the highest possible node id.
+ */
+int highest_possible_node_id(void)
+{
+	unsigned int node;
+	unsigned int highest = 0;
+
+	for_each_node_mask(node, node_possible_map)
+		highest = node;
+	return highest;
+}
+EXPORT_SYMBOL(highest_possible_node_id);
+#endif

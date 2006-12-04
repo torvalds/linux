@@ -1317,7 +1317,7 @@ static void as_exit_queue(elevator_t *e)
 /*
  * initialize elevator private data (as_data).
  */
-static void *as_init_queue(request_queue_t *q, elevator_t *e)
+static void *as_init_queue(request_queue_t *q)
 {
 	struct as_data *ad;
 

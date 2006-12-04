@@ -107,6 +107,10 @@ zfcp_address_to_sg(void *address, struct scatterlist *list)
 	(ZFCP_MAX_SBALS_PER_REQ * ZFCP_MAX_SBALES_PER_SBAL - 2)
         /* request ID + QTCB in SBALE 0 + 1 of first SBAL in chain */
 
+#define ZFCP_MAX_SECTORS (ZFCP_MAX_SBALES_PER_REQ * 8)
+        /* max. number of (data buffer) SBALEs in largest SBAL chain
+           multiplied with number of sectors per 4k block */
+
 /* FIXME(tune): free space should be one max. SBAL chain plus what? */
 #define ZFCP_QDIO_PCI_INTERVAL		(QDIO_MAX_BUFFERS_PER_Q \
                                          - (ZFCP_MAX_SBALS_PER_REQ + 4))

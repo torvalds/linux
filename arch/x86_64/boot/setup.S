@@ -836,13 +836,12 @@ gdt:
 	.word	0x9200				# data read/write
 	.word	0x00CF				# granularity = 4096, 386
 						#  (+5th nibble of limit)
+gdt_end:
 idt_48:
 	.word	0				# idt limit = 0
 	.word	0, 0				# idt base = 0L
 gdt_48:
-	.word	0x8000				# gdt limit=2048,
-						#  256 GDT entries
-
+	.word	gdt_end-gdt-1			# gdt limit
 	.word	0, 0				# gdt base (filled in later)
 
 # Include video setup & detection code

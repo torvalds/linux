@@ -2903,7 +2903,7 @@ sbmac_init_module(void)
 
 		dev = alloc_etherdev(sizeof(struct sbmac_softc));
 		if (!dev)
-			return -ENOMEM;	/* return ENOMEM */
+			return -ENOMEM;
 
 		printk(KERN_DEBUG "sbmac: configuring MAC at %lx\n", port);
 

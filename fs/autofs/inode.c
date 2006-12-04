@@ -20,10 +20,18 @@
 #include "autofs_i.h"
 #include <linux/module.h>
 
-static void autofs_put_super(struct super_block *sb)
+void autofs_kill_sb(struct super_block *sb)
 {
 	struct autofs_sb_info *sbi = autofs_sbi(sb);
 	unsigned int n;
+
+	/*
+	 * In the event of a failure in get_sb_nodev the superblock
+	 * info is not present so nothing else has been setup, so
+	 * just exit when we are called from deactivate_super.
+	 */
+	if (!sbi)
+		return;
 
 	if ( !sbi->catatonic )
 		autofs_catatonic_mode(sbi); /* Free wait queues, close pipe */
@@ -37,13 +45,13 @@ static void autofs_put_super(struct super_block *sb)
 	kfree(sb->s_fs_info);
 
 	DPRINTK(("autofs: shutting down\n"));
+	kill_anon_super(sb);
 }
 
 static void autofs_read_inode(struct inode *inode);
 
 static struct super_operations autofs_sops = {
 	.read_inode	= autofs_read_inode,
-	.put_super	= autofs_put_super,
 	.statfs		= simple_statfs,
 };
 
@@ -136,7 +144,8 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 
 	s->s_fs_info = sbi;
 	sbi->magic = AUTOFS_SBI_MAGIC;
-	sbi->catatonic = 0;
+	sbi->pipe = NULL;
+	sbi->catatonic = 1;
 	sbi->exp_timeout = 0;
 	sbi->oz_pgrp = process_group(current);
 	autofs_initialize_hash(&sbi->dirhash);
@@ -180,6 +189,7 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 	if ( !pipe->f_op || !pipe->f_op->write )
 		goto fail_fput;
 	sbi->pipe = pipe;
+	sbi->catatonic = 0;
 
 	/*
 	 * Success! Install the root dentry now to indicate completion.
@@ -198,6 +208,8 @@ fail_iput:
 	iput(root_inode);
 fail_free:
 	kfree(sbi);
+	s->s_fs_info = NULL;
+	kill_anon_super(s);
 fail_unlock:
 	return -EINVAL;
 }

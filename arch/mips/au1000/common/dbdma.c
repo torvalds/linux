@@ -849,7 +849,7 @@ au1xxx_dbdma_chan_free(u32 chanid)
 EXPORT_SYMBOL(au1xxx_dbdma_chan_free);
 
 static irqreturn_t
-dbdma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+dbdma_interrupt(int irq, void *dev_id)
 {
 	u32 intstat;
 	u32 chan_index;

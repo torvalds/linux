@@ -509,6 +509,8 @@ etrax_ethernet_init(void)
 		 * does not share cacheline with any other data (to avoid cache bug)
 		 */
 		RxDescList[i].skb = dev_alloc_skb(MAX_MEDIA_DATA_SIZE + 2 * L1_CACHE_BYTES);
+		if (!RxDescList[i].skb)
+			return -ENOMEM;
 		RxDescList[i].descr.ctrl   = 0;
 		RxDescList[i].descr.sw_len = MAX_MEDIA_DATA_SIZE;
 		RxDescList[i].descr.next   = virt_to_phys(&RxDescList[i + 1]);

@@ -118,7 +118,7 @@
 #include <net/xfrm.h>
 
 #define HASH_SIZE  16
-#define HASH(addr) ((addr^(addr>>4))&0xF)
+#define HASH(addr) (((__force u32)addr^((__force u32)addr>>4))&0xF)
 
 static int ipip_fb_tunnel_init(struct net_device *dev);
 static int ipip_tunnel_init(struct net_device *dev);
@@ -134,7 +134,7 @@ static struct ip_tunnel **tunnels[4] = { tunnels_wc, tunnels_l, tunnels_r, tunne
 
 static DEFINE_RWLOCK(ipip_lock);
 
-static struct ip_tunnel * ipip_tunnel_lookup(u32 remote, u32 local)
+static struct ip_tunnel * ipip_tunnel_lookup(__be32 remote, __be32 local)
 {
 	unsigned h0 = HASH(remote);
 	unsigned h1 = HASH(local);
@@ -160,8 +160,8 @@ static struct ip_tunnel * ipip_tunnel_lookup(u32 remote, u32 local)
 
 static struct ip_tunnel **ipip_bucket(struct ip_tunnel *t)
 {
-	u32 remote = t->parms.iph.daddr;
-	u32 local = t->parms.iph.saddr;
+	__be32 remote = t->parms.iph.daddr;
+	__be32 local = t->parms.iph.saddr;
 	unsigned h = 0;
 	int prio = 0;
 
@@ -203,8 +203,8 @@ static void ipip_tunnel_link(struct ip_tunnel *t)
 
 static struct ip_tunnel * ipip_tunnel_locate(struct ip_tunnel_parm *parms, int create)
 {
-	u32 remote = parms->iph.daddr;
-	u32 local = parms->iph.saddr;
+	__be32 remote = parms->iph.daddr;
+	__be32 local = parms->iph.saddr;
 	struct ip_tunnel *t, **tp, *nt;
 	struct net_device *dev;
 	unsigned h = 0;
@@ -519,13 +519,13 @@ static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct net_device_stats *stats = &tunnel->stat;
 	struct iphdr  *tiph = &tunnel->parms.iph;
 	u8     tos = tunnel->parms.iph.tos;
-	u16    df = tiph->frag_off;
+	__be16 df = tiph->frag_off;
 	struct rtable *rt;     			/* Route to the other host */
 	struct net_device *tdev;			/* Device to other host */
 	struct iphdr  *old_iph = skb->nh.iph;
 	struct iphdr  *iph;			/* Our new IP header */
 	int    max_headroom;			/* The extra header space needed */
-	u32    dst = tiph->daddr;
+	__be32 dst = tiph->daddr;
 	int    mtu;
 
 	if (tunnel->recursion++) {

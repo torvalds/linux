@@ -74,6 +74,7 @@ struct xdr_buf {
 #define	rpc_proc_unavail	__constant_htonl(RPC_PROC_UNAVAIL)
 #define	rpc_garbage_args	__constant_htonl(RPC_GARBAGE_ARGS)
 #define	rpc_system_err		__constant_htonl(RPC_SYSTEM_ERR)
+#define	rpc_drop_reply		__constant_htonl(RPC_DROP_REPLY)
 
 #define	rpc_auth_ok		__constant_htonl(RPC_AUTH_OK)
 #define	rpc_autherr_badcred	__constant_htonl(RPC_AUTH_BADCRED)
@@ -150,7 +151,7 @@ typedef struct {
 	struct sk_buff	*skb;
 	unsigned int	offset;
 	size_t		count;
-	unsigned int	csum;
+	__wsum		csum;
 } skb_reader_t;
 
 typedef size_t (*skb_read_actor_t)(skb_reader_t *desc, void *to, size_t len);

@@ -17,6 +17,7 @@
 #include "user_util.h"
 #include "user.h"
 #include "os.h"
+#include "um_malloc.h"
 
 #define MAX_PACKET (ETH_MAX_PACKET + ETH_HEADER_OTHER)
 

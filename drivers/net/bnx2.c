@@ -53,11 +53,12 @@
 
 #include "bnx2.h"
 #include "bnx2_fw.h"
+#include "bnx2_fw2.h"
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.4.45"
-#define DRV_MODULE_RELDATE	"September 29, 2006"
+#define DRV_MODULE_VERSION	"1.5.1"
+#define DRV_MODULE_RELDATE	"November 15, 2006"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -85,6 +86,7 @@ typedef enum {
 	NC370F,
 	BCM5708,
 	BCM5708S,
+	BCM5709,
 } board_t;
 
 /* indexed by board_t, above */
@@ -98,6 +100,7 @@ static const struct {
 	{ "HP NC370F Multifunction Gigabit Server Adapter" },
 	{ "Broadcom NetXtreme II BCM5708 1000Base-T" },
 	{ "Broadcom NetXtreme II BCM5708 1000Base-SX" },
+	{ "Broadcom NetXtreme II BCM5709 1000Base-T" },
 	};
 
 static struct pci_device_id bnx2_pci_tbl[] = {
@@ -115,6 +118,8 @@ static struct pci_device_id bnx2_pci_tbl[] = {
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, BCM5706S },
 	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_NX2_5708S,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, BCM5708S },
+	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_NX2_5709,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, BCM5709 },
 	{ 0, }
 };
 
@@ -236,8 +241,23 @@ static void
 bnx2_ctx_wr(struct bnx2 *bp, u32 cid_addr, u32 offset, u32 val)
 {
 	offset += cid_addr;
-	REG_WR(bp, BNX2_CTX_DATA_ADR, offset);
-	REG_WR(bp, BNX2_CTX_DATA, val);
+	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
+		int i;
+
+		REG_WR(bp, BNX2_CTX_CTX_DATA, val);
+		REG_WR(bp, BNX2_CTX_CTX_CTRL,
+		       offset | BNX2_CTX_CTX_CTRL_WRITE_REQ);
+		for (i = 0; i < 5; i++) {
+			u32 val;
+			val = REG_RD(bp, BNX2_CTX_CTX_CTRL);
+			if ((val & BNX2_CTX_CTX_CTRL_WRITE_REQ) == 0)
+				break;
+			udelay(5);
+		}
+	} else {
+		REG_WR(bp, BNX2_CTX_DATA_ADR, offset);
+		REG_WR(bp, BNX2_CTX_DATA, val);
+	}
 }
 
 static int
@@ -403,6 +423,14 @@ bnx2_free_mem(struct bnx2 *bp)
 {
 	int i;
 
+	for (i = 0; i < bp->ctx_pages; i++) {
+		if (bp->ctx_blk[i]) {
+			pci_free_consistent(bp->pdev, BCM_PAGE_SIZE,
+					    bp->ctx_blk[i],
+					    bp->ctx_blk_mapping[i]);
+			bp->ctx_blk[i] = NULL;
+		}
+	}
 	if (bp->status_blk) {
 		pci_free_consistent(bp->pdev, bp->status_stats_size,
 				    bp->status_blk, bp->status_blk_mapping);
@@ -481,6 +509,18 @@ bnx2_alloc_mem(struct bnx2 *bp)
 
 	bp->stats_blk_mapping = bp->status_blk_mapping + status_blk_size;
 
+	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
+		bp->ctx_pages = 0x2000 / BCM_PAGE_SIZE;
+		if (bp->ctx_pages == 0)
+			bp->ctx_pages = 1;
+		for (i = 0; i < bp->ctx_pages; i++) {
+			bp->ctx_blk[i] = pci_alloc_consistent(bp->pdev,
+						BCM_PAGE_SIZE,
+						&bp->ctx_blk_mapping[i]);
+			if (bp->ctx_blk[i] == NULL)
+				goto alloc_mem_err;
+		}
+	}
 	return 0;
 
 alloc_mem_err:
@@ -803,13 +843,13 @@ bnx2_set_mac_link(struct bnx2 *bp)
 
 	val &= ~(BNX2_EMAC_MODE_PORT | BNX2_EMAC_MODE_HALF_DUPLEX |
 		BNX2_EMAC_MODE_MAC_LOOP | BNX2_EMAC_MODE_FORCE_LINK |
-		BNX2_EMAC_MODE_25G);
+		BNX2_EMAC_MODE_25G_MODE);
 
 	if (bp->link_up) {
 		switch (bp->line_speed) {
 			case SPEED_10:
-				if (CHIP_NUM(bp) == CHIP_NUM_5708) {
-					val |= BNX2_EMAC_MODE_PORT_MII_10;
+				if (CHIP_NUM(bp) != CHIP_NUM_5706) {
+					val |= BNX2_EMAC_MODE_PORT_MII_10M;
 					break;
 				}
 				/* fall through */
@@ -817,7 +857,7 @@ bnx2_set_mac_link(struct bnx2 *bp)
 				val |= BNX2_EMAC_MODE_PORT_MII;
 				break;
 			case SPEED_2500:
-				val |= BNX2_EMAC_MODE_25G;
+				val |= BNX2_EMAC_MODE_25G_MODE;
 				/* fall through */
 			case SPEED_1000:
 				val |= BNX2_EMAC_MODE_PORT_GMII;
@@ -860,7 +900,7 @@ bnx2_set_link(struct bnx2 *bp)
 	u32 bmsr;
 	u8 link_up;
 
-	if (bp->loopback == MAC_LOOPBACK) {
+	if (bp->loopback == MAC_LOOPBACK || bp->loopback == PHY_LOOPBACK) {
 		bp->link_up = 1;
 		return 0;
 	}
@@ -902,6 +942,7 @@ bnx2_set_link(struct bnx2 *bp)
 			u32 bmcr;
 
 			bnx2_read_phy(bp, MII_BMCR, &bmcr);
+			bmcr &= ~BCM5708S_BMCR_FORCE_2500;
 			if (!(bmcr & BMCR_ANENABLE)) {
 				bnx2_write_phy(bp, MII_BMCR, bmcr |
 					BMCR_ANENABLE);
@@ -988,7 +1029,21 @@ bnx2_setup_serdes_phy(struct bnx2 *bp)
 		u32 new_bmcr;
 		int force_link_down = 0;
 
-		if (CHIP_NUM(bp) == CHIP_NUM_5708) {
+		bnx2_read_phy(bp, MII_ADVERTISE, &adv);
+		adv &= ~(ADVERTISE_1000XFULL | ADVERTISE_1000XHALF);
+
+		bnx2_read_phy(bp, MII_BMCR, &bmcr);
+		new_bmcr = bmcr & ~(BMCR_ANENABLE | BCM5708S_BMCR_FORCE_2500);
+		new_bmcr |= BMCR_SPEED1000;
+		if (bp->req_line_speed == SPEED_2500) {
+			new_bmcr |= BCM5708S_BMCR_FORCE_2500;
+			bnx2_read_phy(bp, BCM5708S_UP1, &up1);
+			if (!(up1 & BCM5708S_UP1_2G5)) {
+				up1 |= BCM5708S_UP1_2G5;
+				bnx2_write_phy(bp, BCM5708S_UP1, up1);
+				force_link_down = 1;
+			}
+		} else if (CHIP_NUM(bp) == CHIP_NUM_5708) {
 			bnx2_read_phy(bp, BCM5708S_UP1, &up1);
 			if (up1 & BCM5708S_UP1_2G5) {
 				up1 &= ~BCM5708S_UP1_2G5;
@@ -997,12 +1052,6 @@ bnx2_setup_serdes_phy(struct bnx2 *bp)
 			}
 		}
 
-		bnx2_read_phy(bp, MII_ADVERTISE, &adv);
-		adv &= ~(ADVERTISE_1000XFULL | ADVERTISE_1000XHALF);
-
-		bnx2_read_phy(bp, MII_BMCR, &bmcr);
-		new_bmcr = bmcr & ~BMCR_ANENABLE;
-		new_bmcr |= BMCR_SPEED1000;
 		if (bp->req_duplex == DUPLEX_FULL) {
 			adv |= ADVERTISE_1000XFULL;
 			new_bmcr |= BMCR_FULLDPLX;
@@ -1023,6 +1072,7 @@ bnx2_setup_serdes_phy(struct bnx2 *bp)
 				bp->link_up = 0;
 				netif_carrier_off(bp->dev);
 				bnx2_write_phy(bp, MII_BMCR, new_bmcr);
+				bnx2_report_link(bp);
 			}
 			bnx2_write_phy(bp, MII_ADVERTISE, adv);
 			bnx2_write_phy(bp, MII_BMCR, new_bmcr);
@@ -1048,30 +1098,26 @@ bnx2_setup_serdes_phy(struct bnx2 *bp)
 	if ((adv != new_adv) || ((bmcr & BMCR_ANENABLE) == 0)) {
 		/* Force a link down visible on the other side */
 		if (bp->link_up) {
-			int i;
-
 			bnx2_write_phy(bp, MII_BMCR, BMCR_LOOPBACK);
-			for (i = 0; i < 110; i++) {
-				udelay(100);
-			}
+			spin_unlock_bh(&bp->phy_lock);
+			msleep(20);
+			spin_lock_bh(&bp->phy_lock);
 		}
 
 		bnx2_write_phy(bp, MII_ADVERTISE, new_adv);
 		bnx2_write_phy(bp, MII_BMCR, bmcr | BMCR_ANRESTART |
 			BMCR_ANENABLE);
-		if (CHIP_NUM(bp) == CHIP_NUM_5706) {
-			/* Speed up link-up time when the link partner
-			 * does not autonegotiate which is very common
-			 * in blade servers. Some blade servers use
-			 * IPMI for kerboard input and it's important
-			 * to minimize link disruptions. Autoneg. involves
-			 * exchanging base pages plus 3 next pages and
-			 * normally completes in about 120 msec.
-			 */
-			bp->current_interval = SERDES_AN_TIMEOUT;
-			bp->serdes_an_pending = 1;
-			mod_timer(&bp->timer, jiffies + bp->current_interval);
-		}
+		/* Speed up link-up time when the link partner
+		 * does not autonegotiate which is very common
+		 * in blade servers. Some blade servers use
+		 * IPMI for kerboard input and it's important
+		 * to minimize link disruptions. Autoneg. involves
+		 * exchanging base pages plus 3 next pages and
+		 * normally completes in about 120 msec.
+		 */
+		bp->current_interval = SERDES_AN_TIMEOUT;
+		bp->serdes_an_pending = 1;
+		mod_timer(&bp->timer, jiffies + bp->current_interval);
 	}
 
 	return 0;
@@ -1153,7 +1199,6 @@ bnx2_setup_copper_phy(struct bnx2 *bp)
 	}
 	if (new_bmcr != bmcr) {
 		u32 bmsr;
-		int i = 0;
 
 		bnx2_read_phy(bp, MII_BMSR, &bmsr);
 		bnx2_read_phy(bp, MII_BMSR, &bmsr);
@@ -1161,12 +1206,12 @@ bnx2_setup_copper_phy(struct bnx2 *bp)
 		if (bmsr & BMSR_LSTATUS) {
 			/* Force link down */
 			bnx2_write_phy(bp, MII_BMCR, BMCR_LOOPBACK);
-			do {
-				udelay(100);
-				bnx2_read_phy(bp, MII_BMSR, &bmsr);
-				bnx2_read_phy(bp, MII_BMSR, &bmsr);
-				i++;
-			} while ((bmsr & BMSR_LSTATUS) && (i < 620));
+			spin_unlock_bh(&bp->phy_lock);
+			msleep(50);
+			spin_lock_bh(&bp->phy_lock);
+
+			bnx2_read_phy(bp, MII_BMSR, &bmsr);
+			bnx2_read_phy(bp, MII_BMSR, &bmsr);
 		}
 
 		bnx2_write_phy(bp, MII_BMCR, new_bmcr);
@@ -1258,9 +1303,8 @@ bnx2_init_5706s_phy(struct bnx2 *bp)
 {
 	bp->phy_flags &= ~PHY_PARALLEL_DETECT_FLAG;
 
-	if (CHIP_NUM(bp) == CHIP_NUM_5706) {
-        	REG_WR(bp, BNX2_MISC_UNUSED0, 0x300);
-	}
+	if (CHIP_NUM(bp) == CHIP_NUM_5706)
+        	REG_WR(bp, BNX2_MISC_GP_HW_CTL0, 0x300);
 
 	if (bp->dev->mtu > 1500) {
 		u32 val;
@@ -1397,13 +1441,13 @@ bnx2_set_phy_loopback(struct bnx2 *bp)
 	for (i = 0; i < 10; i++) {
 		if (bnx2_test_link(bp) == 0)
 			break;
-		udelay(10);
+		msleep(100);
 	}
 
 	mac_mode = REG_RD(bp, BNX2_EMAC_MODE);
 	mac_mode &= ~(BNX2_EMAC_MODE_PORT | BNX2_EMAC_MODE_HALF_DUPLEX |
 		      BNX2_EMAC_MODE_MAC_LOOP | BNX2_EMAC_MODE_FORCE_LINK |
-		      BNX2_EMAC_MODE_25G);
+		      BNX2_EMAC_MODE_25G_MODE);
 
 	mac_mode |= BNX2_EMAC_MODE_PORT_GMII;
 	REG_WR(bp, BNX2_EMAC_MODE, mac_mode);
@@ -1452,6 +1496,40 @@ bnx2_fw_sync(struct bnx2 *bp, u32 msg_data, int silent)
 		return -EIO;
 
 	return 0;
+}
+
+static int
+bnx2_init_5709_context(struct bnx2 *bp)
+{
+	int i, ret = 0;
+	u32 val;
+
+	val = BNX2_CTX_COMMAND_ENABLED | BNX2_CTX_COMMAND_MEM_INIT | (1 << 12);
+	val |= (BCM_PAGE_BITS - 8) << 16;
+	REG_WR(bp, BNX2_CTX_COMMAND, val);
+	for (i = 0; i < bp->ctx_pages; i++) {
+		int j;
+
+		REG_WR(bp, BNX2_CTX_HOST_PAGE_TBL_DATA0,
+		       (bp->ctx_blk_mapping[i] & 0xffffffff) |
+		       BNX2_CTX_HOST_PAGE_TBL_DATA0_VALID);
+		REG_WR(bp, BNX2_CTX_HOST_PAGE_TBL_DATA1,
+		       (u64) bp->ctx_blk_mapping[i] >> 32);
+		REG_WR(bp, BNX2_CTX_HOST_PAGE_TBL_CTRL, i |
+		       BNX2_CTX_HOST_PAGE_TBL_CTRL_WRITE_REQ);
+		for (j = 0; j < 10; j++) {
+
+			val = REG_RD(bp, BNX2_CTX_HOST_PAGE_TBL_CTRL);
+			if (!(val & BNX2_CTX_HOST_PAGE_TBL_CTRL_WRITE_REQ))
+				break;
+			udelay(5);
+		}
+		if (val & BNX2_CTX_HOST_PAGE_TBL_CTRL_WRITE_REQ) {
+			ret = -EBUSY;
+			break;
+		}
+	}
+	return ret;
 }
 
 static void
@@ -1576,9 +1654,8 @@ bnx2_alloc_rx_skb(struct bnx2 *bp, u16 index)
 		return -ENOMEM;
 	}
 
-	if (unlikely((align = (unsigned long) skb->data & 0x7))) {
-		skb_reserve(skb, 8 - align);
-	}
+	if (unlikely((align = (unsigned long) skb->data & (BNX2_RX_ALIGN - 1))))
+		skb_reserve(skb, BNX2_RX_ALIGN - align);
 
 	mapping = pci_map_single(bp->pdev, skb->data, bp->rx_buf_use_size,
 		PCI_DMA_FROMDEVICE);
@@ -2040,7 +2117,8 @@ bnx2_set_rx_mode(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC) {
 		/* Promiscuous mode. */
 		rx_mode |= BNX2_EMAC_RX_MODE_PROMISCUOUS;
-		sort_mode |= BNX2_RPM_SORT_USER0_PROM_EN;
+		sort_mode |= BNX2_RPM_SORT_USER0_PROM_EN |
+			     BNX2_RPM_SORT_USER0_PROM_VLAN;
 	}
 	else if (dev->flags & IFF_ALLMULTI) {
 		for (i = 0; i < NUM_MC_HASH_REGISTERS; i++) {
@@ -2208,11 +2286,12 @@ load_rv2p_fw(struct bnx2 *bp, u32 *rv2p_code, u32 rv2p_code_len,
 	}
 }
 
-static void
+static int
 load_cpu_fw(struct bnx2 *bp, struct cpu_reg *cpu_reg, struct fw_info *fw)
 {
 	u32 offset;
 	u32 val;
+	int rc;
 
 	/* Halt the CPU. */
 	val = REG_RD_IND(bp, cpu_reg->mode);
@@ -2222,7 +2301,18 @@ load_cpu_fw(struct bnx2 *bp, struct cpu_reg *cpu_reg, struct fw_info *fw)
 
 	/* Load the Text area. */
 	offset = cpu_reg->spad_base + (fw->text_addr - cpu_reg->mips_view_base);
-	if (fw->text) {
+	if (fw->gz_text) {
+		u32 text_len;
+		void *text;
+
+		rc = bnx2_gunzip(bp, fw->gz_text, fw->gz_text_len, &text,
+				 &text_len);
+		if (rc)
+			return rc;
+
+		fw->text = text;
+	}
+	if (fw->gz_text) {
 		int j;
 
 		for (j = 0; j < (fw->text_len / 4); j++, offset += 4) {
@@ -2280,13 +2370,15 @@ load_cpu_fw(struct bnx2 *bp, struct cpu_reg *cpu_reg, struct fw_info *fw)
 	val &= ~cpu_reg->mode_value_halt;
 	REG_WR_IND(bp, cpu_reg->state, cpu_reg->state_value_clear);
 	REG_WR_IND(bp, cpu_reg->mode, val);
+
+	return 0;
 }
 
 static int
 bnx2_init_cpus(struct bnx2 *bp)
 {
 	struct cpu_reg cpu_reg;
-	struct fw_info fw;
+	struct fw_info *fw;
 	int rc = 0;
 	void *text;
 	u32 text_len;
@@ -2323,43 +2415,14 @@ bnx2_init_cpus(struct bnx2 *bp)
 	cpu_reg.spad_base = BNX2_RXP_SCRATCH;
 	cpu_reg.mips_view_base = 0x8000000;
 
-	fw.ver_major = bnx2_RXP_b06FwReleaseMajor;
-	fw.ver_minor = bnx2_RXP_b06FwReleaseMinor;
-	fw.ver_fix = bnx2_RXP_b06FwReleaseFix;
-	fw.start_addr = bnx2_RXP_b06FwStartAddr;
+	if (CHIP_NUM(bp) == CHIP_NUM_5709)
+		fw = &bnx2_rxp_fw_09;
+	else
+		fw = &bnx2_rxp_fw_06;
 
-	fw.text_addr = bnx2_RXP_b06FwTextAddr;
-	fw.text_len = bnx2_RXP_b06FwTextLen;
-	fw.text_index = 0;
-
-	rc = bnx2_gunzip(bp, bnx2_RXP_b06FwText, sizeof(bnx2_RXP_b06FwText),
-			 &text, &text_len);
+	rc = load_cpu_fw(bp, &cpu_reg, fw);
 	if (rc)
 		goto init_cpu_err;
-
-	fw.text = text;
-
-	fw.data_addr = bnx2_RXP_b06FwDataAddr;
-	fw.data_len = bnx2_RXP_b06FwDataLen;
-	fw.data_index = 0;
-	fw.data = bnx2_RXP_b06FwData;
-
-	fw.sbss_addr = bnx2_RXP_b06FwSbssAddr;
-	fw.sbss_len = bnx2_RXP_b06FwSbssLen;
-	fw.sbss_index = 0;
-	fw.sbss = bnx2_RXP_b06FwSbss;
-
-	fw.bss_addr = bnx2_RXP_b06FwBssAddr;
-	fw.bss_len = bnx2_RXP_b06FwBssLen;
-	fw.bss_index = 0;
-	fw.bss = bnx2_RXP_b06FwBss;
-
-	fw.rodata_addr = bnx2_RXP_b06FwRodataAddr;
-	fw.rodata_len = bnx2_RXP_b06FwRodataLen;
-	fw.rodata_index = 0;
-	fw.rodata = bnx2_RXP_b06FwRodata;
-
-	load_cpu_fw(bp, &cpu_reg, &fw);
 
 	/* Initialize the TX Processor. */
 	cpu_reg.mode = BNX2_TXP_CPU_MODE;
@@ -2375,43 +2438,14 @@ bnx2_init_cpus(struct bnx2 *bp)
 	cpu_reg.spad_base = BNX2_TXP_SCRATCH;
 	cpu_reg.mips_view_base = 0x8000000;
 
-	fw.ver_major = bnx2_TXP_b06FwReleaseMajor;
-	fw.ver_minor = bnx2_TXP_b06FwReleaseMinor;
-	fw.ver_fix = bnx2_TXP_b06FwReleaseFix;
-	fw.start_addr = bnx2_TXP_b06FwStartAddr;
+	if (CHIP_NUM(bp) == CHIP_NUM_5709)
+		fw = &bnx2_txp_fw_09;
+	else
+		fw = &bnx2_txp_fw_06;
 
-	fw.text_addr = bnx2_TXP_b06FwTextAddr;
-	fw.text_len = bnx2_TXP_b06FwTextLen;
-	fw.text_index = 0;
-
-	rc = bnx2_gunzip(bp, bnx2_TXP_b06FwText, sizeof(bnx2_TXP_b06FwText),
-			 &text, &text_len);
+	rc = load_cpu_fw(bp, &cpu_reg, fw);
 	if (rc)
 		goto init_cpu_err;
-
-	fw.text = text;
-
-	fw.data_addr = bnx2_TXP_b06FwDataAddr;
-	fw.data_len = bnx2_TXP_b06FwDataLen;
-	fw.data_index = 0;
-	fw.data = bnx2_TXP_b06FwData;
-
-	fw.sbss_addr = bnx2_TXP_b06FwSbssAddr;
-	fw.sbss_len = bnx2_TXP_b06FwSbssLen;
-	fw.sbss_index = 0;
-	fw.sbss = bnx2_TXP_b06FwSbss;
-
-	fw.bss_addr = bnx2_TXP_b06FwBssAddr;
-	fw.bss_len = bnx2_TXP_b06FwBssLen;
-	fw.bss_index = 0;
-	fw.bss = bnx2_TXP_b06FwBss;
-
-	fw.rodata_addr = bnx2_TXP_b06FwRodataAddr;
-	fw.rodata_len = bnx2_TXP_b06FwRodataLen;
-	fw.rodata_index = 0;
-	fw.rodata = bnx2_TXP_b06FwRodata;
-
-	load_cpu_fw(bp, &cpu_reg, &fw);
 
 	/* Initialize the TX Patch-up Processor. */
 	cpu_reg.mode = BNX2_TPAT_CPU_MODE;
@@ -2427,43 +2461,14 @@ bnx2_init_cpus(struct bnx2 *bp)
 	cpu_reg.spad_base = BNX2_TPAT_SCRATCH;
 	cpu_reg.mips_view_base = 0x8000000;
 
-	fw.ver_major = bnx2_TPAT_b06FwReleaseMajor;
-	fw.ver_minor = bnx2_TPAT_b06FwReleaseMinor;
-	fw.ver_fix = bnx2_TPAT_b06FwReleaseFix;
-	fw.start_addr = bnx2_TPAT_b06FwStartAddr;
+	if (CHIP_NUM(bp) == CHIP_NUM_5709)
+		fw = &bnx2_tpat_fw_09;
+	else
+		fw = &bnx2_tpat_fw_06;
 
-	fw.text_addr = bnx2_TPAT_b06FwTextAddr;
-	fw.text_len = bnx2_TPAT_b06FwTextLen;
-	fw.text_index = 0;
-
-	rc = bnx2_gunzip(bp, bnx2_TPAT_b06FwText, sizeof(bnx2_TPAT_b06FwText),
-			 &text, &text_len);
+	rc = load_cpu_fw(bp, &cpu_reg, fw);
 	if (rc)
 		goto init_cpu_err;
-
-	fw.text = text;
-
-	fw.data_addr = bnx2_TPAT_b06FwDataAddr;
-	fw.data_len = bnx2_TPAT_b06FwDataLen;
-	fw.data_index = 0;
-	fw.data = bnx2_TPAT_b06FwData;
-
-	fw.sbss_addr = bnx2_TPAT_b06FwSbssAddr;
-	fw.sbss_len = bnx2_TPAT_b06FwSbssLen;
-	fw.sbss_index = 0;
-	fw.sbss = bnx2_TPAT_b06FwSbss;
-
-	fw.bss_addr = bnx2_TPAT_b06FwBssAddr;
-	fw.bss_len = bnx2_TPAT_b06FwBssLen;
-	fw.bss_index = 0;
-	fw.bss = bnx2_TPAT_b06FwBss;
-
-	fw.rodata_addr = bnx2_TPAT_b06FwRodataAddr;
-	fw.rodata_len = bnx2_TPAT_b06FwRodataLen;
-	fw.rodata_index = 0;
-	fw.rodata = bnx2_TPAT_b06FwRodata;
-
-	load_cpu_fw(bp, &cpu_reg, &fw);
 
 	/* Initialize the Completion Processor. */
 	cpu_reg.mode = BNX2_COM_CPU_MODE;
@@ -2479,44 +2484,36 @@ bnx2_init_cpus(struct bnx2 *bp)
 	cpu_reg.spad_base = BNX2_COM_SCRATCH;
 	cpu_reg.mips_view_base = 0x8000000;
 
-	fw.ver_major = bnx2_COM_b06FwReleaseMajor;
-	fw.ver_minor = bnx2_COM_b06FwReleaseMinor;
-	fw.ver_fix = bnx2_COM_b06FwReleaseFix;
-	fw.start_addr = bnx2_COM_b06FwStartAddr;
+	if (CHIP_NUM(bp) == CHIP_NUM_5709)
+		fw = &bnx2_com_fw_09;
+	else
+		fw = &bnx2_com_fw_06;
 
-	fw.text_addr = bnx2_COM_b06FwTextAddr;
-	fw.text_len = bnx2_COM_b06FwTextLen;
-	fw.text_index = 0;
-
-	rc = bnx2_gunzip(bp, bnx2_COM_b06FwText, sizeof(bnx2_COM_b06FwText),
-			 &text, &text_len);
+	rc = load_cpu_fw(bp, &cpu_reg, fw);
 	if (rc)
 		goto init_cpu_err;
 
-	fw.text = text;
+	/* Initialize the Command Processor. */
+	cpu_reg.mode = BNX2_CP_CPU_MODE;
+	cpu_reg.mode_value_halt = BNX2_CP_CPU_MODE_SOFT_HALT;
+	cpu_reg.mode_value_sstep = BNX2_CP_CPU_MODE_STEP_ENA;
+	cpu_reg.state = BNX2_CP_CPU_STATE;
+	cpu_reg.state_value_clear = 0xffffff;
+	cpu_reg.gpr0 = BNX2_CP_CPU_REG_FILE;
+	cpu_reg.evmask = BNX2_CP_CPU_EVENT_MASK;
+	cpu_reg.pc = BNX2_CP_CPU_PROGRAM_COUNTER;
+	cpu_reg.inst = BNX2_CP_CPU_INSTRUCTION;
+	cpu_reg.bp = BNX2_CP_CPU_HW_BREAKPOINT;
+	cpu_reg.spad_base = BNX2_CP_SCRATCH;
+	cpu_reg.mips_view_base = 0x8000000;
 
-	fw.data_addr = bnx2_COM_b06FwDataAddr;
-	fw.data_len = bnx2_COM_b06FwDataLen;
-	fw.data_index = 0;
-	fw.data = bnx2_COM_b06FwData;
+	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
+		fw = &bnx2_cp_fw_09;
 
-	fw.sbss_addr = bnx2_COM_b06FwSbssAddr;
-	fw.sbss_len = bnx2_COM_b06FwSbssLen;
-	fw.sbss_index = 0;
-	fw.sbss = bnx2_COM_b06FwSbss;
-
-	fw.bss_addr = bnx2_COM_b06FwBssAddr;
-	fw.bss_len = bnx2_COM_b06FwBssLen;
-	fw.bss_index = 0;
-	fw.bss = bnx2_COM_b06FwBss;
-
-	fw.rodata_addr = bnx2_COM_b06FwRodataAddr;
-	fw.rodata_len = bnx2_COM_b06FwRodataLen;
-	fw.rodata_index = 0;
-	fw.rodata = bnx2_COM_b06FwRodata;
-
-	load_cpu_fw(bp, &cpu_reg, &fw);
-
+		load_cpu_fw(bp, &cpu_reg, fw);
+		if (rc)
+			goto init_cpu_err;
+	}
 init_cpu_err:
 	bnx2_gunzip_end(bp);
 	return rc;
@@ -3288,31 +3285,44 @@ bnx2_reset_chip(struct bnx2 *bp, u32 reset_code)
 	 * before we issue a reset. */
 	val = REG_RD(bp, BNX2_MISC_ID);
 
-	val = BNX2_PCICFG_MISC_CONFIG_CORE_RST_REQ |
-	      BNX2_PCICFG_MISC_CONFIG_REG_WINDOW_ENA |
-	      BNX2_PCICFG_MISC_CONFIG_TARGET_MB_WORD_SWAP;
+	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
+		REG_WR(bp, BNX2_MISC_COMMAND, BNX2_MISC_COMMAND_SW_RESET);
+		REG_RD(bp, BNX2_MISC_COMMAND);
+		udelay(5);
 
-	/* Chip reset. */
-	REG_WR(bp, BNX2_PCICFG_MISC_CONFIG, val);
+		val = BNX2_PCICFG_MISC_CONFIG_REG_WINDOW_ENA |
+		      BNX2_PCICFG_MISC_CONFIG_TARGET_MB_WORD_SWAP;
 
-	if ((CHIP_ID(bp) == CHIP_ID_5706_A0) ||
-	    (CHIP_ID(bp) == CHIP_ID_5706_A1))
-		msleep(15);
+		pci_write_config_dword(bp->pdev, BNX2_PCICFG_MISC_CONFIG, val);
 
-	/* Reset takes approximate 30 usec */
-	for (i = 0; i < 10; i++) {
-		val = REG_RD(bp, BNX2_PCICFG_MISC_CONFIG);
-		if ((val & (BNX2_PCICFG_MISC_CONFIG_CORE_RST_REQ |
-			    BNX2_PCICFG_MISC_CONFIG_CORE_RST_BSY)) == 0) {
-			break;
+	} else {
+		val = BNX2_PCICFG_MISC_CONFIG_CORE_RST_REQ |
+		      BNX2_PCICFG_MISC_CONFIG_REG_WINDOW_ENA |
+		      BNX2_PCICFG_MISC_CONFIG_TARGET_MB_WORD_SWAP;
+
+		/* Chip reset. */
+		REG_WR(bp, BNX2_PCICFG_MISC_CONFIG, val);
+
+		if ((CHIP_ID(bp) == CHIP_ID_5706_A0) ||
+		    (CHIP_ID(bp) == CHIP_ID_5706_A1)) {
+			current->state = TASK_UNINTERRUPTIBLE;
+			schedule_timeout(HZ / 50);
 		}
-		udelay(10);
-	}
 
-	if (val & (BNX2_PCICFG_MISC_CONFIG_CORE_RST_REQ |
-		   BNX2_PCICFG_MISC_CONFIG_CORE_RST_BSY)) {
-		printk(KERN_ERR PFX "Chip reset did not complete\n");
-		return -EBUSY;
+		/* Reset takes approximate 30 usec */
+		for (i = 0; i < 10; i++) {
+			val = REG_RD(bp, BNX2_PCICFG_MISC_CONFIG);
+			if ((val & (BNX2_PCICFG_MISC_CONFIG_CORE_RST_REQ |
+				    BNX2_PCICFG_MISC_CONFIG_CORE_RST_BSY)) == 0)
+				break;
+			udelay(10);
+		}
+
+		if (val & (BNX2_PCICFG_MISC_CONFIG_CORE_RST_REQ |
+			   BNX2_PCICFG_MISC_CONFIG_CORE_RST_BSY)) {
+			printk(KERN_ERR PFX "Chip reset did not complete\n");
+			return -EBUSY;
+		}
 	}
 
 	/* Make sure byte swapping is properly configured. */
@@ -3390,7 +3400,10 @@ bnx2_init_chip(struct bnx2 *bp)
 
 	/* Initialize context mapping and zero out the quick contexts.  The
 	 * context block must have already been enabled. */
-	bnx2_init_context(bp);
+	if (CHIP_NUM(bp) == CHIP_NUM_5709)
+		bnx2_init_5709_context(bp);
+	else
+		bnx2_init_context(bp);
 
 	if ((rc = bnx2_init_cpus(bp)) != 0)
 		return rc;
@@ -3501,12 +3514,40 @@ bnx2_init_chip(struct bnx2 *bp)
 	return rc;
 }
 
+static void
+bnx2_init_tx_context(struct bnx2 *bp, u32 cid)
+{
+	u32 val, offset0, offset1, offset2, offset3;
+
+	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
+		offset0 = BNX2_L2CTX_TYPE_XI;
+		offset1 = BNX2_L2CTX_CMD_TYPE_XI;
+		offset2 = BNX2_L2CTX_TBDR_BHADDR_HI_XI;
+		offset3 = BNX2_L2CTX_TBDR_BHADDR_LO_XI;
+	} else {
+		offset0 = BNX2_L2CTX_TYPE;
+		offset1 = BNX2_L2CTX_CMD_TYPE;
+		offset2 = BNX2_L2CTX_TBDR_BHADDR_HI;
+		offset3 = BNX2_L2CTX_TBDR_BHADDR_LO;
+	}
+	val = BNX2_L2CTX_TYPE_TYPE_L2 | BNX2_L2CTX_TYPE_SIZE_L2;
+	CTX_WR(bp, GET_CID_ADDR(cid), offset0, val);
+
+	val = BNX2_L2CTX_CMD_TYPE_TYPE_L2 | (8 << 16);
+	CTX_WR(bp, GET_CID_ADDR(cid), offset1, val);
+
+	val = (u64) bp->tx_desc_mapping >> 32;
+	CTX_WR(bp, GET_CID_ADDR(cid), offset2, val);
+
+	val = (u64) bp->tx_desc_mapping & 0xffffffff;
+	CTX_WR(bp, GET_CID_ADDR(cid), offset3, val);
+}
 
 static void
 bnx2_init_tx_ring(struct bnx2 *bp)
 {
 	struct tx_bd *txbd;
-	u32 val;
+	u32 cid;
 
 	bp->tx_wake_thresh = bp->tx_ring_size / 2;
 
@@ -3520,19 +3561,11 @@ bnx2_init_tx_ring(struct bnx2 *bp)
 	bp->hw_tx_cons = 0;
 	bp->tx_prod_bseq = 0;
 
-	val = BNX2_L2CTX_TYPE_TYPE_L2;
-	val |= BNX2_L2CTX_TYPE_SIZE_L2;
-	CTX_WR(bp, GET_CID_ADDR(TX_CID), BNX2_L2CTX_TYPE, val);
+	cid = TX_CID;
+	bp->tx_bidx_addr = MB_GET_CID_ADDR(cid) + BNX2_L2CTX_TX_HOST_BIDX;
+	bp->tx_bseq_addr = MB_GET_CID_ADDR(cid) + BNX2_L2CTX_TX_HOST_BSEQ;
 
-	val = BNX2_L2CTX_CMD_TYPE_TYPE_L2;
-	val |= 8 << 16;
-	CTX_WR(bp, GET_CID_ADDR(TX_CID), BNX2_L2CTX_CMD_TYPE, val);
-
-	val = (u64) bp->tx_desc_mapping >> 32;
-	CTX_WR(bp, GET_CID_ADDR(TX_CID), BNX2_L2CTX_TBDR_BHADDR_HI, val);
-
-	val = (u64) bp->tx_desc_mapping & 0xffffffff;
-	CTX_WR(bp, GET_CID_ADDR(TX_CID), BNX2_L2CTX_TBDR_BHADDR_LO, val);
+	bnx2_init_tx_context(bp, cid);
 }
 
 static void
@@ -3545,8 +3578,8 @@ bnx2_init_rx_ring(struct bnx2 *bp)
 
 	/* 8 for CRC and VLAN */
 	bp->rx_buf_use_size = bp->dev->mtu + ETH_HLEN + bp->rx_offset + 8;
-	/* 8 for alignment */
-	bp->rx_buf_size = bp->rx_buf_use_size + 8;
+	/* hw alignment */
+	bp->rx_buf_size = bp->rx_buf_use_size + BNX2_RX_ALIGN;
 
 	ring_prod = prod = bp->rx_prod = 0;
 	bp->rx_cons = 0;
@@ -3712,7 +3745,9 @@ bnx2_init_nic(struct bnx2 *bp)
 	if ((rc = bnx2_reset_nic(bp, BNX2_DRV_MSG_CODE_RESET)) != 0)
 		return rc;
 
+	spin_lock_bh(&bp->phy_lock);
 	bnx2_init_phy(bp);
+	spin_unlock_bh(&bp->phy_lock);
 	bnx2_set_link(bp);
 	return 0;
 }
@@ -3952,7 +3987,7 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 		bnx2_set_mac_loopback(bp);
 	}
 	else if (loopback_mode == BNX2_PHY_LOOPBACK) {
-		bp->loopback = 0;
+		bp->loopback = PHY_LOOPBACK;
 		bnx2_set_phy_loopback(bp);
 	}
 	else
@@ -3992,8 +4027,8 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 	bp->tx_prod = NEXT_TX_BD(bp->tx_prod);
 	bp->tx_prod_bseq += pkt_size;
 
-	REG_WR16(bp, MB_TX_CID_ADDR + BNX2_L2CTX_TX_HOST_BIDX, bp->tx_prod);
-	REG_WR(bp, MB_TX_CID_ADDR + BNX2_L2CTX_TX_HOST_BSEQ, bp->tx_prod_bseq);
+	REG_WR16(bp, bp->tx_bidx_addr, bp->tx_prod);
+	REG_WR(bp, bp->tx_bseq_addr, bp->tx_prod_bseq);
 
 	udelay(100);
 
@@ -4162,6 +4197,96 @@ bnx2_test_intr(struct bnx2 *bp)
 }
 
 static void
+bnx2_5706_serdes_timer(struct bnx2 *bp)
+{
+	spin_lock(&bp->phy_lock);
+	if (bp->serdes_an_pending)
+		bp->serdes_an_pending--;
+	else if ((bp->link_up == 0) && (bp->autoneg & AUTONEG_SPEED)) {
+		u32 bmcr;
+
+		bp->current_interval = bp->timer_interval;
+
+		bnx2_read_phy(bp, MII_BMCR, &bmcr);
+
+		if (bmcr & BMCR_ANENABLE) {
+			u32 phy1, phy2;
+
+			bnx2_write_phy(bp, 0x1c, 0x7c00);
+			bnx2_read_phy(bp, 0x1c, &phy1);
+
+			bnx2_write_phy(bp, 0x17, 0x0f01);
+			bnx2_read_phy(bp, 0x15, &phy2);
+			bnx2_write_phy(bp, 0x17, 0x0f01);
+			bnx2_read_phy(bp, 0x15, &phy2);
+
+			if ((phy1 & 0x10) &&	/* SIGNAL DETECT */
+				!(phy2 & 0x20)) {	/* no CONFIG */
+
+				bmcr &= ~BMCR_ANENABLE;
+				bmcr |= BMCR_SPEED1000 | BMCR_FULLDPLX;
+				bnx2_write_phy(bp, MII_BMCR, bmcr);
+				bp->phy_flags |= PHY_PARALLEL_DETECT_FLAG;
+			}
+		}
+	}
+	else if ((bp->link_up) && (bp->autoneg & AUTONEG_SPEED) &&
+		 (bp->phy_flags & PHY_PARALLEL_DETECT_FLAG)) {
+		u32 phy2;
+
+		bnx2_write_phy(bp, 0x17, 0x0f01);
+		bnx2_read_phy(bp, 0x15, &phy2);
+		if (phy2 & 0x20) {
+			u32 bmcr;
+
+			bnx2_read_phy(bp, MII_BMCR, &bmcr);
+			bmcr |= BMCR_ANENABLE;
+			bnx2_write_phy(bp, MII_BMCR, bmcr);
+
+			bp->phy_flags &= ~PHY_PARALLEL_DETECT_FLAG;
+		}
+	} else
+		bp->current_interval = bp->timer_interval;
+
+	spin_unlock(&bp->phy_lock);
+}
+
+static void
+bnx2_5708_serdes_timer(struct bnx2 *bp)
+{
+	if ((bp->phy_flags & PHY_2_5G_CAPABLE_FLAG) == 0) {
+		bp->serdes_an_pending = 0;
+		return;
+	}
+
+	spin_lock(&bp->phy_lock);
+	if (bp->serdes_an_pending)
+		bp->serdes_an_pending--;
+	else if ((bp->link_up == 0) && (bp->autoneg & AUTONEG_SPEED)) {
+		u32 bmcr;
+
+		bnx2_read_phy(bp, MII_BMCR, &bmcr);
+
+		if (bmcr & BMCR_ANENABLE) {
+			bmcr &= ~BMCR_ANENABLE;
+			bmcr |= BMCR_FULLDPLX | BCM5708S_BMCR_FORCE_2500;
+			bnx2_write_phy(bp, MII_BMCR, bmcr);
+			bp->current_interval = SERDES_FORCED_TIMEOUT;
+		} else {
+			bmcr &= ~(BMCR_FULLDPLX | BCM5708S_BMCR_FORCE_2500);
+			bmcr |= BMCR_ANENABLE;
+			bnx2_write_phy(bp, MII_BMCR, bmcr);
+			bp->serdes_an_pending = 2;
+			bp->current_interval = bp->timer_interval;
+		}
+
+	} else
+		bp->current_interval = bp->timer_interval;
+
+	spin_unlock(&bp->phy_lock);
+}
+
+static void
 bnx2_timer(unsigned long data)
 {
 	struct bnx2 *bp = (struct bnx2 *) data;
@@ -4178,64 +4303,11 @@ bnx2_timer(unsigned long data)
 
 	bp->stats_blk->stat_FwRxDrop = REG_RD_IND(bp, BNX2_FW_RX_DROP_COUNT);
 
-	if ((bp->phy_flags & PHY_SERDES_FLAG) &&
-	    (CHIP_NUM(bp) == CHIP_NUM_5706)) {
-
-		spin_lock(&bp->phy_lock);
-		if (bp->serdes_an_pending) {
-			bp->serdes_an_pending--;
-		}
-		else if ((bp->link_up == 0) && (bp->autoneg & AUTONEG_SPEED)) {
-			u32 bmcr;
-
-			bp->current_interval = bp->timer_interval;
-
-			bnx2_read_phy(bp, MII_BMCR, &bmcr);
-
-			if (bmcr & BMCR_ANENABLE) {
-				u32 phy1, phy2;
-
-				bnx2_write_phy(bp, 0x1c, 0x7c00);
-				bnx2_read_phy(bp, 0x1c, &phy1);
-
-				bnx2_write_phy(bp, 0x17, 0x0f01);
-				bnx2_read_phy(bp, 0x15, &phy2);
-				bnx2_write_phy(bp, 0x17, 0x0f01);
-				bnx2_read_phy(bp, 0x15, &phy2);
-
-				if ((phy1 & 0x10) &&	/* SIGNAL DETECT */
-					!(phy2 & 0x20)) {	/* no CONFIG */
-
-					bmcr &= ~BMCR_ANENABLE;
-					bmcr |= BMCR_SPEED1000 |
-						BMCR_FULLDPLX;
-					bnx2_write_phy(bp, MII_BMCR, bmcr);
-					bp->phy_flags |=
-						PHY_PARALLEL_DETECT_FLAG;
-				}
-			}
-		}
-		else if ((bp->link_up) && (bp->autoneg & AUTONEG_SPEED) &&
-			(bp->phy_flags & PHY_PARALLEL_DETECT_FLAG)) {
-			u32 phy2;
-
-			bnx2_write_phy(bp, 0x17, 0x0f01);
-			bnx2_read_phy(bp, 0x15, &phy2);
-			if (phy2 & 0x20) {
-				u32 bmcr;
-
-				bnx2_read_phy(bp, MII_BMCR, &bmcr);
-				bmcr |= BMCR_ANENABLE;
-				bnx2_write_phy(bp, MII_BMCR, bmcr);
-
-				bp->phy_flags &= ~PHY_PARALLEL_DETECT_FLAG;
-
-			}
-		}
-		else
-			bp->current_interval = bp->timer_interval;
-
-		spin_unlock(&bp->phy_lock);
+	if (bp->phy_flags & PHY_SERDES_FLAG) {
+		if (CHIP_NUM(bp) == CHIP_NUM_5706)
+			bnx2_5706_serdes_timer(bp);
+		else if (CHIP_NUM(bp) == CHIP_NUM_5708)
+			bnx2_5708_serdes_timer(bp);
 	}
 
 bnx2_restart_timer:
@@ -4508,8 +4580,8 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	prod = NEXT_TX_BD(prod);
 	bp->tx_prod_bseq += skb->len;
 
-	REG_WR16(bp, MB_TX_CID_ADDR + BNX2_L2CTX_TX_HOST_BIDX, prod);
-	REG_WR(bp, MB_TX_CID_ADDR + BNX2_L2CTX_TX_HOST_BSEQ, bp->tx_prod_bseq);
+	REG_WR16(bp, bp->tx_bidx_addr, prod);
+	REG_WR(bp, bp->tx_bseq_addr, bp->tx_prod_bseq);
 
 	mmiowb();
 
@@ -4743,10 +4815,14 @@ bnx2_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	}
 	else {
 		if (bp->phy_flags & PHY_SERDES_FLAG) {
-			if ((cmd->speed != SPEED_1000) ||
-				(cmd->duplex != DUPLEX_FULL)) {
+			if ((cmd->speed != SPEED_1000 &&
+			     cmd->speed != SPEED_2500) ||
+			    (cmd->duplex != DUPLEX_FULL))
 				return -EINVAL;
-			}
+
+			if (cmd->speed == SPEED_2500 &&
+			    !(bp->phy_flags & PHY_2_5G_CAPABLE_FLAG))
+				return -EINVAL;
 		}
 		else if (cmd->speed == SPEED_1000) {
 			return -EINVAL;
@@ -4903,11 +4979,10 @@ bnx2_nway_reset(struct net_device *dev)
 		msleep(20);
 
 		spin_lock_bh(&bp->phy_lock);
-		if (CHIP_NUM(bp) == CHIP_NUM_5706) {
-			bp->current_interval = SERDES_AN_TIMEOUT;
-			bp->serdes_an_pending = 1;
-			mod_timer(&bp->timer, jiffies + bp->current_interval);
-		}
+
+		bp->current_interval = SERDES_AN_TIMEOUT;
+		bp->serdes_an_pending = 1;
+		mod_timer(&bp->timer, jiffies + bp->current_interval);
 	}
 
 	bnx2_read_phy(bp, MII_BMCR, &bmcr);
@@ -5288,6 +5363,8 @@ bnx2_self_test(struct net_device *dev, struct ethtool_test *etest, u64 *buf)
 
 	memset(buf, 0, sizeof(u64) * BNX2_NUM_TESTS);
 	if (etest->flags & ETH_TEST_FL_OFFLINE) {
+		int i;
+
 		bnx2_netif_stop(bp);
 		bnx2_reset_chip(bp, BNX2_DRV_MSG_CODE_DIAG);
 		bnx2_free_skbs(bp);
@@ -5312,9 +5389,11 @@ bnx2_self_test(struct net_device *dev, struct ethtool_test *etest, u64 *buf)
 		}
 
 		/* wait for link up */
-		msleep_interruptible(3000);
-		if ((!bp->link_up) && !(bp->phy_flags & PHY_SERDES_FLAG))
-			msleep_interruptible(4000);
+		for (i = 0; i < 7; i++) {
+			if (bp->link_up)
+				break;
+			msleep_interruptible(1000);
+		}
 	}
 
 	if (bnx2_test_nvram(bp) != 0) {
@@ -5604,13 +5683,6 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 		goto err_out_release;
 	}
 
-	bp->pcix_cap = pci_find_capability(pdev, PCI_CAP_ID_PCIX);
-	if (bp->pcix_cap == 0) {
-		dev_err(&pdev->dev, "Cannot find PCIX capability, aborting.\n");
-		rc = -EIO;
-		goto err_out_release;
-	}
-
 	if (pci_set_dma_mask(pdev, DMA_64BIT_MASK) == 0) {
 		bp->flags |= USING_DAC_FLAG;
 		if (pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK) != 0) {
@@ -5633,7 +5705,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	INIT_WORK(&bp->reset_task, bnx2_reset_task, bp);
 
 	dev->base_addr = dev->mem_start = pci_resource_start(pdev, 0);
-	mem_len = MB_GET_CID_ADDR(17);
+	mem_len = MB_GET_CID_ADDR(TX_TSS_CID + 1);
 	dev->mem_end = dev->mem_start + mem_len;
 	dev->irq = pdev->irq;
 
@@ -5656,6 +5728,16 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bnx2_set_power_state(bp, PCI_D0);
 
 	bp->chip_id = REG_RD(bp, BNX2_MISC_ID);
+
+	if (CHIP_NUM(bp) != CHIP_NUM_5709) {
+		bp->pcix_cap = pci_find_capability(pdev, PCI_CAP_ID_PCIX);
+		if (bp->pcix_cap == 0) {
+			dev_err(&pdev->dev,
+				"Cannot find PCIX capability, aborting.\n");
+			rc = -EIO;
+			goto err_out_unmap;
+		}
+	}
 
 	/* Get bus information. */
 	reg = REG_RD(bp, BNX2_PCICFG_MISC_STATUS);
@@ -5776,10 +5858,15 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->phy_addr = 1;
 
 	/* Disable WOL support if we are running on a SERDES chip. */
-	if (CHIP_BOND_ID(bp) & CHIP_BOND_ID_SERDES_BIT) {
+	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
+		if (CHIP_BOND_ID(bp) != BNX2_MISC_DUAL_MEDIA_CTRL_BOND_ID_C)
+			bp->phy_flags |= PHY_SERDES_FLAG;
+	} else if (CHIP_BOND_ID(bp) & CHIP_BOND_ID_SERDES_BIT)
 		bp->phy_flags |= PHY_SERDES_FLAG;
+
+	if (bp->phy_flags & PHY_SERDES_FLAG) {
 		bp->flags |= NO_WOL_FLAG;
-		if (CHIP_NUM(bp) == CHIP_NUM_5708) {
+		if (CHIP_NUM(bp) != CHIP_NUM_5706) {
 			bp->phy_addr = 2;
 			reg = REG_RD_IND(bp, bp->shmem_base +
 					 BNX2_SHARED_HW_CFG_CONFIG);

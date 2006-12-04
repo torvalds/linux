@@ -725,6 +725,7 @@ journal_t * jbd2_journal_init_dev(struct block_device *bdev,
 			__FUNCTION__);
 		kfree(journal);
 		journal = NULL;
+		goto out;
 	}
 	journal->j_dev = bdev;
 	journal->j_fs_dev = fs_dev;
@@ -735,7 +736,7 @@ journal_t * jbd2_journal_init_dev(struct block_device *bdev,
 	J_ASSERT(bh != NULL);
 	journal->j_sb_buffer = bh;
 	journal->j_superblock = (journal_superblock_t *)bh->b_data;
-
+out:
 	return journal;
 }
 

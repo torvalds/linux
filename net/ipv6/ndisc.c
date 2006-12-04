@@ -472,7 +472,9 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 			inc_opt = 0;
 	}
 
-	skb = sock_alloc_send_skb(sk, MAX_HEADER + len + LL_RESERVED_SPACE(dev),
+	skb = sock_alloc_send_skb(sk,
+				  (MAX_HEADER + sizeof(struct ipv6hdr) +
+				   len + LL_RESERVED_SPACE(dev)),
 				  1, &err);
 
 	if (skb == NULL) {
@@ -513,7 +515,7 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 
 	skb->dst = dst;
 	idev = in6_dev_get(dst->dev);
-	IP6_INC_STATS(IPSTATS_MIB_OUTREQUESTS);
+	IP6_INC_STATS(idev, IPSTATS_MIB_OUTREQUESTS);
 	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, dst->dev, dst_output);
 	if (!err) {
 		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTNEIGHBORADVERTISEMENTS);
@@ -561,7 +563,9 @@ void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 	if (send_llinfo)
 		len += ndisc_opt_addr_space(dev);
 
-	skb = sock_alloc_send_skb(sk, MAX_HEADER + len + LL_RESERVED_SPACE(dev),
+	skb = sock_alloc_send_skb(sk,
+				  (MAX_HEADER + sizeof(struct ipv6hdr) +
+				   len + LL_RESERVED_SPACE(dev)),
 				  1, &err);
 	if (skb == NULL) {
 		ND_PRINTK0(KERN_ERR
@@ -597,7 +601,7 @@ void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 	/* send it! */
 	skb->dst = dst;
 	idev = in6_dev_get(dst->dev);
-	IP6_INC_STATS(IPSTATS_MIB_OUTREQUESTS);
+	IP6_INC_STATS(idev, IPSTATS_MIB_OUTREQUESTS);
 	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, dst->dev, dst_output);
 	if (!err) {
 		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTNEIGHBORSOLICITS);
@@ -636,7 +640,9 @@ void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
 	if (dev->addr_len)
 		len += ndisc_opt_addr_space(dev);
 
-        skb = sock_alloc_send_skb(sk, MAX_HEADER + len + LL_RESERVED_SPACE(dev),
+        skb = sock_alloc_send_skb(sk,
+				  (MAX_HEADER + sizeof(struct ipv6hdr) +
+				   len + LL_RESERVED_SPACE(dev)),
 				  1, &err);
 	if (skb == NULL) {
 		ND_PRINTK0(KERN_ERR
@@ -670,7 +676,7 @@ void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
 	/* send it! */
 	skb->dst = dst;
 	idev = in6_dev_get(dst->dev);
-	IP6_INC_STATS(IPSTATS_MIB_OUTREQUESTS);	
+	IP6_INC_STATS(idev, IPSTATS_MIB_OUTREQUESTS);
 	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, dst->dev, dst_output);
 	if (!err) {
 		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTROUTERSOLICITS);
@@ -967,8 +973,6 @@ static void ndisc_recv_na(struct sk_buff *skb)
 		    ipv6_devconf.forwarding && ipv6_devconf.proxy_ndp &&
 		    pneigh_lookup(&nd_tbl, &msg->target, dev, 0)) {
 			/* XXX: idev->cnf.prixy_ndp */
-			WARN_ON(skb->dst != NULL &&
-				((struct rt6_info *)skb->dst)->rt6i_idev);
 			goto out;
 		}
 
@@ -1263,10 +1267,11 @@ skip_defrtr:
 	}
 
 	if (ndopts.nd_opts_mtu) {
+		__be32 n;
 		u32 mtu;
 
-		memcpy(&mtu, ((u8*)(ndopts.nd_opts_mtu+1))+2, sizeof(mtu));
-		mtu = ntohl(mtu);
+		memcpy(&n, ((u8*)(ndopts.nd_opts_mtu+1))+2, sizeof(mtu));
+		mtu = ntohl(n);
 
 		if (mtu < IPV6_MIN_MTU || mtu > skb->dev->mtu) {
 			ND_PRINTK2(KERN_WARNING
@@ -1448,7 +1453,9 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 	rd_len &= ~0x7;
 	len += rd_len;
 
-	buff = sock_alloc_send_skb(sk, MAX_HEADER + len + LL_RESERVED_SPACE(dev),
+	buff = sock_alloc_send_skb(sk,
+				   (MAX_HEADER + sizeof(struct ipv6hdr) +
+				    len + LL_RESERVED_SPACE(dev)),
 				   1, &err);
 	if (buff == NULL) {
 		ND_PRINTK0(KERN_ERR
@@ -1506,7 +1513,7 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 
 	buff->dst = dst;
 	idev = in6_dev_get(dst->dev);
-	IP6_INC_STATS(IPSTATS_MIB_OUTREQUESTS);
+	IP6_INC_STATS(idev, IPSTATS_MIB_OUTREQUESTS);
 	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, buff, NULL, dst->dev, dst_output);
 	if (!err) {
 		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTREDIRECTS);
@@ -1744,6 +1751,7 @@ int __init ndisc_init(struct net_proto_family *ops)
 
 void ndisc_cleanup(void)
 {
+	unregister_netdevice_notifier(&ndisc_netdev_notifier);
 #ifdef CONFIG_SYSCTL
 	neigh_sysctl_unregister(&nd_tbl.parms);
 #endif

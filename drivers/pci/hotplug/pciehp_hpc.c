@@ -718,8 +718,6 @@ static void hpc_release_ctlr(struct controller *ctrl)
 		if (php_ctlr->irq) {
 			free_irq(php_ctlr->irq, ctrl);
 			php_ctlr->irq = 0;
-			if (!pcie_mch_quirk) 
-				pci_disable_msi(php_ctlr->pci_dev);
 		}
 	}
 	if (php_ctlr->pci_dev) 
@@ -1402,6 +1400,8 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 		pdev->subsystem_vendor, pdev->subsystem_device);
 
 	mutex_init(&ctrl->crit_sect);
+	mutex_init(&ctrl->ctrl_lock);
+
 	/* setup wait queue */
 	init_waitqueue_head(&ctrl->queue);
 

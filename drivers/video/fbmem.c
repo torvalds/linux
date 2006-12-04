@@ -1296,14 +1296,14 @@ register_framebuffer(struct fb_info *fb_info)
 			break;
 	fb_info->node = i;
 
-	fb_info->class_device = class_device_create(fb_class, NULL, MKDEV(FB_MAJOR, i),
-				    fb_info->device, "fb%d", i);
-	if (IS_ERR(fb_info->class_device)) {
+	fb_info->dev = device_create(fb_class, fb_info->device,
+				     MKDEV(FB_MAJOR, i), "fb%d", i);
+	if (IS_ERR(fb_info->dev)) {
 		/* Not fatal */
-		printk(KERN_WARNING "Unable to create class_device for framebuffer %d; errno = %ld\n", i, PTR_ERR(fb_info->class_device));
-		fb_info->class_device = NULL;
+		printk(KERN_WARNING "Unable to create device for framebuffer %d; errno = %ld\n", i, PTR_ERR(fb_info->dev));
+		fb_info->dev = NULL;
 	} else
-		fb_init_class_device(fb_info);
+		fb_init_device(fb_info);
 
 	if (fb_info->pixmap.addr == NULL) {
 		fb_info->pixmap.addr = kmalloc(FBPIXMAPSIZE, GFP_KERNEL);
@@ -1356,8 +1356,8 @@ unregister_framebuffer(struct fb_info *fb_info)
 	fb_destroy_modelist(&fb_info->modelist);
 	registered_fb[i]=NULL;
 	num_registered_fb--;
-	fb_cleanup_class_device(fb_info);
-	class_device_destroy(fb_class, MKDEV(FB_MAJOR, i));
+	fb_cleanup_device(fb_info);
+	device_destroy(fb_class, MKDEV(FB_MAJOR, i));
 	event.info = fb_info;
 	fb_notifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
 	return 0;

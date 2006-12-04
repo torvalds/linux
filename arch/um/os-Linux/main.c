@@ -23,6 +23,7 @@
 #include "choose-mode.h"
 #include "uml-config.h"
 #include "os.h"
+#include "um_malloc.h"
 
 /* Set in set_stklim, which is called from main and __wrap_malloc.
  * __wrap_malloc only calls it if main hasn't started.

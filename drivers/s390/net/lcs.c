@@ -1147,7 +1147,7 @@ list_modified:
  * get mac address for the relevant Multicast address
  */
 static void
-lcs_get_mac_for_ipm(__u32 ipm, char *mac, struct net_device *dev)
+lcs_get_mac_for_ipm(__be32 ipm, char *mac, struct net_device *dev)
 {
 	LCS_DBF_TEXT(4,trace, "getmac");
 	if (dev->type == ARPHRD_IEEE802_TR)

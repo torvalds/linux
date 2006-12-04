@@ -84,7 +84,7 @@ static struct notifier_block sctp_inet6addr_notifier = {
 
 /* ICMP error handler. */
 SCTP_STATIC void sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-			     int type, int code, int offset, __u32 info)
+			     int type, int code, int offset, __be32 info)
 {
 	struct inet6_dev *idev;
 	struct ipv6hdr *iph = (struct ipv6hdr *)skb->data;
@@ -170,8 +170,6 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport,
 		fl.oif = transport->saddr.v6.sin6_scope_id;
 	else
 		fl.oif = sk->sk_bound_dev_if;
-	fl.fl_ip_sport = inet_sk(sk)->sport;
-	fl.fl_ip_dport = transport->ipaddr.v6.sin6_port;
 
 	if (np->opt && np->opt->srcrt) {
 		struct rt0_hdr *rt0 = (struct rt0_hdr *) np->opt->srcrt;
@@ -215,17 +213,17 @@ static struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
 	}
 
 	dst = ip6_route_output(NULL, &fl);
-	if (dst) {
+	if (!dst->error) {
 		struct rt6_info *rt;
 		rt = (struct rt6_info *)dst;
 		SCTP_DEBUG_PRINTK(
 			"rt6_dst:" NIP6_FMT " rt6_src:" NIP6_FMT "\n",
 			NIP6(rt->rt6i_dst.addr), NIP6(rt->rt6i_src.addr));
-	} else {
-		SCTP_DEBUG_PRINTK("NO ROUTE\n");
+		return dst;
 	}
-
-	return dst;
+	SCTP_DEBUG_PRINTK("NO ROUTE\n");
+	dst_release(dst);
+	return NULL;
 }
 
 /* Returns the number of consecutive initial bits that match in the 2 ipv6
@@ -239,7 +237,7 @@ static inline int sctp_v6_addr_match_len(union sctp_addr *s1,
 	int i, j;
 
 	for (i = 0; i < 4 ; i++) {
-		__u32 a1xora2;
+		__be32 a1xora2;
 
 		a1xora2 = a1->s6_addr32[i] ^ a2->s6_addr32[i];
 
@@ -350,7 +348,7 @@ static void sctp_v6_from_skb(union sctp_addr *addr,struct sk_buff *skb,
 			     int is_saddr)
 {
 	void *from;
-	__u16 *port;
+	__be16 *port;
 	struct sctphdr *sh;
 
 	port = &addr->v6.sin6_port;
@@ -360,10 +358,10 @@ static void sctp_v6_from_skb(union sctp_addr *addr,struct sk_buff *skb,
 
 	sh = (struct sctphdr *) skb->h.raw;
 	if (is_saddr) {
-		*port  = ntohs(sh->source);
+		*port  = sh->source;
 		from = &skb->nh.ipv6h->saddr;
 	} else {
-		*port = ntohs(sh->dest);
+		*port = sh->dest;
 		from = &skb->nh.ipv6h->daddr;
 	}
 	ipv6_addr_copy(&addr->v6.sin6_addr, from);
@@ -373,7 +371,7 @@ static void sctp_v6_from_skb(union sctp_addr *addr,struct sk_buff *skb,
 static void sctp_v6_from_sk(union sctp_addr *addr, struct sock *sk)
 {
 	addr->v6.sin6_family = AF_INET6;
-	addr->v6.sin6_port = inet_sk(sk)->num;
+	addr->v6.sin6_port = 0;
 	addr->v6.sin6_addr = inet6_sk(sk)->rcv_saddr;
 }
 
@@ -407,7 +405,7 @@ static void sctp_v6_to_sk_daddr(union sctp_addr *addr, struct sock *sk)
 /* Initialize a sctp_addr from an address parameter. */
 static void sctp_v6_from_addr_param(union sctp_addr *addr,
 				    union sctp_addr_param *param,
-				    __u16 port, int iif)
+				    __be16 port, int iif)
 {
 	addr->v6.sin6_family = AF_INET6;
 	addr->v6.sin6_port = port;
@@ -425,7 +423,7 @@ static int sctp_v6_to_addr_param(const union sctp_addr *addr,
 	int length = sizeof(sctp_ipv6addr_param_t);
 
 	param->v6.param_hdr.type = SCTP_PARAM_IPV6_ADDRESS;
-	param->v6.param_hdr.length = ntohs(length);
+	param->v6.param_hdr.length = htons(length);
 	ipv6_addr_copy(&param->v6.addr, &addr->v6.sin6_addr);
 
 	return length;
@@ -433,7 +431,7 @@ static int sctp_v6_to_addr_param(const union sctp_addr *addr,
 
 /* Initialize a sctp_addr from a dst_entry. */
 static void sctp_v6_dst_saddr(union sctp_addr *addr, struct dst_entry *dst,
-			      unsigned short port)
+			      __be16 port)
 {
 	struct rt6_info *rt = (struct rt6_info *)dst;
 	addr->sa.sa_family = AF_INET6;
@@ -480,7 +478,7 @@ static int sctp_v6_cmp_addr(const union sctp_addr *addr1,
 }
 
 /* Initialize addr struct to INADDR_ANY. */
-static void sctp_v6_inaddr_any(union sctp_addr *addr, unsigned short port)
+static void sctp_v6_inaddr_any(union sctp_addr *addr, __be16 port)
 {
 	memset(addr, 0x00, sizeof(union sctp_addr));
 	addr->v6.sin6_family = AF_INET6;
@@ -855,7 +853,7 @@ static int sctp_inet6_send_verify(struct sctp_sock *opt, union sctp_addr *addr)
  * Returns number of addresses supported.
  */
 static int sctp_inet6_supported_addrs(const struct sctp_sock *opt,
-				      __u16 *types)
+				      __be16 *types)
 {
 	types[0] = SCTP_PARAM_IPV4_ADDRESS;
 	types[1] = SCTP_PARAM_IPV6_ADDRESS;

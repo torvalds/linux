@@ -190,6 +190,9 @@ fill_write_buffer(struct sysfs_buffer * buffer, const char __user * buf, size_t 
 		count = PAGE_SIZE - 1;
 	error = copy_from_user(buffer->page,buf,count);
 	buffer->needs_read_fill = 1;
+	/* if buf is assumed to contain a string, terminate it by \0,
+	   so e.g. sscanf() can scan the string easily */
+	buffer->page[count] = 0;
 	return error ? -EFAULT : count;
 }
 
@@ -483,17 +486,12 @@ int sysfs_update_file(struct kobject * kobj, const struct attribute * attr)
 		    (victim->d_parent->d_inode == dir->d_inode)) {
 			victim->d_inode->i_mtime = CURRENT_TIME;
 			fsnotify_modify(victim);
-
-			/**
-			 * Drop reference from initial sysfs_get_dentry().
-			 */
-			dput(victim);
 			res = 0;
 		} else
 			d_drop(victim);
 		
 		/**
-		 * Drop the reference acquired from sysfs_get_dentry() above.
+		 * Drop the reference acquired from lookup_one_len() above.
 		 */
 		dput(victim);
 	}

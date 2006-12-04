@@ -121,6 +121,12 @@ static struct hidinput_key_translation powerbook_numlock_keys[] = {
 	{ }
 };
 
+static struct hidinput_key_translation powerbook_iso_keyboard[] = {
+	{ KEY_GRAVE,    KEY_102ND },
+	{ KEY_102ND,    KEY_GRAVE },
+	{ }
+};
+
 static int usbhid_pb_fnmode = 1;
 module_param_named(pb_fnmode, usbhid_pb_fnmode, int, 0644);
 MODULE_PARM_DESC(pb_fnmode,
@@ -195,6 +201,14 @@ static int hidinput_pb_event(struct hid_device *hid, struct input_dev *input,
 		}
 	}
 
+	if (hid->quirks & HID_QUIRK_POWERBOOK_ISO_KEYBOARD) {
+		trans = find_translation(powerbook_iso_keyboard, usage->code);
+		if (trans) {
+			input_event(input, usage->type, trans->to, value);
+			return 1;
+		}
+	}
+
 	return 0;
 }
 
@@ -209,6 +223,9 @@ static void hidinput_pb_setup(struct input_dev *input)
 		set_bit(trans->to, input->keybit);
 
 	for (trans = powerbook_numlock_keys; trans->from; trans++)
+		set_bit(trans->to, input->keybit);
+
+	for (trans = powerbook_iso_keyboard; trans->from; trans++)
 		set_bit(trans->to, input->keybit);
 }
 #else

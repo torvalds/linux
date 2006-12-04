@@ -908,8 +908,9 @@ static irqreturn_t b44_interrupt(int irq, void *dev_id)
 	istat = br32(bp, B44_ISTAT);
 	imask = br32(bp, B44_IMASK);
 
-	/* ??? What the fuck is the purpose of the interrupt mask
-	 * ??? register if we have to mask it out by hand anyways?
+	/* The interrupt mask register controls which interrupt bits
+	 * will actually raise an interrupt to the CPU when set by hw/firmware,
+	 * but doesn't mask off the bits.
 	 */
 	istat &= imask;
 	if (istat) {

@@ -176,7 +176,7 @@ void __iomem * __ioremap(phys_t phys_addr, phys_t size, unsigned long flags)
 
 #define IS_KSEG1(addr) (((unsigned long)(addr) & ~0x1fffffffUL) == CKSEG1)
 
-void __iounmap(volatile void __iomem *addr)
+void __iounmap(const volatile void __iomem *addr)
 {
 	struct vm_struct *p;
 

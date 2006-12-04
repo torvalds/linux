@@ -90,7 +90,9 @@ static void unicode_ssetup_strings(char ** pbcc_area, struct cifsSesInfo *ses,
 	} */
 	/* copy user */
 	if(ses->userName == NULL) {
-		/* BB what about null user mounts - check that we do this BB */
+		/* null user mount */
+		*bcc_ptr = 0;
+		*(bcc_ptr+1) = 0;
 	} else { /* 300 should be long enough for any conceivable user name */
 		bytes_ret = cifs_strtoUCS((__le16 *) bcc_ptr, ses->userName,
 					  300, nls_cp);
@@ -98,10 +100,13 @@ static void unicode_ssetup_strings(char ** pbcc_area, struct cifsSesInfo *ses,
 	bcc_ptr += 2 * bytes_ret;
 	bcc_ptr += 2; /* account for null termination */
 	/* copy domain */
-	if(ses->domainName == NULL)
-		bytes_ret = cifs_strtoUCS((__le16 *) bcc_ptr,
-					  "CIFS_LINUX_DOM", 32, nls_cp);
-	else
+	if(ses->domainName == NULL) {
+		/* Sending null domain better than using a bogus domain name (as
+		we did briefly in 2.6.18) since server will use its default */
+		*bcc_ptr = 0;
+		*(bcc_ptr+1) = 0;
+		bytes_ret = 0;
+	} else
 		bytes_ret = cifs_strtoUCS((__le16 *) bcc_ptr, ses->domainName, 
 					  256, nls_cp);
 	bcc_ptr += 2 * bytes_ret;
@@ -144,13 +149,11 @@ static void ascii_ssetup_strings(char ** pbcc_area, struct cifsSesInfo *ses,
 
         /* copy domain */
 	
-        if(ses->domainName == NULL) {
-                strcpy(bcc_ptr, "CIFS_LINUX_DOM");
-		bcc_ptr += 14;  /* strlen(CIFS_LINUX_DOM) */
- 	} else {
+        if(ses->domainName != NULL) {
                 strncpy(bcc_ptr, ses->domainName, 256); 
 		bcc_ptr += strnlen(ses->domainName, 256);
-	}
+	} /* else we will send a null domain name 
+	     so the server will default to its own domain */
 	*bcc_ptr = 0;
 	bcc_ptr++;
 

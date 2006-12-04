@@ -476,6 +476,9 @@ core_initcall(consistent_init);
 
 /*
  * Make an area consistent for devices.
+ * Note: Drivers should NOT use this function directly, as it will break
+ * platforms with CONFIG_DMABOUNCE.
+ * Use the driver DMA support - see dma-mapping.h (dma_sync_*)
  */
 void consistent_sync(void *vaddr, size_t size, int direction)
 {

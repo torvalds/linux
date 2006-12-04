@@ -67,34 +67,9 @@
 #define COBALT_BRD_ID_QUBE2    0x5
 #define COBALT_BRD_ID_RAQ2     0x6
 
-/*
- * Galileo chipset access macros for the Cobalt. The base address for
- * the GT64111 chip is 0x14000000
- *
- * Most of this really should go into a separate GT64111 header file.
- */
-#define GT64111_IO_BASE		0x10000000UL
-#define GT64111_IO_END		0x11ffffffUL
-#define GT64111_MEM_BASE	0x12000000UL
-#define GT64111_MEM_END		0x13ffffffUL
-#define GT64111_BASE		0x14000000UL
-#define GALILEO_REG(ofs)	CKSEG1ADDR(GT64111_BASE + (unsigned long)(ofs))
-
-#define GALILEO_INL(port)	(*(volatile unsigned int *) GALILEO_REG(port))
-#define GALILEO_OUTL(val, port)						\
-do {									\
-	*(volatile unsigned int *) GALILEO_REG(port) = (val);		\
-} while (0)
-
-#define GALILEO_INTR_T0EXP	(1 << 8)
-#define GALILEO_INTR_RETRY_CTR	(1 << 20)
-
-#define GALILEO_ENTC0		0x01
-#define GALILEO_SELTC0		0x02
-
 #define PCI_CFG_SET(devfn,where)					\
-	GALILEO_OUTL((0x80000000 | (PCI_SLOT (devfn) << 11) |		\
-		(PCI_FUNC (devfn) << 8) | (where)), GT_PCI0_CFGADDR_OFS)
+	GT_WRITE(GT_PCI0_CFGADDR_OFS, (0x80000000 | (PCI_SLOT (devfn) << 11) |		\
+		(PCI_FUNC (devfn) << 8) | (where)))
 
 #define COBALT_LED_PORT		(*(volatile unsigned char *) CKSEG1ADDR(0x1c000000))
 # define COBALT_LED_BAR_LEFT	(1 << 0)	/* Qube */

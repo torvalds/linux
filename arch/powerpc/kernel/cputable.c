@@ -18,6 +18,7 @@
 
 #include <asm/oprofile_impl.h>
 #include <asm/cputable.h>
+#include <asm/prom.h>		/* for PTRRELOC on ARCH=ppc */
 
 struct cpu_spec* cur_cpu_spec = NULL;
 EXPORT_SYMBOL(cur_cpu_spec);
@@ -74,7 +75,7 @@ extern void __restore_cpu_ppc970(void);
 #define PPC_FEATURE_SPE_COMP	0
 #endif
 
-struct cpu_spec	cpu_specs[] = {
+static struct cpu_spec cpu_specs[] = {
 #ifdef CONFIG_PPC64
 	{	/* Power3 */
 		.pvr_mask		= 0xffff0000,
@@ -224,6 +225,21 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_ppc970MP,
 		.cpu_restore		= __restore_cpu_ppc970,
+		.oprofile_cpu_type	= "ppc64/970",
+		.oprofile_type		= PPC_OPROFILE_POWER4,
+		.platform		= "ppc970",
+	},
+	{	/* PPC970GX */
+		.pvr_mask		= 0xffff0000,
+		.pvr_value		= 0x00450000,
+		.cpu_name		= "PPC970GX",
+		.cpu_features		= CPU_FTRS_PPC970,
+		.cpu_user_features	= COMMON_USER_POWER4 |
+			PPC_FEATURE_HAS_ALTIVEC_COMP,
+		.icache_bsize		= 128,
+		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
+		.cpu_setup		= __setup_cpu_ppc970,
 		.oprofile_cpu_type	= "ppc64/970",
 		.oprofile_type		= PPC_OPROFILE_POWER4,
 		.platform		= "ppc970",
@@ -1153,3 +1169,71 @@ struct cpu_spec	cpu_specs[] = {
 #endif /* !CLASSIC_PPC */
 #endif /* CONFIG_PPC32 */
 };
+
+struct cpu_spec *identify_cpu(unsigned long offset)
+{
+	struct cpu_spec *s = cpu_specs;
+	struct cpu_spec **cur = &cur_cpu_spec;
+	unsigned int pvr = mfspr(SPRN_PVR);
+	int i;
+
+	s = PTRRELOC(s);
+	cur = PTRRELOC(cur);
+
+	if (*cur != NULL)
+		return PTRRELOC(*cur);
+
+	for (i = 0; i < ARRAY_SIZE(cpu_specs); i++,s++)
+		if ((pvr & s->pvr_mask) == s->pvr_value) {
+			*cur = cpu_specs + i;
+#ifdef CONFIG_PPC64
+			/* ppc64 expects identify_cpu to also call setup_cpu
+			 * for that processor. I will consolidate that at a
+			 * later time, for now, just use our friend #ifdef.
+			 * we also don't need to PTRRELOC the function pointer
+			 * on ppc64 as we are running at 0 in real mode.
+			 */
+			if (s->cpu_setup) {
+				s->cpu_setup(offset, s);
+			}
+#endif /* CONFIG_PPC64 */
+			return s;
+		}
+	BUG();
+	return NULL;
+}
+
+void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
+{
+	struct fixup_entry {
+		unsigned long	mask;
+		unsigned long	value;
+		long		start_off;
+		long		end_off;
+	} *fcur, *fend;
+
+	fcur = fixup_start;
+	fend = fixup_end;
+
+	for (; fcur < fend; fcur++) {
+		unsigned int *pstart, *pend, *p;
+
+		if ((value & fcur->mask) == fcur->value)
+			continue;
+
+		/* These PTRRELOCs will disappear once the new scheme for
+		 * modules and vdso is implemented
+		 */
+		pstart = ((unsigned int *)fcur) + (fcur->start_off / 4);
+		pend = ((unsigned int *)fcur) + (fcur->end_off / 4);
+
+		for (p = pstart; p < pend; p++) {
+			*p = 0x60000000u;
+			asm volatile ("dcbst 0, %0" : : "r" (p));
+		}
+		asm volatile ("sync" : : : "memory");
+		for (p = pstart; p < pend; p++)
+			asm volatile ("icbi 0,%0" : : "r" (p));
+		asm volatile ("sync; isync" : : : "memory");
+	}
+}

@@ -565,7 +565,7 @@ config ROMVEC
 	depends on ROM
 	help
 	  This is almost always the same as the base of the ROM. Since on all
-	  68000 type varients the vectors are at the base of the boot device
+	  68000 type variants the vectors are at the base of the boot device
 	  on system startup.
 
 config ROMVECSIZE
@@ -574,7 +574,7 @@ config ROMVECSIZE
 	depends on ROM
 	help
 	  Define the size of the vector region in ROM. For most 68000
-	  varients this would be 0x400 bytes in size. Set to 0 if you do
+	  variants this would be 0x400 bytes in size. Set to 0 if you do
 	  not want a vector region at the start of the ROM.
 
 config ROMSTART

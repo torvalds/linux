@@ -270,8 +270,11 @@ static void aircable_read(void *params)
 	 */
 	tty = port->tty;
 
-	if (!tty)
+	if (!tty) {
 		schedule_work(&priv->rx_work);
+		err("%s - No tty available", __FUNCTION__);
+		return ;
+	}
 
 	count = min(64, serial_buf_data_avail(priv->rx_buf));
 
@@ -305,9 +308,7 @@ static int aircable_probe(struct usb_serial *serial,
 
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
 		endpoint = &iface_desc->endpoint[i].desc;
-		if (((endpoint->bEndpointAddress & 0x80) == 0x00) &&
-			((endpoint->bmAttributes & 3) == 0x02)) {
-			/* we found our bulk out endpoint */
+		if (usb_endpoint_is_bulk_out(endpoint)) {
 			dbg("found bulk out on endpoint %d", i);
 			++num_bulk_out;
 		}

@@ -46,7 +46,7 @@ MODULE_DESCRIPTION("kernel IB MAD API");
 MODULE_AUTHOR("Hal Rosenstock");
 MODULE_AUTHOR("Sean Hefty");
 
-static kmem_cache_t *ib_mad_cache;
+static struct kmem_cache *ib_mad_cache;
 
 static struct list_head ib_mad_port_list;
 static u32 ib_mad_client_id = 0;
@@ -1750,7 +1750,7 @@ ib_find_send_mad(struct ib_mad_agent_private *mad_agent_priv,
 		     */
 		    (is_direct(wc->recv_buf.mad->mad_hdr.mgmt_class) ||
 		     rcv_has_same_gid(mad_agent_priv, wr, wc)))
-			return wr;
+			return (wr->status == IB_WC_SUCCESS) ? wr : NULL;
 	}
 
 	/*

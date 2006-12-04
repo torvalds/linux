@@ -575,6 +575,8 @@ static noinline int print_circular_bug_tail(void)
 	return 0;
 }
 
+#define RECURSION_LIMIT 40
+
 static int noinline print_infinite_recursion_bug(void)
 {
 	__raw_spin_unlock(&hash_lock);
@@ -595,7 +597,7 @@ check_noncircular(struct lock_class *source, unsigned int depth)
 	debug_atomic_inc(&nr_cyclic_check_recursions);
 	if (depth > max_recursion_depth)
 		max_recursion_depth = depth;
-	if (depth >= 20)
+	if (depth >= RECURSION_LIMIT)
 		return print_infinite_recursion_bug();
 	/*
 	 * Check this lock's dependency list:
@@ -645,7 +647,7 @@ find_usage_forwards(struct lock_class *source, unsigned int depth)
 
 	if (depth > max_recursion_depth)
 		max_recursion_depth = depth;
-	if (depth >= 20)
+	if (depth >= RECURSION_LIMIT)
 		return print_infinite_recursion_bug();
 
 	debug_atomic_inc(&nr_find_usage_forwards_checks);
@@ -684,7 +686,7 @@ find_usage_backwards(struct lock_class *source, unsigned int depth)
 
 	if (depth > max_recursion_depth)
 		max_recursion_depth = depth;
-	if (depth >= 20)
+	if (depth >= RECURSION_LIMIT)
 		return print_infinite_recursion_bug();
 
 	debug_atomic_inc(&nr_find_usage_backwards_checks);
@@ -1079,7 +1081,8 @@ static int static_obj(void *obj)
 	 */
 	for_each_possible_cpu(i) {
 		start = (unsigned long) &__per_cpu_start + per_cpu_offset(i);
-		end   = (unsigned long) &__per_cpu_end   + per_cpu_offset(i);
+		end   = (unsigned long) &__per_cpu_start + PERCPU_ENOUGH_ROOM
+					+ per_cpu_offset(i);
 
 		if ((addr >= start) && (addr < end))
 			return 1;
@@ -1174,7 +1177,7 @@ look_up_lock_class(struct lockdep_map *lock, unsigned int subclass)
  * itself, so actual lookup of the hash should be once per lock object.
  */
 static inline struct lock_class *
-register_lock_class(struct lockdep_map *lock, unsigned int subclass)
+register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 {
 	struct lockdep_subclass_key *key;
 	struct list_head *hash_head;
@@ -1246,7 +1249,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass)
 out_unlock_set:
 	__raw_spin_unlock(&hash_lock);
 
-	if (!subclass)
+	if (!subclass || force)
 		lock->class_cache = class;
 
 	DEBUG_LOCKS_WARN_ON(class->subclass != subclass);
@@ -1934,7 +1937,7 @@ void trace_softirqs_off(unsigned long ip)
  * Initialize a lock instance's lock-class mapping info:
  */
 void lockdep_init_map(struct lockdep_map *lock, const char *name,
-		      struct lock_class_key *key)
+		      struct lock_class_key *key, int subclass)
 {
 	if (unlikely(!debug_locks))
 		return;
@@ -1954,6 +1957,8 @@ void lockdep_init_map(struct lockdep_map *lock, const char *name,
 	lock->name = name;
 	lock->key = key;
 	lock->class_cache = NULL;
+	if (subclass)
+		register_lock_class(lock, subclass, 1);
 }
 
 EXPORT_SYMBOL_GPL(lockdep_init_map);
@@ -1992,7 +1997,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	 * Not cached yet or subclass?
 	 */
 	if (unlikely(!class)) {
-		class = register_lock_class(lock, subclass);
+		class = register_lock_class(lock, subclass, 0);
 		if (!class)
 			return 0;
 	}

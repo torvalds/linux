@@ -45,7 +45,7 @@ S: Longford, Ireland
 S: Sydney, Australia
 
 N: Tigran A. Aivazian
-E: tigran@veritas.com
+E: tigran@aivazian.fsnet.co.uk
 W: http://www.moses.uklinux.net/patches
 D: BFS filesystem
 D: Intel IA32 CPU microcode update support
@@ -2598,6 +2598,9 @@ S: Ucitelska 1576
 S: Prague 8
 S: 182 00 Czech Republic
 
+N: Rick Payne
+D: RFC2385 Support for TCP
+
 N: Barak A. Pearlmutter
 E: bap@cs.unm.edu
 W: http://www.cs.unm.edu/~bap/
@@ -3511,14 +3514,12 @@ D: The Linux Support Team Erlangen
 
 N: David Weinehall
 E: tao@acc.umu.se
+P: 1024D/DC47CA16 7ACE 0FB0 7A74 F994 9B36  E1D1 D14E 8526 DC47 CA16
 W: http://www.acc.umu.se/~tao/
-W: http://www.acc.umu.se/~mcalinux/
+D: v2.0 kernel maintainer
 D: Fixes for the NE/2-driver
 D: Miscellaneous MCA-support
 D: Cleanup of the Config-files
-S: Axtorpsvagen 40:20
-S: S-903 37  UMEA
-S: Sweden
 
 N: Matt Welsh
 E: mdw@metalab.unc.edu

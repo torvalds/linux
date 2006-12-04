@@ -3,7 +3,7 @@
 *
 *		This module is completely hardware-independent and provides
 *		the following common services for the WAN Link Drivers:
-*		 o WAN device managenment (registering, unregistering)
+*		 o WAN device management (registering, unregistering)
 *		 o Network interface management
 *		 o Physical connection management (dial-up, incoming calls)
 *		 o Logical connection management (switched virtual circuits)

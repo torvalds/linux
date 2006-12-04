@@ -519,6 +519,7 @@ static int receive_from_sock(void)
 	msg.msg_flags = 0;
 	msg.msg_control = incmsg;
 	msg.msg_controllen = sizeof(incmsg);
+	msg.msg_iovlen = 1;
 
 	/* I don't see why this circular buffer stuff is necessary for SCTP
 	 * which is a packet-based protocol, but the whole thing breaks under

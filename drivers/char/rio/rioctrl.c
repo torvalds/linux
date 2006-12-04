@@ -662,7 +662,7 @@ int riocontrol(struct rio_info *p, dev_t dev, int cmd, unsigned long arg, int su
 			p->RIOError.Error = COPYIN_FAILED;
 			return -EFAULT;
 		}
-		if (portStats.port >= RIO_PORTS) {
+		if (portStats.port < 0 || portStats.port >= RIO_PORTS) {
 			p->RIOError.Error = PORT_NUMBER_OUT_OF_RANGE;
 			return -ENXIO;
 		}
@@ -702,7 +702,7 @@ int riocontrol(struct rio_info *p, dev_t dev, int cmd, unsigned long arg, int su
 			p->RIOError.Error = COPYIN_FAILED;
 			return -EFAULT;
 		}
-		if (portStats.port >= RIO_PORTS) {
+		if (portStats.port < 0 || portStats.port >= RIO_PORTS) {
 			p->RIOError.Error = PORT_NUMBER_OUT_OF_RANGE;
 			return -ENXIO;
 		}

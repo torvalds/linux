@@ -561,7 +561,7 @@ static int usbdev_open(struct inode *inode, struct file *file)
 		dev = inode->i_private;
 	if (!dev)
 		goto out;
-	ret = usb_autoresume_device(dev, 1);
+	ret = usb_autoresume_device(dev);
 	if (ret)
 		goto out;
 
@@ -609,7 +609,7 @@ static int usbdev_release(struct inode *inode, struct file *file)
 			releaseintf(ps, ifnum);
 	}
 	destroy_all_async(ps);
-	usb_autosuspend_device(dev, 1);
+	usb_autosuspend_device(dev);
 	usb_unlock_device(dev);
 	usb_put_dev(dev);
 	put_pid(ps->disc_pid);
@@ -1588,15 +1588,18 @@ const struct file_operations usbfs_device_file_operations = {
 	.release =	usbdev_release,
 };
 
-static void usbdev_add(struct usb_device *dev)
+static int usbdev_add(struct usb_device *dev)
 {
 	int minor = ((dev->bus->busnum-1) * 128) + (dev->devnum-1);
 
 	dev->class_dev = class_device_create(usb_device_class, NULL,
 				MKDEV(USB_DEVICE_MAJOR, minor), &dev->dev,
 				"usbdev%d.%d", dev->bus->busnum, dev->devnum);
+	if (IS_ERR(dev->class_dev))
+		return PTR_ERR(dev->class_dev);
 
 	dev->class_dev->class_data = dev;
+	return 0;
 }
 
 static void usbdev_remove(struct usb_device *dev)
@@ -1609,7 +1612,8 @@ static int usbdev_notify(struct notifier_block *self, unsigned long action,
 {
 	switch (action) {
 	case USB_DEVICE_ADD:
-		usbdev_add(dev);
+		if (usbdev_add(dev))
+			return NOTIFY_BAD;
 		break;
 	case USB_DEVICE_REMOVE:
 		usbdev_remove(dev);

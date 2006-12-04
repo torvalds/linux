@@ -303,7 +303,7 @@ void ftdi_elan_gone_away(struct platform_device *pdev)
 
 
 EXPORT_SYMBOL_GPL(ftdi_elan_gone_away);
-void ftdi_release_platform_dev(struct device *dev)
+static void ftdi_release_platform_dev(struct device *dev)
 {
         dev->parent = NULL;
 }
@@ -510,8 +510,6 @@ static void ftdi_elan_respond_work(void *data)
                 int retval = ftdi_elan_respond_engine(ftdi);
                 if (retval == 0) {
                 } else if (retval == -ESHUTDOWN) {
-                        ftdi->disconnected += 1;
-                } else if (retval == -ENODEV) {
                         ftdi->disconnected += 1;
                 } else if (retval == -ENODEV) {
                         ftdi->disconnected += 1;
@@ -1186,11 +1184,8 @@ static ssize_t ftdi_elan_write(struct file *file,
         int retval = 0;
         struct urb *urb;
         char *buf;
-        char data[30 *3 + 4];
-        char *d = data;
-        const char __user *s = user_buffer;
-        int m = (sizeof(data) - 1) / 3;
-        struct usb_ftdi *ftdi = (struct usb_ftdi *)file->private_data;
+        struct usb_ftdi *ftdi = file->private_data;
+
         if (ftdi->disconnected > 0) {
                 return -ENODEV;
         }
@@ -1220,27 +1215,18 @@ static ssize_t ftdi_elan_write(struct file *file,
         if (retval) {
                 dev_err(&ftdi->udev->dev, "failed submitting write urb, error %"
                         "d\n", retval);
-                goto error_4;
+                goto error_3;
         }
         usb_free_urb(urb);
-      exit:;
-        if (count > m) {
-                int I = m - 1;
-                while (I-- > 0) {
-                        d += sprintf(d, " %02X", 0x000000FF & *s++);
-                }
-                d += sprintf(d, " ..");
-        } else {
-                int I = count;
-                while (I-- > 0) {
-                        d += sprintf(d, " %02X", 0x000000FF & *s++);
-                }
-        }
+
+exit:
         return count;
-      error_4: error_3:usb_buffer_free(ftdi->udev, count, buf,
-              urb->transfer_dma);
-      error_2:usb_free_urb(urb);
-      error_1:return retval;
+error_3:
+	usb_buffer_free(ftdi->udev, count, buf, urb->transfer_dma);
+error_2:
+	usb_free_urb(urb);
+error_1:
+	return retval;
 }
 
 static struct file_operations ftdi_elan_fops = {
@@ -1440,14 +1426,6 @@ static int ftdi_elan_read_reg(struct usb_ftdi *ftdi, u32 *data)
         }
 }
 
-int usb_ftdi_elan_read_reg(struct platform_device *pdev, u32 *data)
-{
-        struct usb_ftdi *ftdi = platform_device_to_usb_ftdi(pdev);
-        return ftdi_elan_read_reg(ftdi, data);
-}
-
-
-EXPORT_SYMBOL_GPL(usb_ftdi_elan_read_reg);
 static int ftdi_elan_read_config(struct usb_ftdi *ftdi, int config_offset,
         u8 width, u32 *data)
 {
@@ -2647,10 +2625,7 @@ static int ftdi_elan_probe(struct usb_interface *interface,
         for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
                 endpoint = &iface_desc->endpoint[i].desc;
                 if (!ftdi->bulk_in_endpointAddr &&
-                        ((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
-                        == USB_DIR_IN) && ((endpoint->bmAttributes &
-                        USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_BULK))
-                        {
+		    usb_endpoint_is_bulk_in(endpoint)) {
                         buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
                         ftdi->bulk_in_size = buffer_size;
                         ftdi->bulk_in_endpointAddr = endpoint->bEndpointAddress;
@@ -2663,10 +2638,7 @@ static int ftdi_elan_probe(struct usb_interface *interface,
                         }
                 }
                 if (!ftdi->bulk_out_endpointAddr &&
-                        ((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
-                        == USB_DIR_OUT) && ((endpoint->bmAttributes &
-                        USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_BULK))
-                        {
+		    usb_endpoint_is_bulk_out(endpoint)) {
                         ftdi->bulk_out_endpointAddr =
                                 endpoint->bEndpointAddress;
                 }

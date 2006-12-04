@@ -78,6 +78,7 @@ enum {
 
 	board_ahci		= 0,
 	board_ahci_vt8251	= 1,
+	board_ahci_ign_iferr	= 2,
 
 	/* global controller registers */
 	HOST_CAP		= 0x00, /* host capabilities */
@@ -168,6 +169,7 @@ enum {
 	/* ap->flags bits */
 	AHCI_FLAG_RESET_NEEDS_CLO	= (1 << 24),
 	AHCI_FLAG_NO_NCQ		= (1 << 25),
+	AHCI_FLAG_IGN_IRQ_IF_ERR	= (1 << 26), /* ignore IRQ_IF_ERR */
 };
 
 struct ahci_cmd_hdr {
@@ -295,6 +297,17 @@ static const struct ata_port_info ahci_port_info[] = {
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
 		.port_ops	= &ahci_ops,
 	},
+	/* board_ahci_ign_iferr */
+	{
+		.sht		= &ahci_sht,
+		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
+				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
+				  ATA_FLAG_SKIP_D2H_BSY |
+				  AHCI_FLAG_IGN_IRQ_IF_ERR,
+		.pio_mask	= 0x1f, /* pio0-4 */
+		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.port_ops	= &ahci_ops,
+	},
 };
 
 static const struct pci_device_id ahci_pci_tbl[] = {
@@ -314,13 +327,24 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, 0x2824), board_ahci }, /* ICH8 */
 	{ PCI_VDEVICE(INTEL, 0x2829), board_ahci }, /* ICH8M */
 	{ PCI_VDEVICE(INTEL, 0x282a), board_ahci }, /* ICH8M */
+	{ PCI_VDEVICE(INTEL, 0x2922), board_ahci }, /* ICH9 */
+	{ PCI_VDEVICE(INTEL, 0x2923), board_ahci }, /* ICH9 */
+	{ PCI_VDEVICE(INTEL, 0x2924), board_ahci }, /* ICH9 */
+	{ PCI_VDEVICE(INTEL, 0x2925), board_ahci }, /* ICH9 */
+	{ PCI_VDEVICE(INTEL, 0x2927), board_ahci }, /* ICH9 */
+	{ PCI_VDEVICE(INTEL, 0x2929), board_ahci }, /* ICH9M */
+	{ PCI_VDEVICE(INTEL, 0x292a), board_ahci }, /* ICH9M */
+	{ PCI_VDEVICE(INTEL, 0x292b), board_ahci }, /* ICH9M */
+	{ PCI_VDEVICE(INTEL, 0x292f), board_ahci }, /* ICH9M */
+	{ PCI_VDEVICE(INTEL, 0x294d), board_ahci }, /* ICH9 */
+	{ PCI_VDEVICE(INTEL, 0x294e), board_ahci }, /* ICH9M */
 
 	/* JMicron */
-	{ PCI_VDEVICE(JMICRON, 0x2360), board_ahci }, /* JMicron JMB360 */
-	{ PCI_VDEVICE(JMICRON, 0x2361), board_ahci }, /* JMicron JMB361 */
-	{ PCI_VDEVICE(JMICRON, 0x2363), board_ahci }, /* JMicron JMB363 */
-	{ PCI_VDEVICE(JMICRON, 0x2365), board_ahci }, /* JMicron JMB365 */
-	{ PCI_VDEVICE(JMICRON, 0x2366), board_ahci }, /* JMicron JMB366 */
+	{ PCI_VDEVICE(JMICRON, 0x2360), board_ahci_ign_iferr }, /* JMB360 */
+	{ PCI_VDEVICE(JMICRON, 0x2361), board_ahci_ign_iferr }, /* JMB361 */
+	{ PCI_VDEVICE(JMICRON, 0x2363), board_ahci_ign_iferr }, /* JMB363 */
+	{ PCI_VDEVICE(JMICRON, 0x2365), board_ahci_ign_iferr }, /* JMB365 */
+	{ PCI_VDEVICE(JMICRON, 0x2366), board_ahci_ign_iferr }, /* JMB366 */
 
 	/* ATI */
 	{ PCI_VDEVICE(ATI, 0x4380), board_ahci }, /* ATI SB600 non-raid */
@@ -334,6 +358,14 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	{ PCI_VDEVICE(NVIDIA, 0x044d), board_ahci },		/* MCP65 */
 	{ PCI_VDEVICE(NVIDIA, 0x044e), board_ahci },		/* MCP65 */
 	{ PCI_VDEVICE(NVIDIA, 0x044f), board_ahci },		/* MCP65 */
+	{ PCI_VDEVICE(NVIDIA, 0x0554), board_ahci },		/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x0555), board_ahci },		/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x0556), board_ahci },		/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x0557), board_ahci },		/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x0558), board_ahci },		/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x0559), board_ahci },		/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x055a), board_ahci },		/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x055b), board_ahci },		/* MCP67 */
 
 	/* SiS */
 	{ PCI_VDEVICE(SI, 0x1184), board_ahci }, /* SiS 966 */
@@ -736,8 +768,7 @@ static int ahci_softreset(struct ata_port *ap, unsigned int *class)
 	}
 
 	/* check BUSY/DRQ, perform Command List Override if necessary */
-	ahci_tf_read(ap, &tf);
-	if (tf.command & (ATA_BUSY | ATA_DRQ)) {
+	if (ahci_check_status(ap) & (ATA_BUSY | ATA_DRQ)) {
 		rc = ahci_clo(ap);
 
 		if (rc == -EOPNOTSUPP) {
@@ -962,6 +993,10 @@ static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
 	/* analyze @irq_stat */
 	ata_ehi_push_desc(ehi, "irq_stat 0x%08x", irq_stat);
 
+	/* some controllers set IRQ_IF_ERR on device errors, ignore it */
+	if (ap->flags & AHCI_FLAG_IGN_IRQ_IF_ERR)
+		irq_stat &= ~PORT_IRQ_IF_ERR;
+
 	if (irq_stat & PORT_IRQ_TF_ERR)
 		err_mask |= AC_ERR_DEV;
 
@@ -1041,7 +1076,7 @@ static void ahci_host_intr(struct ata_port *ap)
 	/* hmmm... a spurious interupt */
 
 	/* some devices send D2H reg with I bit set during NCQ command phase */
-	if (ap->sactive && status & PORT_IRQ_D2H_REG_FIS)
+	if (ap->sactive && (status & PORT_IRQ_D2H_REG_FIS))
 		return;
 
 	/* ignore interim PIO setup fis interrupts */

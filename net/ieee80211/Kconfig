@@ -32,6 +32,7 @@ config IEEE80211_CRYPT_WEP
 	depends on IEEE80211
 	select CRYPTO
 	select CRYPTO_ARC4
+	select CRYPTO_ECB
 	select CRC32
 	---help---
 	Include software based cipher suites in support of IEEE
@@ -58,6 +59,7 @@ config IEEE80211_CRYPT_TKIP
 	depends on IEEE80211 && NET_RADIO
 	select CRYPTO
 	select CRYPTO_MICHAEL_MIC
+	select CRYPTO_ECB
 	select CRC32
 	---help---
 	Include software based cipher suites in support of IEEE 802.11i

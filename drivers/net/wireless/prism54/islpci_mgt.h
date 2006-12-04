@@ -1,5 +1,4 @@
 /*
- *  
  *  Copyright (C) 2002 Intersil Americas Inc.
  *  Copyright (C) 2003 Luis R. Rodriguez <mcgrof@ruslug.rutgers.edu>
  *
@@ -36,8 +35,8 @@ extern int pc_debug;
 
 
 /* General driver definitions */
-#define PCIDEVICE_LATENCY_TIMER_MIN 		0x40
-#define PCIDEVICE_LATENCY_TIMER_VAL 		0x50
+#define PCIDEVICE_LATENCY_TIMER_MIN		0x40
+#define PCIDEVICE_LATENCY_TIMER_VAL		0x50
 
 /* Debugging verbose definitions */
 #define SHOW_NOTHING                            0x00	/* overrules everything */

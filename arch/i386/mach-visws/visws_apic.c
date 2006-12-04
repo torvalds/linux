@@ -122,7 +122,7 @@ static void end_cobalt_irq(unsigned int irq)
 	spin_unlock_irqrestore(&cobalt_lock, flags);
 }
 
-static struct hw_interrupt_type cobalt_irq_type = {
+static struct irq_chip cobalt_irq_type = {
 	.typename =	"Cobalt-APIC",
 	.startup =	startup_cobalt_irq,
 	.shutdown =	disable_cobalt_irq,
@@ -159,7 +159,7 @@ static void end_piix4_master_irq(unsigned int irq)
 	spin_unlock_irqrestore(&cobalt_lock, flags);
 }
 
-static struct hw_interrupt_type piix4_master_irq_type = {
+static struct irq_chip piix4_master_irq_type = {
 	.typename =	"PIIX4-master",
 	.startup =	startup_piix4_master_irq,
 	.ack =		ack_cobalt_irq,
@@ -167,9 +167,8 @@ static struct hw_interrupt_type piix4_master_irq_type = {
 };
 
 
-static struct hw_interrupt_type piix4_virtual_irq_type = {
+static struct irq_chip piix4_virtual_irq_type = {
 	.typename =	"PIIX4-virtual",
-	.startup =	startup_8259A_irq,
 	.shutdown =	disable_8259A_irq,
 	.enable =	enable_8259A_irq,
 	.disable =	disable_8259A_irq,

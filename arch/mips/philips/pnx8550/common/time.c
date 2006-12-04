@@ -41,8 +41,8 @@ extern unsigned int mips_hpt_frequency;
  * 1) board_time_init() -
  * 	a) (optional) set up RTC routines,
  *      b) (optional) calibrate and set the mips_hpt_frequency
- *	    (only needed if you intended to use fixed_rate_gettimeoffset
- *	     or use cpu counter as timer interrupt source)
+ *	    (only needed if you intended to use cpu counter as timer interrupt
+ *	     source)
  */
 
 void pnx8550_time_init(void)

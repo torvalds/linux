@@ -74,52 +74,6 @@ static void __devinit  pci_fixup_ncr53c810(struct pci_dev *d)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NCR, PCI_DEVICE_ID_NCR_53C810, pci_fixup_ncr53c810);
 
-static void __devinit pci_fixup_ide_bases(struct pci_dev *d)
-{
-	int i;
-
-	/*
-	 * PCI IDE controllers use non-standard I/O port decoding, respect it.
-	 */
-	if ((d->class >> 8) != PCI_CLASS_STORAGE_IDE)
-		return;
-	DBG("PCI: IDE base address fixup for %s\n", pci_name(d));
-	for(i=0; i<4; i++) {
-		struct resource *r = &d->resource[i];
-		if ((r->start & ~0x80) == 0x374) {
-			r->start |= 2;
-			r->end = r->start;
-		}
-	}
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pci_fixup_ide_bases);
-
-static void __devinit  pci_fixup_ide_trash(struct pci_dev *d)
-{
-	int i;
-
-	/*
-	 * Runs the fixup only for the first IDE controller
-	 * (Shai Fultheim - shai@ftcon.com)
-	 */
-	static int called = 0;
-	if (called)
-		return;
-	called = 1;
-
-	/*
-	 * There exist PCI IDE controllers which have utter garbage
-	 * in first four base registers. Ignore that.
-	 */
-	DBG("PCI: IDE base address trash cleared for %s\n", pci_name(d));
-	for(i=0; i<4; i++)
-		d->resource[i].start = d->resource[i].end = d->resource[i].flags = 0;
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_5513, pci_fixup_ide_trash);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_10, pci_fixup_ide_trash);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_11, pci_fixup_ide_trash);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_9, pci_fixup_ide_trash);
-
 static void __devinit  pci_fixup_latency(struct pci_dev *d)
 {
 	/*
@@ -348,8 +302,8 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_MCH_PC1,	pcie_r
  * From information provided by "Jon Smirl" <jonsmirl@gmail.com>
  *
  * The standard boot ROM sequence for an x86 machine uses the BIOS
- * to select an initial video card for boot display. This boot video 
- * card will have it's BIOS copied to C0000 in system RAM. 
+ * to select an initial video card for boot display. This boot video
+ * card will have it's BIOS copied to C0000 in system RAM.
  * IORESOURCE_ROM_SHADOW is used to associate the boot video
  * card with this copy. On laptops this copy has to be used since
  * the main ROM may be compressed or combined with another image.
@@ -371,7 +325,17 @@ static void __devinit pci_fixup_video(struct pci_dev *pdev)
 	bus = pdev->bus;
 	while (bus) {
 		bridge = bus->self;
-		if (bridge) {
+
+		/*
+		 * From information provided by
+		 * "David Miller" <davem@davemloft.net>
+		 * The bridge control register is valid for PCI header
+		 * type BRIDGE, or CARDBUS. Host to PCI controllers use
+		 * PCI header type NORMAL.
+		 */
+		if (bridge
+		    &&((bridge->hdr_type == PCI_HEADER_TYPE_BRIDGE)
+		       ||(bridge->hdr_type == PCI_HEADER_TYPE_CARDBUS))) {
 			pci_read_config_word(bridge, PCI_BRIDGE_CONTROL,
 						&config);
 			if (!(config & PCI_BRIDGE_CTL_VGA))

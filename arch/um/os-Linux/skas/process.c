@@ -14,7 +14,7 @@
 #include <sys/mman.h>
 #include <sys/user.h>
 #include <sys/time.h>
-#include <asm/unistd.h>
+#include <sys/syscall.h>
 #include <asm/types.h>
 #include "user.h"
 #include "sysdep/ptrace.h"

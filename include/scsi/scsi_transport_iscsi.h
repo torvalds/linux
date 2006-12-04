@@ -29,7 +29,6 @@
 struct scsi_transport_template;
 struct iscsi_transport;
 struct Scsi_Host;
-struct mempool_zone;
 struct iscsi_cls_conn;
 struct iscsi_conn;
 struct iscsi_cmd_task;
@@ -157,9 +156,6 @@ struct iscsi_cls_conn {
 
 	int active;			/* must be accessed with the connlock */
 	struct device dev;		/* sysfs transport/container device */
-	struct mempool_zone *z_error;
-	struct mempool_zone *z_pdu;
-	struct list_head freequeue;
 };
 
 #define iscsi_dev_to_conn(_dev) \

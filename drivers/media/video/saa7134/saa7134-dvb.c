@@ -1147,6 +1147,8 @@ static int dvb_init(struct saa7134_dev *dev)
 					       &philips_europa_config,
 					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
+			dev->original_demod_sleep = dev->dvb.frontend->ops.sleep;
+			dev->dvb.frontend->ops.sleep = philips_europa_demod_sleep;
 			dev->dvb.frontend->ops.tuner_ops.init = philips_europa_tuner_init;
 			dev->dvb.frontend->ops.tuner_ops.sleep = philips_europa_tuner_sleep;
 			dev->dvb.frontend->ops.tuner_ops.set_params = philips_td1316_tuner_set_params;

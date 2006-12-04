@@ -162,7 +162,8 @@ static struct miscdevice rng_miscdev = {
 };
 
 
-static ssize_t hwrng_attr_current_store(struct class_device *class,
+static ssize_t hwrng_attr_current_store(struct device *dev,
+					struct device_attribute *attr,
 					const char *buf, size_t len)
 {
 	int err;
@@ -192,7 +193,8 @@ static ssize_t hwrng_attr_current_store(struct class_device *class,
 	return err ? : len;
 }
 
-static ssize_t hwrng_attr_current_show(struct class_device *class,
+static ssize_t hwrng_attr_current_show(struct device *dev,
+				       struct device_attribute *attr,
 				       char *buf)
 {
 	int err;
@@ -210,7 +212,8 @@ static ssize_t hwrng_attr_current_show(struct class_device *class,
 	return ret;
 }
 
-static ssize_t hwrng_attr_available_show(struct class_device *class,
+static ssize_t hwrng_attr_available_show(struct device *dev,
+					 struct device_attribute *attr,
 					 char *buf)
 {
 	int err;
@@ -234,20 +237,18 @@ static ssize_t hwrng_attr_available_show(struct class_device *class,
 	return ret;
 }
 
-static CLASS_DEVICE_ATTR(rng_current, S_IRUGO | S_IWUSR,
-			 hwrng_attr_current_show,
-			 hwrng_attr_current_store);
-static CLASS_DEVICE_ATTR(rng_available, S_IRUGO,
-			 hwrng_attr_available_show,
-			 NULL);
+static DEVICE_ATTR(rng_current, S_IRUGO | S_IWUSR,
+		   hwrng_attr_current_show,
+		   hwrng_attr_current_store);
+static DEVICE_ATTR(rng_available, S_IRUGO,
+		   hwrng_attr_available_show,
+		   NULL);
 
 
 static void unregister_miscdev(void)
 {
-	class_device_remove_file(rng_miscdev.class,
-				 &class_device_attr_rng_available);
-	class_device_remove_file(rng_miscdev.class,
-				 &class_device_attr_rng_current);
+	device_remove_file(rng_miscdev.this_device, &dev_attr_rng_available);
+	device_remove_file(rng_miscdev.this_device, &dev_attr_rng_current);
 	misc_deregister(&rng_miscdev);
 }
 
@@ -258,20 +259,19 @@ static int register_miscdev(void)
 	err = misc_register(&rng_miscdev);
 	if (err)
 		goto out;
-	err = class_device_create_file(rng_miscdev.class,
-				       &class_device_attr_rng_current);
+	err = device_create_file(rng_miscdev.this_device,
+				 &dev_attr_rng_current);
 	if (err)
 		goto err_misc_dereg;
-	err = class_device_create_file(rng_miscdev.class,
-				       &class_device_attr_rng_available);
+	err = device_create_file(rng_miscdev.this_device,
+				 &dev_attr_rng_available);
 	if (err)
 		goto err_remove_current;
 out:
 	return err;
 
 err_remove_current:
-	class_device_remove_file(rng_miscdev.class,
-				 &class_device_attr_rng_current);
+	device_remove_file(rng_miscdev.this_device, &dev_attr_rng_current);
 err_misc_dereg:
 	misc_deregister(&rng_miscdev);
 	goto out;

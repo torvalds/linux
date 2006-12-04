@@ -37,7 +37,10 @@
 #endif
 
 #ifndef HAVE_ARCH_WARN_ON
-#define WARN_ON(condition) unlikely((condition))
+#define WARN_ON(condition) ({						\
+	typeof(condition) __ret_warn_on = (condition);			\
+	unlikely(__ret_warn_on);					\
+})
 #endif
 #endif
 

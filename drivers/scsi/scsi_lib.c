@@ -410,6 +410,7 @@ int scsi_execute_async(struct scsi_device *sdev, const unsigned char *cmd,
 		goto free_req;
 
 	req->cmd_len = cmd_len;
+	memset(req->cmd, 0, BLK_MAX_CDB); /* ATAPI hates garbage after CDB */
 	memcpy(req->cmd, cmd, req->cmd_len);
 	req->sense = sioc->sense;
 	req->sense_len = 0;
@@ -1084,7 +1085,7 @@ static void scsi_setup_blk_pc_cmnd(struct scsi_cmnd *cmd)
 {
 	struct request *req = cmd->request;
 
-	BUG_ON(sizeof(req->cmd) > sizeof(cmd->cmnd));
+	BUILD_BUG_ON(sizeof(req->cmd) > sizeof(cmd->cmnd));
 	memcpy(cmd->cmnd, req->cmd, sizeof(cmd->cmnd));
 	cmd->cmd_len = req->cmd_len;
 	if (!req->data_len)

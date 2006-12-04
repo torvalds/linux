@@ -41,11 +41,3 @@ config DECNET_ROUTER
 
 	  See <file:Documentation/networking/decnet.txt> for more information.
 
-config DECNET_ROUTE_FWMARK
-	bool "DECnet: use FWMARK value as routing key (EXPERIMENTAL)"
-	depends on DECNET_ROUTER && NETFILTER
-	help
-	  If you say Y here, you will be able to specify different routes for
-	  packets with different FWMARK ("firewalling mark") values
-	  (see ipchains(8), "-m" argument).
-

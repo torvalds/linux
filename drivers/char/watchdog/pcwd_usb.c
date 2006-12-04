@@ -561,8 +561,7 @@ static struct notifier_block usb_pcwd_notifier = {
  */
 static inline void usb_pcwd_delete (struct usb_pcwd_private *usb_pcwd)
 {
-	if (usb_pcwd->intr_urb != NULL)
-		usb_free_urb (usb_pcwd->intr_urb);
+	usb_free_urb(usb_pcwd->intr_urb);
 	if (usb_pcwd->intr_buffer != NULL)
 		usb_buffer_free(usb_pcwd->udev, usb_pcwd->intr_size,
 				usb_pcwd->intr_buffer, usb_pcwd->intr_dma);

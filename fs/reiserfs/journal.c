@@ -53,6 +53,7 @@
 #include <linux/workqueue.h>
 #include <linux/writeback.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 
 /* gets a struct reiserfs_journal_list * from a list head */
 #define JOURNAL_LIST_ENTRY(h) (list_entry((h), struct reiserfs_journal_list, \
@@ -970,7 +971,7 @@ int reiserfs_async_progress_wait(struct super_block *s)
 	DEFINE_WAIT(wait);
 	struct reiserfs_journal *j = SB_JOURNAL(s);
 	if (atomic_read(&j->j_async_throttle))
-		blk_congestion_wait(WRITE, HZ / 10);
+		congestion_wait(WRITE, HZ / 10);
 	return 0;
 }
 
@@ -1463,7 +1464,7 @@ static int flush_journal_list(struct super_block *s,
 		}
 
 		/* if someone has this block in a newer transaction, just make
-		 ** sure they are commited, and don't try writing it to disk
+		 ** sure they are committed, and don't try writing it to disk
 		 */
 		if (pjl) {
 			if (atomic_read(&pjl->j_commit_left))
@@ -3383,7 +3384,7 @@ static int remove_from_transaction(struct super_block *p_s_sb,
 
 /*
 ** for any cnode in a journal list, it can only be dirtied of all the
-** transactions that include it are commited to disk.
+** transactions that include it are committed to disk.
 ** this checks through each transaction, and returns 1 if you are allowed to dirty,
 ** and 0 if you aren't
 **
@@ -3425,7 +3426,7 @@ static int can_dirty(struct reiserfs_journal_cnode *cn)
 }
 
 /* syncs the commit blocks, but does not force the real buffers to disk
-** will wait until the current transaction is done/commited before returning 
+** will wait until the current transaction is done/committed before returning 
 */
 int journal_end_sync(struct reiserfs_transaction_handle *th,
 		     struct super_block *p_s_sb, unsigned long nblocks)

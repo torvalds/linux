@@ -97,6 +97,7 @@ extern const unsigned char scsi_command_size[8];
 #define PERSISTENT_RESERVE_IN 0x5e
 #define PERSISTENT_RESERVE_OUT 0x5f
 #define REPORT_LUNS           0xa0
+#define MAINTENANCE_IN        0xa3
 #define MOVE_MEDIUM           0xa5
 #define EXCHANGE_MEDIUM       0xa6
 #define READ_12               0xa8
@@ -114,6 +115,8 @@ extern const unsigned char scsi_command_size[8];
 #define SERVICE_ACTION_IN     0x9e
 /* values for service action in */
 #define	SAI_READ_CAPACITY_16  0x10
+/* values for maintenance in */
+#define MI_REPORT_TARGET_PGS  0x0a
 
 /* Values for T10/04-262r7 */
 #define	ATA_16		      0x85	/* 16-byte pass-thru */
@@ -430,7 +433,7 @@ struct scsi_lun {
 #define SCSI_IOCTL_GET_PCI		0x5387
 
 /* Pull a u32 out of a SCSI message (using BE SCSI conventions) */
-static inline u32 scsi_to_u32(u8 *ptr)
+static inline __u32 scsi_to_u32(__u8 *ptr)
 {
 	return (ptr[0]<<24) + (ptr[1]<<16) + (ptr[2]<<8) + ptr[3];
 }

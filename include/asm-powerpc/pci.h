@@ -62,19 +62,13 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 }
 
 #ifdef CONFIG_PPC64
-#define HAVE_ARCH_PCI_MWI 1
-static inline int pcibios_prep_mwi(struct pci_dev *dev)
-{
-	/*
-	 * We would like to avoid touching the cacheline size or MWI bit
-	 * but we cant do that with the current pcibios_prep_mwi 
-	 * interface. pSeries firmware sets the cacheline size (which is not
-	 * the cpu cacheline size in all cases) and hardware treats MWI 
-	 * the same as memory write. So we dont touch the cacheline size
-	 * here and allow the generic code to set the MWI bit.
-	 */
-	return 0;
-}
+
+/*
+ * We want to avoid touching the cacheline size or MWI bit.
+ * pSeries firmware sets the cacheline size (which is not the cpu cacheline
+ * size in all cases) and hardware treats MWI the same as memory write.
+ */
+#define PCI_DISABLE_MWI
 
 extern struct dma_mapping_ops pci_dma_ops;
 

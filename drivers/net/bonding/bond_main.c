@@ -1336,6 +1336,13 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		goto err_undo_flags;
 	}
 
+	if (slave_dev->get_stats == NULL) {
+		printk(KERN_NOTICE DRV_NAME
+			": %s: the driver for slave device %s does not provide "
+			"get_stats function, network statistics will be "
+			"inaccurate.\n", bond_dev->name, slave_dev->name);
+	}
+
 	new_slave = kmalloc(sizeof(struct slave), GFP_KERNEL);
 	if (!new_slave) {
 		res = -ENOMEM;
@@ -3605,33 +3612,35 @@ static struct net_device_stats *bond_get_stats(struct net_device *bond_dev)
 	read_lock_bh(&bond->lock);
 
 	bond_for_each_slave(bond, slave, i) {
-		sstats = slave->dev->get_stats(slave->dev);
+		if (slave->dev->get_stats) {
+			sstats = slave->dev->get_stats(slave->dev);
 
-		stats->rx_packets += sstats->rx_packets;
-		stats->rx_bytes += sstats->rx_bytes;
-		stats->rx_errors += sstats->rx_errors;
-		stats->rx_dropped += sstats->rx_dropped;
+			stats->rx_packets += sstats->rx_packets;
+			stats->rx_bytes += sstats->rx_bytes;
+			stats->rx_errors += sstats->rx_errors;
+			stats->rx_dropped += sstats->rx_dropped;
 
-		stats->tx_packets += sstats->tx_packets;
-		stats->tx_bytes += sstats->tx_bytes;
-		stats->tx_errors += sstats->tx_errors;
-		stats->tx_dropped += sstats->tx_dropped;
+			stats->tx_packets += sstats->tx_packets;
+			stats->tx_bytes += sstats->tx_bytes;
+			stats->tx_errors += sstats->tx_errors;
+			stats->tx_dropped += sstats->tx_dropped;
 
-		stats->multicast += sstats->multicast;
-		stats->collisions += sstats->collisions;
+			stats->multicast += sstats->multicast;
+			stats->collisions += sstats->collisions;
 
-		stats->rx_length_errors += sstats->rx_length_errors;
-		stats->rx_over_errors += sstats->rx_over_errors;
-		stats->rx_crc_errors += sstats->rx_crc_errors;
-		stats->rx_frame_errors += sstats->rx_frame_errors;
-		stats->rx_fifo_errors += sstats->rx_fifo_errors;
-		stats->rx_missed_errors += sstats->rx_missed_errors;
+			stats->rx_length_errors += sstats->rx_length_errors;
+			stats->rx_over_errors += sstats->rx_over_errors;
+			stats->rx_crc_errors += sstats->rx_crc_errors;
+			stats->rx_frame_errors += sstats->rx_frame_errors;
+			stats->rx_fifo_errors += sstats->rx_fifo_errors;
+			stats->rx_missed_errors += sstats->rx_missed_errors;
 
-		stats->tx_aborted_errors += sstats->tx_aborted_errors;
-		stats->tx_carrier_errors += sstats->tx_carrier_errors;
-		stats->tx_fifo_errors += sstats->tx_fifo_errors;
-		stats->tx_heartbeat_errors += sstats->tx_heartbeat_errors;
-		stats->tx_window_errors += sstats->tx_window_errors;
+			stats->tx_aborted_errors += sstats->tx_aborted_errors;
+			stats->tx_carrier_errors += sstats->tx_carrier_errors;
+			stats->tx_fifo_errors += sstats->tx_fifo_errors;
+			stats->tx_heartbeat_errors += sstats->tx_heartbeat_errors;
+			stats->tx_window_errors += sstats->tx_window_errors;
+		}
 	}
 
 	read_unlock_bh(&bond->lock);
@@ -4692,6 +4701,8 @@ static int bond_check_params(struct bond_params *params)
 	return 0;
 }
 
+static struct lock_class_key bonding_netdev_xmit_lock_key;
+
 /* Create a new bond based on the specified name and bonding parameters.
  * Caller must NOT hold rtnl_lock; we need to release it here before we
  * set up our sysfs entries.
@@ -4727,6 +4738,9 @@ int bond_create(char *name, struct bond_params *params, struct bonding **newbond
 	if (res < 0) {
 		goto out_bond;
 	}
+
+	lockdep_set_class(&bond_dev->_xmit_lock, &bonding_netdev_xmit_lock_key);
+
 	if (newbond)
 		*newbond = bond_dev->priv;
 

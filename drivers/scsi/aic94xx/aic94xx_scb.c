@@ -168,6 +168,70 @@ static inline void asd_get_attached_sas_addr(struct asd_phy *phy, u8 *sas_addr)
 	}
 }
 
+static void asd_form_port(struct asd_ha_struct *asd_ha, struct asd_phy *phy)
+{
+	int i;
+	struct asd_port *free_port = NULL;
+	struct asd_port *port;
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
+	unsigned long flags;
+
+	spin_lock_irqsave(&asd_ha->asd_ports_lock, flags);
+	if (!phy->asd_port) {
+		for (i = 0; i < ASD_MAX_PHYS; i++) {
+			port = &asd_ha->asd_ports[i];
+
+			/* Check for wide port */
+			if (port->num_phys > 0 &&
+			    memcmp(port->sas_addr, sas_phy->sas_addr,
+				   SAS_ADDR_SIZE) == 0 &&
+			    memcmp(port->attached_sas_addr,
+				   sas_phy->attached_sas_addr,
+				   SAS_ADDR_SIZE) == 0) {
+				break;
+			}
+
+			/* Find a free port */
+			if (port->num_phys == 0 && free_port == NULL) {
+				free_port = port;
+			}
+		}
+
+		/* Use a free port if this doesn't form a wide port */
+		if (i >= ASD_MAX_PHYS) {
+			port = free_port;
+			BUG_ON(!port);
+			memcpy(port->sas_addr, sas_phy->sas_addr,
+			       SAS_ADDR_SIZE);
+			memcpy(port->attached_sas_addr,
+			       sas_phy->attached_sas_addr,
+			       SAS_ADDR_SIZE);
+		}
+		port->num_phys++;
+		port->phy_mask |= (1U << sas_phy->id);
+		phy->asd_port = port;
+	}
+	ASD_DPRINTK("%s: updating phy_mask 0x%x for phy%d\n",
+		    __FUNCTION__, phy->asd_port->phy_mask, sas_phy->id);
+	asd_update_port_links(asd_ha, phy);
+	spin_unlock_irqrestore(&asd_ha->asd_ports_lock, flags);
+}
+
+static void asd_deform_port(struct asd_ha_struct *asd_ha, struct asd_phy *phy)
+{
+	struct asd_port *port = phy->asd_port;
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
+	unsigned long flags;
+
+	spin_lock_irqsave(&asd_ha->asd_ports_lock, flags);
+	if (port) {
+		port->num_phys--;
+		port->phy_mask &= ~(1U << sas_phy->id);
+		phy->asd_port = NULL;
+	}
+	spin_unlock_irqrestore(&asd_ha->asd_ports_lock, flags);
+}
+
 static inline void asd_bytes_dmaed_tasklet(struct asd_ascb *ascb,
 					   struct done_list_struct *dl,
 					   int edb_id, int phy_id)
@@ -187,6 +251,7 @@ static inline void asd_bytes_dmaed_tasklet(struct asd_ascb *ascb,
 	asd_get_attached_sas_addr(phy, phy->sas_phy.attached_sas_addr);
 	spin_unlock_irqrestore(&phy->sas_phy.frame_rcvd_lock, flags);
 	asd_dump_frame_rcvd(phy, dl);
+	asd_form_port(ascb->ha, phy);
 	sas_ha->notify_port_event(&phy->sas_phy, PORTE_BYTES_DMAED);
 }
 
@@ -197,6 +262,7 @@ static inline void asd_link_reset_err_tasklet(struct asd_ascb *ascb,
 	struct asd_ha_struct *asd_ha = ascb->ha;
 	struct sas_ha_struct *sas_ha = &asd_ha->sas_ha;
 	struct asd_sas_phy *sas_phy = sas_ha->sas_phy[phy_id];
+	struct asd_phy *phy = &asd_ha->phys[phy_id];
 	u8 lr_error = dl->status_block[1];
 	u8 retries_left = dl->status_block[2];
 
@@ -221,6 +287,7 @@ static inline void asd_link_reset_err_tasklet(struct asd_ascb *ascb,
 
 	asd_turn_led(asd_ha, phy_id, 0);
 	sas_phy_disconnected(sas_phy);
+	asd_deform_port(asd_ha, phy);
 	sas_ha->notify_port_event(sas_phy, PORTE_LINK_RESET_ERR);
 
 	if (retries_left == 0) {
@@ -248,6 +315,8 @@ static inline void asd_primitive_rcvd_tasklet(struct asd_ascb *ascb,
 	unsigned long flags;
 	struct sas_ha_struct *sas_ha = &ascb->ha->sas_ha;
 	struct asd_sas_phy *sas_phy = sas_ha->sas_phy[phy_id];
+	struct asd_ha_struct *asd_ha = ascb->ha;
+	struct asd_phy *phy = &asd_ha->phys[phy_id];
 	u8  reg  = dl->status_block[1];
 	u32 cont = dl->status_block[2] << ((reg & 3)*8);
 
@@ -284,6 +353,7 @@ static inline void asd_primitive_rcvd_tasklet(struct asd_ascb *ascb,
 				    phy_id);
 			/* The sequencer disables all phys on that port.
 			 * We have to re-enable the phys ourselves. */
+			asd_deform_port(asd_ha, phy);
 			sas_ha->notify_port_event(sas_phy, PORTE_HARD_RESET);
 			break;
 
@@ -351,6 +421,7 @@ static void escb_tasklet_complete(struct asd_ascb *ascb,
 	u8  sb_opcode = dl->status_block[0];
 	int phy_id = sb_opcode & DL_PHY_MASK;
 	struct asd_sas_phy *sas_phy = sas_ha->sas_phy[phy_id];
+	struct asd_phy *phy = &asd_ha->phys[phy_id];
 
 	if (edb > 6 || edb < 0) {
 		ASD_DPRINTK("edb is 0x%x! dl->opcode is 0x%x\n",
@@ -395,6 +466,7 @@ static void escb_tasklet_complete(struct asd_ascb *ascb,
 		asd_turn_led(asd_ha, phy_id, 0);
 		/* the device is gone */
 		sas_phy_disconnected(sas_phy);
+		asd_deform_port(asd_ha, phy);
 		sas_ha->notify_port_event(sas_phy, PORTE_TIMER_EVENT);
 		break;
 	case REQ_TASK_ABORT:

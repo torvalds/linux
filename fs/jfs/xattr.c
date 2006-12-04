@@ -756,6 +756,11 @@ static int can_set_system_xattr(struct inode *inode, const char *name,
 	return -EOPNOTSUPP;
 }
 
+/*
+ * Most of the permission checking is done by xattr_permission in the vfs.
+ * The local file system is responsible for handling the system.* namespace.
+ * We also need to verify that this is a namespace that we recognize.
+ */
 static int can_set_xattr(struct inode *inode, const char *name,
 			 const void *value, size_t value_len)
 {
@@ -770,10 +775,6 @@ static int can_set_xattr(struct inode *inode, const char *name,
 	    strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN) &&
 	    strncmp(name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN))
 		return -EOPNOTSUPP;
-
-	if (!S_ISREG(inode->i_mode) &&
-	    (!S_ISDIR(inode->i_mode) || inode->i_mode &S_ISVTX))
-		return -EPERM;
 
 	return 0;
 }

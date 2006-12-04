@@ -385,7 +385,7 @@ static ssize_t spufs_mbox_read(struct file *file, char __user *buf,
 	udata = (void __user *)buf;
 
 	spu_acquire(ctx);
-	for (count = 0; count <= len; count += 4, udata++) {
+	for (count = 0; (count + 4) <= len; count += 4, udata++) {
 		int ret;
 		ret = ctx->ops->mbox_read(ctx, &mbox_data);
 		if (ret == 0)

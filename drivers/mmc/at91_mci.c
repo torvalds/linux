@@ -793,7 +793,7 @@ int at91_mci_get_ro(struct mmc_host *mmc)
 	return read_only;
 }
 
-static struct mmc_host_ops at91_mci_ops = {
+static const struct mmc_host_ops at91_mci_ops = {
 	.request	= at91_mci_request,
 	.set_ios	= at91_mci_set_ios,
 	.get_ro		= at91_mci_get_ro,

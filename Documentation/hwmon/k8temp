@@ -2,7 +2,7 @@ Kernel driver k8temp
 ====================
 
 Supported chips:
-  * AMD K8 CPU
+  * AMD Athlon64/FX or Opteron CPUs
     Prefix: 'k8temp'
     Addresses scanned: PCI space
     Datasheet: http://www.amd.com/us-en/assets/content_type/white_papers_and_tech_docs/32559.pdf
@@ -13,10 +13,13 @@ Contact: Rudolf Marek <r.marek@sh.cvut.cz>
 Description
 -----------
 
-This driver permits reading temperature sensor(s) embedded inside AMD K8 CPUs.
-Official documentation says that it works from revision F of K8 core, but
-in fact it seems to be implemented for all revisions of K8 except the first
-two revisions (SH-B0 and SH-B3).
+This driver permits reading temperature sensor(s) embedded inside AMD K8
+family CPUs (Athlon64/FX, Opteron). Official documentation says that it works
+from revision F of K8 core, but in fact it seems to be implemented for all
+revisions of K8 except the first two revisions (SH-B0 and SH-B3).
+
+Please note that you will need at least lm-sensors 2.10.1 for proper userspace
+support.
 
 There can be up to four temperature sensors inside single CPU. The driver
 will auto-detect the sensors and will display only temperatures from

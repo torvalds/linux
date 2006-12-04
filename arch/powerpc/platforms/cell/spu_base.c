@@ -668,14 +668,19 @@ static int __init spu_map_interrupts(struct spu *spu, struct device_node *np)
 
 	for (i=0; i < 3; i++) {
 		ret = of_irq_map_one(np, i, &oirq);
-		if (ret)
+		if (ret) {
+			pr_debug("spu_new: failed to get irq %d\n", i);
 			goto err;
-
+		}
 		ret = -EINVAL;
+		pr_debug("  irq %d no 0x%x on %s\n", i, oirq.specifier[0],
+			 oirq.controller->full_name);
 		spu->irqs[i] = irq_create_of_mapping(oirq.controller,
 					oirq.specifier, oirq.size);
-		if (spu->irqs[i] == NO_IRQ)
+		if (spu->irqs[i] == NO_IRQ) {
+			pr_debug("spu_new: failed to map it !\n");
 			goto err;
+		}
 	}
 	return 0;
 
@@ -694,7 +699,7 @@ static int spu_map_resource(struct device_node *node, int nr,
 	struct resource resource = { };
 	int ret;
 
-	ret = of_address_to_resource(node, 0, &resource);
+	ret = of_address_to_resource(node, nr, &resource);
 	if (ret)
 		goto out;
 
@@ -717,22 +722,42 @@ static int __init spu_map_device(struct spu *spu, struct device_node *node)
 
 	ret = spu_map_resource(node, 0, (void __iomem**)&spu->local_store,
 					&spu->local_store_phys);
-	if (ret)
+	if (ret) {
+		pr_debug("spu_new: failed to map %s resource 0\n",
+			 node->full_name);
 		goto out;
+	}
 	ret = spu_map_resource(node, 1, (void __iomem**)&spu->problem,
 					&spu->problem_phys);
-	if (ret)
+	if (ret) {
+		pr_debug("spu_new: failed to map %s resource 1\n",
+			 node->full_name);
 		goto out_unmap;
+	}
 	ret = spu_map_resource(node, 2, (void __iomem**)&spu->priv2,
 					NULL);
-	if (ret)
+	if (ret) {
+		pr_debug("spu_new: failed to map %s resource 2\n",
+			 node->full_name);
 		goto out_unmap;
+	}
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR))
 		ret = spu_map_resource(node, 3, (void __iomem**)&spu->priv1,
 					NULL);
-	if (ret)
+	if (ret) {
+		pr_debug("spu_new: failed to map %s resource 3\n",
+			 node->full_name);
 		goto out_unmap;
+	}
+	pr_debug("spu_new: %s maps:\n", node->full_name);
+	pr_debug("  local store   : 0x%016lx -> 0x%p\n",
+		 spu->local_store_phys, spu->local_store);
+	pr_debug("  problem state : 0x%016lx -> 0x%p\n",
+		 spu->problem_phys, spu->problem);
+	pr_debug("  priv2         :                       0x%p\n", spu->priv2);
+	pr_debug("  priv1         :                       0x%p\n", spu->priv1);
+
 	return 0;
 
 out_unmap:

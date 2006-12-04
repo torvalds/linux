@@ -1087,7 +1087,7 @@ static int inval_cache_and_wait_for_operation(
 		}
 		spin_lock(chip->mutex);
 
-		if (chip->state != chip_state) {
+		while (chip->state != chip_state) {
 			/* Someone's suspended the operation: sleep */
 			DECLARE_WAITQUEUE(wait, current);
 			set_current_state(TASK_UNINTERRUPTIBLE);

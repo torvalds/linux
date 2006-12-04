@@ -972,7 +972,7 @@ static int make_rate (unsigned int rate, rounding r,
       }
       case round_up: {
 	// check all bits that we are discarding
-	if (man & (-1>>9)) {
+	if (man & (~0U>>9)) {
 	  man = (man>>(32-9)) + 1;
 	  if (man == (1<<9)) {
 	    // no need to check for round up outside of range
@@ -2452,8 +2452,8 @@ static int __init amb_module_init (void)
 static void __exit amb_module_exit (void)
 {
   PRINTD (DBG_FLOW|DBG_INIT, "cleanup_module");
-  
-  return pci_unregister_driver(&amb_driver);
+
+  pci_unregister_driver(&amb_driver);
 }
 
 module_init(amb_module_init);

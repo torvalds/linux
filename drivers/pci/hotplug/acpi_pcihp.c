@@ -29,10 +29,10 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/actypes.h>
-#include "pci_hotplug.h"
 
 #define MY_NAME	"acpi_pcihp"
 

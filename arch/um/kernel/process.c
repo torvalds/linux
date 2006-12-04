@@ -46,6 +46,7 @@
 #include "mode.h"
 #include "mode_kern.h"
 #include "choose-mode.h"
+#include "um_malloc.h"
 
 /* This is a per-cpu array.  A processor only modifies its entry and it only
  * cares about its entry, so it's OK if another processor is modifying its

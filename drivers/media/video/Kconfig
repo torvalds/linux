@@ -24,7 +24,7 @@ config VIDEO_HELPER_CHIPS_AUTO
 	  decode audio/video standards. This option will autoselect
 	  all pertinent modules to each selected video module.
 
-	  Unselect this only if you know exaclty what you are doing, since
+	  Unselect this only if you know exactly what you are doing, since
 	  it may break support on some boards.
 
 	  In doubt, say Y.
@@ -186,7 +186,7 @@ config VIDEO_KS0127
 
 config VIDEO_SAA7110
 	tristate "Philips SAA7110 video decoder"
-	depends on VIDEO_V4L1
+	depends on VIDEO_V4L1 && I2C
 	---help---
 	  Support for the Philips SAA7110 video decoders.
 

@@ -44,6 +44,7 @@
 **    the host.
 */
 struct Host {
+	struct pci_dev *pdev;
 	unsigned char Type;		/* RIO_EISA, RIO_MCA, ... */
 	unsigned char Ivec;		/* POLLED or ivec number */
 	unsigned char Mode;		/* Control stuff */

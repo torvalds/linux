@@ -126,13 +126,13 @@ static int rs5c372_get_trim(struct i2c_client *client, int *osc, int *trim)
 		return -EIO;
 	}
 
-	dev_dbg(&client->dev, "%s: raw trim=%x\n", __FUNCTION__, *trim);
-
 	if (osc)
 		*osc = (buf & RS5C372_TRIM_XSL) ? 32000 : 32768;
 
-	if (trim)
+	if (trim) {
 		*trim = buf & RS5C372_TRIM_MASK;
+		dev_dbg(&client->dev, "%s: raw trim=%x\n", __FUNCTION__, *trim);
+	}
 
 	return 0;
 }

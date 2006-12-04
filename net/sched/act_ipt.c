@@ -156,10 +156,9 @@ static int tcf_ipt_init(struct rtattr *rta, struct rtattr *est,
 	    rtattr_strlcpy(tname, tb[TCA_IPT_TABLE-1], IFNAMSIZ) >= IFNAMSIZ)
 		strcpy(tname, "mangle");
 
-	t = kmalloc(td->u.target_size, GFP_KERNEL);
+	t = kmemdup(td, td->u.target_size, GFP_KERNEL);
 	if (unlikely(!t))
 		goto err2;
-	memcpy(t, td, td->u.target_size);
 
 	if ((err = ipt_init_target(t, tname, hook)) < 0)
 		goto err3;
@@ -256,13 +255,12 @@ static int tcf_ipt_dump(struct sk_buff *skb, struct tc_action *a, int bind, int 
 	** for foolproof you need to not assume this
 	*/
 
-	t = kmalloc(ipt->tcfi_t->u.user.target_size, GFP_ATOMIC);
+	t = kmemdup(ipt->tcfi_t, ipt->tcfi_t->u.user.target_size, GFP_ATOMIC);
 	if (unlikely(!t))
 		goto rtattr_failure;
 
 	c.bindcnt = ipt->tcf_bindcnt - bind;
 	c.refcnt = ipt->tcf_refcnt - ref;
-	memcpy(t, ipt->tcfi_t, ipt->tcfi_t->u.user.target_size);
 	strcpy(t->u.user.name, ipt->tcfi_t->u.kernel.target->name);
 
 	RTA_PUT(skb, TCA_IPT_TARG, ipt->tcfi_t->u.user.target_size, t);

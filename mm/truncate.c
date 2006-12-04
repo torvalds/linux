@@ -96,7 +96,6 @@ invalidate_complete_page(struct address_space *mapping, struct page *page)
 		return 0;
 
 	ret = remove_mapping(mapping, page);
-	ClearPageUptodate(page);
 
 	return ret;
 }

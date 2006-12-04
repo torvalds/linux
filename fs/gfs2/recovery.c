@@ -372,11 +372,12 @@ static int clean_journal(struct gfs2_jdesc *jd, struct gfs2_log_header *head)
 	u32 hash;
 	struct buffer_head *bh;
 	int error;
-	struct buffer_head bh_map;
+	struct buffer_head bh_map = { .b_state = 0, .b_blocknr = 0 };
 
 	lblock = head->lh_blkno;
 	gfs2_replay_incr_blk(sdp, &lblock);
-	error = gfs2_block_map(&ip->i_inode, lblock, 0, &bh_map, 1);
+	bh_map.b_size = 1 << ip->i_inode.i_blkbits;
+	error = gfs2_block_map(&ip->i_inode, lblock, 0, &bh_map);
 	if (error)
 		return error;
 	if (!bh_map.b_blocknr) {

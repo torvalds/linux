@@ -147,7 +147,7 @@ static void spu_hw_signal1_write(struct spu_context *ctx, u32 data)
 
 static u32 spu_hw_signal2_read(struct spu_context *ctx)
 {
-	return in_be32(&ctx->spu->problem->signal_notify1);
+	return in_be32(&ctx->spu->problem->signal_notify2);
 }
 
 static void spu_hw_signal2_write(struct spu_context *ctx, u32 data)

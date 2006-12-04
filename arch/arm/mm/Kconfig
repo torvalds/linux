@@ -197,7 +197,7 @@ config CPU_ARM940T
 	select CPU_CP15_MPU
 	help
 	  ARM940T is a member of the ARM9TDMI family of general-
-	  purpose microprocessors with MPU and seperate 4KB
+	  purpose microprocessors with MPU and separate 4KB
 	  instruction and 4KB data cases, each with a 4-word line
 	  length.
 

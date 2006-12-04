@@ -159,6 +159,7 @@
 
 /* Chipcommon registers. */
 #define BCM43xx_CHIPCOMMON_CAPABILITIES 	0x04
+#define BCM43xx_CHIPCOMMON_CTL			0x28
 #define BCM43xx_CHIPCOMMON_PLLONDELAY		0xB0
 #define BCM43xx_CHIPCOMMON_FREFSELDELAY		0xB4
 #define BCM43xx_CHIPCOMMON_SLOWCLKCTL		0xB8
@@ -172,6 +173,33 @@
 /* SBTOPCI2 values. */
 #define BCM43xx_SBTOPCI2_PREFETCH	0x4
 #define BCM43xx_SBTOPCI2_BURST		0x8
+#define BCM43xx_SBTOPCI2_MEMREAD_MULTI	0x20
+
+/* PCI-E core registers. */
+#define BCM43xx_PCIECORE_REG_ADDR      0x0130
+#define BCM43xx_PCIECORE_REG_DATA      0x0134
+#define BCM43xx_PCIECORE_MDIO_CTL      0x0128
+#define BCM43xx_PCIECORE_MDIO_DATA     0x012C
+
+/* PCI-E registers. */
+#define BCM43xx_PCIE_TLP_WORKAROUND    0x0004
+#define BCM43xx_PCIE_DLLP_LINKCTL      0x0100
+
+/* PCI-E MDIO bits. */
+#define BCM43xx_PCIE_MDIO_ST   0x40000000
+#define BCM43xx_PCIE_MDIO_WT   0x10000000
+#define BCM43xx_PCIE_MDIO_DEV  22
+#define BCM43xx_PCIE_MDIO_REG  18
+#define BCM43xx_PCIE_MDIO_TA   0x00020000
+#define BCM43xx_PCIE_MDIO_TC   0x0100
+
+/* MDIO devices. */
+#define BCM43xx_MDIO_SERDES_RX	0x1F
+
+/* SERDES RX registers. */
+#define BCM43xx_SERDES_RXTIMER	0x2
+#define BCM43xx_SERDES_CDR	0x6
+#define BCM43xx_SERDES_CDR_BW	0x7
 
 /* Chipcommon capabilities. */
 #define BCM43xx_CAPABILITIES_PCTL		0x00040000
@@ -221,6 +249,7 @@
 #define BCM43xx_COREID_USB20_HOST       0x819
 #define BCM43xx_COREID_USB20_DEV        0x81a
 #define BCM43xx_COREID_SDIO_HOST        0x81b
+#define BCM43xx_COREID_PCIE		0x820
 
 /* Core Information Registers */
 #define BCM43xx_CIR_BASE		0xf00
@@ -364,6 +393,9 @@
 
 #define BCM43xx_DEFAULT_SHORT_RETRY_LIMIT	7
 #define BCM43xx_DEFAULT_LONG_RETRY_LIMIT	4
+
+/* FIXME: the next line is a guess as to what the maximum RSSI value might be */
+#define RX_RSSI_MAX				60
 
 /* Max size of a security key */
 #define BCM43xx_SEC_KEYSIZE			16

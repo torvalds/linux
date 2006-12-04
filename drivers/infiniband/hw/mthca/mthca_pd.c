@@ -34,7 +34,6 @@
  * $Id: mthca_pd.c 1349 2004-12-16 21:09:43Z roland $
  */
 
-#include <linux/init.h>
 #include <linux/errno.h>
 
 #include "mthca_dev.h"
@@ -69,7 +68,7 @@ void mthca_pd_free(struct mthca_dev *dev, struct mthca_pd *pd)
 	mthca_free(&dev->pd_table.alloc, pd->pd_num);
 }
 
-int __devinit mthca_init_pd_table(struct mthca_dev *dev)
+int mthca_init_pd_table(struct mthca_dev *dev)
 {
 	return mthca_alloc_init(&dev->pd_table.alloc,
 				dev->limits.num_pds,

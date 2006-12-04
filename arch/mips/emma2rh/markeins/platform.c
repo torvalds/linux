@@ -44,18 +44,45 @@
 #define I2C_EMMA2RH "emma2rh-iic" /* must be in sync with IIC driver */
 
 static struct resource i2c_emma_resources_0[] = {
-	{ NULL, EMMA2RH_IRQ_PIIC0, EMMA2RH_IRQ_PIIC0, IORESOURCE_IRQ },
-	{ NULL, KSEG1ADDR(EMMA2RH_PIIC0_BASE), KSEG1ADDR(EMMA2RH_PIIC0_BASE + 0x1000), 0 },
+	{
+		.name	= NULL,
+		.start	= EMMA2RH_IRQ_PIIC0,
+		.end	= EMMA2RH_IRQ_PIIC0,
+		.flags	= IORESOURCE_IRQ
+	}, {
+		.name	= NULL,
+		.start	= EMMA2RH_PIIC0_BASE,
+		.end	= EMMA2RH_PIIC0_BASE + 0x1000,
+		.flags	= 0
+	},
 };
 
 struct resource i2c_emma_resources_1[] = {
-	{ NULL, EMMA2RH_IRQ_PIIC1, EMMA2RH_IRQ_PIIC1, IORESOURCE_IRQ },
-	{ NULL, KSEG1ADDR(EMMA2RH_PIIC1_BASE), KSEG1ADDR(EMMA2RH_PIIC1_BASE + 0x1000), 0 },
+	{
+		.name	= NULL,
+		.start	= EMMA2RH_IRQ_PIIC1,
+		.end	= EMMA2RH_IRQ_PIIC1,
+		.flags	= IORESOURCE_IRQ
+	}, {
+		.name	= NULL,
+		.start	= EMMA2RH_PIIC1_BASE,
+		.end	= EMMA2RH_PIIC1_BASE + 0x1000,
+		.flags	= 0
+	},
 };
 
 struct resource i2c_emma_resources_2[] = {
-	{ NULL, EMMA2RH_IRQ_PIIC2, EMMA2RH_IRQ_PIIC2, IORESOURCE_IRQ },
-	{ NULL, KSEG1ADDR(EMMA2RH_PIIC2_BASE), KSEG1ADDR(EMMA2RH_PIIC2_BASE + 0x1000), 0 },
+	{
+		.name	= NULL,
+		.start	= EMMA2RH_IRQ_PIIC2,
+		.end	= EMMA2RH_IRQ_PIIC2,
+		.flags	= IORESOURCE_IRQ
+	}, {
+		.name	= NULL,
+		.start	= EMMA2RH_PIIC2_BASE,
+		.end	= EMMA2RH_PIIC2_BASE + 0x1000,
+		.flags	= 0
+	},
 };
 
 struct platform_device i2c_emma_devices[] = {
@@ -83,32 +110,29 @@ struct platform_device i2c_emma_devices[] = {
 #define EMMA2RH_SERIAL_FLAGS UPF_BOOT_AUTOCONF | UPF_SKIP_TEST
 
 static struct  plat_serial8250_port platform_serial_ports[] = {
-       [0] = {
-         .membase = (void __iomem*)KSEG1ADDR(EMMA2RH_PFUR0_BASE + 3),
-         .irq = EMMA2RH_IRQ_PFUR0,
-         .uartclk = EMMA2RH_SERIAL_CLOCK,
-         .regshift = 4,
-         .iotype = UPIO_MEM,
-         .flags = EMMA2RH_SERIAL_FLAGS,
-       },
-       [1] = {
-         .membase = (void __iomem*)KSEG1ADDR(EMMA2RH_PFUR1_BASE + 3),
-         .irq = EMMA2RH_IRQ_PFUR1,
-         .uartclk = EMMA2RH_SERIAL_CLOCK,
-         .regshift = 4,
-         .iotype = UPIO_MEM,
-         .flags = EMMA2RH_SERIAL_FLAGS,
-       },
-       [2] = {
-         .membase = (void __iomem*)KSEG1ADDR(EMMA2RH_PFUR2_BASE + 3),
-         .irq = EMMA2RH_IRQ_PFUR2,
-         .uartclk = EMMA2RH_SERIAL_CLOCK,
-         .regshift = 4,
-         .iotype = UPIO_MEM,
-         .flags = EMMA2RH_SERIAL_FLAGS,
-       },
-       [3] = {
-	 .flags = 0,
+	[0] = {
+		.membase= (void __iomem*)KSEG1ADDR(EMMA2RH_PFUR0_BASE + 3),
+		.irq = EMMA2RH_IRQ_PFUR0,
+		.uartclk = EMMA2RH_SERIAL_CLOCK,
+		.regshift = 4,
+		.iotype = UPIO_MEM,
+		.flags = EMMA2RH_SERIAL_FLAGS,
+       }, [1] = {
+		.membase = (void __iomem*)KSEG1ADDR(EMMA2RH_PFUR1_BASE + 3),
+		.irq = EMMA2RH_IRQ_PFUR1,
+		.uartclk = EMMA2RH_SERIAL_CLOCK,
+		.regshift = 4,
+		.iotype = UPIO_MEM,
+		.flags = EMMA2RH_SERIAL_FLAGS,
+       }, [2] = {
+		.membase = (void __iomem*)KSEG1ADDR(EMMA2RH_PFUR2_BASE + 3),
+		.irq = EMMA2RH_IRQ_PFUR2,
+		.uartclk = EMMA2RH_SERIAL_CLOCK,
+		.regshift = 4,
+		.iotype = UPIO_MEM,
+		.flags = EMMA2RH_SERIAL_FLAGS,
+       }, [3] = {
+		.flags = 0,
        },
 };
 

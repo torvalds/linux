@@ -503,7 +503,7 @@ BEGIN_FTR_SECTION
 	rlwimi	r13,r12,16,0x20
 	mfcr	r12
 	cmpwi	r13,0x2c
-	beq	.do_stab_bolted_pSeries
+	beq	do_stab_bolted_pSeries
 	mtcrf	0x80,r12
 	mfspr	r12,SPRN_SPRG2
 END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
@@ -633,7 +633,7 @@ masked_interrupt:
 	b	.
 
 	.align	7
-_GLOBAL(do_stab_bolted_pSeries)
+do_stab_bolted_pSeries:
 	mtcrf	0x80,r12
 	mfspr	r12,SPRN_SPRG2
 	EXCEPTION_PROLOG_PSERIES(PACA_EXSLB, .do_stab_bolted)
@@ -1088,7 +1088,7 @@ slb_miss_fault:
 	li	r5,0
 	std	r4,_DAR(r1)
 	std	r5,_DSISR(r1)
-	b	.handle_page_fault
+	b	handle_page_fault
 
 unrecov_user_slb:
 	EXCEPTION_PROLOG_COMMON(0x4200, PACA_EXGEN)
@@ -1216,12 +1216,13 @@ program_check_common:
 	.globl fp_unavailable_common
 fp_unavailable_common:
 	EXCEPTION_PROLOG_COMMON(0x800, PACA_EXGEN)
-	bne	.load_up_fpu		/* if from user, just load it up */
+	bne	1f			/* if from user, just load it up */
 	bl	.save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	ENABLE_INTS
 	bl	.kernel_fp_unavailable_exception
 	BUG_OPCODE
+1:	b	.load_up_fpu
 
 	.align	7
 	.globl altivec_unavailable_common
@@ -1321,10 +1322,10 @@ _GLOBAL(do_hash_page)
 	std	r4,_DSISR(r1)
 
 	andis.	r0,r4,0xa450		/* weird error? */
-	bne-	.handle_page_fault	/* if not, try to insert a HPTE */
+	bne-	handle_page_fault	/* if not, try to insert a HPTE */
 BEGIN_FTR_SECTION
 	andis.	r0,r4,0x0020		/* Is it a segment table fault? */
-	bne-	.do_ste_alloc		/* If so handle it */
+	bne-	do_ste_alloc		/* If so handle it */
 END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
 
 	/*
@@ -1366,7 +1367,7 @@ BEGIN_FW_FTR_SECTION
 	 * because ret_from_except_lite will check for and handle pending
 	 * interrupts if necessary.
 	 */
-	beq	.ret_from_except_lite
+	beq	13f
 END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 #endif
 BEGIN_FW_FTR_SECTION
@@ -1390,20 +1391,22 @@ END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES)
 	b	11f
 
 /* Here we have a page fault that hash_page can't handle. */
-_GLOBAL(handle_page_fault)
+handle_page_fault:
 	ENABLE_INTS
 11:	ld	r4,_DAR(r1)
 	ld	r5,_DSISR(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.do_page_fault
 	cmpdi	r3,0
-	beq+	.ret_from_except_lite
+	beq+	13f
 	bl	.save_nvgprs
 	mr	r5,r3
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	lwz	r4,_DAR(r1)
 	bl	.bad_page_fault
 	b	.ret_from_except
+
+13:	b	.ret_from_except_lite
 
 /* We have a page fault that hash_page could handle but HV refused
  * the PTE insertion
@@ -1415,11 +1418,11 @@ _GLOBAL(handle_page_fault)
 	b	.ret_from_except
 
 	/* here we have a segment miss */
-_GLOBAL(do_ste_alloc)
+do_ste_alloc:
 	bl	.ste_allocate		/* try to insert stab entry */
 	cmpdi	r3,0
-	beq+	fast_exception_return
-	b	.handle_page_fault
+	bne-	handle_page_fault
+	b	fast_exception_return
 
 /*
  * r13 points to the PACA, r9 contains the saved CR,
@@ -1624,11 +1627,6 @@ _STATIC(__start_initialization_iSeries)
 	li	r0,0
 	stdu	r0,-STACK_FRAME_OVERHEAD(r1)
 
-	LOAD_REG_IMMEDIATE(r3,cpu_specs)
-	LOAD_REG_IMMEDIATE(r4,cur_cpu_spec)
-	li	r5,0
-	bl	.identify_cpu
-
 	LOAD_REG_IMMEDIATE(r2,__toc_start)
 	addi	r2,r2,0x4000
 	addi	r2,r2,0x4000
@@ -1687,6 +1685,8 @@ _GLOBAL(__start_initialization_multiplatform)
 	cmpwi	r0,0x3c		/* 970FX */
 	beq	1f
 	cmpwi	r0,0x44		/* 970MP */
+	beq	1f
+	cmpwi	r0,0x45		/* 970GX */
 	bne	2f
 1:	bl	.__cpu_preinit_ppc970
 2:
@@ -2005,13 +2005,6 @@ _STATIC(start_here_multiplatform)
 	addi	r2,r2,0x4000
 	add	r2,r2,r26
 
-	LOAD_REG_IMMEDIATE(r3, cpu_specs)
-	add	r3,r3,r26
-	LOAD_REG_IMMEDIATE(r4,cur_cpu_spec)
-	add	r4,r4,r26
-	mr	r5,r26
-	bl	.identify_cpu
-
 	/* Do very early kernel initializations, including initial hash table,
 	 * stab and slb setup before we turn on relocation.	*/
 
@@ -2039,13 +2032,6 @@ _STATIC(start_here_common)
 	addi	r1,r3,THREAD_SIZE
 	li	r0,0
 	stdu	r0,-STACK_FRAME_OVERHEAD(r1)
-
-	/* Apply the CPUs-specific fixups (nop out sections not relevant
-	 * to this CPU
-	 */
-	li	r3,0
-	bl	.do_cpu_ftr_fixups
-	bl	.do_fw_ftr_fixups
 
 	/* ptr to current */
 	LOAD_REG_IMMEDIATE(r4, init_task)

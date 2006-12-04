@@ -87,11 +87,11 @@ typedef struct
 	{
 	USHORT		 ports[13];
 	OUR_DEVICE	 device[8];
-	Scsi_Cmnd	*pSCmnd;
+	struct scsi_cmnd *pSCmnd;
 	IDE_STRUCT	 ide;
 	ULONG		 startSector;
 	USHORT		 sectorCount;
-	Scsi_Cmnd	*SCpnt;
+	struct scsi_cmnd *SCpnt;
 	VOID		*buffer;
 	USHORT		 expectingIRQ;
 	}	ADAPTER240I, *PADAPTER240I;
@@ -253,12 +253,12 @@ static ULONG DecodeError (struct Scsi_Host *pshost, UCHAR status)
  ****************************************************************/
 static void Irq_Handler (int irq, void *dev_id)
 	{
-	struct Scsi_Host   *shost;			// Pointer to host data block
-	PADAPTER240I		padapter;		// Pointer to adapter control structure
-	USHORT		 	   *pports;			// I/O port array
-	Scsi_Cmnd		   *SCpnt;
-	UCHAR				status;
-	int					z;
+	struct Scsi_Host *shost;	// Pointer to host data block
+	PADAPTER240I padapter;		// Pointer to adapter control structure
+	USHORT *pports;			// I/O port array
+	struct scsi_cmnd *SCpnt;
+	UCHAR status;
+	int z;
 
 	DEB(printk ("\npsi240i received interrupt\n"));
 
@@ -328,7 +328,7 @@ static void Irq_Handler (int irq, void *dev_id)
 				pinquiryData->AdditionalLength = 35 - 4;
 
 				// Fill in vendor identification fields.
-				for ( z = 0;  z < 20;  z += 2 )
+				for ( z = 0;  z < 8;  z += 2 )
 					{
 					pinquiryData->VendorId[z]	  = ((UCHAR *)identifyData.ModelNumber)[z + 1];
 					pinquiryData->VendorId[z + 1] = ((UCHAR *)identifyData.ModelNumber)[z];
@@ -389,12 +389,17 @@ static irqreturn_t do_Irq_Handler (int irq, void *dev_id)
  *	Returns:		Status code.
  *
  ****************************************************************/
-static int Psi240i_QueueCommand (Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *))
+static int Psi240i_QueueCommand(struct scsi_cmnd *SCpnt,
+				void (*done)(struct scsi_cmnd *))
 	{
-	UCHAR		   *cdb = (UCHAR *)SCpnt->cmnd;					// Pointer to SCSI CDB
-	PADAPTER240I	padapter = HOSTDATA (SCpnt->device->host); 			// Pointer to adapter control structure
-	POUR_DEVICE 		pdev	 = &padapter->device [SCpnt->device->id];// Pointer to device information
-	UCHAR			rc;											// command return code
+	UCHAR *cdb = (UCHAR *)SCpnt->cmnd;
+	// Pointer to SCSI CDB
+	PADAPTER240I padapter = HOSTDATA (SCpnt->device->host);
+	// Pointer to adapter control structure
+	POUR_DEVICE pdev = &padapter->device [SCpnt->device->id];
+	// Pointer to device information
+	UCHAR rc;
+	// command return code
 
 	SCpnt->scsi_done = done;
 	padapter->ide.ide.ides.spigot = pdev->spigot;

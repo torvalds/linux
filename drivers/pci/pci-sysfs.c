@@ -42,7 +42,6 @@ pci_config_attr(subsystem_vendor, "0x%04x\n");
 pci_config_attr(subsystem_device, "0x%04x\n");
 pci_config_attr(class, "0x%06x\n");
 pci_config_attr(irq, "%u\n");
-pci_config_attr(is_enabled, "%u\n");
 
 static ssize_t broken_parity_status_show(struct device *dev,
 					 struct device_attribute *attr,
@@ -112,26 +111,36 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr, 
 		       (u8)(pci_dev->class >> 16), (u8)(pci_dev->class >> 8),
 		       (u8)(pci_dev->class));
 }
-static ssize_t
-is_enabled_store(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+
+static ssize_t is_enabled_store(struct device *dev,
+				struct device_attribute *attr, const char *buf,
+				size_t count)
 {
+	ssize_t result = -EINVAL;
 	struct pci_dev *pdev = to_pci_dev(dev);
-	int retval = 0;
 
 	/* this can crash the machine when done on the "wrong" device */
 	if (!capable(CAP_SYS_ADMIN))
 		return count;
 
-	if (*buf == '0')
-		pci_disable_device(pdev);
+	if (*buf == '0') {
+		if (atomic_read(&pdev->enable_cnt) != 0)
+			pci_disable_device(pdev);
+		else
+			result = -EIO;
+	} else if (*buf == '1')
+		result = pci_enable_device(pdev);
 
-	if (*buf == '1')
-		retval = pci_enable_device(pdev);
+	return result < 0 ? result : count;
+}
 
-	if (retval)
-		return retval;
-	return count;
+static ssize_t is_enabled_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct pci_dev *pdev;
+
+	pdev = to_pci_dev (dev);
+	return sprintf (buf, "%u\n", atomic_read(&pdev->enable_cnt));
 }
 
 static ssize_t
@@ -642,6 +651,9 @@ err:
  */
 void pci_remove_sysfs_dev_files(struct pci_dev *pdev)
 {
+	if (!sysfs_initialized)
+		return;
+
 	if (pdev->cfg_size < 4096)
 		sysfs_remove_bin_file(&pdev->dev.kobj, &pci_config_attr);
 	else

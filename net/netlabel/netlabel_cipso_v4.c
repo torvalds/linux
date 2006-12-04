@@ -407,12 +407,14 @@ static int netlbl_cipsov4_add(struct sk_buff *skb, struct genl_info *info)
 
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_CIPSOV4_ADD,
 					      &audit_info);
-	audit_log_format(audit_buf,
-			 " cipso_doi=%u cipso_type=%s res=%u",
-			 doi,
-			 type_str,
-			 ret_val == 0 ? 1 : 0);
-	audit_log_end(audit_buf);
+	if (audit_buf != NULL) {
+		audit_log_format(audit_buf,
+				 " cipso_doi=%u cipso_type=%s res=%u",
+				 doi,
+				 type_str,
+				 ret_val == 0 ? 1 : 0);
+		audit_log_end(audit_buf);
+	}
 
 	return ret_val;
 }
@@ -452,17 +454,13 @@ static int netlbl_cipsov4_list(struct sk_buff *skb, struct genl_info *info)
 	}
 
 list_start:
-	ans_skb = nlmsg_new(NLMSG_GOODSIZE * nlsze_mult, GFP_KERNEL);
+	ans_skb = nlmsg_new(NLMSG_DEFAULT_SIZE * nlsze_mult, GFP_KERNEL);
 	if (ans_skb == NULL) {
 		ret_val = -ENOMEM;
 		goto list_failure;
 	}
-	data = netlbl_netlink_hdr_put(ans_skb,
-				      info->snd_pid,
-				      info->snd_seq,
-				      netlbl_cipsov4_gnl_family.id,
-				      0,
-				      NLBL_CIPSOV4_C_LIST);
+	data = genlmsg_put_reply(ans_skb, info, &netlbl_cipsov4_gnl_family,
+				 0, NLBL_CIPSOV4_C_LIST);
 	if (data == NULL) {
 		ret_val = -ENOMEM;
 		goto list_failure;
@@ -568,7 +566,7 @@ list_start:
 
 	genlmsg_end(ans_skb, data);
 
-	ret_val = genlmsg_unicast(ans_skb, info->snd_pid);
+	ret_val = genlmsg_reply(ans_skb, info);
 	if (ret_val != 0)
 		goto list_failure;
 
@@ -607,12 +605,9 @@ static int netlbl_cipsov4_listall_cb(struct cipso_v4_doi *doi_def, void *arg)
 	struct netlbl_cipsov4_doiwalk_arg *cb_arg = arg;
 	void *data;
 
-	data = netlbl_netlink_hdr_put(cb_arg->skb,
-				      NETLINK_CB(cb_arg->nl_cb->skb).pid,
-				      cb_arg->seq,
-				      netlbl_cipsov4_gnl_family.id,
-				      NLM_F_MULTI,
-				      NLBL_CIPSOV4_C_LISTALL);
+	data = genlmsg_put(cb_arg->skb, NETLINK_CB(cb_arg->nl_cb->skb).pid,
+			   cb_arg->seq, &netlbl_cipsov4_gnl_family,
+			   NLM_F_MULTI, NLBL_CIPSOV4_C_LISTALL);
 	if (data == NULL)
 		goto listall_cb_failure;
 
@@ -687,11 +682,13 @@ static int netlbl_cipsov4_remove(struct sk_buff *skb, struct genl_info *info)
 
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_CIPSOV4_DEL,
 					      &audit_info);
-	audit_log_format(audit_buf,
-			 " cipso_doi=%u res=%u",
-			 doi,
-			 ret_val == 0 ? 1 : 0);
-	audit_log_end(audit_buf);
+	if (audit_buf != NULL) {
+		audit_log_format(audit_buf,
+				 " cipso_doi=%u res=%u",
+				 doi,
+				 ret_val == 0 ? 1 : 0);
+		audit_log_end(audit_buf);
+	}
 
 	return ret_val;
 }

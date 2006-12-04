@@ -962,7 +962,7 @@ static int acpi_processor_get_power_info(struct acpi_processor *pr)
 
 	result = acpi_processor_get_power_info_cst(pr);
 	if (result == -ENODEV)
-		acpi_processor_get_power_info_fadt(pr);
+		result = acpi_processor_get_power_info_fadt(pr);
 
 	if (result)
 		return result;
@@ -1108,6 +1108,7 @@ static const struct file_operations acpi_processor_power_fops = {
 	.release = single_release,
 };
 
+#ifdef CONFIG_SMP
 static void smp_callback(void *v)
 {
 	/* we already woke the CPU up, nothing more to do */
@@ -1129,6 +1130,7 @@ static int acpi_processor_latency_notify(struct notifier_block *b,
 static struct notifier_block acpi_processor_latency_notifier = {
 	.notifier_call = acpi_processor_latency_notify,
 };
+#endif
 
 int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 			      struct acpi_device *device)
@@ -1146,7 +1148,9 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 			       "ACPI: processor limited to max C-state %d\n",
 			       max_cstate);
 		first_run++;
+#ifdef CONFIG_SMP
 		register_latency_notifier(&acpi_processor_latency_notifier);
+#endif
 	}
 
 	if (!pr)
@@ -1218,7 +1222,9 @@ int acpi_processor_power_exit(struct acpi_processor *pr,
 		 * copies of pm_idle before proceeding.
 		 */
 		cpu_idle_wait();
+#ifdef CONFIG_SMP
 		unregister_latency_notifier(&acpi_processor_latency_notifier);
+#endif
 	}
 
 	return 0;

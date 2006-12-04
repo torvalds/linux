@@ -81,14 +81,16 @@ static inline u32 get_longbusy_msecs(int long_busy_ret_code)
 static inline void hcp_epas_ctor(struct h_epas *epas, u64 paddr_kernel,
 				 u64 paddr_user)
 {
-	epas->kernel.addr = ioremap(paddr_kernel, PAGE_SIZE);
+	/* To support 64k pages we must round to 64k page boundary */
+	epas->kernel.addr = ioremap((paddr_kernel & PAGE_MASK), PAGE_SIZE) +
+			    (paddr_kernel & ~PAGE_MASK);
 	epas->user.addr = paddr_user;
 }
 
 static inline void hcp_epas_dtor(struct h_epas *epas)
 {
 	if (epas->kernel.addr)
-		iounmap(epas->kernel.addr);
+		iounmap((void __iomem*)((u64)epas->kernel.addr & PAGE_MASK));
 
 	epas->user.addr = 0;
 	epas->kernel.addr = 0;

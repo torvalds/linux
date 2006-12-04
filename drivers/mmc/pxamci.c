@@ -393,7 +393,7 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		 host->clkrt, host->cmdat);
 }
 
-static struct mmc_host_ops pxamci_ops = {
+static const struct mmc_host_ops pxamci_ops = {
 	.request	= pxamci_request,
 	.get_ro		= pxamci_get_ro,
 	.set_ios	= pxamci_set_ios,

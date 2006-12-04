@@ -824,3 +824,4 @@ int soc_common_drv_pcmcia_remove(struct device *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL(soc_common_drv_pcmcia_remove);

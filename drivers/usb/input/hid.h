@@ -260,6 +260,7 @@ struct hid_item {
 #define HID_QUIRK_POWERBOOK_HAS_FN		0x00001000
 #define HID_QUIRK_POWERBOOK_FN_ON		0x00002000
 #define HID_QUIRK_INVERT_HWHEEL			0x00004000
+#define HID_QUIRK_POWERBOOK_ISO_KEYBOARD	0x00008000
 
 /*
  * This is the global environment of the parser. This information is
@@ -384,6 +385,7 @@ struct hid_control_fifo {
 #define HID_IN_RUNNING		3
 #define HID_RESET_PENDING	4
 #define HID_SUSPENDED		5
+#define HID_CLEAR_HALT		6
 
 struct hid_input {
 	struct list_head list;

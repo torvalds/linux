@@ -1,6 +1,7 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
+#include <linux/wait.h>
 
 #include "pci.h"
 
@@ -63,30 +64,42 @@ EXPORT_SYMBOL(pci_bus_write_config_byte);
 EXPORT_SYMBOL(pci_bus_write_config_word);
 EXPORT_SYMBOL(pci_bus_write_config_dword);
 
-static u32 pci_user_cached_config(struct pci_dev *dev, int pos)
-{
-	u32 data;
+/*
+ * The following routines are to prevent the user from accessing PCI config
+ * space when it's unsafe to do so.  Some devices require this during BIST and
+ * we're required to prevent it during D-state transitions.
+ *
+ * We have a bit per device to indicate it's blocked and a global wait queue
+ * for callers to sleep on until devices are unblocked.
+ */
+static DECLARE_WAIT_QUEUE_HEAD(pci_ucfg_wait);
 
-	data = dev->saved_config_space[pos/sizeof(dev->saved_config_space[0])];
-	data >>= (pos % sizeof(dev->saved_config_space[0])) * 8;
-	return data;
+static noinline void pci_wait_ucfg(struct pci_dev *dev)
+{
+	DECLARE_WAITQUEUE(wait, current);
+
+	__add_wait_queue(&pci_ucfg_wait, &wait);
+	do {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		spin_unlock_irq(&pci_lock);
+		schedule();
+		spin_lock_irq(&pci_lock);
+	} while (dev->block_ucfg_access);
+	__remove_wait_queue(&pci_ucfg_wait, &wait);
 }
 
 #define PCI_USER_READ_CONFIG(size,type)					\
 int pci_user_read_config_##size						\
 	(struct pci_dev *dev, int pos, type *val)			\
 {									\
-	unsigned long flags;						\
 	int ret = 0;							\
 	u32 data = -1;							\
 	if (PCI_##size##_BAD) return PCIBIOS_BAD_REGISTER_NUMBER;	\
-	spin_lock_irqsave(&pci_lock, flags);				\
-	if (likely(!dev->block_ucfg_access))				\
-		ret = dev->bus->ops->read(dev->bus, dev->devfn,		\
+	spin_lock_irq(&pci_lock);					\
+	if (unlikely(dev->block_ucfg_access)) pci_wait_ucfg(dev);	\
+	ret = dev->bus->ops->read(dev->bus, dev->devfn,			\
 					pos, sizeof(type), &data);	\
-	else if (pos < sizeof(dev->saved_config_space))			\
-		data = pci_user_cached_config(dev, pos); 		\
-	spin_unlock_irqrestore(&pci_lock, flags);			\
+	spin_unlock_irq(&pci_lock);					\
 	*val = (type)data;						\
 	return ret;							\
 }
@@ -95,14 +108,13 @@ int pci_user_read_config_##size						\
 int pci_user_write_config_##size					\
 	(struct pci_dev *dev, int pos, type val)			\
 {									\
-	unsigned long flags;						\
 	int ret = -EIO;							\
 	if (PCI_##size##_BAD) return PCIBIOS_BAD_REGISTER_NUMBER;	\
-	spin_lock_irqsave(&pci_lock, flags);				\
-	if (likely(!dev->block_ucfg_access))				\
-		ret = dev->bus->ops->write(dev->bus, dev->devfn,	\
+	spin_lock_irq(&pci_lock);					\
+	if (unlikely(dev->block_ucfg_access)) pci_wait_ucfg(dev);	\
+	ret = dev->bus->ops->write(dev->bus, dev->devfn,		\
 					pos, sizeof(type), val);	\
-	spin_unlock_irqrestore(&pci_lock, flags);			\
+	spin_unlock_irq(&pci_lock);					\
 	return ret;							\
 }
 
@@ -117,21 +129,23 @@ PCI_USER_WRITE_CONFIG(dword, u32)
  * pci_block_user_cfg_access - Block userspace PCI config reads/writes
  * @dev:	pci device struct
  *
- * This function blocks any userspace PCI config accesses from occurring.
- * When blocked, any writes will be bit bucketed and reads will return the
- * data saved using pci_save_state for the first 64 bytes of config
- * space and return 0xff for all other config reads.
- **/
+ * When user access is blocked, any reads or writes to config space will
+ * sleep until access is unblocked again.  We don't allow nesting of
+ * block/unblock calls.
+ */
 void pci_block_user_cfg_access(struct pci_dev *dev)
 {
 	unsigned long flags;
+	int was_blocked;
 
-	pci_save_state(dev);
-
-	/* spinlock to synchronize with anyone reading config space now */
 	spin_lock_irqsave(&pci_lock, flags);
+	was_blocked = dev->block_ucfg_access;
 	dev->block_ucfg_access = 1;
 	spin_unlock_irqrestore(&pci_lock, flags);
+
+	/* If we BUG() inside the pci_lock, we're guaranteed to hose
+	 * the machine */
+	BUG_ON(was_blocked);
 }
 EXPORT_SYMBOL_GPL(pci_block_user_cfg_access);
 
@@ -140,14 +154,19 @@ EXPORT_SYMBOL_GPL(pci_block_user_cfg_access);
  * @dev:	pci device struct
  *
  * This function allows userspace PCI config accesses to resume.
- **/
+ */
 void pci_unblock_user_cfg_access(struct pci_dev *dev)
 {
 	unsigned long flags;
 
-	/* spinlock to synchronize with anyone reading saved config space */
 	spin_lock_irqsave(&pci_lock, flags);
+
+	/* This indicates a problem in the caller, but we don't need
+	 * to kill them, unlike a double-block above. */
+	WARN_ON(!dev->block_ucfg_access);
+
 	dev->block_ucfg_access = 0;
+	wake_up_all(&pci_ucfg_wait);
 	spin_unlock_irqrestore(&pci_lock, flags);
 }
 EXPORT_SYMBOL_GPL(pci_unblock_user_cfg_access);

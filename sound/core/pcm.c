@@ -910,7 +910,8 @@ void snd_pcm_detach_substream(struct snd_pcm_substream *substream)
 	substream->pstr->substream_opened--;
 }
 
-static ssize_t show_pcm_class(struct class_device *class_device, char *buf)
+static ssize_t show_pcm_class(struct device *dev,
+			      struct device_attribute *attr, char *buf)
 {
 	struct snd_pcm *pcm;
 	const char *str;
@@ -921,7 +922,7 @@ static ssize_t show_pcm_class(struct class_device *class_device, char *buf)
 		[SNDRV_PCM_CLASS_DIGITIZER] = "digitizer",
 	};
 
-	if (! (pcm = class_get_devdata(class_device)) ||
+	if (! (pcm = dev_get_drvdata(dev)) ||
 	    pcm->dev_class > SNDRV_PCM_CLASS_LAST)
 		str = "none";
 	else
@@ -929,7 +930,7 @@ static ssize_t show_pcm_class(struct class_device *class_device, char *buf)
         return snprintf(buf, PAGE_SIZE, "%s\n", str);
 }
 
-static struct class_device_attribute pcm_attrs =
+static struct device_attribute pcm_attrs =
 	__ATTR(pcm_class, S_IRUGO, show_pcm_class, NULL);
 
 static int snd_pcm_dev_register(struct snd_device *device)

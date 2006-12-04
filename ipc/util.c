@@ -301,7 +301,7 @@ static int grow_ary(struct ipc_ids* ids, int newsize)
 	 */
 	rcu_assign_pointer(ids->entries, new);
 
-	ipc_rcu_putref(old);
+	__ipc_fini_ids(ids, old);
 	return newsize;
 }
 

@@ -242,10 +242,14 @@ static void add_conn(void *data)
 	struct hci_conn *conn = data;
 	int i;
 
-	device_register(&conn->dev);
+	if (device_register(&conn->dev) < 0) {
+		BT_ERR("Failed to register connection device");
+		return;
+	}
 
 	for (i = 0; conn_attrs[i]; i++)
-		device_create_file(&conn->dev, conn_attrs[i]);
+		if (device_create_file(&conn->dev, conn_attrs[i]) < 0)
+			BT_ERR("Failed to create connection attribute");
 }
 
 void hci_conn_add_sysfs(struct hci_conn *conn)
@@ -255,7 +259,9 @@ void hci_conn_add_sysfs(struct hci_conn *conn)
 
 	BT_DBG("conn %p", conn);
 
-	conn->dev.parent  = &hdev->dev;
+	conn->dev.bus = &bt_bus;
+	conn->dev.parent = &hdev->dev;
+
 	conn->dev.release = bt_release;
 
 	snprintf(conn->dev.bus_id, BUS_ID_SIZE,
@@ -295,11 +301,7 @@ int hci_register_sysfs(struct hci_dev *hdev)
 	BT_DBG("%p name %s type %d", hdev, hdev->name, hdev->type);
 
 	dev->class = bt_class;
-
-	if (hdev->parent)
-		dev->parent = hdev->parent;
-	else
-		dev->parent = &bt_platform->dev;
+	dev->parent = hdev->parent;
 
 	strlcpy(dev->bus_id, hdev->name, BUS_ID_SIZE);
 
@@ -312,7 +314,8 @@ int hci_register_sysfs(struct hci_dev *hdev)
 		return err;
 
 	for (i = 0; bt_attrs[i]; i++)
-		device_create_file(dev, bt_attrs[i]);
+		if (device_create_file(dev, bt_attrs[i]) < 0)
+			BT_ERR("Failed to create device attribute");
 
 	return 0;
 }

@@ -22,7 +22,7 @@
 #define offset(string, ptr, member) \
 	__asm__("\n@@@" string "%0" : : "i" (_offset(ptr, member)))
 #define constant(string, member) \
-	__asm__("\n@@@" string "%x0" : : "ri" (member))
+	__asm__("\n@@@" string "%X0" : : "ri" (member))
 #define size(string, size) \
 	__asm__("\n@@@" string "%0" : : "i" (sizeof(size)))
 #define linefeed text("")

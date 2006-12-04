@@ -270,7 +270,7 @@ static u16 tcp_select_window(struct sock *sk)
 }
 
 static void tcp_build_and_update_options(__be32 *ptr, struct tcp_sock *tp,
-					 __u32 tstamp)
+					 __u32 tstamp, __u8 **md5_hash)
 {
 	if (tp->rx_opt.tstamp_ok) {
 		*ptr++ = htonl((TCPOPT_NOP << 24) |
@@ -298,16 +298,29 @@ static void tcp_build_and_update_options(__be32 *ptr, struct tcp_sock *tp,
 			tp->rx_opt.eff_sacks--;
 		}
 	}
+#ifdef CONFIG_TCP_MD5SIG
+	if (md5_hash) {
+		*ptr++ = htonl((TCPOPT_NOP << 24) |
+			       (TCPOPT_NOP << 16) |
+			       (TCPOPT_MD5SIG << 8) |
+			       TCPOLEN_MD5SIG);
+		*md5_hash = (__u8 *)ptr;
+	}
+#endif
 }
 
 /* Construct a tcp options header for a SYN or SYN_ACK packet.
  * If this is every changed make sure to change the definition of
  * MAX_SYN_SIZE to match the new maximum number of options that you
  * can generate.
+ *
+ * Note - that with the RFC2385 TCP option, we make room for the
+ * 16 byte MD5 hash. This will be filled in later, so the pointer for the
+ * location to be filled is passed back up.
  */
 static void tcp_syn_build_options(__be32 *ptr, int mss, int ts, int sack,
 				  int offer_wscale, int wscale, __u32 tstamp,
-				  __u32 ts_recent)
+				  __u32 ts_recent, __u8 **md5_hash)
 {
 	/* We always get an MSS option.
 	 * The option bytes which will be seen in normal data
@@ -346,6 +359,20 @@ static void tcp_syn_build_options(__be32 *ptr, int mss, int ts, int sack,
 			       (TCPOPT_WINDOW << 16) |
 			       (TCPOLEN_WINDOW << 8) |
 			       (wscale));
+#ifdef CONFIG_TCP_MD5SIG
+	/*
+	 * If MD5 is enabled, then we set the option, and include the size
+	 * (always 18). The actual MD5 hash is added just before the
+	 * packet is sent.
+	 */
+	if (md5_hash) {
+		*ptr++ = htonl((TCPOPT_NOP << 24) |
+			       (TCPOPT_NOP << 16) |
+			       (TCPOPT_MD5SIG << 8) |
+			       TCPOLEN_MD5SIG);
+		*md5_hash = (__u8 *) ptr;
+	}
+#endif
 }
 
 /* This routine actually transmits TCP packets queued in by
@@ -366,6 +393,10 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, 
 	struct tcp_sock *tp;
 	struct tcp_skb_cb *tcb;
 	int tcp_header_size;
+#ifdef CONFIG_TCP_MD5SIG
+	struct tcp_md5sig_key *md5;
+	__u8 *md5_hash_location;
+#endif
 	struct tcphdr *th;
 	int sysctl_flags;
 	int err;
@@ -424,9 +455,18 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, 
 	if (tcp_packets_in_flight(tp) == 0)
 		tcp_ca_event(sk, CA_EVENT_TX_START);
 
+#ifdef CONFIG_TCP_MD5SIG
+	/*
+	 * Are we doing MD5 on this segment? If so - make
+	 * room for it.
+	 */
+	md5 = tp->af_specific->md5_lookup(sk, sk);
+	if (md5)
+		tcp_header_size += TCPOLEN_MD5SIG_ALIGNED;
+#endif
+
 	th = (struct tcphdr *) skb_push(skb, tcp_header_size);
 	skb->h.th = th;
-	skb_set_owner_w(skb, sk);
 
 	/* Build TCP header and checksum it. */
 	th->source		= inet->sport;
@@ -461,12 +501,33 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, 
 				      (sysctl_flags & SYSCTL_FLAG_WSCALE),
 				      tp->rx_opt.rcv_wscale,
 				      tcb->when,
-				      tp->rx_opt.ts_recent);
+				      tp->rx_opt.ts_recent,
+
+#ifdef CONFIG_TCP_MD5SIG
+				      md5 ? &md5_hash_location :
+#endif
+				      NULL);
 	} else {
 		tcp_build_and_update_options((__be32 *)(th + 1),
-					     tp, tcb->when);
+					     tp, tcb->when,
+#ifdef CONFIG_TCP_MD5SIG
+					     md5 ? &md5_hash_location :
+#endif
+					     NULL);
 		TCP_ECN_send(sk, tp, skb, tcp_header_size);
 	}
+
+#ifdef CONFIG_TCP_MD5SIG
+	/* Calculate the MD5 hash, as we have all we need now */
+	if (md5) {
+		tp->af_specific->calc_md5_hash(md5_hash_location,
+					       md5,
+					       sk, NULL, NULL,
+					       skb->h.th,
+					       sk->sk_protocol,
+					       skb->len);
+	}
+#endif
 
 	icsk->icsk_af_ops->send_check(sk, skb->len, skb);
 
@@ -479,19 +540,13 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, 
 	if (after(tcb->end_seq, tp->snd_nxt) || tcb->seq == tcb->end_seq)
 		TCP_INC_STATS(TCP_MIB_OUTSEGS);
 
-	err = icsk->icsk_af_ops->queue_xmit(skb, 0);
+	err = icsk->icsk_af_ops->queue_xmit(skb, sk, 0);
 	if (likely(err <= 0))
 		return err;
 
 	tcp_enter_cwr(sk);
 
-	/* NET_XMIT_CN is special. It does not guarantee,
-	 * that this packet is lost. It tells that device
-	 * is about to start to drop packets or already
-	 * drops some packets of the same priority and
-	 * invokes us to send less aggressively.
-	 */
-	return err == NET_XMIT_CN ? 0 : err;
+	return net_xmit_eval(err);
 
 #undef SYSCTL_FLAG_TSTAMPS
 #undef SYSCTL_FLAG_WSCALE
@@ -847,6 +902,11 @@ unsigned int tcp_current_mss(struct sock *sk, int large_allowed)
 		mss_now -= (TCPOLEN_SACK_BASE_ALIGNED +
 			    (tp->rx_opt.eff_sacks * TCPOLEN_SACK_PERBLOCK));
 
+#ifdef CONFIG_TCP_MD5SIG
+	if (tp->af_specific->md5_lookup(sk, sk))
+		mss_now -= TCPOLEN_MD5SIG_ALIGNED;
+#endif
+
 	xmit_size_goal = mss_now;
 
 	if (doing_tso) {
@@ -1096,10 +1156,14 @@ static int tcp_tso_should_defer(struct sock *sk, struct tcp_sock *tp, struct sk_
 	u32 send_win, cong_win, limit, in_flight;
 
 	if (TCP_SKB_CB(skb)->flags & TCPCB_FLAG_FIN)
-		return 0;
+		goto send_now;
 
 	if (icsk->icsk_ca_state != TCP_CA_Open)
-		return 0;
+		goto send_now;
+
+	/* Defer for less than two clock ticks. */
+	if (!tp->tso_deferred && ((jiffies<<1)>>1) - (tp->tso_deferred>>1) > 1)
+		goto send_now;
 
 	in_flight = tcp_packets_in_flight(tp);
 
@@ -1115,7 +1179,7 @@ static int tcp_tso_should_defer(struct sock *sk, struct tcp_sock *tp, struct sk_
 
 	/* If a full-sized TSO skb can be sent, do it. */
 	if (limit >= 65536)
-		return 0;
+		goto send_now;
 
 	if (sysctl_tcp_tso_win_divisor) {
 		u32 chunk = min(tp->snd_wnd, tp->snd_cwnd * tp->mss_cache);
@@ -1125,7 +1189,7 @@ static int tcp_tso_should_defer(struct sock *sk, struct tcp_sock *tp, struct sk_
 		 */
 		chunk /= sysctl_tcp_tso_win_divisor;
 		if (limit >= chunk)
-			return 0;
+			goto send_now;
 	} else {
 		/* Different approach, try not to defer past a single
 		 * ACK.  Receiver should ACK every other full sized
@@ -1133,11 +1197,17 @@ static int tcp_tso_should_defer(struct sock *sk, struct tcp_sock *tp, struct sk_
 		 * then send now.
 		 */
 		if (limit > tcp_max_burst(tp) * tp->mss_cache)
-			return 0;
+			goto send_now;
 	}
 
 	/* Ok, it looks like it is advisable to defer.  */
+	tp->tso_deferred = 1 | (jiffies<<1);
+
 	return 1;
+
+send_now:
+	tp->tso_deferred = 0;
+	return 0;
 }
 
 /* Create a new MTU probe if we are ready.
@@ -2030,6 +2100,10 @@ struct sk_buff * tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	struct tcphdr *th;
 	int tcp_header_size;
 	struct sk_buff *skb;
+#ifdef CONFIG_TCP_MD5SIG
+	struct tcp_md5sig_key *md5;
+	__u8 *md5_hash_location;
+#endif
 
 	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15, 1, GFP_ATOMIC);
 	if (skb == NULL)
@@ -2045,6 +2119,13 @@ struct sk_buff * tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 			   (ireq->wscale_ok ? TCPOLEN_WSCALE_ALIGNED : 0) +
 			   /* SACK_PERM is in the place of NOP NOP of TS */
 			   ((ireq->sack_ok && !ireq->tstamp_ok) ? TCPOLEN_SACKPERM_ALIGNED : 0));
+
+#ifdef CONFIG_TCP_MD5SIG
+	/* Are we doing MD5 on this segment? If so - make room for it */
+	md5 = tcp_rsk(req)->af_specific->md5_lookup(sk, req);
+	if (md5)
+		tcp_header_size += TCPOLEN_MD5SIG_ALIGNED;
+#endif
 	skb->h.th = th = (struct tcphdr *) skb_push(skb, tcp_header_size);
 
 	memset(th, 0, sizeof(struct tcphdr));
@@ -2082,11 +2163,29 @@ struct sk_buff * tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	tcp_syn_build_options((__be32 *)(th + 1), dst_metric(dst, RTAX_ADVMSS), ireq->tstamp_ok,
 			      ireq->sack_ok, ireq->wscale_ok, ireq->rcv_wscale,
 			      TCP_SKB_CB(skb)->when,
-			      req->ts_recent);
+			      req->ts_recent,
+			      (
+#ifdef CONFIG_TCP_MD5SIG
+			       md5 ? &md5_hash_location :
+#endif
+			       NULL)
+			      );
 
 	skb->csum = 0;
 	th->doff = (tcp_header_size >> 2);
 	TCP_INC_STATS(TCP_MIB_OUTSEGS);
+
+#ifdef CONFIG_TCP_MD5SIG
+	/* Okay, we have all we need - do the md5 hash if needed */
+	if (md5) {
+		tp->af_specific->calc_md5_hash(md5_hash_location,
+					       md5,
+					       NULL, dst, req,
+					       skb->h.th, sk->sk_protocol,
+					       skb->len);
+	}
+#endif
+
 	return skb;
 }
 
@@ -2104,6 +2203,11 @@ static void tcp_connect_init(struct sock *sk)
 	 */
 	tp->tcp_header_len = sizeof(struct tcphdr) +
 		(sysctl_tcp_timestamps ? TCPOLEN_TSTAMP_ALIGNED : 0);
+
+#ifdef CONFIG_TCP_MD5SIG
+	if (tp->af_specific->md5_lookup(sk, sk) != NULL)
+		tp->tcp_header_len += TCPOLEN_MD5SIG_ALIGNED;
+#endif
 
 	/* If user gave his TCP_MAXSEG, record it to clamp */
 	if (tp->rx_opt.user_mss)

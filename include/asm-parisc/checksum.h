@@ -15,7 +15,7 @@
  *
  * it's best to have buff aligned on a 32-bit boundary
  */
-extern unsigned int csum_partial(const unsigned char *, int, unsigned int);
+extern __wsum csum_partial(const void *, int, __wsum);
 
 /*
  * The same as csum_partial, but copies from src while it checksums.
@@ -23,15 +23,14 @@ extern unsigned int csum_partial(const unsigned char *, int, unsigned int);
  * Here even more important to align src and dst on a 32-bit (or even
  * better 64-bit) boundary
  */
-extern unsigned int csum_partial_copy_nocheck(const unsigned char *, unsigned char *,
-					      int, unsigned int);
+extern __wsum csum_partial_copy_nocheck(const void *, void *, int, __wsum);
 
 /*
  * this is a new version of the above that records errors it finds in *errp,
  * but continues and zeros the rest of the buffer.
  */
-extern unsigned int csum_partial_copy_from_user(const unsigned char __user *src,
-		unsigned char *dst, int len, unsigned int sum, int *errp);
+extern __wsum csum_partial_copy_from_user(const void __user *src,
+		void *dst, int len, __wsum sum, int *errp);
 
 /*
  *	Optimized for IP headers, which always checksum on 4 octet boundaries.
@@ -39,10 +38,9 @@ extern unsigned int csum_partial_copy_from_user(const unsigned char __user *src,
  *	Written by Randolph Chung <tausq@debian.org>, and then mucked with by
  *	LaMont Jones <lamont@debian.org>
  */
-static inline unsigned short ip_fast_csum(unsigned char * iph,
-					  unsigned int ihl) {
+static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
+{
 	unsigned int sum;
-
 
 	__asm__ __volatile__ (
 "	ldws,ma		4(%1), %0\n"
@@ -69,27 +67,27 @@ static inline unsigned short ip_fast_csum(unsigned char * iph,
 	: "1" (iph), "2" (ihl)
 	: "r19", "r20", "r21" );
 
-	return(sum);
+	return (__force __sum16)sum;
 }
 
 /*
  *	Fold a partial checksum
  */
-static inline unsigned int csum_fold(unsigned int sum)
+static inline __sum16 csum_fold(__wsum csum)
 {
+	u32 sum = (__force u32)csum;
 	/* add the swapped two 16-bit halves of sum,
 	   a possible carry from adding the two 16-bit halves,
 	   will carry from the lower half into the upper half,
 	   giving us the correct sum in the upper half. */
 	sum += (sum << 16) + (sum >> 16);
-	return (~sum) >> 16;
+	return (__force __sum16)(~sum >> 16);
 }
  
-static inline unsigned long csum_tcpudp_nofold(unsigned long saddr,
-					       unsigned long daddr,
+static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 					       unsigned short len,
 					       unsigned short proto,
-					       unsigned int sum) 
+					       __wsum sum)
 {
 	__asm__(
 	"	add  %1, %0, %0\n"
@@ -97,19 +95,18 @@ static inline unsigned long csum_tcpudp_nofold(unsigned long saddr,
 	"	addc %3, %0, %0\n"
 	"	addc %%r0, %0, %0\n"
 		: "=r" (sum)
-		: "r" (daddr), "r"(saddr), "r"((proto<<16)+len), "0"(sum));
-    return sum;
+		: "r" (daddr), "r"(saddr), "r"(proto+len), "0"(sum));
+	return sum;
 }
 
 /*
  * computes the checksum of the TCP/UDP pseudo-header
  * returns a 16-bit checksum, already complemented
  */
-static inline unsigned short int csum_tcpudp_magic(unsigned long saddr,
-						   unsigned long daddr,
+static inline __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 						   unsigned short len,
 						   unsigned short proto,
-						   unsigned int sum) 
+						   __wsum sum)
 {
 	return csum_fold(csum_tcpudp_nofold(saddr,daddr,len,proto,sum));
 }
@@ -118,17 +115,17 @@ static inline unsigned short int csum_tcpudp_magic(unsigned long saddr,
  * this routine is used for miscellaneous IP-like checksums, mainly
  * in icmp.c
  */
-static inline unsigned short ip_compute_csum(unsigned char * buf, int len) {
+static inline __sum16 ip_compute_csum(const void *buf, int len)
+{
 	 return csum_fold (csum_partial(buf, len, 0));
 }
 
 
 #define _HAVE_ARCH_IPV6_CSUM
-static __inline__ unsigned short int csum_ipv6_magic(struct in6_addr *saddr,
-						     struct in6_addr *daddr,
-						     __u16 len,
-						     unsigned short proto,
-						     unsigned int sum) 
+static __inline__ __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
+					  const struct in6_addr *daddr,
+					  __u32 len, unsigned short proto,
+					  __wsum sum)
 {
 	__asm__ __volatile__ (
 
@@ -193,9 +190,9 @@ static __inline__ unsigned short int csum_ipv6_magic(struct in6_addr *saddr,
  *	Copy and checksum to user
  */
 #define HAVE_CSUM_COPY_USER
-static __inline__ unsigned int csum_and_copy_to_user (const unsigned char *src,
-						      unsigned char __user *dst,
-						      int len, int sum, 
+static __inline__ __wsum csum_and_copy_to_user(const void *src,
+						      void __user *dst,
+						      int len, __wsum sum,
 						      int *err_ptr)
 {
 	/* code stolen from include/asm-mips64 */
@@ -203,7 +200,7 @@ static __inline__ unsigned int csum_and_copy_to_user (const unsigned char *src,
 	 
 	if (copy_to_user(dst, src, len)) {
 		*err_ptr = -EFAULT;
-		return -1;
+		return (__force __wsum)-1;
 	}
 
 	return sum;

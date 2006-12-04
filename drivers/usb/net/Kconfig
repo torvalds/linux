@@ -92,8 +92,13 @@ config USB_RTL8150
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtl8150.
 
+config USB_USBNET_MII
+	tristate
+	default n
+
 config USB_USBNET
 	tristate "Multi-purpose USB Networking Framework"
+	select MII if USBNET_MII != n
 	---help---
 	  This driver supports several kinds of network links over USB,
 	  with "minidrivers" built around a common network driver core
@@ -129,7 +134,7 @@ config USB_NET_AX8817X
 	tristate "ASIX AX88xxx Based USB 2.0 Ethernet Adapters"
 	depends on USB_USBNET && NET_ETHERNET
 	select CRC32
-	select MII
+	select USB_USBNET_MII
 	default y
 	help
 	  This option adds support for ASIX AX88xxx based USB 2.0
@@ -206,6 +211,15 @@ config USB_NET_PLUSB
 	help
 	  Choose this option if you're using a host-to-host cable
 	  with one of these chips.
+
+config USB_NET_MCS7830
+	tristate "MosChip MCS7830 based Ethernet adapters"
+	depends on USB_USBNET
+	select USB_USBNET_MII
+	help
+	  Choose this option if you're using a 10/100 Ethernet USB2
+	  adapter based on the MosChip 7830 controller. This includes
+	  adapters marketed under the DeLOCK brand.
 
 config USB_NET_RNDIS_HOST
 	tristate "Host for RNDIS devices (EXPERIMENTAL)"

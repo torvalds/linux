@@ -13,7 +13,7 @@
 
 #include <linux/module.h>
 #include <net/sock.h>
-
+#include "../../dccp.h"
 #include "loss_interval.h"
 
 struct dccp_li_hist *dccp_li_hist_new(const char *name)
@@ -109,7 +109,7 @@ u32 dccp_li_hist_calc_i_mean(struct list_head *list)
 	i_tot = max(i_tot0, i_tot1);
 
 	if (!w_tot) {
-		LIMIT_NETDEBUG(KERN_WARNING "%s: w_tot = 0\n", __FUNCTION__);
+		DCCP_WARN("w_tot = 0\n");
 		return 1;
 	}
 
@@ -128,7 +128,7 @@ int dccp_li_hist_interval_new(struct dccp_li_hist *hist,
 		entry = dccp_li_hist_entry_new(hist, SLAB_ATOMIC);
 		if (entry == NULL) {
 			dccp_li_hist_purge(hist, list);
-			dump_stack();
+			DCCP_BUG("loss interval list entry is NULL");
 			return 0;
 		}
 		entry->dccplih_interval = ~0;

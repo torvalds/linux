@@ -23,7 +23,7 @@
  */
 
 /*
- * This implementation should follow: draft-ietf-dccp-ccid2-10.txt
+ * This implementation should follow RFC 4341
  *
  * BUGS:
  * - sequence number wrapping
@@ -33,18 +33,11 @@
 #include "../dccp.h"
 #include "ccid2.h"
 
+
+#ifdef CONFIG_IP_DCCP_CCID2_DEBUG
 static int ccid2_debug;
+#define ccid2_pr_debug(format, a...)	DCCP_PR_DEBUG(ccid2_debug, format, ##a)
 
-#ifdef CONFIG_IP_DCCP_CCID2_DEBUG
-#define ccid2_pr_debug(format, a...) \
-        do { if (ccid2_debug) \
-                printk(KERN_DEBUG "%s: " format, __FUNCTION__, ##a); \
-        } while (0)
-#else
-#define ccid2_pr_debug(format, a...)
-#endif
-
-#ifdef CONFIG_IP_DCCP_CCID2_DEBUG
 static void ccid2_hc_tx_check_sanity(const struct ccid2_hc_tx_sock *hctx)
 {
 	int len = 0;
@@ -86,7 +79,8 @@ static void ccid2_hc_tx_check_sanity(const struct ccid2_hc_tx_sock *hctx)
 	BUG_ON(len != hctx->ccid2hctx_seqbufc * CCID2_SEQBUF_LEN);
 }
 #else
-#define ccid2_hc_tx_check_sanity(hctx) do {} while (0)
+#define ccid2_pr_debug(format, a...)
+#define ccid2_hc_tx_check_sanity(hctx)
 #endif
 
 static int ccid2_hc_tx_alloc_seq(struct ccid2_hc_tx_sock *hctx, int num,
@@ -131,8 +125,7 @@ static int ccid2_hc_tx_alloc_seq(struct ccid2_hc_tx_sock *hctx, int num,
 	return 0;
 }
 
-static int ccid2_hc_tx_send_packet(struct sock *sk,
-				   struct sk_buff *skb, int len)
+static int ccid2_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 {
 	struct ccid2_hc_tx_sock *hctx;
 
@@ -274,7 +267,7 @@ static void ccid2_start_rto_timer(struct sock *sk)
 		       jiffies + hctx->ccid2hctx_rto);
 }
 
-static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, int len)
+static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid2_hc_tx_sock *hctx = ccid2_hc_tx_sk(sk);
@@ -352,14 +345,14 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, int len)
 
 #ifdef CONFIG_IP_DCCP_CCID2_DEBUG
 	ccid2_pr_debug("pipe=%d\n", hctx->ccid2hctx_pipe);
-	ccid2_pr_debug("Sent: seq=%llu\n", seq);
+	ccid2_pr_debug("Sent: seq=%llu\n", (unsigned long long)seq);
 	do {
 		struct ccid2_seq *seqp = hctx->ccid2hctx_seqt;
 
 		while (seqp != hctx->ccid2hctx_seqh) {
 			ccid2_pr_debug("out seq=%llu acked=%d time=%lu\n",
-			       	       seqp->ccid2s_seq, seqp->ccid2s_acked,
-				       seqp->ccid2s_sent);
+			       	       (unsigned long long)seqp->ccid2s_seq,
+				       seqp->ccid2s_acked, seqp->ccid2s_sent);
 			seqp = seqp->ccid2s_next;
 		}
 	} while (0);
@@ -426,7 +419,7 @@ static int ccid2_ackvector(struct sock *sk, struct sk_buff *skb, int offset,
 	return -1;
 
 out_invalid_option:
-	BUG_ON(1); /* should never happen... options were previously parsed ! */
+	DCCP_BUG("Invalid option - this should not happen (previous parsing)!");
 	return -1;
 }
 
@@ -480,7 +473,8 @@ static inline void ccid2_new_ack(struct sock *sk,
 		/* first measurement */
 		if (hctx->ccid2hctx_srtt == -1) {
 			ccid2_pr_debug("R: %lu Time=%lu seq=%llu\n",
-			       	       r, jiffies, seqp->ccid2s_seq);
+			       	       r, jiffies,
+				       (unsigned long long)seqp->ccid2s_seq);
 			ccid2_change_srtt(hctx, r);
 			hctx->ccid2hctx_rttvar = r >> 1;
 		} else {
@@ -618,7 +612,17 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	}
 
 	ackno = DCCP_SKB_CB(skb)->dccpd_ack_seq;
-	seqp = hctx->ccid2hctx_seqh->ccid2s_prev;
+	if (after48(ackno, hctx->ccid2hctx_high_ack))
+		hctx->ccid2hctx_high_ack = ackno;
+
+	seqp = hctx->ccid2hctx_seqt;
+	while (before48(seqp->ccid2s_seq, ackno)) {
+		seqp = seqp->ccid2s_next;
+		if (seqp == hctx->ccid2hctx_seqh) {
+			seqp = hctx->ccid2hctx_seqh->ccid2s_prev;
+			break;
+		}
+	}
 
 	/* If in slow-start, cwnd can increase at most Ack Ratio / 2 packets for
 	 * this single ack.  I round up.
@@ -636,8 +640,9 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			u64 ackno_end_rl;
 
 			dccp_set_seqno(&ackno_end_rl, ackno - rl);
-			ccid2_pr_debug("ackvec start:%llu end:%llu\n", ackno,
-				       ackno_end_rl);
+			ccid2_pr_debug("ackvec start:%llu end:%llu\n",
+				       (unsigned long long)ackno,
+				       (unsigned long long)ackno_end_rl);
 			/* if the seqno we are analyzing is larger than the
 			 * current ackno, then move towards the tail of our
 			 * seqnos.
@@ -672,7 +677,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 					seqp->ccid2s_acked = 1;
 					ccid2_pr_debug("Got ack for %llu\n",
-					       	       seqp->ccid2s_seq);
+						       (unsigned long long)seqp->ccid2s_seq);
 					ccid2_hc_tx_dec_pipe(sk);
 				}
 				if (seqp == hctx->ccid2hctx_seqt) {
@@ -695,7 +700,14 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	/* The state about what is acked should be correct now
 	 * Check for NUMDUPACK
 	 */
-	seqp = hctx->ccid2hctx_seqh->ccid2s_prev;
+	seqp = hctx->ccid2hctx_seqt;
+	while (before48(seqp->ccid2s_seq, hctx->ccid2hctx_high_ack)) {
+		seqp = seqp->ccid2s_next;
+		if (seqp == hctx->ccid2hctx_seqh) {
+			seqp = hctx->ccid2hctx_seqh->ccid2s_prev;
+			break;
+		}
+	}
 	done = 0;
 	while (1) {
 		if (seqp->ccid2s_acked) {
@@ -718,7 +730,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		while (1) {
 			if (!seqp->ccid2s_acked) {
 				ccid2_pr_debug("Packet lost: %llu\n",
-					       seqp->ccid2s_seq);
+					       (unsigned long long)seqp->ccid2s_seq);
 				/* XXX need to traverse from tail -> head in
 				 * order to detect multiple congestion events in
 				 * one ack vector.
@@ -769,6 +781,7 @@ static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
 	hctx->ccid2hctx_lastrtt  = 0;
 	hctx->ccid2hctx_rpdupack = -1;
 	hctx->ccid2hctx_last_cong = jiffies;
+	hctx->ccid2hctx_high_ack = 0;
 
 	hctx->ccid2hctx_rtotimer.function = &ccid2_hc_tx_rto_expire;
 	hctx->ccid2hctx_rtotimer.data	  = (unsigned long)sk;
@@ -821,8 +834,10 @@ static struct ccid_operations ccid2 = {
 	.ccid_hc_rx_packet_recv	= ccid2_hc_rx_packet_recv,
 };
 
+#ifdef CONFIG_IP_DCCP_CCID2_DEBUG
 module_param(ccid2_debug, int, 0444);
 MODULE_PARM_DESC(ccid2_debug, "Enable debug messages");
+#endif
 
 static __init int ccid2_module_init(void)
 {

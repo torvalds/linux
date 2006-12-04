@@ -42,7 +42,7 @@ static struct i2c_driver i2cdev_driver;
 struct i2c_dev {
 	struct list_head list;
 	struct i2c_adapter *adap;
-	struct class_device *class_dev;
+	struct device *dev;
 };
 
 #define I2C_MINORS	256
@@ -92,15 +92,16 @@ static void return_i2c_dev(struct i2c_dev *i2c_dev)
 	spin_unlock(&i2c_dev_list_lock);
 }
 
-static ssize_t show_adapter_name(struct class_device *class_dev, char *buf)
+static ssize_t show_adapter_name(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
-	struct i2c_dev *i2c_dev = i2c_dev_get_by_minor(MINOR(class_dev->devt));
+	struct i2c_dev *i2c_dev = i2c_dev_get_by_minor(MINOR(dev->devt));
 
 	if (!i2c_dev)
 		return -ENODEV;
 	return sprintf(buf, "%s\n", i2c_dev->adap->name);
 }
-static CLASS_DEVICE_ATTR(name, S_IRUGO, show_adapter_name, NULL);
+static DEVICE_ATTR(name, S_IRUGO, show_adapter_name, NULL);
 
 static ssize_t i2cdev_read (struct file *file, char __user *buf, size_t count,
                             loff_t *offset)
@@ -413,15 +414,14 @@ static int i2cdev_attach_adapter(struct i2c_adapter *adap)
 		return PTR_ERR(i2c_dev);
 
 	/* register this i2c device with the driver core */
-	i2c_dev->class_dev = class_device_create(i2c_dev_class, NULL,
-						 MKDEV(I2C_MAJOR, adap->nr),
-						 &adap->dev, "i2c-%d",
-						 adap->nr);
-	if (!i2c_dev->class_dev) {
+	i2c_dev->dev = device_create(i2c_dev_class, &adap->dev,
+				     MKDEV(I2C_MAJOR, adap->nr),
+				     "i2c-%d", adap->nr);
+	if (!i2c_dev->dev) {
 		res = -ENODEV;
 		goto error;
 	}
-	res = class_device_create_file(i2c_dev->class_dev, &class_device_attr_name);
+	res = device_create_file(i2c_dev->dev, &dev_attr_name);
 	if (res)
 		goto error_destroy;
 
@@ -429,7 +429,7 @@ static int i2cdev_attach_adapter(struct i2c_adapter *adap)
 		 adap->name, adap->nr);
 	return 0;
 error_destroy:
-	class_device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, adap->nr));
+	device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, adap->nr));
 error:
 	return_i2c_dev(i2c_dev);
 	kfree(i2c_dev);
@@ -444,9 +444,9 @@ static int i2cdev_detach_adapter(struct i2c_adapter *adap)
 	if (!i2c_dev) /* attach_adapter must have failed */
 		return 0;
 
-	class_device_remove_file(i2c_dev->class_dev, &class_device_attr_name);
+	device_remove_file(i2c_dev->dev, &dev_attr_name);
 	return_i2c_dev(i2c_dev);
-	class_device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, adap->nr));
+	device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, adap->nr));
 	kfree(i2c_dev);
 
 	pr_debug("i2c-dev: adapter [%s] unregistered\n", adap->name);

@@ -138,12 +138,12 @@ static void print_commandk (unsigned char *command)
 	printk("\n");
 }
 
-static void show_command(Scsi_Cmnd *SCpnt)
+static void show_command(struct scsi_cmnd *SCpnt)
 {
 	print_commandk(SCpnt->cmnd);
 }
 
-static void show_phase(Scsi_Cmnd *SCpnt)
+static void show_phase(struct scsi_cmnd *SCpnt)
 {
 	int i = SCpnt->SCp.phase;
 

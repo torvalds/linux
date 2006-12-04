@@ -94,55 +94,63 @@ static struct attribute_group topology_attr_group = {
 	.name = "topology"
 };
 
+static cpumask_t topology_dev_map = CPU_MASK_NONE;
+
 /* Add/Remove cpu_topology interface for CPU device */
-static int __cpuinit topology_add_dev(struct sys_device * sys_dev)
+static int __cpuinit topology_add_dev(unsigned int cpu)
 {
-	sysfs_create_group(&sys_dev->kobj, &topology_attr_group);
-	return 0;
+	int rc;
+	struct sys_device *sys_dev = get_cpu_sysdev(cpu);
+
+	rc = sysfs_create_group(&sys_dev->kobj, &topology_attr_group);
+	if (!rc)
+		cpu_set(cpu, topology_dev_map);
+	return rc;
 }
 
-static int __cpuinit topology_remove_dev(struct sys_device * sys_dev)
+#ifdef CONFIG_HOTPLUG_CPU
+static void __cpuinit topology_remove_dev(unsigned int cpu)
 {
+	struct sys_device *sys_dev = get_cpu_sysdev(cpu);
+
+	if (!cpu_isset(cpu, topology_dev_map))
+		return;
+	cpu_clear(cpu, topology_dev_map);
 	sysfs_remove_group(&sys_dev->kobj, &topology_attr_group);
-	return 0;
 }
 
 static int __cpuinit topology_cpu_callback(struct notifier_block *nfb,
-		unsigned long action, void *hcpu)
+					   unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
-	struct sys_device *sys_dev;
+	int rc = 0;
 
-	sys_dev = get_cpu_sysdev(cpu);
 	switch (action) {
-	case CPU_ONLINE:
-		topology_add_dev(sys_dev);
+	case CPU_UP_PREPARE:
+		rc = topology_add_dev(cpu);
 		break;
+	case CPU_UP_CANCELED:
 	case CPU_DEAD:
-		topology_remove_dev(sys_dev);
+		topology_remove_dev(cpu);
 		break;
 	}
-	return NOTIFY_OK;
+	return rc ? NOTIFY_BAD : NOTIFY_OK;
 }
-
-static struct notifier_block __cpuinitdata topology_cpu_notifier =
-{
-	.notifier_call = topology_cpu_callback,
-};
+#endif
 
 static int __cpuinit topology_sysfs_init(void)
 {
-	int i;
+	int cpu;
+	int rc;
 
-	for_each_online_cpu(i) {
-		topology_cpu_callback(&topology_cpu_notifier, CPU_ONLINE,
-				(void *)(long)i);
+	for_each_online_cpu(cpu) {
+		rc = topology_add_dev(cpu);
+		if (rc)
+			return rc;
 	}
-
-	register_hotcpu_notifier(&topology_cpu_notifier);
+	hotcpu_notifier(topology_cpu_callback, 0);
 
 	return 0;
 }
 
 device_initcall(topology_sysfs_init);
-

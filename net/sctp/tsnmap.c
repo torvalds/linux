@@ -401,13 +401,14 @@ __u16 sctp_tsnmap_num_gabs(struct sctp_tsnmap *map)
 
 	/* Refresh the gap ack information. */
 	if (sctp_tsnmap_has_gap(map)) {
+		__u16 start, end;
 		sctp_tsnmap_iter_init(map, &iter);
 		while (sctp_tsnmap_next_gap_ack(map, &iter,
-						&map->gabs[gabs].start,
-						&map->gabs[gabs].end)) {
+						&start,
+						&end)) {
 
-			map->gabs[gabs].start = htons(map->gabs[gabs].start);
-			map->gabs[gabs].end = htons(map->gabs[gabs].end);
+			map->gabs[gabs].start = htons(start);
+			map->gabs[gabs].end = htons(end);
 			gabs++;
 			if (gabs >= SCTP_MAX_GABS)
 				break;

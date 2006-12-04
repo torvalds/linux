@@ -58,10 +58,10 @@
 #define CIPSO_V4_MAP_PASS             2
 
 /* limits */
-#define CIPSO_V4_MAX_REM_LVLS         256
+#define CIPSO_V4_MAX_REM_LVLS         255
 #define CIPSO_V4_INV_LVL              0x80000000
 #define CIPSO_V4_MAX_LOC_LVLS         (CIPSO_V4_INV_LVL - 1)
-#define CIPSO_V4_MAX_REM_CATS         65536
+#define CIPSO_V4_MAX_REM_CATS         65534
 #define CIPSO_V4_INV_CAT              0x80000000
 #define CIPSO_V4_MAX_LOC_CATS         (CIPSO_V4_INV_CAT - 1)
 

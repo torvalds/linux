@@ -191,6 +191,8 @@ static void gameport_run_poll_handler(unsigned long d)
 
 static void gameport_bind_driver(struct gameport *gameport, struct gameport_driver *drv)
 {
+	int error;
+
 	down_write(&gameport_bus.subsys.rwsem);
 
 	gameport->dev.driver = &drv->driver;
@@ -198,8 +200,20 @@ static void gameport_bind_driver(struct gameport *gameport, struct gameport_driv
 		gameport->dev.driver = NULL;
 		goto out;
 	}
-	device_bind_driver(&gameport->dev);
-out:
+
+	error = device_bind_driver(&gameport->dev);
+	if (error) {
+		printk(KERN_WARNING
+			"gameport: device_bind_driver() failed "
+			"for %s (%s) and %s, error: %d\n",
+			gameport->phys, gameport->name,
+			drv->description, error);
+		drv->disconnect(gameport);
+		gameport->dev.driver = NULL;
+		goto out;
+	}
+
+ out:
 	up_write(&gameport_bus.subsys.rwsem);
 }
 

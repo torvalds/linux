@@ -21,6 +21,7 @@
 #include <linux/ptrace.h>
 #include <linux/rtc.h>
 #include <linux/spinlock.h>
+#include <linux/clocksource.h>
 
 extern spinlock_t rtc_lock;
 
@@ -44,11 +45,10 @@ extern int (*mips_timer_state)(void);
 extern void (*mips_timer_ack)(void);
 
 /*
- * High precision timer functions.
- * If mips_hpt_read is NULL, an R4k-compatible timer setup is attempted.
+ * High precision timer clocksource.
+ * If .read is NULL, an R4k-compatible timer setup is attempted.
  */
-extern unsigned int (*mips_hpt_read)(void);
-extern void (*mips_hpt_init)(unsigned int);
+extern struct clocksource clocksource_mips;
 
 /*
  * to_tm() converts system time back to (year, mon, day, hour, min, sec).
@@ -56,13 +56,6 @@ extern void (*mips_hpt_init)(unsigned int);
  * Copied from PPC implementation.
  */
 extern void to_tm(unsigned long tim, struct rtc_time *tm);
-
-/*
- * do_gettimeoffset(). By default, this func pointer points to
- * do_null_gettimeoffset(), which leads to the same resolution as HZ.
- * Higher resolution versions are available, which give ~1us resolution.
- */
-extern unsigned long (*do_gettimeoffset)(void);
 
 /*
  * high-level timer interrupt routines.

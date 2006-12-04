@@ -774,8 +774,8 @@ int tipc_bclink_set_queue_limits(u32 limit)
 
 int tipc_bclink_init(void)
 {
-	bcbearer = kmalloc(sizeof(*bcbearer), GFP_ATOMIC);
-	bclink = kmalloc(sizeof(*bclink), GFP_ATOMIC);
+	bcbearer = kzalloc(sizeof(*bcbearer), GFP_ATOMIC);
+	bclink = kzalloc(sizeof(*bclink), GFP_ATOMIC);
 	if (!bcbearer || !bclink) {
  nomem:
 	 	warn("Multicast link creation failed, no memory\n");
@@ -786,14 +786,12 @@ int tipc_bclink_init(void)
 		return -ENOMEM;
 	}
 
-	memset(bcbearer, 0, sizeof(struct bcbearer));
 	INIT_LIST_HEAD(&bcbearer->bearer.cong_links);
 	bcbearer->bearer.media = &bcbearer->media;
 	bcbearer->media.send_msg = tipc_bcbearer_send;
 	sprintf(bcbearer->media.name, "tipc-multicast");
 
 	bcl = &bclink->link;
-	memset(bclink, 0, sizeof(struct bclink));
 	INIT_LIST_HEAD(&bcl->waiting_ports);
 	bcl->next_out_no = 1;
 	spin_lock_init(&bclink->node.lock);

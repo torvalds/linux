@@ -104,10 +104,7 @@ int ecryptfs_interpose(struct dentry *lower_dentry, struct dentry *dentry,
 		inode->i_op = &ecryptfs_dir_iops;
 	if (S_ISDIR(lower_inode->i_mode))
 		inode->i_fop = &ecryptfs_dir_fops;
-	/* TODO: Is there a better way to identify if the inode is
-	 * special? */
-	if (S_ISBLK(lower_inode->i_mode) || S_ISCHR(lower_inode->i_mode) ||
-	    S_ISFIFO(lower_inode->i_mode) || S_ISSOCK(lower_inode->i_mode))
+	if (special_file(lower_inode->i_mode))
 		init_special_inode(inode, lower_inode->i_mode,
 				   lower_inode->i_rdev);
 	dentry->d_op = &ecryptfs_dops;
@@ -211,7 +208,6 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 	char *cipher_name_dst;
 	char *cipher_name_src;
 	char *cipher_key_bytes_src;
-	struct crypto_tfm *tmp_tfm;
 	int cipher_name_len;
 
 	if (!options) {
@@ -308,25 +304,19 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 		    = '\0';
 	}
 	if (!cipher_key_bytes_set) {
-		mount_crypt_stat->global_default_cipher_key_size =
-			ECRYPTFS_DEFAULT_KEY_BYTES;
-		ecryptfs_printk(KERN_DEBUG, "Cipher key size was not "
-				"specified.  Defaulting to [%d]\n",
-				mount_crypt_stat->
-				global_default_cipher_key_size);
+		mount_crypt_stat->global_default_cipher_key_size = 0;
 	}
 	rc = ecryptfs_process_cipher(
-		&tmp_tfm,
 		&mount_crypt_stat->global_key_tfm,
 		mount_crypt_stat->global_default_cipher_name,
-		mount_crypt_stat->global_default_cipher_key_size);
-	if (tmp_tfm)
-		crypto_free_tfm(tmp_tfm);
+		&mount_crypt_stat->global_default_cipher_key_size);
 	if (rc) {
 		printk(KERN_ERR "Error attempting to initialize cipher [%s] "
 		       "with key size [%Zd] bytes; rc = [%d]\n",
 		       mount_crypt_stat->global_default_cipher_name,
 		       mount_crypt_stat->global_default_cipher_key_size, rc);
+		mount_crypt_stat->global_key_tfm = NULL;
+		mount_crypt_stat->global_auth_tok_key = NULL;
 		rc = -EINVAL;
 		goto out;
 	}

@@ -189,7 +189,8 @@ NESTED(kernel_entry, 16, sp)			# kernel entry point
 
 	MTC0		zero, CP0_CONTEXT	# clear context register
 	PTR_LA		$28, init_thread_union
-	PTR_ADDIU	sp, $28, _THREAD_SIZE - 32
+	PTR_LI		sp, _THREAD_SIZE - 32
+	PTR_ADDU	sp, $28
 	set_saved_sp	sp, t0, t1
 	PTR_SUBU	sp, 4 * SZREG		# init stack pointer
 
@@ -249,6 +250,9 @@ NESTED(smp_bootstrap, 16, sp)
 	 */
 	page	swapper_pg_dir, _PGD_ORDER
 #ifdef CONFIG_64BIT
+#if defined(CONFIG_MODULES) && !defined(CONFIG_BUILD_ELF64)
+	page	module_pg_dir, _PGD_ORDER
+#endif
 	page	invalid_pmd_table, _PMD_ORDER
 #endif
 	page	invalid_pte_table, _PTE_ORDER

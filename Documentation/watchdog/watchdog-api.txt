@@ -214,7 +214,7 @@ returned value is the temperature in degrees fahrenheit.
 
 Finally the SETOPTIONS ioctl can be used to control some aspects of
 the cards operation; right now the pcwd driver is the only one
-supporting thiss ioctl.
+supporting this ioctl.
 
     int options = 0;
     ioctl(fd, WDIOC_SETOPTIONS, options);

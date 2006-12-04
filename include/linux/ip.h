@@ -98,7 +98,7 @@ struct iphdr {
 	__be16	frag_off;
 	__u8	ttl;
 	__u8	protocol;
-	__be16	check;
+	__sum16	check;
 	__be32	saddr;
 	__be32	daddr;
 	/*The options start here. */

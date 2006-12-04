@@ -17,7 +17,9 @@
 #include <linux/types.h>
 
 /* Read about the ECN nonce to see why it is 253 */
-#define DCCP_MAX_ACKVEC_LEN 253
+#define DCCP_MAX_ACKVEC_OPT_LEN 253
+/* We can spread an ack vector across multiple options */
+#define DCCP_MAX_ACKVEC_LEN (DCCP_MAX_ACKVEC_OPT_LEN * 2)
 
 #define DCCP_ACKVEC_STATE_RECEIVED	0
 #define DCCP_ACKVEC_STATE_ECN_MARKED	(1 << 6)
@@ -28,8 +30,7 @@
 
 /** struct dccp_ackvec - ack vector
  *
- * This data structure is the one defined in the DCCP draft
- * Appendix A.
+ * This data structure is the one defined in RFC 4340, Appendix A.
  *
  * @dccpav_buf_head - circular buffer head
  * @dccpav_buf_tail - circular buffer tail
@@ -42,7 +43,6 @@
  * Ack Vectors it has recently sent. For each packet sent carrying an
  * Ack Vector, it remembers four variables:
  *
- * @dccpav_ack_ptr - the value of buf_head at the time of acknowledgement.
  * @dccpav_records - list of dccp_ackvec_record
  * @dccpav_ack_nonce - the one-bit sum of the ECN Nonces for all State 0.
  *
@@ -53,9 +53,8 @@ struct dccp_ackvec {
 	u64		dccpav_buf_ackno;
 	struct list_head dccpav_records;
 	struct timeval	dccpav_time;
-	u8		dccpav_buf_head;
-	u8		dccpav_ack_ptr;
-	u8		dccpav_vec_len;
+	u16		dccpav_buf_head;
+	u16		dccpav_vec_len;
 	u8		dccpav_buf_nonce;
 	u8		dccpav_ack_nonce;
 	u8		dccpav_buf[DCCP_MAX_ACKVEC_LEN];
@@ -78,9 +77,9 @@ struct dccp_ackvec_record {
 	struct list_head dccpavr_node;
 	u64		 dccpavr_ack_seqno;
 	u64		 dccpavr_ack_ackno;
-	u8		 dccpavr_ack_ptr;
+	u16		 dccpavr_ack_ptr;
+	u16		 dccpavr_sent_len;
 	u8		 dccpavr_ack_nonce;
-	u8		 dccpavr_sent_len;
 };
 
 struct sock;
@@ -99,7 +98,8 @@ extern int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
 extern void dccp_ackvec_check_rcv_ackno(struct dccp_ackvec *av,
 					struct sock *sk, const u64 ackno);
 extern int dccp_ackvec_parse(struct sock *sk, const struct sk_buff *skb,
-			     const u8 opt, const u8 *value, const u8 len);
+			     u64 *ackno, const u8 opt,
+			     const u8 *value, const u8 len);
 
 extern int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb);
 
@@ -138,7 +138,8 @@ static inline void dccp_ackvec_check_rcv_ackno(struct dccp_ackvec *av,
 }
 
 static inline int dccp_ackvec_parse(struct sock *sk, const struct sk_buff *skb,
-				    const u8 opt, const u8 *value, const u8 len)
+				    const u64 *ackno, const u8 opt,
+				    const u8 *value, const u8 len)
 {
 	return -1;
 }

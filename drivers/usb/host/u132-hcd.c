@@ -71,7 +71,7 @@ static int distrust_firmware = 1;
 module_param(distrust_firmware, bool, 0);
 MODULE_PARM_DESC(distrust_firmware, "true to distrust firmware power/overcurren"
         "t setup");
-DECLARE_WAIT_QUEUE_HEAD(u132_hcd_wait);
+static DECLARE_WAIT_QUEUE_HEAD(u132_hcd_wait);
 /*
 * u132_module_lock exists to protect access to global variables
 *
@@ -205,13 +205,9 @@ struct u132 {
         struct u132_port port[MAX_U132_PORTS];
         struct u132_endp *endp[MAX_U132_ENDPS];
 };
-int usb_ftdi_elan_read_reg(struct platform_device *pdev, u32 *data);
-int usb_ftdi_elan_read_pcimem(struct platform_device *pdev, u8 addressofs,
-        u8 width, u32 *data);
-int usb_ftdi_elan_write_pcimem(struct platform_device *pdev, u8 addressofs,
-        u8 width, u32 data);
+
 /*
-* these can not be inlines because we need the structure offset!!
+* these cannot be inlines because we need the structure offset!!
 * Does anyone have a better way?????
 */
 #define u132_read_pcimem(u132, member, data) \
@@ -3045,7 +3041,7 @@ static struct hc_driver u132_hc_driver = {
 * This function may be called by the USB core whilst the "usb_all_devices_rwsem"
 * is held for writing, thus this module must not call usb_remove_hcd()
 * synchronously - but instead should immediately stop activity to the
-* device and ansynchronously call usb_remove_hcd()
+* device and asynchronously call usb_remove_hcd()
 */
 static int __devexit u132_remove(struct platform_device *pdev)
 {
@@ -3241,7 +3237,7 @@ static int u132_resume(struct platform_device *pdev)
 #define u132_resume NULL
 #endif
 /*
-* this driver is loaded explicitely by ftdi_u132
+* this driver is loaded explicitly by ftdi_u132
 *
 * the platform_driver struct is static because it is per type of module
 */

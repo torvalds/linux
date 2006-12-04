@@ -581,12 +581,16 @@ void __cpuinit start_secondary(void)
 	 * smp_call_function().
 	 */
 	lock_ipi_call_lock();
+	spin_lock(&vector_lock);
 
+	/* Setup the per cpu irq handling data structures */
+	__setup_vector_irq(smp_processor_id());
 	/*
 	 * Allow the master to continue.
 	 */
 	cpu_set(smp_processor_id(), cpu_online_map);
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
+	spin_unlock(&vector_lock);
 	unlock_ipi_call_lock();
 
 	cpu_idle();
@@ -798,7 +802,6 @@ static int __cpuinit do_boot_cpu(int cpu, int apicid)
 		"Could not allocate node local PDA for CPU %d on node %d\n",
 				cpu, node);
 	}
-
 
 	alternatives_smp_switch(1);
 
@@ -1246,8 +1249,10 @@ int __cpu_disable(void)
 	local_irq_disable();
 	remove_siblinginfo(cpu);
 
+	spin_lock(&vector_lock);
 	/* It's now safe to remove this processor from the online map */
 	cpu_clear(cpu, cpu_online_map);
+	spin_unlock(&vector_lock);
 	remove_cpu_from_maps();
 	fixup_irqs(cpu_online_map);
 	return 0;

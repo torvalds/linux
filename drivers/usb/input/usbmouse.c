@@ -126,9 +126,7 @@ static int usb_mouse_probe(struct usb_interface *intf, const struct usb_device_i
 		return -ENODEV;
 
 	endpoint = &interface->endpoint[0].desc;
-	if (!(endpoint->bEndpointAddress & USB_DIR_IN))
-		return -ENODEV;
-	if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_INT)
+	if (!usb_endpoint_is_int_in(endpoint))
 		return -ENODEV;
 
 	pipe = usb_rcvintpipe(dev, endpoint->bEndpointAddress);

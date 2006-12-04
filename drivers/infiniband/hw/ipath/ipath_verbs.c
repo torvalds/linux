@@ -1487,7 +1487,7 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 	idev->pma_counter_select[1] = IB_PMA_PORT_RCV_DATA;
 	idev->pma_counter_select[2] = IB_PMA_PORT_XMIT_PKTS;
 	idev->pma_counter_select[3] = IB_PMA_PORT_RCV_PKTS;
-	idev->pma_counter_select[5] = IB_PMA_PORT_XMIT_WAIT;
+	idev->pma_counter_select[4] = IB_PMA_PORT_XMIT_WAIT;
 	idev->link_width_enabled = 3;	/* 1x or 4x */
 
 	/* Snapshot current HW counters to "clear" them. */

@@ -92,7 +92,7 @@ static int artop6260_pre_reset(struct ata_port *ap)
 		return -ENOENT;
 
 	pci_read_config_byte(pdev, 0x49, &tmp);
-	if (tmp & (1 >> ap->port_no))
+	if (tmp & (1 << ap->port_no))
 		ap->cbl = ATA_CBL_PATA40;
 	else
 		ap->cbl = ATA_CBL_PATA80;
@@ -314,6 +314,7 @@ static struct scsi_host_template artop_sht = {
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
 };
 

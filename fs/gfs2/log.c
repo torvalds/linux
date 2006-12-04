@@ -312,10 +312,12 @@ void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks)
 
 static u64 log_bmap(struct gfs2_sbd *sdp, unsigned int lbn)
 {
+	struct inode *inode = sdp->sd_jdesc->jd_inode;
 	int error;
-	struct buffer_head bh_map;
+	struct buffer_head bh_map = { .b_state = 0, .b_blocknr = 0 };
 
-	error = gfs2_block_map(sdp->sd_jdesc->jd_inode, lbn, 0, &bh_map, 1);
+	bh_map.b_size = 1 << inode->i_blkbits;
+	error = gfs2_block_map(inode, lbn, 0, &bh_map);
 	if (error || !bh_map.b_blocknr)
 		printk(KERN_INFO "error=%d, dbn=%llu lbn=%u", error, bh_map.b_blocknr, lbn);
 	gfs2_assert_withdraw(sdp, !error && bh_map.b_blocknr);

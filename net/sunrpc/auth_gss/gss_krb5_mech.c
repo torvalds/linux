@@ -70,10 +70,9 @@ simple_get_netobj(const void *p, const void *end, struct xdr_netobj *res)
 	q = (const void *)((const char *)p + len);
 	if (unlikely(q > end || q < p))
 		return ERR_PTR(-EFAULT);
-	res->data = kmalloc(len, GFP_KERNEL);
+	res->data = kmemdup(p, len, GFP_KERNEL);
 	if (unlikely(res->data == NULL))
 		return ERR_PTR(-ENOMEM);
-	memcpy(res->data, p, len);
 	res->len = len;
 	return q;
 }

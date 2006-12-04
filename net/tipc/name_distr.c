@@ -66,11 +66,11 @@
  */
 
 struct distr_item {
-	u32 type;
-	u32 lower;
-	u32 upper;
-	u32 ref;
-	u32 key;
+	__be32 type;
+	__be32 lower;
+	__be32 upper;
+	__be32 ref;
+	__be32 key;
 };
 
 /**
@@ -122,7 +122,7 @@ void tipc_named_publish(struct publication *publ)
 	struct sk_buff *buf;
 	struct distr_item *item;
 
-	list_add(&publ->local_list, &publ_root);
+	list_add_tail(&publ->local_list, &publ_root);
 	publ_cnt++;
 
 	buf = named_prepare_buf(PUBLICATION, ITEM_SIZE, 0);

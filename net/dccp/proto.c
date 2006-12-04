@@ -52,6 +52,9 @@ struct inet_hashinfo __cacheline_aligned dccp_hashinfo = {
 
 EXPORT_SYMBOL_GPL(dccp_hashinfo);
 
+/* the maximum queue length for tx in packets. 0 is no limit */
+int sysctl_dccp_tx_qlen __read_mostly = 5;
+
 void dccp_set_state(struct sock *sk, const int state)
 {
 	const int oldstate = sk->sk_state;
@@ -212,6 +215,7 @@ int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 
 	dccp_init_xmit_timers(sk);
 	icsk->icsk_rto		= DCCP_TIMEOUT_INIT;
+	icsk->icsk_syn_retries	= sysctl_dccp_request_retries;
 	sk->sk_state		= DCCP_CLOSED;
 	sk->sk_write_space	= dccp_write_space;
 	icsk->icsk_sync_mss	= dccp_sync_mss;
@@ -262,12 +266,12 @@ int dccp_destroy_sock(struct sock *sk)
 
 EXPORT_SYMBOL_GPL(dccp_destroy_sock);
 
-static inline int dccp_listen_start(struct sock *sk)
+static inline int dccp_listen_start(struct sock *sk, int backlog)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 
 	dp->dccps_role = DCCP_ROLE_LISTEN;
-	return inet_csk_listen_start(sk, TCP_SYNQ_HSIZE);
+	return inet_csk_listen_start(sk, backlog);
 }
 
 int dccp_disconnect(struct sock *sk, int flags)
@@ -451,9 +455,8 @@ out_free_val:
 static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
 		char __user *optval, int optlen)
 {
-	struct dccp_sock *dp;
-	int err;
-	int val;
+	struct dccp_sock *dp = dccp_sk(sk);
+	int val, err = 0;
 
 	if (optlen < sizeof(int))
 		return -EINVAL;
@@ -465,14 +468,11 @@ static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
 		return dccp_setsockopt_service(sk, val, optval, optlen);
 
 	lock_sock(sk);
-	dp = dccp_sk(sk);
-	err = 0;
-
 	switch (optname) {
 	case DCCP_SOCKOPT_PACKET_SIZE:
-		dp->dccps_packet_size = val;
+		DCCP_WARN("sockopt(PACKET_SIZE) is deprecated: fix your app\n");
+		err = 0;
 		break;
-
 	case DCCP_SOCKOPT_CHANGE_L:
 		if (optlen != sizeof(struct dccp_so_feat))
 			err = -EINVAL;
@@ -481,7 +481,6 @@ static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
 					             (struct dccp_so_feat __user *)
 						     optval);
 		break;
-
 	case DCCP_SOCKOPT_CHANGE_R:
 		if (optlen != sizeof(struct dccp_so_feat))
 			err = -EINVAL;
@@ -490,12 +489,26 @@ static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
 						     (struct dccp_so_feat __user *)
 						     optval);
 		break;
-
+	case DCCP_SOCKOPT_SEND_CSCOV:	/* sender side, RFC 4340, sec. 9.2 */
+		if (val < 0 || val > 15)
+			err = -EINVAL;
+		else
+			dp->dccps_pcslen = val;
+		break;
+	case DCCP_SOCKOPT_RECV_CSCOV:	/* receiver side, RFC 4340 sec. 9.2.1 */
+		if (val < 0 || val > 15)
+			err = -EINVAL;
+		else {
+			dp->dccps_pcrlen = val;
+			/* FIXME: add feature negotiation,
+			 * ChangeL(MinimumChecksumCoverage, val) */
+		}
+		break;
 	default:
 		err = -ENOPROTOOPT;
 		break;
 	}
-	
+
 	release_sock(sk);
 	return err;
 }
@@ -569,12 +582,17 @@ static int do_dccp_getsockopt(struct sock *sk, int level, int optname,
 
 	switch (optname) {
 	case DCCP_SOCKOPT_PACKET_SIZE:
-		val = dp->dccps_packet_size;
-		len = sizeof(dp->dccps_packet_size);
-		break;
+		DCCP_WARN("sockopt(PACKET_SIZE) is deprecated: fix your app\n");
+		return 0;
 	case DCCP_SOCKOPT_SERVICE:
 		return dccp_getsockopt_service(sk, len,
 					       (__be32 __user *)optval, optlen);
+	case DCCP_SOCKOPT_SEND_CSCOV:
+		val = dp->dccps_pcslen;
+		break;
+	case DCCP_SOCKOPT_RECV_CSCOV:
+		val = dp->dccps_pcrlen;
+		break;
 	case 128 ... 191:
 		return ccid_hc_rx_getsockopt(dp->dccps_hc_rx_ccid, sk, optname,
 					     len, (u32 __user *)optval, optlen);
@@ -630,6 +648,13 @@ int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		return -EMSGSIZE;
 
 	lock_sock(sk);
+
+	if (sysctl_dccp_tx_qlen &&
+	    (sk->sk_write_queue.qlen >= sysctl_dccp_tx_qlen)) {
+		rc = -EAGAIN;
+		goto out_release;
+	}
+
 	timeo = sock_sndtimeo(sk, noblock);
 
 	/*
@@ -788,7 +813,7 @@ int inet_dccp_listen(struct socket *sock, int backlog)
 		 * FIXME: here it probably should be sk->sk_prot->listen_start
 		 * see tcp_listen_start
 		 */
-		err = dccp_listen_start(sk);
+		err = dccp_listen_start(sk, backlog);
 		if (err)
 			goto out;
 	}
@@ -1008,8 +1033,7 @@ static int __init dccp_init(void)
 	} while (!dccp_hashinfo.ehash && --ehash_order > 0);
 
 	if (!dccp_hashinfo.ehash) {
-		printk(KERN_CRIT "Failed to allocate DCCP "
-				 "established hash table\n");
+		DCCP_CRIT("Failed to allocate DCCP established hash table");
 		goto out_free_bind_bucket_cachep;
 	}
 
@@ -1031,7 +1055,7 @@ static int __init dccp_init(void)
 	} while (!dccp_hashinfo.bhash && --bhash_order >= 0);
 
 	if (!dccp_hashinfo.bhash) {
-		printk(KERN_CRIT "Failed to allocate DCCP bind hash table\n");
+		DCCP_CRIT("Failed to allocate DCCP bind hash table");
 		goto out_free_dccp_ehash;
 	}
 

@@ -293,7 +293,7 @@ static uint32_t aic79xx_seltime;
  * force all outstanding transactions to be serviced prior to a new
  * transaction.
  */
-uint32_t aic79xx_periodic_otag;
+static uint32_t aic79xx_periodic_otag;
 
 /* Some storage boxes are using an LSI chip which has a bug making it
  * impossible to use aic79xx Rev B chip in 320 speeds.  The following
@@ -773,6 +773,7 @@ struct scsi_host_template aic79xx_driver_template = {
 #endif
 	.can_queue		= AHD_MAX_QUEUE,
 	.this_id		= -1,
+	.max_sectors		= 8192,
 	.cmd_per_lun		= 2,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.slave_alloc		= ahd_linux_slave_alloc,
@@ -1813,9 +1814,9 @@ ahd_linux_handle_scsi_status(struct ahd_softc *ahd,
 			u_int sense_offset;
 
 			if (scb->flags & SCB_SENSE) {
-				sense_size = MIN(sizeof(struct scsi_sense_data)
+				sense_size = min(sizeof(struct scsi_sense_data)
 					       - ahd_get_sense_residual(scb),
-						 sizeof(cmd->sense_buffer));
+						 (u_long)sizeof(cmd->sense_buffer));
 				sense_offset = 0;
 			} else {
 				/*
@@ -1824,7 +1825,8 @@ ahd_linux_handle_scsi_status(struct ahd_softc *ahd,
 				 */
 				siu = (struct scsi_status_iu_header *)
 				    scb->sense_data;
-				sense_size = MIN(scsi_4btoul(siu->sense_length),
+				sense_size = min_t(size_t,
+						scsi_4btoul(siu->sense_length),
 						sizeof(cmd->sense_buffer));
 				sense_offset = SIU_SENSE_OFFSET(siu);
 			}
@@ -2634,8 +2636,22 @@ static void ahd_linux_set_pcomp_en(struct scsi_target *starget, int pcomp)
 		       pcomp ? "Enable" : "Disable");
 #endif
 
-	if (pcomp)
+	if (pcomp) {
+		uint8_t precomp;
+
+		if (ahd->unit < ARRAY_SIZE(aic79xx_iocell_info)) {
+			struct ahd_linux_iocell_opts *iocell_opts;
+
+			iocell_opts = &aic79xx_iocell_info[ahd->unit];
+			precomp = iocell_opts->precomp;
+		} else {
+			precomp = AIC79XX_DEFAULT_PRECOMP;
+		}
 		ppr_options |= MSG_EXT_PPR_PCOMP_EN;
+		AHD_SET_PRECOMP(ahd, precomp);
+	} else {
+		AHD_SET_PRECOMP(ahd, 0);
+	}
 
 	ahd_compile_devinfo(&devinfo, shost->this_id, starget->id, 0,
 			    starget->channel + 'A', ROLE_INITIATOR);
@@ -2678,7 +2694,25 @@ static void ahd_linux_set_hold_mcs(struct scsi_target *starget, int hold)
 	ahd_unlock(ahd, &flags);
 }
 
+static void ahd_linux_get_signalling(struct Scsi_Host *shost)
+{
+	struct ahd_softc *ahd = *(struct ahd_softc **)shost->hostdata;
+	unsigned long flags;
+	u8 mode;
 
+	ahd_lock(ahd, &flags);
+	ahd_pause(ahd);
+	mode = ahd_inb(ahd, SBLKCTL);
+	ahd_unpause(ahd);
+	ahd_unlock(ahd, &flags);
+
+	if (mode & ENAB40)
+		spi_signalling(shost) = SPI_SIGNAL_LVD;
+	else if (mode & ENAB20)
+		spi_signalling(shost) = SPI_SIGNAL_SE;
+	else
+		spi_signalling(shost) = SPI_SIGNAL_UNKNOWN;
+}
 
 static struct spi_function_template ahd_linux_transport_functions = {
 	.set_offset	= ahd_linux_set_offset,
@@ -2703,6 +2737,7 @@ static struct spi_function_template ahd_linux_transport_functions = {
 	.show_pcomp_en	= 1,
 	.set_hold_mcs	= ahd_linux_set_hold_mcs,
 	.show_hold_mcs	= 1,
+	.get_signalling = ahd_linux_get_signalling,
 };
 
 static int __init

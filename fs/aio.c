@@ -367,8 +367,7 @@ void fastcall __put_ioctx(struct kioctx *ctx)
 {
 	unsigned nr_events = ctx->max_reqs;
 
-	if (unlikely(ctx->reqs_active))
-		BUG();
+	BUG_ON(ctx->reqs_active);
 
 	cancel_delayed_work(&ctx->wq);
 	flush_workqueue(aio_wq);
@@ -505,8 +504,7 @@ static int __aio_put_req(struct kioctx *ctx, struct kiocb *req)
 	assert_spin_locked(&ctx->ctx_lock);
 
 	req->ki_users --;
-	if (unlikely(req->ki_users < 0))
-		BUG();
+	BUG_ON(req->ki_users < 0);
 	if (likely(req->ki_users))
 		return 0;
 	list_del(&req->ki_list);		/* remove from active_reqs */

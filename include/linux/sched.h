@@ -466,7 +466,6 @@ struct signal_struct {
 	struct pacct_struct pacct;	/* per-process accounting information */
 #endif
 #ifdef CONFIG_TASKSTATS
-	spinlock_t stats_lock;
 	struct taskstats *stats;
 #endif
 };

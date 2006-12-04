@@ -109,6 +109,7 @@ static int fuse_remount_fs(struct super_block *sb, int *flags, char *data)
 
 void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr)
 {
+	struct fuse_conn *fc = get_fuse_conn(inode);
 	if (S_ISREG(inode->i_mode) && i_size_read(inode) != attr->size)
 		invalidate_inode_pages(inode->i_mapping);
 
@@ -117,7 +118,9 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr)
 	inode->i_nlink   = attr->nlink;
 	inode->i_uid     = attr->uid;
 	inode->i_gid     = attr->gid;
+	spin_lock(&fc->lock);
 	i_size_write(inode, attr->size);
+	spin_unlock(&fc->lock);
 	inode->i_blocks  = attr->blocks;
 	inode->i_atime.tv_sec   = attr->atime;
 	inode->i_atime.tv_nsec  = attr->atimensec;
@@ -130,7 +133,7 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr)
 static void fuse_init_inode(struct inode *inode, struct fuse_attr *attr)
 {
 	inode->i_mode = attr->mode & S_IFMT;
-	i_size_write(inode, attr->size);
+	inode->i_size = attr->size;
 	if (S_ISREG(inode->i_mode)) {
 		fuse_init_common(inode);
 		fuse_init_file_inode(inode);
@@ -169,7 +172,6 @@ struct inode *fuse_iget(struct super_block *sb, unsigned long nodeid,
 	struct inode *inode;
 	struct fuse_inode *fi;
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
-	int retried = 0;
 
  retry:
 	inode = iget5_locked(sb, nodeid, fuse_inode_eq, fuse_inode_set, &nodeid);
@@ -183,16 +185,16 @@ struct inode *fuse_iget(struct super_block *sb, unsigned long nodeid,
 		fuse_init_inode(inode, attr);
 		unlock_new_inode(inode);
 	} else if ((inode->i_mode ^ attr->mode) & S_IFMT) {
-		BUG_ON(retried);
 		/* Inode has changed type, any I/O on the old should fail */
 		make_bad_inode(inode);
 		iput(inode);
-		retried = 1;
 		goto retry;
 	}
 
 	fi = get_fuse_inode(inode);
+	spin_lock(&fc->lock);
 	fi->nlookup ++;
+	spin_unlock(&fc->lock);
 	fuse_change_attributes(inode, attr);
 	return inode;
 }
@@ -377,6 +379,7 @@ static struct fuse_conn *new_conn(void)
 	fc = kzalloc(sizeof(*fc), GFP_KERNEL);
 	if (fc) {
 		spin_lock_init(&fc->lock);
+		mutex_init(&fc->inst_mutex);
 		atomic_set(&fc->count, 1);
 		init_waitqueue_head(&fc->waitq);
 		init_waitqueue_head(&fc->blocked_waitq);
@@ -396,8 +399,10 @@ static struct fuse_conn *new_conn(void)
 
 void fuse_conn_put(struct fuse_conn *fc)
 {
-	if (atomic_dec_and_test(&fc->count))
+	if (atomic_dec_and_test(&fc->count)) {
+		mutex_destroy(&fc->inst_mutex);
 		kfree(fc);
+	}
 }
 
 struct fuse_conn *fuse_conn_get(struct fuse_conn *fc)

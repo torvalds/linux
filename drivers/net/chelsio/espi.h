@@ -64,5 +64,6 @@ const struct espi_intr_counts *t1_espi_get_intr_counts(struct peespi *espi);
 
 void t1_espi_set_misc_ctrl(adapter_t *adapter, u32 val);
 u32 t1_espi_get_mon(adapter_t *adapter, u32 addr, u8 wait);
+int t1_espi_get_mon_t204(adapter_t *, u32 *, u8);
 
 #endif /* _CXGB_ESPI_H_ */

@@ -169,7 +169,7 @@ struct lcs_header {
 }  __attribute__ ((packed));
 
 struct lcs_ip_mac_pair {
-	__u32  ip_addr;
+	__be32  ip_addr;
 	__u8   mac_addr[LCS_MAC_LENGTH];
 	__u8   reserved[2];
 }  __attribute__ ((packed));
@@ -287,7 +287,7 @@ struct lcs_card {
 	enum lcs_dev_states state;
 	struct net_device *dev;
 	struct net_device_stats stats;
-	unsigned short (*lan_type_trans)(struct sk_buff *skb,
+	__be16 (*lan_type_trans)(struct sk_buff *skb,
 					 struct net_device *dev);
 	struct ccwgroup_device *gdev;
 	struct lcs_channel read;

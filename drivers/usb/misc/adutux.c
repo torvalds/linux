@@ -370,7 +370,8 @@ static int adu_release(struct inode *inode, struct file *file)
 	retval = adu_release_internal(dev);
 
 exit:
-	up(&dev->sem);
+	if (dev)
+		up(&dev->sem);
 	dbg(2," %s : leave, return value %d", __FUNCTION__, retval);
 	return retval;
 }

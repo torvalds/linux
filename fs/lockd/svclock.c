@@ -334,13 +334,13 @@ static void nlmsvc_freegrantargs(struct nlm_rqst *call)
  * Attempt to establish a lock, and if it can't be granted, block it
  * if required.
  */
-u32
+__be32
 nlmsvc_lock(struct svc_rqst *rqstp, struct nlm_file *file,
 			struct nlm_lock *lock, int wait, struct nlm_cookie *cookie)
 {
 	struct nlm_block	*block, *newblock = NULL;
 	int			error;
-	u32			ret;
+	__be32			ret;
 
 	dprintk("lockd: nlmsvc_lock(%s/%ld, ty=%d, pi=%d, %Ld-%Ld, bl=%d)\n",
 				file->f_file->f_dentry->d_inode->i_sb->s_id,
@@ -415,7 +415,7 @@ out:
 /*
  * Test for presence of a conflicting lock.
  */
-u32
+__be32
 nlmsvc_testlock(struct nlm_file *file, struct nlm_lock *lock,
 				       struct nlm_lock *conflock)
 {
@@ -448,7 +448,7 @@ nlmsvc_testlock(struct nlm_file *file, struct nlm_lock *lock,
  * afterwards. In this case the block will still be there, and hence
  * must be removed.
  */
-u32
+__be32
 nlmsvc_unlock(struct nlm_file *file, struct nlm_lock *lock)
 {
 	int	error;
@@ -476,7 +476,7 @@ nlmsvc_unlock(struct nlm_file *file, struct nlm_lock *lock)
  * be in progress.
  * The calling procedure must check whether the file can be closed.
  */
-u32
+__be32
 nlmsvc_cancel_blocked(struct nlm_file *file, struct nlm_lock *lock)
 {
 	struct nlm_block	*block;

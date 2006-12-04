@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/crypto.h>
 #include <linux/workqueue.h>
+#include <linux/backing-dev.h>
 #include <asm/atomic.h>
 #include <linux/scatterlist.h>
 #include <asm/page.h>
@@ -602,7 +603,7 @@ static void process_write(struct crypt_io *io)
 
 		/* out of memory -> run queues */
 		if (remaining)
-			blk_congestion_wait(bio_data_dir(clone), HZ/100);
+			congestion_wait(bio_data_dir(clone), HZ/100);
 	}
 }
 
@@ -914,8 +915,6 @@ static int crypt_status(struct dm_target *ti, status_type_t type,
 			char *result, unsigned int maxlen)
 {
 	struct crypt_config *cc = (struct crypt_config *) ti->private;
-	const char *cipher;
-	const char *chainmode = NULL;
 	unsigned int sz = 0;
 
 	switch (type) {
@@ -924,14 +923,11 @@ static int crypt_status(struct dm_target *ti, status_type_t type,
 		break;
 
 	case STATUSTYPE_TABLE:
-		cipher = crypto_blkcipher_name(cc->tfm);
-
-		chainmode = cc->chainmode;
-
 		if (cc->iv_mode)
-			DMEMIT("%s-%s-%s ", cipher, chainmode, cc->iv_mode);
+			DMEMIT("%s-%s-%s ", cc->cipher, cc->chainmode,
+			       cc->iv_mode);
 		else
-			DMEMIT("%s-%s ", cipher, chainmode);
+			DMEMIT("%s-%s ", cc->cipher, cc->chainmode);
 
 		if (cc->key_size > 0) {
 			if ((maxlen - sz) < ((cc->key_size << 1) + 1))

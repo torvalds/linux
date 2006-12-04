@@ -64,7 +64,7 @@ MODULE_DESCRIPTION("Basic SNMP Application Layer Gateway");
 
 #define SNMP_PORT 161
 #define SNMP_TRAP_PORT 162
-#define NOCT1(n) (u_int8_t )((n) & 0xff)
+#define NOCT1(n) (*(u8 *)n)
 
 static int debug;
 static DEFINE_SPINLOCK(snmp_lock);
@@ -613,7 +613,7 @@ struct snmp_v1_trap
 static inline void mangle_address(unsigned char *begin,
                                   unsigned char *addr,
                                   const struct oct1_map *map,
-                                  u_int16_t *check);
+                                  __sum16 *check);
 struct snmp_cnv
 {
 	unsigned int class;
@@ -873,38 +873,24 @@ static unsigned char snmp_request_decode(struct asn1_ctx *ctx,
  * Fast checksum update for possibly oddly-aligned UDP byte, from the
  * code example in the draft.
  */
-static void fast_csum(unsigned char *csum,
+static void fast_csum(__sum16 *csum,
                       const unsigned char *optr,
                       const unsigned char *nptr,
-                      int odd)
+                      int offset)
 {
-	long x, old, new;
-	
-	x = csum[0] * 256 + csum[1];
-	
-	x =~ x & 0xFFFF;
-	
-	if (odd) old = optr[0] * 256;
-	else old = optr[0];
-	
-	x -= old & 0xFFFF;
-	if (x <= 0) {
-		x--;
-		x &= 0xFFFF;
+	unsigned char s[4];
+
+	if (offset & 1) {
+		s[0] = s[2] = 0;
+		s[1] = ~*optr;
+		s[3] = *nptr;
+	} else {
+		s[1] = s[3] = 0;
+		s[0] = ~*optr;
+		s[2] = *nptr;
 	}
-	
-	if (odd) new = nptr[0] * 256;
-	else new = nptr[0];
-	
-	x += new & 0xFFFF;
-	if (x & 0x10000) {
-		x++;
-		x &= 0xFFFF;
-	}
-	
-	x =~ x & 0xFFFF;
-	csum[0] = x / 256;
-	csum[1] = x & 0xFF;
+
+	*csum = csum_fold(csum_partial(s, 4, ~csum_unfold(*csum)));
 }
 
 /* 
@@ -915,9 +901,9 @@ static void fast_csum(unsigned char *csum,
 static inline void mangle_address(unsigned char *begin,
                                   unsigned char *addr,
                                   const struct oct1_map *map,
-                                  u_int16_t *check)
+                                  __sum16 *check)
 {
-	if (map->from == NOCT1(*addr)) {
+	if (map->from == NOCT1(addr)) {
 		u_int32_t old;
 		
 		if (debug)
@@ -927,11 +913,8 @@ static inline void mangle_address(unsigned char *begin,
 		
 		/* Update UDP checksum if being used */
 		if (*check) {
-			unsigned char odd = !((addr - begin) % 2);
-			
-			fast_csum((unsigned char *)check,
-			          &map->from, &map->to, odd);
-			          
+			fast_csum(check,
+			          &map->from, &map->to, addr - begin);
 		}
 		
 		if (debug)
@@ -943,7 +926,7 @@ static inline void mangle_address(unsigned char *begin,
 static unsigned char snmp_trap_decode(struct asn1_ctx *ctx,
                                       struct snmp_v1_trap *trap,
                                       const struct oct1_map *map,
-                                      u_int16_t *check)
+                                      __sum16 *check)
 {
 	unsigned int cls, con, tag, len;
 	unsigned char *end;
@@ -1037,7 +1020,7 @@ static void hex_dump(unsigned char *buf, size_t len)
 static int snmp_parse_mangle(unsigned char *msg,
                              u_int16_t len,
                              const struct oct1_map *map,
-                             u_int16_t *check)
+                             __sum16 *check)
 {
 	unsigned char *eoc, *end;
 	unsigned int cls, con, tag, vers, pdutype;
@@ -1223,12 +1206,12 @@ static int snmp_translate(struct ip_conntrack *ct,
 	 */
 	if (dir == IP_CT_DIR_ORIGINAL) {
 		/* SNAT traps */
-		map.from = NOCT1(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.ip);
-		map.to = NOCT1(ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.ip);
+		map.from = NOCT1(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.ip);
+		map.to = NOCT1(&ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.ip);
 	} else {
 		/* DNAT replies */
-		map.from = NOCT1(ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.ip);
-		map.to = NOCT1(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.ip);
+		map.from = NOCT1(&ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.ip);
+		map.to = NOCT1(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.ip);
 	}
 	
 	if (map.from == map.to)
@@ -1294,11 +1277,11 @@ static struct ip_conntrack_helper snmp_helper = {
 	.help = help,
 	.name = "snmp",
 
-	.tuple = { .src = { .u = { __constant_htons(SNMP_PORT) } },
-		   .dst = { .protonum = IPPROTO_UDP },
+	.tuple = {.src = {.u = {.udp = {.port = __constant_htons(SNMP_PORT)}}},
+		  .dst = {.protonum = IPPROTO_UDP},
 	},
-	.mask = { .src = { .u = { 0xFFFF } },
-		 .dst = { .protonum = 0xFF },
+	.mask = {.src = {.u = {0xFFFF}},
+		 .dst = {.protonum = 0xFF},
 	},
 };
 
@@ -1309,11 +1292,11 @@ static struct ip_conntrack_helper snmp_trap_helper = {
 	.help = help,
 	.name = "snmp_trap",
 
-	.tuple = { .src = { .u = { __constant_htons(SNMP_TRAP_PORT) } },
-		   .dst = { .protonum = IPPROTO_UDP },
+	.tuple = {.src = {.u = {.udp = {.port = __constant_htons(SNMP_TRAP_PORT)}}},
+		  .dst = {.protonum = IPPROTO_UDP},
 	},
-	.mask = { .src = { .u = { 0xFFFF } },
-		 .dst = { .protonum = 0xFF },
+	.mask = {.src = {.u = {0xFFFF}},
+		 .dst = {.protonum = 0xFF},
 	},
 };
 

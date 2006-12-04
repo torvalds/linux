@@ -6,7 +6,6 @@
  * Copyright (C) Tom Long Nguyen (tom.l.nguyen@intel.com)
  */
 
-#include <linux/compiler.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
@@ -401,7 +400,7 @@ void pcie_port_device_remove(struct pci_dev *dev)
 		pci_disable_msi(dev);
 }
 
-int __must_check pcie_port_bus_register(void)
+int pcie_port_bus_register(void)
 {
 	return bus_register(&pcie_port_bus_type);
 }

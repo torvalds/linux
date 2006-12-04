@@ -1429,7 +1429,8 @@ static int cbq_init(struct Qdisc *sch, struct rtattr *opt)
 	q->link.sibling = &q->link;
 	q->link.classid = sch->handle;
 	q->link.qdisc = sch;
-	if (!(q->link.q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops)))
+	if (!(q->link.q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops,
+					    sch->handle)))
 		q->link.q = &noop_qdisc;
 
 	q->link.priority = TC_CBQ_MAXPRIO-1;
@@ -1674,7 +1675,8 @@ static int cbq_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 
 	if (cl) {
 		if (new == NULL) {
-			if ((new = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops)) == NULL)
+			if ((new = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops,
+						     cl->classid)) == NULL)
 				return -ENOBUFS;
 		} else {
 #ifdef CONFIG_NET_CLS_POLICE
@@ -1685,7 +1687,7 @@ static int cbq_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 		sch_tree_lock(sch);
 		*old = cl->q;
 		cl->q = new;
-		sch->q.qlen -= (*old)->q.qlen;
+		qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
 		qdisc_reset(*old);
 		sch_tree_unlock(sch);
 
@@ -1932,7 +1934,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct rtattr **t
 	cl->R_tab = rtab;
 	rtab = NULL;
 	cl->refcnt = 1;
-	if (!(cl->q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops)))
+	if (!(cl->q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops, classid)))
 		cl->q = &noop_qdisc;
 	cl->classid = classid;
 	cl->tparent = parent;

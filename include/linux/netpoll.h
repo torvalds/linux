@@ -12,26 +12,27 @@
 #include <linux/rcupdate.h>
 #include <linux/list.h>
 
-struct netpoll;
-
 struct netpoll {
 	struct net_device *dev;
-	char dev_name[16], *name;
+	char dev_name[IFNAMSIZ];
+	const char *name;
 	void (*rx_hook)(struct netpoll *, int, char *, int);
-	void (*drop)(struct sk_buff *skb);
+
 	u32 local_ip, remote_ip;
 	u16 local_port, remote_port;
-	unsigned char local_mac[6], remote_mac[6];
+ 	u8 local_mac[ETH_ALEN], remote_mac[ETH_ALEN];
 };
 
 struct netpoll_info {
+	atomic_t refcnt;
 	spinlock_t poll_lock;
 	int poll_owner;
-	int tries;
 	int rx_flags;
 	spinlock_t rx_lock;
 	struct netpoll *rx_np; /* netpoll that registered an rx_hook */
 	struct sk_buff_head arp_tx; /* list of arp requests to reply to */
+	struct sk_buff_head txq;
+	struct work_struct tx_work;
 };
 
 void netpoll_poll(struct netpoll *np);
@@ -42,7 +43,7 @@ int netpoll_trap(void);
 void netpoll_set_trap(int trap);
 void netpoll_cleanup(struct netpoll *np);
 int __netpoll_rx(struct sk_buff *skb);
-void netpoll_queue(struct sk_buff *skb);
+
 
 #ifdef CONFIG_NETPOLL
 static inline int netpoll_rx(struct sk_buff *skb)

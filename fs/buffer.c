@@ -452,6 +452,7 @@ static void end_buffer_async_write(struct buffer_head *bh, int uptodate)
 			       bdevname(bh->b_bdev, b));
 		}
 		set_bit(AS_EIO, &page->mapping->flags);
+		set_buffer_write_io_error(bh);
 		clear_buffer_uptodate(bh);
 		SetPageError(page);
 	}
@@ -571,6 +572,10 @@ EXPORT_SYMBOL(mark_buffer_async_write);
 static inline void __remove_assoc_queue(struct buffer_head *bh)
 {
 	list_del_init(&bh->b_assoc_buffers);
+	WARN_ON(!bh->b_assoc_map);
+	if (buffer_write_io_error(bh))
+		set_bit(AS_EIO, &bh->b_assoc_map->flags);
+	bh->b_assoc_map = NULL;
 }
 
 int inode_has_buffers(struct inode *inode)
@@ -669,6 +674,7 @@ void mark_buffer_dirty_inode(struct buffer_head *bh, struct inode *inode)
 		spin_lock(&buffer_mapping->private_lock);
 		list_move_tail(&bh->b_assoc_buffers,
 				&mapping->private_list);
+		bh->b_assoc_map = mapping;
 		spin_unlock(&buffer_mapping->private_lock);
 	}
 }
@@ -765,7 +771,7 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 	spin_lock(lock);
 	while (!list_empty(list)) {
 		bh = BH_ENTRY(list->next);
-		list_del_init(&bh->b_assoc_buffers);
+		__remove_assoc_queue(bh);
 		if (buffer_dirty(bh) || buffer_locked(bh)) {
 			list_add(&bh->b_assoc_buffers, &tmp);
 			if (buffer_dirty(bh)) {
@@ -786,7 +792,7 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 
 	while (!list_empty(&tmp)) {
 		bh = BH_ENTRY(tmp.prev);
-		__remove_assoc_queue(bh);
+		list_del_init(&bh->b_assoc_buffers);
 		get_bh(bh);
 		spin_unlock(lock);
 		wait_on_buffer(bh);
@@ -1167,6 +1173,7 @@ void __bforget(struct buffer_head *bh)
 
 		spin_lock(&buffer_mapping->private_lock);
 		list_del_init(&bh->b_assoc_buffers);
+		bh->b_assoc_map = NULL;
 		spin_unlock(&buffer_mapping->private_lock);
 	}
 	__brelse(bh);

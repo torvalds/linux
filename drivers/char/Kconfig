@@ -409,14 +409,6 @@ config SGI_MBCS
          If you have an SGI Altix with an attached SABrick
          say Y or M here, otherwise say N.
 
-config MSPEC
-	tristate "Memory special operations driver"
-	depends on IA64
-	help
-	  If you have an ia64 and you want to enable memory special
-	  operations support (formerly known as fetchop), say Y here,
-	  otherwise say N.
-
 source "drivers/serial/Kconfig"
 
 config UNIX98_PTYS
@@ -1002,7 +994,7 @@ config HPET
 	help
 	  If you say Y here, you will have a miscdevice named "/dev/hpet/".  Each
 	  open selects one of the timers supported by the HPET.  The timers are
-	  non-periodioc and/or periodic.
+	  non-periodic and/or periodic.
 
 config HPET_RTC_IRQ
 	bool "HPET Control RTC IRQ" if !HPET_EMULATE_RTC
@@ -1046,7 +1038,7 @@ source "drivers/char/tpm/Kconfig"
 
 config TELCLOCK
 	tristate "Telecom clock driver for MPBL0010 ATCA SBC"
-	depends on EXPERIMENTAL
+	depends on EXPERIMENTAL && X86
 	default n
 	help
 	  The telecom clock device is specific to the MPBL0010 ATCA computer and
