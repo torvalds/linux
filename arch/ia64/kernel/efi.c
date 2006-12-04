@@ -225,7 +225,7 @@ efi_gettimeofday (struct timespec *ts)
 }
 
 static int
-is_available_memory (efi_memory_desc_t *md)
+is_memory_available (efi_memory_desc_t *md)
 {
 	if (!(md->attribute & EFI_MEMORY_WB))
 		return 0;
@@ -892,7 +892,7 @@ find_memmap_space (void)
 			}
 			contig_high = GRANULEROUNDDOWN(contig_high);
 		}
-		if (!is_available_memory(md) || md->type == EFI_LOADER_DATA)
+		if (!is_memory_available(md) || md->type == EFI_LOADER_DATA)
 			continue;
 
 		/* Round ends inward to granule boundaries */
@@ -968,7 +968,7 @@ efi_memmap_init(unsigned long *s, unsigned long *e)
 			}
 			contig_high = GRANULEROUNDDOWN(contig_high);
 		}
-		if (!is_available_memory(md))
+		if (!is_memory_available(md))
 			continue;
 
 		/*
