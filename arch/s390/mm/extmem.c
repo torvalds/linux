@@ -14,12 +14,13 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/bootmem.h>
+#include <linux/ctype.h>
 #include <asm/page.h>
 #include <asm/ebcdic.h>
 #include <asm/errno.h>
 #include <asm/extmem.h>
 #include <asm/cpcmd.h>
-#include <linux/ctype.h>
+#include <asm/setup.h>
 
 #define DCSS_DEBUG	/* Debug messages on/off */
 
@@ -81,10 +82,6 @@ static DEFINE_SPINLOCK(dcss_lock);
 static struct list_head dcss_list = LIST_HEAD_INIT(dcss_list);
 static char *segtype_string[] = { "SW", "EW", "SR", "ER", "SN", "EN", "SC",
 					"EW/EN-MIXED" };
-
-extern struct {
-	unsigned long addr, size, type;
-} memory_chunk[MEMORY_CHUNKS];
 
 /*
  * Create the 8 bytes, ebcdic VM segment name from
@@ -249,8 +246,8 @@ segment_overlaps_storage(struct dcss_segment *seg)
 {
 	int i;
 
-	for (i=0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
-		if (memory_chunk[i].type != 0)
+	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
+		if (memory_chunk[i].type != CHUNK_READ_WRITE)
 			continue;
 		if ((memory_chunk[i].addr >> 20) > (seg->end >> 20))
 			continue;
