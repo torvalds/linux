@@ -1,4 +1,4 @@
-/* 
+/*
  * I2C_ALGO_USB.C
  *  i2c algorithm for USB-I2C Bridges
  *
@@ -39,7 +39,7 @@
 #include <linux/i2c.h>
 #include "usbvision-i2c.h"
 
-static int debug_i2c_usb = 0;	
+static int debug_i2c_usb = 0;
 
 #if defined(module_param)                               // Showing parameters under SYSFS
 module_param (debug_i2c_usb, int, 0444);			// debug_i2c_usb mode of the device driver
@@ -108,7 +108,7 @@ static inline int usb_find_address(struct i2c_adapter *i2c_adap,
 				   unsigned char *add)
 {
 	unsigned short flags = msg->flags;
-	
+
 	unsigned char addr;
 	int ret;
 	if ((flags & I2C_M_TEN)) {
@@ -205,8 +205,6 @@ static u32 usb_func(struct i2c_adapter *adap)
 static struct i2c_algorithm i2c_usb_algo = {
 	.master_xfer   = usb_xfer,
 	.smbus_xfer    = NULL,
-	.slave_send    = NULL,
-	.slave_recv    = NULL,
 	.algo_control  = algo_control,
 	.functionality = usb_func,
 };

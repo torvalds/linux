@@ -1,4 +1,4 @@
-/* 
+/*
  * USBVISION.H
  *  usbvision header file
  *
@@ -38,7 +38,7 @@
 	#define USBVISION_SSPND_EN		(1 << 1)
 	#define USBVISION_RES2			(1 << 2)
 	#define USBVISION_PWR_VID		(1 << 5)
-        #define USBVISION_E2_EN			(1 << 7)
+	#define USBVISION_E2_EN			(1 << 7)
 #define USBVISION_CONFIG_REG		0x01
 #define USBVISION_ADRS_REG		0x02
 #define USBVISION_ALTER_REG		0x03
@@ -139,7 +139,7 @@
 #define USBVISION_MAX_ISOC_PACKET_SIZE 	959			// NT1003 Specs Document says 1023
 
 #define USBVISION_NUM_HEADERMARKER	20
-#define USBVISION_NUMFRAMES		2
+#define USBVISION_NUMFRAMES		3
 #define USBVISION_NUMSBUF		2
 
 #define USBVISION_POWEROFF_TIME		3 * (HZ)		// 3 seconds
@@ -225,6 +225,13 @@ enum FrameState {
 	FrameState_Error,	/* Something bad happened while processing */
 };
 
+/* stream states */
+enum StreamState {
+	Stream_Off,
+	Stream_Interrupt,
+	Stream_On,
+};
+
 enum IsocState {
 	IsocState_InFrame,	/* Isoc packet is member of frame */
 	IsocState_NoFrame,	/* Isoc packet is not member of any frame */
@@ -272,18 +279,28 @@ struct usbvision_frame_header {
 	__u16 frameHeight;				/* 10 - 11 after endian correction*/
 };
 
+/* tvnorms */
+struct usbvision_tvnorm {
+	char *name;
+	v4l2_std_id id;
+	/* mode for saa7113h */
+	int mode;
+};
+
 struct usbvision_frame {
 	char *data;					/* Frame buffer */
 	struct usbvision_frame_header isocHeader;	/* Header from stream */
 
 	int width;					/* Width application is expecting */
 	int height;					/* Height */
-
+	int index;					/* Frame index */
 	int frmwidth;					/* Width the frame actually is */
 	int frmheight;					/* Height */
 
 	volatile int grabstate;				/* State of grabbing */
 	int scanstate;					/* State of scanning */
+
+	struct list_head frame;
 
 	int curline;					/* Line of frame we're working on */
 
@@ -291,8 +308,7 @@ struct usbvision_frame {
 	long bytes_read;				/* amount of scanlength that has been read from data */
 	struct usbvision_v4l2_format_st v4l2_format;	/* format the user needs*/
 	int v4l2_linesize;				/* bytes for one videoline*/
-        struct timeval timestamp;
-	wait_queue_head_t wq;				/* Processes waiting */
+	struct timeval timestamp;
 	int sequence;					// How many video frames we send to user
 };
 
@@ -305,23 +321,23 @@ struct usbvision_frame {
 #define USBVISION_I2C_CLIENTS_MAX		8
 
 struct usbvision_device_data_st {
-        int idVendor;
-        int idProduct;
-        int Interface; /* to handle special interface number like BELKIN and Hauppauge WinTV-USB II */
-        int Codec;
-        int VideoChannels;
-        __u64 VideoNorm;
-        int AudioChannels;
-        int Radio;
-        int vbi;
-        int Tuner;
-        int TunerType;
-        int Vin_Reg1;
-        int Vin_Reg2;
-        int X_Offset;
-        int Y_Offset;
-        int Dvi_yuv;
-        char *ModelString;
+	int idVendor;
+	int idProduct;
+	int Interface; /* to handle special interface number like BELKIN and Hauppauge WinTV-USB II */
+	int Codec;
+	int VideoChannels;
+	__u64 VideoNorm;
+	int AudioChannels;
+	int Radio;
+	int vbi;
+	int Tuner;
+	int TunerType;
+	int Vin_Reg1;
+	int Vin_Reg2;
+	int X_Offset;
+	int Y_Offset;
+	int Dvi_yuv;
+	char *ModelString;
 };
 
 /* Declared on usbvision-cards.c */
@@ -332,7 +348,7 @@ struct usb_usbvision {
 	struct video_device *vdev;         				/* Video Device */
 	struct video_device *rdev;               			/* Radio Device */
 	struct video_device *vbi; 					/* VBI Device   */
-	struct video_audio audio_dev;	        			/* Current audio params */
+	struct video_audio audio_dev;					/* Current audio params */
 
 	/* i2c Declaration Section*/
 	struct i2c_adapter i2c_adap;
@@ -373,7 +389,7 @@ struct usb_usbvision {
 	int usbvision_used;						/* Is this structure in use? */
 	int initialized;						/* Had we already sent init sequence? */
 	int DevModel;							/* What type of USBVISION device we got? */
-	int streaming;							/* Are we streaming Isochronous? */
+	enum StreamState streaming;					/* Are we streaming Isochronous? */
 	int last_error;							/* What calamity struck us? */
 	int curwidth;							/* width of the frame the device is currently set to*/
 	int curheight;      						/* height of the frame the device is currently set to*/
@@ -382,7 +398,10 @@ struct usb_usbvision {
 	char *fbuf;							/* Videodev buffer area for mmap*/
 	int max_frame_size;						/* Bytes in one video frame */
 	int fbuf_size;							/* Videodev buffer size */
-	int curFrameNum;						// number of current frame in frame buffer mode
+	spinlock_t queue_lock;						/* spinlock for protecting mods on inqueue and outqueue */
+	struct list_head inqueue, outqueue;                             /* queued frame list and ready to dequeue frame list */
+	wait_queue_head_t wait_frame;					/* Processes waiting */
+	wait_queue_head_t wait_stream;					/* Processes waiting */
 	struct usbvision_frame *curFrame;				// pointer to current frame, set by usbvision_find_header
 	struct usbvision_frame frame[USBVISION_NUMFRAMES];		// frame buffer
 	int curSbufNum;							// number of current receiving sbuf
@@ -397,20 +416,21 @@ struct usb_usbvision {
 	int scratch_headermarker_read_ptr;
 	int scratch_headermarker_write_ptr;
 	int isocstate;
-        /* color controls */
+	/* color controls */
 	int saturation;
 	int hue;
 	int brightness;
-        int contrast;
+	int contrast;
 	int depth;
 	struct usbvision_v4l2_format_st palette;
 
 	struct v4l2_capability vcap;					/* Video capabilities */
-	struct v4l2_input input;					/* May be used for tuner support */
+	unsigned int ctl_input;						/* selected input */
+	struct usbvision_tvnorm *tvnorm;				/* selected tv norm */
 	unsigned char video_endp;					/* 0x82 for USBVISION devices based */
 
 	// Overlay stuff:
-        struct v4l2_framebuffer vid_buf;
+	struct v4l2_framebuffer vid_buf;
 	struct v4l2_format vid_win;
 	int vid_buf_valid;						// Status: video buffer is valid (set)
 	int vid_win_valid;						// Status: video window is valid (set)
@@ -435,8 +455,8 @@ struct usb_usbvision {
 	struct proc_dir_entry *proc_devdir;		/* Per-device proc directory */
 	struct proc_dir_entry *proc_info;		/* <minor#>/info entry */
 	struct proc_dir_entry *proc_register;		/* <minor#>/register entry */
-	struct proc_dir_entry *proc_freq; 		/* <minor#>/freq entry */ 
-	struct proc_dir_entry *proc_input; 		/* <minor#>/input entry */ 
+	struct proc_dir_entry *proc_freq; 		/* <minor#>/freq entry */
+	struct proc_dir_entry *proc_input; 		/* <minor#>/input entry */
 	struct proc_dir_entry *proc_frame;		/* <minor#>/frame entry */
 	struct proc_dir_entry *proc_button;		/* <minor#>/button entry */
 	struct proc_dir_entry *proc_control;		/* <minor#>/control entry */
@@ -463,3 +483,10 @@ struct usb_usbvision {
 
 #endif									/* __LINUX_USBVISION_H */
 
+/*
+ * Overrides for Emacs so that we follow Linus's tabbing style.
+ * ---------------------------------------------------------------------------
+ * Local variables:
+ * c-basic-offset: 8
+ * End:
+ */
