@@ -89,7 +89,7 @@ static struct at91_udc_data __initdata ek_udc_data = {
 
 static struct at91_mmc_data __initdata ek_mmc_data = {
 	.det_pin	= AT91_PIN_PB27,
-	.is_b		= 0,
+	.slot_b		= 0,
 	.wire4		= 1,
 	.wp_pin		= AT91_PIN_PA17,
 };

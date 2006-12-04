@@ -88,7 +88,7 @@ static struct at91_udc_data __initdata carmeva_udc_data = {
 // };
 
 static struct at91_mmc_data __initdata carmeva_mmc_data = {
-	.is_b		= 0,
+	.slot_b		= 0,
 	.wire4		= 1,
 	.det_pin	= AT91_PIN_PB10,
 	.wp_pin		= AT91_PIN_PC14,
