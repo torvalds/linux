@@ -1,25 +1,25 @@
 /*
  * Copyright (C) 2003 - 2006 NetXen, Inc.
  * All rights reserved.
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- *                            
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *                                   
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA  02111-1307, USA.
- * 
+ *
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.
- * 
+ *
  * Contact Information:
  *    info@netxen.com
  * NetXen,
@@ -212,37 +212,36 @@ void netxen_initialize_adapter_hw(struct netxen_adapter *adapter)
 
 void netxen_initialize_adapter_ops(struct netxen_adapter *adapter)
 {
-	struct netxen_drvops *ops = adapter->ops;
 	switch (adapter->ahw.board_type) {
 	case NETXEN_NIC_GBE:
-		ops->enable_phy_interrupts =
+		adapter->enable_phy_interrupts =
 		    netxen_niu_gbe_enable_phy_interrupts;
-		ops->disable_phy_interrupts =
+		adapter->disable_phy_interrupts =
 		    netxen_niu_gbe_disable_phy_interrupts;
-		ops->handle_phy_intr = netxen_nic_gbe_handle_phy_intr;
-		ops->macaddr_set = netxen_niu_macaddr_set;
-		ops->set_mtu = netxen_nic_set_mtu_gb;
-		ops->set_promisc = netxen_niu_set_promiscuous_mode;
-		ops->unset_promisc = netxen_niu_set_promiscuous_mode;
-		ops->phy_read = netxen_niu_gbe_phy_read;
-		ops->phy_write = netxen_niu_gbe_phy_write;
-		ops->init_port = netxen_niu_gbe_init_port;
-		ops->init_niu = netxen_nic_init_niu_gb;
-		ops->stop_port = netxen_niu_disable_gbe_port;
+		adapter->handle_phy_intr = netxen_nic_gbe_handle_phy_intr;
+		adapter->macaddr_set = netxen_niu_macaddr_set;
+		adapter->set_mtu = netxen_nic_set_mtu_gb;
+		adapter->set_promisc = netxen_niu_set_promiscuous_mode;
+		adapter->unset_promisc = netxen_niu_set_promiscuous_mode;
+		adapter->phy_read = netxen_niu_gbe_phy_read;
+		adapter->phy_write = netxen_niu_gbe_phy_write;
+		adapter->init_port = netxen_niu_gbe_init_port;
+		adapter->init_niu = netxen_nic_init_niu_gb;
+		adapter->stop_port = netxen_niu_disable_gbe_port;
 		break;
 
 	case NETXEN_NIC_XGBE:
-		ops->enable_phy_interrupts =
+		adapter->enable_phy_interrupts =
 		    netxen_niu_xgbe_enable_phy_interrupts;
-		ops->disable_phy_interrupts =
+		adapter->disable_phy_interrupts =
 		    netxen_niu_xgbe_disable_phy_interrupts;
-		ops->handle_phy_intr = netxen_nic_xgbe_handle_phy_intr;
-		ops->macaddr_set = netxen_niu_xg_macaddr_set;
-		ops->set_mtu = netxen_nic_set_mtu_xgb;
-		ops->init_port = netxen_niu_xg_init_port;
-		ops->set_promisc = netxen_niu_xg_set_promiscuous_mode;
-		ops->unset_promisc = netxen_niu_xg_set_promiscuous_mode;
-		ops->stop_port = netxen_niu_disable_xg_port;
+		adapter->handle_phy_intr = netxen_nic_xgbe_handle_phy_intr;
+		adapter->macaddr_set = netxen_niu_xg_macaddr_set;
+		adapter->set_mtu = netxen_nic_set_mtu_xgb;
+		adapter->init_port = netxen_niu_xg_init_port;
+		adapter->set_promisc = netxen_niu_xg_set_promiscuous_mode;
+		adapter->unset_promisc = netxen_niu_xg_set_promiscuous_mode;
+		adapter->stop_port = netxen_niu_disable_xg_port;
 		break;
 
 	default:
@@ -383,8 +382,8 @@ int netxen_rom_wip_poll(struct netxen_adapter *adapter)
 	return 0;
 }
 
-static inline int do_rom_fast_write(struct netxen_adapter *adapter,
-				    int addr, int data)
+static inline int do_rom_fast_write(struct netxen_adapter *adapter, int addr,
+				    int data)
 {
 	if (netxen_rom_wren(adapter)) {
 		return -1;
@@ -734,8 +733,8 @@ void netxen_watchdog_task(unsigned long v)
 			netif_wake_queue(netdev);
 	}
 
-	if (adapter->ops->handle_phy_intr)
-		adapter->ops->handle_phy_intr(adapter);
+	if (adapter->handle_phy_intr)
+		adapter->handle_phy_intr(adapter);
 	mod_timer(&adapter->watchdog_timer, jiffies + 2 * HZ);
 }
 

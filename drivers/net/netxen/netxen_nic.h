@@ -1,25 +1,25 @@
 /*
  * Copyright (C) 2003 - 2006 NetXen, Inc.
  * All rights reserved.
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- *                            
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *                                   
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA  02111-1307, USA.
- * 
+ *
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.
- * 
+ *
  * Contact Information:
  *    info@netxen.com
  * NetXen,
@@ -89,8 +89,8 @@
  * normalize a 64MB crb address to 32MB PCI window 
  * To use NETXEN_CRB_NORMALIZE, window _must_ be set to 1
  */
-#define NETXEN_CRB_NORMAL(reg)        \
-	(reg) - NETXEN_CRB_PCIX_HOST2 + NETXEN_CRB_PCIX_HOST
+#define NETXEN_CRB_NORMAL(reg)	\
+	((reg) - NETXEN_CRB_PCIX_HOST2 + NETXEN_CRB_PCIX_HOST)
 
 #define NETXEN_CRB_NORMALIZE(adapter, reg) \
 	pci_base_offset(adapter, NETXEN_CRB_NORMAL(reg))
@@ -164,7 +164,7 @@ enum {
 
 #define MAX_CMD_DESCRIPTORS		1024
 #define MAX_RCV_DESCRIPTORS		32768
-#define MAX_JUMBO_RCV_DESCRIPTORS	1024
+#define MAX_JUMBO_RCV_DESCRIPTORS	4096
 #define MAX_RCVSTATUS_DESCRIPTORS	MAX_RCV_DESCRIPTORS
 #define MAX_JUMBO_RCV_DESC	MAX_JUMBO_RCV_DESCRIPTORS
 #define MAX_RCV_DESC		MAX_RCV_DESCRIPTORS
@@ -559,7 +559,7 @@ typedef enum {
 #define PRIMARY_START 		(BOOTLD_START)
 #define FLASH_CRBINIT_SIZE 	(0x4000)
 #define FLASH_BRDCFG_SIZE 	(sizeof(struct netxen_board_info))
-#define FLASH_USER_SIZE		(sizeof(netxen_user_info)/sizeof(u32))
+#define FLASH_USER_SIZE		(sizeof(struct netxen_user_info)/sizeof(u32))
 #define FLASH_SECONDARY_SIZE 	(USER_START-SECONDARY_START)
 #define NUM_PRIMARY_SECTORS	(0x20)
 #define NUM_CONFIG_SECTORS 	(1)
@@ -572,7 +572,7 @@ typedef enum {
 #else
 #define DPRINTK(klevel, fmt, args...)	do { \
 	printk(KERN_##klevel PFX "%s: %s: " fmt, __FUNCTION__,\
-		(adapter != NULL && adapter->port != NULL && \
+		(adapter != NULL && \
 		adapter->port[0] != NULL && \
 		adapter->port[0]->netdev != NULL) ? \
 		adapter->port[0]->netdev->name : NULL, \
@@ -703,8 +703,6 @@ struct netxen_recv_context {
 
 #define NETXEN_NIC_MSI_ENABLED 0x02
 
-struct netxen_drvops;
-
 struct netxen_adapter {
 	struct netxen_hardware_context ahw;
 	int port_count;		/* Number of configured ports  */
@@ -746,8 +744,21 @@ struct netxen_adapter {
 	struct netxen_recv_context recv_ctx[MAX_RCV_CTX];
 
 	int is_up;
-	int work_done;
-	struct netxen_drvops *ops;
+	int (*enable_phy_interrupts) (struct netxen_adapter *, int);
+	int (*disable_phy_interrupts) (struct netxen_adapter *, int);
+	void (*handle_phy_intr) (struct netxen_adapter *);
+	int (*macaddr_set) (struct netxen_port *, netxen_ethernet_macaddr_t);
+	int (*set_mtu) (struct netxen_port *, int);
+	int (*set_promisc) (struct netxen_adapter *, int,
+			    netxen_niu_prom_mode_t);
+	int (*unset_promisc) (struct netxen_adapter *, int,
+			      netxen_niu_prom_mode_t);
+	int (*phy_read) (struct netxen_adapter *, long phy, long reg, u32 *);
+	int (*phy_write) (struct netxen_adapter *, long phy, long reg, u32 val);
+	int (*init_port) (struct netxen_adapter *, int);
+	void (*init_niu) (struct netxen_adapter *);
+	int (*stop_port) (struct netxen_adapter *, int);
+
 };				/* netxen_adapter structure */
 
 /* Max number of xmit producer threads that can run simultaneously */
@@ -828,23 +839,6 @@ static inline void __iomem *pci_base(struct netxen_adapter *adapter,
 	}
 	return NULL;
 }
-
-struct netxen_drvops {
-	int (*enable_phy_interrupts) (struct netxen_adapter *, int);
-	int (*disable_phy_interrupts) (struct netxen_adapter *, int);
-	void (*handle_phy_intr) (struct netxen_adapter *);
-	int (*macaddr_set) (struct netxen_port *, netxen_ethernet_macaddr_t);
-	int (*set_mtu) (struct netxen_port *, int);
-	int (*set_promisc) (struct netxen_adapter *, int,
-			    netxen_niu_prom_mode_t);
-	int (*unset_promisc) (struct netxen_adapter *, int,
-			      netxen_niu_prom_mode_t);
-	int (*phy_read) (struct netxen_adapter *, long phy, long reg, u32 *);
-	int (*phy_write) (struct netxen_adapter *, long phy, long reg, u32 val);
-	int (*init_port) (struct netxen_adapter *, int);
-	void (*init_niu) (struct netxen_adapter *);
-	int (*stop_port) (struct netxen_adapter *, int);
-};
 
 extern char netxen_nic_driver_name[];
 

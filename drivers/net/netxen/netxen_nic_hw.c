@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2003 - 2006 NetXen, Inc.
  * All rights reserved.
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -16,10 +16,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA  02111-1307, USA.
- * 
+ *
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.
- * 
+ *
  * Contact Information:
  *    info@netxen.com
  * NetXen,
@@ -81,8 +81,8 @@ int netxen_nic_set_mac(struct net_device *netdev, void *p)
 	DPRINTK(INFO, "valid ether addr\n");
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 
-	if (adapter->ops->macaddr_set)
-		adapter->ops->macaddr_set(port, addr->sa_data);
+	if (adapter->macaddr_set)
+		adapter->macaddr_set(port, addr->sa_data);
 
 	return 0;
 }
@@ -99,17 +99,17 @@ void netxen_nic_set_multi(struct net_device *netdev)
 
 	mc_ptr = netdev->mc_list;
 	if (netdev->flags & IFF_PROMISC) {
-		if (adapter->ops->set_promisc)
-			adapter->ops->set_promisc(adapter,
-						  port->portnum,
-						  NETXEN_NIU_PROMISC_MODE);
+		if (adapter->set_promisc)
+			adapter->set_promisc(adapter,
+					     port->portnum,
+					     NETXEN_NIU_PROMISC_MODE);
 	} else {
-		if (adapter->ops->unset_promisc &&
+		if (adapter->unset_promisc &&
 		    adapter->ahw.boardcfg.board_type
 		    != NETXEN_BRDTYPE_P2_SB31_10G_IMEZ)
-			adapter->ops->unset_promisc(adapter,
-						    port->portnum,
-						    NETXEN_NIU_NON_PROMISC_MODE);
+			adapter->unset_promisc(adapter,
+					       port->portnum,
+					       NETXEN_NIU_NON_PROMISC_MODE);
 	}
 	if (adapter->ahw.board_type == NETXEN_NIC_XGBE) {
 		netxen_nic_mcr_set_mode_select(netxen_mac_addr_cntl_data, 0x03);
@@ -160,8 +160,8 @@ int netxen_nic_change_mtu(struct net_device *netdev, int mtu)
 		return -EINVAL;
 	}
 
-	if (adapter->ops->set_mtu)
-		adapter->ops->set_mtu(port, mtu);
+	if (adapter->set_mtu)
+		adapter->set_mtu(port, mtu);
 	netdev->mtu = mtu;
 
 	return 0;
@@ -184,14 +184,12 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 	struct netxen_recv_context *recv_ctx;
 	struct netxen_rcv_desc_ctx *rcv_desc;
 
-	DPRINTK(INFO, "crb_base: %lx %lx", NETXEN_PCI_CRBSPACE,
+	DPRINTK(INFO, "crb_base: %lx %x", NETXEN_PCI_CRBSPACE,
 		PCI_OFFSET_SECOND_RANGE(adapter, NETXEN_PCI_CRBSPACE));
-	DPRINTK(INFO, "cam base: %lx %lx", NETXEN_CRB_CAM,
+	DPRINTK(INFO, "cam base: %lx %x", NETXEN_CRB_CAM,
 		pci_base_offset(adapter, NETXEN_CRB_CAM));
-	DPRINTK(INFO, "cam RAM: %lx %lx", NETXEN_CAM_RAM_BASE,
+	DPRINTK(INFO, "cam RAM: %lx %x", NETXEN_CAM_RAM_BASE,
 		pci_base_offset(adapter, NETXEN_CAM_RAM_BASE));
-	DPRINTK(INFO, "NIC base:%lx %lx\n", NIC_CRB_BASE_PORT1,
-		pci_base_offset(adapter, NIC_CRB_BASE_PORT1));
 
 	/* Window 1 call */
 	card_cmdring = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_CMDRING));
@@ -648,7 +646,7 @@ void netxen_nic_reg_write(struct netxen_adapter *adapter, u64 off, u32 val)
 
 	addr = NETXEN_CRB_NORMALIZE(adapter, off);
 	DPRINTK(INFO, "writing to base %lx offset %llx addr %p data %x\n",
-		pci_base(adapter, off), off, addr);
+		pci_base(adapter, off), off, addr, val);
 	writel(val, addr);
 
 }
@@ -660,7 +658,7 @@ int netxen_nic_reg_read(struct netxen_adapter *adapter, u64 off)
 
 	addr = NETXEN_CRB_NORMALIZE(adapter, off);
 	DPRINTK(INFO, "reading from base %lx offset %llx addr %p\n",
-		adapter->ahw.pci_base, off, addr);
+		pci_base(adapter, off), off, addr);
 	val = readl(addr);
 	writel(val, addr);
 
@@ -848,8 +846,8 @@ void netxen_nic_stop_all_ports(struct netxen_adapter *adapter)
 
 	for (port_nr = 0; port_nr < adapter->ahw.max_ports; port_nr++) {
 		port = adapter->port[port_nr];
-		if (adapter->ops->stop_port)
-			adapter->ops->stop_port(adapter, port->portnum);
+		if (adapter->stop_port)
+			adapter->stop_port(adapter, port->portnum);
 	}
 }
 
@@ -878,8 +876,8 @@ void netxen_nic_set_link_parameters(struct netxen_port *port)
 
 	netxen_nic_read_w0(adapter, NETXEN_NIU_MODE, &mode);
 	if (netxen_get_niu_enable_ge(mode)) {	/* Gb 10/100/1000 Mbps mode */
-		if (adapter->ops->phy_read
-		    && adapter->ops->
+		if (adapter->phy_read
+		    && adapter->
 		    phy_read(adapter, port->portnum,
 			     NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
 			     &status) == 0) {
@@ -909,8 +907,8 @@ void netxen_nic_set_link_parameters(struct netxen_port *port)
 					port->link_duplex = -1;
 					break;
 				}
-				if (adapter->ops->phy_read
-				    && adapter->ops->
+				if (adapter->phy_read
+				    && adapter->
 				    phy_read(adapter, port->portnum,
 					     NETXEN_NIU_GB_MII_MGMT_ADDR_AUTONEG,
 					     (__le32 *) & autoneg) != 0)

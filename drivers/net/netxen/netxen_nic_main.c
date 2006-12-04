@@ -1,25 +1,25 @@
 /*
  * Copyright (C) 2003 - 2006 NetXen, Inc.
  * All rights reserved.
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- *                            
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *                                   
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA  02111-1307, USA.
- * 
+ *
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.
- * 
+ *
  * Contact Information:
  *    info@netxen.com
  * NetXen,
@@ -233,16 +233,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	}
 
-	adapter->ops = kzalloc(sizeof(struct netxen_drvops), GFP_KERNEL);
-	if (adapter->ops == NULL) {
-		printk(KERN_ERR
-		       "%s: Could not allocate memory for adapter->ops:%d\n",
-		       netxen_nic_driver_name,
-		       (int)sizeof(struct netxen_adapter));
-		err = -ENOMEM;
-		goto err_out_free_rx_buffer;
-	}
-
 	adapter->cmd_buf_arr = cmd_buf_arr;
 	adapter->ahw.pci_base0 = mem_ptr0;
 	adapter->ahw.pci_base1 = mem_ptr1;
@@ -373,10 +363,9 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 				       netdev->dev_addr[4],
 				       netdev->dev_addr[5]);
 			} else {
-				if (adapter->ops->macaddr_set)
-					adapter->ops->macaddr_set(port,
-								  netdev->
-								  dev_addr);
+				if (adapter->macaddr_set)
+					adapter->macaddr_set(port,
+							     netdev->dev_addr);
 			}
 		}
 		INIT_WORK(&adapter->tx_timeout_task,
@@ -427,7 +416,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			free_netdev(port->netdev);
 		}
 	}
-	kfree(adapter->ops);
 
       err_out_free_rx_buffer:
 	for (i = 0; i < MAX_RCV_CTX; ++i) {
@@ -525,7 +513,6 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 	}
 
 	vfree(adapter->cmd_buf_arr);
-	kfree(adapter->ops);
 	kfree(adapter);
 }
 
@@ -557,15 +544,15 @@ static int netxen_nic_open(struct net_device *netdev)
 			       err);
 			return err;
 		}
-		if (adapter->ops->init_port
-		    && adapter->ops->init_port(adapter, port->portnum) != 0) {
+		if (adapter->init_port
+		    && adapter->init_port(adapter, port->portnum) != 0) {
 			printk(KERN_ERR "%s: Failed to initialize port %d\n",
 			       netxen_nic_driver_name, port->portnum);
 			netxen_free_hw_resources(adapter);
 			return -EIO;
 		}
-		if (adapter->ops->init_niu)
-			adapter->ops->init_niu(adapter);
+		if (adapter->init_niu)
+			adapter->init_niu(adapter);
 		for (ctx = 0; ctx < MAX_RCV_CTX; ++ctx) {
 			for (ring = 0; ring < NUM_RCV_DESC_RINGS; ring++)
 				netxen_post_rx_buffers(adapter, ctx, ring);
@@ -591,8 +578,8 @@ static int netxen_nic_open(struct net_device *netdev)
 
 	/* Done here again so that even if phantom sw overwrote it,
 	 * we set it */
-	if (adapter->ops->macaddr_set)
-		adapter->ops->macaddr_set(port, netdev->dev_addr);
+	if (adapter->macaddr_set)
+		adapter->macaddr_set(port, netdev->dev_addr);
 	netxen_nic_set_link_parameters(port);
 
 	netxen_nic_set_multi(netdev);
@@ -1039,11 +1026,12 @@ static int netxen_nic_poll(struct net_device *netdev, int *budget)
 	int done = 1;
 	int ctx;
 	int this_work_done;
+	int work_done = 0;
 
 	DPRINTK(INFO, "polling for %d descriptors\n", *budget);
 	port->stats.polled++;
 
-	adapter->work_done = 0;
+	work_done = 0;
 	for (ctx = 0; ctx < MAX_RCV_CTX; ++ctx) {
 		/*
 		 * Fairness issue. This will give undue weight to the
@@ -1060,20 +1048,20 @@ static int netxen_nic_poll(struct net_device *netdev, int *budget)
 		this_work_done = netxen_process_rcv_ring(adapter, ctx,
 							 work_to_do /
 							 MAX_RCV_CTX);
-		adapter->work_done += this_work_done;
+		work_done += this_work_done;
 	}
 
-	netdev->quota -= adapter->work_done;
-	*budget -= adapter->work_done;
+	netdev->quota -= work_done;
+	*budget -= work_done;
 
-	if (adapter->work_done >= work_to_do
+	if (work_done >= work_to_do
 	    && netxen_nic_rx_has_work(adapter) != 0)
 		done = 0;
 
 	netxen_process_cmd_ring((unsigned long)adapter);
 
 	DPRINTK(INFO, "new work_done: %d work_to_do: %d\n",
-		adapter->work_done, work_to_do);
+		work_done, work_to_do);
 	if (done) {
 		netif_rx_complete(netdev);
 		netxen_nic_enable_int(adapter);
