@@ -576,23 +576,6 @@ static struct subsys_attribute dump_type_attr =
 
 static decl_subsys(dump, NULL, NULL);
 
-#ifdef CONFIG_SMP
-static void dump_smp_stop_all(void)
-{
-	int cpu;
-	preempt_disable();
-	for_each_online_cpu(cpu) {
-		if (cpu == smp_processor_id())
-			continue;
-		while (signal_processor(cpu, sigp_stop) == sigp_busy)
-			udelay(10);
-	}
-	preempt_enable();
-}
-#else
-#define dump_smp_stop_all() do { } while (0)
-#endif
-
 /*
  * Shutdown actions section
  */
@@ -724,13 +707,13 @@ static void do_dump(void)
 
 	switch (dump_method) {
 	case IPL_METHOD_CCW_CIO:
-		dump_smp_stop_all();
+		smp_send_stop();
 		devid.devno = dump_block_ccw->ipl_info.ccw.devno;
 		devid.ssid  = 0;
 		reipl_ccw_dev(&devid);
 		break;
 	case IPL_METHOD_CCW_VM:
-		dump_smp_stop_all();
+		smp_send_stop();
 		sprintf(buf, "STORE STATUS");
 		__cpcmd(buf, NULL, 0, NULL);
 		sprintf(buf, "IPL %X", dump_block_ccw->ipl_info.ccw.devno);
@@ -1058,9 +1041,6 @@ extern void reset_mcck_handler(void);
 void s390_reset_system(void)
 {
 	struct _lowcore *lc;
-
-	/* Disable all interrupts/machine checks */
-	__load_psw_mask(PSW_KERNEL_BITS & ~PSW_MASK_MCHECK);
 
 	/* Stack for interrupt/machine check handler */
 	lc = (struct _lowcore *)(unsigned long) store_prefix();

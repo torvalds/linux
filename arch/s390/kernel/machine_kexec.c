@@ -1,15 +1,10 @@
 /*
  * arch/s390/kernel/machine_kexec.c
  *
- * (C) Copyright IBM Corp. 2005
+ * Copyright IBM Corp. 2005,2006
  *
- * Author(s): Rolf Adelsberger <adelsberger@de.ibm.com>
- *
- */
-
-/*
- * s390_machine_kexec.c - handle the transition of Linux booting another kernel
- * on the S390 architecture.
+ * Author(s): Rolf Adelsberger,
+ *	      Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
 #include <linux/device.h>
@@ -24,81 +19,53 @@
 #include <asm/smp.h>
 #include <asm/reset.h>
 
-static void kexec_halt_all_cpus(void *);
-
-typedef void (*relocate_kernel_t) (kimage_entry_t *, unsigned long);
+typedef void (*relocate_kernel_t)(kimage_entry_t *, unsigned long);
 
 extern const unsigned char relocate_kernel[];
 extern const unsigned long long relocate_kernel_len;
 
-int
-machine_kexec_prepare(struct kimage *image)
+int machine_kexec_prepare(struct kimage *image)
 {
-	unsigned long reboot_code_buffer;
+	void *reboot_code_buffer;
 
 	/* We don't support anything but the default image type for now. */
 	if (image->type != KEXEC_TYPE_DEFAULT)
 		return -EINVAL;
 
 	/* Get the destination where the assembler code should be copied to.*/
-	reboot_code_buffer = page_to_pfn(image->control_code_page)<<PAGE_SHIFT;
+	reboot_code_buffer = (void *) page_to_phys(image->control_code_page);
 
 	/* Then copy it */
-	memcpy((void *) reboot_code_buffer, relocate_kernel,
-	       relocate_kernel_len);
+	memcpy(reboot_code_buffer, relocate_kernel, relocate_kernel_len);
 	return 0;
 }
 
-void
-machine_kexec_cleanup(struct kimage *image)
+void machine_kexec_cleanup(struct kimage *image)
 {
 }
 
-void
-machine_shutdown(void)
+void machine_shutdown(void)
 {
 	printk(KERN_INFO "kexec: machine_shutdown called\n");
 }
 
-NORET_TYPE void
-machine_kexec(struct kimage *image)
-{
-	on_each_cpu(kexec_halt_all_cpus, image, 0, 0);
-	for (;;);
-}
-
 extern void pfault_fini(void);
 
-static void
-kexec_halt_all_cpus(void *kernel_image)
+void machine_kexec(struct kimage *image)
 {
-	static atomic_t cpuid = ATOMIC_INIT(-1);
-	int cpu;
-	struct kimage *image;
 	relocate_kernel_t data_mover;
 
+	preempt_disable();
 #ifdef CONFIG_PFAULT
 	if (MACHINE_IS_VM)
 		pfault_fini();
 #endif
-
-	if (atomic_cmpxchg(&cpuid, -1, smp_processor_id()) != -1)
-		signal_processor(smp_processor_id(), sigp_stop);
-
-	/* Wait for all other cpus to enter stopped state */
-	for_each_online_cpu(cpu) {
-		if (cpu == smp_processor_id())
-			continue;
-		while (!smp_cpu_not_running(cpu))
-			cpu_relax();
-	}
-
+	smp_send_stop();
 	s390_reset_system();
 
-	image = (struct kimage *) kernel_image;
-	data_mover = (relocate_kernel_t)
-		(page_to_pfn(image->control_code_page) << PAGE_SHIFT);
+	data_mover = (relocate_kernel_t) page_to_phys(image->control_code_page);
 
 	/* Call the moving routine */
-	(*data_mover) (&image->head, image->start);
+	(*data_mover)(&image->head, image->start);
+	for (;;);
 }
