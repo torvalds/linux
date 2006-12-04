@@ -35,7 +35,7 @@
 /* for now we operate under the assertion that there can be only one
  * cluster active at a time.  Changing this will require trickling
  * cluster references throughout where nodes are looked up */
-static struct o2nm_cluster *o2nm_single_cluster = NULL;
+struct o2nm_cluster *o2nm_single_cluster = NULL;
 
 #define OCFS2_MAX_HB_CTL_PATH 256
 static char ocfs2_hb_ctl_path[OCFS2_MAX_HB_CTL_PATH] = "/sbin/ocfs2_hb_ctl";
@@ -96,17 +96,6 @@ const char *o2nm_get_hb_ctl_path(void)
 	return ocfs2_hb_ctl_path;
 }
 EXPORT_SYMBOL_GPL(o2nm_get_hb_ctl_path);
-
-struct o2nm_cluster {
-	struct config_group	cl_group;
-	unsigned		cl_has_local:1;
-	u8			cl_local_node;
-	rwlock_t		cl_nodes_lock;
-	struct o2nm_node  	*cl_nodes[O2NM_MAX_NODES];
-	struct rb_root		cl_node_ip_tree;
-	/* this bitmap is part of a hack for disk bitmap.. will go eventually. - zab */
-	unsigned long	cl_nodes_bitmap[BITS_TO_LONGS(O2NM_MAX_NODES)];
-};
 
 struct o2nm_node *o2nm_get_node_by_num(u8 node_num)
 {
