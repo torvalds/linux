@@ -201,7 +201,7 @@ extern int __get_user_bad(void) __attribute__((noreturn));
  * Returns number of bytes that could not be copied.
  * On success, this will be zero.
  */
-static inline unsigned long
+static inline unsigned long __must_check
 __copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	if (__builtin_constant_p(n) && (n <= 256))
@@ -226,7 +226,7 @@ __copy_to_user(void __user *to, const void *from, unsigned long n)
  * Returns number of bytes that could not be copied.
  * On success, this will be zero.
  */
-static inline unsigned long
+static inline unsigned long __must_check
 copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	might_sleep();
@@ -252,7 +252,7 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
  * If some data could not be copied, this function will pad the copied
  * data to the requested size using zero bytes.
  */
-static inline unsigned long
+static inline unsigned long __must_check
 __copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	if (__builtin_constant_p(n) && (n <= 256))
@@ -277,7 +277,7 @@ __copy_from_user(void *to, const void __user *from, unsigned long n)
  * If some data could not be copied, this function will pad the copied
  * data to the requested size using zero bytes.
  */
-static inline unsigned long
+static inline unsigned long __must_check
 copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	might_sleep();
@@ -288,13 +288,13 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
 	return n;
 }
 
-static inline unsigned long
+static inline unsigned long __must_check
 __copy_in_user(void __user *to, const void __user *from, unsigned long n)
 {
 	return uaccess.copy_in_user(n, to, from);
 }
 
-static inline unsigned long
+static inline unsigned long __must_check
 copy_in_user(void __user *to, const void __user *from, unsigned long n)
 {
 	might_sleep();
@@ -306,7 +306,7 @@ copy_in_user(void __user *to, const void __user *from, unsigned long n)
 /*
  * Copy a null terminated string from userspace.
  */
-static inline long
+static inline long __must_check
 strncpy_from_user(char *dst, const char __user *src, long count)
 {
         long res = -EFAULT;
@@ -343,13 +343,13 @@ strnlen_user(const char __user * src, unsigned long n)
  * Zero Userspace
  */
 
-static inline unsigned long
+static inline unsigned long __must_check
 __clear_user(void __user *to, unsigned long n)
 {
 	return uaccess.clear_user(n, to);
 }
 
-static inline unsigned long
+static inline unsigned long __must_check
 clear_user(void __user *to, unsigned long n)
 {
 	might_sleep();
