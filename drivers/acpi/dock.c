@@ -27,6 +27,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/notifier.h>
+#include <linux/platform_device.h>
 #include <linux/jiffies.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
@@ -39,6 +40,8 @@ MODULE_DESCRIPTION(ACPI_DOCK_DRIVER_NAME);
 MODULE_LICENSE("GPL");
 
 static struct atomic_notifier_head dock_notifier_list;
+static struct platform_device dock_device;
+static char dock_device_name[] = "dock";
 
 struct dock_station {
 	acpi_handle handle;
@@ -629,6 +632,15 @@ static int dock_add(acpi_handle handle)
 	spin_lock_init(&dock_station->hp_lock);
 	ATOMIC_INIT_NOTIFIER_HEAD(&dock_notifier_list);
 
+	/* initialize platform device stuff */
+	dock_device.name = dock_device_name;
+	ret = platform_device_register(&dock_device);
+	if (ret) {
+		printk(KERN_ERR PREFIX "Error registering dock device\n", ret);
+		kfree(dock_station);
+		return ret;
+	}
+
 	/* Find dependent devices */
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
 			    ACPI_UINT32_MAX, find_dock_devices, dock_station,
@@ -638,7 +650,8 @@ static int dock_add(acpi_handle handle)
 	dd = alloc_dock_dependent_device(handle);
 	if (!dd) {
 		kfree(dock_station);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto dock_add_err_unregister;
 	}
 	add_dock_dependent_device(dock_station, dd);
 
@@ -658,8 +671,10 @@ static int dock_add(acpi_handle handle)
 	return 0;
 
 dock_add_err:
-	kfree(dock_station);
 	kfree(dd);
+dock_add_err_unregister:
+	platform_device_unregister(&dock_device);
+	kfree(dock_station);
 	return ret;
 }
 
@@ -685,6 +700,9 @@ static int dock_remove(void)
 					    dock_notify);
 	if (ACPI_FAILURE(status))
 		printk(KERN_ERR "Error removing notify handler\n");
+
+	/* cleanup sysfs */
+	platform_device_unregister(&dock_device);
 
 	/* free dock station memory */
 	kfree(dock_station);
