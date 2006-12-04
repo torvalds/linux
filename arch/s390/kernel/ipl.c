@@ -664,6 +664,8 @@ void do_reipl(void)
 	switch (reipl_method) {
 	case IPL_METHOD_CCW_CIO:
 		devid.devno = reipl_block_ccw->ipl_info.ccw.devno;
+		if (ipl_get_type() == IPL_TYPE_CCW && devid.devno == ipl_devno)
+			diag308(DIAG308_IPL, NULL);
 		devid.ssid  = 0;
 		reipl_ccw_dev(&devid);
 		break;
