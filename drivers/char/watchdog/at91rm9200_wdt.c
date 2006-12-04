@@ -202,9 +202,9 @@ static int __init at91wdt_probe(struct platform_device *pdev)
 {
 	int res;
 
-	if (at91wdt_miscdev.dev)
+	if (at91wdt_miscdev.parent)
 		return -EBUSY;
-	at91wdt_miscdev.dev = &pdev->dev;
+	at91wdt_miscdev.parent = &pdev->dev;
 
 	res = misc_register(&at91wdt_miscdev);
 	if (res)
@@ -220,7 +220,7 @@ static int __exit at91wdt_remove(struct platform_device *pdev)
 
 	res = misc_deregister(&at91wdt_miscdev);
 	if (!res)
-		at91wdt_miscdev.dev = NULL;
+		at91wdt_miscdev.parent = NULL;
 
 	return res;
 }
