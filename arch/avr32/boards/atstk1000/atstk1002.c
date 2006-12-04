@@ -8,18 +8,31 @@
  * published by the Free Software Foundation.
  */
 #include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/string.h>
+#include <linux/types.h>
 
+#include <asm/setup.h>
 #include <asm/arch/board.h>
 #include <asm/arch/init.h>
 
-struct eth_platform_data __initdata eth0_data = {
-	.valid		= 1,
-	.mii_phy_addr	= 0x10,
-	.is_rmii	= 0,
-	.hw_addr	= { 0x6a, 0x87, 0x71, 0x14, 0xcd, 0xcb },
-};
-
+static struct eth_platform_data __initdata eth_data[2];
 extern struct lcdc_platform_data atstk1000_fb0_data;
+
+static int __init parse_tag_ethernet(struct tag *tag)
+{
+	int i;
+
+	i = tag->u.ethernet.mac_index;
+	if (i < ARRAY_SIZE(eth_data)) {
+		eth_data[i].mii_phy_addr = tag->u.ethernet.mii_phy_addr;
+		memcpy(&eth_data[i].hw_addr, tag->u.ethernet.hw_address,
+		       sizeof(eth_data[i].hw_addr));
+		eth_data[i].valid = 1;
+	}
+	return 0;
+}
+__tagtable(ATAG_ETHERNET, parse_tag_ethernet);
 
 void __init setup_board(void)
 {
@@ -38,7 +51,9 @@ static int __init atstk1002_init(void)
 	at32_add_device_usart(1);
 	at32_add_device_usart(2);
 
-	at32_add_device_eth(0, &eth0_data);
+	if (eth_data[0].valid)
+		at32_add_device_eth(0, &eth_data[0]);
+
 	at32_add_device_spi(0);
 	at32_add_device_lcdc(0, &atstk1000_fb0_data);
 
