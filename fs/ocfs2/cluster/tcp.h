@@ -54,6 +54,13 @@ typedef int (o2net_msg_handler_func)(struct o2net_msg *msg, u32 len, void *data)
 
 #define O2NET_MAX_PAYLOAD_BYTES  (4096 - sizeof(struct o2net_msg))
 
+/* same as hb delay, we're waiting for another node to recognize our hb */
+#define O2NET_RECONNECT_DELAY_MS_DEFAULT	2000
+
+#define O2NET_KEEPALIVE_DELAY_MS_DEFAULT	5000
+#define O2NET_IDLE_TIMEOUT_MS_DEFAULT		10000
+
+
 /* TODO: figure this out.... */
 static inline int o2net_link_down(int err, struct socket *sock)
 {

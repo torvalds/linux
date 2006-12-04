@@ -60,6 +60,9 @@ struct o2nm_cluster {
 	rwlock_t		cl_nodes_lock;
 	struct o2nm_node  	*cl_nodes[O2NM_MAX_NODES];
 	struct rb_root		cl_node_ip_tree;
+	unsigned int		cl_idle_timeout_ms;
+	unsigned int		cl_keepalive_delay_ms;
+	unsigned int		cl_reconnect_delay_ms;
 
 	/* this bitmap is part of a hack for disk bitmap.. will go eventually. - zab */
 	unsigned long	cl_nodes_bitmap[BITS_TO_LONGS(O2NM_MAX_NODES)];
