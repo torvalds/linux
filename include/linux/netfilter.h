@@ -11,7 +11,6 @@
 #include <linux/list.h>
 #endif
 #include <linux/compiler.h>
-#include <linux/rcupdate.h>
 
 /* Responses from hook functions. */
 #define NF_DROP 0
