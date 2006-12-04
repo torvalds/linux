@@ -360,38 +360,6 @@ static struct or51132_config pchdtv_hd3000 = {
 	.set_ts_params = or51132_set_ts_param,
 };
 
-static int lgdt3302_tuner_set_params(struct dvb_frontend* fe,
-				     struct dvb_frontend_parameters* params)
-{
-	/* FIXME make this routine use the tuner-simple code.
-	 * It could probably be shared with a number of ATSC
-	 * frontends. Many share the same tuner with analog TV. */
-
-	struct cx8802_dev *dev= fe->dvb->priv;
-	struct cx88_core *core = dev->core;
-	u8 buf[4];
-	struct i2c_msg msg =
-		{ .addr = dev->core->pll_addr, .flags = 0, .buf = buf, .len = 4 };
-	int err;
-
-	dvb_pll_configure(core->pll_desc, buf, params->frequency, 0);
-	dprintk(1, "%s: tuner at 0x%02x bytes: 0x%02x 0x%02x 0x%02x 0x%02x\n",
-		__FUNCTION__, msg.addr, buf[0],buf[1],buf[2],buf[3]);
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if ((err = i2c_transfer(&core->i2c_adap, &msg, 1)) != 1) {
-		printk(KERN_WARNING "cx88-dvb: %s error "
-		       "(addr %02x <- %02x, err = %i)\n",
-		       __FUNCTION__, buf[0], buf[1], err);
-		if (err < 0)
-			return err;
-		else
-			return -EREMOTEIO;
-	}
-	return 0;
-}
-
 static int lgdt330x_pll_rf_set(struct dvb_frontend* fe, int index)
 {
 	struct cx8802_dev *dev= fe->dvb->priv;
@@ -669,7 +637,8 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &fusionhdtv_3_gold,
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dev->dvb.frontend->ops.tuner_ops.set_params = lgdt3302_tuner_set_params;
+			dvb_attach(dvb_pll_attach, dev->dvb.frontend, dev->core->pll_addr,
+				   &dev->core->i2c_adap, dev->core->pll_desc);
 		}
 		}
 		break;
@@ -689,7 +658,8 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &fusionhdtv_3_gold,
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dev->dvb.frontend->ops.tuner_ops.set_params = lgdt3302_tuner_set_params;
+			dvb_attach(dvb_pll_attach, dev->dvb.frontend, dev->core->pll_addr,
+				   &dev->core->i2c_adap, dev->core->pll_desc);
 		}
 		}
 		break;
