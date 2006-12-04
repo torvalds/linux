@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 
-#include <asm/delay.h>
 #include <asm/processor.h>
 #include <asm/sysreg.h>
 
