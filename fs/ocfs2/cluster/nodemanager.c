@@ -573,12 +573,21 @@ static ssize_t o2nm_cluster_attr_idle_timeout_ms_write(
 	ret =  o2nm_cluster_attr_write(page, count, &val);
 
 	if (ret > 0) {
-		if (val <= cluster->cl_keepalive_delay_ms) {
+		if (cluster->cl_idle_timeout_ms != val
+			&& o2net_num_connected_peers()) {
+			mlog(ML_NOTICE,
+			     "o2net: cannot change idle timeout after "
+			     "the first peer has agreed to it."
+			     "  %d connected peers\n",
+			     o2net_num_connected_peers());
+			ret = -EINVAL;
+		} else if (val <= cluster->cl_keepalive_delay_ms) {
 			mlog(ML_NOTICE, "o2net: idle timeout must be larger "
 			     "than keepalive delay\n");
-			return -EINVAL;
+			ret = -EINVAL;
+		} else {
+			cluster->cl_idle_timeout_ms = val;
 		}
-		cluster->cl_idle_timeout_ms = val;
 	}
 
 	return ret;
@@ -599,12 +608,21 @@ static ssize_t o2nm_cluster_attr_keepalive_delay_ms_write(
 	ret =  o2nm_cluster_attr_write(page, count, &val);
 
 	if (ret > 0) {
-		if (val >= cluster->cl_idle_timeout_ms) {
+		if (cluster->cl_keepalive_delay_ms != val
+		    && o2net_num_connected_peers()) {
+			mlog(ML_NOTICE,
+			     "o2net: cannot change keepalive delay after"
+			     " the first peer has agreed to it."
+			     "  %d connected peers\n",
+			     o2net_num_connected_peers());
+			ret = -EINVAL;
+		} else if (val >= cluster->cl_idle_timeout_ms) {
 			mlog(ML_NOTICE, "o2net: keepalive delay must be "
 			     "smaller than idle timeout\n");
-			return -EINVAL;
+			ret = -EINVAL;
+		} else {
+			cluster->cl_keepalive_delay_ms = val;
 		}
-		cluster->cl_keepalive_delay_ms = val;
 	}
 
 	return ret;
