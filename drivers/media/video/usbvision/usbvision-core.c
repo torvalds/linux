@@ -409,7 +409,8 @@
 
 
 static int usbvision_nr = 0;			// sequential number of usbvision device
-
+static unsigned long usbvision_timestamp = 0;		// timestamp in jiffies of a hundred frame
+static unsigned long usbvision_counter = 0;		// frame counter
 
 static const int max_imgwidth = MAX_FRAME_WIDTH;
 static const int max_imgheight = MAX_FRAME_HEIGHT;
@@ -4278,6 +4279,7 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			list_add_tail(&usbvision->frame[vb->index].frame, &usbvision->inqueue);
 			spin_unlock_irqrestore(&usbvision->queue_lock, lock_flags);
 
+			PDEBUG(DBG_IOCTL, "VIDIOC_QBUF frame #%d",vb->index);
 			return 0;
 		}
 		case VIDIOC_DQBUF:
@@ -4312,17 +4314,30 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			vb->flags = V4L2_BUF_FLAG_MAPPED | V4L2_BUF_FLAG_QUEUED | V4L2_BUF_FLAG_DONE;
 			vb->index = f->index;
 			vb->sequence = f->sequence;
+			vb->timestamp = f->timestamp;
+			vb->field = V4L2_FIELD_NONE;
+			vb->bytesused = f->scanlength;
 
+			if(debug & DBG_IOCTL) { // do not spend computing time for debug stuff if not needed !
+				if(usbvision_counter == 100) {
+					PDEBUG(DBG_IOCTL, "VIDIOC_DQBUF delta=%d",(unsigned)(jiffies-usbvision_timestamp));
+					usbvision_counter = 0;
+					usbvision_timestamp = jiffies;
+				}
+				else {
+					usbvision_counter++;
+				}
+				PDEBUG(DBG_IOCTL, "VIDIOC_DQBUF frame #%d",vb->index);
+			}
 			return 0;
 		}
 		case VIDIOC_STREAMON:
 		{
 			int b=V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
-			if (list_empty(&usbvision->inqueue))
-				return -EINVAL;
-
 			usbvision->streaming = Stream_On;
+
+			if(debug & DBG_IOCTL) usbvision_timestamp = jiffies;
 
 			call_i2c_clients(usbvision,VIDIOC_STREAMON , &b);
 
@@ -4412,134 +4427,132 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		{
 			struct v4l2_fmtdesc *vfd = arg;
 
-			if ( (dga == 0) &&
-			     (vfd->type == V4L2_BUF_TYPE_VIDEO_OVERLAY) &&
-			     (usbvision->palette.format != V4L2_PIX_FMT_YVU420) &&
-			     (usbvision->palette.format != V4L2_PIX_FMT_YUV422P) ) {
-				return -EINVAL;
-			}
 			if(vfd->index>=USBVISION_SUPPORTED_PALETTES-1) {
 				return -EINVAL;
 			}
 			vfd->flags = 0;
+			vfd->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 			strcpy(vfd->description,usbvision_v4l2_format[vfd->index].desc);
 			vfd->pixelformat = usbvision_v4l2_format[vfd->index].format;
+			memset(vfd->reserved, 0, sizeof(vfd->reserved));
 			return 0;
 		}
 		case VIDIOC_G_FMT:
 		{
 			struct v4l2_format *vf = arg;
 
-			if ( (dga == 0) &&
-			     (vf->type == V4L2_BUF_TYPE_VIDEO_OVERLAY) &&
-			     (usbvision->palette.format != V4L2_PIX_FMT_YVU420) &&
-			     (usbvision->palette.format != V4L2_PIX_FMT_YUV422P) ) {
-				return -EINVAL;
+			switch (vf->type) {
+				case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+				{
+					vf->fmt.pix.width = usbvision->curwidth;
+					vf->fmt.pix.height = usbvision->curheight;
+					vf->fmt.pix.pixelformat = usbvision->palette.format;
+					vf->fmt.pix.bytesperline =  usbvision->curwidth*usbvision->palette.bytes_per_pixel;
+					vf->fmt.pix.sizeimage = vf->fmt.pix.bytesperline*usbvision->curheight;
+					vf->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
+					vf->fmt.pix.field = V4L2_FIELD_NONE; /* Always progressive image */
+				}
+				return 0;
+				default:
+					PDEBUG(DBG_IOCTL, "VIDIOC_G_FMT invalid type %d",vf->type);
+					return -EINVAL;
 			}
-			down(&usbvision->lock);
-			*vf = usbvision->vid_win;
-			up(&usbvision->lock);
-			PDEBUG(DBG_IOCTL, "VIDIOC_G_FMT x=%d, y=%d, w=%d, h=%d, chroma=%x, clips=%d",
-			       vf->fmt.win.w.left, vf->fmt.win.w.top, vf->fmt.win.w.width, vf->fmt.win.w.height, vf->fmt.win.chromakey, vf->fmt.win.clipcount);
+			PDEBUG(DBG_IOCTL, "VIDIOC_G_FMT w=%d, h=%d",vf->fmt.win.w.width, vf->fmt.win.w.height);
 			return 0;
 		}
+		case VIDIOC_TRY_FMT:
 		case VIDIOC_S_FMT:
 		{
 			struct v4l2_format *vf = arg;
 			struct v4l2_clip *vc=NULL;
 			int on,formatIdx;
 
-			if ( (dga == 0) &&
-			     (vf->type == V4L2_BUF_TYPE_VIDEO_OVERLAY) &&
-			     (usbvision->palette.format != V4L2_PIX_FMT_YVU420) &&
-			     (usbvision->palette.format != V4L2_PIX_FMT_YUV422P) ) {
-				return -EINVAL;
-			}
-			if(vf->type == V4L2_BUF_TYPE_VIDEO_OVERLAY) {
-				if (vf->fmt.win.clipcount>256) {
-					return -EDOM;   /* Too many clips! */
-				}
-				// Do every clips.
-				vc = vmalloc(sizeof(struct v4l2_clip)*(vf->fmt.win.clipcount+4));
-				if (vc == NULL) {
-					return -ENOMEM;
-				}
-				if (vf->fmt.win.clipcount && copy_from_user(vc,vf->fmt.win.clips,sizeof(struct v4l2_clip)*vf->fmt.win.clipcount)) {
-					return -EFAULT;
-				}
-				on = usbvision->overlay;	// Save overlay state
-				if (on) {
-					usbvision_cap(usbvision, 0);
-				}
-
-				// strange, it seems xawtv sometimes calls us with 0
-				// width and/or height. Ignore these values
-				if (vf->fmt.win.w.left == 0) {
-					vf->fmt.win.w.left = usbvision->vid_win.fmt.win.w.left;
-				}
-				if (vf->fmt.win.w.top == 0) {
-					vf->fmt.win.w.top = usbvision->vid_win.fmt.win.w.top;
-				}
-
-				// by now we are committed to the new data...
-				down(&usbvision->lock);
-				RESTRICT_TO_RANGE(vf->fmt.win.w.width, MIN_FRAME_WIDTH, MAX_FRAME_WIDTH);
-				RESTRICT_TO_RANGE(vf->fmt.win.w.height, MIN_FRAME_HEIGHT, MAX_FRAME_HEIGHT);
-				usbvision->vid_win = *vf;
-				usbvision->overlay_frame.width = vf->fmt.win.w.width;
-				usbvision->overlay_frame.height = vf->fmt.win.w.height;
-				usbvision_set_output(usbvision, vf->fmt.win.w.width, vf->fmt.win.w.height);
-				up(&usbvision->lock);
-
-				// Impose display clips
-				if (vf->fmt.win.w.left+vf->fmt.win.w.width > (unsigned int)usbvision->vid_buf.fmt.width) {
-					usbvision_new_clip(vf, vc, usbvision->vid_buf.fmt.width-vf->fmt.win.w.left, 0, vf->fmt.win.w.width-1, vf->fmt.win.w.height-1);
-				}
-				if (vf->fmt.win.w.top+vf->fmt.win.w.height > (unsigned int)usbvision->vid_buf.fmt.height) {
-					usbvision_new_clip(vf, vc, 0, usbvision->vid_buf.fmt.height-vf->fmt.win.w.top, vf->fmt.win.w.width-1, vf->fmt.win.w.height-1);
-				}
-
-				// built the requested clipping zones
-				usbvision_built_overlay(usbvision, vf->fmt.win.clipcount, vc);
-				vfree(vc);
-
-				// restore overlay state
-				if (on) {
-					usbvision_cap(usbvision, 1);
-				}
-				usbvision->vid_win_valid = 1;
-				PDEBUG(DBG_IOCTL, "VIDIOC_S_FMT overlay x=%d, y=%d, w=%d, h=%d, chroma=%x, clips=%d",
-				       vf->fmt.win.w.left, vf->fmt.win.w.top, vf->fmt.win.w.width, vf->fmt.win.w.height, vf->fmt.win.chromakey, vf->fmt.win.clipcount);
-			}
-			else {
-				/* Find requested format in available ones */
-				for(formatIdx=0;formatIdx<USBVISION_SUPPORTED_PALETTES;formatIdx++) {
-					if(vf->fmt.pix.pixelformat == usbvision_v4l2_format[formatIdx].format) {
-						usbvision->palette = usbvision_v4l2_format[formatIdx];
-						break;
+			switch(vf->type) {
+				case V4L2_BUF_TYPE_VIDEO_OVERLAY:
+				{
+					if (vf->fmt.win.clipcount>256) {
+						return -EDOM;   /* Too many clips! */
 					}
+					// Do every clips.
+					vc = vmalloc(sizeof(struct v4l2_clip)*(vf->fmt.win.clipcount+4));
+					if (vc == NULL) {
+						return -ENOMEM;
+					}
+					if (vf->fmt.win.clipcount && copy_from_user(vc,vf->fmt.win.clips,sizeof(struct v4l2_clip)*vf->fmt.win.clipcount)) {
+						return -EFAULT;
+					}
+					on = usbvision->overlay;	// Save overlay state
+					if (on) {
+						usbvision_cap(usbvision, 0);
+					}
+
+					// strange, it seems xawtv sometimes calls us with 0
+					// width and/or height. Ignore these values
+					if (vf->fmt.win.w.left == 0) {
+						vf->fmt.win.w.left = usbvision->vid_win.fmt.win.w.left;
+					}
+					if (vf->fmt.win.w.top == 0) {
+						vf->fmt.win.w.top = usbvision->vid_win.fmt.win.w.top;
+					}
+
+					// by now we are committed to the new data...
+					down(&usbvision->lock);
+					RESTRICT_TO_RANGE(vf->fmt.win.w.width, MIN_FRAME_WIDTH, MAX_FRAME_WIDTH);
+					RESTRICT_TO_RANGE(vf->fmt.win.w.height, MIN_FRAME_HEIGHT, MAX_FRAME_HEIGHT);
+					usbvision->vid_win = *vf;
+					usbvision->overlay_frame.width = vf->fmt.win.w.width;
+					usbvision->overlay_frame.height = vf->fmt.win.w.height;
+					usbvision_set_output(usbvision, vf->fmt.win.w.width, vf->fmt.win.w.height);
+					up(&usbvision->lock);
+
+					// Impose display clips
+					if (vf->fmt.win.w.left+vf->fmt.win.w.width > (unsigned int)usbvision->vid_buf.fmt.width) {
+						usbvision_new_clip(vf, vc, usbvision->vid_buf.fmt.width-vf->fmt.win.w.left, 0, vf->fmt.win.w.width-1, vf->fmt.win.w.height-1);
+					}
+					if (vf->fmt.win.w.top+vf->fmt.win.w.height > (unsigned int)usbvision->vid_buf.fmt.height) {
+						usbvision_new_clip(vf, vc, 0, usbvision->vid_buf.fmt.height-vf->fmt.win.w.top, vf->fmt.win.w.width-1, vf->fmt.win.w.height-1);
+					}
+
+					// built the requested clipping zones
+					usbvision_built_overlay(usbvision, vf->fmt.win.clipcount, vc);
+					vfree(vc);
+
+					// restore overlay state
+					if (on) {
+						usbvision_cap(usbvision, 1);
+					}
+					usbvision->vid_win_valid = 1;
+					PDEBUG(DBG_IOCTL, "VIDIOC_S_FMT overlay x=%d, y=%d, w=%d, h=%d, chroma=%x, clips=%d",
+					       vf->fmt.win.w.left, vf->fmt.win.w.top, vf->fmt.win.w.width, vf->fmt.win.w.height, vf->fmt.win.chromakey, vf->fmt.win.clipcount);
+					return 0;
 				}
-				/* robustness */
-				if(formatIdx == USBVISION_SUPPORTED_PALETTES) {
+				case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+				{
+					/* Find requested format in available ones */
+					for(formatIdx=0;formatIdx<USBVISION_SUPPORTED_PALETTES;formatIdx++) {
+						if(vf->fmt.pix.pixelformat == usbvision_v4l2_format[formatIdx].format) {
+							usbvision->palette = usbvision_v4l2_format[formatIdx];
+							break;
+						}
+					}
+					/* robustness */
+					if(formatIdx == USBVISION_SUPPORTED_PALETTES) {
+						return -EINVAL;
+					}
+					RESTRICT_TO_RANGE(vf->fmt.pix.width, MIN_FRAME_WIDTH, MAX_FRAME_WIDTH);
+					RESTRICT_TO_RANGE(vf->fmt.pix.height, MIN_FRAME_HEIGHT, MAX_FRAME_HEIGHT);
+					// by now we are committed to the new data...
+					down(&usbvision->lock);
+					usbvision_set_output(usbvision, vf->fmt.pix.width, vf->fmt.pix.height);
+					up(&usbvision->lock);
+
+					PDEBUG(DBG_IOCTL, "VIDIOC_S_FMT grabdisplay w=%d, h=%d, format=%s",
+					       vf->fmt.pix.width, vf->fmt.pix.height,usbvision->palette.desc);
+					return 0;
+				}
+				default:
 					return -EINVAL;
-				}
-				usbvision->vid_win.fmt.pix.pixelformat = vf->fmt.pix.pixelformat;
-				usbvision->vid_win.fmt.pix.width = vf->fmt.pix.width; //Image width in pixels.
-				usbvision->vid_win.fmt.pix.height = vf->fmt.pix.height; // Image height in pixels.
-
-				// by now we are committed to the new data...
-				down(&usbvision->lock);
-				RESTRICT_TO_RANGE(vf->fmt.pix.width, MIN_FRAME_WIDTH, MAX_FRAME_WIDTH);
-				RESTRICT_TO_RANGE(vf->fmt.pix.height, MIN_FRAME_HEIGHT, MAX_FRAME_HEIGHT);
-				usbvision->vid_win = *vf;
-				usbvision_set_output(usbvision, vf->fmt.pix.width, vf->fmt.pix.height);
-				up(&usbvision->lock);
-
-				usbvision->vid_win_valid = 1;
-				PDEBUG(DBG_IOCTL, "VIDIOC_S_FMT grabdisplay w=%d, h=%d, ",
-				       vf->fmt.pix.width, vf->fmt.pix.height);
 			}
-			return 0;
 		}
 		case VIDIOC_OVERLAY:
 		{
@@ -4586,99 +4599,97 @@ static ssize_t usbvision_v4l2_read(struct file *file, char *buf,
 	struct video_device *dev = video_devdata(file);
 	struct usb_usbvision *usbvision = (struct usb_usbvision *) video_get_drvdata(dev);
 	int noblock = file->f_flags & O_NONBLOCK;
+	unsigned long lock_flags;
 
 	int frmx = -1;
-	int rc = 0;
+	int ret,i;
 	struct usbvision_frame *frame;
-return -EINVAL;
+
 	PDEBUG(DBG_IO, "%s: %ld bytes, noblock=%d", __FUNCTION__, (unsigned long)count, noblock);
 
 	if (!USBVISION_IS_OPERATIONAL(usbvision) || (buf == NULL))
 		return -EFAULT;
 
-	down(&usbvision->lock);
-	//code for testing compression
-	if (usbvision->isocMode == ISOC_MODE_COMPRESS) {
-	  usbvision->frame[0].v4l2_format = usbvision_v4l2_format[0]; //V4L2_PIX_FMT_GREY;
-	  usbvision->frame[1].v4l2_format = usbvision_v4l2_format[0]; // V4L2_PIX_FMT_GREY;
+	/* no stream is running, make it running ! */
+	usbvision->streaming = Stream_On;
+	call_i2c_clients(usbvision,VIDIOC_STREAMON , NULL);
+
+	/* First, enqueue as many frames as possible (like a user of VIDIOC_QBUF would do) */
+	for(i=0;i<USBVISION_NUMFRAMES;i++) {
+		frame = &usbvision->frame[i];
+		if(frame->grabstate == FrameState_Unused) {
+			/* Mark it as ready and enqueue frame */
+			frame->grabstate = FrameState_Ready;
+			frame->scanstate = ScanState_Scanning;
+			frame->scanlength = 0;	/* Accumulated in usbvision_parse_data() */
+
+			/* set v4l2_format index */
+			frame->v4l2_format = usbvision->palette;
+
+			spin_lock_irqsave(&usbvision->queue_lock, lock_flags);
+			list_add_tail(&frame->frame, &usbvision->inqueue);
+			spin_unlock_irqrestore(&usbvision->queue_lock, lock_flags);
+		}
 	}
 
-	// See if a frame is completed, then use it.
-	if (usbvision->frame[0].grabstate >= FrameState_Done) // _Done or _Error
-		frmx = 0;
-	else if (usbvision->frame[1].grabstate >= FrameState_Done)// _Done or _Error
-		frmx = 1;
+	/* Then try to steal a frame (like a VIDIOC_DQBUF would do) */
+	if (list_empty(&(usbvision->outqueue))) {
+		if(noblock)
+			return -EAGAIN;
 
-	if (noblock && (frmx == -1)) {
-		count = -EAGAIN;
-		goto usbvision_v4l2_read_done;
+		ret = wait_event_interruptible
+			(usbvision->wait_frame,
+			 !list_empty(&(usbvision->outqueue)));
+		if (ret)
+			return ret;
 	}
 
-	// If no FRAME_DONE, look for a FRAME_GRABBING state.
-	// See if a frame is in process (grabbing), then use it.
-	if (frmx == -1) {
-		if (usbvision->frame[0].grabstate == FrameState_Grabbing)
-			frmx = 0;
-		else if (usbvision->frame[1].grabstate == FrameState_Grabbing)
-			frmx = 1;
+	spin_lock_irqsave(&usbvision->queue_lock, lock_flags);
+	frame = list_entry(usbvision->outqueue.next,
+			   struct usbvision_frame, frame);
+	list_del(usbvision->outqueue.next);
+	spin_unlock_irqrestore(&usbvision->queue_lock, lock_flags);
+
+	if(debug & DBG_IOCTL) { // do not spend computing time for debug stuff if not needed !
+		if(usbvision_counter == 100) {
+			PDEBUG(DBG_IOCTL, "VIDIOC_DQBUF delta=%d",(unsigned)(jiffies-usbvision_timestamp));
+			usbvision_counter = 0;
+			usbvision_timestamp = jiffies;
+		}
+		else {
+			usbvision_counter++;
+		}
 	}
 
-	// If no frame is active, start one.
-	if (frmx == -1)
-	// FIXME: enqueue all inqueue...
-	/* 		usbvision_new_frame(usbvision, frmx = 0); */
-
-	frame = &usbvision->frame[frmx];
-
-      restart:
-	if (!USBVISION_IS_OPERATIONAL(usbvision)) {
-		count = -EIO;
-		goto usbvision_v4l2_read_done;
-	}
-	PDEBUG(DBG_IO, "Waiting frame grabbing");
-	rc = wait_event_interruptible(usbvision->wait_frame, (frame->grabstate == FrameState_Done) ||
-						 (frame->grabstate == FrameState_Error));
-	if (rc) {
-		goto usbvision_v4l2_read_done;
-	}
-
+	/* An error returns an empty frame */
 	if (frame->grabstate == FrameState_Error) {
 		frame->bytes_read = 0;
-		// FIXME: enqueue all inqueue...
-/* 		if (usbvision_new_frame(usbvision, frmx)) { */
-/* 			err("%s: usbvision_new_frame() failed", __FUNCTION__); */
-/* 		} */
-		goto restart;
+		return 0;
 	}
 
 	PDEBUG(DBG_IO, "%s: frmx=%d, bytes_read=%ld, scanlength=%ld", __FUNCTION__,
-		       frmx, frame->bytes_read, frame->scanlength);
+		       frame->index, frame->bytes_read, frame->scanlength);
 
 	/* copy bytes to user space; we allow for partials reads */
 	if ((count + frame->bytes_read) > (unsigned long)frame->scanlength)
 		count = frame->scanlength - frame->bytes_read;
 
 	if (copy_to_user(buf, frame->data + frame->bytes_read, count)) {
-		count = -EFAULT;
-		goto usbvision_v4l2_read_done;
+		return -EFAULT;
 	}
 
 	frame->bytes_read += count;
 	PDEBUG(DBG_IO, "%s: {copy} count used=%ld, new bytes_read=%ld", __FUNCTION__,
 		       (unsigned long)count, frame->bytes_read);
 
-	if (frame->bytes_read >= frame->scanlength) {// All data has been read
+	// For now, forget the frame if it has not been read in one shot.
+/* 	if (frame->bytes_read >= frame->scanlength) {// All data has been read */
 		frame->bytes_read = 0;
 
 		/* Mark it as available to be used again. */
 		usbvision->frame[frmx].grabstate = FrameState_Unused;
-		// FIXME enqueue another frame
-/* 		if (usbvision_new_frame(usbvision, frmx ? 0 : 1)) */
-/* 			err("%s: usbvision_new_frame() failed", __FUNCTION__); */
-	}
+/* 	} */
 
-usbvision_v4l2_read_done:
-	up(&usbvision->lock);
 	return count;
 }
 
