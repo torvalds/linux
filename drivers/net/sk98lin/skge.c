@@ -114,6 +114,7 @@
 #include	<linux/dma-mapping.h>
 #include	<linux/ip.h>
 #include	<linux/mii.h>
+#include	<linux/mm.h>
 
 #include	"h/skdrv1st.h"
 #include	"h/skdrv2nd.h"

@@ -127,6 +127,7 @@ struct igmpv3_query {
 
 #ifdef __KERNEL__
 #include <linux/skbuff.h>
+#include <linux/timer.h>
 #include <linux/in.h>
 
 extern int sysctl_igmp_max_memberships;

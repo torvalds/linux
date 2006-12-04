@@ -30,6 +30,7 @@
 #include <linux/if_packet.h>
 
 #ifdef __KERNEL__
+#include <linux/timer.h>
 #include <asm/atomic.h>
 #include <asm/cache.h>
 #include <asm/byteorder.h>

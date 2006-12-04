@@ -117,6 +117,7 @@ static const int multicast_filter_limit = 32;
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
+#include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/ethtool.h>

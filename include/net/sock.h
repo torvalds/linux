@@ -47,6 +47,7 @@
 #include <linux/lockdep.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>	/* struct sk_buff */
+#include <linux/mm.h>
 #include <linux/security.h>
 
 #include <linux/filter.h>
