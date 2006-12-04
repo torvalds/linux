@@ -157,9 +157,8 @@ static int at91_cf_set_io_map(struct pcmcia_socket *s, struct pccard_io_map *io)
 
 	/*
 	 * Use 16 bit accesses unless/until we need 8-bit i/o space.
-	 * Always set CSR4 ... PCMCIA won't always unmap things.
 	 */
-	csr = at91_sys_read(AT91_SMC_CSR(4)) & ~AT91_SMC_DBW;
+	csr = at91_sys_read(AT91_SMC_CSR(cf->board->chipselect)) & ~AT91_SMC_DBW;
 
 	/*
 	 * NOTE: this CF controller ignores IOIS16, so we can't really do
@@ -178,7 +177,7 @@ static int at91_cf_set_io_map(struct pcmcia_socket *s, struct pccard_io_map *io)
 		csr |= AT91_SMC_DBW_16;
 		pr_debug("%s: 16bit i/o bus\n", driver_name);
 	}
-	at91_sys_write(AT91_SMC_CSR(4), csr);
+	at91_sys_write(AT91_SMC_CSR(cf->board->chipselect), csr);
 
 	io->start = cf->socket.io_offset;
 	io->stop = io->start + SZ_2K - 1;
@@ -222,7 +221,6 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 	struct at91_cf_socket	*cf;
 	struct at91_cf_data	*board = pdev->dev.platform_data;
 	struct resource		*io;
-	unsigned int		csa;
 	int			status;
 
 	if (!board || !board->det_pin || !board->rst_pin)
@@ -240,28 +238,6 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 	cf->pdev = pdev;
 	cf->phys_baseaddr = io->start;
 	platform_set_drvdata(pdev, cf);
-
-	/* CF takes over CS4, CS5, CS6 */
-	csa = at91_sys_read(AT91_EBI_CSA);
-	at91_sys_write(AT91_EBI_CSA, csa | AT91_EBI_CS4A_SMC_COMPACTFLASH);
-
-	/* nWAIT is _not_ a default setting */
-	(void) at91_set_A_periph(AT91_PIN_PC6, 1);	/*  nWAIT */
-
-	/*
-	 * Static memory controller timing adjustments.
-	 * REVISIT:  these timings are in terms of MCK cycles, so
-	 * when MCK changes (cpufreq etc) so must these values...
-	 */
-	at91_sys_write(AT91_SMC_CSR(4),
-				  AT91_SMC_ACSS_STD
-				| AT91_SMC_DBW_16
-				| AT91_SMC_BAT
-				| AT91_SMC_WSEN
-				| AT91_SMC_NWS_(32)	/* wait states */
-				| AT91_SMC_RWSETUP_(6)	/* setup time */
-				| AT91_SMC_RWHOLD_(4)	/* hold time */
-	);
 
 	/* must be a GPIO; ergo must trigger on both edges */
 	status = request_irq(board->det_pin, at91_cf_irq, 0, driver_name, cf);
@@ -291,7 +267,7 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 		goto fail1;
 	}
 
-	/* reserve CS4, CS5, and CS6 regions; but use just CS4 */
+	/* reserve chip-select regions */
 	if (!request_mem_region(io->start, io->end + 1 - io->start,
 				driver_name)) {
 		status = -ENXIO;
@@ -327,7 +303,6 @@ fail0a:
 	device_init_wakeup(&pdev->dev, 0);
 	free_irq(board->det_pin, cf);
 fail0:
-	at91_sys_write(AT91_EBI_CSA, csa);
 	kfree(cf);
 	return status;
 }
@@ -337,7 +312,6 @@ static int __exit at91_cf_remove(struct platform_device *pdev)
 	struct at91_cf_socket	*cf = platform_get_drvdata(pdev);
 	struct at91_cf_data	*board = cf->board;
 	struct resource		*io = cf->socket.io[0].res;
-	unsigned int		csa;
 
 	pcmcia_unregister_socket(&cf->socket);
 	if (board->irq_pin)
@@ -346,9 +320,6 @@ static int __exit at91_cf_remove(struct platform_device *pdev)
 	free_irq(board->det_pin, cf);
 	iounmap((void __iomem *) cf->socket.io_offset);
 	release_mem_region(io->start, io->end + 1 - io->start);
-
-	csa = at91_sys_read(AT91_EBI_CSA);
-	at91_sys_write(AT91_EBI_CSA, csa & ~AT91_EBI_CS4A);
 
 	kfree(cf);
 	return 0;
