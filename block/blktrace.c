@@ -31,8 +31,8 @@ static unsigned int blktrace_seq __read_mostly = 1;
 /*
  * Send out a notify message.
  */
-static unsigned int trace_note(struct blk_trace *bt, pid_t pid, int action,
-			       const void *data, size_t len)
+static void trace_note(struct blk_trace *bt, pid_t pid, int action,
+		       const void *data, size_t len)
 {
 	struct blk_io_trace *t;
 
@@ -49,8 +49,6 @@ static unsigned int trace_note(struct blk_trace *bt, pid_t pid, int action,
 		t->pdu_len = len;
 		memcpy((void *) t + sizeof(*t), data, len);
 	}
-
-	return blktrace_seq;
 }
 
 /*
@@ -59,9 +57,8 @@ static unsigned int trace_note(struct blk_trace *bt, pid_t pid, int action,
  */
 static void trace_note_tsk(struct blk_trace *bt, struct task_struct *tsk)
 {
-	tsk->btrace_seq = trace_note(bt, tsk->pid,
-			BLK_TN_PROCESS,
-			tsk->comm, sizeof(tsk->comm));
+	tsk->btrace_seq = blktrace_seq;
+	trace_note(bt, tsk->pid, BLK_TN_PROCESS, tsk->comm, sizeof(tsk->comm));
 }
 
 static void trace_note_time(struct blk_trace *bt)
