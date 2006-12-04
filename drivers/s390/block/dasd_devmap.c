@@ -877,12 +877,13 @@ dasd_eer_store(struct device *dev, struct device_attribute *attr,
 	if (((endp + 1) < (buf + count)) || (val > 1))
 		return -EINVAL;
 
-	rc = count;
-	if (val)
+	if (val) {
 		rc = dasd_eer_enable(devmap->device);
-	else
+		if (rc)
+			return rc;
+	} else
 		dasd_eer_disable(devmap->device);
-	return rc;
+	return count;
 }
 
 static DEVICE_ATTR(eer_enabled, 0644, dasd_eer_show, dasd_eer_store);
