@@ -1166,11 +1166,6 @@ P:	David Howells
 M:	dhowells@redhat.com
 S:	Maintained
 
-FTAPE/QIC-117
-L:	linux-tape@vger.kernel.org
-W:	http://sourceforge.net/projects/ftape
-S:	Orphan
-
 FUSE: FILESYSTEM IN USERSPACE
 P:	Miklos Szeredi
 M:	miklos@szeredi.hu

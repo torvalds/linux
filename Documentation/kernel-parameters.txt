@@ -557,9 +557,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	floppy=		[HW]
 			See Documentation/floppy.txt.
 
-	ftape=		[HW] Floppy Tape subsystem debugging options.
-			See Documentation/ftape.txt.
-
 	gamecon.map[2|3]=
 			[HW,JOY] Multisystem joystick and NES/SNES/PSX pad
 			support via parallel port (up to 5 devices per port)

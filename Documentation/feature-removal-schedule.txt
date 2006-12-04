@@ -234,14 +234,6 @@ Who:	Jean Delvare <khali@linux-fr.org>
 
 ---------------------------
 
-What:	ftape
-When:	2.6.20
-Why:	Orphaned for ages.  SMP bugs long unfixed.  Few users left
-	in the world.
-Who:	Jeff Garzik <jeff@garzik.org>
-
----------------------------
-
 What:	IPv4 only connection tracking/NAT/helpers
 When:	2.6.22
 Why:	The new layer 3 independant connection tracking replaces the old
