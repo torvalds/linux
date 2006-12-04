@@ -677,7 +677,7 @@ void do_reipl(void)
 		else
 			sprintf(buf, "IPL %X LOADPARM '%s'",
 				reipl_block_ccw->ipl_info.ccw.devno, loadparm);
-		cpcmd(buf, NULL, 0, NULL);
+		__cpcmd(buf, NULL, 0, NULL);
 		break;
 	case IPL_METHOD_CCW_DIAG:
 		diag308(DIAG308_SET, reipl_block_ccw);
@@ -691,12 +691,12 @@ void do_reipl(void)
 		diag308(DIAG308_IPL, NULL);
 		break;
 	case IPL_METHOD_FCP_RO_VM:
-		cpcmd("IPL", NULL, 0, NULL);
+		__cpcmd("IPL", NULL, 0, NULL);
 		break;
 	case IPL_METHOD_NONE:
 	default:
 		if (MACHINE_IS_VM)
-			cpcmd("IPL", NULL, 0, NULL);
+			__cpcmd("IPL", NULL, 0, NULL);
 		diag308(DIAG308_IPL, NULL);
 		break;
 	}
@@ -732,9 +732,9 @@ static void do_dump(void)
 	case IPL_METHOD_CCW_VM:
 		dump_smp_stop_all();
 		sprintf(buf, "STORE STATUS");
-		cpcmd(buf, NULL, 0, NULL);
+		__cpcmd(buf, NULL, 0, NULL);
 		sprintf(buf, "IPL %X", dump_block_ccw->ipl_info.ccw.devno);
-		cpcmd(buf, NULL, 0, NULL);
+		__cpcmd(buf, NULL, 0, NULL);
 		break;
 	case IPL_METHOD_CCW_DIAG:
 		diag308(DIAG308_SET, dump_block_ccw);
