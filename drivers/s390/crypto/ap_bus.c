@@ -431,7 +431,15 @@ static int ap_uevent (struct device *dev, char **envp, int num_envp,
 			   ap_dev->device_type);
 	if (buffer_size - length <= 0)
 		return -ENOMEM;
-	envp[1] = 0;
+	buffer += length;
+	buffer_size -= length;
+	/* Add MODALIAS= */
+	envp[1] = buffer;
+	length = scnprintf(buffer, buffer_size, "MODALIAS=ap:t%02X",
+			   ap_dev->device_type);
+	if (buffer_size - length <= 0)
+		return -ENOMEM;
+	envp[2] = NULL;
 	return 0;
 }
 
