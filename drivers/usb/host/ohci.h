@@ -602,7 +602,7 @@ static inline void disable (struct ohci_hcd *ohci)
 #define	FIT			(1 << 31)
 #define LSTHRESH		0x628		/* lowspeed bit threshold */
 
-static void periodic_reinit (struct ohci_hcd *ohci)
+static inline void periodic_reinit (struct ohci_hcd *ohci)
 {
 	u32	fi = ohci->fminterval & 0x03fff;
 	u32	fit = ohci_readl(ohci, &ohci->regs->fminterval) & FIT;
@@ -626,11 +626,11 @@ static void periodic_reinit (struct ohci_hcd *ohci)
 			temp = ohci_readl (hc, &hc->regs->roothub.register); \
 	temp; })
 
-static u32 roothub_a (struct ohci_hcd *hc)
+static inline u32 roothub_a (struct ohci_hcd *hc)
 	{ return read_roothub (hc, a, 0xfc0fe000); }
 static inline u32 roothub_b (struct ohci_hcd *hc)
 	{ return ohci_readl (hc, &hc->regs->roothub.b); }
 static inline u32 roothub_status (struct ohci_hcd *hc)
 	{ return ohci_readl (hc, &hc->regs->roothub.status); }
-static u32 roothub_portstatus (struct ohci_hcd *hc, int i)
+static inline u32 roothub_portstatus (struct ohci_hcd *hc, int i)
 	{ return read_roothub (hc, portstatus [i], 0xffe0fce0); }
