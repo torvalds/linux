@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/char/at91_serial.c
+ *  linux/drivers/char/atmel_serial.c
  *
  *  Driver for Atmel AT91 / AT32 Serial ports
  *  Copyright (C) 2003 Rick Bronson
@@ -40,7 +40,7 @@
 #include <asm/arch/board.h>
 #include <asm/arch/at91_pdc.h>
 #ifdef CONFIG_ARM
-#include <asm/arch/system.h>
+#include <asm/arch/cpu.h>
 #include <asm/arch/gpio.h>
 #endif
 
@@ -137,7 +137,7 @@ static void atmel_set_mctrl(struct uart_port *port, u_int mctrl)
 	unsigned int control = 0;
 	unsigned int mode;
 
-#ifdef CONFIG_ARM
+#ifdef CONFIG_ARCH_AT91RM9200
 	if (cpu_is_at91rm9200()) {
 		/*
 		 * AT91RM9200 Errata #39: RTS0 is not internally connected to PA21.
