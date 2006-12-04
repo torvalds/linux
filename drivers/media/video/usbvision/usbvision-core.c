@@ -339,12 +339,10 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
-#include <linux/usb.h>
 #include <asm/io.h>
 #include <linux/videodev2.h>
 #include <linux/video_decoder.h>
 #include <linux/i2c.h>
-#include "usbvision-i2c.h"
 
 #define USBVISION_DRIVER_VERSION_MAJOR 0
 #define USBVISION_DRIVER_VERSION_MINOR 8
@@ -427,6 +425,18 @@ enum {
 	ISOC_MODE_YUV420 = 0x14,
 	ISOC_MODE_COMPRESS = 0x60,
 };
+
+static struct usbvision_v4l2_format_st usbvision_v4l2_format[] = {
+        { 1, 1,  8, V4L2_PIX_FMT_GREY    , "GREY" },
+        { 1, 2, 16, V4L2_PIX_FMT_RGB565  , "RGB565" },
+        { 1, 3, 24, V4L2_PIX_FMT_RGB24   , "RGB24" },
+        { 1, 4, 32, V4L2_PIX_FMT_RGB32   , "RGB32" },
+        { 1, 2, 16, V4L2_PIX_FMT_RGB555  , "RGB555" },
+        { 1, 2, 16, V4L2_PIX_FMT_YUYV    , "YUV422" },
+        { 1, 2, 12, V4L2_PIX_FMT_YVU420  , "YUV420P" }, // 1.5 !
+        { 1, 2, 16, V4L2_PIX_FMT_YUV422P , "YUV422P" }
+};
+
 
 /*
  * The value of 'scratch_buf_size' affects quality of the picture
@@ -5690,8 +5700,6 @@ static void __devexit usbvision_disconnect(struct usb_interface *intf)
 	PDEBUG(DBG_PROBE, "success");
 
 }
-
-MODULE_DEVICE_TABLE (usb, usbvision_table);
 
 static struct usb_driver usbvision_driver = {
 	.name		= "usbvision",

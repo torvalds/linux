@@ -1,4 +1,4 @@
-usbvision-objs  := usbvision-core.o usbvision-i2c.o
+usbvision-objs  := usbvision-core.o usbvision-i2c.o usbvision-cards.o
 
 obj-$(CONFIG_VIDEO_USBVISION) += usbvision.o
 
