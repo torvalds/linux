@@ -485,7 +485,7 @@ static int ciintf_init(struct budget_ci *budget_ci)
 	memset(&budget_ci->ca, 0, sizeof(struct dvb_ca_en50221));
 
 	// enable DEBI pins
-	saa7146_write(saa, MC1, saa7146_read(saa, MC1) | (0x800 << 16) | 0x800);
+	saa7146_write(saa, MC1, MASK_27 | MASK_11);
 
 	// test if it is there
 	ci_version = ttpci_budget_debiread(&budget_ci->budget, DEBICICTL, DEBIADDR_CIVERSION, 1, 1, 0);
@@ -559,7 +559,7 @@ static int ciintf_init(struct budget_ci *budget_ci)
 	return 0;
 
 error:
-	saa7146_write(saa, MC1, saa7146_read(saa, MC1) | (0x800 << 16));
+	saa7146_write(saa, MC1, MASK_27);
 	return result;
 }
 
@@ -587,7 +587,7 @@ static void ciintf_deinit(struct budget_ci *budget_ci)
 	dvb_ca_en50221_release(&budget_ci->ca);
 
 	// disable DEBI pins
-	saa7146_write(saa, MC1, saa7146_read(saa, MC1) | (0x800 << 16));
+	saa7146_write(saa, MC1, MASK_27);
 }
 
 static void budget_ci_irq(struct saa7146_dev *dev, u32 * isr)

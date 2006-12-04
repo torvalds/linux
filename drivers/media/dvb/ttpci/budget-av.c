@@ -360,7 +360,7 @@ static int ciintf_init(struct budget_av *budget_av)
 	saa7146_setgpio(saa, 3, SAA7146_GPIO_OUTLO);
 
 	/* Enable DEBI pins */
-	saa7146_write(saa, MC1, saa7146_read(saa, MC1) | (0x800 << 16) | 0x800);
+	saa7146_write(saa, MC1, MASK_27 | MASK_11);
 
 	/* register CI interface */
 	budget_av->ca.owner = THIS_MODULE;
@@ -386,7 +386,7 @@ static int ciintf_init(struct budget_av *budget_av)
 	return 0;
 
 error:
-	saa7146_write(saa, MC1, saa7146_read(saa, MC1) | (0x800 << 16));
+	saa7146_write(saa, MC1, MASK_27);
 	return result;
 }
 
@@ -403,7 +403,7 @@ static void ciintf_deinit(struct budget_av *budget_av)
 	dvb_ca_en50221_release(&budget_av->ca);
 
 	/* disable DEBI pins */
-	saa7146_write(saa, MC1, saa7146_read(saa, MC1) | (0x800 << 16));
+	saa7146_write(saa, MC1, MASK_27);
 }
 
 
