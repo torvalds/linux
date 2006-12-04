@@ -21,6 +21,7 @@
 #include <asm/irq.h>
 #include <asm/irq_regs.h>
 #include <asm/setup.h>
+#include <asm/reset.h>
 #include "airq.h"
 #include "cio.h"
 #include "css.h"
@@ -28,6 +29,7 @@
 #include "ioasm.h"
 #include "blacklist.h"
 #include "cio_debug.h"
+#include "../s390mach.h"
 
 debug_info_t *cio_debug_msg_id;
 debug_info_t *cio_debug_trace_id;
@@ -841,26 +843,12 @@ __clear_subchannel_easy(struct subchannel_id schid)
 	return -EBUSY;
 }
 
-struct sch_match_id {
-	struct subchannel_id schid;
-	struct ccw_dev_id devid;
-	int rc;
-};
-
-static int __shutdown_subchannel_easy_and_match(struct subchannel_id schid,
-	void *data)
+static int __shutdown_subchannel_easy(struct subchannel_id schid, void *data)
 {
 	struct schib schib;
-	struct sch_match_id *match_id = data;
 
 	if (stsch_err(schid, &schib))
 		return -ENXIO;
-	if (match_id && schib.pmcw.dnv &&
-		(schib.pmcw.dev == match_id->devid.devno) &&
-		(schid.ssid == match_id->devid.ssid)) {
-		match_id->schid = schid;
-		match_id->rc = 0;
-	}
 	if (!schib.pmcw.ena)
 		return 0;
 	switch(__disable_subchannel_easy(schid, &schib)) {
@@ -876,25 +864,109 @@ static int __shutdown_subchannel_easy_and_match(struct subchannel_id schid,
 	return 0;
 }
 
-static int clear_all_subchannels_and_match(struct ccw_dev_id *devid,
-	struct subchannel_id *schid)
+static atomic_t chpid_reset_count;
+
+static void s390_reset_chpids_mcck_handler(void)
+{
+	struct crw crw;
+	struct mci *mci;
+
+	/* Check for pending channel report word. */
+	mci = (struct mci *)&S390_lowcore.mcck_interruption_code;
+	if (!mci->cp)
+		return;
+	/* Process channel report words. */
+	while (stcrw(&crw) == 0) {
+		/* Check for responses to RCHP. */
+		if (crw.slct && crw.rsc == CRW_RSC_CPATH)
+			atomic_dec(&chpid_reset_count);
+	}
+}
+
+#define RCHP_TIMEOUT (30 * USEC_PER_SEC)
+static void css_reset(void)
+{
+	int i, ret;
+	unsigned long long timeout;
+
+	/* Reset subchannels. */
+	for_each_subchannel(__shutdown_subchannel_easy,  NULL);
+	/* Reset channel paths. */
+	s390_reset_mcck_handler = s390_reset_chpids_mcck_handler;
+	/* Enable channel report machine checks. */
+	__ctl_set_bit(14, 28);
+	/* Temporarily reenable machine checks. */
+	local_mcck_enable();
+	for (i = 0; i <= __MAX_CHPID; i++) {
+		ret = rchp(i);
+		if ((ret == 0) || (ret == 2))
+			/*
+			 * rchp either succeeded, or another rchp is already
+			 * in progress. In either case, we'll get a crw.
+			 */
+			atomic_inc(&chpid_reset_count);
+	}
+	/* Wait for machine check for all channel paths. */
+	timeout = get_clock() + (RCHP_TIMEOUT << 12);
+	while (atomic_read(&chpid_reset_count) != 0) {
+		if (get_clock() > timeout)
+			break;
+		cpu_relax();
+	}
+	/* Disable machine checks again. */
+	local_mcck_disable();
+	/* Disable channel report machine checks. */
+	__ctl_clear_bit(14, 28);
+	s390_reset_mcck_handler = NULL;
+}
+
+static struct reset_call css_reset_call = {
+	.fn = css_reset,
+};
+
+static int __init init_css_reset_call(void)
+{
+	atomic_set(&chpid_reset_count, 0);
+	register_reset_call(&css_reset_call);
+	return 0;
+}
+
+arch_initcall(init_css_reset_call);
+
+struct sch_match_id {
+	struct subchannel_id schid;
+	struct ccw_dev_id devid;
+	int rc;
+};
+
+static int __reipl_subchannel_match(struct subchannel_id schid, void *data)
+{
+	struct schib schib;
+	struct sch_match_id *match_id = data;
+
+	if (stsch_err(schid, &schib))
+		return -ENXIO;
+	if (schib.pmcw.dnv &&
+	    (schib.pmcw.dev == match_id->devid.devno) &&
+	    (schid.ssid == match_id->devid.ssid)) {
+		match_id->schid = schid;
+		match_id->rc = 0;
+		return 1;
+	}
+	return 0;
+}
+
+static int reipl_find_schid(struct ccw_dev_id *devid,
+			    struct subchannel_id *schid)
 {
 	struct sch_match_id match_id;
 
 	match_id.devid = *devid;
 	match_id.rc = -ENODEV;
-	local_irq_disable();
-	for_each_subchannel(__shutdown_subchannel_easy_and_match, &match_id);
+	for_each_subchannel(__reipl_subchannel_match, &match_id);
 	if (match_id.rc == 0)
 		*schid = match_id.schid;
 	return match_id.rc;
-}
-
-
-void clear_all_subchannels(void)
-{
-	local_irq_disable();
-	for_each_subchannel(__shutdown_subchannel_easy_and_match, NULL);
 }
 
 extern void do_reipl_asm(__u32 schid);
@@ -904,9 +976,9 @@ void reipl_ccw_dev(struct ccw_dev_id *devid)
 {
 	struct subchannel_id schid;
 
-	if (clear_all_subchannels_and_match(devid, &schid))
+	s390_reset_system();
+	if (reipl_find_schid(devid, &schid) != 0)
 		panic("IPL Device not found\n");
-	cio_reset_channel_paths();
 	do_reipl_asm(*((__u32*)&schid));
 }
 

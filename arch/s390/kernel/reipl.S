@@ -11,19 +11,10 @@
 		.globl	do_reipl_asm
 do_reipl_asm:	basr	%r13,0
 .Lpg0:		lpsw	.Lnewpsw-.Lpg0(%r13)
-
-		# switch off lowcore protection
-
-.Lpg1:		stctl	%c0,%c0,.Lctlsave1-.Lpg0(%r13)
-		stctl	%c0,%c0,.Lctlsave2-.Lpg0(%r13)
-		ni	.Lctlsave1-.Lpg0(%r13),0xef
-		lctl	%c0,%c0,.Lctlsave1-.Lpg0(%r13)
-
-		# do store status of all registers
+.Lpg1:		# do store status of all registers
 
 		stm	%r0,%r15,__LC_GPREGS_SAVE_AREA
 		stctl	%c0,%c15,__LC_CREGS_SAVE_AREA
-		mvc	__LC_CREGS_SAVE_AREA(4),.Lctlsave2-.Lpg0(%r13)
 		stam	%a0,%a15,__LC_AREGS_SAVE_AREA
 		stpx	__LC_PREFIX_SAVE_AREA
 		stckc	.Lclkcmp-.Lpg0(%r13)
@@ -56,8 +47,7 @@ do_reipl_asm:	basr	%r13,0
 .L002:		tm	.Liplirb+8-.Lpg0(%r13),0xf3
 		jz	.L003
 		bas	%r14,.Ldisab-.Lpg0(%r13)
-.L003:		spx	.Lnull-.Lpg0(%r13)
-		st	%r1,__LC_SUBCHANNEL_ID
+.L003:		st	%r1,__LC_SUBCHANNEL_ID
 		lpsw	0
 		sigp	0,0,0(6)
 .Ldisab:	st	%r14,.Ldispsw+4-.Lpg0(%r13)
@@ -65,9 +55,6 @@ do_reipl_asm:	basr	%r13,0
 		.align	8
 .Lclkcmp:	.quad	0x0000000000000000
 .Lall:		.long	0xff000000
-.Lnull:		.long	0x00000000
-.Lctlsave1:	.long	0x00000000
-.Lctlsave2:	.long	0x00000000
 		.align	8
 .Lnewpsw:	.long	0x00080000,0x80000000+.Lpg1
 .Lpcnew:	.long	0x00080000,0x80000000+.Lecs

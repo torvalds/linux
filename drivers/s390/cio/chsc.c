@@ -251,6 +251,8 @@ s390_subchannel_remove_chpid(struct device *dev, void *data)
 		cc = cio_clear(sch);
 		if (cc == -ENODEV)
 			goto out_unreg;
+		/* Request retry of internal operation. */
+		device_set_intretry(sch);
 		/* Call handler. */
 		if (sch->driver && sch->driver->termination)
 			sch->driver->termination(&sch->dev);
@@ -711,15 +713,32 @@ static inline int check_for_io_on_path(struct subchannel *sch, int index)
 {
 	int cc;
 
-	if (!device_is_online(sch))
-		/* cio could be doing I/O. */
-		return 0;
 	cc = stsch(sch->schid, &sch->schib);
 	if (cc)
 		return 0;
 	if (sch->schib.scsw.actl && sch->schib.pmcw.lpum == (0x80 >> index))
 		return 1;
 	return 0;
+}
+
+static void terminate_internal_io(struct subchannel *sch)
+{
+	if (cio_clear(sch)) {
+		/* Recheck device in case clear failed. */
+		sch->lpm = 0;
+		if (device_trigger_verify(sch) != 0) {
+			if(css_enqueue_subchannel_slow(sch->schid)) {
+				css_clear_subchannel_slow_list();
+				need_rescan = 1;
+			}
+		}
+		return;
+	}
+	/* Request retry of internal operation. */
+	device_set_intretry(sch);
+	/* Call handler. */
+	if (sch->driver && sch->driver->termination)
+		sch->driver->termination(&sch->dev);
 }
 
 static inline void
@@ -744,20 +763,26 @@ __s390_subchannel_vary_chpid(struct subchannel *sch, __u8 chpid, int on)
 				device_trigger_reprobe(sch);
 			else if (sch->driver && sch->driver->verify)
 				sch->driver->verify(&sch->dev);
-		} else {
-			sch->opm &= ~(0x80 >> chp);
-			sch->lpm &= ~(0x80 >> chp);
-			if (check_for_io_on_path(sch, chp))
+			break;
+		}
+		sch->opm &= ~(0x80 >> chp);
+		sch->lpm &= ~(0x80 >> chp);
+		if (check_for_io_on_path(sch, chp)) {
+			if (device_is_online(sch))
 				/* Path verification is done after killing. */
 				device_kill_io(sch);
-			else if (!sch->lpm) {
+			else
+				/* Kill and retry internal I/O. */
+				terminate_internal_io(sch);
+		} else if (!sch->lpm) {
+			if (device_trigger_verify(sch) != 0) {
 				if (css_enqueue_subchannel_slow(sch->schid)) {
 					css_clear_subchannel_slow_list();
 					need_rescan = 1;
 				}
-			} else if (sch->driver && sch->driver->verify)
-				sch->driver->verify(&sch->dev);
-		}
+			}
+		} else if (sch->driver && sch->driver->verify)
+			sch->driver->verify(&sch->dev);
 		break;
 	}
 	spin_unlock_irqrestore(&sch->lock, flags);
@@ -1463,41 +1488,6 @@ chsc_get_chp_desc(struct subchannel *sch, int chp_no)
 		return NULL;
 	memcpy(desc, &chp->desc, sizeof(struct channel_path_desc));
 	return desc;
-}
-
-static int reset_channel_path(struct channel_path *chp)
-{
-	int cc;
-
-	cc = rchp(chp->id);
-	switch (cc) {
-	case 0:
-		return 0;
-	case 2:
-		return -EBUSY;
-	default:
-		return -ENODEV;
-	}
-}
-
-static void reset_channel_paths_css(struct channel_subsystem *css)
-{
-	int i;
-
-	for (i = 0; i <= __MAX_CHPID; i++) {
-		if (css->chps[i])
-			reset_channel_path(css->chps[i]);
-	}
-}
-
-void cio_reset_channel_paths(void)
-{
-	int i;
-
-	for (i = 0; i <= __MAX_CSSID; i++) {
-		if (css[i] && css[i]->valid)
-			reset_channel_paths_css(css[i]);
-	}
 }
 
 static int __init

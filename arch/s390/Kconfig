@@ -33,9 +33,6 @@ config GENERIC_CALIBRATE_DELAY
 config GENERIC_TIME
 	def_bool y
 
-config GENERIC_BUST_SPINLOCK
-	bool
-
 mainmenu "Linux Kernel Configuration"
 
 config S390
@@ -181,7 +178,7 @@ config PACK_STACK
 
 config SMALL_STACK
 	bool "Use 4kb/8kb for kernel stack instead of 8kb/16kb"
-	depends on PACK_STACK
+	depends on PACK_STACK && !LOCKDEP
 	help
 	  If you say Y here and the compiler supports the -mkernel-backchain
 	  option the kernel will use a smaller kernel stack size. For 31 bit

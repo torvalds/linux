@@ -230,17 +230,36 @@ static inline void do_store_status(void)
         }
 }
 
+static inline void do_wait_for_stop(void)
+{
+	int cpu;
+
+	/* Wait for all other cpus to enter stopped state */
+	for_each_online_cpu(cpu) {
+		if (cpu == smp_processor_id())
+			continue;
+		while(!smp_cpu_not_running(cpu))
+			cpu_relax();
+	}
+}
+
 /*
  * this function sends a 'stop' sigp to all other CPUs in the system.
  * it goes straight through.
  */
 void smp_send_stop(void)
 {
+	/* Disable all interrupts/machine checks */
+	__load_psw_mask(PSW_KERNEL_BITS & ~PSW_MASK_MCHECK);
+
         /* write magic number to zero page (absolute 0) */
 	lowcore_ptr[smp_processor_id()]->panic_magic = __PANIC_MAGIC;
 
 	/* stop other processors. */
 	do_send_stop();
+
+	/* wait until other processors are stopped */
+	do_wait_for_stop();
 
 	/* store status of other processors. */
 	do_store_status();
@@ -250,88 +269,28 @@ void smp_send_stop(void)
  * Reboot, halt and power_off routines for SMP.
  */
 
-static void do_machine_restart(void * __unused)
-{
-	int cpu;
-	static atomic_t cpuid = ATOMIC_INIT(-1);
-
-	if (atomic_cmpxchg(&cpuid, -1, smp_processor_id()) != -1)
-		signal_processor(smp_processor_id(), sigp_stop);
-
-	/* Wait for all other cpus to enter stopped state */
-	for_each_online_cpu(cpu) {
-		if (cpu == smp_processor_id())
-			continue;
-		while(!smp_cpu_not_running(cpu))
-			cpu_relax();
-	}
-
-	/* Store status of other cpus. */
-	do_store_status();
-
-	/*
-	 * Finally call reipl. Because we waited for all other
-	 * cpus to enter this function we know that they do
-	 * not hold any s390irq-locks (the cpus have been
-	 * interrupted by an external interrupt and s390irq
-	 * locks are always held disabled).
-	 */
-	do_reipl();
-}
-
 void machine_restart_smp(char * __unused) 
 {
-        on_each_cpu(do_machine_restart, NULL, 0, 0);
-}
-
-static void do_wait_for_stop(void)
-{
-	unsigned long cr[16];
-
-	__ctl_store(cr, 0, 15);
-	cr[0] &= ~0xffff;
-	cr[6] = 0;
-	__ctl_load(cr, 0, 15);
-	for (;;)
-		enabled_wait();
-}
-
-static void do_machine_halt(void * __unused)
-{
-	static atomic_t cpuid = ATOMIC_INIT(-1);
-
-	if (atomic_cmpxchg(&cpuid, -1, smp_processor_id()) == -1) {
-		smp_send_stop();
-		if (MACHINE_IS_VM && strlen(vmhalt_cmd) > 0)
-			cpcmd(vmhalt_cmd, NULL, 0, NULL);
-		signal_processor(smp_processor_id(),
-				 sigp_stop_and_store_status);
-	}
-	do_wait_for_stop();
+	smp_send_stop();
+	do_reipl();
 }
 
 void machine_halt_smp(void)
 {
-        on_each_cpu(do_machine_halt, NULL, 0, 0);
-}
-
-static void do_machine_power_off(void * __unused)
-{
-	static atomic_t cpuid = ATOMIC_INIT(-1);
-
-	if (atomic_cmpxchg(&cpuid, -1, smp_processor_id()) == -1) {
-		smp_send_stop();
-		if (MACHINE_IS_VM && strlen(vmpoff_cmd) > 0)
-			cpcmd(vmpoff_cmd, NULL, 0, NULL);
-		signal_processor(smp_processor_id(),
-				 sigp_stop_and_store_status);
-	}
-	do_wait_for_stop();
+	smp_send_stop();
+	if (MACHINE_IS_VM && strlen(vmhalt_cmd) > 0)
+		__cpcmd(vmhalt_cmd, NULL, 0, NULL);
+	signal_processor(smp_processor_id(), sigp_stop_and_store_status);
+	for (;;);
 }
 
 void machine_power_off_smp(void)
 {
-        on_each_cpu(do_machine_power_off, NULL, 0, 0);
+	smp_send_stop();
+	if (MACHINE_IS_VM && strlen(vmpoff_cmd) > 0)
+		__cpcmd(vmpoff_cmd, NULL, 0, NULL);
+	signal_processor(smp_processor_id(), sigp_stop_and_store_status);
+	for (;;);
 }
 
 /*
@@ -501,8 +460,6 @@ __init smp_count_cpus(void)
  */
 extern void init_cpu_timer(void);
 extern void init_cpu_vtimer(void);
-extern int pfault_init(void);
-extern void pfault_fini(void);
 
 int __devinit start_secondary(void *cpuvoid)
 {
@@ -514,11 +471,9 @@ int __devinit start_secondary(void *cpuvoid)
 #ifdef CONFIG_VIRT_TIMER
         init_cpu_vtimer();
 #endif
-#ifdef CONFIG_PFAULT
 	/* Enable pfault pseudo page faults on this cpu. */
-	if (MACHINE_IS_VM)
-		pfault_init();
-#endif
+	pfault_init();
+
 	/* Mark this cpu as online */
 	cpu_set(smp_processor_id(), cpu_online_map);
 	/* Switch on interrupts */
@@ -708,11 +663,8 @@ __cpu_disable(void)
 	}
 	cpu_clear(cpu, cpu_online_map);
 
-#ifdef CONFIG_PFAULT
 	/* Disable pfault pseudo page faults on this cpu. */
-	if (MACHINE_IS_VM)
-		pfault_fini();
-#endif
+	pfault_fini();
 
 	memset(&cr_parms.orvals, 0, sizeof(cr_parms.orvals));
 	memset(&cr_parms.andvals, 0xff, sizeof(cr_parms.andvals));
@@ -860,4 +812,3 @@ EXPORT_SYMBOL(smp_ctl_clear_bit);
 EXPORT_SYMBOL(smp_call_function);
 EXPORT_SYMBOL(smp_get_cpu);
 EXPORT_SYMBOL(smp_put_cpu);
-

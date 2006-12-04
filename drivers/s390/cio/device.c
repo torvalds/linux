@@ -687,8 +687,20 @@ io_subchannel_register(void *data)
 	cdev = data;
 	sch = to_subchannel(cdev->dev.parent);
 
+	/*
+	 * io_subchannel_register() will also be called after device
+	 * recognition has been done for a boxed device (which will already
+	 * be registered). We need to reprobe since we may now have sense id
+	 * information.
+	 */
 	if (klist_node_attached(&cdev->dev.knode_parent)) {
-		bus_rescan_devices(&ccw_bus_type);
+		if (!cdev->drv) {
+			ret = device_reprobe(&cdev->dev);
+			if (ret)
+				/* We can't do much here. */
+				dev_info(&cdev->dev, "device_reprobe() returned"
+					 " %d\n", ret);
+		}
 		goto out;
 	}
 	/* make it known to the system */
@@ -947,6 +959,9 @@ io_subchannel_ioterm(struct device *dev)
 
 	cdev = dev->driver_data;
 	if (!cdev)
+		return;
+	/* Internal I/O will be retried by the interrupt handler. */
+	if (cdev->private->flags.intretry)
 		return;
 	cdev->private->state = DEV_STATE_CLEAR_VERIFY;
 	if (cdev->handler)
