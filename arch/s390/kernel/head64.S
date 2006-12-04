@@ -70,7 +70,22 @@ startup_continue:
 	sgr	%r5,%r5 		# set src,length and pad to zero
 	mvcle	%r2,%r4,0		# clear mem
 	jo	.-4			# branch back, if not finish
+					# set program check new psw mask
+	mvc	__LC_PGM_NEW_PSW(8),.Lpcmsk-.LPG1(%r13)
+	larl	%r1,.Lslowmemdetect	# set program check address
+	stg	%r1,__LC_PGM_NEW_PSW+8
+	lghi	%r1,0xc
+	diag	%r0,%r1,0x260		# get memory size of virtual machine
+	cgr	%r0,%r1			# different? -> old detection routine
+	jne	.Lslowmemdetect
+	aghi	%r1,1			# size is one more than end
+	larl	%r2,memory_chunk
+	stg	%r1,8(%r2)		# store size of chunk
+	larl	%r2,memory_size
+	stg	%r1,0(%r2)		# set memory size
+	j	.Ldonemem
 
+.Lslowmemdetect:
 	l	%r2,.Lrcp-.LPG1(%r13)	# Read SCP forced command word
 .Lservicecall:
 	stosm	.Lpmask-.LPG1(%r13),0x01	# authorize ext interrupts
@@ -139,8 +154,6 @@ startup_continue:
 	.int	0x100000
 
 .Lfchunk:
-					# set program check new psw mask
-	mvc	__LC_PGM_NEW_PSW(8),.Lpcmsk-.LPG1(%r13)
 
 #
 # find memory chunks.
