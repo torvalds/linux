@@ -140,7 +140,7 @@ call_dpf:
 	mov.l	1f, r0
  	mov.l	@r0, r6		! address
 	mov.l	3f, r0
-	sti
+
 	jmp	@r0
  	 mov	r15, r4		! regs
 

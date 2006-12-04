@@ -100,6 +100,11 @@ debug_trap:
 	.align	2
 ENTRY(exception_error)
 	!
+#ifdef CONFIG_TRACE_IRQFLAGS
+	mov.l	3f, r0
+	jsr	@r0
+	 nop
+#endif
 	sti
 	mov.l	2f, r0
 	jmp	@r0
@@ -109,10 +114,18 @@ ENTRY(exception_error)
 	.align	2
 1:	.long	break_point_trap_software
 2:	.long	do_exception_error
+#ifdef CONFIG_TRACE_IRQFLAGS
+3:	.long	trace_hardirqs_on
+#endif
 
 	.align	2
 ret_from_exception:
 	preempt_stop()
+#ifdef CONFIG_TRACE_IRQFLAGS
+	mov.l	4f, r0
+	jsr	@r0
+	 nop
+#endif
 ENTRY(ret_from_irq)
 	!
 	mov	#OFF_SR, r0
@@ -143,6 +156,11 @@ need_resched:
 	mov.l	1f, r0
 	mov.l	r0, @(TI_PRE_COUNT,r8)
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+	mov.l	3f, r0
+	jsr	@r0
+	 nop
+#endif
 	sti
 	mov.l	2f, r0
 	jsr	@r0
@@ -150,9 +168,15 @@ need_resched:
 	mov	#0, r0
 	mov.l	r0, @(TI_PRE_COUNT,r8)
 	cli
+#ifdef CONFIG_TRACE_IRQFLAGS
+	mov.l	4f, r0
+	jsr	@r0
+	 nop
+#endif
 
 	bra	need_resched
 	 nop
+
 noresched:
 	bra	__restore_all
 	 nop
@@ -160,11 +184,20 @@ noresched:
 	.align 2
 1:	.long	PREEMPT_ACTIVE
 2:	.long	schedule
+#ifdef CONFIG_TRACE_IRQFLAGS
+3:	.long	trace_hardirqs_on
+4:	.long	trace_hardirqs_off
+#endif
 #endif
 
 ENTRY(resume_userspace)
 	! r8: current_thread_info
 	cli
+#ifdef CONFIG_TRACE_IRQFLAGS
+	mov.l	5f, r0
+	jsr	@r0
+	 nop
+#endif
 	mov.l	@(TI_FLAGS,r8), r0		! current_thread_info->flags
 	tst	#_TIF_WORK_MASK, r0
 	bt/s	__restore_all
@@ -210,6 +243,11 @@ work_resched:
 	jsr	@r1				! schedule
 	 nop
 	cli
+#ifdef CONFIG_TRACE_IRQFLAGS
+	mov.l	5f, r0
+	jsr	@r0
+	 nop
+#endif
 	!
 	mov.l	@(TI_FLAGS,r8), r0		! current_thread_info->flags
 	tst	#_TIF_WORK_MASK, r0
@@ -221,6 +259,10 @@ work_resched:
 1:	.long	schedule
 2:	.long	do_notify_resume
 3:	.long	restore_all
+#ifdef CONFIG_TRACE_IRQFLAGS
+4:	.long	trace_hardirqs_on
+5:	.long	trace_hardirqs_off
+#endif
 
 	.align	2
 syscall_exit_work:
@@ -229,6 +271,11 @@ syscall_exit_work:
 	tst	#_TIF_SYSCALL_TRACE, r0
 	bt/s	work_pending
 	 tst	#_TIF_NEED_RESCHED, r0
+#ifdef CONFIG_TRACE_IRQFLAGS
+	mov.l	5f, r0
+	jsr	@r0
+	 nop
+#endif
 	sti
 	! XXX setup arguments...
 	mov.l	4f, r0			! do_syscall_trace
@@ -265,7 +312,7 @@ syscall_trace_entry:
 	 mov.l	r0, @(OFF_R0,r15)	! Return value
 
 __restore_all:
-	mov.l	1f,r0
+	mov.l	1f, r0
 	jmp	@r0
 	 nop
 
@@ -331,7 +378,13 @@ ENTRY(system_call)
 	 mov	#OFF_TRA, r9
 	add	r15, r9
 	mov.l	r8, @r9			! set TRA value to tra
+#ifdef CONFIG_TRACE_IRQFLAGS
+	mov.l	5f, r10
+	jsr	@r10
+	 nop
+#endif
 	sti
+
 	!
 	get_current_thread_info r8, r10
 	mov.l	@(TI_FLAGS,r8), r8
@@ -355,6 +408,11 @@ syscall_call:
 	!
 syscall_exit:
 	cli
+#ifdef CONFIG_TRACE_IRQFLAGS
+	mov.l	6f, r0
+	jsr	@r0
+	 nop
+#endif
 	!
 	get_current_thread_info r8, r0
 	mov.l	@(TI_FLAGS,r8), r0		! current_thread_info->flags
@@ -369,3 +427,7 @@ syscall_exit:
 2:	.long	NR_syscalls
 3:	.long	sys_call_table
 4:	.long	do_syscall_trace
+#ifdef CONFIG_TRACE_IRQFLAGS
+5:	.long	trace_hardirqs_on
+6:	.long	trace_hardirqs_off
+#endif

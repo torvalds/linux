@@ -37,6 +37,9 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	int si_code;
 	siginfo_t info;
 
+	trace_hardirqs_on();
+	local_irq_enable();
+
 #ifdef CONFIG_SH_KGDB
 	if (kgdb_nofault && kgdb_bus_err_hook)
 		kgdb_bus_err_hook();

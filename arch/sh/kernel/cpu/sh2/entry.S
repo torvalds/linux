@@ -184,6 +184,11 @@ trap_entry:
 	add	r15,r8
 	mov.l	r9,@r8
 	mov	r9,r8
+#ifdef CONFIG_TRACE_IRQFLAGS
+	mov.l	5f, r9
+	jsr	@r9
+	 nop
+#endif
 	sti
 	bra	system_call
 	 nop
@@ -193,6 +198,9 @@ trap_entry:
 2:	.long	break_point_trap_software
 3:	.long	NR_syscalls
 4:	.long	sys_call_table
+#ifdef CONFIG_TRACE_IRQFLAGS
+5:	.long	trace_hardirqs_on
+#endif
 
 #if defined(CONFIG_SH_STANDARD_BIOS)
 	/* Unwind the stack and jmp to the debug entry */
@@ -255,6 +263,11 @@ ENTRY(address_error_handler)
 
 restore_all:
 	cli
+#ifdef CONFIG_TRACE_IRQFLAGS
+	mov.l	3f, r0
+	jsr	@r0
+	 nop
+#endif
 	mov	r15,r0
 	mov.l	$cpu_mode,r2
 	mov	#OFF_SR,r3
@@ -307,6 +320,9 @@ $current_thread_info:
 	.long	__current_thread_info
 $cpu_mode:	
 	.long	__cpu_mode
+#ifdef CONFIG_TRACE_IRQFLAGS
+3:	.long	trace_hardirqs_off
+#endif
 		
 ! common exception handler
 #include "../../entry-common.S"
