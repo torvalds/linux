@@ -48,8 +48,6 @@ static inline void arch_reset(char mode)
 	/* call the CPU-specific reset function */
 	if (at91_arch_reset)
 		(at91_arch_reset)();
-
-	for (;;) {}	/* wait fovever */
 }
 
 #endif
