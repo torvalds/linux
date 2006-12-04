@@ -33,9 +33,6 @@ config GENERIC_CALIBRATE_DELAY
 config GENERIC_TIME
 	def_bool y
 
-config GENERIC_BUST_SPINLOCK
-	bool
-
 mainmenu "Linux Kernel Configuration"
 
 config S390
