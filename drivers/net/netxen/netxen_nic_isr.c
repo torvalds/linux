@@ -68,8 +68,7 @@ struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
 void netxen_indicate_link_status(struct netxen_adapter *adapter, u32 portno,
 				 u32 link)
 {
-	struct netxen_port *pport = adapter->port[portno];
-	struct net_device *netdev = pport->netdev;
+	struct net_device *netdev = (adapter->port[portno])->netdev;
 
 	if (link)
 		netif_carrier_on(netdev);

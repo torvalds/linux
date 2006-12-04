@@ -36,7 +36,7 @@
 #define NETXEN_NIC_CMD		(NETXEN_CMD_START + 1)
 #define NETXEN_NIC_NAME		(NETXEN_CMD_START + 2)
 #define NETXEN_NIC_NAME_LEN	16
-#define NETXEN_NIC_NAME_RSP	"NETXEN"
+#define NETXEN_NIC_NAME_RSP	"NETXEN-UNM"
 
 typedef enum {
 	netxen_nic_cmd_none = 0,

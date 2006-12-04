@@ -459,20 +459,22 @@ netxen_nic_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ring)
 {
 	struct netxen_port *port = netdev_priv(dev);
 	struct netxen_adapter *adapter = port->adapter;
-	int i, j;
+	int i;
 
 	ring->rx_pending = 0;
+	ring->rx_jumbo_pending = 0;
 	for (i = 0; i < MAX_RCV_CTX; ++i) {
-		for (j = 0; j < NUM_RCV_DESC_RINGS; j++)
-			ring->rx_pending +=
-			    adapter->recv_ctx[i].rcv_desc[j].rcv_pending;
+		ring->rx_pending += adapter->recv_ctx[i].
+		    rcv_desc[RCV_DESC_NORMAL_CTXID].rcv_pending;
+		ring->rx_jumbo_pending += adapter->recv_ctx[i].
+		    rcv_desc[RCV_DESC_JUMBO_CTXID].rcv_pending;
 	}
 
 	ring->rx_max_pending = adapter->max_rx_desc_count;
 	ring->tx_max_pending = adapter->max_tx_desc_count;
+	ring->rx_jumbo_max_pending = adapter->max_jumbo_rx_desc_count;
 	ring->rx_mini_max_pending = 0;
 	ring->rx_mini_pending = 0;
-	ring->rx_jumbo_max_pending = 0;
 	ring->rx_jumbo_pending = 0;
 }
 

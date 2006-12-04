@@ -137,6 +137,8 @@ int netxen_init_firmware(struct netxen_adapter *adapter)
 		return err;
 	}
 	/* Window 1 call */
+	writel(MPORT_SINGLE_FUNCTION_MODE,
+	       NETXEN_CRB_NORMALIZE(adapter, CRB_MPORT_MODE));
 	writel(PHAN_INITIALIZE_ACK,
 	       NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
 
@@ -184,15 +186,12 @@ void netxen_initialize_adapter_sw(struct netxen_adapter *adapter)
 			for (i = 0; i < num_rx_bufs; i++) {
 				rx_buf->ref_handle = i;
 				rx_buf->state = NETXEN_BUFFER_FREE;
-
 				DPRINTK(INFO, "Rx buf:ctx%d i(%d) rx_buf:"
 					"%p\n", ctxid, i, rx_buf);
 				rx_buf++;
 			}
 		}
 	}
-	DPRINTK(INFO, "initialized buffers for %s and %s\n",
-		"adapter->free_cmd_buf_list", "adapter->free_rxbuf");
 }
 
 void netxen_initialize_adapter_hw(struct netxen_adapter *adapter)
@@ -621,6 +620,43 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 	return 0;
 }
 
+int netxen_initialize_adapter_offload(struct netxen_adapter *adapter)
+{
+	uint64_t addr;
+	uint32_t hi;
+	uint32_t lo;
+
+	adapter->dummy_dma.addr =
+	    pci_alloc_consistent(adapter->ahw.pdev,
+				 NETXEN_HOST_DUMMY_DMA_SIZE,
+				 &adapter->dummy_dma.phys_addr);
+	if (adapter->dummy_dma.addr == NULL) {
+		printk("%s: ERROR: Could not allocate dummy DMA memory\n",
+		       __FUNCTION__);
+		return -ENOMEM;
+	}
+
+	addr = (uint64_t) adapter->dummy_dma.phys_addr;
+	hi = (addr >> 32) & 0xffffffff;
+	lo = addr & 0xffffffff;
+
+	writel(hi, NETXEN_CRB_NORMALIZE(adapter, CRB_HOST_DUMMY_BUF_ADDR_HI));
+	writel(lo, NETXEN_CRB_NORMALIZE(adapter, CRB_HOST_DUMMY_BUF_ADDR_LO));
+
+	return 0;
+}
+
+void netxen_free_adapter_offload(struct netxen_adapter *adapter)
+{
+	if (adapter->dummy_dma.addr) {
+		pci_free_consistent(adapter->ahw.pdev,
+				    NETXEN_HOST_DUMMY_DMA_SIZE,
+				    adapter->dummy_dma.addr,
+				    adapter->dummy_dma.phys_addr);
+		adapter->dummy_dma.addr = NULL;
+	}
+}
+
 void netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val)
 {
 	u32 val = 0;
@@ -655,7 +691,8 @@ int netxen_nic_rx_has_work(struct netxen_adapter *adapter)
 		desc_head = recv_ctx->rcv_status_desc_head;
 		desc = &desc_head[consumer];
 
-		if (((le16_to_cpu(desc->owner)) & STATUS_OWNER_HOST))
+		if (((le16_to_cpu(netxen_get_sts_owner(desc)))
+		     & STATUS_OWNER_HOST))
 			return 1;
 	}
 
@@ -747,19 +784,19 @@ void
 netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 		   struct status_desc *desc)
 {
-	struct netxen_port *port = adapter->port[STATUS_DESC_PORT(desc)];
+	struct netxen_port *port = adapter->port[netxen_get_sts_port(desc)];
 	struct pci_dev *pdev = port->pdev;
 	struct net_device *netdev = port->netdev;
-	int index = le16_to_cpu(desc->reference_handle);
+	int index = le16_to_cpu(netxen_get_sts_refhandle(desc));
 	struct netxen_recv_context *recv_ctx = &(adapter->recv_ctx[ctxid]);
 	struct netxen_rx_buffer *buffer;
 	struct sk_buff *skb;
-	u32 length = le16_to_cpu(desc->total_length);
+	u32 length = le16_to_cpu(netxen_get_sts_totallength(desc));
 	u32 desc_ctx;
 	struct netxen_rcv_desc_ctx *rcv_desc;
 	int ret;
 
-	desc_ctx = STATUS_DESC_TYPE(desc);
+	desc_ctx = netxen_get_sts_type(desc);
 	if (unlikely(desc_ctx >= NUM_RCV_DESC_RINGS)) {
 		printk("%s: %s Bad Rcv descriptor ring\n",
 		       netxen_nic_driver_name, netdev->name);
@@ -767,20 +804,49 @@ netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 	}
 
 	rcv_desc = &recv_ctx->rcv_desc[desc_ctx];
+	if (unlikely(index > rcv_desc->max_rx_desc_count)) {
+		DPRINTK(ERR, "Got a buffer index:%x Max is %x\n",
+			index, rcv_desc->max_rx_desc_count);
+		return;
+	}
 	buffer = &rcv_desc->rx_buf_arr[index];
+	if (desc_ctx == RCV_DESC_LRO_CTXID) {
+		buffer->lro_current_frags++;
+		if (netxen_get_sts_desc_lro_last_frag(desc)) {
+			buffer->lro_expected_frags =
+			    netxen_get_sts_desc_lro_cnt(desc);
+			buffer->lro_length = length;
+		}
+		if (buffer->lro_current_frags != buffer->lro_expected_frags) {
+			if (buffer->lro_expected_frags != 0) {
+				printk("LRO: (refhandle:%x) recv frag."
+				       "wait for last. flags: %x expected:%d"
+				       "have:%d\n", index,
+				       netxen_get_sts_desc_lro_last_frag(desc),
+				       buffer->lro_expected_frags,
+				       buffer->lro_current_frags);
+			}
+			return;
+		}
+	}
 
 	pci_unmap_single(pdev, buffer->dma, rcv_desc->dma_size,
 			 PCI_DMA_FROMDEVICE);
 
 	skb = (struct sk_buff *)buffer->skb;
 
-	if (likely(STATUS_DESC_STATUS(desc) == STATUS_CKSUM_OK)) {
+	if (likely(netxen_get_sts_status(desc) == STATUS_CKSUM_OK)) {
 		port->stats.csummed++;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	} else
-		skb->ip_summed = CHECKSUM_NONE;
+	}
 	skb->dev = netdev;
-	skb_put(skb, length);
+	if (desc_ctx == RCV_DESC_LRO_CTXID) {
+		/* True length was only available on the last pkt */
+		skb_put(skb, buffer->lro_length);
+	} else {
+		skb_put(skb, length);
+	}
+
 	skb->protocol = eth_type_trans(skb, netdev);
 
 	ret = netif_receive_skb(skb);
@@ -826,6 +892,8 @@ netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 	adapter->stats.post_called++;
 	buffer->skb = NULL;
 	buffer->state = NETXEN_BUFFER_FREE;
+	buffer->lro_current_frags = 0;
+	buffer->lro_expected_frags = 0;
 
 	port->stats.no_rcv++;
 	port->stats.rxbytes += length;
@@ -838,6 +906,7 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 	struct status_desc *desc_head = recv_ctx->rcv_status_desc_head;
 	struct status_desc *desc;	/* used to read status desc here */
 	u32 consumer = recv_ctx->status_rx_consumer;
+	u32 producer = 0;
 	int count = 0, ring;
 
 	DPRINTK(INFO, "procesing receive\n");
@@ -849,18 +918,22 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 	 */
 	while (count < max) {
 		desc = &desc_head[consumer];
-		if (!((le16_to_cpu(desc->owner)) & STATUS_OWNER_HOST)) {
-			DPRINTK(ERR, "desc %p ownedby %x\n", desc, desc->owner);
+		if (!
+		    (le16_to_cpu(netxen_get_sts_owner(desc)) &
+		     STATUS_OWNER_HOST)) {
+			DPRINTK(ERR, "desc %p ownedby %x\n", desc,
+				netxen_get_sts_owner(desc));
 			break;
 		}
 		netxen_process_rcv(adapter, ctxid, desc);
-		desc->owner = STATUS_OWNER_PHANTOM;
+		netxen_clear_sts_owner(desc);
+		netxen_set_sts_owner(desc, STATUS_OWNER_PHANTOM);
 		consumer = (consumer + 1) & (adapter->max_rx_desc_count - 1);
 		count++;
 	}
 	if (count) {
 		for (ring = 0; ring < NUM_RCV_DESC_RINGS; ring++) {
-			netxen_post_rx_buffers(adapter, ctxid, ring);
+			netxen_post_rx_buffers_nodb(adapter, ctxid, ring);
 		}
 	}
 
@@ -868,6 +941,7 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 	if (count) {
 		adapter->stats.process_rcv++;
 		recv_ctx->status_rx_consumer = consumer;
+		recv_ctx->status_rx_producer = producer;
 
 		/* Window = 1 */
 		writel(consumer,
@@ -880,12 +954,13 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 }
 
 /* Process Command status ring */
-void netxen_process_cmd_ring(unsigned long data)
+int netxen_process_cmd_ring(unsigned long data)
 {
 	u32 last_consumer;
 	u32 consumer;
 	struct netxen_adapter *adapter = (struct netxen_adapter *)data;
-	int count = 0;
+	int count1 = 0;
+	int count2 = 0;
 	struct netxen_cmd_buffer *buffer;
 	struct netxen_port *port;	/* port #1 */
 	struct netxen_port *nport;
@@ -894,6 +969,7 @@ void netxen_process_cmd_ring(unsigned long data)
 	u32 i;
 	struct sk_buff *skb = NULL;
 	int p;
+	int done;
 
 	spin_lock(&adapter->tx_lock);
 	last_consumer = adapter->last_cmd_consumer;
@@ -903,14 +979,13 @@ void netxen_process_cmd_ring(unsigned long data)
 	 * number as part of the descriptor. This way we will be able to get
 	 * the netdev which is associated with that device.
 	 */
-	consumer =
-	    readl(NETXEN_CRB_NORMALIZE(adapter, CRB_CMD_CONSUMER_OFFSET));
 
+	consumer = *(adapter->cmd_consumer);
 	if (last_consumer == consumer) {	/* Ring is empty    */
 		DPRINTK(INFO, "last_consumer %d == consumer %d\n",
 			last_consumer, consumer);
 		spin_unlock(&adapter->tx_lock);
-		return;
+		return 1;
 	}
 
 	adapter->proc_cmd_buf_counter++;
@@ -921,7 +996,7 @@ void netxen_process_cmd_ring(unsigned long data)
 	 */
 	spin_unlock(&adapter->tx_lock);
 
-	while ((last_consumer != consumer) && (count < MAX_STATUS_HANDLE)) {
+	while ((last_consumer != consumer) && (count1 < MAX_STATUS_HANDLE)) {
 		buffer = &adapter->cmd_buf_arr[last_consumer];
 		port = adapter->port[buffer->port];
 		pdev = port->pdev;
@@ -947,24 +1022,25 @@ void netxen_process_cmd_ring(unsigned long data)
 			     && netif_carrier_ok(port->netdev))
 		    && ((jiffies - port->netdev->trans_start) >
 			port->netdev->watchdog_timeo)) {
-			schedule_work(&port->adapter->tx_timeout_task);
+			SCHEDULE_WORK(port->adapter->tx_timeout_task
+				      + port->portnum);
 		}
 
 		last_consumer = get_next_index(last_consumer,
 					       adapter->max_tx_desc_count);
-		count++;
+		count1++;
 	}
-	adapter->stats.noxmitdone += count;
+	adapter->stats.noxmitdone += count1;
 
-	count = 0;
+	count2 = 0;
 	spin_lock(&adapter->tx_lock);
 	if ((--adapter->proc_cmd_buf_counter) == 0) {
 		adapter->last_cmd_consumer = last_consumer;
 		while ((adapter->last_cmd_consumer != consumer)
-		       && (count < MAX_STATUS_HANDLE)) {
+		       && (count2 < MAX_STATUS_HANDLE)) {
 			buffer =
 			    &adapter->cmd_buf_arr[adapter->last_cmd_consumer];
-			count++;
+			count2++;
 			if (buffer->skb)
 				break;
 			else
@@ -973,7 +1049,7 @@ void netxen_process_cmd_ring(unsigned long data)
 						   adapter->max_tx_desc_count);
 		}
 	}
-	if (count) {
+	if (count1 || count2) {
 		for (p = 0; p < adapter->ahw.max_ports; p++) {
 			nport = adapter->port[p];
 			if (netif_queue_stopped(nport->netdev)
@@ -983,10 +1059,30 @@ void netxen_process_cmd_ring(unsigned long data)
 			}
 		}
 	}
+	/*
+	 * If everything is freed up to consumer then check if the ring is full
+	 * If the ring is full then check if more needs to be freed and
+	 * schedule the call back again.
+	 *
+	 * This happens when there are 2 CPUs. One could be freeing and the
+	 * other filling it. If the ring is full when we get out of here and
+	 * the card has already interrupted the host then the host can miss the
+	 * interrupt.
+	 *
+	 * There is still a possible race condition and the host could miss an
+	 * interrupt. The card has to take care of this.
+	 */
+	if (adapter->last_cmd_consumer == consumer &&
+	    (((adapter->cmd_producer + 1) %
+	      adapter->max_tx_desc_count) == adapter->last_cmd_consumer)) {
+		consumer = *(adapter->cmd_consumer);
+	}
+	done = (adapter->last_cmd_consumer == consumer);
 
 	spin_unlock(&adapter->tx_lock);
 	DPRINTK(INFO, "last consumer is %d in %s\n", last_consumer,
 		__FUNCTION__);
+	return (done);
 }
 
 /*
@@ -998,8 +1094,105 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 	struct sk_buff *skb;
 	struct netxen_recv_context *recv_ctx = &(adapter->recv_ctx[ctx]);
 	struct netxen_rcv_desc_ctx *rcv_desc = NULL;
-	struct netxen_recv_crb *crbarea = &recv_crb_registers[ctx];
-	struct netxen_rcv_desc_crb *rcv_desc_crb = NULL;
+	uint producer;
+	struct rcv_desc *pdesc;
+	struct netxen_rx_buffer *buffer;
+	int count = 0;
+	int index = 0;
+	netxen_ctx_msg msg = 0;
+	dma_addr_t dma;
+
+	adapter->stats.post_called++;
+	rcv_desc = &recv_ctx->rcv_desc[ringid];
+
+	producer = rcv_desc->producer;
+	index = rcv_desc->begin_alloc;
+	buffer = &rcv_desc->rx_buf_arr[index];
+	/* We can start writing rx descriptors into the phantom memory. */
+	while (buffer->state == NETXEN_BUFFER_FREE) {
+		skb = dev_alloc_skb(rcv_desc->skb_size);
+		if (unlikely(!skb)) {
+			/*
+			 * TODO
+			 * We need to schedule the posting of buffers to the pegs.
+			 */
+			rcv_desc->begin_alloc = index;
+			DPRINTK(ERR, "netxen_post_rx_buffers: "
+				" allocated only %d buffers\n", count);
+			break;
+		}
+
+		count++;	/* now there should be no failure */
+		pdesc = &rcv_desc->desc_head[producer];
+
+#if defined(XGB_DEBUG)
+		*(unsigned long *)(skb->head) = 0xc0debabe;
+		if (skb_is_nonlinear(skb)) {
+			printk("Allocated SKB @%p is nonlinear\n");
+		}
+#endif
+		skb_reserve(skb, 2);
+		/* This will be setup when we receive the
+		 * buffer after it has been filled  FSL  TBD TBD
+		 * skb->dev = netdev;
+		 */
+		dma = pci_map_single(pdev, skb->data, rcv_desc->dma_size,
+				     PCI_DMA_FROMDEVICE);
+		pdesc->addr_buffer = dma;
+		buffer->skb = skb;
+		buffer->state = NETXEN_BUFFER_BUSY;
+		buffer->dma = dma;
+		/* make a rcv descriptor  */
+		pdesc->reference_handle = buffer->ref_handle;
+		pdesc->buffer_length = rcv_desc->dma_size;
+		DPRINTK(INFO, "done writing descripter\n");
+		producer =
+		    get_next_index(producer, rcv_desc->max_rx_desc_count);
+		index = get_next_index(index, rcv_desc->max_rx_desc_count);
+		buffer = &rcv_desc->rx_buf_arr[index];
+	}
+	/* if we did allocate buffers, then write the count to Phantom */
+	if (count) {
+		rcv_desc->begin_alloc = index;
+		rcv_desc->rcv_pending += count;
+		adapter->stats.lastposted = count;
+		adapter->stats.posted += count;
+		rcv_desc->producer = producer;
+		if (rcv_desc->rcv_free >= 32) {
+			rcv_desc->rcv_free = 0;
+			/* Window = 1 */
+			writel((producer - 1) &
+			       (rcv_desc->max_rx_desc_count - 1),
+			       NETXEN_CRB_NORMALIZE(adapter,
+						    recv_crb_registers[0].
+						    rcv_desc_crb[ringid].
+						    crb_rcv_producer_offset));
+			/*
+			 * Write a doorbell msg to tell phanmon of change in
+			 * receive ring producer
+			 */
+			netxen_set_msg_peg_id(msg, NETXEN_RCV_PEG_DB_ID);
+			netxen_set_msg_privid(msg);
+			netxen_set_msg_count(msg,
+					     ((producer -
+					       1) & (rcv_desc->
+						     max_rx_desc_count - 1)));
+			netxen_set_msg_ctxid(msg, 0);
+			netxen_set_msg_opcode(msg, NETXEN_RCV_PRODUCER(ringid));
+			writel(msg,
+			       DB_NORMALIZE(adapter,
+					    NETXEN_RCV_PRODUCER_OFFSET));
+		}
+	}
+}
+
+void netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter, uint32_t ctx,
+				 uint32_t ringid)
+{
+	struct pci_dev *pdev = adapter->ahw.pdev;
+	struct sk_buff *skb;
+	struct netxen_recv_context *recv_ctx = &(adapter->recv_ctx[ctx]);
+	struct netxen_rcv_desc_ctx *rcv_desc = NULL;
 	u32 producer;
 	struct rcv_desc *pdesc;
 	struct netxen_rx_buffer *buffer;
@@ -1008,7 +1201,6 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 
 	adapter->stats.post_called++;
 	rcv_desc = &recv_ctx->rcv_desc[ringid];
-	rcv_desc_crb = &crbarea->rcv_desc_crb[ringid];
 
 	producer = rcv_desc->producer;
 	index = rcv_desc->begin_alloc;
@@ -1021,13 +1213,13 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 			 * We need to schedule the posting of buffers to the pegs.
 			 */
 			rcv_desc->begin_alloc = index;
-			DPRINTK(ERR, "netxen_post_rx_buffers: "
+			DPRINTK(ERR, "netxen_post_rx_buffers_nodb: "
 				" allocated only %d buffers\n", count);
 			break;
 		}
 		count++;	/* now there should be no failure */
 		pdesc = &rcv_desc->desc_head[producer];
-		skb_reserve(skb, NET_IP_ALIGN);
+		skb_reserve(skb, 2);
 		/* 
 		 * This will be setup when we receive the
 		 * buffer after it has been filled
@@ -1038,6 +1230,7 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 		buffer->dma = pci_map_single(pdev, skb->data,
 					     rcv_desc->dma_size,
 					     PCI_DMA_FROMDEVICE);
+
 		/* make a rcv descriptor  */
 		pdesc->reference_handle = le16_to_cpu(buffer->ref_handle);
 		pdesc->buffer_length = le16_to_cpu(rcv_desc->dma_size);
@@ -1062,7 +1255,8 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 			writel((producer - 1) &
 			       (rcv_desc->max_rx_desc_count - 1),
 			       NETXEN_CRB_NORMALIZE(adapter,
-						    rcv_desc_crb->
+						    recv_crb_registers[0].
+						    rcv_desc_crb[ringid].
 						    crb_rcv_producer_offset));
 			wmb();
 		}
@@ -1195,8 +1389,8 @@ netxen_nic_do_ioctl(struct netxen_adapter *adapter, void *u_data,
 
 	switch (data.cmd) {
 	case netxen_nic_cmd_pci_read:
-		if ((retval = netxen_nic_hw_read_wx(adapter, data.off,
-						    &(data.u), data.size)))
+		if ((retval = netxen_nic_hw_read_ioctl(adapter, data.off,
+						       &(data.u), data.size)))
 			goto error_out;
 		if (copy_to_user
 		    ((void __user *)&(up_data->u), &(data.u), data.size)) {
@@ -1209,8 +1403,35 @@ netxen_nic_do_ioctl(struct netxen_adapter *adapter, void *u_data,
 		break;
 
 	case netxen_nic_cmd_pci_write:
-		data.rv = netxen_nic_hw_write_wx(adapter, data.off, &(data.u),
-						 data.size);
+		if ((retval = netxen_nic_hw_write_ioctl(adapter, data.off,
+							&(data.u), data.size)))
+			goto error_out;
+		data.rv = 0;
+		break;
+
+	case netxen_nic_cmd_pci_mem_read:
+		if (netxen_nic_pci_mem_read_ioctl(adapter, data.off, &(data.u),
+						  data.size)) {
+			DPRINTK(ERR, "Failed to read the data.\n");
+			retval = -EFAULT;
+			goto error_out;
+		}
+		if (copy_to_user
+		    ((void __user *)&(up_data->u), &(data.u), data.size)) {
+			DPRINTK(ERR, "bad copy to userland: %d\n",
+				(int)sizeof(data));
+			retval = -EFAULT;
+			goto error_out;
+		}
+		data.rv = 0;
+		break;
+
+	case netxen_nic_cmd_pci_mem_write:
+		if ((retval = netxen_nic_pci_mem_write_ioctl(adapter, data.off,
+							     &(data.u),
+							     data.size)))
+			goto error_out;
+		data.rv = 0;
 		break;
 
 	case netxen_nic_cmd_pci_config_read:
@@ -1295,7 +1516,7 @@ netxen_nic_do_ioctl(struct netxen_adapter *adapter, void *u_data,
 		retval = -EOPNOTSUPP;
 		goto error_out;
 	}
-	put_user(data.rv, (u16 __user *) (&(up_data->rv)));
+	put_user(data.rv, (&(up_data->rv)));
 	DPRINTK(INFO, "done ioctl for %p well.\n", adapter);
 
       error_out:
