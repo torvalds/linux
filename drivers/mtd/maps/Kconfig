@@ -195,7 +195,7 @@ config MTD_ICHXROM
 
 config MTD_ESB2ROM
         tristate "BIOS flash chip on Intel ESB Controller Hub 2"
-        depends on X86 && MTD_JEDECPROBE
+        depends on X86 && MTD_JEDECPROBE && PCI
         help
           Support for treating the BIOS flash chip on ESB2 motherboards
           as an MTD device - with this you can reprogram your BIOS.
