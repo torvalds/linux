@@ -684,21 +684,26 @@ dasd_ro_store(struct device *dev, struct device_attribute *attr,
 	      const char *buf, size_t count)
 {
 	struct dasd_devmap *devmap;
-	int ro_flag;
+	int val;
+	char *endp;
 
 	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
 	if (IS_ERR(devmap))
 		return PTR_ERR(devmap);
-	ro_flag = buf[0] == '1';
+
+	val = simple_strtoul(buf, &endp, 0);
+	if (((endp + 1) < (buf + count)) || (val > 1))
+		return -EINVAL;
+
 	spin_lock(&dasd_devmap_lock);
-	if (ro_flag)
+	if (val)
 		devmap->features |= DASD_FEATURE_READONLY;
 	else
 		devmap->features &= ~DASD_FEATURE_READONLY;
 	if (devmap->device)
 		devmap->device->features = devmap->features;
 	if (devmap->device && devmap->device->gdp)
-		set_disk_ro(devmap->device->gdp, ro_flag);
+		set_disk_ro(devmap->device->gdp, val);
 	spin_unlock(&dasd_devmap_lock);
 	return count;
 }
@@ -729,17 +734,22 @@ dasd_use_diag_store(struct device *dev, struct device_attribute *attr,
 {
 	struct dasd_devmap *devmap;
 	ssize_t rc;
-	int use_diag;
+	int val;
+	char *endp;
 
 	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
 	if (IS_ERR(devmap))
 		return PTR_ERR(devmap);
-	use_diag = buf[0] == '1';
+
+	val = simple_strtoul(buf, &endp, 0);
+	if (((endp + 1) < (buf + count)) || (val > 1))
+		return -EINVAL;
+
 	spin_lock(&dasd_devmap_lock);
 	/* Changing diag discipline flag is only allowed in offline state. */
 	rc = count;
 	if (!devmap->device) {
-		if (use_diag)
+		if (val)
 			devmap->features |= DASD_FEATURE_USEDIAG;
 		else
 			devmap->features &= ~DASD_FEATURE_USEDIAG;
@@ -854,20 +864,25 @@ dasd_eer_store(struct device *dev, struct device_attribute *attr,
 	       const char *buf, size_t count)
 {
 	struct dasd_devmap *devmap;
-	int rc;
+	int val, rc;
+	char *endp;
 
 	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
 	if (IS_ERR(devmap))
 		return PTR_ERR(devmap);
 	if (!devmap->device)
-		return count;
-	if (buf[0] == '1') {
+		return -ENODEV;
+
+	val = simple_strtoul(buf, &endp, 0);
+	if (((endp + 1) < (buf + count)) || (val > 1))
+		return -EINVAL;
+
+	rc = count;
+	if (val)
 		rc = dasd_eer_enable(devmap->device);
-		if (rc)
-			return rc;
-	} else
+	else
 		dasd_eer_disable(devmap->device);
-	return count;
+	return rc;
 }
 
 static DEVICE_ATTR(eer_enabled, 0644, dasd_eer_show, dasd_eer_store);
