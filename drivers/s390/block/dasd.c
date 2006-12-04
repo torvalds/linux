@@ -1264,15 +1264,21 @@ __dasd_check_expire(struct dasd_device * device)
 	if (list_empty(&device->ccw_queue))
 		return;
 	cqr = list_entry(device->ccw_queue.next, struct dasd_ccw_req, list);
-	if (cqr->status == DASD_CQR_IN_IO && cqr->expires != 0) {
-		if (time_after_eq(jiffies, cqr->expires + cqr->starttime)) {
+	if ((cqr->status == DASD_CQR_IN_IO && cqr->expires != 0) &&
+	    (time_after_eq(jiffies, cqr->expires + cqr->starttime))) {
+		if (device->discipline->term_IO(cqr) != 0) {
+			/* Hmpf, try again in 5 sec */
+			dasd_set_timer(device, 5*HZ);
+			DEV_MESSAGE(KERN_ERR, device,
+				    "internal error - timeout (%is) expired "
+				    "for cqr %p, termination failed, "
+				    "retrying in 5s",
+				    (cqr->expires/HZ), cqr);
+		} else {
 			DEV_MESSAGE(KERN_ERR, device,
 				    "internal error - timeout (%is) expired "
 				    "for cqr %p (%i retries left)",
 				    (cqr->expires/HZ), cqr, cqr->retries);
-			if (device->discipline->term_IO(cqr) != 0)
-				/* Hmpf, try again in 1/10 sec */
-				dasd_set_timer(device, 10);
 		}
 	}
 }
