@@ -2460,12 +2460,6 @@ static int mos7840_ioctl(struct usb_serial_port *port, struct file *file,
 		tty_ldisc_deref(ld);
 		return 0;
 
-	case TCGETS:
-		if (kernel_termios_to_user_termios
-		    ((struct termios __user *)argp, tty->termios))
-			return -EFAULT;
-		return 0;
-
 	case TIOCSERGETLSR:
 		dbg("%s (%d) TIOCSERGETLSR", __FUNCTION__, port->number);
 		return mos7840_get_lsr_info(mos7840_port, argp);

@@ -87,10 +87,6 @@ static int  klsi_105_write_room          (struct usb_serial_port *port);
 static void klsi_105_read_bulk_callback  (struct urb *urb);
 static void klsi_105_set_termios         (struct usb_serial_port *port,
 					  struct ktermios *old);
-static int  klsi_105_ioctl	         (struct usb_serial_port *port,
-					  struct file * file,
-					  unsigned int cmd,
-					  unsigned long arg);
 static void klsi_105_throttle		 (struct usb_serial_port *port);
 static void klsi_105_unthrottle		 (struct usb_serial_port *port);
 /*
@@ -140,7 +136,6 @@ static struct usb_serial_driver kl5kusb105d_device = {
 	.chars_in_buffer =   klsi_105_chars_in_buffer,
 	.write_room =        klsi_105_write_room,
 	.read_bulk_callback =klsi_105_read_bulk_callback,
-	.ioctl =	     klsi_105_ioctl,
 	.set_termios =	     klsi_105_set_termios,
 	/*.break_ctl =	     klsi_105_break_ctl,*/
 	.tiocmget =          klsi_105_tiocmget,
@@ -899,69 +894,6 @@ static int klsi_105_tiocmset (struct usb_serial_port *port, struct file *file,
 */
 	return retval;
 }
-					
-static int klsi_105_ioctl (struct usb_serial_port *port, struct file * file,
-			   unsigned int cmd, unsigned long arg)
-{
-	struct klsi_105_private *priv = usb_get_serial_port_data(port);
-	void __user *user_arg = (void __user *)arg;
-	
-	dbg("%scmd=0x%x", __FUNCTION__, cmd);
-
-	/* Based on code from acm.c and others */
-	switch (cmd) {
-	case TIOCMIWAIT:
-		/* wait for any of the 4 modem inputs (DCD,RI,DSR,CTS)*/
-		/* TODO */
-		dbg("%s - TIOCMIWAIT not handled", __FUNCTION__);
-		return -ENOIOCTLCMD;
-	case TIOCGICOUNT:
-		/* return count of modemline transitions */
-		/* TODO */
-		dbg("%s - TIOCGICOUNT not handled", __FUNCTION__);
-		return -ENOIOCTLCMD;
-	case TCGETS:
-		/* return current info to caller */
-		dbg("%s - TCGETS data faked/incomplete", __FUNCTION__);
-
-		if (!access_ok(VERIFY_WRITE, user_arg, sizeof(struct termios)))
-			return -EFAULT;
-
-		if (kernel_termios_to_user_termios((struct termios __user *)arg,
-						   &priv->termios))
-			return -EFAULT;
-		return 0;
-	case TCSETS:
-		/* set port termios to the one given by the user */
-		dbg("%s - TCSETS not handled", __FUNCTION__);
-
-		if (!access_ok(VERIFY_READ, user_arg, sizeof(struct termios)))
-			return -EFAULT;
-
-		if (user_termios_to_kernel_termios(&priv->termios,
-						   (struct termios __user *)arg))
-			return -EFAULT;
-		klsi_105_set_termios(port, &priv->termios);
-		return 0;
-	case TCSETSW: {
-		/* set port termios and try to wait for completion of last
-		 * write operation */
-		/* We guess here. If there are not too many write urbs
-		 * outstanding, we lie. */
-		/* what is the right way to wait here? schedule() ? */
-	        /*
-		while (klsi_105_chars_in_buffer(port) > (NUM_URBS / 4 ) * URB_TRANSFER_BUFFER_SIZE)
-			    schedule();
-		 */
-		return -ENOIOCTLCMD;
-		      }
-	default:
-		dbg("%s: arg not supported - 0x%04x", __FUNCTION__,cmd);
-		return(-ENOIOCTLCMD);
-		break;
-	}
-	return 0;
-} /* klsi_105_ioctl */
 
 static void klsi_105_throttle (struct usb_serial_port *port)
 {
