@@ -467,6 +467,8 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 			config |= TDA9887_INTERCARRIER;
 /*		if (params->port1_set_for_fm_mono)
 			config &= ~TDA9887_PORT1_ACTIVE;*/
+		if (params->fm_gain_normal)
+			config |= TDA9887_GAIN_NORMAL;
 		i2c_clients_command(c->adapter, TDA9887_SET_CONFIG, &config);
 	}
 	if (4 != (rc = i2c_master_send(c,buffer,4)))
