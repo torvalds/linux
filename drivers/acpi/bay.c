@@ -69,7 +69,7 @@ struct bay {
 	struct platform_device *pdev;
 };
 
-LIST_HEAD(drive_bays);
+static LIST_HEAD(drive_bays);
 
 
 /*****************************************************************************
