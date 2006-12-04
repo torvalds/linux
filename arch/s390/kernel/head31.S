@@ -131,10 +131,11 @@ startup_continue:
 	.long	init_thread_union
 .Lpmask:
 	.byte	0
-.align 8
+	.align	8
 .Lpcext:.long	0x00080000,0x80000000
 .Lcr:
 	.long	0x00			# place holder for cr0
+	.align	8
 .Lwaitsclp:
 	.long 0x010a0000,0x80000000 + .Lsclph
 .Lrcp:
