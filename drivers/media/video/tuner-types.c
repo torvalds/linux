@@ -651,6 +651,7 @@ static struct tuner_params tuner_microtune_4049_fm5_params[] = {
 		.has_tda9887 = 1,
 		.port1_invert_for_secam_lc = 1,
 		.default_pll_gating_18 = 1,
+		.fm_gain_normal=1,
 	},
 };
 
