@@ -171,6 +171,17 @@ static u32 snd_ymfpci_calc_lpfQ(u32 rate)
 	return val[0];
 }
 
+static void snd_ymfpci_pcm_441_volume_set(struct snd_ymfpci_pcm *ypcm)
+{
+	unsigned int value;
+	struct snd_ymfpci_pcm_mixer *mixer;
+	
+	mixer = &ypcm->chip->pcm_mixer[ypcm->substream->number];
+	value = min_t(unsigned int, mixer->left, 0x7fff) >> 1;
+	value |= (min_t(unsigned int, mixer->right, 0x7fff) >> 1) << 16;
+	snd_ymfpci_writel(ypcm->chip, YDSXGR_BUF441OUTVOL, value);
+}
+
 /*
  *  Hardware start management
  */
@@ -282,6 +293,10 @@ static int snd_ymfpci_voice_free(struct snd_ymfpci *chip, struct snd_ymfpci_voic
 	snd_assert(pvoice != NULL, return -EINVAL);
 	snd_ymfpci_hw_stop(chip);
 	spin_lock_irqsave(&chip->voice_lock, flags);
+	if (pvoice->number == chip->src441_used) {
+		chip->src441_used = -1;
+		pvoice->ypcm->use_441_slot = 0;
+	}
 	pvoice->use = pvoice->pcm = pvoice->synth = pvoice->midi = 0;
 	pvoice->ypcm = NULL;
 	pvoice->interrupt = NULL;
@@ -386,7 +401,7 @@ static int snd_ymfpci_playback_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	case SNDRV_PCM_TRIGGER_RESUME:
 		chip->ctrl_playback[ypcm->voices[0]->number + 1] = cpu_to_le32(ypcm->voices[0]->bank_addr);
-		if (ypcm->voices[1] != NULL)
+		if (ypcm->voices[1] != NULL && !ypcm->use_441_slot)
 			chip->ctrl_playback[ypcm->voices[1]->number + 1] = cpu_to_le32(ypcm->voices[1]->bank_addr);
 		ypcm->running = 1;
 		break;
@@ -394,7 +409,7 @@ static int snd_ymfpci_playback_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		chip->ctrl_playback[ypcm->voices[0]->number + 1] = 0;
-		if (ypcm->voices[1] != NULL)
+		if (ypcm->voices[1] != NULL && !ypcm->use_441_slot)
 			chip->ctrl_playback[ypcm->voices[1]->number + 1] = 0;
 		ypcm->running = 0;
 		break;
@@ -481,6 +496,7 @@ static void snd_ymfpci_pcm_init_voice(struct snd_ymfpci_pcm *ypcm, unsigned int 
 	unsigned int nbank;
 	u32 vol_left, vol_right;
 	u8 use_left, use_right;
+	unsigned long flags;
 
 	snd_assert(voice != NULL, return);
 	if (runtime->channels == 1) {
@@ -499,11 +515,27 @@ static void snd_ymfpci_pcm_init_voice(struct snd_ymfpci_pcm *ypcm, unsigned int 
 		vol_left = cpu_to_le32(0x40000000);
 		vol_right = cpu_to_le32(0x40000000);
 	}
+	spin_lock_irqsave(&ypcm->chip->voice_lock, flags);
 	format = runtime->channels == 2 ? 0x00010000 : 0;
 	if (snd_pcm_format_width(runtime->format) == 8)
 		format |= 0x80000000;
+	else if (ypcm->chip->device_id == PCI_DEVICE_ID_YAMAHA_754 &&
+		 runtime->rate == 44100 && runtime->channels == 2 &&
+		 voiceidx == 0 && (ypcm->chip->src441_used == -1 ||
+				   ypcm->chip->src441_used == voice->number)) {
+		ypcm->chip->src441_used = voice->number;
+		ypcm->use_441_slot = 1;
+		format |= 0x10000000;
+		snd_ymfpci_pcm_441_volume_set(ypcm);
+	}
+	if (ypcm->chip->src441_used == voice->number &&
+	    (format & 0x10000000) == 0) {
+		ypcm->chip->src441_used = -1;
+		ypcm->use_441_slot = 0;
+	}
 	if (runtime->channels == 2 && (voiceidx & 1) != 0)
 		format |= 1;
+	spin_unlock_irqrestore(&ypcm->chip->voice_lock, flags);
 	for (nbank = 0; nbank < 2; nbank++) {
 		bank = &voice->bank[nbank];
 		memset(bank, 0, sizeof(*bank));
@@ -1714,7 +1746,10 @@ static int snd_ymfpci_pcm_vol_put(struct snd_kcontrol *kcontrol,
 		spin_lock_irqsave(&chip->voice_lock, flags);
 		if (substream->runtime && substream->runtime->private_data) {
 			struct snd_ymfpci_pcm *ypcm = substream->runtime->private_data;
-			ypcm->update_pcm_vol = 2;
+			if (!ypcm->use_441_slot)
+				ypcm->update_pcm_vol = 2;
+			else
+				snd_ymfpci_pcm_441_volume_set(ypcm);
 		}
 		spin_unlock_irqrestore(&chip->voice_lock, flags);
 		return 1;
@@ -2253,7 +2288,7 @@ static int saved_regs_index[] = {
 	YDSXGR_PRIADCLOOPVOL,
 	YDSXGR_NATIVEDACINVOL,
 	YDSXGR_NATIVEDACOUTVOL,
-	// YDSXGR_BUF441OUTVOL,
+	YDSXGR_BUF441OUTVOL,
 	YDSXGR_NATIVEADCINVOL,
 	YDSXGR_SPDIFLOOPVOL,
 	YDSXGR_SPDIFOUTVOL,
@@ -2368,6 +2403,7 @@ int __devinit snd_ymfpci_create(struct snd_card *card,
 	chip->reg_area_phys = pci_resource_start(pci, 0);
 	chip->reg_area_virt = ioremap_nocache(chip->reg_area_phys, 0x8000);
 	pci_set_master(pci);
+	chip->src441_used = -1;
 
 	if ((chip->res_reg_area = request_mem_region(chip->reg_area_phys, 0x8000, "YMFPCI")) == NULL) {
 		snd_printk(KERN_ERR "unable to grab memory region 0x%lx-0x%lx\n", chip->reg_area_phys, chip->reg_area_phys + 0x8000 - 1);

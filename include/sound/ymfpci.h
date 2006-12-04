@@ -270,6 +270,7 @@ struct snd_ymfpci_pcm {
 	struct snd_pcm_substream *substream;
 	struct snd_ymfpci_voice *voices[2];	/* playback only */
 	unsigned int running: 1,
+		     use_441_slot: 1,
 	             output_front: 1,
 	             output_rear: 1,
 	             swap_rear: 1;
@@ -324,6 +325,7 @@ struct snd_ymfpci {
 
 	u32 active_bank;
 	struct snd_ymfpci_voice voices[64];
+	int src441_used;
 
 	struct snd_ac97_bus *ac97_bus;
 	struct snd_ac97 *ac97;
@@ -346,7 +348,7 @@ struct snd_ymfpci {
 	int mode_dup4ch;
 	int rear_opened;
 	int spdif_opened;
-	struct {
+	struct snd_ymfpci_pcm_mixer {
 		u16 left;
 		u16 right;
 		struct snd_kcontrol *ctl;
