@@ -1,7 +1,7 @@
 /*
  * USB USBVISION Video device driver 0.9.8.3cvs (For Kernel 2.4.19-2.4.32 + 2.6.0-2.6.16)
  *
- * 
+ *
  *
  * Copyright (c) 1999-2005 Joerg Heckenbach <joerg@heckenbach-aw.de>
  *
@@ -181,7 +181,7 @@
  * June 2, 2004 - 0.9.6 Dwaine Garden
  *     - Fixed sourceforge.net cvs repository.
  *     - Added #if LINUX_VERSION_CODE > KERNEL_VERSION(2,4,26) for .owner to help compiling under kernels 2.4.x which do not have the i2c v2.8.x updates.
- *     - Added device Hauppauge WinTv-USB III (PAL) FM Model 597 to usbvision.h	
+ *     - Added device Hauppauge WinTv-USB III (PAL) FM Model 597 to usbvision.h
  *
  * July 1, 2004 -0.9.6 Dwaine Garden
  *     - Patch was submitted by Hal Finkel to fix the problem with the tuner not working under kernel 2.6.7.
@@ -206,7 +206,7 @@
  *     - Changed usbvision_muxsel to address the problem with black & white s-video output for NT1004 devices with saa7114 video decoder.  Thanks to Emmanuel for the patch and testing.
  *     - Fixed up SECAM devices which could not properly output video.  Changes to usbmuxsel.  Thanks to Emmanuel for the patch and everyone with a SECAM device which help test.
  *     - Removed some commented out code.  Clean up.
- *     - Tried to fix up the annoying empty directories in the sourceforge.net cvs.   Fuck it up again.  8*(	
+ *     - Tried to fix up the annoying empty directories in the sourceforge.net cvs.   Fuck it up again.  8*(
  *
  * November 15, 2004 - 0.9.8 Dwaine Garden
  *     - Release new tar - 0.9.8 on sourceforge.net
@@ -228,7 +228,7 @@
  *     - Better support for mythtv.
  *
  * January 2, 2005 - 0.9.8.1cvs Dwaine Garden
- *     - Setup that you can specify which device is used for video.  Default is auto detect next available device number eg.  /dev/videoX  
+ *     - Setup that you can specify which device is used for video.  Default is auto detect next available device number eg.  /dev/videoX
  *     - Setup that you can specify which device is used for radio.  Default is auto detect next available device number eg.  /dev/radioX
  *     - usb_unlink_urb() is deprecated for synchronous unlinks.  Using usb_kill_urb instead.
  *     - usbvision_kvirt_to_pa is deprecated.  Removed.
@@ -251,39 +251,39 @@
  * April 20, 2005 - 0.9.8.2cvs Dwaine Garden
  *     - Release lock in usbvision_v4l_read_done.  -Thanks to nplanel for the patch.
  *     - Additional comments to the driver.
- *     - Fixed some spelling mistakes.  8*)	
+ *     - Fixed some spelling mistakes.  8*)
  *
  * April 23, 2005 - 0.9.8.2cvs Joerg Heckenbach
  *     - Found bug in usbvision line counting. Now there should be no spurious lines in the image any longer.
- *     - Swapped usbvision_register_video and usbvision_configure_video to fix problem with PowerOnAtOpen=0. 
+ *     - Swapped usbvision_register_video and usbvision_configure_video to fix problem with PowerOnAtOpen=0.
  *       Thanks to Erwan Velu
  *
  * April 26, 2005 - 0.9.8.2cvs Joerg Heckenbach
  *     - Fixed problem with rmmod module and oppses. Replaced vfree(usbvision->overlay_base) with iounmap(usbvision->overlay_base).
- *     - Added function usb_get_dev(dev) and ; To help with unloading the module multiple times without crashing. 
+ *     - Added function usb_get_dev(dev) and ; To help with unloading the module multiple times without crashing.
  *       (Keep the reference count in kobjects correct)
  *
  * June 14, 2005 - 0.9.8.2cvs Dwaine
- *     - Missed a change in saa7113.c for checking kernel version.  Added conditional if's.    
+ *     - Missed a change in saa7113.c for checking kernel version.  Added conditional if's.
  *
  * June 15, 2005 - 0.9.8.2cvs Dwaine
- *     - Added new device WinTV device VendorId 0573 and ProductId 4d29.    
+ *     - Added new device WinTV device VendorId 0573 and ProductId 4d29.
  *     - Hacked some support for newer NT1005 devices.  This devices only seem to have one configuration, not multiple configurations like the NT1004.
  *
  * June 29, 2005 - 0.9.8.2cvs Dwaine
- *     - Added new device WinTV device VendorId 0573 and ProductId 4d37.   
- *     - Because of the first empty entry in usbvision_table, modutils failed to create the necessary entries for modules.usbmap. 
- *       This means hotplug won't work for usbvision.  Thanks to Gary Ng.  
+ *     - Added new device WinTV device VendorId 0573 and ProductId 4d37.
+ *     - Because of the first empty entry in usbvision_table, modutils failed to create the necessary entries for modules.usbmap.
+ *       This means hotplug won't work for usbvision.  Thanks to Gary Ng.
  *     - Sent an e-mail to the maintainer of usb.ids.  New devices identified need to be added.
- *     - Fixed compile error with saa7113 under kernel 2.6.12.	
+ *     - Fixed compile error with saa7113 under kernel 2.6.12.
  *
  * July 6, 2005 - 0.9.8.2cvs Dwaine
- *     - Patch submitted by Gary Ng for two additional procfs entries.  Device Input and Frequency setting.  
+ *     - Patch submitted by Gary Ng for two additional procfs entries.  Device Input and Frequency setting.
  *
  * July 12, 2005 - 0.9.8.2cvs Dwaine
  *     - New tuner identified for some devices it's called TCL_MFPE05.  This tuner uses the same API as tuner 38 in tuner.c.
  *     - Thanks to lynx31 for contacting Hauppage and asking them.
- *     - I have no clue as to which devices use this new tuner, so people will have to contact me and tell me.  
+ *     - I have no clue as to which devices use this new tuner, so people will have to contact me and tell me.
  *
  * July 21, 2005 - 0.9.8.2cvs Dwaine
  *     - Patched usbvision.c with missing ifdef kernversion statement so the module will compile with older kernels and v4l.
@@ -305,11 +305,11 @@
  *     -Changed number of bytes for i2c write to 4 as per the NT100X spec sheet.  Thanks to Merlum for finding it.
  *     -Remove the radio option for device Hauppauge WinTV USB device Model 40219 Rev E189.  This device does not have a FM radio.  Thanks to Shadwell.
  *     -Added radio option for device Hauppauge WinTV USB device Model 40219 Rev E189 again.  Just got an e-mail indicating their device has one.  8*)
- *   
+ *
  * Aug 27, 2006 - 0.9.8.3cvs Dwaine
  *     -Changed ifdef statement so the usbvision driver will compile with kernels at 2.6.12.
  *     -Updated readme files for new updated tuner list for v4l devices.
- *      
+ *
  *
  *
  * TODO:
@@ -351,8 +351,8 @@
 #define USBVISION_VERSION __stringify(USBVISION_DRIVER_VERSION_MAJOR) "." __stringify(USBVISION_DRIVER_VERSION_MINOR) "." __stringify(USBVISION_DRIVER_VERSION_PATCHLEVEL) " " USBVISION_DRIVER_VERSION_COMMENT
 #define USBVISION_DRIVER_VERSION KERNEL_VERSION(USBVISION_DRIVER_VERSION_MAJOR,USBVISION_DRIVER_VERSION_MINOR,USBVISION_DRIVER_VERSION_PATCHLEVEL)
 
-#include <media/saa7115.h> 
-#include <media/v4l2-common.h> 
+#include <media/saa7115.h>
+#include <media/v4l2-common.h>
 #include <media/tuner.h>
 #include <media/audiochip.h>
 
@@ -427,14 +427,14 @@ enum {
 };
 
 static struct usbvision_v4l2_format_st usbvision_v4l2_format[] = {
-        { 1, 1,  8, V4L2_PIX_FMT_GREY    , "GREY" },
-        { 1, 2, 16, V4L2_PIX_FMT_RGB565  , "RGB565" },
-        { 1, 3, 24, V4L2_PIX_FMT_RGB24   , "RGB24" },
-        { 1, 4, 32, V4L2_PIX_FMT_RGB32   , "RGB32" },
-        { 1, 2, 16, V4L2_PIX_FMT_RGB555  , "RGB555" },
-        { 1, 2, 16, V4L2_PIX_FMT_YUYV    , "YUV422" },
-        { 1, 2, 12, V4L2_PIX_FMT_YVU420  , "YUV420P" }, // 1.5 !
-        { 1, 2, 16, V4L2_PIX_FMT_YUV422P , "YUV422P" }
+	{ 1, 1,  8, V4L2_PIX_FMT_GREY    , "GREY" },
+	{ 1, 2, 16, V4L2_PIX_FMT_RGB565  , "RGB565" },
+	{ 1, 3, 24, V4L2_PIX_FMT_RGB24   , "RGB24" },
+	{ 1, 4, 32, V4L2_PIX_FMT_RGB32   , "RGB32" },
+	{ 1, 2, 16, V4L2_PIX_FMT_RGB555  , "RGB555" },
+	{ 1, 2, 16, V4L2_PIX_FMT_YUYV    , "YUV422" },
+	{ 1, 2, 12, V4L2_PIX_FMT_YVU420  , "YUV420P" }, // 1.5 !
+	{ 1, 2, 16, V4L2_PIX_FMT_YUV422P , "YUV422P" }
 };
 
 
@@ -447,11 +447,6 @@ static struct usbvision_v4l2_format_st usbvision_v4l2_format[] = {
  */
 #define DEFAULT_SCRATCH_BUF_SIZE	(0x20000)		// 128kB memory scratch buffer
 static const int scratch_buf_size = DEFAULT_SCRATCH_BUF_SIZE;
-
-static int init_brightness = 128;	// Initalize the brightness of the video device
-static int init_contrast = 192;		// Initalize the contrast of the video device
-static int init_saturation = 128;	// Initalize the staturation mode of the video device
-static int init_hue = 128;		// Initalize the Hue settings of the video device
 
 // Function prototypes
 static int usbvision_restart_isoc(struct usb_usbvision *usbvision);
@@ -466,9 +461,9 @@ static int usbvision_unrequest_intra (struct usb_usbvision *usbvision);
 static int usbvision_adjust_compression (struct usb_usbvision *usbvision);
 static int usbvision_measure_bandwidth (struct usb_usbvision *usbvision);
 static void usbvision_release(struct usb_usbvision *usbvision);
-static int usbvision_set_input(struct usb_usbvision *usbvision); 
-static int usbvision_set_output(struct usb_usbvision *usbvision, int width, int height); 
-static void call_i2c_clients(struct usb_usbvision *usbvision, unsigned int cmd, void *arg); 
+static int usbvision_set_input(struct usb_usbvision *usbvision);
+static int usbvision_set_output(struct usb_usbvision *usbvision, int width, int height);
+static void call_i2c_clients(struct usb_usbvision *usbvision, unsigned int cmd, void *arg);
 
 
 // Bit flags (options)
@@ -488,8 +483,8 @@ static int adjustCompression = 1;			// Set the compression to be adaptive
 static int dga = 1;					// Set the default Direct Graphic Access
 static int PowerOnAtOpen = 1;				// Set the default device to power on at startup
 static int SwitchSVideoInput = 0;			// To help people with Black and White output with using s-video input.  Some cables and input device are wired differently.
-static int video_nr = -1;			        // Sequential Number of Video Device
-static int radio_nr = -1;			        // Sequential Number of Radio Device
+static int video_nr = -1;				// Sequential Number of Video Device
+static int radio_nr = -1;				// Sequential Number of Radio Device
 static int vbi_nr = -1;					// Sequential Number of VBI Device
 static char *CustomDevice=NULL;				// Set as nothing....
 
@@ -515,10 +510,10 @@ MODULE_PARM(adjustCompression, "i");			// Grab the compression to be adaptive
 MODULE_PARM(dga, "i");					// Grab the Direct Graphic Access
 MODULE_PARM(PowerOnAtOpen, "i");			// Grab the device to power on at startup
 MODULE_PARM(SwitchSVideoInput, "i");			// To help people with Black and White output with using s-video input.  Some cables and input device are wired differently.
-MODULE_PARM(video_nr, "i");				// video_nr option allows to specify a certain /dev/videoX device (like /dev/video0 or /dev/video1 ...)                 
+MODULE_PARM(video_nr, "i");				// video_nr option allows to specify a certain /dev/videoX device (like /dev/video0 or /dev/video1 ...)
 MODULE_PARM(radio_nr, "i");				// radio_nr option allows to specify a certain /dev/radioX device (like /dev/radio0 or /dev/radio1 ...)
 MODULE_PARM(vbi_nr, "i");				// vbi_nr option allows to specify a certain /dev/vbiX device (like /dev/vbi0 or /dev/vbi1 ...)
-MODULE_PARM(CustomDevice, "s");			        // .... CustomDevice
+MODULE_PARM(CustomDevice, "s");				// .... CustomDevice
 #endif
 
 MODULE_PARM_DESC(flags,	" Set the default Overlay Display mode of the device driver.  Default: 0 (Off)");
@@ -539,7 +534,7 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE(DRIVER_LICENSE);
 	MODULE_VERSION(DRIVER_VERSION);
-	MODULE_ALIAS(DRIVER_ALIAS); 
+	MODULE_ALIAS(DRIVER_ALIAS);
 
 #ifdef MODULE
 static unsigned int autoload = 1;
@@ -549,8 +544,8 @@ static unsigned int autoload = 0;
 
 
 /****************************************************************************************/
-/* SYSFS Code - Copied from the stv680.c usb module.		                        */
-/* Device information is located at /sys/class/video4linux/video0	                */
+/* SYSFS Code - Copied from the stv680.c usb module.					*/
+/* Device information is located at /sys/class/video4linux/video0			*/
 /* Device parameters information is located at /sys/module/usbvision                    */
 /* Device USB Information is located at /sys/bus/usb/drivers/USBVision Video Grabber    */
 /****************************************************************************************/
@@ -567,79 +562,79 @@ static inline struct usb_usbvision *cd_to_usbvision(struct class_device *cd)
 static ssize_t show_version(struct class_device *cd, char *buf)
 {
 	return sprintf(buf, "%s\n", DRIVER_VERSION);
-} 
+}
 static CLASS_DEVICE_ATTR(version, S_IRUGO, show_version, NULL);
 
 static ssize_t show_model(struct class_device *class_dev, char *buf)
 {
-	struct video_device *vdev = to_video_device(class_dev);	
-	struct usb_usbvision *usbvision = video_get_drvdata(vdev);	
+	struct video_device *vdev = to_video_device(class_dev);
+	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%s\n", usbvision_device_data[usbvision->DevModel].ModelString);
-} 
+}
 static CLASS_DEVICE_ATTR(model, S_IRUGO, show_model, NULL);
 
 static ssize_t show_hue(struct class_device *class_dev, char *buf)
 {
-	struct video_device *vdev = to_video_device(class_dev);	
-	struct usb_usbvision *usbvision = video_get_drvdata(vdev);	
+	struct video_device *vdev = to_video_device(class_dev);
+	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%d\n", usbvision->hue >> 8);
-} 
+}
 static CLASS_DEVICE_ATTR(hue, S_IRUGO, show_hue, NULL);
 
 static ssize_t show_contrast(struct class_device *class_dev, char *buf)
 {
-	struct video_device *vdev = to_video_device(class_dev);	
-	struct usb_usbvision *usbvision = video_get_drvdata(vdev);	
+	struct video_device *vdev = to_video_device(class_dev);
+	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%d\n", usbvision->contrast >> 8);
-} 
+}
 static CLASS_DEVICE_ATTR(contrast, S_IRUGO, show_contrast, NULL);
 
 static ssize_t show_brightness(struct class_device *class_dev, char *buf)
 {
-	struct video_device *vdev = to_video_device(class_dev);	
-	struct usb_usbvision *usbvision = video_get_drvdata(vdev);	
+	struct video_device *vdev = to_video_device(class_dev);
+	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%d\n", usbvision->brightness >> 8);
-} 
+}
 static CLASS_DEVICE_ATTR(brightness, S_IRUGO, show_brightness, NULL);
 
 static ssize_t show_saturation(struct class_device *class_dev, char *buf)
 {
-	struct video_device *vdev = to_video_device(class_dev);	
-	struct usb_usbvision *usbvision = video_get_drvdata(vdev);	
+	struct video_device *vdev = to_video_device(class_dev);
+	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%d\n", usbvision->saturation >> 8);
-} 
+}
 static CLASS_DEVICE_ATTR(saturation, S_IRUGO, show_saturation, NULL);
 
 static ssize_t show_streaming(struct class_device *class_dev, char *buf)
 {
-	struct video_device *vdev = to_video_device(class_dev);	
-	struct usb_usbvision *usbvision = video_get_drvdata(vdev);	
+	struct video_device *vdev = to_video_device(class_dev);
+	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%s\n", YES_NO(usbvision->streaming));
-} 
+}
 static CLASS_DEVICE_ATTR(streaming, S_IRUGO, show_streaming, NULL);
 
 static ssize_t show_overlay(struct class_device *class_dev, char *buf)
 {
-	struct video_device *vdev = to_video_device(class_dev);	
-	struct usb_usbvision *usbvision = video_get_drvdata(vdev);	
+	struct video_device *vdev = to_video_device(class_dev);
+	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%s\n", YES_NO(usbvision->overlay));
-} 
+}
 static CLASS_DEVICE_ATTR(overlay, S_IRUGO, show_overlay, NULL);
 
 static ssize_t show_compression(struct class_device *class_dev, char *buf)
 {
-	struct video_device *vdev = to_video_device(class_dev);	
-	struct usb_usbvision *usbvision = video_get_drvdata(vdev);	
+	struct video_device *vdev = to_video_device(class_dev);
+	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%s\n", YES_NO(usbvision->isocMode==ISOC_MODE_COMPRESS));
-} 
+}
 static CLASS_DEVICE_ATTR(compression, S_IRUGO, show_compression, NULL);
 
 static ssize_t show_device_bridge(struct class_device *class_dev, char *buf)
 {
-	struct video_device *vdev = to_video_device(class_dev);	
-	struct usb_usbvision *usbvision = video_get_drvdata(vdev);	
+	struct video_device *vdev = to_video_device(class_dev);
+	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%d\n", usbvision->bridgeType);
-} 
+}
 static CLASS_DEVICE_ATTR(bridge, S_IRUGO, show_device_bridge, NULL);
 
 static void usbvision_create_sysfs(struct video_device *vdev)
@@ -1195,9 +1190,9 @@ void usbvision_osd_stats(struct usb_usbvision *usbvision,
  *
  * Parameters:
  * fullframe:   if TRUE then entire frame is filled, otherwise the procedure
- *	        continues from the current scanline.
+ *		continues from the current scanline.
  * pmode	0: fill the frame with solid blue color (like on VCR or TV)
- *	        1: Draw a colored grid
+ *		1: Draw a colored grid
  *
  */
 void usbvision_testpattern(struct usb_usbvision *usbvision, int fullframe,
@@ -1608,7 +1603,7 @@ static enum ParseState usbvision_parse_compress(struct usb_usbvision *usbvision,
 
 	if (overlay) {
 		frame  = &usbvision->overlay_frame;
-		imageSize = frame->frmwidth * frame->frmheight; 
+		imageSize = frame->frmwidth * frame->frmheight;
 		if (usbvision->overlay_base == NULL) {
 			//video_buffer is not set yet
 			return ParseState_NextFrame;
@@ -1618,26 +1613,26 @@ static enum ParseState usbvision_parse_compress(struct usb_usbvision *usbvision,
 	}
 	else {
 		frame  = &usbvision->frame[usbvision->curFrameNum];
-		imageSize = frame->frmwidth * frame->frmheight; 				
+		imageSize = frame->frmwidth * frame->frmheight;
 		if ( (frame->v4l2_format.format == V4L2_PIX_FMT_YUV422P) ||
 		     (frame->v4l2_format.format == V4L2_PIX_FMT_YVU420) )
-		{       // this is a planar format 
-			                                               //... v4l2_linesize not used here.
+		{       // this is a planar format
+								       //... v4l2_linesize not used here.
 			f = frame->data + (frame->width * frame->curline);
-		} else 
+		} else
 			f = frame->data + (frame->v4l2_linesize * frame->curline);
-		
+
 		if (frame->v4l2_format.format == V4L2_PIX_FMT_YUYV){ //initialise u and v pointers
-			                                         // get base of u and b planes add halfoffset
-			
-			u = frame->data 
-				+ imageSize 	
+								 // get base of u and b planes add halfoffset
+
+			u = frame->data
+				+ imageSize
 				+ (frame->frmwidth >>1) * frame->curline ;
 			v = u + (imageSize >>1 );
-			
+
 		} else if (frame->v4l2_format.format == V4L2_PIX_FMT_YVU420){
-			
-		        v = frame->data + imageSize + ((frame->curline* (frame->width))>>2) ; 
+
+			v = frame->data + imageSize + ((frame->curline* (frame->width))>>2) ;
 			u = v + (imageSize >>2) ;
 		}
 	}
@@ -1687,7 +1682,7 @@ static enum ParseState usbvision_parse_compress(struct usb_usbvision *usbvision,
 		return ParseState_NextFrame;
 	}
 
- 	bytes_per_pixel = frame->v4l2_format.bytes_per_pixel;
+	bytes_per_pixel = frame->v4l2_format.bytes_per_pixel;
 	clipmask_index = frame->curline * MAX_FRAME_WIDTH;
 
 	scratch_get(usbvision, StripData, StripLen);
@@ -1723,7 +1718,7 @@ static enum ParseState usbvision_parse_compress(struct usb_usbvision *usbvision,
 	if (BlockPos > StripLen) {
 		usbvision->stripLenErrors++;
 	}
-	
+
 	for (Idx = 0; Idx < IdxEnd; Idx++) {
 		if((overlay) && (clipped_pixel(clipmask_index))) {
 			f += bytes_per_pixel;
@@ -1741,15 +1736,15 @@ static enum ParseState usbvision_parse_compress(struct usb_usbvision *usbvision,
 		}
 		else if (frame->v4l2_format.format == V4L2_PIX_FMT_YVU420) {
 			*f++ = Y [Idx];
-			if ( !((  Idx & 0x01  ) | (  frame->curline & 0x01  )) ){ 
-		            
+			if ( !((  Idx & 0x01  ) | (  frame->curline & 0x01  )) ){
+
 /* 				 only need do this for 1 in 4 pixels */
 /* 				 intraframe buffer is YUV420 format */
 
 				*u++ = U[Idx >>1];
 				*v++ = V[Idx >>1];
 			}
-			
+
 		}
 		else {
 			YUV_TO_RGB_BY_THE_BOOK(Y[Idx], U[Idx/2], V[Idx/2], rv, gv, bv);
@@ -1780,12 +1775,12 @@ static enum ParseState usbvision_parse_compress(struct usb_usbvision *usbvision,
 		}
 		clipmask_index++;
 	}
-	/* Deal with non-integer no. of bytes for YUV420P */ 
- 	if (frame->v4l2_format.format != V4L2_PIX_FMT_YVU420 ) 
- 		*pcopylen += frame->v4l2_linesize; 
- 	else 
- 		*pcopylen += frame->curline & 0x01 ? frame->v4l2_linesize : frame->v4l2_linesize << 1;  
-  
+	/* Deal with non-integer no. of bytes for YUV420P */
+	if (frame->v4l2_format.format != V4L2_PIX_FMT_YVU420 )
+		*pcopylen += frame->v4l2_linesize;
+	else
+		*pcopylen += frame->curline & 0x01 ? frame->v4l2_linesize : frame->v4l2_linesize << 1;
+
 	frame->curline += 1;
 
 	if (frame->curline >= frame->frmheight) {
@@ -1846,7 +1841,7 @@ static enum ParseState usbvision_parse_lines_420(struct usb_usbvision *usbvision
 	/* Make sure there's enough data for the entire line */
 	/* In this mode usbvision transfer 3 bytes for every 2 pixels */
 	/* I need two lines to decode the color */
- 	bytes_per_pixel = frame->v4l2_format.bytes_per_pixel;
+	bytes_per_pixel = frame->v4l2_format.bytes_per_pixel;
 	stretch_bytes = (usbvision->stretch_width - 1) * bytes_per_pixel;
 	clipmask_even_index = frame->curline * MAX_FRAME_WIDTH;
 	clipmask_odd_index  = clipmask_even_index + MAX_FRAME_WIDTH;
@@ -2276,7 +2271,7 @@ static void usbvision_isocIrq(struct urb *urb, struct pt_regs *regs)
   urb->iso_frame_desc[i].status = 0;
   urb->iso_frame_desc[i].actual_length = 0;
  }
- 	urb->status = 0;
+	urb->status = 0;
 	urb->dev = usbvision->dev;
 	errCode = usb_submit_urb (urb, GFP_ATOMIC);
 
@@ -2562,10 +2557,10 @@ static int attach_inform(struct i2c_client *client)
 	}
 	if ((usbvision->have_tuner) && (usbvision->tuner_type != -1)) {
 		tun_addr.mode_mask = T_ANALOG_TV;
-                tun_addr.type = usbvision->tuner_type;
-                tun_addr.addr = ADDR_UNSET;
-                client->driver->command(client,TUNER_SET_TYPE_ADDR, &tun_addr);
-                
+		tun_addr.type = usbvision->tuner_type;
+		tun_addr.addr = ADDR_UNSET;
+		client->driver->command(client,TUNER_SET_TYPE_ADDR, &tun_addr);
+
 		call_i2c_clients(usbvision, VIDIOC_S_INPUT, &usbvision->input.index);
 	}
 	// FIXME : need to add a call VIDIOC_S_CTRL for each control
@@ -2733,7 +2728,7 @@ static int usbvision_i2c_write(void *data, unsigned char addr, char *buf,
 	int retval;
 	int wrcount = 0;
 	int count;
- 	int maxLen = 4;
+	int maxLen = 4;
 	struct usb_usbvision *usbvision = (struct usb_usbvision *) data;
 
 	while (len > 0) {
@@ -2841,7 +2836,7 @@ static int usbvision_init_i2c(struct usb_usbvision *usbvision)
 				break;
 		}
 		if (usbvision_device_data[usbvision->DevModel].Tuner == 1) {
-		    	request_module("tuner");
+			request_module("tuner");
 		}
 	}
 #endif
@@ -3001,7 +2996,7 @@ static int usbvision_set_output(struct usb_usbvision *usbvision, int width,
 	}
 
 	if (usbvision->input.std & V4L2_STD_625_50) {
- 		frameDrop = frameRate * 32 / 25 - 1;
+		frameDrop = frameRate * 32 / 25 - 1;
 	}
 	else if (usbvision->input.std & V4L2_STD_525_60) {
 		frameDrop = frameRate * 32 / 30 - 1;
@@ -3042,7 +3037,7 @@ static int usbvision_set_compress_params(struct usb_usbvision *usbvision)
 	value[2] = 0x00;    // Reg.46 Force intra mode on all new frames
 	value[3] = 0x00;    // Reg.47 FORCE_UP <- 0 normal operation (not force)
 	value[4] = 0xA2;    // Reg.48 BUF_THR I'm not sure if this does something in not compressed mode.
-        value[5] = 0x00;    // Reg.49 DVI_YUV This has nothing to do with compression
+	value[5] = 0x00;    // Reg.49 DVI_YUV This has nothing to do with compression
 
 	//catched values for NT1004
 	// value[0] = 0xFF; // Never apply intra mode automatically
@@ -3196,7 +3191,7 @@ static int usbvision_set_input(struct usb_usbvision *usbvision)
 		dvi_yuv_value = usbvision_device_data[usbvision->DevModel].Dvi_yuv & 0xff;
 	}
 	else if(usbvision_device_data[usbvision->DevModel].Codec == CODEC_SAA7113) {
-        /* This changes as the fine sync control changes. Further investigation necessary */
+	/* This changes as the fine sync control changes. Further investigation necessary */
 		dvi_yuv_value = 0x06;
 	}
 
@@ -3313,7 +3308,7 @@ static void usbvision_powerOffTimer(unsigned long data)
 	del_timer(&usbvision->powerOffTimer);
 	INIT_WORK(&usbvision->powerOffWork, call_usbvision_power_off, usbvision);
 	(void) schedule_work(&usbvision->powerOffWork);
-	
+
 }
 
 
@@ -3421,7 +3416,7 @@ static int usbvision_setup(struct usb_usbvision *usbvision)
 	usbvision_set_input(usbvision);
 	usbvision_set_output(usbvision, MAX_USB_WIDTH, MAX_USB_HEIGHT);
 	usbvision_restart_isoc(usbvision);
-	
+
 	/* cosas del PCM */
 	return USBVISION_IS_OPERATIONAL(usbvision);
 }
@@ -3532,12 +3527,12 @@ static void usbvision_stop_isoc(struct usb_usbvision *usbvision)
 		usb_kill_urb(usbvision->sbuf[bufIdx].urb);
 		usb_free_urb(usbvision->sbuf[bufIdx].urb);
 		usbvision->sbuf[bufIdx].urb = NULL;
-        }
+	}
 
 
 	PDEBUG(DBG_ISOC, "%s: streaming=0\n", __FUNCTION__);
 	usbvision->streaming = 0;
-			
+
 
 	if (!usbvision->remove_pending) {
 
@@ -3615,7 +3610,7 @@ static int usbvision_new_frame(struct usb_usbvision *usbvision, int framenum)
 static int usbvision_muxsel(struct usb_usbvision *usbvision, int channel, int norm)
 {
 	int mode[4];
-	int audio[]= {1, 0, 0, 0};	
+	int audio[]= {1, 0, 0, 0};
 	struct v4l2_routing route;
 	//channel 0 is TV with audiochannel 1 (tuner mono)
 	//channel 1 is Composite with audio channel 0 (line in)
@@ -3636,7 +3631,7 @@ static int usbvision_muxsel(struct usb_usbvision *usbvision, int channel, int no
 
 	// set the new channel
 	// Regular USB TV Tuners -> channel: 0 = Television, 1 = Composite, 2 = S-Video
-	// Four video input devices -> channel: 0 = Chan White, 1 = Chan Green, 2 = Chan Yellow, 3 = Chan Red 
+	// Four video input devices -> channel: 0 = Chan White, 1 = Chan Green, 2 = Chan Yellow, 3 = Chan Red
 
 	switch (usbvision_device_data[usbvision->DevModel].Codec) {
 		case CODEC_SAA7113:
@@ -3646,10 +3641,10 @@ static int usbvision_muxsel(struct usb_usbvision *usbvision, int channel, int no
 			else {
 				mode[2] = 7;
 			}
-			if (usbvision_device_data[usbvision->DevModel].VideoChannels == 4) { 
+			if (usbvision_device_data[usbvision->DevModel].VideoChannels == 4) {
 				mode[0] = 0; mode[1] = 2; mode[3] = 3;  // Special for four input devices
 			}
-			else {  
+			else {
 				mode[0] = 0; mode[1] = 2; //modes for regular saa7113 devices
 			}
 			break;
@@ -3748,7 +3743,7 @@ static int usbvision_v4l2_open(struct inode *inode, struct file *file)
 				err("%s: unable to allocate %d for compr. frame buffer", __FUNCTION__, IFB_size);
 				errCode = -ENOMEM;
 			}
-			
+
 		}
 		if (errCode) {
 			/* Have to free all that memory */
@@ -3940,8 +3935,8 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 				case 0:
 					if (usbvision_device_data[usbvision->DevModel].VideoChannels == 4) {
 						strcpy(vi->name, "White Video Input");
-					} 
-					else {	
+					}
+					else {
 						strcpy(vi->name, "Television");
 						vi->type = V4L2_INPUT_TYPE_TUNER;
 						vi->audioset = 1;
@@ -3950,30 +3945,30 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 					}
 					break;
 				case 1:
-				        vi->type = V4L2_INPUT_TYPE_CAMERA;
+					vi->type = V4L2_INPUT_TYPE_CAMERA;
 					if (usbvision_device_data[usbvision->DevModel].VideoChannels == 4) {
 						strcpy(vi->name, "Green Video Input");
-					} 
-					else {	
+					}
+					else {
 						strcpy(vi->name, "Composite Video Input");
 					}
 					vi->std = V4L2_STD_PAL;
 					break;
 				case 2:
-				        vi->type = V4L2_INPUT_TYPE_CAMERA;
+					vi->type = V4L2_INPUT_TYPE_CAMERA;
 					if (usbvision_device_data[usbvision->DevModel].VideoChannels == 4) {
 						strcpy(vi->name, "Yellow Video Input");
-					} 
-					else {	
+					}
+					else {
 					strcpy(vi->name, "S-Video Input");
 					}
 					vi->std = V4L2_STD_PAL;
 					break;
 				case 3:
-				        vi->type = V4L2_INPUT_TYPE_CAMERA;
+					vi->type = V4L2_INPUT_TYPE_CAMERA;
 					strcpy(vi->name, "Red Video Input");
 					vi->std = V4L2_STD_PAL;
-					break; 
+					break;
 			}
 			PDEBUG(DBG_IOCTL, "VIDIOC_ENUMINPUT name=%s:%d tuners=%d type=%d norm=%x", vi->name, vi->index, vi->tuner,vi->type,(int)vi->std);
 			return 0;
@@ -4008,13 +4003,13 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			}
 			return 0;
 		}
-	        case VIDIOC_G_INPUT:
+		case VIDIOC_G_INPUT:
 		{
 			int *input = arg;
 			*input = usbvision->input.index;
 			return 0;
 		}
-	        case VIDIOC_S_INPUT:
+		case VIDIOC_S_INPUT:
 		{
 			int *input = arg;
 			if ((*input >= usbvision->video_inputs) || (*input < 0) )
@@ -4028,14 +4023,14 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			up(&usbvision->lock);
 			return 0;
 		}
- 	        case VIDIOC_G_STD:
+		case VIDIOC_G_STD:
 		{
 			v4l2_std_id *std = arg;
 			*std = usbvision->input.std;
 			PDEBUG(DBG_IOCTL, "VIDIOC_G_STD std_id=%x", (unsigned)*std);
 			return 0;
 		}
-	        case VIDIOC_S_STD:
+		case VIDIOC_S_STD:
 		{
 			v4l2_std_id *std = arg;
 
@@ -4049,7 +4044,7 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			PDEBUG(DBG_IOCTL, "VIDIOC_S_STD std_id=%x", (unsigned)*std);
 			return 0;
 		}
-	        case VIDIOC_G_TUNER:
+		case VIDIOC_G_TUNER:
 		{
 			struct v4l2_tuner *vt = arg;
 			struct v4l2_tuner status;
@@ -4118,55 +4113,35 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			// FIXME: void function ???
 			return 0;
 		}
-	        case VIDIOC_QUERYCTRL:
+		case VIDIOC_QUERYCTRL:
 		{
-			struct v4l2_queryctrl *qc = arg;
-			switch(qc->id) {
-			case V4L2_CID_BRIGHTNESS:
-			case V4L2_CID_HUE:
-			case V4L2_CID_SATURATION:
-			case V4L2_CID_CONTRAST:
-			case V4L2_CID_AUDIO_VOLUME:
-			case V4L2_CID_AUDIO_MUTE:
-				return v4l2_ctrl_query_fill_std(qc);
-				break;
-			default:
+			struct v4l2_queryctrl *ctrl = arg;
+			int id=ctrl->id;
+
+			memset(ctrl,0,sizeof(*ctrl));
+			ctrl->id=id;
+
+			i2c_clients_command(&usbvision->i2c_adap, cmd, arg);
+
+			if (ctrl->type)
+				return 0;
+			else
 				return -EINVAL;
-			}
-			return 0;
+
+			PDEBUG(DBG_IOCTL,"VIDIOC_QUERYCTRL id=%x value=%x",ctrl->id,ctrl->type);
 		}
 		case VIDIOC_G_CTRL:
 		{
 			struct v4l2_control *ctrl = arg;
 
-			switch (ctrl->id) {
-			case V4L2_CID_BRIGHTNESS:
-				ctrl->value = usbvision->brightness;
-				break;
-			case V4L2_CID_CONTRAST:
-				ctrl->value = usbvision->contrast;
-				break;
-			case V4L2_CID_SATURATION:
-				ctrl->value = usbvision->saturation;
-				break;
-			case V4L2_CID_HUE:
-				ctrl->value = usbvision->hue;
-				break;
-			case V4L2_CID_AUDIO_VOLUME:
-				/* 	ctrl->value = usbvision->volume; */
-				break;
-			case V4L2_CID_AUDIO_MUTE:
-				ctrl->value = usbvision->AudioMute;
-				break;
-			default:
-				return -EINVAL;
-			}
-			PDEBUG(DBG_IOCTL, "VIDIOC_G_CTRL id=%x value=%x",ctrl->id,ctrl->value);
+			PDEBUG(DBG_IOCTL,"VIDIOC_G_CTRL id=%x value=%x",ctrl->id,ctrl->value);
+			call_i2c_clients(usbvision, VIDIOC_G_CTRL, ctrl);
 			return 0;
 		}
 		case VIDIOC_S_CTRL:
 		{
 			struct v4l2_control *ctrl = arg;
+
 			PDEBUG(DBG_IOCTL, "VIDIOC_S_CTRL id=%x value=%x",ctrl->id,ctrl->value);
 			call_i2c_clients(usbvision, VIDIOC_S_CTRL, ctrl);
 			return 0;
@@ -4213,7 +4188,7 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			vb->sequence = usbvision->frame_num;
 			return 0;
 		}
-	        case VIDIOC_QBUF: // VIDIOCMCAPTURE + VIDIOCSYNC
+		case VIDIOC_QBUF: // VIDIOCMCAPTURE + VIDIOCSYNC
 		{
 			struct v4l2_buffer *vb = arg;
 			struct usbvision_frame *frame;
@@ -4308,7 +4283,7 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		case VIDIOC_STREAMON:
 		{
 			int b=V4L2_BUF_TYPE_VIDEO_CAPTURE;
-			call_i2c_clients(usbvision,VIDIOC_STREAMON , &b);      
+			call_i2c_clients(usbvision,VIDIOC_STREAMON , &b);
 			return 0;
 		}
 		case VIDIOC_STREAMOFF:
@@ -4323,7 +4298,7 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			up(&usbvision->lock);
 			return 0;
 		}
-	        case VIDIOC_G_FBUF:
+		case VIDIOC_G_FBUF:
 		{
 			struct v4l2_framebuffer *vb = arg;
 
@@ -4389,7 +4364,7 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			if ( (dga == 0) &&
 			     (vfd->type == V4L2_BUF_TYPE_VIDEO_OVERLAY) &&
 			     (usbvision->palette.format != V4L2_PIX_FMT_YVU420) &&
-			     (usbvision->palette.format != V4L2_PIX_FMT_YUV422P) ) { 
+			     (usbvision->palette.format != V4L2_PIX_FMT_YUV422P) ) {
 				return -EINVAL;
 			}
 			if(vfd->index>=USBVISION_SUPPORTED_PALETTES-1) {
@@ -4403,11 +4378,11 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		case VIDIOC_G_FMT:
 		{
 			struct v4l2_format *vf = arg;
-      
+
 			if ( (dga == 0) &&
 			     (vf->type == V4L2_BUF_TYPE_VIDEO_OVERLAY) &&
 			     (usbvision->palette.format != V4L2_PIX_FMT_YVU420) &&
-			     (usbvision->palette.format != V4L2_PIX_FMT_YUV422P) ) { 
+			     (usbvision->palette.format != V4L2_PIX_FMT_YUV422P) ) {
 				return -EINVAL;
 			}
 			down(&usbvision->lock);
@@ -4417,7 +4392,7 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			       vf->fmt.win.w.left, vf->fmt.win.w.top, vf->fmt.win.w.width, vf->fmt.win.w.height, vf->fmt.win.chromakey, vf->fmt.win.clipcount);
 			return 0;
 		}
-	        case VIDIOC_S_FMT:
+		case VIDIOC_S_FMT:
 		{
 			struct v4l2_format *vf = arg;
 			struct v4l2_clip *vc=NULL;
@@ -4426,7 +4401,7 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			if ( (dga == 0) &&
 			     (vf->type == V4L2_BUF_TYPE_VIDEO_OVERLAY) &&
 			     (usbvision->palette.format != V4L2_PIX_FMT_YVU420) &&
-			     (usbvision->palette.format != V4L2_PIX_FMT_YUV422P) ) { 
+			     (usbvision->palette.format != V4L2_PIX_FMT_YUV422P) ) {
 				return -EINVAL;
 			}
 			if(vf->type == V4L2_BUF_TYPE_VIDEO_OVERLAY) {
@@ -4518,10 +4493,10 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		case VIDIOC_OVERLAY:
 		{
 			int *v = arg;
-      
+
 			if ( (dga == 0) &&
 			     (usbvision->palette.format != V4L2_PIX_FMT_YVU420) &&
-			     (usbvision->palette.format != V4L2_PIX_FMT_YUV422P) ) { 
+			     (usbvision->palette.format != V4L2_PIX_FMT_YUV422P) ) {
 				PDEBUG(DBG_IOCTL, "VIDIOC_OVERLAY  DGA disabled");
 				return -EINVAL;
 			}
@@ -4609,7 +4584,7 @@ static ssize_t usbvision_v4l2_read(struct file *file, char *buf,
 		goto usbvision_v4l2_read_done;
 	}
 	PDEBUG(DBG_IO, "Waiting frame grabbing");
-	rc = wait_event_interruptible(frame->wq, (frame->grabstate == FrameState_Done) || 
+	rc = wait_event_interruptible(frame->wq, (frame->grabstate == FrameState_Done) ||
 						 (frame->grabstate == FrameState_Error));
 	if (rc) {
 		goto usbvision_v4l2_read_done;
@@ -4670,11 +4645,11 @@ static int usbvision_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 
 	pos = (unsigned long) usbvision->fbuf;
 	while (size > 0) {
-		
+
 // Really ugly....
-	#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,10)	                   //Compatibility for 2.6.10+ kernels
+	#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,10)			   //Compatibility for 2.6.10+ kernels
 		page = vmalloc_to_pfn((void *)pos);
-		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED)) { 
+		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED)) {
 			return -EAGAIN;
 		}
 	#else                                                                      //Compatibility for 2.6.0 - 2.6.9 kernels
@@ -4791,7 +4766,7 @@ static int usbvision_do_radio_ioctl(struct inode *inode, struct file *file,
 		/***************************
 		 * V4L2 IOCTLs             *
 		 ***************************/
- 	        case VIDIOC_QUERYCAP:
+		case VIDIOC_QUERYCAP:
 		{
 			struct v4l2_capability *vc=arg;
 			memset(vc, 0, sizeof(struct v4l2_capability));
@@ -4803,7 +4778,7 @@ static int usbvision_do_radio_ioctl(struct inode *inode, struct file *file,
 			PDEBUG(DBG_RIO, "%s: VIDIOC_QUERYCAP", __FUNCTION__);
 			return 0;
 		}
-      	        case VIDIOC_QUERYCTRL:
+		case VIDIOC_QUERYCTRL:
 		{
 			struct v4l2_queryctrl *qc = arg;
 			switch(qc->id)
@@ -4817,7 +4792,7 @@ static int usbvision_do_radio_ioctl(struct inode *inode, struct file *file,
 				}
 			return 0;
 		}
-       	        case VIDIOC_G_CTRL:
+		case VIDIOC_G_CTRL:
 		{
 			struct v4l2_control *ctrl = arg;
 			PDEBUG(DBG_IOCTL, "VIDIOC_G_CTRL id=%x value=%x",ctrl->id,ctrl->value);
@@ -4833,7 +4808,7 @@ static int usbvision_do_radio_ioctl(struct inode *inode, struct file *file,
 			}
 			return 0;
 		}
-	        case VIDIOC_S_CTRL:
+		case VIDIOC_S_CTRL:
 		{
 			struct v4l2_control *ctrl = arg;
 			call_i2c_clients(usbvision, VIDIOC_S_CTRL, ctrl);
@@ -4841,7 +4816,7 @@ static int usbvision_do_radio_ioctl(struct inode *inode, struct file *file,
 			PDEBUG(DBG_RIO, "%s: VIDIOC_S_CTRL id=%x value=%x", __FUNCTION__,ctrl->id,ctrl->value);
 			return 0;
 		}
- 	        case VIDIOC_G_TUNER:
+		case VIDIOC_G_TUNER:
 		{
 			struct v4l2_tuner *vt = arg;
 
@@ -4862,7 +4837,7 @@ static int usbvision_do_radio_ioctl(struct inode *inode, struct file *file,
 			PDEBUG(DBG_RIO, "%s: VIDIOC_G_TUNER signal=%d", __FUNCTION__, vt->signal);
 			return 0;
 		}
-	        case VIDIOC_S_TUNER:
+		case VIDIOC_S_TUNER:
 		{
 			struct v4l2_tuner *vt = arg;
 
@@ -4873,7 +4848,7 @@ static int usbvision_do_radio_ioctl(struct inode *inode, struct file *file,
 			PDEBUG(DBG_RIO, "%s: VIDIOC_S_TUNER", __FUNCTION__);
 			return 0;
 		}
-	        case VIDIOC_G_AUDIO:
+		case VIDIOC_G_AUDIO:
 		{
 			struct v4l2_audio *va = arg;
 			memset(va,0, sizeof(va));
@@ -4882,7 +4857,7 @@ static int usbvision_do_radio_ioctl(struct inode *inode, struct file *file,
 			PDEBUG(DBG_IOCTL, "VIDIOC_G_AUDIO");
 			return 0;
 		}
-	        case VIDIOC_S_AUDIO:
+		case VIDIOC_S_AUDIO:
 		{
 			struct v4l2_audio *v = arg;
 			if(v->index) {
@@ -4892,7 +4867,7 @@ static int usbvision_do_radio_ioctl(struct inode *inode, struct file *file,
 			// FIXME: void function ???
 			return 0;
 		}
-	        case VIDIOC_G_FREQUENCY:
+		case VIDIOC_G_FREQUENCY:
 		{
 			struct v4l2_frequency *freq = arg;
 			freq->tuner = 0; // Only one tuner
@@ -4901,7 +4876,7 @@ static int usbvision_do_radio_ioctl(struct inode *inode, struct file *file,
 			PDEBUG(DBG_RIO, "VIDIOC_G_FREQUENCY freq=0x%X", (unsigned)freq->frequency);
 			return 0;
 		}
-	        case VIDIOC_S_FREQUENCY:
+		case VIDIOC_S_FREQUENCY:
 		{
 			struct v4l2_frequency *freq = arg;
 			usbvision->freq = freq->frequency;
@@ -4913,7 +4888,7 @@ static int usbvision_do_radio_ioctl(struct inode *inode, struct file *file,
 		/***************************
 		 * V4L1 IOCTLs             *
 		 ***************************/
-	        case VIDIOCGCAP:
+		case VIDIOCGCAP:
 		{
 			struct video_capability *vc = arg;
 
@@ -5227,18 +5202,8 @@ static void usbvision_configure_video(struct usb_usbvision *usbvision)
 
 	if (usbvision == NULL)
 		return;
-		
-	model = usbvision->DevModel;
 
-	RESTRICT_TO_RANGE(init_brightness, 0, 255);
-	RESTRICT_TO_RANGE(init_contrast, 0, 255);
-	RESTRICT_TO_RANGE(init_saturation, 0, 255);
-	RESTRICT_TO_RANGE(init_hue, 0, 255);
-	
-	usbvision->saturation = init_saturation << 8;
-	usbvision->hue = init_hue << 8;
-	usbvision->brightness = init_brightness << 8;
-	usbvision->contrast = init_contrast << 8;
+	model = usbvision->DevModel;
 	usbvision->depth = 24;
 	usbvision->palette = usbvision_v4l2_format[2]; // V4L2_PIX_FMT_RGB24;
 
@@ -5393,7 +5358,7 @@ static void usbvision_unregister_video(struct usb_usbvision *usbvision)
 		}
 		usbvision->vbi = NULL;
 	}
-	
+
 	// Radio Device:
 	if (usbvision->rdev) {
 		PDEBUG(DBG_PROBE, "unregister /dev/radio%d [v4l2]", usbvision->rdev->minor & 0x1f);
@@ -5444,7 +5409,7 @@ static int __devinit usbvision_register_video(struct usb_usbvision *usbvision)
 		}
 		info("USBVision[%d]: registered USBVision Radio device /dev/radio%d [v4l2]", usbvision->nr, usbvision->rdev->minor & 0x1f);
 	}
-	// vbi Device: 
+	// vbi Device:
 	if (usbvision_device_data[usbvision->DevModel].vbi) {
 		usbvision->vbi = usbvision_vdev_init(usbvision, &usbvision_vbi_template, "USBVision VBI");
 		if (usbvision->vdev == NULL) {
@@ -5575,10 +5540,10 @@ static int __devinit usbvision_probe(struct usb_interface *intf, const struct us
 	/* Is it an USBVISION video dev? */
 	model = 0;
 	for(model = 0; usbvision_device_data[model].idVendor; model++) {
-		if (le16_to_cpu(dev->descriptor.idVendor) != usbvision_device_data[model].idVendor) { 
+		if (le16_to_cpu(dev->descriptor.idVendor) != usbvision_device_data[model].idVendor) {
 			continue;
 		}
-		if (le16_to_cpu(dev->descriptor.idProduct) != usbvision_device_data[model].idProduct) { 
+		if (le16_to_cpu(dev->descriptor.idProduct) != usbvision_device_data[model].idProduct) {
 			continue;
 		}
 
@@ -5607,7 +5572,7 @@ static int __devinit usbvision_probe(struct usb_interface *intf, const struct us
 	}
 
 	usb_get_dev(dev);
-	
+
 	if ((usbvision = usbvision_alloc(dev)) == NULL) {
 		err("%s: couldn't allocate USBVision struct", __FUNCTION__);
 		return -ENOMEM;
@@ -5617,7 +5582,7 @@ static int __devinit usbvision_probe(struct usb_interface *intf, const struct us
 	}
 	else if (usbvision_device_data[model].ModelString == "Dazzle Fusion Model DVC-90 Rev 1 (SECAM)") {
 		usbvision->bridgeType = BRIDGE_NT1005;
-	}		
+	}
 	else {
 		usbvision->bridgeType = BRIDGE_NT1003;
 	}
@@ -5649,7 +5614,7 @@ static int __devinit usbvision_probe(struct usb_interface *intf, const struct us
 
 
 	usb_set_intfdata (intf, usbvision);
-	usbvision_create_sysfs(usbvision->vdev);	
+	usbvision_create_sysfs(usbvision->vdev);
 
 	PDEBUG(DBG_PROBE, "success");
 	return 0;
@@ -5724,7 +5689,7 @@ void customdevice_process(void)
 	if(CustomDevice)
 	{
 		char *parse=CustomDevice;
-	
+
 		PDEBUG(DBG_PROBE, "CustomDevide=%s", CustomDevice);
 
 		/*format is CustomDevice="0x0573 0x4D31 0 7113 3 PAL 1 1 1 5 -1 -1 -1 -1 -1"
@@ -5743,9 +5708,9 @@ void customdevice_process(void)
 		usbvision_device_data[0].X_Offset;
 		usbvision_device_data[0].Y_Offset;
 		usbvision_device_data[0].Dvi_yuv;
-	 	usbvision_device_data[0].ModelString;
+		usbvision_device_data[0].ModelString;
 		*/
-		
+
 		rmspace(parse);
 		usbvision_device_data[0].ModelString="USBVISION Custom Device";
 
@@ -5852,12 +5817,12 @@ static int __init usbvision_init(void)
 	PDEBUG(DBG_FUNC, "FUNC    debugging is enabled");
 	PDEBUG(DBG_I2C,  "I2C     debugging is enabled");
 
-	/* disable planar mode support unless compression enabled */ 
-	if (isocMode != ISOC_MODE_COMPRESS ) { 
+	/* disable planar mode support unless compression enabled */
+	if (isocMode != ISOC_MODE_COMPRESS ) {
 		// FIXME : not the right way to set supported flag
 		usbvision_v4l2_format[6].supported = 0; // V4L2_PIX_FMT_YVU420
 		usbvision_v4l2_format[7].supported = 0; // V4L2_PIX_FMT_YUV422P
-	} 
+	}
 
 	customdevice_process();
 
