@@ -25,27 +25,98 @@ struct pio_device {
 	void __iomem *regs;
 	const struct platform_device *pdev;
 	struct clk *clk;
-	u32 alloc_mask;
+	u32 pinmux_mask;
 	char name[32];
 };
 
 static struct pio_device pio_dev[MAX_NR_PIO_DEVICES];
 
-void portmux_set_func(unsigned int portmux_id, unsigned int pin_id,
-		      unsigned int function_id)
+static struct pio_device *gpio_to_pio(unsigned int gpio)
 {
 	struct pio_device *pio;
-	u32 mask = 1 << pin_id;
+	unsigned int index;
 
-	BUG_ON(portmux_id >= MAX_NR_PIO_DEVICES);
+	index = gpio >> 5;
+	if (index >= MAX_NR_PIO_DEVICES)
+		return NULL;
+	pio = &pio_dev[index];
+	if (!pio->regs)
+		return NULL;
 
-	pio = &pio_dev[portmux_id];
+	return pio;
+}
 
-	if (function_id)
+/* Pin multiplexing API */
+
+void __init at32_select_periph(unsigned int pin, unsigned int periph,
+			       unsigned long flags)
+{
+	struct pio_device *pio;
+	unsigned int pin_index = pin & 0x1f;
+	u32 mask = 1 << pin_index;
+
+	pio = gpio_to_pio(pin);
+	if (unlikely(!pio)) {
+		printk("pio: invalid pin %u\n", pin);
+		goto fail;
+	}
+
+	if (unlikely(test_and_set_bit(pin_index, &pio->pinmux_mask))) {
+		printk("%s: pin %u is busy\n", pio->name, pin_index);
+		goto fail;
+	}
+
+	pio_writel(pio, PUER, mask);
+	if (periph)
 		pio_writel(pio, BSR, mask);
 	else
 		pio_writel(pio, ASR, mask);
+
 	pio_writel(pio, PDR, mask);
+	if (!(flags & AT32_GPIOF_PULLUP))
+		pio_writel(pio, PUDR, mask);
+
+	return;
+
+fail:
+	dump_stack();
+}
+
+void __init at32_select_gpio(unsigned int pin, unsigned long flags)
+{
+	struct pio_device *pio;
+	unsigned int pin_index = pin & 0x1f;
+	u32 mask = 1 << pin_index;
+
+	pio = gpio_to_pio(pin);
+	if (unlikely(!pio)) {
+		printk("pio: invalid pin %u\n", pin);
+		goto fail;
+	}
+
+	if (unlikely(test_and_set_bit(pin_index, &pio->pinmux_mask))) {
+		printk("%s: pin %u is busy\n", pio->name, pin_index);
+		goto fail;
+	}
+
+	pio_writel(pio, PUER, mask);
+	if (flags & AT32_GPIOF_HIGH)
+		pio_writel(pio, SODR, mask);
+	else
+		pio_writel(pio, CODR, mask);
+	if (flags & AT32_GPIOF_OUTPUT)
+		pio_writel(pio, OER, mask);
+	else
+		pio_writel(pio, ODR, mask);
+
+	pio_writel(pio, PER, mask);
+	if (!(flags & AT32_GPIOF_PULLUP))
+		pio_writel(pio, PUDR, mask);
+
+	return;
+
+fail:
+	dump_stack();
 }
 
 static int __init pio_probe(struct platform_device *pdev)
