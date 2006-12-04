@@ -563,8 +563,9 @@ segment_save(char *name)
 	seg = segment_by_name (name);
 
 	if (seg == NULL) {
-		PRINT_ERR ("could not find segment %s in segment_save, please report to linux390@de.ibm.com\n",name);
-		return;
+		PRINT_ERR("could not find segment %s in segment_save, please "
+			  "report to linux390@de.ibm.com\n", name);
+		goto out;
 	}
 
 	startpfn = seg->start_addr >> PAGE_SHIFT;
