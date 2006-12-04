@@ -364,8 +364,6 @@
 #endif
 
 #include "usbvision.h"
-#include "usbvision_ioctl.h"
-
 
 #define DRIVER_VERSION "0.9.8.3cvs for Linux kernels 2.4.19-2.4.32 + 2.6.0-2.6.17, compiled at "__DATE__", "__TIME__
 #define EMAIL "joerg@heckenbach-aw.de"
@@ -2320,6 +2318,10 @@ static void usbvision_isocIrq(struct urb *urb, struct pt_regs *regs)
 			}
 		}
 	}
+	else {
+		PDEBUG(DBG_IRQ, "received data, but no one needs it");
+		scratch_reset(usbvision);
+	}
 
 	usbvision->timeInIrq += jiffies - startTime;
 
@@ -3901,41 +3903,50 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 	//	if (debug & DBG_IOCTL) v4l_printk_ioctl(cmd);
 
 	switch (cmd) {
-		case UVIOCSREG:
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+		/* ioctls to allow direct acces to the NT100x registers */
+		case VIDIOC_INT_G_REGISTER:
 		{
-			struct usbvision_reg *usbvision_reg = arg;
+			struct v4l2_register *reg = arg;
 			int errCode;
 
-			errCode = usbvision_write_reg(usbvision, usbvision_reg->addr, usbvision_reg->value);
-
+			if (reg->i2c_id != 0)
+				return -EINVAL;
+			/* NT100x has a 8-bit register space */
+			errCode = usbvision_read_reg(usbvision, reg->reg&0xff);
 			if (errCode < 0) {
-				err("%s: UVIOCSREG failed: error %d", __FUNCTION__, errCode);
+				err("%s: VIDIOC_INT_G_REGISTER failed: error %d", __FUNCTION__, errCode);
 			}
 			else {
-				PDEBUG(DBG_IOCTL, "UVIOCSREG addr=0x%02X, value=0x%02X",
-							usbvision_reg->addr, usbvision_reg->value);
-				errCode = 0;
-			}
-			return errCode;
-		}
-		case UVIOCGREG:
-		{
-			struct usbvision_reg *usbvision_reg = arg;
-			int errCode;
-
-			errCode = usbvision_read_reg(usbvision, usbvision_reg->addr);
-
-			if (errCode < 0) {
-				err("%s: UVIOCGREG failed: error %d", __FUNCTION__, errCode);
-			}
-			else {
-				usbvision_reg->value=(unsigned char)errCode;
-				PDEBUG(DBG_IOCTL, "UVIOCGREG addr=0x%02X, value=0x%02X",
-							usbvision_reg->addr, usbvision_reg->value);
+				reg->val=(unsigned char)errCode;
+				PDEBUG(DBG_IOCTL, "VIDIOC_INT_G_REGISTER reg=0x%02X, value=0x%02X",
+							(unsigned int)reg->reg, reg->val);
 				errCode = 0; // No error
 			}
 			return errCode;
 		}
+		case VIDIOC_INT_S_REGISTER:
+		{
+			struct v4l2_register *reg = arg;
+			int errCode;
+
+			if (reg->i2c_id != 0)
+				return -EINVAL;
+			if (!capable(CAP_SYS_ADMIN))
+				return -EPERM;
+			errCode = usbvision_write_reg(usbvision, reg->reg&0xff, reg->val);
+			if (errCode < 0) {
+				err("%s: VIDIOC_INT_S_REGISTER failed: error %d", __FUNCTION__, errCode);
+			}
+			else {
+				PDEBUG(DBG_IOCTL, "VIDIOC_INT_S_REGISTER reg=0x%02X, value=0x%02X",
+							(unsigned int)reg->reg, reg->val);
+				errCode = 0;
+			}
+			return 0;
+		}
+#endif
 		case VIDIOC_QUERYCAP:
 		{
 			struct v4l2_capability *vc=arg;
@@ -4232,12 +4243,9 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			if(frame->grabstate == FrameState_Unused)
 				vb->flags |= V4L2_BUF_FLAG_MAPPED;
 			vb->memory = V4L2_MEMORY_MMAP;
-			if(vb->index == 0) {
-				vb->m.offset = 0;
-			}
-			else {
-				vb->m.offset = MAX_FRAME_SIZE;
-			}
+
+			vb->m.offset = vb->index*MAX_FRAME_SIZE;
+
 			vb->memory = V4L2_MEMORY_MMAP;
 			vb->field = V4L2_FIELD_NONE;
 			vb->length = MAX_FRAME_SIZE;
@@ -4695,40 +4703,45 @@ static ssize_t usbvision_v4l2_read(struct file *file, char *buf,
 
 static int usbvision_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 {
+	unsigned long size = vma->vm_end - vma->vm_start,
+		start = vma->vm_start;
+	void *pos;
+	u32 i;
+
 	struct video_device *dev = video_devdata(file);
 	struct usb_usbvision *usbvision = (struct usb_usbvision *) video_get_drvdata(dev);
-	unsigned long start = vma->vm_start;
-	unsigned long size  = vma->vm_end-vma->vm_start;
-
-	unsigned long page, pos;
 
 	if (!USBVISION_IS_OPERATIONAL(usbvision))
 		return -EFAULT;
 
-	if (size > (((USBVISION_NUMFRAMES * usbvision->max_frame_size) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)))
+	if (!(vma->vm_flags & VM_WRITE) ||
+	    size != PAGE_ALIGN(usbvision->max_frame_size)) {
 		return -EINVAL;
+	}
 
-	pos = (unsigned long) usbvision->fbuf;
+	for (i = 0; i < USBVISION_NUMFRAMES; i++) {
+		if (((usbvision->max_frame_size*i) >> PAGE_SHIFT) == vma->vm_pgoff)
+			break;
+	}
+	if (i == USBVISION_NUMFRAMES) {
+		PDEBUG(DBG_FUNC, "mmap: user supplied mapping address is out of range");
+		return -EINVAL;
+	}
+
+	/* VM_IO is eventually going to replace PageReserved altogether */
+	vma->vm_flags |= VM_IO;
+	vma->vm_flags |= VM_RESERVED;	/* avoid to swap out this VMA */
+
+	pos = usbvision->frame[i].data;
 	while (size > 0) {
 
-// Really ugly....
-	#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,10)			   //Compatibility for 2.6.10+ kernels
-		page = vmalloc_to_pfn((void *)pos);
-		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED)) {
+		if (vm_insert_page(vma, start, vmalloc_to_page(pos))) {
+			PDEBUG(DBG_FUNC, "mmap: vm_insert_page failed");
 			return -EAGAIN;
 		}
-	#else                                                                      //Compatibility for 2.6.0 - 2.6.9 kernels
-		page = usbvision_kvirt_to_pa(pos);
-		if (remap_page_range(vma, start, page, PAGE_SIZE, PAGE_SHARED)) {
-			return -EAGAIN;
-		}
-	#endif
 		start += PAGE_SIZE;
 		pos += PAGE_SIZE;
-		if (size > PAGE_SIZE)
-			size -= PAGE_SIZE;
-		else
-			size = 0;
+		size -= PAGE_SIZE;
 	}
 
 	return 0;
