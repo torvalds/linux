@@ -2585,12 +2585,15 @@ static int attach_inform(struct i2c_client *client)
 		case 0x4b:
 		{
 			struct tuner_setup tun_setup;
+			unsigned int tda9887_conf = TDA9887_GAIN_NORMAL;
 
 			tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
 			tun_setup.type = TUNER_TDA9887;
 			tun_setup.addr = client->addr;
 
 			call_i2c_clients(usbvision, TUNER_SET_TYPE_ADDR, &tun_setup);
+			call_i2c_clients(usbvision,TDA9887_SET_CONFIG, &tda9887_conf);
+
 			break;
 		}
 		case 0x42:
