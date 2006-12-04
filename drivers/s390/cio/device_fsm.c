@@ -59,6 +59,17 @@ device_set_disconnected(struct subchannel *sch)
 	cdev->private->state = DEV_STATE_DISCONNECTED;
 }
 
+int device_trigger_verify(struct subchannel *sch)
+{
+	struct ccw_device *cdev;
+
+	cdev = sch->dev.driver_data;
+	if (!cdev || !cdev->online)
+		return -EINVAL;
+	dev_fsm_event(cdev, DEV_EVENT_VERIFY);
+	return 0;
+}
+
 /*
  * Timeout function. It just triggers a DEV_EVENT_TIMEOUT.
  */

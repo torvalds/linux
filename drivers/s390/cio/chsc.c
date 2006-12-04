@@ -744,20 +744,22 @@ __s390_subchannel_vary_chpid(struct subchannel *sch, __u8 chpid, int on)
 				device_trigger_reprobe(sch);
 			else if (sch->driver && sch->driver->verify)
 				sch->driver->verify(&sch->dev);
-		} else {
-			sch->opm &= ~(0x80 >> chp);
-			sch->lpm &= ~(0x80 >> chp);
-			if (check_for_io_on_path(sch, chp))
-				/* Path verification is done after killing. */
-				device_kill_io(sch);
-			else if (!sch->lpm) {
+			break;
+		}
+		sch->opm &= ~(0x80 >> chp);
+		sch->lpm &= ~(0x80 >> chp);
+		if (check_for_io_on_path(sch, chp))
+			/* Path verification is done after killing. */
+			device_kill_io(sch);
+		else if (!sch->lpm) {
+			if (device_trigger_verify(sch) != 0) {
 				if (css_enqueue_subchannel_slow(sch->schid)) {
 					css_clear_subchannel_slow_list();
 					need_rescan = 1;
 				}
-			} else if (sch->driver && sch->driver->verify)
-				sch->driver->verify(&sch->dev);
-		}
+			}
+		} else if (sch->driver && sch->driver->verify)
+			sch->driver->verify(&sch->dev);
 		break;
 	}
 	spin_unlock_irqrestore(&sch->lock, flags);
