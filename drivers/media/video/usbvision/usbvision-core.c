@@ -2287,7 +2287,7 @@ static void usbvision_isocIrq(struct urb *urb, struct pt_regs *regs)
 
 	/* Manage streaming interruption */
 	if (usbvision->streaming == Stream_Interrupt) {
-		usbvision->streaming = Stream_Off;
+		usbvision->streaming = Stream_Idle;
 		if ((*f)) {
 			(*f)->grabstate = FrameState_Ready;
 			(*f)->scanstate = ScanState_Scanning;
@@ -3092,7 +3092,7 @@ static int usbvision_stream_interrupt(struct usb_usbvision *usbvision)
 
 	usbvision->streaming = Stream_Interrupt;
 	ret = wait_event_timeout(usbvision->wait_stream,
-				 (usbvision->streaming == Stream_Off),
+				 (usbvision->streaming == Stream_Idle),
 				 msecs_to_jiffies(USBVISION_NUMSBUF*USBVISION_URB_FRAMES));
 	return ret;
 }
@@ -3579,7 +3579,7 @@ static int usbvision_init_isoc(struct usb_usbvision *usbvision)
 		}
 	}
 
-	usbvision->streaming = Stream_On;
+	usbvision->streaming = Stream_Idle;
 	PDEBUG(DBG_ISOC, "%s: streaming=1 usbvision->video_endp=$%02x", __FUNCTION__, usbvision->video_endp);
 	return 0;
 }
@@ -3595,8 +3595,7 @@ static void usbvision_stop_isoc(struct usb_usbvision *usbvision)
 {
 	int bufIdx, errCode, regValue;
 
-	// FIXME : removed the streaming==Stream_Off. This field has not the same signification than before !
-	if (usbvision->dev == NULL)
+	if ((usbvision->streaming == Stream_Off) || (usbvision->dev == NULL))
 		return;
 
 	/* Unschedule all of the iso td's */
@@ -4292,7 +4291,7 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 				return -EINVAL;
 
 			if (list_empty(&(usbvision->outqueue))) {
-				if (usbvision->streaming == Stream_Off)
+				if (usbvision->streaming == Stream_Idle)
 					return -EINVAL;
 				ret = wait_event_interruptible
 					(usbvision->wait_frame,
@@ -5665,6 +5664,7 @@ static int __devinit usbvision_probe(struct usb_interface *intf, const struct us
 	usbvision->isocPacketSize = 0;
 	usbvision->usb_bandwidth = 0;
 	usbvision->user = 0;
+	usbvision->streaming = Stream_Off;
 
 	usbvision_register_video(usbvision);
 	usbvision_configure_video(usbvision);
@@ -5713,13 +5713,12 @@ static void __devexit usbvision_disconnect(struct usb_interface *intf)
 	usb_put_dev(usbvision->dev);
 	usbvision->dev = NULL;	// USB device is no more
 
-	wake_up_interruptible(&usbvision->wait_frame);
-	wake_up_interruptible(&usbvision->wait_stream);
-
 	up(&usbvision->lock);
 
 	if (usbvision->user) {
 		info("%s: In use, disconnect pending", __FUNCTION__);
+		wake_up_interruptible(&usbvision->wait_frame);
+		wake_up_interruptible(&usbvision->wait_stream);
 	}
 	else {
 		usbvision_release(usbvision);

@@ -227,9 +227,10 @@ enum FrameState {
 
 /* stream states */
 enum StreamState {
-	Stream_Off,
-	Stream_Interrupt,
-	Stream_On,
+	Stream_Off,		/* Driver streaming is completely OFF */
+	Stream_Idle,		/* Driver streaming is ready to be put ON by the application */
+	Stream_Interrupt,	/* Driver streaming must be interrupted */
+	Stream_On,		/* Driver streaming is put ON by the application */
 };
 
 enum IsocState {
