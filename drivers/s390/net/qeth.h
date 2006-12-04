@@ -151,8 +151,6 @@ qeth_hex_dump(unsigned char *buf, size_t len)
 #define SENSE_RESETTING_EVENT_BYTE 1
 #define SENSE_RESETTING_EVENT_FLAG 0x80
 
-#define atomic_swap(a,b) xchg((int *)a.counter, b)
-
 /*
  * Common IO related definitions
  */

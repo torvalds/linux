@@ -236,7 +236,7 @@ enum qdio_irq_states {
 #define QDIO_PRINT_EMERG(x...) do { } while (0)
 #endif
 
-#define HEXDUMP16(importance,header,ptr) \
+#define QDIO_HEXDUMP16(importance,header,ptr) \
 QDIO_PRINT_##importance(header "%02x %02x %02x %02x  " \
 			"%02x %02x %02x %02x  %02x %02x %02x %02x  " \
 			"%02x %02x %02x %02x\n",*(((char*)ptr)), \
@@ -428,8 +428,6 @@ struct qdio_perf_stats {
 	unsigned int inbound_time;
 };
 #endif /* QDIO_PERFORMANCE_STATS */
-
-#define atomic_swap(a,b) xchg((int*)a.counter,b)
 
 /* unlikely as the later the better */
 #define SYNC_MEMORY if (unlikely(q->siga_sync)) qdio_siga_sync_q(q)

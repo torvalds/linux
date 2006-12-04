@@ -23,11 +23,6 @@ do {                                       \
 } while (0)
 
 /**
- * some more definitions for debug or output stuff
- */
-#define PRINTK_HEADER		" lcs: "
-
-/**
  *	sysfs related stuff
  */
 #define CARD_FROM_DEV(cdev) \
@@ -127,22 +122,22 @@ do {                                       \
  * LCS Buffer states
  */
 enum lcs_buffer_states {
-	BUF_STATE_EMPTY,	/* buffer is empty */
-	BUF_STATE_LOCKED,	/* buffer is locked, don't touch */
-	BUF_STATE_READY,	/* buffer is ready for read/write */
-	BUF_STATE_PROCESSED,
+	LCS_BUF_STATE_EMPTY,	/* buffer is empty */
+	LCS_BUF_STATE_LOCKED,	/* buffer is locked, don't touch */
+	LCS_BUF_STATE_READY,	/* buffer is ready for read/write */
+	LCS_BUF_STATE_PROCESSED,
 };
 
 /**
  * LCS Channel State Machine declarations
  */
 enum lcs_channel_states {
-	CH_STATE_INIT,
-	CH_STATE_HALTED,
-	CH_STATE_STOPPED,
-	CH_STATE_RUNNING,
-	CH_STATE_SUSPENDED,
-	CH_STATE_CLEARED,
+	LCS_CH_STATE_INIT,
+	LCS_CH_STATE_HALTED,
+	LCS_CH_STATE_STOPPED,
+	LCS_CH_STATE_RUNNING,
+	LCS_CH_STATE_SUSPENDED,
+	LCS_CH_STATE_CLEARED,
 };
 
 /**

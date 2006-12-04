@@ -54,6 +54,8 @@
 #error Cannot compile lcs.c without some net devices switched on.
 #endif
 
+#define PRINTK_HEADER		" lcs: "
+
 /**
  * initialization string for output
  */
@@ -120,7 +122,7 @@ lcs_alloc_channel(struct lcs_channel *channel)
 			kzalloc(LCS_IOBUFFERSIZE, GFP_DMA | GFP_KERNEL);
 		if (channel->iob[cnt].data == NULL)
 			break;
-		channel->iob[cnt].state = BUF_STATE_EMPTY;
+		channel->iob[cnt].state = LCS_BUF_STATE_EMPTY;
 	}
 	if (cnt < LCS_NUM_BUFFS) {
 		/* Not all io buffers could be allocated. */
@@ -236,7 +238,7 @@ lcs_setup_read_ccws(struct lcs_card *card)
 		((struct lcs_header *)
 		 card->read.iob[cnt].data)->offset = LCS_ILLEGAL_OFFSET;
 		card->read.iob[cnt].callback = lcs_get_frames_cb;
-		card->read.iob[cnt].state = BUF_STATE_READY;
+		card->read.iob[cnt].state = LCS_BUF_STATE_READY;
 		card->read.iob[cnt].count = LCS_IOBUFFERSIZE;
 	}
 	card->read.ccws[0].flags &= ~CCW_FLAG_PCI;
@@ -247,7 +249,7 @@ lcs_setup_read_ccws(struct lcs_card *card)
 	card->read.ccws[LCS_NUM_BUFFS].cda =
 		(__u32) __pa(card->read.ccws);
 	/* Setg initial state of the read channel. */
-	card->read.state = CH_STATE_INIT;
+	card->read.state = LCS_CH_STATE_INIT;
 
 	card->read.io_idx = 0;
 	card->read.buf_idx = 0;
@@ -294,7 +296,7 @@ lcs_setup_write_ccws(struct lcs_card *card)
 	card->write.ccws[LCS_NUM_BUFFS].cda =
 		(__u32) __pa(card->write.ccws);
 	/* Set initial state of the write channel. */
-	card->read.state = CH_STATE_INIT;
+	card->read.state = LCS_CH_STATE_INIT;
 
 	card->write.io_idx = 0;
 	card->write.buf_idx = 0;
@@ -496,7 +498,7 @@ lcs_start_channel(struct lcs_channel *channel)
 			      channel->ccws + channel->io_idx, 0, 0,
 			      DOIO_DENY_PREFETCH | DOIO_ALLOW_SUSPEND);
 	if (rc == 0)
-		channel->state = CH_STATE_RUNNING;
+		channel->state = LCS_CH_STATE_RUNNING;
 	spin_unlock_irqrestore(get_ccwdev_lock(channel->ccwdev), flags);
 	if (rc) {
 		LCS_DBF_TEXT_(4,trace,"essh%s", channel->ccwdev->dev.bus_id);
@@ -520,8 +522,8 @@ lcs_clear_channel(struct lcs_channel *channel)
 		LCS_DBF_TEXT_(4,trace,"ecsc%s", channel->ccwdev->dev.bus_id);
 		return rc;
 	}
-	wait_event(channel->wait_q, (channel->state == CH_STATE_CLEARED));
-	channel->state = CH_STATE_STOPPED;
+	wait_event(channel->wait_q, (channel->state == LCS_CH_STATE_CLEARED));
+	channel->state = LCS_CH_STATE_STOPPED;
 	return rc;
 }
 
@@ -535,11 +537,11 @@ lcs_stop_channel(struct lcs_channel *channel)
 	unsigned long flags;
 	int rc;
 
-	if (channel->state == CH_STATE_STOPPED)
+	if (channel->state == LCS_CH_STATE_STOPPED)
 		return 0;
 	LCS_DBF_TEXT(4,trace,"haltsch");
 	LCS_DBF_TEXT_(4,trace,"%s", channel->ccwdev->dev.bus_id);
-	channel->state = CH_STATE_INIT;
+	channel->state = LCS_CH_STATE_INIT;
 	spin_lock_irqsave(get_ccwdev_lock(channel->ccwdev), flags);
 	rc = ccw_device_halt(channel->ccwdev, (addr_t) channel);
 	spin_unlock_irqrestore(get_ccwdev_lock(channel->ccwdev), flags);
@@ -548,7 +550,7 @@ lcs_stop_channel(struct lcs_channel *channel)
 		return rc;
 	}
 	/* Asynchronous halt initialted. Wait for its completion. */
-	wait_event(channel->wait_q, (channel->state == CH_STATE_HALTED));
+	wait_event(channel->wait_q, (channel->state == LCS_CH_STATE_HALTED));
 	lcs_clear_channel(channel);
 	return 0;
 }
@@ -596,8 +598,8 @@ __lcs_get_buffer(struct lcs_channel *channel)
 	LCS_DBF_TEXT(5, trace, "_getbuff");
 	index = channel->io_idx;
 	do {
-		if (channel->iob[index].state == BUF_STATE_EMPTY) {
-			channel->iob[index].state = BUF_STATE_LOCKED;
+		if (channel->iob[index].state == LCS_BUF_STATE_EMPTY) {
+			channel->iob[index].state = LCS_BUF_STATE_LOCKED;
 			return channel->iob + index;
 		}
 		index = (index + 1) & (LCS_NUM_BUFFS - 1);
@@ -626,7 +628,7 @@ __lcs_resume_channel(struct lcs_channel *channel)
 {
 	int rc;
 
-	if (channel->state != CH_STATE_SUSPENDED)
+	if (channel->state != LCS_CH_STATE_SUSPENDED)
 		return 0;
 	if (channel->ccws[channel->io_idx].flags & CCW_FLAG_SUSPEND)
 		return 0;
@@ -636,7 +638,7 @@ __lcs_resume_channel(struct lcs_channel *channel)
 		LCS_DBF_TEXT_(4, trace, "ersc%s", channel->ccwdev->dev.bus_id);
 		PRINT_ERR("Error in lcs_resume_channel: rc=%d\n",rc);
 	} else
-		channel->state = CH_STATE_RUNNING;
+		channel->state = LCS_CH_STATE_RUNNING;
 	return rc;
 
 }
@@ -670,10 +672,10 @@ lcs_ready_buffer(struct lcs_channel *channel, struct lcs_buffer *buffer)
 	int index, rc;
 
 	LCS_DBF_TEXT(5, trace, "rdybuff");
-	BUG_ON(buffer->state != BUF_STATE_LOCKED &&
-	       buffer->state != BUF_STATE_PROCESSED);
+	BUG_ON(buffer->state != LCS_BUF_STATE_LOCKED &&
+	       buffer->state != LCS_BUF_STATE_PROCESSED);
 	spin_lock_irqsave(get_ccwdev_lock(channel->ccwdev), flags);
-	buffer->state = BUF_STATE_READY;
+	buffer->state = LCS_BUF_STATE_READY;
 	index = buffer - channel->iob;
 	/* Set length. */
 	channel->ccws[index].count = buffer->count;
@@ -695,8 +697,8 @@ __lcs_processed_buffer(struct lcs_channel *channel, struct lcs_buffer *buffer)
 	int index, prev, next;
 
 	LCS_DBF_TEXT(5, trace, "prcsbuff");
-	BUG_ON(buffer->state != BUF_STATE_READY);
-	buffer->state = BUF_STATE_PROCESSED;
+	BUG_ON(buffer->state != LCS_BUF_STATE_READY);
+	buffer->state = LCS_BUF_STATE_PROCESSED;
 	index = buffer - channel->iob;
 	prev = (index - 1) & (LCS_NUM_BUFFS - 1);
 	next = (index + 1) & (LCS_NUM_BUFFS - 1);
@@ -704,7 +706,7 @@ __lcs_processed_buffer(struct lcs_channel *channel, struct lcs_buffer *buffer)
 	channel->ccws[index].flags |= CCW_FLAG_SUSPEND;
 	channel->ccws[index].flags &= ~CCW_FLAG_PCI;
 	/* Check the suspend bit of the previous buffer. */
-	if (channel->iob[prev].state == BUF_STATE_READY) {
+	if (channel->iob[prev].state == LCS_BUF_STATE_READY) {
 		/*
 		 * Previous buffer is in state ready. It might have
 		 * happened in lcs_ready_buffer that the suspend bit
@@ -727,10 +729,10 @@ lcs_release_buffer(struct lcs_channel *channel, struct lcs_buffer *buffer)
 	unsigned long flags;
 
 	LCS_DBF_TEXT(5, trace, "relbuff");
-	BUG_ON(buffer->state != BUF_STATE_LOCKED &&
-	       buffer->state != BUF_STATE_PROCESSED);
+	BUG_ON(buffer->state != LCS_BUF_STATE_LOCKED &&
+	       buffer->state != LCS_BUF_STATE_PROCESSED);
 	spin_lock_irqsave(get_ccwdev_lock(channel->ccwdev), flags);
-	buffer->state = BUF_STATE_EMPTY;
+	buffer->state = LCS_BUF_STATE_EMPTY;
 	spin_unlock_irqrestore(get_ccwdev_lock(channel->ccwdev), flags);
 }
 
@@ -1264,7 +1266,7 @@ lcs_register_mc_addresses(void *data)
 	netif_carrier_off(card->dev);
 	netif_tx_disable(card->dev);
 	wait_event(card->write.wait_q,
-			(card->write.state != CH_STATE_RUNNING));
+			(card->write.state != LCS_CH_STATE_RUNNING));
 	lcs_fix_multicast_list(card);
 	if (card->state == DEV_STATE_UP) {
 		netif_carrier_on(card->dev);
@@ -1404,7 +1406,7 @@ lcs_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 		}
 	}
 	/* How far in the ccw chain have we processed? */
-	if ((channel->state != CH_STATE_INIT) &&
+	if ((channel->state != LCS_CH_STATE_INIT) &&
 	    (irb->scsw.fctl & SCSW_FCTL_START_FUNC)) {
 		index = (struct ccw1 *) __va((addr_t) irb->scsw.cpa)
 			- channel->ccws;
@@ -1424,20 +1426,20 @@ lcs_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	    (irb->scsw.dstat & DEV_STAT_CHN_END) ||
 	    (irb->scsw.dstat & DEV_STAT_UNIT_CHECK))
 		/* Mark channel as stopped. */
-		channel->state = CH_STATE_STOPPED;
+		channel->state = LCS_CH_STATE_STOPPED;
 	else if (irb->scsw.actl & SCSW_ACTL_SUSPENDED)
 		/* CCW execution stopped on a suspend bit. */
-		channel->state = CH_STATE_SUSPENDED;
+		channel->state = LCS_CH_STATE_SUSPENDED;
 	if (irb->scsw.fctl & SCSW_FCTL_HALT_FUNC) {
 		if (irb->scsw.cc != 0) {
 			ccw_device_halt(channel->ccwdev, (addr_t) channel);
 			return;
 		}
 		/* The channel has been stopped by halt_IO. */
-		channel->state = CH_STATE_HALTED;
+		channel->state = LCS_CH_STATE_HALTED;
 	}
 	if (irb->scsw.fctl & SCSW_FCTL_CLEAR_FUNC) {
-		channel->state = CH_STATE_CLEARED;
+		channel->state = LCS_CH_STATE_CLEARED;
 	}
 	/* Do the rest in the tasklet. */
 	tasklet_schedule(&channel->irq_tasklet);
@@ -1461,7 +1463,7 @@ lcs_tasklet(unsigned long data)
 	/* Check for processed buffers. */
 	iob = channel->iob;
 	buf_idx = channel->buf_idx;
-	while (iob[buf_idx].state == BUF_STATE_PROCESSED) {
+	while (iob[buf_idx].state == LCS_BUF_STATE_PROCESSED) {
 		/* Do the callback thing. */
 		if (iob[buf_idx].callback != NULL)
 			iob[buf_idx].callback(channel, iob + buf_idx);
@@ -1469,12 +1471,12 @@ lcs_tasklet(unsigned long data)
 	}
 	channel->buf_idx = buf_idx;
 
-	if (channel->state == CH_STATE_STOPPED)
+	if (channel->state == LCS_CH_STATE_STOPPED)
 		// FIXME: what if rc != 0 ??
 		rc = lcs_start_channel(channel);
 	spin_lock_irqsave(get_ccwdev_lock(channel->ccwdev), flags);
-	if (channel->state == CH_STATE_SUSPENDED &&
-	    channel->iob[channel->io_idx].state == BUF_STATE_READY) {
+	if (channel->state == LCS_CH_STATE_SUSPENDED &&
+	    channel->iob[channel->io_idx].state == LCS_BUF_STATE_READY) {
 		// FIXME: what if rc != 0 ??
 		rc = __lcs_resume_channel(channel);
 	}
@@ -1689,8 +1691,8 @@ lcs_detect(struct lcs_card *card)
 		card->state = DEV_STATE_UP;
 	} else {
 		card->state = DEV_STATE_DOWN;
-		card->write.state = CH_STATE_INIT;
-		card->read.state =  CH_STATE_INIT;
+		card->write.state = LCS_CH_STATE_INIT;
+		card->read.state =  LCS_CH_STATE_INIT;
 	}
 	return rc;
 }
@@ -1705,8 +1707,8 @@ lcs_stopcard(struct lcs_card *card)
 
 	LCS_DBF_TEXT(3, setup, "stopcard");
 
-	if (card->read.state != CH_STATE_STOPPED &&
-	    card->write.state != CH_STATE_STOPPED &&
+	if (card->read.state != LCS_CH_STATE_STOPPED &&
+	    card->write.state != LCS_CH_STATE_STOPPED &&
 	    card->state == DEV_STATE_UP) {
 		lcs_clear_multicast_list(card);
 		rc = lcs_send_stoplan(card,LCS_INITIATOR_TCPIP);
@@ -1871,7 +1873,7 @@ lcs_stop_device(struct net_device *dev)
 	netif_tx_disable(dev);
 	dev->flags &= ~IFF_UP;
 	wait_event(card->write.wait_q,
-		(card->write.state != CH_STATE_RUNNING));
+		(card->write.state != LCS_CH_STATE_RUNNING));
 	rc = lcs_stopcard(card);
 	if (rc)
 		PRINT_ERR("Try it again!\n ");
