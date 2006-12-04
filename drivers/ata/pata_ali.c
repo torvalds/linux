@@ -34,7 +34,7 @@
 #include <linux/dmi.h>
 
 #define DRV_NAME "pata_ali"
-#define DRV_VERSION "0.7.1"
+#define DRV_VERSION "0.7.2"
 
 /*
  *	Cable special cases
@@ -528,7 +528,7 @@ static void ali_init_chipset(struct pci_dev *pdev)
 		pci_read_config_byte(pdev, 0x4B, &tmp);
 		pci_write_config_byte(pdev, 0x4B, tmp | 0x08);
 	}
-	north = pci_get_slot(pdev->bus, PCI_DEVFN(0,0));
+	north = pci_get_bus_and_slot(0, PCI_DEVFN(0,0));
 	isa_bridge = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, NULL);
 
 	if (north && north->vendor == PCI_VENDOR_ID_AL && isa_bridge) {
@@ -537,7 +537,7 @@ static void ali_init_chipset(struct pci_dev *pdev)
 		pci_read_config_byte(isa_bridge, 0x79, &tmp);
 		if (rev == 0xC2)
 			pci_write_config_byte(isa_bridge, 0x79, tmp | 0x04);
-		else if (rev > 0xC2)
+		else if (rev > 0xC2 && rev < 0xC5)
 			pci_write_config_byte(isa_bridge, 0x79, tmp | 0x02);
 	}
 	if (rev >= 0x20) {
