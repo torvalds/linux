@@ -396,6 +396,21 @@ struct pci_driver {
  */
 #define pci_module_init	pci_register_driver
 
+/**
+ * PCI_VDEVICE - macro used to describe a specific pci device in short form
+ * @vend: the vendor name
+ * @dev: the 16 bit PCI Device ID
+ *
+ * This macro is used to create a struct pci_device_id that matches a
+ * specific PCI device.  The subvendor, and subdevice fields will be set
+ * to PCI_ANY_ID. The macro allows the next field to follow as the device
+ * private data.
+ */
+
+#define PCI_VDEVICE(vendor, device)		\
+	PCI_VENDOR_ID_##vendor, (device),	\
+	PCI_ANY_ID, PCI_ANY_ID, 0, 0
+
 /* these external functions are only available when PCI support is enabled */
 #ifdef CONFIG_PCI
 
@@ -787,6 +802,7 @@ enum pci_fixup_pass {
 	pci_fixup_header,	/* After reading configuration header */
 	pci_fixup_final,	/* Final phase of device fixups */
 	pci_fixup_enable,	/* pci_enable_device() time */
+	pci_fixup_resume,	/* pci_enable_device() time */
 };
 
 /* Anonymous variables would be nice... */
@@ -805,6 +821,9 @@ enum pci_fixup_pass {
 #define DECLARE_PCI_FIXUP_ENABLE(vendor, device, hook)			\
 	DECLARE_PCI_FIXUP_SECTION(.pci_fixup_enable,			\
 			vendor##device##hook, vendor, device, hook)
+#define DECLARE_PCI_FIXUP_RESUME(vendor, device, hook)			\
+	DECLARE_PCI_FIXUP_SECTION(.pci_fixup_resume,			\
+			resume##vendor##device##hook, vendor, device, hook)
 
 
 void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev);

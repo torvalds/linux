@@ -416,7 +416,7 @@ exit:
 const struct pci_device_id *pci_find_present(const struct pci_device_id *ids)
 {
 	struct pci_dev *dev;
-	struct pci_device_id * found = NULL;
+	const struct pci_device_id *found = NULL;
 
 	WARN_ON(in_interrupt());
 	down_read(&pci_bus_sem);
@@ -442,7 +442,6 @@ const struct pci_device_id *pci_find_present(const struct pci_device_id *ids)
  * find devices that are usually built into a system, or for a general hint as
  * to if another device happens to be present at this specific moment in time.
  */
-
 int pci_dev_present(const struct pci_device_id *ids)
 {
 	return pci_find_present(ids) == NULL ? 0 : 1;

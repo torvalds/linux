@@ -353,6 +353,8 @@ static int pci_device_resume_early(struct device * dev)
 	struct pci_dev * pci_dev = to_pci_dev(dev);
 	struct pci_driver * drv = pci_dev->driver;
 
+	pci_fixup_device(pci_fixup_resume, pci_dev);
+
 	if (drv && drv->resume_early)
 		error = drv->resume_early(pci_dev);
 	return error;
