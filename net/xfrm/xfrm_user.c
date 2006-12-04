@@ -858,7 +858,6 @@ static void copy_templates(struct xfrm_policy *xp, struct xfrm_user_tmpl *ut,
 	int i;
 
 	xp->xfrm_nr = nr;
-	xp->family = ut->family;
 	for (i = 0; i < nr; i++, ut++) {
 		struct xfrm_tmpl *t = &xp->xfrm_vec[i];
 
@@ -876,19 +875,53 @@ static void copy_templates(struct xfrm_policy *xp, struct xfrm_user_tmpl *ut,
 	}
 }
 
+static int validate_tmpl(int nr, struct xfrm_user_tmpl *ut, u16 family)
+{
+	int i;
+
+	if (nr > XFRM_MAX_DEPTH)
+		return -EINVAL;
+
+	for (i = 0; i < nr; i++) {
+		/* We never validated the ut->family value, so many
+		 * applications simply leave it at zero.  The check was
+		 * never made and ut->family was ignored because all
+		 * templates could be assumed to have the same family as
+		 * the policy itself.  Now that we will have ipv4-in-ipv6
+		 * and ipv6-in-ipv4 tunnels, this is no longer true.
+		 */
+		if (!ut[i].family)
+			ut[i].family = family;
+
+		switch (ut[i].family) {
+		case AF_INET:
+			break;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+		case AF_INET6:
+			break;
+#endif
+		default:
+			return -EINVAL;
+		};
+	}
+
+	return 0;
+}
+
 static int copy_from_user_tmpl(struct xfrm_policy *pol, struct rtattr **xfrma)
 {
 	struct rtattr *rt = xfrma[XFRMA_TMPL-1];
-	struct xfrm_user_tmpl *utmpl;
-	int nr;
 
 	if (!rt) {
 		pol->xfrm_nr = 0;
 	} else {
-		nr = (rt->rta_len - sizeof(*rt)) / sizeof(*utmpl);
+		struct xfrm_user_tmpl *utmpl = RTA_DATA(rt);
+		int nr = (rt->rta_len - sizeof(*rt)) / sizeof(*utmpl);
+		int err;
 
-		if (nr > XFRM_MAX_DEPTH)
-			return -EINVAL;
+		err = validate_tmpl(nr, utmpl, pol->family);
+		if (err)
+			return err;
 
 		copy_templates(pol, RTA_DATA(rt), nr);
 	}
@@ -1530,7 +1563,8 @@ static int xfrm_add_acquire(struct sk_buff *skb, struct nlmsghdr *nlh, void **xf
 	}
 
 	/*   build an XP */
-	xp = xfrm_policy_construct(&ua->policy, (struct rtattr **) xfrma, &err);        if (!xp) {
+	xp = xfrm_policy_construct(&ua->policy, (struct rtattr **) xfrma, &err);
+	if (!xp) {
 		kfree(x);
 		return err;
 	}
@@ -1979,7 +2013,7 @@ static struct xfrm_policy *xfrm_compile_policy(struct sock *sk, int opt,
 		return NULL;
 
 	nr = ((len - sizeof(*p)) / sizeof(*ut));
-	if (nr > XFRM_MAX_DEPTH)
+	if (validate_tmpl(nr, ut, p->sel.family))
 		return NULL;
 
 	if (p->dir > XFRM_POLICY_OUT)
