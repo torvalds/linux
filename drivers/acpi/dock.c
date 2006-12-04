@@ -444,6 +444,9 @@ static int dock_in_progress(struct dock_station *ds)
  */
 int register_dock_notifier(struct notifier_block *nb)
 {
+	if (!dock_station)
+		return -ENODEV;
+
 	return atomic_notifier_chain_register(&dock_notifier_list, nb);
 }
 
@@ -455,6 +458,9 @@ EXPORT_SYMBOL_GPL(register_dock_notifier);
  */
 void unregister_dock_notifier(struct notifier_block *nb)
 {
+	if (!dock_station)
+		return;
+
 	atomic_notifier_chain_unregister(&dock_notifier_list, nb);
 }
 
@@ -807,7 +813,7 @@ static int __init dock_init(void)
 			    ACPI_UINT32_MAX, find_dock, &num, NULL);
 
 	if (!num)
-		return -ENODEV;
+		printk(KERN_INFO "No dock devices found.\n");
 
 	return 0;
 }
