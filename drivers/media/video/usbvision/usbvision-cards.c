@@ -30,7 +30,6 @@
 #include "usbvision.h"
 
 /* Supported Devices: A table for usbvision.c*/
-
 struct usbvision_device_data_st  usbvision_device_data[] = {
 	{0xFFF0, 0xFFF0, -1, CODEC_SAA7111, 3, V4L2_STD_NTSC,  1, 1, 1, 1, TUNER_PHILIPS_NTSC_M,       -1, -1, -1, -1, -1, "Custom Dummy USBVision Device"},  
 	{0x0A6F, 0x0400, -1, CODEC_SAA7113, 4, V4L2_STD_NTSC,  1, 0, 1, 0, 0,                          -1, -1, -1, -1, -1, "Xanboo"}, 
