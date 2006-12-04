@@ -212,7 +212,7 @@ EXPORT_SYMBOL_GPL(platform_device_add_resources);
  *	pointer.  The memory associated with the platform data will be freed
  *	when the platform device is released.
  */
-int platform_device_add_data(struct platform_device *pdev, void *data, size_t size)
+int platform_device_add_data(struct platform_device *pdev, const void *data, size_t size)
 {
 	void *d;
 
