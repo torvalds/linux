@@ -31,25 +31,25 @@ static unsigned int blktrace_seq __read_mostly = 1;
 /*
  * Send out a notify message.
  */
-static inline unsigned int trace_note(struct blk_trace *bt,
-		pid_t pid, int action,
-		const void *data, size_t len)
+static unsigned int trace_note(struct blk_trace *bt, pid_t pid, int action,
+			       const void *data, size_t len)
 {
 	struct blk_io_trace *t;
-	int cpu = smp_processor_id();
 
 	t = relay_reserve(bt->rchan, sizeof(*t) + len);
-	if (t == NULL)
-		return 0;
+	if (t) {
+		const int cpu = smp_processor_id();
 
-	t->magic = BLK_IO_TRACE_MAGIC | BLK_IO_TRACE_VERSION;
-	t->time = sched_clock() - per_cpu(blk_trace_cpu_offset, cpu);
-	t->device = bt->dev;
-	t->action = action;
-	t->pid = pid;
-	t->cpu = cpu;
-	t->pdu_len = len;
-	memcpy((void *) t + sizeof(*t), data, len);
+		t->magic = BLK_IO_TRACE_MAGIC | BLK_IO_TRACE_VERSION;
+		t->time = sched_clock() - per_cpu(blk_trace_cpu_offset, cpu);
+		t->device = bt->dev;
+		t->action = action;
+		t->pid = pid;
+		t->cpu = cpu;
+		t->pdu_len = len;
+		memcpy((void *) t + sizeof(*t), data, len);
+	}
+
 	return blktrace_seq;
 }
 
