@@ -30,6 +30,7 @@
 #include <linux/input.h>
 #include <linux/dvb/frontend.h>
 #include <linux/mutex.h>
+#include <linux/mm.h>
 
 #include "dmxdev.h"
 #include "dvb_demux.h"

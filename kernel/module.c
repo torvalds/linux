@@ -34,10 +34,10 @@
 #include <linux/err.h>
 #include <linux/vermagic.h>
 #include <linux/notifier.h>
+#include <linux/sched.h>
 #include <linux/stop_machine.h>
 #include <linux/device.h>
 #include <linux/string.h>
-#include <linux/sched.h>
 #include <linux/mutex.h>
 #include <linux/unwind.h>
 #include <asm/uaccess.h>
@@ -789,6 +789,19 @@ static struct module_attribute refcnt = {
 	.attr = { .name = "refcnt", .mode = 0444, .owner = THIS_MODULE },
 	.show = show_refcnt,
 };
+
+void module_put(struct module *module)
+{
+	if (module) {
+		unsigned int cpu = get_cpu();
+		local_dec(&module->ref[cpu].count);
+		/* Maybe they're waiting for us to drop reference? */
+		if (unlikely(!module_is_live(module)))
+			wake_up_process(module->waiter);
+		put_cpu();
+	}
+}
+EXPORT_SYMBOL(module_put);
 
 #else /* !CONFIG_MODULE_UNLOAD */
 static void print_unload_info(struct seq_file *m, struct module *mod)

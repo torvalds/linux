@@ -91,6 +91,7 @@
 #include <linux/poll.h>
 #include <linux/ac97_codec.h>
 #include <linux/mutex.h>
+#include <linux/mm.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>

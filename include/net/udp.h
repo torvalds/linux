@@ -29,6 +29,7 @@
 #include <net/ip.h>
 #include <linux/ipv6.h>
 #include <linux/seq_file.h>
+#include <linux/poll.h>
 
 /**
  *	struct udp_skb_cb  -  UDP(-Lite) private variables

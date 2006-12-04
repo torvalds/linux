@@ -3,6 +3,7 @@
 
 #include <linux/types.h>
 #include <linux/netlink.h>
+#include <linux/jiffies.h>
 
 /* ========================================================================
  *         Netlink Messages and Attributes Interface (As Seen On TV)

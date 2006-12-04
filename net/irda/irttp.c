@@ -26,6 +26,7 @@
 
 #include <linux/skbuff.h>
 #include <linux/init.h>
+#include <linux/fs.h>
 #include <linux/seq_file.h>
 
 #include <asm/byteorder.h>

@@ -46,6 +46,7 @@
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/socket.h>
+#include <linux/mm.h>
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_l3proto.h>

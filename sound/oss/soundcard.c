@@ -42,6 +42,7 @@
 #include <linux/proc_fs.h>
 #include <linux/smp_lock.h>
 #include <linux/module.h>
+#include <linux/mm.h>
 
 /*
  * This ought to be moved into include/asm/dma.h

@@ -56,7 +56,6 @@
 #include <linux/cache.h>
 #include <linux/rtnetlink.h>
 #include <linux/init.h>
-#include <linux/highmem.h>
 
 #include <net/protocol.h>
 #include <net/dst.h>
@@ -66,6 +65,8 @@
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
+
+#include "kmap_skb.h"
 
 static kmem_cache_t *skbuff_head_cache __read_mostly;
 static kmem_cache_t *skbuff_fclone_cache __read_mostly;

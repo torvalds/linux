@@ -56,6 +56,7 @@ union nf_conntrack_help {
 
 #include <linux/types.h>
 #include <linux/skbuff.h>
+#include <linux/timer.h>
 
 #ifdef CONFIG_NETFILTER_DEBUG
 #define NF_CT_ASSERT(x)							\

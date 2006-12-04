@@ -111,6 +111,7 @@
 #include <linux/poll.h>
 #include <linux/tcp.h>
 #include <linux/init.h>
+#include <linux/highmem.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
