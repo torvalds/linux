@@ -1582,6 +1582,10 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file)
 		
 		sz += thread_status_size;
 
+#ifdef ELF_CORE_WRITE_EXTRA_NOTES
+		sz += ELF_CORE_EXTRA_NOTES_SIZE;
+#endif
+
 		fill_elf_note_phdr(&phdr, sz, offset);
 		offset += sz;
 		DUMP_WRITE(&phdr, sizeof(phdr));
@@ -1621,6 +1625,10 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file)
 	for (i = 0; i < numnote; i++)
 		if (!writenote(notes + i, file, &foffset))
 			goto end_coredump;
+
+#ifdef ELF_CORE_WRITE_EXTRA_NOTES
+	ELF_CORE_WRITE_EXTRA_NOTES;
+#endif
 
 	/* write out the thread status notes section */
 	list_for_each(t, &thread_list) {

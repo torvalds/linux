@@ -123,7 +123,7 @@ static inline void native_unlock_hpte(hpte_t *hptep)
 	clear_bit(HPTE_LOCK_BIT, word);
 }
 
-long native_hpte_insert(unsigned long hpte_group, unsigned long va,
+static long native_hpte_insert(unsigned long hpte_group, unsigned long va,
 			unsigned long pa, unsigned long rflags,
 			unsigned long vflags, int psize)
 {

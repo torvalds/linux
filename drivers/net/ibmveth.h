@@ -118,7 +118,6 @@ struct ibmveth_adapter {
     struct net_device_stats stats;
     unsigned int mcastFilterSize;
     unsigned long mac_addr;
-    unsigned long liobn;
     void * buffer_list_addr;
     void * filter_list_addr;
     dma_addr_t buffer_list_dma;

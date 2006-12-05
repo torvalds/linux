@@ -168,14 +168,12 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 		return -EINVAL;
 	}
 
-	uccs = (struct ucc_slow_private *)
-		kmalloc(sizeof(struct ucc_slow_private), GFP_KERNEL);
+	uccs = kzalloc(sizeof(struct ucc_slow_private), GFP_KERNEL);
 	if (!uccs) {
 		uccs_err
 		    ("ucc_slow_init: No memory for UCC slow data structure!");
 		return -ENOMEM;
 	}
-	memset(uccs, 0, sizeof(struct ucc_slow_private));
 
 	/* Fill slow UCC structure */
 	uccs->us_info = us_info;

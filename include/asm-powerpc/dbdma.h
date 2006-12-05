@@ -95,7 +95,13 @@ struct dbdma_cmd {
 #define DBDMA_DO_STOP(regs) do {				\
 	out_le32(&((regs)->control), (RUN|FLUSH)<<16);		\
 	while(in_le32(&((regs)->status)) & (ACTIVE|FLUSH))	\
-		;						\
+		; \
+} while(0)
+
+#define DBDMA_DO_RESET(regs) do {				\
+	out_le32(&((regs)->control), (ACTIVE|DEAD|WAKE|FLUSH|PAUSE|RUN)<<16);\
+	while(in_le32(&((regs)->status)) & (RUN)) \
+		; \
 } while(0)
 
 #endif /* _ASM_DBDMA_H_ */

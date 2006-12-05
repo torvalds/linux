@@ -53,10 +53,6 @@
 #endif
 #include <asm/kexec.h>
 
-#ifdef CONFIG_PPC64	/* XXX */
-#define _IO_BASE	pci_io_base
-#endif
-
 #ifdef CONFIG_DEBUGGER
 int (*__debugger)(struct pt_regs *regs);
 int (*__debugger_ipi)(struct pt_regs *regs);
@@ -241,7 +237,7 @@ void system_reset_exception(struct pt_regs *regs)
  */
 static inline int check_io_access(struct pt_regs *regs)
 {
-#if defined(CONFIG_PPC_PMAC) && defined(CONFIG_PPC32)
+#ifdef CONFIG_PPC32
 	unsigned long msr = regs->msr;
 	const struct exception_table_entry *entry;
 	unsigned int *nip = (unsigned int *)regs->nip;
@@ -274,7 +270,7 @@ static inline int check_io_access(struct pt_regs *regs)
 			return 1;
 		}
 	}
-#endif /* CONFIG_PPC_PMAC && CONFIG_PPC32 */
+#endif /* CONFIG_PPC32 */
 	return 0;
 }
 
