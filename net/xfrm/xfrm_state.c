@@ -1099,7 +1099,7 @@ int xfrm_state_walk(u8 proto, int (*func)(struct xfrm_state *, int, void*),
 		    void *data)
 {
 	int i;
-	struct xfrm_state *x;
+	struct xfrm_state *x, *last = NULL;
 	struct hlist_node *entry;
 	int count = 0;
 	int err = 0;
@@ -1107,24 +1107,22 @@ int xfrm_state_walk(u8 proto, int (*func)(struct xfrm_state *, int, void*),
 	spin_lock_bh(&xfrm_state_lock);
 	for (i = 0; i <= xfrm_state_hmask; i++) {
 		hlist_for_each_entry(x, entry, xfrm_state_bydst+i, bydst) {
-			if (xfrm_id_proto_match(x->id.proto, proto))
-				count++;
+			if (!xfrm_id_proto_match(x->id.proto, proto))
+				continue;
+			if (last) {
+				err = func(last, count, data);
+				if (err)
+					goto out;
+			}
+			last = x;
+			count++;
 		}
 	}
 	if (count == 0) {
 		err = -ENOENT;
 		goto out;
 	}
-
-	for (i = 0; i <= xfrm_state_hmask; i++) {
-		hlist_for_each_entry(x, entry, xfrm_state_bydst+i, bydst) {
-			if (!xfrm_id_proto_match(x->id.proto, proto))
-				continue;
-			err = func(x, --count, data);
-			if (err)
-				goto out;
-		}
-	}
+	err = func(last, 0, data);
 out:
 	spin_unlock_bh(&xfrm_state_lock);
 	return err;
