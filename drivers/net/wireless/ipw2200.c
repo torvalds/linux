@@ -8285,7 +8285,7 @@ static void ipw_rx(struct ipw_priv *priv)
 				    ("Notification: subtype=%02X flags=%02X size=%d\n",
 				     pkt->u.notification.subtype,
 				     pkt->u.notification.flags,
-				     pkt->u.notification.size);
+				     le16_to_cpu(pkt->u.notification.size));
 				ipw_rx_notification(priv, &pkt->u.notification);
 				break;
 			}
