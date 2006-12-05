@@ -64,6 +64,7 @@
 #include <linux/tty.h>
 #include <linux/selinux.h>
 #include <linux/binfmts.h>
+#include <linux/highmem.h>
 #include <linux/syscalls.h>
 
 #include "audit.h"

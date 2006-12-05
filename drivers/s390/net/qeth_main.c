@@ -2982,7 +2982,7 @@ qeth_check_outbound_queue(struct qeth_qdio_out_q *queue)
 	 */
 	if ((atomic_read(&queue->used_buffers) <= QETH_LOW_WATERMARK_PACK) ||
 	    !atomic_read(&queue->set_pci_flags_count)){
-		if (atomic_swap(&queue->state, QETH_OUT_Q_LOCKED_FLUSH) ==
+		if (atomic_xchg(&queue->state, QETH_OUT_Q_LOCKED_FLUSH) ==
 				QETH_OUT_Q_UNLOCKED) {
 			/*
 			 * If we get in here, there was no action in
@@ -3245,7 +3245,7 @@ qeth_free_qdio_buffers(struct qeth_card *card)
 	int i, j;
 
 	QETH_DBF_TEXT(trace, 2, "freeqdbf");
-	if (atomic_swap(&card->qdio.state, QETH_QDIO_UNINITIALIZED) ==
+	if (atomic_xchg(&card->qdio.state, QETH_QDIO_UNINITIALIZED) ==
 		QETH_QDIO_UNINITIALIZED)
 		return;
 	kfree(card->qdio.in_q);
@@ -4366,7 +4366,7 @@ out:
 	if (flush_count)
 		qeth_flush_buffers(queue, 0, start_index, flush_count);
 	else if (!atomic_read(&queue->set_pci_flags_count))
-		atomic_swap(&queue->state, QETH_OUT_Q_LOCKED_FLUSH);
+		atomic_xchg(&queue->state, QETH_OUT_Q_LOCKED_FLUSH);
 	/*
 	 * queue->state will go from LOCKED -> UNLOCKED or from
 	 * LOCKED_FLUSH -> LOCKED if output_handler wanted to 'notify' us

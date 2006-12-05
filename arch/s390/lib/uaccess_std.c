@@ -28,6 +28,9 @@
 #define SLR	"slgr"
 #endif
 
+extern size_t copy_from_user_pt(size_t n, const void __user *from, void *to);
+extern size_t copy_to_user_pt(size_t n, void __user *to, const void *from);
+
 size_t copy_from_user_std(size_t size, const void __user *ptr, void *x)
 {
 	unsigned long tmp1, tmp2;
@@ -69,34 +72,11 @@ size_t copy_from_user_std(size_t size, const void __user *ptr, void *x)
 	return size;
 }
 
-size_t copy_from_user_std_small(size_t size, const void __user *ptr, void *x)
+size_t copy_from_user_std_check(size_t size, const void __user *ptr, void *x)
 {
-	unsigned long tmp1, tmp2;
-
-	tmp1 = 0UL;
-	asm volatile(
-		"0: mvcp  0(%0,%2),0(%1),%3\n"
-		"  "SLR"  %0,%0\n"
-		"   j     5f\n"
-		"1: la    %4,255(%1)\n" /* %4 = ptr + 255 */
-		"  "LHI"  %3,-4096\n"
-		"   nr    %4,%3\n"	/* %4 = (ptr + 255) & -4096 */
-		"  "SLR"  %4,%1\n"
-		"  "CLR"  %0,%4\n"	/* copy crosses next page boundary? */
-		"   jnh   5f\n"
-		"2: mvcp  0(%4,%2),0(%1),%3\n"
-		"  "SLR"  %0,%4\n"
-		"  "ALR"  %2,%4\n"
-		"3:"LHI"  %4,-1\n"
-		"  "ALR"  %4,%0\n"	/* copy remaining size, subtract 1 */
-		"   bras  %3,4f\n"
-		"   xc    0(1,%2),0(%2)\n"
-		"4: ex    %4,0(%3)\n"
-		"5:\n"
-		EX_TABLE(0b,1b) EX_TABLE(2b,3b)
-		: "+a" (size), "+a" (ptr), "+a" (x), "+a" (tmp1), "=a" (tmp2)
-		: : "cc", "memory");
-	return size;
+	if (size <= 1024)
+		return copy_from_user_std(size, ptr, x);
+	return copy_from_user_pt(size, ptr, x);
 }
 
 size_t copy_to_user_std(size_t size, void __user *ptr, const void *x)
@@ -130,28 +110,11 @@ size_t copy_to_user_std(size_t size, void __user *ptr, const void *x)
 	return size;
 }
 
-size_t copy_to_user_std_small(size_t size, void __user *ptr, const void *x)
+size_t copy_to_user_std_check(size_t size, void __user *ptr, const void *x)
 {
-	unsigned long tmp1, tmp2;
-
-	tmp1 = 0UL;
-	asm volatile(
-		"0: mvcs  0(%0,%1),0(%2),%3\n"
-		"  "SLR"  %0,%0\n"
-		"   j     3f\n"
-		"1: la    %4,255(%1)\n" /* ptr + 255 */
-		"  "LHI"  %3,-4096\n"
-		"   nr    %4,%3\n"	/* (ptr + 255) & -4096UL */
-		"  "SLR"  %4,%1\n"
-		"  "CLR"  %0,%4\n"	/* copy crosses next page boundary? */
-		"   jnh   3f\n"
-		"2: mvcs  0(%4,%1),0(%2),%3\n"
-		"  "SLR"  %0,%4\n"
-		"3:\n"
-		EX_TABLE(0b,1b) EX_TABLE(2b,3b)
-		: "+a" (size), "+a" (ptr), "+a" (x), "+a" (tmp1), "=a" (tmp2)
-		: : "cc", "memory");
-	return size;
+	if (size <= 1024)
+		return copy_to_user_std(size, ptr, x);
+	return copy_to_user_pt(size, ptr, x);
 }
 
 size_t copy_in_user_std(size_t size, void __user *to, const void __user *from)
@@ -343,10 +306,10 @@ int futex_atomic_cmpxchg(int __user *uaddr, int oldval, int newval)
 }
 
 struct uaccess_ops uaccess_std = {
-	.copy_from_user = copy_from_user_std,
-	.copy_from_user_small = copy_from_user_std_small,
-	.copy_to_user = copy_to_user_std,
-	.copy_to_user_small = copy_to_user_std_small,
+	.copy_from_user = copy_from_user_std_check,
+	.copy_from_user_small = copy_from_user_std,
+	.copy_to_user = copy_to_user_std_check,
+	.copy_to_user_small = copy_to_user_std,
 	.copy_in_user = copy_in_user_std,
 	.clear_user = clear_user_std,
 	.strnlen_user = strnlen_user_std,

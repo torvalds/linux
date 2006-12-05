@@ -100,10 +100,14 @@ enum {
 	 */
 	PORT_REGS_SIZE		= 0x2000,
 
-	PORT_LRAM		= 0x0000, /* 31 LRAM slots and PM regs */
+	PORT_LRAM		= 0x0000, /* 31 LRAM slots and PMP regs */
 	PORT_LRAM_SLOT_SZ	= 0x0080, /* 32 bytes PRB + 2 SGE, ACT... */
 
-	PORT_PM			= 0x0f80, /* 8 bytes PM * 16 (128 bytes) */
+	PORT_PMP		= 0x0f80, /* 8 bytes PMP * 16 (128 bytes) */
+	PORT_PMP_STATUS		= 0x0000, /* port device status offset */
+	PORT_PMP_QACTIVE	= 0x0004, /* port device QActive offset */
+	PORT_PMP_SIZE		= 0x0008, /* 8 bytes per PMP */
+
 		/* 32 bit regs */
 	PORT_CTRL_STAT		= 0x1000, /* write: ctrl-set, read: stat */
 	PORT_CTRL_CLR		= 0x1004, /* write: ctrl-clear */
@@ -126,6 +130,7 @@ enum {
 	PORT_PHY_CFG		= 0x1050,
 	PORT_SLOT_STAT		= 0x1800,
 	PORT_CMD_ACTIVATE	= 0x1c00, /* 64 bit cmd activate * 31 (248 bytes) */
+	PORT_CONTEXT		= 0x1e04,
 	PORT_EXEC_DIAG		= 0x1e00, /* 32bit exec diag * 16 (64 bytes, 0-10 used on 3124) */
 	PORT_PSD_DIAG		= 0x1e40, /* 32bit psd diag * 16 (64 bytes, 0-8 used on 3124) */
 	PORT_SCONTROL		= 0x1f00,
@@ -139,9 +144,9 @@ enum {
 	PORT_CS_INIT		= (1 << 2), /* port initialize */
 	PORT_CS_IRQ_WOC		= (1 << 3), /* interrupt write one to clear */
 	PORT_CS_CDB16		= (1 << 5), /* 0=12b cdb, 1=16b cdb */
-	PORT_CS_RESUME		= (1 << 6), /* port resume */
+	PORT_CS_PMP_RESUME	= (1 << 6), /* PMP resume */
 	PORT_CS_32BIT_ACTV	= (1 << 10), /* 32-bit activation */
-	PORT_CS_PM_EN		= (1 << 13), /* port multiplier enable */
+	PORT_CS_PMP_EN		= (1 << 13), /* port multiplier enable */
 	PORT_CS_RDY		= (1 << 31), /* port ready to accept commands */
 
 	/* PORT_IRQ_STAT/ENABLE_SET/CLR */
@@ -562,7 +567,7 @@ static int sil24_softreset(struct ata_port *ap, unsigned int *class)
 
 	/* do SRST */
 	prb->ctrl = cpu_to_le16(PRB_CTRL_SRST);
-	prb->fis[1] = 0; /* no PM yet */
+	prb->fis[1] = 0; /* no PMP yet */
 
 	writel((u32)paddr, port + PORT_CMD_ACTIVATE);
 	writel((u64)paddr >> 32, port + PORT_CMD_ACTIVATE + 4);
@@ -1050,7 +1055,8 @@ static void sil24_init_controller(struct pci_dev *pdev, int n_ports,
 		writel(PORT_CS_32BIT_ACTV, port + PORT_CTRL_CLR);
 
 		/* Clear port multiplier enable and resume bits */
-		writel(PORT_CS_PM_EN | PORT_CS_RESUME, port + PORT_CTRL_CLR);
+		writel(PORT_CS_PMP_EN | PORT_CS_PMP_RESUME,
+		       port + PORT_CTRL_CLR);
 	}
 
 	/* Turn on interrupts */

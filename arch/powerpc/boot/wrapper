@@ -184,6 +184,9 @@ fi
 
 if [ -n "$dtb" ]; then
     addsec $tmp "$dtb" .kernel:dtb
+    if [ -n "$dts" ]; then
+	rm $dtb
+    fi
 fi
 
 if [ "$platform" != "miboot" ]; then

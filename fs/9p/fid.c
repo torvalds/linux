@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
+#include <linux/sched.h>
 #include <linux/idr.h>
 
 #include "debug.h"

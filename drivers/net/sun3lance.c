@@ -38,6 +38,7 @@ static char *version = "sun3lance.c: v1.2 1/12/2001  Sam Creasey (sammy@sammy.ne
 #include <linux/skbuff.h>
 #include <linux/bitops.h>
 
+#include <asm/cacheflush.h>
 #include <asm/setup.h>
 #include <asm/irq.h>
 #include <asm/io.h>

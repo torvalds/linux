@@ -45,7 +45,6 @@ typedef struct user_i387_struct elf_fpregset_t;
 
 #ifdef __KERNEL__
 #include <asm/processor.h>
-#include <asm/compat.h>
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.

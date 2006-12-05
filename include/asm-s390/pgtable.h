@@ -110,12 +110,21 @@ extern char empty_zero_page[PAGE_SIZE];
 #define VMALLOC_OFFSET  (8*1024*1024)
 #define VMALLOC_START   (((unsigned long) high_memory + VMALLOC_OFFSET) \
 			 & ~(VMALLOC_OFFSET-1))
-#ifndef __s390x__
-# define VMALLOC_END     (0x7fffffffL)
-#else /* __s390x__ */
-# define VMALLOC_END     (0x40000000000L)
-#endif /* __s390x__ */
 
+/*
+ * We need some free virtual space to be able to do vmalloc.
+ * VMALLOC_MIN_SIZE defines the minimum size of the vmalloc
+ * area. On a machine with 2GB memory we make sure that we
+ * have at least 128MB free space for vmalloc. On a machine
+ * with 4TB we make sure we have at least 1GB.
+ */
+#ifndef __s390x__
+#define VMALLOC_MIN_SIZE	0x8000000UL
+#define VMALLOC_END		0x80000000UL
+#else /* __s390x__ */
+#define VMALLOC_MIN_SIZE	0x40000000UL
+#define VMALLOC_END		0x40000000000UL
+#endif /* __s390x__ */
 
 /*
  * A 31 bit pagetable entry of S390 has following format:

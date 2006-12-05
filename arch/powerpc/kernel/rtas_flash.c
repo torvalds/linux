@@ -681,13 +681,11 @@ static int initialize_flash_pde_data(const char *rtas_call_name,
 	int *status;
 	int token;
 
-	dp->data = kmalloc(buf_size, GFP_KERNEL);
+	dp->data = kzalloc(buf_size, GFP_KERNEL);
 	if (dp->data == NULL) {
 		remove_flash_pde(dp);
 		return -ENOMEM;
 	}
-
-	memset(dp->data, 0, buf_size);
 
 	/*
 	 * This code assumes that the status int is the first member of the

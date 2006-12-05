@@ -21,12 +21,13 @@
 #define _SPU_PRIV1_H
 #if defined(__KERNEL__)
 
+#include <linux/types.h>
+
 struct spu;
 
 /* access to priv1 registers */
 
-struct spu_priv1_ops
-{
+struct spu_priv1_ops {
 	void (*int_mask_and) (struct spu *spu, int class, u64 mask);
 	void (*int_mask_or) (struct spu *spu, int class, u64 mask);
 	void (*int_mask_set) (struct spu *spu, int class, u64 mask);
@@ -37,7 +38,7 @@ struct spu_priv1_ops
 	u64 (*mfc_dar_get) (struct spu *spu);
 	u64 (*mfc_dsisr_get) (struct spu *spu);
 	void (*mfc_dsisr_set) (struct spu *spu, u64 dsisr);
-	void (*mfc_sdr_set) (struct spu *spu, u64 sdr);
+	void (*mfc_sdr_setup) (struct spu *spu);
 	void (*mfc_sr1_set) (struct spu *spu, u64 sr1);
 	u64 (*mfc_sr1_get) (struct spu *spu);
 	void (*mfc_tclass_id_set) (struct spu *spu, u64 tclass_id);
@@ -112,9 +113,9 @@ spu_mfc_dsisr_set (struct spu *spu, u64 dsisr)
 }
 
 static inline void
-spu_mfc_sdr_set (struct spu *spu, u64 sdr)
+spu_mfc_sdr_setup (struct spu *spu)
 {
-	spu_priv1_ops->mfc_sdr_set(spu, sdr);
+	spu_priv1_ops->mfc_sdr_setup(spu);
 }
 
 static inline void
@@ -171,12 +172,41 @@ spu_resource_allocation_enable_get (struct spu *spu)
 	return spu_priv1_ops->resource_allocation_enable_get(spu);
 }
 
-/* The declarations folowing are put here for convenience
- * and only intended to be used by the platform setup code
- * for initializing spu_priv1_ops.
+/* spu management abstraction */
+
+struct spu_management_ops {
+	int (*enumerate_spus)(int (*fn)(void *data));
+	int (*create_spu)(struct spu *spu, void *data);
+	int (*destroy_spu)(struct spu *spu);
+};
+
+extern const struct spu_management_ops* spu_management_ops;
+
+static inline int
+spu_enumerate_spus (int (*fn)(void *data))
+{
+	return spu_management_ops->enumerate_spus(fn);
+}
+
+static inline int
+spu_create_spu (struct spu *spu, void *data)
+{
+	return spu_management_ops->create_spu(spu, data);
+}
+
+static inline int
+spu_destroy_spu (struct spu *spu)
+{
+	return spu_management_ops->destroy_spu(spu);
+}
+
+/*
+ * The declarations folowing are put here for convenience
+ * and only intended to be used by the platform setup code.
  */
 
 extern const struct spu_priv1_ops spu_priv1_mmio_ops;
+extern const struct spu_management_ops spu_management_of_ops;
 
 #endif /* __KERNEL__ */
 #endif

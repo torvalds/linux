@@ -56,6 +56,7 @@
 #include <linux/if_vlan.h>
 #include <linux/bitops.h>
 #include <linux/mutex.h>
+#include <linux/mm.h>
 
 #include <asm/system.h>
 #include <asm/io.h>

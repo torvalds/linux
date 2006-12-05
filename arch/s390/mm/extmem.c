@@ -14,12 +14,13 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/bootmem.h>
+#include <linux/ctype.h>
 #include <asm/page.h>
 #include <asm/ebcdic.h>
 #include <asm/errno.h>
 #include <asm/extmem.h>
 #include <asm/cpcmd.h>
-#include <linux/ctype.h>
+#include <asm/setup.h>
 
 #define DCSS_DEBUG	/* Debug messages on/off */
 
@@ -77,14 +78,10 @@ struct dcss_segment {
 	int segcnt;
 };
 
-static DEFINE_SPINLOCK(dcss_lock);
+static DEFINE_MUTEX(dcss_lock);
 static struct list_head dcss_list = LIST_HEAD_INIT(dcss_list);
 static char *segtype_string[] = { "SW", "EW", "SR", "ER", "SN", "EN", "SC",
 					"EW/EN-MIXED" };
-
-extern struct {
-	unsigned long addr, size, type;
-} memory_chunk[MEMORY_CHUNKS];
 
 /*
  * Create the 8 bytes, ebcdic VM segment name from
@@ -117,7 +114,7 @@ segment_by_name (char *name)
 	struct list_head *l;
 	struct dcss_segment *tmp, *retval = NULL;
 
-	assert_spin_locked(&dcss_lock);
+	BUG_ON(!mutex_is_locked(&dcss_lock));
 	dcss_mkname (name, dcss_name);
 	list_for_each (l, &dcss_list) {
 		tmp = list_entry (l, struct dcss_segment, list);
@@ -249,8 +246,8 @@ segment_overlaps_storage(struct dcss_segment *seg)
 {
 	int i;
 
-	for (i=0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
-		if (memory_chunk[i].type != 0)
+	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
+		if (memory_chunk[i].type != CHUNK_READ_WRITE)
 			continue;
 		if ((memory_chunk[i].addr >> 20) > (seg->end >> 20))
 			continue;
@@ -272,7 +269,7 @@ segment_overlaps_others (struct dcss_segment *seg)
 	struct list_head *l;
 	struct dcss_segment *tmp;
 
-	assert_spin_locked(&dcss_lock);
+	BUG_ON(!mutex_is_locked(&dcss_lock));
 	list_for_each(l, &dcss_list) {
 		tmp = list_entry(l, struct dcss_segment, list);
 		if ((tmp->start_addr >> 20) > (seg->end >> 20))
@@ -429,7 +426,7 @@ segment_load (char *name, int do_nonshared, unsigned long *addr,
 	if (!MACHINE_IS_VM)
 		return -ENOSYS;
 
-	spin_lock (&dcss_lock);
+	mutex_lock(&dcss_lock);
 	seg = segment_by_name (name);
 	if (seg == NULL)
 		rc = __segment_load (name, do_nonshared, addr, end);
@@ -444,7 +441,7 @@ segment_load (char *name, int do_nonshared, unsigned long *addr,
 			rc    = -EPERM;
 		}
 	}
-	spin_unlock (&dcss_lock);
+	mutex_unlock(&dcss_lock);
 	return rc;
 }
 
@@ -467,7 +464,7 @@ segment_modify_shared (char *name, int do_nonshared)
 	unsigned long dummy;
 	int dcss_command, rc, diag_cc;
 
-	spin_lock (&dcss_lock);
+	mutex_lock(&dcss_lock);
 	seg = segment_by_name (name);
 	if (seg == NULL) {
 		rc = -EINVAL;
@@ -508,7 +505,7 @@ segment_modify_shared (char *name, int do_nonshared)
 		  &dummy, &dummy);
 	kfree(seg);
  out_unlock:
-	spin_unlock(&dcss_lock);
+	mutex_unlock(&dcss_lock);
 	return rc;
 }
 
@@ -526,7 +523,7 @@ segment_unload(char *name)
 	if (!MACHINE_IS_VM)
 		return;
 
-	spin_lock(&dcss_lock);
+	mutex_lock(&dcss_lock);
 	seg = segment_by_name (name);
 	if (seg == NULL) {
 		PRINT_ERR ("could not find segment %s in segment_unload, "
@@ -540,7 +537,7 @@ segment_unload(char *name)
 		kfree(seg);
 	}
 out_unlock:
-	spin_unlock(&dcss_lock);
+	mutex_unlock(&dcss_lock);
 }
 
 /*
@@ -559,12 +556,13 @@ segment_save(char *name)
 	if (!MACHINE_IS_VM)
 		return;
 
-	spin_lock(&dcss_lock);
+	mutex_lock(&dcss_lock);
 	seg = segment_by_name (name);
 
 	if (seg == NULL) {
-		PRINT_ERR ("could not find segment %s in segment_save, please report to linux390@de.ibm.com\n",name);
-		return;
+		PRINT_ERR("could not find segment %s in segment_save, please "
+			  "report to linux390@de.ibm.com\n", name);
+		goto out;
 	}
 
 	startpfn = seg->start_addr >> PAGE_SHIFT;
@@ -591,7 +589,7 @@ segment_save(char *name)
 		goto out;
 	}
 out:
-	spin_unlock(&dcss_lock);
+	mutex_unlock(&dcss_lock);
 }
 
 EXPORT_SYMBOL(segment_load);

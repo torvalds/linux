@@ -28,7 +28,7 @@
 
 struct ocfs2_alloc_context;
 int ocfs2_insert_extent(struct ocfs2_super *osb,
-			struct ocfs2_journal_handle *handle,
+			handle_t *handle,
 			struct inode *inode,
 			struct buffer_head *fe_bh,
 			u64 blkno,

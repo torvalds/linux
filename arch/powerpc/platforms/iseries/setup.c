@@ -21,7 +21,6 @@
 #include <linux/smp.h>
 #include <linux/param.h>
 #include <linux/string.h>
-#include <linux/initrd.h>
 #include <linux/seq_file.h>
 #include <linux/kdev_t.h>
 #include <linux/major.h>
@@ -79,8 +78,6 @@ extern void iSeries_pci_final_fixup(void);
 #else
 static void iSeries_pci_final_fixup(void) { }
 #endif
-
-extern int rd_size;		/* Defined in drivers/block/rd.c */
 
 extern unsigned long iSeries_recal_tb;
 extern unsigned long iSeries_recal_titan;
@@ -295,24 +292,6 @@ static void __init iSeries_init_early(void)
 {
 	DBG(" -> iSeries_init_early()\n");
 
-#if defined(CONFIG_BLK_DEV_INITRD)
-	/*
-	 * If the init RAM disk has been configured and there is
-	 * a non-zero starting address for it, set it up
-	 */
-	if (naca.xRamDisk) {
-		initrd_start = (unsigned long)__va(naca.xRamDisk);
-		initrd_end = initrd_start + naca.xRamDiskSize * HW_PAGE_SIZE;
-		initrd_below_start_ok = 1;	// ramdisk in kernel space
-		ROOT_DEV = Root_RAM0;
-		if (((rd_size * 1024) / HW_PAGE_SIZE) < naca.xRamDiskSize)
-			rd_size = (naca.xRamDiskSize * HW_PAGE_SIZE) / 1024;
-	} else
-#endif /* CONFIG_BLK_DEV_INITRD */
-	{
-	    /* ROOT_DEV = MKDEV(VIODASD_MAJOR, 1); */
-	}
-
 	iSeries_recal_tb = get_tb();
 	iSeries_recal_titan = HvCallXm_loadTod();
 
@@ -330,17 +309,6 @@ static void __init iSeries_init_early(void)
 	HvCallEvent_setLpEventQueueInterruptProc(0, 0);
 
 	mf_init();
-
-	/* If we were passed an initrd, set the ROOT_DEV properly if the values
-	 * look sensible. If not, clear initrd reference.
-	 */
-#ifdef CONFIG_BLK_DEV_INITRD
-	if (initrd_start >= KERNELBASE && initrd_end >= KERNELBASE &&
-	    initrd_end > initrd_start)
-		ROOT_DEV = Root_RAM0;
-	else
-		initrd_start = initrd_end = 0;
-#endif /* CONFIG_BLK_DEV_INITRD */
 
 	DBG(" <- iSeries_init_early()\n");
 }
@@ -649,6 +617,16 @@ static void iseries_dedicated_idle(void)
 void __init iSeries_init_IRQ(void) { }
 #endif
 
+static void __iomem *iseries_ioremap(phys_addr_t address, unsigned long size,
+				     unsigned long flags)
+{
+	return (void __iomem *)address;
+}
+
+static void iseries_iounmap(volatile void __iomem *token)
+{
+}
+
 /*
  * iSeries has no legacy IO, anything calling this function has to
  * fail or bad things will happen
@@ -665,6 +643,8 @@ static int __init iseries_probe(void)
 		return 0;
 
 	hpte_init_iSeries();
+	/* iSeries does not support 16M pages */
+	cur_cpu_spec->cpu_features &= ~CPU_FTR_16M_PAGE;
 
 	return 1;
 }
@@ -687,6 +667,8 @@ define_machine(iseries) {
 	.progress	= iSeries_progress,
 	.probe		= iseries_probe,
 	.check_legacy_ioport	= iseries_check_legacy_ioport,
+	.ioremap	= iseries_ioremap,
+	.iounmap	= iseries_iounmap,
 	/* XXX Implement enable_pmcs for iSeries */
 };
 
@@ -697,7 +679,7 @@ void * __init iSeries_early_setup(void)
 	/* Identify CPU type. This is done again by the common code later
 	 * on but calling this function multiple times is fine.
 	 */
-	identify_cpu(0);
+	identify_cpu(0, mfspr(SPRN_PVR));
 
 	powerpc_firmware_features |= FW_FEATURE_ISERIES;
 	powerpc_firmware_features |= FW_FEATURE_LPAR;

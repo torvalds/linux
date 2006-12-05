@@ -19,7 +19,6 @@
 #ifndef _LINUX_RADIX_TREE_H
 #define _LINUX_RADIX_TREE_H
 
-#include <linux/sched.h>
 #include <linux/preempt.h>
 #include <linux/types.h>
 

@@ -22,7 +22,8 @@ struct platform_ops {
 	void	(*fixups)(void);
 	void	(*image_hdr)(const void *);
 	void *	(*malloc)(u32 size);
-	void	(*free)(void *ptr, u32 size);
+	void	(*free)(void *ptr);
+	void *	(*realloc)(void *ptr, unsigned long size);
 	void	(*exit)(void);
 };
 extern struct platform_ops platform_ops;
@@ -30,13 +31,11 @@ extern struct platform_ops platform_ops;
 /* Device Tree operations */
 struct dt_ops {
 	void *	(*finddevice)(const char *name);
-	int	(*getprop)(const void *node, const char *name, void *buf,
+	int	(*getprop)(const void *phandle, const char *name, void *buf,
 			const int buflen);
-	int	(*setprop)(const void *node, const char *name,
+	int	(*setprop)(const void *phandle, const char *name,
 			const void *buf, const int buflen);
-	u64	(*translate_addr)(const char *path, const u32 *in_addr,
-			const u32 addr_len);
-	unsigned long (*ft_addr)(void);
+	unsigned long (*finalize)(void);
 };
 extern struct dt_ops dt_ops;
 
@@ -59,10 +58,13 @@ struct serial_console_data {
 	void		(*close)(void);
 };
 
-extern int platform_init(void *promptr);
-extern void simple_alloc_init(void);
-extern void ft_init(void *dt_blob);
-extern int serial_console_init(void);
+int platform_init(void *promptr, char *dt_blob_start, char *dt_blob_end);
+int ft_init(void *dt_blob, unsigned int max_size, unsigned int max_find_device);
+int serial_console_init(void);
+int ns16550_console_init(void *devp, struct serial_console_data *scdp);
+void *simple_alloc_init(char *base, u32 heap_size, u32 granularity,
+		u32 max_allocs);
+
 
 static inline void *finddevice(const char *name)
 {
@@ -84,10 +86,10 @@ static inline void *malloc(u32 size)
 	return (platform_ops.malloc) ? platform_ops.malloc(size) : NULL;
 }
 
-static inline void free(void *ptr, u32 size)
+static inline void free(void *ptr)
 {
 	if (platform_ops.free)
-		platform_ops.free(ptr, size);
+		platform_ops.free(ptr);
 }
 
 static inline void exit(void)

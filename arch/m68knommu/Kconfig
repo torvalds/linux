@@ -173,7 +173,7 @@ config CLOCK_DIV
 	  On many SoC style CPUs the master CPU clock is also used to drive 
 	  on-chip peripherals. The clock that is distributed to these
 	  peripherals is sometimes a fixed ratio of the master clock
-	  frequency. If so then set this to the divider ration of the
+	  frequency. If so then set this to the divider ratio of the
 	  master clock to the peripheral clock. If not sure then select 1.
 
 config OLDMASK
@@ -192,7 +192,7 @@ config PILOT3
 	  Support for the Palm Pilot 1000/5000, Personal/Pro and PalmIII.
 
 config XCOPILOT_BUGS
-	bool "  (X)Copilot support"
+	bool "(X)Copilot support"
 	depends on PILOT3
 	help
 	  Support the bugs of Xcopilot.
@@ -216,20 +216,20 @@ config DRAGEN2
 	  Support for the DragenEngine II board.
 
 config DIRECT_IO_ACCESS
-	bool "  Allow user to access IO directly"
+	bool "Allow user to access IO directly"
 	depends on (UCSIMM || UCDIMM || DRAGEN2)
 	help
 	  Disable the CPU internal registers protection in user mode,
           to allow a user application to read/write them.
 
 config INIT_LCD
-	bool "  Initialize LCD"
+	bool "Initialize LCD"
 	depends on (UCSIMM || UCDIMM || DRAGEN2)
 	help
 	  Initialize the LCD controller of the 68x328 processor.
 
 config MEMORY_RESERVE
-	int "  Memory reservation (MiB)"
+	int "Memory reservation (MiB)"
 	depends on (UCSIMM || UCDIMM)
 	help
 	  Reserve certain memory regions on 68x328 based boards.
@@ -409,7 +409,7 @@ config MOD5272
 	  Support for the Netburner MOD-5272 board.
 
 config ROMFS_FROM_ROM
-	bool "  ROMFS image not RAM resident"
+	bool "ROMFS image not RAM resident"
 	depends on (NETtel || SNAPGEAR)
 	help
 	  The ROMfs filesystem will stay resident in the FLASH/ROM, not be

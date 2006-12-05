@@ -418,24 +418,6 @@ start:
 .gotr:
 	l	%r10,.tbl		# EBCDIC to ASCII table
 	tr	0(240,%r8),0(%r10)
-	stidp	__LC_CPUID		# Are we running on VM maybe
-	cli	__LC_CPUID,0xff
-	bnz	.test
-	.long	0x83300060		# diag 3,0,x'0060' - storage size
-	b	.done
-.test:
-	mvc	0x68(8),.pgmnw		# set up pgm check handler
-	l	%r2,.fourmeg
-	lr	%r3,%r2
-	bctr	%r3,%r0			# 4M-1
-.loop:	iske	%r0,%r3
-	ar	%r3,%r2
-.pgmx:
-	sr	%r3,%r2
-	la	%r3,1(%r3)
-.done:
-	l	%r1,.memsize
-	st	%r3,ARCH_OFFSET(%r1)
 	slr	%r0,%r0
 	st	%r0,INITRD_SIZE+ARCH_OFFSET-PARMAREA(%r11)
 	st	%r0,INITRD_START+ARCH_OFFSET-PARMAREA(%r11)
@@ -443,9 +425,6 @@ start:
 .tbl:	.long	_ebcasc			# translate table
 .cmd:	.long	COMMAND_LINE		# address of command line buffer
 .parm:	.long	PARMAREA
-.memsize: .long memory_size
-.fourmeg: .long 0x00400000      	# 4M
-.pgmnw:	.long	0x00080000,.pgmx
 .lowcase:
 	.byte 0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07
 	.byte 0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f

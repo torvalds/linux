@@ -17,6 +17,7 @@
 #include <linux/seq_file.h>
 #include <linux/list.h>
 #include <linux/skbuff.h>
+#include <linux/mm.h>
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>

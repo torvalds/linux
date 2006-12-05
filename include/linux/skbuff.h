@@ -22,12 +22,10 @@
 #include <asm/atomic.h>
 #include <asm/types.h>
 #include <linux/spinlock.h>
-#include <linux/mm.h>
-#include <linux/highmem.h>
-#include <linux/poll.h>
 #include <linux/net.h>
 #include <linux/textsearch.h>
 #include <net/checksum.h>
+#include <linux/rcupdate.h>
 #include <linux/dmaengine.h>
 
 #define HAVE_ALLOC_SKB		/* For the drivers to know */
@@ -1293,24 +1291,6 @@ static inline int pskb_trim_rcsum(struct sk_buff *skb, unsigned int len)
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
 		skb->ip_summed = CHECKSUM_NONE;
 	return __pskb_trim(skb, len);
-}
-
-static inline void *kmap_skb_frag(const skb_frag_t *frag)
-{
-#ifdef CONFIG_HIGHMEM
-	BUG_ON(in_irq());
-
-	local_bh_disable();
-#endif
-	return kmap_atomic(frag->page, KM_SKB_DATA_SOFTIRQ);
-}
-
-static inline void kunmap_skb_frag(void *vaddr)
-{
-	kunmap_atomic(vaddr, KM_SKB_DATA_SOFTIRQ);
-#ifdef CONFIG_HIGHMEM
-	local_bh_enable();
-#endif
 }
 
 #define skb_queue_walk(queue, skb) \

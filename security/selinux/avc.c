@@ -496,7 +496,7 @@ static inline void avc_print_ipv6_addr(struct audit_buffer *ab,
 		audit_log_format(ab, " %s=%d", name2, ntohs(port));
 }
 
-static inline void avc_print_ipv4_addr(struct audit_buffer *ab, u32 addr,
+static inline void avc_print_ipv4_addr(struct audit_buffer *ab, __be32 addr,
 				       __be16 port, char *name1, char *name2)
 {
 	if (addr)

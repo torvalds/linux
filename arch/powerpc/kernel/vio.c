@@ -81,15 +81,15 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 		struct iommu_table *tbl;
 		unsigned long offset, size;
 
-		dma_window = get_property(dev->dev.platform_data,
-				"ibm,my-dma-window", NULL);
+		dma_window = get_property(dev->dev.archdata.of_node,
+					  "ibm,my-dma-window", NULL);
 		if (!dma_window)
 			return NULL;
 
 		tbl = kmalloc(sizeof(*tbl), GFP_KERNEL);
 
-		of_parse_dma_window(dev->dev.platform_data, dma_window,
-				&tbl->it_index, &offset, &size);
+		of_parse_dma_window(dev->dev.archdata.of_node, dma_window,
+				    &tbl->it_index, &offset, &size);
 
 		/* TCE table size - measured in tce entries */
 		tbl->it_size = size >> IOMMU_PAGE_SHIFT;
@@ -117,7 +117,8 @@ static const struct vio_device_id *vio_match_device(
 {
 	while (ids->type[0] != '\0') {
 		if ((strncmp(dev->type, ids->type, strlen(ids->type)) == 0) &&
-		    device_is_compatible(dev->dev.platform_data, ids->compat))
+		    device_is_compatible(dev->dev.archdata.of_node,
+					 ids->compat))
 			return ids;
 		ids++;
 	}
@@ -198,9 +199,9 @@ EXPORT_SYMBOL(vio_unregister_driver);
 /* vio_dev refcount hit 0 */
 static void __devinit vio_dev_release(struct device *dev)
 {
-	if (dev->platform_data) {
-		/* XXX free TCE table */
-		of_node_put(dev->platform_data);
+	if (dev->archdata.of_node) {
+		/* XXX should free TCE table */
+		of_node_put(dev->archdata.of_node);
 	}
 	kfree(to_vio_dev(dev));
 }
@@ -210,7 +211,7 @@ static void __devinit vio_dev_release(struct device *dev)
  * @of_node:	The OF node for this device.
  *
  * Creates and initializes a vio_dev structure from the data in
- * of_node (dev.platform_data) and adds it to the list of virtual devices.
+ * of_node and adds it to the list of virtual devices.
  * Returns a pointer to the created vio_dev or NULL if node has
  * NULL device_type or compatible fields.
  */
@@ -240,8 +241,6 @@ struct vio_dev * __devinit vio_register_device_node(struct device_node *of_node)
 	if (viodev == NULL)
 		return NULL;
 
-	viodev->dev.platform_data = of_node_get(of_node);
-
 	viodev->irq = irq_of_parse_and_map(of_node, 0);
 
 	snprintf(viodev->dev.bus_id, BUS_ID_SIZE, "%x", *unit_address);
@@ -254,7 +253,10 @@ struct vio_dev * __devinit vio_register_device_node(struct device_node *of_node)
 		if (unit_address != NULL)
 			viodev->unit_address = *unit_address;
 	}
-	viodev->iommu_table = vio_build_iommu_table(viodev);
+	viodev->dev.archdata.of_node = of_node_get(of_node);
+	viodev->dev.archdata.dma_ops = &dma_iommu_ops;
+	viodev->dev.archdata.dma_data = vio_build_iommu_table(viodev);
+	viodev->dev.archdata.numa_node = of_node_to_nid(of_node);
 
 	/* init generic 'struct device' fields: */
 	viodev->dev.parent = &vio_bus_device.dev;
@@ -285,10 +287,11 @@ static int __init vio_bus_init(void)
 #ifdef CONFIG_PPC_ISERIES
 	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
 		iommu_vio_init();
-		vio_bus_device.iommu_table = &vio_iommu_table;
+		vio_bus_device.dev.archdata.dma_ops = &dma_iommu_ops;
+		vio_bus_device.dev.archdata.dma_data = &vio_iommu_table;
 		iSeries_vio_dev = &vio_bus_device.dev;
 	}
-#endif
+#endif /* CONFIG_PPC_ISERIES */
 
 	err = bus_register(&vio_bus_type);
 	if (err) {
@@ -336,7 +339,7 @@ static ssize_t name_show(struct device *dev,
 static ssize_t devspec_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct device_node *of_node = dev->platform_data;
+	struct device_node *of_node = dev->archdata.of_node;
 
 	return sprintf(buf, "%s\n", of_node ? of_node->full_name : "none");
 }
@@ -353,62 +356,6 @@ void __devinit vio_unregister_device(struct vio_dev *viodev)
 }
 EXPORT_SYMBOL(vio_unregister_device);
 
-static dma_addr_t vio_map_single(struct device *dev, void *vaddr,
-			  size_t size, enum dma_data_direction direction)
-{
-	return iommu_map_single(to_vio_dev(dev)->iommu_table, vaddr, size,
-			~0ul, direction);
-}
-
-static void vio_unmap_single(struct device *dev, dma_addr_t dma_handle,
-		      size_t size, enum dma_data_direction direction)
-{
-	iommu_unmap_single(to_vio_dev(dev)->iommu_table, dma_handle, size,
-			direction);
-}
-
-static int vio_map_sg(struct device *dev, struct scatterlist *sglist,
-		int nelems, enum dma_data_direction direction)
-{
-	return iommu_map_sg(dev, to_vio_dev(dev)->iommu_table, sglist,
-			nelems, ~0ul, direction);
-}
-
-static void vio_unmap_sg(struct device *dev, struct scatterlist *sglist,
-		int nelems, enum dma_data_direction direction)
-{
-	iommu_unmap_sg(to_vio_dev(dev)->iommu_table, sglist, nelems, direction);
-}
-
-static void *vio_alloc_coherent(struct device *dev, size_t size,
-			   dma_addr_t *dma_handle, gfp_t flag)
-{
-	return iommu_alloc_coherent(to_vio_dev(dev)->iommu_table, size,
-			dma_handle, ~0ul, flag, -1);
-}
-
-static void vio_free_coherent(struct device *dev, size_t size,
-			 void *vaddr, dma_addr_t dma_handle)
-{
-	iommu_free_coherent(to_vio_dev(dev)->iommu_table, size, vaddr,
-			dma_handle);
-}
-
-static int vio_dma_supported(struct device *dev, u64 mask)
-{
-	return 1;
-}
-
-struct dma_mapping_ops vio_dma_ops = {
-	.alloc_coherent = vio_alloc_coherent,
-	.free_coherent = vio_free_coherent,
-	.map_single = vio_map_single,
-	.unmap_single = vio_unmap_single,
-	.map_sg = vio_map_sg,
-	.unmap_sg = vio_unmap_sg,
-	.dma_supported = vio_dma_supported,
-};
-
 static int vio_bus_match(struct device *dev, struct device_driver *drv)
 {
 	const struct vio_dev *vio_dev = to_vio_dev(dev);
@@ -422,13 +369,14 @@ static int vio_hotplug(struct device *dev, char **envp, int num_envp,
 			char *buffer, int buffer_size)
 {
 	const struct vio_dev *vio_dev = to_vio_dev(dev);
-	struct device_node *dn = dev->platform_data;
+	struct device_node *dn;
 	const char *cp;
 	int length;
 
 	if (!num_envp)
 		return -ENOMEM;
 
+	dn = dev->archdata.of_node;
 	if (!dn)
 		return -ENODEV;
 	cp = get_property(dn, "compatible", &length);
@@ -465,7 +413,7 @@ struct bus_type vio_bus_type = {
 */
 const void *vio_get_attribute(struct vio_dev *vdev, char *which, int *length)
 {
-	return get_property(vdev->dev.platform_data, which, length);
+	return get_property(vdev->dev.archdata.of_node, which, length);
 }
 EXPORT_SYMBOL(vio_get_attribute);
 

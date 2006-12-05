@@ -26,7 +26,7 @@ static int ocfs2_get_inode_attr(struct inode *inode, unsigned *flags)
 {
 	int status;
 
-	status = ocfs2_meta_lock(inode, NULL, NULL, 0);
+	status = ocfs2_meta_lock(inode, NULL, 0);
 	if (status < 0) {
 		mlog_errno(status);
 		return status;
@@ -43,14 +43,14 @@ static int ocfs2_set_inode_attr(struct inode *inode, unsigned flags,
 {
 	struct ocfs2_inode_info *ocfs2_inode = OCFS2_I(inode);
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct ocfs2_journal_handle *handle = NULL;
+	handle_t *handle = NULL;
 	struct buffer_head *bh = NULL;
 	unsigned oldflags;
 	int status;
 
 	mutex_lock(&inode->i_mutex);
 
-	status = ocfs2_meta_lock(inode, NULL, &bh, 1);
+	status = ocfs2_meta_lock(inode, &bh, 1);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -67,7 +67,7 @@ static int ocfs2_set_inode_attr(struct inode *inode, unsigned flags,
 	if (!S_ISDIR(inode->i_mode))
 		flags &= ~OCFS2_DIRSYNC_FL;
 
-	handle = ocfs2_start_trans(osb, NULL, OCFS2_INODE_UPDATE_CREDITS);
+	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		mlog_errno(status);
@@ -96,7 +96,7 @@ static int ocfs2_set_inode_attr(struct inode *inode, unsigned flags,
 	if (status < 0)
 		mlog_errno(status);
 
-	ocfs2_commit_trans(handle);
+	ocfs2_commit_trans(osb, handle);
 bail_unlock:
 	ocfs2_meta_unlock(inode, 1);
 bail:

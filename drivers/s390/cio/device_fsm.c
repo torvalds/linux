@@ -59,6 +59,27 @@ device_set_disconnected(struct subchannel *sch)
 	cdev->private->state = DEV_STATE_DISCONNECTED;
 }
 
+void device_set_intretry(struct subchannel *sch)
+{
+	struct ccw_device *cdev;
+
+	cdev = sch->dev.driver_data;
+	if (!cdev)
+		return;
+	cdev->private->flags.intretry = 1;
+}
+
+int device_trigger_verify(struct subchannel *sch)
+{
+	struct ccw_device *cdev;
+
+	cdev = sch->dev.driver_data;
+	if (!cdev || !cdev->online)
+		return -EINVAL;
+	dev_fsm_event(cdev, DEV_EVENT_VERIFY);
+	return 0;
+}
+
 /*
  * Timeout function. It just triggers a DEV_EVENT_TIMEOUT.
  */
@@ -893,6 +914,12 @@ ccw_device_w4sense(struct ccw_device *cdev, enum dev_event dev_event)
 	 * had killed the original request.
 	 */
 	if (irb->scsw.fctl & (SCSW_FCTL_CLEAR_FUNC | SCSW_FCTL_HALT_FUNC)) {
+		/* Retry Basic Sense if requested. */
+		if (cdev->private->flags.intretry) {
+			cdev->private->flags.intretry = 0;
+			ccw_device_do_sense(cdev, irb);
+			return;
+		}
 		cdev->private->flags.dosense = 0;
 		memset(&cdev->private->irb, 0, sizeof(struct irb));
 		ccw_device_accumulate_irb(cdev, irb);

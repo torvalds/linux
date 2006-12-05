@@ -481,7 +481,7 @@ qdio_stop_polling(struct qdio_q *q)
        unsigned char state = 0;
        struct qdio_irq *irq = (struct qdio_irq *) q->irq_ptr;
 
-	if (!atomic_swap(&q->polling,0)) 
+	if (!atomic_xchg(&q->polling,0))
 		return 1;
 
 	QDIO_DBF_TEXT4(0,trace,"stoppoll");
@@ -1964,8 +1964,8 @@ qdio_irq_check_sense(struct subchannel_id schid, struct irb *irb)
 		QDIO_DBF_HEX0(0,sense,irb,QDIO_DBF_SENSE_LEN);
 
 		QDIO_PRINT_WARN("sense data available on qdio channel.\n");
-		HEXDUMP16(WARN,"irb: ",irb);
-		HEXDUMP16(WARN,"sense data: ",irb->ecw);
+		QDIO_HEXDUMP16(WARN,"irb: ",irb);
+		QDIO_HEXDUMP16(WARN,"sense data: ",irb->ecw);
 	}
 		
 }
@@ -3425,7 +3425,7 @@ do_qdio_handle_inbound(struct qdio_q *q, unsigned int callflags,
 	
 	if ((used_elements+count==QDIO_MAX_BUFFERS_PER_Q)&&
 	    (callflags&QDIO_FLAG_UNDER_INTERRUPT))
-		atomic_swap(&q->polling,0);
+		atomic_xchg(&q->polling,0);
 	
 	if (used_elements) 
 		return;

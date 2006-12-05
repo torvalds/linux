@@ -21,7 +21,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_rz1000"
-#define DRV_VERSION	"0.2.2"
+#define DRV_VERSION	"0.2.3"
 
 
 /**
@@ -83,7 +83,6 @@ static struct scsi_host_template rz1000_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
@@ -92,6 +91,8 @@ static struct scsi_host_template rz1000_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+	.resume			= ata_scsi_device_resume,
+	.suspend		= ata_scsi_device_suspend,
 };
 
 static struct ata_port_operations rz1000_port_ops = {
@@ -129,6 +130,19 @@ static struct ata_port_operations rz1000_port_ops = {
 	.host_stop	= ata_host_stop
 };
 
+static int rz1000_fifo_disable(struct pci_dev *pdev)
+{
+	u16 reg;
+	/* Be exceptionally paranoid as we must be sure to apply the fix */
+	if (pci_read_config_word(pdev, 0x40, &reg) != 0)
+		return -1;
+	reg &= 0xDFFF;
+	if (pci_write_config_word(pdev, 0x40, reg) != 0)
+		return -1;
+	printk(KERN_INFO DRV_NAME ": disabled chipset readahead.\n");
+	return 0;
+}
+
 /**
  *	rz1000_init_one - Register RZ1000 ATA PCI device with kernel services
  *	@pdev: PCI device to register
@@ -143,7 +157,6 @@ static int rz1000_init_one (struct pci_dev *pdev, const struct pci_device_id *en
 {
 	static int printed_version;
 	struct ata_port_info *port_info[2];
-	u16 reg;
 	static struct ata_port_info info = {
 		.sht = &rz1000_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
@@ -154,21 +167,23 @@ static int rz1000_init_one (struct pci_dev *pdev, const struct pci_device_id *en
 	if (!printed_version++)
 		printk(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
 
-	/* Be exceptionally paranoid as we must be sure to apply the fix */
-	if (pci_read_config_word(pdev, 0x40, &reg) != 0)
-		goto fail;
-	reg &= 0xDFFF;
-	if (pci_write_config_word(pdev, 0x40, reg) != 0)
-		goto fail;
-	printk(KERN_INFO DRV_NAME ": disabled chipset readahead.\n");
-
-	port_info[0] = &info;
-	port_info[1] = &info;
-	return ata_pci_init_one(pdev, port_info, 2);
-fail:
+	if (rz1000_fifo_disable(pdev) == 0) {
+		port_info[0] = &info;
+		port_info[1] = &info;
+		return ata_pci_init_one(pdev, port_info, 2);
+	}
 	printk(KERN_ERR DRV_NAME ": failed to disable read-ahead on chipset..\n");
 	/* Not safe to use so skip */
 	return -ENODEV;
+}
+
+static int rz1000_reinit_one(struct pci_dev *pdev)
+{
+	/* If this fails on resume (which is a "cant happen" case), we
+	   must stop as any progress risks data loss */
+	if (rz1000_fifo_disable(pdev))
+		panic("rz1000 fifo");
+	return ata_pci_device_resume(pdev);
 }
 
 static const struct pci_device_id pata_rz1000[] = {
@@ -182,7 +197,9 @@ static struct pci_driver rz1000_pci_driver = {
 	.name 		= DRV_NAME,
 	.id_table	= pata_rz1000,
 	.probe 		= rz1000_init_one,
-	.remove		= ata_pci_remove_one
+	.remove		= ata_pci_remove_one,
+	.suspend	= ata_pci_device_suspend,
+	.resume		= rz1000_reinit_one,
 };
 
 static int __init rz1000_init(void)

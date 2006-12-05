@@ -35,7 +35,7 @@
 #include <linux/ide.h>
 #include <asm/io.h>
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
+#ifdef CONFIG_PPC_CHRP
 #include <asm/processor.h>
 #endif
 
@@ -442,7 +442,7 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 	hwif->speedproc = &via_set_drive;
 
 
-#if defined(CONFIG_PPC_CHRP) && defined(CONFIG_PPC32)
+#ifdef CONFIG_PPC_CHRP
 	if(machine_is(chrp) && _chrp_type == _CHRP_Pegasos) {
 		hwif->irq = hwif->channel ? 15 : 14;
 	}

@@ -29,17 +29,6 @@ struct pt_regs;
 #endif /* __ASSEMBLY__ */
 
 
-#ifdef CONFIG_PCI
-#define _IO_BASE	isa_io_base
-#define _ISA_MEM_BASE	isa_mem_base
-#define PCI_DRAM_OFFSET	pci_dram_offset
-#else
-#define _IO_BASE	0
-#define _ISA_MEM_BASE	0
-#define PCI_DRAM_OFFSET	0
-#endif
-
-
 /* ======================================================================== */
 /* PPC Sys devices definition                                               */
 /* ======================================================================== */

@@ -53,6 +53,7 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/errno.h>
+#include <linux/highmem.h>
 
 #include <linux/socket.h>
 #include <linux/sockios.h>

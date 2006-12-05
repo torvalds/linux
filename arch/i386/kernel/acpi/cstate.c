@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/acpi.h>
 #include <linux/cpu.h>
+#include <linux/sched.h>
 
 #include <acpi/processor.h>
 #include <asm/acpi.h>

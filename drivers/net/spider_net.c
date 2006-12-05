@@ -88,12 +88,11 @@ MODULE_DEVICE_TABLE(pci, spider_net_pci_tbl);
 static inline u32
 spider_net_read_reg(struct spider_net_card *card, u32 reg)
 {
-	u32 value;
-
-	value = readl(card->regs + reg);
-	value = le32_to_cpu(value);
-
-	return value;
+	/* We use the powerpc specific variants instead of readl_be() because
+	 * we know spidernet is not a real PCI device and we can thus avoid the
+	 * performance hit caused by the PCI workarounds.
+	 */
+	return in_be32(card->regs + reg);
 }
 
 /**
@@ -105,8 +104,11 @@ spider_net_read_reg(struct spider_net_card *card, u32 reg)
 static inline void
 spider_net_write_reg(struct spider_net_card *card, u32 reg, u32 value)
 {
-	value = cpu_to_le32(value);
-	writel(value, card->regs + reg);
+	/* We use the powerpc specific variants instead of writel_be() because
+	 * we know spidernet is not a real PCI device and we can thus avoid the
+	 * performance hit caused by the PCI workarounds.
+	 */
+	out_be32(card->regs + reg, value);
 }
 
 /** spider_net_write_phy - write to phy register

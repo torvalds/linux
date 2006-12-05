@@ -98,7 +98,7 @@ The following chapters describe the I/O related interface routines the
 Linux/390 common device support (CDS) provides to allow for device specific
 driver implementations on the IBM ESA/390 hardware platform. Those interfaces
 intend to provide the functionality required by every device driver
-implementaion to allow to drive a specific hardware device on the ESA/390
+implementation to allow to drive a specific hardware device on the ESA/390
 platform. Some of the interface routines are specific to Linux/390 and some
 of them can be found on other Linux platforms implementations too.
 Miscellaneous function prototypes, data declarations, and macro definitions
@@ -114,7 +114,7 @@ the ESA/390 architecture has implemented a so called channel subsystem, that
 provides a unified view of the devices physically attached to the systems.
 Though the ESA/390 hardware platform knows about a huge variety of different
 peripheral attachments like disk devices (aka. DASDs), tapes, communication
-controllers, etc. they can all by accessed by a well defined access method and
+controllers, etc. they can all be accessed by a well defined access method and
 they are presenting I/O completion a unified way : I/O interruptions. Every
 single device is uniquely identified to the system by a so called subchannel,
 where the ESA/390 architecture allows for 64k devices be attached.
@@ -338,7 +338,7 @@ DOIO_REPORT_ALL          - report all interrupt conditions
 The ccw_device_start() function returns :
 
       0 - successful completion or request successfully initiated
--EBUSY  - The device is currently processing a previous I/O request, or ther is
+-EBUSY	- The device is currently processing a previous I/O request, or there is
           a status pending at the device.
 -ENODEV - cdev is invalid, the device is not operational or the ccw_device is
           not online.
@@ -361,7 +361,7 @@ first:
 -EIO:       the common I/O layer terminated the request due to an error state
 
 If the concurrent sense flag in the extended status word in the irb is set, the
-field irb->scsw.count describes the numer of device specific sense bytes
+field irb->scsw.count describes the number of device specific sense bytes
 available in the extended control word irb->scsw.ecw[0]. No device sensing by
 the device driver itself is required.
 
@@ -410,7 +410,7 @@ ccw_device_start() must be called disabled and with the ccw device lock held.
 
 The device driver is allowed to issue the next ccw_device_start() call from
 within its interrupt handler already. It is not required to schedule a
-bottom-half, unless an non deterministically long running error recovery procedure
+bottom-half, unless a non deterministically long running error recovery procedure
 or similar needs to be scheduled. During I/O processing the Linux/390 generic
 I/O device driver support has already obtained the IRQ lock, i.e. the handler
 must not try to obtain it again when calling ccw_device_start() or we end in a
@@ -431,7 +431,7 @@ information prior to device-end the device driver urgently relies on. In this
 case all I/O interruptions are presented to the device driver until final
 status is recognized.
 
-If a device is able to recover from asynchronosly presented I/O errors, it can
+If a device is able to recover from asynchronously presented I/O errors, it can
 perform overlapping I/O using the DOIO_EARLY_NOTIFICATION flag. While some
 devices always report channel-end and device-end together, with a single
 interrupt, others present primary status (channel-end) when the channel is

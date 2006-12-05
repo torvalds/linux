@@ -5,6 +5,7 @@
 #include <linux/sysdev.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/sched.h>
 #include <linux/cpu.h>
 #include <linux/topology.h>
 #include <linux/device.h>

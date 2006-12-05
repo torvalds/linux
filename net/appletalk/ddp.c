@@ -61,6 +61,7 @@
 #include <net/tcp_states.h>
 #include <net/route.h>
 #include <linux/atalk.h>
+#include "../core/kmap_skb.h"
 
 struct datalink_proto *ddp_dl, *aarp_dl;
 static const struct proto_ops atalk_dgram_ops;

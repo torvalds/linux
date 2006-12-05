@@ -26,6 +26,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/mm.h>
 #include "ehea.h"
 #include "ehea_phyp.h"
 #include "ehea_qmr.h"

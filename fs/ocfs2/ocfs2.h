@@ -34,6 +34,7 @@
 #include <linux/workqueue.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
+#include <linux/jbd.h>
 
 #include "cluster/nodemanager.h"
 #include "cluster/heartbeat.h"
@@ -179,9 +180,9 @@ enum ocfs2_mount_options
 #define OCFS2_OSB_SOFT_RO	0x0001
 #define OCFS2_OSB_HARD_RO	0x0002
 #define OCFS2_OSB_ERROR_FS	0x0004
+#define OCFS2_DEFAULT_ATIME_QUANTUM	60
 
 struct ocfs2_journal;
-struct ocfs2_journal_handle;
 struct ocfs2_super
 {
 	struct task_struct *commit_task;
@@ -218,6 +219,7 @@ struct ocfs2_super
 	unsigned long osb_flags;
 
 	unsigned long s_mount_opt;
+	unsigned int s_atime_quantum;
 
 	u16 max_slots;
 	s16 node_num;

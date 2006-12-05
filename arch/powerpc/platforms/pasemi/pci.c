@@ -148,14 +148,6 @@ static int __init add_bridge(struct device_node *dev)
 }
 
 
-void __init pas_pcibios_fixup(void)
-{
-	struct pci_dev *dev = NULL;
-
-	for_each_pci_dev(dev)
-		pci_read_irq_line(dev);
-}
-
 static void __init pas_fixup_phb_resources(void)
 {
 	struct pci_controller *hose, *tmp;
