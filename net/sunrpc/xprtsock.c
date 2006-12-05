@@ -1061,19 +1061,6 @@ static unsigned short xs_get_random_port(void)
 }
 
 /**
- * xs_print_peer_address - format an IPv4 address for printing
- * @xprt: generic transport
- * @format: flags field indicating which parts of the address to render
- */
-static char *xs_print_peer_address(struct rpc_xprt *xprt, enum rpc_display_format_t format)
-{
-	if (xprt->address_strings[format] != NULL)
-		return xprt->address_strings[format];
-	else
-		return "unprintable";
-}
-
-/**
  * xs_set_port - reset the port number in the remote endpoint address
  * @xprt: generic transport
  * @port: new port number
@@ -1146,7 +1133,7 @@ static void xs_udp_connect_worker(void *args)
 	}
 
 	dprintk("RPC:      worker connecting xprt %p to address: %s\n",
-			xprt, xs_print_peer_address(xprt, RPC_DISPLAY_ALL));
+			xprt, xprt->address_strings[RPC_DISPLAY_ALL]);
 
 	if (!transport->inet) {
 		struct sock *sk = sock->sk;
@@ -1233,7 +1220,7 @@ static void xs_tcp_connect_worker(void *args)
 		xs_tcp_reuse_connection(xprt);
 
 	dprintk("RPC:      worker connecting xprt %p to address: %s\n",
-			xprt, xs_print_peer_address(xprt, RPC_DISPLAY_ALL));
+			xprt, xprt->address_strings[RPC_DISPLAY_ALL]);
 
 	if (!transport->inet) {
 		struct sock *sk = sock->sk;
@@ -1380,7 +1367,6 @@ static void xs_tcp_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 
 static struct rpc_xprt_ops xs_udp_ops = {
 	.set_buffer_size	= xs_udp_set_buffer_size,
-	.print_addr		= xs_print_peer_address,
 	.reserve_xprt		= xprt_reserve_xprt_cong,
 	.release_xprt		= xprt_release_xprt_cong,
 	.rpcbind		= rpc_getport,
@@ -1398,7 +1384,6 @@ static struct rpc_xprt_ops xs_udp_ops = {
 };
 
 static struct rpc_xprt_ops xs_tcp_ops = {
-	.print_addr		= xs_print_peer_address,
 	.reserve_xprt		= xprt_reserve_xprt,
 	.release_xprt		= xs_tcp_release_xprt,
 	.rpcbind		= rpc_getport,
@@ -1485,7 +1470,7 @@ struct rpc_xprt *xs_setup_udp(struct sockaddr *addr, size_t addrlen, struct rpc_
 
 	xs_format_peer_addresses(xprt);
 	dprintk("RPC:      set up transport to address %s\n",
-			xs_print_peer_address(xprt, RPC_DISPLAY_ALL));
+			xprt->address_strings[RPC_DISPLAY_ALL]);
 
 	return xprt;
 }
@@ -1529,7 +1514,7 @@ struct rpc_xprt *xs_setup_tcp(struct sockaddr *addr, size_t addrlen, struct rpc_
 
 	xs_format_peer_addresses(xprt);
 	dprintk("RPC:      set up transport to address %s\n",
-			xs_print_peer_address(xprt, RPC_DISPLAY_ALL));
+			xprt->address_strings[RPC_DISPLAY_ALL]);
 
 	return xprt;
 }
