@@ -151,6 +151,12 @@ struct sock_xprt {
 	 */
 	struct work_struct	connect_worker;
 	unsigned short		port;
+
+	/*
+	 * UDP socket buffer size parameters
+	 */
+	size_t			rcvsize,
+				sndsize;
 };
 
 /*
@@ -996,13 +1002,13 @@ static void xs_udp_do_set_buffer_size(struct rpc_xprt *xprt)
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 	struct sock *sk = transport->inet;
 
-	if (xprt->rcvsize) {
+	if (transport->rcvsize) {
 		sk->sk_userlocks |= SOCK_RCVBUF_LOCK;
-		sk->sk_rcvbuf = xprt->rcvsize * xprt->max_reqs *  2;
+		sk->sk_rcvbuf = transport->rcvsize * xprt->max_reqs * 2;
 	}
-	if (xprt->sndsize) {
+	if (transport->sndsize) {
 		sk->sk_userlocks |= SOCK_SNDBUF_LOCK;
-		sk->sk_sndbuf = xprt->sndsize * xprt->max_reqs * 2;
+		sk->sk_sndbuf = transport->sndsize * xprt->max_reqs * 2;
 		sk->sk_write_space(sk);
 	}
 }
@@ -1017,12 +1023,14 @@ static void xs_udp_do_set_buffer_size(struct rpc_xprt *xprt)
  */
 static void xs_udp_set_buffer_size(struct rpc_xprt *xprt, size_t sndsize, size_t rcvsize)
 {
-	xprt->sndsize = 0;
+	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
+
+	transport->sndsize = 0;
 	if (sndsize)
-		xprt->sndsize = sndsize + 1024;
-	xprt->rcvsize = 0;
+		transport->sndsize = sndsize + 1024;
+	transport->rcvsize = 0;
 	if (rcvsize)
-		xprt->rcvsize = rcvsize + 1024;
+		transport->rcvsize = rcvsize + 1024;
 
 	xs_udp_do_set_buffer_size(xprt);
 }

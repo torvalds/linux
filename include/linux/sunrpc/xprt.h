@@ -137,9 +137,6 @@ struct rpc_xprt {
 	unsigned long		cong;		/* current congestion */
 	unsigned long		cwnd;		/* congestion window */
 
-	size_t			rcvsize,	/* transport rcv buffer size */
-				sndsize;	/* transport send buffer size */
-
 	size_t			max_payload;	/* largest RPC payload size,
 						   in bytes */
 	unsigned int		tsh_size;	/* size of transport specific
