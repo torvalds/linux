@@ -41,8 +41,6 @@
 #define DRV_NAME	"at91_ether"
 #define DRV_VERSION	"1.0"
 
-static struct net_device *at91_dev;
-
 static struct timer_list check_timer;
 #define LINK_POLL_INTERVAL	(HZ)
 
@@ -146,7 +144,7 @@ static void read_phy(unsigned char phy_addr, unsigned char address, unsigned int
  */
 static void update_linkspeed(struct net_device *dev, int silent)
 {
-	struct at91_private *lp = (struct at91_private *) dev->priv;
+	struct at91_private *lp = netdev_priv(dev);
 	unsigned int bmsr, bmcr, lpa, mac_cfg;
 	unsigned int speed, duplex;
 
@@ -199,7 +197,7 @@ static void update_linkspeed(struct net_device *dev, int silent)
 static irqreturn_t at91ether_phy_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
-	struct at91_private *lp = (struct at91_private *) dev->priv;
+	struct at91_private *lp = netdev_priv(dev);
 	unsigned int phy;
 
 	/*
@@ -242,7 +240,7 @@ done:
  */
 static void enable_phyirq(struct net_device *dev)
 {
-	struct at91_private *lp = (struct at91_private *) dev->priv;
+	struct at91_private *lp = netdev_priv(dev);
 	unsigned int dsintr, irq_number;
 	int status;
 
@@ -294,7 +292,7 @@ static void enable_phyirq(struct net_device *dev)
  */
 static void disable_phyirq(struct net_device *dev)
 {
-	struct at91_private *lp = (struct at91_private *) dev->priv;
+	struct at91_private *lp = netdev_priv(dev);
 	unsigned int dsintr;
 	unsigned int irq_number;
 
@@ -340,7 +338,7 @@ static void disable_phyirq(struct net_device *dev)
 #if 0
 static void reset_phy(struct net_device *dev)
 {
-	struct at91_private *lp = (struct at91_private *) dev->priv;
+	struct at91_private *lp = netdev_priv(dev);
 	unsigned int bmcr;
 
 	spin_lock_irq(&lp->lock);
@@ -590,7 +588,7 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 
 static int at91ether_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	struct at91_private *lp = (struct at91_private *) dev->priv;
+	struct at91_private *lp = netdev_priv(dev);
 	int ret;
 
 	spin_lock_irq(&lp->lock);
@@ -611,7 +609,7 @@ static int at91ether_get_settings(struct net_device *dev, struct ethtool_cmd *cm
 
 static int at91ether_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	struct at91_private *lp = (struct at91_private *) dev->priv;
+	struct at91_private *lp = netdev_priv(dev);
 	int ret;
 
 	spin_lock_irq(&lp->lock);
@@ -627,7 +625,7 @@ static int at91ether_set_settings(struct net_device *dev, struct ethtool_cmd *cm
 
 static int at91ether_nwayreset(struct net_device *dev)
 {
-	struct at91_private *lp = (struct at91_private *) dev->priv;
+	struct at91_private *lp = netdev_priv(dev);
 	int ret;
 
 	spin_lock_irq(&lp->lock);
@@ -658,7 +656,7 @@ static const struct ethtool_ops at91ether_ethtool_ops = {
 
 static int at91ether_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	struct at91_private *lp = (struct at91_private *) dev->priv;
+	struct at91_private *lp = netdev_priv(dev);
 	int res;
 
 	if (!netif_running(dev))
@@ -680,7 +678,7 @@ static int at91ether_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
  */
 static void at91ether_start(struct net_device *dev)
 {
-	struct at91_private *lp = (struct at91_private *) dev->priv;
+	struct at91_private *lp = netdev_priv(dev);
 	struct recv_desc_bufs *dlist, *dlist_phys;
 	int i;
 	unsigned long ctl;
@@ -712,7 +710,7 @@ static void at91ether_start(struct net_device *dev)
  */
 static int at91ether_open(struct net_device *dev)
 {
-	struct at91_private *lp = (struct at91_private *) dev->priv;
+	struct at91_private *lp = netdev_priv(dev);
 	unsigned long ctl;
 
 	if (!is_valid_ether_addr(dev->dev_addr))
@@ -752,7 +750,7 @@ static int at91ether_open(struct net_device *dev)
  */
 static int at91ether_close(struct net_device *dev)
 {
-	struct at91_private *lp = (struct at91_private *) dev->priv;
+	struct at91_private *lp = netdev_priv(dev);
 	unsigned long ctl;
 
 	/* Disable Receiver and Transmitter */
@@ -779,7 +777,7 @@ static int at91ether_close(struct net_device *dev)
  */
 static int at91ether_tx(struct sk_buff *skb, struct net_device *dev)
 {
-	struct at91_private *lp = (struct at91_private *) dev->priv;
+	struct at91_private *lp = netdev_priv(dev);
 
 	if (at91_emac_read(AT91_EMAC_TSR) & AT91_EMAC_TSR_BNQ) {
 		netif_stop_queue(dev);
@@ -811,7 +809,7 @@ static int at91ether_tx(struct sk_buff *skb, struct net_device *dev)
  */
 static struct net_device_stats *at91ether_stats(struct net_device *dev)
 {
-	struct at91_private *lp = (struct at91_private *) dev->priv;
+	struct at91_private *lp = netdev_priv(dev);
 	int ale, lenerr, seqe, lcol, ecol;
 
 	if (netif_running(dev)) {
@@ -847,7 +845,7 @@ static struct net_device_stats *at91ether_stats(struct net_device *dev)
  */
 static void at91ether_rx(struct net_device *dev)
 {
-	struct at91_private *lp = (struct at91_private *) dev->priv;
+	struct at91_private *lp = netdev_priv(dev);
 	struct recv_desc_bufs *dlist;
 	unsigned char *p_recv;
 	struct sk_buff *skb;
@@ -891,7 +889,7 @@ static void at91ether_rx(struct net_device *dev)
 static irqreturn_t at91ether_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
-	struct at91_private *lp = (struct at91_private *) dev->priv;
+	struct at91_private *lp = netdev_priv(dev);
 	unsigned long intstatus, ctl;
 
 	/* MAC Interrupt Status register indicates what interrupts are pending.
@@ -939,9 +937,6 @@ static int __init at91ether_setup(unsigned long phy_type, unsigned short phy_add
 	unsigned int val;
 	int res;
 
-	if (at91_dev)			/* already initialized */
-		return 0;
-
 	dev = alloc_etherdev(sizeof(struct at91_private));
 	if (!dev)
 		return -ENOMEM;
@@ -957,7 +952,7 @@ static int __init at91ether_setup(unsigned long phy_type, unsigned short phy_add
 	}
 
 	/* Allocate memory for DMA Receive descriptors */
-	lp = (struct at91_private *)dev->priv;
+	lp = netdev_priv(dev);
 	lp->dlist = (struct recv_desc_bufs *) dma_alloc_coherent(NULL, sizeof(struct recv_desc_bufs), (dma_addr_t *) &lp->dlist_phys, GFP_KERNEL);
 	if (lp->dlist == NULL) {
 		free_irq(dev->irq, dev);
@@ -1024,7 +1019,6 @@ static int __init at91ether_setup(unsigned long phy_type, unsigned short phy_add
 		dma_free_coherent(NULL, sizeof(struct recv_desc_bufs), lp->dlist, (dma_addr_t)lp->dlist_phys);
 		return res;
 	}
-	at91_dev = dev;
 
 	/* Determine current link speed */
 	spin_lock_irq(&lp->lock);
@@ -1115,15 +1109,16 @@ static int __init at91ether_probe(struct platform_device *pdev)
 
 static int __devexit at91ether_remove(struct platform_device *pdev)
 {
-	struct at91_private *lp = (struct at91_private *) at91_dev->priv;
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct at91_private *lp = netdev_priv(dev);
 
-	unregister_netdev(at91_dev);
-	free_irq(at91_dev->irq, at91_dev);
+	unregister_netdev(dev);
+	free_irq(dev->irq, dev);
 	dma_free_coherent(NULL, sizeof(struct recv_desc_bufs), lp->dlist, (dma_addr_t)lp->dlist_phys);
 	clk_put(lp->ether_clk);
 
-	free_netdev(at91_dev);
-	at91_dev = NULL;
+	platform_set_drvdata(pdev, NULL);
+	free_netdev(dev);
 	return 0;
 }
 
@@ -1131,8 +1126,8 @@ static int __devexit at91ether_remove(struct platform_device *pdev)
 
 static int at91ether_suspend(struct platform_device *pdev, pm_message_t mesg)
 {
-	struct at91_private *lp = (struct at91_private *) at91_dev->priv;
 	struct net_device *net_dev = platform_get_drvdata(pdev);
+	struct at91_private *lp = netdev_priv(net_dev);
 	int phy_irq = lp->board_data.phy_irq_pin;
 
 	if (netif_running(net_dev)) {
@@ -1149,8 +1144,8 @@ static int at91ether_suspend(struct platform_device *pdev, pm_message_t mesg)
 
 static int at91ether_resume(struct platform_device *pdev)
 {
-	struct at91_private *lp = (struct at91_private *) at91_dev->priv;
 	struct net_device *net_dev = platform_get_drvdata(pdev);
+	struct at91_private *lp = netdev_priv(net_dev);
 	int phy_irq = lp->board_data.phy_irq_pin;
 
 	if (netif_running(net_dev)) {
