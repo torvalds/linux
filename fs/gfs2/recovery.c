@@ -136,7 +136,7 @@ static int get_log_header(struct gfs2_jdesc *jd, unsigned int blk,
 {
 	struct buffer_head *bh;
 	struct gfs2_log_header_host lh;
-static const u32 nothing = 0;
+	const u32 nothing = 0;
 	u32 hash;
 	int error;
 
