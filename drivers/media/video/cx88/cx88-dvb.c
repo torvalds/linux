@@ -631,14 +631,13 @@ static int dvb_register(struct cx8802_dev *dev)
 
 		/* Select RF connector callback */
 		fusionhdtv_3_gold.pll_rf_set = lgdt330x_pll_rf_set;
-		dev->core->pll_addr = 0x61;
-		dev->core->pll_desc = &dvb_pll_microtune_4042;
 		dev->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &fusionhdtv_3_gold,
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, dev->core->pll_addr,
-				   &dev->core->i2c_adap, dev->core->pll_desc);
+			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
+				   &dev->core->i2c_adap,
+				   &dvb_pll_microtune_4042);
 		}
 		}
 		break;
@@ -652,14 +651,13 @@ static int dvb_register(struct cx8802_dev *dev)
 		mdelay(100);
 		cx_set(MO_GP0_IO, 9);
 		mdelay(200);
-		dev->core->pll_addr = 0x61;
-		dev->core->pll_desc = &dvb_pll_thomson_dtt761x;
 		dev->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &fusionhdtv_3_gold,
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, dev->core->pll_addr,
-				   &dev->core->i2c_adap, dev->core->pll_desc);
+			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
+				   &dev->core->i2c_adap,
+				   &dvb_pll_thomson_dtt761x);
 		}
 		}
 		break;
