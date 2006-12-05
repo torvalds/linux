@@ -158,15 +158,6 @@ struct rpc_xprt {
 				resvport   : 1; /* use a reserved port */
 
 	/*
-	 * State of TCP reply receive stuff
-	 */
-	__be32			tcp_recm,	/* Fragment header */
-				tcp_xid;	/* Current XID */
-	u32			tcp_reclen,	/* fragment length */
-				tcp_offset;	/* fragment offset */
-	unsigned long		tcp_copied,	/* copied to request */
-				tcp_flags;
-	/*
 	 * Connection of transports
 	 */
 	unsigned long		connect_timeout,
