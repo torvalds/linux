@@ -247,7 +247,7 @@ static int wb_priority(struct writeback_control *wbc)
 /*
  * Write an mmapped page to the server.
  */
-int nfs_writepage(struct page *page, struct writeback_control *wbc)
+static int nfs_writepage_locked(struct page *page, struct writeback_control *wbc)
 {
 	struct nfs_open_context *ctx;
 	struct inode *inode = page->mapping->host;
@@ -265,7 +265,7 @@ int nfs_writepage(struct page *page, struct writeback_control *wbc)
 		if (!flushme)
 			goto out;
 		/* Ensure we've flushed out the invalid write */
-		nfs_wb_page_priority(inode, page, wb_priority(wbc));
+		nfs_wb_page_priority(inode, page, wb_priority(wbc) | FLUSH_STABLE | FLUSH_NOWRITEPAGE);
 	}
 
 	offset = nfs_page_length(page);
@@ -283,6 +283,14 @@ int nfs_writepage(struct page *page, struct writeback_control *wbc)
 out:
 	if (!wbc->for_writepages)
 		nfs_flush_mapping(page->mapping, wbc, wb_priority(wbc));
+	return err;
+}
+
+int nfs_writepage(struct page *page, struct writeback_control *wbc)
+{
+	int err;
+
+	err = nfs_writepage_locked(page, wbc);
 	unlock_page(page);
 	return err; 
 }
@@ -1435,8 +1443,26 @@ static int nfs_wb_page_priority(struct inode *inode, struct page *page, int how)
 {
 	loff_t range_start = page_offset(page);
 	loff_t range_end = range_start + (loff_t)(PAGE_CACHE_SIZE - 1);
+	struct writeback_control wbc = {
+		.bdi = page->mapping->backing_dev_info,
+		.sync_mode = WB_SYNC_ALL,
+		.nr_to_write = LONG_MAX,
+		.range_start = range_start,
+		.range_end = range_end,
+	};
+	int ret;
 
-	return nfs_sync_mapping_range(inode->i_mapping, range_start, range_end, how | FLUSH_STABLE);
+	BUG_ON(!PageLocked(page));
+	if (!(how & FLUSH_NOWRITEPAGE) && clear_page_dirty_for_io(page)) {
+		ret = nfs_writepage_locked(page, &wbc);
+		if (ret < 0)
+			goto out;
+	}
+	ret = nfs_sync_mapping_wait(page->mapping, &wbc, how);
+	if (ret >= 0)
+		return 0;
+out:
+	return ret;
 }
 
 /*
@@ -1444,7 +1470,7 @@ static int nfs_wb_page_priority(struct inode *inode, struct page *page, int how)
  */
 int nfs_wb_page(struct inode *inode, struct page* page)
 {
-	return nfs_wb_page_priority(inode, page, 0);
+	return nfs_wb_page_priority(inode, page, FLUSH_STABLE);
 }
 
 int nfs_set_page_dirty(struct page *page)
