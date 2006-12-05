@@ -1356,15 +1356,32 @@ static void stex_shutdown(struct pci_dev *pdev)
 }
 
 static struct pci_device_id stex_pci_tbl[] = {
-	{ 0x105a, 0x8350, PCI_ANY_ID, PCI_ANY_ID, 0, 0, st_shasta },
-	{ 0x105a, 0xc350, PCI_ANY_ID, PCI_ANY_ID, 0, 0, st_shasta },
-	{ 0x105a, 0xf350, PCI_ANY_ID, PCI_ANY_ID, 0, 0, st_shasta },
-	{ 0x105a, 0x4301, PCI_ANY_ID, PCI_ANY_ID, 0, 0, st_shasta },
-	{ 0x105a, 0x4302, PCI_ANY_ID, PCI_ANY_ID, 0, 0, st_shasta },
-	{ 0x105a, 0x8301, PCI_ANY_ID, PCI_ANY_ID, 0, 0, st_shasta },
-	{ 0x105a, 0x8302, PCI_ANY_ID, PCI_ANY_ID, 0, 0, st_shasta },
-	{ 0x1725, 0x7250, PCI_ANY_ID, PCI_ANY_ID, 0, 0, st_vsc },
-	{ 0x105a, 0x8650, PCI_ANY_ID, PCI_ANY_ID, 0, 0, st_yosemite },
+	/* st_shasta */
+	{ 0x105a, 0x8350, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		st_shasta }, /* SuperTrak EX8350/8300/16350/16300 */
+	{ 0x105a, 0xc350, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		st_shasta }, /* SuperTrak EX12350 */
+	{ 0x105a, 0x4302, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		st_shasta }, /* SuperTrak EX4350 */
+	{ 0x105a, 0xe350, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		st_shasta }, /* SuperTrak EX24350 */
+
+	/* st_vsc */
+	{ 0x105a, 0x7250, PCI_ANY_ID, PCI_ANY_ID, 0, 0, st_vsc },
+
+	/* st_yosemite */
+	{ 0x105a, 0x8650, PCI_ANY_ID, 0x4600, 0, 0,
+		st_yosemite }, /* SuperTrak EX4650 */
+	{ 0x105a, 0x8650, PCI_ANY_ID, 0x4610, 0, 0,
+		st_yosemite }, /* SuperTrak EX4650o */
+	{ 0x105a, 0x8650, PCI_ANY_ID, 0x8600, 0, 0,
+		st_yosemite }, /* SuperTrak EX8650EL */
+	{ 0x105a, 0x8650, PCI_ANY_ID, 0x8601, 0, 0,
+		st_yosemite }, /* SuperTrak EX8650 */
+	{ 0x105a, 0x8650, PCI_ANY_ID, 0x8602, 0, 0,
+		st_yosemite }, /* SuperTrak EX8654 */
+	{ 0x105a, 0x8650, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		st_yosemite }, /* generic st_yosemite */
 	{ }	/* terminate list */
 };
 MODULE_DEVICE_TABLE(pci, stex_pci_tbl);

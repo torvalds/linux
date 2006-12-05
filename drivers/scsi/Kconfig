@@ -982,8 +982,13 @@ config SCSI_STEX
 	tristate "Promise SuperTrak EX Series support"
 	depends on PCI && SCSI
 	---help---
-	  This driver supports Promise SuperTrak EX8350/8300/16350/16300
-	  Storage controllers.
+	  This driver supports Promise SuperTrak EX series storage controllers.
+
+	  Promise provides Linux RAID configuration utility for these
+	  controllers. Please visit <http://www.promise.com> to download.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stex.
 
 config SCSI_SYM53C8XX_2
 	tristate "SYM53C8XX Version 2 SCSI support"
