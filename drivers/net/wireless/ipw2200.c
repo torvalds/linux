@@ -7656,7 +7656,8 @@ static void ipw_handle_data_packet_monitor(struct ipw_priv *priv,
 
 	/* Big bitfield of all the fields we provide in radiotap */
 	ipw_rt->rt_hdr.it_present =
-	    ((1 << IEEE80211_RADIOTAP_FLAGS) |
+	    ((1 << IEEE80211_RADIOTAP_TSFT) |
+	     (1 << IEEE80211_RADIOTAP_FLAGS) |
 	     (1 << IEEE80211_RADIOTAP_RATE) |
 	     (1 << IEEE80211_RADIOTAP_CHANNEL) |
 	     (1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL) |
@@ -7665,10 +7666,14 @@ static void ipw_handle_data_packet_monitor(struct ipw_priv *priv,
 
 	/* Zero the flags, we'll add to them as we go */
 	ipw_rt->rt_flags = 0;
-	ipw_rt->rt_tsf = 0ULL;
+	ipw_rt->rt_tsf = (u64)(frame->parent_tsf[3] << 24 |
+			       frame->parent_tsf[2] << 16 |
+			       frame->parent_tsf[1] << 8  |
+			       frame->parent_tsf[0]);
 
 	/* Convert signal to DBM */
 	ipw_rt->rt_dbmsignal = antsignal;
+	ipw_rt->rt_dbmnoise = frame->noise;
 
 	/* Convert the channel data and set the flags */
 	ipw_rt->rt_channel = cpu_to_le16(ieee80211chan2mhz(received_channel));
@@ -7868,7 +7873,8 @@ static void ipw_handle_promiscuous_rx(struct ipw_priv *priv,
 
 	/* Big bitfield of all the fields we provide in radiotap */
 	ipw_rt->rt_hdr.it_present =
-	    ((1 << IEEE80211_RADIOTAP_FLAGS) |
+	    ((1 << IEEE80211_RADIOTAP_TSFT) |
+	     (1 << IEEE80211_RADIOTAP_FLAGS) |
 	     (1 << IEEE80211_RADIOTAP_RATE) |
 	     (1 << IEEE80211_RADIOTAP_CHANNEL) |
 	     (1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL) |
@@ -7877,7 +7883,10 @@ static void ipw_handle_promiscuous_rx(struct ipw_priv *priv,
 
 	/* Zero the flags, we'll add to them as we go */
 	ipw_rt->rt_flags = 0;
-	ipw_rt->rt_tsf = 0ULL;
+	ipw_rt->rt_tsf = (u64)(frame->parent_tsf[3] << 24 |
+			       frame->parent_tsf[2] << 16 |
+			       frame->parent_tsf[1] << 8  |
+			       frame->parent_tsf[0]);
 
 	/* Convert to DBM */
 	ipw_rt->rt_dbmsignal = signal;
