@@ -11,6 +11,7 @@
 
 #include <linux/uio.h>
 #include <asm/byteorder.h>
+#include <linux/scatterlist.h>
 
 /*
  * Buffer adjustment
@@ -196,6 +197,7 @@ extern void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 
 extern __be32 *xdr_inline_decode(struct xdr_stream *xdr, size_t nbytes);
 extern void xdr_read_pages(struct xdr_stream *xdr, unsigned int len);
 extern void xdr_enter_page(struct xdr_stream *xdr, unsigned int len);
+extern int xdr_process_buf(struct xdr_buf *buf, unsigned int offset, unsigned int len, int (*actor)(struct scatterlist *, void *), void *data);
 
 #endif /* __KERNEL__ */
 

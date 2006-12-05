@@ -43,6 +43,7 @@
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include <linux/sunrpc/gss_krb5.h>
+#include <linux/sunrpc/xdr.h>
 
 #ifdef RPC_DEBUG
 # define RPCDBG_FACILITY        RPCDBG_AUTH
@@ -120,72 +121,6 @@ out:
 EXPORT_SYMBOL(krb5_decrypt);
 
 static int
-process_xdr_buf(struct xdr_buf *buf, int offset, int len,
-		int (*actor)(struct scatterlist *, void *), void *data)
-{
-	int i, page_len, thislen, page_offset, ret = 0;
-	struct scatterlist	sg[1];
-
-	if (offset >= buf->head[0].iov_len) {
-		offset -= buf->head[0].iov_len;
-	} else {
-		thislen = buf->head[0].iov_len - offset;
-		if (thislen > len)
-			thislen = len;
-		sg_set_buf(sg, buf->head[0].iov_base + offset, thislen);
-		ret = actor(sg, data);
-		if (ret)
-			goto out;
-		offset = 0;
-		len -= thislen;
-	}
-	if (len == 0)
-		goto out;
-
-	if (offset >= buf->page_len) {
-		offset -= buf->page_len;
-	} else {
-		page_len = buf->page_len - offset;
-		if (page_len > len)
-			page_len = len;
-		len -= page_len;
-		page_offset = (offset + buf->page_base) & (PAGE_CACHE_SIZE - 1);
-		i = (offset + buf->page_base) >> PAGE_CACHE_SHIFT;
-		thislen = PAGE_CACHE_SIZE - page_offset;
-		do {
-			if (thislen > page_len)
-				thislen = page_len;
-			sg->page = buf->pages[i];
-			sg->offset = page_offset;
-			sg->length = thislen;
-			ret = actor(sg, data);
-			if (ret)
-				goto out;
-			page_len -= thislen;
-			i++;
-			page_offset = 0;
-			thislen = PAGE_CACHE_SIZE;
-		} while (page_len != 0);
-		offset = 0;
-	}
-	if (len == 0)
-		goto out;
-
-	if (offset < buf->tail[0].iov_len) {
-		thislen = buf->tail[0].iov_len - offset;
-		if (thislen > len)
-			thislen = len;
-		sg_set_buf(sg, buf->tail[0].iov_base + offset, thislen);
-		ret = actor(sg, data);
-		len -= thislen;
-	}
-	if (len != 0)
-		ret = -EINVAL;
-out:
-	return ret;
-}
-
-static int
 checksummer(struct scatterlist *sg, void *data)
 {
 	struct hash_desc *desc = data;
@@ -225,7 +160,7 @@ make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
 	err = crypto_hash_update(&desc, sg, hdrlen);
 	if (err)
 		goto out;
-	err = process_xdr_buf(body, body_offset, body->len - body_offset,
+	err = xdr_process_buf(body, body_offset, body->len - body_offset,
 			      checksummer, &desc);
 	if (err)
 		goto out;
@@ -323,7 +258,7 @@ gss_encrypt_xdr_buf(struct crypto_blkcipher *tfm, struct xdr_buf *buf,
 	desc.fragno = 0;
 	desc.fraglen = 0;
 
-	ret = process_xdr_buf(buf, offset, buf->len - offset, encryptor, &desc);
+	ret = xdr_process_buf(buf, offset, buf->len - offset, encryptor, &desc);
 	return ret;
 }
 
@@ -389,7 +324,7 @@ gss_decrypt_xdr_buf(struct crypto_blkcipher *tfm, struct xdr_buf *buf,
 	desc.desc.flags = 0;
 	desc.fragno = 0;
 	desc.fraglen = 0;
-	return process_xdr_buf(buf, offset, buf->len - offset, decryptor, &desc);
+	return xdr_process_buf(buf, offset, buf->len - offset, decryptor, &desc);
 }
 
 EXPORT_SYMBOL(gss_decrypt_xdr_buf);
