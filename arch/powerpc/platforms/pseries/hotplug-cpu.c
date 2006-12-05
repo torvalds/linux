@@ -1,7 +1,8 @@
 /*
  * pseries CPU Hotplug infrastructure.
  *
- * Split out from arch/powerpc/kernel/rtas.c
+ * Split out from arch/powerpc/platforms/pseries/setup.c and
+ *  arch/powerpc/kernel/rtas.c
  *
  * Peter Bergner, IBM	March 2001.
  * Copyright (C) 2001 IBM.
@@ -34,7 +35,7 @@ static struct rtas_args rtas_stop_self_args = {
 	.rets = &rtas_stop_self_args.args[0],
 };
 
-void rtas_stop_self(void)
+static void rtas_stop_self(void)
 {
 	struct rtas_args *args = &rtas_stop_self_args;
 
@@ -49,9 +50,22 @@ void rtas_stop_self(void)
 	panic("Alas, I survived.\n");
 }
 
+static void pSeries_mach_cpu_die(void)
+{
+	local_irq_disable();
+	idle_task_exit();
+	xics_teardown_cpu(0);
+	rtas_stop_self();
+	/* Should never get here... */
+	BUG();
+	for(;;);
+}
+
 static int __init pseries_cpu_hotplug_init(void)
 {
 	rtas_stop_self_args.token = rtas_token("stop-self");
+
+	ppc_md.cpu_die = pSeries_mach_cpu_die;
 
 	return 0;
 }

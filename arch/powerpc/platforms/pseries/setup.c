@@ -347,21 +347,6 @@ static int __init pSeries_init_panel(void)
 }
 arch_initcall(pSeries_init_panel);
 
-#ifdef CONFIG_HOTPLUG_CPU
-static void pSeries_mach_cpu_die(void)
-{
-	local_irq_disable();
-	idle_task_exit();
-	xics_teardown_cpu(0);
-	rtas_stop_self();
-	/* Should never get here... */
-	BUG();
-	for(;;);
-}
-#else
-#define pSeries_mach_cpu_die NULL
-#endif
-
 static int pseries_set_dabr(unsigned long dabr)
 {
 	return plpar_hcall_norets(H_SET_DABR, dabr);
@@ -561,7 +546,6 @@ define_machine(pseries) {
 	.power_off		= rtas_power_off,
 	.halt			= rtas_halt,
 	.panic			= rtas_os_term,
-	.cpu_die		= pSeries_mach_cpu_die,
 	.get_boot_time		= rtas_get_boot_time,
 	.get_rtc_time		= rtas_get_rtc_time,
 	.set_rtc_time		= rtas_set_rtc_time,
