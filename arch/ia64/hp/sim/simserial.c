@@ -209,7 +209,7 @@ static void do_serial_bh(void)
 }
 #endif
 
-static void do_softint(void *private_)
+static void do_softint(struct work_struct *private_)
 {
 	printk(KERN_ERR "simserial: do_softint called\n");
 }
@@ -698,7 +698,7 @@ static int get_async_struct(int line, struct async_struct **ret_info)
 	info->flags = sstate->flags;
 	info->xmit_fifo_size = sstate->xmit_fifo_size;
 	info->line = line;
-	INIT_WORK(&info->work, do_softint, info);
+	INIT_WORK(&info->work, do_softint);
 	info->state = sstate;
 	if (sstate->info) {
 		kfree(info);

@@ -32,8 +32,8 @@
 
 static void ieee_init(struct ieee80211_device *ieee);
 static void softmac_init(struct ieee80211softmac_device *sm);
-static void set_rts_cts_work(void *d);
-static void set_basic_rates_work(void *d);
+static void set_rts_cts_work(struct work_struct *work);
+static void set_basic_rates_work(struct work_struct *work);
 
 static void housekeeping_init(struct zd_mac *mac);
 static void housekeeping_enable(struct zd_mac *mac);
@@ -48,8 +48,8 @@ int zd_mac_init(struct zd_mac *mac,
 	memset(mac, 0, sizeof(*mac));
 	spin_lock_init(&mac->lock);
 	mac->netdev = netdev;
-	INIT_WORK(&mac->set_rts_cts_work, set_rts_cts_work, mac);
-	INIT_WORK(&mac->set_basic_rates_work, set_basic_rates_work, mac);
+	INIT_DELAYED_WORK(&mac->set_rts_cts_work, set_rts_cts_work);
+	INIT_DELAYED_WORK(&mac->set_basic_rates_work, set_basic_rates_work);
 
 	ieee_init(ieee);
 	softmac_init(ieee80211_priv(netdev));
@@ -366,9 +366,10 @@ static void try_enable_tx(struct zd_mac *mac)
 	spin_unlock_irqrestore(&mac->lock, flags);
 }
 
-static void set_rts_cts_work(void *d)
+static void set_rts_cts_work(struct work_struct *work)
 {
-	struct zd_mac *mac = d;
+	struct zd_mac *mac =
+		container_of(work, struct zd_mac, set_rts_cts_work.work);
 	unsigned long flags;
 	u8 rts_rate;
 	unsigned int short_preamble;
@@ -387,9 +388,10 @@ static void set_rts_cts_work(void *d)
 	try_enable_tx(mac);
 }
 
-static void set_basic_rates_work(void *d)
+static void set_basic_rates_work(struct work_struct *work)
 {
-	struct zd_mac *mac = d;
+	struct zd_mac *mac =
+		container_of(work, struct zd_mac, set_basic_rates_work.work);
 	unsigned long flags;
 	u16 basic_rates;
 
@@ -467,12 +469,13 @@ static void bssinfo_change(struct net_device *netdev, u32 changes)
 	if (need_set_rts_cts && !mac->updating_rts_rate) {
 		mac->updating_rts_rate = 1;
 		netif_stop_queue(mac->netdev);
-		queue_work(zd_workqueue, &mac->set_rts_cts_work);
+		queue_delayed_work(zd_workqueue, &mac->set_rts_cts_work, 0);
 	}
 	if (need_set_rates && !mac->updating_basic_rates) {
 		mac->updating_basic_rates = 1;
 		netif_stop_queue(mac->netdev);
-		queue_work(zd_workqueue, &mac->set_basic_rates_work);
+		queue_delayed_work(zd_workqueue, &mac->set_basic_rates_work,
+				   0);
 	}
 	spin_unlock_irqrestore(&mac->lock, flags);
 }

@@ -68,7 +68,7 @@ struct usb_hub {
 
 	unsigned		has_indicators:1;
 	u8			indicator[USB_MAXCHILDREN];
-	struct work_struct	leds;
+	struct delayed_work	leds;
 };
 
 

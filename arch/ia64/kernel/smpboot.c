@@ -463,15 +463,17 @@ struct pt_regs * __devinit idle_regs(struct pt_regs *regs)
 }
 
 struct create_idle {
+	struct work_struct work;
 	struct task_struct *idle;
 	struct completion done;
 	int cpu;
 };
 
 void
-do_fork_idle(void *_c_idle)
+do_fork_idle(struct work_struct *work)
 {
-	struct create_idle *c_idle = _c_idle;
+	struct create_idle *c_idle =
+		container_of(work, struct create_idle, work);
 
 	c_idle->idle = fork_idle(c_idle->cpu);
 	complete(&c_idle->done);
@@ -482,10 +484,10 @@ do_boot_cpu (int sapicid, int cpu)
 {
 	int timeout;
 	struct create_idle c_idle = {
+		.work = __WORK_INITIALIZER(c_idle.work, do_fork_idle),
 		.cpu	= cpu,
 		.done	= COMPLETION_INITIALIZER(c_idle.done),
 	};
-	DECLARE_WORK(work, do_fork_idle, &c_idle);
 
  	c_idle.idle = get_idle_for_cpu(cpu);
  	if (c_idle.idle) {
@@ -497,9 +499,9 @@ do_boot_cpu (int sapicid, int cpu)
 	 * We can't use kernel_thread since we must avoid to reschedule the child.
 	 */
 	if (!keventd_up() || current_is_keventd())
-		work.func(work.data);
+		c_idle.work.func(&c_idle.work);
 	else {
-		schedule_work(&work);
+		schedule_work(&c_idle.work);
 		wait_for_completion(&c_idle.done);
 	}
 

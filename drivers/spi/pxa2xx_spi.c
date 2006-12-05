@@ -148,7 +148,7 @@ struct chip_data {
 	void (*cs_control)(u32 command);
 };
 
-static void pump_messages(void *data);
+static void pump_messages(struct work_struct *work);
 
 static int flush(struct driver_data *drv_data)
 {
@@ -884,9 +884,10 @@ static void pump_transfers(unsigned long data)
 	}
 }
 
-static void pump_messages(void *data)
+static void pump_messages(struct work_struct *work)
 {
-	struct driver_data *drv_data = data;
+	struct driver_data *drv_data =
+		container_of(work, struct driver_data, pump_messages);
 	unsigned long flags;
 
 	/* Lock queue and check for queue work */
@@ -1098,7 +1099,7 @@ static int init_queue(struct driver_data *drv_data)
 	tasklet_init(&drv_data->pump_transfers,
 			pump_transfers,	(unsigned long)drv_data);
 
-	INIT_WORK(&drv_data->pump_messages, pump_messages, drv_data);
+	INIT_WORK(&drv_data->pump_messages, pump_messages);
 	drv_data->workqueue = create_singlethread_workqueue(
 					drv_data->master->cdev.dev->bus_id);
 	if (drv_data->workqueue == NULL)

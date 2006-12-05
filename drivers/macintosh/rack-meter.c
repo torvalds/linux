@@ -48,7 +48,8 @@ struct rackmeter_dma {
 } ____cacheline_aligned;
 
 struct rackmeter_cpu {
-	struct work_struct	sniffer;
+	struct delayed_work	sniffer;
+	struct rackmeter	*rm;
 	cputime64_t		prev_wall;
 	cputime64_t		prev_idle;
 	int			zero;
@@ -208,11 +209,12 @@ static void rackmeter_setup_dbdma(struct rackmeter *rm)
 	rackmeter_do_pause(rm, 0);
 }
 
-static void rackmeter_do_timer(void *data)
+static void rackmeter_do_timer(struct work_struct *work)
 {
-	struct rackmeter *rm = data;
+	struct rackmeter_cpu *rcpu =
+		container_of(work, struct rackmeter_cpu, sniffer.work);
+	struct rackmeter *rm = rcpu->rm;
 	unsigned int cpu = smp_processor_id();
-	struct rackmeter_cpu *rcpu = &rm->cpu[cpu];
 	cputime64_t cur_jiffies, total_idle_ticks;
 	unsigned int total_ticks, idle_ticks;
 	int i, offset, load, cumm, pause;
@@ -263,8 +265,10 @@ static void __devinit rackmeter_init_cpu_sniffer(struct rackmeter *rm)
 	 * on those machines yet
 	 */
 
-	INIT_WORK(&rm->cpu[0].sniffer, rackmeter_do_timer, rm);
-	INIT_WORK(&rm->cpu[1].sniffer, rackmeter_do_timer, rm);
+	rm->cpu[0].rm = rm;
+	INIT_DELAYED_WORK(&rm->cpu[0].sniffer, rackmeter_do_timer);
+	rm->cpu[1].rm = rm;
+	INIT_DELAYED_WORK(&rm->cpu[1].sniffer, rackmeter_do_timer);
 
 	for_each_online_cpu(cpu) {
 		struct rackmeter_cpu *rcpu;
