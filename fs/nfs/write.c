@@ -63,6 +63,7 @@
 #include <linux/smp_lock.h>
 
 #include "delegation.h"
+#include "internal.h"
 #include "iostat.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
@@ -199,30 +200,15 @@ static void nfs_grow_file(struct page *page, unsigned int offset, unsigned int c
  */
 static void nfs_mark_uptodate(struct page *page, unsigned int base, unsigned int count)
 {
-	loff_t end_offs;
-
 	if (PageUptodate(page))
 		return;
 	if (base != 0)
 		return;
-	if (count == PAGE_CACHE_SIZE) {
-		SetPageUptodate(page);
+	if (count != nfs_page_length(page))
 		return;
-	}
-
-	end_offs = i_size_read(page->mapping->host) - 1;
-	if (end_offs < 0)
-		return;
-	/* Is this the last page? */
-	if (page->index != (unsigned long)(end_offs >> PAGE_CACHE_SHIFT))
-		return;
-	/* This is the last page: set PG_uptodate if we cover the entire
-	 * extent of the data, then zero the rest of the page.
-	 */
-	if (count == (unsigned int)(end_offs & (PAGE_CACHE_SIZE - 1)) + 1) {
+	if (count != PAGE_CACHE_SIZE)
 		memclear_highpage_flush(page, count, PAGE_CACHE_SIZE - count);
-		SetPageUptodate(page);
-	}
+	SetPageUptodate(page);
 }
 
 /*
@@ -330,9 +316,7 @@ int nfs_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct nfs_open_context *ctx;
 	struct inode *inode = page->mapping->host;
-	unsigned long end_index;
-	unsigned offset = PAGE_CACHE_SIZE;
-	loff_t i_size = i_size_read(inode);
+	unsigned offset;
 	int inode_referenced = 0;
 	int priority = wb_priority(wbc);
 	int err;
@@ -350,22 +334,15 @@ int nfs_writepage(struct page *page, struct writeback_control *wbc)
 	 */
 	if (igrab(inode) != 0)
 		inode_referenced = 1;
-	end_index = i_size >> PAGE_CACHE_SHIFT;
 
 	/* Ensure we've flushed out any previous writes */
 	nfs_wb_page_priority(inode, page, priority);
 
-	/* easy case */
-	if (page->index < end_index)
-		goto do_it;
-	/* things got complicated... */
-	offset = i_size & (PAGE_CACHE_SIZE-1);
-
-	/* OK, are we completely out? */
-	err = 0; /* potential race with truncate - ignore */
-	if (page->index >= end_index+1 || !offset)
+	err = 0;
+	offset = nfs_page_length(page);
+	if (!offset)
 		goto out;
-do_it:
+
 	ctx = nfs_find_open_context(inode, NULL, FMODE_WRITE);
 	if (ctx == NULL) {
 		err = -EBADF;
@@ -826,20 +803,8 @@ int nfs_updatepage(struct file *file, struct page *page,
 	 * fragmenting write requests.
 	 */
 	if (PageUptodate(page) && inode->i_flock == NULL && !(file->f_mode & O_SYNC)) {
-		loff_t end_offs = i_size_read(inode) - 1;
-		unsigned long end_index = end_offs >> PAGE_CACHE_SHIFT;
-
-		count += offset;
+		count = max(count + offset, nfs_page_length(page));
 		offset = 0;
-		if (unlikely(end_offs < 0)) {
-			/* Do nothing */
-		} else if (page->index == end_index) {
-			unsigned int pglen;
-			pglen = (unsigned int)(end_offs & (PAGE_CACHE_SIZE-1)) + 1;
-			if (count < pglen)
-				count = pglen;
-		} else if (page->index < end_index)
-			count = PAGE_CACHE_SIZE;
 	}
 
 	/*

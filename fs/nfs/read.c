@@ -30,6 +30,7 @@
 
 #include <asm/system.h>
 
+#include "internal.h"
 #include "iostat.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
@@ -81,22 +82,6 @@ static void nfs_readdata_free(struct nfs_read_data *rdata)
 void nfs_readdata_release(void *data)
 {
         nfs_readdata_free(data);
-}
-
-static
-unsigned int nfs_page_length(struct inode *inode, struct page *page)
-{
-	loff_t i_size = i_size_read(inode);
-	unsigned long idx;
-
-	if (i_size <= 0)
-		return 0;
-	idx = (i_size - 1) >> PAGE_CACHE_SHIFT;
-	if (page->index > idx)
-		return 0;
-	if (page->index != idx)
-		return PAGE_CACHE_SIZE;
-	return 1 + ((i_size - 1) & (PAGE_CACHE_SIZE - 1));
 }
 
 static
@@ -231,7 +216,7 @@ static int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 	struct nfs_page	*new;
 	unsigned int len;
 
-	len = nfs_page_length(inode, page);
+	len = nfs_page_length(page);
 	if (len == 0)
 		return nfs_return_empty_page(page);
 	new = nfs_create_request(ctx, inode, page, 0, len);
@@ -667,7 +652,7 @@ readpage_async_filler(void *data, struct page *page)
 	unsigned int len;
 
 	nfs_wb_page(inode, page);
-	len = nfs_page_length(inode, page);
+	len = nfs_page_length(page);
 	if (len == 0)
 		return nfs_return_empty_page(page);
 	new = nfs_create_request(desc->ctx, inode, page, 0, len);
