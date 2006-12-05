@@ -276,51 +276,6 @@ static int nfs3_proc_read(struct nfs_read_data *rdata)
 	return status;
 }
 
-static int nfs3_proc_write(struct nfs_write_data *wdata)
-{
-	int			rpcflags = wdata->flags;
-	struct inode *		inode = wdata->inode;
-	struct nfs_fattr *	fattr = wdata->res.fattr;
-	struct rpc_message	msg = {
-		.rpc_proc	= &nfs3_procedures[NFS3PROC_WRITE],
-		.rpc_argp	= &wdata->args,
-		.rpc_resp	= &wdata->res,
-		.rpc_cred	= wdata->cred,
-	};
-	int			status;
-
-	dprintk("NFS call  write %d @ %Ld\n", wdata->args.count,
-			(long long) wdata->args.offset);
-	nfs_fattr_init(fattr);
-	status = rpc_call_sync(NFS_CLIENT(inode), &msg, rpcflags);
-	if (status >= 0)
-		nfs_post_op_update_inode(inode, fattr);
-	dprintk("NFS reply write: %d\n", status);
-	return status < 0? status : wdata->res.count;
-}
-
-static int nfs3_proc_commit(struct nfs_write_data *cdata)
-{
-	struct inode *		inode = cdata->inode;
-	struct nfs_fattr *	fattr = cdata->res.fattr;
-	struct rpc_message	msg = {
-		.rpc_proc	= &nfs3_procedures[NFS3PROC_COMMIT],
-		.rpc_argp	= &cdata->args,
-		.rpc_resp	= &cdata->res,
-		.rpc_cred	= cdata->cred,
-	};
-	int			status;
-
-	dprintk("NFS call  commit %d @ %Ld\n", cdata->args.count,
-			(long long) cdata->args.offset);
-	nfs_fattr_init(fattr);
-	status = rpc_call_sync(NFS_CLIENT(inode), &msg, 0);
-	if (status >= 0)
-		nfs_post_op_update_inode(inode, fattr);
-	dprintk("NFS reply commit: %d\n", status);
-	return status;
-}
-
 /*
  * Create a regular file.
  * For now, we don't implement O_EXCL.
@@ -901,8 +856,6 @@ const struct nfs_rpc_ops nfs_v3_clientops = {
 	.access		= nfs3_proc_access,
 	.readlink	= nfs3_proc_readlink,
 	.read		= nfs3_proc_read,
-	.write		= nfs3_proc_write,
-	.commit		= nfs3_proc_commit,
 	.create		= nfs3_proc_create,
 	.remove		= nfs3_proc_remove,
 	.unlink_setup	= nfs3_proc_unlink_setup,

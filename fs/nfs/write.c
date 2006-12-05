@@ -210,78 +210,6 @@ static void nfs_mark_uptodate(struct page *page, unsigned int base, unsigned int
 	SetPageUptodate(page);
 }
 
-/*
- * Write a page synchronously.
- * Offset is the data offset within the page.
- */
-static int nfs_writepage_sync(struct nfs_open_context *ctx, struct page *page,
-		unsigned int offset, unsigned int count, int how)
-{
-	struct inode *inode = page->mapping->host;
-	unsigned int	wsize = NFS_SERVER(inode)->wsize;
-	int		result, written = 0;
-	struct nfs_write_data *wdata;
-
-	wdata = nfs_writedata_alloc(wsize);
-	if (!wdata)
-		return -ENOMEM;
-
-	wdata->flags = how;
-	wdata->cred = ctx->cred;
-	wdata->inode = inode;
-	wdata->args.fh = NFS_FH(inode);
-	wdata->args.context = ctx;
-	wdata->args.pages = &page;
-	wdata->args.stable = NFS_FILE_SYNC;
-	wdata->args.pgbase = offset;
-	wdata->args.count = wsize;
-	wdata->res.fattr = &wdata->fattr;
-	wdata->res.verf = &wdata->verf;
-
-	dprintk("NFS:      nfs_writepage_sync(%s/%Ld %d@%Ld)\n",
-		inode->i_sb->s_id,
-		(long long)NFS_FILEID(inode),
-		count, (long long)(page_offset(page) + offset));
-
-	set_page_writeback(page);
-	nfs_begin_data_update(inode);
-	do {
-		if (count < wsize)
-			wdata->args.count = count;
-		wdata->args.offset = page_offset(page) + wdata->args.pgbase;
-
-		result = NFS_PROTO(inode)->write(wdata);
-
-		if (result < 0) {
-			/* Must mark the page invalid after I/O error */
-			ClearPageUptodate(page);
-			goto io_error;
-		}
-		if (result < wdata->args.count)
-			printk(KERN_WARNING "NFS: short write, count=%u, result=%d\n",
-					wdata->args.count, result);
-
-		wdata->args.offset += result;
-	        wdata->args.pgbase += result;
-		written += result;
-		count -= result;
-		nfs_add_stats(inode, NFSIOS_SERVERWRITTENBYTES, result);
-	} while (count);
-	/* Update file length */
-	nfs_grow_file(page, offset, written);
-	/* Set the PG_uptodate flag? */
-	nfs_mark_uptodate(page, offset, written);
-
-	if (PageError(page))
-		ClearPageError(page);
-
-io_error:
-	nfs_end_data_update(inode);
-	end_page_writeback(page);
-	nfs_writedata_release(wdata);
-	return written ? written : result;
-}
-
 static int nfs_writepage_setup(struct nfs_open_context *ctx, struct page *page,
 		unsigned int offset, unsigned int count)
 {
@@ -342,22 +270,12 @@ int nfs_writepage(struct page *page, struct writeback_control *wbc)
 		err = -EBADF;
 		goto out;
 	}
-	lock_kernel();
-	if (!IS_SYNC(inode)) {
-		err = nfs_writepage_setup(ctx, page, 0, offset);
-		if (!wbc->for_writepages)
-			nfs_flush_mapping(page->mapping, wbc, wb_priority(wbc));
-	} else {
-		err = nfs_writepage_sync(ctx, page, 0, offset, wb_priority(wbc));
-		if (err >= 0) {
-			if (err != offset)
-				redirty_page_for_writepage(wbc, page);
-			err = 0;
-		}
-	}
-	unlock_kernel();
+	err = nfs_writepage_setup(ctx, page, 0, offset);
 	put_nfs_open_context(ctx);
+
 out:
+	if (!wbc->for_writepages)
+		nfs_flush_mapping(page->mapping, wbc, wb_priority(wbc));
 	unlock_page(page);
 	return err; 
 }
@@ -776,16 +694,6 @@ int nfs_updatepage(struct file *file, struct page *page,
 		file->f_dentry->d_parent->d_name.name,
 		file->f_dentry->d_name.name, count,
 		(long long)(page_offset(page) +offset));
-
-	if (IS_SYNC(inode)) {
-		status = nfs_writepage_sync(ctx, page, offset, count, 0);
-		if (status > 0) {
-			if (offset == 0 && status == PAGE_CACHE_SIZE)
-				SetPageUptodate(page);
-			return 0;
-		}
-		return status;
-	}
 
 	/* If we're not using byte range locks, and we know the page
 	 * is entirely in cache, it may be more efficient to avoid

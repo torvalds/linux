@@ -1775,89 +1775,6 @@ static int nfs4_proc_read(struct nfs_read_data *rdata)
 	return err;
 }
 
-static int _nfs4_proc_write(struct nfs_write_data *wdata)
-{
-	int rpcflags = wdata->flags;
-	struct inode *inode = wdata->inode;
-	struct nfs_fattr *fattr = wdata->res.fattr;
-	struct nfs_server *server = NFS_SERVER(inode);
-	struct rpc_message msg = {
-		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_WRITE],
-		.rpc_argp	= &wdata->args,
-		.rpc_resp	= &wdata->res,
-		.rpc_cred	= wdata->cred,
-	};
-	int status;
-
-	dprintk("NFS call  write %d @ %Ld\n", wdata->args.count,
-			(long long) wdata->args.offset);
-
-	wdata->args.bitmask = server->attr_bitmask;
-	wdata->res.server = server;
-	wdata->timestamp = jiffies;
-	nfs_fattr_init(fattr);
-	status = rpc_call_sync(server->client, &msg, rpcflags);
-	dprintk("NFS reply write: %d\n", status);
-	if (status < 0)
-		return status;
-	renew_lease(server, wdata->timestamp);
-	nfs_post_op_update_inode(inode, fattr);
-	return wdata->res.count;
-}
-
-static int nfs4_proc_write(struct nfs_write_data *wdata)
-{
-	struct nfs4_exception exception = { };
-	int err;
-	do {
-		err = nfs4_handle_exception(NFS_SERVER(wdata->inode),
-				_nfs4_proc_write(wdata),
-				&exception);
-	} while (exception.retry);
-	return err;
-}
-
-static int _nfs4_proc_commit(struct nfs_write_data *cdata)
-{
-	struct inode *inode = cdata->inode;
-	struct nfs_fattr *fattr = cdata->res.fattr;
-	struct nfs_server *server = NFS_SERVER(inode);
-	struct rpc_message msg = {
-		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_COMMIT],
-		.rpc_argp	= &cdata->args,
-		.rpc_resp	= &cdata->res,
-		.rpc_cred	= cdata->cred,
-	};
-	int status;
-
-	dprintk("NFS call  commit %d @ %Ld\n", cdata->args.count,
-			(long long) cdata->args.offset);
-
-	cdata->args.bitmask = server->attr_bitmask;
-	cdata->res.server = server;
-	cdata->timestamp = jiffies;
-	nfs_fattr_init(fattr);
-	status = rpc_call_sync(server->client, &msg, 0);
-	if (status >= 0)
-		renew_lease(server, cdata->timestamp);
-	dprintk("NFS reply commit: %d\n", status);
-	if (status >= 0)
-		nfs_post_op_update_inode(inode, fattr);
-	return status;
-}
-
-static int nfs4_proc_commit(struct nfs_write_data *cdata)
-{
-	struct nfs4_exception exception = { };
-	int err;
-	do {
-		err = nfs4_handle_exception(NFS_SERVER(cdata->inode),
-				_nfs4_proc_commit(cdata),
-				&exception);
-	} while (exception.retry);
-	return err;
-}
-
 /*
  * Got race?
  * We will need to arrange for the VFS layer to provide an atomic open.
@@ -3730,8 +3647,6 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.access		= nfs4_proc_access,
 	.readlink	= nfs4_proc_readlink,
 	.read		= nfs4_proc_read,
-	.write		= nfs4_proc_write,
-	.commit		= nfs4_proc_commit,
 	.create		= nfs4_proc_create,
 	.remove		= nfs4_proc_remove,
 	.unlink_setup	= nfs4_proc_unlink_setup,

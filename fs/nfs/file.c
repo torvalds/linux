@@ -378,6 +378,12 @@ static ssize_t nfs_file_write(struct kiocb *iocb, const struct iovec *iov,
 
 	nfs_add_stats(inode, NFSIOS_NORMALWRITTENBYTES, count);
 	result = generic_file_aio_write(iocb, iov, nr_segs, pos);
+	/* Return error values for O_SYNC and IS_SYNC() */
+	if (result >= 0 && (IS_SYNC(inode) || (iocb->ki_filp->f_flags & O_SYNC))) {
+		int err = nfs_fsync(iocb->ki_filp, dentry, 1);
+		if (err < 0)
+			result = err;
+	}
 out:
 	return result;
 
