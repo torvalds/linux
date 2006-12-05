@@ -86,7 +86,10 @@ struct crypt_config {
 	 */
 	struct crypt_iv_operations *iv_gen_ops;
 	char *iv_mode;
-	struct crypto_cipher *iv_gen_private;
+	union {
+		struct crypto_cipher *essiv_tfm;
+		int benbi_shift;
+	} iv_gen_private;
 	sector_t iv_offset;
 	unsigned int iv_size;
 
@@ -195,21 +198,21 @@ static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
 	}
 	kfree(salt);
 
-	cc->iv_gen_private = essiv_tfm;
+	cc->iv_gen_private.essiv_tfm = essiv_tfm;
 	return 0;
 }
 
 static void crypt_iv_essiv_dtr(struct crypt_config *cc)
 {
-	crypto_free_cipher(cc->iv_gen_private);
-	cc->iv_gen_private = NULL;
+	crypto_free_cipher(cc->iv_gen_private.essiv_tfm);
+	cc->iv_gen_private.essiv_tfm = NULL;
 }
 
 static int crypt_iv_essiv_gen(struct crypt_config *cc, u8 *iv, sector_t sector)
 {
 	memset(iv, 0, cc->iv_size);
 	*(u64 *)iv = cpu_to_le64(sector);
-	crypto_cipher_encrypt_one(cc->iv_gen_private, iv, iv);
+	crypto_cipher_encrypt_one(cc->iv_gen_private.essiv_tfm, iv, iv);
 	return 0;
 }
 
@@ -232,21 +235,23 @@ static int crypt_iv_benbi_ctr(struct crypt_config *cc, struct dm_target *ti,
 		return -EINVAL;
 	}
 
-	cc->iv_gen_private = (void *)(9 - log);
+	cc->iv_gen_private.benbi_shift = 9 - log;
 
 	return 0;
 }
 
 static void crypt_iv_benbi_dtr(struct crypt_config *cc)
 {
-	cc->iv_gen_private = NULL;
 }
 
 static int crypt_iv_benbi_gen(struct crypt_config *cc, u8 *iv, sector_t sector)
 {
+	__be64 val;
+
 	memset(iv, 0, cc->iv_size - sizeof(u64)); /* rest is cleared below */
-	put_unaligned(cpu_to_be64(((u64)sector << (u32)cc->iv_gen_private) + 1),
-		      (__be64 *)(iv + cc->iv_size - sizeof(u64)));
+
+	val = cpu_to_be64(((u64)sector << cc->iv_gen_private.benbi_shift) + 1);
+	put_unaligned(val, (__be64 *)(iv + cc->iv_size - sizeof(u64)));
 
 	return 0;
 }
