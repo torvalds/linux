@@ -155,6 +155,29 @@ void nfs_writedata_release(void *wdata)
 	nfs_writedata_free(wdata);
 }
 
+static struct nfs_page *nfs_page_find_request_locked(struct page *page)
+{
+	struct nfs_page *req = NULL;
+
+	if (PagePrivate(page)) {
+		req = (struct nfs_page *)page_private(page);
+		if (req != NULL)
+			atomic_inc(&req->wb_count);
+	}
+	return req;
+}
+
+static struct nfs_page *nfs_page_find_request(struct page *page)
+{
+	struct nfs_page *req = NULL;
+	spinlock_t *req_lock = &NFS_I(page->mapping->host)->req_lock;
+
+	spin_lock(req_lock);
+	req = nfs_page_find_request_locked(page);
+	spin_unlock(req_lock);
+	return req;
+}
+
 /* Adjust the file length if we're writing beyond the end */
 static void nfs_grow_file(struct page *page, unsigned int offset, unsigned int count)
 {
@@ -429,6 +452,7 @@ static int nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 			nfsi->change_attr++;
 	}
 	SetPagePrivate(req->wb_page);
+	set_page_private(req->wb_page, (unsigned long)req);
 	nfsi->npages++;
 	atomic_inc(&req->wb_count);
 	return 0;
@@ -445,6 +469,7 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 	BUG_ON (!NFS_WBACK_BUSY(req));
 
 	spin_lock(&nfsi->req_lock);
+	set_page_private(req->wb_page, 0);
 	ClearPagePrivate(req->wb_page);
 	radix_tree_delete(&nfsi->nfs_page_tree, req->wb_index);
 	nfsi->npages--;
@@ -456,33 +481,6 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 		spin_unlock(&nfsi->req_lock);
 	nfs_clear_request(req);
 	nfs_release_request(req);
-}
-
-/*
- * Find a request
- */
-static inline struct nfs_page *
-_nfs_find_request(struct inode *inode, unsigned long index)
-{
-	struct nfs_inode *nfsi = NFS_I(inode);
-	struct nfs_page *req;
-
-	req = (struct nfs_page*)radix_tree_lookup(&nfsi->nfs_page_tree, index);
-	if (req)
-		atomic_inc(&req->wb_count);
-	return req;
-}
-
-static struct nfs_page *
-nfs_find_request(struct inode *inode, unsigned long index)
-{
-	struct nfs_page		*req;
-	struct nfs_inode	*nfsi = NFS_I(inode);
-
-	spin_lock(&nfsi->req_lock);
-	req = _nfs_find_request(inode, index);
-	spin_unlock(&nfsi->req_lock);
-	return req;
 }
 
 /*
@@ -699,10 +697,11 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context* ctx,
 		 * A request for the page we wish to update
 		 */
 		spin_lock(&nfsi->req_lock);
-		req = _nfs_find_request(inode, page->index);
+		req = nfs_page_find_request_locked(page);
 		if (req) {
 			if (!nfs_lock_request_dontget(req)) {
 				int error;
+
 				spin_unlock(&nfsi->req_lock);
 				error = nfs_wait_on_request(req);
 				nfs_release_request(req);
@@ -770,7 +769,6 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context* ctx,
 int nfs_flush_incompatible(struct file *file, struct page *page)
 {
 	struct nfs_open_context *ctx = (struct nfs_open_context *)file->private_data;
-	struct inode	*inode = page->mapping->host;
 	struct nfs_page	*req;
 	int		status = 0;
 	/*
@@ -781,11 +779,13 @@ int nfs_flush_incompatible(struct file *file, struct page *page)
 	 * Also do the same if we find a request from an existing
 	 * dropped page.
 	 */
-	req = nfs_find_request(inode, page->index);
-	if (req) {
-		if (req->wb_page != page || ctx != req->wb_context)
-			status = nfs_wb_page(inode, page);
+	req = nfs_page_find_request(page);
+	if (req != NULL) {
+		int do_flush = req->wb_page != page || req->wb_context != ctx;
+
 		nfs_release_request(req);
+		if (do_flush)
+			status = nfs_wb_page(page->mapping->host, page);
 	}
 	return (status < 0) ? status : 0;
 }
