@@ -77,6 +77,7 @@
 static struct nfs_page * nfs_update_request(struct nfs_open_context*,
 					    struct page *,
 					    unsigned int, unsigned int);
+static void nfs_mark_request_dirty(struct nfs_page *req);
 static int nfs_wait_on_write_congestion(struct address_space *, int);
 static int nfs_wait_on_requests(struct inode *, unsigned long, unsigned int);
 static long nfs_flush_mapping(struct address_space *mapping, struct writeback_control *wbc, int how);
@@ -245,29 +246,64 @@ static int wb_priority(struct writeback_control *wbc)
 }
 
 /*
+ * Find an associated nfs write request, and prepare to flush it out
+ * Returns 1 if there was no write request, or if the request was
+ * already tagged by nfs_set_page_dirty.Returns 0 if the request
+ * was not tagged.
+ * May also return an error if the user signalled nfs_wait_on_request().
+ */
+static int nfs_page_mark_flush(struct page *page)
+{
+	struct nfs_page *req;
+	spinlock_t *req_lock = &NFS_I(page->mapping->host)->req_lock;
+	int ret;
+
+	spin_lock(req_lock);
+	for(;;) {
+		req = nfs_page_find_request_locked(page);
+		if (req == NULL) {
+			spin_unlock(req_lock);
+			return 1;
+		}
+		if (nfs_lock_request_dontget(req))
+			break;
+		/* Note: If we hold the page lock, as is the case in nfs_writepage,
+		 *	 then the call to nfs_lock_request_dontget() will always
+		 *	 succeed provided that someone hasn't already marked the
+		 *	 request as dirty (in which case we don't care).
+		 */
+		spin_unlock(req_lock);
+		ret = nfs_wait_on_request(req);
+		nfs_release_request(req);
+		if (ret != 0)
+			return ret;
+		spin_lock(req_lock);
+	}
+	spin_unlock(req_lock);
+	if (test_and_set_bit(PG_FLUSHING, &req->wb_flags) == 0)
+		nfs_mark_request_dirty(req);
+	ret = test_bit(PG_NEED_FLUSH, &req->wb_flags);
+	nfs_unlock_request(req);
+	return ret;
+}
+
+/*
  * Write an mmapped page to the server.
  */
 static int nfs_writepage_locked(struct page *page, struct writeback_control *wbc)
 {
 	struct nfs_open_context *ctx;
 	struct inode *inode = page->mapping->host;
-	struct nfs_page *req;
 	unsigned offset;
-	int err = 0;
+	int err;
 
 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGE);
 	nfs_add_stats(inode, NFSIOS_WRITEPAGES, 1);
 
-	req = nfs_page_find_request(page);
-	if (req != NULL) {
-		int flushme = test_bit(PG_NEED_FLUSH, &req->wb_flags);
-		nfs_release_request(req);
-		if (!flushme)
-			goto out;
-		/* Ensure we've flushed out the invalid write */
-		nfs_wb_page_priority(inode, page, wb_priority(wbc) | FLUSH_STABLE | FLUSH_NOWRITEPAGE);
-	}
-
+	err = nfs_page_mark_flush(page);
+	if (err <= 0)
+		goto out;
+	err = 0;
 	offset = nfs_page_length(page);
 	if (!offset)
 		goto out;
@@ -279,7 +315,11 @@ static int nfs_writepage_locked(struct page *page, struct writeback_control *wbc
 	}
 	err = nfs_writepage_setup(ctx, page, 0, offset);
 	put_nfs_open_context(ctx);
-
+	if (err != 0)
+		goto out;
+	err = nfs_page_mark_flush(page);
+	if (err > 0)
+		err = 0;
 out:
 	if (!wbc->for_writepages)
 		nfs_flush_mapping(page->mapping, wbc, wb_priority(wbc));
@@ -409,8 +449,7 @@ nfs_mark_request_dirty(struct nfs_page *req)
 static inline int
 nfs_dirty_request(struct nfs_page *req)
 {
-	struct nfs_inode *nfsi = NFS_I(req->wb_context->dentry->d_inode);
-	return !list_empty(&req->wb_list) && req->wb_list_head == &nfsi->dirty;
+	return test_bit(PG_FLUSHING, &req->wb_flags) == 0;
 }
 
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
@@ -628,7 +667,6 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context* ctx,
 				return ERR_PTR(error);
 			}
 			spin_unlock(&nfsi->req_lock);
-			nfs_mark_request_dirty(new);
 			return new;
 		}
 		spin_unlock(&nfsi->req_lock);
@@ -684,7 +722,7 @@ int nfs_flush_incompatible(struct file *file, struct page *page)
 		if (req == NULL)
 			return 0;
 		do_flush = req->wb_page != page || req->wb_context != ctx
-			|| test_bit(PG_NEED_FLUSH, &req->wb_flags);
+			|| !nfs_dirty_request(req);
 		nfs_release_request(req);
 		if (!do_flush)
 			return 0;
@@ -723,6 +761,7 @@ int nfs_updatepage(struct file *file, struct page *page,
 	}
 
 	status = nfs_writepage_setup(ctx, page, offset, count);
+	__set_page_dirty_nobuffers(page);
 
         dprintk("NFS:      nfs_updatepage returns %d (isize %Ld)\n",
 			status, (long long)i_size_read(inode));
