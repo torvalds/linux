@@ -87,12 +87,6 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 
 	now = get_seconds();
 
-	if (ctx->sealalg != SEAL_ALG_NONE && ctx->sealalg != SEAL_ALG_DES) {
-		dprintk("RPC:      gss_krb5_seal: ctx->sealalg %d not supported\n",
-			ctx->sealalg);
-		return GSS_S_FAILURE;
-	}
-
 	token->len = g_token_size(&ctx->mech_used, 22);
 
 	ptr = token->data;

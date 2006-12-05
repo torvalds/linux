@@ -133,12 +133,6 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 
 	now = get_seconds();
 
-	if (kctx->sealalg != SEAL_ALG_NONE && kctx->sealalg != SEAL_ALG_DES) {
-		dprintk("RPC:      gss_krb5_seal: kctx->sealalg %d not supported\n",
-			kctx->sealalg);
-		return GSS_S_FAILURE;
-	}
-
 	blocksize = crypto_blkcipher_blocksize(kctx->enc);
 	gss_krb5_add_padding(buf, offset, blocksize);
 	BUG_ON((buf->len - offset) % blocksize);
@@ -169,7 +163,7 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 
 	*(__be16 *)(krb5_hdr + 2) = htons(SGN_ALG_DES_MAC_MD5);
 	memset(krb5_hdr + 4, 0xff, 4);
-	*(__be16 *)(krb5_hdr + 4) = htons(kctx->sealalg);
+	*(__be16 *)(krb5_hdr + 4) = htons(SEAL_ALG_DES);
 
 	make_confounder(msg_start, blocksize);
 
@@ -245,24 +239,9 @@ gss_unwrap_kerberos(struct gss_ctx *ctx, int offset, struct xdr_buf *buf)
 	if ((ptr[4] != 0xff) || (ptr[5] != 0xff))
 		return GSS_S_DEFECTIVE_TOKEN;
 
-	if (sealalg == 0xffff)
+	if (sealalg != SEAL_ALG_DES)
 		return GSS_S_DEFECTIVE_TOKEN;
 	if (signalg != SGN_ALG_DES_MAC_MD5)
-		return GSS_S_DEFECTIVE_TOKEN;
-
-	/* in the current spec, there is only one valid seal algorithm per
-	   key type, so a simple comparison is ok */
-
-	if (sealalg != kctx->sealalg)
-		return GSS_S_DEFECTIVE_TOKEN;
-
-	/* there are several mappings of seal algorithms to sign algorithms,
-	   but few enough that we can try them all. */
-
-	if ((kctx->sealalg == SEAL_ALG_NONE && signalg > 1) ||
-	    (kctx->sealalg == SEAL_ALG_1 && signalg != SGN_ALG_3) ||
-	    (kctx->sealalg == SEAL_ALG_DES3KD &&
-	     signalg != SGN_ALG_HMAC_SHA1_DES3_KD))
 		return GSS_S_DEFECTIVE_TOKEN;
 
 	if (gss_decrypt_xdr_buf(kctx->enc, buf,
