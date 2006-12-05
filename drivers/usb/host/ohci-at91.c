@@ -187,7 +187,6 @@ ohci_at91_start (struct usb_hcd *hcd)
 {
 	struct at91_usbh_data	*board = hcd->self.controller->platform_data;
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
-	struct usb_device	*root = hcd->self.root_hub;
 	int			ret;
 
 	if ((ret = ohci_init(ohci)) < 0)
