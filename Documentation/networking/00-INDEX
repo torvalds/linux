@@ -58,6 +58,8 @@ fore200e.txt
 	- FORE Systems PCA-200E/SBA-200E ATM NIC driver info.
 framerelay.txt
 	- info on using Frame Relay/Data Link Connection Identifier (DLCI).
+generic_netlink.txt
+	- info on Generic Netlink
 ip-sysctl.txt
 	- /proc/sys/net/ipv4/* variables
 ip_dynaddr.txt
