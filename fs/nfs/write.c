@@ -75,7 +75,6 @@
  * Local function declarations
  */
 static struct nfs_page * nfs_update_request(struct nfs_open_context*,
-					    struct inode *,
 					    struct page *,
 					    unsigned int, unsigned int);
 static int nfs_wait_on_write_congestion(struct address_space *, int);
@@ -215,10 +214,10 @@ static void nfs_mark_uptodate(struct page *page, unsigned int base, unsigned int
  * Write a page synchronously.
  * Offset is the data offset within the page.
  */
-static int nfs_writepage_sync(struct nfs_open_context *ctx, struct inode *inode,
-		struct page *page, unsigned int offset, unsigned int count,
-		int how)
+static int nfs_writepage_sync(struct nfs_open_context *ctx, struct page *page,
+		unsigned int offset, unsigned int count, int how)
 {
+	struct inode *inode = page->mapping->host;
 	unsigned int	wsize = NFS_SERVER(inode)->wsize;
 	int		result, written = 0;
 	struct nfs_write_data *wdata;
@@ -283,15 +282,23 @@ io_error:
 	return written ? written : result;
 }
 
-static int nfs_writepage_async(struct nfs_open_context *ctx,
-		struct inode *inode, struct page *page,
+static int nfs_writepage_setup(struct nfs_open_context *ctx, struct page *page,
 		unsigned int offset, unsigned int count)
 {
 	struct nfs_page	*req;
+	int ret;
 
-	req = nfs_update_request(ctx, inode, page, offset, count);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
+	for (;;) {
+		req = nfs_update_request(ctx, page, offset, count);
+		if (!IS_ERR(req))
+			break;
+		ret = PTR_ERR(req);
+		if (ret != -EBUSY)
+			return ret;
+		ret = nfs_wb_page(page->mapping->host, page);
+		if (ret != 0)
+			return ret;
+	}
 	/* Update file length */
 	nfs_grow_file(page, offset, count);
 	/* Set the PG_uptodate flag? */
@@ -317,14 +324,13 @@ int nfs_writepage(struct page *page, struct writeback_control *wbc)
 	struct nfs_open_context *ctx;
 	struct inode *inode = page->mapping->host;
 	unsigned offset;
-	int priority = wb_priority(wbc);
 	int err;
 
 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGE);
 	nfs_add_stats(inode, NFSIOS_WRITEPAGES, 1);
 
 	/* Ensure we've flushed out any previous writes */
-	nfs_wb_page_priority(inode, page, priority);
+	nfs_wb_page_priority(inode, page, wb_priority(wbc));
 
 	err = 0;
 	offset = nfs_page_length(page);
@@ -338,12 +344,11 @@ int nfs_writepage(struct page *page, struct writeback_control *wbc)
 	}
 	lock_kernel();
 	if (!IS_SYNC(inode)) {
-		err = nfs_writepage_async(ctx, inode, page, 0, offset);
+		err = nfs_writepage_setup(ctx, page, 0, offset);
 		if (!wbc->for_writepages)
 			nfs_flush_mapping(page->mapping, wbc, wb_priority(wbc));
 	} else {
-		err = nfs_writepage_sync(ctx, inode, page, 0,
-						offset, priority);
+		err = nfs_writepage_sync(ctx, page, 0, offset, wb_priority(wbc));
 		if (err >= 0) {
 			if (err != offset)
 				redirty_page_for_writepage(wbc, page);
@@ -643,17 +648,16 @@ static int nfs_wait_on_write_congestion(struct address_space *mapping, int intr)
  * Note: Should always be called with the Page Lock held!
  */
 static struct nfs_page * nfs_update_request(struct nfs_open_context* ctx,
-		struct inode *inode, struct page *page,
-		unsigned int offset, unsigned int bytes)
+		struct page *page, unsigned int offset, unsigned int bytes)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct inode *inode = page->mapping->host;
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_page		*req, *new = NULL;
 	unsigned long		rqend, end;
 
 	end = offset + bytes;
 
-	if (nfs_wait_on_write_congestion(page->mapping, server->flags & NFS_MOUNT_INTR))
+	if (nfs_wait_on_write_congestion(page->mapping, NFS_SERVER(inode)->flags & NFS_MOUNT_INTR))
 		return ERR_PTR(-ERESTARTSYS);
 	for (;;) {
 		/* Loop over all inode entries and see if we find
@@ -764,7 +768,6 @@ int nfs_updatepage(struct file *file, struct page *page,
 {
 	struct nfs_open_context *ctx = (struct nfs_open_context *)file->private_data;
 	struct inode	*inode = page->mapping->host;
-	struct nfs_page	*req;
 	int		status = 0;
 
 	nfs_inc_stats(inode, NFSIOS_VFSUPDATEPAGE);
@@ -775,7 +778,7 @@ int nfs_updatepage(struct file *file, struct page *page,
 		(long long)(page_offset(page) +offset));
 
 	if (IS_SYNC(inode)) {
-		status = nfs_writepage_sync(ctx, inode, page, offset, count, 0);
+		status = nfs_writepage_sync(ctx, page, offset, count, 0);
 		if (status > 0) {
 			if (offset == 0 && status == PAGE_CACHE_SIZE)
 				SetPageUptodate(page);
@@ -793,31 +796,8 @@ int nfs_updatepage(struct file *file, struct page *page,
 		offset = 0;
 	}
 
-	/*
-	 * Try to find an NFS request corresponding to this page
-	 * and update it.
-	 * If the existing request cannot be updated, we must flush
-	 * it out now.
-	 */
-	do {
-		req = nfs_update_request(ctx, inode, page, offset, count);
-		status = (IS_ERR(req)) ? PTR_ERR(req) : 0;
-		if (status != -EBUSY)
-			break;
-		/* Request could not be updated. Flush it out and try again */
-		status = nfs_wb_page(inode, page);
-	} while (status >= 0);
-	if (status < 0)
-		goto done;
+	status = nfs_writepage_setup(ctx, page, offset, count);
 
-	status = 0;
-
-	/* Update file length */
-	nfs_grow_file(page, offset, count);
-	/* Set the PG_uptodate flag? */
-	nfs_mark_uptodate(page, req->wb_pgbase, req->wb_bytes);
-	nfs_unlock_request(req);
-done:
         dprintk("NFS:      nfs_updatepage returns %d (isize %Ld)\n",
 			status, (long long)i_size_read(inode));
 	if (status < 0)
