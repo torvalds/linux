@@ -123,23 +123,22 @@ static unsigned int pentiumM_get_frequency(void)
 	return (msr_tmp * 100 * 1000);
 }
 
-#ifdef CONFIG_X86_32
 static unsigned int pentium_core_get_frequency(void)
 {
 	u32 fsb = 0;
 	u32 msr_lo, msr_tmp;
 
 	rdmsr(MSR_FSB_FREQ, msr_lo, msr_tmp);
-	/* see table B-2 of 24547212.pdf */
+	/* see table B-2 of 25366920.pdf */
 	switch (msr_lo & 0x07) {
 	case 5:
-		fsb = 400;
+		fsb = 100000;
 		break;
 	case 1:
-		fsb = 533;
+		fsb = 133333;
 		break;
 	case 3:
-		fsb = 667;
+		fsb = 166667;
 		break;
 	default:
 		printk(KERN_ERR "PCORE - MSR_FSB_FREQ undefined value");
@@ -149,11 +148,11 @@ static unsigned int pentium_core_get_frequency(void)
 	dprintk("PCORE - MSR_IA32_EBL_CR_POWERON: 0x%x 0x%x\n", msr_lo, msr_tmp);
 
 	msr_tmp = (msr_lo >> 22) & 0x1f;
-	dprintk("bits 22-26 are 0x%x, speed is %u\n", msr_tmp, (msr_tmp * fsb * 1000));
+	dprintk("bits 22-26 are 0x%x, speed is %u\n", msr_tmp, (msr_tmp * fsb));
 
-	return (msr_tmp * fsb * 1000);
+	return (msr_tmp * fsb);
 }
-#endif
+
 
 static unsigned int pentium4_get_frequency(void)
 {
@@ -205,10 +204,8 @@ static unsigned int pentium4_get_frequency(void)
 unsigned int speedstep_get_processor_frequency(unsigned int processor)
 {
 	switch (processor) {
-#ifdef CONFIG_X86_32
 	case SPEEDSTEP_PROCESSOR_PCORE:
 		return pentium_core_get_frequency();
-#endif
 	case SPEEDSTEP_PROCESSOR_PM:
 		return pentiumM_get_frequency();
 	case SPEEDSTEP_PROCESSOR_P4D:
