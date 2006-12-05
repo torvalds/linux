@@ -147,6 +147,14 @@ struct sock_xprt {
 				tcp_flags;
 };
 
+/*
+ * TCP receive state flags
+ */
+#define TCP_RCV_LAST_FRAG	(1UL << 0)
+#define TCP_RCV_COPY_FRAGHDR	(1UL << 1)
+#define TCP_RCV_COPY_XID	(1UL << 2)
+#define TCP_RCV_COPY_DATA	(1UL << 3)
+
 static void xs_format_peer_addresses(struct rpc_xprt *xprt)
 {
 	struct sockaddr_in *addr = (struct sockaddr_in *) &xprt->addr;
@@ -653,12 +661,12 @@ static inline void xs_tcp_read_fraghdr(struct rpc_xprt *xprt, skb_reader_t *desc
 
 	transport->tcp_reclen = ntohl(transport->tcp_fraghdr);
 	if (transport->tcp_reclen & RPC_LAST_STREAM_FRAGMENT)
-		transport->tcp_flags |= XPRT_LAST_FRAG;
+		transport->tcp_flags |= TCP_RCV_LAST_FRAG;
 	else
-		transport->tcp_flags &= ~XPRT_LAST_FRAG;
+		transport->tcp_flags &= ~TCP_RCV_LAST_FRAG;
 	transport->tcp_reclen &= RPC_FRAGMENT_SIZE_MASK;
 
-	transport->tcp_flags &= ~XPRT_COPY_RECM;
+	transport->tcp_flags &= ~TCP_RCV_COPY_FRAGHDR;
 	transport->tcp_offset = 0;
 
 	/* Sanity check of the record length */
@@ -674,11 +682,11 @@ static inline void xs_tcp_read_fraghdr(struct rpc_xprt *xprt, skb_reader_t *desc
 static void xs_tcp_check_fraghdr(struct sock_xprt *transport)
 {
 	if (transport->tcp_offset == transport->tcp_reclen) {
-		transport->tcp_flags |= XPRT_COPY_RECM;
+		transport->tcp_flags |= TCP_RCV_COPY_FRAGHDR;
 		transport->tcp_offset = 0;
-		if (transport->tcp_flags & XPRT_LAST_FRAG) {
-			transport->tcp_flags &= ~XPRT_COPY_DATA;
-			transport->tcp_flags |= XPRT_COPY_XID;
+		if (transport->tcp_flags & TCP_RCV_LAST_FRAG) {
+			transport->tcp_flags &= ~TCP_RCV_COPY_DATA;
+			transport->tcp_flags |= TCP_RCV_COPY_XID;
 			transport->tcp_copied = 0;
 		}
 	}
@@ -696,8 +704,8 @@ static inline void xs_tcp_read_xid(struct sock_xprt *transport, skb_reader_t *de
 	transport->tcp_offset += used;
 	if (used != len)
 		return;
-	transport->tcp_flags &= ~XPRT_COPY_XID;
-	transport->tcp_flags |= XPRT_COPY_DATA;
+	transport->tcp_flags &= ~TCP_RCV_COPY_XID;
+	transport->tcp_flags |= TCP_RCV_COPY_DATA;
 	transport->tcp_copied = 4;
 	dprintk("RPC:      reading reply for XID %08x\n",
 			ntohl(transport->tcp_xid));
@@ -716,7 +724,7 @@ static inline void xs_tcp_read_request(struct rpc_xprt *xprt, skb_reader_t *desc
 	spin_lock(&xprt->transport_lock);
 	req = xprt_lookup_rqst(xprt, transport->tcp_xid);
 	if (!req) {
-		transport->tcp_flags &= ~XPRT_COPY_DATA;
+		transport->tcp_flags &= ~TCP_RCV_COPY_DATA;
 		dprintk("RPC:      XID %08x request not found!\n",
 				ntohl(transport->tcp_xid));
 		spin_unlock(&xprt->transport_lock);
@@ -747,13 +755,13 @@ static inline void xs_tcp_read_request(struct rpc_xprt *xprt, skb_reader_t *desc
 		/* Error when copying to the receive buffer,
 		 * usually because we weren't able to allocate
 		 * additional buffer pages. All we can do now
-		 * is turn off XPRT_COPY_DATA, so the request
+		 * is turn off TCP_RCV_COPY_DATA, so the request
 		 * will not receive any additional updates,
 		 * and time out.
 		 * Any remaining data from this record will
 		 * be discarded.
 		 */
-		transport->tcp_flags &= ~XPRT_COPY_DATA;
+		transport->tcp_flags &= ~TCP_RCV_COPY_DATA;
 		dprintk("RPC:      XID %08x truncated request\n",
 				ntohl(transport->tcp_xid));
 		dprintk("RPC:      xprt = %p, tcp_copied = %lu, tcp_offset = %u, tcp_reclen = %u\n",
@@ -769,14 +777,14 @@ static inline void xs_tcp_read_request(struct rpc_xprt *xprt, skb_reader_t *desc
 				transport->tcp_reclen);
 
 	if (transport->tcp_copied == req->rq_private_buf.buflen)
-		transport->tcp_flags &= ~XPRT_COPY_DATA;
+		transport->tcp_flags &= ~TCP_RCV_COPY_DATA;
 	else if (transport->tcp_offset == transport->tcp_reclen) {
-		if (transport->tcp_flags & XPRT_LAST_FRAG)
-			transport->tcp_flags &= ~XPRT_COPY_DATA;
+		if (transport->tcp_flags & TCP_RCV_LAST_FRAG)
+			transport->tcp_flags &= ~TCP_RCV_COPY_DATA;
 	}
 
 out:
-	if (!(transport->tcp_flags & XPRT_COPY_DATA))
+	if (!(transport->tcp_flags & TCP_RCV_COPY_DATA))
 		xprt_complete_rqst(req->rq_task, transport->tcp_copied);
 	spin_unlock(&xprt->transport_lock);
 	xs_tcp_check_fraghdr(transport);
@@ -810,17 +818,17 @@ static int xs_tcp_data_recv(read_descriptor_t *rd_desc, struct sk_buff *skb, uns
 	do {
 		/* Read in a new fragment marker if necessary */
 		/* Can we ever really expect to get completely empty fragments? */
-		if (transport->tcp_flags & XPRT_COPY_RECM) {
+		if (transport->tcp_flags & TCP_RCV_COPY_FRAGHDR) {
 			xs_tcp_read_fraghdr(xprt, &desc);
 			continue;
 		}
 		/* Read in the xid if necessary */
-		if (transport->tcp_flags & XPRT_COPY_XID) {
+		if (transport->tcp_flags & TCP_RCV_COPY_XID) {
 			xs_tcp_read_xid(transport, &desc);
 			continue;
 		}
 		/* Read in the request data */
-		if (transport->tcp_flags & XPRT_COPY_DATA) {
+		if (transport->tcp_flags & TCP_RCV_COPY_DATA) {
 			xs_tcp_read_request(xprt, &desc);
 			continue;
 		}
@@ -886,7 +894,8 @@ static void xs_tcp_state_change(struct sock *sk)
 			transport->tcp_offset = 0;
 			transport->tcp_reclen = 0;
 			transport->tcp_copied = 0;
-			transport->tcp_flags = XPRT_COPY_RECM | XPRT_COPY_XID;
+			transport->tcp_flags =
+				TCP_RCV_COPY_FRAGHDR | TCP_RCV_COPY_XID;
 
 			xprt->reestablish_timeout = XS_TCP_INIT_REEST_TO;
 			xprt_wake_pending_tasks(xprt, 0);

@@ -203,11 +203,6 @@ struct rpc_xprt {
 	char *			address_strings[RPC_DISPLAY_MAX];
 };
 
-#define XPRT_LAST_FRAG		(1 << 0)
-#define XPRT_COPY_RECM		(1 << 1)
-#define XPRT_COPY_XID		(1 << 2)
-#define XPRT_COPY_DATA		(1 << 3)
-
 #ifdef __KERNEL__
 
 /*
