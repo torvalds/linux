@@ -82,6 +82,8 @@ static struct vm_operations_struct ocfs2_file_vm_ops = {
 
 int ocfs2_mmap(struct file *file, struct vm_area_struct *vma)
 {
+	int ret = 0, lock_level = 0;
+
 	/* We don't want to support shared writable mappings yet. */
 	if (((vma->vm_flags & VM_SHARED) || (vma->vm_flags & VM_MAYSHARE))
 	    && ((vma->vm_flags & VM_WRITE) || (vma->vm_flags & VM_MAYWRITE))) {
@@ -91,7 +93,14 @@ int ocfs2_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-	file_accessed(file);
+	ret = ocfs2_meta_lock_atime(file->f_dentry->d_inode,
+				    file->f_vfsmnt, &lock_level);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out;
+	}
+	ocfs2_meta_unlock(file->f_dentry->d_inode, lock_level);
+out:
 	vma->vm_ops = &ocfs2_file_vm_ops;
 	return 0;
 }

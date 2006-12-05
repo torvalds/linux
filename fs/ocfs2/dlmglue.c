@@ -49,6 +49,7 @@
 #include "dcache.h"
 #include "dlmglue.h"
 #include "extent_map.h"
+#include "file.h"
 #include "heartbeat.h"
 #include "inode.h"
 #include "journal.h"
@@ -1063,10 +1064,10 @@ static void ocfs2_cluster_unlock(struct ocfs2_super *osb,
 	mlog_exit_void();
 }
 
-int ocfs2_create_new_lock(struct ocfs2_super *osb,
-			  struct ocfs2_lock_res *lockres,
-			  int ex,
-			  int local)
+static int ocfs2_create_new_lock(struct ocfs2_super *osb,
+				 struct ocfs2_lock_res *lockres,
+				 int ex,
+				 int local)
 {
 	int level =  ex ? LKM_EXMODE : LKM_PRMODE;
 	unsigned long flags;
@@ -1579,7 +1580,6 @@ static int ocfs2_assign_bh(struct inode *inode,
  * the result of the lock will be communicated via the callback.
  */
 int ocfs2_meta_lock_full(struct inode *inode,
-			 struct ocfs2_journal_handle *handle,
 			 struct buffer_head **ret_bh,
 			 int ex,
 			 int arg_flags)
@@ -1668,12 +1668,6 @@ int ocfs2_meta_lock_full(struct inode *inode,
 		}
 	}
 
-	if (handle) {
-		status = ocfs2_handle_add_lock(handle, inode);
-		if (status < 0)
-			mlog_errno(status);
-	}
-
 bail:
 	if (status < 0) {
 		if (ret_bh && (*ret_bh)) {
@@ -1713,22 +1707,58 @@ bail:
  * the lock inversion simply.
  */
 int ocfs2_meta_lock_with_page(struct inode *inode,
-			      struct ocfs2_journal_handle *handle,
 			      struct buffer_head **ret_bh,
 			      int ex,
 			      struct page *page)
 {
 	int ret;
 
-	ret = ocfs2_meta_lock_full(inode, handle, ret_bh, ex,
-				   OCFS2_LOCK_NONBLOCK);
+	ret = ocfs2_meta_lock_full(inode, ret_bh, ex, OCFS2_LOCK_NONBLOCK);
 	if (ret == -EAGAIN) {
 		unlock_page(page);
-		if (ocfs2_meta_lock(inode, handle, ret_bh, ex) == 0)
+		if (ocfs2_meta_lock(inode, ret_bh, ex) == 0)
 			ocfs2_meta_unlock(inode, ex);
 		ret = AOP_TRUNCATED_PAGE;
 	}
 
+	return ret;
+}
+
+int ocfs2_meta_lock_atime(struct inode *inode,
+			  struct vfsmount *vfsmnt,
+			  int *level)
+{
+	int ret;
+
+	mlog_entry_void();
+	ret = ocfs2_meta_lock(inode, NULL, 0);
+	if (ret < 0) {
+		mlog_errno(ret);
+		return ret;
+	}
+
+	/*
+	 * If we should update atime, we will get EX lock,
+	 * otherwise we just get PR lock.
+	 */
+	if (ocfs2_should_update_atime(inode, vfsmnt)) {
+		struct buffer_head *bh = NULL;
+
+		ocfs2_meta_unlock(inode, 0);
+		ret = ocfs2_meta_lock(inode, &bh, 1);
+		if (ret < 0) {
+			mlog_errno(ret);
+			return ret;
+		}
+		*level = 1;
+		if (ocfs2_should_update_atime(inode, vfsmnt))
+			ocfs2_update_inode_atime(inode, bh);
+		if (bh)
+			brelse(bh);
+	} else
+		*level = 0;
+
+	mlog_exit(ret);
 	return ret;
 }
 
