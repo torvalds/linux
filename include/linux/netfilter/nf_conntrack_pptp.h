@@ -2,6 +2,8 @@
 #ifndef _NF_CONNTRACK_PPTP_H
 #define _NF_CONNTRACK_PPTP_H
 
+#include <linux/netfilter/nf_conntrack_common.h>
+
 /* state of the control session */
 enum pptp_ctrlsess_state {
 	PPTP_SESSION_NONE,			/* no session present */
@@ -295,7 +297,6 @@ union pptp_ctrl_union {
 /* crap needed for nf_conntrack_compat.h */
 struct nf_conn;
 struct nf_conntrack_expect;
-enum ip_conntrack_info;
 
 extern int
 (*nf_nat_pptp_hook_outbound)(struct sk_buff **pskb,
