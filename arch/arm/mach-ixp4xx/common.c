@@ -40,6 +40,8 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 
+static int __init ixp4xx_clocksource_init(void);
+
 /*************************************************************************
  * IXP4xx chipset I/O mapping
  *************************************************************************/
@@ -281,6 +283,8 @@ static void __init ixp4xx_timer_init(void)
 
 	/* Connect the interrupt handler and enable the interrupt */
 	setup_irq(IRQ_IXP4XX_TIMER1, &ixp4xx_timer_irq);
+
+	ixp4xx_clocksource_init();
 }
 
 struct sys_timer ixp4xx_timer = {
@@ -404,5 +408,3 @@ static int __init ixp4xx_clocksource_init(void)
 
 	return 0;
 }
-
-device_initcall(ixp4xx_clocksource_init);
