@@ -148,19 +148,19 @@ extern int write_bytes_to_xdr_buf(struct xdr_buf *, unsigned int, void *, unsign
 /*
  * Helper structure for copying from an sk_buff.
  */
-typedef struct {
+struct xdr_skb_reader {
 	struct sk_buff	*skb;
 	unsigned int	offset;
 	size_t		count;
 	__wsum		csum;
-} skb_reader_t;
+};
 
-typedef size_t (*skb_read_actor_t)(skb_reader_t *desc, void *to, size_t len);
+typedef size_t (*xdr_skb_read_actor)(struct xdr_skb_reader *desc, void *to, size_t len);
 
-size_t xdr_skb_read_bits(skb_reader_t *desc, void *to, size_t len);
+size_t xdr_skb_read_bits(struct xdr_skb_reader *desc, void *to, size_t len);
 extern int csum_partial_copy_to_xdr(struct xdr_buf *, struct sk_buff *);
 extern ssize_t xdr_partial_copy_from_skb(struct xdr_buf *, unsigned int,
-		skb_reader_t *, skb_read_actor_t);
+		struct xdr_skb_reader *, xdr_skb_read_actor);
 
 extern int xdr_encode_word(struct xdr_buf *, unsigned int, u32);
 extern int xdr_decode_word(struct xdr_buf *, unsigned int, u32 *);

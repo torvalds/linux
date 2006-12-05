@@ -24,7 +24,7 @@
  * Possibly called several times to iterate over an sk_buff and copy
  * data out of it.
  */
-size_t xdr_skb_read_bits(skb_reader_t *desc, void *to, size_t len)
+size_t xdr_skb_read_bits(struct xdr_skb_reader *desc, void *to, size_t len)
 {
 	if (len > desc->count)
 		len = desc->count;
@@ -43,7 +43,7 @@ size_t xdr_skb_read_bits(skb_reader_t *desc, void *to, size_t len)
  *
  * Same as skb_read_bits, but calculate a checksum at the same time.
  */
-static size_t xdr_skb_read_and_csum_bits(skb_reader_t *desc, void *to, size_t len)
+static size_t xdr_skb_read_and_csum_bits(struct xdr_skb_reader *desc, void *to, size_t len)
 {
 	unsigned int pos;
 	__wsum csum2;
@@ -66,7 +66,7 @@ static size_t xdr_skb_read_and_csum_bits(skb_reader_t *desc, void *to, size_t le
  * @copy_actor: virtual method for copying data
  *
  */
-ssize_t xdr_partial_copy_from_skb(struct xdr_buf *xdr, unsigned int base, skb_reader_t *desc, skb_read_actor_t copy_actor)
+ssize_t xdr_partial_copy_from_skb(struct xdr_buf *xdr, unsigned int base, struct xdr_skb_reader *desc, xdr_skb_read_actor copy_actor)
 {
 	struct page	**ppage = xdr->pages;
 	unsigned int	len, pglen = xdr->page_len;
@@ -148,7 +148,7 @@ out:
  */
 int csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb)
 {
-	skb_reader_t	desc;
+	struct xdr_skb_reader	desc;
 
 	desc.skb = skb;
 	desc.offset = sizeof(struct udphdr);

@@ -651,7 +651,7 @@ static void xs_udp_data_ready(struct sock *sk, int len)
 	read_unlock(&sk->sk_callback_lock);
 }
 
-static inline void xs_tcp_read_fraghdr(struct rpc_xprt *xprt, skb_reader_t *desc)
+static inline void xs_tcp_read_fraghdr(struct rpc_xprt *xprt, struct xdr_skb_reader *desc)
 {
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 	size_t len, used;
@@ -697,7 +697,7 @@ static void xs_tcp_check_fraghdr(struct sock_xprt *transport)
 	}
 }
 
-static inline void xs_tcp_read_xid(struct sock_xprt *transport, skb_reader_t *desc)
+static inline void xs_tcp_read_xid(struct sock_xprt *transport, struct xdr_skb_reader *desc)
 {
 	size_t len, used;
 	char *p;
@@ -717,7 +717,7 @@ static inline void xs_tcp_read_xid(struct sock_xprt *transport, skb_reader_t *de
 	xs_tcp_check_fraghdr(transport);
 }
 
-static inline void xs_tcp_read_request(struct rpc_xprt *xprt, skb_reader_t *desc)
+static inline void xs_tcp_read_request(struct rpc_xprt *xprt, struct xdr_skb_reader *desc)
 {
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 	struct rpc_rqst *req;
@@ -739,7 +739,7 @@ static inline void xs_tcp_read_request(struct rpc_xprt *xprt, skb_reader_t *desc
 	rcvbuf = &req->rq_private_buf;
 	len = desc->count;
 	if (len > transport->tcp_reclen - transport->tcp_offset) {
-		skb_reader_t my_desc;
+		struct xdr_skb_reader my_desc;
 
 		len = transport->tcp_reclen - transport->tcp_offset;
 		memcpy(&my_desc, desc, sizeof(my_desc));
@@ -795,7 +795,7 @@ out:
 	xs_tcp_check_fraghdr(transport);
 }
 
-static inline void xs_tcp_read_discard(struct sock_xprt *transport, skb_reader_t *desc)
+static inline void xs_tcp_read_discard(struct sock_xprt *transport, struct xdr_skb_reader *desc)
 {
 	size_t len;
 
@@ -813,7 +813,7 @@ static int xs_tcp_data_recv(read_descriptor_t *rd_desc, struct sk_buff *skb, uns
 {
 	struct rpc_xprt *xprt = rd_desc->arg.data;
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
-	skb_reader_t desc = {
+	struct xdr_skb_reader desc = {
 		.skb	= skb,
 		.offset	= offset,
 		.count	= len,
