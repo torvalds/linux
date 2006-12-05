@@ -1147,7 +1147,7 @@ int irttp_connect_request(struct tsap_cb *self, __u8 dtsap_sel,
 		frame[3] = 0x02; /* Value length */
 
 		put_unaligned(cpu_to_be16((__u16) max_sdu_size),
-			      (__u16 *)(frame+4));
+			      (__be16 *)(frame+4));
 	} else {
 		/* Insert plain TTP header */
 		frame = skb_push(tx_skb, TTP_HEADER);
@@ -1394,7 +1394,7 @@ int irttp_connect_response(struct tsap_cb *self, __u32 max_sdu_size,
 		frame[3] = 0x02; /* Value length */
 
 		put_unaligned(cpu_to_be16((__u16) max_sdu_size),
-			      (__u16 *)(frame+4));
+			      (__be16 *)(frame+4));
 	} else {
 		/* Insert TTP header */
 		frame = skb_push(tx_skb, TTP_HEADER);

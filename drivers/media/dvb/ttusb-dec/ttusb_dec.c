@@ -1135,8 +1135,7 @@ static void ttusb_dec_free_iso_urbs(struct ttusb_dec *dec)
 	dprintk("%s\n", __FUNCTION__);
 
 	for (i = 0; i < ISO_BUF_COUNT; i++)
-		if (dec->iso_urb[i])
-			usb_free_urb(dec->iso_urb[i]);
+		usb_free_urb(dec->iso_urb[i]);
 
 	pci_free_consistent(NULL,
 			    ISO_FRAME_SIZE * (FRAMES_PER_ISO_BUF *

@@ -21,10 +21,6 @@ extern __u32 sysctl_rmem_max;
 
 extern int sysctl_core_destroy_delay;
 
-#ifdef CONFIG_NET_DIVERT
-extern char sysctl_divert_version[];
-#endif /* CONFIG_NET_DIVERT */
-
 #ifdef CONFIG_XFRM
 extern u32 sysctl_xfrm_aevent_etime;
 extern u32 sysctl_xfrm_aevent_rseqth;
@@ -105,16 +101,6 @@ ctl_table core_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
 	},
-#ifdef CONFIG_NET_DIVERT
-	{
-		.ctl_name	= NET_CORE_DIVERT_VERSION,
-		.procname	= "divert_version",
-		.data		= (void *)sysctl_divert_version,
-		.maxlen		= 32,
-		.mode		= 0444,
-		.proc_handler	= &proc_dostring
-	},
-#endif /* CONFIG_NET_DIVERT */
 #ifdef CONFIG_XFRM
 	{
 		.ctl_name	= NET_CORE_AEVENT_ETIME,

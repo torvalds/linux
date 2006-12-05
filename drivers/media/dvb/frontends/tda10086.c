@@ -441,6 +441,10 @@ static int tda10086_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_pa
 
 	dprintk ("%s\n", __FUNCTION__);
 
+	// check for invalid symbol rate
+	if (fe_params->u.qpsk.symbol_rate < 500000)
+		return -EINVAL;
+
 	// calculate the updated frequency (note: we convert from Hz->kHz)
 	tmp64 = tda10086_read_byte(state, 0x52);
 	tmp64 |= (tda10086_read_byte(state, 0x51) << 8);

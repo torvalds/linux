@@ -577,20 +577,20 @@ static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg
  *	Determine a default network mask, based on the IP address.
  */
 
-static __inline__ int inet_abc_len(u32 addr)
+static __inline__ int inet_abc_len(__be32 addr)
 {
 	int rc = -1;	/* Something else, probably a multicast. */
 
   	if (ZERONET(addr))
   		rc = 0;
 	else {
-		addr = ntohl(addr);
+		__u32 haddr = ntohl(addr);
 
-		if (IN_CLASSA(addr))
+		if (IN_CLASSA(haddr))
 			rc = 8;
-		else if (IN_CLASSB(addr))
+		else if (IN_CLASSB(haddr))
 			rc = 16;
-		else if (IN_CLASSC(addr))
+		else if (IN_CLASSC(haddr))
 			rc = 24;
 	}
 
@@ -1120,6 +1120,16 @@ static struct notifier_block ip_netdev_notifier = {
 	.notifier_call =inetdev_event,
 };
 
+static inline size_t inet_nlmsg_size(void)
+{
+	return NLMSG_ALIGN(sizeof(struct ifaddrmsg))
+	       + nla_total_size(4) /* IFA_ADDRESS */
+	       + nla_total_size(4) /* IFA_LOCAL */
+	       + nla_total_size(4) /* IFA_BROADCAST */
+	       + nla_total_size(4) /* IFA_ANYCAST */
+	       + nla_total_size(IFNAMSIZ); /* IFA_LABEL */
+}
+
 static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
 			    u32 pid, u32 seq, int event, unsigned int flags)
 {
@@ -1208,15 +1218,13 @@ static void rtmsg_ifa(int event, struct in_ifaddr* ifa, struct nlmsghdr *nlh,
 	u32 seq = nlh ? nlh->nlmsg_seq : 0;
 	int err = -ENOBUFS;
 
-	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	skb = nlmsg_new(inet_nlmsg_size(), GFP_KERNEL);
 	if (skb == NULL)
 		goto errout;
 
 	err = inet_fill_ifaddr(skb, ifa, pid, seq, event, 0);
-	if (err < 0) {
-		kfree_skb(skb);
-		goto errout;
-	}
+	/* failure implies BUG in inet_nlmsg_size() */
+	BUG_ON(err < 0);
 
 	err = rtnl_notify(skb, pid, RTNLGRP_IPV4_IFADDR, nlh, GFP_KERNEL);
 errout:
@@ -1556,12 +1564,12 @@ static void devinet_sysctl_register(struct in_device *in_dev,
 {
 	int i;
 	struct net_device *dev = in_dev ? in_dev->dev : NULL;
-	struct devinet_sysctl_table *t = kmalloc(sizeof(*t), GFP_KERNEL);
+	struct devinet_sysctl_table *t = kmemdup(&devinet_sysctl, sizeof(*t),
+						 GFP_KERNEL);
 	char *dev_name = NULL;
 
 	if (!t)
 		return;
-	memcpy(t, &devinet_sysctl, sizeof(*t));
 	for (i = 0; i < ARRAY_SIZE(t->devinet_vars) - 1; i++) {
 		t->devinet_vars[i].data += (char *)p - (char *)&ipv4_devconf;
 		t->devinet_vars[i].de = NULL;

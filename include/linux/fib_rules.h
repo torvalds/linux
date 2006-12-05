@@ -6,6 +6,7 @@
 
 /* rule is permanent, and cannot be deleted */
 #define FIB_RULE_PERMANENT	1
+#define FIB_RULE_INVERT		2
 
 struct fib_rule_hdr
 {
@@ -34,7 +35,7 @@ enum
 	FRA_UNUSED3,
 	FRA_UNUSED4,
 	FRA_UNUSED5,
-	FRA_FWMARK,	/* netfilter mark */
+	FRA_FWMARK,	/* mark */
 	FRA_FLOW,	/* flow/class id */
 	FRA_UNUSED6,
 	FRA_UNUSED7,

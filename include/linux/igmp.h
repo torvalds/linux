@@ -30,7 +30,7 @@ struct igmphdr
 {
 	__u8 type;
 	__u8 code;		/* For newer IGMP */
-	__be16 csum;
+	__sum16 csum;
 	__be32 group;
 };
 

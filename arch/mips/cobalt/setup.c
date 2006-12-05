@@ -51,23 +51,23 @@ const char *get_system_type(void)
 void __init plat_timer_setup(struct irqaction *irq)
 {
 	/* Load timer value for HZ (TCLK is 50MHz) */
-	GALILEO_OUTL(50*1000*1000 / HZ, GT_TC0_OFS);
+	GT_WRITE(GT_TC0_OFS, 50*1000*1000 / HZ);
 
 	/* Enable timer */
-	GALILEO_OUTL(GALILEO_ENTC0 | GALILEO_SELTC0, GT_TC_CONTROL_OFS);
+	GT_WRITE(GT_TC_CONTROL_OFS, GT_TC_CONTROL_ENTC0_MSK | GT_TC_CONTROL_SELTC0_MSK);
 
 	/* Register interrupt */
 	setup_irq(COBALT_GALILEO_IRQ, irq);
 
 	/* Enable interrupt */
-	GALILEO_OUTL(GALILEO_INTR_T0EXP | GALILEO_INL(GT_INTRMASK_OFS), GT_INTRMASK_OFS);
+	GT_WRITE(GT_INTRMASK_OFS, GT_INTR_T0EXP_MSK | GT_READ(GT_INTRMASK_OFS));
 }
 
 extern struct pci_ops gt64111_pci_ops;
 
 static struct resource cobalt_mem_resource = {
-	.start	= GT64111_MEM_BASE,
-	.end	= GT64111_MEM_END,
+	.start	= GT_DEF_PCI0_MEM0_BASE,
+	.end	= GT_DEF_PCI0_MEM0_BASE + GT_DEF_PCI0_MEM0_SIZE - 1,
 	.name	= "PCI memory",
 	.flags	= IORESOURCE_MEM
 };
@@ -115,7 +115,7 @@ static struct pci_controller cobalt_pci_controller = {
 	.mem_resource	= &cobalt_mem_resource,
 	.mem_offset	= 0,
 	.io_resource	= &cobalt_io_resource,
-	.io_offset	= 0 - GT64111_IO_BASE
+	.io_offset	= 0 - GT_DEF_PCI0_IO_BASE,
 };
 
 void __init plat_mem_setup(void)
@@ -128,7 +128,7 @@ void __init plat_mem_setup(void)
 	_machine_halt = cobalt_machine_halt;
 	pm_power_off = cobalt_machine_power_off;
 
-        set_io_port_base(CKSEG1ADDR(GT64111_IO_BASE));
+	set_io_port_base(CKSEG1ADDR(GT_DEF_PCI0_IO_BASE));
 
 	/* I/O port resource must include UART and LCD/buttons */
 	ioport_resource.end = 0x0fffffff;
@@ -139,7 +139,7 @@ void __init plat_mem_setup(void)
 
         /* Read the cobalt id register out of the PCI config space */
         PCI_CFG_SET(devfn, (VIA_COBALT_BRD_ID_REG & ~0x3));
-        cobalt_board_id = GALILEO_INL(GT_PCI0_CFGDATA_OFS);
+        cobalt_board_id = GT_READ(GT_PCI0_CFGDATA_OFS);
         cobalt_board_id >>= ((VIA_COBALT_BRD_ID_REG & 3) * 8);
         cobalt_board_id = VIA_COBALT_BRD_REG_to_ID(cobalt_board_id);
 

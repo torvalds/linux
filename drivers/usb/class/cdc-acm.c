@@ -892,7 +892,7 @@ skip_normal_probe:
 
 
 	/* workaround for switched endpoints */
-	if ((epread->bEndpointAddress & USB_DIR_IN) != USB_DIR_IN) {
+	if (!usb_endpoint_dir_in(epread)) {
 		/* descriptors are swapped */
 		struct usb_endpoint_descriptor *t;
 		dev_dbg(&intf->dev,"The data interface has switched endpoints");

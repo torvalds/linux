@@ -50,7 +50,7 @@ struct inet6_protocol
 	void	(*err_handler)(struct sk_buff *skb,
 			       struct inet6_skb_parm *opt,
 			       int type, int code, int offset,
-			       __u32 info);
+			       __be32 info);
 
 	int	(*gso_send_check)(struct sk_buff *skb);
 	struct sk_buff *(*gso_segment)(struct sk_buff *skb,
@@ -71,7 +71,7 @@ struct inet_protosw {
 
         /* These two fields form the lookup key.  */
 	unsigned short	 type;	   /* This is the 2nd argument to socket(2). */
-	int		 protocol; /* This is the L4 protocol number.  */
+	unsigned short	 protocol; /* This is the L4 protocol number.  */
 
 	struct proto	 *prot;
 	const struct proto_ops *ops;

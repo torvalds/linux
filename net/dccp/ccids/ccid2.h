@@ -35,7 +35,7 @@ struct ccid2_seq {
 	struct ccid2_seq	*ccid2s_next;
 };
 
-#define CCID2_SEQBUF_LEN 256
+#define CCID2_SEQBUF_LEN 1024
 #define CCID2_SEQBUF_MAX 128
 
 /** struct ccid2_hc_tx_sock - CCID2 TX half connection
@@ -72,6 +72,7 @@ struct ccid2_hc_tx_sock {
 	int			ccid2hctx_rpdupack;
 	int			ccid2hctx_sendwait;
 	unsigned long		ccid2hctx_last_cong;
+	u64			ccid2hctx_high_ack;
 };
 
 struct ccid2_hc_rx_sock {

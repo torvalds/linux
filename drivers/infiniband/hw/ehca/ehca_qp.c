@@ -732,8 +732,7 @@ static int prepare_sqe_rts(struct ehca_qp *my_qp, struct ehca_shca *shca,
 	u64 h_ret;
 	struct ipz_queue *squeue;
 	void *bad_send_wqe_p, *bad_send_wqe_v;
-	void *squeue_start_p, *squeue_end_p;
-	void *squeue_start_v, *squeue_end_v;
+	u64 q_ofs;
 	struct ehca_wqe *wqe;
 	int qp_num = my_qp->ib_qp.qp_num;
 
@@ -755,26 +754,23 @@ static int prepare_sqe_rts(struct ehca_qp *my_qp, struct ehca_shca *shca,
 	if (ehca_debug_level)
 		ehca_dmp(bad_send_wqe_v, 32, "qp_num=%x bad_wqe", qp_num);
 	squeue = &my_qp->ipz_squeue;
-	squeue_start_p = (void*)virt_to_abs(ipz_qeit_calc(squeue, 0L));
-	squeue_end_p = squeue_start_p+squeue->queue_length;
-	squeue_start_v = abs_to_virt((u64)squeue_start_p);
-	squeue_end_v = abs_to_virt((u64)squeue_end_p);
-	ehca_dbg(&shca->ib_device, "qp_num=%x squeue_start_v=%p squeue_end_v=%p",
-		 qp_num, squeue_start_v, squeue_end_v);
+	if (ipz_queue_abs_to_offset(squeue, (u64)bad_send_wqe_p, &q_ofs)) {
+		ehca_err(&shca->ib_device, "failed to get wqe offset qp_num=%x"
+			 " bad_send_wqe_p=%p", qp_num, bad_send_wqe_p);
+		return -EFAULT;
+	}
 
 	/* loop sets wqe's purge bit */
-	wqe = (struct ehca_wqe*)bad_send_wqe_v;
+	wqe = (struct ehca_wqe*)ipz_qeit_calc(squeue, q_ofs);
 	*bad_wqe_cnt = 0;
 	while (wqe->optype != 0xff && wqe->wqef != 0xff) {
 		if (ehca_debug_level)
 			ehca_dmp(wqe, 32, "qp_num=%x wqe", qp_num);
 		wqe->nr_of_data_seg = 0; /* suppress data access */
 		wqe->wqef = WQEF_PURGE; /* WQE to be purged */
-		wqe = (struct ehca_wqe*)((u8*)wqe+squeue->qe_size);
+		q_ofs = ipz_queue_advance_offset(squeue, q_ofs);
+		wqe = (struct ehca_wqe*)ipz_qeit_calc(squeue, q_ofs);
 		*bad_wqe_cnt = (*bad_wqe_cnt)+1;
-		if ((void*)wqe >= squeue_end_v) {
-			wqe = squeue_start_v;
-		}
 	}
 	/*
 	 * bad wqe will be reprocessed and ignored when pol_cq() is called,

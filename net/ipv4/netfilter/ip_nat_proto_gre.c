@@ -129,11 +129,9 @@ gre_manip_pkt(struct sk_buff **pskb,
 			}
 			if (greh->csum) {
 				/* FIXME: Never tested this code... */
-				*(gre_csum(greh)) =
-					nf_proto_csum_update(*pskb,
-							~*(gre_key(greh)),
-							tuple->dst.u.gre.key,
-							*(gre_csum(greh)), 0);
+				nf_proto_csum_replace4(gre_csum(greh), *pskb,
+							*(gre_key(greh)),
+							tuple->dst.u.gre.key, 0);
 			}
 			*(gre_key(greh)) = tuple->dst.u.gre.key;
 			break;

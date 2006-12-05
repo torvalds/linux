@@ -552,7 +552,7 @@ static void __exit tiocx_exit(void)
 	bus_unregister(&tiocx_bus_type);
 }
 
-subsys_initcall(tiocx_init);
+fs_initcall(tiocx_init);
 module_exit(tiocx_exit);
 
 /************************************************************************

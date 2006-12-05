@@ -329,11 +329,11 @@ csum_partial_cfu_unaligned(const unsigned long __user * src,
 	return checksum;
 }
 
-static unsigned int
-do_csum_partial_copy_from_user(const char __user *src, char *dst, int len,
-			       unsigned int sum, int *errp)
+__wsum
+csum_partial_copy_from_user(const void __user *src, void *dst, int len,
+			       __wsum sum, int *errp)
 {
-	unsigned long checksum = (unsigned) sum;
+	unsigned long checksum = (__force u32) sum;
 	unsigned long soff = 7 & (unsigned long) src;
 	unsigned long doff = 7 & (unsigned long) dst;
 
@@ -367,25 +367,12 @@ do_csum_partial_copy_from_user(const char __user *src, char *dst, int len,
 		}
 		checksum = from64to16 (checksum);
 	}
-	return checksum;
+	return (__force __wsum)checksum;
 }
 
-unsigned int
-csum_partial_copy_from_user(const char __user *src, char *dst, int len,
-			    unsigned int sum, int *errp)
+__wsum
+csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
 {
-	if (!access_ok(VERIFY_READ, src, len)) {
-		*errp = -EFAULT;
-		memset(dst, 0, len);
-		return sum;
-	}
-
-	return do_csum_partial_copy_from_user(src, dst, len, sum, errp);
-}
-
-unsigned int
-csum_partial_copy_nocheck(const char __user *src, char *dst, int len,
-			  unsigned int sum)
-{
-	return do_csum_partial_copy_from_user(src, dst, len, sum, NULL);
+	return csum_partial_copy_from_user((__force const void __user *)src,
+			dst, len, sum, NULL);
 }

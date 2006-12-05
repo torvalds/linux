@@ -216,10 +216,7 @@ static int appledisplay_probe(struct usb_interface *iface,
 	iface_desc = iface->cur_altsetting;
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
 		endpoint = &iface_desc->endpoint[i].desc;
-		if (!int_in_endpointAddr &&
-		    (endpoint->bEndpointAddress & USB_DIR_IN) &&
-		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-		     USB_ENDPOINT_XFER_INT)) {
+		if (!int_in_endpointAddr && usb_endpoint_is_int_in(endpoint)) {
 			/* we found an interrupt in endpoint */
 			int_in_endpointAddr = endpoint->bEndpointAddress;
 			break;

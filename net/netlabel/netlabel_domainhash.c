@@ -202,7 +202,6 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry,
 	int ret_val;
 	u32 bkt;
 	struct audit_buffer *audit_buf;
-	char *audit_domain;
 
 	switch (entry->type) {
 	case NETLBL_NLTYPE_UNLABELED:
@@ -243,24 +242,24 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry,
 	} else
 		ret_val = -EINVAL;
 
-	if (entry->domain != NULL)
-		audit_domain = entry->domain;
-	else
-		audit_domain = "(default)";
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_MAP_ADD, audit_info);
-	audit_log_format(audit_buf, " nlbl_domain=%s", audit_domain);
-	switch (entry->type) {
-	case NETLBL_NLTYPE_UNLABELED:
-		audit_log_format(audit_buf, " nlbl_protocol=unlbl");
-		break;
-	case NETLBL_NLTYPE_CIPSOV4:
+	if (audit_buf != NULL) {
 		audit_log_format(audit_buf,
-				 " nlbl_protocol=cipsov4 cipso_doi=%u",
-				 entry->type_def.cipsov4->doi);
-		break;
+				 " nlbl_domain=%s",
+				 entry->domain ? entry->domain : "(default)");
+		switch (entry->type) {
+		case NETLBL_NLTYPE_UNLABELED:
+			audit_log_format(audit_buf, " nlbl_protocol=unlbl");
+			break;
+		case NETLBL_NLTYPE_CIPSOV4:
+			audit_log_format(audit_buf,
+					 " nlbl_protocol=cipsov4 cipso_doi=%u",
+					 entry->type_def.cipsov4->doi);
+			break;
+		}
+		audit_log_format(audit_buf, " res=%u", ret_val == 0 ? 1 : 0);
+		audit_log_end(audit_buf);
 	}
-	audit_log_format(audit_buf, " res=%u", ret_val == 0 ? 1 : 0);
-	audit_log_end(audit_buf);
 
 	rcu_read_unlock();
 
@@ -310,7 +309,6 @@ int netlbl_domhsh_remove(const char *domain, struct netlbl_audit *audit_info)
 	int ret_val = -ENOENT;
 	struct netlbl_dom_map *entry;
 	struct audit_buffer *audit_buf;
-	char *audit_domain;
 
 	rcu_read_lock();
 	if (domain != NULL)
@@ -348,16 +346,14 @@ int netlbl_domhsh_remove(const char *domain, struct netlbl_audit *audit_info)
 		spin_unlock(&netlbl_domhsh_def_lock);
 	}
 
-	if (entry->domain != NULL)
-		audit_domain = entry->domain;
-	else
-		audit_domain = "(default)";
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_MAP_DEL, audit_info);
-	audit_log_format(audit_buf,
-			 " nlbl_domain=%s res=%u",
-			 audit_domain,
-			 ret_val == 0 ? 1 : 0);
-	audit_log_end(audit_buf);
+	if (audit_buf != NULL) {
+		audit_log_format(audit_buf,
+				 " nlbl_domain=%s res=%u",
+				 entry->domain ? entry->domain : "(default)",
+				 ret_val == 0 ? 1 : 0);
+		audit_log_end(audit_buf);
+	}
 
 	if (ret_val == 0)
 		call_rcu(&entry->rcu, netlbl_domhsh_free_entry);

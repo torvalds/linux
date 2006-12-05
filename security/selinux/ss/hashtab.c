@@ -8,8 +8,8 @@
 #include <linux/errno.h>
 #include "hashtab.h"
 
-struct hashtab *hashtab_create(u32 (*hash_value)(struct hashtab *h, void *key),
-                               int (*keycmp)(struct hashtab *h, void *key1, void *key2),
+struct hashtab *hashtab_create(u32 (*hash_value)(struct hashtab *h, const void *key),
+                               int (*keycmp)(struct hashtab *h, const void *key1, const void *key2),
                                u32 size)
 {
 	struct hashtab *p;
@@ -71,7 +71,7 @@ int hashtab_insert(struct hashtab *h, void *key, void *datum)
 	return 0;
 }
 
-void *hashtab_search(struct hashtab *h, void *key)
+void *hashtab_search(struct hashtab *h, const void *key)
 {
 	u32 hvalue;
 	struct hashtab_node *cur;

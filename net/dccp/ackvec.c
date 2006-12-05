@@ -67,15 +67,16 @@ static void dccp_ackvec_insert_avr(struct dccp_ackvec *av,
 int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-#ifdef CONFIG_IP_DCCP_DEBUG
-	const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ?
-				"CLIENT tx: " : "server tx: ";
-#endif
 	struct dccp_ackvec *av = dp->dccps_hc_rx_ackvec;
-	int len = av->dccpav_vec_len + 2;
+	/* Figure out how many options do we need to represent the ackvec */
+	const u16 nr_opts = (av->dccpav_vec_len +
+			     DCCP_MAX_ACKVEC_OPT_LEN - 1) /
+			    DCCP_MAX_ACKVEC_OPT_LEN;
+	u16 len = av->dccpav_vec_len + 2 * nr_opts, i;
 	struct timeval now;
 	u32 elapsed_time;
-	unsigned char *to, *from;
+	const unsigned char *tail, *from;
+	unsigned char *to;
 	struct dccp_ackvec_record *avr;
 
 	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN)
@@ -94,24 +95,37 @@ int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 
 	DCCP_SKB_CB(skb)->dccpd_opt_len += len;
 
-	to    = skb_push(skb, len);
-	*to++ = DCCPO_ACK_VECTOR_0;
-	*to++ = len;
-
+	to   = skb_push(skb, len);
 	len  = av->dccpav_vec_len;
 	from = av->dccpav_buf + av->dccpav_buf_head;
+	tail = av->dccpav_buf + DCCP_MAX_ACKVEC_LEN;
 
-	/* Check if buf_head wraps */
-	if ((int)av->dccpav_buf_head + len > DCCP_MAX_ACKVEC_LEN) {
-		const u32 tailsize = DCCP_MAX_ACKVEC_LEN - av->dccpav_buf_head;
+	for (i = 0; i < nr_opts; ++i) {
+		int copylen = len;
 
-		memcpy(to, from, tailsize);
-		to   += tailsize;
-		len  -= tailsize;
-		from = av->dccpav_buf;
+		if (len > DCCP_MAX_ACKVEC_OPT_LEN)
+			copylen = DCCP_MAX_ACKVEC_OPT_LEN;
+
+		*to++ = DCCPO_ACK_VECTOR_0;
+		*to++ = copylen + 2;
+
+		/* Check if buf_head wraps */
+		if (from + copylen > tail) {
+			const u16 tailsize = tail - from;
+
+			memcpy(to, from, tailsize);
+			to	+= tailsize;
+			len	-= tailsize;
+			copylen	-= tailsize;
+			from	= av->dccpav_buf;
+		}
+
+		memcpy(to, from, copylen);
+		from += copylen;
+		to   += copylen;
+		len  -= copylen;
 	}
 
-	memcpy(to, from, len);
 	/*
 	 *	From RFC 4340, A.2:
 	 *
@@ -129,9 +143,9 @@ int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 
 	dccp_ackvec_insert_avr(av, avr);
 
-	dccp_pr_debug("%sACK Vector 0, len=%d, ack_seqno=%llu, "
+	dccp_pr_debug("%s ACK Vector 0, len=%d, ack_seqno=%llu, "
 		      "ack_ackno=%llu\n",
-		      debug_prefix, avr->dccpavr_sent_len,
+		      dccp_role(sk), avr->dccpavr_sent_len,
 		      (unsigned long long)avr->dccpavr_ack_seqno,
 		      (unsigned long long)avr->dccpavr_ack_ackno);
 	return 0;
@@ -145,7 +159,6 @@ struct dccp_ackvec *dccp_ackvec_alloc(const gfp_t priority)
 		av->dccpav_buf_head	= DCCP_MAX_ACKVEC_LEN - 1;
 		av->dccpav_buf_ackno	= DCCP_MAX_SEQNO + 1;
 		av->dccpav_buf_nonce = av->dccpav_buf_nonce = 0;
-		av->dccpav_ack_ptr	= 0;
 		av->dccpav_time.tv_sec	= 0;
 		av->dccpav_time.tv_usec	= 0;
 		av->dccpav_vec_len	= 0;
@@ -174,13 +187,13 @@ void dccp_ackvec_free(struct dccp_ackvec *av)
 }
 
 static inline u8 dccp_ackvec_state(const struct dccp_ackvec *av,
-				   const u8 index)
+				   const u32 index)
 {
 	return av->dccpav_buf[index] & DCCP_ACKVEC_STATE_MASK;
 }
 
 static inline u8 dccp_ackvec_len(const struct dccp_ackvec *av,
-				 const u8 index)
+				 const u32 index)
 {
 	return av->dccpav_buf[index] & DCCP_ACKVEC_LEN_MASK;
 }
@@ -280,7 +293,7 @@ int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
 		 *	could reduce the complexity of this scan.)
 		 */
 		u64 delta = dccp_delta_seqno(ackno, av->dccpav_buf_ackno);
-		u8 index = av->dccpav_buf_head;
+		u32 index = av->dccpav_buf_head;
 
 		while (1) {
 			const u8 len = dccp_ackvec_len(av, index);
@@ -322,21 +335,18 @@ out_duplicate:
 #ifdef CONFIG_IP_DCCP_DEBUG
 void dccp_ackvector_print(const u64 ackno, const unsigned char *vector, int len)
 {
-	if (!dccp_debug)
-		return;
-
-	printk("ACK vector len=%d, ackno=%llu |", len,
-	       (unsigned long long)ackno);
+	dccp_pr_debug_cat("ACK vector len=%d, ackno=%llu |", len,
+			 		(unsigned long long)ackno);
 
 	while (len--) {
 		const u8 state = (*vector & DCCP_ACKVEC_STATE_MASK) >> 6;
 		const u8 rl = *vector & DCCP_ACKVEC_LEN_MASK;
 
-		printk("%d,%d|", state, rl);
+		dccp_pr_debug_cat("%d,%d|", state, rl);
 		++vector;
 	}
 
-	printk("\n");
+	dccp_pr_debug_cat("\n");
 }
 
 void dccp_ackvec_print(const struct dccp_ackvec *av)
@@ -380,24 +390,20 @@ void dccp_ackvec_check_rcv_ackno(struct dccp_ackvec *av, struct sock *sk,
 	 */
 	list_for_each_entry_reverse(avr, &av->dccpav_records, dccpavr_node) {
 		if (ackno == avr->dccpavr_ack_seqno) {
-#ifdef CONFIG_IP_DCCP_DEBUG
-			struct dccp_sock *dp = dccp_sk(sk);
-			const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ?
-						"CLIENT rx ack: " : "server rx ack: ";
-#endif
-			dccp_pr_debug("%sACK packet 0, len=%d, ack_seqno=%llu, "
+			dccp_pr_debug("%s ACK packet 0, len=%d, ack_seqno=%llu, "
 				      "ack_ackno=%llu, ACKED!\n",
-				      debug_prefix, 1,
+				      dccp_role(sk), 1,
 				      (unsigned long long)avr->dccpavr_ack_seqno,
 				      (unsigned long long)avr->dccpavr_ack_ackno);
 			dccp_ackvec_throw_record(av, avr);
 			break;
-		}
+		} else if (avr->dccpavr_ack_seqno > ackno)
+			break; /* old news */
 	}
 }
 
 static void dccp_ackvec_check_rcv_ackvector(struct dccp_ackvec *av,
-					    struct sock *sk, u64 ackno,
+					    struct sock *sk, u64 *ackno,
 					    const unsigned char len,
 					    const unsigned char *vector)
 {
@@ -420,7 +426,7 @@ static void dccp_ackvec_check_rcv_ackvector(struct dccp_ackvec *av,
 		const u8 rl = *vector & DCCP_ACKVEC_LEN_MASK;
 		u64 ackno_end_rl;
 
-		dccp_set_seqno(&ackno_end_rl, ackno - rl);
+		dccp_set_seqno(&ackno_end_rl, *ackno - rl);
 
 		/*
 		 * If our AVR sequence number is greater than the ack, go
@@ -428,25 +434,19 @@ static void dccp_ackvec_check_rcv_ackvector(struct dccp_ackvec *av,
 		 */
 		list_for_each_entry_from(avr, &av->dccpav_records,
 					 dccpavr_node) {
-			if (!after48(avr->dccpavr_ack_seqno, ackno))
+			if (!after48(avr->dccpavr_ack_seqno, *ackno))
 				goto found;
 		}
 		/* End of the dccpav_records list, not found, exit */
 		break;
 found:
-		if (between48(avr->dccpavr_ack_seqno, ackno_end_rl, ackno)) {
+		if (between48(avr->dccpavr_ack_seqno, ackno_end_rl, *ackno)) {
 			const u8 state = *vector & DCCP_ACKVEC_STATE_MASK;
 			if (state != DCCP_ACKVEC_STATE_NOT_RECEIVED) {
-#ifdef CONFIG_IP_DCCP_DEBUG
-				struct dccp_sock *dp = dccp_sk(sk);
-				const char *debug_prefix =
-					dp->dccps_role == DCCP_ROLE_CLIENT ?
-					"CLIENT rx ack: " : "server rx ack: ";
-#endif
-				dccp_pr_debug("%sACK vector 0, len=%d, "
+				dccp_pr_debug("%s ACK vector 0, len=%d, "
 					      "ack_seqno=%llu, ack_ackno=%llu, "
 					      "ACKED!\n",
-					      debug_prefix, len,
+					      dccp_role(sk), len,
 					      (unsigned long long)
 					      avr->dccpavr_ack_seqno,
 					      (unsigned long long)
@@ -460,26 +460,22 @@ found:
 			 */
 		}
 
-		dccp_set_seqno(&ackno, ackno_end_rl - 1);
+		dccp_set_seqno(ackno, ackno_end_rl - 1);
 		++vector;
 	}
 }
 
 int dccp_ackvec_parse(struct sock *sk, const struct sk_buff *skb,
-		      const u8 opt, const u8 *value, const u8 len)
+		      u64 *ackno, const u8 opt, const u8 *value, const u8 len)
 {
-	if (len > DCCP_MAX_ACKVEC_LEN)
+	if (len > DCCP_MAX_ACKVEC_OPT_LEN)
 		return -1;
 
 	/* dccp_ackvector_print(DCCP_SKB_CB(skb)->dccpd_ack_seq, value, len); */
 	dccp_ackvec_check_rcv_ackvector(dccp_sk(sk)->dccps_hc_rx_ackvec, sk,
-					DCCP_SKB_CB(skb)->dccpd_ack_seq,
-				        len, value);
+					ackno, len, value);
 	return 0;
 }
-
-static char dccp_ackvec_slab_msg[] __initdata =
-	KERN_CRIT "DCCP: Unable to create ack vectors slab caches\n";
 
 int __init dccp_ackvec_init(void)
 {
@@ -502,7 +498,7 @@ out_destroy_slab:
 	kmem_cache_destroy(dccp_ackvec_slab);
 	dccp_ackvec_slab = NULL;
 out_err:
-	printk(dccp_ackvec_slab_msg);
+	DCCP_CRIT("Unable to create Ack Vector slab cache");
 	return -ENOBUFS;
 }
 

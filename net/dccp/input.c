@@ -128,21 +128,18 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 		     DCCP_PKT_WITHOUT_ACK_SEQ))
 			dp->dccps_gar = DCCP_SKB_CB(skb)->dccpd_ack_seq;
 	} else {
-		LIMIT_NETDEBUG(KERN_WARNING "DCCP: Step 6 failed for %s packet, "
-					    "(LSWL(%llu) <= P.seqno(%llu) <= S.SWH(%llu)) and "
-					    "(P.ackno %s or LAWL(%llu) <= P.ackno(%llu) <= S.AWH(%llu), "
-					    "sending SYNC...\n",
-			       dccp_packet_name(dh->dccph_type),
-			       (unsigned long long) lswl,
-			       (unsigned long long)
-			       DCCP_SKB_CB(skb)->dccpd_seq,
-			       (unsigned long long) dp->dccps_swh,
-			       (DCCP_SKB_CB(skb)->dccpd_ack_seq ==
+		DCCP_WARN("DCCP: Step 6 failed for %s packet, "
+			  "(LSWL(%llu) <= P.seqno(%llu) <= S.SWH(%llu)) and "
+			  "(P.ackno %s or LAWL(%llu) <= P.ackno(%llu) <= S.AWH(%llu), "
+			  "sending SYNC...\n",  dccp_packet_name(dh->dccph_type),
+			  (unsigned long long) lswl,
+			  (unsigned long long) DCCP_SKB_CB(skb)->dccpd_seq,
+			  (unsigned long long) dp->dccps_swh,
+			  (DCCP_SKB_CB(skb)->dccpd_ack_seq ==
 			        DCCP_PKT_WITHOUT_ACK_SEQ) ? "doesn't exist" : "exists",
-			       (unsigned long long) lawl,
-			       (unsigned long long)
-			       DCCP_SKB_CB(skb)->dccpd_ack_seq,
-			       (unsigned long long) dp->dccps_awh);
+			  (unsigned long long) lawl,
+			  (unsigned long long) DCCP_SKB_CB(skb)->dccpd_ack_seq,
+			  (unsigned long long) dp->dccps_awh);
 		dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq, DCCP_PKT_SYNC);
 		return -1;
 	}
@@ -431,29 +428,25 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 
 	/*
 	 *  Step 3: Process LISTEN state
-	 *  	(Continuing from dccp_v4_do_rcv and dccp_v6_do_rcv)
 	 *
 	 *     If S.state == LISTEN,
-	 *	  If P.type == Request or P contains a valid Init Cookie
-	 *	  	option,
-	 *	     * Must scan the packet's options to check for an Init
-	 *		Cookie.  Only the Init Cookie is processed here,
-	 *		however; other options are processed in Step 8.  This
-	 *		scan need only be performed if the endpoint uses Init
-	 *		Cookies *
-	 *	     * Generate a new socket and switch to that socket *
-	 *	     Set S := new socket for this port pair
-	 *	     S.state = RESPOND
-	 *	     Choose S.ISS (initial seqno) or set from Init Cookie
-	 *	     Set S.ISR, S.GSR, S.SWL, S.SWH from packet or Init Cookie
-	 *	     Continue with S.state == RESPOND
-	 *	     * A Response packet will be generated in Step 11 *
-	 *	  Otherwise,
-	 *	     Generate Reset(No Connection) unless P.type == Reset
-	 *	     Drop packet and return
-	 *
-	 * NOTE: the check for the packet types is done in
-	 *	 dccp_rcv_state_process
+	 *	 If P.type == Request or P contains a valid Init Cookie option,
+	 *	      (* Must scan the packet's options to check for Init
+	 *		 Cookies.  Only Init Cookies are processed here,
+	 *		 however; other options are processed in Step 8.  This
+	 *		 scan need only be performed if the endpoint uses Init
+	 *		 Cookies *)
+	 *	      (* Generate a new socket and switch to that socket *)
+	 *	      Set S := new socket for this port pair
+	 *	      S.state = RESPOND
+	 *	      Choose S.ISS (initial seqno) or set from Init Cookies
+	 *	      Initialize S.GAR := S.ISS
+	 *	      Set S.ISR, S.GSR, S.SWL, S.SWH from packet or Init
+	 *	      Cookies Continue with S.state == RESPOND
+	 *	      (* A Response packet will be generated in Step 11 *)
+	 *	 Otherwise,
+	 *	      Generate Reset(No Connection) unless P.type == Reset
+	 *	      Drop packet and return
 	 */
 	if (sk->sk_state == DCCP_LISTEN) {
 		if (dh->dccph_type == DCCP_PKT_REQUEST) {

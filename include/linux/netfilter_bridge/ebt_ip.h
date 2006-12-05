@@ -28,10 +28,10 @@
 /* the same values are used for the invflags */
 struct ebt_ip_info
 {
-	uint32_t saddr;
-	uint32_t daddr;
-	uint32_t smsk;
-	uint32_t dmsk;
+	__be32 saddr;
+	__be32 daddr;
+	__be32 smsk;
+	__be32 dmsk;
 	uint8_t  tos;
 	uint8_t  protocol;
 	uint8_t  bitmask;

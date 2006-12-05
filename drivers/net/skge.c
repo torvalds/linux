@@ -2155,8 +2155,6 @@ static void yukon_link_down(struct skge_port *skge)
 	int port = skge->port;
 	u16 ctrl;
 
-	gm_phy_write(hw, port, PHY_MARV_INT_MASK, 0);
-
 	ctrl = gma_read16(hw, port, GM_GP_CTRL);
 	ctrl &= ~(GM_GPCR_RX_ENA | GM_GPCR_TX_ENA);
 	gma_write16(hw, port, GM_GP_CTRL, ctrl);
@@ -2168,7 +2166,6 @@ static void yukon_link_down(struct skge_port *skge)
 		gm_phy_write(hw, port, PHY_MARV_AUNE_ADV, ctrl);
 	}
 
-	yukon_reset(hw, port);
 	skge_link_down(skge);
 
 	yukon_init(hw, port);
@@ -2256,6 +2253,7 @@ static void skge_phy_reset(struct skge_port *skge)
 {
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
+	struct net_device *dev = hw->dev[port];
 
 	netif_stop_queue(skge->netdev);
 	netif_carrier_off(skge->netdev);
@@ -2269,6 +2267,8 @@ static void skge_phy_reset(struct skge_port *skge)
 		yukon_init(hw, port);
 	}
 	mutex_unlock(&hw->phy_mutex);
+
+	dev->set_multicast_list(dev);
 }
 
 /* Basic MII support */
@@ -2566,7 +2566,7 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 
 		td->csum_offs = 0;
 		td->csum_start = offset;
-		td->csum_write = offset + skb->csum;
+		td->csum_write = offset + skb->csum_offset;
 	} else
 		control = BMU_CHECK;
 

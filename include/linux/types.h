@@ -128,6 +128,8 @@ typedef		__s64		int64_t;
 
 /* this is a special 64bit data type that is 8-byte aligned */
 #define aligned_u64 unsigned long long __attribute__((aligned(8)))
+#define aligned_be64 __be64 __attribute__((aligned(8)))
+#define aligned_le64 __le64 __attribute__((aligned(8)))
 
 /**
  * The type used for indexing onto a disc or disc partition.
@@ -180,6 +182,8 @@ typedef __u32 __bitwise __be32;
 typedef __u64 __bitwise __le64;
 typedef __u64 __bitwise __be64;
 #endif
+typedef __u16 __bitwise __sum16;
+typedef __u32 __bitwise __wsum;
 
 #ifdef __KERNEL__
 typedef unsigned __bitwise__ gfp_t;

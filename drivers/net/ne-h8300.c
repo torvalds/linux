@@ -33,6 +33,8 @@ static const char version1[] =
 #include <asm/io.h>
 #include <asm/irq.h>
 
+#define EI_SHIFT(x)	(ei_local->reg_offset[x])
+
 #include "8390.h"
 
 #define DRV_NAME "ne-h8300"
@@ -51,6 +53,11 @@ static const char version1[] =
 /* A zero-terminated list of I/O addresses to be probed at boot. */
 
 /* ---- No user-serviceable parts below ---- */
+
+static const char version[] =
+    "8390.c:v1.10cvs 9/23/94 Donald Becker (becker@cesdis.gsfc.nasa.gov)\n";
+
+#include "lib8390.c"
 
 #define NE_BASE	 (dev->base_addr)
 #define NE_CMD	 	0x00
@@ -162,7 +169,7 @@ static void cleanup_card(struct net_device *dev)
 #ifndef MODULE
 struct net_device * __init ne_probe(int unit)
 {
-	struct net_device *dev = alloc_ei_netdev();
+	struct net_device *dev = ____alloc_ei_netdev(0);
 	int err;
 
 	if (!dev)
@@ -283,7 +290,7 @@ static int __init ne_probe1(struct net_device *dev, int ioaddr)
 
 	/* Snarf the interrupt now.  There's no point in waiting since we cannot
 	   share and the board will usually be enabled. */
-	ret = request_irq(dev->irq, ei_interrupt, 0, name, dev);
+	ret = request_irq(dev->irq, __ei_interrupt, 0, name, dev);
 	if (ret) {
 		printk (" unable to get IRQ %d (errno=%d).\n", dev->irq, ret);
 		goto err_out;
@@ -318,9 +325,9 @@ static int __init ne_probe1(struct net_device *dev, int ioaddr)
 	dev->open = &ne_open;
 	dev->stop = &ne_close;
 #ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
+	dev->poll_controller = __ei_poll;
 #endif
-	NS8390_init(dev, 0);
+	__NS8390_init(dev, 0);
 
 	ret = register_netdev(dev);
 	if (ret)
@@ -335,7 +342,7 @@ err_out:
 
 static int ne_open(struct net_device *dev)
 {
-	ei_open(dev);
+	__ei_open(dev);
 	return 0;
 }
 
@@ -343,7 +350,7 @@ static int ne_close(struct net_device *dev)
 {
 	if (ei_debug > 1)
 		printk(KERN_DEBUG "%s: Shutting down ethercard.\n", dev->name);
-	ei_close(dev);
+	__ei_close(dev);
 	return 0;
 }
 
@@ -584,7 +591,7 @@ retry:
 		if (time_after(jiffies, dma_start + 2*HZ/100)) {		/* 20ms */
 			printk(KERN_WARNING "%s: timeout waiting for Tx RDC.\n", dev->name);
 			ne_reset_8390(dev);
-			NS8390_init(dev,1);
+			__NS8390_init(dev,1);
 			break;
 		}
 
@@ -620,7 +627,7 @@ int init_module(void)
 	int err;
 
 	for (this_dev = 0; this_dev < MAX_NE_CARDS; this_dev++) {
-		struct net_device *dev = alloc_ei_netdev();
+		struct net_device *dev = ____alloc_ei_netdev(0);
 		if (!dev)
 			break;
 		if (io[this_dev]) {

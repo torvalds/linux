@@ -1464,8 +1464,7 @@ cfq_update_io_thinktime(struct cfq_data *cfqd, struct cfq_io_context *cic)
 }
 
 static void
-cfq_update_io_seektime(struct cfq_data *cfqd, struct cfq_io_context *cic,
-		       struct request *rq)
+cfq_update_io_seektime(struct cfq_io_context *cic, struct request *rq)
 {
 	sector_t sdist;
 	u64 total;
@@ -1617,7 +1616,7 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	}
 
 	cfq_update_io_thinktime(cfqd, cic);
-	cfq_update_io_seektime(cfqd, cic, rq);
+	cfq_update_io_seektime(cic, rq);
 	cfq_update_idle_window(cfqd, cfqq, cic);
 
 	cic->last_queue = jiffies;
@@ -1770,7 +1769,7 @@ static int cfq_may_queue(request_queue_t *q, int rw)
 /*
  * queue lock held here
  */
-static void cfq_put_request(request_queue_t *q, struct request *rq)
+static void cfq_put_request(struct request *rq)
 {
 	struct cfq_queue *cfqq = RQ_CFQQ(rq);
 
@@ -1953,7 +1952,7 @@ static void cfq_exit_queue(elevator_t *e)
 	kfree(cfqd);
 }
 
-static void *cfq_init_queue(request_queue_t *q, elevator_t *e)
+static void *cfq_init_queue(request_queue_t *q)
 {
 	struct cfq_data *cfqd;
 	int i;

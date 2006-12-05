@@ -22,13 +22,15 @@
 #include <linux/ipv6.h>
 #include <net/ip6_checksum.h>
 #include <net/checksum.h>
+
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
-#include <net/netfilter/nf_conntrack_protocol.h>
+#include <net/netfilter/nf_conntrack_l4proto.h>
+#include <net/netfilter/nf_conntrack_ecache.h>
 
-unsigned int nf_ct_udp_timeout __read_mostly = 30*HZ;
-unsigned int nf_ct_udp_timeout_stream __read_mostly = 180*HZ;
+static unsigned int nf_ct_udp_timeout __read_mostly = 30*HZ;
+static unsigned int nf_ct_udp_timeout_stream __read_mostly = 180*HZ;
 
 static int udp_pkt_to_tuple(const struct sk_buff *skb,
 			     unsigned int dataoff,
@@ -146,10 +148,59 @@ static int udp_error(struct sk_buff *skb, unsigned int dataoff,
 	return NF_ACCEPT;
 }
 
-struct nf_conntrack_protocol nf_conntrack_protocol_udp4 =
+#ifdef CONFIG_SYSCTL
+static unsigned int udp_sysctl_table_users;
+static struct ctl_table_header *udp_sysctl_header;
+static struct ctl_table udp_sysctl_table[] = {
+	{
+		.ctl_name	= NET_NF_CONNTRACK_UDP_TIMEOUT,
+		.procname	= "nf_conntrack_udp_timeout",
+		.data		= &nf_ct_udp_timeout,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+	{
+		.ctl_name	= NET_NF_CONNTRACK_UDP_TIMEOUT_STREAM,
+		.procname	= "nf_conntrack_udp_timeout_stream",
+		.data		= &nf_ct_udp_timeout_stream,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+	{
+		.ctl_name	= 0
+	}
+};
+#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
+static struct ctl_table udp_compat_sysctl_table[] = {
+	{
+		.ctl_name	= NET_IPV4_NF_CONNTRACK_UDP_TIMEOUT,
+		.procname	= "ip_conntrack_udp_timeout",
+		.data		= &nf_ct_udp_timeout,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+	{
+		.ctl_name	= NET_IPV4_NF_CONNTRACK_UDP_TIMEOUT_STREAM,
+		.procname	= "ip_conntrack_udp_timeout_stream",
+		.data		= &nf_ct_udp_timeout_stream,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+	{
+		.ctl_name	= 0
+	}
+};
+#endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
+#endif /* CONFIG_SYSCTL */
+
+struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4 =
 {
 	.l3proto		= PF_INET,
-	.proto			= IPPROTO_UDP,
+	.l4proto		= IPPROTO_UDP,
 	.name			= "udp",
 	.pkt_to_tuple		= udp_pkt_to_tuple,
 	.invert_tuple		= udp_invert_tuple,
@@ -163,12 +214,21 @@ struct nf_conntrack_protocol nf_conntrack_protocol_udp4 =
 	.tuple_to_nfattr	= nf_ct_port_tuple_to_nfattr,
 	.nfattr_to_tuple	= nf_ct_port_nfattr_to_tuple,
 #endif
+#ifdef CONFIG_SYSCTL
+	.ctl_table_users	= &udp_sysctl_table_users,
+	.ctl_table_header	= &udp_sysctl_header,
+	.ctl_table		= udp_sysctl_table,
+#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
+	.ctl_compat_table	= udp_compat_sysctl_table,
+#endif
+#endif
 };
+EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_udp4);
 
-struct nf_conntrack_protocol nf_conntrack_protocol_udp6 =
+struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6 =
 {
 	.l3proto		= PF_INET6,
-	.proto			= IPPROTO_UDP,
+	.l4proto		= IPPROTO_UDP,
 	.name			= "udp",
 	.pkt_to_tuple		= udp_pkt_to_tuple,
 	.invert_tuple		= udp_invert_tuple,
@@ -182,7 +242,10 @@ struct nf_conntrack_protocol nf_conntrack_protocol_udp6 =
 	.tuple_to_nfattr	= nf_ct_port_tuple_to_nfattr,
 	.nfattr_to_tuple	= nf_ct_port_nfattr_to_tuple,
 #endif
+#ifdef CONFIG_SYSCTL
+	.ctl_table_users	= &udp_sysctl_table_users,
+	.ctl_table_header	= &udp_sysctl_header,
+	.ctl_table		= udp_sysctl_table,
+#endif
 };
-
-EXPORT_SYMBOL(nf_conntrack_protocol_udp4);
-EXPORT_SYMBOL(nf_conntrack_protocol_udp6);
+EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_udp6);

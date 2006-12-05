@@ -80,7 +80,7 @@ struct mtd_partition flagadm_parts[] = {
 		.size =		FLASH_PARTITION2_SIZE
 	},
 	{
-		.name =		"Persistant storage",
+		.name =		"Persistent storage",
 		.offset =	FLASH_PARTITION3_ADDR,
 		.size =		FLASH_PARTITION3_SIZE
 	}

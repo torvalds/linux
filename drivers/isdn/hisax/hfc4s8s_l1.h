@@ -16,7 +16,7 @@
 
 /*
 *  include Genero generated HFC-4S/8S header file hfc48scu.h
-*  for comlete register description. This will define _HFC48SCU_H_
+*  for complete register description. This will define _HFC48SCU_H_
 *  to prevent redefinitions
 */
 

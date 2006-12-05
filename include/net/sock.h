@@ -745,7 +745,13 @@ static inline int sk_stream_wmem_schedule(struct sock *sk, int size)
  */
 #define sock_owned_by_user(sk)	((sk)->sk_lock.owner)
 
-extern void FASTCALL(lock_sock(struct sock *sk));
+extern void FASTCALL(lock_sock_nested(struct sock *sk, int subclass));
+
+static inline void lock_sock(struct sock *sk)
+{
+	lock_sock_nested(sk, 0);
+}
+
 extern void FASTCALL(release_sock(struct sock *sk));
 
 /* BH context may only use the following locking interface. */
@@ -883,17 +889,22 @@ static inline int sk_filter(struct sock *sk, struct sk_buff *skb)
 }
 
 /**
- *	sk_filter_release: Release a socket filter
- *	@rcu: rcu_head that contains the sk_filter info to remove
- *
- *	Remove a filter from a socket and release its resources.
+ * 	sk_filter_rcu_free: Free a socket filter
+ *	@rcu: rcu_head that contains the sk_filter to free
  */
- 
 static inline void sk_filter_rcu_free(struct rcu_head *rcu)
 {
 	struct sk_filter *fp = container_of(rcu, struct sk_filter, rcu);
 	kfree(fp);
 }
+
+/**
+ *	sk_filter_release: Release a socket filter
+ *	@sk: socket
+ *	@fp: filter to remove
+ *
+ *	Remove a filter from a socket and release its resources.
+ */
 
 static inline void sk_filter_release(struct sock *sk, struct sk_filter *fp)
 {
@@ -943,7 +954,8 @@ static inline void sock_put(struct sock *sk)
 		sk_free(sk);
 }
 
-extern int sk_receive_skb(struct sock *sk, struct sk_buff *skb);
+extern int sk_receive_skb(struct sock *sk, struct sk_buff *skb,
+			  const int nested);
 
 /* Detach socket from process context.
  * Announce socket dead, detach it from wait queue and inode.
@@ -1077,7 +1089,7 @@ static inline int skb_copy_to_page(struct sock *sk, char __user *from,
 {
 	if (skb->ip_summed == CHECKSUM_NONE) {
 		int err = 0;
-		unsigned int csum = csum_and_copy_from_user(from,
+		__wsum csum = csum_and_copy_from_user(from,
 						     page_address(page) + off,
 							    copy, 0, &err);
 		if (err)

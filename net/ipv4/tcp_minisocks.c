@@ -305,6 +305,28 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 			tw->tw_ipv6only = np->ipv6only;
 		}
 #endif
+
+#ifdef CONFIG_TCP_MD5SIG
+		/*
+		 * The timewait bucket does not have the key DB from the
+		 * sock structure. We just make a quick copy of the
+		 * md5 key being used (if indeed we are using one)
+		 * so the timewait ack generating code has the key.
+		 */
+		do {
+			struct tcp_md5sig_key *key;
+			memset(tcptw->tw_md5_key, 0, sizeof(tcptw->tw_md5_key));
+			tcptw->tw_md5_keylen = 0;
+			key = tp->af_specific->md5_lookup(sk, sk);
+			if (key != NULL) {
+				memcpy(&tcptw->tw_md5_key, key->key, key->keylen);
+				tcptw->tw_md5_keylen = key->keylen;
+				if (tcp_alloc_md5sig_pool() == NULL)
+					BUG();
+			}
+		} while(0);
+#endif
+
 		/* Linkage updates. */
 		__inet_twsk_hashdance(tw, sk, &tcp_hashinfo);
 
@@ -328,13 +350,23 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		 * socket up.  We've got bigger problems than
 		 * non-graceful socket closings.
 		 */
-		if (net_ratelimit())
-			printk(KERN_INFO "TCP: time wait bucket table overflow\n");
+		LIMIT_NETDEBUG(KERN_INFO "TCP: time wait bucket table overflow\n");
 	}
 
 	tcp_update_metrics(sk);
 	tcp_done(sk);
 }
+
+void tcp_twsk_destructor(struct sock *sk)
+{
+#ifdef CONFIG_TCP_MD5SIG
+	struct tcp_timewait_sock *twsk = tcp_twsk(sk);
+	if (twsk->tw_md5_keylen)
+		tcp_put_md5sig_pool();
+#endif
+}
+
+EXPORT_SYMBOL_GPL(tcp_twsk_destructor);
 
 /* This is not only more efficient than what we used to do, it eliminates
  * a lot of code duplication between IPv4/IPv6 SYN recv processing. -DaveM
@@ -434,6 +466,11 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 			newtp->rx_opt.ts_recent_stamp = 0;
 			newtp->tcp_header_len = sizeof(struct tcphdr);
 		}
+#ifdef CONFIG_TCP_MD5SIG
+		newtp->md5sig_info = NULL;	/*XXX*/
+		if (newtp->af_specific->md5_lookup(sk, newsk))
+			newtp->tcp_header_len += TCPOLEN_MD5SIG_ALIGNED;
+#endif
 		if (skb->len >= TCP_MIN_RCVMSS+newtp->tcp_header_len)
 			newicsk->icsk_ack.last_seg_size = skb->len - newtp->tcp_header_len;
 		newtp->rx_opt.mss_clamp = req->mss;
@@ -454,7 +491,7 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 			   struct request_sock **prev)
 {
 	struct tcphdr *th = skb->h.th;
-	u32 flg = tcp_flag_word(th) & (TCP_FLAG_RST|TCP_FLAG_SYN|TCP_FLAG_ACK);
+	__be32 flg = tcp_flag_word(th) & (TCP_FLAG_RST|TCP_FLAG_SYN|TCP_FLAG_ACK);
 	int paws_reject = 0;
 	struct tcp_options_received tmp_opt;
 	struct sock *child;
@@ -616,6 +653,30 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 								 req, NULL);
 		if (child == NULL)
 			goto listen_overflow;
+#ifdef CONFIG_TCP_MD5SIG
+		else {
+			/* Copy over the MD5 key from the original socket */
+			struct tcp_md5sig_key *key;
+			struct tcp_sock *tp = tcp_sk(sk);
+			key = tp->af_specific->md5_lookup(sk, child);
+			if (key != NULL) {
+				/*
+				 * We're using one, so create a matching key on the
+				 * newsk structure. If we fail to get memory then we
+				 * end up not copying the key across. Shucks.
+				 */
+				char *newkey = kmemdup(key->key, key->keylen,
+						       GFP_ATOMIC);
+				if (newkey) {
+					if (!tcp_alloc_md5sig_pool())
+						BUG();
+					tp->af_specific->md5_add(child, child,
+								 newkey,
+								 key->keylen);
+				}
+			}
+		}
+#endif
 
 		inet_csk_reqsk_queue_unlink(sk, req, prev);
 		inet_csk_reqsk_queue_removed(sk, req);
@@ -632,7 +693,7 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 	embryonic_reset:
 		NET_INC_STATS_BH(LINUX_MIB_EMBRYONICRSTS);
 		if (!(flg & TCP_FLAG_RST))
-			req->rsk_ops->send_reset(skb);
+			req->rsk_ops->send_reset(sk, skb);
 
 		inet_csk_reqsk_queue_drop(sk, req, prev);
 		return NULL;

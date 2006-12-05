@@ -85,10 +85,9 @@ static int ark3116_attach(struct usb_serial *serial)
 	int i;
 
 	for (i = 0; i < serial->num_ports; ++i) {
-		priv = kmalloc(sizeof (struct ark3116_private), GFP_KERNEL);
+		priv = kzalloc(sizeof(struct ark3116_private), GFP_KERNEL);
 		if (!priv)
 			goto cleanup;
-		memset(priv, 0x00, sizeof (struct ark3116_private));
 		spin_lock_init(&priv->lock);
 
 		usb_set_serial_port_data(serial->port[i], priv);

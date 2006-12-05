@@ -358,10 +358,8 @@ static int mct_u232_startup (struct usb_serial *serial)
 	/* Puh, that's dirty */
 	port = serial->port[0];
 	rport = serial->port[1];
-	if (port->read_urb) {
-		/* No unlinking, it wasn't submitted yet. */
-		usb_free_urb(port->read_urb);
-	}
+	/* No unlinking, it wasn't submitted yet. */
+	usb_free_urb(port->read_urb);
 	port->read_urb = rport->interrupt_in_urb;
 	rport->interrupt_in_urb = NULL;
 	port->read_urb->context = port;

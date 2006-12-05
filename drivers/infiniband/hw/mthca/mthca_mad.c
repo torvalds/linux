@@ -317,7 +317,7 @@ err:
 	return ret;
 }
 
-void __devexit mthca_free_agents(struct mthca_dev *dev)
+void mthca_free_agents(struct mthca_dev *dev)
 {
 	struct ib_mad_agent *agent;
 	int p, q;

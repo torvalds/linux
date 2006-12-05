@@ -27,9 +27,9 @@ void __outw(u16 val, unsigned int port);
 u32 __inl(unsigned int port);
 void __outl(u32 val, unsigned int port);
 
-u8  __readb(void __iomem *addr);
-u16 __readw(void __iomem *addr);
-u32 __readl(void __iomem *addr);
+u8  __readb(const volatile void __iomem *addr);
+u16 __readw(const volatile void __iomem *addr);
+u32 __readl(const volatile void __iomem *addr);
 
 void __writeb(u8  val, void __iomem *addr);
 void __writew(u16 val, void __iomem *addr);
@@ -64,8 +64,14 @@ void __writel(u32 val, void __iomem *addr);
 #define writew(v,b)		__writew(v,b)
 #define writel(v,b)		__writel(v,b)
 
-#define __arch_ioremap(cookie,sz,c)	((void __iomem *)(cookie))
-#define __arch_iounmap(cookie)		do { } while (0)
+static inline void __iomem *__arch_ioremap(unsigned long cookie, size_t size,
+					   unsigned int flags)
+{
+	return (void __iomem *)cookie;
+}
+
+#define __arch_ioremap		__arch_ioremap
+#define __arch_iounmap(cookie)	do { } while (0)
 
 extern void insb(unsigned int port, void *buf, int sz);
 extern void insw(unsigned int port, void *buf, int sz);

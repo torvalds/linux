@@ -258,6 +258,7 @@
 #include <linux/bootmem.h>
 #include <linux/cache.h>
 #include <linux/err.h>
+#include <linux/crypto.h>
 
 #include <net/icmp.h>
 #include <net/tcp.h>
@@ -462,11 +463,12 @@ static inline int forced_push(struct tcp_sock *tp)
 static inline void skb_entail(struct sock *sk, struct tcp_sock *tp,
 			      struct sk_buff *skb)
 {
-	skb->csum = 0;
-	TCP_SKB_CB(skb)->seq = tp->write_seq;
-	TCP_SKB_CB(skb)->end_seq = tp->write_seq;
-	TCP_SKB_CB(skb)->flags = TCPCB_FLAG_ACK;
-	TCP_SKB_CB(skb)->sacked = 0;
+	struct tcp_skb_cb *tcb = TCP_SKB_CB(skb);
+
+	skb->csum    = 0;
+	tcb->seq     = tcb->end_seq = tp->write_seq;
+	tcb->flags   = TCPCB_FLAG_ACK;
+	tcb->sacked  = 0;
 	skb_header_release(skb);
 	__skb_queue_tail(&sk->sk_write_queue, skb);
 	sk_charge_skb(sk, skb);
@@ -1942,6 +1944,13 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		}
 		break;
 
+#ifdef CONFIG_TCP_MD5SIG
+	case TCP_MD5SIG:
+		/* Read the IP->Key mappings from userspace */
+		err = tp->af_specific->md5_parse(sk, optval, optlen);
+		break;
+#endif
+
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -2154,7 +2163,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 	struct tcphdr *th;
 	unsigned thlen;
 	unsigned int seq;
-	unsigned int delta;
+	__be32 delta;
 	unsigned int oldlen;
 	unsigned int len;
 
@@ -2207,7 +2216,8 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 	do {
 		th->fin = th->psh = 0;
 
-		th->check = ~csum_fold(th->check + delta);
+		th->check = ~csum_fold((__force __wsum)((__force u32)th->check +
+				       (__force u32)delta));
 		if (skb->ip_summed != CHECKSUM_PARTIAL)
 			th->check = csum_fold(csum_partial(skb->h.raw, thlen,
 							   skb->csum));
@@ -2221,7 +2231,8 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 	} while (skb->next);
 
 	delta = htonl(oldlen + (skb->tail - skb->h.raw) + skb->data_len);
-	th->check = ~csum_fold(th->check + delta);
+	th->check = ~csum_fold((__force __wsum)((__force u32)th->check +
+				(__force u32)delta));
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		th->check = csum_fold(csum_partial(skb->h.raw, thlen,
 						   skb->csum));
@@ -2230,6 +2241,135 @@ out:
 	return segs;
 }
 EXPORT_SYMBOL(tcp_tso_segment);
+
+#ifdef CONFIG_TCP_MD5SIG
+static unsigned long tcp_md5sig_users;
+static struct tcp_md5sig_pool **tcp_md5sig_pool;
+static DEFINE_SPINLOCK(tcp_md5sig_pool_lock);
+
+static void __tcp_free_md5sig_pool(struct tcp_md5sig_pool **pool)
+{
+	int cpu;
+	for_each_possible_cpu(cpu) {
+		struct tcp_md5sig_pool *p = *per_cpu_ptr(pool, cpu);
+		if (p) {
+			if (p->md5_desc.tfm)
+				crypto_free_hash(p->md5_desc.tfm);
+			kfree(p);
+			p = NULL;
+		}
+	}
+	free_percpu(pool);
+}
+
+void tcp_free_md5sig_pool(void)
+{
+	struct tcp_md5sig_pool **pool = NULL;
+
+	spin_lock(&tcp_md5sig_pool_lock);
+	if (--tcp_md5sig_users == 0) {
+		pool = tcp_md5sig_pool;
+		tcp_md5sig_pool = NULL;
+	}
+	spin_unlock(&tcp_md5sig_pool_lock);
+	if (pool)
+		__tcp_free_md5sig_pool(pool);
+}
+
+EXPORT_SYMBOL(tcp_free_md5sig_pool);
+
+static struct tcp_md5sig_pool **__tcp_alloc_md5sig_pool(void)
+{
+	int cpu;
+	struct tcp_md5sig_pool **pool;
+
+	pool = alloc_percpu(struct tcp_md5sig_pool *);
+	if (!pool)
+		return NULL;
+
+	for_each_possible_cpu(cpu) {
+		struct tcp_md5sig_pool *p;
+		struct crypto_hash *hash;
+
+		p = kzalloc(sizeof(*p), GFP_KERNEL);
+		if (!p)
+			goto out_free;
+		*per_cpu_ptr(pool, cpu) = p;
+
+		hash = crypto_alloc_hash("md5", 0, CRYPTO_ALG_ASYNC);
+		if (!hash || IS_ERR(hash))
+			goto out_free;
+
+		p->md5_desc.tfm = hash;
+	}
+	return pool;
+out_free:
+	__tcp_free_md5sig_pool(pool);
+	return NULL;
+}
+
+struct tcp_md5sig_pool **tcp_alloc_md5sig_pool(void)
+{
+	struct tcp_md5sig_pool **pool;
+	int alloc = 0;
+
+retry:
+	spin_lock(&tcp_md5sig_pool_lock);
+	pool = tcp_md5sig_pool;
+	if (tcp_md5sig_users++ == 0) {
+		alloc = 1;
+		spin_unlock(&tcp_md5sig_pool_lock);
+	} else if (!pool) {
+		tcp_md5sig_users--;
+		spin_unlock(&tcp_md5sig_pool_lock);
+		cpu_relax();
+		goto retry;
+	} else
+		spin_unlock(&tcp_md5sig_pool_lock);
+
+	if (alloc) {
+		/* we cannot hold spinlock here because this may sleep. */
+		struct tcp_md5sig_pool **p = __tcp_alloc_md5sig_pool();
+		spin_lock(&tcp_md5sig_pool_lock);
+		if (!p) {
+			tcp_md5sig_users--;
+			spin_unlock(&tcp_md5sig_pool_lock);
+			return NULL;
+		}
+		pool = tcp_md5sig_pool;
+		if (pool) {
+			/* oops, it has already been assigned. */
+			spin_unlock(&tcp_md5sig_pool_lock);
+			__tcp_free_md5sig_pool(p);
+		} else {
+			tcp_md5sig_pool = pool = p;
+			spin_unlock(&tcp_md5sig_pool_lock);
+		}
+	}
+	return pool;
+}
+
+EXPORT_SYMBOL(tcp_alloc_md5sig_pool);
+
+struct tcp_md5sig_pool *__tcp_get_md5sig_pool(int cpu)
+{
+	struct tcp_md5sig_pool **p;
+	spin_lock(&tcp_md5sig_pool_lock);
+	p = tcp_md5sig_pool;
+	if (p)
+		tcp_md5sig_users++;
+	spin_unlock(&tcp_md5sig_pool_lock);
+	return (p ? *per_cpu_ptr(p, cpu) : NULL);
+}
+
+EXPORT_SYMBOL(__tcp_get_md5sig_pool);
+
+void __tcp_put_md5sig_pool(void) {
+	__tcp_free_md5sig_pool(tcp_md5sig_pool);
+}
+
+EXPORT_SYMBOL(__tcp_put_md5sig_pool);
+#endif
 
 extern void __skb_cb_too_small_for_tcp(int, int);
 extern struct tcp_congestion_ops tcp_reno;

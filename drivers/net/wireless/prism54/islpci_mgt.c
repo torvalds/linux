@@ -1,5 +1,4 @@
 /*
- *  
  *  Copyright (C) 2002 Intersil Americas Inc.
  *  Copyright 2004 Jens Maurer <Jens.Maurer@gmx.net>
  *
@@ -502,7 +501,7 @@ islpci_mgt_transaction(struct net_device *ndev,
 	printk(KERN_WARNING "%s: timeout waiting for mgmt response\n",
 	       ndev->name);
 
-	/* TODO: we should reset the device here */     
+	/* TODO: we should reset the device here */
  out:
 	finish_wait(&priv->mgmt_wqueue, &wait);
 	up(&priv->mgmt_sem);

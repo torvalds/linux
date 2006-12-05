@@ -155,14 +155,15 @@ static int nr_add_node(ax25_address *nr, const char *mnemonic, ax25_address *ax2
 		atomic_set(&nr_neigh->refcount, 1);
 
 		if (ax25_digi != NULL && ax25_digi->ndigi > 0) {
-			if ((nr_neigh->digipeat = kmalloc(sizeof(*ax25_digi), GFP_KERNEL)) == NULL) {
+			nr_neigh->digipeat = kmemdup(ax25_digi,
+						     sizeof(*ax25_digi),
+						     GFP_KERNEL);
+			if (nr_neigh->digipeat == NULL) {
 				kfree(nr_neigh);
 				if (nr_node)
 					nr_node_put(nr_node);
 				return -ENOMEM;
 			}
-			memcpy(nr_neigh->digipeat, ax25_digi,
-					sizeof(*ax25_digi));
 		}
 
 		spin_lock_bh(&nr_neigh_list_lock);
@@ -432,11 +433,12 @@ static int nr_add_neigh(ax25_address *callsign, ax25_digi *ax25_digi, struct net
 	atomic_set(&nr_neigh->refcount, 1);
 
 	if (ax25_digi != NULL && ax25_digi->ndigi > 0) {
-		if ((nr_neigh->digipeat = kmalloc(sizeof(*ax25_digi), GFP_KERNEL)) == NULL) {
+		nr_neigh->digipeat = kmemdup(ax25_digi, sizeof(*ax25_digi),
+					     GFP_KERNEL);
+		if (nr_neigh->digipeat == NULL) {
 			kfree(nr_neigh);
 			return -ENOMEM;
 		}
-		memcpy(nr_neigh->digipeat, ax25_digi, sizeof(*ax25_digi));
 	}
 
 	spin_lock_bh(&nr_neigh_list_lock);

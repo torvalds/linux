@@ -761,3 +761,9 @@ void __init arch_init_irq(void)
 	if (dec_interrupt[DEC_IRQ_HALT] >= 0)
 		setup_irq(dec_interrupt[DEC_IRQ_HALT], &haltirq);
 }
+
+asmlinkage unsigned int dec_irq_dispatch(unsigned int irq)
+{
+	do_IRQ(irq);
+	return 0;
+}

@@ -39,7 +39,7 @@ struct xt_policy_elem
 	union xt_policy_addr	smask;
 	union xt_policy_addr	daddr;
 	union xt_policy_addr	dmask;
-	u_int32_t		spi;
+	__be32			spi;
 	u_int32_t		reqid;
 	u_int8_t		proto;
 	u_int8_t		mode;

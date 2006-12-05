@@ -139,7 +139,7 @@ static void queue_req(struct addr_req *req)
 
 	mutex_lock(&lock);
 	list_for_each_entry_reverse(temp_req, &req_list, list) {
-		if (time_after(req->timeout, temp_req->timeout))
+		if (time_after_eq(req->timeout, temp_req->timeout))
 			break;
 	}
 
@@ -225,19 +225,17 @@ static void process_req(struct work_struct *work)
 
 	mutex_lock(&lock);
 	list_for_each_entry_safe(req, temp_req, &req_list, list) {
-		if (req->status) {
+		if (req->status == -ENODATA) {
 			src_in = (struct sockaddr_in *) &req->src_addr;
 			dst_in = (struct sockaddr_in *) &req->dst_addr;
 			req->status = addr_resolve_remote(src_in, dst_in,
 							  req->addr);
+			if (req->status && time_after_eq(jiffies, req->timeout))
+				req->status = -ETIMEDOUT;
+			else if (req->status == -ENODATA)
+				continue;
 		}
-		if (req->status && time_after(jiffies, req->timeout))
-			req->status = -ETIMEDOUT;
-		else if (req->status == -ENODATA)
-			continue;
-
-		list_del(&req->list);
-		list_add_tail(&req->list, &done_list);
+		list_move_tail(&req->list, &done_list);
 	}
 
 	if (!list_empty(&req_list)) {
@@ -347,8 +345,7 @@ void rdma_addr_cancel(struct rdma_dev_addr *addr)
 		if (req->addr == addr) {
 			req->status = -ECANCELED;
 			req->timeout = jiffies;
-			list_del(&req->list);
-			list_add(&req->list, &req_list);
+			list_move(&req->list, &req_list);
 			set_timeout(req->timeout);
 			break;
 		}

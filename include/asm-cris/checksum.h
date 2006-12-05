@@ -17,7 +17,7 @@
  *
  * it's best to have buff aligned on a 32-bit boundary
  */
-unsigned int csum_partial(const unsigned char * buff, int len, unsigned int sum);
+__wsum csum_partial(const void *buff, int len, __wsum sum);
 
 /*
  * the same as csum_partial, but copies from src while it
@@ -27,26 +27,23 @@ unsigned int csum_partial(const unsigned char * buff, int len, unsigned int sum)
  * better 64-bit) boundary
  */
 
-unsigned int csum_partial_copy_nocheck(const char *src, char *dst,
-				       int len, unsigned int sum);
+__wsum csum_partial_copy_nocheck(const void *src, void *dst,
+				       int len, __wsum sum);
 
 /*
  *	Fold a partial checksum into a word
  */
 
-static inline unsigned int csum_fold(unsigned int sum)
+static inline __sum16 csum_fold(__wsum csum)
 {
-	/* the while loop is unnecessary really, it's always enough with two
-	   iterations */
-	
-	while(sum >> 16)
-		sum = (sum & 0xffff) + (sum >> 16); /* add in end-around carry */
-	
-	return ~sum;
+	u32 sum = (__force u32)csum;
+	sum = (sum & 0xffff) + (sum >> 16); /* add in end-around carry */
+	sum = (sum & 0xffff) + (sum >> 16); /* add in end-around carry */
+	return (__force __sum16)~sum;
 }
 
-extern unsigned int csum_partial_copy_from_user(const char *src, char *dst,
-						int len, unsigned int sum, 
+extern __wsum csum_partial_copy_from_user(const void __user *src, void *dst,
+						int len, __wsum sum,
 						int *errptr);
 
 /*
@@ -55,8 +52,7 @@ extern unsigned int csum_partial_copy_from_user(const char *src, char *dst,
  *
  */
 
-static inline unsigned short ip_fast_csum(unsigned char * iph,
-					  unsigned int ihl)
+static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 {
 	return csum_fold(csum_partial(iph, ihl * 4, 0));
 }
@@ -66,11 +62,10 @@ static inline unsigned short ip_fast_csum(unsigned char * iph,
  * returns a 16-bit checksum, already complemented
  */
 
-static inline unsigned short int csum_tcpudp_magic(unsigned long saddr,
-						   unsigned long daddr,
+static inline __sum16 int csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 						   unsigned short len,
 						   unsigned short proto,
-						   unsigned int sum)
+						   __wsum sum)
 {
 	return csum_fold(csum_tcpudp_nofold(saddr,daddr,len,proto,sum));
 }
@@ -80,7 +75,8 @@ static inline unsigned short int csum_tcpudp_magic(unsigned long saddr,
  * in icmp.c
  */
 
-static inline unsigned short ip_compute_csum(unsigned char * buff, int len) {
+static inline __sum16 ip_compute_csum(const void *buff, int len)
+{
 	return csum_fold (csum_partial(buff, len, 0));
 }
 

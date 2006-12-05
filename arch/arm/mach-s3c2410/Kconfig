@@ -91,7 +91,7 @@ config SMDK2440_CPU2442
 config MACH_S3C2413
 	bool
 	help
-	  Internal node for S3C2413 verison of SMDK2413, so that
+	  Internal node for S3C2413 version of SMDK2413, so that
 	  machine_is_s3c2413() will work when MACH_SMDK2413 is
 	  selected
 

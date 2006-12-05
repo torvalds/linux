@@ -182,6 +182,7 @@ CONFIG_BINFMT_AOUT=m
 # Power management options
 #
 CONFIG_PM=y
+# CONFIG_PM_LEGACY is not set
 # CONFIG_APM is not set
 
 #

@@ -775,7 +775,7 @@ static int sn9c102_start_transfer(struct sn9c102_device* cam)
 	return 0;
 
 free_urbs:
-	for (i = 0; (i < SN9C102_URBS) &&  cam->urb[i]; i++)
+	for (i = 0; i < SN9C102_URBS; i++)
 		usb_free_urb(cam->urb[i]);
 
 free_buffers:
@@ -1462,8 +1462,6 @@ static void sn9c102_release_resources(struct sn9c102_device* cam)
 	video_set_drvdata(cam->v4ldev, NULL);
 	video_unregister_device(cam->v4ldev);
 
-	usb_put_dev(cam->usbdev);
-
 	mutex_unlock(&sn9c102_sysfs_lock);
 
 	kfree(cam->control_buffer);
@@ -1555,6 +1553,7 @@ static int sn9c102_release(struct inode* inode, struct file* filp)
 
 	if (cam->state & DEV_DISCONNECTED) {
 		sn9c102_release_resources(cam);
+		usb_put_dev(cam->usbdev);
 		mutex_unlock(&cam->dev_mutex);
 		kfree(cam);
 		return 0;

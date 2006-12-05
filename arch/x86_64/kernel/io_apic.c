@@ -754,9 +754,7 @@ void __setup_vector_irq(int cpu)
 {
 	/* Initialize vector_irq on a new cpu */
 	/* This function must be called with vector_lock held */
-	unsigned long flags;
 	int irq, vector;
-
 
 	/* Mark the inuse vectors */
 	for (irq = 0; irq < NR_IRQ_VECTORS; ++irq) {

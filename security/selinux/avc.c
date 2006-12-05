@@ -32,12 +32,7 @@
 #include "avc.h"
 #include "avc_ss.h"
 
-static const struct av_perm_to_string
-{
-  u16 tclass;
-  u32 value;
-  const char *name;
-} av_perm_to_string[] = {
+static const struct av_perm_to_string av_perm_to_string[] = {
 #define S_(c, v, s) { c, v, s },
 #include "av_perm_to_string.h"
 #undef S_
@@ -57,15 +52,19 @@ static const char *class_to_string[] = {
 #undef TE_
 #undef S_
 
-static const struct av_inherit
-{
-    u16 tclass;
-    const char **common_pts;
-    u32 common_base;
-} av_inherit[] = {
+static const struct av_inherit av_inherit[] = {
 #define S_(c, i, b) { c, common_##i##_perm_to_string, b },
 #include "av_inherit.h"
 #undef S_
+};
+
+const struct selinux_class_perm selinux_class_perm = {
+	av_perm_to_string,
+	ARRAY_SIZE(av_perm_to_string),
+	class_to_string,
+	ARRAY_SIZE(class_to_string),
+	av_inherit,
+	ARRAY_SIZE(av_inherit)
 };
 
 #define AVC_CACHE_SLOTS			512

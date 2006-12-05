@@ -24,8 +24,6 @@ static inline int irq_canonicalize(int irq)
 #define irq_canonicalize(irq) (irq)	/* Sane hardware, sane code ... */
 #endif
 
-extern asmlinkage unsigned int do_IRQ(unsigned int irq);
-
 #ifdef CONFIG_MIPS_MT_SMTC
 /*
  * Clear interrupt mask handling "backstop" if irq_hwmask
@@ -43,8 +41,6 @@ do {									\
 #define __DO_IRQ_SMTC_HOOK() do { } while (0)
 #endif
 
-#ifdef CONFIG_PREEMPT
-
 /*
  * do_IRQ handles all normal device IRQ's (the special
  * SMP cross-CPU interrupts have their own specific
@@ -57,11 +53,9 @@ do {									\
 do {									\
 	irq_enter();							\
 	__DO_IRQ_SMTC_HOOK();						\
-	__do_IRQ((irq));						\
+	generic_handle_irq(irq);					\
 	irq_exit();							\
 } while (0)
-
-#endif
 
 extern void arch_init_irq(void);
 extern void spurious_interrupt(void);

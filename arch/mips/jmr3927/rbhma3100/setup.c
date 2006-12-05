@@ -170,7 +170,7 @@ static void jmr3927_machine_power_off(void)
 	while (1);
 }
 
-static unsigned int jmr3927_hpt_read(void)
+static cycle_t jmr3927_hpt_read(void)
 {
 	/* We assume this function is called xtime_lock held. */
 	return jiffies * (JMR3927_TIMER_CLK / HZ) + jmr3927_tmrptr->trr;
@@ -182,7 +182,7 @@ extern void rtc_ds1742_init(unsigned long base);
 #endif
 static void __init jmr3927_time_init(void)
 {
-	mips_hpt_read = jmr3927_hpt_read;
+	clocksource_mips.read = jmr3927_hpt_read;
 	mips_hpt_frequency = JMR3927_TIMER_CLK;
 #ifdef USE_RTC_DS1742
 	if (jmr3927_have_nvram()) {

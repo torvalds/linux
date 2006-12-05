@@ -425,7 +425,7 @@ config PPC_MAPLE
 	default n
 	help
           This option enables support for the Maple 970FX Evaluation Board.
-	  For more informations, refer to <http://www.970eval.com>
+	  For more information, refer to <http://www.970eval.com>
 
 config PPC_PASEMI
 	depends on PPC_MULTIPLATFORM && PPC64

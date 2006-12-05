@@ -84,7 +84,7 @@ tcp_conn_schedule(struct sk_buff *skb,
 	}
 
 	if (th->syn &&
-	    (svc = ip_vs_service_get(skb->nfmark, skb->nh.iph->protocol,
+	    (svc = ip_vs_service_get(skb->mark, skb->nh.iph->protocol,
 				     skb->nh.iph->daddr, th->dest))) {
 		if (ip_vs_todrop()) {
 			/*
@@ -116,9 +116,9 @@ tcp_fast_csum_update(struct tcphdr *tcph, __be32 oldip, __be32 newip,
 		     __be16 oldport, __be16 newport)
 {
 	tcph->check =
-		ip_vs_check_diff(~oldip, newip,
-				 ip_vs_check_diff(oldport ^ htons(0xFFFF),
-						  newport, tcph->check));
+		csum_fold(ip_vs_check_diff4(oldip, newip,
+				 ip_vs_check_diff2(oldport, newport,
+						~csum_unfold(tcph->check))));
 }
 
 
@@ -490,16 +490,18 @@ tcp_state_transition(struct ip_vs_conn *cp, int direction,
 static struct list_head tcp_apps[TCP_APP_TAB_SIZE];
 static DEFINE_SPINLOCK(tcp_app_lock);
 
-static inline __u16 tcp_app_hashkey(__u16 port)
+static inline __u16 tcp_app_hashkey(__be16 port)
 {
-	return ((port >> TCP_APP_TAB_BITS) ^ port) & TCP_APP_TAB_MASK;
+	return (((__force u16)port >> TCP_APP_TAB_BITS) ^ (__force u16)port)
+		& TCP_APP_TAB_MASK;
 }
 
 
 static int tcp_register_app(struct ip_vs_app *inc)
 {
 	struct ip_vs_app *i;
-	__u16 hash, port = inc->port;
+	__u16 hash;
+	__be16 port = inc->port;
 	int ret = 0;
 
 	hash = tcp_app_hashkey(port);

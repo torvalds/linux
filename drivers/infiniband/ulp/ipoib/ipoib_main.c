@@ -264,7 +264,7 @@ static void path_free(struct net_device *dev, struct ipoib_path *path)
 		if (neigh->ah)
 			ipoib_put_ah(neigh->ah);
 
-		ipoib_neigh_free(neigh);
+		ipoib_neigh_free(dev, neigh);
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -525,10 +525,11 @@ static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
 		ipoib_send(dev, skb, path->ah, IPOIB_QPN(skb->dst->neighbour->ha));
 	} else {
 		neigh->ah  = NULL;
-		__skb_queue_tail(&neigh->queue, skb);
 
 		if (!path->query && path_rec_start(dev, path))
 			goto err_list;
+
+		__skb_queue_tail(&neigh->queue, skb);
 	}
 
 	spin_unlock(&priv->lock);
@@ -538,7 +539,7 @@ err_list:
 	list_del(&neigh->list);
 
 err_path:
-	ipoib_neigh_free(neigh);
+	ipoib_neigh_free(dev, neigh);
 	++priv->stats.tx_dropped;
 	dev_kfree_skb_any(skb);
 
@@ -655,7 +656,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				 */
 				ipoib_put_ah(neigh->ah);
 				list_del(&neigh->list);
-				ipoib_neigh_free(neigh);
+				ipoib_neigh_free(dev, neigh);
 				spin_unlock(&priv->lock);
 				ipoib_path_lookup(skb, dev);
 				goto out;
@@ -786,7 +787,7 @@ static void ipoib_neigh_destructor(struct neighbour *n)
 		if (neigh->ah)
 			ah = neigh->ah;
 		list_del(&neigh->list);
-		ipoib_neigh_free(neigh);
+		ipoib_neigh_free(n->dev, neigh);
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -809,9 +810,15 @@ struct ipoib_neigh *ipoib_neigh_alloc(struct neighbour *neighbour)
 	return neigh;
 }
 
-void ipoib_neigh_free(struct ipoib_neigh *neigh)
+void ipoib_neigh_free(struct net_device *dev, struct ipoib_neigh *neigh)
 {
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct sk_buff *skb;
 	*to_ipoib_neigh(neigh->neighbour) = NULL;
+	while ((skb = __skb_dequeue(&neigh->queue))) {
+		++priv->stats.tx_dropped;
+		dev_kfree_skb_any(skb);
+	}
 	kfree(neigh);
 }
 

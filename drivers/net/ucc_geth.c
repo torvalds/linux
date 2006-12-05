@@ -30,7 +30,7 @@
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 
-#include <asm/of_device.h>
+#include <asm/of_platform.h>
 #include <asm/uaccess.h>
 #include <asm/irq.h>
 #include <asm/io.h>
@@ -4301,12 +4301,12 @@ static int __init ucc_geth_init(void)
 		memcpy(&(ugeth_info[i]), &ugeth_primary_info,
 		       sizeof(ugeth_primary_info));
 
-	return of_register_driver(&ucc_geth_driver);
+	return of_register_platform_driver(&ucc_geth_driver);
 }
 
 static void __exit ucc_geth_exit(void)
 {
-	of_unregister_driver(&ucc_geth_driver);
+	of_unregister_platform_driver(&ucc_geth_driver);
 }
 
 module_init(ucc_geth_init);

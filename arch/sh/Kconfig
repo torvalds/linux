@@ -217,7 +217,7 @@ config SH_SHMIN
 	bool "SHMIN"
 	select CPU_SUBTYPE_SH7706
 	help
-	  Select SHMIN if configureing for the SHMIN board
+	  Select SHMIN if configuring for the SHMIN board.
 
 config SH_UNKNOWN
 	bool "BareCPU"

@@ -729,6 +729,16 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 		ohci->next_statechange = jiffies + STATECHANGE_DELAY;
 		ohci_writel(ohci, OHCI_INTR_RD | OHCI_INTR_RHSC,
 				&regs->intrstatus);
+
+		/* NOTE: Vendors didn't always make the same implementation
+		 * choices for RHSC.  Many followed the spec; RHSC triggers
+		 * on an edge, like setting and maybe clearing a port status
+		 * change bit.  With others it's level-triggered, active
+		 * until khubd clears all the port status change bits.  We'll
+		 * always disable it here and rely on polling until khubd
+		 * re-enables it.
+		 */
+		ohci_writel(ohci, OHCI_INTR_RHSC, &regs->intrdisable);
 		usb_hcd_poll_rh_status(hcd);
 	}
 

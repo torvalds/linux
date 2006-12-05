@@ -180,6 +180,7 @@ CONFIG_BINFMT_MISC=m
 # Power management options
 #
 CONFIG_PM=y
+# CONFIG_PM_LEGACY is not set
 CONFIG_APM=y
 
 #

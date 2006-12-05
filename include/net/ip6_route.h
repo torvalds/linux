@@ -20,7 +20,7 @@ struct route_info {
 				route_pref:2,
 				reserved_h:3;
 #endif
-	__u32			lifetime;
+	__be32			lifetime;
 	__u8			prefix[0];	/* 0,8 or 16 */
 };
 

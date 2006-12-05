@@ -153,6 +153,7 @@ ctnetlink_dump_protoinfo(struct sk_buff *skb, const struct ip_conntrack *ct)
 	return ret;
 
 nfattr_failure:
+	ip_conntrack_proto_put(proto);
 	return -1;
 }
 
@@ -319,8 +320,6 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 	} else if (events & (IPCT_NEW | IPCT_RELATED)) {
 		type = IPCTNL_MSG_CT_NEW;
 		flags = NLM_F_CREATE|NLM_F_EXCL;
-		/* dump everything */
-		events = ~0UL;
 		group = NFNLGRP_CONNTRACK_NEW;
 	} else if (events & (IPCT_STATUS | IPCT_PROTOINFO)) {
 		type = IPCTNL_MSG_CT_NEW;
@@ -355,28 +354,35 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 	if (ctnetlink_dump_tuples(skb, tuple(ct, IP_CT_DIR_REPLY)) < 0)
 		goto nfattr_failure;
 	NFA_NEST_END(skb, nest_parms);
-	
-	/* NAT stuff is now a status flag */
-	if ((events & IPCT_STATUS || events & IPCT_NATINFO)
-	    && ctnetlink_dump_status(skb, ct) < 0)
-		goto nfattr_failure;
-	if (events & IPCT_REFRESH
-	    && ctnetlink_dump_timeout(skb, ct) < 0)
-		goto nfattr_failure;
-	if (events & IPCT_PROTOINFO
-	    && ctnetlink_dump_protoinfo(skb, ct) < 0)
-		goto nfattr_failure;
-	if (events & IPCT_HELPINFO
-	    && ctnetlink_dump_helpinfo(skb, ct) < 0)
-		goto nfattr_failure;
 
-	if (ctnetlink_dump_counters(skb, ct, IP_CT_DIR_ORIGINAL) < 0 ||
-	    ctnetlink_dump_counters(skb, ct, IP_CT_DIR_REPLY) < 0)
-		goto nfattr_failure;
+	if (events & IPCT_DESTROY) {
+		if (ctnetlink_dump_counters(skb, ct, IP_CT_DIR_ORIGINAL) < 0 ||
+		    ctnetlink_dump_counters(skb, ct, IP_CT_DIR_REPLY) < 0)
+			goto nfattr_failure;
+	} else {
+		if (ctnetlink_dump_status(skb, ct) < 0)
+			goto nfattr_failure;
 
-	if (events & IPCT_MARK
-	    && ctnetlink_dump_mark(skb, ct) < 0)
-		goto nfattr_failure;
+		if (ctnetlink_dump_timeout(skb, ct) < 0)
+			goto nfattr_failure;
+
+		if (events & IPCT_PROTOINFO
+		    && ctnetlink_dump_protoinfo(skb, ct) < 0)
+		    	goto nfattr_failure;
+
+		if ((events & IPCT_HELPER || ct->helper)
+		    && ctnetlink_dump_helpinfo(skb, ct) < 0)
+		    	goto nfattr_failure;
+
+		if ((events & IPCT_MARK || ct->mark)
+		    && ctnetlink_dump_mark(skb, ct) < 0)
+		    	goto nfattr_failure;
+
+		if (events & IPCT_COUNTER_FILLING &&
+		    (ctnetlink_dump_counters(skb, ct, IP_CT_DIR_ORIGINAL) < 0 ||
+		     ctnetlink_dump_counters(skb, ct, IP_CT_DIR_REPLY) < 0))
+			goto nfattr_failure;
+	}
 
 	nlh->nlmsg_len = skb->tail - b;
 	nfnetlink_send(skb, 0, group, 0);
@@ -742,7 +748,6 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 		ip_conntrack_put(ct);
 		return -ENOMEM;
 	}
-	NETLINK_CB(skb2).dst_pid = NETLINK_CB(skb).pid;
 
 	err = ctnetlink_fill_info(skb2, NETLINK_CB(skb).pid, nlh->nlmsg_seq, 
 				  IPCTNL_MSG_CT_NEW, 1, ct);
@@ -945,9 +950,11 @@ ctnetlink_create_conntrack(struct nfattr *cda[],
 	ct->timeout.expires = jiffies + ct->timeout.expires * HZ;
 	ct->status |= IPS_CONFIRMED;
 
-	err = ctnetlink_change_status(ct, cda);
-	if (err < 0)
-		goto err;
+	if (cda[CTA_STATUS-1]) {
+		err = ctnetlink_change_status(ct, cda);
+		if (err < 0)
+			goto err;
+	}
 
 	if (cda[CTA_PROTOINFO-1]) {
 		err = ctnetlink_change_protoinfo(ct, cda);
@@ -1256,7 +1263,7 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 	if (err < 0)
 		return err;
 
-	exp = ip_conntrack_expect_find(&tuple);
+	exp = ip_conntrack_expect_find_get(&tuple);
 	if (!exp)
 		return -ENOENT;
 
@@ -1272,8 +1279,7 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 	skb2 = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb2)
 		goto out;
-	NETLINK_CB(skb2).dst_pid = NETLINK_CB(skb).pid;
-	
+
 	err = ctnetlink_exp_fill_info(skb2, NETLINK_CB(skb).pid, 
 				      nlh->nlmsg_seq, IPCTNL_MSG_EXP_NEW,
 				      1, exp);
@@ -1310,7 +1316,7 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 			return err;
 
 		/* bump usage count to 2 */
-		exp = ip_conntrack_expect_find(&tuple);
+		exp = ip_conntrack_expect_find_get(&tuple);
 		if (!exp)
 			return -ENOENT;
 

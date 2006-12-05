@@ -33,13 +33,13 @@
                          - Change version 16 format to always align
                            property data to 4 bytes. Since tokens are
                            already aligned, that means no specific
-                           required alignement between property size
+                           required alignment between property size
                            and property data. The old style variable
                            alignment would make it impossible to do
                            "simple" insertion of properties using
                            memove (thanks Milton for
                            noticing). Updated kernel patch as well
-			 - Correct a few more alignement constraints
+			 - Correct a few more alignment constraints
 			 - Add a chapter about the device-tree
                            compiler and the textural representation of
                            the tree that can be "compiled" by dtc.
@@ -854,7 +854,7 @@ address which can extend beyond that limit.
       console device if any. Typically, if you have serial devices on
       your board, you may want to put the full path to the one set as
       the default console in the firmware here, for the kernel to pick
-      it up as it's own default console. If you look at the funciton
+      it up as its own default console. If you look at the function
       set_preferred_console() in arch/ppc64/kernel/setup.c, you'll see
       that the kernel tries to find out the default console and has
       knowledge of various types like 8250 serial ports. You may want
@@ -1124,7 +1124,7 @@ should have the following properties:
 	- interrupt-parent : contains the phandle of the interrupt
           controller which handles interrupts for this device
 	- interrupts : a list of tuples representing the interrupt
-          number and the interrupt sense and level for each interupt
+          number and the interrupt sense and level for each interrupt
           for this device.
 
 This information is used by the kernel to build the interrupt table

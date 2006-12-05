@@ -609,7 +609,7 @@ appropriate mailing lists or news-groups.  Send me a copy in order to
 be sure I will receive it.  Obviously, a bug in the driver code is
 possible.
 
-  My cyrrent email address: Gerard Roudier <groudier@free.fr>
+  My current email address: Gerard Roudier <groudier@free.fr>
 
 Allowing disconnections is important if you use several devices on
 your SCSI bus but often causes problems with buggy devices.

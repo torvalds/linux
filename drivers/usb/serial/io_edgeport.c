@@ -1038,9 +1038,7 @@ static void edge_close (struct usb_serial_port *port, struct file * filp)
 	edge_port->open = FALSE;
 	edge_port->openPending = FALSE;
 
-	if (edge_port->write_urb) {
-		usb_kill_urb(edge_port->write_urb);
-	}
+	usb_kill_urb(edge_port->write_urb);
 
 	if (edge_port->write_urb) {
 		/* if this urb had a transfer buffer already (old transfer) free it */

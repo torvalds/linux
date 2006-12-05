@@ -906,13 +906,13 @@ struct sock *ax25_make_new(struct sock *osk, struct ax25_dev *ax25_dev)
 	ax25->source_addr = oax25->source_addr;
 
 	if (oax25->digipeat != NULL) {
-		if ((ax25->digipeat = kmalloc(sizeof(ax25_digi), GFP_ATOMIC)) == NULL) {
+		ax25->digipeat = kmemdup(oax25->digipeat, sizeof(ax25_digi),
+					 GFP_ATOMIC);
+		if (ax25->digipeat == NULL) {
 			sk_free(sk);
 			ax25_cb_put(ax25);
 			return NULL;
 		}
-
-		memcpy(ax25->digipeat, oax25->digipeat, sizeof(ax25_digi));
 	}
 
 	sk->sk_protinfo = ax25;

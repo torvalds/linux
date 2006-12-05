@@ -828,6 +828,11 @@ static inline void dummy_inet_csk_clone(struct sock *newsk,
 {
 }
 
+static inline void dummy_inet_conn_established(struct sock *sk,
+			struct sk_buff *skb)
+{
+}
+
 static inline void dummy_req_classify_flow(const struct request_sock *req,
 			struct flowi *fl)
 {
@@ -836,7 +841,7 @@ static inline void dummy_req_classify_flow(const struct request_sock *req,
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 static int dummy_xfrm_policy_alloc_security(struct xfrm_policy *xp,
-		struct xfrm_user_sec_ctx *sec_ctx, struct sock *sk)
+		struct xfrm_user_sec_ctx *sec_ctx)
 {
 	return 0;
 }
@@ -856,7 +861,7 @@ static int dummy_xfrm_policy_delete_security(struct xfrm_policy *xp)
 }
 
 static int dummy_xfrm_state_alloc_security(struct xfrm_state *x,
-	struct xfrm_user_sec_ctx *sec_ctx, struct xfrm_sec_ctx *pol, u32 secid)
+	struct xfrm_user_sec_ctx *sec_ctx, u32 secid)
 {
 	return 0;
 }
@@ -877,12 +882,6 @@ static int dummy_xfrm_policy_lookup(struct xfrm_policy *xp, u32 sk_sid, u8 dir)
 
 static int dummy_xfrm_state_pol_flow_match(struct xfrm_state *x,
 				struct xfrm_policy *xp, struct flowi *fl)
-{
-	return 1;
-}
-
-static int dummy_xfrm_flow_state_match(struct flowi *fl, struct xfrm_state *xfrm,
-				struct xfrm_policy *xp)
 {
 	return 1;
 }
@@ -1108,6 +1107,7 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, sock_graft);
 	set_to_dummy_if_null(ops, inet_conn_request);
 	set_to_dummy_if_null(ops, inet_csk_clone);
+	set_to_dummy_if_null(ops, inet_conn_established);
 	set_to_dummy_if_null(ops, req_classify_flow);
  #endif	/* CONFIG_SECURITY_NETWORK */
 #ifdef  CONFIG_SECURITY_NETWORK_XFRM
@@ -1120,7 +1120,6 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, xfrm_state_delete_security);
 	set_to_dummy_if_null(ops, xfrm_policy_lookup);
 	set_to_dummy_if_null(ops, xfrm_state_pol_flow_match);
-	set_to_dummy_if_null(ops, xfrm_flow_state_match);
 	set_to_dummy_if_null(ops, xfrm_decode_session);
 #endif	/* CONFIG_SECURITY_NETWORK_XFRM */
 #ifdef CONFIG_KEYS

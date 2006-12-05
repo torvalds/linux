@@ -88,15 +88,16 @@ static int dsmark_graft(struct Qdisc *sch, unsigned long arg,
 		sch, p, new, old);
 
 	if (new == NULL) {
-		new = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops);
+		new = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops,
+					sch->handle);
 		if (new == NULL)
 			new = &noop_qdisc;
 	}
 
 	sch_tree_lock(sch);
 	*old = xchg(&p->q, new);
+	qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
 	qdisc_reset(*old);
-	sch->q.qlen = 0;
 	sch_tree_unlock(sch);
 
         return 0;
@@ -307,7 +308,7 @@ static struct sk_buff *dsmark_dequeue(struct Qdisc *sch)
 			if (p->mask[index] != 0xff || p->value[index])
 				printk(KERN_WARNING "dsmark_dequeue: "
 				       "unsupported protocol %d\n",
-				       htons(skb->protocol));
+				       ntohs(skb->protocol));
 			break;
 	};
 
@@ -387,7 +388,7 @@ static int dsmark_init(struct Qdisc *sch, struct rtattr *opt)
 	p->default_index = default_index;
 	p->set_tc_index = RTA_GET_FLAG(tb[TCA_DSMARK_SET_TC_INDEX-1]);
 
-	p->q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops);
+	p->q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops, sch->handle);
 	if (p->q == NULL)
 		p->q = &noop_qdisc;
 

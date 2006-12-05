@@ -45,10 +45,6 @@ struct dn_fib_rule
 	__le16			dstmask;
 	__le16			srcmap;
 	u8			flags;
-#ifdef CONFIG_DECNET_ROUTE_FWMARK
-	u32			fwmark;
-	u32			fwmask;
-#endif
 };
 
 static struct dn_fib_rule default_rule = {
@@ -112,13 +108,9 @@ errout:
 }
 
 static struct nla_policy dn_fib_rule_policy[FRA_MAX+1] __read_mostly = {
-	[FRA_IFNAME]	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 },
-	[FRA_PRIORITY]	= { .type = NLA_U32 },
+	FRA_GENERIC_POLICY,
 	[FRA_SRC]	= { .type = NLA_U16 },
 	[FRA_DST]	= { .type = NLA_U16 },
-	[FRA_FWMARK]	= { .type = NLA_U32 },
-	[FRA_FWMASK]	= { .type = NLA_U32 },
-	[FRA_TABLE]     = { .type = NLA_U32 },
 };
 
 static int dn_fib_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
@@ -130,11 +122,6 @@ static int dn_fib_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 	if (((saddr ^ r->src) & r->srcmask) ||
 	    ((daddr ^ r->dst) & r->dstmask))
 		return 0;
-
-#ifdef CONFIG_DECNET_ROUTE_FWMARK
-	if ((r->fwmark ^ fl->fld_fwmark) & r->fwmask)
-		return 0;
-#endif
 
 	return 1;
 }
@@ -169,20 +156,6 @@ static int dn_fib_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 	if (tb[FRA_DST])
 		r->dst = nla_get_u16(tb[FRA_DST]);
 
-#ifdef CONFIG_DECNET_ROUTE_FWMARK
-	if (tb[FRA_FWMARK]) {
-		r->fwmark = nla_get_u32(tb[FRA_FWMARK]);
-		if (r->fwmark)
-			/* compatibility: if the mark value is non-zero all bits
-			 * are compared unless a mask is explicitly specified.
-			 */
-			r->fwmask = 0xFFFFFFFF;
-	}
-
-	if (tb[FRA_FWMASK])
-		r->fwmask = nla_get_u32(tb[FRA_FWMASK]);
-#endif
-
 	r->src_len = frh->src_len;
 	r->srcmask = dnet_make_mask(r->src_len);
 	r->dst_len = frh->dst_len;
@@ -202,14 +175,6 @@ static int dn_fib_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,
 
 	if (frh->dst_len && (r->dst_len != frh->dst_len))
 		return 0;
-
-#ifdef CONFIG_DECNET_ROUTE_FWMARK
-	if (tb[FRA_FWMARK] && (r->fwmark != nla_get_u32(tb[FRA_FWMARK])))
-		return 0;
-
-	if (tb[FRA_FWMASK] && (r->fwmask != nla_get_u32(tb[FRA_FWMASK])))
-		return 0;
-#endif
 
 	if (tb[FRA_SRC] && (r->src != nla_get_u16(tb[FRA_SRC])))
 		return 0;
@@ -248,12 +213,6 @@ static int dn_fib_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 	frh->src_len = r->src_len;
 	frh->tos = 0;
 
-#ifdef CONFIG_DECNET_ROUTE_FWMARK
-	if (r->fwmark)
-		NLA_PUT_U32(skb, FRA_FWMARK, r->fwmark);
-	if (r->fwmask || r->fwmark)
-		NLA_PUT_U32(skb, FRA_FWMASK, r->fwmask);
-#endif
 	if (r->dst_len)
 		NLA_PUT_U16(skb, FRA_DST, r->dst);
 	if (r->src_len)

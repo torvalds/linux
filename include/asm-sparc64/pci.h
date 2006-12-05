@@ -18,6 +18,8 @@
 
 #define PCI_IRQ_NONE		0xffffffff
 
+#define PCI_CACHE_LINE_BYTES	64
+
 static inline void pcibios_set_master(struct pci_dev *dev)
 {
 	/* No special bus mastering setup handling */
@@ -290,10 +292,6 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 			       enum pci_mmap_state mmap_state,
 			       int write_combine);
-
-/* Platform specific MWI support. */
-#define HAVE_ARCH_PCI_MWI
-extern int pcibios_prep_mwi(struct pci_dev *dev);
 
 extern void
 pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,

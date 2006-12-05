@@ -3615,7 +3615,8 @@ static struct class *tty_class;
  *		This field is optional, if there is no known struct device
  *		for this tty device it can be set to NULL safely.
  *
- *	Returns a pointer to the class device (or ERR_PTR(-EFOO) on error).
+ *	Returns a pointer to the struct device for this tty device
+ *	(or ERR_PTR(-EFOO) on error).
  *
  *	This call is required to be made to register an individual tty device
  *	if the tty driver's flags have the TTY_DRIVER_DYNAMIC_DEV bit set.  If
@@ -3625,8 +3626,8 @@ static struct class *tty_class;
  *	Locking: ??
  */
 
-struct class_device *tty_register_device(struct tty_driver *driver,
-					 unsigned index, struct device *device)
+struct device *tty_register_device(struct tty_driver *driver, unsigned index,
+				   struct device *device)
 {
 	char name[64];
 	dev_t dev = MKDEV(driver->major, driver->minor_start) + index;
@@ -3642,7 +3643,7 @@ struct class_device *tty_register_device(struct tty_driver *driver,
 	else
 		tty_line_name(driver, index, name);
 
-	return class_device_create(tty_class, NULL, dev, device, "%s", name);
+	return device_create(tty_class, device, dev, name);
 }
 
 /**
@@ -3658,7 +3659,7 @@ struct class_device *tty_register_device(struct tty_driver *driver,
 
 void tty_unregister_device(struct tty_driver *driver, unsigned index)
 {
-	class_device_destroy(tty_class, MKDEV(driver->major, driver->minor_start) + index);
+	device_destroy(tty_class, MKDEV(driver->major, driver->minor_start) + index);
 }
 
 EXPORT_SYMBOL(tty_register_device);
@@ -3898,20 +3899,20 @@ static int __init tty_init(void)
 	if (cdev_add(&tty_cdev, MKDEV(TTYAUX_MAJOR, 0), 1) ||
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 0), 1, "/dev/tty") < 0)
 		panic("Couldn't register /dev/tty driver\n");
-	class_device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 0), NULL, "tty");
+	device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 0), "tty");
 
 	cdev_init(&console_cdev, &console_fops);
 	if (cdev_add(&console_cdev, MKDEV(TTYAUX_MAJOR, 1), 1) ||
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 1), 1, "/dev/console") < 0)
 		panic("Couldn't register /dev/console driver\n");
-	class_device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 1), NULL, "console");
+	device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 1), "console");
 
 #ifdef CONFIG_UNIX98_PTYS
 	cdev_init(&ptmx_cdev, &ptmx_fops);
 	if (cdev_add(&ptmx_cdev, MKDEV(TTYAUX_MAJOR, 2), 1) ||
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 2), 1, "/dev/ptmx") < 0)
 		panic("Couldn't register /dev/ptmx driver\n");
-	class_device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 2), NULL, "ptmx");
+	device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 2), "ptmx");
 #endif
 
 #ifdef CONFIG_VT
@@ -3919,7 +3920,7 @@ static int __init tty_init(void)
 	if (cdev_add(&vc0_cdev, MKDEV(TTY_MAJOR, 0), 1) ||
 	    register_chrdev_region(MKDEV(TTY_MAJOR, 0), 1, "/dev/vc/0") < 0)
 		panic("Couldn't register /dev/tty0 driver\n");
-	class_device_create(tty_class, NULL, MKDEV(TTY_MAJOR, 0), NULL, "tty0");
+	device_create(tty_class, NULL, MKDEV(TTY_MAJOR, 0), "tty0");
 
 	vty_init();
 #endif

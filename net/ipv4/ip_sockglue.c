@@ -355,7 +355,7 @@ int ip_recv_error(struct sock *sk, struct msghdr *msg, int len)
 	sin = (struct sockaddr_in *)msg->msg_name;
 	if (sin) {
 		sin->sin_family = AF_INET;
-		sin->sin_addr.s_addr = *(u32*)(skb->nh.raw + serr->addr_offset);
+		sin->sin_addr.s_addr = *(__be32*)(skb->nh.raw + serr->addr_offset);
 		sin->sin_port = serr->port;
 		memset(&sin->sin_zero, 0, sizeof(sin->sin_zero));
 	}

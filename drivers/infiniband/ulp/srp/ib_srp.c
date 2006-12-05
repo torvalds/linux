@@ -1177,9 +1177,11 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 			break;
 		}
 
-		target->status = srp_alloc_iu_bufs(target);
-		if (target->status)
-			break;
+		if (!target->rx_ring[0]) {
+			target->status = srp_alloc_iu_bufs(target);
+			if (target->status)
+				break;
+		}
 
 		qp_attr = kmalloc(sizeof *qp_attr, GFP_KERNEL);
 		if (!qp_attr) {
@@ -1717,7 +1719,8 @@ static ssize_t srp_create_target(struct class_device *class_dev,
 	if (!target_host)
 		return -ENOMEM;
 
-	target_host->max_lun = SRP_MAX_LUN;
+	target_host->max_lun     = SRP_MAX_LUN;
+	target_host->max_cmd_len = sizeof ((struct srp_cmd *) (void *) 0L)->cdb;
 
 	target = host_to_target(target_host);
 

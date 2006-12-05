@@ -1684,15 +1684,14 @@ static int __init cypress_init(void)
 
 	info(DRIVER_DESC " " DRIVER_VERSION);
 	return 0;
-failed_usb_register:
-	usb_deregister(&cypress_driver);
-failed_ca42v2_register:
-	usb_serial_deregister(&cypress_ca42v2_device);
-failed_hidcom_register:
-	usb_serial_deregister(&cypress_hidcom_device);
-failed_em_register:
-	usb_serial_deregister(&cypress_earthmate_device);
 
+failed_usb_register:
+	usb_serial_deregister(&cypress_ca42v2_device);
+failed_ca42v2_register:
+	usb_serial_deregister(&cypress_hidcom_device);
+failed_hidcom_register:
+	usb_serial_deregister(&cypress_earthmate_device);
+failed_em_register:
 	return retval;
 }
 

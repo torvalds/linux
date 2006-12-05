@@ -107,21 +107,10 @@ static int iw_get_freq(struct net_device *netdev,
 	           struct iw_request_info *info,
 		   union iwreq_data *req, char *extra)
 {
-	int r;
 	struct zd_mac *mac = zd_netdev_mac(netdev);
 	struct iw_freq *freq = &req->freq;
-	u8 channel;
-	u8 flags;
 
-	r = zd_mac_get_channel(mac, &channel, &flags);
-	if (r)
-		return r;
-
-	freq->flags = (flags & MAC_FIXED_CHANNEL) ?
-		      IW_FREQ_FIXED : IW_FREQ_AUTO;
-	dev_dbg_f(zd_mac_dev(mac), "channel %s\n",
-		  (flags & MAC_FIXED_CHANNEL) ? "fixed" : "auto");
-	return zd_channel_to_freq(freq, channel);
+	return zd_channel_to_freq(freq, zd_mac_get_channel(mac));
 }
 
 static int iw_set_mode(struct net_device *netdev,

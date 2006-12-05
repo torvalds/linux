@@ -72,6 +72,10 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 {
 	memset(ep, 0, sizeof(struct sctp_endpoint));
 
+	ep->digest = kzalloc(SCTP_SIGNATURE_SIZE, gfp);
+	if (!ep->digest)
+		return NULL;
+
 	/* Initialize the base structure. */
 	/* What type of endpoint are we?  */
 	ep->base.type = SCTP_EP_TYPE_SOCKET;
@@ -181,6 +185,9 @@ static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 	/* Free up the HMAC transform. */
 	crypto_free_hash(sctp_sk(ep->base.sk)->hmac);
 
+	/* Free the digest buffer */
+	kfree(ep->digest);
+
 	/* Cleanup. */
 	sctp_inq_free(&ep->base.inqueue);
 	sctp_bind_addr_free(&ep->base.bind_addr);
@@ -222,7 +229,7 @@ struct sctp_endpoint *sctp_endpoint_is_match(struct sctp_endpoint *ep,
 	struct sctp_endpoint *retval;
 
 	sctp_read_lock(&ep->base.addr_lock);
-	if (ep->base.bind_addr.port == laddr->v4.sin_port) {
+	if (htons(ep->base.bind_addr.port) == laddr->v4.sin_port) {
 		if (sctp_bind_addr_match(&ep->base.bind_addr, laddr,
 					 sctp_sk(ep->base.sk))) {
 			retval = ep;
@@ -250,7 +257,7 @@ static struct sctp_association *__sctp_endpoint_lookup_assoc(
 	struct sctp_association *asoc;
 	struct list_head *pos;
 
-	rport = paddr->v4.sin_port;
+	rport = ntohs(paddr->v4.sin_port);
 
 	list_for_each(pos, &ep->asocs) {
 		asoc = list_entry(pos, struct sctp_association, asocs);

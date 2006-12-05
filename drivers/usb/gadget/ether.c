@@ -1894,13 +1894,13 @@ static int eth_start_xmit (struct sk_buff *skb, struct net_device *net)
 	if (!eth_is_promisc (dev)) {
 		u8		*dest = skb->data;
 
-		if (dest [0] & 0x01) {
+		if (is_multicast_ether_addr(dest)) {
 			u16	type;
 
 			/* ignores USB_CDC_PACKET_TYPE_MULTICAST and host
 			 * SET_ETHERNET_MULTICAST_FILTERS requests
 			 */
-			if (memcmp (dest, net->broadcast, ETH_ALEN) == 0)
+			if (is_broadcast_ether_addr(dest))
 				type = USB_CDC_PACKET_TYPE_BROADCAST;
 			else
 				type = USB_CDC_PACKET_TYPE_ALL_MULTICAST;

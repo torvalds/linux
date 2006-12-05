@@ -114,7 +114,7 @@ static void ipoib_mcast_free(struct ipoib_mcast *mcast)
 		 */
 		if (neigh->ah)
 			ipoib_put_ah(neigh->ah);
-		ipoib_neigh_free(neigh);
+		ipoib_neigh_free(dev, neigh);
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);

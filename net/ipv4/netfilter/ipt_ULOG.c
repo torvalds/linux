@@ -239,7 +239,7 @@ static void ipt_ulog_packet(unsigned int hooknum,
 	pm->data_len = copy_len;
 	pm->timestamp_sec = skb->tstamp.off_sec;
 	pm->timestamp_usec = skb->tstamp.off_usec;
-	pm->mark = skb->nfmark;
+	pm->mark = skb->mark;
 	pm->hook = hooknum;
 	if (prefix != NULL)
 		strncpy(pm->prefix, prefix, sizeof(pm->prefix));

@@ -219,7 +219,7 @@ into the field vector of each element contained in a second argument.
 Note that the pre-assigned IOAPIC dev->irq is valid only if the device
 operates in PIN-IRQ assertion mode. In MSI-X mode, any attempt at
 using dev->irq by the device driver to request for interrupt service
-may result unpredictabe behavior.
+may result in unpredictable behavior.
 
 For each MSI-X vector granted, a device driver is responsible for calling
 other functions like request_irq(), enable_irq(), etc. to enable

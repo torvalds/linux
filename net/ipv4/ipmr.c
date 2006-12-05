@@ -1493,7 +1493,7 @@ static int pim_rcv(struct sk_buff * skb)
         if (pim->type != ((PIM_VERSION<<4)|(PIM_REGISTER)) ||
 	    (pim->flags&PIM_NULL_REGISTER) ||
 	    (ip_compute_csum((void *)pim, sizeof(*pim)) != 0 && 
-	     (u16)csum_fold(skb_checksum(skb, 0, skb->len, 0)))) 
+	     csum_fold(skb_checksum(skb, 0, skb->len, 0))))
 		goto drop;
 
 	/* check if the inner packet is destined to mcast group */

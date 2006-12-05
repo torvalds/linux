@@ -764,7 +764,7 @@ int usb_string(struct usb_device *dev, int index, char *buf, size_t size)
 			err = -EINVAL;
 			goto errout;
 		} else {
-			dev->have_langid = -1;
+			dev->have_langid = 1;
 			dev->string_langid = tbuf[2] | (tbuf[3]<< 8);
 				/* always use the first langid listed */
 			dev_dbg (&dev->dev, "default language 0x%04x\n",
@@ -1398,7 +1398,7 @@ free_interfaces:
 	}
 
 	/* Wake up the device so we can send it the Set-Config request */
-	ret = usb_autoresume_device(dev, 1);
+	ret = usb_autoresume_device(dev);
 	if (ret)
 		goto free_interfaces;
 
@@ -1421,7 +1421,7 @@ free_interfaces:
 	dev->actconfig = cp;
 	if (!cp) {
 		usb_set_device_state(dev, USB_STATE_ADDRESS);
-		usb_autosuspend_device(dev, 1);
+		usb_autosuspend_device(dev);
 		goto free_interfaces;
 	}
 	usb_set_device_state(dev, USB_STATE_CONFIGURED);
@@ -1490,7 +1490,7 @@ free_interfaces:
 		usb_create_sysfs_intf_files (intf);
 	}
 
-	usb_autosuspend_device(dev, 1);
+	usb_autosuspend_device(dev);
 	return 0;
 }
 

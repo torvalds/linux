@@ -1481,7 +1481,8 @@ int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 		if (hp == NULL)
 			return -EBADMSG;
 		if (nexthdr == NEXTHDR_FRAGMENT) {
-			unsigned short _frag_off, *fp;
+			unsigned short _frag_off;
+			__be16 *fp;
 			fp = skb_header_pointer(skb,
 						start+offsetof(struct frag_hdr,
 							       frag_off),

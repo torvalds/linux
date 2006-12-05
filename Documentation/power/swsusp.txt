@@ -153,7 +153,7 @@ add:
 
 If the thread is needed for writing the image to storage, you should
 instead set the PF_NOFREEZE process flag when creating the thread (and
-be very carefull).
+be very careful).
 
 
 Q: What is the difference between "platform", "shutdown" and

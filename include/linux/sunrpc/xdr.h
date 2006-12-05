@@ -151,7 +151,7 @@ typedef struct {
 	struct sk_buff	*skb;
 	unsigned int	offset;
 	size_t		count;
-	unsigned int	csum;
+	__wsum		csum;
 } skb_reader_t;
 
 typedef size_t (*skb_read_actor_t)(skb_reader_t *desc, void *to, size_t len);

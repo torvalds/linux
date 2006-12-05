@@ -39,7 +39,6 @@ static char version[] =
 #include <asm/auxio.h>
 #include <asm/pgtable.h>
 #include <asm/irq.h>
-#include <asm/checksum.h>
 
 #include "myri_sbus.h"
 #include "myri_code.h"

@@ -476,16 +476,16 @@ static struct class *vc_class;
 
 void vcs_make_sysfs(struct tty_struct *tty)
 {
-	class_device_create(vc_class, NULL, MKDEV(VCS_MAJOR, tty->index + 1),
-			NULL, "vcs%u", tty->index + 1);
-	class_device_create(vc_class, NULL, MKDEV(VCS_MAJOR, tty->index + 129),
-			NULL, "vcsa%u", tty->index + 1);
+	device_create(vc_class, NULL, MKDEV(VCS_MAJOR, tty->index + 1),
+			"vcs%u", tty->index + 1);
+	device_create(vc_class, NULL, MKDEV(VCS_MAJOR, tty->index + 129),
+			"vcsa%u", tty->index + 1);
 }
 
 void vcs_remove_sysfs(struct tty_struct *tty)
 {
-	class_device_destroy(vc_class, MKDEV(VCS_MAJOR, tty->index + 1));
-	class_device_destroy(vc_class, MKDEV(VCS_MAJOR, tty->index + 129));
+	device_destroy(vc_class, MKDEV(VCS_MAJOR, tty->index + 1));
+	device_destroy(vc_class, MKDEV(VCS_MAJOR, tty->index + 129));
 }
 
 int __init vcs_init(void)
@@ -494,7 +494,7 @@ int __init vcs_init(void)
 		panic("unable to get major %d for vcs device", VCS_MAJOR);
 	vc_class = class_create(THIS_MODULE, "vc");
 
-	class_device_create(vc_class, NULL, MKDEV(VCS_MAJOR, 0), NULL, "vcs");
-	class_device_create(vc_class, NULL, MKDEV(VCS_MAJOR, 128), NULL, "vcsa");
+	device_create(vc_class, NULL, MKDEV(VCS_MAJOR, 0), "vcs");
+	device_create(vc_class, NULL, MKDEV(VCS_MAJOR, 128), "vcsa");
 	return 0;
 }

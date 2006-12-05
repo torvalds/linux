@@ -58,7 +58,7 @@
  */
 
 struct tipc_media_addr {
-	__u32  type;			/* bearer type (network byte order) */
+	__be32  type;			/* bearer type (network byte order) */
 	union {
 		__u8   eth_addr[6];	/* 48 bit Ethernet addr (byte array) */ 
 #if 0

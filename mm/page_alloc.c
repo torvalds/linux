@@ -2612,6 +2612,9 @@ unsigned long __init find_min_pfn_for_node(unsigned long nid)
 {
 	int i;
 
+	/* Regions in the early_node_map can be in any order */
+	sort_node_map();
+
 	/* Assuming a sorted map, the first range found has the starting pfn */
 	for_each_active_range_index_in_nid(i, nid)
 		return early_node_map[i].start_pfn;
@@ -2679,9 +2682,6 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
 		arch_zone_highest_possible_pfn[i] =
 			max(max_zone_pfn[i], arch_zone_lowest_possible_pfn[i]);
 	}
-
-	/* Regions in the early_node_map can be in any order */
-	sort_node_map();
 
 	/* Print out the zone ranges */
 	printk("Zone PFN ranges:\n");

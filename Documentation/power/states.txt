@@ -62,7 +62,7 @@ setup via another operating system for it to use. Despite the
 inconvenience, this method requires minimal work by the kernel, since
 the firmware will also handle restoring memory contents on resume. 
 
-If the kernel is responsible for persistantly saving state, a mechanism 
+If the kernel is responsible for persistently saving state, a mechanism
 called 'swsusp' (Swap Suspend) is used to write memory contents to
 free swap space. swsusp has some restrictive requirements, but should
 work in most cases. Some, albeit outdated, documentation can be found

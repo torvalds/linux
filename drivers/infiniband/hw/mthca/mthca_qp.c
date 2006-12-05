@@ -35,7 +35,6 @@
  * $Id: mthca_qp.c 1355 2004-12-17 15:23:43Z roland $
  */
 
-#include <linux/init.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 
@@ -2241,7 +2240,7 @@ void mthca_free_err_wqe(struct mthca_dev *dev, struct mthca_qp *qp, int is_send,
 		*new_wqe = 0;
 }
 
-int __devinit mthca_init_qp_table(struct mthca_dev *dev)
+int mthca_init_qp_table(struct mthca_dev *dev)
 {
 	int err;
 	u8 status;

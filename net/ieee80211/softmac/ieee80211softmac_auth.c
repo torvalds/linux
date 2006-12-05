@@ -161,7 +161,7 @@ ieee80211softmac_auth_resp(struct net_device *dev, struct ieee80211_auth *auth)
 	/* Make sure that we've got an auth queue item for this request */
 	if(aq == NULL)
 	{
-		printkl(KERN_DEBUG PFX "Authentication response received from "MAC_FMT" but no queue item exists.\n", MAC_ARG(auth->header.addr2));
+		dprintkl(KERN_DEBUG PFX "Authentication response received from "MAC_FMT" but no queue item exists.\n", MAC_ARG(auth->header.addr2));
 		/* Error #? */
 		return -1;
 	}			
@@ -169,7 +169,7 @@ ieee80211softmac_auth_resp(struct net_device *dev, struct ieee80211_auth *auth)
 	/* Check for out of order authentication */
 	if(!net->authenticating)
 	{
-		printkl(KERN_DEBUG PFX "Authentication response received from "MAC_FMT" but did not request authentication.\n",MAC_ARG(auth->header.addr2));
+		dprintkl(KERN_DEBUG PFX "Authentication response received from "MAC_FMT" but did not request authentication.\n",MAC_ARG(auth->header.addr2));
 		return -1;
 	}
 
@@ -219,10 +219,16 @@ ieee80211softmac_auth_resp(struct net_device *dev, struct ieee80211_auth *auth)
 			net->challenge_len = *data++; 	
 			if (net->challenge_len > WLAN_AUTH_CHALLENGE_LEN)
 				net->challenge_len = WLAN_AUTH_CHALLENGE_LEN;
-			if (net->challenge != NULL)
-				kfree(net->challenge);
-			net->challenge = kmalloc(net->challenge_len, GFP_ATOMIC);
-			memcpy(net->challenge, data, net->challenge_len);
+			kfree(net->challenge);
+			net->challenge = kmemdup(data, net->challenge_len,
+						 GFP_ATOMIC);
+			if (net->challenge == NULL) {
+				printkl(KERN_NOTICE PFX "Shared Key "
+					"Authentication failed due to "
+					"memory shortage.\n");
+				spin_unlock_irqrestore(&mac->lock, flags);
+				break;
+			}
 			aq->state = IEEE80211SOFTMAC_AUTH_SHARED_RESPONSE; 
 
 			/* We reuse the work struct from the auth request here.
@@ -345,7 +351,7 @@ ieee80211softmac_deauth_req(struct ieee80211softmac_device *mac,
 	/* Make sure the network is authenticated */
 	if (!net->authenticated)
 	{
-		printkl(KERN_DEBUG PFX "Can't send deauthentication packet, network is not authenticated.\n");
+		dprintkl(KERN_DEBUG PFX "Can't send deauthentication packet, network is not authenticated.\n");
 		/* Error okay? */
 		return -EPERM;
 	}
@@ -379,7 +385,7 @@ ieee80211softmac_deauth_resp(struct net_device *dev, struct ieee80211_deauth *de
 	net = ieee80211softmac_get_network_by_bssid(mac, deauth->header.addr2);
 	
 	if (net == NULL) {
-		printkl(KERN_DEBUG PFX "Received deauthentication packet from "MAC_FMT", but that network is unknown.\n",
+		dprintkl(KERN_DEBUG PFX "Received deauthentication packet from "MAC_FMT", but that network is unknown.\n",
 			MAC_ARG(deauth->header.addr2));
 		return 0;
 	}
@@ -387,7 +393,7 @@ ieee80211softmac_deauth_resp(struct net_device *dev, struct ieee80211_deauth *de
 	/* Make sure the network is authenticated */
 	if(!net->authenticated)
 	{
-		printkl(KERN_DEBUG PFX "Can't perform deauthentication, network is not authenticated.\n");
+		dprintkl(KERN_DEBUG PFX "Can't perform deauthentication, network is not authenticated.\n");
 		/* Error okay? */
 		return -EPERM;
 	}

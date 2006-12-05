@@ -11,6 +11,7 @@
  */
 
 #include <linux/dccp.h>
+#include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/timer.h>
 
@@ -82,8 +83,7 @@ void dccp_time_wait(struct sock *sk, int state, int timeo)
 		 * socket up.  We've got bigger problems than
 		 * non-graceful socket closings.
 		 */
-		LIMIT_NETDEBUG(KERN_INFO "DCCP: time wait bucket "
-					 "table overflow\n");
+		DCCP_WARN("time wait bucket table overflow\n");
 	}
 
 	dccp_done(sk);
@@ -96,8 +96,8 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 	/*
 	 * Step 3: Process LISTEN state
 	 *
-	 * // Generate a new socket and switch to that socket
-	 * Set S := new socket for this port pair
+	 *   (* Generate a new socket and switch to that socket *)
+	 *   Set S := new socket for this port pair
 	 */
 	struct sock *newsk = inet_csk_clone(sk, req, GFP_ATOMIC);
 
@@ -146,9 +146,9 @@ out_free:
 		/*
 		 * Step 3: Process LISTEN state
 		 *
-		 *	Choose S.ISS (initial seqno) or set from Init Cookie
-		 *	Set S.ISR, S.GSR, S.SWL, S.SWH from packet or Init
-		 *	Cookie
+		 *    Choose S.ISS (initial seqno) or set from Init Cookies
+		 *    Initialize S.GAR := S.ISS
+		 *    Set S.ISR, S.GSR, S.SWL, S.SWH from packet or Init Cookies
 		 */
 
 		/* See dccp_v4_conn_request */
@@ -194,15 +194,17 @@ struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 
 	/* Check for retransmitted REQUEST */
 	if (dccp_hdr(skb)->dccph_type == DCCP_PKT_REQUEST) {
-		if (after48(DCCP_SKB_CB(skb)->dccpd_seq,
-			    dccp_rsk(req)->dreq_isr)) {
-			struct dccp_request_sock *dreq = dccp_rsk(req);
+		struct dccp_request_sock *dreq = dccp_rsk(req);
 
+		if (after48(DCCP_SKB_CB(skb)->dccpd_seq, dreq->dreq_isr)) {
 			dccp_pr_debug("Retransmitted REQUEST\n");
-			/* Send another RESPONSE packet */
-			dccp_set_seqno(&dreq->dreq_iss, dreq->dreq_iss + 1);
-			dccp_set_seqno(&dreq->dreq_isr,
-				       DCCP_SKB_CB(skb)->dccpd_seq);
+			dreq->dreq_isr = DCCP_SKB_CB(skb)->dccpd_seq;
+			/*
+			 * Send another RESPONSE packet
+			 * To protect against Request floods, increment retrans
+			 * counter (backoff, monitored by dccp_response_timer).
+			 */
+			req->retrans++;
 			req->rsk_ops->rtx_syn_ack(sk, req, NULL);
 		}
 		/* Network Duplicate, discard packet */
@@ -242,7 +244,7 @@ listen_overflow:
 	DCCP_SKB_CB(skb)->dccpd_reset_code = DCCP_RESET_CODE_TOO_BUSY;
 drop:
 	if (dccp_hdr(skb)->dccph_type != DCCP_PKT_RESET)
-		req->rsk_ops->send_reset(skb);
+		req->rsk_ops->send_reset(sk, skb);
 
 	inet_csk_reqsk_queue_drop(sk, req, prev);
 	goto out;
@@ -282,3 +284,19 @@ int dccp_child_process(struct sock *parent, struct sock *child,
 }
 
 EXPORT_SYMBOL_GPL(dccp_child_process);
+
+void dccp_reqsk_send_ack(struct sk_buff *skb, struct request_sock *rsk)
+{
+	DCCP_BUG("DCCP-ACK packets are never sent in LISTEN/RESPOND state");
+}
+
+EXPORT_SYMBOL_GPL(dccp_reqsk_send_ack);
+
+void dccp_reqsk_init(struct request_sock *req, struct sk_buff *skb)
+{
+	inet_rsk(req)->rmt_port = dccp_hdr(skb)->dccph_sport;
+	inet_rsk(req)->acked	= 0;
+	req->rcv_wnd		= sysctl_dccp_feat_sequence_window;
+}
+
+EXPORT_SYMBOL_GPL(dccp_reqsk_init);

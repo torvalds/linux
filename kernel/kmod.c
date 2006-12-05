@@ -311,14 +311,14 @@ int call_usermodehelper_pipe(char *path, char **argv, char **envp,
 		return 0;
 
 	f = create_write_pipe();
-	if (!f)
-		return -ENOMEM;
+	if (IS_ERR(f))
+		return PTR_ERR(f);
 	*filp = f;
 
 	f = create_read_pipe(f);
-	if (!f) {
+	if (IS_ERR(f)) {
 		free_write_pipe(*filp);
-		return -ENOMEM;
+		return PTR_ERR(f);
 	}
 	sub_info.stdin = f;
 

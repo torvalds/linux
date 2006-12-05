@@ -185,13 +185,11 @@ static int kobil_startup (struct usb_serial *serial)
   
  	for (i = 0; i < altsetting->desc.bNumEndpoints; i++) {
 		endpoint = &altsetting->endpoint[i];
-		if (((endpoint->desc.bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT) && 
- 		    ((endpoint->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT)) {
+		if (usb_endpoint_is_int_out(&endpoint->desc)) {
 		 	dbg("%s Found interrupt out endpoint. Address: %d", __FUNCTION__, endpoint->desc.bEndpointAddress);
 		 	priv->write_int_endpoint_address = endpoint->desc.bEndpointAddress;
  		}
- 		if (((endpoint->desc.bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN) && 
- 		    ((endpoint->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT)) {
+		if (usb_endpoint_is_int_in(&endpoint->desc)) {
 		 	dbg("%s Found interrupt in  endpoint. Address: %d", __FUNCTION__, endpoint->desc.bEndpointAddress);
 		 	priv->read_int_endpoint_address = endpoint->desc.bEndpointAddress;
 	 	}
@@ -355,8 +353,7 @@ static void kobil_close (struct usb_serial_port *port, struct file *filp)
 		usb_free_urb( port->write_urb );
 		port->write_urb = NULL;
 	}
-	if (port->interrupt_in_urb)
-		usb_kill_urb(port->interrupt_in_urb);
+	usb_kill_urb(port->interrupt_in_urb);
 }
 
 

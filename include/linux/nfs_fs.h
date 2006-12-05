@@ -318,7 +318,7 @@ extern void put_nfs_open_context(struct nfs_open_context *ctx);
 extern struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_cred *cred, int mode);
 
 /* linux/net/ipv4/ipconfig.c: trims ip addr off front of name, too. */
-extern u32 root_nfs_parse_addr(char *name); /*__init*/
+extern __be32 root_nfs_parse_addr(char *name); /*__init*/
 
 static inline void nfs_fattr_init(struct nfs_fattr *fattr)
 {

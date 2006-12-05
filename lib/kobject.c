@@ -311,6 +311,56 @@ int kobject_rename(struct kobject * kobj, const char *new_name)
 }
 
 /**
+ *	kobject_move - move object to another parent
+ *	@kobj:	object in question.
+ *	@new_parent: object's new parent
+ */
+
+int kobject_move(struct kobject *kobj, struct kobject *new_parent)
+{
+	int error;
+	struct kobject *old_parent;
+	const char *devpath = NULL;
+	char *devpath_string = NULL;
+	char *envp[2];
+
+	kobj = kobject_get(kobj);
+	if (!kobj)
+		return -EINVAL;
+	new_parent = kobject_get(new_parent);
+	if (!new_parent) {
+		error = -EINVAL;
+		goto out;
+	}
+	/* old object path */
+	devpath = kobject_get_path(kobj, GFP_KERNEL);
+	if (!devpath) {
+		error = -ENOMEM;
+		goto out;
+	}
+	devpath_string = kmalloc(strlen(devpath) + 15, GFP_KERNEL);
+	if (!devpath_string) {
+		error = -ENOMEM;
+		goto out;
+	}
+	sprintf(devpath_string, "DEVPATH_OLD=%s", devpath);
+	envp[0] = devpath_string;
+	envp[1] = NULL;
+	error = sysfs_move_dir(kobj, new_parent);
+	if (error)
+		goto out;
+	old_parent = kobj->parent;
+	kobj->parent = new_parent;
+	kobject_put(old_parent);
+	kobject_uevent_env(kobj, KOBJ_MOVE, envp);
+out:
+	kobject_put(kobj);
+	kfree(devpath_string);
+	kfree(devpath);
+	return error;
+}
+
+/**
  *	kobject_del - unlink kobject from hierarchy.
  * 	@kobj:	object.
  */

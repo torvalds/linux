@@ -163,6 +163,7 @@ static int get_registers(pegasus_t * pegasus, __u16 indx, __u16 size,
 
 	/* using ATOMIC, we'd never wake up if we slept */
 	if ((ret = usb_submit_urb(pegasus->ctrl_urb, GFP_ATOMIC))) {
+		set_current_state(TASK_RUNNING);
 		if (ret == -ENODEV)
 			netif_device_detach(pegasus->net);
 		if (netif_msg_drv(pegasus))

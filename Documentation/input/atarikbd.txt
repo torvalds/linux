@@ -103,7 +103,7 @@ LEFT=0x74 & RIGHT=0x75).
 
 5.1 Joystick Event Reporting
 
-In this mode, the ikbd generates a record whever the joystick position is
+In this mode, the ikbd generates a record whenever the joystick position is
 changed (i.e. for each opening or closing of a joystick switch or trigger).
 
 The joystick event record is two bytes of the form:
@@ -277,8 +277,8 @@ default to 1 at RESET (or power-up).
 9.7 SET MOUSE SCALE
 
     0x0C
-    X                   ; horizontal mouse ticks per internel X
-    Y                   ; vertical mouse ticks per internel Y
+    X                   ; horizontal mouse ticks per internal X
+    Y                   ; vertical mouse ticks per internal Y
 
 This command sets the scale factor for the ABSOLUTE MOUSE POSITIONING mode.
 In this mode, the specified number of mouse phase changes ('clicks') must
@@ -323,7 +323,7 @@ mouse position.
     0x0F
 
 This command makes the origin of the Y axis to be at the bottom of the
-logical coordinate system internel to the ikbd for all relative or absolute
+logical coordinate system internal to the ikbd for all relative or absolute
 mouse motion. This causes mouse motion toward the user to be negative in sign
 and away from the user to be positive.
 
@@ -597,8 +597,8 @@ mode or FIRE BUTTON MONITORING mode.
 
 10. SCAN CODES
 
-The key scan codes return by the ikbd are chosen to simplify the
-implementaion of GSX.
+The key scan codes returned by the ikbd are chosen to simplify the
+implementation of GSX.
 
 GSX Standard Keyboard Mapping.
 

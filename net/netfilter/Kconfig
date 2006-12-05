@@ -25,19 +25,57 @@ config NETFILTER_NETLINK_LOG
 	  and is also scheduled to replace the old syslog-based ipt_LOG
 	  and ip6t_LOG modules.
 
-config NF_CONNTRACK
-	tristate "Layer 3 Independent Connection tracking (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && IP_NF_CONNTRACK=n
-	default n
-	---help---
+config NF_CONNTRACK_ENABLED
+	tristate "Netfilter connection tracking support"
+	help
 	  Connection tracking keeps a record of what packets have passed
 	  through your machine, in order to figure out how they are related
 	  into connections.
 
+	  This is required to do Masquerading or other kinds of Network
+	  Address Translation (except for Fast NAT).  It can also be used to
+	  enhance packet filtering (see `Connection state match support'
+	  below).
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+choice
+	prompt "Netfilter connection tracking support"
+	depends on NF_CONNTRACK_ENABLED
+
+config NF_CONNTRACK_SUPPORT
+	bool "Layer 3 Independent Connection tracking (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
 	  Layer 3 independent connection tracking is experimental scheme
 	  which generalize ip_conntrack to support other layer 3 protocols.
 
-	  To compile it as a module, choose M here.  If unsure, say N.
+	  This is required to do Masquerading or other kinds of Network
+	  Address Translation (except for Fast NAT).  It can also be used to
+	  enhance packet filtering (see `Connection state match support'
+	  below).
+
+config IP_NF_CONNTRACK_SUPPORT
+	bool "Layer 3 Dependent Connection tracking (OBSOLETE)"
+	help
+	  The old, Layer 3 dependent ip_conntrack subsystem of netfilter.
+
+	  This is required to do Masquerading or other kinds of Network
+	  Address Translation (except for Fast NAT).  It can also be used to
+	  enhance packet filtering (see `Connection state match support'
+	  below).
+
+endchoice
+
+config NF_CONNTRACK
+	tristate
+	default m if NF_CONNTRACK_SUPPORT && NF_CONNTRACK_ENABLED=m
+	default y if NF_CONNTRACK_SUPPORT && NF_CONNTRACK_ENABLED=y
+
+config IP_NF_CONNTRACK
+	tristate
+	default m if IP_NF_CONNTRACK_SUPPORT && NF_CONNTRACK_ENABLED=m
+	default y if IP_NF_CONNTRACK_SUPPORT && NF_CONNTRACK_ENABLED=y
 
 config NF_CT_ACCT
 	bool "Connection tracking flow accounting"
@@ -82,8 +120,12 @@ config NF_CONNTRACK_EVENTS
 
 	  If unsure, say `N'.
 
+config NF_CT_PROTO_GRE
+	tristate
+	depends on EXPERIMENTAL && NF_CONNTRACK
+
 config NF_CT_PROTO_SCTP
-	tristate 'SCTP protocol on new connection tracking support (EXPERIMENTAL)'
+	tristate 'SCTP protocol connection tracking support (EXPERIMENTAL)'
 	depends on EXPERIMENTAL && NF_CONNTRACK
 	default n
 	help
@@ -93,8 +135,23 @@ config NF_CT_PROTO_SCTP
 	  If you want to compile it as a module, say M here and read
 	  Documentation/modules.txt.  If unsure, say `N'.
 
+config NF_CONNTRACK_AMANDA
+	tristate "Amanda backup protocol support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && NF_CONNTRACK
+	select TEXTSEARCH
+	select TEXTSEARCH_KMP
+	help
+	  If you are running the Amanda backup package <http://www.amanda.org/>
+	  on this machine or machines that will be MASQUERADED through this
+	  machine, then you may want to enable this feature.  This allows the
+	  connection tracking and natting code to allow the sub-channels that
+	  Amanda requires for communication of the backup data, messages and
+	  index.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NF_CONNTRACK_FTP
-	tristate "FTP support on new connection tracking (EXPERIMENTAL)"
+	tristate "FTP protocol support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && NF_CONNTRACK
 	help
 	  Tracking FTP connections is problematic: special helpers are
@@ -104,6 +161,101 @@ config NF_CONNTRACK_FTP
 	  This is FTP support on Layer 3 independent connection tracking.
 	  Layer 3 independent connection tracking is experimental scheme
 	  which generalize ip_conntrack to support other layer 3 protocols.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_CONNTRACK_H323
+	tristate "H.323 protocol support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && NF_CONNTRACK
+	help
+	  H.323 is a VoIP signalling protocol from ITU-T. As one of the most
+	  important VoIP protocols, it is widely used by voice hardware and
+	  software including voice gateways, IP phones, Netmeeting, OpenPhone,
+	  Gnomemeeting, etc.
+
+	  With this module you can support H.323 on a connection tracking/NAT
+	  firewall.
+
+	  This module supports RAS, Fast Start, H.245 Tunnelling, Call
+	  Forwarding, RTP/RTCP and T.120 based audio, video, fax, chat,
+	  whiteboard, file transfer, etc. For more information, please
+	  visit http://nath323.sourceforge.net/.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_CONNTRACK_IRC
+	tristate "IRC protocol support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && NF_CONNTRACK
+	help
+	  There is a commonly-used extension to IRC called
+	  Direct Client-to-Client Protocol (DCC).  This enables users to send
+	  files to each other, and also chat to each other without the need
+	  of a server.  DCC Sending is used anywhere you send files over IRC,
+	  and DCC Chat is most commonly used by Eggdrop bots.  If you are
+	  using NAT, this extension will enable you to send files and initiate
+	  chats.  Note that you do NOT need this extension to get files or
+	  have others initiate chats, or everything else in IRC.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_CONNTRACK_NETBIOS_NS
+	tristate "NetBIOS name service protocol support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && NF_CONNTRACK
+	help
+	  NetBIOS name service requests are sent as broadcast messages from an
+	  unprivileged port and responded to with unicast messages to the
+	  same port. This make them hard to firewall properly because connection
+	  tracking doesn't deal with broadcasts. This helper tracks locally
+	  originating NetBIOS name service requests and the corresponding
+	  responses. It relies on correct IP address configuration, specifically
+	  netmask and broadcast address. When properly configured, the output
+	  of "ip address show" should look similar to this:
+
+	  $ ip -4 address show eth0
+	  4: eth0: <BROADCAST,MULTICAST,UP> mtu 1500 qdisc pfifo_fast qlen 1000
+	      inet 172.16.2.252/24 brd 172.16.2.255 scope global eth0
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_CONNTRACK_PPTP
+	tristate "PPtP protocol support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && NF_CONNTRACK
+	select NF_CT_PROTO_GRE
+	help
+	  This module adds support for PPTP (Point to Point Tunnelling
+	  Protocol, RFC2637) connection tracking and NAT.
+
+	  If you are running PPTP sessions over a stateful firewall or NAT
+	  box, you may want to enable this feature.
+
+	  Please note that not all PPTP modes of operation are supported yet.
+	  Specifically these limitations exist:
+	    - Blindy assumes that control connections are always established
+	      in PNS->PAC direction. This is a violation of RFC2637.
+	    - Only supports a single call within each session
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_CONNTRACK_SIP
+	tristate "SIP protocol support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && NF_CONNTRACK
+	help
+	  SIP is an application-layer control protocol that can establish,
+	  modify, and terminate multimedia sessions (conferences) such as
+	  Internet telephony calls. With the ip_conntrack_sip and
+	  the nf_nat_sip modules you can support the protocol on a connection
+	  tracking/NATing firewall.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_CONNTRACK_TFTP
+	tristate "TFTP protocol support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && NF_CONNTRACK
+	help
+	  TFTP connection tracking helper, this is required depending
+	  on how restrictive your ruleset is.
+	  If you are using a tftp client behind -j SNAT or -j MASQUERADING
+	  you will need this.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -181,6 +333,17 @@ config NETFILTER_XT_TARGET_NFQUEUE
 
 	  As opposed to QUEUE, it supports 65535 different queues,
 	  not just one.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_NFLOG
+	tristate '"NFLOG" target support'
+	depends on NETFILTER_XTABLES
+	help
+	  This option enables the NFLOG target, which allows to LOG
+	  messages through the netfilter logging API, which can use
+	  either the old LOG target, the old ULOG target or nfnetlink_log
+	  as backend.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -463,6 +626,20 @@ config NETFILTER_XT_MATCH_TCPMSS
 	  for that connection.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_HASHLIMIT
+	tristate '"hashlimit" match support'
+	depends on NETFILTER_XTABLES
+	help
+	  This option adds a `hashlimit' match.
+
+	  As opposed to `limit', this match dynamically creates a hash table
+	  of limit buckets, based on your selection of source/destination
+	  addresses and/or ports.
+
+	  It enables you to express policies like `10kpps for any given
+	  destination address' or `500pps from any given source address'
+	  with a single rule.
 
 endmenu
 

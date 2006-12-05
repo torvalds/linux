@@ -37,7 +37,7 @@
 #define MCFMBUS_MFDR_MBC(a)	((a)&0x3F)	   /*M-Bus Clock*/
 
 /*
-*	Define bit flags in Controll Register
+*	Define bit flags in Control Register
 */
 
 #define MCFMBUS_MBCR_MEN           (0x80)  /* M-Bus Enable                 */

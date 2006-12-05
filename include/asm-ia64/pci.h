@@ -26,16 +26,18 @@ void pcibios_config_init(void);
 struct pci_dev;
 
 /*
- * PCI_DMA_BUS_IS_PHYS should be set to 1 if there is _necessarily_ a direct correspondence
- * between device bus addresses and CPU physical addresses.  Platforms with a hardware I/O
- * MMU _must_ turn this off to suppress the bounce buffer handling code in the block and
- * network device layers.  Platforms with separate bus address spaces _must_ turn this off
- * and provide a device DMA mapping implementation that takes care of the necessary
+ * PCI_DMA_BUS_IS_PHYS should be set to 1 if there is _necessarily_ a direct
+ * correspondence between device bus addresses and CPU physical addresses.
+ * Platforms with a hardware I/O MMU _must_ turn this off to suppress the
+ * bounce buffer handling code in the block and network device layers.
+ * Platforms with separate bus address spaces _must_ turn this off and provide
+ * a device DMA mapping implementation that takes care of the necessary
  * address translation.
  *
- * For now, the ia64 platforms which may have separate/multiple bus address spaces all
- * have I/O MMUs which support the merging of physically discontiguous buffers, so we can
- * use that as the sole factor to determine the setting of PCI_DMA_BUS_IS_PHYS.
+ * For now, the ia64 platforms which may have separate/multiple bus address
+ * spaces all have I/O MMUs which support the merging of physically
+ * discontiguous buffers, so we can use that as the sole factor to determine
+ * the setting of PCI_DMA_BUS_IS_PHYS.
  */
 extern unsigned long ia64_max_iommu_merge_mask;
 #define PCI_DMA_BUS_IS_PHYS	(ia64_max_iommu_merge_mask == ~0UL)
@@ -51,9 +53,6 @@ pcibios_penalize_isa_irq (int irq, int active)
 {
 	/* We don't do dynamic PCI IRQ allocation */
 }
-
-#define HAVE_ARCH_PCI_MWI 1
-extern int pcibios_prep_mwi (struct pci_dev *);
 
 #include <asm-generic/pci-dma-compat.h>
 

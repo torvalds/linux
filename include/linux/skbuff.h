@@ -139,7 +139,7 @@ struct skb_shared_info {
 	/* Warning: this field is not always filled in (UFO)! */
 	unsigned short	gso_segs;
 	unsigned short  gso_type;
-	unsigned int    ip6_frag_id;
+	__be32          ip6_frag_id;
 	struct sk_buff	*frag_list;
 	skb_frag_t	frags[MAX_SKB_FRAGS];
 };
@@ -216,7 +216,7 @@ enum {
  *	@tail: Tail pointer
  *	@end: End pointer
  *	@destructor: Destruct function
- *	@nfmark: Can be used for communication between hooks
+ *	@mark: Generic packet mark
  *	@nfct: Associated connection, if any
  *	@ipvs_property: skbuff is owned by ipvs
  *	@nfctinfo: Relationship of this skb to the connection
@@ -273,8 +273,11 @@ struct sk_buff {
 
 	unsigned int		len,
 				data_len,
-				mac_len,
-				csum;
+				mac_len;
+	union {
+		__wsum		csum;
+		__u32		csum_offset;
+	};
 	__u32			priority;
 	__u8			local_df:1,
 				cloned:1,
@@ -295,7 +298,6 @@ struct sk_buff {
 #ifdef CONFIG_BRIDGE_NETFILTER
 	struct nf_bridge_info	*nf_bridge;
 #endif
-	__u32			nfmark;
 #endif /* CONFIG_NETFILTER */
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */
@@ -310,6 +312,7 @@ struct sk_buff {
 	__u32			secmark;
 #endif
 
+	__u32			mark;
 
 	/* These elements must be at the end, see alloc_skb() for details.  */
 	unsigned int		truesize;
@@ -1199,8 +1202,7 @@ static inline int skb_add_data(struct sk_buff *skb,
 
 	if (skb->ip_summed == CHECKSUM_NONE) {
 		int err = 0;
-		unsigned int csum = csum_and_copy_from_user(from,
-							    skb_put(skb, copy),
+		__wsum csum = csum_and_copy_from_user(from, skb_put(skb, copy),
 							    copy, 0, &err);
 		if (!err) {
 			skb->csum = csum_block_add(skb->csum, csum, off);
@@ -1335,15 +1337,15 @@ extern int	       skb_copy_and_csum_datagram_iovec(struct sk_buff *skb,
 extern void	       skb_free_datagram(struct sock *sk, struct sk_buff *skb);
 extern void	       skb_kill_datagram(struct sock *sk, struct sk_buff *skb,
 					 unsigned int flags);
-extern unsigned int    skb_checksum(const struct sk_buff *skb, int offset,
-				    int len, unsigned int csum);
+extern __wsum	       skb_checksum(const struct sk_buff *skb, int offset,
+				    int len, __wsum csum);
 extern int	       skb_copy_bits(const struct sk_buff *skb, int offset,
 				     void *to, int len);
 extern int	       skb_store_bits(const struct sk_buff *skb, int offset,
 				      void *from, int len);
-extern unsigned int    skb_copy_and_csum_bits(const struct sk_buff *skb,
+extern __wsum	       skb_copy_and_csum_bits(const struct sk_buff *skb,
 					      int offset, u8 *to, int len,
-					      unsigned int csum);
+					      __wsum csum);
 extern void	       skb_copy_and_csum_dev(const struct sk_buff *skb, u8 *to);
 extern void	       skb_split(struct sk_buff *skb,
 				 struct sk_buff *skb1, const u32 len);
@@ -1399,7 +1401,7 @@ static inline void skb_set_timestamp(struct sk_buff *skb, const struct timeval *
 
 extern void __net_timestamp(struct sk_buff *skb);
 
-extern unsigned int __skb_checksum_complete(struct sk_buff *skb);
+extern __sum16 __skb_checksum_complete(struct sk_buff *skb);
 
 /**
  *	skb_checksum_complete - Calculate checksum of an entire packet

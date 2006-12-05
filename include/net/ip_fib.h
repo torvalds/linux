@@ -115,7 +115,7 @@ struct fib_result {
 
 struct fib_result_nl {
 	__be32		fl_addr;   /* To be looked up*/
-	u32		fl_fwmark; 
+	u32		fl_mark;
 	unsigned char	fl_tos;
 	unsigned char   fl_scope;
 	unsigned char   tb_id_in;

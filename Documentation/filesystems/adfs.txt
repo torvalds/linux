@@ -3,7 +3,7 @@ Mount options for ADFS
 
   uid=nnn	All files in the partition will be owned by
 		user id nnn.  Default 0 (root).
-  gid=nnn	All files in the partition willbe in group
+  gid=nnn	All files in the partition will be in group
 		nnn.  Default 0 (root).
   ownmask=nnn	The permission mask for ADFS 'owner' permissions
 		will be nnn.  Default 0700.

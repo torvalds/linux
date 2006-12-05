@@ -62,6 +62,8 @@ struct cmac_statistics {
 	u64 TxInternalMACXmitError;
 	u64 TxFramesWithExcessiveDeferral;
 	u64 TxFCSErrors;
+	u64 TxJumboFramesOK;
+	u64 TxJumboOctetsOK;
 
 	/* Receive */
 	u64 RxOctetsOK;
@@ -81,6 +83,8 @@ struct cmac_statistics {
 	u64 RxInRangeLengthErrors;
 	u64 RxOutOfRangeLengthField;
 	u64 RxFrameTooLongErrors;
+	u64 RxJumboFramesOK;
+	u64 RxJumboOctetsOK;
 };
 
 struct cmac_ops {
@@ -128,6 +132,7 @@ struct gmac {
 extern struct gmac t1_pm3393_ops;
 extern struct gmac t1_chelsio_mac_ops;
 extern struct gmac t1_vsc7321_ops;
+extern struct gmac t1_vsc7326_ops;
 extern struct gmac t1_ixf1010_ops;
 extern struct gmac t1_dummy_mac_ops;
 

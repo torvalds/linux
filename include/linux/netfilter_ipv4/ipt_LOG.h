@@ -6,7 +6,7 @@
 #define IPT_LOG_TCPOPT		0x02	/* Log TCP options */
 #define IPT_LOG_IPOPT		0x04	/* Log IP options */
 #define IPT_LOG_UID		0x08	/* Log UID owning local socket */
-#define IPT_LOG_NFLOG		0x10	/* Log using nf_log backend */
+#define IPT_LOG_NFLOG		0x10	/* Unsupported, don't reuse */
 #define IPT_LOG_MASK		0x1f
 
 struct ipt_log_info {

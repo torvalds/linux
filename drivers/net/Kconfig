@@ -32,7 +32,7 @@ config IFB
 	tristate "Intermediate Functional Block support"
 	depends on NET_CLS_ACT
 	---help---
-	  This is an intermidiate driver that allows sharing of
+	  This is an intermediate driver that allows sharing of
 	  resources.
 	  To compile this driver as a module, choose M here: the module
 	  will be called ifb.  If you want to use more than one ifb
@@ -187,6 +187,17 @@ config MII
 	  Most ethernet controllers have MII transceiver either as an external
 	  or internal device.  It is safe to say Y or M here even if your
 	  ethernet card lack MII.
+
+config MACB
+	tristate "Atmel MACB support"
+	depends on NET_ETHERNET && AVR32
+	select MII
+	help
+	  The Atmel MACB ethernet interface is found on many AT32 and AT91
+	  parts. Say Y to include support for the MACB chip.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called macb.
 
 source "drivers/net/arm/Kconfig"
 
@@ -1769,8 +1780,8 @@ config VIA_RHINE_NAPI
 	  information.
 
 config LAN_SAA9730
-	bool "Philips SAA9730 Ethernet support (EXPERIMENTAL)"
-	depends on NET_PCI && EXPERIMENTAL && MIPS
+	bool "Philips SAA9730 Ethernet support"
+	depends on NET_PCI && PCI && MIPS_ATLAS
 	help
 	  The SAA9730 is a combined multimedia and peripheral controller used
 	  in thin clients, Internet access terminals, and diskless
@@ -2136,7 +2147,7 @@ config SK98LIN
 	  This driver supports the original Yukon chipset. A cleaner driver is 
 	  also available (skge) which seems to work better than this one.
 
-	  This driver does not support the newer Yukon2 chipset. A seperate
+	  This driver does not support the newer Yukon2 chipset. A separate
 	  driver, sky2, is provided to support Yukon2-based adapters.
 
 	  The following adapters are supported by this driver:
@@ -2251,6 +2262,14 @@ config SPIDER_NET
 	  This driver supports the Gigabit Ethernet chips present on the
 	  Cell Processor-Based Blades from IBM.
 
+config TSI108_ETH
+	   tristate "Tundra TSI108 gigabit Ethernet support"
+	   depends on TSI108_BRIDGE
+	   help
+	     This driver supports Tundra TSI108 gigabit Ethernet ports.
+	     To compile this driver as a module, choose M here: the module
+	     will be called tsi108_eth.
+
 config GIANFAR
 	tristate "Gianfar Ethernet"
 	depends on 85xx || 83xx || PPC_86xx
@@ -2341,10 +2360,11 @@ menu "Ethernet (10000 Mbit)"
 config CHELSIO_T1
         tristate "Chelsio 10Gb Ethernet support"
         depends on PCI
+	select CRC32
         help
-          This driver supports Chelsio N110 and N210 models 10Gb Ethernet
-          cards. More information about adapter features and performance
-          tuning is in <file:Documentation/networking/cxgb.txt>.
+          This driver supports Chelsio gigabit and 10-gigabit
+          Ethernet cards. More information about adapter features and
+	  performance tuning is in <file:Documentation/networking/cxgb.txt>.
 
           For general information about Chelsio and our products, visit
           our website at <http://www.chelsio.com>.
@@ -2356,6 +2376,13 @@ config CHELSIO_T1
 
           To compile this driver as a module, choose M here: the module
           will be called cxgb.
+
+config CHELSIO_T1_1G
+        bool "Chelsio gigabit Ethernet support"
+        depends on CHELSIO_T1
+        help
+          Enables support for Chelsio's gigabit Ethernet PCI cards.  If you
+          are using only 10G cards say 'N' here.
 
 config EHEA
 	tristate "eHEA Ethernet support"
@@ -2446,6 +2473,12 @@ config MYRI10GE
 	  To compile this driver as a module, choose M here and read
 	  <file:Documentation/networking/net-modules.txt>.  The module
 	  will be called myri10ge.
+
+config NETXEN_NIC
+	tristate "NetXen Multi port (1/10) Gigabit Ethernet NIC"
+	depends on PCI
+	help
+	  This enables the support for NetXen's Gigabit Ethernet card.
 
 endmenu
 

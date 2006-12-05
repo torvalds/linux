@@ -1793,10 +1793,8 @@ err_out_3:
 err_out_2:
 	usb_free_urb(self->tx_urb);
 err_out_1:
-	for (i = 0; i < self->max_rx_urb; i++) {
-		if (self->rx_urb[i])
-			usb_free_urb(self->rx_urb[i]);
-	}
+	for (i = 0; i < self->max_rx_urb; i++)
+		usb_free_urb(self->rx_urb[i]);
 	free_netdev(net);
 err_out:
 	return ret;

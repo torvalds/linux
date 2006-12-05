@@ -70,18 +70,6 @@ Who:	Dominik Brodowski <linux@brodo.de>
 
 ---------------------------
 
-What:	ip_queue and ip6_queue (old ipv4-only and ipv6-only netfilter queue)
-When:	December 2005
-Why:	This interface has been obsoleted by the new layer3-independent
-	"nfnetlink_queue".  The Kernel interface is compatible, so the old
-	ip[6]tables "QUEUE" targets still work and will transparently handle
-	all packets into nfnetlink queue number 0.  Userspace users will have
-	to link against API-compatible library on top of libnfnetlink_queue 
-	instead of the current 'libipq'.
-Who:	Harald Welte <laforge@netfilter.org>
-
----------------------------
-
 What:	remove EXPORT_SYMBOL(kernel_thread)
 When:	August 2006
 Files:	arch/*/kernel/*_ksyms.c
@@ -227,21 +215,6 @@ Who:	Patrick McHardy <kaber@trash.net>
 
 ---------------------------
 
-What:	frame diverter
-When:	November 2006
-Why:	The frame diverter is included in most distribution kernels, but is
-	broken. It does not correctly handle many things:
-	- IPV6
-	- non-linear skb's
-	- network device RCU on removal
-	- input frames not correctly checked for protocol errors
-	It also adds allocation overhead even if not enabled.
-	It is not clear if anyone is still using it.
-Who:	Stephen Hemminger <shemminger@osdl.org>
-
----------------------------
-
-
 What:	PHYSDEVPATH, PHYSDEVBUS, PHYSDEVDRIVER in the uevent environment
 When:	October 2008
 Why:	The stacking of class devices makes these values misleading and
@@ -261,10 +234,11 @@ Who:	Jean Delvare <khali@linux-fr.org>
 
 ---------------------------
 
-What:	ftape
-When:	2.6.20
-Why:	Orphaned for ages.  SMP bugs long unfixed.  Few users left
-	in the world.
-Who:	Jeff Garzik <jeff@garzik.org>
+What:	IPv4 only connection tracking/NAT/helpers
+When:	2.6.22
+Why:	The new layer 3 independant connection tracking replaces the old
+	IPv4 only version. After some stabilization of the new code the
+	old one will be removed.
+Who:	Patrick McHardy <kaber@trash.net>
 
 ---------------------------

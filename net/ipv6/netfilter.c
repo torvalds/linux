@@ -31,7 +31,7 @@ int ip6_route_me_harder(struct sk_buff *skb)
 #endif
 
 	if (dst->error) {
-		IP6_INC_STATS(IPSTATS_MIB_OUTNOROUTES);
+		IP6_INC_STATS(ip6_dst_idev(dst), IPSTATS_MIB_OUTNOROUTES);
 		LIMIT_NETDEBUG(KERN_DEBUG "ip6_route_me_harder: No more route.\n");
 		dst_release(dst);
 		return -EINVAL;
@@ -80,11 +80,11 @@ static int nf_ip6_reroute(struct sk_buff **pskb, const struct nf_info *info)
 	return 0;
 }
 
-unsigned int nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
+__sum16 nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
 			     unsigned int dataoff, u_int8_t protocol)
 {
 	struct ipv6hdr *ip6h = skb->nh.ipv6h;
-	unsigned int csum = 0;
+	__sum16 csum = 0;
 
 	switch (skb->ip_summed) {
 	case CHECKSUM_COMPLETE:
@@ -100,12 +100,13 @@ unsigned int nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
 		}
 		/* fall through */
 	case CHECKSUM_NONE:
-		skb->csum = ~csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
+		skb->csum = ~csum_unfold(
+				csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
 					     skb->len - dataoff,
 					     protocol,
 					     csum_sub(0,
 						      skb_checksum(skb, 0,
-							           dataoff, 0)));
+							           dataoff, 0))));
 		csum = __skb_checksum_complete(skb);
 	}
 	return csum;

@@ -554,7 +554,7 @@ static int interfacekit_probe(struct usb_interface *intf, const struct usb_devic
 		return -ENODEV;
 
 	endpoint = &interface->endpoint[0].desc;
-	if (!(endpoint->bEndpointAddress & 0x80)) 
+	if (!usb_endpoint_dir_in(endpoint))
 		return -ENODEV;
 	/*
 	 * bmAttributes
@@ -653,8 +653,7 @@ out2:
 		device_remove_file(kit->dev, &dev_output_attrs[i]);
 out:
 	if (kit) {
-		if (kit->irq)
-			usb_free_urb(kit->irq);
+		usb_free_urb(kit->irq);
 		if (kit->data)
 			usb_buffer_free(dev, URB_INT_SIZE, kit->data, kit->data_dma);
 		if (kit->dev)

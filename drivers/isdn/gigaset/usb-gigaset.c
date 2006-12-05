@@ -815,14 +815,11 @@ static int gigaset_probe(struct usb_interface *interface,
 	return 0;
 
 error:
-	if (ucs->read_urb)
-		usb_kill_urb(ucs->read_urb);
+	usb_kill_urb(ucs->read_urb);
 	kfree(ucs->bulk_out_buffer);
-	if (ucs->bulk_out_urb != NULL)
-		usb_free_urb(ucs->bulk_out_urb);
+	usb_free_urb(ucs->bulk_out_urb);
 	kfree(cs->inbuf[0].rcvbuf);
-	if (ucs->read_urb != NULL)
-		usb_free_urb(ucs->read_urb);
+	usb_free_urb(ucs->read_urb);
 	usb_set_intfdata(interface, NULL);
 	ucs->read_urb = ucs->bulk_out_urb = NULL;
 	cs->inbuf[0].rcvbuf = ucs->bulk_out_buffer = NULL;
@@ -850,11 +847,9 @@ static void gigaset_disconnect(struct usb_interface *interface)
 	usb_kill_urb(ucs->bulk_out_urb);	/* FIXME: only if active? */
 
 	kfree(ucs->bulk_out_buffer);
-	if (ucs->bulk_out_urb != NULL)
-		usb_free_urb(ucs->bulk_out_urb);
+	usb_free_urb(ucs->bulk_out_urb);
 	kfree(cs->inbuf[0].rcvbuf);
-	if (ucs->read_urb != NULL)
-		usb_free_urb(ucs->read_urb);
+	usb_free_urb(ucs->read_urb);
 	ucs->read_urb = ucs->bulk_out_urb = NULL;
 	cs->inbuf[0].rcvbuf = ucs->bulk_out_buffer = NULL;
 

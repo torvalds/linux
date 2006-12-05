@@ -52,20 +52,20 @@ EXPORT_SYMBOL_GPL(inet6_csk_bind_conflict);
 /*
  * request_sock (formerly open request) hash tables.
  */
-static u32 inet6_synq_hash(const struct in6_addr *raddr, const u16 rport,
+static u32 inet6_synq_hash(const struct in6_addr *raddr, const __be16 rport,
 			   const u32 rnd, const u16 synq_hsize)
 {
-	u32 a = raddr->s6_addr32[0];
-	u32 b = raddr->s6_addr32[1];
-	u32 c = raddr->s6_addr32[2];
+	u32 a = (__force u32)raddr->s6_addr32[0];
+	u32 b = (__force u32)raddr->s6_addr32[1];
+	u32 c = (__force u32)raddr->s6_addr32[2];
 
 	a += JHASH_GOLDEN_RATIO;
 	b += JHASH_GOLDEN_RATIO;
 	c += rnd;
 	__jhash_mix(a, b, c);
 
-	a += raddr->s6_addr32[3];
-	b += (u32)rport;
+	a += (__force u32)raddr->s6_addr32[3];
+	b += (__force u32)rport;
 	__jhash_mix(a, b, c);
 
 	return c & (synq_hsize - 1);
@@ -73,7 +73,7 @@ static u32 inet6_synq_hash(const struct in6_addr *raddr, const u16 rport,
 
 struct request_sock *inet6_csk_search_req(const struct sock *sk,
 					  struct request_sock ***prevp,
-					  const __u16 rport,
+					  const __be16 rport,
 					  const struct in6_addr *raddr,
 					  const struct in6_addr *laddr,
 					  const int iif)
@@ -139,9 +139,8 @@ void inet6_csk_addr2sockaddr(struct sock *sk, struct sockaddr * uaddr)
 
 EXPORT_SYMBOL_GPL(inet6_csk_addr2sockaddr);
 
-int inet6_csk_xmit(struct sk_buff *skb, int ipfragok)
+int inet6_csk_xmit(struct sk_buff *skb, struct sock *sk, int ipfragok)
 {
-	struct sock *sk = skb->sk;
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct flowi fl;

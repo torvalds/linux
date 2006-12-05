@@ -6938,8 +6938,8 @@ static int ipw_qos_association(struct ipw_priv *priv,
 }
 
 /*
-* handling the beaconing responces. if we get different QoS setting
-* of the network from the the associated setting adjust the QoS
+* handling the beaconing responses. if we get different QoS setting
+* off the network from the associated setting, adjust the QoS
 * setting
 */
 static int ipw_qos_association_resp(struct ipw_priv *priv,
@@ -11746,12 +11746,18 @@ static int ipw_pci_resume(struct pci_dev *pdev)
 {
 	struct ipw_priv *priv = pci_get_drvdata(pdev);
 	struct net_device *dev = priv->net_dev;
+	int err;
 	u32 val;
 
 	printk(KERN_INFO "%s: Coming out of suspend...\n", dev->name);
 
 	pci_set_power_state(pdev, PCI_D0);
-	pci_enable_device(pdev);
+	err = pci_enable_device(pdev);
+	if (err) {
+		printk(KERN_ERR "%s: pci_enable_device failed on resume\n",
+		       dev->name);
+		return err;
+	}
 	pci_restore_state(pdev);
 
 	/*

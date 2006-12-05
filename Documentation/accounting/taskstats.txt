@@ -96,9 +96,9 @@ a) TASKSTATS_TYPE_AGGR_PID/TGID : attribute containing no payload but indicates
 a pid/tgid will be followed by some stats.
 
 b) TASKSTATS_TYPE_PID/TGID: attribute whose payload is the pid/tgid whose stats
-is being returned.
+are being returned.
 
-c) TASKSTATS_TYPE_STATS: attribute with a struct taskstsats as payload. The
+c) TASKSTATS_TYPE_STATS: attribute with a struct taskstats as payload. The
 same structure is used for both per-pid and per-tgid stats.
 
 3. New message sent by kernel whenever a task exits. The payload consists of a
@@ -122,12 +122,12 @@ of atomicity).
 
 However, maintaining per-process, in addition to per-task stats, within the
 kernel has space and time overheads. To address this, the taskstats code
-accumalates each exiting task's statistics into a process-wide data structure.
-When the last task of a process exits, the process level data accumalated also
+accumulates each exiting task's statistics into a process-wide data structure.
+When the last task of a process exits, the process level data accumulated also
 gets sent to userspace (along with the per-task data).
 
 When a user queries to get per-tgid data, the sum of all other live threads in
-the group is added up and added to the accumalated total for previously exited
+the group is added up and added to the accumulated total for previously exited
 threads of the same thread group.
 
 Extending taskstats

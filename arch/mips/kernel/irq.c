@@ -88,25 +88,6 @@ atomic_t irq_err_count;
 unsigned long irq_hwmask[NR_IRQS];
 #endif /* CONFIG_MIPS_MT_SMTC */
 
-#undef do_IRQ
-
-/*
- * do_IRQ handles all normal device IRQ's (the special
- * SMP cross-CPU interrupts have their own specific
- * handlers).
- */
-asmlinkage unsigned int do_IRQ(unsigned int irq)
-{
-	irq_enter();
-
-	__DO_IRQ_SMTC_HOOK();
-	__do_IRQ(irq);
-
-	irq_exit();
-
-	return 1;
-}
-
 /*
  * Generic, controller-independent functions:
  */
@@ -172,19 +153,6 @@ __setup("nokgdb", nokgdb);
 
 void __init init_IRQ(void)
 {
-	int i;
-
-	for (i = 0; i < NR_IRQS; i++) {
-		irq_desc[i].status  = IRQ_DISABLED;
-		irq_desc[i].action  = NULL;
-		irq_desc[i].depth   = 1;
-		irq_desc[i].chip = &no_irq_chip;
-		spin_lock_init(&irq_desc[i].lock);
-#ifdef CONFIG_MIPS_MT_SMTC
-		irq_hwmask[i] = 0;
-#endif /* CONFIG_MIPS_MT_SMTC */
-	}
-
 	arch_init_irq();
 
 #ifdef CONFIG_KGDB

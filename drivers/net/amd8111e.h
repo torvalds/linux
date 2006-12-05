@@ -651,10 +651,6 @@ typedef enum {
 /* driver ioctl parameters */
 #define AMD8111E_REG_DUMP_LEN	 13*sizeof(u32)
 
-/* crc generator constants */
-#define CRC32 0xedb88320
-#define INITCRC 0xFFFFFFFF
-
 /* amd8111e desriptor format */
 
 struct amd8111e_tx_dr{

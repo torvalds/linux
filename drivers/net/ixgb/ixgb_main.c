@@ -1248,7 +1248,7 @@ ixgb_tx_csum(struct ixgb_adapter *adapter, struct sk_buff *skb)
 	if(likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		struct ixgb_buffer *buffer_info;
 		css = skb->h.raw - skb->data;
-		cso = (skb->h.raw + skb->csum) - skb->data;
+		cso = css + skb->csum_offset;
 
 		i = adapter->tx_ring.next_to_use;
 		context_desc = IXGB_CONTEXT_DESC(adapter->tx_ring, i);

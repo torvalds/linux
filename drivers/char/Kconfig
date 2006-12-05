@@ -855,39 +855,6 @@ config TANBAC_TB0219
 	depends TANBAC_TB022X
 	select GPIO_VR41XX
 
-menu "Ftape, the floppy tape device driver"
-
-config FTAPE
-	tristate "Ftape (QIC-80/Travan) support"
-	depends on BROKEN_ON_SMP && (ALPHA || X86)
-	---help---
-	  If you have a tape drive that is connected to your floppy
-	  controller, say Y here.
-
-	  Some tape drives (like the Seagate "Tape Store 3200" or the Iomega
-	  "Ditto 3200" or the Exabyte "Eagle TR-3") come with a "high speed"
-	  controller of their own. These drives (and their companion
-	  controllers) are also supported if you say Y here.
-
-	  If you have a special controller (such as the CMS FC-10, FC-20,
-	  Mountain Mach-II, or any controller that is based on the Intel 82078
-	  FDC like the high speed controllers by Seagate and Exabyte and
-	  Iomega's "Ditto Dash") you must configure it by selecting the
-	  appropriate entries from the "Floppy tape controllers" sub-menu
-	  below and possibly modify the default values for the IRQ and DMA
-	  channel and the IO base in ftape's configuration menu.
-
-	  If you want to use your floppy tape drive on a PCI-bus based system,
-	  please read the file <file:drivers/char/ftape/README.PCI>.
-
-	  The ftape kernel driver is also available as a runtime loadable
-	  module. To compile this driver as a module, choose M here: the
-	  module will be called ftape.
-
-source "drivers/char/ftape/Kconfig"
-
-endmenu
-
 source "drivers/char/agp/Kconfig"
 
 source "drivers/char/drm/Kconfig"
@@ -994,7 +961,7 @@ config HPET
 	help
 	  If you say Y here, you will have a miscdevice named "/dev/hpet/".  Each
 	  open selects one of the timers supported by the HPET.  The timers are
-	  non-periodioc and/or periodic.
+	  non-periodic and/or periodic.
 
 config HPET_RTC_IRQ
 	bool "HPET Control RTC IRQ" if !HPET_EMULATE_RTC

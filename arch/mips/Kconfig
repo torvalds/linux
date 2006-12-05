@@ -266,8 +266,8 @@ config MIPS_MALTA
 	select BOOT_ELF32
 	select HAVE_STD_PC_SERIAL_PORT
 	select DMA_NONCOHERENT
-	select IRQ_CPU
 	select GENERIC_ISA_DMA
+	select IRQ_CPU
 	select HW_HAS_PCI
 	select I8259
 	select MIPS_BOARDS_GEN
@@ -534,7 +534,7 @@ config SGI_IP22
 	select HW_HAS_EISA
 	select IP22_CPU_SCACHE
 	select IRQ_CPU
-	select NO_ISA if ISA
+	select GENERIC_ISA_DMA_SUPPORT_BROKEN
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_R4X00
 	select SYS_HAS_CPU_R5000
@@ -766,6 +766,23 @@ config TOSHIBA_RBTX4938
 
 endchoice
 
+config KEXEC
+ 	bool "Kexec system call (EXPERIMENTAL)"
+ 	depends on EXPERIMENTAL
+ 	help
+ 	  kexec is a system call that implements the ability to shutdown your
+ 	  current kernel, and to start another kernel.  It is like a reboot
+ 	  but it is indepedent of the system firmware.   And like a reboot
+ 	  you can start any kernel with it, not just Linux.
+
+ 	  The name comes from the similiarity to the exec system call.
+
+ 	  It is an ongoing process to be certain the hardware in a machine
+ 	  is properly shutdown, so do not be surprised if this code does not
+ 	  initially work for you.  It may help to enable device hotplugging
+ 	  support.  As of this writing the exact hardware interface is
+ 	  strongly in flux, so no good recommendation can be made.
+
 source "arch/mips/ddb5xxx/Kconfig"
 source "arch/mips/gt64120/ev64120/Kconfig"
 source "arch/mips/jazz/Kconfig"
@@ -864,8 +881,11 @@ config MIPS_NILE4
 config MIPS_DISABLE_OBSOLETE_IDE
 	bool
 
+config GENERIC_ISA_DMA_SUPPORT_BROKEN
+	bool
+
 #
-# Endianess selection.  Suffiently obscure so many users don't know what to
+# Endianess selection.  Sufficiently obscure so many users don't know what to
 # answer,so we try hard to limit the available choices.  Also the use of a
 # choice statement should be more obvious to the user.
 #
@@ -874,7 +894,7 @@ choice
 	help
 	  Some MIPS machines can be configured for either little or big endian
 	  byte order. These modes require different kernels and a different
-	  Linux distribution.  In general there is one prefered byteorder for a
+	  Linux distribution.  In general there is one preferred byteorder for a
 	  particular system but some systems are just as commonly used in the
 	  one or the other endianess.
 
@@ -1835,13 +1855,11 @@ source "drivers/pci/Kconfig"
 config ISA
 	bool
 
-config NO_ISA
-	bool
-
 config EISA
 	bool "EISA support"
 	depends on HW_HAS_EISA
 	select ISA
+	select GENERIC_ISA_DMA
 	---help---
 	  The Extended Industry Standard Architecture (EISA) bus was
 	  developed as an open alternative to the IBM MicroChannel bus.

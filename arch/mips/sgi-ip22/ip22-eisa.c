@@ -95,16 +95,11 @@ static irqreturn_t ip22_eisa_intr(int irq, void *dev_id)
 
 static void enable_eisa1_irq(unsigned int irq)
 {
-	unsigned long flags;
 	u8 mask;
-
-	local_irq_save(flags);
 
 	mask = inb(EISA_INT1_MASK);
 	mask &= ~((u8) (1 << irq));
 	outb(mask, EISA_INT1_MASK);
-
-	local_irq_restore(flags);
 }
 
 static unsigned int startup_eisa1_irq(unsigned int irq)
@@ -130,8 +125,6 @@ static void disable_eisa1_irq(unsigned int irq)
 	outb(mask, EISA_INT1_MASK);
 }
 
-#define shutdown_eisa1_irq	disable_eisa1_irq
-
 static void mask_and_ack_eisa1_irq(unsigned int irq)
 {
 	disable_eisa1_irq(irq);
@@ -148,25 +141,20 @@ static void end_eisa1_irq(unsigned int irq)
 static struct irq_chip ip22_eisa1_irq_type = {
 	.typename	= "IP22 EISA",
 	.startup	= startup_eisa1_irq,
-	.shutdown	= shutdown_eisa1_irq,
-	.enable		= enable_eisa1_irq,
-	.disable	= disable_eisa1_irq,
 	.ack		= mask_and_ack_eisa1_irq,
+	.mask		= disable_eisa1_irq,
+	.mask_ack	= mask_and_ack_eisa1_irq,
+	.unmask		= enable_eisa1_irq,
 	.end		= end_eisa1_irq,
 };
 
 static void enable_eisa2_irq(unsigned int irq)
 {
-	unsigned long flags;
 	u8 mask;
-
-	local_irq_save(flags);
 
 	mask = inb(EISA_INT2_MASK);
 	mask &= ~((u8) (1 << (irq - 8)));
 	outb(mask, EISA_INT2_MASK);
-
-	local_irq_restore(flags);
 }
 
 static unsigned int startup_eisa2_irq(unsigned int irq)
@@ -192,8 +180,6 @@ static void disable_eisa2_irq(unsigned int irq)
 	outb(mask, EISA_INT2_MASK);
 }
 
-#define shutdown_eisa2_irq	disable_eisa2_irq
-
 static void mask_and_ack_eisa2_irq(unsigned int irq)
 {
 	disable_eisa2_irq(irq);
@@ -210,10 +196,10 @@ static void end_eisa2_irq(unsigned int irq)
 static struct irq_chip ip22_eisa2_irq_type = {
 	.typename	= "IP22 EISA",
 	.startup	= startup_eisa2_irq,
-	.shutdown	= shutdown_eisa2_irq,
-	.enable		= enable_eisa2_irq,
-	.disable	= disable_eisa2_irq,
 	.ack		= mask_and_ack_eisa2_irq,
+	.mask		= disable_eisa2_irq,
+	.mask_ack	= mask_and_ack_eisa2_irq,
+	.unmask		= enable_eisa2_irq,
 	.end		= end_eisa2_irq,
 };
 
@@ -275,13 +261,10 @@ int __init ip22_eisa_init(void)
 	outb(0, EISA_DMA2_WRITE_SINGLE);
 
 	for (i = SGINT_EISA; i < (SGINT_EISA + EISA_MAX_IRQ); i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = 0;
-		irq_desc[i].depth = 1;
 		if (i < (SGINT_EISA + 8))
-			irq_desc[i].chip = &ip22_eisa1_irq_type;
+			set_irq_chip(i, &ip22_eisa1_irq_type);
 		else
-			irq_desc[i].chip = &ip22_eisa2_irq_type;
+			set_irq_chip(i, &ip22_eisa2_irq_type);
 	}
 
 	/* Cannot use request_irq because of kmalloc not being ready at such

@@ -1464,8 +1464,6 @@ static int saa711x_attach(struct i2c_adapter *adapter, int address, int kind)
 	client->driver = &i2c_driver_saa711x;
 	snprintf(client->name, sizeof(client->name) - 1, "saa7115");
 
-	v4l_dbg(1, debug, client, "detecting saa7115 client on address 0x%x\n", address << 1);
-
 	for (i=0;i<0x0f;i++) {
 		saa711x_write(client, 0, i);
 		name[i] = (saa711x_read(client, 0) &0x0f) +'0';
@@ -1476,6 +1474,13 @@ static int saa711x_attach(struct i2c_adapter *adapter, int address, int kind)
 
 	saa711x_write(client, 0, 5);
 	chip_id = saa711x_read(client, 0) & 0x0f;
+
+	/* Check whether this chip is part of the saa711x series */
+	if (memcmp(name, "1f711", 5)) {
+		v4l_dbg(1, debug, client, "chip found @ 0x%x (ID %s) does not match a known saa711x chip.\n",
+			address << 1, name);
+		return 0;
+	}
 
 	snprintf(client->name, sizeof(client->name) - 1, "saa711%d",chip_id);
 	v4l_info(client, "saa711%d found (%s) @ 0x%x (%s)\n", chip_id, name, address << 1, adapter->name);
