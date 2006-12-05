@@ -853,14 +853,13 @@ static void at91ether_rx(struct net_device *dev)
 	while (dlist->descriptors[lp->rxBuffIndex].addr & EMAC_DESC_DONE) {
 		p_recv = dlist->recv_buf[lp->rxBuffIndex];
 		pktlen = dlist->descriptors[lp->rxBuffIndex].size & 0x7ff;	/* Length of frame including FCS */
-		skb = alloc_skb(pktlen + 2, GFP_ATOMIC);
+		skb = dev_alloc_skb(pktlen + 2);
 		if (skb != NULL) {
 			skb_reserve(skb, 2);
 			memcpy(skb_put(skb, pktlen), p_recv, pktlen);
 
 			skb->dev = dev;
 			skb->protocol = eth_type_trans(skb, dev);
-			skb->len = pktlen;
 			dev->last_rx = jiffies;
 			lp->stats.rx_bytes += pktlen;
 			netif_rx(skb);
