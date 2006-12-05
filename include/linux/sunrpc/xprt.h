@@ -17,6 +17,8 @@
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/msg_prot.h>
 
+#include <net/sock.h>
+
 extern unsigned int xprt_udp_slot_table_entries;
 extern unsigned int xprt_tcp_slot_table_entries;
 
@@ -126,8 +128,6 @@ struct rpc_xprt_ops {
 struct rpc_xprt {
 	struct kref		kref;		/* Reference count */
 	struct rpc_xprt_ops *	ops;		/* transport methods */
-	struct socket *		sock;		/* BSD socket layer */
-	struct sock *		inet;		/* INET layer */
 
 	struct rpc_timeout	timeout;	/* timeout parms */
 	struct sockaddr_storage	addr;		/* server address */
