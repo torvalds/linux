@@ -268,35 +268,6 @@ static struct mt352_config dntv_live_dvbt_pro_config = {
 };
 #endif
 
-static int dvico_hybrid_tuner_set_params(struct dvb_frontend *fe,
-					 struct dvb_frontend_parameters *params)
-{
-	u8 pllbuf[4];
-	struct cx8802_dev *dev= fe->dvb->priv;
-	struct i2c_msg msg =
-		{ .addr = dev->core->pll_addr, .flags = 0,
-		  .buf = pllbuf, .len = 4 };
-	int err;
-
-	dvb_pll_configure(dev->core->pll_desc, pllbuf,
-			  params->frequency,
-			  params->u.ofdm.bandwidth);
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if ((err = i2c_transfer(&dev->core->i2c_adap, &msg, 1)) != 1) {
-		printk(KERN_WARNING "cx88-dvb: %s error "
-		       "(addr %02x <- %02x, err = %i)\n",
-		       __FUNCTION__, pllbuf[0], pllbuf[1], err);
-		if (err < 0)
-			return err;
-		else
-			return -EREMOTEIO;
-	}
-
-	return 0;
-}
-
 static struct zl10353_config dvico_fusionhdtv_hybrid = {
 	.demod_address = 0x0f,
 	.no_tuner      = 1,
@@ -599,13 +570,13 @@ static int dvb_register(struct cx8802_dev *dev)
 #endif
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID:
-		dev->core->pll_addr = 0x61;
-		dev->core->pll_desc = &dvb_pll_thomson_fe6600;
 		dev->dvb.frontend = dvb_attach(zl10353_attach,
 					       &dvico_fusionhdtv_hybrid,
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dev->dvb.frontend->ops.tuner_ops.set_params = dvico_hybrid_tuner_set_params;
+			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
+				   &dev->core->i2c_adap,
+				   &dvb_pll_thomson_fe6600);
 		}
 		break;
 	case CX88_BOARD_PCHDTV_HD3000:
