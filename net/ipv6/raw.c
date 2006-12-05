@@ -854,7 +854,8 @@ back_from_confirm:
 	}
 done:
 	dst_release(dst);
-	release_sock(sk);
+	if (!inet->hdrincl)
+		release_sock(sk);
 out:	
 	fl6_sock_release(flowlabel);
 	return err<0?err:len;
