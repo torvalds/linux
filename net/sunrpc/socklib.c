@@ -16,7 +16,7 @@
 
 
 /**
- * skb_read_bits - copy some data bits from skb to internal buffer
+ * xdr_skb_read_bits - copy some data bits from skb to internal buffer
  * @desc: sk_buff copy helper
  * @to: copy destination
  * @len: number of bytes to copy
@@ -24,11 +24,11 @@
  * Possibly called several times to iterate over an sk_buff and copy
  * data out of it.
  */
-static size_t skb_read_bits(skb_reader_t *desc, void *to, size_t len)
+size_t xdr_skb_read_bits(skb_reader_t *desc, void *to, size_t len)
 {
 	if (len > desc->count)
 		len = desc->count;
-	if (skb_copy_bits(desc->skb, desc->offset, to, len))
+	if (unlikely(skb_copy_bits(desc->skb, desc->offset, to, len)))
 		return 0;
 	desc->count -= len;
 	desc->offset += len;
@@ -36,14 +36,14 @@ static size_t skb_read_bits(skb_reader_t *desc, void *to, size_t len)
 }
 
 /**
- * skb_read_and_csum_bits - copy and checksum from skb to buffer
+ * xdr_skb_read_and_csum_bits - copy and checksum from skb to buffer
  * @desc: sk_buff copy helper
  * @to: copy destination
  * @len: number of bytes to copy
  *
  * Same as skb_read_bits, but calculate a checksum at the same time.
  */
-static size_t skb_read_and_csum_bits(skb_reader_t *desc, void *to, size_t len)
+static size_t xdr_skb_read_and_csum_bits(skb_reader_t *desc, void *to, size_t len)
 {
 	unsigned int pos;
 	__wsum csum2;
@@ -158,7 +158,7 @@ int csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb)
 		goto no_checksum;
 
 	desc.csum = csum_partial(skb->data, desc.offset, skb->csum);
-	if (xdr_partial_copy_from_skb(xdr, 0, &desc, skb_read_and_csum_bits) < 0)
+	if (xdr_partial_copy_from_skb(xdr, 0, &desc, xdr_skb_read_and_csum_bits) < 0)
 		return -1;
 	if (desc.offset != skb->len) {
 		__wsum csum2;
@@ -173,7 +173,7 @@ int csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb)
 		netdev_rx_csum_fault(skb->dev);
 	return 0;
 no_checksum:
-	if (xdr_partial_copy_from_skb(xdr, 0, &desc, skb_read_bits) < 0)
+	if (xdr_partial_copy_from_skb(xdr, 0, &desc, xdr_skb_read_bits) < 0)
 		return -1;
 	if (desc.count)
 		return -1;

@@ -651,22 +651,6 @@ static void xs_udp_data_ready(struct sock *sk, int len)
 	read_unlock(&sk->sk_callback_lock);
 }
 
-static inline size_t xs_tcp_copy_data(skb_reader_t *desc, void *p, size_t len)
-{
-	if (len > desc->count)
-		len = desc->count;
-	if (skb_copy_bits(desc->skb, desc->offset, p, len)) {
-		dprintk("RPC:      failed to copy %zu bytes from skb. %zu bytes remain\n",
-				len, desc->count);
-		return 0;
-	}
-	desc->offset += len;
-	desc->count -= len;
-	dprintk("RPC:      copied %zu bytes from skb. %zu bytes remain\n",
-			len, desc->count);
-	return len;
-}
-
 static inline void xs_tcp_read_fraghdr(struct rpc_xprt *xprt, skb_reader_t *desc)
 {
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
@@ -675,7 +659,7 @@ static inline void xs_tcp_read_fraghdr(struct rpc_xprt *xprt, skb_reader_t *desc
 
 	p = ((char *) &transport->tcp_fraghdr) + transport->tcp_offset;
 	len = sizeof(transport->tcp_fraghdr) - transport->tcp_offset;
-	used = xs_tcp_copy_data(desc, p, len);
+	used = xdr_skb_read_bits(desc, p, len);
 	transport->tcp_offset += used;
 	if (used != len)
 		return;
@@ -721,7 +705,7 @@ static inline void xs_tcp_read_xid(struct sock_xprt *transport, skb_reader_t *de
 	len = sizeof(transport->tcp_xid) - transport->tcp_offset;
 	dprintk("RPC:      reading XID (%Zu bytes)\n", len);
 	p = ((char *) &transport->tcp_xid) + transport->tcp_offset;
-	used = xs_tcp_copy_data(desc, p, len);
+	used = xdr_skb_read_bits(desc, p, len);
 	transport->tcp_offset += used;
 	if (used != len)
 		return;
@@ -761,12 +745,12 @@ static inline void xs_tcp_read_request(struct rpc_xprt *xprt, skb_reader_t *desc
 		memcpy(&my_desc, desc, sizeof(my_desc));
 		my_desc.count = len;
 		r = xdr_partial_copy_from_skb(rcvbuf, transport->tcp_copied,
-					  &my_desc, xs_tcp_copy_data);
+					  &my_desc, xdr_skb_read_bits);
 		desc->count -= r;
 		desc->offset += r;
 	} else
 		r = xdr_partial_copy_from_skb(rcvbuf, transport->tcp_copied,
-					  desc, xs_tcp_copy_data);
+					  desc, xdr_skb_read_bits);
 
 	if (r > 0) {
 		transport->tcp_copied += r;
