@@ -459,7 +459,6 @@ int xprt_adjust_timeout(struct rpc_rqst *req)
 		if (to->to_maxval && req->rq_timeout >= to->to_maxval)
 			req->rq_timeout = to->to_maxval;
 		req->rq_retries++;
-		pprintk("RPC: %lu retrans\n", jiffies);
 	} else {
 		req->rq_timeout = to->to_initval;
 		req->rq_retries = 0;
@@ -468,7 +467,6 @@ int xprt_adjust_timeout(struct rpc_rqst *req)
 		spin_lock_bh(&xprt->transport_lock);
 		rpc_init_rtt(req->rq_task->tk_client->cl_rtt, to->to_initval);
 		spin_unlock_bh(&xprt->transport_lock);
-		pprintk("RPC: %lu timeout\n", jiffies);
 		status = -ETIMEDOUT;
 	}
 
