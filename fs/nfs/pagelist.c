@@ -288,11 +288,10 @@ long nfs_scan_dirty(struct address_space *mapping,
 	struct nfs_page *pgvec[NFS_SCAN_MAXENTRIES];
 	struct nfs_page *req;
 	pgoff_t idx_start, idx_end;
-	long count = wbc->nr_to_write;
 	long res = 0;
 	int found, i;
 
-	if (nfsi->ndirty == 0 || count <= 0)
+	if (nfsi->ndirty == 0)
 		return 0;
 	if (wbc->range_cyclic) {
 		idx_start = 0;
@@ -308,8 +307,6 @@ long nfs_scan_dirty(struct address_space *mapping,
 	for (;;) {
 		unsigned int toscan = NFS_SCAN_MAXENTRIES;
 
-		if (toscan > count)
-			toscan = count;
 		found = radix_tree_gang_lookup_tag(&nfsi->nfs_page_tree,
 				(void **)&pgvec[0], idx_start, toscan,
 				NFS_PAGE_TAG_DIRTY);
@@ -334,16 +331,11 @@ long nfs_scan_dirty(struct address_space *mapping,
 			res++;
 			if (res == LONG_MAX)
 				goto out;
-			count--;
-			if (count == 0)
-				goto out;
-
 next:
 			idx_start = req->wb_index + 1;
 		}
 	}
 out:
-	wbc->nr_to_write = count;
 	WARN_ON ((nfsi->ndirty == 0) != list_empty(&nfsi->dirty));
 	return res;
 }
