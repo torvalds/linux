@@ -3130,7 +3130,7 @@ USB EHCI DRIVER
 P:	David Brownell
 M:	dbrownell@users.sourceforge.net
 L:	linux-usb-devel@lists.sourceforge.net
-S:	Maintained
+S:	Odd Fixes
 
 USB ET61X[12]51 DRIVER
 P:	Luca Risolia
@@ -3183,11 +3183,11 @@ S:	Maintained
 W:	http://www.one-eyed-alien.net/~mdharm/linux-usb/
 
 USB OHCI DRIVER
-P:	Roman Weissgaerber
-M:	weissg@vienna.at
+P:	David Brownell
+M:	dbrownell@users.sourceforge.net
 L:	linux-usb-users@lists.sourceforge.net
 L:	linux-usb-devel@lists.sourceforge.net
-S:	Maintained
+S:	Odd Fixes
 
 USB OPTION-CARD DRIVER
 P:	Matthias Urlichs
