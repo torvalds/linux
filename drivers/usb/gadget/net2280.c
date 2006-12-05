@@ -2020,7 +2020,6 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 	if (!driver
 			|| driver->speed != USB_SPEED_HIGH
 			|| !driver->bind
-			|| !driver->unbind
 			|| !driver->setup)
 		return -EINVAL;
 	if (!dev)
@@ -2107,7 +2106,7 @@ int usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 
 	if (!dev)
 		return -ENODEV;
-	if (!driver || driver != dev->driver)
+	if (!driver || driver != dev->driver || !driver->unbind)
 		return -EINVAL;
 
 	spin_lock_irqsave (&dev->lock, flags);
@@ -2803,13 +2802,7 @@ static void net2280_remove (struct pci_dev *pdev)
 {
 	struct net2280		*dev = pci_get_drvdata (pdev);
 
-	/* start with the driver above us */
-	if (dev->driver) {
-		/* should have been done already by driver model core */
-		WARN (dev, "pci remove, driver '%s' is still registered\n",
-				dev->driver->driver.name);
-		usb_gadget_unregister_driver (dev->driver);
-	}
+	BUG_ON(dev->driver);
 
 	/* then clean up the resources we allocated during probe() */
 	net2280_led_shutdown (dev);

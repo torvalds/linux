@@ -1623,7 +1623,6 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	if (!driver
 			|| driver->speed < USB_SPEED_FULL
 			|| !driver->bind
-			|| !driver->unbind
 			|| !driver->disconnect
 			|| !driver->setup)
 		return -EINVAL;
@@ -1694,7 +1693,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 
 	if (!dev)
 		return -ENODEV;
-	if (!driver || driver != dev->driver)
+	if (!driver || driver != dev->driver || !driver->unbind)
 		return -EINVAL;
 
 	local_irq_disable();
@@ -2638,9 +2637,11 @@ static int __exit pxa2xx_udc_remove(struct platform_device *pdev)
 {
 	struct pxa2xx_udc *dev = platform_get_drvdata(pdev);
 
+	if (dev->driver)
+		return -EBUSY;
+
 	udc_disable(dev);
 	remove_proc_files();
-	usb_gadget_unregister_driver(dev->driver);
 
 	if (dev->got_irq) {
 		free_irq(IRQ_USB, dev);

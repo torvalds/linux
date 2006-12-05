@@ -1574,7 +1574,6 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 	if (!driver
 			|| driver->speed != USB_SPEED_FULL
 			|| !driver->bind
-			|| !driver->unbind
 			|| !driver->setup) {
 		DBG("bad parameter.\n");
 		return -EINVAL;
@@ -1611,7 +1610,7 @@ int usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 {
 	struct at91_udc *udc = &controller;
 
-	if (!driver || driver != udc->driver)
+	if (!driver || driver != udc->driver || !driver->unbind)
 		return -EINVAL;
 
 	local_irq_disable();
@@ -1731,10 +1730,10 @@ static int __devexit at91udc_remove(struct platform_device *pdev)
 
 	DBG("remove\n");
 
-	pullup(udc, 0);
+	if (udc->driver)
+		return -EBUSY;
 
-	if (udc->driver != 0)
-		usb_gadget_unregister_driver(udc->driver);
+	pullup(udc, 0);
 
 	device_init_wakeup(&pdev->dev, 0);
 	remove_debug_file(udc);

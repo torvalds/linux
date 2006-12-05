@@ -2043,7 +2043,6 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 			// FIXME if otg, check:  driver->is_otg
 			|| driver->speed < USB_SPEED_FULL
 			|| !driver->bind
-			|| !driver->unbind
 			|| !driver->setup)
 		return -EINVAL;
 
@@ -2087,9 +2086,11 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 		status = otg_set_peripheral(udc->transceiver, &udc->gadget);
 		if (status < 0) {
 			ERR("can't bind to transceiver\n");
-			driver->unbind (&udc->gadget);
-			udc->gadget.dev.driver = NULL;
-			udc->driver = NULL;
+			if (driver->unbind) {
+				driver->unbind (&udc->gadget);
+				udc->gadget.dev.driver = NULL;
+				udc->driver = NULL;
+			}
 			goto done;
 		}
 	} else {
@@ -2117,7 +2118,7 @@ int usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 
 	if (!udc)
 		return -ENODEV;
-	if (!driver || driver != udc->driver)
+	if (!driver || driver != udc->driver || !driver->unbind)
 		return -EINVAL;
 
 	if (machine_is_omap_innovator() || machine_is_omap_osk())
@@ -2870,6 +2871,8 @@ static int __exit omap_udc_remove(struct platform_device *pdev)
 
 	if (!udc)
 		return -ENODEV;
+	if (udc->driver)
+		return -EBUSY;
 
 	udc->done = &done;
 

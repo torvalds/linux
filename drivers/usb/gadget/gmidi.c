@@ -123,7 +123,7 @@ struct gmidi_device {
 	struct usb_request	*req;		/* for control responses */
 	u8			config;
 	struct usb_ep		*in_ep, *out_ep;
-	struct snd_card 	*card;
+	struct snd_card		*card;
 	struct snd_rawmidi	*rmidi;
 	struct snd_rawmidi_substream *in_substream;
 	struct snd_rawmidi_substream *out_substream;
@@ -490,7 +490,7 @@ static void gmidi_complete(struct usb_ep *ep, struct usb_request *req)
 	int status = req->status;
 
 	switch (status) {
-	case 0: 			/* normal completion */
+	case 0:				/* normal completion */
 		if (ep == dev->out_ep) {
 			/* we received stuff.
 			   req is queued again, below */
@@ -505,7 +505,7 @@ static void gmidi_complete(struct usb_ep *ep, struct usb_request *req)
 		break;
 
 	/* this endpoint is normally active while we're configured */
-	case -ECONNABORTED: 		/* hardware forced ep reset */
+	case -ECONNABORTED:		/* hardware forced ep reset */
 	case -ECONNRESET:		/* request dequeued */
 	case -ESHUTDOWN:		/* disconnect from host */
 		VDBG(dev, "%s gone (%d), %d/%d\n", ep->name, status,
@@ -656,7 +656,7 @@ gmidi_set_config(struct gmidi_device *dev, unsigned number, gfp_t gfp_flags)
 		case USB_SPEED_LOW:	speed = "low"; break;
 		case USB_SPEED_FULL:	speed = "full"; break;
 		case USB_SPEED_HIGH:	speed = "high"; break;
-		default: 		speed = "?"; break;
+		default:		speed = "?"; break;
 		}
 
 		dev->config = number;
@@ -1308,7 +1308,7 @@ static struct usb_gadget_driver gmidi_driver = {
 	.speed		= USB_SPEED_FULL,
 	.function	= (char *)longname,
 	.bind		= gmidi_bind,
-	.unbind		= __exit_p(gmidi_unbind),
+	.unbind		= gmidi_unbind,
 
 	.setup		= gmidi_setup,
 	.disconnect	= gmidi_disconnect,
@@ -1316,7 +1316,7 @@ static struct usb_gadget_driver gmidi_driver = {
 	.suspend	= gmidi_suspend,
 	.resume		= gmidi_resume,
 
-	.driver 	= {
+	.driver		= {
 		.name		= (char *)shortname,
 		.owner		= THIS_MODULE,
 	},
