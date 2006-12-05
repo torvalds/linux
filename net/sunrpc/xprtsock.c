@@ -1502,3 +1502,21 @@ struct rpc_xprt *xs_setup_tcp(struct sockaddr *addr, size_t addrlen, struct rpc_
 
 	return xprt;
 }
+
+/**
+ * init_socket_xprt - stub
+ *
+ */
+int init_socket_xprt(void)
+{
+	return 0;
+}
+
+/**
+ * cleanup_socket_xprt - stub
+ *
+ */
+void cleanup_socket_xprt(void)
+{
+	return;
+}
