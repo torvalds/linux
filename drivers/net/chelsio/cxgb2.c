@@ -1385,26 +1385,26 @@ static inline void t1_sw_reset(struct pci_dev *pdev)
 static void __devexit remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
+	struct adapter *adapter = dev->priv;
+	int i;
 
-	if (dev) {
-		int i;
-		struct adapter *adapter = dev->priv;
-
-		for_each_port(adapter, i)
-			if (test_bit(i, &adapter->registered_device_map))
-				unregister_netdev(adapter->port[i].dev);
-
-		t1_free_sw_modules(adapter);
-		iounmap(adapter->regs);
-		while (--i >= 0)
-			if (adapter->port[i].dev)
-				free_netdev(adapter->port[i].dev);
-
-		pci_release_regions(pdev);
-		pci_disable_device(pdev);
-		pci_set_drvdata(pdev, NULL);
-		t1_sw_reset(pdev);
+	for_each_port(adapter, i) {
+		if (test_bit(i, &adapter->registered_device_map))
+			unregister_netdev(adapter->port[i].dev);
 	}
+
+	t1_free_sw_modules(adapter);
+	iounmap(adapter->regs);
+
+	while (--i >= 0) {
+		if (adapter->port[i].dev)
+			free_netdev(adapter->port[i].dev);
+	}
+
+	pci_release_regions(pdev);
+	pci_disable_device(pdev);
+	pci_set_drvdata(pdev, NULL);
+	t1_sw_reset(pdev);
 }
 
 static struct pci_driver driver = {
