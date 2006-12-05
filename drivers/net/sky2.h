@@ -680,6 +680,7 @@ enum {
 			  BMU_FIFO_ENA | BMU_OP_ON,
 
 	BMU_WM_DEFAULT = 0x600,
+	BMU_WM_PEX     = 0x80,
 };
 
 /* Tx BMU Control / Status Registers (Yukon-2) */

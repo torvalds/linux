@@ -1062,11 +1062,16 @@ static int sky2_rx_start(struct sky2_port *sky2)
 	sky2->rx_put = sky2->rx_next = 0;
 	sky2_qset(hw, rxq);
 
+	/* On PCI express lowering the watermark gives better performance */
+	if (pci_find_capability(hw->pdev, PCI_CAP_ID_EXP))
+		sky2_write32(hw, Q_ADDR(rxq, Q_WM), BMU_WM_PEX);
+
+	/* These chips have no ram buffer?
+	 * MAC Rx RAM Read is controlled by hardware */
 	if (hw->chip_id == CHIP_ID_YUKON_EC_U &&
-	    (hw->chip_rev == CHIP_REV_YU_EC_U_A1 || hw->chip_rev == CHIP_REV_YU_EC_U_B0)) {
-		/* MAC Rx RAM Read is controlled by hardware */
+	    (hw->chip_rev == CHIP_REV_YU_EC_U_A1
+	     || hw->chip_rev == CHIP_REV_YU_EC_U_B0))
 		sky2_write32(hw, Q_ADDR(rxq, Q_F), F_M_RX_RAM_DIS);
-	}
 
 	sky2_prefetch_init(hw, rxq, sky2->rx_le_map, RX_LE_SIZE - 1);
 
