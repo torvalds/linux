@@ -149,8 +149,8 @@ EXPORT(sysn32_call_table)
 	PTR	sys_mincore
 	PTR	sys_madvise
 	PTR	sys_shmget
-	PTR	sys32_shmat
-	PTR	sys_shmctl			/* 6030 */
+	PTR	sys_shmat
+	PTR	compat_sys_shmctl			/* 6030 */
 	PTR	sys_dup
 	PTR	sys_dup2
 	PTR	sys_pause
@@ -184,12 +184,12 @@ EXPORT(sysn32_call_table)
 	PTR	sys32_newuname
 	PTR	sys_semget
 	PTR	sys_semop
-	PTR	sys_semctl
+	PTR	sysn32_semctl
 	PTR	sys_shmdt			/* 6065 */
 	PTR	sys_msgget
-	PTR	sys_msgsnd
-	PTR	sys_msgrcv
-	PTR	sys_msgctl
+	PTR	compat_sys_msgsnd
+	PTR	compat_sys_msgrcv
+	PTR	compat_sys_msgctl
 	PTR	compat_sys_fcntl		/* 6070 */
 	PTR	sys_flock
 	PTR	sys_fsync
@@ -335,7 +335,7 @@ EXPORT(sysn32_call_table)
 	PTR	compat_sys_fcntl64
 	PTR	sys_set_tid_address
 	PTR	sys_restart_syscall
-	PTR	sys_semtimedop			/* 6215 */
+	PTR	compat_sys_semtimedop			/* 6215 */
 	PTR	sys_fadvise64_64
 	PTR	compat_sys_statfs64
 	PTR	compat_sys_fstatfs64

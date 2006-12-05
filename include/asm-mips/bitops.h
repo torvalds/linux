@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 1994 - 1997, 1999, 2000  Ralf Baechle (ralf@gnu.org)
+ * Copyright (c) 1994 - 1997, 1999, 2000, 06  Ralf Baechle (ralf@linux-mips.org)
  * Copyright (c) 1999, 2000  Silicon Graphics, Inc.
  */
 #ifndef _ASM_BITOPS_H
@@ -12,6 +12,7 @@
 #include <linux/compiler.h>
 #include <linux/irqflags.h>
 #include <linux/types.h>
+#include <asm/barrier.h>
 #include <asm/bug.h>
 #include <asm/byteorder.h>		/* sigh ... */
 #include <asm/cpu-features.h>
@@ -204,9 +205,6 @@ static inline int test_and_set_bit(unsigned long nr,
 		"	" __SC	"%2, %1					\n"
 		"	beqzl	%2, 1b					\n"
 		"	and	%2, %0, %3				\n"
-#ifdef CONFIG_SMP
-		"	sync						\n"
-#endif
 		"	.set	mips0					\n"
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << (nr & SZLONG_MASK)), "m" (*m)
@@ -226,9 +224,6 @@ static inline int test_and_set_bit(unsigned long nr,
 		"	" __SC	"%2, %1					\n"
 		"	beqz	%2, 1b					\n"
 		"	 and	%2, %0, %3				\n"
-#ifdef CONFIG_SMP
-		"	sync						\n"
-#endif
 		"	.set	pop					\n"
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << (nr & SZLONG_MASK)), "m" (*m)
@@ -250,6 +245,8 @@ static inline int test_and_set_bit(unsigned long nr,
 
 		return retval;
 	}
+
+	smp_mb();
 }
 
 /*
@@ -275,9 +272,6 @@ static inline int test_and_clear_bit(unsigned long nr,
 		"	" __SC 	"%2, %1					\n"
 		"	beqzl	%2, 1b					\n"
 		"	and	%2, %0, %3				\n"
-#ifdef CONFIG_SMP
-		"	sync						\n"
-#endif
 		"	.set	mips0					\n"
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << (nr & SZLONG_MASK)), "m" (*m)
@@ -298,9 +292,6 @@ static inline int test_and_clear_bit(unsigned long nr,
 		"	" __SC 	"%2, %1					\n"
 		"	beqz	%2, 1b					\n"
 		"	 and	%2, %0, %3				\n"
-#ifdef CONFIG_SMP
-		"	sync						\n"
-#endif
 		"	.set	pop					\n"
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << (nr & SZLONG_MASK)), "m" (*m)
@@ -322,6 +313,8 @@ static inline int test_and_clear_bit(unsigned long nr,
 
 		return retval;
 	}
+
+	smp_mb();
 }
 
 /*
@@ -346,9 +339,6 @@ static inline int test_and_change_bit(unsigned long nr,
 		"	" __SC	"%2, %1					\n"
 		"	beqzl	%2, 1b					\n"
 		"	and	%2, %0, %3				\n"
-#ifdef CONFIG_SMP
-		"	sync						\n"
-#endif
 		"	.set	mips0					\n"
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << (nr & SZLONG_MASK)), "m" (*m)
@@ -368,9 +358,6 @@ static inline int test_and_change_bit(unsigned long nr,
 		"	" __SC	"\t%2, %1				\n"
 		"	beqz	%2, 1b					\n"
 		"	 and	%2, %0, %3				\n"
-#ifdef CONFIG_SMP
-		"	sync						\n"
-#endif
 		"	.set	pop					\n"
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << (nr & SZLONG_MASK)), "m" (*m)
@@ -391,6 +378,8 @@ static inline int test_and_change_bit(unsigned long nr,
 
 		return retval;
 	}
+
+	smp_mb();
 }
 
 #include <asm-generic/bitops/non-atomic.h>
