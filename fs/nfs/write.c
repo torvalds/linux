@@ -440,7 +440,7 @@ nfs_mark_request_dirty(struct nfs_page *req)
 	nfs_list_add_request(req, &nfsi->dirty);
 	nfsi->ndirty++;
 	spin_unlock(&nfsi->req_lock);
-	mark_inode_dirty(inode);
+	__mark_inode_dirty(inode, I_DIRTY_PAGES);
 }
 
 static void
@@ -474,7 +474,7 @@ nfs_mark_request_commit(struct nfs_page *req)
 	nfsi->ncommit++;
 	spin_unlock(&nfsi->req_lock);
 	inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-	mark_inode_dirty(inode);
+	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
 }
 #endif
 
