@@ -81,7 +81,6 @@ static void nfs_mark_request_dirty(struct nfs_page *req);
 static int nfs_wait_on_write_congestion(struct address_space *, int);
 static int nfs_wait_on_requests(struct inode *, unsigned long, unsigned int);
 static long nfs_flush_mapping(struct address_space *mapping, struct writeback_control *wbc, int how);
-static int nfs_wb_page_priority(struct inode *inode, struct page *page, int how);
 static const struct rpc_call_ops nfs_write_partial_ops;
 static const struct rpc_call_ops nfs_write_full_ops;
 static const struct rpc_call_ops nfs_commit_ops;
@@ -280,8 +279,10 @@ static int nfs_page_mark_flush(struct page *page)
 		spin_lock(req_lock);
 	}
 	spin_unlock(req_lock);
-	if (test_and_set_bit(PG_FLUSHING, &req->wb_flags) == 0)
+	if (test_and_set_bit(PG_FLUSHING, &req->wb_flags) == 0) {
 		nfs_mark_request_dirty(req);
+		set_page_writeback(page);
+	}
 	ret = test_bit(PG_NEED_FLUSH, &req->wb_flags);
 	nfs_unlock_request(req);
 	return ret;
@@ -441,6 +442,13 @@ nfs_mark_request_dirty(struct nfs_page *req)
 	spin_unlock(&nfsi->req_lock);
 	inc_zone_page_state(req->wb_page, NR_FILE_DIRTY);
 	mark_inode_dirty(inode);
+}
+
+static void
+nfs_redirty_request(struct nfs_page *req)
+{
+	clear_bit(PG_FLUSHING, &req->wb_flags);
+	__set_page_dirty_nobuffers(req->wb_page);
 }
 
 /*
@@ -777,7 +785,7 @@ static void nfs_writepage_release(struct nfs_page *req)
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
 	if (!PageError(req->wb_page)) {
 		if (NFS_NEED_RESCHED(req)) {
-			nfs_mark_request_dirty(req);
+			nfs_redirty_request(req);
 			goto out;
 		} else if (NFS_NEED_COMMIT(req)) {
 			nfs_mark_request_commit(req);
@@ -893,7 +901,6 @@ static int nfs_flush_multi(struct inode *inode, struct list_head *head, int how)
 	atomic_set(&req->wb_complete, requests);
 
 	ClearPageError(page);
-	set_page_writeback(page);
 	offset = 0;
 	nbytes = req->wb_bytes;
 	do {
@@ -923,7 +930,7 @@ out_bad:
 		list_del(&data->pages);
 		nfs_writedata_release(data);
 	}
-	nfs_mark_request_dirty(req);
+	nfs_redirty_request(req);
 	nfs_clear_page_writeback(req);
 	return -ENOMEM;
 }
@@ -954,7 +961,6 @@ static int nfs_flush_one(struct inode *inode, struct list_head *head, int how)
 		nfs_list_remove_request(req);
 		nfs_list_add_request(req, &data->pages);
 		ClearPageError(req->wb_page);
-		set_page_writeback(req->wb_page);
 		*pages++ = req->wb_page;
 		count += req->wb_bytes;
 	}
@@ -969,7 +975,7 @@ static int nfs_flush_one(struct inode *inode, struct list_head *head, int how)
 	while (!list_empty(head)) {
 		struct nfs_page *req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
-		nfs_mark_request_dirty(req);
+		nfs_redirty_request(req);
 		nfs_clear_page_writeback(req);
 	}
 	return -ENOMEM;
@@ -1004,7 +1010,7 @@ out_err:
 	while (!list_empty(head)) {
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
-		nfs_mark_request_dirty(req);
+		nfs_redirty_request(req);
 		nfs_clear_page_writeback(req);
 	}
 	return error;
@@ -1320,7 +1326,7 @@ static void nfs_commit_done(struct rpc_task *task, void *calldata)
 		}
 		/* We have a mismatch. Write the page again */
 		dprintk(" mismatch\n");
-		nfs_mark_request_dirty(req);
+		nfs_redirty_request(req);
 	next:
 		nfs_clear_page_writeback(req);
 	}
@@ -1451,13 +1457,18 @@ int nfs_wb_all(struct inode *inode)
 		.bdi = mapping->backing_dev_info,
 		.sync_mode = WB_SYNC_ALL,
 		.nr_to_write = LONG_MAX,
+		.for_writepages = 1,
 		.range_cyclic = 1,
 	};
 	int ret;
 
+	ret = generic_writepages(mapping, &wbc);
+	if (ret < 0)
+		goto out;
 	ret = nfs_sync_mapping_wait(mapping, &wbc, 0);
 	if (ret >= 0)
 		return 0;
+out:
 	return ret;
 }
 
@@ -1469,16 +1480,23 @@ int nfs_sync_mapping_range(struct address_space *mapping, loff_t range_start, lo
 		.nr_to_write = LONG_MAX,
 		.range_start = range_start,
 		.range_end = range_end,
+		.for_writepages = 1,
 	};
 	int ret;
 
+	if (!(how & FLUSH_NOWRITEPAGE)) {
+		ret = generic_writepages(mapping, &wbc);
+		if (ret < 0)
+			goto out;
+	}
 	ret = nfs_sync_mapping_wait(mapping, &wbc, how);
 	if (ret >= 0)
 		return 0;
+out:
 	return ret;
 }
 
-static int nfs_wb_page_priority(struct inode *inode, struct page *page, int how)
+int nfs_wb_page_priority(struct inode *inode, struct page *page, int how)
 {
 	loff_t range_start = page_offset(page);
 	loff_t range_end = range_start + (loff_t)(PAGE_CACHE_SIZE - 1);

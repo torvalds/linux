@@ -438,6 +438,7 @@ extern long nfs_sync_mapping_wait(struct address_space *, struct writeback_contr
 extern int nfs_sync_mapping_range(struct address_space *, loff_t, loff_t, int);
 extern int nfs_wb_all(struct inode *inode);
 extern int nfs_wb_page(struct inode *inode, struct page* page);
+extern int nfs_wb_page_priority(struct inode *inode, struct page* page, int how);
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
 extern int  nfs_commit_inode(struct inode *, int);
 extern struct nfs_write_data *nfs_commit_alloc(void);
