@@ -1469,6 +1469,7 @@ int nfs_wb_all(struct inode *inode)
 	if (ret >= 0)
 		return 0;
 out:
+	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
 	return ret;
 }
 
@@ -1493,6 +1494,7 @@ int nfs_sync_mapping_range(struct address_space *mapping, loff_t range_start, lo
 	if (ret >= 0)
 		return 0;
 out:
+	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
 	return ret;
 }
 
@@ -1519,6 +1521,7 @@ int nfs_wb_page_priority(struct inode *inode, struct page *page, int how)
 	if (ret >= 0)
 		return 0;
 out:
+	__mark_inode_dirty(inode, I_DIRTY_PAGES);
 	return ret;
 }
 
