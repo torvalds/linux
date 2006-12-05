@@ -112,47 +112,26 @@ gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
 
 	if (sealalg != 0xffff)
 		goto out;
-
-	/* there are several mappings of seal algorithms to sign algorithms,
-	   but few enough that we can try them all. */
-
-	if ((ctx->sealalg == SEAL_ALG_NONE && signalg > 1) ||
-	    (ctx->sealalg == SEAL_ALG_1 && signalg != SGN_ALG_3) ||
-	    (ctx->sealalg == SEAL_ALG_DES3KD &&
-	     signalg != SGN_ALG_HMAC_SHA1_DES3_KD))
+	if (signalg != SGN_ALG_DES_MAC_MD5)
 		goto out;
 
 	/* compute the checksum of the message */
 
 	/* initialize the the cksum */
-	switch (signalg) {
-	case SGN_ALG_DES_MAC_MD5:
-		checksum_type = CKSUMTYPE_RSA_MD5;
-		break;
-	default:
-		ret = GSS_S_DEFECTIVE_TOKEN;
+	checksum_type = CKSUMTYPE_RSA_MD5;
+
+	ret = make_checksum(checksum_type, ptr - 2, 8,
+				 message_buffer, 0, &md5cksum);
+	if (ret)
 		goto out;
-	}
 
-	switch (signalg) {
-	case SGN_ALG_DES_MAC_MD5:
-		ret = make_checksum(checksum_type, ptr - 2, 8,
-					 message_buffer, 0, &md5cksum);
-		if (ret)
-			goto out;
+	ret = krb5_encrypt(ctx->seq, NULL, md5cksum.data,
+			   md5cksum.data, 16);
+	if (ret)
+		goto out;
 
-		ret = krb5_encrypt(ctx->seq, NULL, md5cksum.data,
-				   md5cksum.data, 16);
-		if (ret)
-			goto out;
-
-		if (memcmp(md5cksum.data + 8, ptr + 14, 8)) {
-			ret = GSS_S_BAD_SIG;
-			goto out;
-		}
-		break;
-	default:
-		ret = GSS_S_DEFECTIVE_TOKEN;
+	if (memcmp(md5cksum.data + 8, ptr + 14, 8)) {
+		ret = GSS_S_BAD_SIG;
 		goto out;
 	}
 

@@ -253,6 +253,8 @@ gss_unwrap_kerberos(struct gss_ctx *ctx, int offset, struct xdr_buf *buf)
 
 	if (sealalg == 0xffff)
 		goto out;
+	if (signalg != SGN_ALG_DES_MAC_MD5)
+		goto out;
 
 	/* in the current spec, there is only one valid seal algorithm per
 	   key type, so a simple comparison is ok */
@@ -276,34 +278,20 @@ gss_unwrap_kerberos(struct gss_ctx *ctx, int offset, struct xdr_buf *buf)
 	/* compute the checksum of the message */
 
 	/* initialize the the cksum */
-	switch (signalg) {
-	case SGN_ALG_DES_MAC_MD5:
-		checksum_type = CKSUMTYPE_RSA_MD5;
-		break;
-	default:
-		ret = GSS_S_DEFECTIVE_TOKEN;
+	checksum_type = CKSUMTYPE_RSA_MD5;
+
+	ret = make_checksum(checksum_type, ptr - 2, 8, buf,
+		 ptr + 22 - (unsigned char *)buf->head[0].iov_base, &md5cksum);
+	if (ret)
 		goto out;
-	}
 
-	switch (signalg) {
-	case SGN_ALG_DES_MAC_MD5:
-		ret = make_checksum(checksum_type, ptr - 2, 8, buf,
-			 ptr + 22 - (unsigned char *)buf->head[0].iov_base, &md5cksum);
-		if (ret)
-			goto out;
+	ret = krb5_encrypt(kctx->seq, NULL, md5cksum.data,
+			   md5cksum.data, md5cksum.len);
+	if (ret)
+		goto out;
 
-		ret = krb5_encrypt(kctx->seq, NULL, md5cksum.data,
-				   md5cksum.data, md5cksum.len);
-		if (ret)
-			goto out;
-
-		if (memcmp(md5cksum.data + 8, ptr + 14, 8)) {
-			ret = GSS_S_BAD_SIG;
-			goto out;
-		}
-		break;
-	default:
-		ret = GSS_S_DEFECTIVE_TOKEN;
+	if (memcmp(md5cksum.data + 8, ptr + 14, 8)) {
+		ret = GSS_S_BAD_SIG;
 		goto out;
 	}
 
