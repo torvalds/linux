@@ -120,7 +120,6 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 		struct xdr_buf *buf, struct page **pages)
 {
 	struct krb5_ctx		*kctx = ctx->internal_ctx_id;
-	s32			checksum_type;
 	char			cksumdata[16];
 	struct xdr_netobj	md5cksum = {.len = 0, .data = cksumdata};
 	int			blocksize = 0, plainlen;
@@ -134,7 +133,6 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 
 	now = get_seconds();
 
-	checksum_type = CKSUMTYPE_RSA_MD5;
 	if (kctx->sealalg != SEAL_ALG_NONE && kctx->sealalg != SEAL_ALG_DES) {
 		dprintk("RPC:      gss_krb5_seal: kctx->sealalg %d not supported\n",
 			kctx->sealalg);
@@ -178,7 +176,7 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 	/* XXXJBF: UGH!: */
 	tmp_pages = buf->pages;
 	buf->pages = pages;
-	if (make_checksum(checksum_type, krb5_hdr, 8, buf,
+	if (make_checksum(CKSUMTYPE_RSA_MD5, krb5_hdr, 8, buf,
 				offset + headlen - blocksize, &md5cksum))
 		goto out_err;
 	buf->pages = tmp_pages;
@@ -215,7 +213,6 @@ gss_unwrap_kerberos(struct gss_ctx *ctx, int offset, struct xdr_buf *buf)
 	struct krb5_ctx		*kctx = ctx->internal_ctx_id;
 	int			signalg;
 	int			sealalg;
-	s32			checksum_type;
 	char			cksumdata[16];
 	struct xdr_netobj	md5cksum = {.len = 0, .data = cksumdata};
 	s32			now;
@@ -275,12 +272,7 @@ gss_unwrap_kerberos(struct gss_ctx *ctx, int offset, struct xdr_buf *buf)
 			ptr + 22 - (unsigned char *)buf->head[0].iov_base))
 		goto out;
 
-	/* compute the checksum of the message */
-
-	/* initialize the the cksum */
-	checksum_type = CKSUMTYPE_RSA_MD5;
-
-	ret = make_checksum(checksum_type, ptr - 2, 8, buf,
+	ret = make_checksum(CKSUMTYPE_RSA_MD5, ptr - 2, 8, buf,
 		 ptr + 22 - (unsigned char *)buf->head[0].iov_base, &md5cksum);
 	if (ret)
 		goto out;

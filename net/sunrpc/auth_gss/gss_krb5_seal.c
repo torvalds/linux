@@ -77,7 +77,6 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 		struct xdr_netobj *token)
 {
 	struct krb5_ctx		*ctx = gss_ctx->internal_ctx_id;
-	s32			checksum_type;
 	char			cksumdata[16];
 	struct xdr_netobj	md5cksum = {.len = 0, .data = cksumdata};
 	unsigned char		*ptr, *krb5_hdr, *msg_start;
@@ -88,7 +87,6 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 
 	now = get_seconds();
 
-	checksum_type = CKSUMTYPE_RSA_MD5;
 	if (ctx->sealalg != SEAL_ALG_NONE && ctx->sealalg != SEAL_ALG_DES) {
 		dprintk("RPC:      gss_krb5_seal: ctx->sealalg %d not supported\n",
 			ctx->sealalg);
@@ -110,7 +108,7 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 	*(__be16 *)(krb5_hdr + 2) = htons(SGN_ALG_DES_MAC_MD5);
 	memset(krb5_hdr + 4, 0xff, 4);
 
-	if (make_checksum(checksum_type, krb5_hdr, 8, text, 0, &md5cksum))
+	if (make_checksum(CKSUMTYPE_RSA_MD5, krb5_hdr, 8, text, 0, &md5cksum))
 		goto out_err;
 
 	if (krb5_encrypt(ctx->seq, NULL, md5cksum.data,
