@@ -112,7 +112,7 @@ choice
 	default 6xx
 
 config CLASSIC32
-	bool "6xx/7xx/74xx"
+	bool "52xx/6xx/7xx/74xx"
 	select PPC_FPU
 	select 6xx
 	help
@@ -121,16 +121,18 @@ config CLASSIC32
 	  versions (821, 823, 850, 855, 860, 52xx, 82xx, 83xx), the AMCC
 	  embedded versions (403 and 405) and the high end 64 bit Power
 	  processors (POWER 3, POWER4, and IBM PPC970 also known as G5).
+
+	  This option is the catch-all for 6xx types, including some of the
+	  embedded versions.  Unless there is see an option for the specific
+	  chip family you are using, you want this option.
 	  
-	  Unless you are building a kernel for one of the embedded processor
-	  systems, 64 bit IBM RS/6000 or an Apple G5, choose 6xx.
+	  You do not want this if you are building a kernel for a 64 bit
+	  IBM RS/6000 or an Apple G5, choose 6xx.
+	  
+	  If unsure, select this option
+	  
 	  Note that the kernel runs in 32-bit mode even on 64-bit chips.
 
-config PPC_52xx
-	bool "Freescale 52xx"
-	select 6xx
-	select PPC_FPU
-	
 config PPC_82xx
 	bool "Freescale 82xx"
 	select 6xx
