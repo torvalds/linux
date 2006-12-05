@@ -122,6 +122,7 @@ void of_device_unregister(struct of_device *ofdev)
 }
 
 
+EXPORT_SYMBOL(of_match_node);
 EXPORT_SYMBOL(of_match_device);
 EXPORT_SYMBOL(of_device_register);
 EXPORT_SYMBOL(of_device_unregister);

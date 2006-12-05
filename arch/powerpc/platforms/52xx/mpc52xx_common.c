@@ -43,6 +43,7 @@ mpc52xx_find_and_map(const char *compatible)
 
 	return ioremap((u32)regaddr64, (u32)size64);
 }
+EXPORT_SYMBOL(mpc52xx_find_and_map);
 
 
 /**
@@ -72,6 +73,7 @@ mpc52xx_find_ipb_freq(struct device_node *node)
 
 	return p_ipb_freq ? *p_ipb_freq : 0;
 }
+EXPORT_SYMBOL(mpc52xx_find_ipb_freq);
 
 
 void __init
