@@ -156,9 +156,9 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 #define __pte_offset(address)						\
 	(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 #define pte_offset(dir, address)					\
-	((pte_t *) (pmd_page_vaddr(*dir)) + __pte_offset(address))
-#define pte_offset_kernel(dir, address) \
-	((pte_t *) pmd_page_vaddr(*(dir)) +  __pte_offset(address))
+	((pte_t *) pmd_page_vaddr(*(dir)) + __pte_offset(address))
+#define pte_offset_kernel(dir, address)					\
+	((pte_t *) pmd_page_vaddr(*(dir)) + __pte_offset(address))
 
 #define pte_offset_map(dir, address)                                    \
 	((pte_t *)page_address(pmd_page(*(dir))) + __pte_offset(address))
