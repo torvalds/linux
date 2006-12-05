@@ -923,6 +923,17 @@ static irqreturn_t at91ether_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void at91ether_poll_controller(struct net_device *dev)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	at91ether_interrupt(dev->irq, dev);
+	local_irq_restore(flags);
+}
+#endif
+
 /*
  * Initialize the ethernet interface
  */
@@ -972,6 +983,9 @@ static int __init at91ether_setup(unsigned long phy_type, unsigned short phy_add
 	dev->set_mac_address = set_mac_address;
 	dev->ethtool_ops = &at91ether_ethtool_ops;
 	dev->do_ioctl = at91ether_ioctl;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	dev->poll_controller = at91ether_poll_controller;
+#endif
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
