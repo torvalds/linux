@@ -94,46 +94,6 @@ struct gss_auth {
 static void gss_destroy_ctx(struct gss_cl_ctx *);
 static struct rpc_pipe_ops gss_upcall_ops;
 
-void
-print_hexl(u32 *p, u_int length, u_int offset)
-{
-	u_int i, j, jm;
-	u8 c, *cp;
-	
-	dprintk("RPC: print_hexl: length %d\n",length);
-	dprintk("\n");
-	cp = (u8 *) p;
-	
-	for (i = 0; i < length; i += 0x10) {
-		dprintk("  %04x: ", (u_int)(i + offset));
-		jm = length - i;
-		jm = jm > 16 ? 16 : jm;
-		
-		for (j = 0; j < jm; j++) {
-			if ((j % 2) == 1)
-				dprintk("%02x ", (u_int)cp[i+j]);
-			else
-				dprintk("%02x", (u_int)cp[i+j]);
-		}
-		for (; j < 16; j++) {
-			if ((j % 2) == 1)
-				dprintk("   ");
-			else
-				dprintk("  ");
-		}
-		dprintk(" ");
-		
-		for (j = 0; j < jm; j++) {
-			c = cp[i+j];
-			c = isprint(c) ? c : '.';
-			dprintk("%c", c);
-		}
-		dprintk("\n");
-	}
-}
-
-EXPORT_SYMBOL(print_hexl);
-
 static inline struct gss_cl_ctx *
 gss_get_ctx(struct gss_cl_ctx *ctx)
 {

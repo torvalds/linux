@@ -61,9 +61,6 @@ krb5_encrypt(
 	u8 local_iv[16] = {0};
 	struct blkcipher_desc desc = { .tfm = tfm, .info = local_iv };
 
-	dprintk("RPC:      krb5_encrypt: input data:\n");
-	print_hexl((u32 *)in, length, 0);
-
 	if (length % crypto_blkcipher_blocksize(tfm) != 0)
 		goto out;
 
@@ -80,12 +77,9 @@ krb5_encrypt(
 	sg_set_buf(sg, out, length);
 
 	ret = crypto_blkcipher_encrypt_iv(&desc, sg, sg, length);
-
-	dprintk("RPC:      krb5_encrypt: output data:\n");
-	print_hexl((u32 *)out, length, 0);
 out:
 	dprintk("RPC:      krb5_encrypt returns %d\n",ret);
-	return(ret);
+	return ret;
 }
 
 EXPORT_SYMBOL(krb5_encrypt);
@@ -103,9 +97,6 @@ krb5_decrypt(
 	u8 local_iv[16] = {0};
 	struct blkcipher_desc desc = { .tfm = tfm, .info = local_iv };
 
-	dprintk("RPC:      krb5_decrypt: input data:\n");
-	print_hexl((u32 *)in, length, 0);
-
 	if (length % crypto_blkcipher_blocksize(tfm) != 0)
 		goto out;
 
@@ -121,12 +112,9 @@ krb5_decrypt(
 	sg_set_buf(sg, out, length);
 
 	ret = crypto_blkcipher_decrypt_iv(&desc, sg, sg, length);
-
-	dprintk("RPC:      krb5_decrypt: output_data:\n");
-	print_hexl((u32 *)out, length, 0);
 out:
 	dprintk("RPC:      gss_k5decrypt returns %d\n",ret);
-	return(ret);
+	return ret;
 }
 
 EXPORT_SYMBOL(krb5_decrypt);

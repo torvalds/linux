@@ -103,10 +103,6 @@ spkm3_read_token(struct spkm3_ctx *ctx,
 
 		dprintk("RPC: spkm3_read_token: digest wire_cksum.len %d:\n", 
 			wire_cksum.len);
-		dprintk("          md5cksum.data\n");
-		print_hexl((u32 *) md5cksum.data, 16, 0);
-		dprintk("          cksum.data:\n");
-		print_hexl((u32 *) wire_cksum.data, wire_cksum.len, 0);
 
 		ret = GSS_S_BAD_SIG;
 		code = memcmp(md5cksum.data, wire_cksum.data, wire_cksum.len);

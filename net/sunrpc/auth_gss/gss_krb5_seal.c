@@ -129,9 +129,6 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 		memcpy(krb5_hdr + 16,
 		       md5cksum.data + md5cksum.len - KRB5_CKSUM_LENGTH,
 		       KRB5_CKSUM_LENGTH);
-
-		dprintk("RPC:      make_seal_token: cksum data: \n");
-		print_hexl((u32 *) (krb5_hdr + 16), KRB5_CKSUM_LENGTH, 0);
 		break;
 	default:
 		BUG();
