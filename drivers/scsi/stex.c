@@ -507,6 +507,7 @@ static void stex_controller_info(struct st_hba *hba, struct st_ccb *ccb)
 	size_t count = sizeof(struct st_frame);
 
 	p = hba->copy_buffer;
+	stex_internal_copy(ccb->cmd, p, &count, ccb->sg_count, ST_FROM_CMD);
 	memset(p->base, 0, sizeof(u32)*6);
 	*(unsigned long *)(p->base) = pci_resource_start(hba->pdev, 0);
 	p->rom_addr = 0;
