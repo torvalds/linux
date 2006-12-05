@@ -301,7 +301,8 @@ void t1_espi_set_misc_ctrl(adapter_t *adapter, u32 val)
 {
 	struct peespi *espi = adapter->espi;
 
-	if (!is_T2(adapter)) return;
+	if (!is_T2(adapter))
+		return;
 	spin_lock(&espi->lock);
 	espi->misc_ctrl = (val & ~MON_MASK) |
 			  (espi->misc_ctrl & MON_MASK);

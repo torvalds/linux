@@ -273,7 +273,8 @@ static int mac_set_rx_mode(struct cmac *mac, struct t1_rx_mode *rm)
 static int mac_set_mtu(struct cmac *mac, int mtu)
 {
 	/* MAX_FRAME_SIZE inludes header + FCS, mtu doesn't */
-	if (mtu > (MAX_FRAME_SIZE - 14 - 4)) return -EINVAL;
+	if (mtu > (MAX_FRAME_SIZE - 14 - 4))
+		return -EINVAL;
 	t1_tpi_write(mac->adapter, MACREG(mac, REG_MAX_FRAME_SIZE),
 		     mtu + 14 + 4);
 	return 0;
@@ -460,10 +461,12 @@ static struct cmac *ixf1010_mac_create(adapter_t *adapter, int index)
 	struct cmac *mac;
 	u32 val;
 
-	if (index > 9) return NULL;
+	if (index > 9)
+		return NULL;
 
 	mac = kzalloc(sizeof(*mac) + sizeof(cmac_instance), GFP_KERNEL);
-	if (!mac) return NULL;
+	if (!mac)
+		return NULL;
 
 	mac->ops = &ixf1010_ops;
 	mac->instance = (cmac_instance *)(mac + 1);

@@ -612,7 +612,8 @@ int t1_elmer0_ext_intr_handler(adapter_t *adapter)
                 int i, port_bit;
 		for_each_port(adapter, i) {
 			port_bit = i + 1;
-			if (!(cause & (1 << port_bit))) continue;
+			if (!(cause & (1 << port_bit)))
+				continue;
 
 	                phy = adapter->port[i].phy;
 			phy_cause = phy->ops->interrupt_handler(phy);
@@ -688,7 +689,8 @@ int t1_elmer0_ext_intr_handler(adapter_t *adapter)
 
 			for_each_port(adapter, i) {
 				port_bit = i ? i + 1 : 0;
-				if (!(cause & (1 << port_bit))) continue;
+				if (!(cause & (1 << port_bit)))
+					continue;
 
 				phy = adapter->port[i].phy;
 				phy_cause = phy->ops->interrupt_handler(phy);

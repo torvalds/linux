@@ -308,7 +308,8 @@ static int mv88e1xxx_interrupt_handler(struct cphy *cphy)
 				MV88E1XXX_INTERRUPT_STATUS_REGISTER,
 				&cause);
 		cause &= INTR_ENABLE_MASK;
-		if (!cause) break;
+		if (!cause)
+			break;
 
 		if (cause & MV88E1XXX_INTR_LINK_CHNG) {
 			(void) simple_mdio_read(cphy,
@@ -360,7 +361,8 @@ static struct cphy *mv88e1xxx_phy_create(adapter_t *adapter, int phy_addr,
 {
 	struct cphy *cphy = kzalloc(sizeof(*cphy), GFP_KERNEL);
 
-	if (!cphy) return NULL;
+	if (!cphy)
+		return NULL;
 
 	cphy_init(cphy, adapter, phy_addr, &mv88e1xxx_ops, mdio_ops);
 

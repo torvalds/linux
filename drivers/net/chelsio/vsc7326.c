@@ -686,7 +686,8 @@ static struct cmac *vsc7326_mac_create(adapter_t *adapter, int index)
 	int i;
 
 	mac = kzalloc(sizeof(*mac) + sizeof(cmac_instance), GFP_KERNEL);
-	if (!mac) return NULL;
+	if (!mac)
+		return NULL;
 
 	mac->ops = &vsc7326_ops;
 	mac->instance = (cmac_instance *)(mac + 1);

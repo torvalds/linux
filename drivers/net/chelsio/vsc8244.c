@@ -347,7 +347,8 @@ static struct cphy* vsc8244_phy_create(adapter_t *adapter, int phy_addr, struct 
 {
 	struct cphy *cphy = kzalloc(sizeof(*cphy), GFP_KERNEL);
 
-	if (!cphy) return NULL;
+	if (!cphy)
+		return NULL;
 
 	cphy_init(cphy, adapter, phy_addr, &vsc8244_ops, mdio_ops);
 
