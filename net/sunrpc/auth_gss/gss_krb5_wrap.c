@@ -134,15 +134,7 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 
 	now = get_seconds();
 
-	switch (kctx->signalg) {
-		case SGN_ALG_DES_MAC_MD5:
-			checksum_type = CKSUMTYPE_RSA_MD5;
-			break;
-		default:
-			dprintk("RPC:      gss_krb5_seal: kctx->signalg %d not"
-				" supported\n", kctx->signalg);
-			goto out_err;
-	}
+	checksum_type = CKSUMTYPE_RSA_MD5;
 	if (kctx->sealalg != SEAL_ALG_NONE && kctx->sealalg != SEAL_ALG_DES) {
 		dprintk("RPC:      gss_krb5_seal: kctx->sealalg %d not supported\n",
 			kctx->sealalg);
@@ -177,7 +169,7 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 	msg_start = krb5_hdr + 24;
 	/* XXXJBF: */ BUG_ON(buf->head[0].iov_base + offset + headlen != msg_start + blocksize);
 
-	*(__be16 *)(krb5_hdr + 2) = htons(kctx->signalg);
+	*(__be16 *)(krb5_hdr + 2) = htons(SGN_ALG_DES_MAC_MD5);
 	memset(krb5_hdr + 4, 0xff, 4);
 	*(__be16 *)(krb5_hdr + 4) = htons(kctx->sealalg);
 
@@ -191,18 +183,12 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 		goto out_err;
 	buf->pages = tmp_pages;
 
-	switch (kctx->signalg) {
-	case SGN_ALG_DES_MAC_MD5:
-		if (krb5_encrypt(kctx->seq, NULL, md5cksum.data,
-				  md5cksum.data, md5cksum.len))
-			goto out_err;
-		memcpy(krb5_hdr + 16,
-		       md5cksum.data + md5cksum.len - KRB5_CKSUM_LENGTH,
-		       KRB5_CKSUM_LENGTH);
-		break;
-	default:
-		BUG();
-	}
+	if (krb5_encrypt(kctx->seq, NULL, md5cksum.data,
+			  md5cksum.data, md5cksum.len))
+		goto out_err;
+	memcpy(krb5_hdr + 16,
+	       md5cksum.data + md5cksum.len - KRB5_CKSUM_LENGTH,
+	       KRB5_CKSUM_LENGTH);
 
 	spin_lock(&krb5_seq_lock);
 	seq_send = kctx->seq_send++;

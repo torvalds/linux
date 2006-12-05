@@ -129,6 +129,7 @@ gss_import_sec_context_kerberos(const void *p,
 {
 	const void *end = (const void *)((const char *)p + len);
 	struct	krb5_ctx *ctx;
+	int tmp;
 
 	if (!(ctx = kzalloc(sizeof(*ctx), GFP_KERNEL)))
 		goto out_err;
@@ -142,8 +143,10 @@ gss_import_sec_context_kerberos(const void *p,
 	p = simple_get_bytes(p, end, ctx->seed, sizeof(ctx->seed));
 	if (IS_ERR(p))
 		goto out_err_free_ctx;
-	p = simple_get_bytes(p, end, &ctx->signalg, sizeof(ctx->signalg));
+	p = simple_get_bytes(p, end, &tmp, sizeof(tmp));
 	if (IS_ERR(p))
+		goto out_err_free_ctx;
+	if (tmp != SGN_ALG_DES_MAC_MD5)
 		goto out_err_free_ctx;
 	p = simple_get_bytes(p, end, &ctx->sealalg, sizeof(ctx->sealalg));
 	if (IS_ERR(p))

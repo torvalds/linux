@@ -44,7 +44,6 @@ struct krb5_ctx {
 	int			initiate; /* 1 = initiating, 0 = accepting */
 	int			seed_init;
 	unsigned char		seed[16];
-	int			signalg;
 	int			sealalg;
 	struct crypto_blkcipher	*enc;
 	struct crypto_blkcipher	*seq;
