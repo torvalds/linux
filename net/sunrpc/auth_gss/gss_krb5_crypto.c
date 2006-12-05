@@ -130,23 +130,13 @@ checksummer(struct scatterlist *sg, void *data)
 
 /* checksum the plaintext data and hdrlen bytes of the token header */
 s32
-make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
+make_checksum(char *cksumname, char *header, int hdrlen, struct xdr_buf *body,
 		   int body_offset, struct xdr_netobj *cksum)
 {
-	char                            *cksumname;
 	struct hash_desc                desc; /* XXX add to ctx? */
 	struct scatterlist              sg[1];
 	int err;
 
-	switch (cksumtype) {
-		case CKSUMTYPE_RSA_MD5:
-			cksumname = "md5";
-			break;
-		default:
-			dprintk("RPC:      krb5_make_checksum:"
-				" unsupported checksum %d", cksumtype);
-			return GSS_S_FAILURE;
-	}
 	desc.tfm = crypto_alloc_hash(cksumname, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(desc.tfm))
 		return GSS_S_FAILURE;

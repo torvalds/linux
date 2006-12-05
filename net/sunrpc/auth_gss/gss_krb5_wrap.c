@@ -176,7 +176,7 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 	/* XXXJBF: UGH!: */
 	tmp_pages = buf->pages;
 	buf->pages = pages;
-	if (make_checksum(CKSUMTYPE_RSA_MD5, krb5_hdr, 8, buf,
+	if (make_checksum("md5", krb5_hdr, 8, buf,
 				offset + headlen - blocksize, &md5cksum))
 		goto out_err;
 	buf->pages = tmp_pages;
@@ -272,7 +272,7 @@ gss_unwrap_kerberos(struct gss_ctx *ctx, int offset, struct xdr_buf *buf)
 			ptr + 22 - (unsigned char *)buf->head[0].iov_base))
 		goto out;
 
-	ret = make_checksum(CKSUMTYPE_RSA_MD5, ptr - 2, 8, buf,
+	ret = make_checksum("md5", ptr - 2, 8, buf,
 		 ptr + 22 - (unsigned char *)buf->head[0].iov_base, &md5cksum);
 	if (ret)
 		goto out;

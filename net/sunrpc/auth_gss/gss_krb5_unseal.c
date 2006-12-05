@@ -114,8 +114,7 @@ gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
 	if (signalg != SGN_ALG_DES_MAC_MD5)
 		goto out;
 
-	ret = make_checksum(CKSUMTYPE_RSA_MD5, ptr - 2, 8,
-				 message_buffer, 0, &md5cksum);
+	ret = make_checksum("md5", ptr - 2, 8, message_buffer, 0, &md5cksum);
 	if (ret)
 		goto out;
 

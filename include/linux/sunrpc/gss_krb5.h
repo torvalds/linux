@@ -116,7 +116,7 @@ enum seal_alg {
 #define ENCTYPE_UNKNOWN         0x01ff
 
 s32
-make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
+make_checksum(char *, char *header, int hdrlen, struct xdr_buf *body,
 		   int body_offset, struct xdr_netobj *cksum);
 
 u32 gss_get_mic_kerberos(struct gss_ctx *, struct xdr_buf *,

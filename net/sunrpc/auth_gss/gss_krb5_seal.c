@@ -108,7 +108,7 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 	*(__be16 *)(krb5_hdr + 2) = htons(SGN_ALG_DES_MAC_MD5);
 	memset(krb5_hdr + 4, 0xff, 4);
 
-	if (make_checksum(CKSUMTYPE_RSA_MD5, krb5_hdr, 8, text, 0, &md5cksum))
+	if (make_checksum("md5", krb5_hdr, 8, text, 0, &md5cksum))
 		goto out_err;
 
 	if (krb5_encrypt(ctx->seq, NULL, md5cksum.data,
