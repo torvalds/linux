@@ -46,6 +46,92 @@ unsigned int xprt_min_resvport = RPC_DEF_MIN_RESVPORT;
 unsigned int xprt_max_resvport = RPC_DEF_MAX_RESVPORT;
 
 /*
+ * We can register our own files under /proc/sys/sunrpc by
+ * calling register_sysctl_table() again.  The files in that
+ * directory become the union of all files registered there.
+ *
+ * We simply need to make sure that we don't collide with
+ * someone else's file names!
+ */
+
+#ifdef RPC_DEBUG
+
+static unsigned int min_slot_table_size = RPC_MIN_SLOT_TABLE;
+static unsigned int max_slot_table_size = RPC_MAX_SLOT_TABLE;
+static unsigned int xprt_min_resvport_limit = RPC_MIN_RESVPORT;
+static unsigned int xprt_max_resvport_limit = RPC_MAX_RESVPORT;
+
+static struct ctl_table_header *sunrpc_table_header;
+
+/*
+ * FIXME: changing the UDP slot table size should also resize the UDP
+ *        socket buffers for existing UDP transports
+ */
+static ctl_table xs_tunables_table[] = {
+	{
+		.ctl_name	= CTL_SLOTTABLE_UDP,
+		.procname	= "udp_slot_table_entries",
+		.data		= &xprt_udp_slot_table_entries,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &min_slot_table_size,
+		.extra2		= &max_slot_table_size
+	},
+	{
+		.ctl_name	= CTL_SLOTTABLE_TCP,
+		.procname	= "tcp_slot_table_entries",
+		.data		= &xprt_tcp_slot_table_entries,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &min_slot_table_size,
+		.extra2		= &max_slot_table_size
+	},
+	{
+		.ctl_name	= CTL_MIN_RESVPORT,
+		.procname	= "min_resvport",
+		.data		= &xprt_min_resvport,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &xprt_min_resvport_limit,
+		.extra2		= &xprt_max_resvport_limit
+	},
+	{
+		.ctl_name	= CTL_MAX_RESVPORT,
+		.procname	= "max_resvport",
+		.data		= &xprt_max_resvport,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &xprt_min_resvport_limit,
+		.extra2		= &xprt_max_resvport_limit
+	},
+	{
+		.ctl_name = 0,
+	},
+};
+
+static ctl_table sunrpc_table[] = {
+	{
+		.ctl_name	= CTL_SUNRPC,
+		.procname	= "sunrpc",
+		.mode		= 0555,
+		.child		= xs_tunables_table
+	},
+	{
+		.ctl_name = 0,
+	},
+};
+
+#endif
+
+/*
  * How many times to try sending a request on a socket before waiting
  * for the socket buffer to clear.
  */
@@ -1504,19 +1590,34 @@ struct rpc_xprt *xs_setup_tcp(struct sockaddr *addr, size_t addrlen, struct rpc_
 }
 
 /**
- * init_socket_xprt - stub
+ * init_socket_xprt - set up xprtsock's sysctls
  *
  */
 int init_socket_xprt(void)
 {
+#ifdef RPC_DEBUG
+	if (!sunrpc_table_header) {
+		sunrpc_table_header = register_sysctl_table(sunrpc_table, 1);
+#ifdef CONFIG_PROC_FS
+		if (sunrpc_table[0].de)
+			sunrpc_table[0].de->owner = THIS_MODULE;
+#endif
+	}
+#endif
+
 	return 0;
 }
 
 /**
- * cleanup_socket_xprt - stub
+ * cleanup_socket_xprt - remove xprtsock's sysctls
  *
  */
 void cleanup_socket_xprt(void)
 {
-	return;
+#ifdef RPC_DEBUG
+	if (sunrpc_table_header) {
+		unregister_sysctl_table(sunrpc_table_header);
+		sunrpc_table_header = NULL;
+	}
+#endif
 }
