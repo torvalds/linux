@@ -17,8 +17,6 @@
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/msg_prot.h>
 
-#include <net/sock.h>
-
 extern unsigned int xprt_udp_slot_table_entries;
 extern unsigned int xprt_tcp_slot_table_entries;
 
@@ -190,10 +188,6 @@ struct rpc_xprt {
 		unsigned long long	req_u,		/* average requests on the wire */
 					bklog_u;	/* backlog queue utilization */
 	} stat;
-
-	void			(*old_data_ready)(struct sock *, int);
-	void			(*old_state_change)(struct sock *);
-	void			(*old_write_space)(struct sock *);
 
 	char *			address_strings[RPC_DISPLAY_MAX];
 };

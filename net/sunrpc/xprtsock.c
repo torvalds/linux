@@ -157,6 +157,13 @@ struct sock_xprt {
 	 */
 	size_t			rcvsize,
 				sndsize;
+
+	/*
+	 * Saved socket callback addresses
+	 */
+	void			(*old_data_ready)(struct sock *, int);
+	void			(*old_state_change)(struct sock *);
+	void			(*old_write_space)(struct sock *);
 };
 
 /*
@@ -536,9 +543,9 @@ static void xs_close(struct rpc_xprt *xprt)
 	transport->sock = NULL;
 
 	sk->sk_user_data = NULL;
-	sk->sk_data_ready = xprt->old_data_ready;
-	sk->sk_state_change = xprt->old_state_change;
-	sk->sk_write_space = xprt->old_write_space;
+	sk->sk_data_ready = transport->old_data_ready;
+	sk->sk_state_change = transport->old_state_change;
+	sk->sk_write_space = transport->old_write_space;
 	write_unlock_bh(&sk->sk_callback_lock);
 
 	sk->sk_no_check = 0;
@@ -1147,9 +1154,9 @@ static void xs_udp_connect_worker(void *args)
 		write_lock_bh(&sk->sk_callback_lock);
 
 		sk->sk_user_data = xprt;
-		xprt->old_data_ready = sk->sk_data_ready;
-		xprt->old_state_change = sk->sk_state_change;
-		xprt->old_write_space = sk->sk_write_space;
+		transport->old_data_ready = sk->sk_data_ready;
+		transport->old_state_change = sk->sk_state_change;
+		transport->old_write_space = sk->sk_write_space;
 		sk->sk_data_ready = xs_udp_data_ready;
 		sk->sk_write_space = xs_udp_write_space;
 		sk->sk_no_check = UDP_CSUM_NORCV;
@@ -1234,9 +1241,9 @@ static void xs_tcp_connect_worker(void *args)
 		write_lock_bh(&sk->sk_callback_lock);
 
 		sk->sk_user_data = xprt;
-		xprt->old_data_ready = sk->sk_data_ready;
-		xprt->old_state_change = sk->sk_state_change;
-		xprt->old_write_space = sk->sk_write_space;
+		transport->old_data_ready = sk->sk_data_ready;
+		transport->old_state_change = sk->sk_state_change;
+		transport->old_write_space = sk->sk_write_space;
 		sk->sk_data_ready = xs_tcp_data_ready;
 		sk->sk_state_change = xs_tcp_state_change;
 		sk->sk_write_space = xs_tcp_write_space;
