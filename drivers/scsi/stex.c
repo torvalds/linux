@@ -1041,7 +1041,7 @@ static void stex_hard_reset(struct st_hba *hba)
 
 	for (i = 0; i < MU_MAX_DELAY_TIME; i++) {
 		pci_read_config_word(hba->pdev, PCI_COMMAND, &pci_cmd);
-		if (pci_cmd & PCI_COMMAND_MASTER)
+		if (pci_cmd != 0xffff && (pci_cmd & PCI_COMMAND_MASTER))
 			break;
 		msleep(1);
 	}
