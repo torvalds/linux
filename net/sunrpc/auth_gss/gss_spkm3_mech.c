@@ -82,133 +82,73 @@ simple_get_netobj(const void *p, const void *end, struct xdr_netobj *res)
 	return q;
 }
 
-static inline const void *
-get_key(const void *p, const void *end, struct crypto_blkcipher **res,
-	int *resalg)
-{
-	struct xdr_netobj	key = { 0 };
-	int			setkey = 0;
-	char			*alg_name;
-
-	p = simple_get_bytes(p, end, resalg, sizeof(*resalg));
-	if (IS_ERR(p))
-		goto out_err;
-	p = simple_get_netobj(p, end, &key);
-	if (IS_ERR(p))
-		goto out_err;
-
-	switch (*resalg) {
-		case NID_des_cbc:
-			alg_name = "cbc(des)";
-			setkey = 1;
-			break;
-		case NID_cast5_cbc:
-			/* XXXX here in name only, not used */
-			alg_name = "cbc(cast5)";
-			setkey = 0; /* XXX will need to set to 1 */
-			break;
-		case NID_md5:
-			if (key.len == 0) {
-				dprintk("RPC: SPKM3 get_key: NID_md5 zero Key length\n");
-			}
-			alg_name = "md5";
-			setkey = 0;
-			break;
-		default:
-			dprintk("gss_spkm3_mech: unsupported algorithm %d\n", *resalg);
-			goto out_err_free_key;
-	}
-	*res = crypto_alloc_blkcipher(alg_name, 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(*res)) {
-		printk("gss_spkm3_mech: unable to initialize crypto algorthm %s\n", alg_name);
-		*res = NULL;
-		goto out_err_free_key;
-	}
-	if (setkey) {
-		if (crypto_blkcipher_setkey(*res, key.data, key.len)) {
-			printk("gss_spkm3_mech: error setting key for crypto algorthm %s\n", alg_name);
-			goto out_err_free_tfm;
-		}
-	}
-
-	if(key.len > 0)
-		kfree(key.data);
-	return p;
-
-out_err_free_tfm:
-	crypto_free_blkcipher(*res);
-out_err_free_key:
-	if(key.len > 0)
-		kfree(key.data);
-	p = ERR_PTR(-EINVAL);
-out_err:
-	return p;
-}
-
 static int
 gss_import_sec_context_spkm3(const void *p, size_t len,
 				struct gss_ctx *ctx_id)
 {
 	const void *end = (const void *)((const char *)p + len);
 	struct	spkm3_ctx *ctx;
+	int	version;
 
 	if (!(ctx = kzalloc(sizeof(*ctx), GFP_KERNEL)))
 		goto out_err;
+
+	p = simple_get_bytes(p, end, &version, sizeof(version));
+	if (IS_ERR(p))
+		goto out_err_free_ctx;
+	if (version != 1) {
+		dprintk("RPC: unknown spkm3 token format: obsolete nfs-utils?\n");
+		goto out_err_free_ctx;
+	}
 
 	p = simple_get_netobj(p, end, &ctx->ctx_id);
 	if (IS_ERR(p))
 		goto out_err_free_ctx;
 
-	p = simple_get_bytes(p, end, &ctx->qop, sizeof(ctx->qop));
+	p = simple_get_bytes(p, end, &ctx->endtime, sizeof(ctx->endtime));
 	if (IS_ERR(p))
 		goto out_err_free_ctx_id;
 
 	p = simple_get_netobj(p, end, &ctx->mech_used);
 	if (IS_ERR(p))
-		goto out_err_free_mech;
+		goto out_err_free_ctx_id;
 
 	p = simple_get_bytes(p, end, &ctx->ret_flags, sizeof(ctx->ret_flags));
 	if (IS_ERR(p))
 		goto out_err_free_mech;
 
-	p = simple_get_bytes(p, end, &ctx->req_flags, sizeof(ctx->req_flags));
+	p = simple_get_netobj(p, end, &ctx->conf_alg);
 	if (IS_ERR(p))
 		goto out_err_free_mech;
 
-	p = simple_get_netobj(p, end, &ctx->share_key);
+	p = simple_get_netobj(p, end, &ctx->derived_conf_key);
 	if (IS_ERR(p))
-		goto out_err_free_s_key;
+		goto out_err_free_conf_alg;
 
-	p = get_key(p, end, &ctx->derived_conf_key, &ctx->conf_alg);
+	p = simple_get_netobj(p, end, &ctx->intg_alg);
 	if (IS_ERR(p))
-		goto out_err_free_s_key;
+		goto out_err_free_conf_key;
 
-	p = get_key(p, end, &ctx->derived_integ_key, &ctx->intg_alg);
+	p = simple_get_netobj(p, end, &ctx->derived_integ_key);
 	if (IS_ERR(p))
-		goto out_err_free_key1;
-
-	p = simple_get_bytes(p, end, &ctx->keyestb_alg, sizeof(ctx->keyestb_alg));
-	if (IS_ERR(p))
-		goto out_err_free_key2;
-
-	p = simple_get_bytes(p, end, &ctx->owf_alg, sizeof(ctx->owf_alg));
-	if (IS_ERR(p))
-		goto out_err_free_key2;
+		goto out_err_free_intg_alg;
 
 	if (p != end)
-		goto out_err_free_key2;
+		goto out_err_free_intg_key;
 
 	ctx_id->internal_ctx_id = ctx;
 
 	dprintk("Successfully imported new spkm context.\n");
 	return 0;
 
-out_err_free_key2:
-	crypto_free_blkcipher(ctx->derived_integ_key);
-out_err_free_key1:
-	crypto_free_blkcipher(ctx->derived_conf_key);
-out_err_free_s_key:
-	kfree(ctx->share_key.data);
+out_err_free_intg_key:
+	kfree(ctx->derived_integ_key.data);
+out_err_free_intg_alg:
+	kfree(ctx->intg_alg.data);
+out_err_free_conf_key:
+	kfree(ctx->derived_conf_key.data);
+out_err_free_conf_alg:
+	kfree(ctx->conf_alg.data);
 out_err_free_mech:
 	kfree(ctx->mech_used.data);
 out_err_free_ctx_id:
@@ -220,13 +160,16 @@ out_err:
 }
 
 static void
-gss_delete_sec_context_spkm3(void *internal_ctx) {
+gss_delete_sec_context_spkm3(void *internal_ctx)
+{
 	struct spkm3_ctx *sctx = internal_ctx;
 
-	crypto_free_blkcipher(sctx->derived_integ_key);
-	crypto_free_blkcipher(sctx->derived_conf_key);
-	kfree(sctx->share_key.data);
+	kfree(sctx->derived_integ_key.data);
+	kfree(sctx->intg_alg.data);
+	kfree(sctx->derived_conf_key.data);
+	kfree(sctx->conf_alg.data);
 	kfree(sctx->mech_used.data);
+	kfree(sctx->ctx_id.data);
 	kfree(sctx);
 }
 
@@ -238,7 +181,6 @@ gss_verify_mic_spkm3(struct gss_ctx		*ctx,
 	u32 maj_stat = 0;
 	struct spkm3_ctx *sctx = ctx->internal_ctx_id;
 
-	dprintk("RPC: gss_verify_mic_spkm3 calling spkm3_read_token\n");
 	maj_stat = spkm3_read_token(sctx, checksum, signbuf, SPKM_MIC_TOK);
 
 	dprintk("RPC: gss_verify_mic_spkm3 returning %d\n", maj_stat);
@@ -253,10 +195,9 @@ gss_get_mic_spkm3(struct gss_ctx	*ctx,
 	u32 err = 0;
 	struct spkm3_ctx *sctx = ctx->internal_ctx_id;
 
-	dprintk("RPC: gss_get_mic_spkm3\n");
-
 	err = spkm3_make_token(sctx, message_buffer,
-			      message_token, SPKM_MIC_TOK);
+				message_token, SPKM_MIC_TOK);
+	dprintk("RPC: gss_get_mic_spkm3 returning %d\n", err);
 	return err;
 }
 

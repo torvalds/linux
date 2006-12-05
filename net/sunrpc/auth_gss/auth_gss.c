@@ -68,7 +68,7 @@ static struct rpc_credops gss_credops;
 #define GSS_CRED_SLACK		1024		/* XXX: unused */
 /* length of a krb5 verifier (48), plus data added before arguments when
  * using integrity (two 4-byte integers): */
-#define GSS_VERF_SLACK		56
+#define GSS_VERF_SLACK		100
 
 /* XXX this define must match the gssd define
 * as it is passed to gssd to signal the use of
