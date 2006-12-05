@@ -29,6 +29,8 @@
 #include <scsi/scsi_tgt.h>
 #include <scsi/scsi_tgt_if.h>
 
+#include <asm/cacheflush.h>
+
 #include "scsi_tgt_priv.h"
 
 struct tgt_ring {
