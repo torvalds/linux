@@ -3,17 +3,17 @@
  *
  * (C) Copyright 1999 Roman Weissgaerber <weissg@vienna.at>
  * (C) Copyright 2000-2002 David Brownell <dbrownell@users.sourceforge.net>
- * 
+ *
  * [ Initialisation is based on Linus'  ]
  * [ uhci code and gregs ohci fragments ]
  * [ (C) Copyright 1999 Linus Torvalds  ]
  * [ (C) Copyright 1999 Gregory P. Smith]
- * 
+ *
  * PCI Bus Glue
  *
  * This file is licenced under the GPL.
  */
- 
+
 #ifndef CONFIG_PCI
 #error "This file is PCI bus glue.  CONFIG_PCI must be defined."
 #endif
@@ -83,7 +83,7 @@ ohci_pci_start (struct usb_hcd *hcd)
 			pci_dev_put(b);
 		}
 
-		/* Check for Compaq's ZFMicro chipset, which needs short 
+		/* Check for Compaq's ZFMicro chipset, which needs short
 		 * delays before control or bulk queues get re-activated
 		 * in finish_unlinks()
 		 */
@@ -238,8 +238,8 @@ static struct pci_driver ohci_pci_driver = {
 	.shutdown =	usb_hcd_pci_shutdown,
 };
 
- 
-static int __init ohci_hcd_pci_init (void) 
+
+static int __init ohci_hcd_pci_init (void)
 {
 	printk (KERN_DEBUG "%s: " DRIVER_INFO " (PCI)\n", hcd_name);
 	if (usb_disabled())
@@ -253,8 +253,8 @@ module_init (ohci_hcd_pci_init);
 
 /*-------------------------------------------------------------------------*/
 
-static void __exit ohci_hcd_pci_cleanup (void) 
-{	
+static void __exit ohci_hcd_pci_cleanup (void)
+{
 	pci_unregister_driver (&ohci_pci_driver);
 }
 module_exit (ohci_hcd_pci_cleanup);

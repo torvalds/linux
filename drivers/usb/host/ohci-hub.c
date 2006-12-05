@@ -1,9 +1,9 @@
 /*
  * OHCI HCD (Host Controller Driver) for USB.
- * 
+ *
  * (C) Copyright 1999 Roman Weissgaerber <weissg@vienna.at>
  * (C) Copyright 2000-2004 David Brownell <dbrownell@users.sourceforge.net>
- * 
+ *
  * This file is licenced under GPL
  */
 
@@ -23,13 +23,13 @@
 		(temp & RH_PS_PSSC) ? " PSSC" : "", \
 		(temp & RH_PS_PESC) ? " PESC" : "", \
 		(temp & RH_PS_CSC) ? " CSC" : "", \
- 		\
+		\
 		(temp & RH_PS_LSDA) ? " LSDA" : "", \
 		(temp & RH_PS_PPS) ? " PPS" : "", \
 		(temp & RH_PS_PRS) ? " PRS" : "", \
 		(temp & RH_PS_POCI) ? " POCI" : "", \
 		(temp & RH_PS_PSS) ? " PSS" : "", \
- 		\
+		\
 		(temp & RH_PS_PES) ? " PES" : "", \
 		(temp & RH_PS_CCS) ? " CCS" : "" \
 		);
@@ -484,7 +484,7 @@ ohci_hub_descriptor (
 	temp = 0;
 	if (rh & RH_A_NPS)		/* no power switching? */
 	    temp |= 0x0002;
-	if (rh & RH_A_PSM) 		/* per-port power switching? */
+	if (rh & RH_A_PSM)		/* per-port power switching? */
 	    temp |= 0x0001;
 	if (rh & RH_A_NOCP)		/* no overcurrent reporting? */
 	    temp |= 0x0010;
@@ -573,7 +573,7 @@ static inline void root_port_reset (struct ohci_hcd *ohci, unsigned port)
 			if (!(temp & RH_PS_PRS))
 				break;
 			udelay (500);
-		} 
+		}
 
 		if (!(temp & RH_PS_CCS))
 			break;

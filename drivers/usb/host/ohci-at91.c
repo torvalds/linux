@@ -221,7 +221,7 @@ static const struct hc_driver ohci_at91_hc_driver = {
 	 */
 	.start =		ohci_at91_start,
 	.stop =			ohci_stop,
-	.shutdown = 		ohci_shutdown,
+	.shutdown =		ohci_shutdown,
 
 	/*
 	 * managing i/o requests and associated device resources
