@@ -331,7 +331,6 @@ long nfs_scan_dirty(struct address_space *mapping,
 			nfsi->ndirty--;
 			nfs_list_remove_request(req);
 			nfs_list_add_request(req, dst);
-			dec_zone_page_state(req->wb_page, NR_FILE_DIRTY);
 			res++;
 			if (res == LONG_MAX)
 				goto out;
