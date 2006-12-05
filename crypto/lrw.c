@@ -95,7 +95,7 @@ static inline void inc(be128 *iv)
 		iv->a = cpu_to_be64(be64_to_cpu(iv->a) + 1);
 }
 
-static inline void round(struct sinfo *s, void *dst, const void *src)
+static inline void lrw_round(struct sinfo *s, void *dst, const void *src)
 {
 	be128_xor(dst, &s->t, src);		/* PP <- T xor P */
 	s->fn(s->tfm, dst, dst);		/* CC <- E(Key2,PP) */
@@ -160,7 +160,7 @@ static int crypt(struct blkcipher_desc *d,
 			inc(iv);
 
 first:
-			round(&s, wdst, wsrc);
+			lrw_round(&s, wdst, wsrc);
 
 			wsrc += bs;
 			wdst += bs;
