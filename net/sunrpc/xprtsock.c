@@ -125,6 +125,10 @@ static inline void xs_pktdump(char *msg, u32 *packet, unsigned int count)
 }
 #endif
 
+struct sock_xprt {
+	struct rpc_xprt		xprt;
+};
+
 static void xs_format_peer_addresses(struct rpc_xprt *xprt)
 {
 	struct sockaddr_in *addr = (struct sockaddr_in *) &xprt->addr;
@@ -1343,17 +1347,19 @@ static struct rpc_xprt_ops xs_tcp_ops = {
 static struct rpc_xprt *xs_setup_xprt(struct sockaddr *addr, size_t addrlen, unsigned int slot_table_size)
 {
 	struct rpc_xprt *xprt;
+	struct sock_xprt *new;
 
 	if (addrlen > sizeof(xprt->addr)) {
 		dprintk("RPC:      xs_setup_xprt: address too large\n");
 		return ERR_PTR(-EBADF);
 	}
 
-	xprt = kzalloc(sizeof(struct rpc_xprt), GFP_KERNEL);
-	if (xprt == NULL) {
+	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	if (new == NULL) {
 		dprintk("RPC:      xs_setup_xprt: couldn't allocate rpc_xprt\n");
 		return ERR_PTR(-ENOMEM);
 	}
+	xprt = &new->xprt;
 
 	xprt->max_reqs = slot_table_size;
 	xprt->slot = kcalloc(xprt->max_reqs, sizeof(struct rpc_rqst), GFP_KERNEL);
