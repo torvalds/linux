@@ -367,25 +367,21 @@ static int cxusb_fmd1216me_tuner_attach(struct dvb_usb_adapter *adap)
 
 static int cxusb_dee1601_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	adap->pll_addr = 0x61;
-	adap->pll_desc = &dvb_pll_thomson_dtt7579;
-	adap->fe->ops.tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
+	dvb_attach(dvb_pll_attach, adap->fe, 0x61,
+		   NULL, &dvb_pll_thomson_dtt7579);
 	return 0;
 }
 
 static int cxusb_lgz201_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	adap->pll_addr = 0x61;
-	adap->pll_desc = &dvb_pll_lg_z201;
-	adap->fe->ops.tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
+	dvb_attach(dvb_pll_attach, adap->fe, 0x61, NULL, &dvb_pll_lg_z201);
 	return 0;
 }
 
 static int cxusb_dtt7579_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	adap->pll_addr = 0x60;
-	adap->pll_desc = &dvb_pll_thomson_dtt7579;
-	adap->fe->ops.tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
+	dvb_attach(dvb_pll_attach, adap->fe, 0x60,
+		   NULL, &dvb_pll_thomson_dtt7579);
 	return 0;
 }
 
