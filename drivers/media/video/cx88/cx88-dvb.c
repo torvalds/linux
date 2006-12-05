@@ -74,8 +74,8 @@ static int dvb_buf_setup(struct videobuf_queue *q,
 	return 0;
 }
 
-static int dvb_buf_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
-			   enum v4l2_field field)
+static int dvb_buf_prepare(struct videobuf_queue *q,
+			   struct videobuf_buffer *vb, enum v4l2_field field)
 {
 	struct cx8802_dev *dev = q->priv_data;
 	return cx8802_buf_prepare(q, dev, (struct cx88_buffer*)vb,field);
@@ -87,7 +87,8 @@ static void dvb_buf_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
 	cx8802_buf_queue(dev, (struct cx88_buffer*)vb);
 }
 
-static void dvb_buf_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
+static void dvb_buf_release(struct videobuf_queue *q,
+			    struct videobuf_buffer *vb)
 {
 	cx88_free_buffer(q, (struct cx88_buffer*)vb);
 }
@@ -109,7 +110,7 @@ static int cx88_dvb_bus_ctrl(struct dvb_frontend* fe, int acquire)
 
 	drv = cx8802_get_driver(dev, CX88_MPEG_DVB);
 	if (drv) {
-		if(acquire)
+		if (acquire)
 			ret = drv->request_acquire(drv);
 		else
 			ret = drv->request_release(drv);
@@ -307,8 +308,7 @@ static struct cx22702_config hauppauge_hvr_config = {
 	.output_mode   = CX22702_SERIAL_OUTPUT,
 };
 
-static int or51132_set_ts_param(struct dvb_frontend* fe,
-				int is_punctured)
+static int or51132_set_ts_param(struct dvb_frontend* fe, int is_punctured)
 {
 	struct cx8802_dev *dev= fe->dvb->priv;
 	dev->ts_gen_cntrl = is_punctured ? 0x04 : 0x00;
@@ -364,8 +364,7 @@ static struct lgdt330x_config pchdtv_hd5500 = {
 	.set_ts_params = lgdt330x_set_ts_param,
 };
 
-static int nxt200x_set_ts_param(struct dvb_frontend* fe,
-				int is_punctured)
+static int nxt200x_set_ts_param(struct dvb_frontend* fe, int is_punctured)
 {
 	struct cx8802_dev *dev= fe->dvb->priv;
 	dev->ts_gen_cntrl = is_punctured ? 0x04 : 0x00;
@@ -401,11 +400,10 @@ static int kworld_dvbs_100_set_voltage(struct dvb_frontend* fe,
 	struct cx8802_dev *dev= fe->dvb->priv;
 	struct cx88_core *core = dev->core;
 
-	if (voltage == SEC_VOLTAGE_OFF) {
+	if (voltage == SEC_VOLTAGE_OFF)
 		cx_write(MO_GP0_IO, 0x000006fb);
-	} else {
+	else
 		cx_write(MO_GP0_IO, 0x000006f9);
-	}
 
 	if (core->prev_set_voltage)
 		return core->prev_set_voltage(fe, voltage);
@@ -483,8 +481,7 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   &dev->core->i2c_adap,
-				   &dvb_pll_fmd1216me);
+				   &dev->core->i2c_adap, &dvb_pll_fmd1216me);
 		}
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS:
@@ -569,8 +566,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		}
 		break;
 	case CX88_BOARD_PCHDTV_HD3000:
-		dev->dvb.frontend = dvb_attach(or51132_attach,
-					       &pchdtv_hd3000,
+		dev->dvb.frontend = dvb_attach(or51132_attach, &pchdtv_hd3000,
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
@@ -702,8 +698,7 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   &dev->core->i2c_adap,
-				   &dvb_pll_fmd1216me);
+				   &dev->core->i2c_adap, &dvb_pll_fmd1216me);
 		}
 		break;
 	case CX88_BOARD_HAUPPAUGE_HVR3000:
@@ -712,8 +707,7 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   &dev->core->i2c_adap,
-				   &dvb_pll_fmd1216me);
+				   &dev->core->i2c_adap, &dvb_pll_fmd1216me);
 		}
 		break;
 	default:
