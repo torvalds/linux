@@ -145,6 +145,12 @@ struct sock_xprt {
 
 	unsigned long		tcp_copied,
 				tcp_flags;
+
+	/*
+	 * Connection of transports
+	 */
+	struct work_struct	connect_worker;
+	unsigned short		port;
 };
 
 /*
@@ -545,9 +551,11 @@ clear_close_wait:
  */
 static void xs_destroy(struct rpc_xprt *xprt)
 {
+	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
+
 	dprintk("RPC:      xs_destroy xprt %p\n", xprt);
 
-	cancel_delayed_work(&xprt->connect_worker);
+	cancel_delayed_work(&transport->connect_worker);
 	flush_scheduled_work();
 
 	xprt_disconnect(xprt);
@@ -1065,20 +1073,20 @@ static void xs_set_port(struct rpc_xprt *xprt, unsigned short port)
 	sap->sin_port = htons(port);
 }
 
-static int xs_bindresvport(struct rpc_xprt *xprt, struct socket *sock)
+static int xs_bindresvport(struct sock_xprt *transport, struct socket *sock)
 {
 	struct sockaddr_in myaddr = {
 		.sin_family = AF_INET,
 	};
 	int err;
-	unsigned short port = xprt->port;
+	unsigned short port = transport->port;
 
 	do {
 		myaddr.sin_port = htons(port);
 		err = kernel_bind(sock, (struct sockaddr *) &myaddr,
 						sizeof(myaddr));
 		if (err == 0) {
-			xprt->port = port;
+			transport->port = port;
 			dprintk("RPC:      xs_bindresvport bound to port %u\n",
 					port);
 			return 0;
@@ -1087,7 +1095,7 @@ static int xs_bindresvport(struct rpc_xprt *xprt, struct socket *sock)
 			port = xprt_max_resvport;
 		else
 			port--;
-	} while (err == -EADDRINUSE && port != xprt->port);
+	} while (err == -EADDRINUSE && port != transport->port);
 
 	dprintk("RPC:      can't bind to reserved port (%d).\n", -err);
 	return err;
@@ -1101,8 +1109,8 @@ static int xs_bindresvport(struct rpc_xprt *xprt, struct socket *sock)
  */
 static void xs_udp_connect_worker(void *args)
 {
-	struct rpc_xprt *xprt = (struct rpc_xprt *) args;
-	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
+	struct sock_xprt *transport = (struct sock_xprt *)args;
+	struct rpc_xprt *xprt = &transport->xprt;
 	struct socket *sock = transport->sock;
 	int err, status = -EIO;
 
@@ -1117,7 +1125,7 @@ static void xs_udp_connect_worker(void *args)
 		goto out;
 	}
 
-	if (xprt->resvport && xs_bindresvport(xprt, sock) < 0) {
+	if (xprt->resvport && xs_bindresvport(transport, sock) < 0) {
 		sock_release(sock);
 		goto out;
 	}
@@ -1186,8 +1194,8 @@ static void xs_tcp_reuse_connection(struct rpc_xprt *xprt)
  */
 static void xs_tcp_connect_worker(void *args)
 {
-	struct rpc_xprt *xprt = (struct rpc_xprt *)args;
-	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
+	struct sock_xprt *transport = (struct sock_xprt *)args;
+	struct rpc_xprt *xprt = &transport->xprt;
 	struct socket *sock = transport->sock;
 	int err, status = -EIO;
 
@@ -1201,7 +1209,7 @@ static void xs_tcp_connect_worker(void *args)
 			goto out;
 		}
 
-		if (xprt->resvport && xs_bindresvport(xprt, sock) < 0) {
+		if (xprt->resvport && xs_bindresvport(transport, sock) < 0) {
 			sock_release(sock);
 			goto out;
 		}
@@ -1293,14 +1301,14 @@ static void xs_connect(struct rpc_task *task)
 	if (transport->sock != NULL) {
 		dprintk("RPC:      xs_connect delayed xprt %p for %lu seconds\n",
 				xprt, xprt->reestablish_timeout / HZ);
-		schedule_delayed_work(&xprt->connect_worker,
+		schedule_delayed_work(&transport->connect_worker,
 					xprt->reestablish_timeout);
 		xprt->reestablish_timeout <<= 1;
 		if (xprt->reestablish_timeout > XS_TCP_MAX_REEST_TO)
 			xprt->reestablish_timeout = XS_TCP_MAX_REEST_TO;
 	} else {
 		dprintk("RPC:      xs_connect scheduled xprt %p\n", xprt);
-		schedule_work(&xprt->connect_worker);
+		schedule_work(&transport->connect_worker);
 
 		/* flush_scheduled_work can sleep... */
 		if (!RPC_IS_ASYNC(task))
@@ -1316,8 +1324,10 @@ static void xs_connect(struct rpc_task *task)
  */
 static void xs_udp_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 {
+	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
+
 	seq_printf(seq, "\txprt:\tudp %u %lu %lu %lu %lu %Lu %Lu\n",
-			xprt->port,
+			transport->port,
 			xprt->stat.bind_count,
 			xprt->stat.sends,
 			xprt->stat.recvs,
@@ -1334,13 +1344,14 @@ static void xs_udp_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
  */
 static void xs_tcp_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 {
+	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 	long idle_time = 0;
 
 	if (xprt_connected(xprt))
 		idle_time = (long)(jiffies - xprt->last_used) / HZ;
 
 	seq_printf(seq, "\txprt:\ttcp %u %lu %lu %lu %ld %lu %lu %lu %Lu %Lu\n",
-			xprt->port,
+			transport->port,
 			xprt->stat.bind_count,
 			xprt->stat.connect_count,
 			xprt->stat.connect_time,
@@ -1414,7 +1425,7 @@ static struct rpc_xprt *xs_setup_xprt(struct sockaddr *addr, size_t addrlen, uns
 
 	memcpy(&xprt->addr, addr, addrlen);
 	xprt->addrlen = addrlen;
-	xprt->port = xs_get_random_port();
+	new->port = xs_get_random_port();
 
 	return xprt;
 }
@@ -1429,10 +1440,12 @@ static struct rpc_xprt *xs_setup_xprt(struct sockaddr *addr, size_t addrlen, uns
 struct rpc_xprt *xs_setup_udp(struct sockaddr *addr, size_t addrlen, struct rpc_timeout *to)
 {
 	struct rpc_xprt *xprt;
+	struct sock_xprt *transport;
 
 	xprt = xs_setup_xprt(addr, addrlen, xprt_udp_slot_table_entries);
 	if (IS_ERR(xprt))
 		return xprt;
+	transport = container_of(xprt, struct sock_xprt, xprt);
 
 	if (ntohs(((struct sockaddr_in *)addr)->sin_port) != 0)
 		xprt_set_bound(xprt);
@@ -1442,7 +1455,7 @@ struct rpc_xprt *xs_setup_udp(struct sockaddr *addr, size_t addrlen, struct rpc_
 	/* XXX: header size can vary due to auth type, IPv6, etc. */
 	xprt->max_payload = (1U << 16) - (MAX_HEADER << 3);
 
-	INIT_WORK(&xprt->connect_worker, xs_udp_connect_worker, xprt);
+	INIT_WORK(&transport->connect_worker, xs_udp_connect_worker, transport);
 	xprt->bind_timeout = XS_BIND_TO;
 	xprt->connect_timeout = XS_UDP_CONN_TO;
 	xprt->reestablish_timeout = XS_UDP_REEST_TO;
@@ -1472,10 +1485,12 @@ struct rpc_xprt *xs_setup_udp(struct sockaddr *addr, size_t addrlen, struct rpc_
 struct rpc_xprt *xs_setup_tcp(struct sockaddr *addr, size_t addrlen, struct rpc_timeout *to)
 {
 	struct rpc_xprt *xprt;
+	struct sock_xprt *transport;
 
 	xprt = xs_setup_xprt(addr, addrlen, xprt_tcp_slot_table_entries);
 	if (IS_ERR(xprt))
 		return xprt;
+	transport = container_of(xprt, struct sock_xprt, xprt);
 
 	if (ntohs(((struct sockaddr_in *)addr)->sin_port) != 0)
 		xprt_set_bound(xprt);
@@ -1484,7 +1499,7 @@ struct rpc_xprt *xs_setup_tcp(struct sockaddr *addr, size_t addrlen, struct rpc_
 	xprt->tsh_size = sizeof(rpc_fraghdr) / sizeof(u32);
 	xprt->max_payload = RPC_MAX_FRAGMENT_SIZE;
 
-	INIT_WORK(&xprt->connect_worker, xs_tcp_connect_worker, xprt);
+	INIT_WORK(&transport->connect_worker, xs_tcp_connect_worker, transport);
 	xprt->bind_timeout = XS_BIND_TO;
 	xprt->connect_timeout = XS_TCP_CONN_TO;
 	xprt->reestablish_timeout = XS_TCP_INIT_REEST_TO;
