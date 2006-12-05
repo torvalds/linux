@@ -78,6 +78,7 @@ enum {
 
 	MU_MAX_DELAY_TIME			= 240000,
 	MU_HANDSHAKE_SIGNATURE			= 0x55aaaa55,
+	MU_HANDSHAKE_SIGNATURE_HALF		= 0x5a5a0000,
 	HMU_PARTNER_TYPE			= 2,
 
 	/* firmware returned values */
@@ -902,6 +903,7 @@ static int stex_handshake(struct st_hba *hba)
 	void __iomem *base = hba->mmio_base;
 	struct handshake_frame *h;
 	dma_addr_t status_phys;
+	u32 data;
 	int i;
 
 	if (readl(base + OMR0) != MU_HANDSHAKE_SIGNATURE) {
@@ -922,6 +924,13 @@ static int stex_handshake(struct st_hba *hba)
 	}
 
 	udelay(10);
+
+	data = readl(base + OMR1);
+	if ((data & 0xffff0000) == MU_HANDSHAKE_SIGNATURE_HALF) {
+		data &= 0x0000ffff;
+		if (hba->host->can_queue > data)
+			hba->host->can_queue = data;
+	}
 
 	h = (struct handshake_frame *)(hba->dma_mem + MU_REQ_BUFFER_SIZE);
 	h->rb_phy = cpu_to_le32(hba->dma_handle);
@@ -1234,7 +1243,7 @@ stex_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto out_free_irq;
 
-	err = scsi_init_shared_tag_map(host, ST_CAN_QUEUE);
+	err = scsi_init_shared_tag_map(host, host->can_queue);
 	if (err) {
 		printk(KERN_ERR DRV_NAME "(%s): init shared queue failed\n",
 			pci_name(pdev));
