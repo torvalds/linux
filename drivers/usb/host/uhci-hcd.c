@@ -60,6 +60,11 @@ Randy Dunlap, Georg Acher, Deti Fliegl, Thomas Sailer, Roman Weissgaerber, \
 Alan Stern"
 #define DRIVER_DESC "USB Universal Host Controller Interface driver"
 
+/* for flakey hardware, ignore overcurrent indicators */
+static int ignore_oc;
+module_param(ignore_oc, bool, S_IRUGO);
+MODULE_PARM_DESC(ignore_oc, "ignore hardware overcurrent indications");
+
 /*
  * debug = 0, no debugging messages
  * debug = 1, dump failed URBs except for stalls
@@ -168,6 +173,11 @@ static void configure_hc(struct uhci_hcd *uhci)
 static int resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
 {
 	int port;
+
+	/* If we have to ignore overcurrent events then almost by definition
+	 * we can't depend on resume-detect interrupts. */
+	if (ignore_oc)
+		return 1;
 
 	switch (to_pci_dev(uhci_dev(uhci))->vendor) {
 	    default:
@@ -921,7 +931,8 @@ static int __init uhci_hcd_init(void)
 {
 	int retval = -ENOMEM;
 
-	printk(KERN_INFO DRIVER_DESC " " DRIVER_VERSION "\n");
+	printk(KERN_INFO DRIVER_DESC " " DRIVER_VERSION "%s\n",
+			ignore_oc ? ", overcurrent ignored" : "");
 
 	if (usb_disabled())
 		return -ENODEV;
