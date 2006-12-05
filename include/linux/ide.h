@@ -804,8 +804,6 @@ typedef struct hwif_s {
 	void		*hwif_data;	/* extra hwif data */
 
 	unsigned dma;
-
-	void (*led_act)(void *data, int rw);
 } ____cacheline_internodealigned_in_smp ide_hwif_t;
 
 /*

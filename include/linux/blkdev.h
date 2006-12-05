@@ -342,7 +342,6 @@ typedef void (unplug_fn) (request_queue_t *);
 
 struct bio_vec;
 typedef int (merge_bvec_fn) (request_queue_t *, struct bio *, struct bio_vec *);
-typedef void (activity_fn) (void *data, int rw);
 typedef int (issue_flush_fn) (request_queue_t *, struct gendisk *, sector_t *);
 typedef void (prepare_flush_fn) (request_queue_t *, struct request *);
 typedef void (softirq_done_fn)(struct request *);
@@ -384,7 +383,6 @@ struct request_queue
 	prep_rq_fn		*prep_rq_fn;
 	unplug_fn		*unplug_fn;
 	merge_bvec_fn		*merge_bvec_fn;
-	activity_fn		*activity_fn;
 	issue_flush_fn		*issue_flush_fn;
 	prepare_flush_fn	*prepare_flush_fn;
 	softirq_done_fn		*softirq_done_fn;
@@ -410,8 +408,6 @@ struct request_queue
 	 * ll_rw_blk doesn't touch it.
 	 */
 	void			*queuedata;
-
-	void			*activity_data;
 
 	/*
 	 * queue needs bounce pages for pages above this limit
@@ -677,7 +673,6 @@ extern void blk_sync_queue(struct request_queue *q);
 extern void __blk_stop_queue(request_queue_t *q);
 extern void blk_run_queue(request_queue_t *);
 extern void blk_start_queueing(request_queue_t *);
-extern void blk_queue_activity_fn(request_queue_t *, activity_fn *, void *);
 extern int blk_rq_map_user(request_queue_t *, struct request *, void __user *, unsigned long);
 extern int blk_rq_unmap_user(struct request *);
 extern int blk_rq_map_kern(request_queue_t *, struct request *, void *, unsigned int, gfp_t);

@@ -129,13 +129,6 @@ struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev)
 }
 EXPORT_SYMBOL(blk_get_backing_dev_info);
 
-void blk_queue_activity_fn(request_queue_t *q, activity_fn *fn, void *data)
-{
-	q->activity_fn = fn;
-	q->activity_data = data;
-}
-EXPORT_SYMBOL(blk_queue_activity_fn);
-
 /**
  * blk_queue_prep_rq - set a prepare_request function for queue
  * @q:		queue
@@ -238,8 +231,6 @@ void blk_queue_make_request(request_queue_t * q, make_request_fn * mfn)
 	 * by default assume old behaviour and bounce for any highmem page
 	 */
 	blk_queue_bounce_limit(q, BLK_BOUNCE_HIGH);
-
-	blk_queue_activity_fn(q, NULL, NULL);
 }
 
 EXPORT_SYMBOL(blk_queue_make_request);
@@ -2695,9 +2686,6 @@ static void drive_stat_acct(struct request *rq, int nr_sectors, int new_io)
 static inline void add_request(request_queue_t * q, struct request * req)
 {
 	drive_stat_acct(req, req->nr_sectors, 1);
-
-	if (q->activity_fn)
-		q->activity_fn(q->activity_data, rq_data_dir(req));
 
 	/*
 	 * elevator indicated where it wants this request to be
