@@ -41,7 +41,6 @@
 #define DRV_NAME	"at91_ether"
 #define DRV_VERSION	"1.0"
 
-static struct timer_list check_timer;
 #define LINK_POLL_INTERVAL	(HZ)
 
 /* ..................................................................... */
@@ -250,8 +249,7 @@ static void enable_phyirq(struct net_device *dev)
 		 * PHY doesn't have an IRQ pin (RTL8201, DP83847, AC101L),
 		 * or board does not have it connected.
 		 */
-		check_timer.expires = jiffies + LINK_POLL_INTERVAL;
-		add_timer(&check_timer);
+		mod_timer(&lp->check_timer, jiffies + LINK_POLL_INTERVAL);
 		return;
 	}
 
@@ -298,7 +296,7 @@ static void disable_phyirq(struct net_device *dev)
 
 	irq_number = lp->board_data.phy_irq_pin;
 	if (!irq_number) {
-		del_timer_sync(&check_timer);
+		del_timer_sync(&lp->check_timer);
 		return;
 	}
 
@@ -360,13 +358,13 @@ static void reset_phy(struct net_device *dev)
 static void at91ether_check_link(unsigned long dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
+	struct at91_private *lp = netdev_priv(dev);
 
 	enable_mdi();
 	update_linkspeed(dev, 1);
 	disable_mdi();
 
-	check_timer.expires = jiffies + LINK_POLL_INTERVAL;
-	add_timer(&check_timer);
+	mod_timer(&lp->check_timer, jiffies + LINK_POLL_INTERVAL);
 }
 
 /* ......................... ADDRESS MANAGEMENT ........................ */
@@ -1030,9 +1028,9 @@ static int __init at91ether_setup(unsigned long phy_type, unsigned short phy_add
 
 	/* If board has no PHY IRQ, use a timer to poll the PHY */
 	if (!lp->board_data.phy_irq_pin) {
-		init_timer(&check_timer);
-		check_timer.data = (unsigned long)dev;
-		check_timer.function = at91ether_check_link;
+		init_timer(&lp->check_timer);
+		lp->check_timer.data = (unsigned long)dev;
+		lp->check_timer.function = at91ether_check_link;
 	}
 
 	/* Display ethernet banner */
