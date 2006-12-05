@@ -100,6 +100,26 @@ static struct videobuf_queue_ops dvb_qops = {
 };
 
 /* ------------------------------------------------------------------ */
+
+static int cx88_dvb_bus_ctrl(struct dvb_frontend* fe, int acquire)
+{
+	struct cx8802_dev *dev= fe->dvb->priv;
+	struct cx8802_driver *drv = NULL;
+	int ret = 0;
+
+	drv = cx8802_get_driver(dev, CX88_MPEG_DVB);
+	if (drv) {
+		if(acquire)
+			ret = drv->request_acquire(drv);
+		else
+			ret = drv->request_release(drv);
+	}
+
+	return ret;
+}
+
+/* ------------------------------------------------------------------ */
+
 static int dvico_fusionhdtv_demod_init(struct dvb_frontend* fe)
 {
 	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x39 };
@@ -286,24 +306,6 @@ static struct cx22702_config hauppauge_hvr_config = {
 	.demod_address = 0x63,
 	.output_mode   = CX22702_SERIAL_OUTPUT,
 };
-
-static int cx88_dvb_bus_ctrl(struct dvb_frontend* fe,
-	int acquire)
-{
-	struct cx8802_dev *dev= fe->dvb->priv;
-	struct cx8802_driver *drv = NULL;
-	int ret = 0;
-
-	drv = cx8802_get_driver(dev, CX88_MPEG_DVB);
-	if (drv) {
-		if(acquire)
-			ret = drv->request_acquire(drv);
-		else
-			ret = drv->request_release(drv);
-	}
-
-	return ret;
-}
 
 static int or51132_set_ts_param(struct dvb_frontend* fe,
 				int is_punctured)
