@@ -317,23 +317,11 @@ int nfs_writepage(struct page *page, struct writeback_control *wbc)
 	struct nfs_open_context *ctx;
 	struct inode *inode = page->mapping->host;
 	unsigned offset;
-	int inode_referenced = 0;
 	int priority = wb_priority(wbc);
 	int err;
 
 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGE);
 	nfs_add_stats(inode, NFSIOS_WRITEPAGES, 1);
-
-	/*
-	 * Note: We need to ensure that we have a reference to the inode
-	 *       if we are to do asynchronous writes. If not, waiting
-	 *       in nfs_wait_on_request() may deadlock with clear_inode().
-	 *
-	 *       If igrab() fails here, then it is in any case safe to
-	 *       call nfs_wb_page(), since there will be no pending writes.
-	 */
-	if (igrab(inode) != 0)
-		inode_referenced = 1;
 
 	/* Ensure we've flushed out any previous writes */
 	nfs_wb_page_priority(inode, page, priority);
@@ -349,7 +337,7 @@ int nfs_writepage(struct page *page, struct writeback_control *wbc)
 		goto out;
 	}
 	lock_kernel();
-	if (!IS_SYNC(inode) && inode_referenced) {
+	if (!IS_SYNC(inode)) {
 		err = nfs_writepage_async(ctx, inode, page, 0, offset);
 		if (!wbc->for_writepages)
 			nfs_flush_mapping(page->mapping, wbc, wb_priority(wbc));
@@ -366,8 +354,6 @@ int nfs_writepage(struct page *page, struct writeback_control *wbc)
 	put_nfs_open_context(ctx);
 out:
 	unlock_page(page);
-	if (inode_referenced)
-		iput(inode);
 	return err; 
 }
 
