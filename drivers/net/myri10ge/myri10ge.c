@@ -795,7 +795,9 @@ myri10ge_submit_8rx(struct mcp_kreq_ether_recv __iomem * dst,
 
 	low = src->addr_low;
 	src->addr_low = htonl(DMA_32BIT_MASK);
-	myri10ge_pio_copy(dst, src, 8 * sizeof(*src));
+	myri10ge_pio_copy(dst, src, 4 * sizeof(*src));
+	mb();
+	myri10ge_pio_copy(dst + 4, src + 4, 4 * sizeof(*src));
 	mb();
 	src->addr_low = low;
 	put_be32(low, &dst->addr_low);
