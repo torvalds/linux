@@ -251,16 +251,23 @@ int nfs_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct nfs_open_context *ctx;
 	struct inode *inode = page->mapping->host;
+	struct nfs_page *req;
 	unsigned offset;
-	int err;
+	int err = 0;
 
 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGE);
 	nfs_add_stats(inode, NFSIOS_WRITEPAGES, 1);
 
-	/* Ensure we've flushed out any previous writes */
-	nfs_wb_page_priority(inode, page, wb_priority(wbc));
+	req = nfs_page_find_request(page);
+	if (req != NULL) {
+		int flushme = test_bit(PG_NEED_FLUSH, &req->wb_flags);
+		nfs_release_request(req);
+		if (!flushme)
+			goto out;
+		/* Ensure we've flushed out the invalid write */
+		nfs_wb_page_priority(inode, page, wb_priority(wbc));
+	}
 
-	err = 0;
 	offset = nfs_page_length(page);
 	if (!offset)
 		goto out;
@@ -655,7 +662,7 @@ int nfs_flush_incompatible(struct file *file, struct page *page)
 {
 	struct nfs_open_context *ctx = (struct nfs_open_context *)file->private_data;
 	struct nfs_page	*req;
-	int		status = 0;
+	int do_flush, status;
 	/*
 	 * Look for a request corresponding to this page. If there
 	 * is one, and it belongs to another file, we flush it out
@@ -664,15 +671,18 @@ int nfs_flush_incompatible(struct file *file, struct page *page)
 	 * Also do the same if we find a request from an existing
 	 * dropped page.
 	 */
-	req = nfs_page_find_request(page);
-	if (req != NULL) {
-		int do_flush = req->wb_page != page || req->wb_context != ctx;
-
+	do {
+		req = nfs_page_find_request(page);
+		if (req == NULL)
+			return 0;
+		do_flush = req->wb_page != page || req->wb_context != ctx
+			|| test_bit(PG_NEED_FLUSH, &req->wb_flags);
 		nfs_release_request(req);
-		if (do_flush)
-			status = nfs_wb_page(page->mapping->host, page);
-	}
-	return (status < 0) ? status : 0;
+		if (!do_flush)
+			return 0;
+		status = nfs_wb_page(page->mapping->host, page);
+	} while (status == 0);
+	return status;
 }
 
 /*
@@ -1435,6 +1445,19 @@ static int nfs_wb_page_priority(struct inode *inode, struct page *page, int how)
 int nfs_wb_page(struct inode *inode, struct page* page)
 {
 	return nfs_wb_page_priority(inode, page, 0);
+}
+
+int nfs_set_page_dirty(struct page *page)
+{
+	struct nfs_page *req;
+
+	req = nfs_page_find_request(page);
+	if (req != NULL) {
+		/* Mark any existing write requests for flushing */
+		set_bit(PG_NEED_FLUSH, &req->wb_flags);
+		nfs_release_request(req);
+	}
+	return __set_page_dirty_nobuffers(page);
 }
 
 

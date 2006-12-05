@@ -30,6 +30,7 @@
 #define PG_BUSY			0
 #define PG_NEED_COMMIT		1
 #define PG_NEED_RESCHED		2
+#define PG_NEED_FLUSH		3
 
 struct nfs_inode;
 struct nfs_page {
