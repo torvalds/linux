@@ -64,6 +64,8 @@ static void pSeries_mach_cpu_die(void)
 	for(;;);
 }
 
+static int qcss_tok;	/* query-cpu-stopped-state token */
+
 /* Get state of physical CPU.
  * Return codes:
  *	0	- The processor is in the RTAS stopped state
@@ -74,12 +76,8 @@ static void pSeries_mach_cpu_die(void)
  */
 static int query_cpu_stopped(unsigned int pcpu)
 {
-	int cpu_status;
-	int status, qcss_tok;
+	int cpu_status, status;
 
-	qcss_tok = rtas_token("query-cpu-stopped-state");
-	if (qcss_tok == RTAS_UNKNOWN_SERVICE)
-		return -1;
 	status = rtas_call(qcss_tok, 1, 2, &cpu_status, pcpu);
 	if (status != 0) {
 		printk(KERN_ERR
@@ -254,9 +252,16 @@ static struct notifier_block pSeries_smp_nb = {
 static int __init pseries_cpu_hotplug_init(void)
 {
 	rtas_stop_self_args.token = rtas_token("stop-self");
+	qcss_tok = rtas_token("query-cpu-stopped-state");
+
+	if (rtas_stop_self_args.token == RTAS_UNKNOWN_SERVICE ||
+			qcss_tok == RTAS_UNKNOWN_SERVICE) {
+		printk(KERN_INFO "CPU Hotplug not supported by firmware "
+				"- disabling.\n");
+		return 0;
+	}
 
 	ppc_md.cpu_die = pSeries_mach_cpu_die;
-
 	smp_ops->cpu_disable = pSeries_cpu_disable;
 	smp_ops->cpu_die = pSeries_cpu_die;
 
