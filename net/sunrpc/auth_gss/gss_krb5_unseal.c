@@ -99,16 +99,14 @@ gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
 	/* XXX sanity-check bodysize?? */
 
 	signalg = ptr[0] + (ptr[1] << 8);
-	sealalg = ptr[2] + (ptr[3] << 8);
+	if (signalg != SGN_ALG_DES_MAC_MD5)
+		return GSS_S_DEFECTIVE_TOKEN;
 
-	/* Sanity checks */
+	sealalg = ptr[2] + (ptr[3] << 8);
+	if (sealalg != SEAL_ALG_NONE)
+		return GSS_S_DEFECTIVE_TOKEN;
 
 	if ((ptr[4] != 0xff) || (ptr[5] != 0xff))
-		return GSS_S_DEFECTIVE_TOKEN;
-
-	if (sealalg != 0xffff)
-		return GSS_S_DEFECTIVE_TOKEN;
-	if (signalg != SGN_ALG_DES_MAC_MD5)
 		return GSS_S_DEFECTIVE_TOKEN;
 
 	if (make_checksum("md5", ptr - 2, 8, message_buffer, 0, &md5cksum))

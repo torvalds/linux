@@ -159,7 +159,6 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 	/* ptr now at byte 2 of header described in rfc 1964, section 1.2.1: */
 	krb5_hdr = ptr - 2;
 	msg_start = krb5_hdr + 24;
-	/* XXXJBF: */ BUG_ON(buf->head[0].iov_base + offset + headlen != msg_start + blocksize);
 
 	*(__be16 *)(krb5_hdr + 2) = htons(SGN_ALG_DES_MAC_MD5);
 	memset(krb5_hdr + 4, 0xff, 4);
@@ -196,7 +195,7 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 									pages))
 		return GSS_S_FAILURE;
 
-	return ((kctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE);
+	return (kctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
 }
 
 u32
@@ -232,16 +231,14 @@ gss_unwrap_kerberos(struct gss_ctx *ctx, int offset, struct xdr_buf *buf)
 	/* get the sign and seal algorithms */
 
 	signalg = ptr[0] + (ptr[1] << 8);
-	sealalg = ptr[2] + (ptr[3] << 8);
-
-	/* Sanity checks */
-
-	if ((ptr[4] != 0xff) || (ptr[5] != 0xff))
+	if (signalg != SGN_ALG_DES_MAC_MD5)
 		return GSS_S_DEFECTIVE_TOKEN;
 
+	sealalg = ptr[2] + (ptr[3] << 8);
 	if (sealalg != SEAL_ALG_DES)
 		return GSS_S_DEFECTIVE_TOKEN;
-	if (signalg != SGN_ALG_DES_MAC_MD5)
+
+	if ((ptr[4] != 0xff) || (ptr[5] != 0xff))
 		return GSS_S_DEFECTIVE_TOKEN;
 
 	if (gss_decrypt_xdr_buf(kctx->enc, buf,

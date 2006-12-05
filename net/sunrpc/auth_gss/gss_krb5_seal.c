@@ -108,17 +108,17 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 	if (krb5_encrypt(ctx->seq, NULL, md5cksum.data,
 			  md5cksum.data, md5cksum.len))
 		return GSS_S_FAILURE;
-	memcpy(krb5_hdr + 16,
-	       md5cksum.data + md5cksum.len - KRB5_CKSUM_LENGTH,
+
+	memcpy(krb5_hdr + 16, md5cksum.data + md5cksum.len - KRB5_CKSUM_LENGTH,
 	       KRB5_CKSUM_LENGTH);
 
 	spin_lock(&krb5_seq_lock);
 	seq_send = ctx->seq_send++;
 	spin_unlock(&krb5_seq_lock);
 
-	if ((krb5_make_seq_num(ctx->seq, ctx->initiate ? 0 : 0xff,
-			       seq_send, krb5_hdr + 16, krb5_hdr + 8)))
+	if (krb5_make_seq_num(ctx->seq, ctx->initiate ? 0 : 0xff,
+			       ctx->seq_send, krb5_hdr + 16, krb5_hdr + 8))
 		return GSS_S_FAILURE;
 
-	return ((ctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE);
+	return (ctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
 }
