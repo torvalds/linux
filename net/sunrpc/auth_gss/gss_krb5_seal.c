@@ -90,7 +90,7 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 	if (ctx->sealalg != SEAL_ALG_NONE && ctx->sealalg != SEAL_ALG_DES) {
 		dprintk("RPC:      gss_krb5_seal: ctx->sealalg %d not supported\n",
 			ctx->sealalg);
-		goto out_err;
+		return GSS_S_FAILURE;
 	}
 
 	token->len = g_token_size(&ctx->mech_used, 22);
@@ -109,11 +109,11 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 	memset(krb5_hdr + 4, 0xff, 4);
 
 	if (make_checksum("md5", krb5_hdr, 8, text, 0, &md5cksum))
-		goto out_err;
+		return GSS_S_FAILURE;
 
 	if (krb5_encrypt(ctx->seq, NULL, md5cksum.data,
 			  md5cksum.data, md5cksum.len))
-		goto out_err;
+		return GSS_S_FAILURE;
 	memcpy(krb5_hdr + 16,
 	       md5cksum.data + md5cksum.len - KRB5_CKSUM_LENGTH,
 	       KRB5_CKSUM_LENGTH);
@@ -124,9 +124,7 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 
 	if ((krb5_make_seq_num(ctx->seq, ctx->initiate ? 0 : 0xff,
 			       seq_send, krb5_hdr + 16, krb5_hdr + 8)))
-		goto out_err;
+		return GSS_S_FAILURE;
 
 	return ((ctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE);
-out_err:
-	return GSS_S_FAILURE;
 }

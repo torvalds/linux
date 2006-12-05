@@ -85,21 +85,18 @@ gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
 	s32			seqnum;
 	unsigned char		*ptr = (unsigned char *)read_token->data;
 	int			bodysize;
-	u32			ret = GSS_S_DEFECTIVE_TOKEN;
 
 	dprintk("RPC:      krb5_read_token\n");
 
 	if (g_verify_token_header(&ctx->mech_used, &bodysize, &ptr,
 					read_token->len))
-		goto out;
+		return GSS_S_DEFECTIVE_TOKEN;
 
 	if ((*ptr++ != ((KG_TOK_MIC_MSG>>8)&0xff)) ||
 	    (*ptr++ != ( KG_TOK_MIC_MSG    &0xff))   )
-		goto out;
+		return GSS_S_DEFECTIVE_TOKEN;
 
 	/* XXX sanity-check bodysize?? */
-
-	/* get the sign and seal algorithms */
 
 	signalg = ptr[0] + (ptr[1] << 8);
 	sealalg = ptr[2] + (ptr[3] << 8);
@@ -107,47 +104,37 @@ gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
 	/* Sanity checks */
 
 	if ((ptr[4] != 0xff) || (ptr[5] != 0xff))
-		goto out;
+		return GSS_S_DEFECTIVE_TOKEN;
 
 	if (sealalg != 0xffff)
-		goto out;
+		return GSS_S_DEFECTIVE_TOKEN;
 	if (signalg != SGN_ALG_DES_MAC_MD5)
-		goto out;
+		return GSS_S_DEFECTIVE_TOKEN;
 
-	ret = make_checksum("md5", ptr - 2, 8, message_buffer, 0, &md5cksum);
-	if (ret)
-		goto out;
+	if (make_checksum("md5", ptr - 2, 8, message_buffer, 0, &md5cksum))
+		return GSS_S_FAILURE;
 
-	ret = krb5_encrypt(ctx->seq, NULL, md5cksum.data,
-			   md5cksum.data, 16);
-	if (ret)
-		goto out;
+	if (krb5_encrypt(ctx->seq, NULL, md5cksum.data, md5cksum.data, 16))
+		return GSS_S_FAILURE;
 
-	if (memcmp(md5cksum.data + 8, ptr + 14, 8)) {
-		ret = GSS_S_BAD_SIG;
-		goto out;
-	}
+	if (memcmp(md5cksum.data + 8, ptr + 14, 8))
+		return GSS_S_BAD_SIG;
 
 	/* it got through unscathed.  Make sure the context is unexpired */
 
 	now = get_seconds();
 
-	ret = GSS_S_CONTEXT_EXPIRED;
 	if (now > ctx->endtime)
-		goto out;
+		return GSS_S_CONTEXT_EXPIRED;
 
 	/* do sequencing checks */
 
-	ret = GSS_S_BAD_SIG;
-	if ((ret = krb5_get_seq_num(ctx->seq, ptr + 14, ptr + 6, &direction,
-				    &seqnum)))
-		goto out;
+	if (krb5_get_seq_num(ctx->seq, ptr + 14, ptr + 6, &direction, &seqnum))
+		return GSS_S_FAILURE;
 
 	if ((ctx->initiate && direction != 0xff) ||
 	    (!ctx->initiate && direction != 0))
-		goto out;
+		return GSS_S_BAD_SIG;
 
-	ret = GSS_S_COMPLETE;
-out:
-	return ret;
+	return GSS_S_COMPLETE;
 }
