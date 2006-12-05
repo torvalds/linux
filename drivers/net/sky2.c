@@ -521,7 +521,7 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 		/* set Tx LED (LED_TX) to blink mode on Rx OR Tx activity */
 		ledctrl |= PHY_M_LED_BLINK_RT(BLINK_84MS) | PHY_M_LEDC_TX_CTRL;
 		/* turn off the Rx LED (LED_RX) */
-		ledover |= PHY_M_LED_MO_RX(MO_LED_OFF);
+		ledover &= ~PHY_M_LED_MO_RX;
 	}
 
 	if (hw->chip_id == CHIP_ID_YUKON_EC_U && hw->chip_rev == CHIP_REV_YU_EC_A1) {
@@ -544,7 +544,7 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 
 		if (sky2->autoneg == AUTONEG_DISABLE || sky2->speed == SPEED_100) {
 			/* turn on 100 Mbps LED (LED_LINK100) */
-			ledover |= PHY_M_LED_MO_100(MO_LED_ON);
+			ledover |= PHY_M_LED_MO_100;
 		}
 
 		if (ledover)
@@ -2930,18 +2930,8 @@ static void sky2_led(struct sky2_hw *hw, unsigned port, int on)
 
 	default:
 		gm_phy_write(hw, port, PHY_MARV_LED_CTRL, 0);
-		gm_phy_write(hw, port, PHY_MARV_LED_OVER,
-			     on ? PHY_M_LED_MO_DUP(MO_LED_ON) |
-			     PHY_M_LED_MO_10(MO_LED_ON) |
-			     PHY_M_LED_MO_100(MO_LED_ON) |
-			     PHY_M_LED_MO_1000(MO_LED_ON) |
-			     PHY_M_LED_MO_RX(MO_LED_ON)
-			     : PHY_M_LED_MO_DUP(MO_LED_OFF) |
-			     PHY_M_LED_MO_10(MO_LED_OFF) |
-			     PHY_M_LED_MO_100(MO_LED_OFF) |
-			     PHY_M_LED_MO_1000(MO_LED_OFF) |
-			     PHY_M_LED_MO_RX(MO_LED_OFF));
-
+		gm_phy_write(hw, port, PHY_MARV_LED_OVER, 
+			     on ? PHY_M_LED_ALL : 0);
 	}
 }
 
