@@ -569,11 +569,11 @@ libs-$(CONFIG_SIBYTE_BIGSUR)	+= arch/mips/sibyte/swarm/
 load-$(CONFIG_SIBYTE_BIGSUR)	:= 0xffffffff80100000
 
 #
-# SNI RM200 PCI
+# SNI RM
 #
-core-$(CONFIG_SNI_RM200_PCI)	+= arch/mips/sni/
-cflags-$(CONFIG_SNI_RM200_PCI)	+= -Iinclude/asm-mips/mach-rm200
-load-$(CONFIG_SNI_RM200_PCI)	+= 0xffffffff80600000
+core-$(CONFIG_SNI_RM)		+= arch/mips/sni/
+cflags-$(CONFIG_SNI_RM)		+= -Iinclude/asm-mips/mach-rm
+load-$(CONFIG_SNI_RM)		+= 0xffffffff80600000
 
 #
 # Toshiba JMR-TX3927 board
@@ -695,7 +695,7 @@ ifdef CONFIG_QEMU
 all:	vmlinux.bin
 endif
 
-ifdef CONFIG_SNI_RM200_PCI
+ifdef CONFIG_SNI_RM
 all:	vmlinux.ecoff
 endif
 

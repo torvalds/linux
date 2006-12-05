@@ -701,8 +701,8 @@ config SIBYTE_CRHONE
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
-config SNI_RM200_PCI
-	bool "SNI RM200 PCI"
+config SNI_RM
+	bool "SNI RM200/300/400"
 	select ARC if CPU_LITTLE_ENDIAN
 	select ARC32 if CPU_LITTLE_ENDIAN
 	select ARCH_MAY_HAVE_PC_FDC
@@ -725,8 +725,8 @@ config SNI_RM200_PCI
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	help
-	  The SNI RM200 PCI was a MIPS-based platform manufactured by Siemens
-	  Nixdorf Informationssysteme (SNI), parent company of Pyramid
+	  The SNI RM200/300/400 are MIPS-based machines manufactured by
+	  Siemens Nixdorf Informationssysteme (SNI), parent company of Pyramid
 	  Technology and now in turn merged with Fujitsu.  Say Y here to
 	  support this machine type.
 
@@ -1070,16 +1070,16 @@ config HAVE_STD_PC_SERIAL_PORT
 
 config ARC_CONSOLE
 	bool "ARC console support"
-	depends on SGI_IP22 || SNI_RM200_PCI
+	depends on SGI_IP22 || SNI_RM
 
 config ARC_MEMORY
 	bool
-	depends on MACH_JAZZ || SNI_RM200_PCI || SGI_IP32
+	depends on MACH_JAZZ || SNI_RM || SGI_IP32
 	default y
 
 config ARC_PROMLIB
 	bool
-	depends on MACH_JAZZ || SNI_RM200_PCI || SGI_IP22 || SGI_IP32
+	depends on MACH_JAZZ || SNI_RM || SGI_IP22 || SGI_IP32
 	default y
 
 config ARC64
