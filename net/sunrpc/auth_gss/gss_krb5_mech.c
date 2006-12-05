@@ -137,12 +137,13 @@ gss_import_sec_context_kerberos(const void *p,
 	p = simple_get_bytes(p, end, &ctx->initiate, sizeof(ctx->initiate));
 	if (IS_ERR(p))
 		goto out_err_free_ctx;
-	p = simple_get_bytes(p, end, &ctx->seed_init, sizeof(ctx->seed_init));
-	if (IS_ERR(p))
+	/* The downcall format was designed before we completely understood
+	 * the uses of the context fields; so it includes some stuff we
+	 * just give some minimal sanity-checking, and some we ignore
+	 * completely (like the next twenty bytes): */
+	if (unlikely(p + 20 > end || p + 20 < p))
 		goto out_err_free_ctx;
-	p = simple_get_bytes(p, end, ctx->seed, sizeof(ctx->seed));
-	if (IS_ERR(p))
-		goto out_err_free_ctx;
+	p += 20;
 	p = simple_get_bytes(p, end, &tmp, sizeof(tmp));
 	if (IS_ERR(p))
 		goto out_err_free_ctx;
