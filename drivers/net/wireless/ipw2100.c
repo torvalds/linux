@@ -6215,7 +6215,7 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 	/* Allocate and initialize the Tx/Rx queues and lists */
 	if (ipw2100_queues_allocate(priv)) {
 		printk(KERN_WARNING DRV_NAME
-		       "Error calilng ipw2100_queues_allocate.\n");
+		       "Error calling ipw2100_queues_allocate.\n");
 		err = -ENOMEM;
 		goto fail;
 	}
