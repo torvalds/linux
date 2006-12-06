@@ -67,6 +67,7 @@ struct vio_port {
 
 	unsigned long liobn;
 	unsigned long riobn;
+	struct srp_target *target;
 };
 
 static struct workqueue_struct *vtgtd;
@@ -685,10 +686,10 @@ static inline struct viosrp_crq *next_crq(struct crq_queue *queue)
 	return crq;
 }
 
-static void handle_crq(void *data)
+static void handle_crq(struct work_struct *work)
 {
-	struct srp_target *target = (struct srp_target *) data;
-	struct vio_port *vport = target_to_port(target);
+	struct vio_port *vport = container_of(work, struct vio_port, crq_work);
+	struct srp_target *target = vport->target;
 	struct viosrp_crq *crq;
 	int done = 0;
 
@@ -822,6 +823,7 @@ static int ibmvstgt_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	target->shost = shost;
 	vport->dma_dev = dev;
 	target->ldata = vport;
+	vport->target = target;
 	err = srp_target_alloc(target, &dev->dev, INITIAL_SRP_LIMIT,
 			       SRP_MAX_IU_LEN);
 	if (err)
@@ -837,7 +839,7 @@ static int ibmvstgt_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	vport->liobn = dma[0];
 	vport->riobn = dma[5];
 
-	INIT_WORK(&vport->crq_work, handle_crq, target);
+	INIT_WORK(&vport->crq_work, handle_crq);
 
 	err = crq_queue_create(&vport->crq_queue, target);
 	if (err)
