@@ -160,7 +160,7 @@ MODULE_PARM_DESC(dbg,            "Output debug information if not zero");
 /* After a command is input, the simulator goes to one of the following states */
 #define STATE_CMD_READ0        0x00000001 /* read data from the beginning of page */
 #define STATE_CMD_READ1        0x00000002 /* read data from the second half of page */
-#define STATE_CMD_READSTART      0x00000003 /* read data second command (large page devices) */
+#define STATE_CMD_READSTART    0x00000003 /* read data second command (large page devices) */
 #define STATE_CMD_PAGEPROG     0x00000004 /* start page programm */
 #define STATE_CMD_READOOB      0x00000005 /* read OOB area */
 #define STATE_CMD_ERASE1       0x00000006 /* sector erase first command */
@@ -440,7 +440,7 @@ static int init_nandsim(struct mtd_info *mtd)
 		}
 	} else {
 		if (ns->geom.totsz <= (128 << 20)) {
-			ns->geom.pgaddrbytes  = 5;
+			ns->geom.pgaddrbytes  = 4;
 			ns->geom.secaddrbytes = 2;
 		} else {
 			ns->geom.pgaddrbytes  = 5;
