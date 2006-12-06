@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/kallsyms.h>
 #include <linux/io.h>
+#include <linux/debug_locks.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 
@@ -872,6 +873,11 @@ void show_trace(struct task_struct *tsk, unsigned long *sp,
 	}
 
 	printk("\n");
+
+	if (!tsk)
+		tsk = current;
+
+	debug_show_held_locks(tsk);
 }
 
 void show_stack(struct task_struct *tsk, unsigned long *sp)
