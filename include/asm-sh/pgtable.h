@@ -197,6 +197,14 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 # endif
 #endif
 
+/*
+ * Stub out _PAGE_SZHUGE if we don't have a good definition for it,
+ * to make pte_mkhuge() happy.
+ */
+#ifndef _PAGE_SZHUGE
+# define _PAGE_SZHUGE	(_PAGE_FLAGS_HARD)
+#endif
+
 #define _PAGE_CHG_MASK \
 	(PTE_MASK | _PAGE_ACCESSED | _PAGE_CACHABLE | _PAGE_DIRTY)
 
