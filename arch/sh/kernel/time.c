@@ -13,6 +13,8 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/profile.h>
+#include <linux/timex.h>
+#include <linux/sched.h>
 #include <asm/clock.h>
 #include <asm/rtc.h>
 #include <asm/timer.h>
