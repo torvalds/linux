@@ -58,7 +58,9 @@ OBJCOPYFLAGS	:= -O binary -R .note -R .comment -R .stab -R .stabstr -S
 # never be used by anyone. Use a board-specific defconfig that has a
 # reasonable chance of being current instead.
 #
-KBUILD_DEFCONFIG := rts7751r2d_defconfig
+KBUILD_DEFCONFIG := r7780rp_defconfig
+
+KBUILD_IMAGE	:= arch/sh/boot/zImage
 
 #
 # Choosing incompatible machines durings configuration will result in
