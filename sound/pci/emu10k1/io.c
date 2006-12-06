@@ -30,6 +30,7 @@
 #include <sound/core.h>
 #include <sound/emu10k1.h>
 #include <linux/delay.h>
+#include "p17v.h"
 
 unsigned int snd_emu10k1_ptr_read(struct snd_emu10k1 * emu, unsigned int reg, unsigned int chn)
 {
@@ -165,6 +166,64 @@ int snd_emu10k1_spi_write(struct snd_emu10k1 * emu,
 	snd_emu10k1_ptr20_write(emu, reg, 0, reset | data);
 	tmp = snd_emu10k1_ptr20_read(emu, reg, 0); /* Write post */
 	return 0;
+}
+
+/* The ADC does not support i2c read, so only write is implemented */
+int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu,
+				u32 reg,
+				u32 value)
+{
+	u32 tmp;
+	int timeout = 0;
+	int status;
+	int retry;
+	if ((reg > 0x7f) || (value > 0x1ff)) {
+		snd_printk(KERN_ERR "i2c_write: invalid values.\n");
+		return -EINVAL;
+	}
+
+	tmp = reg << 25 | value << 16;
+	// snd_printk("I2C-write:reg=0x%x, value=0x%x\n", reg, value);
+	/* Not sure what this I2C channel controls. */
+	/* snd_emu10k1_ptr_write(emu, P17V_I2C_0, 0, tmp); */
+
+	/* This controls the I2C connected to the WM8775 ADC Codec */
+	snd_emu10k1_ptr20_write(emu, P17V_I2C_1, 0, tmp);
+	tmp = snd_emu10k1_ptr20_read(emu, P17V_I2C_1, 0); /* write post */
+
+	for (retry = 0; retry < 10; retry++) {
+		/* Send the data to i2c */
+		//tmp = snd_emu10k1_ptr_read(emu, P17V_I2C_ADDR, 0);
+		//tmp = tmp & ~(I2C_A_ADC_READ|I2C_A_ADC_LAST|I2C_A_ADC_START|I2C_A_ADC_ADD_MASK);
+		tmp = 0;
+		tmp = tmp | (I2C_A_ADC_LAST|I2C_A_ADC_START|I2C_A_ADC_ADD);
+		snd_emu10k1_ptr20_write(emu, P17V_I2C_ADDR, 0, tmp);
+
+		/* Wait till the transaction ends */
+		while (1) {
+			udelay(10);
+			status = snd_emu10k1_ptr20_read(emu, P17V_I2C_ADDR, 0);
+                	// snd_printk("I2C:status=0x%x\n", status);
+			timeout++;
+			if ((status & I2C_A_ADC_START) == 0)
+				break;
+
+			if (timeout > 1000) {
+                		snd_printk("emu10k1:I2C:timeout status=0x%x\n", status);
+				break;
+			}
+		}
+		//Read back and see if the transaction is successful
+		if ((status & I2C_A_ADC_ABORT) == 0)
+			break;
+	}
+
+	if (retry == 10) {
+		snd_printk(KERN_ERR "Writing to ADC failed!\n");
+		return -EINVAL;
+	}
+    
+    	return 0;
 }
 
 int snd_emu1010_fpga_write(struct snd_emu10k1 * emu, int reg, int value)

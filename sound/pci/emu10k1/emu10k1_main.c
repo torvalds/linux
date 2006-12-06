@@ -46,6 +46,7 @@
 #include <linux/firmware.h>
 #include "p16v.h"
 #include "tina2.h"
+#include "p17v.h"
 
 
 /*************************************************************************
@@ -120,11 +121,28 @@ static unsigned int spi_dac_init[] = {
 		0x0622,
 		0x1400,
 };
+
+static unsigned int i2c_adc_init[][2] = {
+	{ 0x17, 0x00 }, /* Reset */
+	{ 0x07, 0x00 }, /* Timeout */
+	{ 0x0b, 0x22 },  /* Interface control */
+	{ 0x0c, 0x22 },  /* Master mode control */
+	{ 0x0d, 0x08 },  /* Powerdown control */
+	{ 0x0e, 0xcf },  /* Attenuation Left  0x01 = -103dB, 0xff = 24dB */
+	{ 0x0f, 0xcf },  /* Attenuation Right 0.5dB steps */
+	{ 0x10, 0x7b },  /* ALC Control 1 */
+	{ 0x11, 0x00 },  /* ALC Control 2 */
+	{ 0x12, 0x32 },  /* ALC Control 3 */
+	{ 0x13, 0x00 },  /* Noise gate control */
+	{ 0x14, 0xa6 },  /* Limiter control */
+	{ 0x15, ADC_MUX_2 },  /* ADC Mixer control. Mic for Audigy 2 ZS Notebook */
+};
 	
 static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 {
 	unsigned int silent_page;
 	int ch;
+	u32 tmp;
 
 	/* disable audio and lock cache */
 	outl(HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE_MASK | HCFG_MUTEBUTTONENABLE,
@@ -163,8 +181,6 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 
 	if (emu->card_capabilities->ca0151_chip) { /* audigy2 */
 		/* Hacks for Alice3 to work independent of haP16V driver */
-		u32 tmp;
-
 		//Setup SRCMulti_I2S SamplingRate
 		tmp = snd_emu10k1_ptr_read(emu, A_SPDIF_SAMPLERATE, 0);
 		tmp &= 0xfffff1ff;
@@ -184,8 +200,6 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 	}
 	if (emu->card_capabilities->ca0108_chip) { /* audigy2 Value */
 		/* Hacks for Alice3 to work independent of haP16V driver */
-		u32 tmp;
-
 		snd_printk(KERN_INFO "Audigy2 value: Special config.\n");
 		//Setup SRCMulti_I2S SamplingRate
 		tmp = snd_emu10k1_ptr_read(emu, A_SPDIF_SAMPLERATE, 0);
@@ -231,6 +245,23 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 		outl(0x76, emu->port + A_IOCFG); /* Windows uses 0x3f76 */
 
 	}
+	if (emu->card_capabilities->i2c_adc) { /* Audigy 2 ZS Notebook with ADC Wolfson WM8775 */
+		int size, n;
+
+		snd_emu10k1_ptr20_write(emu, P17V_I2S_SRC_SEL, 0, 0x2020205f);
+		tmp = inl(emu->port + A_IOCFG);
+		outl(tmp | 0x4, emu->port + A_IOCFG);  /* Set bit 2 for mic input */
+		tmp = inl(emu->port + A_IOCFG);
+		size = ARRAY_SIZE(i2c_adc_init);
+		for (n = 0; n < size; n++)
+			snd_emu10k1_i2c_write(emu, i2c_adc_init[n][0], i2c_adc_init[n][1]);
+		for (n=0; n < 4; n++) {
+			emu->i2c_capture_volume[n][0]= 0xcf;
+			emu->i2c_capture_volume[n][1]= 0xcf;
+		}
+
+	}
+
 	
 	snd_emu10k1_ptr_write(emu, PTB, 0, emu->ptb_pages.addr);
 	snd_emu10k1_ptr_write(emu, TCB, 0, 0);	/* taken from original driver */
@@ -274,6 +305,8 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 	if (enable_ir) {	/* enable IR for SB Live */
 		if (emu->card_capabilities->emu1010) {
 			;  /* Disable all access to A_IOCFG for the emu1010 */
+		} else if (emu->card_capabilities->i2c_adc) {
+			;  /* Disable A_IOCFG for Audigy 2 ZS Notebook */
 		} else if (emu->audigy) {
 			unsigned int reg = inl(emu->port + A_IOCFG);
 			outl(reg | A_IOCFG_GPOUT2, emu->port + A_IOCFG);
@@ -293,6 +326,8 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 	
 	if (emu->card_capabilities->emu1010) {
 		;  /* Disable all access to A_IOCFG for the emu1010 */
+	} else if (emu->card_capabilities->i2c_adc) {
+		;  /* Disable A_IOCFG for Audigy 2 ZS Notebook */
 	} else if (emu->audigy) {	/* enable analog output */
 		unsigned int reg = inl(emu->port + A_IOCFG);
 		outl(reg | A_IOCFG_GPOUT0, emu->port + A_IOCFG);
@@ -311,6 +346,8 @@ static void snd_emu10k1_audio_enable(struct snd_emu10k1 *emu)
 	/* Enable analog/digital outs on audigy */
 	if (emu->card_capabilities->emu1010) {
 		;  /* Disable all access to A_IOCFG for the emu1010 */
+	} else if (emu->card_capabilities->i2c_adc) {
+		;  /* Disable A_IOCFG for Audigy 2 ZS Notebook */
 	} else if (emu->audigy) {
 		outl(inl(emu->port + A_IOCFG) & ~0x44, emu->port + A_IOCFG);
  
@@ -1139,16 +1176,36 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .adc_1361t = 1,  /* 24 bit capture instead of 16bit */
 	 .ac97_chip = 1} ,
 	/* Audigy 2 ZS Notebook Cardbus card.*/
-	/* Tested by James@superbug.co.uk 22th December 2005 */
+	/* Tested by James@superbug.co.uk 6th November 2006 */
 	/* Audio output 7.1/Headphones working.
 	 * Digital output working. (AC3 not checked, only PCM)
-	 * Audio inputs not tested.
+	 * Audio Mic/Line inputs working.
+	 * Digital input not tested.
 	 */ 
 	/* DSP: Tina2
 	 * DAC: Wolfson WM8768/WM8568
 	 * ADC: Wolfson WM8775
 	 * AC97: None
 	 * CA0151: None
+	 */
+	/* Tested by James@superbug.co.uk 4th April 2006 */
+	/* A_IOCFG bits
+	 * Output
+	 * 0: Not Used
+	 * 1: 0 = Mute all the 7.1 channel out. 1 = unmute.
+	 * 2: Analog input 0 = line in, 1 = mic in
+	 * 3: Not Used
+	 * 4: Digital output 0 = off, 1 = on.
+	 * 5: Not Used
+	 * 6: Not Used
+	 * 7: Not Used
+	 * Input
+	 *      All bits 1 (0x3fxx) means nothing plugged in.
+	 * 8-9: 0 = Line in/Mic, 2 = Optical in, 3 = Nothing.
+	 * A-B: 0 = Headphones, 2 = Optical out, 3 = Nothing.
+	 * C-D: 2 = Front/Rear/etc, 3 = nothing.
+	 * E-F: Always 0
+	 *
 	 */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x20011102,
 	 .driver = "Audigy2", .name = "Audigy 2 ZS Notebook [SB0530]", 
@@ -1157,6 +1214,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0108_chip = 1,
 	 .ca_cardbus_chip = 1,
 	 .spi_dac = 1,
+	 .i2c_adc = 1,
 	 .spk71 = 1} ,
 	{.vendor = 0x1102, .device = 0x0008, 
 	 .driver = "Audigy2", .name = "Audigy 2 Value [Unknown]", 

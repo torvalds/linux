@@ -1427,6 +1427,8 @@ struct snd_emu10k1 {
 	spinlock_t memblk_lock;
 
 	unsigned int spdif_bits[3];		/* s/pdif out setup */
+	unsigned int i2c_capture_source;
+	u8 i2c_capture_volume[4][2];
 
 	struct snd_emu10k1_fx8010 fx8010;		/* FX8010 info */
 	int gpr_base;
@@ -1532,6 +1534,7 @@ void snd_emu10k1_ptr_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned i
 unsigned int snd_emu10k1_ptr20_read(struct snd_emu10k1 * emu, unsigned int reg, unsigned int chn);
 void snd_emu10k1_ptr20_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned int chn, unsigned int data);
 int snd_emu10k1_spi_write(struct snd_emu10k1 * emu, unsigned int data);
+int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu, u32 reg, u32 value);
 int snd_emu1010_fpga_write(struct snd_emu10k1 * emu, int reg, int value);
 int snd_emu1010_fpga_read(struct snd_emu10k1 * emu, int reg, int *value);
 int snd_emu1010_fpga_link_dst_src_write(struct snd_emu10k1 * emu, int dst, int src);

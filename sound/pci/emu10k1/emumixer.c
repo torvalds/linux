@@ -36,8 +36,13 @@
 #include <sound/core.h>
 #include <sound/emu10k1.h>
 #include <linux/delay.h>
+#include <sound/tlv.h>
+
+#include "p17v.h"
 
 #define AC97_ID_STAC9758	0x83847658
+
+static DECLARE_TLV_DB_SCALE(snd_audigy_db_scale2, -10350, 50, 1); /* WM8775 gain scale */
 
 static int snd_emu10k1_spdif_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
@@ -577,6 +582,162 @@ static struct snd_kcontrol_new snd_emu1010_internal_clock =
 	.info =         snd_emu1010_internal_clock_info,
 	.get =          snd_emu1010_internal_clock_get,
 	.put =          snd_emu1010_internal_clock_put
+};
+
+static int snd_audigy_i2c_capture_source_info(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_info *uinfo)
+{
+#if 0
+	static char *texts[4] = {
+		"Unknown1", "Unknown2", "Mic", "Line"
+	};
+#endif
+	static char *texts[2] = {
+		"Mic", "Line"
+	};
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = 2;
+	if (uinfo->value.enumerated.item > 1)
+                uinfo->value.enumerated.item = 1;
+	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
+	return 0;
+}
+
+static int snd_audigy_i2c_capture_source_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.enumerated.item[0] = emu->i2c_capture_source;
+	return 0;
+}
+
+static int snd_audigy_i2c_capture_source_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	unsigned int source_id;
+	unsigned int ngain, ogain;
+	u32 gpio;
+	int change = 0;
+	unsigned long flags;
+	u32 source;
+	/* If the capture source has changed,
+	 * update the capture volume from the cached value
+	 * for the particular source.
+	 */
+	source_id = ucontrol->value.enumerated.item[0]; /* Use 2 and 3 */
+	change = (emu->i2c_capture_source != source_id);
+	if (change) {
+		snd_emu10k1_i2c_write(emu, ADC_MUX, 0); /* Mute input */
+		spin_lock_irqsave(&emu->emu_lock, flags);
+		gpio = inl(emu->port + A_IOCFG);
+		if (source_id==0)
+			outl(gpio | 0x4, emu->port + A_IOCFG);
+		else
+			outl(gpio & ~0x4, emu->port + A_IOCFG);
+		spin_unlock_irqrestore(&emu->emu_lock, flags);
+
+		ngain = emu->i2c_capture_volume[source_id][0]; /* Left */
+		ogain = emu->i2c_capture_volume[emu->i2c_capture_source][0]; /* Left */
+		if (ngain != ogain)
+			snd_emu10k1_i2c_write(emu, ADC_ATTEN_ADCL, ((ngain) & 0xff));
+		ngain = emu->i2c_capture_volume[source_id][1]; /* Right */
+		ogain = emu->i2c_capture_volume[emu->i2c_capture_source][1]; /* Right */
+		if (ngain != ogain)
+			snd_emu10k1_i2c_write(emu, ADC_ATTEN_ADCR, ((ngain) & 0xff));
+
+		source = 1 << (source_id + 2);
+		snd_emu10k1_i2c_write(emu, ADC_MUX, source); /* Set source */
+		emu->i2c_capture_source = source_id;
+	}
+        return change;
+}
+
+static struct snd_kcontrol_new snd_audigy_i2c_capture_source =
+{
+		.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name =		"Capture Source",
+		.info =		snd_audigy_i2c_capture_source_info,
+		.get =		snd_audigy_i2c_capture_source_get,
+		.put =		snd_audigy_i2c_capture_source_put
+};
+
+static int snd_audigy_i2c_volume_info(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 2;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 255;
+	return 0;
+}
+
+static int snd_audigy_i2c_volume_get(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	int source_id;
+
+	source_id = kcontrol->private_value;
+
+	ucontrol->value.integer.value[0] = emu->i2c_capture_volume[source_id][0];
+	ucontrol->value.integer.value[1] = emu->i2c_capture_volume[source_id][1];
+	return 0;
+}
+
+static int snd_audigy_i2c_volume_put(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	unsigned int ogain;
+	unsigned int ngain;
+	int source_id;
+	int change = 0;
+
+	source_id = kcontrol->private_value;
+	ogain = emu->i2c_capture_volume[source_id][0]; /* Left */
+	ngain = ucontrol->value.integer.value[0];
+	if (ngain > 0xff)
+		return 0;
+	if (ogain != ngain) {
+		if (emu->i2c_capture_source == source_id)
+			snd_emu10k1_i2c_write(emu, ADC_ATTEN_ADCL, ((ngain) & 0xff) );
+		emu->i2c_capture_volume[source_id][0] = ucontrol->value.integer.value[0];
+		change = 1;
+	}
+	ogain = emu->i2c_capture_volume[source_id][1]; /* Right */
+	ngain = ucontrol->value.integer.value[1];
+	if (ngain > 0xff)
+		return 0;
+	if (ogain != ngain) {
+		if (emu->i2c_capture_source == source_id)
+			snd_emu10k1_i2c_write(emu, ADC_ATTEN_ADCR, ((ngain) & 0xff));
+		emu->i2c_capture_volume[source_id][1] = ucontrol->value.integer.value[1];
+		change = 1;
+	}
+
+	return change;
+}
+
+#define I2C_VOLUME(xname,chid) \
+{								\
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,	\
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |		\
+	          SNDRV_CTL_ELEM_ACCESS_TLV_READ,		\
+	.info =  snd_audigy_i2c_volume_info,			\
+	.get =   snd_audigy_i2c_volume_get,			\
+	.put =   snd_audigy_i2c_volume_put,			\
+	.tlv = { .p = snd_audigy_db_scale2 },			\
+	.private_value = chid					\
+}
+
+
+static struct snd_kcontrol_new snd_audigy_i2c_volume_ctls[] __devinitdata = {
+	I2C_VOLUME("Mic Capture Volume", 0),
+	I2C_VOLUME("Line Capture Volume", 0)
 };
 
 #if 0
@@ -1179,7 +1340,9 @@ static int snd_emu10k1_shared_spdif_put(struct snd_kcontrol *kcontrol,
 	int change = 0;
 
 	spin_lock_irqsave(&emu->reg_lock, flags);
-	if (emu->audigy) {
+	if ( emu->card_capabilities->i2c_adc) {
+		/* Do nothing for Audigy 2 ZS Notebook */
+	} else if (emu->audigy) {
 		reg = inl(emu->port + A_IOCFG);
 		val = ucontrol->value.integer.value[0] ? A_IOCFG_GPOUT0 : 0;
 		change = (reg & A_IOCFG_GPOUT0) != val;
@@ -1317,6 +1480,22 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		"AMic Playback Volume", "Mic Playback Volume",
 		NULL
 	};
+	static char *audigy_rename_ctls_i2c_adc[] = {
+		//"Analog Mix Capture Volume","OLD Analog Mix Capture Volume",
+		"Line Capture Volume", "Analog Mix Capture Volume",
+		"Wave Playback Volume", "OLD PCM Playback Volume",
+		"Wave Master Playback Volume", "Master Playback Volume",
+		"AMic Playback Volume", "Old Mic Playback Volume",
+		NULL
+	};
+	static char *audigy_remove_ctls_i2c_adc[] = {
+		/* On the Audigy2 ZS Notebook
+		 * Capture via WM8775  */
+		"Mic Capture Volume",
+		"Analog Mix Capture Volume",
+		"Aux Capture Volume",
+		NULL
+	};
 	static char *audigy_remove_ctls_1361t_adc[] = {
 		/* On the Audigy2 the AC97 playback is piped into
 		 * the Philips ADC for 24bit capture */
@@ -1409,6 +1588,10 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		}
 		for (; *c; c++)
 			remove_ctl(card, *c);
+	} else if (emu->card_capabilities->i2c_adc) {
+		c = audigy_remove_ctls_i2c_adc;
+		for (; *c; c++)
+			remove_ctl(card, *c);
 	} else {
 	no_ac97:
 		if (emu->card_capabilities->ecard)
@@ -1422,6 +1605,8 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 	if (emu->audigy)
 		if (emu->card_capabilities->adc_1361t)
 			c = audigy_rename_ctls_1361t_adc;
+		else if (emu->card_capabilities->i2c_adc)
+			c = audigy_rename_ctls_i2c_adc;
 		else
 			c = audigy_rename_ctls;
 	else
@@ -1583,6 +1768,20 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		err = snd_ctl_add(card, snd_ctl_new1(&snd_emu1010_internal_clock, emu));
 		if (err < 0)
 			return err;
+	}
+
+	if ( emu->card_capabilities->i2c_adc) {
+		int i;
+
+		err = snd_ctl_add(card, snd_ctl_new1(&snd_audigy_i2c_capture_source, emu));
+		if (err < 0)
+			return err;
+
+		for (i = 0; i < ARRAY_SIZE(snd_audigy_i2c_volume_ctls); i++) {
+			err = snd_ctl_add(card, snd_ctl_new1(&snd_audigy_i2c_volume_ctls[i], emu));
+			if (err < 0)
+				return err;
+		}
 	}
 		
 	return 0;
