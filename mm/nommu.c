@@ -497,15 +497,17 @@ static int validate_mmap_request(struct file *file,
 	    (flags & MAP_TYPE) != MAP_SHARED)
 		return -EINVAL;
 
-	if (PAGE_ALIGN(len) == 0)
-		return addr;
-
-	if (len > TASK_SIZE)
+	if (!len)
 		return -EINVAL;
+
+	/* Careful about overflows.. */
+	len = PAGE_ALIGN(len);
+	if (!len || len > TASK_SIZE)
+		return -ENOMEM;
 
 	/* offset overflow? */
 	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
-		return -EINVAL;
+		return -EOVERFLOW;
 
 	if (file) {
 		/* validate file mapping requests */
