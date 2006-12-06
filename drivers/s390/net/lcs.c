@@ -67,7 +67,7 @@ static char debug_buffer[255];
  * Some prototypes.
  */
 static void lcs_tasklet(unsigned long);
-static void lcs_start_kernel_thread(struct lcs_card *card);
+static void lcs_start_kernel_thread(struct work_struct *);
 static void lcs_get_frames_cb(struct lcs_channel *, struct lcs_buffer *);
 static int lcs_send_delipm(struct lcs_card *, struct lcs_ipm_list *);
 static int lcs_recovery(void *ptr);
@@ -1724,8 +1724,9 @@ lcs_stopcard(struct lcs_card *card)
  * Kernel Thread helper functions for LGW initiated commands
  */
 static void
-lcs_start_kernel_thread(struct lcs_card *card)
+lcs_start_kernel_thread(struct work_struct *work)
 {
+	struct lcs_card *card = container_of(work, struct lcs_card, kernel_thread_starter);
 	LCS_DBF_TEXT(5, trace, "krnthrd");
 	if (lcs_do_start_thread(card, LCS_RECOVERY_THREAD))
 		kernel_thread(lcs_recovery, (void *) card, SIGCHLD);
@@ -2053,8 +2054,7 @@ lcs_probe_device(struct ccwgroup_device *ccwgdev)
 	ccwgdev->cdev[0]->handler = lcs_irq;
 	ccwgdev->cdev[1]->handler = lcs_irq;
 	card->gdev = ccwgdev;
-	INIT_WORK(&card->kernel_thread_starter,
-		  (void *) lcs_start_kernel_thread, card);
+	INIT_WORK(&card->kernel_thread_starter, lcs_start_kernel_thread);
 	card->thread_start_mask = 0;
 	card->thread_allowed_mask = 0;
 	card->thread_running_mask = 0;
