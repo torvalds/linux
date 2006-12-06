@@ -21,7 +21,6 @@
 #ifndef __ASM_ARCH_TIMEX_H
 #define __ASM_ARCH_TIMEX_H
 
-#include <asm/hardware.h>
-#define CLOCK_TICK_RATE		(CLK32)
+#define CLOCK_TICK_RATE		(16000000)
 
 #endif
