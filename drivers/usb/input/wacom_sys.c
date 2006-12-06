@@ -159,13 +159,13 @@ void input_dev_i3s(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 {
 	input_dev->keybit[LONG(BTN_DIGI)] |= BIT(BTN_TOOL_FINGER);
 	input_dev->keybit[LONG(BTN_LEFT)] |= BIT(BTN_0) | BIT(BTN_1) | BIT(BTN_2) | BIT(BTN_3);
-	input_set_abs_params(input_dev, ABS_RX, 0, 4097, 0, 0);
+	input_set_abs_params(input_dev, ABS_RX, 0, 4096, 0, 0);
 }
 
 void input_dev_i3(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 {
 	input_dev->keybit[LONG(BTN_LEFT)] |= BIT(BTN_4) | BIT(BTN_5) | BIT(BTN_6) | BIT(BTN_7);
-	input_set_abs_params(input_dev, ABS_RY, 0, 4097, 0, 0);
+	input_set_abs_params(input_dev, ABS_RY, 0, 4096, 0, 0);
 }
 
 void input_dev_i(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
