@@ -33,6 +33,7 @@
 #include <asm/arch/regs-serial.h>
 #include <asm/arch/regs-lcd.h>
 
+#include <asm/arch/h1940.h>
 #include <asm/arch/h1940-latch.h>
 #include <asm/arch/fb.h>
 
@@ -41,6 +42,7 @@
 #include "clock.h"
 #include "devs.h"
 #include "cpu.h"
+#include "pm.h"
 
 static struct map_desc h1940_iodesc[] __initdata = {
 	[0] = {
@@ -164,12 +166,16 @@ static void __init h1940_map_io(void)
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(h1940_uartcfgs, ARRAY_SIZE(h1940_uartcfgs));
 	s3c24xx_set_board(&h1940_board);
+
+	/* setup PM */
+
+	memcpy(phys_to_virt(H1940_SUSPEND_RESUMEAT), h1940_pm_return, 1024);
+	s3c2410_pm_init();
 }
 
 static void __init h1940_init_irq(void)
 {
 	s3c24xx_init_irq();
-
 }
 
 static void __init h1940_init(void)

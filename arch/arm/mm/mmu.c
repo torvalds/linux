@@ -619,6 +619,11 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 	if (machine_is_p720t())
 		res_size = 0x00014000;
 
+	if (machine_is_h1940()) {
+		reserve_bootmem_node(pgdat, 0x30003000, 0x1000);
+		reserve_bootmem_node(pgdat, 0x30081000, 0x1000);
+	}
+
 #ifdef CONFIG_SA1111
 	/*
 	 * Because of the SA1111 DMA bug, we want to preserve our
