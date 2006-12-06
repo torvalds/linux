@@ -282,6 +282,7 @@ servo_probe(struct usb_interface *interface, const struct usb_device_id *id)
 		dev->dev = NULL;
 		goto out;
 	}
+	dev_set_drvdata(dev->dev, dev);
 
 	servo_count = dev->type & SERVO_COUNT_QUAD ? 4 : 1;
 
