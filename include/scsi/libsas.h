@@ -646,6 +646,6 @@ void sas_unregister_dev(struct domain_device *);
 
 void sas_init_dev(struct domain_device *);
 
-void sas_task_abort(struct sas_task *task);
+void sas_task_abort(struct work_struct *);
 
 #endif /* _SASLIB_H_ */

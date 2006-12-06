@@ -185,10 +185,11 @@ static void cmd_hashlist_del(struct scsi_cmnd *cmd)
 	spin_unlock_irqrestore(&qdata->cmd_hash_lock, flags);
 }
 
-static void scsi_tgt_cmd_destroy(void *data)
+static void scsi_tgt_cmd_destroy(struct work_struct *work)
 {
-	struct scsi_cmnd *cmd = data;
-	struct scsi_tgt_cmd *tcmd = cmd->request->end_io_data;
+	struct scsi_tgt_cmd *tcmd =
+		container_of(work, struct scsi_tgt_cmd, work);
+	struct scsi_cmnd *cmd = tcmd->rq->special;
 
 	dprintk("cmd %p %d %lu\n", cmd, cmd->sc_data_direction,
 		rq_data_dir(cmd->request));
@@ -214,6 +215,7 @@ static void init_scsi_tgt_cmd(struct request *rq, struct scsi_tgt_cmd *tcmd,
 	struct list_head *head;
 
 	tcmd->tag = tag;
+	INIT_WORK(&tcmd->work, scsi_tgt_cmd_destroy);
 	spin_lock_irqsave(&qdata->cmd_hash_lock, flags);
 	head = &qdata->cmd_hash[cmd_hashfn(tag)];
 	list_add(&tcmd->hash_list, head);
@@ -303,7 +305,7 @@ void scsi_tgt_free_queue(struct Scsi_Host *shost)
 		cmd = tcmd->rq->special;
 
 		shost->hostt->eh_abort_handler(cmd);
-		scsi_tgt_cmd_destroy(cmd);
+		scsi_tgt_cmd_destroy(&tcmd->work);
 	}
 }
 EXPORT_SYMBOL_GPL(scsi_tgt_free_queue);
@@ -347,7 +349,6 @@ static void scsi_tgt_cmd_done(struct scsi_cmnd *cmd)
 	dprintk("cmd %p %lu\n", cmd, rq_data_dir(cmd->request));
 
 	scsi_tgt_uspace_send_status(cmd, tcmd->tag);
-	INIT_WORK(&tcmd->work, scsi_tgt_cmd_destroy, cmd);
 	queue_work(scsi_tgtd, &tcmd->work);
 }
 
@@ -549,13 +550,15 @@ static int scsi_tgt_copy_sense(struct scsi_cmnd *cmd, unsigned long uaddr,
 
 static int scsi_tgt_abort_cmd(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
 {
+	struct scsi_tgt_cmd *tcmd;
 	int err;
 
 	err = shost->hostt->eh_abort_handler(cmd);
 	if (err)
 		eprintk("fail to abort %p\n", cmd);
 
-	scsi_tgt_cmd_destroy(cmd);
+	tcmd = cmd->request->end_io_data;
+	scsi_tgt_cmd_destroy(&tcmd->work);
 	return err;
 }
 
