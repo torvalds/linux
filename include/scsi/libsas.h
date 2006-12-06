@@ -354,6 +354,8 @@ struct sas_ha_struct {
 	void (*notify_phy_event)(struct asd_sas_phy *, enum phy_event);
 
 	void *lldd_ha;		  /* not touched by sas class code */
+
+	struct list_head eh_done_q;
 };
 
 #define SHOST_TO_SAS_HA(_shost) (*(struct sas_ha_struct **)(_shost)->hostdata)
@@ -542,13 +544,16 @@ struct sas_task {
 
 	void   *lldd_task;	  /* for use by LLDDs */
 	void   *uldd_task;
+
+	struct work_struct abort_work;
 };
 
 
 
-#define SAS_TASK_STATE_PENDING  1
-#define SAS_TASK_STATE_DONE     2
-#define SAS_TASK_STATE_ABORTED  4
+#define SAS_TASK_STATE_PENDING      1
+#define SAS_TASK_STATE_DONE         2
+#define SAS_TASK_STATE_ABORTED      4
+#define SAS_TASK_INITIATOR_ABORTED  8
 
 static inline struct sas_task *sas_alloc_task(gfp_t flags)
 {
@@ -608,6 +613,7 @@ struct sas_domain_function_template {
 extern int sas_register_ha(struct sas_ha_struct *);
 extern int sas_unregister_ha(struct sas_ha_struct *);
 
+int sas_phy_reset(struct sas_phy *phy, int hard_reset);
 extern int sas_queuecommand(struct scsi_cmnd *,
 		     void (*scsi_done)(struct scsi_cmnd *));
 extern int sas_target_alloc(struct scsi_target *);
@@ -639,5 +645,7 @@ int  sas_discover_end_dev(struct domain_device *);
 void sas_unregister_dev(struct domain_device *);
 
 void sas_init_dev(struct domain_device *);
+
+void sas_task_abort(struct sas_task *task);
 
 #endif /* _SASLIB_H_ */

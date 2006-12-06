@@ -40,7 +40,11 @@
 
 #ifndef PCI_DEVICE_ID_QLOGIC_ISP4022
 #define PCI_DEVICE_ID_QLOGIC_ISP4022	0x4022
-#endif				/*  */
+#endif
+
+#ifndef PCI_DEVICE_ID_QLOGIC_ISP4032
+#define PCI_DEVICE_ID_QLOGIC_ISP4032	0x4032
+#endif
 
 #define QLA_SUCCESS			0
 #define QLA_ERROR			1
@@ -277,7 +281,6 @@ struct scsi_qla_host {
 #define AF_INTERRUPTS_ON	      6 /* 0x00000040 Not Used */
 #define AF_GET_CRASH_RECORD	      7 /* 0x00000080 */
 #define AF_LINK_UP		      8 /* 0x00000100 */
-#define AF_TOPCAT_CHIP_PRESENT	      9 /* 0x00000200 */
 #define AF_IRQ_ATTACHED		     10 /* 0x00000400 */
 #define AF_ISNS_CMD_IN_PROCESS	     12 /* 0x00001000 */
 #define AF_ISNS_CMD_DONE	     13 /* 0x00002000 */
@@ -317,16 +320,17 @@ struct scsi_qla_host {
 	/* NVRAM registers */
 	struct eeprom_data *nvram;
 	spinlock_t hardware_lock ____cacheline_aligned;
-	spinlock_t list_lock;
 	uint32_t   eeprom_cmd_data;
 
 	/* Counters for general statistics */
+	uint64_t isr_count;
 	uint64_t adapter_error_count;
 	uint64_t device_error_count;
 	uint64_t total_io_count;
 	uint64_t total_mbytes_xferred;
 	uint64_t link_failure_count;
 	uint64_t invalid_crc_count;
+	uint32_t bytes_xfered;
 	uint32_t spurious_int_count;
 	uint32_t aborted_io_count;
 	uint32_t io_timeout_count;
@@ -438,6 +442,11 @@ static inline int is_qla4022(struct scsi_qla_host *ha)
 	return ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP4022;
 }
 
+static inline int is_qla4032(struct scsi_qla_host *ha)
+{
+	return ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP4032;
+}
+
 static inline int adapter_up(struct scsi_qla_host *ha)
 {
 	return (test_bit(AF_ONLINE, &ha->flags) != 0) &&
@@ -451,58 +460,58 @@ static inline struct scsi_qla_host* to_qla_host(struct Scsi_Host *shost)
 
 static inline void __iomem* isp_semaphore(struct scsi_qla_host *ha)
 {
-	return (is_qla4022(ha) ?
-		&ha->reg->u1.isp4022.semaphore :
-		&ha->reg->u1.isp4010.nvram);
+	return (is_qla4010(ha) ?
+		&ha->reg->u1.isp4010.nvram :
+		&ha->reg->u1.isp4022.semaphore);
 }
 
 static inline void __iomem* isp_nvram(struct scsi_qla_host *ha)
 {
-	return (is_qla4022(ha) ?
-		&ha->reg->u1.isp4022.nvram :
-		&ha->reg->u1.isp4010.nvram);
+	return (is_qla4010(ha) ?
+		&ha->reg->u1.isp4010.nvram :
+		&ha->reg->u1.isp4022.nvram);
 }
 
 static inline void __iomem* isp_ext_hw_conf(struct scsi_qla_host *ha)
 {
-	return (is_qla4022(ha) ?
-		&ha->reg->u2.isp4022.p0.ext_hw_conf :
-		&ha->reg->u2.isp4010.ext_hw_conf);
+	return (is_qla4010(ha) ?
+		&ha->reg->u2.isp4010.ext_hw_conf :
+		&ha->reg->u2.isp4022.p0.ext_hw_conf);
 }
 
 static inline void __iomem* isp_port_status(struct scsi_qla_host *ha)
 {
-	return (is_qla4022(ha) ?
-		&ha->reg->u2.isp4022.p0.port_status :
-		&ha->reg->u2.isp4010.port_status);
+	return (is_qla4010(ha) ?
+		&ha->reg->u2.isp4010.port_status :
+		&ha->reg->u2.isp4022.p0.port_status);
 }
 
 static inline void __iomem* isp_port_ctrl(struct scsi_qla_host *ha)
 {
-	return (is_qla4022(ha) ?
-		&ha->reg->u2.isp4022.p0.port_ctrl :
-		&ha->reg->u2.isp4010.port_ctrl);
+	return (is_qla4010(ha) ?
+		&ha->reg->u2.isp4010.port_ctrl :
+		&ha->reg->u2.isp4022.p0.port_ctrl);
 }
 
 static inline void __iomem* isp_port_error_status(struct scsi_qla_host *ha)
 {
-	return (is_qla4022(ha) ?
-		&ha->reg->u2.isp4022.p0.port_err_status :
-		&ha->reg->u2.isp4010.port_err_status);
+	return (is_qla4010(ha) ?
+		&ha->reg->u2.isp4010.port_err_status :
+		&ha->reg->u2.isp4022.p0.port_err_status);
 }
 
 static inline void __iomem * isp_gp_out(struct scsi_qla_host *ha)
 {
-	return (is_qla4022(ha) ?
-		&ha->reg->u2.isp4022.p0.gp_out :
-		&ha->reg->u2.isp4010.gp_out);
+	return (is_qla4010(ha) ?
+		&ha->reg->u2.isp4010.gp_out :
+		&ha->reg->u2.isp4022.p0.gp_out);
 }
 
 static inline int eeprom_ext_hw_conf_offset(struct scsi_qla_host *ha)
 {
-	return (is_qla4022(ha) ?
-		offsetof(struct eeprom_data, isp4022.ext_hw_conf) / 2 :
-		offsetof(struct eeprom_data, isp4010.ext_hw_conf) / 2);
+	return (is_qla4010(ha) ?
+		offsetof(struct eeprom_data, isp4010.ext_hw_conf) / 2 :
+		offsetof(struct eeprom_data, isp4022.ext_hw_conf) / 2);
 }
 
 int ql4xxx_sem_spinlock(struct scsi_qla_host * ha, u32 sem_mask, u32 sem_bits);
@@ -511,59 +520,59 @@ int ql4xxx_sem_lock(struct scsi_qla_host * ha, u32 sem_mask, u32 sem_bits);
 
 static inline int ql4xxx_lock_flash(struct scsi_qla_host *a)
 {
-	if (is_qla4022(a))
+	if (is_qla4010(a))
+		return ql4xxx_sem_spinlock(a, QL4010_FLASH_SEM_MASK,
+					   QL4010_FLASH_SEM_BITS);
+	else
 		return ql4xxx_sem_spinlock(a, QL4022_FLASH_SEM_MASK,
 					   (QL4022_RESOURCE_BITS_BASE_CODE |
 					    (a->mac_index)) << 13);
-	else
-		return ql4xxx_sem_spinlock(a, QL4010_FLASH_SEM_MASK,
-					   QL4010_FLASH_SEM_BITS);
 }
 
 static inline void ql4xxx_unlock_flash(struct scsi_qla_host *a)
 {
-	if (is_qla4022(a))
-		ql4xxx_sem_unlock(a, QL4022_FLASH_SEM_MASK);
-	else
+	if (is_qla4010(a))
 		ql4xxx_sem_unlock(a, QL4010_FLASH_SEM_MASK);
+	else
+		ql4xxx_sem_unlock(a, QL4022_FLASH_SEM_MASK);
 }
 
 static inline int ql4xxx_lock_nvram(struct scsi_qla_host *a)
 {
-	if (is_qla4022(a))
+	if (is_qla4010(a))
+		return ql4xxx_sem_spinlock(a, QL4010_NVRAM_SEM_MASK,
+					   QL4010_NVRAM_SEM_BITS);
+	else
 		return ql4xxx_sem_spinlock(a, QL4022_NVRAM_SEM_MASK,
 					   (QL4022_RESOURCE_BITS_BASE_CODE |
 					    (a->mac_index)) << 10);
-	else
-		return ql4xxx_sem_spinlock(a, QL4010_NVRAM_SEM_MASK,
-					   QL4010_NVRAM_SEM_BITS);
 }
 
 static inline void ql4xxx_unlock_nvram(struct scsi_qla_host *a)
 {
-	if (is_qla4022(a))
-		ql4xxx_sem_unlock(a, QL4022_NVRAM_SEM_MASK);
-	else
+	if (is_qla4010(a))
 		ql4xxx_sem_unlock(a, QL4010_NVRAM_SEM_MASK);
+	else
+		ql4xxx_sem_unlock(a, QL4022_NVRAM_SEM_MASK);
 }
 
 static inline int ql4xxx_lock_drvr(struct scsi_qla_host *a)
 {
-	if (is_qla4022(a))
+	if (is_qla4010(a))
+		return ql4xxx_sem_lock(a, QL4010_DRVR_SEM_MASK,
+				       QL4010_DRVR_SEM_BITS);
+	else
 		return ql4xxx_sem_lock(a, QL4022_DRVR_SEM_MASK,
 				       (QL4022_RESOURCE_BITS_BASE_CODE |
 					(a->mac_index)) << 1);
-	else
-		return ql4xxx_sem_lock(a, QL4010_DRVR_SEM_MASK,
-				       QL4010_DRVR_SEM_BITS);
 }
 
 static inline void ql4xxx_unlock_drvr(struct scsi_qla_host *a)
 {
-	if (is_qla4022(a))
-		ql4xxx_sem_unlock(a, QL4022_DRVR_SEM_MASK);
-	else
+	if (is_qla4010(a))
 		ql4xxx_sem_unlock(a, QL4010_DRVR_SEM_MASK);
+	else
+		ql4xxx_sem_unlock(a, QL4022_DRVR_SEM_MASK);
 }
 
 /*---------------------------------------------------------------------------*/

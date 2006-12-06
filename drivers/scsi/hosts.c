@@ -263,6 +263,10 @@ static void scsi_host_dev_release(struct device *dev)
 		kthread_stop(shost->ehandler);
 	if (shost->work_q)
 		destroy_workqueue(shost->work_q);
+	if (shost->uspace_req_q) {
+		kfree(shost->uspace_req_q->queuedata);
+		scsi_free_queue(shost->uspace_req_q);
+	}
 
 	scsi_destroy_command_freelist(shost);
 	if (shost->bqt)
@@ -301,8 +305,8 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	if (!shost)
 		return NULL;
 
-	spin_lock_init(&shost->default_lock);
-	scsi_assign_lock(shost, &shost->default_lock);
+	shost->host_lock = &shost->default_lock;
+	spin_lock_init(shost->host_lock);
 	shost->shost_state = SHOST_CREATED;
 	INIT_LIST_HEAD(&shost->__devices);
 	INIT_LIST_HEAD(&shost->__targets);

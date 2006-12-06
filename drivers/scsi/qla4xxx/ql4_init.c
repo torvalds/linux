@@ -259,10 +259,16 @@ static int qla4xxx_fw_ready(struct scsi_qla_host *ha)
 			      "seconds expired= %d\n", ha->host_no, __func__,
 			      ha->firmware_state, ha->addl_fw_state,
 			      timeout_count));
+		if (is_qla4032(ha) &&
+			!(ha->addl_fw_state & FW_ADDSTATE_LINK_UP) &&
+			(timeout_count < ADAPTER_INIT_TOV - 5)) {
+			break;
+		}
+
 		msleep(1000);
 	}			/* end of for */
 
-	if (timeout_count <= 0)
+	if (timeout_count == 0)
 		DEBUG2(printk("scsi%ld: %s: FW Initialization timed out!\n",
 			      ha->host_no, __func__));
 
@@ -806,32 +812,6 @@ int qla4xxx_relogin_device(struct scsi_qla_host *ha,
 	return QLA_SUCCESS;
 }
 
-/**
- * qla4010_get_topcat_presence - check if it is QLA4040 TopCat Chip
- * @ha: Pointer to host adapter structure.
- *
- **/
-static int qla4010_get_topcat_presence(struct scsi_qla_host *ha)
-{
-	unsigned long flags;
-	uint16_t topcat;
-
-	if (ql4xxx_lock_nvram(ha) != QLA_SUCCESS)
-		return QLA_ERROR;
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	topcat = rd_nvram_word(ha, offsetof(struct eeprom_data,
-					    isp4010.topcat));
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-
-	if ((topcat & TOPCAT_MASK) == TOPCAT_PRESENT)
-		set_bit(AF_TOPCAT_CHIP_PRESENT, &ha->flags);
-	else
-		clear_bit(AF_TOPCAT_CHIP_PRESENT, &ha->flags);
-	ql4xxx_unlock_nvram(ha);
-	return QLA_SUCCESS;
-}
-
-
 static int qla4xxx_config_nvram(struct scsi_qla_host *ha)
 {
 	unsigned long flags;
@@ -866,7 +846,7 @@ static int qla4xxx_config_nvram(struct scsi_qla_host *ha)
 		/* set defaults */
 		if (is_qla4010(ha))
 			extHwConfig.Asuint32_t = 0x1912;
-		else if (is_qla4022(ha))
+		else if (is_qla4022(ha) | is_qla4032(ha))
 			extHwConfig.Asuint32_t = 0x0023;
 	}
 	DEBUG(printk("scsi%ld: %s: Setting extHwConfig to 0xFFFF%04x\n",
@@ -927,7 +907,7 @@ static int qla4xxx_start_firmware_from_flash(struct scsi_qla_host *ha)
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	writel(jiffies, &ha->reg->mailbox[7]);
-	if (is_qla4022(ha))
+	if (is_qla4022(ha) | is_qla4032(ha))
 		writel(set_rmask(NVR_WRITE_ENABLE),
 		       &ha->reg->u1.isp4022.nvram);
 
@@ -978,7 +958,7 @@ static int qla4xxx_start_firmware_from_flash(struct scsi_qla_host *ha)
 	return status;
 }
 
-static int ql4xxx_lock_drvr_wait(struct scsi_qla_host *a)
+int ql4xxx_lock_drvr_wait(struct scsi_qla_host *a)
 {
 #define QL4_LOCK_DRVR_WAIT	300
 #define QL4_LOCK_DRVR_SLEEP	100
@@ -1018,12 +998,7 @@ static int qla4xxx_start_firmware(struct scsi_qla_host *ha)
 	int soft_reset = 1;
 	int config_chip = 0;
 
-	if (is_qla4010(ha)){
-		if (qla4010_get_topcat_presence(ha) != QLA_SUCCESS)
-			return QLA_ERROR;
-	}
-
-	if (is_qla4022(ha))
+	if (is_qla4022(ha) | is_qla4032(ha))
 		ql4xxx_set_mac_number(ha);
 
 	if (ql4xxx_lock_drvr_wait(ha) != QLA_SUCCESS)

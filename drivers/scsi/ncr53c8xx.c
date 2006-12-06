@@ -589,10 +589,12 @@ static int __map_scsi_sg_data(struct device *dev, struct scsi_cmnd *cmd)
 static struct ncr_driver_setup
 	driver_setup			= SCSI_NCR_DRIVER_SETUP;
 
+#ifndef MODULE
 #ifdef	SCSI_NCR_BOOT_COMMAND_LINE_SUPPORT
 static struct ncr_driver_setup
 	driver_safe_setup __initdata	= SCSI_NCR_DRIVER_SAFE_SETUP;
 #endif
+#endif /* !MODULE */
 
 #define initverbose (driver_setup.verbose)
 #define bootverbose (np->verbose)
@@ -641,6 +643,13 @@ static struct ncr_driver_setup
 #define OPT_IARB		26
 #endif
 
+#ifdef MODULE
+#define	ARG_SEP	' '
+#else
+#define	ARG_SEP	','
+#endif
+
+#ifndef MODULE
 static char setup_token[] __initdata = 
 	"tags:"   "mpar:"
 	"spar:"   "disc:"
@@ -660,12 +669,6 @@ static char setup_token[] __initdata =
 #endif
 	;	/* DONNOT REMOVE THIS ';' */
 
-#ifdef MODULE
-#define	ARG_SEP	' '
-#else
-#define	ARG_SEP	','
-#endif
-
 static int __init get_setup_token(char *p)
 {
 	char *cur = setup_token;
@@ -681,7 +684,6 @@ static int __init get_setup_token(char *p)
 	}
 	return 0;
 }
-
 
 static int __init sym53c8xx__setup(char *str)
 {
@@ -804,6 +806,7 @@ static int __init sym53c8xx__setup(char *str)
 #endif /* SCSI_NCR_BOOT_COMMAND_LINE_SUPPORT */
 	return 1;
 }
+#endif /* !MODULE */
 
 /*===================================================================
 **
@@ -8321,12 +8324,12 @@ char *ncr53c8xx;	/* command line passed by insmod */
 module_param(ncr53c8xx, charp, 0);
 #endif
 
+#ifndef MODULE
 static int __init ncr53c8xx_setup(char *str)
 {
 	return sym53c8xx__setup(str);
 }
 
-#ifndef MODULE
 __setup("ncr53c8xx=", ncr53c8xx_setup);
 #endif
 

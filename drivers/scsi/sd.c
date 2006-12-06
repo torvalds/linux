@@ -1051,6 +1051,14 @@ sd_spinup_disk(struct scsi_disk *sdkp, char *diskname)
 						      &sshdr, SD_TIMEOUT,
 						      SD_MAX_RETRIES);
 
+			/*
+			 * If the drive has indicated to us that it
+			 * doesn't have any media in it, don't bother
+			 * with any more polling.
+			 */
+			if (media_not_present(sdkp, &sshdr))
+				return;
+
 			if (the_result)
 				sense_valid = scsi_sense_valid(&sshdr);
 			retries++;
@@ -1058,14 +1066,6 @@ sd_spinup_disk(struct scsi_disk *sdkp, char *diskname)
 			 (!scsi_status_is_good(the_result) ||
 			  ((driver_byte(the_result) & DRIVER_SENSE) &&
 			  sense_valid && sshdr.sense_key == UNIT_ATTENTION)));
-
-		/*
-		 * If the drive has indicated to us that it doesn't have
-		 * any media in it, don't bother with any of the rest of
-		 * this crap.
-		 */
-		if (media_not_present(sdkp, &sshdr))
-			return;
 
 		if ((driver_byte(the_result) & DRIVER_SENSE) == 0) {
 			/* no sense, TUR either succeeded or failed
@@ -1467,7 +1467,6 @@ sd_read_cache_type(struct scsi_disk *sdkp, char *diskname,
 	res = sd_do_mode_sense(sdp, dbd, modepage, buffer, len, &data, &sshdr);
 
 	if (scsi_status_is_good(res)) {
-		int ct = 0;
 		int offset = data.header_length + data.block_descriptor_length;
 
 		if (offset >= SD_BUF_SIZE - 2) {
@@ -1496,11 +1495,13 @@ sd_read_cache_type(struct scsi_disk *sdkp, char *diskname,
 			sdkp->DPOFUA = 0;
 		}
 
-		ct =  sdkp->RCD + 2*sdkp->WCE;
-
-		printk(KERN_NOTICE "SCSI device %s: drive cache: %s%s\n",
-		       diskname, sd_cache_types[ct],
-		       sdkp->DPOFUA ? " w/ FUA" : "");
+		printk(KERN_NOTICE "SCSI device %s: "
+		       "write cache: %s, read cache: %s, %s\n",
+		       diskname,
+		       sdkp->WCE ? "enabled" : "disabled",
+		       sdkp->RCD ? "disabled" : "enabled",
+		       sdkp->DPOFUA ? "supports DPO and FUA"
+		       : "doesn't support DPO or FUA");
 
 		return;
 	}

@@ -519,31 +519,15 @@ static int pcnet_config(struct pcmcia_device *link)
     tuple_t tuple;
     cisparse_t parse;
     int i, last_ret, last_fn, start_pg, stop_pg, cm_offset;
-    int manfid = 0, prodid = 0, has_shmem = 0;
+    int has_shmem = 0;
     u_short buf[64];
     hw_info_t *hw_info;
 
     DEBUG(0, "pcnet_config(0x%p)\n", link);
 
-    tuple.Attributes = 0;
     tuple.TupleData = (cisdata_t *)buf;
     tuple.TupleDataMax = sizeof(buf);
     tuple.TupleOffset = 0;
-    tuple.DesiredTuple = CISTPL_CONFIG;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
-    link->conf.ConfigBase = parse.config.base;
-    link->conf.Present = parse.config.rmask[0];
-
-    tuple.DesiredTuple = CISTPL_MANFID;
-    tuple.Attributes = TUPLE_RETURN_COMMON;
-    if ((pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) &&
- 	(pcmcia_get_tuple_data(link, &tuple) == CS_SUCCESS)) {
-	manfid = le16_to_cpu(buf[0]);
-	prodid = le16_to_cpu(buf[1]);
-    }
-
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
     tuple.Attributes = 0;
     CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
@@ -589,8 +573,8 @@ static int pcnet_config(struct pcmcia_device *link)
 	link->conf.Attributes |= CONF_ENABLE_SPKR;
 	link->conf.Status = CCSR_AUDIO_ENA;
     }
-    if ((manfid == MANFID_IBM) &&
-	(prodid == PRODID_IBM_HOME_AND_AWAY))
+    if ((link->manf_id == MANFID_IBM) &&
+	(link->card_id == PRODID_IBM_HOME_AND_AWAY))
 	link->conf.ConfigIndex |= 0x10;
 
     CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
@@ -624,10 +608,10 @@ static int pcnet_config(struct pcmcia_device *link)
     info->flags = hw_info->flags;
     /* Check for user overrides */
     info->flags |= (delay_output) ? DELAY_OUTPUT : 0;
-    if ((manfid == MANFID_SOCKET) &&
-	((prodid == PRODID_SOCKET_LPE) ||
-	 (prodid == PRODID_SOCKET_LPE_CF) ||
-	 (prodid == PRODID_SOCKET_EIO)))
+    if ((link->manf_id == MANFID_SOCKET) &&
+	((link->card_id == PRODID_SOCKET_LPE) ||
+	 (link->card_id == PRODID_SOCKET_LPE_CF) ||
+	 (link->card_id == PRODID_SOCKET_EIO)))
 	info->flags &= ~USE_BIG_BUF;
     if (!use_big_buf)
 	info->flags &= ~USE_BIG_BUF;

@@ -244,17 +244,6 @@ static int atmel_config(struct pcmcia_device *link)
 	tuple.TupleOffset = 0;
 
 	/*
-	  This reads the card's CONFIG tuple to find its configuration
-	  registers.
-	*/
-	tuple.DesiredTuple = CISTPL_CONFIG;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
-	link->conf.ConfigBase = parse.config.base;
-	link->conf.Present = parse.config.rmask[0];
-
-	/*
 	  In this loop, we scan the CIS for configuration table entries,
 	  each of which describes a valid card configuration, including
 	  voltage, IO window, memory window, and interrupt settings.

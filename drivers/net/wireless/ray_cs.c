@@ -408,11 +408,8 @@ do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 #define MAX_TUPLE_SIZE 128
 static int ray_config(struct pcmcia_device *link)
 {
-    tuple_t tuple;
-    cisparse_t parse;
     int last_fn = 0, last_ret = 0;
     int i;
-    u_char buf[MAX_TUPLE_SIZE];
     win_req_t req;
     memreq_t mem;
     struct net_device *dev = (struct net_device *)link->priv;
@@ -420,29 +417,12 @@ static int ray_config(struct pcmcia_device *link)
 
     DEBUG(1, "ray_config(0x%p)\n", link);
 
-    /* This reads the card's CONFIG tuple to find its configuration regs */
-    tuple.DesiredTuple = CISTPL_CONFIG;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-    tuple.TupleData = buf;
-    tuple.TupleDataMax = MAX_TUPLE_SIZE;
-    tuple.TupleOffset = 0;
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
-    link->conf.ConfigBase = parse.config.base;
-    link->conf.Present = parse.config.rmask[0];
-
     /* Determine card type and firmware version */
-    buf[0] = buf[MAX_TUPLE_SIZE - 1] = 0;
-    tuple.DesiredTuple = CISTPL_VERS_1;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-    tuple.TupleData = buf;
-    tuple.TupleDataMax = MAX_TUPLE_SIZE;
-    tuple.TupleOffset = 2;
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-
-    for (i=0; i<tuple.TupleDataLen - 4; i++) 
-        if (buf[i] == 0) buf[i] = ' ';
-    printk(KERN_INFO "ray_cs Detected: %s\n",buf);
+    printk(KERN_INFO "ray_cs Detected: %s%s%s%s\n",
+	   link->prod_id[0] ? link->prod_id[0] : " ",
+	   link->prod_id[1] ? link->prod_id[1] : " ",
+	   link->prod_id[2] ? link->prod_id[2] : " ",
+	   link->prod_id[3] ? link->prod_id[3] : " ");
 
     /* Now allocate an interrupt line.  Note that this does not
        actually assign a handler to the interrupt.
