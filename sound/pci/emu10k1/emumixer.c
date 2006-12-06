@@ -1486,6 +1486,7 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		"Wave Playback Volume", "OLD PCM Playback Volume",
 		"Wave Master Playback Volume", "Master Playback Volume",
 		"AMic Playback Volume", "Old Mic Playback Volume",
+		"CD Capture Volume", "IEC958 Optical Capture Volume",
 		NULL
 	};
 	static char *audigy_remove_ctls_i2c_adc[] = {
@@ -1494,6 +1495,7 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		"Mic Capture Volume",
 		"Analog Mix Capture Volume",
 		"Aux Capture Volume",
+		"IEC958 Optical Capture Volume",
 		NULL
 	};
 	static char *audigy_remove_ctls_1361t_adc[] = {
