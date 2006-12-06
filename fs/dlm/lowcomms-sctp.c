@@ -2,7 +2,7 @@
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -75,13 +75,13 @@ struct nodeinfo {
 };
 
 static DEFINE_IDR(nodeinfo_idr);
-static struct rw_semaphore	nodeinfo_lock;
-static int			max_nodeid;
+static DECLARE_RWSEM(nodeinfo_lock);
+static int max_nodeid;
 
 struct cbuf {
-	unsigned		base;
-	unsigned		len;
-	unsigned		mask;
+	unsigned int base;
+	unsigned int len;
+	unsigned int mask;
 };
 
 /* Just the one of these, now. But this struct keeps
@@ -90,9 +90,9 @@ struct cbuf {
 #define CF_READ_PENDING 1
 
 struct connection {
-	struct socket          *sock;
+	struct socket           *sock;
 	unsigned long		flags;
-	struct page            *rx_page;
+	struct page             *rx_page;
 	atomic_t		waiting_requests;
 	struct cbuf		cb;
 	int                     eagain_flag;
@@ -102,36 +102,40 @@ struct connection {
 
 struct writequeue_entry {
 	struct list_head	list;
-	struct page            *page;
+	struct page             *page;
 	int			offset;
 	int			len;
 	int			end;
 	int			users;
-	struct nodeinfo        *ni;
+	struct nodeinfo         *ni;
 };
 
-#define CBUF_ADD(cb, n) do { (cb)->len += n; } while(0)
-#define CBUF_EMPTY(cb) ((cb)->len == 0)
-#define CBUF_MAY_ADD(cb, n) (((cb)->len + (n)) < ((cb)->mask + 1))
-#define CBUF_DATA(cb) (((cb)->base + (cb)->len) & (cb)->mask)
+static void cbuf_add(struct cbuf *cb, int n)
+{
+	cb->len += n;
+}
 
-#define CBUF_INIT(cb, size) \
-do { \
-	(cb)->base = (cb)->len = 0; \
-	(cb)->mask = ((size)-1); \
-} while(0)
+static int cbuf_data(struct cbuf *cb)
+{
+	return ((cb->base + cb->len) & cb->mask);
+}
 
-#define CBUF_EAT(cb, n) \
-do { \
-	(cb)->len  -= (n); \
-	(cb)->base += (n); \
-	(cb)->base &= (cb)->mask; \
-} while(0)
+static void cbuf_init(struct cbuf *cb, int size)
+{
+	cb->base = cb->len = 0;
+	cb->mask = size-1;
+}
 
+static void cbuf_eat(struct cbuf *cb, int n)
+{
+	cb->len  -= n;
+	cb->base += n;
+	cb->base &= cb->mask;
+}
 
 /* List of nodes which have writes pending */
-static struct list_head write_nodes;
-static spinlock_t write_nodes_lock;
+static LIST_HEAD(write_nodes);
+static DEFINE_SPINLOCK(write_nodes_lock);
 
 /* Maximum number of incoming messages to process before
  * doing a schedule()
@@ -141,8 +145,7 @@ static spinlock_t write_nodes_lock;
 /* Manage daemons */
 static struct task_struct *recv_task;
 static struct task_struct *send_task;
-static wait_queue_head_t lowcomms_recv_wait;
-static atomic_t accepting;
+static DECLARE_WAIT_QUEUE_HEAD(lowcomms_recv_wait);
 
 /* The SCTP connection */
 static struct connection sctp_con;
@@ -161,11 +164,11 @@ static int nodeid_to_addr(int nodeid, struct sockaddr *retaddr)
 		return error;
 
 	if (dlm_local_addr[0]->ss_family == AF_INET) {
-	        struct sockaddr_in *in4  = (struct sockaddr_in *) &addr;
+		struct sockaddr_in *in4  = (struct sockaddr_in *) &addr;
 		struct sockaddr_in *ret4 = (struct sockaddr_in *) retaddr;
 		ret4->sin_addr.s_addr = in4->sin_addr.s_addr;
 	} else {
-	        struct sockaddr_in6 *in6  = (struct sockaddr_in6 *) &addr;
+		struct sockaddr_in6 *in6  = (struct sockaddr_in6 *) &addr;
 		struct sockaddr_in6 *ret6 = (struct sockaddr_in6 *) retaddr;
 		memcpy(&ret6->sin6_addr, &in6->sin6_addr,
 		       sizeof(in6->sin6_addr));
@@ -174,6 +177,8 @@ static int nodeid_to_addr(int nodeid, struct sockaddr *retaddr)
 	return 0;
 }
 
+/* If alloc is 0 here we will not attempt to allocate a new
+   nodeinfo struct */
 static struct nodeinfo *nodeid2nodeinfo(int nodeid, gfp_t alloc)
 {
 	struct nodeinfo *ni;
@@ -184,44 +189,45 @@ static struct nodeinfo *nodeid2nodeinfo(int nodeid, gfp_t alloc)
 	ni = idr_find(&nodeinfo_idr, nodeid);
 	up_read(&nodeinfo_lock);
 
-	if (!ni && alloc) {
-		down_write(&nodeinfo_lock);
+	if (ni || !alloc)
+		return ni;
 
-		ni = idr_find(&nodeinfo_idr, nodeid);
-		if (ni)
-			goto out_up;
+	down_write(&nodeinfo_lock);
 
-		r = idr_pre_get(&nodeinfo_idr, alloc);
-		if (!r)
-			goto out_up;
+	ni = idr_find(&nodeinfo_idr, nodeid);
+	if (ni)
+		goto out_up;
 
-		ni = kmalloc(sizeof(struct nodeinfo), alloc);
-		if (!ni)
-			goto out_up;
+	r = idr_pre_get(&nodeinfo_idr, alloc);
+	if (!r)
+		goto out_up;
 
-		r = idr_get_new_above(&nodeinfo_idr, ni, nodeid, &n);
-		if (r) {
-			kfree(ni);
-			ni = NULL;
-			goto out_up;
-		}
-		if (n != nodeid) {
-			idr_remove(&nodeinfo_idr, n);
-			kfree(ni);
-			ni = NULL;
-			goto out_up;
-		}
-		memset(ni, 0, sizeof(struct nodeinfo));
-		spin_lock_init(&ni->lock);
-		INIT_LIST_HEAD(&ni->writequeue);
-		spin_lock_init(&ni->writequeue_lock);
-		ni->nodeid = nodeid;
+	ni = kmalloc(sizeof(struct nodeinfo), alloc);
+	if (!ni)
+		goto out_up;
 
-		if (nodeid > max_nodeid)
-			max_nodeid = nodeid;
-	out_up:
-		up_write(&nodeinfo_lock);
+	r = idr_get_new_above(&nodeinfo_idr, ni, nodeid, &n);
+	if (r) {
+		kfree(ni);
+		ni = NULL;
+		goto out_up;
 	}
+	if (n != nodeid) {
+		idr_remove(&nodeinfo_idr, n);
+		kfree(ni);
+		ni = NULL;
+		goto out_up;
+	}
+	memset(ni, 0, sizeof(struct nodeinfo));
+	spin_lock_init(&ni->lock);
+	INIT_LIST_HEAD(&ni->writequeue);
+	spin_lock_init(&ni->writequeue_lock);
+	ni->nodeid = nodeid;
+
+	if (nodeid > max_nodeid)
+		max_nodeid = nodeid;
+out_up:
+	up_write(&nodeinfo_lock);
 
 	return ni;
 }
@@ -279,13 +285,13 @@ static void make_sockaddr(struct sockaddr_storage *saddr, uint16_t port,
 		in4_addr->sin_port = cpu_to_be16(port);
 		memset(&in4_addr->sin_zero, 0, sizeof(in4_addr->sin_zero));
 		memset(in4_addr+1, 0, sizeof(struct sockaddr_storage) -
-				      sizeof(struct sockaddr_in));
+		       sizeof(struct sockaddr_in));
 		*addr_len = sizeof(struct sockaddr_in);
 	} else {
 		struct sockaddr_in6 *in6_addr = (struct sockaddr_in6 *)saddr;
 		in6_addr->sin6_port = cpu_to_be16(port);
 		memset(in6_addr+1, 0, sizeof(struct sockaddr_storage) -
-				      sizeof(struct sockaddr_in6));
+		       sizeof(struct sockaddr_in6));
 		*addr_len = sizeof(struct sockaddr_in6);
 	}
 }
@@ -324,7 +330,7 @@ static void send_shutdown(sctp_assoc_t associd)
 	cmsg->cmsg_type = SCTP_SNDRCV;
 	cmsg->cmsg_len = CMSG_LEN(sizeof(struct sctp_sndrcvinfo));
 	outmessage.msg_controllen = cmsg->cmsg_len;
-	sinfo = (struct sctp_sndrcvinfo *)CMSG_DATA(cmsg);
+	sinfo = CMSG_DATA(cmsg);
 	memset(sinfo, 0x00, sizeof(struct sctp_sndrcvinfo));
 
 	sinfo->sinfo_flags |= MSG_EOF;
@@ -387,7 +393,7 @@ static void process_sctp_notification(struct msghdr *msg, char *buf)
 
 			if ((int)sn->sn_assoc_change.sac_assoc_id <= 0) {
 				log_print("COMM_UP for invalid assoc ID %d",
-					 (int)sn->sn_assoc_change.sac_assoc_id);
+					  (int)sn->sn_assoc_change.sac_assoc_id);
 				init_failed();
 				return;
 			}
@@ -398,15 +404,18 @@ static void process_sctp_notification(struct msghdr *msg, char *buf)
 			fs = get_fs();
 			set_fs(get_ds());
 			ret = sctp_con.sock->ops->getsockopt(sctp_con.sock,
-						IPPROTO_SCTP, SCTP_PRIMARY_ADDR,
-						(char*)&prim, &prim_len);
+							     IPPROTO_SCTP,
+							     SCTP_PRIMARY_ADDR,
+							     (char*)&prim,
+							     &prim_len);
 			set_fs(fs);
 			if (ret < 0) {
 				struct nodeinfo *ni;
 
 				log_print("getsockopt/sctp_primary_addr on "
 					  "new assoc %d failed : %d",
-				    (int)sn->sn_assoc_change.sac_assoc_id, ret);
+					  (int)sn->sn_assoc_change.sac_assoc_id,
+					  ret);
 
 				/* Retry INIT later */
 				ni = assoc2nodeinfo(sn->sn_assoc_change.sac_assoc_id);
@@ -426,12 +435,10 @@ static void process_sctp_notification(struct msghdr *msg, char *buf)
 				return;
 
 			/* Save the assoc ID */
-			spin_lock(&ni->lock);
 			ni->assoc_id = sn->sn_assoc_change.sac_assoc_id;
-			spin_unlock(&ni->lock);
 
 			log_print("got new/restarted association %d nodeid %d",
-			       (int)sn->sn_assoc_change.sac_assoc_id, nodeid);
+				  (int)sn->sn_assoc_change.sac_assoc_id, nodeid);
 
 			/* Send any pending writes */
 			clear_bit(NI_INIT_PENDING, &ni->flags);
@@ -507,13 +514,12 @@ static int receive_from_sock(void)
 		sctp_con.rx_page = alloc_page(GFP_ATOMIC);
 		if (sctp_con.rx_page == NULL)
 			goto out_resched;
-		CBUF_INIT(&sctp_con.cb, PAGE_CACHE_SIZE);
+		cbuf_init(&sctp_con.cb, PAGE_CACHE_SIZE);
 	}
 
 	memset(&incmsg, 0, sizeof(incmsg));
 	memset(&msgname, 0, sizeof(msgname));
 
-	memset(incmsg, 0, sizeof(incmsg));
 	msg.msg_name = &msgname;
 	msg.msg_namelen = sizeof(msgname);
 	msg.msg_flags = 0;
@@ -532,17 +538,17 @@ static int receive_from_sock(void)
 	 * iov[0] is the bit of the circular buffer between the current end
 	 * point (cb.base + cb.len) and the end of the buffer.
 	 */
-	iov[0].iov_len = sctp_con.cb.base - CBUF_DATA(&sctp_con.cb);
+	iov[0].iov_len = sctp_con.cb.base - cbuf_data(&sctp_con.cb);
 	iov[0].iov_base = page_address(sctp_con.rx_page) +
-			  CBUF_DATA(&sctp_con.cb);
+		cbuf_data(&sctp_con.cb);
 	iov[1].iov_len = 0;
 
 	/*
 	 * iov[1] is the bit of the circular buffer between the start of the
 	 * buffer and the start of the currently used section (cb.base)
 	 */
-	if (CBUF_DATA(&sctp_con.cb) >= sctp_con.cb.base) {
-		iov[0].iov_len = PAGE_CACHE_SIZE - CBUF_DATA(&sctp_con.cb);
+	if (cbuf_data(&sctp_con.cb) >= sctp_con.cb.base) {
+		iov[0].iov_len = PAGE_CACHE_SIZE - cbuf_data(&sctp_con.cb);
 		iov[1].iov_len = sctp_con.cb.base;
 		iov[1].iov_base = page_address(sctp_con.rx_page);
 		msg.msg_iovlen = 2;
@@ -557,7 +563,7 @@ static int receive_from_sock(void)
 	msg.msg_control = incmsg;
 	msg.msg_controllen = sizeof(incmsg);
 	cmsg = CMSG_FIRSTHDR(&msg);
-	sinfo = (struct sctp_sndrcvinfo *)CMSG_DATA(cmsg);
+	sinfo = CMSG_DATA(cmsg);
 
 	if (msg.msg_flags & MSG_NOTIFICATION) {
 		process_sctp_notification(&msg, page_address(sctp_con.rx_page));
@@ -583,29 +589,29 @@ static int receive_from_sock(void)
 	if (r == 1)
 		return 0;
 
-	CBUF_ADD(&sctp_con.cb, ret);
+	cbuf_add(&sctp_con.cb, ret);
 	ret = dlm_process_incoming_buffer(cpu_to_le32(sinfo->sinfo_ppid),
 					  page_address(sctp_con.rx_page),
 					  sctp_con.cb.base, sctp_con.cb.len,
 					  PAGE_CACHE_SIZE);
 	if (ret < 0)
 		goto out_close;
-	CBUF_EAT(&sctp_con.cb, ret);
+	cbuf_eat(&sctp_con.cb, ret);
 
-      out:
+out:
 	ret = 0;
 	goto out_ret;
 
-      out_resched:
+out_resched:
 	lowcomms_data_ready(sctp_con.sock->sk, 0);
 	ret = 0;
-	schedule();
+	cond_resched();
 	goto out_ret;
 
-      out_close:
+out_close:
 	if (ret != -EAGAIN)
 		log_print("error reading from sctp socket: %d", ret);
-      out_ret:
+out_ret:
 	return ret;
 }
 
@@ -619,10 +625,12 @@ static int add_bind_addr(struct sockaddr_storage *addr, int addr_len, int num)
 	set_fs(get_ds());
 	if (num == 1)
 		result = sctp_con.sock->ops->bind(sctp_con.sock,
-					(struct sockaddr *) addr, addr_len);
+						  (struct sockaddr *) addr,
+						  addr_len);
 	else
 		result = sctp_con.sock->ops->setsockopt(sctp_con.sock, SOL_SCTP,
-				SCTP_SOCKOPT_BINDX_ADD, (char *)addr, addr_len);
+							SCTP_SOCKOPT_BINDX_ADD,
+							(char *)addr, addr_len);
 	set_fs(fs);
 
 	if (result < 0)
@@ -719,10 +727,10 @@ static int init_sock(void)
 
 	return 0;
 
- create_delsock:
+create_delsock:
 	sock_release(sock);
 	sctp_con.sock = NULL;
- out:
+out:
 	return result;
 }
 
@@ -756,16 +764,13 @@ void *dlm_lowcomms_get_buffer(int nodeid, int len, gfp_t allocation, char **ppc)
 	int users = 0;
 	struct nodeinfo *ni;
 
-	if (!atomic_read(&accepting))
-		return NULL;
-
 	ni = nodeid2nodeinfo(nodeid, allocation);
 	if (!ni)
 		return NULL;
 
 	spin_lock(&ni->writequeue_lock);
 	e = list_entry(ni->writequeue.prev, struct writequeue_entry, list);
-	if (((struct list_head *) e == &ni->writequeue) ||
+	if ((&e->list == &ni->writequeue) ||
 	    (PAGE_CACHE_SIZE - e->end < len)) {
 		e = NULL;
 	} else {
@@ -776,7 +781,7 @@ void *dlm_lowcomms_get_buffer(int nodeid, int len, gfp_t allocation, char **ppc)
 	spin_unlock(&ni->writequeue_lock);
 
 	if (e) {
-	      got_one:
+	got_one:
 		if (users == 0)
 			kmap(e->page);
 		*ppc = page_address(e->page) + offset;
@@ -803,9 +808,6 @@ void dlm_lowcomms_commit_buffer(void *arg)
 	int users;
 	struct nodeinfo *ni = e->ni;
 
-	if (!atomic_read(&accepting))
-		return;
-
 	spin_lock(&ni->writequeue_lock);
 	users = --e->users;
 	if (users)
@@ -822,7 +824,7 @@ void dlm_lowcomms_commit_buffer(void *arg)
 	}
 	return;
 
-      out:
+out:
 	spin_unlock(&ni->writequeue_lock);
 	return;
 }
@@ -878,7 +880,7 @@ static void initiate_association(int nodeid)
 	cmsg->cmsg_level = IPPROTO_SCTP;
 	cmsg->cmsg_type = SCTP_SNDRCV;
 	cmsg->cmsg_len = CMSG_LEN(sizeof(struct sctp_sndrcvinfo));
-	sinfo = (struct sctp_sndrcvinfo *)CMSG_DATA(cmsg);
+	sinfo = CMSG_DATA(cmsg);
 	memset(sinfo, 0x00, sizeof(struct sctp_sndrcvinfo));
 	sinfo->sinfo_ppid = cpu_to_le32(dlm_local_nodeid);
 
@@ -892,7 +894,7 @@ static void initiate_association(int nodeid)
 }
 
 /* Send a message */
-static int send_to_sock(struct nodeinfo *ni)
+static void send_to_sock(struct nodeinfo *ni)
 {
 	int ret = 0;
 	struct writequeue_entry *e;
@@ -903,13 +905,13 @@ static int send_to_sock(struct nodeinfo *ni)
 	struct sctp_sndrcvinfo *sinfo;
 	struct kvec iov;
 
-        /* See if we need to init an association before we start
+	/* See if we need to init an association before we start
 	   sending precious messages */
 	spin_lock(&ni->lock);
 	if (!ni->assoc_id && !test_and_set_bit(NI_INIT_PENDING, &ni->flags)) {
 		spin_unlock(&ni->lock);
 		initiate_association(ni->nodeid);
-		return 0;
+		return;
 	}
 	spin_unlock(&ni->lock);
 
@@ -923,7 +925,7 @@ static int send_to_sock(struct nodeinfo *ni)
 	cmsg->cmsg_level = IPPROTO_SCTP;
 	cmsg->cmsg_type = SCTP_SNDRCV;
 	cmsg->cmsg_len = CMSG_LEN(sizeof(struct sctp_sndrcvinfo));
-	sinfo = (struct sctp_sndrcvinfo *)CMSG_DATA(cmsg);
+	sinfo = CMSG_DATA(cmsg);
 	memset(sinfo, 0x00, sizeof(struct sctp_sndrcvinfo));
 	sinfo->sinfo_ppid = cpu_to_le32(dlm_local_nodeid);
 	sinfo->sinfo_assoc_id = ni->assoc_id;
@@ -955,7 +957,7 @@ static int send_to_sock(struct nodeinfo *ni)
 				goto send_error;
 		} else {
 			/* Don't starve people filling buffers */
-			schedule();
+			cond_resched();
 		}
 
 		spin_lock(&ni->writequeue_lock);
@@ -964,15 +966,16 @@ static int send_to_sock(struct nodeinfo *ni)
 
 		if (e->len == 0 && e->users == 0) {
 			list_del(&e->list);
+			kunmap(e->page);
 			free_entry(e);
 			continue;
 		}
 	}
 	spin_unlock(&ni->writequeue_lock);
- out:
-	return ret;
+out:
+	return;
 
- send_error:
+send_error:
 	log_print("Error sending to node %d %d", ni->nodeid, ret);
 	spin_lock(&ni->lock);
 	if (!test_and_set_bit(NI_INIT_PENDING, &ni->flags)) {
@@ -982,7 +985,7 @@ static int send_to_sock(struct nodeinfo *ni)
 	} else
 		spin_unlock(&ni->lock);
 
-	return ret;
+	return;
 }
 
 /* Try to send any messages that are pending */
@@ -994,7 +997,7 @@ static void process_output_queue(void)
 	spin_lock_bh(&write_nodes_lock);
 	list_for_each_safe(list, temp, &write_nodes) {
 		struct nodeinfo *ni =
-		    list_entry(list, struct nodeinfo, write_list);
+			list_entry(list, struct nodeinfo, write_list);
 		clear_bit(NI_WRITE_PENDING, &ni->flags);
 		list_del(&ni->write_list);
 
@@ -1106,7 +1109,7 @@ static int dlm_recvd(void *data)
 		set_current_state(TASK_INTERRUPTIBLE);
 		add_wait_queue(&lowcomms_recv_wait, &wait);
 		if (!test_bit(CF_READ_PENDING, &sctp_con.flags))
-			schedule();
+			cond_resched();
 		remove_wait_queue(&lowcomms_recv_wait, &wait);
 		set_current_state(TASK_RUNNING);
 
@@ -1118,12 +1121,12 @@ static int dlm_recvd(void *data)
 
 				/* Don't starve out everyone else */
 				if (++count >= MAX_RX_MSG_COUNT) {
-					schedule();
+					cond_resched();
 					count = 0;
 				}
 			} while (!kthread_should_stop() && ret >=0);
 		}
-		schedule();
+		cond_resched();
 	}
 
 	return 0;
@@ -1138,7 +1141,7 @@ static int dlm_sendd(void *data)
 	while (!kthread_should_stop()) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (write_list_empty())
-			schedule();
+			cond_resched();
 		set_current_state(TASK_RUNNING);
 
 		if (sctp_con.eagain_flag) {
@@ -1166,7 +1169,7 @@ static int daemons_start(void)
 
 	p = kthread_run(dlm_recvd, NULL, "dlm_recvd");
 	error = IS_ERR(p);
-       	if (error) {
+	if (error) {
 		log_print("can't start dlm_recvd %d", error);
 		return error;
 	}
@@ -1174,7 +1177,7 @@ static int daemons_start(void)
 
 	p = kthread_run(dlm_sendd, NULL, "dlm_sendd");
 	error = IS_ERR(p);
-       	if (error) {
+	if (error) {
 		log_print("can't start dlm_sendd %d", error);
 		kthread_stop(recv_task);
 		return error;
@@ -1197,43 +1200,28 @@ int dlm_lowcomms_start(void)
 	error = daemons_start();
 	if (error)
 		goto fail_sock;
-	atomic_set(&accepting, 1);
 	return 0;
 
- fail_sock:
+fail_sock:
 	close_connection();
 	return error;
 }
 
-/* Set all the activity flags to prevent any socket activity. */
-
 void dlm_lowcomms_stop(void)
 {
-	atomic_set(&accepting, 0);
+	int i;
+
 	sctp_con.flags = 0x7;
 	daemons_stop();
 	clean_writequeues();
 	close_connection();
 	dealloc_nodeinfo();
 	max_nodeid = 0;
-}
 
-int dlm_lowcomms_init(void)
-{
-	init_waitqueue_head(&lowcomms_recv_wait);
-	spin_lock_init(&write_nodes_lock);
-	INIT_LIST_HEAD(&write_nodes);
-	init_rwsem(&nodeinfo_lock);
-	return 0;
-}
-
-void dlm_lowcomms_exit(void)
-{
-	int i;
+	dlm_local_count = 0;
+	dlm_local_nodeid = 0;
 
 	for (i = 0; i < dlm_local_count; i++)
 		kfree(dlm_local_addr[i]);
-	dlm_local_count = 0;
-	dlm_local_nodeid = 0;
 }
 

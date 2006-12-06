@@ -54,44 +54,59 @@
 #include "config.h"
 
 struct cbuf {
-	unsigned base;
-	unsigned len;
-	unsigned mask;
+	unsigned int base;
+	unsigned int len;
+	unsigned int mask;
 };
 
-#ifndef FALSE
-#define FALSE 0
-#define TRUE 1
-#endif
 #define NODE_INCREMENT 32
+static void cbuf_add(struct cbuf *cb, int n)
+{
+	cb->len += n;
+}
 
-#define CBUF_INIT(cb, size) do { (cb)->base = (cb)->len = 0; (cb)->mask = ((size)-1); } while(0)
-#define CBUF_ADD(cb, n) do { (cb)->len += n; } while(0)
-#define CBUF_EMPTY(cb) ((cb)->len == 0)
-#define CBUF_MAY_ADD(cb, n) (((cb)->len + (n)) < ((cb)->mask + 1))
-#define CBUF_EAT(cb, n) do { (cb)->len  -= (n); \
-                             (cb)->base += (n); (cb)->base &= (cb)->mask; } while(0)
-#define CBUF_DATA(cb) (((cb)->base + (cb)->len) & (cb)->mask)
+static int cbuf_data(struct cbuf *cb)
+{
+	return ((cb->base + cb->len) & cb->mask);
+}
+
+static void cbuf_init(struct cbuf *cb, int size)
+{
+	cb->base = cb->len = 0;
+	cb->mask = size-1;
+}
+
+static void cbuf_eat(struct cbuf *cb, int n)
+{
+	cb->len  -= n;
+	cb->base += n;
+	cb->base &= cb->mask;
+}
+
+static bool cbuf_empty(struct cbuf *cb)
+{
+	return cb->len == 0;
+}
 
 /* Maximum number of incoming messages to process before
-   doing a schedule()
+   doing a cond_resched()
 */
 #define MAX_RX_MSG_COUNT 25
 
 struct connection {
 	struct socket *sock;	/* NULL if not connected */
 	uint32_t nodeid;	/* So we know who we are in the list */
-	struct rw_semaphore sock_sem;	/* Stop connect races */
-	struct list_head read_list;	/* On this list when ready for reading */
-	struct list_head write_list;	/* On this list when ready for writing */
-	struct list_head state_list;	/* On this list when ready to connect */
+	struct rw_semaphore sock_sem; /* Stop connect races */
+	struct list_head read_list;   /* On this list when ready for reading */
+	struct list_head write_list;  /* On this list when ready for writing */
+	struct list_head state_list;  /* On this list when ready to connect */
 	unsigned long flags;	/* bit 1,2 = We are on the read/write lists */
 #define CF_READ_PENDING 1
 #define CF_WRITE_PENDING 2
 #define CF_CONNECT_PENDING 3
 #define CF_IS_OTHERCON 4
-	struct list_head writequeue;	/* List of outgoing writequeue_entries */
-	struct list_head listenlist;    /* List of allocated listening sockets */
+	struct list_head writequeue;  /* List of outgoing writequeue_entries */
+	struct list_head listenlist;  /* List of allocated listening sockets */
 	spinlock_t writequeue_lock;
 	int (*rx_action) (struct connection *);	/* What to do when active */
 	struct page *rx_page;
@@ -121,28 +136,27 @@ static struct task_struct *recv_task;
 static struct task_struct *send_task;
 
 static wait_queue_t lowcomms_send_waitq_head;
-static wait_queue_head_t lowcomms_send_waitq;
+static DECLARE_WAIT_QUEUE_HEAD(lowcomms_send_waitq);
 static wait_queue_t lowcomms_recv_waitq_head;
-static wait_queue_head_t lowcomms_recv_waitq;
+static DECLARE_WAIT_QUEUE_HEAD(lowcomms_recv_waitq);
 
 /* An array of pointers to connections, indexed by NODEID */
 static struct connection **connections;
-static struct semaphore connections_lock;
+static DECLARE_MUTEX(connections_lock);
 static kmem_cache_t *con_cache;
 static int conn_array_size;
-static atomic_t accepting;
 
 /* List of sockets that have reads pending */
-static struct list_head read_sockets;
-static spinlock_t read_sockets_lock;
+static LIST_HEAD(read_sockets);
+static DEFINE_SPINLOCK(read_sockets_lock);
 
 /* List of sockets which have writes pending */
-static struct list_head write_sockets;
-static spinlock_t write_sockets_lock;
+static LIST_HEAD(write_sockets);
+static DEFINE_SPINLOCK(write_sockets_lock);
 
 /* List of sockets which have connects pending */
-static struct list_head state_sockets;
-static spinlock_t state_sockets_lock;
+static LIST_HEAD(state_sockets);
+static DEFINE_SPINLOCK(state_sockets_lock);
 
 static struct connection *nodeid2con(int nodeid, gfp_t allocation)
 {
@@ -153,12 +167,11 @@ static struct connection *nodeid2con(int nodeid, gfp_t allocation)
 		int new_size = nodeid + NODE_INCREMENT;
 		struct connection **new_conns;
 
-		new_conns = kmalloc(sizeof(struct connection *) *
+		new_conns = kzalloc(sizeof(struct connection *) *
 				    new_size, allocation);
 		if (!new_conns)
 			goto finish;
 
-		memset(new_conns, 0, sizeof(struct connection *) * new_size);
 		memcpy(new_conns, connections,  sizeof(struct connection *) * conn_array_size);
 		conn_array_size = new_size;
 		kfree(connections);
@@ -168,11 +181,10 @@ static struct connection *nodeid2con(int nodeid, gfp_t allocation)
 
 	con = connections[nodeid];
 	if (con == NULL && allocation) {
-		con = kmem_cache_alloc(con_cache, allocation);
+		con = kmem_cache_zalloc(con_cache, allocation);
 		if (!con)
 			goto finish;
 
-		memset(con, 0, sizeof(*con));
 		con->nodeid = nodeid;
 		init_rwsem(&con->sock_sem);
 		INIT_LIST_HEAD(&con->writequeue);
@@ -181,7 +193,7 @@ static struct connection *nodeid2con(int nodeid, gfp_t allocation)
 		connections[nodeid] = con;
 	}
 
- finish:
+finish:
 	up(&connections_lock);
 	return con;
 }
@@ -220,8 +232,6 @@ static inline void lowcomms_connect_sock(struct connection *con)
 {
 	if (test_and_set_bit(CF_CONNECT_PENDING, &con->flags))
 		return;
-	if (!atomic_read(&accepting))
-		return;
 
 	spin_lock_bh(&state_sockets_lock);
 	list_add_tail(&con->state_list, &state_sockets);
@@ -232,31 +242,8 @@ static inline void lowcomms_connect_sock(struct connection *con)
 
 static void lowcomms_state_change(struct sock *sk)
 {
-/*	struct connection *con = sock2con(sk); */
-
-	switch (sk->sk_state) {
-	case TCP_ESTABLISHED:
+	if (sk->sk_state == TCP_ESTABLISHED)
 		lowcomms_write_space(sk);
-		break;
-
-	case TCP_FIN_WAIT1:
-	case TCP_FIN_WAIT2:
-	case TCP_TIME_WAIT:
-	case TCP_CLOSE:
-	case TCP_CLOSE_WAIT:
-	case TCP_LAST_ACK:
-	case TCP_CLOSING:
-		/* FIXME: I think this causes more trouble than it solves.
-		   lowcomms wil reconnect anyway when there is something to
-		   send. This just attempts reconnection if a node goes down!
-		*/
-		/* lowcomms_connect_sock(con); */
-		break;
-
-	default:
-		printk("dlm: lowcomms_state_change: state=%d\n", sk->sk_state);
-		break;
-	}
 }
 
 /* Make a socket active */
@@ -277,13 +264,12 @@ static int add_sock(struct socket *sock, struct connection *con)
 static void make_sockaddr(struct sockaddr_storage *saddr, uint16_t port,
 			  int *addr_len)
 {
-        saddr->ss_family =  dlm_local_addr.ss_family;
-        if (saddr->ss_family == AF_INET) {
+	saddr->ss_family =  dlm_local_addr.ss_family;
+	if (saddr->ss_family == AF_INET) {
 		struct sockaddr_in *in4_addr = (struct sockaddr_in *)saddr;
 		in4_addr->sin_port = cpu_to_be16(port);
 		*addr_len = sizeof(struct sockaddr_in);
-	}
-	else {
+	} else {
 		struct sockaddr_in6 *in6_addr = (struct sockaddr_in6 *)saddr;
 		in6_addr->sin6_port = cpu_to_be16(port);
 		*addr_len = sizeof(struct sockaddr_in6);
@@ -291,7 +277,7 @@ static void make_sockaddr(struct sockaddr_storage *saddr, uint16_t port,
 }
 
 /* Close a remote connection and tidy up */
-static void close_connection(struct connection *con, int and_other)
+static void close_connection(struct connection *con, bool and_other)
 {
 	down_write(&con->sock_sem);
 
@@ -300,11 +286,8 @@ static void close_connection(struct connection *con, int and_other)
 		con->sock = NULL;
 	}
 	if (con->othercon && and_other) {
-		/* Argh! recursion in kernel code!
-		   Actually, this isn't a list so it
-		   will only re-enter once.
-		*/
-		close_connection(con->othercon, FALSE);
+		/* Will only re-enter once. */
+		close_connection(con->othercon, false);
 	}
 	if (con->rx_page) {
 		__free_page(con->rx_page);
@@ -337,7 +320,7 @@ static int receive_from_sock(struct connection *con)
 		con->rx_page = alloc_page(GFP_ATOMIC);
 		if (con->rx_page == NULL)
 			goto out_resched;
-		CBUF_INIT(&con->cb, PAGE_CACHE_SIZE);
+		cbuf_init(&con->cb, PAGE_CACHE_SIZE);
 	}
 
 	msg.msg_control = NULL;
@@ -352,16 +335,16 @@ static int receive_from_sock(struct connection *con)
 	 * iov[0] is the bit of the circular buffer between the current end
 	 * point (cb.base + cb.len) and the end of the buffer.
 	 */
-	iov[0].iov_len = con->cb.base - CBUF_DATA(&con->cb);
-	iov[0].iov_base = page_address(con->rx_page) + CBUF_DATA(&con->cb);
+	iov[0].iov_len = con->cb.base - cbuf_data(&con->cb);
+	iov[0].iov_base = page_address(con->rx_page) + cbuf_data(&con->cb);
 	iov[1].iov_len = 0;
 
 	/*
 	 * iov[1] is the bit of the circular buffer between the start of the
 	 * buffer and the start of the currently used section (cb.base)
 	 */
-	if (CBUF_DATA(&con->cb) >= con->cb.base) {
-		iov[0].iov_len = PAGE_CACHE_SIZE - CBUF_DATA(&con->cb);
+	if (cbuf_data(&con->cb) >= con->cb.base) {
+		iov[0].iov_len = PAGE_CACHE_SIZE - cbuf_data(&con->cb);
 		iov[1].iov_len = con->cb.base;
 		iov[1].iov_base = page_address(con->rx_page);
 		msg.msg_iovlen = 2;
@@ -378,7 +361,7 @@ static int receive_from_sock(struct connection *con)
 		goto out_close;
 	if (ret == len)
 		call_again_soon = 1;
-	CBUF_ADD(&con->cb, ret);
+	cbuf_add(&con->cb, ret);
 	ret = dlm_process_incoming_buffer(con->nodeid,
 					  page_address(con->rx_page),
 					  con->cb.base, con->cb.len,
@@ -391,35 +374,32 @@ static int receive_from_sock(struct connection *con)
 	}
 	if (ret < 0)
 		goto out_close;
-	CBUF_EAT(&con->cb, ret);
+	cbuf_eat(&con->cb, ret);
 
-	if (CBUF_EMPTY(&con->cb) && !call_again_soon) {
+	if (cbuf_empty(&con->cb) && !call_again_soon) {
 		__free_page(con->rx_page);
 		con->rx_page = NULL;
 	}
 
-      out:
+out:
 	if (call_again_soon)
 		goto out_resched;
 	up_read(&con->sock_sem);
-	ret = 0;
-	goto out_ret;
+	return 0;
 
-      out_resched:
+out_resched:
 	lowcomms_data_ready(con->sock->sk, 0);
 	up_read(&con->sock_sem);
-	ret = 0;
-	schedule();
-	goto out_ret;
+	cond_resched();
+	return 0;
 
-      out_close:
+out_close:
 	up_read(&con->sock_sem);
 	if (ret != -EAGAIN && !test_bit(CF_IS_OTHERCON, &con->flags)) {
-		close_connection(con, FALSE);
+		close_connection(con, false);
 		/* Reconnect when there is something to send */
 	}
 
-      out_ret:
 	return ret;
 }
 
@@ -434,7 +414,8 @@ static int accept_from_sock(struct connection *con)
 	struct connection *newcon;
 
 	memset(&peeraddr, 0, sizeof(peeraddr));
-	result = sock_create_kern(dlm_local_addr.ss_family, SOCK_STREAM, IPPROTO_TCP, &newsock);
+	result = sock_create_kern(dlm_local_addr.ss_family, SOCK_STREAM,
+				  IPPROTO_TCP, &newsock);
 	if (result < 0)
 		return -ENOMEM;
 
@@ -462,7 +443,7 @@ static int accept_from_sock(struct connection *con)
 	/* Get the new node's NODEID */
 	make_sockaddr(&peeraddr, 0, &len);
 	if (dlm_addr_to_nodeid(&peeraddr, &nodeid)) {
-	    	printk("dlm: connect from non cluster node\n");
+		printk("dlm: connect from non cluster node\n");
 		sock_release(newsock);
 		up_read(&con->sock_sem);
 		return -1;
@@ -483,17 +464,16 @@ static int accept_from_sock(struct connection *con)
 	}
 	down_write(&newcon->sock_sem);
 	if (newcon->sock) {
-	        struct connection *othercon = newcon->othercon;
+		struct connection *othercon = newcon->othercon;
 
 		if (!othercon) {
-			othercon = kmem_cache_alloc(con_cache, GFP_KERNEL);
+			othercon = kmem_cache_zalloc(con_cache, GFP_KERNEL);
 			if (!othercon) {
 				printk("dlm: failed to allocate incoming socket\n");
 				up_write(&newcon->sock_sem);
 				result = -ENOMEM;
 				goto accept_err;
 			}
-			memset(othercon, 0, sizeof(*othercon));
 			othercon->nodeid = nodeid;
 			othercon->rx_action = receive_from_sock;
 			init_rwsem(&othercon->sock_sem);
@@ -523,7 +503,7 @@ static int accept_from_sock(struct connection *con)
 
 	return 0;
 
-      accept_err:
+accept_err:
 	up_read(&con->sock_sem);
 	sock_release(newsock);
 
@@ -533,7 +513,7 @@ static int accept_from_sock(struct connection *con)
 }
 
 /* Connect a new socket to its peer */
-static int connect_to_sock(struct connection *con)
+static void connect_to_sock(struct connection *con)
 {
 	int result = -EHOSTUNREACH;
 	struct sockaddr_storage saddr;
@@ -542,7 +522,7 @@ static int connect_to_sock(struct connection *con)
 
 	if (con->nodeid == 0) {
 		log_print("attempt to connect sock 0 foiled");
-		return 0;
+		return;
 	}
 
 	down_write(&con->sock_sem);
@@ -556,13 +536,14 @@ static int connect_to_sock(struct connection *con)
 	}
 
 	/* Create a socket to communicate with */
-	result = sock_create_kern(dlm_local_addr.ss_family, SOCK_STREAM, IPPROTO_TCP, &sock);
+	result = sock_create_kern(dlm_local_addr.ss_family, SOCK_STREAM,
+				  IPPROTO_TCP, &sock);
 	if (result < 0)
 		goto out_err;
 
 	memset(&saddr, 0, sizeof(saddr));
 	if (dlm_nodeid_to_addr(con->nodeid, &saddr))
-	        goto out_err;
+		goto out_err;
 
 	sock->sk->sk_user_data = con;
 	con->rx_action = receive_from_sock;
@@ -574,22 +555,13 @@ static int connect_to_sock(struct connection *con)
 	log_print("connecting to %d", con->nodeid);
 	result =
 		sock->ops->connect(sock, (struct sockaddr *)&saddr, addr_len,
-			       O_NONBLOCK);
+				   O_NONBLOCK);
 	if (result == -EINPROGRESS)
 		result = 0;
-	if (result != 0)
-		goto out_err;
+	if (result == 0)
+		goto out;
 
-      out:
-	up_write(&con->sock_sem);
-	/*
-	 * Returning an error here means we've given up trying to connect to
-	 * a remote node, otherwise we return 0 and reschedule the connetion
-	 * attempt
-	 */
-	return result;
-
-      out_err:
+out_err:
 	if (con->sock) {
 		sock_release(con->sock);
 		con->sock = NULL;
@@ -604,12 +576,15 @@ static int connect_to_sock(struct connection *con)
 		lowcomms_connect_sock(con);
 		result = 0;
 	}
-	goto out;
+out:
+	up_write(&con->sock_sem);
+	return;
 }
 
-static struct socket *create_listen_sock(struct connection *con, struct sockaddr_storage *saddr)
+static struct socket *create_listen_sock(struct connection *con,
+					 struct sockaddr_storage *saddr)
 {
-        struct socket *sock = NULL;
+	struct socket *sock = NULL;
 	mm_segment_t fs;
 	int result = 0;
 	int one = 1;
@@ -629,10 +604,12 @@ static struct socket *create_listen_sock(struct connection *con, struct sockaddr
 
 	fs = get_fs();
 	set_fs(get_ds());
-	result = sock_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char *)&one, sizeof(one));
+	result = sock_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
+				 (char *)&one, sizeof(one));
 	set_fs(fs);
 	if (result < 0) {
-		printk("dlm: Failed to set SO_REUSEADDR on socket: result=%d\n",result);
+		printk("dlm: Failed to set SO_REUSEADDR on socket: result=%d\n",
+		       result);
 	}
 	sock->sk->sk_user_data = con;
 	con->rx_action = accept_from_sock;
@@ -652,7 +629,8 @@ static struct socket *create_listen_sock(struct connection *con, struct sockaddr
 	fs = get_fs();
 	set_fs(get_ds());
 
-	result = sock_setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (char *)&one, sizeof(one));
+	result = sock_setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
+				 (char *)&one, sizeof(one));
 	set_fs(fs);
 	if (result < 0) {
 		printk("dlm: Set keepalive failed: %d\n", result);
@@ -666,7 +644,7 @@ static struct socket *create_listen_sock(struct connection *con, struct sockaddr
 		goto create_out;
 	}
 
-      create_out:
+create_out:
 	return sock;
 }
 
@@ -679,10 +657,6 @@ static int listen_for_all(void)
 	int result = -EINVAL;
 
 	/* We don't support multi-homed hosts */
-	memset(con, 0, sizeof(*con));
-	init_rwsem(&con->sock_sem);
-	spin_lock_init(&con->writequeue_lock);
-	INIT_LIST_HEAD(&con->writequeue);
 	set_bit(CF_IS_OTHERCON, &con->flags);
 
 	sock = create_listen_sock(con, &dlm_local_addr);
@@ -731,16 +705,12 @@ void *dlm_lowcomms_get_buffer(int nodeid, int len,
 	int offset = 0;
 	int users = 0;
 
-	if (!atomic_read(&accepting))
-		return NULL;
-
 	con = nodeid2con(nodeid, allocation);
 	if (!con)
 		return NULL;
 
-	spin_lock(&con->writequeue_lock);
 	e = list_entry(con->writequeue.prev, struct writequeue_entry, list);
-	if (((struct list_head *) e == &con->writequeue) ||
+	if ((&e->list == &con->writequeue) ||
 	    (PAGE_CACHE_SIZE - e->end < len)) {
 		e = NULL;
 	} else {
@@ -751,7 +721,7 @@ void *dlm_lowcomms_get_buffer(int nodeid, int len,
 	spin_unlock(&con->writequeue_lock);
 
 	if (e) {
-	      got_one:
+	got_one:
 		if (users == 0)
 			kmap(e->page);
 		*ppc = page_address(e->page) + offset;
@@ -777,10 +747,6 @@ void dlm_lowcomms_commit_buffer(void *mh)
 	struct connection *con = e->con;
 	int users;
 
-	if (!atomic_read(&accepting))
-		return;
-
-	spin_lock(&con->writequeue_lock);
 	users = --e->users;
 	if (users)
 		goto out;
@@ -797,7 +763,7 @@ void dlm_lowcomms_commit_buffer(void *mh)
 	}
 	return;
 
-      out:
+out:
 	spin_unlock(&con->writequeue_lock);
 	return;
 }
@@ -809,7 +775,7 @@ static void free_entry(struct writequeue_entry *e)
 }
 
 /* Send a message */
-static int send_to_sock(struct connection *con)
+static void send_to_sock(struct connection *con)
 {
 	int ret = 0;
 	ssize_t(*sendpage) (struct socket *, struct page *, int, size_t, int);
@@ -846,7 +812,7 @@ static int send_to_sock(struct connection *con)
 		}
 		else {
 			/* Don't starve people filling buffers */
-			schedule();
+			cond_resched();
 		}
 
 		spin_lock(&con->writequeue_lock);
@@ -855,25 +821,26 @@ static int send_to_sock(struct connection *con)
 
 		if (e->len == 0 && e->users == 0) {
 			list_del(&e->list);
+			kunmap(e->page);
 			free_entry(e);
 			continue;
 		}
 	}
 	spin_unlock(&con->writequeue_lock);
-      out:
+out:
 	up_read(&con->sock_sem);
-	return ret;
+	return;
 
-      send_error:
+send_error:
 	up_read(&con->sock_sem);
-	close_connection(con, FALSE);
+	close_connection(con, false);
 	lowcomms_connect_sock(con);
-	return ret;
+	return;
 
-      out_connect:
+out_connect:
 	up_read(&con->sock_sem);
 	lowcomms_connect_sock(con);
-	return 0;
+	return;
 }
 
 static void clean_one_writequeue(struct connection *con)
@@ -904,12 +871,12 @@ int dlm_lowcomms_close(int nodeid)
 	con = nodeid2con(nodeid, 0);
 	if (con) {
 		clean_one_writequeue(con);
-		close_connection(con, TRUE);
+		close_connection(con, true);
 		atomic_set(&con->waiting_requests, 0);
 	}
 	return 0;
 
-      out:
+out:
 	return -1;
 }
 
@@ -940,7 +907,7 @@ static void process_sockets(void)
 	list_for_each_safe(list, temp, &read_sockets) {
 
 		struct connection *con =
-		    list_entry(list, struct connection, read_list);
+			list_entry(list, struct connection, read_list);
 		list_del(&con->read_list);
 		clear_bit(CF_READ_PENDING, &con->flags);
 
@@ -959,7 +926,7 @@ static void process_sockets(void)
 
 			/* Don't starve out everyone else */
 			if (++count >= MAX_RX_MSG_COUNT) {
-				schedule();
+				cond_resched();
 				count = 0;
 			}
 
@@ -977,20 +944,16 @@ static void process_output_queue(void)
 {
 	struct list_head *list;
 	struct list_head *temp;
-	int ret;
 
 	spin_lock_bh(&write_sockets_lock);
 	list_for_each_safe(list, temp, &write_sockets) {
 		struct connection *con =
-		    list_entry(list, struct connection, write_list);
+			list_entry(list, struct connection, write_list);
 		clear_bit(CF_WRITE_PENDING, &con->flags);
 		list_del(&con->write_list);
 
 		spin_unlock_bh(&write_sockets_lock);
-
-		ret = send_to_sock(con);
-		if (ret < 0) {
-		}
+		send_to_sock(con);
 		spin_lock_bh(&write_sockets_lock);
 	}
 	spin_unlock_bh(&write_sockets_lock);
@@ -1000,19 +963,16 @@ static void process_state_queue(void)
 {
 	struct list_head *list;
 	struct list_head *temp;
-	int ret;
 
 	spin_lock_bh(&state_sockets_lock);
 	list_for_each_safe(list, temp, &state_sockets) {
 		struct connection *con =
-		    list_entry(list, struct connection, state_list);
+			list_entry(list, struct connection, state_list);
 		list_del(&con->state_list);
 		clear_bit(CF_CONNECT_PENDING, &con->flags);
 		spin_unlock_bh(&state_sockets_lock);
 
-		ret = connect_to_sock(con);
-		if (ret < 0) {
-		}
+		connect_to_sock(con);
 		spin_lock_bh(&state_sockets_lock);
 	}
 	spin_unlock_bh(&state_sockets_lock);
@@ -1046,14 +1006,13 @@ static int read_list_empty(void)
 /* DLM Transport comms receive daemon */
 static int dlm_recvd(void *data)
 {
-	init_waitqueue_head(&lowcomms_recv_waitq);
 	init_waitqueue_entry(&lowcomms_recv_waitq_head, current);
 	add_wait_queue(&lowcomms_recv_waitq, &lowcomms_recv_waitq_head);
 
 	while (!kthread_should_stop()) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (read_list_empty())
-			schedule();
+			cond_resched();
 		set_current_state(TASK_RUNNING);
 
 		process_sockets();
@@ -1081,14 +1040,13 @@ static int write_and_state_lists_empty(void)
 /* DLM Transport send daemon */
 static int dlm_sendd(void *data)
 {
-	init_waitqueue_head(&lowcomms_send_waitq);
 	init_waitqueue_entry(&lowcomms_send_waitq_head, current);
 	add_wait_queue(&lowcomms_send_waitq, &lowcomms_send_waitq_head);
 
 	while (!kthread_should_stop()) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (write_and_state_lists_empty())
-			schedule();
+			cond_resched();
 		set_current_state(TASK_RUNNING);
 
 		process_state_queue();
@@ -1111,7 +1069,7 @@ static int daemons_start(void)
 
 	p = kthread_run(dlm_recvd, NULL, "dlm_recvd");
 	error = IS_ERR(p);
-       	if (error) {
+	if (error) {
 		log_print("can't start dlm_recvd %d", error);
 		return error;
 	}
@@ -1119,7 +1077,7 @@ static int daemons_start(void)
 
 	p = kthread_run(dlm_sendd, NULL, "dlm_sendd");
 	error = IS_ERR(p);
-       	if (error) {
+	if (error) {
 		log_print("can't start dlm_sendd %d", error);
 		kthread_stop(recv_task);
 		return error;
@@ -1141,21 +1099,20 @@ void dlm_lowcomms_stop(void)
 {
 	int i;
 
-	atomic_set(&accepting, 0);
-
-	/* Set all the activity flags to prevent any
+	/* Set all the flags to prevent any
 	   socket activity.
 	*/
 	for (i = 0; i < conn_array_size; i++) {
 		if (connections[i])
-			connections[i]->flags |= 0x7;
+			connections[i]->flags |= 0xFF;
 	}
+
 	daemons_stop();
 	clean_writequeues();
 
 	for (i = 0; i < conn_array_size; i++) {
 		if (connections[i]) {
-			close_connection(connections[i], TRUE);
+			close_connection(connections[i], true);
 			if (connections[i]->othercon)
 				kmem_cache_free(con_cache, connections[i]->othercon);
 			kmem_cache_free(con_cache, connections[i]);
@@ -1173,23 +1130,11 @@ int dlm_lowcomms_start(void)
 {
 	int error = 0;
 
-	error = -ENOTCONN;
-
-	/*
-	 * Temporarily initialise the waitq head so that lowcomms_send_message
-	 * doesn't crash if it gets called before the thread is fully
-	 * initialised
-	 */
-	init_waitqueue_head(&lowcomms_send_waitq);
-
 	error = -ENOMEM;
-	connections = kmalloc(sizeof(struct connection *) *
+	connections = kzalloc(sizeof(struct connection *) *
 			      NODE_INCREMENT, GFP_KERNEL);
 	if (!connections)
 		goto out;
-
-	memset(connections, 0,
-	       sizeof(struct connection *) * NODE_INCREMENT);
 
 	conn_array_size = NODE_INCREMENT;
 
@@ -1203,7 +1148,8 @@ int dlm_lowcomms_start(void)
 	}
 
 	con_cache = kmem_cache_create("dlm_conn", sizeof(struct connection),
-				      __alignof__(struct connection), 0, NULL, NULL);
+				      __alignof__(struct connection), 0,
+				      NULL, NULL);
 	if (!con_cache)
 		goto fail_free_conn;
 
@@ -1217,38 +1163,18 @@ int dlm_lowcomms_start(void)
 	if (error)
 		goto fail_unlisten;
 
-	atomic_set(&accepting, 1);
-
 	return 0;
 
-      fail_unlisten:
-	close_connection(connections[0], 0);
+fail_unlisten:
+	close_connection(connections[0], false);
 	kmem_cache_free(con_cache, connections[0]);
 	kmem_cache_destroy(con_cache);
 
-      fail_free_conn:
+fail_free_conn:
 	kfree(connections);
 
-      out:
+out:
 	return error;
-}
-
-int dlm_lowcomms_init(void)
-{
-	INIT_LIST_HEAD(&read_sockets);
-	INIT_LIST_HEAD(&write_sockets);
-	INIT_LIST_HEAD(&state_sockets);
-
-	spin_lock_init(&read_sockets_lock);
-	spin_lock_init(&write_sockets_lock);
-	spin_lock_init(&state_sockets_lock);
-	init_MUTEX(&connections_lock);
-
-	return 0;
-}
-
-void dlm_lowcomms_exit(void)
-{
 }
 
 /*
