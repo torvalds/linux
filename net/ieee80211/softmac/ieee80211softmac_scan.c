@@ -90,12 +90,14 @@ ieee80211softmac_wait_for_scan(struct ieee80211softmac_device *sm)
 
 
 /* internal scanning implementation follows */
-void ieee80211softmac_scan(void *d)
+void ieee80211softmac_scan(struct work_struct *work)
 {
 	int invalid_channel;
 	u8 current_channel_idx;
-	struct ieee80211softmac_device *sm = (struct ieee80211softmac_device *)d;
-	struct ieee80211softmac_scaninfo *si = sm->scaninfo;
+	struct ieee80211softmac_scaninfo *si =
+		container_of(work, struct ieee80211softmac_scaninfo,
+			     softmac_scan.work);
+	struct ieee80211softmac_device *sm = si->mac;
 	unsigned long flags;
 
 	while (!(si->stop) && (si->current_channel_idx < si->number_channels)) {
@@ -146,7 +148,8 @@ static inline struct ieee80211softmac_scaninfo *allocate_scaninfo(struct ieee802
 	struct ieee80211softmac_scaninfo *info = kmalloc(sizeof(struct ieee80211softmac_scaninfo), GFP_ATOMIC);
 	if (unlikely(!info))
 		return NULL;
-	INIT_WORK(&info->softmac_scan, ieee80211softmac_scan, mac);
+	INIT_DELAYED_WORK(&info->softmac_scan, ieee80211softmac_scan);
+	info->mac = mac;
 	init_completion(&info->finished);
 	return info;
 }
@@ -187,7 +190,7 @@ int ieee80211softmac_start_scan_implementation(struct net_device *dev)
 	sm->scaninfo->started = 1;
 	sm->scaninfo->stop = 0;
 	INIT_COMPLETION(sm->scaninfo->finished);
-	schedule_work(&sm->scaninfo->softmac_scan);
+	schedule_delayed_work(&sm->scaninfo->softmac_scan, 0);
 	spin_unlock_irqrestore(&sm->lock, flags);
 	return 0;
 }

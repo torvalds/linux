@@ -703,11 +703,12 @@ struct ocfs2_la_recovery_item {
  * NOTE: This function can and will sleep on recovery of other nodes
  * during cluster locking, just like any other ocfs2 process.
  */
-void ocfs2_complete_recovery(void *data)
+void ocfs2_complete_recovery(struct work_struct *work)
 {
 	int ret;
-	struct ocfs2_super *osb = data;
-	struct ocfs2_journal *journal = osb->journal;
+	struct ocfs2_journal *journal =
+		container_of(work, struct ocfs2_journal, j_recovery_work);
+	struct ocfs2_super *osb = journal->j_osb;
 	struct ocfs2_dinode *la_dinode, *tl_dinode;
 	struct ocfs2_la_recovery_item *item;
 	struct list_head *p, *n;

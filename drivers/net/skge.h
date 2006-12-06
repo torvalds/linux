@@ -2456,7 +2456,7 @@ struct skge_port {
 
 	struct net_device_stats net_stats;
 
-	struct work_struct   link_thread;
+	struct delayed_work  link_thread;
 	enum pause_control   flow_control;
 	enum pause_status    flow_status;
 	u8		     rx_csum;

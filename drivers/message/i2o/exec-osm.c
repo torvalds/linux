@@ -371,8 +371,10 @@ static int i2o_exec_remove(struct device *dev)
  *	new LCT and if the buffer for the LCT was to small sends a LCT NOTIFY
  *	again, otherwise send LCT NOTIFY to get informed on next LCT change.
  */
-static void i2o_exec_lct_modified(struct i2o_exec_lct_notify_work *work)
+static void i2o_exec_lct_modified(struct work_struct *_work)
 {
+	struct i2o_exec_lct_notify_work *work =
+		container_of(_work, struct i2o_exec_lct_notify_work, work);
 	u32 change_ind = 0;
 	struct i2o_controller *c = work->c;
 
@@ -439,8 +441,7 @@ static int i2o_exec_reply(struct i2o_controller *c, u32 m,
 
 		work->c = c;
 
-		INIT_WORK(&work->work, (void (*)(void *))i2o_exec_lct_modified,
-			  work);
+		INIT_WORK(&work->work, i2o_exec_lct_modified);
 		queue_work(i2o_exec_driver.event_queue, &work->work);
 		return 1;
 	}
@@ -460,13 +461,15 @@ static int i2o_exec_reply(struct i2o_controller *c, u32 m,
 
 /**
  *	i2o_exec_event - Event handling function
- *	@evt: Event which occurs
+ *	@work: Work item in occurring event
  *
  *	Handles events send by the Executive device. At the moment does not do
  *	anything useful.
  */
-static void i2o_exec_event(struct i2o_event *evt)
+static void i2o_exec_event(struct work_struct *work)
 {
+	struct i2o_event *evt = container_of(work, struct i2o_event, work);
+
 	if (likely(evt->i2o_dev))
 		osm_debug("Event received from device: %d\n",
 			  evt->i2o_dev->lct_data.tid);

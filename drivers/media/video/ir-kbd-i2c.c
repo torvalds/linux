@@ -268,9 +268,9 @@ static void ir_timer(unsigned long data)
 	schedule_work(&ir->work);
 }
 
-static void ir_work(void *data)
+static void ir_work(struct work_struct *work)
 {
-	struct IR_i2c *ir = data;
+	struct IR_i2c *ir = container_of(work, struct IR_i2c, work);
 	ir_key_poll(ir);
 	mod_timer(&ir->timer, jiffies+HZ/10);
 }
@@ -400,7 +400,7 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 	       ir->input->name,ir->input->phys,adap->name);
 
 	/* start polling via eventd */
-	INIT_WORK(&ir->work, ir_work, ir);
+	INIT_WORK(&ir->work, ir_work);
 	init_timer(&ir->timer);
 	ir->timer.function = ir_timer;
 	ir->timer.data     = (unsigned long)ir;

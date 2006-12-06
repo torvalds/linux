@@ -332,6 +332,7 @@ static irqreturn_t xirc2ps_interrupt(int irq, void *dev_id);
  */
 
 typedef struct local_info_t {
+	struct net_device	*dev;
 	struct pcmcia_device	*p_dev;
     dev_node_t node;
     struct net_device_stats stats;
@@ -353,7 +354,7 @@ typedef struct local_info_t {
  */
 static int do_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static void do_tx_timeout(struct net_device *dev);
-static void xirc2ps_tx_timeout_task(void *data);
+static void xirc2ps_tx_timeout_task(struct work_struct *work);
 static struct net_device_stats *do_get_stats(struct net_device *dev);
 static void set_addresses(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
@@ -567,6 +568,7 @@ xirc2ps_probe(struct pcmcia_device *link)
     if (!dev)
 	    return -ENOMEM;
     local = netdev_priv(dev);
+    local->dev = dev;
     local->p_dev = link;
     link->priv = dev;
 
@@ -591,7 +593,7 @@ xirc2ps_probe(struct pcmcia_device *link)
 #ifdef HAVE_TX_TIMEOUT
     dev->tx_timeout = do_tx_timeout;
     dev->watchdog_timeo = TX_TIMEOUT;
-    INIT_WORK(&local->tx_timeout_task, xirc2ps_tx_timeout_task, dev);
+    INIT_WORK(&local->tx_timeout_task, xirc2ps_tx_timeout_task);
 #endif
 
     return xirc2ps_config(link);
@@ -1324,9 +1326,11 @@ xirc2ps_interrupt(int irq, void *dev_id)
 /*====================================================================*/
 
 static void
-xirc2ps_tx_timeout_task(void *data)
+xirc2ps_tx_timeout_task(struct work_struct *work)
 {
-    struct net_device *dev = data;
+	local_info_t *local =
+		container_of(work, local_info_t, tx_timeout_task);
+	struct net_device *dev = local->dev;
     /* reset the card */
     do_reset(dev,1);
     dev->trans_start = jiffies;

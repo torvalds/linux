@@ -201,9 +201,14 @@ struct domain_device {
         void *lldd_dev;
 };
 
+struct sas_discovery_event {
+	struct work_struct work;
+	struct asd_sas_port *port;
+};
+
 struct sas_discovery {
 	spinlock_t disc_event_lock;
-	struct work_struct disc_work[DISC_NUM_EVENTS];
+	struct sas_discovery_event disc_work[DISC_NUM_EVENTS];
 	unsigned long    pending;
 	u8     fanout_sas_addr[8];
 	u8     eeds_a[8];
@@ -249,14 +254,19 @@ struct asd_sas_port {
 	void *lldd_port;	  /* not touched by the sas class code */
 };
 
+struct asd_sas_event {
+	struct work_struct work;
+	struct asd_sas_phy *phy;
+};
+
 /* The phy pretty much is controlled by the LLDD.
  * The class only reads those fields.
  */
 struct asd_sas_phy {
 /* private: */
 	/* protected by ha->event_lock */
-	struct work_struct   port_events[PORT_NUM_EVENTS];
-	struct work_struct   phy_events[PHY_NUM_EVENTS];
+	struct asd_sas_event   port_events[PORT_NUM_EVENTS];
+	struct asd_sas_event   phy_events[PHY_NUM_EVENTS];
 
 	unsigned long port_events_pending;
 	unsigned long phy_events_pending;
@@ -308,10 +318,15 @@ struct scsi_core {
 	int               queue_thread_kill;
 };
 
+struct sas_ha_event {
+	struct work_struct work;
+	struct sas_ha_struct *ha;
+};
+
 struct sas_ha_struct {
 /* private: */
 	spinlock_t       event_lock;
-	struct work_struct ha_events[HA_NUM_EVENTS];
+	struct sas_ha_event ha_events[HA_NUM_EVENTS];
 	unsigned long	 pending;
 
 	struct scsi_core core;
@@ -631,6 +646,6 @@ void sas_unregister_dev(struct domain_device *);
 
 void sas_init_dev(struct domain_device *);
 
-void sas_task_abort(struct sas_task *task);
+void sas_task_abort(struct work_struct *);
 
 #endif /* _SASLIB_H_ */

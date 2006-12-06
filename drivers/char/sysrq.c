@@ -219,13 +219,13 @@ static struct sysrq_key_op sysrq_term_op = {
 	.enable_mask	= SYSRQ_ENABLE_SIGNAL,
 };
 
-static void moom_callback(void *ignored)
+static void moom_callback(struct work_struct *ignored)
 {
 	out_of_memory(&NODE_DATA(0)->node_zonelists[ZONE_NORMAL],
 			GFP_KERNEL, 0);
 }
 
-static DECLARE_WORK(moom_work, moom_callback, NULL);
+static DECLARE_WORK(moom_work, moom_callback);
 
 static void sysrq_handle_moom(int key, struct tty_struct *tty)
 {

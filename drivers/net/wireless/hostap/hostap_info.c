@@ -474,9 +474,9 @@ static void handle_info_queue_scanresults(local_info_t *local)
 
 /* Called only as scheduled task after receiving info frames (used to avoid
  * pending too much time in HW IRQ handler). */
-static void handle_info_queue(void *data)
+static void handle_info_queue(struct work_struct *work)
 {
-	local_info_t *local = (local_info_t *) data;
+	local_info_t *local = container_of(work, local_info_t, info_queue);
 
 	if (test_and_clear_bit(PRISM2_INFO_PENDING_LINKSTATUS,
 			       &local->pending_info))
@@ -493,7 +493,7 @@ void hostap_info_init(local_info_t *local)
 {
 	skb_queue_head_init(&local->info_list);
 #ifndef PRISM2_NO_STATION_MODES
-	INIT_WORK(&local->info_queue, handle_info_queue, local);
+	INIT_WORK(&local->info_queue, handle_info_queue);
 #endif /* PRISM2_NO_STATION_MODES */
 }
 

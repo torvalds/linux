@@ -414,9 +414,10 @@ void asd_invalidate_edb(struct asd_ascb *ascb, int edb_id)
 }
 
 /* hard reset a phy later */
-static void do_phy_reset_later(void *data)
+static void do_phy_reset_later(struct work_struct *work)
 {
-	struct sas_phy *sas_phy = data;
+	struct sas_phy *sas_phy =
+		container_of(work, struct sas_phy, reset_work);
 	int error;
 
 	ASD_DPRINTK("%s: About to hard reset phy %d\n", __FUNCTION__,
@@ -430,7 +431,7 @@ static void do_phy_reset_later(void *data)
 
 static void phy_reset_later(struct sas_phy *sas_phy, struct Scsi_Host *shost)
 {
-	INIT_WORK(&sas_phy->reset_work, do_phy_reset_later, sas_phy);
+	INIT_WORK(&sas_phy->reset_work, do_phy_reset_later);
 	queue_work(shost->work_q, &sas_phy->reset_work);
 }
 
@@ -442,7 +443,7 @@ static void task_kill_later(struct asd_ascb *ascb)
 	struct Scsi_Host *shost = sas_ha->core.shost;
 	struct sas_task *task = ascb->uldd_task;
 
-	INIT_WORK(&task->abort_work, (void (*)(void *))sas_task_abort, task);
+	INIT_WORK(&task->abort_work, sas_task_abort);
 	queue_work(shost->work_q, &task->abort_work);
 }
 

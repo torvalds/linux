@@ -50,9 +50,10 @@ static atomic_t trapped;
 static void zap_completion_queue(void);
 static void arp_reply(struct sk_buff *skb);
 
-static void queue_process(void *p)
+static void queue_process(struct work_struct *work)
 {
-	struct netpoll_info *npinfo = p;
+	struct netpoll_info *npinfo =
+		container_of(work, struct netpoll_info, tx_work.work);
 	struct sk_buff *skb;
 
 	while ((skb = skb_dequeue(&npinfo->txq))) {
@@ -72,8 +73,6 @@ static void queue_process(void *p)
 			schedule_delayed_work(&npinfo->tx_work, HZ/10);
 			return;
 		}
-
-		netif_tx_unlock_bh(dev);
 	}
 }
 
@@ -263,7 +262,7 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 
 	if (status != NETDEV_TX_OK) {
 		skb_queue_tail(&npinfo->txq, skb);
-		schedule_work(&npinfo->tx_work);
+		schedule_delayed_work(&npinfo->tx_work,0);
 	}
 }
 
@@ -628,7 +627,7 @@ int netpoll_setup(struct netpoll *np)
 		spin_lock_init(&npinfo->rx_lock);
 		skb_queue_head_init(&npinfo->arp_tx);
 		skb_queue_head_init(&npinfo->txq);
-		INIT_WORK(&npinfo->tx_work, queue_process, npinfo);
+		INIT_DELAYED_WORK(&npinfo->tx_work, queue_process);
 
 		atomic_set(&npinfo->refcnt, 1);
 	} else {

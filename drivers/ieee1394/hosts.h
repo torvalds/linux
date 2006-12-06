@@ -62,7 +62,7 @@ struct hpsb_host {
 	struct class_device class_dev;
 
 	int update_config_rom;
-	struct work_struct delayed_reset;
+	struct delayed_work delayed_reset;
 	unsigned int config_roms;
 
 	struct list_head addr_space;

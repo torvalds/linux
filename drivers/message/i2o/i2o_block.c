@@ -419,16 +419,18 @@ static int i2o_block_prep_req_fn(struct request_queue *q, struct request *req)
 
 /**
  *	i2o_block_delayed_request_fn - delayed request queue function
- *	delayed_request: the delayed request with the queue to start
+ *	@work: the delayed request with the queue to start
  *
  *	If the request queue is stopped for a disk, and there is no open
  *	request, a new event is created, which calls this function to start
  *	the queue after I2O_BLOCK_REQUEST_TIME. Otherwise the queue will never
  *	be started again.
  */
-static void i2o_block_delayed_request_fn(void *delayed_request)
+static void i2o_block_delayed_request_fn(struct work_struct *work)
 {
-	struct i2o_block_delayed_request *dreq = delayed_request;
+	struct i2o_block_delayed_request *dreq =
+		container_of(work, struct i2o_block_delayed_request,
+			     work.work);
 	struct request_queue *q = dreq->queue;
 	unsigned long flags;
 
@@ -538,8 +540,9 @@ static int i2o_block_reply(struct i2o_controller *c, u32 m,
 	return 1;
 };
 
-static void i2o_block_event(struct i2o_event *evt)
+static void i2o_block_event(struct work_struct *work)
 {
+	struct i2o_event *evt = container_of(work, struct i2o_event, work);
 	osm_debug("event received\n");
 	kfree(evt);
 };
@@ -938,8 +941,8 @@ static void i2o_block_request_fn(struct request_queue *q)
 				continue;
 
 			dreq->queue = q;
-			INIT_WORK(&dreq->work, i2o_block_delayed_request_fn,
-				  dreq);
+			INIT_DELAYED_WORK(&dreq->work,
+					  i2o_block_delayed_request_fn);
 
 			if (!queue_delayed_work(i2o_block_driver.event_queue,
 						&dreq->work,

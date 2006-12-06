@@ -31,7 +31,7 @@ typedef struct {
 	int base;		/* Actual port address          */
 	int mode;		/* Transfer mode                */
 	struct scsi_cmnd *cur_cmd;	/* Current queued command       */
-	struct work_struct ppa_tq;	/* Polling interrupt stuff       */
+	struct delayed_work ppa_tq;	/* Polling interrupt stuff       */
 	unsigned long jstart;	/* Jiffies at start             */
 	unsigned long recon_tmo;	/* How many usecs to wait for reconnection (6th bit) */
 	unsigned int failed:1;	/* Failure flag                 */
@@ -627,9 +627,9 @@ static int ppa_completion(struct scsi_cmnd *cmd)
  * the scheduler's task queue to generate a stream of call-backs and
  * complete the request when the drive is ready.
  */
-static void ppa_interrupt(void *data)
+static void ppa_interrupt(struct work_struct *work)
 {
-	ppa_struct *dev = (ppa_struct *) data;
+	ppa_struct *dev = container_of(work, ppa_struct, ppa_tq.work);
 	struct scsi_cmnd *cmd = dev->cur_cmd;
 
 	if (!cmd) {
@@ -637,7 +637,6 @@ static void ppa_interrupt(void *data)
 		return;
 	}
 	if (ppa_engine(dev, cmd)) {
-		dev->ppa_tq.data = (void *) dev;
 		schedule_delayed_work(&dev->ppa_tq, 1);
 		return;
 	}
@@ -822,8 +821,7 @@ static int ppa_queuecommand(struct scsi_cmnd *cmd,
 	cmd->result = DID_ERROR << 16;	/* default return code */
 	cmd->SCp.phase = 0;	/* bus free */
 
-	dev->ppa_tq.data = dev;
-	schedule_work(&dev->ppa_tq);
+	schedule_delayed_work(&dev->ppa_tq, 0);
 
 	ppa_pb_claim(dev);
 
@@ -1086,7 +1084,7 @@ static int __ppa_attach(struct parport *pb)
 	else
 		ports = 8;
 
-	INIT_WORK(&dev->ppa_tq, ppa_interrupt, dev);
+	INIT_DELAYED_WORK(&dev->ppa_tq, ppa_interrupt);
 
 	err = -ENOMEM;
 	host = scsi_host_alloc(&ppa_template, sizeof(ppa_struct *));

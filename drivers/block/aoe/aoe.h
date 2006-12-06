@@ -159,7 +159,7 @@ void aoecmd_work(struct aoedev *d);
 void aoecmd_cfg(ushort aoemajor, unsigned char aoeminor);
 void aoecmd_ata_rsp(struct sk_buff *);
 void aoecmd_cfg_rsp(struct sk_buff *);
-void aoecmd_sleepwork(void *vp);
+void aoecmd_sleepwork(struct work_struct *);
 struct sk_buff *new_skb(ulong);
 
 int aoedev_init(void);

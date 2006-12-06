@@ -82,7 +82,7 @@ struct net_bridge_port
 	struct timer_list		hold_timer;
 	struct timer_list		message_age_timer;
 	struct kobject			kobj;
-	struct work_struct		carrier_check;
+	struct delayed_work		carrier_check;
 	struct rcu_head			rcu;
 };
 

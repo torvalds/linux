@@ -40,7 +40,7 @@
 #define SNAPSHOT_PAGES 256
 
 struct workqueue_struct *ksnapd;
-static void flush_queued_bios(void *data);
+static void flush_queued_bios(struct work_struct *work);
 
 struct pending_exception {
 	struct exception e;
@@ -528,7 +528,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	bio_list_init(&s->queued_bios);
-	INIT_WORK(&s->queued_bios_work, flush_queued_bios, s);
+	INIT_WORK(&s->queued_bios_work, flush_queued_bios);
 
 	/* Add snapshot to the list of snapshots for this origin */
 	/* Exceptions aren't triggered till snapshot_resume() is called */
@@ -603,9 +603,10 @@ static void flush_bios(struct bio *bio)
 	}
 }
 
-static void flush_queued_bios(void *data)
+static void flush_queued_bios(struct work_struct *work)
 {
-	struct dm_snapshot *s = (struct dm_snapshot *) data;
+	struct dm_snapshot *s =
+		container_of(work, struct dm_snapshot, queued_bios_work);
 	struct bio *queued_bios;
 	unsigned long flags;
 

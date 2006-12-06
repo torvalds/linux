@@ -390,9 +390,10 @@ static void srp_disconnect_target(struct srp_target_port *target)
 	wait_for_completion(&target->done);
 }
 
-static void srp_remove_work(void *target_ptr)
+static void srp_remove_work(struct work_struct *work)
 {
-	struct srp_target_port *target = target_ptr;
+	struct srp_target_port *target =
+		container_of(work, struct srp_target_port, work);
 
 	spin_lock_irq(target->scsi_host->host_lock);
 	if (target->state != SRP_TARGET_DEAD) {
@@ -575,7 +576,7 @@ err:
 	spin_lock_irq(target->scsi_host->host_lock);
 	if (target->state == SRP_TARGET_CONNECTING) {
 		target->state = SRP_TARGET_DEAD;
-		INIT_WORK(&target->work, srp_remove_work, target);
+		INIT_WORK(&target->work, srp_remove_work);
 		schedule_work(&target->work);
 	}
 	spin_unlock_irq(target->scsi_host->host_lock);

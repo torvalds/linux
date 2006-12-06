@@ -1137,7 +1137,6 @@ static int checkcard(int cardnr, char *id, int *busy_flag, struct module *lockow
 	cs->tx_skb = NULL;
 	cs->tx_cnt = 0;
 	cs->event = 0;
-	cs->tqueue.data = cs;
 
 	skb_queue_head_init(&cs->rq);
 	skb_queue_head_init(&cs->sq);
@@ -1554,7 +1553,7 @@ static void hisax_b_l2l1(struct PStack *st, int pr, void *arg);
 static int hisax_cardmsg(struct IsdnCardState *cs, int mt, void *arg);
 static int hisax_bc_setstack(struct PStack *st, struct BCState *bcs);
 static void hisax_bc_close(struct BCState *bcs);
-static void hisax_bh(struct IsdnCardState *cs);
+static void hisax_bh(struct work_struct *work);
 static void EChannel_proc_rcv(struct hisax_d_if *d_if);
 
 int hisax_register(struct hisax_d_if *hisax_d_if, struct hisax_b_if *b_if[],
@@ -1586,7 +1585,7 @@ int hisax_register(struct hisax_d_if *hisax_d_if, struct hisax_b_if *b_if[],
 	hisax_d_if->cs = cs;
 	cs->hw.hisax_d_if = hisax_d_if;
 	cs->cardmsg = hisax_cardmsg;
-	INIT_WORK(&cs->tqueue, (void *)(void *)hisax_bh, cs);
+	INIT_WORK(&cs->tqueue, hisax_bh);
 	cs->channel[0].d_st->l2.l2l1 = hisax_d_l2l1;
 	for (i = 0; i < 2; i++) {
 		cs->bcs[i].BC_SetStack = hisax_bc_setstack;
@@ -1618,8 +1617,10 @@ static void hisax_sched_event(struct IsdnCardState *cs, int event)
 	schedule_work(&cs->tqueue);
 }
 
-static void hisax_bh(struct IsdnCardState *cs)
+static void hisax_bh(struct work_struct *work)
 {
+	struct IsdnCardState *cs =
+		container_of(work, struct IsdnCardState, tqueue);
 	struct PStack *st;
 	int pr;
 

@@ -92,6 +92,7 @@ struct aircable_private {
 	struct circ_buf *rx_buf;	/* read buffer */
 	int rx_flags;			/* for throttilng */
 	struct work_struct rx_work;	/* work cue for the receiving line */
+	struct usb_serial_port *port;	/* USB port with which associated */
 };
 
 /* Private methods */
@@ -251,10 +252,11 @@ static void aircable_send(struct usb_serial_port *port)
 	schedule_work(&port->work);
 }
 
-static void aircable_read(void *params)
+static void aircable_read(struct work_struct *work)
 {
-	struct usb_serial_port *port = params;
-	struct aircable_private *priv = usb_get_serial_port_data(port);
+	struct aircable_private *priv =
+		container_of(work, struct aircable_private, rx_work);
+	struct usb_serial_port *port = priv->port;
 	struct tty_struct *tty;
 	unsigned char *data;
 	int count;
@@ -349,7 +351,8 @@ static int aircable_attach (struct usb_serial *serial)
 	}
 
 	priv->rx_flags &= ~(THROTTLED | ACTUALLY_THROTTLED);
-	INIT_WORK(&priv->rx_work, aircable_read, port);
+	priv->port = port;
+	INIT_WORK(&priv->rx_work, aircable_read);
 
 	usb_set_serial_port_data(serial->port[0], priv);
 
@@ -516,7 +519,7 @@ static void aircable_read_bulk_callback(struct urb *urb)
 					package_length - shift);
 			}
 		}
-		aircable_read(port);
+		aircable_read(&priv->rx_work);
 	}
 
 	/* Schedule the next read _if_ we are still open */

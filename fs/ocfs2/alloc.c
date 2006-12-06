@@ -1197,10 +1197,12 @@ int ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 	return status;
 }
 
-static void ocfs2_truncate_log_worker(void *data)
+static void ocfs2_truncate_log_worker(struct work_struct *work)
 {
 	int status;
-	struct ocfs2_super *osb = data;
+	struct ocfs2_super *osb =
+		container_of(work, struct ocfs2_super,
+			     osb_truncate_log_wq.work);
 
 	mlog_entry_void();
 
@@ -1432,7 +1434,8 @@ int ocfs2_truncate_log_init(struct ocfs2_super *osb)
 	/* ocfs2_truncate_log_shutdown keys on the existence of
 	 * osb->osb_tl_inode so we don't set any of the osb variables
 	 * until we're sure all is well. */
-	INIT_WORK(&osb->osb_truncate_log_wq, ocfs2_truncate_log_worker, osb);
+	INIT_DELAYED_WORK(&osb->osb_truncate_log_wq,
+			  ocfs2_truncate_log_worker);
 	osb->osb_tl_bh    = tl_bh;
 	osb->osb_tl_inode = tl_inode;
 

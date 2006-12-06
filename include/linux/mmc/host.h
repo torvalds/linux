@@ -110,7 +110,7 @@ struct mmc_host {
 	struct mmc_card		*card_busy;	/* the MMC card claiming host */
 	struct mmc_card		*card_selected;	/* the selected MMC card */
 
-	struct work_struct	detect;
+	struct delayed_work	detect;
 
 	unsigned long		private[0] ____cacheline_aligned;
 };

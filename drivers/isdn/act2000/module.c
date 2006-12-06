@@ -192,8 +192,11 @@ act2000_set_msn(act2000_card *card, char *eazmsn)
 }
 
 static void
-act2000_transmit(struct act2000_card *card)
+act2000_transmit(struct work_struct *work)
 {
+	struct act2000_card *card =
+		container_of(work, struct act2000_card, snd_tq);
+
 	switch (card->bus) {
 		case ACT2000_BUS_ISA:
 			act2000_isa_send(card);
@@ -207,8 +210,11 @@ act2000_transmit(struct act2000_card *card)
 }
 
 static void
-act2000_receive(struct act2000_card *card)
+act2000_receive(struct work_struct *work)
 {
+	struct act2000_card *card =
+		container_of(work, struct act2000_card, poll_tq);
+
 	switch (card->bus) {
 		case ACT2000_BUS_ISA:
 			act2000_isa_receive(card);
@@ -227,7 +233,7 @@ act2000_poll(unsigned long data)
 	act2000_card * card = (act2000_card *)data;
 	unsigned long flags;
 
-	act2000_receive(card);
+	act2000_receive(&card->poll_tq);
 	spin_lock_irqsave(&card->lock, flags);
 	mod_timer(&card->ptimer, jiffies+3);
 	spin_unlock_irqrestore(&card->lock, flags);
@@ -578,9 +584,9 @@ act2000_alloccard(int bus, int port, int irq, char *id)
 	skb_queue_head_init(&card->sndq);
 	skb_queue_head_init(&card->rcvq);
 	skb_queue_head_init(&card->ackq);
-	INIT_WORK(&card->snd_tq, (void *) (void *) act2000_transmit, card);
-	INIT_WORK(&card->rcv_tq, (void *) (void *) actcapi_dispatch, card);
-	INIT_WORK(&card->poll_tq, (void *) (void *) act2000_receive, card);
+	INIT_WORK(&card->snd_tq, act2000_transmit);
+	INIT_WORK(&card->rcv_tq, actcapi_dispatch);
+	INIT_WORK(&card->poll_tq, act2000_receive);
 	init_timer(&card->ptimer);
 	card->interface.owner = THIS_MODULE;
         card->interface.channels = ACT2000_BCH;

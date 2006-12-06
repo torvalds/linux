@@ -91,7 +91,7 @@ struct cphy {
 	int state;	/* Link status state machine */
 	adapter_t *adapter;                  /* associated adapter */
 
-	struct work_struct phy_update;
+	struct delayed_work phy_update;
 
 	u16 bmsr;
 	int count;

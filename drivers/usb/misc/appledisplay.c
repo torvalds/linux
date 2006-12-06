@@ -76,7 +76,7 @@ struct appledisplay {
 	char *urbdata;			/* interrupt URB data buffer */
 	char *msgdata;			/* control message data buffer */
 
-	struct work_struct work;
+	struct delayed_work work;
 	int button_pressed;
 	spinlock_t lock;
 };
@@ -117,7 +117,7 @@ static void appledisplay_complete(struct urb *urb)
 	case ACD_BTN_BRIGHT_UP:
 	case ACD_BTN_BRIGHT_DOWN:
 		pdata->button_pressed = 1;
-		queue_work(wq, &pdata->work);
+		queue_delayed_work(wq, &pdata->work, 0);
 		break;
 	case ACD_BTN_NONE:
 	default:
@@ -184,9 +184,10 @@ static struct backlight_properties appledisplay_bl_data = {
 	.max_brightness	= 0xFF
 };
 
-static void appledisplay_work(void *private)
+static void appledisplay_work(struct work_struct *work)
 {
-	struct appledisplay *pdata = private;
+	struct appledisplay *pdata =
+		container_of(work, struct appledisplay, work.work);
 	int retval;
 
 	up(&pdata->bd->sem);
@@ -238,7 +239,7 @@ static int appledisplay_probe(struct usb_interface *iface,
 	pdata->udev = udev;
 
 	spin_lock_init(&pdata->lock);
-	INIT_WORK(&pdata->work, appledisplay_work, pdata);
+	INIT_DELAYED_WORK(&pdata->work, appledisplay_work);
 
 	/* Allocate buffer for control messages */
 	pdata->msgdata = kmalloc(ACD_MSG_BUFFER_LEN, GFP_KERNEL);

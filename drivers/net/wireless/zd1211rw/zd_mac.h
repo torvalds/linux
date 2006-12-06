@@ -119,7 +119,7 @@ struct rx_status {
 #define ZD_RX_ERROR			0x80
 
 struct housekeeping {
-	struct work_struct link_led_work;
+	struct delayed_work link_led_work;
 };
 
 #define ZD_MAC_STATS_BUFFER_SIZE 16
@@ -133,8 +133,8 @@ struct zd_mac {
 	struct iw_statistics iw_stats;
 
 	struct housekeeping housekeeping;
-	struct work_struct set_rts_cts_work;
-	struct work_struct set_basic_rates_work;
+	struct delayed_work set_rts_cts_work;
+	struct delayed_work set_basic_rates_work;
 
 	unsigned int stats_count;
 	u8 qual_buffer[ZD_MAC_STATS_BUFFER_SIZE];

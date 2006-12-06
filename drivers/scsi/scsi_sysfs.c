@@ -218,16 +218,16 @@ static void scsi_device_cls_release(struct class_device *class_dev)
 	put_device(&sdev->sdev_gendev);
 }
 
-static void scsi_device_dev_release_usercontext(void *data)
+static void scsi_device_dev_release_usercontext(struct work_struct *work)
 {
-	struct device *dev = data;
 	struct scsi_device *sdev;
 	struct device *parent;
 	struct scsi_target *starget;
 	unsigned long flags;
 
-	parent = dev->parent;
-	sdev = to_scsi_device(dev);
+	sdev = container_of(work, struct scsi_device, ew.work);
+
+	parent = sdev->sdev_gendev.parent;
 	starget = to_scsi_target(parent);
 
 	spin_lock_irqsave(sdev->host->host_lock, flags);
@@ -258,7 +258,7 @@ static void scsi_device_dev_release_usercontext(void *data)
 static void scsi_device_dev_release(struct device *dev)
 {
 	struct scsi_device *sdp = to_scsi_device(dev);
-	execute_in_process_context(scsi_device_dev_release_usercontext, dev,
+	execute_in_process_context(scsi_device_dev_release_usercontext,
 				   &sdp->ew);
 }
 

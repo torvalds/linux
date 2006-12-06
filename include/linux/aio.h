@@ -194,7 +194,7 @@ struct kioctx {
 
 	struct aio_ring_info	ring_info;
 
-	struct work_struct	wq;
+	struct delayed_work	wq;
 };
 
 /* prototypes */

@@ -125,8 +125,8 @@ static int cpc_tty_write_room(struct tty_struct *tty);
 static int cpc_tty_chars_in_buffer(struct tty_struct *tty);
 static void cpc_tty_flush_buffer(struct tty_struct *tty);
 static void cpc_tty_hangup(struct tty_struct *tty);
-static void cpc_tty_rx_work(void *data);
-static void cpc_tty_tx_work(void *data);
+static void cpc_tty_rx_work(struct work_struct *work);
+static void cpc_tty_tx_work(struct work_struct *work);
 static int cpc_tty_send_to_card(pc300dev_t *dev,void *buf, int len);
 static void cpc_tty_trace(pc300dev_t *dev, char* buf, int len, char rxtx);
 static void cpc_tty_signal_off(pc300dev_t *pc300dev, unsigned char);
@@ -261,8 +261,8 @@ void cpc_tty_init(pc300dev_t *pc300dev)
 	cpc_tty->tty_minor = port + CPC_TTY_MINOR_START;
 	cpc_tty->pc300dev = pc300dev; 
 
-	INIT_WORK(&cpc_tty->tty_tx_work, cpc_tty_tx_work, (void *)cpc_tty);
-	INIT_WORK(&cpc_tty->tty_rx_work, cpc_tty_rx_work, (void *)port);
+	INIT_WORK(&cpc_tty->tty_tx_work, cpc_tty_tx_work);
+	INIT_WORK(&cpc_tty->tty_rx_work, cpc_tty_rx_work);
 	
 	cpc_tty->buf_rx.first = cpc_tty->buf_rx.last = NULL;
 
@@ -659,21 +659,23 @@ static void cpc_tty_hangup(struct tty_struct *tty)
  * o call the line disc. read
  * o free memory
  */
-static void cpc_tty_rx_work(void * data)
+static void cpc_tty_rx_work(struct work_struct *work)
 {
+	st_cpc_tty_area *cpc_tty;
 	unsigned long port;
 	int i, j;
-	st_cpc_tty_area *cpc_tty; 
 	volatile st_cpc_rx_buf *buf;
 	char flags=0,flg_rx=1; 
 	struct tty_ldisc *ld;
 
 	if (cpc_tty_cnt == 0) return;
-
 	
 	for (i=0; (i < 4) && flg_rx ; i++) {
 		flg_rx = 0;
-		port = (unsigned long)data;
+
+		cpc_tty = container_of(work, st_cpc_tty_area, tty_rx_work);
+		port = cpc_tty - cpc_tty_area;
+
 		for (j=0; j < CPC_TTY_NPORTS; j++) {
 			cpc_tty = &cpc_tty_area[port];
 		
@@ -882,9 +884,10 @@ void cpc_tty_receive(pc300dev_t *pc300dev)
  * o if need call line discipline wakeup
  * o call wake_up_interruptible
  */
-static void cpc_tty_tx_work(void *data)
+static void cpc_tty_tx_work(struct work_struct *work)
 {
-	st_cpc_tty_area *cpc_tty = (st_cpc_tty_area *) data; 
+	st_cpc_tty_area *cpc_tty =
+		container_of(work, st_cpc_tty_area, tty_tx_work);
 	struct tty_struct *tty; 
 
 	CPC_TTY_DBG("%s: cpc_tty_tx_work init\n",cpc_tty->name);

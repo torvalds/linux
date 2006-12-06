@@ -424,6 +424,7 @@ struct ring_info {
 struct rtl8169_private {
 	void __iomem *mmio_addr;	/* memory map physical address */
 	struct pci_dev *pci_dev;	/* Index of PCI device */
+	struct net_device *dev;
 	struct net_device_stats stats;	/* statistics of net device */
 	spinlock_t lock;		/* spin lock flag */
 	u32 msg_enable;
@@ -455,7 +456,7 @@ struct rtl8169_private {
 	void (*phy_reset_enable)(void __iomem *);
 	unsigned int (*phy_reset_pending)(void __iomem *);
 	unsigned int (*link_ok)(void __iomem *);
-	struct work_struct task;
+	struct delayed_work task;
 	unsigned wol_enabled : 1;
 };
 
@@ -1510,6 +1511,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	tp = netdev_priv(dev);
+	tp->dev = dev;
 	tp->msg_enable = netif_msg_init(debug.msg_enable, R8169_MSG_DEFAULT);
 
 	/* enable device (incl. PCI PM wakeup and hotplug setup) */
@@ -1782,7 +1784,7 @@ static int rtl8169_open(struct net_device *dev)
 	if (retval < 0)
 		goto err_free_rx;
 
-	INIT_WORK(&tp->task, NULL, dev);
+	INIT_DELAYED_WORK(&tp->task, NULL);
 
 	rtl8169_hw_start(dev);
 
@@ -2105,11 +2107,11 @@ static void rtl8169_tx_clear(struct rtl8169_private *tp)
 	tp->cur_tx = tp->dirty_tx = 0;
 }
 
-static void rtl8169_schedule_work(struct net_device *dev, void (*task)(void *))
+static void rtl8169_schedule_work(struct net_device *dev, work_func_t task)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 
-	PREPARE_WORK(&tp->task, task, dev);
+	PREPARE_DELAYED_WORK(&tp->task, task);
 	schedule_delayed_work(&tp->task, 4);
 }
 
@@ -2128,9 +2130,11 @@ static void rtl8169_wait_for_quiescence(struct net_device *dev)
 	netif_poll_enable(dev);
 }
 
-static void rtl8169_reinit_task(void *_data)
+static void rtl8169_reinit_task(struct work_struct *work)
 {
-	struct net_device *dev = _data;
+	struct rtl8169_private *tp =
+		container_of(work, struct rtl8169_private, task.work);
+	struct net_device *dev = tp->dev;
 	int ret;
 
 	if (netif_running(dev)) {
@@ -2153,10 +2157,11 @@ static void rtl8169_reinit_task(void *_data)
 	}
 }
 
-static void rtl8169_reset_task(void *_data)
+static void rtl8169_reset_task(struct work_struct *work)
 {
-	struct net_device *dev = _data;
-	struct rtl8169_private *tp = netdev_priv(dev);
+	struct rtl8169_private *tp =
+		container_of(work, struct rtl8169_private, task.work);
+	struct net_device *dev = tp->dev;
 
 	if (!netif_running(dev))
 		return;
