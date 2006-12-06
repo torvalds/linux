@@ -47,7 +47,7 @@
 
 
 /* Function prototypes */
-static irqreturn_t wdt_gpi_irqhdl(int, void *, struct pt_regs *);
+static irqreturn_t wdt_gpi_irqhdl(int, void *);
 static void wdt_gpi_start(void);
 static void wdt_gpi_stop(void);
 static void wdt_gpi_set_timeout(unsigned int);
@@ -115,7 +115,7 @@ static struct notifier_block wdt_gpi_shutdown = {
 
 
 /* Interrupt handler */
-static irqreturn_t wdt_gpi_irqhdl(int irq, void *ctxt, struct pt_regs *regs)
+static irqreturn_t wdt_gpi_irqhdl(int irq, void *ctxt)
 {
 	if (!unlikely(__raw_readl(wd_regs + 0x0008) & 0x1))
 		return IRQ_NONE;
