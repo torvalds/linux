@@ -2,7 +2,8 @@
 # Makefile for the Linux/SuperH SH-4 backends.
 #
 
-obj-y	:= ex.o probe.o
+obj-y	:= ex.o probe.o common.o
+common-y	+= $(addprefix ../sh3/, entry.o)
 
 obj-$(CONFIG_SH_FPU)                    += fpu.o
 obj-$(CONFIG_SH_STORE_QUEUES)		+= sq.o

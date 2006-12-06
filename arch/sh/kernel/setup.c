@@ -392,6 +392,7 @@ static int __init topology_init(void)
 subsys_initcall(topology_init);
 
 static const char *cpu_name[] = {
+	[CPU_SH7206]	= "SH7206",	[CPU_SH7619]	= "SH7619",
 	[CPU_SH7604]	= "SH7604",	[CPU_SH7300]	= "SH7300",
 	[CPU_SH7705]	= "SH7705",	[CPU_SH7706]	= "SH7706",
 	[CPU_SH7707]	= "SH7707",	[CPU_SH7708]	= "SH7708",
@@ -404,6 +405,7 @@ static const char *cpu_name[] = {
 	[CPU_SH4_202]	= "SH4-202",	[CPU_SH4_501]	= "SH4-501",
 	[CPU_SH7770]	= "SH7770",	[CPU_SH7780]	= "SH7780",
 	[CPU_SH7781]	= "SH7781",	[CPU_SH7343]	= "SH7343",
+	[CPU_SH7785]	= "SH7785",
 	[CPU_SH_NONE]	= "Unknown"
 };
 

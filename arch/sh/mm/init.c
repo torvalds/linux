@@ -84,30 +84,22 @@ static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 	pmd_t *pmd;
 	pte_t *pte;
 
-	pgd = swapper_pg_dir + pgd_index(addr);
+	pgd = pgd_offset_k(addr);
 	if (pgd_none(*pgd)) {
 		pgd_ERROR(*pgd);
 		return;
 	}
 
-	pud = pud_offset(pgd, addr);
-	if (pud_none(*pud)) {
-		pmd = (pmd_t *)get_zeroed_page(GFP_ATOMIC);
-		set_pud(pud, __pud(__pa(pmd) | _KERNPG_TABLE | _PAGE_USER));
-		if (pmd != pmd_offset(pud, 0)) {
-			pud_ERROR(*pud);
-			return;
-		}
+	pud = pud_alloc(NULL, pgd, addr);
+	if (unlikely(!pud)) {
+		pud_ERROR(*pud);
+		return;
 	}
 
-	pmd = pmd_offset(pud, addr);
-	if (pmd_none(*pmd)) {
-		pte = (pte_t *)get_zeroed_page(GFP_ATOMIC);
-		set_pmd(pmd, __pmd(__pa(pte) | _KERNPG_TABLE | _PAGE_USER));
-		if (pte != pte_offset_kernel(pmd, 0)) {
-			pmd_ERROR(*pmd);
-			return;
-		}
+	pmd = pmd_alloc(NULL, pud, addr);
+	if (unlikely(!pmd)) {
+		pmd_ERROR(*pmd);
+		return;
 	}
 
 	pte = pte_offset_kernel(pmd, addr);
@@ -155,9 +147,6 @@ extern char __init_begin, __init_end;
 
 /*
  * paging_init() sets up the page tables
- *
- * This routines also unmaps the page at virtual kernel address 0, so
- * that we can trap those pesky NULL-reference errors in the kernel.
  */
 void __init paging_init(void)
 {
@@ -180,14 +169,11 @@ void __init paging_init(void)
 	 */
 	{
 		unsigned long max_dma, low, start_pfn;
-		pgd_t *pg_dir;
-		int i;
 
-		/* We don't need kernel mapping as hardware support that. */
-		pg_dir = swapper_pg_dir;
-
-		for (i = 0; i < PTRS_PER_PGD; i++)
-			pgd_val(pg_dir[i]) = 0;
+		/* We don't need to map the kernel through the TLB, as
+		 * it is permanatly mapped using P1. So clear the
+		 * entire pgd. */
+		memset(swapper_pg_dir, 0, sizeof(swapper_pg_dir));
 
 		/* Turn on the MMU */
 		enable_mmu();
@@ -205,6 +191,10 @@ void __init paging_init(void)
 			zones_size[ZONE_NORMAL] = low - max_dma;
 		}
 	}
+
+	/* Set an initial value for the MMU.TTB so we don't have to
+	 * check for a null value. */
+	set_TTB(swapper_pg_dir);
 
 #elif defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4)
 	/*
@@ -227,7 +217,6 @@ static struct kcore_list kcore_mem, kcore_vmalloc;
 
 void __init mem_init(void)
 {
-	extern unsigned long empty_zero_page[1024];
 	int codesize, reservedpages, datasize, initsize;
 	int tmp;
 	extern unsigned long memory_start;

@@ -37,7 +37,7 @@
 asmlinkage int
 sys_sigsuspend(old_sigset_t mask,
 	       unsigned long r5, unsigned long r6, unsigned long r7,
-	       struct pt_regs regs)
+	       struct pt_regs __regs)
 {
 	mask &= _BLOCKABLE;
 	spin_lock_irq(&current->sighand->siglock);
@@ -52,7 +52,7 @@ sys_sigsuspend(old_sigset_t mask,
 	return -ERESTARTNOHAND;
 }
 
-asmlinkage int 
+asmlinkage int
 sys_sigaction(int sig, const struct old_sigaction __user *act,
 	      struct old_sigaction __user *oact)
 {
@@ -87,9 +87,11 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 asmlinkage int
 sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 		unsigned long r6, unsigned long r7,
-		struct pt_regs regs)
+		struct pt_regs __regs)
 {
-	return do_sigaltstack(uss, uoss, regs.regs[15]);
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
+
+	return do_sigaltstack(uss, uoss, regs->regs[15]);
 }
 
 
@@ -98,7 +100,11 @@ sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
  */
 
 #define MOVW(n)	 (0x9300|((n)-2))	/* Move mem word at PC+n to R3 */
-#define TRAP16	 0xc310			/* Syscall w/no args (NR in R3) */
+#if defined(CONFIG_CPU_SH2) || defined(CONFIG_CPU_SH2A)
+#define TRAP_NOARG 0xc320		/* Syscall w/no args (NR in R3) */
+#else
+#define TRAP_NOARG 0xc310		/* Syscall w/no args (NR in R3) */
+#endif
 #define OR_R0_R0 0x200b			/* or r0,r0 (insert to avoid hardware bug) */
 
 struct sigframe
@@ -194,9 +200,10 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, int *r0_p
 
 asmlinkage int sys_sigreturn(unsigned long r4, unsigned long r5,
 			     unsigned long r6, unsigned long r7,
-			     struct pt_regs regs)
+			     struct pt_regs __regs)
 {
-	struct sigframe __user *frame = (struct sigframe __user *)regs.regs[15];
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
+	struct sigframe __user *frame = (struct sigframe __user *)regs->regs[15];
 	sigset_t set;
 	int r0;
 
@@ -216,7 +223,7 @@ asmlinkage int sys_sigreturn(unsigned long r4, unsigned long r5,
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if (restore_sigcontext(&regs, &frame->sc, &r0))
+	if (restore_sigcontext(regs, &frame->sc, &r0))
 		goto badframe;
 	return r0;
 
@@ -227,9 +234,10 @@ badframe:
 
 asmlinkage int sys_rt_sigreturn(unsigned long r4, unsigned long r5,
 				unsigned long r6, unsigned long r7,
-				struct pt_regs regs)
+				struct pt_regs __regs)
 {
-	struct rt_sigframe __user *frame = (struct rt_sigframe __user *)regs.regs[15];
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
+	struct rt_sigframe __user *frame = (struct rt_sigframe __user *)regs->regs[15];
 	sigset_t set;
 	stack_t st;
 	int r0;
@@ -246,14 +254,14 @@ asmlinkage int sys_rt_sigreturn(unsigned long r4, unsigned long r5,
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if (restore_sigcontext(&regs, &frame->uc.uc_mcontext, &r0))
+	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &r0))
 		goto badframe;
 
 	if (__copy_from_user(&st, &frame->uc.uc_stack, sizeof(st)))
 		goto badframe;
 	/* It is more difficult to avoid calling this function than to
 	   call it and ignore errors.  */
-	do_sigaltstack(&st, NULL, regs.regs[15]);
+	do_sigaltstack(&st, NULL, regs->regs[15]);
 
 	return r0;
 
@@ -350,7 +358,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	} else {
 		/* Generate return code (system call to sigreturn) */
 		err |= __put_user(MOVW(7), &frame->retcode[0]);
-		err |= __put_user(TRAP16, &frame->retcode[1]);
+		err |= __put_user(TRAP_NOARG, &frame->retcode[1]);
 		err |= __put_user(OR_R0_R0, &frame->retcode[2]);
 		err |= __put_user(OR_R0_R0, &frame->retcode[3]);
 		err |= __put_user(OR_R0_R0, &frame->retcode[4]);
@@ -430,7 +438,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	} else {
 		/* Generate return code (system call to rt_sigreturn) */
 		err |= __put_user(MOVW(7), &frame->retcode[0]);
-		err |= __put_user(TRAP16, &frame->retcode[1]);
+		err |= __put_user(TRAP_NOARG, &frame->retcode[1]);
 		err |= __put_user(OR_R0_R0, &frame->retcode[2]);
 		err |= __put_user(OR_R0_R0, &frame->retcode[3]);
 		err |= __put_user(OR_R0_R0, &frame->retcode[4]);

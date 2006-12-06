@@ -73,8 +73,6 @@ DECLARE_EXPORT(__lshrdi3);
 DECLARE_EXPORT(__movstr);
 DECLARE_EXPORT(__movstrSI16);
 
-EXPORT_SYMBOL(strcpy);
-
 #ifdef CONFIG_CPU_SH4
 DECLARE_EXPORT(__movstr_i4_even);
 DECLARE_EXPORT(__movstr_i4_odd);
