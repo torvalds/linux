@@ -86,7 +86,7 @@
 	OCFS2_SB(sb)->s_feature_incompat &= ~(mask)
 
 #define OCFS2_FEATURE_COMPAT_SUPP	0
-#define OCFS2_FEATURE_INCOMPAT_SUPP	0
+#define OCFS2_FEATURE_INCOMPAT_SUPP	OCFS2_FEATURE_INCOMPAT_LOCAL_MOUNT
 #define OCFS2_FEATURE_RO_COMPAT_SUPP	0
 
 /*
@@ -96,6 +96,9 @@
  */
 #define OCFS2_FEATURE_INCOMPAT_HEARTBEAT_DEV	0x0002
 
+
+/* Used to denote a non-clustered volume */
+#define OCFS2_FEATURE_INCOMPAT_LOCAL_MOUNT	0x0008
 
 /*
  * Flags on ocfs2_dinode.i_flags

@@ -423,7 +423,8 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 	 * cluster lock before trusting anything anyway.
 	 */
 	can_lock = !(args->fi_flags & OCFS2_FI_FLAG_SYSFILE)
-		&& !(args->fi_flags & OCFS2_FI_FLAG_NOLOCK);
+		&& !(args->fi_flags & OCFS2_FI_FLAG_NOLOCK)
+		&& !ocfs2_mount_local(osb);
 
 	/*
 	 * To maintain backwards compatibility with older versions of

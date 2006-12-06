@@ -508,6 +508,27 @@ bail:
 	return status;
 }
 
+static int ocfs2_verify_heartbeat(struct ocfs2_super *osb)
+{
+	if (ocfs2_mount_local(osb)) {
+		if (osb->s_mount_opt & OCFS2_MOUNT_HB_LOCAL) {
+			mlog(ML_ERROR, "Cannot heartbeat on a locally "
+			     "mounted device.\n");
+			return -EINVAL;
+		}
+	}
+
+	if (!(osb->s_mount_opt & OCFS2_MOUNT_HB_LOCAL)) {
+		if (!ocfs2_mount_local(osb) && !ocfs2_is_hard_readonly(osb)) {
+			mlog(ML_ERROR, "Heartbeat has to be started to mount "
+			     "a read-write clustered device.\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct dentry *root;
@@ -516,14 +537,22 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	struct inode *inode = NULL;
 	struct ocfs2_super *osb = NULL;
 	struct buffer_head *bh = NULL;
+	char nodestr[8];
 
 	mlog_entry("%p, %p, %i", sb, data, silent);
 
-	/* for now we only have one cluster/node, make sure we see it
-	 * in the heartbeat universe */
-	if (!o2hb_check_local_node_heartbeating()) {
+	if (!ocfs2_parse_options(sb, data, &parsed_opt, 0)) {
 		status = -EINVAL;
 		goto read_super_error;
+	}
+
+	/* for now we only have one cluster/node, make sure we see it
+	 * in the heartbeat universe */
+	if (parsed_opt & OCFS2_MOUNT_HB_LOCAL) {
+		if (!o2hb_check_local_node_heartbeating()) {
+			status = -EINVAL;
+			goto read_super_error;
+		}
 	}
 
 	/* probe for superblock */
@@ -541,11 +570,6 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	brelse(bh);
 	bh = NULL;
-
-	if (!ocfs2_parse_options(sb, data, &parsed_opt, 0)) {
-		status = -EINVAL;
-		goto read_super_error;
-	}
 	osb->s_mount_opt = parsed_opt;
 
 	sb->s_magic = OCFS2_SUPER_MAGIC;
@@ -588,19 +612,14 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	if (!ocfs2_is_hard_readonly(osb)) {
-		/* If this isn't a hard readonly mount, then we need
-		 * to make sure that heartbeat is in a valid state,
-		 * and that we mark ourselves soft readonly is -oro
-		 * was specified. */
-		if (!(osb->s_mount_opt & OCFS2_MOUNT_HB_LOCAL)) {
-			mlog(ML_ERROR, "No heartbeat for device (%s)\n",
-			     sb->s_id);
-			status = -EINVAL;
-			goto read_super_error;
-		}
-
 		if (sb->s_flags & MS_RDONLY)
 			ocfs2_set_ro_flag(osb, 0);
+	}
+
+	status = ocfs2_verify_heartbeat(osb);
+	if (status < 0) {
+		mlog_errno(status);
+		goto read_super_error;
 	}
 
 	osb->osb_debug_root = debugfs_create_dir(osb->uuid_str,
@@ -635,9 +654,14 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 
 	ocfs2_complete_mount_recovery(osb);
 
-	printk(KERN_INFO "ocfs2: Mounting device (%s) on (node %d, slot %d) "
+	if (ocfs2_mount_local(osb))
+		snprintf(nodestr, sizeof(nodestr), "local");
+	else
+		snprintf(nodestr, sizeof(nodestr), "%d", osb->node_num);
+
+	printk(KERN_INFO "ocfs2: Mounting device (%s) on (node %s, slot %d) "
 	       "with %s data mode.\n",
-	       osb->dev_str, osb->node_num, osb->slot_num,
+	       osb->dev_str, nodestr, osb->slot_num,
 	       osb->s_mount_opt & OCFS2_MOUNT_DATA_WRITEBACK ? "writeback" :
 	       "ordered");
 
@@ -999,7 +1023,11 @@ static int ocfs2_fill_local_node_info(struct ocfs2_super *osb)
 
 	/* XXX hold a ref on the node while mounte?  easy enough, if
 	 * desirable. */
-	osb->node_num = o2nm_this_node();
+	if (ocfs2_mount_local(osb))
+		osb->node_num = 0;
+	else
+		osb->node_num = o2nm_this_node();
+
 	if (osb->node_num == O2NM_MAX_NODES) {
 		mlog(ML_ERROR, "could not find this host's node number\n");
 		status = -ENOENT;
@@ -1084,6 +1112,9 @@ static int ocfs2_mount_volume(struct super_block *sb)
 		goto leave;
 	}
 
+	if (ocfs2_mount_local(osb))
+		goto leave;
+
 	/* This should be sent *after* we recovered our journal as it
 	 * will cause other nodes to unmark us as needing
 	 * recovery. However, we need to send it *before* dropping the
@@ -1114,6 +1145,7 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 {
 	int tmp;
 	struct ocfs2_super *osb = NULL;
+	char nodestr[8];
 
 	mlog_entry("(0x%p)\n", sb);
 
@@ -1177,8 +1209,13 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 
 	atomic_set(&osb->vol_state, VOLUME_DISMOUNTED);
 
-	printk(KERN_INFO "ocfs2: Unmounting device (%s) on (node %d)\n",
-	       osb->dev_str, osb->node_num);
+	if (ocfs2_mount_local(osb))
+		snprintf(nodestr, sizeof(nodestr), "local");
+	else
+		snprintf(nodestr, sizeof(nodestr), "%d", osb->node_num);
+
+	printk(KERN_INFO "ocfs2: Unmounting device (%s) on (node %s)\n",
+	       osb->dev_str, nodestr);
 
 	ocfs2_delete_osb(osb);
 	kfree(osb);
@@ -1536,6 +1573,7 @@ static int ocfs2_check_volume(struct ocfs2_super *osb)
 {
 	int status = 0;
 	int dirty;
+	int local;
 	struct ocfs2_dinode *local_alloc = NULL; /* only used if we
 						  * recover
 						  * ourselves. */
@@ -1563,8 +1601,10 @@ static int ocfs2_check_volume(struct ocfs2_super *osb)
 		     "recovering volume.\n");
 	}
 
+	local = ocfs2_mount_local(osb);
+
 	/* will play back anything left in the journal. */
-	ocfs2_journal_load(osb->journal);
+	ocfs2_journal_load(osb->journal, local);
 
 	if (dirty) {
 		/* recover my local alloc if we didn't unmount cleanly. */

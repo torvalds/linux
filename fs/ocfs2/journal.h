@@ -157,7 +157,7 @@ int    ocfs2_journal_init(struct ocfs2_journal *journal,
 void   ocfs2_journal_shutdown(struct ocfs2_super *osb);
 int    ocfs2_journal_wipe(struct ocfs2_journal *journal,
 			  int full);
-int    ocfs2_journal_load(struct ocfs2_journal *journal);
+int    ocfs2_journal_load(struct ocfs2_journal *journal, int local);
 int    ocfs2_check_journals_nolocks(struct ocfs2_super *osb);
 void   ocfs2_recovery_thread(struct ocfs2_super *osb,
 			     int node_num);
@@ -173,6 +173,9 @@ static inline void ocfs2_start_checkpoint(struct ocfs2_super *osb)
 static inline void ocfs2_checkpoint_inode(struct inode *inode)
 {
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+
+	if (ocfs2_mount_local(osb))
+		return;
 
 	if (!ocfs2_inode_fully_checkpointed(inode)) {
 		/* WARNING: This only kicks off a single
