@@ -732,7 +732,7 @@ config XIP_PHYS_ADDR
 
 endmenu
 
-if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP)
+if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_IMX )
 
 menu "CPU Frequency scaling"
 
@@ -758,6 +758,15 @@ config CPU_FREQ_INTEGRATOR
 	  For details, take a look at <file:Documentation/cpu-freq>.
 
 	  If in doubt, say Y.
+
+config CPU_FREQ_IMX
+	tristate "CPUfreq driver for i.MX CPUs"
+	depends on ARCH_IMX && CPU_FREQ
+	default n
+	help
+	  This enables the CPUfreq driver for i.MX CPUs.
+
+	  If in doubt, say N.
 
 endmenu
 
