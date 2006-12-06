@@ -316,7 +316,7 @@ static int __init page_is_ram(unsigned long pagenr)
 void __init paging_init(void)
 {
 	unsigned long zones_size[MAX_NR_ZONES] = { 0, };
-	unsigned long max_dma, high, low;
+	unsigned long max_dma, low;
 #ifndef CONFIG_FLATMEM
 	unsigned long zholes_size[MAX_NR_ZONES] = { 0, };
 	unsigned long i, j, pfn;
@@ -331,7 +331,6 @@ void __init paging_init(void)
 
 	max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
 	low = max_low_pfn;
-	high = highend_pfn;
 
 #ifdef CONFIG_ISA
 	if (low < max_dma)
@@ -344,13 +343,13 @@ void __init paging_init(void)
 	zones_size[ZONE_DMA] = low;
 #endif
 #ifdef CONFIG_HIGHMEM
-	if (cpu_has_dc_aliases) {
-		printk(KERN_WARNING "This processor doesn't support highmem.");
-		if (high - low)
-			printk(" %ldk highmem ignored", high - low);
-		printk("\n");
-	} else
-		zones_size[ZONE_HIGHMEM] = high - low;
+	zones_size[ZONE_HIGHMEM] = highend_pfn - highstart_pfn;
+
+	if (cpu_has_dc_aliases && zones_size[ZONE_HIGHMEM]) {
+		printk(KERN_WARNING "This processor doesn't support highmem."
+		       " %ldk highmem ignored\n", zones_size[ZONE_HIGHMEM]);
+		zones_size[ZONE_HIGHMEM] = 0;
+	}
 #endif
 
 #ifdef CONFIG_FLATMEM
