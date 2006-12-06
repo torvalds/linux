@@ -173,6 +173,9 @@ static void gfs2_write_super_lockfs(struct super_block *sb)
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	int error;
 
+	if (test_bit(SDF_SHUTDOWN, &sdp->sd_flags))
+		return;
+
 	for (;;) {
 		error = gfs2_freeze_fs(sdp);
 		if (!error)
