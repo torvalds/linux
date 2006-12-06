@@ -334,7 +334,7 @@
  * separate range because of collisions with other tools such as
  * 'mii-tool'.
  * We now have 32 commands, so a bit more space ;-).
- * Also, all 'odd' commands are only usable by root and don't return the
+ * Also, all 'even' commands are only usable by root and don't return the
  * content of ifr/iwr to user (but you are not obliged to use the set/get
  * convention, just use every other two command). More details in iwpriv.c.
  * And I repeat : you are not forced to use them with iwpriv, but you
@@ -348,7 +348,7 @@
 #define SIOCIWLAST	SIOCIWLASTPRIV		/* 0x8BFF */
 #define IW_IOCTL_IDX(cmd)	((cmd) - SIOCIWFIRST)
 
-/* Even : get (world access), odd : set (root access) */
+/* Odd : get (world access), even : set (root access) */
 #define IW_IS_SET(cmd)	(!((cmd) & 0x1))
 #define IW_IS_GET(cmd)	((cmd) & 0x1)
 
