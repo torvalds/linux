@@ -622,8 +622,10 @@ NCR_700_scsi_done(struct NCR_700_Host_Parameters *hostdata,
 			dma_unmap_single(hostdata->dev, slot->dma_handle, sizeof(SCp->sense_buffer), DMA_FROM_DEVICE);
 			/* restore the old result if the request sense was
 			 * successful */
-			if(result == 0)
+			if (result == 0)
 				result = cmnd[7];
+			/* restore the original length */
+			SCp->cmd_len = cmnd[8];
 		} else
 			NCR_700_unmap(hostdata, SCp, slot);
 
@@ -1007,6 +1009,9 @@ process_script_interrupt(__u32 dsps, __u32 dsp, struct scsi_cmnd *SCp,
 				 * of the command */
 				cmnd[6] = NCR_700_INTERNAL_SENSE_MAGIC;
 				cmnd[7] = hostdata->status[0];
+				cmnd[8] = SCp->cmd_len;
+				SCp->cmd_len = 6; /* command length for
+						   * REQUEST_SENSE */
 				slot->pCmd = dma_map_single(hostdata->dev, cmnd, MAX_COMMAND_SIZE, DMA_TO_DEVICE);
 				slot->dma_handle = dma_map_single(hostdata->dev, SCp->sense_buffer, sizeof(SCp->sense_buffer), DMA_FROM_DEVICE);
 				slot->SG[0].ins = bS_to_host(SCRIPT_MOVE_DATA_IN | sizeof(SCp->sense_buffer));

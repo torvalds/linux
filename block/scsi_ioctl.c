@@ -277,7 +277,7 @@ static int sg_io(struct file *file, request_queue_t *q,
 	if (rq->bio)
 		blk_queue_bounce(q, &rq->bio);
 
-	rq->timeout = (hdr->timeout * HZ) / 1000;
+	rq->timeout = jiffies_to_msecs(hdr->timeout);
 	if (!rq->timeout)
 		rq->timeout = q->sg_timeout;
 	if (!rq->timeout)

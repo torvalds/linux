@@ -294,6 +294,7 @@ static struct Scsi_Host *hosts[FD_MAX_HOSTS + 1] = { NULL };
 static int user_fifo_count = 0;
 static int user_fifo_size = 0;
 
+#ifndef MODULE
 static int __init fd_mcs_setup(char *str)
 {
 	static int done_setup = 0;
@@ -311,6 +312,7 @@ static int __init fd_mcs_setup(char *str)
 }
 
 __setup("fd_mcs=", fd_mcs_setup);
+#endif /* !MODULE */
 
 static void print_banner(struct Scsi_Host *shpnt)
 {

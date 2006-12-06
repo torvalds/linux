@@ -243,6 +243,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 		struct serv_parm *sp, IOCB_t *irsp)
 {
 	LPFC_MBOXQ_t *mbox;
+	struct lpfc_dmabuf *mp;
 	int rc;
 
 	spin_lock_irq(phba->host->host_lock);
@@ -307,10 +308,14 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT | MBX_STOP_IOCB);
 	if (rc == MBX_NOT_FINISHED)
-		goto fail_free_mbox;
+		goto fail_issue_reg_login;
 
 	return 0;
 
+ fail_issue_reg_login:
+	mp = (struct lpfc_dmabuf *) mbox->context1;
+	lpfc_mbuf_free(phba, mp->virt, mp->phys);
+	kfree(mp);
  fail_free_mbox:
 	mempool_free(mbox, phba->mbox_mem_pool);
  fail:
@@ -656,6 +661,12 @@ lpfc_plogi_confirm_nport(struct lpfc_hba * phba, struct lpfc_dmabuf *prsp,
 	struct serv_parm *sp;
 	uint8_t name[sizeof (struct lpfc_name)];
 	uint32_t rc;
+
+	/* Fabric nodes can have the same WWPN so we don't bother searching
+	 * by WWPN.  Just return the ndlp that was given to us.
+	 */
+	if (ndlp->nlp_type & NLP_FABRIC)
+		return ndlp;
 
 	lp = (uint32_t *) prsp->virt;
 	sp = (struct serv_parm *) ((uint8_t *) lp + sizeof (uint32_t));
@@ -1122,7 +1133,7 @@ lpfc_cmpl_els_adisc(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 						mempool_free(mbox,
 						     phba->mbox_mem_pool);
 						lpfc_disc_flush_list(phba);
-						psli->ring[(psli->ip_ring)].
+						psli->ring[(psli->extra_ring)].
 						    flag &=
 						    ~LPFC_STOP_IOCB_EVENT;
 						psli->ring[(psli->fcp_ring)].
@@ -1851,6 +1862,7 @@ lpfc_cmpl_els_acc(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 	IOCB_t *irsp;
 	struct lpfc_nodelist *ndlp;
 	LPFC_MBOXQ_t *mbox = NULL;
+	struct lpfc_dmabuf *mp;
 
 	irsp = &rspiocb->iocb;
 
@@ -1862,6 +1874,11 @@ lpfc_cmpl_els_acc(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 	/* Check to see if link went down during discovery */
 	if ((lpfc_els_chk_latt(phba)) || !ndlp) {
 		if (mbox) {
+			mp = (struct lpfc_dmabuf *) mbox->context1;
+			if (mp) {
+				lpfc_mbuf_free(phba, mp->virt, mp->phys);
+				kfree(mp);
+			}
 			mempool_free( mbox, phba->mbox_mem_pool);
 		}
 		goto out;
@@ -1893,9 +1910,7 @@ lpfc_cmpl_els_acc(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 			}
 			/* NOTE: we should have messages for unsuccessful
 			   reglogin */
-			mempool_free( mbox, phba->mbox_mem_pool);
 		} else {
-			mempool_free( mbox, phba->mbox_mem_pool);
 			/* Do not call NO_LIST for lpfc_els_abort'ed ELS cmds */
 			if (!((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
 			      ((irsp->un.ulpWord[4] == IOERR_SLI_ABORTED) ||
@@ -1907,6 +1922,12 @@ lpfc_cmpl_els_acc(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 				}
 			}
 		}
+		mp = (struct lpfc_dmabuf *) mbox->context1;
+		if (mp) {
+			lpfc_mbuf_free(phba, mp->virt, mp->phys);
+			kfree(mp);
+		}
+		mempool_free(mbox, phba->mbox_mem_pool);
 	}
 out:
 	if (ndlp) {
@@ -2644,6 +2665,7 @@ lpfc_els_handle_rscn(struct lpfc_hba * phba)
 			ndlp->nlp_type |= NLP_FABRIC;
 			ndlp->nlp_prev_state = ndlp->nlp_state;
 			ndlp->nlp_state = NLP_STE_PLOGI_ISSUE;
+			lpfc_nlp_list(phba, ndlp, NLP_PLOGI_LIST);
 			lpfc_issue_els_plogi(phba, NameServer_DID, 0);
 			/* Wait for NameServer login cmpl before we can
 			   continue */
@@ -3039,7 +3061,7 @@ lpfc_els_rcv_farp(struct lpfc_hba * phba,
 	/* FARP-REQ received from DID <did> */
 	lpfc_printf_log(phba,
 			 KERN_INFO,
-			 LOG_IP,
+			 LOG_ELS,
 			 "%d:0601 FARP-REQ received from DID x%x\n",
 			 phba->brd_no, did);
 
@@ -3101,7 +3123,7 @@ lpfc_els_rcv_farpr(struct lpfc_hba * phba,
 	/* FARP-RSP received from DID <did> */
 	lpfc_printf_log(phba,
 			 KERN_INFO,
-			 LOG_IP,
+			 LOG_ELS,
 			 "%d:0600 FARP-RSP received from DID x%x\n",
 			 phba->brd_no, did);
 
