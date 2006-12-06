@@ -96,7 +96,19 @@ static int parse_redboot_partitions(struct mtd_info *master,
 			 */
 			if (swab32(buf[i].size) == master->erasesize) {
 				int j;
-				for (j = 0; j < numslots && buf[j].name[0] != 0xff; ++j) {
+				for (j = 0; j < numslots; ++j) {
+
+					/* A single 0xff denotes a deleted entry.
+					 * Two of them in a row is the end of the table.
+					 */
+					if (buf[j].name[0] == 0xff) {
+				  		if (buf[j].name[1] == 0xff) {
+							break;
+						} else {
+							continue;
+						}
+					}
+
 					/* The unsigned long fields were written with the
 					 * wrong byte sex, name and pad have no byte sex.
 					 */
@@ -126,8 +138,13 @@ static int parse_redboot_partitions(struct mtd_info *master,
 	for (i = 0; i < numslots; i++) {
 		struct fis_list *new_fl, **prev;
 
-		if (buf[i].name[0] == 0xff)
-			continue;
+		if (buf[i].name[0] == 0xff) {
+			if (buf[i].name[1] == 0xff) {
+				break;
+			} else {
+				continue;
+			}
+		}
 		if (!redboot_checksum(&buf[i]))
 			break;
 
