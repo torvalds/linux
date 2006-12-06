@@ -93,6 +93,12 @@
 #define NR_IRQS (ONCHIP_NR_IRQS + PINT_NR_IRQS + OFFCHIP_NR_IRQS)
 
 /*
+ * Convert back and forth between INTEVT and IRQ values.
+ */
+#define evt2irq(evt)		(((evt) >> 5) - 16)
+#define irq2evt(irq)		(((irq) + 16) << 5)
+
+/*
  * Simple Mask Register Support
  */
 extern void make_maskreg_irq(unsigned int irq);
@@ -103,18 +109,36 @@ extern unsigned short *irq_mask_register;
  */
 void init_IRQ_pint(void);
 
+/*
+ * The shift value is now the number of bits to shift, not the number of
+ * bits/4. This is to make it easier to read the value directly from the
+ * datasheets. The IPR address, addr, will be set from ipr_idx via the
+ * map_ipridx_to_addr function.
+ */
 struct ipr_data {
 	unsigned int irq;
-	unsigned int addr;	/* Address of Interrupt Priority Register */
-	int shift;		/* Shifts of the 16-bit data */
+	int ipr_idx;		/* Index for the IPR registered */
+	int shift;		/* Number of bits to shift the data */
 	int priority;		/* The priority */
+	unsigned int addr;	/* Address of Interrupt Priority Register */
 };
+
+/*
+ * Given an IPR IDX, map the value to an IPR register address.
+ */
+unsigned int map_ipridx_to_addr(int idx);
+
+/*
+ * Enable individual interrupt mode for external IPR IRQs.
+ */
+void ipr_irq_enable_irlm(void);
 
 /*
  * Function for "on chip support modules".
  */
-extern void make_ipr_irq(struct ipr_data *table, unsigned int nr_irqs);
-extern void make_imask_irq(unsigned int irq);
+void make_ipr_irq(struct ipr_data *table, unsigned int nr_irqs);
+void make_imask_irq(unsigned int irq);
+void init_IRQ_ipr(void);
 
 struct intc2_data {
 	unsigned short irq;

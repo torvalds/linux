@@ -375,6 +375,9 @@ config CPU_HAS_MASKREG_IRQ
 config CPU_HAS_INTC2_IRQ
 	bool
 
+config CPU_HAS_IPR_IRQ
+	bool
+
 config CPU_HAS_SR_RB
 	bool "CPU has SR.RB"
 	depends on CPU_SH3 || CPU_SH4

@@ -12,7 +12,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/seq_file.h>
 #include <linux/io.h>
-#include <asm/irq.h>
+#include <linux/irq.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
 #include <asm/thread_info.h>
@@ -112,7 +112,7 @@ asmlinkage int do_IRQ(unsigned long r4, unsigned long r5,
 #endif
 
 #ifdef CONFIG_CPU_HAS_INTEVT
-	irq = (ctrl_inl(INTEVT) >> 5) - 16;
+	irq = evt2irq(ctrl_inl(INTEVT));
 #else
 	irq = r4;
 #endif
@@ -261,3 +261,24 @@ asmlinkage void do_softirq(void)
 }
 EXPORT_SYMBOL(do_softirq);
 #endif
+
+void __init init_IRQ(void)
+{
+#ifdef CONFIG_CPU_HAS_PINT_IRQ
+	init_IRQ_pint();
+#endif
+
+#ifdef CONFIG_CPU_HAS_INTC2_IRQ
+	init_IRQ_intc2();
+#endif
+
+#ifdef CONFIG_CPU_HAS_IPR_IRQ
+	init_IRQ_ipr();
+#endif
+
+	/* Perform the machine specific initialisation */
+	if (sh_mv.mv_init_irq)
+		sh_mv.mv_init_irq();
+
+	irq_ctx_init(smp_processor_id());
+}
