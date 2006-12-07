@@ -774,7 +774,8 @@ config CRASH_DUMP
 	  For more details see Documentation/kdump/kdump.txt
 
 config RELOCATABLE
-	bool "Build a relocatable kernel"
+	bool "Build a relocatable kernel(EXPERIMENTAL)"
+	depends on EXPERIMENTAL
 	help
 	  This build a kernel image that retains relocation information
           so it can be loaded someplace besides the default 1MB.
