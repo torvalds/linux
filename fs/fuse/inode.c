@@ -591,11 +591,27 @@ static int fuse_get_sb(struct file_system_type *fs_type,
 	return get_sb_nodev(fs_type, flags, raw_data, fuse_fill_super, mnt);
 }
 
+static int fuse_get_sb_blk(struct file_system_type *fs_type,
+			   int flags, const char *dev_name,
+			   void *raw_data, struct vfsmount *mnt)
+{
+	return get_sb_bdev(fs_type, flags, dev_name, raw_data, fuse_fill_super,
+			   mnt);
+}
+
 static struct file_system_type fuse_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "fuse",
 	.get_sb		= fuse_get_sb,
 	.kill_sb	= kill_anon_super,
+};
+
+static struct file_system_type fuseblk_fs_type = {
+	.owner		= THIS_MODULE,
+	.name		= "fuseblk",
+	.get_sb		= fuse_get_sb_blk,
+	.kill_sb	= kill_block_super,
+	.fs_flags	= FS_REQUIRES_DEV,
 };
 
 static decl_subsys(fuse, NULL, NULL);
@@ -617,24 +633,34 @@ static int __init fuse_fs_init(void)
 
 	err = register_filesystem(&fuse_fs_type);
 	if (err)
-		printk("fuse: failed to register filesystem\n");
-	else {
-		fuse_inode_cachep = kmem_cache_create("fuse_inode",
-						      sizeof(struct fuse_inode),
-						      0, SLAB_HWCACHE_ALIGN,
-						      fuse_inode_init_once, NULL);
-		if (!fuse_inode_cachep) {
-			unregister_filesystem(&fuse_fs_type);
-			err = -ENOMEM;
-		}
-	}
+		goto out;
 
+	err = register_filesystem(&fuseblk_fs_type);
+	if (err)
+		goto out_unreg;
+
+	fuse_inode_cachep = kmem_cache_create("fuse_inode",
+					      sizeof(struct fuse_inode),
+					      0, SLAB_HWCACHE_ALIGN,
+					      fuse_inode_init_once, NULL);
+	err = -ENOMEM;
+	if (!fuse_inode_cachep)
+		goto out_unreg2;
+
+	return 0;
+
+ out_unreg2:
+	unregister_filesystem(&fuseblk_fs_type);
+ out_unreg:
+	unregister_filesystem(&fuse_fs_type);
+ out:
 	return err;
 }
 
 static void fuse_fs_cleanup(void)
 {
 	unregister_filesystem(&fuse_fs_type);
+	unregister_filesystem(&fuseblk_fs_type);
 	kmem_cache_destroy(fuse_inode_cachep);
 }
 
