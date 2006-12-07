@@ -963,7 +963,9 @@ static void dotest(void (*testcase_fn)(void), int expected, int lockclass_mask)
 			printk("failed|");
 		} else {
 			unexpected_testcase_failures++;
+
 			printk("FAILED|");
+			dump_stack();
 		}
 	} else {
 		testcase_successes++;
