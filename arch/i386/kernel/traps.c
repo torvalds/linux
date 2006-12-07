@@ -708,8 +708,7 @@ mem_parity_error(unsigned char reason, struct pt_regs * regs)
 {
 	printk(KERN_EMERG "Uhhuh. NMI received for unknown reason %02x on "
 		"CPU %d.\n", reason, smp_processor_id());
-	printk(KERN_EMERG "You probably have a hardware problem with your RAM "
-			"chips\n");
+	printk(KERN_EMERG "You have some hardware problem, likely on the PCI bus.\n");
 	if (panic_on_unrecovered_nmi)
                 panic("NMI: Not continuing");
 
