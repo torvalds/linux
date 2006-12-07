@@ -1552,6 +1552,11 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		error = -EINVAL;
 		if (!maxpages)
 			goto bad_swap;
+		if (swapfilesize && maxpages > swapfilesize) {
+			printk(KERN_WARNING
+			       "Swap area shorter than signature indicates\n");
+			goto bad_swap;
+		}
 		if (swap_header->info.nr_badpages && S_ISREG(inode->i_mode))
 			goto bad_swap;
 		if (swap_header->info.nr_badpages > MAX_SWAP_BADPAGES)
@@ -1579,12 +1584,6 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 			goto bad_swap;
 	}
 
-	if (swapfilesize && maxpages > swapfilesize) {
-		printk(KERN_WARNING
-		       "Swap area shorter than signature indicates\n");
-		error = -EINVAL;
-		goto bad_swap;
-	}
 	if (nr_good_pages) {
 		p->swap_map[0] = SWAP_MAP_BAD;
 		p->max = maxpages;
