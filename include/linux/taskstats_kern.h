@@ -20,28 +20,6 @@ static inline void taskstats_tgid_init(struct signal_struct *sig)
 	sig->stats = NULL;
 }
 
-static inline void taskstats_tgid_alloc(struct task_struct *tsk)
-{
-	struct signal_struct *sig = tsk->signal;
-	struct taskstats *stats;
-
-	if (sig->stats != NULL)
-		return;
-
-	/* No problem if kmem_cache_zalloc() fails */
-	stats = kmem_cache_zalloc(taskstats_cache, GFP_KERNEL);
-
-	spin_lock_irq(&tsk->sighand->siglock);
-	if (!sig->stats) {
-		sig->stats = stats;
-		stats = NULL;
-	}
-	spin_unlock_irq(&tsk->sighand->siglock);
-
-	if (stats)
-		kmem_cache_free(taskstats_cache, stats);
-}
-
 static inline void taskstats_tgid_free(struct signal_struct *sig)
 {
 	if (sig->stats)
@@ -54,8 +32,6 @@ extern void taskstats_init_early(void);
 static inline void taskstats_exit(struct task_struct *tsk, int group_dead)
 {}
 static inline void taskstats_tgid_init(struct signal_struct *sig)
-{}
-static inline void taskstats_tgid_alloc(struct task_struct *tsk)
 {}
 static inline void taskstats_tgid_free(struct signal_struct *sig)
 {}

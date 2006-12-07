@@ -412,6 +412,30 @@ err:
 	return rc;
 }
 
+static struct taskstats *taskstats_tgid_alloc(struct task_struct *tsk)
+{
+	struct signal_struct *sig = tsk->signal;
+	struct taskstats *stats;
+
+	if (sig->stats || thread_group_empty(tsk))
+		goto ret;
+
+	/* No problem if kmem_cache_zalloc() fails */
+	stats = kmem_cache_zalloc(taskstats_cache, GFP_KERNEL);
+
+	spin_lock_irq(&tsk->sighand->siglock);
+	if (!sig->stats) {
+		sig->stats = stats;
+		stats = NULL;
+	}
+	spin_unlock_irq(&tsk->sighand->siglock);
+
+	if (stats)
+		kmem_cache_free(taskstats_cache, stats);
+ret:
+	return sig->stats;
+}
+
 /* Send pid data out on exit */
 void taskstats_exit(struct task_struct *tsk, int group_dead)
 {
@@ -433,7 +457,7 @@ void taskstats_exit(struct task_struct *tsk, int group_dead)
 	size = nla_total_size(sizeof(u32)) +
 		nla_total_size(sizeof(struct taskstats)) + nla_total_size(0);
 
-	is_thread_group = (tsk->signal->stats != NULL);
+	is_thread_group = !!taskstats_tgid_alloc(tsk);
 	if (is_thread_group) {
 		/* PID + STATS + TGID + STATS */
 		size = 2 * size;
