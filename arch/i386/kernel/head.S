@@ -584,7 +584,7 @@ ENTRY(cpu_gdt_table)
 	.quad 0x00009a000000ffff	/* 0xc0 APM CS 16 code (16 bit) */
 	.quad 0x004092000000ffff	/* 0xc8 APM DS    data */
 
-	.quad 0x0000920000000000	/* 0xd0 - ESPFIX 16-bit SS */
+	.quad 0x00c0920000000000	/* 0xd0 - ESPFIX SS */
 	.quad 0x0000000000000000	/* 0xd8 - unused */
 	.quad 0x0000000000000000	/* 0xe0 - unused */
 	.quad 0x0000000000000000	/* 0xe8 - unused */

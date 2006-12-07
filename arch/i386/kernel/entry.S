@@ -48,6 +48,7 @@
 #include <asm/smp.h>
 #include <asm/page.h>
 #include <asm/desc.h>
+#include <asm/percpu.h>
 #include <asm/dwarf2.h>
 #include "irq_vectors.h"
 
@@ -418,23 +419,18 @@ ldt_ss:
 	 * This is an "official" bug of all the x86-compatible
 	 * CPUs, which we can try to work around to make
 	 * dosemu and wine happy. */
-	subl $8, %esp		# reserve space for switch16 pointer
-	CFI_ADJUST_CFA_OFFSET 8
+	movl OLDESP(%esp), %eax
+	movl %esp, %edx
+	call patch_espfix_desc
+	pushl $__ESPFIX_SS
+	CFI_ADJUST_CFA_OFFSET 4
+	pushl %eax
+	CFI_ADJUST_CFA_OFFSET 4
 	DISABLE_INTERRUPTS
 	TRACE_IRQS_OFF
-	movl %esp, %eax
-	/* Set up the 16bit stack frame with switch32 pointer on top,
-	 * and a switch16 pointer on top of the current frame. */
-	call setup_x86_bogus_stack
-	CFI_ADJUST_CFA_OFFSET -8	# frame has moved
-	TRACE_IRQS_IRET
-	RESTORE_REGS
-	lss 20+4(%esp), %esp	# switch to 16bit stack
-1:	INTERRUPT_RETURN
-.section __ex_table,"a"
-	.align 4
-	.long 1b,iret_exc
-.previous
+	lss (%esp), %esp
+	CFI_ADJUST_CFA_OFFSET -8
+	jmp restore_nocheck
 	CFI_ENDPROC
 
 	# perform work that needs to be done immediately before resumption
@@ -524,30 +520,30 @@ syscall_badsys:
 	CFI_ENDPROC
 
 #define FIXUP_ESPFIX_STACK \
-	movl %esp, %eax; \
-	/* switch to 32bit stack using the pointer on top of 16bit stack */ \
-	lss %ss:CPU_16BIT_STACK_SIZE-8, %esp; \
-	/* copy data from 16bit stack to 32bit stack */ \
-	call fixup_x86_bogus_stack; \
-	/* put ESP to the proper location */ \
-	movl %eax, %esp;
-#define UNWIND_ESPFIX_STACK \
+	/* since we are on a wrong stack, we cant make it a C code :( */ \
+	GET_THREAD_INFO(%ebp); \
+	movl TI_cpu(%ebp), %ebx; \
+	PER_CPU(cpu_gdt_descr, %ebx); \
+	movl GDS_address(%ebx), %ebx; \
+	GET_DESC_BASE(GDT_ENTRY_ESPFIX_SS, %ebx, %eax, %ax, %al, %ah); \
+	addl %esp, %eax; \
+	pushl $__KERNEL_DS; \
+	CFI_ADJUST_CFA_OFFSET 4; \
 	pushl %eax; \
 	CFI_ADJUST_CFA_OFFSET 4; \
+	lss (%esp), %esp; \
+	CFI_ADJUST_CFA_OFFSET -8;
+#define UNWIND_ESPFIX_STACK \
 	movl %ss, %eax; \
-	/* see if on 16bit stack */ \
+	/* see if on espfix stack */ \
 	cmpw $__ESPFIX_SS, %ax; \
-	je 28f; \
-27:	popl %eax; \
-	CFI_ADJUST_CFA_OFFSET -4; \
-.section .fixup,"ax"; \
-28:	movl $__KERNEL_DS, %eax; \
+	jne 27f; \
+	movl $__KERNEL_DS, %eax; \
 	movl %eax, %ds; \
 	movl %eax, %es; \
-	/* switch to 32bit stack */ \
+	/* switch to normal stack */ \
 	FIXUP_ESPFIX_STACK; \
-	jmp 27b; \
-.previous
+27:;
 
 /*
  * Build the entry stubs and pointer table with
@@ -614,7 +610,6 @@ error_code:
 	pushl %eax
 	CFI_ADJUST_CFA_OFFSET 4
 	CFI_REL_OFFSET eax, 0
-	xorl %eax, %eax
 	pushl %ebp
 	CFI_ADJUST_CFA_OFFSET 4
 	CFI_REL_OFFSET ebp, 0
@@ -627,7 +622,6 @@ error_code:
 	pushl %edx
 	CFI_ADJUST_CFA_OFFSET 4
 	CFI_REL_OFFSET edx, 0
-	decl %eax			# eax = -1
 	pushl %ecx
 	CFI_ADJUST_CFA_OFFSET 4
 	CFI_REL_OFFSET ecx, 0
@@ -644,7 +638,7 @@ error_code:
 	/*CFI_REGISTER es, ecx*/
 	movl ES(%esp), %edi		# get the function address
 	movl ORIG_EAX(%esp), %edx	# get the error code
-	movl %eax, ORIG_EAX(%esp)
+	movl $-1, ORIG_EAX(%esp)
 	movl %ecx, ES(%esp)
 	/*CFI_REL_OFFSET es, ES*/
 	movl $(__USER_DS), %ecx
@@ -754,7 +748,7 @@ KPROBE_ENTRY(nmi)
 	cmpw $__ESPFIX_SS, %ax
 	popl %eax
 	CFI_ADJUST_CFA_OFFSET -4
-	je nmi_16bit_stack
+	je nmi_espfix_stack
 	cmpl $sysenter_entry,(%esp)
 	je nmi_stack_fixup
 	pushl %eax
@@ -797,7 +791,7 @@ nmi_debug_stack_check:
 	FIX_STACK(24,nmi_stack_correct, 1)
 	jmp nmi_stack_correct
 
-nmi_16bit_stack:
+nmi_espfix_stack:
 	/* We have a RING0_INT_FRAME here.
 	 *
 	 * create the pointer to lss back
@@ -806,7 +800,6 @@ nmi_16bit_stack:
 	CFI_ADJUST_CFA_OFFSET 4
 	pushl %esp
 	CFI_ADJUST_CFA_OFFSET 4
-	movzwl %sp, %esp
 	addw $4, (%esp)
 	/* copy the iret frame of 12 bytes */
 	.rept 3
@@ -817,11 +810,11 @@ nmi_16bit_stack:
 	CFI_ADJUST_CFA_OFFSET 4
 	SAVE_ALL
 	FIXUP_ESPFIX_STACK		# %eax == %esp
-	CFI_ADJUST_CFA_OFFSET -20	# the frame has now moved
 	xorl %edx,%edx			# zero error code
 	call do_nmi
 	RESTORE_REGS
-	lss 12+4(%esp), %esp		# back to 16bit stack
+	lss 12+4(%esp), %esp		# back to espfix stack
+	CFI_ADJUST_CFA_OFFSET -24
 1:	INTERRUPT_RETURN
 	CFI_ENDPROC
 .section __ex_table,"a"

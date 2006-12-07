@@ -58,6 +58,11 @@ void foo(void)
 	OFFSET(TI_sysenter_return, thread_info, sysenter_return);
 	BLANK();
 
+	OFFSET(GDS_size, Xgt_desc_struct, size);
+	OFFSET(GDS_address, Xgt_desc_struct, address);
+	OFFSET(GDS_pad, Xgt_desc_struct, pad);
+	BLANK();
+
 	OFFSET(EXEC_DOMAIN_handler, exec_domain, handler);
 	OFFSET(RT_SIGFRAME_sigcontext, rt_sigframe, uc.uc_mcontext);
 	BLANK();

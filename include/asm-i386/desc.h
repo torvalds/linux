@@ -4,8 +4,6 @@
 #include <asm/ldt.h>
 #include <asm/segment.h>
 
-#define CPU_16BIT_STACK_SIZE 1024
-
 #ifndef __ASSEMBLY__
 
 #include <linux/preempt.h>
@@ -15,8 +13,6 @@
 #include <asm/mmu.h>
 
 extern struct desc_struct cpu_gdt_table[GDT_ENTRIES];
-
-DECLARE_PER_CPU(unsigned char, cpu_16bit_stack[CPU_16BIT_STACK_SIZE]);
 
 struct Xgt_desc_struct {
 	unsigned short size;
@@ -180,6 +176,29 @@ static inline unsigned long get_desc_base(unsigned long *desc)
 		(desc[1] & 0xff000000);
 	return base;
 }
+
+#else /* __ASSEMBLY__ */
+
+/*
+ * GET_DESC_BASE reads the descriptor base of the specified segment.
+ *
+ * Args:
+ *    idx - descriptor index
+ *    gdt - GDT pointer
+ *    base - 32bit register to which the base will be written
+ *    lo_w - lo word of the "base" register
+ *    lo_b - lo byte of the "base" register
+ *    hi_b - hi byte of the low word of the "base" register
+ *
+ * Example:
+ *    GET_DESC_BASE(GDT_ENTRY_ESPFIX_SS, %ebx, %eax, %ax, %al, %ah)
+ *    Will read the base address of GDT_ENTRY_ESPFIX_SS and put it into %eax.
+ */
+#define GET_DESC_BASE(idx, gdt, base, lo_w, lo_b, hi_b) \
+	movb idx*8+4(gdt), lo_b; \
+	movb idx*8+7(gdt), hi_b; \
+	shll $16, base; \
+	movw idx*8+2(gdt), lo_w;
 
 #endif /* !__ASSEMBLY__ */
 
