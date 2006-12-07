@@ -225,6 +225,7 @@ MODULE_DEVICE_TABLE(pci, rtl8169_pci_tbl);
 
 static int rx_copybreak = 200;
 static int use_dac;
+static int ignore_parity_err;
 static struct {
 	u32 msg_enable;
 } debug = { -1 };
@@ -470,6 +471,8 @@ module_param(use_dac, int, 0);
 MODULE_PARM_DESC(use_dac, "Enable PCI DAC. Unsafe on 32 bit PCI slot.");
 module_param_named(debug, debug.msg_enable, int, 0);
 MODULE_PARM_DESC(debug, "Debug verbosity level (0=none, ..., 16=all)");
+module_param_named(ignore_parity_err, ignore_parity_err, bool, 0);
+MODULE_PARM_DESC(ignore_parity_err, "Ignore PCI parity error as target. Default: false");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(RTL8169_VERSION);
 
@@ -1284,11 +1287,6 @@ static void rtl8169_hw_phy_config(struct net_device *dev)
 	/* Shazam ! */
 
 	if (tp->mac_version == RTL_GIGA_MAC_VER_04) {
-		mdio_write(ioaddr, 31, 0x0001);
-		mdio_write(ioaddr,  9, 0x273a);
-		mdio_write(ioaddr, 14, 0x7bfb);
-		mdio_write(ioaddr, 27, 0x841e);
-
 		mdio_write(ioaddr, 31, 0x0002);
 		mdio_write(ioaddr,  1, 0x90d0);
 		mdio_write(ioaddr, 31, 0x0000);
@@ -1817,12 +1815,25 @@ static void rtl8169_hw_reset(void __iomem *ioaddr)
 	RTL_R8(ChipCmd);
 }
 
-static void
-rtl8169_hw_start(struct net_device *dev)
+static void rtl8169_set_rx_tx_config_registers(struct rtl8169_private *tp)
+{
+	void __iomem *ioaddr = tp->mmio_addr;
+	u32 cfg = rtl8169_rx_config;
+
+	cfg |= (RTL_R32(RxConfig) & rtl_chip_info[tp->chipset].RxConfigMask);
+	RTL_W32(RxConfig, cfg);
+
+	/* Set DMA burst size and Interframe Gap Time */
+	RTL_W32(TxConfig, (TX_DMA_BURST << TxDMAShift) |
+		(InterFrameGap << TxInterFrameGapShift));
+}
+
+static void rtl8169_hw_start(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
 	struct pci_dev *pdev = tp->pci_dev;
+	u16 cmd;
 	u32 i;
 
 	/* Soft reset the chip. */
@@ -1835,6 +1846,11 @@ rtl8169_hw_start(struct net_device *dev)
 		msleep_interruptible(1);
 	}
 
+	if (tp->mac_version == RTL_GIGA_MAC_VER_05) {
+		RTL_W16(CPlusCmd, RTL_R16(CPlusCmd) | PCIMulRW);
+		pci_write_config_byte(pdev, PCI_CACHE_LINE_SIZE, 0x08);
+	}
+
 	if (tp->mac_version == RTL_GIGA_MAC_VER_13) {
 		pci_write_config_word(pdev, 0x68, 0x00);
 		pci_write_config_word(pdev, 0x69, 0x08);
@@ -1842,8 +1858,6 @@ rtl8169_hw_start(struct net_device *dev)
 
 	/* Undocumented stuff. */
 	if (tp->mac_version == RTL_GIGA_MAC_VER_05) {
-		u16 cmd;
-
 		/* Realtek's r1000_n.c driver uses '&& 0x01' here. Well... */
 		if ((RTL_R8(Config2) & 0x07) & 0x01)
 			RTL_W32(0x7c, 0x0007ffff);
@@ -1855,23 +1869,29 @@ rtl8169_hw_start(struct net_device *dev)
 		pci_write_config_word(pdev, PCI_COMMAND, cmd);
 	}
 
-
 	RTL_W8(Cfg9346, Cfg9346_Unlock);
+	if ((tp->mac_version == RTL_GIGA_MAC_VER_01) ||
+	    (tp->mac_version == RTL_GIGA_MAC_VER_02) ||
+	    (tp->mac_version == RTL_GIGA_MAC_VER_03) ||
+	    (tp->mac_version == RTL_GIGA_MAC_VER_04))
+		RTL_W8(ChipCmd, CmdTxEnb | CmdRxEnb);
+
 	RTL_W8(EarlyTxThres, EarlyTxThld);
 
 	/* Low hurts. Let's disable the filtering. */
 	RTL_W16(RxMaxSize, 16383);
 
-	/* Set Rx Config register */
-	i = rtl8169_rx_config |
-		(RTL_R32(RxConfig) & rtl_chip_info[tp->chipset].RxConfigMask);
-	RTL_W32(RxConfig, i);
+	if ((tp->mac_version == RTL_GIGA_MAC_VER_01) ||
+	    (tp->mac_version == RTL_GIGA_MAC_VER_02) ||
+	    (tp->mac_version == RTL_GIGA_MAC_VER_03) ||
+	    (tp->mac_version == RTL_GIGA_MAC_VER_04))
+		RTL_W8(ChipCmd, CmdTxEnb | CmdRxEnb);
+		rtl8169_set_rx_tx_config_registers(tp);
 
-	/* Set DMA burst size and Interframe Gap Time */
-	RTL_W32(TxConfig, (TX_DMA_BURST << TxDMAShift) |
-		(InterFrameGap << TxInterFrameGapShift));
+	cmd = RTL_R16(CPlusCmd);
+	RTL_W16(CPlusCmd, cmd);
 
-	tp->cp_cmd |= RTL_R16(CPlusCmd) | PCIMulRW;
+	tp->cp_cmd |= cmd | PCIMulRW;
 
 	if ((tp->mac_version == RTL_GIGA_MAC_VER_02) ||
 	    (tp->mac_version == RTL_GIGA_MAC_VER_03)) {
@@ -1897,7 +1917,15 @@ rtl8169_hw_start(struct net_device *dev)
 	RTL_W32(TxDescStartAddrLow, ((u64) tp->TxPhyAddr & DMA_32BIT_MASK));
 	RTL_W32(RxDescAddrHigh, ((u64) tp->RxPhyAddr >> 32));
 	RTL_W32(RxDescAddrLow, ((u64) tp->RxPhyAddr & DMA_32BIT_MASK));
-	RTL_W8(ChipCmd, CmdTxEnb | CmdRxEnb);
+
+	if ((tp->mac_version != RTL_GIGA_MAC_VER_01) &&
+	    (tp->mac_version != RTL_GIGA_MAC_VER_02) &&
+	    (tp->mac_version != RTL_GIGA_MAC_VER_03) &&
+	    (tp->mac_version != RTL_GIGA_MAC_VER_04)) {
+		RTL_W8(ChipCmd, CmdTxEnb | CmdRxEnb);
+		rtl8169_set_rx_tx_config_registers(tp);
+	}
+
 	RTL_W8(Cfg9346, Cfg9346_Lock);
 
 	/* Initially a 10 us delay. Turned it into a PCI commit. - FR */
@@ -1992,7 +2020,7 @@ static int rtl8169_alloc_rx_skb(struct pci_dev *pdev, struct sk_buff **sk_buff,
 	if (!skb)
 		goto err_out;
 
-	skb_reserve(skb, align);
+	skb_reserve(skb, (align - 1) & (u32)skb->data);
 	*sk_buff = skb;
 
 	mapping = pci_map_single(pdev, skb->data, rx_buf_sz,
@@ -2355,12 +2383,17 @@ static void rtl8169_pcierr_interrupt(struct net_device *dev)
 	/*
 	 * The recovery sequence below admits a very elaborated explanation:
 	 * - it seems to work;
-	 * - I did not see what else could be done.
+	 * - I did not see what else could be done;
+	 * - it makes iop3xx happy.
 	 *
 	 * Feel free to adjust to your needs.
 	 */
-	pci_write_config_word(pdev, PCI_COMMAND,
-			      pci_cmd | PCI_COMMAND_SERR | PCI_COMMAND_PARITY);
+	if (ignore_parity_err)
+		pci_cmd &= ~PCI_COMMAND_PARITY;
+	else
+		pci_cmd |= PCI_COMMAND_SERR | PCI_COMMAND_PARITY;
+
+	pci_write_config_word(pdev, PCI_COMMAND, pci_cmd);
 
 	pci_write_config_word(pdev, PCI_STATUS,
 		pci_status & (PCI_STATUS_DETECTED_PARITY |
@@ -2374,10 +2407,11 @@ static void rtl8169_pcierr_interrupt(struct net_device *dev)
 		tp->cp_cmd &= ~PCIDAC;
 		RTL_W16(CPlusCmd, tp->cp_cmd);
 		dev->features &= ~NETIF_F_HIGHDMA;
-		rtl8169_schedule_work(dev, rtl8169_reinit_task);
 	}
 
 	rtl8169_hw_reset(ioaddr);
+
+	rtl8169_schedule_work(dev, rtl8169_reinit_task);
 }
 
 static void
@@ -2457,7 +2491,7 @@ static inline int rtl8169_try_rx_copy(struct sk_buff **sk_buff, int pkt_size,
 
 		skb = dev_alloc_skb(pkt_size + align);
 		if (skb) {
-			skb_reserve(skb, align);
+			skb_reserve(skb, (align - 1) & (u32)skb->data);
 			eth_copy_and_sum(skb, sk_buff[0]->data, pkt_size, 0);
 			*sk_buff = skb;
 			rtl8169_mark_to_asic(desc, rx_buf_sz);
