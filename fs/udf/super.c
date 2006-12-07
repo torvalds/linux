@@ -1709,7 +1709,7 @@ void udf_error(struct super_block *sb, const char *function,
 		sb->s_dirt = 1;
 	}
 	va_start(args, fmt);
-	vsprintf(error_buf, fmt, args);
+	vsnprintf(error_buf, sizeof(error_buf), fmt, args);
 	va_end(args);
 	printk (KERN_CRIT "UDF-fs error (device %s): %s: %s\n",
 		sb->s_id, function, error_buf);
@@ -1721,7 +1721,7 @@ void udf_warning(struct super_block *sb, const char *function,
 	va_list args;
 
 	va_start (args, fmt);
-	vsprintf(error_buf, fmt, args);
+	vsnprintf(error_buf, sizeof(error_buf), fmt, args);
 	va_end(args);
 	printk(KERN_WARNING "UDF-fs warning (device %s): %s: %s\n",
 		sb->s_id, function, error_buf);
