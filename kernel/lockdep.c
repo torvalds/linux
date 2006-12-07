@@ -359,7 +359,7 @@ get_usage_chars(struct lock_class *class, char *c1, char *c2, char *c3, char *c4
 
 static void print_lock_name(struct lock_class *class)
 {
-	char str[128], c1, c2, c3, c4;
+	char str[KSYM_NAME_LEN + 1], c1, c2, c3, c4;
 	const char *name;
 
 	get_usage_chars(class, &c1, &c2, &c3, &c4);
@@ -381,7 +381,7 @@ static void print_lock_name(struct lock_class *class)
 static void print_lockdep_cache(struct lockdep_map *lock)
 {
 	const char *name;
-	char str[128];
+	char str[KSYM_NAME_LEN + 1];
 
 	name = lock->name;
 	if (!name)
@@ -451,7 +451,9 @@ static void print_lock_dependencies(struct lock_class *class, int depth)
 	print_lock_class_header(class, depth);
 
 	list_for_each_entry(entry, &class->locks_after, entry) {
-		DEBUG_LOCKS_WARN_ON(!entry->class);
+		if (DEBUG_LOCKS_WARN_ON(!entry->class))
+			return;
+
 		print_lock_dependencies(entry->class, depth + 1);
 
 		printk("%*s ... acquired at:\n",depth,"");
@@ -1733,6 +1735,7 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 		debug_atomic_dec(&nr_unused_locks);
 		break;
 	default:
+		__raw_spin_unlock(&hash_lock);
 		debug_locks_off();
 		WARN_ON(1);
 		return 0;
