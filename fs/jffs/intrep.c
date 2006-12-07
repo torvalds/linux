@@ -592,7 +592,7 @@ jffs_add_virtual_root(struct jffs_control *c)
 	D2(printk("jffs_add_virtual_root(): "
 		  "Creating a virtual root directory.\n"));
 
-	if (!(root = kmalloc(sizeof(struct jffs_file), GFP_KERNEL))) {
+	if (!(root = kzalloc(sizeof(struct jffs_file), GFP_KERNEL))) {
 		return -ENOMEM;
 	}
 	no_jffs_file++;
@@ -604,7 +604,6 @@ jffs_add_virtual_root(struct jffs_control *c)
 	DJM(no_jffs_node++);
 	memset(node, 0, sizeof(struct jffs_node));
 	node->ino = JFFS_MIN_INO;
-	memset(root, 0, sizeof(struct jffs_file));
 	root->ino = JFFS_MIN_INO;
 	root->mode = S_IFDIR | S_IRWXU | S_IRGRP
 		     | S_IXGRP | S_IROTH | S_IXOTH;
