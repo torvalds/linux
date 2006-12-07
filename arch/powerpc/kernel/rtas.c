@@ -303,6 +303,12 @@ int rtas_token(const char *service)
 }
 EXPORT_SYMBOL(rtas_token);
 
+int rtas_service_present(const char *service)
+{
+	return rtas_token(service) != RTAS_UNKNOWN_SERVICE;
+}
+EXPORT_SYMBOL(rtas_service_present);
+
 #ifdef CONFIG_RTAS_ERROR_LOGGING
 /*
  * Return the firmware-specified size of the error log buffer
