@@ -871,7 +871,7 @@ asmlinkage long compat_sys_mount(char __user * dev_name, char __user * dir_name,
 
 	retval = -EINVAL;
 
-	if (type_page) {
+	if (type_page && data_page) {
 		if (!strcmp((char *)type_page, SMBFS_NAME)) {
 			do_smb_super_data_conv((void *)data_page);
 		} else if (!strcmp((char *)type_page, NCPFS_NAME)) {
