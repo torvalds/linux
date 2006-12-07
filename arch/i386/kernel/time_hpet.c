@@ -132,14 +132,20 @@ int __init hpet_enable(void)
 	 * the single HPET timer for system time.
 	 */
 #ifdef CONFIG_HPET_EMULATE_RTC
-	if (!(id & HPET_ID_NUMBER))
+	if (!(id & HPET_ID_NUMBER)) {
+		iounmap(hpet_virt_address);
+		hpet_virt_address = NULL;
 		return -1;
+	}
 #endif
 
 
 	hpet_period = hpet_readl(HPET_PERIOD);
-	if ((hpet_period < HPET_MIN_PERIOD) || (hpet_period > HPET_MAX_PERIOD))
+	if ((hpet_period < HPET_MIN_PERIOD) || (hpet_period > HPET_MAX_PERIOD)) {
+		iounmap(hpet_virt_address);
+		hpet_virt_address = NULL;
 		return -1;
+	}
 
 	/*
 	 * 64 bit math
@@ -156,8 +162,11 @@ int __init hpet_enable(void)
 
 	hpet_use_timer = id & HPET_ID_LEGSUP;
 
-	if (hpet_timer_stop_set_go(hpet_tick))
+	if (hpet_timer_stop_set_go(hpet_tick)) {
+		iounmap(hpet_virt_address);
+		hpet_virt_address = NULL;
 		return -1;
+	}
 
 	use_hpet = 1;
 
