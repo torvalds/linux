@@ -38,6 +38,7 @@ extern struct e820map e820;
 
 extern int e820_all_mapped(unsigned long start, unsigned long end,
 			   unsigned type);
+extern void find_max_pfn(void);
 
 #endif/*!__ASSEMBLY__*/
 

@@ -63,9 +63,6 @@
 #include <setup_arch.h>
 #include <bios_ebda.h>
 
-/* Forward Declaration. */
-void __init find_max_pfn(void);
-
 /* This value is set up by the early boot code to point to the value
    immediately after the boot time page tables.  It contains a *physical*
    address, and must not be in the .bss segment! */
@@ -387,29 +384,6 @@ static int __init parse_reservetop(char *arg)
 }
 early_param("reservetop", parse_reservetop);
 
-/*
- * Callback for efi_memory_walk.
- */
-static int __init
-efi_find_max_pfn(unsigned long start, unsigned long end, void *arg)
-{
-	unsigned long *max_pfn = arg, pfn;
-
-	if (start < end) {
-		pfn = PFN_UP(end -1);
-		if (pfn > *max_pfn)
-			*max_pfn = pfn;
-	}
-	return 0;
-}
-
-static int __init
-efi_memory_present_wrapper(unsigned long start, unsigned long end, void *arg)
-{
-	memory_present(0, PFN_UP(start), PFN_DOWN(end));
-	return 0;
-}
-
  /*
   * This function checks if the entire range <start,end> is mapped with type.
   *
@@ -440,35 +414,6 @@ e820_all_mapped(unsigned long s, unsigned long e, unsigned type)
 			return 1; /* we're done */
 	}
 	return 0;
-}
-
-/*
- * Find the highest page frame number we have available
- */
-void __init find_max_pfn(void)
-{
-	int i;
-
-	max_pfn = 0;
-	if (efi_enabled) {
-		efi_memmap_walk(efi_find_max_pfn, &max_pfn);
-		efi_memmap_walk(efi_memory_present_wrapper, NULL);
-		return;
-	}
-
-	for (i = 0; i < e820.nr_map; i++) {
-		unsigned long start, end;
-		/* RAM? */
-		if (e820.map[i].type != E820_RAM)
-			continue;
-		start = PFN_UP(e820.map[i].addr);
-		end = PFN_DOWN(e820.map[i].addr + e820.map[i].size);
-		if (start >= end)
-			continue;
-		if (end > max_pfn)
-			max_pfn = end;
-		memory_present(0, start, end);
-	}
 }
 
 /*
