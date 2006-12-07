@@ -196,7 +196,7 @@ static int vidport;
 static int lines, cols;
 
 #ifdef CONFIG_X86_NUMAQ
-static void * xquad_portio = NULL;
+void *xquad_portio;
 #endif
 
 #include "../../../../lib/inflate.c"
