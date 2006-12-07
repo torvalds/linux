@@ -411,7 +411,7 @@ memory_bm_create(struct memory_bitmap *bm, gfp_t gfp_mask, int safe_needed)
 	memory_bm_position_reset(bm);
 	return 0;
 
-Free:
+ Free:
 	bm->p_list = ca.chain;
 	memory_bm_free(bm, PG_UNSAFE_CLEAR);
 	return -ENOMEM;
@@ -557,7 +557,7 @@ static unsigned long memory_bm_next_pfn(struct memory_bitmap *bm)
 	memory_bm_position_reset(bm);
 	return BM_END_OF_MAP;
 
-Return_pfn:
+ Return_pfn:
 	bm->cur.chunk = chunk;
 	bm->cur.bit = bit;
 	return bb->start_pfn + chunk * BM_BITS_PER_CHUNK + bit;
@@ -964,7 +964,7 @@ swsusp_alloc(struct memory_bitmap *orig_bm, struct memory_bitmap *copy_bm,
 	}
 	return 0;
 
-Free:
+ Free:
 	swsusp_free();
 	return -ENOMEM;
 }
@@ -1540,7 +1540,7 @@ prepare_image(struct memory_bitmap *new_bm, struct memory_bitmap *bm)
 	}
 	return 0;
 
-Free:
+ Free:
 	swsusp_free();
 	return error;
 }

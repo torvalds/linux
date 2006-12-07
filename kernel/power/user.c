@@ -313,7 +313,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		if (pm_ops->finish)
 			pm_ops->finish(PM_SUSPEND_MEM);
 
-OutS3:
+ OutS3:
 		mutex_unlock(&pm_mutex);
 		break;
 

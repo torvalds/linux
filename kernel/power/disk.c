@@ -117,9 +117,9 @@ static int prepare_processes(void)
 		return 0;
 
 	platform_finish();
-thaw:
+ thaw:
 	thaw_processes();
-enable_cpus:
+ enable_cpus:
 	enable_nonboot_cpus();
 	pm_restore_console();
 	return error;
@@ -392,7 +392,7 @@ static ssize_t resume_store(struct subsystem *subsys, const char *buf, size_t n)
 	noresume = 0;
 	software_resume();
 	ret = n;
-out:
+ out:
 	return ret;
 }
 

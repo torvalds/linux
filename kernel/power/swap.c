@@ -301,7 +301,7 @@ static int swap_write_page(struct swap_map_handle *handle, void *buf,
 		handle->cur_swap = offset;
 		handle->k = 0;
 	}
-out:
+ out:
 	return error;
 }
 
@@ -429,7 +429,7 @@ int swsusp_write(void)
 	if (error)
 		free_all_swap_pages(root_swap, handle.bitmap);
 	release_swap_writer(&handle);
-out:
+ out:
 	swsusp_close();
 	return error;
 }

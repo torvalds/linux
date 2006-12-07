@@ -288,7 +288,7 @@ int swsusp_suspend(void)
 	 * that suspended with irqs off ... no overall powerup.
 	 */
 	device_power_up();
-Enable_irqs:
+ Enable_irqs:
 	local_irq_enable();
 	return error;
 }
