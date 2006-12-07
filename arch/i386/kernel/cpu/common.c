@@ -609,7 +609,7 @@ struct pt_regs * __devinit idle_regs(struct pt_regs *regs)
 	return regs;
 }
 
-__cpuinit int alloc_gdt(int cpu)
+static __cpuinit int alloc_gdt(int cpu)
 {
 	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, cpu);
 	struct desc_struct *gdt;
