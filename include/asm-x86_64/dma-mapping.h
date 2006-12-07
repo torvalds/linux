@@ -180,7 +180,7 @@ static inline int dma_get_cache_alignment(void)
 	return boot_cpu_data.x86_clflush_size;
 }
 
-#define dma_is_consistent(h) 1
+#define dma_is_consistent(d, h) 1
 
 extern int dma_set_mask(struct device *dev, u64 mask);
 

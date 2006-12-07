@@ -59,6 +59,6 @@ dma_cache_sync (void *vaddr, size_t size, enum dma_data_direction dir)
 	mb();
 }
 
-#define dma_is_consistent(dma_handle)	(1)	/* all we do is coherent memory... */
+#define dma_is_consistent(d, h)	(1)	/* all we do is coherent memory... */
 
 #endif /* _ASM_IA64_DMA_MAPPING_H */

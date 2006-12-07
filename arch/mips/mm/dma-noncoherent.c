@@ -299,7 +299,7 @@ int dma_supported(struct device *dev, u64 mask)
 
 EXPORT_SYMBOL(dma_supported);
 
-int dma_is_consistent(dma_addr_t dma_addr)
+int dma_is_consistent(struct device *dev, dma_addr_t dma_addr)
 {
 	return 1;
 }

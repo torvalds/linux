@@ -94,7 +94,7 @@ dma_sync_sg(struct device *dev, struct scatterlist *sg, int nelems,
 
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
-#define dma_is_consistent(d) (1)
+#define dma_is_consistent(d, h) (1)
 
 static inline int
 dma_get_cache_alignment(void)
