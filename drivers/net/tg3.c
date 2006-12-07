@@ -8781,17 +8781,20 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 					tg3_writephy(tp, 0x10, phy & ~0x4000);
 				tg3_writephy(tp, MII_TG3_EPHY_TEST, phytest);
 			}
-		}
-		val = BMCR_LOOPBACK | BMCR_FULLDPLX;
-		if (tp->tg3_flags & TG3_FLAG_10_100_ONLY)
-			val |= BMCR_SPEED100;
-		else
-			val |= BMCR_SPEED1000;
+			val = BMCR_LOOPBACK | BMCR_FULLDPLX | BMCR_SPEED100;
+		} else
+			val = BMCR_LOOPBACK | BMCR_FULLDPLX | BMCR_SPEED1000;
 
 		tg3_writephy(tp, MII_BMCR, val);
 		udelay(40);
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)
+
+		mac_mode = (tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK) |
+			   MAC_MODE_LINK_POLARITY;
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
 			tg3_writephy(tp, MII_TG3_EPHY_PTEST, 0x1800);
+			mac_mode |= MAC_MODE_PORT_MODE_MII;
+		} else
+			mac_mode |= MAC_MODE_PORT_MODE_GMII;
 
 		/* reset to prevent losing 1st rx packet intermittently */
 		if (tp->tg3_flags2 & TG3_FLG2_MII_SERDES) {
@@ -8799,12 +8802,6 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 			udelay(10);
 			tw32_f(MAC_RX_MODE, tp->rx_mode);
 		}
-		mac_mode = (tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK) |
-			   MAC_MODE_LINK_POLARITY;
-		if (tp->tg3_flags & TG3_FLAG_10_100_ONLY)
-			mac_mode |= MAC_MODE_PORT_MODE_MII;
-		else
-			mac_mode |= MAC_MODE_PORT_MODE_GMII;
 		if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5401) {
 			mac_mode &= ~MAC_MODE_LINK_POLARITY;
 			tg3_writephy(tp, MII_TG3_EXT_CTRL,
