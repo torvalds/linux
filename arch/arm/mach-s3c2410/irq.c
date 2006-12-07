@@ -206,18 +206,6 @@ s3c_irqext_mask(unsigned int irqno)
 	mask = __raw_readl(S3C24XX_EINTMASK);
 	mask |= ( 1UL << irqno);
 	__raw_writel(mask, S3C24XX_EINTMASK);
-
-	if (irqno <= (IRQ_EINT7 - EXTINT_OFF)) {
-		/* check to see if all need masking */
-
-		if ((mask & (0xf << 4)) == (0xf << 4)) {
-			/* all masked, mask the parent */
-			s3c_irq_mask(IRQ_EINT4t7);
-		}
-	} else {
-		/* todo: the same check as above for the rest of the irq regs...*/
-
-	}
 }
 
 static void
@@ -228,7 +216,6 @@ s3c_irqext_ack(unsigned int irqno)
 	unsigned long mask;
 
 	bit = 1UL << (irqno - EXTINT_OFF);
-
 
 	mask = __raw_readl(S3C24XX_EINTMASK);
 
@@ -258,8 +245,6 @@ s3c_irqext_unmask(unsigned int irqno)
 	mask = __raw_readl(S3C24XX_EINTMASK);
 	mask &= ~( 1UL << irqno);
 	__raw_writel(mask, S3C24XX_EINTMASK);
-
-	s3c_irq_unmask((irqno <= (IRQ_EINT7 - EXTINT_OFF)) ? IRQ_EINT4t7 : IRQ_EINT8t23);
 }
 
 int
