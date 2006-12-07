@@ -1885,8 +1885,9 @@ out:
 	return;
 }
 
-struct dentry *proc_pid_instantiate(struct inode *dir,
-	struct dentry * dentry, struct task_struct *task, void *ptr)
+static struct dentry *proc_pid_instantiate(struct inode *dir,
+					   struct dentry * dentry,
+					   struct task_struct *task, void *ptr)
 {
 	struct dentry *error = ERR_PTR(-ENOENT);
 	struct inode *inode;
