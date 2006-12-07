@@ -45,7 +45,6 @@ struct iommu_table;
  * The vio_dev structure is used to describe virtual I/O devices.
  */
 struct vio_dev {
-	struct iommu_table *iommu_table;     /* vio_map_* uses this */
 	const char *name;
 	const char *type;
 	uint32_t unit_address;

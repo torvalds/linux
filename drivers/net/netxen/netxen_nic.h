@@ -852,7 +852,8 @@ struct netxen_adapter {
 	spinlock_t tx_lock;
 	spinlock_t lock;
 	struct work_struct watchdog_task;
-	struct work_struct tx_timeout_task[NETXEN_MAX_PORTS];
+	struct work_struct tx_timeout_task;
+	struct net_device *netdev;
 	struct timer_list watchdog_timer;
 
 	u32 curr_window;
@@ -1071,7 +1072,7 @@ netxen_nic_do_ioctl(struct netxen_adapter *adapter, void *u_data,
 		    struct netxen_port *port);
 int netxen_nic_rx_has_work(struct netxen_adapter *adapter);
 int netxen_nic_tx_has_work(struct netxen_adapter *adapter);
-void netxen_watchdog_task(unsigned long v);
+void netxen_watchdog_task(struct work_struct *work);
 void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx,
 			    u32 ringid);
 void netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter, u32 ctx,

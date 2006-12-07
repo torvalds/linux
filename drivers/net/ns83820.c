@@ -427,6 +427,7 @@ struct ns83820 {
 	u8			__iomem *base;
 
 	struct pci_dev		*pci_dev;
+	struct net_device	*ndev;
 
 #ifdef NS83820_VLAN_ACCEL_SUPPORT
 	struct vlan_group	*vlgrp;
@@ -631,10 +632,10 @@ static void fastcall rx_refill_atomic(struct net_device *ndev)
 }
 
 /* REFILL */
-static inline void queue_refill(void *_dev)
+static inline void queue_refill(struct work_struct *work)
 {
-	struct net_device *ndev = _dev;
-	struct ns83820 *dev = PRIV(ndev);
+	struct ns83820 *dev = container_of(work, struct ns83820, tq_refill);
+	struct net_device *ndev = dev->ndev;
 
 	rx_refill(ndev, GFP_KERNEL);
 	if (dev->rx_info.up)
@@ -1844,6 +1845,7 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 
 	ndev = alloc_etherdev(sizeof(struct ns83820));
 	dev = PRIV(ndev);
+	dev->ndev = ndev;
 	err = -ENOMEM;
 	if (!dev)
 		goto out;
@@ -1856,7 +1858,7 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 	SET_MODULE_OWNER(ndev);
 	SET_NETDEV_DEV(ndev, &pci_dev->dev);
 
-	INIT_WORK(&dev->tq_refill, queue_refill, ndev);
+	INIT_WORK(&dev->tq_refill, queue_refill);
 	tasklet_init(&dev->rx_tasklet, rx_action, (unsigned long)ndev);
 
 	err = pci_enable_device(pci_dev);

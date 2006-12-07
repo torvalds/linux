@@ -41,6 +41,7 @@
 #include "call_pci.h"
 #include "pci.h"
 #include "it_exp_vpd_panel.h"
+#include "naca.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -205,13 +206,11 @@ static void __init dt_prop_u32(struct iseries_flat_dt *dt, const char *name,
 	dt_prop(dt, name, &data, sizeof(u32));
 }
 
-#ifdef notyet
 static void __init dt_prop_u64(struct iseries_flat_dt *dt, const char *name,
 		u64 data)
 {
 	dt_prop(dt, name, &data, sizeof(u64));
 }
-#endif
 
 static void __init dt_prop_u64_list(struct iseries_flat_dt *dt,
 		const char *name, u64 *data, int n)
@@ -304,6 +303,17 @@ static void __init dt_model(struct iseries_flat_dt *dt)
 
 	dt_prop_str(dt, "compatible", "IBM,iSeries");
 	dt_prop_u32(dt, "ibm,partition-no", HvLpConfig_getLpIndex());
+}
+
+static void __init dt_initrd(struct iseries_flat_dt *dt)
+{
+#ifdef CONFIG_BLK_DEV_INITRD
+	if (naca.xRamDisk) {
+		dt_prop_u64(dt, "linux,initrd-start", (u64)naca.xRamDisk);
+		dt_prop_u64(dt, "linux,initrd-end",
+			(u64)naca.xRamDisk + naca.xRamDiskSize * HW_PAGE_SIZE);
+	}
+#endif
 }
 
 static void __init dt_do_vdevice(struct iseries_flat_dt *dt,
@@ -641,6 +651,7 @@ void * __init build_flat_dt(unsigned long phys_mem_size)
 	/* /chosen */
 	dt_start_node(iseries_dt, "chosen");
 	dt_prop_str(iseries_dt, "bootargs", cmd_line);
+	dt_initrd(iseries_dt);
 	dt_end_node(iseries_dt);
 
 	dt_cpus(iseries_dt);

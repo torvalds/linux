@@ -375,7 +375,6 @@ Summary:
    scsi_add_device - creates new scsi device (lu) instance
    scsi_add_host - perform sysfs registration and set up transport class
    scsi_adjust_queue_depth - change the queue depth on a SCSI device
-   scsi_assign_lock - replace default host_lock with given lock
    scsi_bios_ptable - return copy of block device's partition table
    scsi_block_requests - prevent further commands being queued to given host
    scsi_deactivate_tcq - turn off tag command queueing
@@ -486,20 +485,6 @@ int scsi_add_host(struct Scsi_Host *shost, struct device * dev)
  **/
 void scsi_adjust_queue_depth(struct scsi_device * sdev, int tagged, 
                              int tags)
-
-
-/**
- * scsi_assign_lock - replace default host_lock with given lock
- * @shost: a pointer to a scsi host instance
- * @lock: pointer to lock to replace host_lock for this host
- *
- *      Returns nothing
- *
- *      Might block: no
- *
- *      Defined in: include/scsi/scsi_host.h .
- **/
-void scsi_assign_lock(struct Scsi_Host *shost, spinlock_t *lock)
 
 
 /**
@@ -1366,17 +1351,11 @@ Locks
 Each struct Scsi_Host instance has a spin_lock called struct 
 Scsi_Host::default_lock which is initialized in scsi_host_alloc() [found in 
 hosts.c]. Within the same function the struct Scsi_Host::host_lock pointer
-is initialized to point at default_lock with the scsi_assign_lock() function.
-Thereafter lock and unlock operations performed by the mid level use the
-struct Scsi_Host::host_lock pointer.
+is initialized to point at default_lock.  Thereafter lock and unlock
+operations performed by the mid level use the struct Scsi_Host::host_lock
+pointer.  Previously drivers could override the host_lock pointer but
+this is not allowed anymore.
 
-LLDs can override the use of struct Scsi_Host::default_lock by
-using scsi_assign_lock(). The earliest opportunity to do this would
-be in the detect() function after it has invoked scsi_register(). It
-could be replaced by a coarser grain lock (e.g. per driver) or a
-lock of equal granularity (i.e. per host). Using finer grain locks 
-(e.g. per SCSI device) may be possible by juggling locks in
-queuecommand().
 
 Autosense
 =========

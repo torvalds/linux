@@ -30,7 +30,7 @@
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/sections.h>
-#include <asm/of_device.h>
+#include <asm/of_platform.h>
 
 #undef DEBUG
 

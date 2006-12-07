@@ -1516,9 +1516,9 @@ static void rc_start(struct tty_struct * tty)
  * 	do_rc_hangup() -> tty->hangup() -> rc_hangup()
  * 
  */
-static void do_rc_hangup(void *private_)
+static void do_rc_hangup(struct work_struct *ugly_api)
 {
-	struct riscom_port	*port = (struct riscom_port *) private_;
+	struct riscom_port	*port = container_of(ugly_api, struct riscom_port, tqueue_hangup);
 	struct tty_struct	*tty;
 	
 	tty = port->tty;
@@ -1567,9 +1567,9 @@ static void rc_set_termios(struct tty_struct * tty, struct termios * old_termios
 	}
 }
 
-static void do_softint(void *private_)
+static void do_softint(struct work_struct *ugly_api)
 {
-	struct riscom_port	*port = (struct riscom_port *) private_;
+	struct riscom_port	*port = container_of(ugly_api, struct riscom_port, tqueue);
 	struct tty_struct	*tty;
 	
 	if(!(tty = port->tty)) 
@@ -1632,8 +1632,8 @@ static inline int rc_init_drivers(void)
 	memset(rc_port, 0, sizeof(rc_port));
 	for (i = 0; i < RC_NPORT * RC_NBOARD; i++)  {
 		rc_port[i].magic = RISCOM8_MAGIC;
-		INIT_WORK(&rc_port[i].tqueue, do_softint, &rc_port[i]);
-		INIT_WORK(&rc_port[i].tqueue_hangup, do_rc_hangup, &rc_port[i]);
+		INIT_WORK(&rc_port[i].tqueue, do_softint);
+		INIT_WORK(&rc_port[i].tqueue_hangup, do_rc_hangup);
 		rc_port[i].close_delay = 50 * HZ/100;
 		rc_port[i].closing_wait = 3000 * HZ/100;
 		init_waitqueue_head(&rc_port[i].open_wait);

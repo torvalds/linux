@@ -36,12 +36,13 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/sections.h>
-#include <asm/of_device.h>
+#include <asm/of_platform.h>
 #include <asm/macio.h>
 
 #define LOG_TEMP		0			/* continously log temperature */
@@ -511,14 +512,14 @@ g4fan_init( void )
 		return -ENODEV;
 	}
 
-	of_register_driver( &therm_of_driver );
+	of_register_platform_driver( &therm_of_driver );
 	return 0;
 }
 
 static void __exit
 g4fan_exit( void )
 {
-	of_unregister_driver( &therm_of_driver );
+	of_unregister_platform_driver( &therm_of_driver );
 
 	if( x.of_dev )
 		of_device_unregister( x.of_dev );

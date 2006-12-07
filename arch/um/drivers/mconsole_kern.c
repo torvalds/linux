@@ -56,7 +56,7 @@ static struct notifier_block reboot_notifier = {
 
 static LIST_HEAD(mc_requests);
 
-static void mc_work_proc(void *unused)
+static void mc_work_proc(struct work_struct *unused)
 {
 	struct mconsole_entry *req;
 	unsigned long flags;
@@ -72,7 +72,7 @@ static void mc_work_proc(void *unused)
 	}
 }
 
-static DECLARE_WORK(mconsole_work, mc_work_proc, NULL);
+static DECLARE_WORK(mconsole_work, mc_work_proc);
 
 static irqreturn_t mconsole_interrupt(int irq, void *dev_id)
 {

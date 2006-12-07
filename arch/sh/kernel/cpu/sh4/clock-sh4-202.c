@@ -97,7 +97,7 @@ static void shoc_clk_recalc(struct clk *clk)
 
 static int shoc_clk_verify_rate(struct clk *clk, unsigned long rate)
 {
-	struct clk *bclk = clk_get("bus_clk");
+	struct clk *bclk = clk_get(NULL, "bus_clk");
 	unsigned long bclk_rate = clk_get_rate(bclk);
 
 	clk_put(bclk);
@@ -151,7 +151,7 @@ static struct clk *sh4202_onchip_clocks[] = {
 
 static int __init sh4202_clk_init(void)
 {
-	struct clk *clk = clk_get("master_clk");
+	struct clk *clk = clk_get(NULL, "master_clk");
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(sh4202_onchip_clocks); i++) {

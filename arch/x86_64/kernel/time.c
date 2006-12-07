@@ -563,7 +563,7 @@ static unsigned int cpufreq_delayed_issched = 0;
 static unsigned int cpufreq_init = 0;
 static struct work_struct cpufreq_delayed_get_work;
 
-static void handle_cpufreq_delayed_get(void *v)
+static void handle_cpufreq_delayed_get(struct work_struct *v)
 {
 	unsigned int cpu;
 	for_each_online_cpu(cpu) {
@@ -639,7 +639,7 @@ static struct notifier_block time_cpufreq_notifier_block = {
 
 static int __init cpufreq_tsc(void)
 {
-	INIT_WORK(&cpufreq_delayed_get_work, handle_cpufreq_delayed_get, NULL);
+	INIT_WORK(&cpufreq_delayed_get_work, handle_cpufreq_delayed_get);
 	if (!cpufreq_register_notifier(&time_cpufreq_notifier_block,
 				       CPUFREQ_TRANSITION_NOTIFIER))
 		cpufreq_init = 1;

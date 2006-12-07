@@ -1081,7 +1081,7 @@ static unsigned int ata_id_xfermask(const u16 *id)
  *	ata_port_queue_task - Queue port_task
  *	@ap: The ata_port to queue port_task for
  *	@fn: workqueue function to be scheduled
- *	@data: data value to pass to workqueue function
+ *	@data: data for @fn to use
  *	@delay: delay time for workqueue function
  *
  *	Schedule @fn(@data) for execution after @delay jiffies using
@@ -1096,7 +1096,7 @@ static unsigned int ata_id_xfermask(const u16 *id)
  *	LOCKING:
  *	Inherited from caller.
  */
-void ata_port_queue_task(struct ata_port *ap, void (*fn)(void *), void *data,
+void ata_port_queue_task(struct ata_port *ap, work_func_t fn, void *data,
 			 unsigned long delay)
 {
 	int rc;
@@ -1104,12 +1104,10 @@ void ata_port_queue_task(struct ata_port *ap, void (*fn)(void *), void *data,
 	if (ap->pflags & ATA_PFLAG_FLUSH_PORT_TASK)
 		return;
 
-	PREPARE_WORK(&ap->port_task, fn, data);
+	PREPARE_DELAYED_WORK(&ap->port_task, fn);
+	ap->port_task_data = data;
 
-	if (!delay)
-		rc = queue_work(ata_wq, &ap->port_task);
-	else
-		rc = queue_delayed_work(ata_wq, &ap->port_task, delay);
+	rc = queue_delayed_work(ata_wq, &ap->port_task, delay);
 
 	/* rc == 0 means that another user is using port task */
 	WARN_ON(rc == 0);
@@ -4588,10 +4586,11 @@ fsm_start:
 	return poll_next;
 }
 
-static void ata_pio_task(void *_data)
+static void ata_pio_task(struct work_struct *work)
 {
-	struct ata_queued_cmd *qc = _data;
-	struct ata_port *ap = qc->ap;
+	struct ata_port *ap =
+		container_of(work, struct ata_port, port_task.work);
+	struct ata_queued_cmd *qc = ap->port_task_data;
 	u8 status;
 	int poll_next;
 
@@ -5635,9 +5634,9 @@ void ata_port_init(struct ata_port *ap, struct ata_host *host,
 	ap->msg_enable = ATA_MSG_DRV | ATA_MSG_ERR | ATA_MSG_WARN;
 #endif
 
-	INIT_WORK(&ap->port_task, NULL, NULL);
-	INIT_WORK(&ap->hotplug_task, ata_scsi_hotplug, ap);
-	INIT_WORK(&ap->scsi_rescan_task, ata_scsi_dev_rescan, ap);
+	INIT_DELAYED_WORK(&ap->port_task, NULL);
+	INIT_DELAYED_WORK(&ap->hotplug_task, ata_scsi_hotplug);
+	INIT_WORK(&ap->scsi_rescan_task, ata_scsi_dev_rescan);
 	INIT_LIST_HEAD(&ap->eh_done_q);
 	init_waitqueue_head(&ap->eh_wait_q);
 

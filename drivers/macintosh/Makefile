@@ -42,3 +42,4 @@ obj-$(CONFIG_WINDFARM_PM112)	+= windfarm_pm112.o windfarm_smu_sat.o \
 				   windfarm_smu_sensors.o \
 				   windfarm_max6690_sensor.o \
 				   windfarm_lm75_sensor.o windfarm_pid.o
+obj-$(CONFIG_PMAC_RACKMETER)	+= rack-meter.o

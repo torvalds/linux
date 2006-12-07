@@ -1290,21 +1290,21 @@ struct ipw_priv {
 
 	struct workqueue_struct *workqueue;
 
-	struct work_struct adhoc_check;
+	struct delayed_work adhoc_check;
 	struct work_struct associate;
 	struct work_struct disassociate;
 	struct work_struct system_config;
 	struct work_struct rx_replenish;
-	struct work_struct request_scan;
+	struct delayed_work request_scan;
   	struct work_struct request_passive_scan;
 	struct work_struct adapter_restart;
-	struct work_struct rf_kill;
+	struct delayed_work rf_kill;
 	struct work_struct up;
 	struct work_struct down;
-	struct work_struct gather_stats;
+	struct delayed_work gather_stats;
 	struct work_struct abort_scan;
 	struct work_struct roam;
-	struct work_struct scan_check;
+	struct delayed_work scan_check;
 	struct work_struct link_up;
 	struct work_struct link_down;
 
@@ -1319,9 +1319,9 @@ struct ipw_priv {
 	u32 led_ofdm_on;
 	u32 led_ofdm_off;
 
-	struct work_struct led_link_on;
-	struct work_struct led_link_off;
-	struct work_struct led_act_off;
+	struct delayed_work led_link_on;
+	struct delayed_work led_link_off;
+	struct delayed_work led_act_off;
 	struct work_struct merge_networks;
 
 	struct ipw_cmd_log *cmdlog;

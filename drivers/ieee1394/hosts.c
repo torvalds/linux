@@ -31,9 +31,10 @@
 #include "config_roms.h"
 
 
-static void delayed_reset_bus(void * __reset_info)
+static void delayed_reset_bus(struct work_struct *work)
 {
-	struct hpsb_host *host = (struct hpsb_host*)__reset_info;
+	struct hpsb_host *host =
+		container_of(work, struct hpsb_host, delayed_reset.work);
 	int generation = host->csr.generation + 1;
 
 	/* The generation field rolls over to 2 rather than 0 per IEEE
@@ -145,7 +146,7 @@ struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 
 	atomic_set(&h->generation, 0);
 
-	INIT_WORK(&h->delayed_reset, delayed_reset_bus, h);
+	INIT_DELAYED_WORK(&h->delayed_reset, delayed_reset_bus);
 	
 	init_timer(&h->timeout);
 	h->timeout.data = (unsigned long) h;
@@ -234,7 +235,7 @@ int hpsb_update_config_rom_image(struct hpsb_host *host)
 		 * Config ROM in the near future. */
 		reset_delay = HZ;
 
-	PREPARE_WORK(&host->delayed_reset, delayed_reset_bus, host);
+	PREPARE_DELAYED_WORK(&host->delayed_reset, delayed_reset_bus);
 	schedule_delayed_work(&host->delayed_reset, reset_delay);
 
 	return 0;

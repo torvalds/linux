@@ -746,12 +746,13 @@ static inline int netxen_nic_check_temp(struct netxen_adapter *adapter)
 	return rv;
 }
 
-void netxen_watchdog_task(unsigned long v)
+void netxen_watchdog_task(struct work_struct *work)
 {
 	int port_num;
 	struct netxen_port *port;
 	struct net_device *netdev;
-	struct netxen_adapter *adapter = (struct netxen_adapter *)v;
+	struct netxen_adapter *adapter =
+		container_of(work, struct netxen_adapter, watchdog_task);
 
 	if (netxen_nic_check_temp(adapter))
 		return;

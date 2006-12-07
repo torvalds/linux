@@ -27,6 +27,8 @@ extern char _vmlinux_start[];
 extern char _vmlinux_end[];
 extern char _initrd_start[];
 extern char _initrd_end[];
+extern char _dtb_start[];
+extern char _dtb_end[];
 
 struct addr_range {
 	unsigned long addr;
@@ -167,7 +169,7 @@ static int is_elf32(void *hdr)
 	return 1;
 }
 
-static void prep_kernel(unsigned long *a1, unsigned long *a2)
+static void prep_kernel(unsigned long a1, unsigned long a2)
 {
 	int len;
 
@@ -203,11 +205,14 @@ static void prep_kernel(unsigned long *a1, unsigned long *a2)
 	}
 
 	/*
-	 * Now we try to alloc memory for the initrd (and copy it there)
+	 * Now find the initrd
+	 *
+	 * First see if we have an image attached to us.  If so
+	 * allocate memory for it and copy it there.
 	 */
 	initrd.size = (unsigned long)(_initrd_end - _initrd_start);
 	initrd.memsize = initrd.size;
-	if ( initrd.size > 0 ) {
+	if (initrd.size > 0) {
 		printf("Allocating 0x%lx bytes for initrd ...\n\r",
 		       initrd.size);
 		initrd.addr = (unsigned long)malloc((u32)initrd.size);
@@ -216,8 +221,6 @@ static void prep_kernel(unsigned long *a1, unsigned long *a2)
 					"ramdisk !\n\r");
 			exit();
 		}
-		*a1 = initrd.addr;
-		*a2 = initrd.size;
 		printf("initial ramdisk moving 0x%lx <- 0x%lx "
 			"(0x%lx bytes)\n\r", initrd.addr,
 			(unsigned long)_initrd_start, initrd.size);
@@ -225,6 +228,12 @@ static void prep_kernel(unsigned long *a1, unsigned long *a2)
 			initrd.size);
 		printf("initrd head: 0x%lx\n\r",
 				*((unsigned long *)initrd.addr));
+	} else if (a2 != 0) {
+		/* Otherwise, see if yaboot or another loader gave us an initrd */
+		initrd.addr = a1;
+		initrd.memsize = initrd.size = a2;
+		printf("Using loader supplied initrd at 0x%lx (0x%lx bytes)\n\r",
+		       initrd.addr, initrd.size);
 	}
 
 	/* Eventually gunzip the kernel */
@@ -248,10 +257,6 @@ static void prep_kernel(unsigned long *a1, unsigned long *a2)
 	vmlinux.addr += elfoffset;
 
 	flush_cache((void *)vmlinux.addr, vmlinux.size);
-}
-
-void __attribute__ ((weak)) ft_init(void *dt_blob)
-{
 }
 
 /* A buffer that may be edited by tools operating on a zImage binary so as to
@@ -285,36 +290,22 @@ static void set_cmdline(char *buf)
 		setprop(devp, "bootargs", buf, strlen(buf) + 1);
 }
 
-/* Section where ft can be tacked on after zImage is built */
-union blobspace {
-	struct boot_param_header hdr;
-	char space[8*1024];
-} dt_blob __attribute__((__section__("__builtin_ft")));
-
 struct platform_ops platform_ops;
 struct dt_ops dt_ops;
 struct console_ops console_ops;
 
 void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 {
-	int have_dt = 0;
 	kernel_entry_t kentry;
 	char cmdline[COMMAND_LINE_SIZE];
+	unsigned long ft_addr = 0;
 
 	memset(__bss_start, 0, _end - __bss_start);
 	memset(&platform_ops, 0, sizeof(platform_ops));
 	memset(&dt_ops, 0, sizeof(dt_ops));
 	memset(&console_ops, 0, sizeof(console_ops));
 
-	/* Override the dt_ops and device tree if there was an flat dev
-	 * tree attached to the zImage.
-	 */
-	if (dt_blob.hdr.magic == OF_DT_HEADER) {
-		have_dt = 1;
-		ft_init(&dt_blob);
-	}
-
-	if (platform_init(promptr))
+	if (platform_init(promptr, _dtb_start, _dtb_end))
 		exit();
 	if (console_ops.open && (console_ops.open() < 0))
 		exit();
@@ -324,7 +315,7 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 	printf("\n\rzImage starting: loaded at 0x%p (sp: 0x%p)\n\r",
 	       _start, sp);
 
-	prep_kernel(&a1, &a2);
+	prep_kernel(a1, a2);
 
 	/* If cmdline came from zimage wrapper or if we can edit the one
 	 * in the dt, print it out and edit it, if possible.
@@ -338,15 +329,23 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 		set_cmdline(cmdline);
 	}
 
+	printf("Finalizing device tree...");
+	if (dt_ops.finalize)
+		ft_addr = dt_ops.finalize();
+	if (ft_addr)
+		printf(" flat tree at 0x%lx\n\r", ft_addr);
+	else
+		printf(" using OF tree (promptr=%p)\n\r", promptr);
+
 	if (console_ops.close)
 		console_ops.close();
 
 	kentry = (kernel_entry_t) vmlinux.addr;
-	if (have_dt)
-		kentry(dt_ops.ft_addr(), 0, NULL);
+	if (ft_addr)
+		kentry(ft_addr, 0, NULL);
 	else
 		/* XXX initrd addr/size should be passed in properties */
-		kentry(a1, a2, promptr);
+		kentry(initrd.addr, initrd.size, promptr);
 
 	/* console closed so printf below may not work */
 	printf("Error: Linux kernel returned to zImage boot wrapper!\n\r");

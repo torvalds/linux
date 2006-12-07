@@ -29,19 +29,12 @@ static inline void mask_rm7k_irq(unsigned int irq)
 	clear_c0_intcontrol(0x100 << (irq - irq_base));
 }
 
-static void rm7k_cpu_irq_end(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
-		unmask_rm7k_irq(irq);
-}
-
 static struct irq_chip rm7k_irq_controller = {
 	.typename = "RM7000",
 	.ack = mask_rm7k_irq,
 	.mask = mask_rm7k_irq,
 	.mask_ack = mask_rm7k_irq,
 	.unmask = unmask_rm7k_irq,
-	.end = rm7k_cpu_irq_end,
 };
 
 void __init rm7k_cpu_irq_init(int base)

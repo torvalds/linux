@@ -93,9 +93,11 @@ static int my3126_interrupt_handler(struct cphy *cphy)
 	return cphy_cause_link_change;
 }
 
-static void my3216_poll(void *arg)
+static void my3216_poll(struct work_struct *work)
 {
-	my3126_interrupt_handler(arg);
+	struct cphy *cphy = container_of(work, struct cphy, phy_update.work);
+
+	my3126_interrupt_handler(cphy);
 }
 
 static int my3126_set_loopback(struct cphy *cphy, int on)
@@ -171,7 +173,7 @@ static struct cphy *my3126_phy_create(adapter_t *adapter,
 	if (cphy)
 		cphy_init(cphy, adapter, phy_addr, &my3126_ops, mdio_ops);
 
-	INIT_WORK(&cphy->phy_update, my3216_poll, cphy);
+	INIT_DELAYED_WORK(&cphy->phy_update, my3216_poll);
 	cphy->bmsr = 0;
 
 	return (cphy);

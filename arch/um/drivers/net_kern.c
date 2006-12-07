@@ -99,6 +99,7 @@ irqreturn_t uml_net_interrupt(int irq, void *dev_id)
 		 * same device, since it tests for (dev->flags & IFF_UP). So
 		 * there's no harm in delaying the device shutdown. */
 		schedule_work(&close_work);
+#error this is not permitted - close_work will go out of scope
 		goto out;
 	}
 	reactivate_fd(lp->fd, UM_ETH_IRQ);

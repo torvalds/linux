@@ -39,6 +39,13 @@
 #define cpu_should_die()	0
 #endif
 
+static int __init powersave_off(char *arg)
+{
+	ppc_md.power_save = NULL;
+	return 0;
+}
+__setup("powersave=off", powersave_off);
+
 /*
  * The body of the idle task.
  */

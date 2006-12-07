@@ -312,7 +312,7 @@ define_machine(maple_md) {
 	.setup_arch		= maple_setup_arch,
 	.init_early		= maple_init_early,
 	.init_IRQ		= maple_init_IRQ,
-	.pcibios_fixup		= maple_pcibios_fixup,
+	.pci_irq_fixup		= maple_pci_irq_fixup,
 	.pci_get_legacy_ide_irq	= maple_pci_get_legacy_ide_irq,
 	.restart		= maple_restart,
 	.power_off		= maple_power_off,

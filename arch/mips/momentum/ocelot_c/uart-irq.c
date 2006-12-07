@@ -60,15 +60,6 @@ static inline void unmask_uart_irq(unsigned int irq)
 }
 
 /*
- * End IRQ processing
- */
-static void end_uart_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		unmask_uart_irq(irq);
-}
-
-/*
  * Interrupt handler for interrupts coming from the FPGA chip.
  */
 void ll_uart_irq(void)
@@ -91,7 +82,6 @@ struct irq_chip uart_irq_type = {
 	.mask = mask_uart_irq,
 	.mask_ack = mask_uart_irq,
 	.unmask = unmask_uart_irq,
-	.end = end_uart_irq,
 };
 
 void uart_irq_init(void)

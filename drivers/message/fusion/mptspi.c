@@ -646,9 +646,10 @@ struct work_queue_wrapper {
 	int			disk;
 };
 
-static void mpt_work_wrapper(void *data)
+static void mpt_work_wrapper(struct work_struct *work)
 {
-	struct work_queue_wrapper *wqw = (struct work_queue_wrapper *)data;
+	struct work_queue_wrapper *wqw =
+		container_of(work, struct work_queue_wrapper, work);
 	struct _MPT_SCSI_HOST *hd = wqw->hd;
 	struct Scsi_Host *shost = hd->ioc->sh;
 	struct scsi_device *sdev;
@@ -695,7 +696,7 @@ static void mpt_dv_raid(struct _MPT_SCSI_HOST *hd, int disk)
 			   disk);
 		return;
 	}
-	INIT_WORK(&wqw->work, mpt_work_wrapper, wqw);
+	INIT_WORK(&wqw->work, mpt_work_wrapper);
 	wqw->hd = hd;
 	wqw->disk = disk;
 
@@ -784,9 +785,10 @@ MODULE_DEVICE_TABLE(pci, mptspi_pci_table);
  * renegotiate for a given target
  */
 static void
-mptspi_dv_renegotiate_work(void *data)
+mptspi_dv_renegotiate_work(struct work_struct *work)
 {
-	struct work_queue_wrapper *wqw = (struct work_queue_wrapper *)data;
+	struct work_queue_wrapper *wqw =
+		container_of(work, struct work_queue_wrapper, work);
 	struct _MPT_SCSI_HOST *hd = wqw->hd;
 	struct scsi_device *sdev;
 
@@ -804,7 +806,7 @@ mptspi_dv_renegotiate(struct _MPT_SCSI_HOST *hd)
 	if (!wqw)
 		return;
 
-	INIT_WORK(&wqw->work, mptspi_dv_renegotiate_work, wqw);
+	INIT_WORK(&wqw->work, mptspi_dv_renegotiate_work);
 	wqw->hd = hd;
 
 	schedule_work(&wqw->work);

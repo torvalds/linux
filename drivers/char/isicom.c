@@ -530,9 +530,9 @@ sched_again:
 /* 	Interrupt handlers 	*/
 
 
-static void isicom_bottomhalf(void *data)
+static void isicom_bottomhalf(struct work_struct *work)
 {
-	struct isi_port *port = (struct isi_port *) data;
+	struct isi_port *port = container_of(work, struct isi_port, bh_tqueue);
 	struct tty_struct *tty = port->tty;
 
 	if (!tty)
@@ -1474,9 +1474,9 @@ static void isicom_start(struct tty_struct *tty)
 }
 
 /* hangup et all */
-static void do_isicom_hangup(void *data)
+static void do_isicom_hangup(struct work_struct *work)
 {
-	struct isi_port *port = data;
+	struct isi_port *port = container_of(work, struct isi_port, hangup_tq);
 	struct tty_struct *tty;
 
 	tty = port->tty;
@@ -1966,8 +1966,8 @@ static int __devinit isicom_setup(void)
 			port->channel = channel;
 			port->close_delay = 50 * HZ/100;
 			port->closing_wait = 3000 * HZ/100;
-			INIT_WORK(&port->hangup_tq, do_isicom_hangup, port);
-			INIT_WORK(&port->bh_tqueue, isicom_bottomhalf, port);
+			INIT_WORK(&port->hangup_tq, do_isicom_hangup);
+			INIT_WORK(&port->bh_tqueue, isicom_bottomhalf);
 			port->status = 0;
 			init_waitqueue_head(&port->open_wait);
 			init_waitqueue_head(&port->close_wait);

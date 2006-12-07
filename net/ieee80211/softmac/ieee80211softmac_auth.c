@@ -26,7 +26,7 @@
 
 #include "ieee80211softmac_priv.h"
 
-static void ieee80211softmac_auth_queue(void *data);
+static void ieee80211softmac_auth_queue(struct work_struct *work);
 
 /* Queues an auth request to the desired AP */
 int
@@ -54,14 +54,14 @@ ieee80211softmac_auth_req(struct ieee80211softmac_device *mac,
 	auth->mac = mac;
 	auth->retry = IEEE80211SOFTMAC_AUTH_RETRY_LIMIT;
 	auth->state = IEEE80211SOFTMAC_AUTH_OPEN_REQUEST;
-	INIT_WORK(&auth->work, &ieee80211softmac_auth_queue, (void *)auth);
+	INIT_DELAYED_WORK(&auth->work, ieee80211softmac_auth_queue);
 	
 	/* Lock (for list) */
 	spin_lock_irqsave(&mac->lock, flags);
 
 	/* add to list */
 	list_add_tail(&auth->list, &mac->auth_queue);
-	schedule_work(&auth->work);
+	schedule_delayed_work(&auth->work, 0);
 	spin_unlock_irqrestore(&mac->lock, flags);
 	
 	return 0;
@@ -70,14 +70,15 @@ ieee80211softmac_auth_req(struct ieee80211softmac_device *mac,
 
 /* Sends an auth request to the desired AP and handles timeouts */
 static void
-ieee80211softmac_auth_queue(void *data)
+ieee80211softmac_auth_queue(struct work_struct *work)
 {
 	struct ieee80211softmac_device *mac;
 	struct ieee80211softmac_auth_queue_item *auth;
 	struct ieee80211softmac_network *net;
 	unsigned long flags;
 
-	auth = (struct ieee80211softmac_auth_queue_item *)data;
+	auth = container_of(work, struct ieee80211softmac_auth_queue_item,
+			    work.work);
 	net = auth->net;
 	mac = auth->mac;
 
@@ -118,9 +119,11 @@ ieee80211softmac_auth_queue(void *data)
 
 /* Sends a response to an auth challenge (for shared key auth). */
 static void
-ieee80211softmac_auth_challenge_response(void *_aq)
+ieee80211softmac_auth_challenge_response(struct work_struct *work)
 {
-	struct ieee80211softmac_auth_queue_item *aq = _aq;
+	struct ieee80211softmac_auth_queue_item *aq =
+		container_of(work, struct ieee80211softmac_auth_queue_item,
+			     work.work);
 
 	/* Send our response */
 	ieee80211softmac_send_mgt_frame(aq->mac, aq->net, IEEE80211_STYPE_AUTH, aq->state);
@@ -234,8 +237,8 @@ ieee80211softmac_auth_resp(struct net_device *dev, struct ieee80211_auth *auth)
 			 * we have obviously already sent the initial auth
 			 * request. */
 			cancel_delayed_work(&aq->work);
-			INIT_WORK(&aq->work, &ieee80211softmac_auth_challenge_response, (void *)aq);
-			schedule_work(&aq->work);
+			INIT_DELAYED_WORK(&aq->work, &ieee80211softmac_auth_challenge_response);
+			schedule_delayed_work(&aq->work, 0);
 			spin_unlock_irqrestore(&mac->lock, flags);
 			return 0;
 		case IEEE80211SOFTMAC_AUTH_SHARED_PASS:
@@ -398,6 +401,6 @@ ieee80211softmac_deauth_resp(struct net_device *dev, struct ieee80211_deauth *de
 	ieee80211softmac_deauth_from_net(mac, net);
 
 	/* let's try to re-associate */
-	schedule_work(&mac->associnfo.work);
+	schedule_delayed_work(&mac->associnfo.work, 0);
 	return 0;
 }

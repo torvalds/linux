@@ -44,7 +44,7 @@ struct tulip_chip_table {
 	int valid_intrs;	/* CSR7 interrupt enable settings */
 	int flags;
 	void (*media_timer) (unsigned long);
-	void (*media_task) (void *);
+	work_func_t media_task;
 };
 
 
@@ -392,6 +392,7 @@ struct tulip_private {
 	int csr12_shadow;
 	int pad0;		/* Used for 8-byte alignment */
 	struct work_struct media_work;
+	struct net_device *dev;
 };
 
 
@@ -406,7 +407,7 @@ struct eeprom_fixup {
 
 /* 21142.c */
 extern u16 t21142_csr14[];
-void t21142_media_task(void *data);
+void t21142_media_task(struct work_struct *work);
 void t21142_start_nway(struct net_device *dev);
 void t21142_lnk_change(struct net_device *dev, int csr5);
 
@@ -444,7 +445,7 @@ void pnic_lnk_change(struct net_device *dev, int csr5);
 void pnic_timer(unsigned long data);
 
 /* timer.c */
-void tulip_media_task(void *data);
+void tulip_media_task(struct work_struct *work);
 void mxic_timer(unsigned long data);
 void comet_timer(unsigned long data);
 

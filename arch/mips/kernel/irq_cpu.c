@@ -50,12 +50,6 @@ static inline void mask_mips_irq(unsigned int irq)
 	irq_disable_hazard();
 }
 
-static void mips_cpu_irq_end(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
-		unmask_mips_irq(irq);
-}
-
 static struct irq_chip mips_cpu_irq_controller = {
 	.typename	= "MIPS",
 	.ack		= mask_mips_irq,
@@ -63,7 +57,6 @@ static struct irq_chip mips_cpu_irq_controller = {
 	.mask_ack	= mask_mips_irq,
 	.unmask		= unmask_mips_irq,
 	.eoi		= unmask_mips_irq,
-	.end		= mips_cpu_irq_end,
 };
 
 /*
@@ -96,8 +89,6 @@ static void mips_mt_cpu_irq_ack(unsigned int irq)
 	mask_mips_mt_irq(irq);
 }
 
-#define mips_mt_cpu_irq_end mips_cpu_irq_end
-
 static struct irq_chip mips_mt_cpu_irq_controller = {
 	.typename	= "MIPS",
 	.startup	= mips_mt_cpu_irq_startup,
@@ -106,7 +97,6 @@ static struct irq_chip mips_mt_cpu_irq_controller = {
 	.mask_ack	= mips_mt_cpu_irq_ack,
 	.unmask		= unmask_mips_mt_irq,
 	.eoi		= unmask_mips_mt_irq,
-	.end		= mips_mt_cpu_irq_end,
 };
 
 void __init mips_cpu_irq_init(int irq_base)

@@ -83,6 +83,22 @@ _GLOBAL(__setup_cpu_ppc970)
 	rldimi	r0,r11,52,8		/* set NAP and DPM */
 	li	r11,0
 	rldimi	r0,r11,32,31		/* clear EN_ATTN */
+	b	load_hids		/* Jump to shared code */
+
+
+_GLOBAL(__setup_cpu_ppc970MP)
+	/* Do nothing if not running in HV mode */
+	mfmsr	r0
+	rldicl.	r0,r0,4,63
+	beqlr
+
+	mfspr	r0,SPRN_HID0
+	li	r11,0x15		/* clear DOZE and SLEEP */
+	rldimi	r0,r11,52,6		/* set DEEPNAP, NAP and DPM */
+	li	r11,0
+	rldimi	r0,r11,32,31		/* clear EN_ATTN */
+
+load_hids:
 	mtspr	SPRN_HID0,r0
 	mfspr	r0,SPRN_HID0
 	mfspr	r0,SPRN_HID0

@@ -782,9 +782,10 @@ static struct ethtool_ops usbnet_ethtool_ops = {
  * especially now that control transfers can be queued.
  */
 static void
-kevent (void *data)
+kevent (struct work_struct *work)
 {
-	struct usbnet		*dev = data;
+	struct usbnet		*dev =
+		container_of(work, struct usbnet, kevent);
 	int			status;
 
 	/* usb_clear_halt() needs a thread context */
@@ -1146,7 +1147,7 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	skb_queue_head_init (&dev->done);
 	dev->bh.func = usbnet_bh;
 	dev->bh.data = (unsigned long) dev;
-	INIT_WORK (&dev->kevent, kevent, dev);
+	INIT_WORK (&dev->kevent, kevent);
 	dev->delay.function = usbnet_bh;
 	dev->delay.data = (unsigned long) dev;
 	init_timer (&dev->delay);

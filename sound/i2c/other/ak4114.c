@@ -35,7 +35,7 @@ MODULE_LICENSE("GPL");
 
 #define AK4114_ADDR			0x00 /* fixed address */
 
-static void ak4114_stats(void *);
+static void ak4114_stats(struct work_struct *work);
 
 static void reg_write(struct ak4114 *ak4114, unsigned char reg, unsigned char val)
 {
@@ -158,7 +158,7 @@ void snd_ak4114_reinit(struct ak4114 *chip)
 	reg_write(chip, AK4114_REG_PWRDN, old | AK4114_RST | AK4114_PWN);
 	/* bring up statistics / event queing */
 	chip->init = 0;
-	INIT_WORK(&chip->work, ak4114_stats, chip);
+	INIT_DELAYED_WORK(&chip->work, ak4114_stats);
 	queue_delayed_work(chip->workqueue, &chip->work, HZ / 10);
 }
 
@@ -561,9 +561,9 @@ int snd_ak4114_check_rate_and_errors(struct ak4114 *ak4114, unsigned int flags)
 	return res;
 }
 
-static void ak4114_stats(void *data)
+static void ak4114_stats(struct work_struct *work)
 {
-	struct ak4114 *chip = (struct ak4114 *)data;
+	struct ak4114 *chip = container_of(work, struct ak4114, work.work);
 
 	if (chip->init)
 		return;

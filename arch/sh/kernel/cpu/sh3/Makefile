@@ -2,7 +2,7 @@
 # Makefile for the Linux/SuperH SH-3 backends.
 #
 
-obj-y	:= ex.o probe.o
+obj-y	:= ex.o probe.o entry.o
 
 # CPU subtype setup
 obj-$(CONFIG_CPU_SUBTYPE_SH7705)	+= setup-sh7705.o

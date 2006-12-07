@@ -1030,7 +1030,7 @@ void sctp_inq_init(struct sctp_inq *);
 void sctp_inq_free(struct sctp_inq *);
 void sctp_inq_push(struct sctp_inq *, struct sctp_chunk *packet);
 struct sctp_chunk *sctp_inq_pop(struct sctp_inq *);
-void sctp_inq_set_th_handler(struct sctp_inq *, void (*)(void *), void *);
+void sctp_inq_set_th_handler(struct sctp_inq *, work_func_t);
 
 /* This is the structure we use to hold outbound chunks.  You push
  * chunks in and they automatically pop out the other end as bundled

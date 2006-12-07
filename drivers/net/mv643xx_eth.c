@@ -277,9 +277,11 @@ static void mv643xx_eth_tx_timeout(struct net_device *dev)
  *
  * Actual routine to reset the adapter when a timeout on Tx has occurred
  */
-static void mv643xx_eth_tx_timeout_task(struct net_device *dev)
+static void mv643xx_eth_tx_timeout_task(struct work_struct *ugly)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_private *mp = container_of(ugly, struct mv643xx_private,
+						  tx_timeout_task);
+	struct net_device *dev = mp->mii.dev; /* yuck */
 
 	if (!netif_running(dev))
 		return;
@@ -1360,8 +1362,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 #endif
 
 	/* Configure the timeout task */
-	INIT_WORK(&mp->tx_timeout_task,
-			(void (*)(void *))mv643xx_eth_tx_timeout_task, dev);
+	INIT_WORK(&mp->tx_timeout_task, mv643xx_eth_tx_timeout_task);
 
 	spin_lock_init(&mp->lock);
 

@@ -2282,9 +2282,9 @@ static void gem_do_stop(struct net_device *dev, int wol)
 	}
 }
 
-static void gem_reset_task(void *data)
+static void gem_reset_task(struct work_struct *work)
 {
-	struct gem *gp = (struct gem *) data;
+	struct gem *gp = container_of(work, struct gem, reset_task);
 
 	mutex_lock(&gp->pm_mutex);
 
@@ -3044,7 +3044,7 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 	gp->link_timer.function = gem_link_timer;
 	gp->link_timer.data = (unsigned long) gp;
 
-	INIT_WORK(&gp->reset_task, gem_reset_task, gp);
+	INIT_WORK(&gp->reset_task, gem_reset_task);
 
 	gp->lstate = link_down;
 	gp->timer_ticks = 0;

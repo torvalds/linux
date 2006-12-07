@@ -926,9 +926,10 @@ cy_sched_event(struct cyclades_port *info, int event)
  * had to poll every port to see if that port needed servicing.
  */
 static void
-do_softint(void *private_)
+do_softint(struct work_struct *work)
 {
-  struct cyclades_port *info = (struct cyclades_port *) private_;
+	struct cyclades_port *info =
+		container_of(work, struct cyclades_port, tqueue);
   struct tty_struct    *tty;
 
     tty = info->tty;
@@ -5328,7 +5329,7 @@ cy_init(void)
                     info->blocked_open = 0;
                     info->default_threshold = 0;
                     info->default_timeout = 0;
-		    INIT_WORK(&info->tqueue, do_softint, info);
+		    INIT_WORK(&info->tqueue, do_softint);
 		    init_waitqueue_head(&info->open_wait);
 		    init_waitqueue_head(&info->close_wait);
 		    init_waitqueue_head(&info->shutdown_wait);
@@ -5403,7 +5404,7 @@ cy_init(void)
                     info->blocked_open = 0;
                     info->default_threshold = 0;
                     info->default_timeout = 0;
-		    INIT_WORK(&info->tqueue, do_softint, info);
+		    INIT_WORK(&info->tqueue, do_softint);
 		    init_waitqueue_head(&info->open_wait);
 		    init_waitqueue_head(&info->close_wait);
 		    init_waitqueue_head(&info->shutdown_wait);

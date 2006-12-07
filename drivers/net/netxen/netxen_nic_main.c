@@ -72,7 +72,7 @@ static int netxen_nic_open(struct net_device *netdev);
 static int netxen_nic_close(struct net_device *netdev);
 static int netxen_nic_xmit_frame(struct sk_buff *, struct net_device *);
 static void netxen_tx_timeout(struct net_device *netdev);
-static void netxen_tx_timeout_task(struct net_device *netdev);
+static void netxen_tx_timeout_task(struct work_struct *work);
 static void netxen_watchdog(unsigned long);
 static int netxen_handle_int(struct netxen_adapter *, struct net_device *);
 static int netxen_nic_ioctl(struct net_device *netdev,
@@ -318,8 +318,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->ahw.xg_linkup = 0;
 	adapter->watchdog_timer.function = &netxen_watchdog;
 	adapter->watchdog_timer.data = (unsigned long)adapter;
-	INIT_WORK(&adapter->watchdog_task,
-		  (void (*)(void *))netxen_watchdog_task, adapter);
+	INIT_WORK(&adapter->watchdog_task, netxen_watchdog_task);
 	adapter->ahw.pdev = pdev;
 	adapter->proc_cmd_buf_counter = 0;
 	adapter->ahw.revision_id = nx_p2_id;
@@ -429,8 +428,8 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 							     netdev->dev_addr);
 			}
 		}
-		INIT_WORK(adapter->tx_timeout_task + i,
-			  (void (*)(void *))netxen_tx_timeout_task, netdev);
+		adapter->netdev = netdev;
+		INIT_WORK(&adapter->tx_timeout_task, netxen_tx_timeout_task);
 		netif_carrier_off(netdev);
 		netif_stop_queue(netdev);
 
@@ -973,18 +972,20 @@ static void netxen_tx_timeout(struct net_device *netdev)
 	SCHEDULE_WORK(port->adapter->tx_timeout_task + port->portnum);
 }
 
-static void netxen_tx_timeout_task(struct net_device *netdev)
+static void netxen_tx_timeout_task(struct work_struct *work)
 {
-	struct netxen_port *port = (struct netxen_port *)netdev_priv(netdev);
+	struct netxen_adapter *adapter =
+		container_of(work, struct netxen_adapter, tx_timeout_task);
+	struct net_device *netdev = adapter->netdev;
 	unsigned long flags;
 
 	printk(KERN_ERR "%s %s: transmit timeout, resetting.\n",
 	       netxen_nic_driver_name, netdev->name);
 
-	spin_lock_irqsave(&port->adapter->lock, flags);
+	spin_lock_irqsave(&adapter->lock, flags);
 	netxen_nic_close(netdev);
 	netxen_nic_open(netdev);
-	spin_unlock_irqrestore(&port->adapter->lock, flags);
+	spin_unlock_irqrestore(&adapter->lock, flags);
 	netdev->trans_start = jiffies;
 	netif_wake_queue(netdev);
 }

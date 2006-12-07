@@ -408,9 +408,9 @@ rexmit_timer(ulong vp)
 /* this function performs work that has been deferred until sleeping is OK
  */
 void
-aoecmd_sleepwork(void *vp)
+aoecmd_sleepwork(struct work_struct *work)
 {
-	struct aoedev *d = (struct aoedev *) vp;
+	struct aoedev *d = container_of(work, struct aoedev, work);
 
 	if (d->flags & DEVFL_GDALLOC)
 		aoeblk_gdalloc(d);

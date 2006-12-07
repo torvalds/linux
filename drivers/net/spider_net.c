@@ -88,12 +88,11 @@ MODULE_DEVICE_TABLE(pci, spider_net_pci_tbl);
 static inline u32
 spider_net_read_reg(struct spider_net_card *card, u32 reg)
 {
-	u32 value;
-
-	value = readl(card->regs + reg);
-	value = le32_to_cpu(value);
-
-	return value;
+	/* We use the powerpc specific variants instead of readl_be() because
+	 * we know spidernet is not a real PCI device and we can thus avoid the
+	 * performance hit caused by the PCI workarounds.
+	 */
+	return in_be32(card->regs + reg);
 }
 
 /**
@@ -105,8 +104,11 @@ spider_net_read_reg(struct spider_net_card *card, u32 reg)
 static inline void
 spider_net_write_reg(struct spider_net_card *card, u32 reg, u32 value)
 {
-	value = cpu_to_le32(value);
-	writel(value, card->regs + reg);
+	/* We use the powerpc specific variants instead of writel_be() because
+	 * we know spidernet is not a real PCI device and we can thus avoid the
+	 * performance hit caused by the PCI workarounds.
+	 */
+	out_be32(card->regs + reg, value);
 }
 
 /** spider_net_write_phy - write to phy register
@@ -1937,10 +1939,11 @@ spider_net_stop(struct net_device *netdev)
  * called as task when tx hangs, resets interface (if interface is up)
  */
 static void
-spider_net_tx_timeout_task(void *data)
+spider_net_tx_timeout_task(struct work_struct *work)
 {
-	struct net_device *netdev = data;
-	struct spider_net_card *card = netdev_priv(netdev);
+	struct spider_net_card *card =
+		container_of(work, struct spider_net_card, tx_timeout_task);
+	struct net_device *netdev = card->netdev;
 
 	if (!(netdev->flags & IFF_UP))
 		goto out;
@@ -2114,7 +2117,7 @@ spider_net_alloc_card(void)
 	card = netdev_priv(netdev);
 	card->netdev = netdev;
 	card->msg_enable = SPIDER_NET_DEFAULT_MSG;
-	INIT_WORK(&card->tx_timeout_task, spider_net_tx_timeout_task, netdev);
+	INIT_WORK(&card->tx_timeout_task, spider_net_tx_timeout_task);
 	init_waitqueue_head(&card->waitq);
 	atomic_set(&card->tx_timeout_task_counter, 0);
 

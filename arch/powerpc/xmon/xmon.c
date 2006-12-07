@@ -37,13 +37,18 @@
 #include <asm/sstep.h>
 #include <asm/bug.h>
 #include <asm/irq_regs.h>
+#include <asm/spu.h>
+#include <asm/spu_priv1.h>
+#include <asm/firmware.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/hvcall.h>
 #include <asm/paca.h>
+#include <asm/iseries/it_lp_reg_save.h>
 #endif
 
 #include "nonstdio.h"
+#include "dis-asm.h"
 
 #define scanhex	xmon_scanhex
 #define skipbl	xmon_skipbl
@@ -107,7 +112,6 @@ static int bsesc(void);
 static void dump(void);
 static void prdump(unsigned long, long);
 static int ppc_inst_dump(unsigned long, long, int);
-void print_address(unsigned long);
 static void backtrace(struct pt_regs *);
 static void excprint(struct pt_regs *);
 static void prregs(struct pt_regs *);
@@ -147,9 +151,9 @@ static void xmon_print_symbol(unsigned long address, const char *mid,
 			      const char *after);
 static const char *getvecname(unsigned long vec);
 
-int xmon_no_auto_backtrace;
+static int do_spu_cmd(void);
 
-extern int print_insn_powerpc(unsigned long, unsigned long, int);
+int xmon_no_auto_backtrace;
 
 extern void xmon_enter(void);
 extern void xmon_leave(void);
@@ -209,8 +213,15 @@ Commands:\n\
   mi	show information about memory allocation\n\
   p 	call a procedure\n\
   r	print registers\n\
-  s	single step\n\
-  S	print special registers\n\
+  s	single step\n"
+#ifdef CONFIG_SPU_BASE
+"  ss	stop execution on all spus\n\
+  sr	restore execution on stopped spus\n\
+  sf  #	dump spu fields for spu # (in hex)\n\
+  sd  #	dump spu local store for spu # (in hex)\
+  sdi #	disassemble spu local store for spu # (in hex)\n"
+#endif
+"  S	print special registers\n\
   t	print backtrace\n\
   x	exit monitor and recover\n\
   X	exit monitor and dont recover\n"
@@ -518,6 +529,7 @@ int xmon(struct pt_regs *excp)
 		xmon_save_regs(&regs);
 		excp = &regs;
 	}
+
 	return xmon_core(excp, 0);
 }
 EXPORT_SYMBOL(xmon);
@@ -809,6 +821,8 @@ cmds(struct pt_regs *excp)
 			cacheflush();
 			break;
 		case 's':
+			if (do_spu_cmd() == 0)
+				break;
 			if (do_step(excp))
 				return cmd;
 			break;
@@ -1555,11 +1569,6 @@ void super_regs(void)
 {
 	int cmd;
 	unsigned long val;
-#ifdef CONFIG_PPC_ISERIES
-	struct paca_struct *ptrPaca = NULL;
-	struct lppaca *ptrLpPaca = NULL;
-	struct ItLpRegSave *ptrLpRegSave = NULL;
-#endif
 
 	cmd = skipbl();
 	if (cmd == '\n') {
@@ -1576,26 +1585,32 @@ void super_regs(void)
 		printf("sp   = "REG"  sprg3= "REG"\n", sp, mfspr(SPRN_SPRG3));
 		printf("toc  = "REG"  dar  = "REG"\n", toc, mfspr(SPRN_DAR));
 #ifdef CONFIG_PPC_ISERIES
-		// Dump out relevant Paca data areas.
-		printf("Paca: \n");
-		ptrPaca = get_paca();
-    
-		printf("  Local Processor Control Area (LpPaca): \n");
-		ptrLpPaca = ptrPaca->lppaca_ptr;
-		printf("    Saved Srr0=%.16lx  Saved Srr1=%.16lx \n",
-		       ptrLpPaca->saved_srr0, ptrLpPaca->saved_srr1);
-		printf("    Saved Gpr3=%.16lx  Saved Gpr4=%.16lx \n",
-		       ptrLpPaca->saved_gpr3, ptrLpPaca->saved_gpr4);
-		printf("    Saved Gpr5=%.16lx \n", ptrLpPaca->saved_gpr5);
-    
-		printf("  Local Processor Register Save Area (LpRegSave): \n");
-		ptrLpRegSave = ptrPaca->reg_save_ptr;
-		printf("    Saved Sprg0=%.16lx  Saved Sprg1=%.16lx \n",
-		       ptrLpRegSave->xSPRG0, ptrLpRegSave->xSPRG0);
-		printf("    Saved Sprg2=%.16lx  Saved Sprg3=%.16lx \n",
-		       ptrLpRegSave->xSPRG2, ptrLpRegSave->xSPRG3);
-		printf("    Saved Msr  =%.16lx  Saved Nia  =%.16lx \n",
-		       ptrLpRegSave->xMSR, ptrLpRegSave->xNIA);
+		if (firmware_has_feature(FW_FEATURE_ISERIES)) {
+			struct paca_struct *ptrPaca;
+			struct lppaca *ptrLpPaca;
+			struct ItLpRegSave *ptrLpRegSave;
+
+			/* Dump out relevant Paca data areas. */
+			printf("Paca: \n");
+			ptrPaca = get_paca();
+
+			printf("  Local Processor Control Area (LpPaca): \n");
+			ptrLpPaca = ptrPaca->lppaca_ptr;
+			printf("    Saved Srr0=%.16lx  Saved Srr1=%.16lx \n",
+			       ptrLpPaca->saved_srr0, ptrLpPaca->saved_srr1);
+			printf("    Saved Gpr3=%.16lx  Saved Gpr4=%.16lx \n",
+			       ptrLpPaca->saved_gpr3, ptrLpPaca->saved_gpr4);
+			printf("    Saved Gpr5=%.16lx \n", ptrLpPaca->saved_gpr5);
+
+			printf("  Local Processor Register Save Area (LpRegSave): \n");
+			ptrLpRegSave = ptrPaca->reg_save_ptr;
+			printf("    Saved Sprg0=%.16lx  Saved Sprg1=%.16lx \n",
+			       ptrLpRegSave->xSPRG0, ptrLpRegSave->xSPRG0);
+			printf("    Saved Sprg2=%.16lx  Saved Sprg3=%.16lx \n",
+			       ptrLpRegSave->xSPRG2, ptrLpRegSave->xSPRG3);
+			printf("    Saved Msr  =%.16lx  Saved Nia  =%.16lx \n",
+			       ptrLpRegSave->xMSR, ptrLpRegSave->xNIA);
+		}
 #endif
 
 		return;
@@ -2053,8 +2068,11 @@ prdump(unsigned long adrs, long ndump)
 	}
 }
 
+typedef int (*instruction_dump_func)(unsigned long inst, unsigned long addr);
+
 int
-ppc_inst_dump(unsigned long adr, long count, int praddr)
+generic_inst_dump(unsigned long adr, long count, int praddr,
+			instruction_dump_func dump_func)
 {
 	int nr, dotted;
 	unsigned long first_adr;
@@ -2084,10 +2102,16 @@ ppc_inst_dump(unsigned long adr, long count, int praddr)
 		if (praddr)
 			printf(REG"  %.8x", adr, inst);
 		printf("\t");
-		print_insn_powerpc(inst, adr, 0);	/* always returns 4 */
+		dump_func(inst, adr);
 		printf("\n");
 	}
 	return adr - first_adr;
+}
+
+int
+ppc_inst_dump(unsigned long adr, long count, int praddr)
+{
+	return generic_inst_dump(adr, count, praddr, print_insn_powerpc);
 }
 
 void
@@ -2557,6 +2581,10 @@ void dump_segments(void)
 
 void xmon_init(int enable)
 {
+#ifdef CONFIG_PPC_ISERIES
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		return;
+#endif
 	if (enable) {
 		__debugger = xmon;
 		__debugger_ipi = xmon_ipi;
@@ -2594,6 +2622,10 @@ static struct sysrq_key_op sysrq_xmon_op =
 
 static int __init setup_xmon_sysrq(void)
 {
+#ifdef CONFIG_PPC_ISERIES
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		return 0;
+#endif
 	register_sysrq_key('x', &sysrq_xmon_op);
 	return 0;
 }
@@ -2630,3 +2662,263 @@ void __init xmon_setup(void)
 	if (xmon_early)
 		debugger(NULL);
 }
+
+#ifdef CONFIG_SPU_BASE
+
+struct spu_info {
+	struct spu *spu;
+	u64 saved_mfc_sr1_RW;
+	u32 saved_spu_runcntl_RW;
+	unsigned long dump_addr;
+	u8 stopped_ok;
+};
+
+#define XMON_NUM_SPUS	16	/* Enough for current hardware */
+
+static struct spu_info spu_info[XMON_NUM_SPUS];
+
+void xmon_register_spus(struct list_head *list)
+{
+	struct spu *spu;
+
+	list_for_each_entry(spu, list, full_list) {
+		if (spu->number >= XMON_NUM_SPUS) {
+			WARN_ON(1);
+			continue;
+		}
+
+		spu_info[spu->number].spu = spu;
+		spu_info[spu->number].stopped_ok = 0;
+		spu_info[spu->number].dump_addr = (unsigned long)
+				spu_info[spu->number].spu->local_store;
+	}
+}
+
+static void stop_spus(void)
+{
+	struct spu *spu;
+	int i;
+	u64 tmp;
+
+	for (i = 0; i < XMON_NUM_SPUS; i++) {
+		if (!spu_info[i].spu)
+			continue;
+
+		if (setjmp(bus_error_jmp) == 0) {
+			catch_memory_errors = 1;
+			sync();
+
+			spu = spu_info[i].spu;
+
+			spu_info[i].saved_spu_runcntl_RW =
+				in_be32(&spu->problem->spu_runcntl_RW);
+
+			tmp = spu_mfc_sr1_get(spu);
+			spu_info[i].saved_mfc_sr1_RW = tmp;
+
+			tmp &= ~MFC_STATE1_MASTER_RUN_CONTROL_MASK;
+			spu_mfc_sr1_set(spu, tmp);
+
+			sync();
+			__delay(200);
+
+			spu_info[i].stopped_ok = 1;
+
+			printf("Stopped spu %.2d (was %s)\n", i,
+					spu_info[i].saved_spu_runcntl_RW ?
+					"running" : "stopped");
+		} else {
+			catch_memory_errors = 0;
+			printf("*** Error stopping spu %.2d\n", i);
+		}
+		catch_memory_errors = 0;
+	}
+}
+
+static void restart_spus(void)
+{
+	struct spu *spu;
+	int i;
+
+	for (i = 0; i < XMON_NUM_SPUS; i++) {
+		if (!spu_info[i].spu)
+			continue;
+
+		if (!spu_info[i].stopped_ok) {
+			printf("*** Error, spu %d was not successfully stopped"
+					", not restarting\n", i);
+			continue;
+		}
+
+		if (setjmp(bus_error_jmp) == 0) {
+			catch_memory_errors = 1;
+			sync();
+
+			spu = spu_info[i].spu;
+			spu_mfc_sr1_set(spu, spu_info[i].saved_mfc_sr1_RW);
+			out_be32(&spu->problem->spu_runcntl_RW,
+					spu_info[i].saved_spu_runcntl_RW);
+
+			sync();
+			__delay(200);
+
+			printf("Restarted spu %.2d\n", i);
+		} else {
+			catch_memory_errors = 0;
+			printf("*** Error restarting spu %.2d\n", i);
+		}
+		catch_memory_errors = 0;
+	}
+}
+
+#define DUMP_WIDTH	23
+#define DUMP_VALUE(format, field, value)				\
+do {									\
+	if (setjmp(bus_error_jmp) == 0) {				\
+		catch_memory_errors = 1;				\
+		sync();							\
+		printf("  %-*s = "format"\n", DUMP_WIDTH,		\
+				#field, value);				\
+		sync();							\
+		__delay(200);						\
+	} else {							\
+		catch_memory_errors = 0;				\
+		printf("  %-*s = *** Error reading field.\n",		\
+					DUMP_WIDTH, #field);		\
+	}								\
+	catch_memory_errors = 0;					\
+} while (0)
+
+#define DUMP_FIELD(obj, format, field)	\
+	DUMP_VALUE(format, field, obj->field)
+
+static void dump_spu_fields(struct spu *spu)
+{
+	printf("Dumping spu fields at address %p:\n", spu);
+
+	DUMP_FIELD(spu, "0x%x", number);
+	DUMP_FIELD(spu, "%s", name);
+	DUMP_FIELD(spu, "0x%lx", local_store_phys);
+	DUMP_FIELD(spu, "0x%p", local_store);
+	DUMP_FIELD(spu, "0x%lx", ls_size);
+	DUMP_FIELD(spu, "0x%x", node);
+	DUMP_FIELD(spu, "0x%lx", flags);
+	DUMP_FIELD(spu, "0x%lx", dar);
+	DUMP_FIELD(spu, "0x%lx", dsisr);
+	DUMP_FIELD(spu, "%d", class_0_pending);
+	DUMP_FIELD(spu, "0x%lx", irqs[0]);
+	DUMP_FIELD(spu, "0x%lx", irqs[1]);
+	DUMP_FIELD(spu, "0x%lx", irqs[2]);
+	DUMP_FIELD(spu, "0x%x", slb_replace);
+	DUMP_FIELD(spu, "%d", pid);
+	DUMP_FIELD(spu, "%d", prio);
+	DUMP_FIELD(spu, "0x%p", mm);
+	DUMP_FIELD(spu, "0x%p", ctx);
+	DUMP_FIELD(spu, "0x%p", rq);
+	DUMP_FIELD(spu, "0x%p", timestamp);
+	DUMP_FIELD(spu, "0x%lx", problem_phys);
+	DUMP_FIELD(spu, "0x%p", problem);
+	DUMP_VALUE("0x%x", problem->spu_runcntl_RW,
+			in_be32(&spu->problem->spu_runcntl_RW));
+	DUMP_VALUE("0x%x", problem->spu_status_R,
+			in_be32(&spu->problem->spu_status_R));
+	DUMP_VALUE("0x%x", problem->spu_npc_RW,
+			in_be32(&spu->problem->spu_npc_RW));
+	DUMP_FIELD(spu, "0x%p", priv2);
+	DUMP_FIELD(spu, "0x%p", pdata);
+}
+
+int
+spu_inst_dump(unsigned long adr, long count, int praddr)
+{
+	return generic_inst_dump(adr, count, praddr, print_insn_spu);
+}
+
+static void dump_spu_ls(unsigned long num, int subcmd)
+{
+	unsigned long offset, addr, ls_addr;
+
+	if (setjmp(bus_error_jmp) == 0) {
+		catch_memory_errors = 1;
+		sync();
+		ls_addr = (unsigned long)spu_info[num].spu->local_store;
+		sync();
+		__delay(200);
+	} else {
+		catch_memory_errors = 0;
+		printf("*** Error: accessing spu info for spu %d\n", num);
+		return;
+	}
+	catch_memory_errors = 0;
+
+	if (scanhex(&offset))
+		addr = ls_addr + offset;
+	else
+		addr = spu_info[num].dump_addr;
+
+	if (addr >= ls_addr + LS_SIZE) {
+		printf("*** Error: address outside of local store\n");
+		return;
+	}
+
+	switch (subcmd) {
+	case 'i':
+		addr += spu_inst_dump(addr, 16, 1);
+		last_cmd = "sdi\n";
+		break;
+	default:
+		prdump(addr, 64);
+		addr += 64;
+		last_cmd = "sd\n";
+		break;
+	}
+
+	spu_info[num].dump_addr = addr;
+}
+
+static int do_spu_cmd(void)
+{
+	static unsigned long num = 0;
+	int cmd, subcmd = 0;
+
+	cmd = inchar();
+	switch (cmd) {
+	case 's':
+		stop_spus();
+		break;
+	case 'r':
+		restart_spus();
+		break;
+	case 'd':
+		subcmd = inchar();
+		if (isxdigit(subcmd) || subcmd == '\n')
+			termch = subcmd;
+	case 'f':
+		scanhex(&num);
+		if (num >= XMON_NUM_SPUS || !spu_info[num].spu) {
+			printf("*** Error: invalid spu number\n");
+			return 0;
+		}
+
+		switch (cmd) {
+		case 'f':
+			dump_spu_fields(spu_info[num].spu);
+			break;
+		default:
+			dump_spu_ls(num, subcmd);
+			break;
+		}
+
+		break;
+	default:
+		return -1;
+	}
+
+	return 0;
+}
+#else /* ! CONFIG_SPU_BASE */
+static int do_spu_cmd(void)
+{
+	return -1;
+}
+#endif

@@ -458,11 +458,11 @@ static void dec_pending(struct crypt_io *io, int error)
  * interrupt context.
  */
 static struct workqueue_struct *_kcryptd_workqueue;
-static void kcryptd_do_work(void *data);
+static void kcryptd_do_work(struct work_struct *work);
 
 static void kcryptd_queue_io(struct crypt_io *io)
 {
-	INIT_WORK(&io->work, kcryptd_do_work, io);
+	INIT_WORK(&io->work, kcryptd_do_work);
 	queue_work(_kcryptd_workqueue, &io->work);
 }
 
@@ -618,9 +618,9 @@ static void process_read_endio(struct crypt_io *io)
 	dec_pending(io, crypt_convert(cc, &ctx));
 }
 
-static void kcryptd_do_work(void *data)
+static void kcryptd_do_work(struct work_struct *work)
 {
-	struct crypt_io *io = data;
+	struct crypt_io *io = container_of(work, struct crypt_io, work);
 
 	if (io->post_process)
 		process_read_endio(io);

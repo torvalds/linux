@@ -1060,13 +1060,14 @@ static int xs_bindresvport(struct rpc_xprt *xprt, struct socket *sock)
 
 /**
  * xs_udp_connect_worker - set up a UDP socket
- * @args: RPC transport to connect
+ * @work: RPC transport to connect
  *
  * Invoked by a work queue tasklet.
  */
-static void xs_udp_connect_worker(void *args)
+static void xs_udp_connect_worker(struct work_struct *work)
 {
-	struct rpc_xprt *xprt = (struct rpc_xprt *) args;
+	struct rpc_xprt *xprt =
+		container_of(work, struct rpc_xprt, connect_worker.work);
 	struct socket *sock = xprt->sock;
 	int err, status = -EIO;
 
@@ -1144,13 +1145,14 @@ static void xs_tcp_reuse_connection(struct rpc_xprt *xprt)
 
 /**
  * xs_tcp_connect_worker - connect a TCP socket to a remote endpoint
- * @args: RPC transport to connect
+ * @work: RPC transport to connect
  *
  * Invoked by a work queue tasklet.
  */
-static void xs_tcp_connect_worker(void *args)
+static void xs_tcp_connect_worker(struct work_struct *work)
 {
-	struct rpc_xprt *xprt = (struct rpc_xprt *)args;
+	struct rpc_xprt *xprt =
+		container_of(work, struct rpc_xprt, connect_worker.work);
 	struct socket *sock = xprt->sock;
 	int err, status = -EIO;
 
@@ -1262,7 +1264,7 @@ static void xs_connect(struct rpc_task *task)
 			xprt->reestablish_timeout = XS_TCP_MAX_REEST_TO;
 	} else {
 		dprintk("RPC:      xs_connect scheduled xprt %p\n", xprt);
-		schedule_work(&xprt->connect_worker);
+		schedule_delayed_work(&xprt->connect_worker, 0);
 
 		/* flush_scheduled_work can sleep... */
 		if (!RPC_IS_ASYNC(task))
@@ -1375,7 +1377,7 @@ int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	/* XXX: header size can vary due to auth type, IPv6, etc. */
 	xprt->max_payload = (1U << 16) - (MAX_HEADER << 3);
 
-	INIT_WORK(&xprt->connect_worker, xs_udp_connect_worker, xprt);
+	INIT_DELAYED_WORK(&xprt->connect_worker, xs_udp_connect_worker);
 	xprt->bind_timeout = XS_BIND_TO;
 	xprt->connect_timeout = XS_UDP_CONN_TO;
 	xprt->reestablish_timeout = XS_UDP_REEST_TO;
@@ -1420,7 +1422,7 @@ int xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	xprt->tsh_size = sizeof(rpc_fraghdr) / sizeof(u32);
 	xprt->max_payload = RPC_MAX_FRAGMENT_SIZE;
 
-	INIT_WORK(&xprt->connect_worker, xs_tcp_connect_worker, xprt);
+	INIT_DELAYED_WORK(&xprt->connect_worker, xs_tcp_connect_worker);
 	xprt->bind_timeout = XS_BIND_TO;
 	xprt->connect_timeout = XS_TCP_CONN_TO;
 	xprt->reestablish_timeout = XS_TCP_INIT_REEST_TO;

@@ -735,30 +735,12 @@ do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 static int netwave_pcmcia_config(struct pcmcia_device *link) {
     struct net_device *dev = link->priv;
     netwave_private *priv = netdev_priv(dev);
-    tuple_t tuple;
-    cisparse_t parse;
     int i, j, last_ret, last_fn;
-    u_char buf[64];
     win_req_t req;
     memreq_t mem;
     u_char __iomem *ramBase = NULL;
 
     DEBUG(0, "netwave_pcmcia_config(0x%p)\n", link);
-
-    /*
-      This reads the card's CONFIG tuple to find its configuration
-      registers.
-    */
-    tuple.Attributes = 0;
-    tuple.TupleData = (cisdata_t *) buf;
-    tuple.TupleDataMax = 64;
-    tuple.TupleOffset = 0;
-    tuple.DesiredTuple = CISTPL_CONFIG;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
-    link->conf.ConfigBase = parse.config.base;
-    link->conf.Present = parse.config.rmask[0];
 
     /*
      *  Try allocating IO ports.  This tries a few fixed addresses.

@@ -153,9 +153,10 @@ static inline void dlm_reset_recovery(struct dlm_ctxt *dlm)
 }
 
 /* Worker function used during recovery. */
-void dlm_dispatch_work(void *data)
+void dlm_dispatch_work(struct work_struct *work)
 {
-	struct dlm_ctxt *dlm = (struct dlm_ctxt *)data;
+	struct dlm_ctxt *dlm =
+		container_of(work, struct dlm_ctxt, dispatched_work);
 	LIST_HEAD(tmp_list);
 	struct list_head *iter, *iter2;
 	struct dlm_work_item *item;

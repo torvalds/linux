@@ -65,9 +65,11 @@ void sas_hash_addr(u8 *hashed, const u8 *sas_addr)
 
 /* ---------- HA events ---------- */
 
-void sas_hae_reset(void *data)
+void sas_hae_reset(struct work_struct *work)
 {
-	struct sas_ha_struct *ha = data;
+	struct sas_ha_event *ev =
+		container_of(work, struct sas_ha_event, work);
+	struct sas_ha_struct *ha = ev->ha;
 
 	sas_begin_event(HAE_RESET, &ha->event_lock,
 			&ha->pending);
@@ -112,6 +114,8 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 		}
 	}
 
+	INIT_LIST_HEAD(&sas_ha->eh_done_q);
+
 	return 0;
 
 Undo_ports:
@@ -142,7 +146,7 @@ static int sas_get_linkerrors(struct sas_phy *phy)
 	return sas_smp_get_phy_events(phy);
 }
 
-static int sas_phy_reset(struct sas_phy *phy, int hard_reset)
+int sas_phy_reset(struct sas_phy *phy, int hard_reset)
 {
 	int ret;
 	enum phy_func reset_type;

@@ -109,7 +109,13 @@ static struct ahd_pci_identity ahd_pci_ident_table [] =
 	{
 		ID_AHA_29320ALP,
 		ID_ALL_MASK,
-		"Adaptec 29320ALP Ultra320 SCSI adapter",
+		"Adaptec 29320ALP PCIx Ultra320 SCSI adapter",
+		ahd_aic7901_setup
+	},
+	{
+		ID_AHA_29320LPE,
+		ID_ALL_MASK,
+		"Adaptec 29320LPE PCIe Ultra320 SCSI adapter",
 		ahd_aic7901_setup
 	},
 	/* aic7901A based controllers */

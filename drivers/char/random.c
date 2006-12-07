@@ -1422,9 +1422,9 @@ static struct keydata {
 
 static unsigned int ip_cnt;
 
-static void rekey_seq_generator(void *private_);
+static void rekey_seq_generator(struct work_struct *work);
 
-static DECLARE_WORK(rekey_work, rekey_seq_generator, NULL);
+static DECLARE_DELAYED_WORK(rekey_work, rekey_seq_generator);
 
 /*
  * Lock avoidance:
@@ -1438,7 +1438,7 @@ static DECLARE_WORK(rekey_work, rekey_seq_generator, NULL);
  * happen, and even if that happens only a not perfectly compliant
  * ISN is generated, nothing fatal.
  */
-static void rekey_seq_generator(void *private_)
+static void rekey_seq_generator(struct work_struct *work)
 {
 	struct keydata *keyptr = &ip_keydata[1 ^ (ip_cnt & 1)];
 

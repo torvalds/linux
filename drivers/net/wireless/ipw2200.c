@@ -187,9 +187,9 @@ static struct ipw_rx_queue *ipw_rx_queue_alloc(struct ipw_priv *);
 static void ipw_rx_queue_free(struct ipw_priv *, struct ipw_rx_queue *);
 static void ipw_rx_queue_replenish(void *);
 static int ipw_up(struct ipw_priv *);
-static void ipw_bg_up(void *);
+static void ipw_bg_up(struct work_struct *work);
 static void ipw_down(struct ipw_priv *);
-static void ipw_bg_down(void *);
+static void ipw_bg_down(struct work_struct *work);
 static int ipw_config(struct ipw_priv *);
 static int init_supported_rates(struct ipw_priv *priv,
 				struct ipw_supported_rates *prates);
@@ -862,11 +862,12 @@ static void ipw_led_link_on(struct ipw_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-static void ipw_bg_led_link_on(void *data)
+static void ipw_bg_led_link_on(struct work_struct *work)
 {
-	struct ipw_priv *priv = data;
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, led_link_on.work);
 	mutex_lock(&priv->mutex);
-	ipw_led_link_on(data);
+	ipw_led_link_on(priv);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -906,11 +907,12 @@ static void ipw_led_link_off(struct ipw_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-static void ipw_bg_led_link_off(void *data)
+static void ipw_bg_led_link_off(struct work_struct *work)
 {
-	struct ipw_priv *priv = data;
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, led_link_off.work);
 	mutex_lock(&priv->mutex);
-	ipw_led_link_off(data);
+	ipw_led_link_off(priv);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -985,11 +987,12 @@ static void ipw_led_activity_off(struct ipw_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-static void ipw_bg_led_activity_off(void *data)
+static void ipw_bg_led_activity_off(struct work_struct *work)
 {
-	struct ipw_priv *priv = data;
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, led_act_off.work);
 	mutex_lock(&priv->mutex);
-	ipw_led_activity_off(data);
+	ipw_led_activity_off(priv);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -2228,11 +2231,12 @@ static void ipw_adapter_restart(void *adapter)
 	}
 }
 
-static void ipw_bg_adapter_restart(void *data)
+static void ipw_bg_adapter_restart(struct work_struct *work)
 {
-	struct ipw_priv *priv = data;
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, adapter_restart);
 	mutex_lock(&priv->mutex);
-	ipw_adapter_restart(data);
+	ipw_adapter_restart(priv);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -2249,11 +2253,12 @@ static void ipw_scan_check(void *data)
 	}
 }
 
-static void ipw_bg_scan_check(void *data)
+static void ipw_bg_scan_check(struct work_struct *work)
 {
-	struct ipw_priv *priv = data;
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, scan_check.work);
 	mutex_lock(&priv->mutex);
-	ipw_scan_check(data);
+	ipw_scan_check(priv);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -3831,17 +3836,19 @@ static int ipw_disassociate(void *data)
 	return 1;
 }
 
-static void ipw_bg_disassociate(void *data)
+static void ipw_bg_disassociate(struct work_struct *work)
 {
-	struct ipw_priv *priv = data;
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, disassociate);
 	mutex_lock(&priv->mutex);
-	ipw_disassociate(data);
+	ipw_disassociate(priv);
 	mutex_unlock(&priv->mutex);
 }
 
-static void ipw_system_config(void *data)
+static void ipw_system_config(struct work_struct *work)
 {
-	struct ipw_priv *priv = data;
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, system_config);
 
 #ifdef CONFIG_IPW2200_PROMISCUOUS
 	if (priv->prom_net_dev && netif_running(priv->prom_net_dev)) {
@@ -4208,11 +4215,12 @@ static void ipw_gather_stats(struct ipw_priv *priv)
 			   IPW_STATS_INTERVAL);
 }
 
-static void ipw_bg_gather_stats(void *data)
+static void ipw_bg_gather_stats(struct work_struct *work)
 {
-	struct ipw_priv *priv = data;
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, gather_stats.work);
 	mutex_lock(&priv->mutex);
-	ipw_gather_stats(data);
+	ipw_gather_stats(priv);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -4268,8 +4276,8 @@ static void ipw_handle_missed_beacon(struct ipw_priv *priv,
 		if (!(priv->status & STATUS_ROAMING)) {
 			priv->status |= STATUS_ROAMING;
 			if (!(priv->status & STATUS_SCANNING))
-				queue_work(priv->workqueue,
-					   &priv->request_scan);
+				queue_delayed_work(priv->workqueue,
+						   &priv->request_scan, 0);
 		}
 		return;
 	}
@@ -4607,8 +4615,8 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 #ifdef CONFIG_IPW2200_MONITOR
 			if (priv->ieee->iw_mode == IW_MODE_MONITOR) {
 				priv->status |= STATUS_SCAN_FORCED;
-				queue_work(priv->workqueue,
-					   &priv->request_scan);
+				queue_delayed_work(priv->workqueue,
+						   &priv->request_scan, 0);
 				break;
 			}
 			priv->status &= ~STATUS_SCAN_FORCED;
@@ -4631,8 +4639,8 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 					/* Don't schedule if we aborted the scan */
 					priv->status &= ~STATUS_ROAMING;
 			} else if (priv->status & STATUS_SCAN_PENDING)
-				queue_work(priv->workqueue,
-					   &priv->request_scan);
+				queue_delayed_work(priv->workqueue,
+						   &priv->request_scan, 0);
 			else if (priv->config & CFG_BACKGROUND_SCAN
 				 && priv->status & STATUS_ASSOCIATED)
 				queue_delayed_work(priv->workqueue,
@@ -5055,11 +5063,12 @@ static void ipw_rx_queue_replenish(void *data)
 	ipw_rx_queue_restock(priv);
 }
 
-static void ipw_bg_rx_queue_replenish(void *data)
+static void ipw_bg_rx_queue_replenish(struct work_struct *work)
 {
-	struct ipw_priv *priv = data;
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, rx_replenish);
 	mutex_lock(&priv->mutex);
-	ipw_rx_queue_replenish(data);
+	ipw_rx_queue_replenish(priv);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -5489,9 +5498,10 @@ static int ipw_find_adhoc_network(struct ipw_priv *priv,
 	return 1;
 }
 
-static void ipw_merge_adhoc_network(void *data)
+static void ipw_merge_adhoc_network(struct work_struct *work)
 {
-	struct ipw_priv *priv = data;
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, merge_networks);
 	struct ieee80211_network *network = NULL;
 	struct ipw_network_match match = {
 		.network = priv->assoc_network
@@ -5948,11 +5958,12 @@ static void ipw_adhoc_check(void *data)
 			   priv->assoc_request.beacon_interval);
 }
 
-static void ipw_bg_adhoc_check(void *data)
+static void ipw_bg_adhoc_check(struct work_struct *work)
 {
-	struct ipw_priv *priv = data;
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, adhoc_check.work);
 	mutex_lock(&priv->mutex);
-	ipw_adhoc_check(data);
+	ipw_adhoc_check(priv);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -6299,19 +6310,26 @@ done:
 	return err;
 }
 
-static int ipw_request_passive_scan(struct ipw_priv *priv) {
-  	return ipw_request_scan_helper(priv, IW_SCAN_TYPE_PASSIVE);
-}
-
-static int ipw_request_scan(struct ipw_priv *priv) {
-	return ipw_request_scan_helper(priv, IW_SCAN_TYPE_ACTIVE);
-}
-
-static void ipw_bg_abort_scan(void *data)
+static void ipw_request_passive_scan(struct work_struct *work)
 {
-	struct ipw_priv *priv = data;
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, request_passive_scan);
+  	ipw_request_scan_helper(priv, IW_SCAN_TYPE_PASSIVE);
+}
+
+static void ipw_request_scan(struct work_struct *work)
+{
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, request_scan.work);
+	ipw_request_scan_helper(priv, IW_SCAN_TYPE_ACTIVE);
+}
+
+static void ipw_bg_abort_scan(struct work_struct *work)
+{
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, abort_scan);
 	mutex_lock(&priv->mutex);
-	ipw_abort_scan(data);
+	ipw_abort_scan(priv);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -7084,9 +7102,10 @@ static int ipw_qos_set_tx_queue_command(struct ipw_priv *priv,
 /*
 * background support to run QoS activate functionality
 */
-static void ipw_bg_qos_activate(void *data)
+static void ipw_bg_qos_activate(struct work_struct *work)
 {
-	struct ipw_priv *priv = data;
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, qos_activate);
 
 	if (priv == NULL)
 		return;
@@ -7394,11 +7413,12 @@ static void ipw_roam(void *data)
 	priv->status &= ~STATUS_ROAMING;
 }
 
-static void ipw_bg_roam(void *data)
+static void ipw_bg_roam(struct work_struct *work)
 {
-	struct ipw_priv *priv = data;
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, roam);
 	mutex_lock(&priv->mutex);
-	ipw_roam(data);
+	ipw_roam(priv);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -7479,8 +7499,8 @@ static int ipw_associate(void *data)
 						   &priv->request_scan,
 						   SCAN_INTERVAL);
 			else
-				queue_work(priv->workqueue,
-					   &priv->request_scan);
+				queue_delayed_work(priv->workqueue,
+						   &priv->request_scan, 0);
 		}
 
 		return 0;
@@ -7491,11 +7511,12 @@ static int ipw_associate(void *data)
 	return 1;
 }
 
-static void ipw_bg_associate(void *data)
+static void ipw_bg_associate(struct work_struct *work)
 {
-	struct ipw_priv *priv = data;
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, associate);
 	mutex_lock(&priv->mutex);
-	ipw_associate(data);
+	ipw_associate(priv);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -9410,7 +9431,7 @@ static int ipw_wx_set_scan(struct net_device *dev,
 
 	IPW_DEBUG_WX("Start scan\n");
 
-	queue_work(priv->workqueue, &priv->request_scan);
+	queue_delayed_work(priv->workqueue, &priv->request_scan, 0);
 
 	return 0;
 }
@@ -10547,11 +10568,12 @@ static void ipw_rf_kill(void *adapter)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-static void ipw_bg_rf_kill(void *data)
+static void ipw_bg_rf_kill(struct work_struct *work)
 {
-	struct ipw_priv *priv = data;
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, rf_kill.work);
 	mutex_lock(&priv->mutex);
-	ipw_rf_kill(data);
+	ipw_rf_kill(priv);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -10582,11 +10604,12 @@ static void ipw_link_up(struct ipw_priv *priv)
 		queue_delayed_work(priv->workqueue, &priv->request_scan, HZ);
 }
 
-static void ipw_bg_link_up(void *data)
+static void ipw_bg_link_up(struct work_struct *work)
 {
-	struct ipw_priv *priv = data;
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, link_up);
 	mutex_lock(&priv->mutex);
-	ipw_link_up(data);
+	ipw_link_up(priv);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -10606,15 +10629,16 @@ static void ipw_link_down(struct ipw_priv *priv)
 
 	if (!(priv->status & STATUS_EXIT_PENDING)) {
 		/* Queue up another scan... */
-		queue_work(priv->workqueue, &priv->request_scan);
+		queue_delayed_work(priv->workqueue, &priv->request_scan, 0);
 	}
 }
 
-static void ipw_bg_link_down(void *data)
+static void ipw_bg_link_down(struct work_struct *work)
 {
-	struct ipw_priv *priv = data;
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, link_down);
 	mutex_lock(&priv->mutex);
-	ipw_link_down(data);
+	ipw_link_down(priv);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -10626,38 +10650,30 @@ static int ipw_setup_deferred_work(struct ipw_priv *priv)
 	init_waitqueue_head(&priv->wait_command_queue);
 	init_waitqueue_head(&priv->wait_state);
 
-	INIT_WORK(&priv->adhoc_check, ipw_bg_adhoc_check, priv);
-	INIT_WORK(&priv->associate, ipw_bg_associate, priv);
-	INIT_WORK(&priv->disassociate, ipw_bg_disassociate, priv);
-	INIT_WORK(&priv->system_config, ipw_system_config, priv);
-	INIT_WORK(&priv->rx_replenish, ipw_bg_rx_queue_replenish, priv);
-	INIT_WORK(&priv->adapter_restart, ipw_bg_adapter_restart, priv);
-	INIT_WORK(&priv->rf_kill, ipw_bg_rf_kill, priv);
-	INIT_WORK(&priv->up, (void (*)(void *))ipw_bg_up, priv);
-	INIT_WORK(&priv->down, (void (*)(void *))ipw_bg_down, priv);
-	INIT_WORK(&priv->request_scan,
-		  (void (*)(void *))ipw_request_scan, priv);
-	INIT_WORK(&priv->request_passive_scan,
-		  (void (*)(void *))ipw_request_passive_scan, priv);
-	INIT_WORK(&priv->gather_stats,
-		  (void (*)(void *))ipw_bg_gather_stats, priv);
-	INIT_WORK(&priv->abort_scan, (void (*)(void *))ipw_bg_abort_scan, priv);
-	INIT_WORK(&priv->roam, ipw_bg_roam, priv);
-	INIT_WORK(&priv->scan_check, ipw_bg_scan_check, priv);
-	INIT_WORK(&priv->link_up, (void (*)(void *))ipw_bg_link_up, priv);
-	INIT_WORK(&priv->link_down, (void (*)(void *))ipw_bg_link_down, priv);
-	INIT_WORK(&priv->led_link_on, (void (*)(void *))ipw_bg_led_link_on,
-		  priv);
-	INIT_WORK(&priv->led_link_off, (void (*)(void *))ipw_bg_led_link_off,
-		  priv);
-	INIT_WORK(&priv->led_act_off, (void (*)(void *))ipw_bg_led_activity_off,
-		  priv);
-	INIT_WORK(&priv->merge_networks,
-		  (void (*)(void *))ipw_merge_adhoc_network, priv);
+	INIT_DELAYED_WORK(&priv->adhoc_check, ipw_bg_adhoc_check);
+	INIT_WORK(&priv->associate, ipw_bg_associate);
+	INIT_WORK(&priv->disassociate, ipw_bg_disassociate);
+	INIT_WORK(&priv->system_config, ipw_system_config);
+	INIT_WORK(&priv->rx_replenish, ipw_bg_rx_queue_replenish);
+	INIT_WORK(&priv->adapter_restart, ipw_bg_adapter_restart);
+	INIT_DELAYED_WORK(&priv->rf_kill, ipw_bg_rf_kill);
+	INIT_WORK(&priv->up, ipw_bg_up);
+	INIT_WORK(&priv->down, ipw_bg_down);
+	INIT_DELAYED_WORK(&priv->request_scan, ipw_request_scan);
+	INIT_WORK(&priv->request_passive_scan, ipw_request_passive_scan);
+	INIT_DELAYED_WORK(&priv->gather_stats, ipw_bg_gather_stats);
+	INIT_WORK(&priv->abort_scan, ipw_bg_abort_scan);
+	INIT_WORK(&priv->roam, ipw_bg_roam);
+	INIT_DELAYED_WORK(&priv->scan_check, ipw_bg_scan_check);
+	INIT_WORK(&priv->link_up, ipw_bg_link_up);
+	INIT_WORK(&priv->link_down, ipw_bg_link_down);
+	INIT_DELAYED_WORK(&priv->led_link_on, ipw_bg_led_link_on);
+	INIT_DELAYED_WORK(&priv->led_link_off, ipw_bg_led_link_off);
+	INIT_DELAYED_WORK(&priv->led_act_off, ipw_bg_led_activity_off);
+	INIT_WORK(&priv->merge_networks, ipw_merge_adhoc_network);
 
 #ifdef CONFIG_IPW2200_QOS
-	INIT_WORK(&priv->qos_activate, (void (*)(void *))ipw_bg_qos_activate,
-		  priv);
+	INIT_WORK(&priv->qos_activate, ipw_bg_qos_activate);
 #endif				/* CONFIG_IPW2200_QOS */
 
 	tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
@@ -11190,7 +11206,8 @@ static int ipw_up(struct ipw_priv *priv)
 
 			/* If configure to try and auto-associate, kick
 			 * off a scan. */
-			queue_work(priv->workqueue, &priv->request_scan);
+			queue_delayed_work(priv->workqueue,
+					   &priv->request_scan, 0);
 
 			return 0;
 		}
@@ -11211,11 +11228,12 @@ static int ipw_up(struct ipw_priv *priv)
 	return -EIO;
 }
 
-static void ipw_bg_up(void *data)
+static void ipw_bg_up(struct work_struct *work)
 {
-	struct ipw_priv *priv = data;
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, up);
 	mutex_lock(&priv->mutex);
-	ipw_up(data);
+	ipw_up(priv);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -11282,11 +11300,12 @@ static void ipw_down(struct ipw_priv *priv)
 	ipw_led_radio_off(priv);
 }
 
-static void ipw_bg_down(void *data)
+static void ipw_bg_down(struct work_struct *work)
 {
-	struct ipw_priv *priv = data;
+	struct ipw_priv *priv =
+		container_of(work, struct ipw_priv, down);
 	mutex_lock(&priv->mutex);
-	ipw_down(data);
+	ipw_down(priv);
 	mutex_unlock(&priv->mutex);
 }
 

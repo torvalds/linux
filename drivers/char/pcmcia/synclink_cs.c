@@ -421,7 +421,7 @@ static irqreturn_t mgslpc_isr(int irq, void *dev_id);
 /*
  * Bottom half interrupt handlers
  */
-static void bh_handler(void* Context);
+static void bh_handler(struct work_struct *work);
 static void bh_transmit(MGSLPC_INFO *info);
 static void bh_status(MGSLPC_INFO *info);
 
@@ -547,7 +547,7 @@ static int mgslpc_probe(struct pcmcia_device *link)
 
     memset(info, 0, sizeof(MGSLPC_INFO));
     info->magic = MGSLPC_MAGIC;
-    INIT_WORK(&info->task, bh_handler, info);
+    INIT_WORK(&info->task, bh_handler);
     info->max_frame_size = 4096;
     info->close_delay = 5*HZ/10;
     info->closing_wait = 30*HZ;
@@ -604,17 +604,10 @@ static int mgslpc_config(struct pcmcia_device *link)
     if (debug_level >= DEBUG_LEVEL_INFO)
 	    printk("mgslpc_config(0x%p)\n", link);
 
-    /* read CONFIG tuple to find its configuration registers */
-    tuple.DesiredTuple = CISTPL_CONFIG;
     tuple.Attributes = 0;
     tuple.TupleData = buf;
     tuple.TupleDataMax = sizeof(buf);
     tuple.TupleOffset = 0;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
-    link->conf.ConfigBase = parse.config.base;
-    link->conf.Present = parse.config.rmask[0];
 
     /* get CIS configuration entry */
 
@@ -842,9 +835,9 @@ static int bh_action(MGSLPC_INFO *info)
 	return rc;
 }
 
-static void bh_handler(void* Context)
+static void bh_handler(struct work_struct *work)
 {
-	MGSLPC_INFO *info = (MGSLPC_INFO*)Context;
+	MGSLPC_INFO *info = container_of(work, MGSLPC_INFO, task);
 	int action;
 
 	if (!info)

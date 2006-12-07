@@ -347,6 +347,7 @@ static int __init pSeries_init_panel(void)
 }
 arch_initcall(pSeries_init_panel);
 
+#ifdef CONFIG_HOTPLUG_CPU
 static void pSeries_mach_cpu_die(void)
 {
 	local_irq_disable();
@@ -357,6 +358,9 @@ static void pSeries_mach_cpu_die(void)
 	BUG();
 	for(;;);
 }
+#else
+#define pSeries_mach_cpu_die NULL
+#endif
 
 static int pseries_set_dabr(unsigned long dabr)
 {
@@ -553,7 +557,6 @@ define_machine(pseries) {
 	.log_error		= pSeries_log_error,
 	.pcibios_fixup		= pSeries_final_fixup,
 	.pci_probe_mode		= pSeries_pci_probe_mode,
-	.irq_bus_setup		= pSeries_irq_bus_setup,
 	.restart		= rtas_restart,
 	.power_off		= rtas_power_off,
 	.halt			= rtas_halt,

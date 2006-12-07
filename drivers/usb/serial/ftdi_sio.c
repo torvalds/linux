@@ -559,7 +559,8 @@ struct ftdi_private {
 	char prev_status, diff_status;        /* Used for TIOCMIWAIT */
 	__u8 rx_flags;		/* receive state flags (throttling) */
 	spinlock_t rx_lock;	/* spinlock for receive state */
-	struct work_struct rx_work;
+	struct delayed_work rx_work;
+	struct usb_serial_port *port;
 	int rx_processed;
 	unsigned long rx_bytes;
 
@@ -593,7 +594,7 @@ static int  ftdi_write_room		(struct usb_serial_port *port);
 static int  ftdi_chars_in_buffer	(struct usb_serial_port *port);
 static void ftdi_write_bulk_callback	(struct urb *urb);
 static void ftdi_read_bulk_callback	(struct urb *urb);
-static void ftdi_process_read		(void *param);
+static void ftdi_process_read		(struct work_struct *work);
 static void ftdi_set_termios		(struct usb_serial_port *port, struct termios * old);
 static int  ftdi_tiocmget               (struct usb_serial_port *port, struct file *file);
 static int  ftdi_tiocmset		(struct usb_serial_port *port, struct file * file, unsigned int set, unsigned int clear);
@@ -1201,7 +1202,8 @@ static int ftdi_sio_attach (struct usb_serial *serial)
 		port->read_urb->transfer_buffer_length = BUFSZ;
 	}
 
-	INIT_WORK(&priv->rx_work, ftdi_process_read, port);
+	INIT_DELAYED_WORK(&priv->rx_work, ftdi_process_read);
+	priv->port = port;
 
 	/* Free port's existing write urb and transfer buffer. */
 	if (port->write_urb) {
@@ -1640,17 +1642,18 @@ static void ftdi_read_bulk_callback (struct urb *urb)
 	priv->rx_bytes += countread;
 	spin_unlock_irqrestore(&priv->rx_lock, flags);
 
-	ftdi_process_read(port);
+	ftdi_process_read(&priv->rx_work.work);
 
 } /* ftdi_read_bulk_callback */
 
 
-static void ftdi_process_read (void *param)
+static void ftdi_process_read (struct work_struct *work)
 { /* ftdi_process_read */
-	struct usb_serial_port *port = (struct usb_serial_port*)param;
+	struct ftdi_private *priv =
+		container_of(work, struct ftdi_private, rx_work.work);
+	struct usb_serial_port *port = priv->port;
 	struct urb *urb;
 	struct tty_struct *tty;
-	struct ftdi_private *priv;
 	char error_flag;
 	unsigned char *data;
 
@@ -2179,7 +2182,7 @@ static void ftdi_unthrottle (struct usb_serial_port *port)
 	spin_unlock_irqrestore(&priv->rx_lock, flags);
 
 	if (actually_throttled)
-		schedule_work(&priv->rx_work);
+		schedule_delayed_work(&priv->rx_work, 0);
 }
 
 static int __init ftdi_init (void)

@@ -115,7 +115,7 @@ static unsigned long xfrm_hash_new_size(void)
 
 static DEFINE_MUTEX(hash_resize_mutex);
 
-static void xfrm_hash_resize(void *__unused)
+static void xfrm_hash_resize(struct work_struct *__unused)
 {
 	struct hlist_head *ndst, *nsrc, *nspi, *odst, *osrc, *ospi;
 	unsigned long nsize, osize;
@@ -168,7 +168,7 @@ out_unlock:
 	mutex_unlock(&hash_resize_mutex);
 }
 
-static DECLARE_WORK(xfrm_hash_work, xfrm_hash_resize, NULL);
+static DECLARE_WORK(xfrm_hash_work, xfrm_hash_resize);
 
 DECLARE_WAIT_QUEUE_HEAD(km_waitq);
 EXPORT_SYMBOL(km_waitq);
@@ -207,7 +207,7 @@ static void xfrm_state_gc_destroy(struct xfrm_state *x)
 	kfree(x);
 }
 
-static void xfrm_state_gc_task(void *data)
+static void xfrm_state_gc_task(struct work_struct *data)
 {
 	struct xfrm_state *x;
 	struct hlist_node *entry, *tmp;
@@ -1568,6 +1568,6 @@ void __init xfrm_state_init(void)
 		panic("XFRM: Cannot allocate bydst/bysrc/byspi hashes.");
 	xfrm_state_hmask = ((sz / sizeof(struct hlist_head)) - 1);
 
-	INIT_WORK(&xfrm_state_gc_work, xfrm_state_gc_task, NULL);
+	INIT_WORK(&xfrm_state_gc_work, xfrm_state_gc_task);
 }
 

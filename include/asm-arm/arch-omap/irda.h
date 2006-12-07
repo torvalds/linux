@@ -24,7 +24,7 @@ struct omap_irda_config {
 	/* Very specific to the needs of some platforms (h3,h4)
 	 * having calls which can sleep in irda_set_speed.
 	 */
-	struct work_struct gpio_expa;
+	struct delayed_work gpio_expa;
 	int rx_channel;
 	int tx_channel;
 	unsigned long dest_start;

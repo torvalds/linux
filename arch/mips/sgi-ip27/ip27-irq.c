@@ -332,13 +332,6 @@ static inline void disable_bridge_irq(unsigned int irq)
 	intr_disconnect_level(cpu, swlevel);
 }
 
-static void end_bridge_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)) &&
-	    irq_desc[irq].action)
-		enable_bridge_irq(irq);
-}
-
 static struct irq_chip bridge_irq_type = {
 	.typename	= "bridge",
 	.startup	= startup_bridge_irq,
@@ -347,7 +340,6 @@ static struct irq_chip bridge_irq_type = {
 	.mask		= disable_bridge_irq,
 	.mask_ack	= disable_bridge_irq,
 	.unmask		= enable_bridge_irq,
-	.end		= end_bridge_irq,
 };
 
 void __devinit register_bridge_irq(unsigned int irq)

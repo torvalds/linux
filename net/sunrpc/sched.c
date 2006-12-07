@@ -41,7 +41,7 @@ static mempool_t	*rpc_buffer_mempool __read_mostly;
 
 static void			__rpc_default_timer(struct rpc_task *task);
 static void			rpciod_killall(void);
-static void			rpc_async_schedule(void *);
+static void			rpc_async_schedule(struct work_struct *);
 
 /*
  * RPC tasks sit here while waiting for conditions to improve.
@@ -305,7 +305,7 @@ static void rpc_make_runnable(struct rpc_task *task)
 	if (RPC_IS_ASYNC(task)) {
 		int status;
 
-		INIT_WORK(&task->u.tk_work, rpc_async_schedule, (void *)task);
+		INIT_WORK(&task->u.tk_work, rpc_async_schedule);
 		status = queue_work(task->tk_workqueue, &task->u.tk_work);
 		if (status < 0) {
 			printk(KERN_WARNING "RPC: failed to add task to queue: error: %d!\n", status);
@@ -695,9 +695,9 @@ rpc_execute(struct rpc_task *task)
 	return __rpc_execute(task);
 }
 
-static void rpc_async_schedule(void *arg)
+static void rpc_async_schedule(struct work_struct *work)
 {
-	__rpc_execute((struct rpc_task *)arg);
+	__rpc_execute(container_of(work, struct rpc_task, u.tk_work));
 }
 
 /**

@@ -53,7 +53,7 @@ struct tty_buffer {
 };
 
 struct tty_bufhead {
-	struct work_struct		work;
+	struct delayed_work work;
 	struct semaphore pty_sem;
 	spinlock_t lock;
 	struct tty_buffer *head;	/* Queue head */

@@ -577,12 +577,12 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 		server->rcv.ptr = (unsigned char*)&server->rcv.buf;
 		server->rcv.len = 10;
 		server->rcv.state = 0;
-		INIT_WORK(&server->rcv.tq, ncp_tcp_rcv_proc, server);
-		INIT_WORK(&server->tx.tq, ncp_tcp_tx_proc, server);
+		INIT_WORK(&server->rcv.tq, ncp_tcp_rcv_proc);
+		INIT_WORK(&server->tx.tq, ncp_tcp_tx_proc);
 		sock->sk->sk_write_space = ncp_tcp_write_space;
 	} else {
-		INIT_WORK(&server->rcv.tq, ncpdgram_rcv_proc, server);
-		INIT_WORK(&server->timeout_tq, ncpdgram_timeout_proc, server);
+		INIT_WORK(&server->rcv.tq, ncpdgram_rcv_proc);
+		INIT_WORK(&server->timeout_tq, ncpdgram_timeout_proc);
 		server->timeout_tm.data = (unsigned long)server;
 		server->timeout_tm.function = ncpdgram_timeout_call;
 	}

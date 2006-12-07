@@ -964,9 +964,10 @@ struct work_queue_wrapper {
 };
 
 static void
-spi_dv_device_work_wrapper(void *data)
+spi_dv_device_work_wrapper(struct work_struct *work)
 {
-	struct work_queue_wrapper *wqw = (struct work_queue_wrapper *)data;
+	struct work_queue_wrapper *wqw =
+		container_of(work, struct work_queue_wrapper, work);
 	struct scsi_device *sdev = wqw->sdev;
 
 	kfree(wqw);
@@ -1006,7 +1007,7 @@ spi_schedule_dv_device(struct scsi_device *sdev)
 		return;
 	}
 
-	INIT_WORK(&wqw->work, spi_dv_device_work_wrapper, wqw);
+	INIT_WORK(&wqw->work, spi_dv_device_work_wrapper);
 	wqw->sdev = sdev;
 
 	schedule_work(&wqw->work);

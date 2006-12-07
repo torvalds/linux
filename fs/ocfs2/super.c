@@ -70,8 +70,6 @@
 
 static kmem_cache_t *ocfs2_inode_cachep = NULL;
 
-kmem_cache_t *ocfs2_lock_cache = NULL;
-
 /* OCFS2 needs to schedule several differnt types of work which
  * require cluster locking, disk I/O, recovery waits, etc. Since these
  * types of work tend to be heavy we avoid using the kernel events
@@ -141,6 +139,7 @@ enum {
 	Opt_hb_local,
 	Opt_data_ordered,
 	Opt_data_writeback,
+	Opt_atime_quantum,
 	Opt_err,
 };
 
@@ -154,6 +153,7 @@ static match_table_t tokens = {
 	{Opt_hb_local, OCFS2_HB_LOCAL},
 	{Opt_data_ordered, "data=ordered"},
 	{Opt_data_writeback, "data=writeback"},
+	{Opt_atime_quantum, "atime_quantum=%u"},
 	{Opt_err, NULL}
 };
 
@@ -707,6 +707,7 @@ static int ocfs2_parse_options(struct super_block *sb,
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token, option;
 		substring_t args[MAX_OPT_ARGS];
+		struct ocfs2_super * osb = OCFS2_SB(sb);
 
 		if (!*p)
 			continue;
@@ -746,6 +747,16 @@ static int ocfs2_parse_options(struct super_block *sb,
 			break;
 		case Opt_data_writeback:
 			*mount_opt |= OCFS2_MOUNT_DATA_WRITEBACK;
+			break;
+		case Opt_atime_quantum:
+			if (match_int(&args[0], &option)) {
+				status = 0;
+				goto bail;
+			}
+			if (option >= 0)
+				osb->s_atime_quantum = option;
+			else
+				osb->s_atime_quantum = OCFS2_DEFAULT_ATIME_QUANTUM;
 			break;
 		default:
 			mlog(ML_ERROR,
@@ -867,7 +878,7 @@ static int ocfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 		goto bail;
 	}
 
-	status = ocfs2_meta_lock(inode, NULL, &bh, 0);
+	status = ocfs2_meta_lock(inode, &bh, 0);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -914,9 +925,7 @@ static void ocfs2_inode_init_once(void *data,
 		oi->ip_open_count = 0;
 		spin_lock_init(&oi->ip_lock);
 		ocfs2_extent_map_init(&oi->vfs_inode);
-		INIT_LIST_HEAD(&oi->ip_handle_list);
 		INIT_LIST_HEAD(&oi->ip_io_markers);
-		oi->ip_handle = NULL;
 		oi->ip_created_trans = 0;
 		oi->ip_last_trans = 0;
 		oi->ip_dir_start_lookup = 0;
@@ -948,14 +957,6 @@ static int ocfs2_initialize_mem_caches(void)
 	if (!ocfs2_inode_cachep)
 		return -ENOMEM;
 
-	ocfs2_lock_cache = kmem_cache_create("ocfs2_lock",
-					     sizeof(struct ocfs2_journal_lock),
-					     0,
-					     SLAB_HWCACHE_ALIGN,
-					     NULL, NULL);
-	if (!ocfs2_lock_cache)
-		return -ENOMEM;
-
 	return 0;
 }
 
@@ -963,11 +964,8 @@ static void ocfs2_free_mem_caches(void)
 {
 	if (ocfs2_inode_cachep)
 		kmem_cache_destroy(ocfs2_inode_cachep);
-	if (ocfs2_lock_cache)
-		kmem_cache_destroy(ocfs2_lock_cache);
 
 	ocfs2_inode_cachep = NULL;
-	ocfs2_lock_cache = NULL;
 }
 
 static int ocfs2_get_sector(struct super_block *sb,
@@ -1280,6 +1278,8 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	init_waitqueue_head(&osb->checkpoint_event);
 	atomic_set(&osb->needs_checkpoint, 0);
 
+	osb->s_atime_quantum = OCFS2_DEFAULT_ATIME_QUANTUM;
+
 	osb->node_num = O2NM_INVALID_NODE_NUM;
 	osb->slot_num = OCFS2_INVALID_SLOT;
 
@@ -1365,7 +1365,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	spin_lock_init(&journal->j_lock);
 	journal->j_trans_id = (unsigned long) 1;
 	INIT_LIST_HEAD(&journal->j_la_cleanups);
-	INIT_WORK(&journal->j_recovery_work, ocfs2_complete_recovery, osb);
+	INIT_WORK(&journal->j_recovery_work, ocfs2_complete_recovery);
 	journal->j_state = OCFS2_JOURNAL_FREE;
 
 	/* get some pseudo constants for clustersize bits */

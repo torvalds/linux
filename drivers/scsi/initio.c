@@ -170,7 +170,7 @@ static int setup_debug = 0;
 static void i91uSCBPost(BYTE * pHcb, BYTE * pScb);
 
 /* PCI Devices supported by this driver */
-static struct pci_device_id i91u_pci_devices[] __devinitdata = {
+static struct pci_device_id i91u_pci_devices[] = {
 	{ PCI_VENDOR_ID_INIT,  I950_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ PCI_VENDOR_ID_INIT,  I940_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ PCI_VENDOR_ID_INIT,  I935_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},

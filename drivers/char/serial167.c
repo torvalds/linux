@@ -706,9 +706,9 @@ cd2401_rx_interrupt(int irq, void *dev_id)
  * had to poll every port to see if that port needed servicing.
  */
 static void
-do_softint(void *private_)
+do_softint(struct work_struct *ugly_api)
 {
-  struct cyclades_port *info = (struct cyclades_port *) private_;
+  struct cyclades_port *info = container_of(ugly_api, struct cyclades_port, tqueue);
   struct tty_struct    *tty;
 
     tty = info->tty;
@@ -2273,7 +2273,7 @@ scrn[1] = '\0';
 		info->blocked_open = 0;
 		info->default_threshold = 0;
 		info->default_timeout = 0;
-		INIT_WORK(&info->tqueue, do_softint, info);
+		INIT_WORK(&info->tqueue, do_softint);
 		init_waitqueue_head(&info->open_wait);
 		init_waitqueue_head(&info->close_wait);
 		/* info->session */

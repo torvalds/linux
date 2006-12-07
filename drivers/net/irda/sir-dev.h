@@ -22,7 +22,7 @@
 
 struct sir_fsm {
 	struct semaphore	sem;
-	struct work_struct      work;
+	struct delayed_work	work;
 	unsigned		state, substate;
 	int			param;
 	int			result;

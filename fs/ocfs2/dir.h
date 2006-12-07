@@ -45,7 +45,7 @@ int ocfs2_prepare_dir_for_insert(struct ocfs2_super *osb,
 				 struct buffer_head **ret_de_bh);
 struct ocfs2_alloc_context;
 int ocfs2_do_extend_dir(struct super_block *sb,
-			struct ocfs2_journal_handle *handle,
+			handle_t *handle,
 			struct inode *dir,
 			struct buffer_head *parent_fe_bh,
 			struct ocfs2_alloc_context *data_ac,

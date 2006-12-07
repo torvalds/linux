@@ -383,9 +383,9 @@ static void fbcon_update_softback(struct vc_data *vc)
 		softback_top = 0;
 }
 
-static void fb_flashcursor(void *private)
+static void fb_flashcursor(struct work_struct *work)
 {
-	struct fb_info *info = private;
+	struct fb_info *info = container_of(work, struct fb_info, queue);
 	struct fbcon_ops *ops = info->fbcon_par;
 	struct display *p;
 	struct vc_data *vc = NULL;
@@ -442,7 +442,7 @@ static void fbcon_add_cursor_timer(struct fb_info *info)
 	if ((!info->queue.func || info->queue.func == fb_flashcursor) &&
 	    !(ops->flags & FBCON_FLAGS_CURSOR_TIMER)) {
 		if (!info->queue.func)
-			INIT_WORK(&info->queue, fb_flashcursor, info);
+			INIT_WORK(&info->queue, fb_flashcursor);
 
 		init_timer(&ops->cursor_timer);
 		ops->cursor_timer.function = cursor_timer_handler;

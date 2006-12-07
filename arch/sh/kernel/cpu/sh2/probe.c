@@ -17,17 +17,23 @@
 
 int __init detect_cpu_and_cache_system(void)
 {
-	/*
-	 * For now, assume SH7604 .. fix this later.
-	 */
+#if defined(CONFIG_CPU_SUBTYPE_SH7604)
 	cpu_data->type			= CPU_SH7604;
 	cpu_data->dcache.ways		= 4;
-	cpu_data->dcache.way_shift	= 6;
+	cpu_data->dcache.way_incr	= (1<<10);
 	cpu_data->dcache.sets		= 64;
 	cpu_data->dcache.entry_shift	= 4;
 	cpu_data->dcache.linesz		= L1_CACHE_BYTES;
 	cpu_data->dcache.flags		= 0;
-
+#elif defined(CONFIG_CPU_SUBTYPE_SH7619)
+	cpu_data->type			= CPU_SH7619;
+	cpu_data->dcache.ways		= 4;
+	cpu_data->dcache.way_incr	= (1<<12);
+	cpu_data->dcache.sets		= 256;
+	cpu_data->dcache.entry_shift	= 4;
+	cpu_data->dcache.linesz		= L1_CACHE_BYTES;
+	cpu_data->dcache.flags		= 0;
+#endif
 	/*
 	 * SH-2 doesn't have separate caches
 	 */

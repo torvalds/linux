@@ -518,6 +518,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 			 */
 			unsigned long count = 36000000L; /* 3 minutes */
 			while (down_trylock(&fibptr->event_wait)) {
+				int blink;
 				if (--count == 0) {
 					spin_lock_irqsave(q->lock, qflags);
 					q->numpending--;
@@ -529,6 +530,14 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 						  "the SAFE mode kernel options (acpi, apic etc)\n");
 					}
 					return -ETIMEDOUT;
+				}
+				if ((blink = aac_adapter_check_health(dev)) > 0) {
+					if (wait == -1) {
+	        				printk(KERN_ERR "aacraid: aac_fib_send: adapter blinkLED 0x%x.\n"
+						  "Usually a result of a serious unrecoverable hardware problem\n",
+						  blink);
+					}
+					return -EFAULT;
 				}
 				udelay(5);
 			}
@@ -1093,6 +1102,20 @@ static int _aac_reset_adapter(struct aac_dev *aac)
 		goto out;
 	}
 
+	/*
+	 *	Loop through the fibs, close the synchronous FIBS
+	 */
+	for (index = 0; index < (aac->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB); index++) {
+		struct fib *fib = &aac->fibs[index];
+		if (!(fib->hw_fib->header.XferState & cpu_to_le32(NoResponseExpected | Async)) &&
+		  (fib->hw_fib->header.XferState & cpu_to_le32(ResponseExpected))) {
+			unsigned long flagv;
+			spin_lock_irqsave(&fib->event_lock, flagv);
+			up(&fib->event_wait);
+			spin_unlock_irqrestore(&fib->event_lock, flagv);
+			schedule();
+		}
+	}
 	index = aac->cardtype;
 
 	/*

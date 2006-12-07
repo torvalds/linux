@@ -157,9 +157,10 @@ static void bcm203x_complete(struct urb *urb)
 	}
 }
 
-static void bcm203x_work(void *user_data)
+static void bcm203x_work(struct work_struct *work)
 {
-	struct bcm203x_data *data = user_data;
+	struct bcm203x_data *data =
+		container_of(work, struct bcm203x_data, work);
 
 	if (usb_submit_urb(data->urb, GFP_ATOMIC) < 0)
 		BT_ERR("Can't submit URB");
@@ -246,7 +247,7 @@ static int bcm203x_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	release_firmware(firmware);
 
-	INIT_WORK(&data->work, bcm203x_work, (void *) data);
+	INIT_WORK(&data->work, bcm203x_work);
 
 	usb_set_intfdata(intf, data);
 

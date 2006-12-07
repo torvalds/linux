@@ -883,7 +883,7 @@ static void do_mirror(struct mirror_set *ms)
 	do_writes(ms, &writes);
 }
 
-static void do_work(void *ignored)
+static void do_work(struct work_struct *ignored)
 {
 	struct mirror_set *ms;
 
@@ -1269,7 +1269,7 @@ static int __init dm_mirror_init(void)
 		dm_dirty_log_exit();
 		return r;
 	}
-	INIT_WORK(&_kmirrord_work, do_work, NULL);
+	INIT_WORK(&_kmirrord_work, do_work);
 
 	r = dm_register_target(&mirror_target);
 	if (r < 0) {

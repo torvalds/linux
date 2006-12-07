@@ -581,10 +581,10 @@ static irqreturn_t pd6729_test(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static int pd6729_check_irq(int irq, int flags)
+static int pd6729_check_irq(int irq)
 {
-	if (request_irq(irq, pd6729_test, flags, "x", pd6729_test) != 0)
-		return -1;
+	if (request_irq(irq, pd6729_test, IRQF_PROBE_SHARED, "x", pd6729_test)
+		!= 0) return -1;
 	free_irq(irq, pd6729_test);
 	return 0;
 }
@@ -610,7 +610,7 @@ static u_int __devinit pd6729_isa_scan(void)
 
 	/* just find interrupts that aren't in use */
 	for (i = 0; i < 16; i++)
-		if ((mask0 & (1 << i)) && (pd6729_check_irq(i, 0) == 0))
+		if ((mask0 & (1 << i)) && (pd6729_check_irq(i) == 0))
 			mask |= (1 << i);
 
 	printk(KERN_INFO "pd6729: ISA irqs = ");

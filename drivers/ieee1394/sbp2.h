@@ -348,7 +348,7 @@ struct scsi_id_instance_data {
 	unsigned workarounds;
 
 	atomic_t state;
-	struct work_struct protocol_work;
+	struct delayed_work protocol_work;
 };
 
 /* For use in scsi_id_instance_data.state */

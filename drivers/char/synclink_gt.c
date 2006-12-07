@@ -485,7 +485,7 @@ static void enable_loopback(struct slgt_info *info);
 static void set_rate(struct slgt_info *info, u32 data_rate);
 
 static int  bh_action(struct slgt_info *info);
-static void bh_handler(void* context);
+static void bh_handler(struct work_struct *work);
 static void bh_transmit(struct slgt_info *info);
 static void isr_serial(struct slgt_info *info);
 static void isr_rdma(struct slgt_info *info);
@@ -1878,9 +1878,9 @@ static int bh_action(struct slgt_info *info)
 /*
  * perform bottom half processing
  */
-static void bh_handler(void* context)
+static void bh_handler(struct work_struct *work)
 {
-	struct slgt_info *info = context;
+	struct slgt_info *info = container_of(work, struct slgt_info, task);
 	int action;
 
 	if (!info)
@@ -3326,7 +3326,7 @@ static struct slgt_info *alloc_dev(int adapter_num, int port_num, struct pci_dev
 	} else {
 		memset(info, 0, sizeof(struct slgt_info));
 		info->magic = MGSL_MAGIC;
-		INIT_WORK(&info->task, bh_handler, info);
+		INIT_WORK(&info->task, bh_handler);
 		info->max_frame_size = 4096;
 		info->raw_rx_size = DMABUFSIZE;
 		info->close_delay = 5*HZ/10;
@@ -4799,6 +4799,6 @@ static void rx_timeout(unsigned long context)
 	spin_lock_irqsave(&info->lock, flags);
 	info->pending_bh |= BH_RECEIVE;
 	spin_unlock_irqrestore(&info->lock, flags);
-	bh_handler(info);
+	bh_handler(&info->task);
 }
 

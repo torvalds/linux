@@ -828,9 +828,9 @@ static int process_event(struct iwcm_id_private *cm_id_priv,
  * thread asleep on the destroy_comp list vs. an object destroyed
  * here synchronously when the last reference is removed.
  */
-static void cm_work_handler(void *arg)
+static void cm_work_handler(struct work_struct *_work)
 {
-	struct iwcm_work *work = arg;
+	struct iwcm_work *work = container_of(_work, struct iwcm_work, work);
 	struct iw_cm_event levent;
 	struct iwcm_id_private *cm_id_priv = work->cm_id;
 	unsigned long flags;
@@ -900,7 +900,7 @@ static int cm_event_handler(struct iw_cm_id *cm_id,
 		goto out;
 	}
 
-	INIT_WORK(&work->work, cm_work_handler, work);
+	INIT_WORK(&work->work, cm_work_handler);
 	work->cm_id = cm_id_priv;
 	work->event = *iw_event;
 

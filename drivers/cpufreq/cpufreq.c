@@ -42,7 +42,7 @@ static DEFINE_SPINLOCK(cpufreq_driver_lock);
 
 /* internal prototypes */
 static int __cpufreq_governor(struct cpufreq_policy *policy, unsigned int event);
-static void handle_update(void *data);
+static void handle_update(struct work_struct *work);
 
 /**
  * Two notifier lists: the "policy" list is involved in the
@@ -665,7 +665,7 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	mutex_init(&policy->lock);
 	mutex_lock(&policy->lock);
 	init_completion(&policy->kobj_unregister);
-	INIT_WORK(&policy->update, handle_update, (void *)(long)cpu);
+	INIT_WORK(&policy->update, handle_update);
 
 	/* call driver. From then on the cpufreq must be able
 	 * to accept all calls to ->verify and ->setpolicy for this CPU
@@ -895,9 +895,11 @@ static int cpufreq_remove_dev (struct sys_device * sys_dev)
 }
 
 
-static void handle_update(void *data)
+static void handle_update(struct work_struct *work)
 {
-	unsigned int cpu = (unsigned int)(long)data;
+	struct cpufreq_policy *policy =
+		container_of(work, struct cpufreq_policy, update);
+	unsigned int cpu = policy->cpu;
 	dprintk("handle_update for cpu %u called\n", cpu);
 	cpufreq_update_policy(cpu);
 }

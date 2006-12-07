@@ -65,8 +65,8 @@ static struct ib_mad_agent_private *find_mad_agent(
 static int ib_mad_post_receive_mads(struct ib_mad_qp_info *qp_info,
 				    struct ib_mad_private *mad);
 static void cancel_mads(struct ib_mad_agent_private *mad_agent_priv);
-static void timeout_sends(void *data);
-static void local_completions(void *data);
+static void timeout_sends(struct work_struct *work);
+static void local_completions(struct work_struct *work);
 static int add_nonoui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 			      struct ib_mad_agent_private *agent_priv,
 			      u8 mgmt_class);
@@ -356,10 +356,9 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	INIT_LIST_HEAD(&mad_agent_priv->wait_list);
 	INIT_LIST_HEAD(&mad_agent_priv->done_list);
 	INIT_LIST_HEAD(&mad_agent_priv->rmpp_list);
-	INIT_WORK(&mad_agent_priv->timed_work, timeout_sends, mad_agent_priv);
+	INIT_DELAYED_WORK(&mad_agent_priv->timed_work, timeout_sends);
 	INIT_LIST_HEAD(&mad_agent_priv->local_list);
-	INIT_WORK(&mad_agent_priv->local_work, local_completions,
-		   mad_agent_priv);
+	INIT_WORK(&mad_agent_priv->local_work, local_completions);
 	atomic_set(&mad_agent_priv->refcount, 1);
 	init_completion(&mad_agent_priv->comp);
 
@@ -2198,12 +2197,12 @@ static void mad_error_handler(struct ib_mad_port_private *port_priv,
 /*
  * IB MAD completion callback
  */
-static void ib_mad_completion_handler(void *data)
+static void ib_mad_completion_handler(struct work_struct *work)
 {
 	struct ib_mad_port_private *port_priv;
 	struct ib_wc wc;
 
-	port_priv = (struct ib_mad_port_private *)data;
+	port_priv = container_of(work, struct ib_mad_port_private, work);
 	ib_req_notify_cq(port_priv->cq, IB_CQ_NEXT_COMP);
 
 	while (ib_poll_cq(port_priv->cq, 1, &wc) == 1) {
@@ -2324,7 +2323,7 @@ void ib_cancel_mad(struct ib_mad_agent *mad_agent,
 }
 EXPORT_SYMBOL(ib_cancel_mad);
 
-static void local_completions(void *data)
+static void local_completions(struct work_struct *work)
 {
 	struct ib_mad_agent_private *mad_agent_priv;
 	struct ib_mad_local_private *local;
@@ -2334,7 +2333,8 @@ static void local_completions(void *data)
 	struct ib_wc wc;
 	struct ib_mad_send_wc mad_send_wc;
 
-	mad_agent_priv = (struct ib_mad_agent_private *)data;
+	mad_agent_priv =
+		container_of(work, struct ib_mad_agent_private, local_work);
 
 	spin_lock_irqsave(&mad_agent_priv->lock, flags);
 	while (!list_empty(&mad_agent_priv->local_list)) {
@@ -2434,14 +2434,15 @@ static int retry_send(struct ib_mad_send_wr_private *mad_send_wr)
 	return ret;
 }
 
-static void timeout_sends(void *data)
+static void timeout_sends(struct work_struct *work)
 {
 	struct ib_mad_agent_private *mad_agent_priv;
 	struct ib_mad_send_wr_private *mad_send_wr;
 	struct ib_mad_send_wc mad_send_wc;
 	unsigned long flags, delay;
 
-	mad_agent_priv = (struct ib_mad_agent_private *)data;
+	mad_agent_priv = container_of(work, struct ib_mad_agent_private,
+				      timed_work.work);
 	mad_send_wc.vendor_err = 0;
 
 	spin_lock_irqsave(&mad_agent_priv->lock, flags);
@@ -2799,7 +2800,7 @@ static int ib_mad_port_open(struct ib_device *device,
 		ret = -ENOMEM;
 		goto error8;
 	}
-	INIT_WORK(&port_priv->work, ib_mad_completion_handler, port_priv);
+	INIT_WORK(&port_priv->work, ib_mad_completion_handler);
 
 	spin_lock_irqsave(&ib_mad_port_list_lock, flags);
 	list_add_tail(&port_priv->port_list, &ib_mad_port_list);

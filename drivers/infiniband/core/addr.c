@@ -55,11 +55,11 @@ struct addr_req {
 	int status;
 };
 
-static void process_req(void *data);
+static void process_req(struct work_struct *work);
 
 static DEFINE_MUTEX(lock);
 static LIST_HEAD(req_list);
-static DECLARE_WORK(work, process_req, NULL);
+static DECLARE_DELAYED_WORK(work, process_req);
 static struct workqueue_struct *addr_wq;
 
 void rdma_addr_register_client(struct rdma_addr_client *client)
@@ -215,7 +215,7 @@ out:
 	return ret;
 }
 
-static void process_req(void *data)
+static void process_req(struct work_struct *work)
 {
 	struct addr_req *req, *temp_req;
 	struct sockaddr_in *src_in, *dst_in;

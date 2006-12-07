@@ -126,6 +126,10 @@ static int ocfs2_readlink(struct dentry *dentry,
 		goto out;
 	}
 
+	/*
+	 * Without vfsmount we can't update atime now,
+	 * but we will update atime here ultimately.
+	 */
 	ret = vfs_readlink(dentry, buffer, buflen, link);
 
 	brelse(bh);

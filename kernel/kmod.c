@@ -114,6 +114,7 @@ EXPORT_SYMBOL(request_module);
 #endif /* CONFIG_KMOD */
 
 struct subprocess_info {
+	struct work_struct work;
 	struct completion *complete;
 	char *path;
 	char **argv;
@@ -221,9 +222,10 @@ static int wait_for_helper(void *data)
 }
 
 /* This is run by khelper thread  */
-static void __call_usermodehelper(void *data)
+static void __call_usermodehelper(struct work_struct *work)
 {
-	struct subprocess_info *sub_info = data;
+	struct subprocess_info *sub_info =
+		container_of(work, struct subprocess_info, work);
 	pid_t pid;
 	int wait = sub_info->wait;
 
@@ -264,6 +266,8 @@ int call_usermodehelper_keys(char *path, char **argv, char **envp,
 {
 	DECLARE_COMPLETION_ONSTACK(done);
 	struct subprocess_info sub_info = {
+		.work		= __WORK_INITIALIZER(sub_info.work,
+						     __call_usermodehelper),
 		.complete	= &done,
 		.path		= path,
 		.argv		= argv,
@@ -272,7 +276,6 @@ int call_usermodehelper_keys(char *path, char **argv, char **envp,
 		.wait		= wait,
 		.retval		= 0,
 	};
-	DECLARE_WORK(work, __call_usermodehelper, &sub_info);
 
 	if (!khelper_wq)
 		return -EBUSY;
@@ -280,7 +283,7 @@ int call_usermodehelper_keys(char *path, char **argv, char **envp,
 	if (path[0] == '\0')
 		return 0;
 
-	queue_work(khelper_wq, &work);
+	queue_work(khelper_wq, &sub_info.work);
 	wait_for_completion(&done);
 	return sub_info.retval;
 }
@@ -291,6 +294,8 @@ int call_usermodehelper_pipe(char *path, char **argv, char **envp,
 {
 	DECLARE_COMPLETION(done);
 	struct subprocess_info sub_info = {
+		.work		= __WORK_INITIALIZER(sub_info.work,
+						     __call_usermodehelper),
 		.complete	= &done,
 		.path		= path,
 		.argv		= argv,
@@ -298,7 +303,6 @@ int call_usermodehelper_pipe(char *path, char **argv, char **envp,
 		.retval		= 0,
 	};
 	struct file *f;
-	DECLARE_WORK(work, __call_usermodehelper, &sub_info);
 
 	if (!khelper_wq)
 		return -EBUSY;
@@ -318,7 +322,7 @@ int call_usermodehelper_pipe(char *path, char **argv, char **envp,
 	}
 	sub_info.stdin = f;
 
-	queue_work(khelper_wq, &work);
+	queue_work(khelper_wq, &sub_info.work);
 	wait_for_completion(&done);
 	return sub_info.retval;
 }

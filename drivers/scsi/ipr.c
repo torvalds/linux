@@ -79,7 +79,6 @@
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_cmnd.h>
-#include <scsi/scsi_transport.h>
 #include "ipr.h"
 
 /*
@@ -98,7 +97,7 @@ static DEFINE_SPINLOCK(ipr_driver_lock);
 
 /* This table describes the differences between DMA controller chips */
 static const struct ipr_chip_cfg_t ipr_chip_cfg[] = {
-	{ /* Gemstone, Citrine, and Obsidian */
+	{ /* Gemstone, Citrine, Obsidian, and Obsidian-E */
 		.mailbox = 0x0042C,
 		.cache_line_size = 0x20,
 		{
@@ -135,6 +134,7 @@ static const struct ipr_chip_t ipr_chip[] = {
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CITRINE, &ipr_chip_cfg[0] },
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_OBSIDIAN, &ipr_chip_cfg[0] },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN, &ipr_chip_cfg[0] },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN_E, &ipr_chip_cfg[0] },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_SNIPE, &ipr_chip_cfg[1] },
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_SCAMP, &ipr_chip_cfg[1] }
 };
@@ -1249,18 +1249,22 @@ static void ipr_log_array_error(struct ipr_ioa_cfg *ioa_cfg,
 
 /**
  * ipr_log_hex_data - Log additional hex IOA error data.
+ * @ioa_cfg:	ioa config struct
  * @data:		IOA error data
  * @len:		data length
  *
  * Return value:
  * 	none
  **/
-static void ipr_log_hex_data(u32 *data, int len)
+static void ipr_log_hex_data(struct ipr_ioa_cfg *ioa_cfg, u32 *data, int len)
 {
 	int i;
 
 	if (len == 0)
 		return;
+
+	if (ioa_cfg->log_level <= IPR_DEFAULT_LOG_LEVEL)
+		len = min_t(int, len, IPR_DEFAULT_MAX_ERROR_DUMP);
 
 	for (i = 0; i < len / 4; i += 4) {
 		ipr_err("%08X: %08X %08X %08X %08X\n", i*4,
@@ -1290,7 +1294,7 @@ static void ipr_log_enhanced_dual_ioa_error(struct ipr_ioa_cfg *ioa_cfg,
 	ipr_err("%s\n", error->failure_reason);
 	ipr_err("Remote Adapter VPD:\n");
 	ipr_log_ext_vpd(&error->vpd);
-	ipr_log_hex_data(error->data,
+	ipr_log_hex_data(ioa_cfg, error->data,
 			 be32_to_cpu(hostrcb->hcam.length) -
 			 (offsetof(struct ipr_hostrcb_error, u) +
 			  offsetof(struct ipr_hostrcb_type_17_error, data)));
@@ -1315,10 +1319,223 @@ static void ipr_log_dual_ioa_error(struct ipr_ioa_cfg *ioa_cfg,
 	ipr_err("%s\n", error->failure_reason);
 	ipr_err("Remote Adapter VPD:\n");
 	ipr_log_vpd(&error->vpd);
-	ipr_log_hex_data(error->data,
+	ipr_log_hex_data(ioa_cfg, error->data,
 			 be32_to_cpu(hostrcb->hcam.length) -
 			 (offsetof(struct ipr_hostrcb_error, u) +
 			  offsetof(struct ipr_hostrcb_type_07_error, data)));
+}
+
+static const struct {
+	u8 active;
+	char *desc;
+} path_active_desc[] = {
+	{ IPR_PATH_NO_INFO, "Path" },
+	{ IPR_PATH_ACTIVE, "Active path" },
+	{ IPR_PATH_NOT_ACTIVE, "Inactive path" }
+};
+
+static const struct {
+	u8 state;
+	char *desc;
+} path_state_desc[] = {
+	{ IPR_PATH_STATE_NO_INFO, "has no path state information available" },
+	{ IPR_PATH_HEALTHY, "is healthy" },
+	{ IPR_PATH_DEGRADED, "is degraded" },
+	{ IPR_PATH_FAILED, "is failed" }
+};
+
+/**
+ * ipr_log_fabric_path - Log a fabric path error
+ * @hostrcb:	hostrcb struct
+ * @fabric:		fabric descriptor
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log_fabric_path(struct ipr_hostrcb *hostrcb,
+				struct ipr_hostrcb_fabric_desc *fabric)
+{
+	int i, j;
+	u8 path_state = fabric->path_state;
+	u8 active = path_state & IPR_PATH_ACTIVE_MASK;
+	u8 state = path_state & IPR_PATH_STATE_MASK;
+
+	for (i = 0; i < ARRAY_SIZE(path_active_desc); i++) {
+		if (path_active_desc[i].active != active)
+			continue;
+
+		for (j = 0; j < ARRAY_SIZE(path_state_desc); j++) {
+			if (path_state_desc[j].state != state)
+				continue;
+
+			if (fabric->cascaded_expander == 0xff && fabric->phy == 0xff) {
+				ipr_hcam_err(hostrcb, "%s %s: IOA Port=%d\n",
+					     path_active_desc[i].desc, path_state_desc[j].desc,
+					     fabric->ioa_port);
+			} else if (fabric->cascaded_expander == 0xff) {
+				ipr_hcam_err(hostrcb, "%s %s: IOA Port=%d, Phy=%d\n",
+					     path_active_desc[i].desc, path_state_desc[j].desc,
+					     fabric->ioa_port, fabric->phy);
+			} else if (fabric->phy == 0xff) {
+				ipr_hcam_err(hostrcb, "%s %s: IOA Port=%d, Cascade=%d\n",
+					     path_active_desc[i].desc, path_state_desc[j].desc,
+					     fabric->ioa_port, fabric->cascaded_expander);
+			} else {
+				ipr_hcam_err(hostrcb, "%s %s: IOA Port=%d, Cascade=%d, Phy=%d\n",
+					     path_active_desc[i].desc, path_state_desc[j].desc,
+					     fabric->ioa_port, fabric->cascaded_expander, fabric->phy);
+			}
+			return;
+		}
+	}
+
+	ipr_err("Path state=%02X IOA Port=%d Cascade=%d Phy=%d\n", path_state,
+		fabric->ioa_port, fabric->cascaded_expander, fabric->phy);
+}
+
+static const struct {
+	u8 type;
+	char *desc;
+} path_type_desc[] = {
+	{ IPR_PATH_CFG_IOA_PORT, "IOA port" },
+	{ IPR_PATH_CFG_EXP_PORT, "Expander port" },
+	{ IPR_PATH_CFG_DEVICE_PORT, "Device port" },
+	{ IPR_PATH_CFG_DEVICE_LUN, "Device LUN" }
+};
+
+static const struct {
+	u8 status;
+	char *desc;
+} path_status_desc[] = {
+	{ IPR_PATH_CFG_NO_PROB, "Functional" },
+	{ IPR_PATH_CFG_DEGRADED, "Degraded" },
+	{ IPR_PATH_CFG_FAILED, "Failed" },
+	{ IPR_PATH_CFG_SUSPECT, "Suspect" },
+	{ IPR_PATH_NOT_DETECTED, "Missing" },
+	{ IPR_PATH_INCORRECT_CONN, "Incorrectly connected" }
+};
+
+static const char *link_rate[] = {
+	"unknown",
+	"disabled",
+	"phy reset problem",
+	"spinup hold",
+	"port selector",
+	"unknown",
+	"unknown",
+	"unknown",
+	"1.5Gbps",
+	"3.0Gbps",
+	"unknown",
+	"unknown",
+	"unknown",
+	"unknown",
+	"unknown",
+	"unknown"
+};
+
+/**
+ * ipr_log_path_elem - Log a fabric path element.
+ * @hostrcb:	hostrcb struct
+ * @cfg:		fabric path element struct
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log_path_elem(struct ipr_hostrcb *hostrcb,
+			      struct ipr_hostrcb_config_element *cfg)
+{
+	int i, j;
+	u8 type = cfg->type_status & IPR_PATH_CFG_TYPE_MASK;
+	u8 status = cfg->type_status & IPR_PATH_CFG_STATUS_MASK;
+
+	if (type == IPR_PATH_CFG_NOT_EXIST)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(path_type_desc); i++) {
+		if (path_type_desc[i].type != type)
+			continue;
+
+		for (j = 0; j < ARRAY_SIZE(path_status_desc); j++) {
+			if (path_status_desc[j].status != status)
+				continue;
+
+			if (type == IPR_PATH_CFG_IOA_PORT) {
+				ipr_hcam_err(hostrcb, "%s %s: Phy=%d, Link rate=%s, WWN=%08X%08X\n",
+					     path_status_desc[j].desc, path_type_desc[i].desc,
+					     cfg->phy, link_rate[cfg->link_rate & IPR_PHY_LINK_RATE_MASK],
+					     be32_to_cpu(cfg->wwid[0]), be32_to_cpu(cfg->wwid[1]));
+			} else {
+				if (cfg->cascaded_expander == 0xff && cfg->phy == 0xff) {
+					ipr_hcam_err(hostrcb, "%s %s: Link rate=%s, WWN=%08X%08X\n",
+						     path_status_desc[j].desc, path_type_desc[i].desc,
+						     link_rate[cfg->link_rate & IPR_PHY_LINK_RATE_MASK],
+						     be32_to_cpu(cfg->wwid[0]), be32_to_cpu(cfg->wwid[1]));
+				} else if (cfg->cascaded_expander == 0xff) {
+					ipr_hcam_err(hostrcb, "%s %s: Phy=%d, Link rate=%s, "
+						     "WWN=%08X%08X\n", path_status_desc[j].desc,
+						     path_type_desc[i].desc, cfg->phy,
+						     link_rate[cfg->link_rate & IPR_PHY_LINK_RATE_MASK],
+						     be32_to_cpu(cfg->wwid[0]), be32_to_cpu(cfg->wwid[1]));
+				} else if (cfg->phy == 0xff) {
+					ipr_hcam_err(hostrcb, "%s %s: Cascade=%d, Link rate=%s, "
+						     "WWN=%08X%08X\n", path_status_desc[j].desc,
+						     path_type_desc[i].desc, cfg->cascaded_expander,
+						     link_rate[cfg->link_rate & IPR_PHY_LINK_RATE_MASK],
+						     be32_to_cpu(cfg->wwid[0]), be32_to_cpu(cfg->wwid[1]));
+				} else {
+					ipr_hcam_err(hostrcb, "%s %s: Cascade=%d, Phy=%d, Link rate=%s "
+						     "WWN=%08X%08X\n", path_status_desc[j].desc,
+						     path_type_desc[i].desc, cfg->cascaded_expander, cfg->phy,
+						     link_rate[cfg->link_rate & IPR_PHY_LINK_RATE_MASK],
+						     be32_to_cpu(cfg->wwid[0]), be32_to_cpu(cfg->wwid[1]));
+				}
+			}
+			return;
+		}
+	}
+
+	ipr_hcam_err(hostrcb, "Path element=%02X: Cascade=%d Phy=%d Link rate=%s "
+		     "WWN=%08X%08X\n", cfg->type_status, cfg->cascaded_expander, cfg->phy,
+		     link_rate[cfg->link_rate & IPR_PHY_LINK_RATE_MASK],
+		     be32_to_cpu(cfg->wwid[0]), be32_to_cpu(cfg->wwid[1]));
+}
+
+/**
+ * ipr_log_fabric_error - Log a fabric error.
+ * @ioa_cfg:	ioa config struct
+ * @hostrcb:	hostrcb struct
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log_fabric_error(struct ipr_ioa_cfg *ioa_cfg,
+				 struct ipr_hostrcb *hostrcb)
+{
+	struct ipr_hostrcb_type_20_error *error;
+	struct ipr_hostrcb_fabric_desc *fabric;
+	struct ipr_hostrcb_config_element *cfg;
+	int i, add_len;
+
+	error = &hostrcb->hcam.u.error.u.type_20_error;
+	error->failure_reason[sizeof(error->failure_reason) - 1] = '\0';
+	ipr_hcam_err(hostrcb, "%s\n", error->failure_reason);
+
+	add_len = be32_to_cpu(hostrcb->hcam.length) -
+		(offsetof(struct ipr_hostrcb_error, u) +
+		 offsetof(struct ipr_hostrcb_type_20_error, desc));
+
+	for (i = 0, fabric = error->desc; i < error->num_entries; i++) {
+		ipr_log_fabric_path(hostrcb, fabric);
+		for_each_fabric_cfg(fabric, cfg)
+			ipr_log_path_elem(hostrcb, cfg);
+
+		add_len -= be16_to_cpu(fabric->length);
+		fabric = (struct ipr_hostrcb_fabric_desc *)
+			((unsigned long)fabric + be16_to_cpu(fabric->length));
+	}
+
+	ipr_log_hex_data(ioa_cfg, (u32 *)fabric, add_len);
 }
 
 /**
@@ -1332,7 +1549,7 @@ static void ipr_log_dual_ioa_error(struct ipr_ioa_cfg *ioa_cfg,
 static void ipr_log_generic_error(struct ipr_ioa_cfg *ioa_cfg,
 				  struct ipr_hostrcb *hostrcb)
 {
-	ipr_log_hex_data(hostrcb->hcam.u.raw.data,
+	ipr_log_hex_data(ioa_cfg, hostrcb->hcam.u.raw.data,
 			 be32_to_cpu(hostrcb->hcam.length));
 }
 
@@ -1394,13 +1611,7 @@ static void ipr_handle_log_data(struct ipr_ioa_cfg *ioa_cfg,
 	if (!ipr_error_table[error_index].log_hcam)
 		return;
 
-	if (ipr_is_device(&hostrcb->hcam.u.error.failing_dev_res_addr)) {
-		ipr_ra_err(ioa_cfg, hostrcb->hcam.u.error.failing_dev_res_addr,
-			   "%s\n", ipr_error_table[error_index].error);
-	} else {
-		dev_err(&ioa_cfg->pdev->dev, "%s\n",
-			ipr_error_table[error_index].error);
-	}
+	ipr_hcam_err(hostrcb, "%s\n", ipr_error_table[error_index].error);
 
 	/* Set indication we have logged an error */
 	ioa_cfg->errors_logged++;
@@ -1436,6 +1647,9 @@ static void ipr_handle_log_data(struct ipr_ioa_cfg *ioa_cfg,
 		break;
 	case IPR_HOST_RCB_OVERLAY_ID_17:
 		ipr_log_enhanced_dual_ioa_error(ioa_cfg, hostrcb);
+		break;
+	case IPR_HOST_RCB_OVERLAY_ID_20:
+		ipr_log_fabric_error(ioa_cfg, hostrcb);
 		break;
 	case IPR_HOST_RCB_OVERLAY_ID_1:
 	case IPR_HOST_RCB_OVERLAY_ID_DEFAULT:
@@ -2093,7 +2307,7 @@ static void ipr_release_dump(struct kref *kref)
 
 /**
  * ipr_worker_thread - Worker thread
- * @data:		ioa config struct
+ * @work:		ioa config struct
  *
  * Called at task level from a work thread. This function takes care
  * of adding and removing device from the mid-layer as configuration
@@ -2102,13 +2316,14 @@ static void ipr_release_dump(struct kref *kref)
  * Return value:
  * 	nothing
  **/
-static void ipr_worker_thread(void *data)
+static void ipr_worker_thread(struct work_struct *work)
 {
 	unsigned long lock_flags;
 	struct ipr_resource_entry *res;
 	struct scsi_device *sdev;
 	struct ipr_dump *dump;
-	struct ipr_ioa_cfg *ioa_cfg = data;
+	struct ipr_ioa_cfg *ioa_cfg =
+		container_of(work, struct ipr_ioa_cfg, work_q);
 	u8 bus, target, lun;
 	int did_work;
 
@@ -2969,7 +3184,6 @@ static int ipr_alloc_dump(struct ipr_ioa_cfg *ioa_cfg)
 	struct ipr_dump *dump;
 	unsigned long lock_flags = 0;
 
-	ENTER;
 	dump = kzalloc(sizeof(struct ipr_dump), GFP_KERNEL);
 
 	if (!dump) {
@@ -2996,7 +3210,6 @@ static int ipr_alloc_dump(struct ipr_ioa_cfg *ioa_cfg)
 	}
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 
-	LEAVE;
 	return 0;
 }
 
@@ -3573,6 +3786,12 @@ static int ipr_sata_reset(struct ata_port *ap, unsigned int *classes)
 
 	ENTER;
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	while(ioa_cfg->in_reset_reload) {
+		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+		wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
+		spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	}
+
 	res = sata_port->res;
 	if (res) {
 		rc = ipr_device_reset(ioa_cfg, res);
@@ -3636,6 +3855,10 @@ static int __ipr_eh_dev_reset(struct scsi_cmnd * scsi_cmd)
 		if (ipr_cmd->ioarcb.res_handle == res->cfgte.res_handle) {
 			if (ipr_cmd->scsi_cmd)
 				ipr_cmd->done = ipr_scsi_eh_done;
+			if (ipr_cmd->qc && !(ipr_cmd->qc->flags & ATA_QCFLAG_FAILED)) {
+				ipr_cmd->qc->err_mask |= AC_ERR_TIMEOUT;
+				ipr_cmd->qc->flags |= ATA_QCFLAG_FAILED;
+			}
 		}
 	}
 
@@ -3770,7 +3993,7 @@ static int ipr_cancel_op(struct scsi_cmnd * scsi_cmd)
 	 */
 	if (ioa_cfg->in_reset_reload || ioa_cfg->ioa_is_dead)
 		return FAILED;
-	if (!res || (!ipr_is_gscsi(res) && !ipr_is_vset_device(res)))
+	if (!res || !ipr_is_gscsi(res))
 		return FAILED;
 
 	list_for_each_entry(ipr_cmd, &ioa_cfg->pending_q, queue) {
@@ -4615,7 +4838,7 @@ static int ipr_queuecommand(struct scsi_cmnd *scsi_cmd,
  * Return value:
  * 	0 on success / other on failure
  **/
-int ipr_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
+static int ipr_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 {
 	struct ipr_resource_entry *res;
 
@@ -4647,40 +4870,6 @@ static const char * ipr_ioa_info(struct Scsi_Host *host)
 
 	return buffer;
 }
-
-/**
- * ipr_scsi_timed_out - Handle scsi command timeout
- * @scsi_cmd:	scsi command struct
- *
- * Return value:
- * 	EH_NOT_HANDLED
- **/
-enum scsi_eh_timer_return ipr_scsi_timed_out(struct scsi_cmnd *scsi_cmd)
-{
-	struct ipr_ioa_cfg *ioa_cfg;
-	struct ipr_cmnd *ipr_cmd;
-	unsigned long flags;
-
-	ENTER;
-	spin_lock_irqsave(scsi_cmd->device->host->host_lock, flags);
-	ioa_cfg = (struct ipr_ioa_cfg *)scsi_cmd->device->host->hostdata;
-
-	list_for_each_entry(ipr_cmd, &ioa_cfg->pending_q, queue) {
-		if (ipr_cmd->qc && ipr_cmd->qc->scsicmd == scsi_cmd) {
-			ipr_cmd->qc->err_mask |= AC_ERR_TIMEOUT;
-			ipr_cmd->qc->flags |= ATA_QCFLAG_FAILED;
-			break;
-		}
-	}
-
-	spin_unlock_irqrestore(scsi_cmd->device->host->host_lock, flags);
-	LEAVE;
-	return EH_NOT_HANDLED;
-}
-
-static struct scsi_transport_template ipr_transport_template = {
-	.eh_timed_out = ipr_scsi_timed_out
-};
 
 static struct scsi_host_template driver_template = {
 	.module = THIS_MODULE,
@@ -4776,6 +4965,12 @@ static void ipr_ata_post_internal(struct ata_queued_cmd *qc)
 	unsigned long flags;
 
 	spin_lock_irqsave(ioa_cfg->host->host_lock, flags);
+	while(ioa_cfg->in_reset_reload) {
+		spin_unlock_irqrestore(ioa_cfg->host->host_lock, flags);
+		wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
+		spin_lock_irqsave(ioa_cfg->host->host_lock, flags);
+	}
+
 	list_for_each_entry(ipr_cmd, &ioa_cfg->pending_q, queue) {
 		if (ipr_cmd->qc == qc) {
 			ipr_device_reset(ioa_cfg, sata_port->res);
@@ -6832,6 +7027,7 @@ static int __devinit ipr_alloc_mem(struct ipr_ioa_cfg *ioa_cfg)
 
 		ioa_cfg->hostrcb[i]->hostrcb_dma =
 			ioa_cfg->hostrcb_dma[i] + offsetof(struct ipr_hostrcb, hcam);
+		ioa_cfg->hostrcb[i]->ioa_cfg = ioa_cfg;
 		list_add_tail(&ioa_cfg->hostrcb[i]->queue, &ioa_cfg->hostrcb_free_q);
 	}
 
@@ -6926,7 +7122,7 @@ static void __devinit ipr_init_ioa_cfg(struct ipr_ioa_cfg *ioa_cfg,
 	INIT_LIST_HEAD(&ioa_cfg->hostrcb_pending_q);
 	INIT_LIST_HEAD(&ioa_cfg->free_res_q);
 	INIT_LIST_HEAD(&ioa_cfg->used_res_q);
-	INIT_WORK(&ioa_cfg->work_q, ipr_worker_thread, ioa_cfg);
+	INIT_WORK(&ioa_cfg->work_q, ipr_worker_thread);
 	init_waitqueue_head(&ioa_cfg->reset_wait_q);
 	ioa_cfg->sdt_state = INACTIVE;
 	if (ipr_enable_cache)
@@ -7017,7 +7213,6 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 
 	ioa_cfg = (struct ipr_ioa_cfg *)host->hostdata;
 	memset(ioa_cfg, 0, sizeof(struct ipr_ioa_cfg));
-	host->transportt = &ipr_transport_template;
 	ata_host_init(&ioa_cfg->ata_host, &pdev->dev,
 		      sata_port_info.flags, &ipr_sata_ops);
 
@@ -7351,11 +7546,23 @@ static struct pci_device_id ipr_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_OBSIDIAN,
 	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572B,
 	      0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
+	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_OBSIDIAN,
+	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_575C,
+	      0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN,
 	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572A,
 	      0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN,
 	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572B,
+	      0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN,
+	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_575C,
+	      0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN,
+	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57B8,
+	      0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN_E,
+	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57B7,
 	      0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_SNIPE,
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_2780,
@@ -7365,6 +7572,9 @@ static struct pci_device_id ipr_pci_table[] __devinitdata = {
 		0, 0, (kernel_ulong_t)&ipr_chip_cfg[1] },
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_SCAMP,
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_571F,
+		0, 0, (kernel_ulong_t)&ipr_chip_cfg[1] },
+	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_SCAMP,
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572F,
 		0, 0, (kernel_ulong_t)&ipr_chip_cfg[1] },
 	{ }
 };

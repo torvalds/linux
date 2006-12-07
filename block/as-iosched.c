@@ -1274,9 +1274,10 @@ static void as_merged_requests(request_queue_t *q, struct request *req,
  *
  * FIXME! dispatch queue is not a queue at all!
  */
-static void as_work_handler(void *data)
+static void as_work_handler(struct work_struct *work)
 {
-	struct request_queue *q = data;
+	struct as_data *ad = container_of(work, struct as_data, antic_work);
+	struct request_queue *q = ad->q;
 	unsigned long flags;
 
 	spin_lock_irqsave(q->queue_lock, flags);
@@ -1332,7 +1333,7 @@ static void *as_init_queue(request_queue_t *q)
 	ad->antic_timer.function = as_antic_timeout;
 	ad->antic_timer.data = (unsigned long)q;
 	init_timer(&ad->antic_timer);
-	INIT_WORK(&ad->antic_work, as_work_handler, q);
+	INIT_WORK(&ad->antic_work, as_work_handler);
 
 	INIT_LIST_HEAD(&ad->fifo_list[REQ_SYNC]);
 	INIT_LIST_HEAD(&ad->fifo_list[REQ_ASYNC]);

@@ -91,8 +91,10 @@ out:
 	spin_unlock(&fddef->lock);
 }
 
-static void free_fdtable_work(struct fdtable_defer *f)
+static void free_fdtable_work(struct work_struct *work)
 {
+	struct fdtable_defer *f =
+		container_of(work, struct fdtable_defer, wq);
 	struct fdtable *fdt;
 
 	spin_lock_bh(&f->lock);
@@ -351,7 +353,7 @@ static void __devinit fdtable_defer_list_init(int cpu)
 {
 	struct fdtable_defer *fddef = &per_cpu(fdtable_defer_list, cpu);
 	spin_lock_init(&fddef->lock);
-	INIT_WORK(&fddef->wq, (void (*)(void *))free_fdtable_work, fddef);
+	INIT_WORK(&fddef->wq, free_fdtable_work);
 	init_timer(&fddef->timer);
 	fddef->timer.data = (unsigned long)fddef;
 	fddef->timer.function = fdtable_timer;

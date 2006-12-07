@@ -201,9 +201,14 @@ struct domain_device {
         void *lldd_dev;
 };
 
+struct sas_discovery_event {
+	struct work_struct work;
+	struct asd_sas_port *port;
+};
+
 struct sas_discovery {
 	spinlock_t disc_event_lock;
-	struct work_struct disc_work[DISC_NUM_EVENTS];
+	struct sas_discovery_event disc_work[DISC_NUM_EVENTS];
 	unsigned long    pending;
 	u8     fanout_sas_addr[8];
 	u8     eeds_a[8];
@@ -249,14 +254,19 @@ struct asd_sas_port {
 	void *lldd_port;	  /* not touched by the sas class code */
 };
 
+struct asd_sas_event {
+	struct work_struct work;
+	struct asd_sas_phy *phy;
+};
+
 /* The phy pretty much is controlled by the LLDD.
  * The class only reads those fields.
  */
 struct asd_sas_phy {
 /* private: */
 	/* protected by ha->event_lock */
-	struct work_struct   port_events[PORT_NUM_EVENTS];
-	struct work_struct   phy_events[PHY_NUM_EVENTS];
+	struct asd_sas_event   port_events[PORT_NUM_EVENTS];
+	struct asd_sas_event   phy_events[PHY_NUM_EVENTS];
 
 	unsigned long port_events_pending;
 	unsigned long phy_events_pending;
@@ -308,10 +318,15 @@ struct scsi_core {
 	int               queue_thread_kill;
 };
 
+struct sas_ha_event {
+	struct work_struct work;
+	struct sas_ha_struct *ha;
+};
+
 struct sas_ha_struct {
 /* private: */
 	spinlock_t       event_lock;
-	struct work_struct ha_events[HA_NUM_EVENTS];
+	struct sas_ha_event ha_events[HA_NUM_EVENTS];
 	unsigned long	 pending;
 
 	struct scsi_core core;
@@ -339,6 +354,8 @@ struct sas_ha_struct {
 	void (*notify_phy_event)(struct asd_sas_phy *, enum phy_event);
 
 	void *lldd_ha;		  /* not touched by sas class code */
+
+	struct list_head eh_done_q;
 };
 
 #define SHOST_TO_SAS_HA(_shost) (*(struct sas_ha_struct **)(_shost)->hostdata)
@@ -527,13 +544,16 @@ struct sas_task {
 
 	void   *lldd_task;	  /* for use by LLDDs */
 	void   *uldd_task;
+
+	struct work_struct abort_work;
 };
 
 
 
-#define SAS_TASK_STATE_PENDING  1
-#define SAS_TASK_STATE_DONE     2
-#define SAS_TASK_STATE_ABORTED  4
+#define SAS_TASK_STATE_PENDING      1
+#define SAS_TASK_STATE_DONE         2
+#define SAS_TASK_STATE_ABORTED      4
+#define SAS_TASK_INITIATOR_ABORTED  8
 
 static inline struct sas_task *sas_alloc_task(gfp_t flags)
 {
@@ -593,6 +613,7 @@ struct sas_domain_function_template {
 extern int sas_register_ha(struct sas_ha_struct *);
 extern int sas_unregister_ha(struct sas_ha_struct *);
 
+int sas_phy_reset(struct sas_phy *phy, int hard_reset);
 extern int sas_queuecommand(struct scsi_cmnd *,
 		     void (*scsi_done)(struct scsi_cmnd *));
 extern int sas_target_alloc(struct scsi_target *);
@@ -624,5 +645,7 @@ int  sas_discover_end_dev(struct domain_device *);
 void sas_unregister_dev(struct domain_device *);
 
 void sas_init_dev(struct domain_device *);
+
+void sas_task_abort(struct work_struct *);
 
 #endif /* _SASLIB_H_ */

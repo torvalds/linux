@@ -43,6 +43,7 @@ struct pci_controller {
 	struct pci_controller *next;
         struct pci_bus *bus;
 	void *arch_data;
+	struct device *parent;
 
 	int first_busno;
 	int last_busno;

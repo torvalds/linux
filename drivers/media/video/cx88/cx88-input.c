@@ -145,9 +145,9 @@ static void ir_timer(unsigned long data)
 	schedule_work(&ir->work);
 }
 
-static void cx88_ir_work(void *data)
+static void cx88_ir_work(struct work_struct *work)
 {
-	struct cx88_IR *ir = data;
+	struct cx88_IR *ir = container_of(work, struct cx88_IR, work);
 	unsigned long timeout;
 
 	cx88_ir_handle_key(ir);
@@ -308,7 +308,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	core->ir = ir;
 
 	if (ir->polling) {
-		INIT_WORK(&ir->work, cx88_ir_work, ir);
+		INIT_WORK(&ir->work, cx88_ir_work);
 		init_timer(&ir->timer);
 		ir->timer.function = ir_timer;
 		ir->timer.data = (unsigned long)ir;

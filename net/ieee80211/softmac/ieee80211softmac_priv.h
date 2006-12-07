@@ -78,7 +78,7 @@
 /* private definitions and prototypes */
 
 /*** prototypes from _scan.c */
-void ieee80211softmac_scan(void *sm);
+void ieee80211softmac_scan(struct work_struct *work);
 /* for internal use if scanning is needed */
 int ieee80211softmac_start_scan(struct ieee80211softmac_device *mac);
 void ieee80211softmac_stop_scan(struct ieee80211softmac_device *mac);
@@ -149,7 +149,7 @@ int ieee80211softmac_auth_resp(struct net_device *dev, struct ieee80211_auth *au
 int ieee80211softmac_deauth_resp(struct net_device *dev, struct ieee80211_deauth *deauth);
 
 /*** prototypes from _assoc.c */
-void ieee80211softmac_assoc_work(void *d);
+void ieee80211softmac_assoc_work(struct work_struct *work);
 int ieee80211softmac_handle_assoc_response(struct net_device * dev,
 					   struct ieee80211_assoc_response * resp,
 					   struct ieee80211_network * network);
@@ -157,7 +157,7 @@ int ieee80211softmac_handle_disassoc(struct net_device * dev,
 				     struct ieee80211_disassoc * disassoc);
 int ieee80211softmac_handle_reassoc_req(struct net_device * dev,
 				        struct ieee80211_reassoc_request * reassoc);
-void ieee80211softmac_assoc_timeout(void *d);
+void ieee80211softmac_assoc_timeout(struct work_struct *work);
 void ieee80211softmac_send_disassoc_req(struct ieee80211softmac_device *mac, u16 reason);
 void ieee80211softmac_disassoc(struct ieee80211softmac_device *mac);
 
@@ -207,7 +207,7 @@ struct ieee80211softmac_auth_queue_item {
 	struct ieee80211softmac_device	*mac;	/* SoftMAC device */
 	u8 retry;				/* Retry limit */
 	u8 state;				/* Auth State */
-	struct work_struct		work;	/* Work queue */
+	struct delayed_work		work;	/* Work queue */
 };
 
 /* scanning information */
@@ -219,7 +219,8 @@ struct ieee80211softmac_scaninfo {
 	   stop:1;
 	u8 skip_flags;
 	struct completion finished;
-	struct work_struct softmac_scan;
+	struct delayed_work softmac_scan;
+	struct ieee80211softmac_device *mac;
 };
 
 /* private event struct */
@@ -227,7 +228,7 @@ struct ieee80211softmac_event {
 	struct list_head list;
 	int event_type;
 	void *event_context;
-	struct work_struct work;
+	struct delayed_work work;
 	notify_function_ptr fun;
 	void *context;
 	struct ieee80211softmac_device *mac;

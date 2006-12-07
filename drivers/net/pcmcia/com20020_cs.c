@@ -249,12 +249,9 @@ do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 static int com20020_config(struct pcmcia_device *link)
 {
     struct arcnet_local *lp;
-    tuple_t tuple;
-    cisparse_t parse;
     com20020_dev_t *info;
     struct net_device *dev;
     int i, last_ret, last_fn;
-    u_char buf[64];
     int ioaddr;
 
     info = link->priv;
@@ -263,16 +260,6 @@ static int com20020_config(struct pcmcia_device *link)
     DEBUG(1,"config...\n");
 
     DEBUG(0, "com20020_config(0x%p)\n", link);
-
-    tuple.Attributes = 0;
-    tuple.TupleData = buf;
-    tuple.TupleDataMax = 64;
-    tuple.TupleOffset = 0;
-    tuple.DesiredTuple = CISTPL_CONFIG;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
-    link->conf.ConfigBase = parse.config.base;
 
     DEBUG(1,"arcnet: baseport1 is %Xh\n", link->io.BasePort1);
     i = !CS_SUCCESS;

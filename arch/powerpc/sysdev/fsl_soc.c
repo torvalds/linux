@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
+#include <linux/phy.h>
 #include <linux/fsl_devices.h>
 #include <linux/fs_enet_pd.h>
 #include <linux/fs_uart_pd.h>
@@ -146,7 +147,7 @@ static int __init gfar_mdio_of_init(void)
 		}
 
 		for (k = 0; k < 32; k++)
-			mdio_data.irq[k] = -1;
+			mdio_data.irq[k] = PHY_POLL;
 
 		while ((child = of_get_next_child(np, child)) != NULL) {
 			int irq = irq_of_parse_and_map(child, 0);
@@ -177,6 +178,7 @@ static const char *gfar_tx_intr = "tx";
 static const char *gfar_rx_intr = "rx";
 static const char *gfar_err_intr = "error";
 
+
 static int __init gfar_of_init(void)
 {
 	struct device_node *np;
@@ -204,8 +206,7 @@ static int __init gfar_of_init(void)
 		if (ret)
 			goto err;
 
-		r[1].start = r[1].end = irq_of_parse_and_map(np, 0);
-		r[1].flags = IORESOURCE_IRQ;
+		of_irq_to_resource(np, 0, &r[1]);
 
 		model = get_property(np, "model", NULL);
 
@@ -214,12 +215,10 @@ static int __init gfar_of_init(void)
 			r[1].name = gfar_tx_intr;
 
 			r[2].name = gfar_rx_intr;
-			r[2].start = r[2].end = irq_of_parse_and_map(np, 1);
-			r[2].flags = IORESOURCE_IRQ;
+			of_irq_to_resource(np, 1, &r[2]);
 
 			r[3].name = gfar_err_intr;
-			r[3].start = r[3].end = irq_of_parse_and_map(np, 2);
-			r[3].flags = IORESOURCE_IRQ;
+			of_irq_to_resource(np, 2, &r[3]);
 
 			n_res += 2;
 		}
@@ -323,8 +322,7 @@ static int __init fsl_i2c_of_init(void)
 		if (ret)
 			goto err;
 
-		r[1].start = r[1].end = irq_of_parse_and_map(np, 0);
-		r[1].flags = IORESOURCE_IRQ;
+		of_irq_to_resource(np, 0, &r[1]);
 
 		i2c_dev = platform_device_register_simple("fsl-i2c", i, r, 2);
 		if (IS_ERR(i2c_dev)) {
@@ -459,8 +457,7 @@ static int __init fsl_usb_of_init(void)
 		if (ret)
 			goto err;
 
-		r[1].start = r[1].end = irq_of_parse_and_map(np, 0);
-		r[1].flags = IORESOURCE_IRQ;
+		of_irq_to_resource(np, 0, &r[1]);
 
 		usb_dev_mph =
 		    platform_device_register_simple("fsl-ehci", i, r, 2);
@@ -507,8 +504,7 @@ static int __init fsl_usb_of_init(void)
 		if (ret)
 			goto unreg_mph;
 
-		r[1].start = r[1].end = irq_of_parse_and_map(np, 0);
-		r[1].flags = IORESOURCE_IRQ;
+		of_irq_to_resource(np, 0, &r[1]);
 
 		usb_dev_dr =
 		    platform_device_register_simple("fsl-ehci", i, r, 2);
@@ -591,8 +587,7 @@ static int __init fs_enet_of_init(void)
 		r[2].name = fcc_regs_c;
 		fs_enet_data.fcc_regs_c = r[2].start;
 
-		r[3].start = r[3].end = irq_of_parse_and_map(np, 0);
-		r[3].flags = IORESOURCE_IRQ;
+		of_irq_to_resource(np, 0, &r[3]);
 
 		fs_enet_dev =
 		    platform_device_register_simple("fsl-cpm-fcc", i, &r[0], 4);
@@ -754,8 +749,7 @@ static int __init cpm_uart_of_init(void)
 			goto err;
 		r[1].name = scc_pram;
 
-		r[2].start = r[2].end = irq_of_parse_and_map(np, 0);
-		r[2].flags = IORESOURCE_IRQ;
+		of_irq_to_resource(np, 0, &r[2]);
 
 		cpm_uart_dev =
 		    platform_device_register_simple("fsl-cpm-scc:uart", i, &r[0], 3);

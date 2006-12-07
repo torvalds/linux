@@ -25,6 +25,12 @@
 #define OF_CHECK_COUNTS(na, ns)	((na) > 0 && (na) <= OF_MAX_ADDR_CELLS && \
 			(ns) > 0)
 
+static struct of_bus *of_match_bus(struct device_node *np);
+static int __of_address_to_resource(struct device_node *dev,
+		const u32 *addrp, u64 size, unsigned int flags,
+		struct resource *r);
+
+
 /* Debug utility */
 #ifdef DEBUG
 static void of_dump_addr(const char *s, const u32 *addr, int na)
@@ -101,6 +107,7 @@ static unsigned int of_bus_default_get_flags(const u32 *addr)
 }
 
 
+#ifdef CONFIG_PCI
 /*
  * PCI bus specific translator
  */
@@ -153,14 +160,155 @@ static unsigned int of_bus_pci_get_flags(const u32 *addr)
 	switch((w >> 24) & 0x03) {
 	case 0x01:
 		flags |= IORESOURCE_IO;
+		break;
 	case 0x02: /* 32 bits */
 	case 0x03: /* 64 bits */
 		flags |= IORESOURCE_MEM;
+		break;
 	}
 	if (w & 0x40000000)
 		flags |= IORESOURCE_PREFETCH;
 	return flags;
 }
+
+const u32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size,
+			unsigned int *flags)
+{
+	const u32 *prop;
+	unsigned int psize;
+	struct device_node *parent;
+	struct of_bus *bus;
+	int onesize, i, na, ns;
+
+	/* Get parent & match bus type */
+	parent = of_get_parent(dev);
+	if (parent == NULL)
+		return NULL;
+	bus = of_match_bus(parent);
+	if (strcmp(bus->name, "pci")) {
+		of_node_put(parent);
+		return NULL;
+	}
+	bus->count_cells(dev, &na, &ns);
+	of_node_put(parent);
+	if (!OF_CHECK_COUNTS(na, ns))
+		return NULL;
+
+	/* Get "reg" or "assigned-addresses" property */
+	prop = get_property(dev, bus->addresses, &psize);
+	if (prop == NULL)
+		return NULL;
+	psize /= 4;
+
+	onesize = na + ns;
+	for (i = 0; psize >= onesize; psize -= onesize, prop += onesize, i++)
+		if ((prop[0] & 0xff) == ((bar_no * 4) + PCI_BASE_ADDRESS_0)) {
+			if (size)
+				*size = of_read_number(prop + na, ns);
+			if (flags)
+				*flags = bus->get_flags(prop);
+			return prop;
+		}
+	return NULL;
+}
+EXPORT_SYMBOL(of_get_pci_address);
+
+int of_pci_address_to_resource(struct device_node *dev, int bar,
+			       struct resource *r)
+{
+	const u32	*addrp;
+	u64		size;
+	unsigned int	flags;
+
+	addrp = of_get_pci_address(dev, bar, &size, &flags);
+	if (addrp == NULL)
+		return -EINVAL;
+	return __of_address_to_resource(dev, addrp, size, flags, r);
+}
+EXPORT_SYMBOL_GPL(of_pci_address_to_resource);
+
+static u8 of_irq_pci_swizzle(u8 slot, u8 pin)
+{
+	return (((pin - 1) + slot) % 4) + 1;
+}
+
+int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq)
+{
+	struct device_node *dn, *ppnode;
+	struct pci_dev *ppdev;
+	u32 lspec;
+	u32 laddr[3];
+	u8 pin;
+	int rc;
+
+	/* Check if we have a device node, if yes, fallback to standard OF
+	 * parsing
+	 */
+	dn = pci_device_to_OF_node(pdev);
+	if (dn)
+		return of_irq_map_one(dn, 0, out_irq);
+
+	/* Ok, we don't, time to have fun. Let's start by building up an
+	 * interrupt spec.  we assume #interrupt-cells is 1, which is standard
+	 * for PCI. If you do different, then don't use that routine.
+	 */
+	rc = pci_read_config_byte(pdev, PCI_INTERRUPT_PIN, &pin);
+	if (rc != 0)
+		return rc;
+	/* No pin, exit */
+	if (pin == 0)
+		return -ENODEV;
+
+	/* Now we walk up the PCI tree */
+	lspec = pin;
+	for (;;) {
+		/* Get the pci_dev of our parent */
+		ppdev = pdev->bus->self;
+
+		/* Ouch, it's a host bridge... */
+		if (ppdev == NULL) {
+#ifdef CONFIG_PPC64
+			ppnode = pci_bus_to_OF_node(pdev->bus);
+#else
+			struct pci_controller *host;
+			host = pci_bus_to_host(pdev->bus);
+			ppnode = host ? host->arch_data : NULL;
+#endif
+			/* No node for host bridge ? give up */
+			if (ppnode == NULL)
+				return -EINVAL;
+		} else
+			/* We found a P2P bridge, check if it has a node */
+			ppnode = pci_device_to_OF_node(ppdev);
+
+		/* Ok, we have found a parent with a device-node, hand over to
+		 * the OF parsing code.
+		 * We build a unit address from the linux device to be used for
+		 * resolution. Note that we use the linux bus number which may
+		 * not match your firmware bus numbering.
+		 * Fortunately, in most cases, interrupt-map-mask doesn't include
+		 * the bus number as part of the matching.
+		 * You should still be careful about that though if you intend
+		 * to rely on this function (you ship  a firmware that doesn't
+		 * create device nodes for all PCI devices).
+		 */
+		if (ppnode)
+			break;
+
+		/* We can only get here if we hit a P2P bridge with no node,
+		 * let's do standard swizzling and try again
+		 */
+		lspec = of_irq_pci_swizzle(PCI_SLOT(pdev->devfn), lspec);
+		pdev = ppdev;
+	}
+
+	laddr[0] = (pdev->bus->number << 16)
+		| (pdev->devfn << 8);
+	laddr[1]  = laddr[2] = 0;
+	return of_irq_map_raw(ppnode, &lspec, 1, laddr, out_irq);
+}
+EXPORT_SYMBOL_GPL(of_irq_map_pci);
+#endif /* CONFIG_PCI */
 
 /*
  * ISA bus specific translator
@@ -223,6 +371,7 @@ static unsigned int of_bus_isa_get_flags(const u32 *addr)
  */
 
 static struct of_bus of_busses[] = {
+#ifdef CONFIG_PCI
 	/* PCI */
 	{
 		.name = "pci",
@@ -233,6 +382,7 @@ static struct of_bus of_busses[] = {
 		.translate = of_bus_pci_translate,
 		.get_flags = of_bus_pci_get_flags,
 	},
+#endif /* CONFIG_PCI */
 	/* ISA */
 	{
 		.name = "isa",
@@ -445,48 +595,6 @@ const u32 *of_get_address(struct device_node *dev, int index, u64 *size,
 }
 EXPORT_SYMBOL(of_get_address);
 
-const u32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size,
-			unsigned int *flags)
-{
-	const u32 *prop;
-	unsigned int psize;
-	struct device_node *parent;
-	struct of_bus *bus;
-	int onesize, i, na, ns;
-
-	/* Get parent & match bus type */
-	parent = of_get_parent(dev);
-	if (parent == NULL)
-		return NULL;
-	bus = of_match_bus(parent);
-	if (strcmp(bus->name, "pci")) {
-		of_node_put(parent);
-		return NULL;
-	}
-	bus->count_cells(dev, &na, &ns);
-	of_node_put(parent);
-	if (!OF_CHECK_COUNTS(na, ns))
-		return NULL;
-
-	/* Get "reg" or "assigned-addresses" property */
-	prop = get_property(dev, bus->addresses, &psize);
-	if (prop == NULL)
-		return NULL;
-	psize /= 4;
-
-	onesize = na + ns;
-	for (i = 0; psize >= onesize; psize -= onesize, prop += onesize, i++)
-		if ((prop[0] & 0xff) == ((bar_no * 4) + PCI_BASE_ADDRESS_0)) {
-			if (size)
-				*size = of_read_number(prop + na, ns);
-			if (flags)
-				*flags = bus->get_flags(prop);
-			return prop;
-		}
-	return NULL;
-}
-EXPORT_SYMBOL(of_get_pci_address);
-
 static int __of_address_to_resource(struct device_node *dev, const u32 *addrp,
 				    u64 size, unsigned int flags,
 				    struct resource *r)
@@ -528,20 +636,6 @@ int of_address_to_resource(struct device_node *dev, int index,
 	return __of_address_to_resource(dev, addrp, size, flags, r);
 }
 EXPORT_SYMBOL_GPL(of_address_to_resource);
-
-int of_pci_address_to_resource(struct device_node *dev, int bar,
-			       struct resource *r)
-{
-	const u32	*addrp;
-	u64		size;
-	unsigned int	flags;
-
-	addrp = of_get_pci_address(dev, bar, &size, &flags);
-	if (addrp == NULL)
-		return -EINVAL;
-	return __of_address_to_resource(dev, addrp, size, flags, r);
-}
-EXPORT_SYMBOL_GPL(of_pci_address_to_resource);
 
 void of_parse_dma_window(struct device_node *dn, const void *dma_window_prop,
 		unsigned long *busno, unsigned long *phys, unsigned long *size)
@@ -898,87 +992,3 @@ int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq
 	return res;
 }
 EXPORT_SYMBOL_GPL(of_irq_map_one);
-
-#ifdef CONFIG_PCI
-static u8 of_irq_pci_swizzle(u8 slot, u8 pin)
-{
-	return (((pin - 1) + slot) % 4) + 1;
-}
-
-int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq)
-{
-	struct device_node *dn, *ppnode;
-	struct pci_dev *ppdev;
-	u32 lspec;
-	u32 laddr[3];
-	u8 pin;
-	int rc;
-
-	/* Check if we have a device node, if yes, fallback to standard OF
-	 * parsing
-	 */
-	dn = pci_device_to_OF_node(pdev);
-	if (dn)
-		return of_irq_map_one(dn, 0, out_irq);
-
-	/* Ok, we don't, time to have fun. Let's start by building up an
-	 * interrupt spec.  we assume #interrupt-cells is 1, which is standard
-	 * for PCI. If you do different, then don't use that routine.
-	 */
-	rc = pci_read_config_byte(pdev, PCI_INTERRUPT_PIN, &pin);
-	if (rc != 0)
-		return rc;
-	/* No pin, exit */
-	if (pin == 0)
-		return -ENODEV;
-
-	/* Now we walk up the PCI tree */
-	lspec = pin;
-	for (;;) {
-		/* Get the pci_dev of our parent */
-		ppdev = pdev->bus->self;
-
-		/* Ouch, it's a host bridge... */
-		if (ppdev == NULL) {
-#ifdef CONFIG_PPC64
-			ppnode = pci_bus_to_OF_node(pdev->bus);
-#else
-			struct pci_controller *host;
-			host = pci_bus_to_host(pdev->bus);
-			ppnode = host ? host->arch_data : NULL;
-#endif
-			/* No node for host bridge ? give up */
-			if (ppnode == NULL)
-				return -EINVAL;
-		} else
-			/* We found a P2P bridge, check if it has a node */
-			ppnode = pci_device_to_OF_node(ppdev);
-
-		/* Ok, we have found a parent with a device-node, hand over to
-		 * the OF parsing code.
-		 * We build a unit address from the linux device to be used for
-		 * resolution. Note that we use the linux bus number which may
-		 * not match your firmware bus numbering.
-		 * Fortunately, in most cases, interrupt-map-mask doesn't include
-		 * the bus number as part of the matching.
-		 * You should still be careful about that though if you intend
-		 * to rely on this function (you ship  a firmware that doesn't
-		 * create device nodes for all PCI devices).
-		 */
-		if (ppnode)
-			break;
-
-		/* We can only get here if we hit a P2P bridge with no node,
-		 * let's do standard swizzling and try again
-		 */
-		lspec = of_irq_pci_swizzle(PCI_SLOT(pdev->devfn), lspec);
-		pdev = ppdev;
-	}
-
-	laddr[0] = (pdev->bus->number << 16)
-		| (pdev->devfn << 8);
-	laddr[1]  = laddr[2] = 0;
-	return of_irq_map_raw(ppnode, &lspec, 1, laddr, out_irq);
-}
-EXPORT_SYMBOL_GPL(of_irq_map_pci);
-#endif /* CONFIG_PCI */

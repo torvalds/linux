@@ -28,9 +28,7 @@ static inline void remap_area_pte(pte_t * pte, unsigned long address,
 {
 	unsigned long end;
 	unsigned long pfn;
-	pgprot_t pgprot = __pgprot(_PAGE_PRESENT | _PAGE_RW |
-				   _PAGE_DIRTY | _PAGE_ACCESSED |
-				   _PAGE_HW_SHARED | _PAGE_FLAGS_HARD | flags);
+	pgprot_t pgprot = __pgprot(pgprot_val(PAGE_KERNEL_NOCACHE) | flags);
 
 	address &= ~PMD_MASK;
 	end = address + size;

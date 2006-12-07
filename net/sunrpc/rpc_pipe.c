@@ -54,10 +54,11 @@ static void rpc_purge_list(struct rpc_inode *rpci, struct list_head *head,
 }
 
 static void
-rpc_timeout_upcall_queue(void *data)
+rpc_timeout_upcall_queue(struct work_struct *work)
 {
 	LIST_HEAD(free_list);
-	struct rpc_inode *rpci = (struct rpc_inode *)data;
+	struct rpc_inode *rpci =
+		container_of(work, struct rpc_inode, queue_timeout.work);
 	struct inode *inode = &rpci->vfs_inode;
 	void (*destroy_msg)(struct rpc_pipe_msg *);
 
@@ -837,7 +838,8 @@ init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
 		INIT_LIST_HEAD(&rpci->pipe);
 		rpci->pipelen = 0;
 		init_waitqueue_head(&rpci->waitq);
-		INIT_WORK(&rpci->queue_timeout, rpc_timeout_upcall_queue, rpci);
+		INIT_DELAYED_WORK(&rpci->queue_timeout,
+				    rpc_timeout_upcall_queue);
 		rpci->ops = NULL;
 	}
 }

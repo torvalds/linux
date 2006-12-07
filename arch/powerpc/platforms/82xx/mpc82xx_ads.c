@@ -515,16 +515,6 @@ static int m82xx_pci_exclude_device(u_char bus, u_char devfn)
 		return PCIBIOS_SUCCESSFUL;
 }
 
-static void
-__init mpc82xx_pcibios_fixup(void)
-{
-	struct pci_dev *dev = NULL;
-
-	for_each_pci_dev(dev) {
-		pci_read_irq_line(dev);
-	}
-}
-
 void __init add_bridge(struct device_node *np)
 {
 	int len;
@@ -597,9 +587,6 @@ static void __init mpc82xx_ads_setup_arch(void)
 		add_bridge(np);
 
 	of_node_put(np);
-	ppc_md.pci_map_irq = NULL;
-	ppc_md.pcibios_fixup = mpc82xx_pcibios_fixup;
-	ppc_md.pcibios_fixup_bus = NULL;
 #endif
 
 #ifdef  CONFIG_ROOT_NFS

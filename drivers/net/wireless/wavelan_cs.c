@@ -3939,11 +3939,8 @@ wv_hw_reset(struct net_device *	dev)
 static inline int
 wv_pcmcia_config(struct pcmcia_device *	link)
 {
-  tuple_t		tuple;
-  cisparse_t		parse;
   struct net_device *	dev = (struct net_device *) link->priv;
   int			i;
-  u_char		buf[64];
   win_req_t		req;
   memreq_t		mem;
   net_local *		lp = netdev_priv(dev);
@@ -3952,36 +3949,6 @@ wv_pcmcia_config(struct pcmcia_device *	link)
 #ifdef DEBUG_CONFIG_TRACE
   printk(KERN_DEBUG "->wv_pcmcia_config(0x%p)\n", link);
 #endif
-
-  /*
-   * This reads the card's CONFIG tuple to find its configuration
-   * registers.
-   */
-  do
-    {
-      tuple.Attributes = 0;
-      tuple.DesiredTuple = CISTPL_CONFIG;
-      i = pcmcia_get_first_tuple(link, &tuple);
-      if(i != CS_SUCCESS)
-	break;
-      tuple.TupleData = (cisdata_t *)buf;
-      tuple.TupleDataMax = 64;
-      tuple.TupleOffset = 0;
-      i = pcmcia_get_tuple_data(link, &tuple);
-      if(i != CS_SUCCESS)
-	break;
-      i = pcmcia_parse_tuple(link, &tuple, &parse);
-      if(i != CS_SUCCESS)
-	break;
-      link->conf.ConfigBase = parse.config.base;
-      link->conf.Present = parse.config.rmask[0];
-    }
-  while(0);
-  if(i != CS_SUCCESS)
-    {
-      cs_error(link, ParseTuple, i);
-      return FALSE;
-    }
 
   do
     {
