@@ -314,6 +314,8 @@ struct clk *omap_dm_timer_get_fclk(struct omap_dm_timer *timer)
 __u32 omap_dm_timer_modify_idlect_mask(__u32 inputmask)
 {
 	BUG();
+
+	return 0;
 }
 
 #endif
