@@ -225,11 +225,16 @@ static void omap_mcbsp_dsp_free(void)
 #ifdef CONFIG_ARCH_OMAP2
 static void omap2_mcbsp2_mux_setup(void)
 {
-	omap_cfg_reg(Y15_24XX_MCBSP2_CLKX);
-	omap_cfg_reg(R14_24XX_MCBSP2_FSX);
-	omap_cfg_reg(W15_24XX_MCBSP2_DR);
-	omap_cfg_reg(V15_24XX_MCBSP2_DX);
-	omap_cfg_reg(V14_24XX_GPIO117);
+	if (cpu_is_omap2420()) {
+		omap_cfg_reg(Y15_24XX_MCBSP2_CLKX);
+		omap_cfg_reg(R14_24XX_MCBSP2_FSX);
+		omap_cfg_reg(W15_24XX_MCBSP2_DR);
+		omap_cfg_reg(V15_24XX_MCBSP2_DX);
+		omap_cfg_reg(V14_24XX_GPIO117);
+	}
+	/*
+	 * Need to add MUX settings for OMAP 2430 SDP
+	 */
 }
 #endif
 

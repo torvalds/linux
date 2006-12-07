@@ -85,10 +85,17 @@
 /*
  * omap24xx specific GPIO registers
  */
-#define OMAP24XX_GPIO1_BASE		(void __iomem *)0x48018000
-#define OMAP24XX_GPIO2_BASE		(void __iomem *)0x4801a000
-#define OMAP24XX_GPIO3_BASE		(void __iomem *)0x4801c000
-#define OMAP24XX_GPIO4_BASE		(void __iomem *)0x4801e000
+#define OMAP242X_GPIO1_BASE		(void __iomem *)0x48018000
+#define OMAP242X_GPIO2_BASE		(void __iomem *)0x4801a000
+#define OMAP242X_GPIO3_BASE		(void __iomem *)0x4801c000
+#define OMAP242X_GPIO4_BASE		(void __iomem *)0x4801e000
+
+#define OMAP243X_GPIO1_BASE		(void __iomem *)0x4900C000
+#define OMAP243X_GPIO2_BASE		(void __iomem *)0x4900E000
+#define OMAP243X_GPIO3_BASE		(void __iomem *)0x49010000
+#define OMAP243X_GPIO4_BASE		(void __iomem *)0x49012000
+#define OMAP243X_GPIO5_BASE		(void __iomem *)0x480B6000
+
 #define OMAP24XX_GPIO_REVISION		0x0000
 #define OMAP24XX_GPIO_SYSCONFIG		0x0010
 #define OMAP24XX_GPIO_SYSSTATUS		0x0014
@@ -168,12 +175,22 @@ static struct gpio_bank gpio_bank_730[7] = {
 #endif
 
 #ifdef CONFIG_ARCH_OMAP24XX
-static struct gpio_bank gpio_bank_24xx[4] = {
-	{ OMAP24XX_GPIO1_BASE, INT_24XX_GPIO_BANK1, IH_GPIO_BASE,	METHOD_GPIO_24XX },
-	{ OMAP24XX_GPIO2_BASE, INT_24XX_GPIO_BANK2, IH_GPIO_BASE + 32,	METHOD_GPIO_24XX },
-	{ OMAP24XX_GPIO3_BASE, INT_24XX_GPIO_BANK3, IH_GPIO_BASE + 64,	METHOD_GPIO_24XX },
-	{ OMAP24XX_GPIO4_BASE, INT_24XX_GPIO_BANK4, IH_GPIO_BASE + 96,	METHOD_GPIO_24XX },
+
+static struct gpio_bank gpio_bank_242x[4] = {
+	{ OMAP242X_GPIO1_BASE, INT_24XX_GPIO_BANK1, IH_GPIO_BASE,	METHOD_GPIO_24XX },
+	{ OMAP242X_GPIO2_BASE, INT_24XX_GPIO_BANK2, IH_GPIO_BASE + 32,	METHOD_GPIO_24XX },
+	{ OMAP242X_GPIO3_BASE, INT_24XX_GPIO_BANK3, IH_GPIO_BASE + 64,	METHOD_GPIO_24XX },
+	{ OMAP242X_GPIO4_BASE, INT_24XX_GPIO_BANK4, IH_GPIO_BASE + 96,	METHOD_GPIO_24XX },
 };
+
+static struct gpio_bank gpio_bank_243x[5] = {
+	{ OMAP243X_GPIO1_BASE, INT_24XX_GPIO_BANK1, IH_GPIO_BASE,	METHOD_GPIO_24XX },
+	{ OMAP243X_GPIO2_BASE, INT_24XX_GPIO_BANK2, IH_GPIO_BASE + 32,	METHOD_GPIO_24XX },
+	{ OMAP243X_GPIO3_BASE, INT_24XX_GPIO_BANK3, IH_GPIO_BASE + 64,	METHOD_GPIO_24XX },
+	{ OMAP243X_GPIO4_BASE, INT_24XX_GPIO_BANK4, IH_GPIO_BASE + 96,	METHOD_GPIO_24XX },
+	{ OMAP243X_GPIO5_BASE, INT_24XX_GPIO_BANK5, IH_GPIO_BASE + 128, METHOD_GPIO_24XX },
+};
+
 #endif
 
 static struct gpio_bank *gpio_bank;
@@ -1113,6 +1130,11 @@ static int initialized;
 static struct clk * gpio_ick;
 static struct clk * gpio_fck;
 
+#ifdef CONFIG_ARCH_OMAP2430
+static struct clk * gpio5_ick;
+static struct clk * gpio5_fck;
+#endif
+
 static int __init _omap_gpio_init(void)
 {
 	int i;
@@ -1138,7 +1160,25 @@ static int __init _omap_gpio_init(void)
 			printk("Could not get gpios_fck\n");
 		else
 			clk_enable(gpio_fck);
-	}
+
+		/*
+		 * On 2430 GPIO 5 uses CORE L4 ICLK
+		 */
+#ifdef CONFIG_ARCH_OMAP2430
+		if (cpu_is_omap2430()) {
+			gpio5_ick = clk_get(NULL, "gpio5_ick");
+			if (IS_ERR(gpio5_ick))
+				printk("Could not get gpio5_ick\n");
+			else
+				clk_enable(gpio5_ick);
+			gpio5_fck = clk_get(NULL, "gpio5_fck");
+			if (IS_ERR(gpio5_fck))
+				printk("Could not get gpio5_fck\n");
+			else
+				clk_enable(gpio5_fck);
+		}
+#endif
+}
 
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap15xx()) {
@@ -1165,14 +1205,24 @@ static int __init _omap_gpio_init(void)
 		gpio_bank = gpio_bank_730;
 	}
 #endif
+
 #ifdef CONFIG_ARCH_OMAP24XX
-	if (cpu_is_omap24xx()) {
+	if (cpu_is_omap242x()) {
 		int rev;
 
 		gpio_bank_count = 4;
-		gpio_bank = gpio_bank_24xx;
+		gpio_bank = gpio_bank_242x;
 		rev = omap_readl(gpio_bank[0].base + OMAP24XX_GPIO_REVISION);
-		printk(KERN_INFO "OMAP24xx GPIO hardware version %d.%d\n",
+		printk(KERN_INFO "OMAP242x GPIO hardware version %d.%d\n",
+			(rev >> 4) & 0x0f, rev & 0x0f);
+	}
+	if (cpu_is_omap243x()) {
+		int rev;
+
+		gpio_bank_count = 5;
+		gpio_bank = gpio_bank_243x;
+		rev = omap_readl(gpio_bank[0].base + OMAP24XX_GPIO_REVISION);
+		printk(KERN_INFO "OMAP243x GPIO hardware version %d.%d\n",
 			(rev >> 4) & 0x0f, rev & 0x0f);
 	}
 #endif
