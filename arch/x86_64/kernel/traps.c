@@ -254,7 +254,7 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 		unsigned long *stack,
 		struct stacktrace_ops *ops, void *data)
 {
-	const unsigned cpu = smp_processor_id();
+	const unsigned cpu = get_cpu();
 	unsigned long *irqstack_end = (unsigned long*)cpu_pda(cpu)->irqstackptr;
 	unsigned used = 0;
 	struct thread_info *tinfo;
@@ -286,11 +286,11 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 					MSG("Leftover inexact backtrace:");
 					stack = (unsigned long *)UNW_SP(&info);
 					if (!stack)
-						return;
+						goto out;
 				} else
 					MSG("Full inexact backtrace again:");
 			} else if (call_trace >= 1)
-				return;
+				goto out;
 			else
 				MSG("Full inexact backtrace again:");
 		} else
@@ -385,6 +385,8 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 	tinfo = current_thread_info();
 	HANDLE_STACK (valid_stack_ptr(tinfo, stack));
 #undef HANDLE_STACK
+out:
+	put_cpu();
 }
 EXPORT_SYMBOL(dump_trace);
 
