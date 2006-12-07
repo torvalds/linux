@@ -650,6 +650,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	idle=		[HW]
 			Format: idle=poll or idle=halt
 
+	ignore_loglevel	[KNL]
+			Ignore loglevel setting - this will print /all/
+			kernel messages to the console. Useful for debugging.
+
 	ihash_entries=	[KNL]
 			Set number of hash buckets for inode cache.
 

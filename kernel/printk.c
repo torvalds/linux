@@ -333,13 +333,25 @@ static void __call_console_drivers(unsigned long start, unsigned long end)
 	}
 }
 
+static int __read_mostly ignore_loglevel;
+
+int __init ignore_loglevel_setup(char *str)
+{
+	ignore_loglevel = 1;
+	printk(KERN_INFO "debug: ignoring loglevel setting.\n");
+
+	return 1;
+}
+
+__setup("ignore_loglevel", ignore_loglevel_setup);
+
 /*
  * Write out chars from start to end - 1 inclusive
  */
 static void _call_console_drivers(unsigned long start,
 				unsigned long end, int msg_log_level)
 {
-	if (msg_log_level < console_loglevel &&
+	if ((msg_log_level < console_loglevel || ignore_loglevel) &&
 			console_drivers && start != end) {
 		if ((start & LOG_BUF_MASK) > (end & LOG_BUF_MASK)) {
 			/* wrapped write */
