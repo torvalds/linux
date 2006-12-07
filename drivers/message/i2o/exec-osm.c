@@ -94,8 +94,8 @@ static struct i2o_exec_wait *i2o_exec_wait_alloc(void)
 };
 
 /**
- *	i2o_exec_wait_free - Free a i2o_exec_wait struct
- *	@i2o_exec_wait: I2O wait data which should be cleaned up
+ *	i2o_exec_wait_free - Free an i2o_exec_wait struct
+ *	@wait: I2O wait data which should be cleaned up
  */
 static void i2o_exec_wait_free(struct i2o_exec_wait *wait)
 {
@@ -105,7 +105,7 @@ static void i2o_exec_wait_free(struct i2o_exec_wait *wait)
 /**
  * 	i2o_msg_post_wait_mem - Post and wait a message with DMA buffers
  *	@c: controller
- *	@m: message to post
+ *	@msg: message to post
  *	@timeout: time in seconds to wait
  *	@dma: i2o_dma struct of the DMA buffer to free on failure
  *
@@ -269,6 +269,7 @@ static int i2o_msg_post_wait_complete(struct i2o_controller *c, u32 m,
 /**
  *	i2o_exec_show_vendor_id - Displays Vendor ID of controller
  *	@d: device of which the Vendor ID should be displayed
+ *	@attr: device_attribute to display
  *	@buf: buffer into which the Vendor ID should be printed
  *
  *	Returns number of bytes printed into buffer.
@@ -290,6 +291,7 @@ static ssize_t i2o_exec_show_vendor_id(struct device *d,
 /**
  *	i2o_exec_show_product_id - Displays Product ID of controller
  *	@d: device of which the Product ID should be displayed
+ *	@attr: device_attribute to display
  *	@buf: buffer into which the Product ID should be printed
  *
  *	Returns number of bytes printed into buffer.
@@ -365,7 +367,7 @@ static int i2o_exec_remove(struct device *dev)
 
 /**
  *	i2o_exec_lct_modified - Called on LCT NOTIFY reply
- *	@c: I2O controller on which the LCT has modified
+ *	@work: work struct for a specific controller
  *
  *	This function handles asynchronus LCT NOTIFY replies. It parses the
  *	new LCT and if the buffer for the LCT was to small sends a LCT NOTIFY

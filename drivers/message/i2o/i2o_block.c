@@ -259,7 +259,7 @@ static int i2o_block_device_unlock(struct i2o_device *dev, u32 media_id)
 /**
  *	i2o_block_device_power - Power management for device dev
  *	@dev: I2O device which should receive the power management request
- *	@operation: Operation which should be send
+ *	@op: Operation to send
  *
  *	Send a power management request to the device dev.
  *
@@ -315,7 +315,7 @@ static inline struct i2o_block_request *i2o_block_request_alloc(void)
  *	i2o_block_request_free - Frees a I2O block request
  *	@ireq: I2O block request which should be freed
  *
- *	Fres the allocated memory (give it back to the request mempool).
+ *	Frees the allocated memory (give it back to the request mempool).
  */
 static inline void i2o_block_request_free(struct i2o_block_request *ireq)
 {
@@ -326,6 +326,7 @@ static inline void i2o_block_request_free(struct i2o_block_request *ireq)
  *	i2o_block_sglist_alloc - Allocate the SG list and map it
  *	@c: I2O controller to which the request belongs
  *	@ireq: I2O block request
+ *	@mptr: message body pointer
  *
  *	Builds the SG list and map it to be accessable by the controller.
  *
@@ -490,7 +491,7 @@ static void i2o_block_end_request(struct request *req, int uptodate,
  *	i2o_block_reply - Block OSM reply handler.
  *	@c: I2O controller from which the message arrives
  *	@m: message id of reply
- *	qmsg: the actuall I2O message reply
+ *	@msg: the actual I2O message reply
  *
  *	This function gets all the message replies.
  *
@@ -602,6 +603,8 @@ static void i2o_block_biosparam(unsigned long capacity, unsigned short *cyls,
 
 /**
  *	i2o_block_open - Open the block device
+ *	@inode: inode for block device being opened
+ *	@file: file to open
  *
  *	Power up the device, mount and lock the media. This function is called,
  *	if the block device is opened for access.
@@ -629,6 +632,8 @@ static int i2o_block_open(struct inode *inode, struct file *file)
 
 /**
  *	i2o_block_release - Release the I2O block device
+ *	@inode: inode for block device being released
+ *	@file: file to close
  *
  *	Unlock and unmount the media, and power down the device. Gets called if
  *	the block device is closed.
@@ -675,6 +680,8 @@ static int i2o_block_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 
 /**
  *	i2o_block_ioctl - Issue device specific ioctl calls.
+ *	@inode: inode for block device ioctl
+ *	@file: file for ioctl
  *	@cmd: ioctl command
  *	@arg: arg
  *
@@ -902,7 +909,7 @@ static int i2o_block_transfer(struct request *req)
 
 /**
  *	i2o_block_request_fn - request queue handling function
- *	q: request queue from which the request could be fetched
+ *	@q: request queue from which the request could be fetched
  *
  *	Takes the next request from the queue, transfers it and if no error
  *	occurs dequeue it from the queue. On arrival of the reply the message

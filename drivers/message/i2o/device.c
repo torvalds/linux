@@ -54,8 +54,8 @@ static inline int i2o_device_issue_claim(struct i2o_device *dev, u32 cmd,
  *	@dev: I2O device to claim
  *	@drv: I2O driver which wants to claim the device
  *
- *	Do the leg work to assign a device to a given OSM. If the claim succeed
- *	the owner of the rimary. If the attempt fails a negative errno code
+ *	Do the leg work to assign a device to a given OSM. If the claim succeeds,
+ *	the owner is the primary. If the attempt fails a negative errno code
  *	is returned. On success zero is returned.
  */
 int i2o_device_claim(struct i2o_device *dev)
@@ -208,7 +208,7 @@ static struct i2o_device *i2o_device_alloc(void)
 
 /**
  *	i2o_device_add - allocate a new I2O device and add it to the IOP
- *	@iop: I2O controller where the device is on
+ *	@c: I2O controller that the device is on
  *	@entry: LCT entry of the I2O device
  *
  *	Allocate a new I2O device and initialize it with the LCT entry. The
@@ -280,7 +280,7 @@ err:
 
 /**
  *	i2o_device_remove - remove an I2O device from the I2O core
- *	@dev: I2O device which should be released
+ *	@i2o_dev: I2O device which should be released
  *
  *	Is used on I2O controller removal or LCT modification, when the device
  *	is removed from the system. Note that the device could still hang

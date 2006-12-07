@@ -347,7 +347,7 @@ mpt_reply(MPT_ADAPTER *ioc, u32 pa)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	mpt_interrupt - MPT adapter (IOC) specific interrupt handler.
  *	@irq: irq number (not used)
  *	@bus_id: bus identifier cookie == pointer to MPT_ADAPTER structure
@@ -387,13 +387,15 @@ mpt_interrupt(int irq, void *bus_id)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
- *	mpt_base_reply - MPT base driver's callback routine; all base driver
- *	"internal" request/reply processing is routed here.
- *	Currently used for EventNotification and EventAck handling.
+/**
+ *	mpt_base_reply - MPT base driver's callback routine
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@mf: Pointer to original MPT request frame
  *	@reply: Pointer to MPT reply frame (NULL if TurboReply)
+ *
+ *	MPT base driver's callback routine; all base driver
+ *	"internal" request/reply processing is routed here.
+ *	Currently used for EventNotification and EventAck handling.
  *
  *	Returns 1 indicating original alloc'd request frame ptr
  *	should be freed, or 0 if it shouldn't.
@@ -530,7 +532,7 @@ mpt_base_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *reply)
  *	@dclass: Protocol driver's class (%MPT_DRIVER_CLASS enum value)
  *
  *	This routine is called by a protocol-specific driver (SCSI host,
- *	LAN, SCSI target) to register it's reply callback routine.  Each
+ *	LAN, SCSI target) to register its reply callback routine.  Each
  *	protocol-specific driver must do this before it will be able to
  *	use any IOC resources, such as obtaining request frames.
  *
@@ -572,7 +574,7 @@ mpt_register(MPT_CALLBACK cbfunc, MPT_DRIVER_CLASS dclass)
  *	mpt_deregister - Deregister a protocol drivers resources.
  *	@cb_idx: previously registered callback handle
  *
- *	Each protocol-specific driver should call this routine when it's
+ *	Each protocol-specific driver should call this routine when its
  *	module is unloaded.
  */
 void
@@ -617,7 +619,7 @@ mpt_event_register(int cb_idx, MPT_EVHANDLER ev_cbfunc)
  *
  *	Each protocol-specific driver should call this routine
  *	when it does not (or can no longer) handle events,
- *	or when it's module is unloaded.
+ *	or when its module is unloaded.
  */
 void
 mpt_event_deregister(int cb_idx)
@@ -656,7 +658,7 @@ mpt_reset_register(int cb_idx, MPT_RESETHANDLER reset_func)
  *
  *	Each protocol-specific driver should call this routine
  *	when it does not (or can no longer) handle IOC reset handling,
- *	or when it's module is unloaded.
+ *	or when its module is unloaded.
  */
 void
 mpt_reset_deregister(int cb_idx)
@@ -670,6 +672,8 @@ mpt_reset_deregister(int cb_idx)
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
  *	mpt_device_driver_register - Register device driver hooks
+ *	@dd_cbfunc: driver callbacks struct
+ *	@cb_idx: MPT protocol driver index
  */
 int
 mpt_device_driver_register(struct mpt_pci_driver * dd_cbfunc, int cb_idx)
@@ -696,6 +700,7 @@ mpt_device_driver_register(struct mpt_pci_driver * dd_cbfunc, int cb_idx)
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
  *	mpt_device_driver_deregister - DeRegister device driver hooks
+ *	@cb_idx: MPT protocol driver index
  */
 void
 mpt_device_driver_deregister(int cb_idx)
@@ -887,8 +892,7 @@ mpt_add_sge(char *pAddr, u32 flagslength, dma_addr_t dma_addr)
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
- *	mpt_send_handshake_request - Send MPT request via doorbell
- *	handshake method.
+ *	mpt_send_handshake_request - Send MPT request via doorbell handshake method.
  *	@handle: Handle of registered MPT protocol driver
  *	@ioc: Pointer to MPT adapter structure
  *	@reqBytes: Size of the request in bytes
@@ -981,10 +985,13 @@ mpt_send_handshake_request(int handle, MPT_ADAPTER *ioc, int reqBytes, u32 *req,
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
- * mpt_host_page_access_control - provides mechanism for the host
- * driver to control the IOC's Host Page Buffer access.
+ * mpt_host_page_access_control - control the IOC's Host Page Buffer access
  * @ioc: Pointer to MPT adapter structure
  * @access_control_value: define bits below
+ * @sleepFlag: Specifies whether the process can sleep
+ *
+ * Provides mechanism for the host driver to control the IOC's
+ * Host Page Buffer access.
  *
  * Access Control Value - bits[15:12]
  * 0h Reserved
@@ -1022,10 +1029,10 @@ mpt_host_page_access_control(MPT_ADAPTER *ioc, u8 access_control_value, int slee
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
  *	mpt_host_page_alloc - allocate system memory for the fw
- *	If we already allocated memory in past, then resend the same pointer.
- *	ioc@: Pointer to pointer to IOC adapter
- *	ioc_init@: Pointer to ioc init config page
+ *	@ioc: Pointer to pointer to IOC adapter
+ *	@ioc_init: Pointer to ioc init config page
  *
+ *	If we already allocated memory in past, then resend the same pointer.
  *	Returns 0 for success, non-zero for failure.
  */
 static int
@@ -1091,12 +1098,15 @@ return 0;
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
- *	mpt_verify_adapter - Given a unique IOC identifier, set pointer to
- *	the associated MPT adapter structure.
+ *	mpt_verify_adapter - Given IOC identifier, set pointer to its adapter structure.
  *	@iocid: IOC unique identifier (integer)
  *	@iocpp: Pointer to pointer to IOC adapter
  *
- *	Returns iocid and sets iocpp.
+ *	Given a unique IOC identifier, set pointer to the associated MPT
+ *	adapter structure.
+ *
+ *	Returns iocid and sets iocpp if iocid is found.
+ *	Returns -1 if iocid is not found.
  */
 int
 mpt_verify_adapter(int iocid, MPT_ADAPTER **iocpp)
@@ -1115,9 +1125,10 @@ mpt_verify_adapter(int iocid, MPT_ADAPTER **iocpp)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	mpt_attach - Install a PCI intelligent MPT adapter.
  *	@pdev: Pointer to pci_dev structure
+ *	@id: PCI device ID information
  *
  *	This routine performs all the steps necessary to bring the IOC of
  *	a MPT adapter to a OPERATIONAL state.  This includes registering
@@ -1417,10 +1428,9 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	mpt_detach - Remove a PCI intelligent MPT adapter.
  *	@pdev: Pointer to pci_dev structure
- *
  */
 
 void
@@ -1466,10 +1476,10 @@ mpt_detach(struct pci_dev *pdev)
  */
 #ifdef CONFIG_PM
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	mpt_suspend - Fusion MPT base driver suspend routine.
- *
- *
+ *	@pdev: Pointer to pci_dev structure
+ *	@state: new state to enter
  */
 int
 mpt_suspend(struct pci_dev *pdev, pm_message_t state)
@@ -1505,10 +1515,9 @@ mpt_suspend(struct pci_dev *pdev, pm_message_t state)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	mpt_resume - Fusion MPT base driver resume routine.
- *
- *
+ *	@pdev: Pointer to pci_dev structure
  */
 int
 mpt_resume(struct pci_dev *pdev)
@@ -1566,7 +1575,7 @@ mpt_signal_reset(int index, MPT_ADAPTER *ioc, int reset_phase)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	mpt_do_ioc_recovery - Initialize or recover MPT adapter.
  *	@ioc: Pointer to MPT adapter structure
  *	@reason: Event word / reason
@@ -1892,12 +1901,14 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
- *	mpt_detect_bound_ports - Search for PCI bus/dev_function
- *	which matches PCI bus/dev_function (+/-1) for newly discovered 929,
- *	929X, 1030 or 1035.
+/**
+ *	mpt_detect_bound_ports - Search for matching PCI bus/dev_function
  *	@ioc: Pointer to MPT adapter structure
  *	@pdev: Pointer to (struct pci_dev) structure
+ *
+ *	Search for PCI bus/dev_function which matches
+ *	PCI bus/dev_function (+/-1) for newly discovered 929,
+ *	929X, 1030 or 1035.
  *
  *	If match on PCI dev_function +/-1 is found, bind the two MPT adapters
  *	using alt_ioc pointer fields in their %MPT_ADAPTER structures.
@@ -1945,9 +1956,9 @@ mpt_detect_bound_ports(MPT_ADAPTER *ioc, struct pci_dev *pdev)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	mpt_adapter_disable - Disable misbehaving MPT adapter.
- *	@this: Pointer to MPT adapter structure
+ *	@ioc: Pointer to MPT adapter structure
  */
 static void
 mpt_adapter_disable(MPT_ADAPTER *ioc)
@@ -2046,9 +2057,8 @@ mpt_adapter_disable(MPT_ADAPTER *ioc)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
- *	mpt_adapter_dispose - Free all resources associated with a MPT
- *	adapter.
+/**
+ *	mpt_adapter_dispose - Free all resources associated with an MPT adapter
  *	@ioc: Pointer to MPT adapter structure
  *
  *	This routine unregisters h/w resources and frees all alloc'd memory
@@ -2099,8 +2109,8 @@ mpt_adapter_dispose(MPT_ADAPTER *ioc)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
- *	MptDisplayIocCapabilities - Disply IOC's capacilities.
+/**
+ *	MptDisplayIocCapabilities - Disply IOC's capabilities.
  *	@ioc: Pointer to MPT adapter structure
  */
 static void
@@ -2142,7 +2152,7 @@ MptDisplayIocCapabilities(MPT_ADAPTER *ioc)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	MakeIocReady - Get IOC to a READY state, using KickStart if needed.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@force: Force hard KickStart of IOC
@@ -2279,7 +2289,7 @@ MakeIocReady(MPT_ADAPTER *ioc, int force, int sleepFlag)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	mpt_GetIocState - Get the current state of a MPT adapter.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@cooked: Request raw or cooked IOC state
@@ -2304,7 +2314,7 @@ mpt_GetIocState(MPT_ADAPTER *ioc, int cooked)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	GetIocFacts - Send IOCFacts request to MPT adapter.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@sleepFlag: Specifies whether the process can sleep
@@ -2478,7 +2488,7 @@ GetIocFacts(MPT_ADAPTER *ioc, int sleepFlag, int reason)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	GetPortFacts - Send PortFacts request to MPT adapter.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@portnum: Port number
@@ -2545,7 +2555,7 @@ GetPortFacts(MPT_ADAPTER *ioc, int portnum, int sleepFlag)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	SendIocInit - Send IOCInit request to MPT adapter.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@sleepFlag: Specifies whether the process can sleep
@@ -2630,7 +2640,7 @@ SendIocInit(MPT_ADAPTER *ioc, int sleepFlag)
 	}
 
 	/* No need to byte swap the multibyte fields in the reply
-	 * since we don't even look at it's contents.
+	 * since we don't even look at its contents.
 	 */
 
 	dhsprintk((MYIOC_s_INFO_FMT "Sending PortEnable (req @ %p)\n",
@@ -2672,7 +2682,7 @@ SendIocInit(MPT_ADAPTER *ioc, int sleepFlag)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	SendPortEnable - Send PortEnable request to MPT adapter port.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@portnum: Port number to enable
@@ -2723,9 +2733,13 @@ SendPortEnable(MPT_ADAPTER *ioc, int portnum, int sleepFlag)
 	return rc;
 }
 
-/*
- *	ioc: Pointer to MPT_ADAPTER structure
- *      size - total FW bytes
+/**
+ *	mpt_alloc_fw_memory - allocate firmware memory
+ *	@ioc: Pointer to MPT_ADAPTER structure
+ *      @size: total FW bytes
+ *
+ *	If memory has already been allocated, the same (cached) value
+ *	is returned.
  */
 void
 mpt_alloc_fw_memory(MPT_ADAPTER *ioc, int size)
@@ -2742,9 +2756,12 @@ mpt_alloc_fw_memory(MPT_ADAPTER *ioc, int size)
 			ioc->alloc_total += size;
 	}
 }
-/*
- * If alt_img is NULL, delete from ioc structure.
- * Else, delete a secondary image in same format.
+/**
+ *	mpt_free_fw_memory - free firmware memory
+ *	@ioc: Pointer to MPT_ADAPTER structure
+ *
+ *	If alt_img is NULL, delete from ioc structure.
+ *	Else, delete a secondary image in same format.
  */
 void
 mpt_free_fw_memory(MPT_ADAPTER *ioc)
@@ -2763,7 +2780,7 @@ mpt_free_fw_memory(MPT_ADAPTER *ioc)
 
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	mpt_do_upload - Construct and Send FWUpload request to MPT adapter port.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@sleepFlag: Specifies whether the process can sleep
@@ -2865,10 +2882,10 @@ mpt_do_upload(MPT_ADAPTER *ioc, int sleepFlag)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	mpt_downloadboot - DownloadBoot code
  *	@ioc: Pointer to MPT_ADAPTER structure
- *	@flag: Specify which part of IOC memory is to be uploaded.
+ *	@pFwHeader: Pointer to firmware header info
  *	@sleepFlag: Specifies whether the process can sleep
  *
  *	FwDownloadBoot requires Programmed IO access.
@@ -3071,7 +3088,7 @@ mpt_downloadboot(MPT_ADAPTER *ioc, MpiFwHeader_t *pFwHeader, int sleepFlag)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	KickStart - Perform hard reset of MPT adapter.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@force: Force hard reset
@@ -3145,12 +3162,12 @@ KickStart(MPT_ADAPTER *ioc, int force, int sleepFlag)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	mpt_diag_reset - Perform hard reset of the adapter.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@ignore: Set if to honor and clear to ignore
  *		the reset history bit
- *	@sleepflag: CAN_SLEEP if called in a non-interrupt thread,
+ *	@sleepFlag: CAN_SLEEP if called in a non-interrupt thread,
  *		else set to NO_SLEEP (use mdelay instead)
  *
  *	This routine places the adapter in diagnostic mode via the
@@ -3436,11 +3453,12 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	SendIocReset - Send IOCReset request to MPT adapter.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@reset_type: reset type, expected values are
  *	%MPI_FUNCTION_IOC_MESSAGE_UNIT_RESET or %MPI_FUNCTION_IO_UNIT_RESET
+ *	@sleepFlag: Specifies whether the process can sleep
  *
  *	Send IOCReset request to the MPT adapter.
  *
@@ -3494,11 +3512,12 @@ SendIocReset(MPT_ADAPTER *ioc, u8 reset_type, int sleepFlag)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
- *	initChainBuffers - Allocate memory for and initialize
- *	chain buffers, chain buffer control arrays and spinlock.
- *	@hd: Pointer to MPT_SCSI_HOST structure
- *	@init: If set, initialize the spin lock.
+/**
+ *	initChainBuffers - Allocate memory for and initialize chain buffers
+ *	@ioc: Pointer to MPT_ADAPTER structure
+ *
+ *	Allocates memory for and initializes chain buffers,
+ *	chain buffer control arrays and spinlock.
  */
 static int
 initChainBuffers(MPT_ADAPTER *ioc)
@@ -3594,7 +3613,7 @@ initChainBuffers(MPT_ADAPTER *ioc)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	PrimeIocFifos - Initialize IOC request and reply FIFOs.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *
@@ -3891,15 +3910,15 @@ mpt_handshake_req_reply_wait(MPT_ADAPTER *ioc, int reqBytes, u32 *req,
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
- *	WaitForDoorbellAck - Wait for IOC to clear the IOP_DOORBELL_STATUS bit
- *	in it's IntStatus register.
+/**
+ *	WaitForDoorbellAck - Wait for IOC doorbell handshake acknowledge
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@howlong: How long to wait (in seconds)
  *	@sleepFlag: Specifies whether the process can sleep
  *
  *	This routine waits (up to ~2 seconds max) for IOC doorbell
- *	handshake ACKnowledge.
+ *	handshake ACKnowledge, indicated by the IOP_DOORBELL_STATUS
+ *	bit in its IntStatus register being clear.
  *
  *	Returns a negative value on failure, else wait loop count.
  */
@@ -3942,14 +3961,14 @@ WaitForDoorbellAck(MPT_ADAPTER *ioc, int howlong, int sleepFlag)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
- *	WaitForDoorbellInt - Wait for IOC to set the HIS_DOORBELL_INTERRUPT bit
- *	in it's IntStatus register.
+/**
+ *	WaitForDoorbellInt - Wait for IOC to set its doorbell interrupt bit
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@howlong: How long to wait (in seconds)
  *	@sleepFlag: Specifies whether the process can sleep
  *
- *	This routine waits (up to ~2 seconds max) for IOC doorbell interrupt.
+ *	This routine waits (up to ~2 seconds max) for IOC doorbell interrupt
+ *	(MPI_HIS_DOORBELL_INTERRUPT) to be set in the IntStatus register.
  *
  *	Returns a negative value on failure, else wait loop count.
  */
@@ -3991,8 +4010,8 @@ WaitForDoorbellInt(MPT_ADAPTER *ioc, int howlong, int sleepFlag)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
- *	WaitForDoorbellReply - Wait for and capture a IOC handshake reply.
+/**
+ *	WaitForDoorbellReply - Wait for and capture an IOC handshake reply.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@howlong: How long to wait (in seconds)
  *	@sleepFlag: Specifies whether the process can sleep
@@ -4077,7 +4096,7 @@ WaitForDoorbellReply(MPT_ADAPTER *ioc, int howlong, int sleepFlag)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	GetLanConfigPages - Fetch LANConfig pages.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *
@@ -4188,12 +4207,9 @@ GetLanConfigPages(MPT_ADAPTER *ioc)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
- *	mptbase_sas_persist_operation - Perform operation on SAS Persitent Table
+/**
+ *	mptbase_sas_persist_operation - Perform operation on SAS Persistent Table
  *	@ioc: Pointer to MPT_ADAPTER structure
- *	@sas_address: 64bit SAS Address for operation.
- *	@target_id: specified target for operation
- *	@bus: specified bus for operation
  *	@persist_opcode: see below
  *
  *	MPI_SAS_OP_CLEAR_NOT_PRESENT - Free all persist TargetID mappings for
@@ -4202,7 +4218,7 @@ GetLanConfigPages(MPT_ADAPTER *ioc)
  *
  *	NOTE: Don't use not this function during interrupt time.
  *
- *	Returns: 0 for success, non-zero error
+ *	Returns 0 for success, non-zero error
  */
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -4399,7 +4415,7 @@ mptbase_raid_process_event_data(MPT_ADAPTER *ioc,
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	GetIoUnitPage2 - Retrieve BIOS version and boot order information.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *
@@ -4457,7 +4473,8 @@ GetIoUnitPage2(MPT_ADAPTER *ioc)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*	mpt_GetScsiPortSettings - read SCSI Port Page 0 and 2
+/**
+ *	mpt_GetScsiPortSettings - read SCSI Port Page 0 and 2
  *	@ioc: Pointer to a Adapter Strucutre
  *	@portnum: IOC port number
  *
@@ -4644,7 +4661,8 @@ mpt_GetScsiPortSettings(MPT_ADAPTER *ioc, int portnum)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*	mpt_readScsiDevicePageHeaders - save version and length of SDP1
+/**
+ *	mpt_readScsiDevicePageHeaders - save version and length of SDP1
  *	@ioc: Pointer to a Adapter Strucutre
  *	@portnum: IOC port number
  *
@@ -4996,9 +5014,8 @@ mpt_read_ioc_pg_1(MPT_ADAPTER *ioc)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
- *	SendEventNotification - Send EventNotification (on or off) request
- *	to MPT adapter.
+/**
+ *	SendEventNotification - Send EventNotification (on or off) request to adapter
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@EvSwitch: Event switch flags
  */
@@ -5062,8 +5079,8 @@ SendEventAck(MPT_ADAPTER *ioc, EventNotificationReply_t *evnp)
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
  *	mpt_config - Generic function to issue config message
- *	@ioc - Pointer to an adapter structure
- *	@cfg - Pointer to a configuration structure. Struct contains
+ *	@ioc:   Pointer to an adapter structure
+ *	@pCfg:  Pointer to a configuration structure. Struct contains
  *		action, page address, direction, physical address
  *		and pointer to a configuration page header
  *		Page header is updated.
@@ -5188,8 +5205,8 @@ mpt_config(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
- *	mpt_timer_expired - Call back for timer process.
+/**
+ *	mpt_timer_expired - Callback for timer process.
  *	Used only internal config functionality.
  *	@data: Pointer to MPT_SCSI_HOST recast as an unsigned long
  */
@@ -5214,12 +5231,12 @@ mpt_timer_expired(unsigned long data)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	mpt_ioc_reset - Base cleanup for hard reset
  *	@ioc: Pointer to the adapter structure
  *	@reset_phase: Indicates pre- or post-reset functionality
  *
- *	Remark: Free's resources with internally generated commands.
+ *	Remark: Frees resources with internally generated commands.
  */
 static int
 mpt_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
@@ -5271,7 +5288,7 @@ mpt_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
  *	procfs (%MPT_PROCFS_MPTBASEDIR/...) support stuff...
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	procmpt_create - Create %MPT_PROCFS_MPTBASEDIR entries.
  *
  *	Returns 0 for success, non-zero for failure.
@@ -5297,7 +5314,7 @@ procmpt_create(void)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	procmpt_destroy - Tear down %MPT_PROCFS_MPTBASEDIR entries.
  *
  *	Returns 0 for success, non-zero for failure.
@@ -5311,16 +5328,16 @@ procmpt_destroy(void)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
- *	procmpt_summary_read - Handle read request from /proc/mpt/summary
- *	or from /proc/mpt/iocN/summary.
+/**
+ *	procmpt_summary_read - Handle read request of a summary file
  *	@buf: Pointer to area to write information
  *	@start: Pointer to start pointer
  *	@offset: Offset to start writing
- *	@request:
+ *	@request: Amount of read data requested
  *	@eof: Pointer to EOF integer
  *	@data: Pointer
  *
+ *	Handles read request from /proc/mpt/summary or /proc/mpt/iocN/summary.
  *	Returns number of characters written to process performing the read.
  */
 static int
@@ -5355,12 +5372,12 @@ procmpt_summary_read(char *buf, char **start, off_t offset, int request, int *eo
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	procmpt_version_read - Handle read request from /proc/mpt/version.
  *	@buf: Pointer to area to write information
  *	@start: Pointer to start pointer
  *	@offset: Offset to start writing
- *	@request:
+ *	@request: Amount of read data requested
  *	@eof: Pointer to EOF integer
  *	@data: Pointer
  *
@@ -5411,12 +5428,12 @@ procmpt_version_read(char *buf, char **start, off_t offset, int request, int *eo
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	procmpt_iocinfo_read - Handle read request from /proc/mpt/iocN/info.
  *	@buf: Pointer to area to write information
  *	@start: Pointer to start pointer
  *	@offset: Offset to start writing
- *	@request:
+ *	@request: Amount of read data requested
  *	@eof: Pointer to EOF integer
  *	@data: Pointer
  *
@@ -5577,16 +5594,17 @@ mpt_print_ioc_summary(MPT_ADAPTER *ioc, char *buffer, int *size, int len, int sh
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
- *	mpt_HardResetHandler - Generic reset handler, issue SCSI Task
- *	Management call based on input arg values.  If TaskMgmt fails,
- *	return associated SCSI request.
+ *	mpt_HardResetHandler - Generic reset handler
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@sleepFlag: Indicates if sleep or schedule must be called.
+ *
+ *	Issues SCSI Task Management call based on input arg values.
+ *	If TaskMgmt fails, returns associated SCSI request.
  *
  *	Remark: _HardResetHandler can be invoked from an interrupt thread (timer)
  *	or a non-interrupt thread.  In the former, must not call schedule().
  *
- *	Remark: A return of -1 is a FATAL error case, as it means a
+ *	Note: A return of -1 is a FATAL error case, as it means a
  *	FW reload/initialization failed.
  *
  *	Returns 0 for SUCCESS or -1 if FAILED.
@@ -5935,13 +5953,14 @@ EventDescriptionStr(u8 event, u32 evData0, char *evStr)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
- *	ProcessEventNotification - Route a received EventNotificationReply to
- *	all currently regeistered event handlers.
+/**
+ *	ProcessEventNotification - Route EventNotificationReply to all event handlers
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@pEventReply: Pointer to EventNotification reply frame
  *	@evHandlers: Pointer to integer, number of event handlers
  *
+ *	Routes a received EventNotificationReply to all currently registered
+ *	event handlers.
  *	Returns sum of event handlers return values.
  */
 static int
@@ -6056,7 +6075,7 @@ ProcessEventNotification(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	mpt_fc_log_info - Log information returned from Fibre Channel IOC.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@log_info: U32 LogInfo reply word from the IOC
@@ -6077,7 +6096,7 @@ mpt_fc_log_info(MPT_ADAPTER *ioc, u32 log_info)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	mpt_spi_log_info - Log information returned from SCSI Parallel IOC.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@mr: Pointer to MPT reply frame
@@ -6200,7 +6219,7 @@ mpt_spi_log_info(MPT_ADAPTER *ioc, u32 log_info)
 	};
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	mpt_sas_log_info - Log information returned from SAS IOC.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@log_info: U32 LogInfo reply word from the IOC
@@ -6255,7 +6274,7 @@ union loginfo_type {
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	mpt_sp_ioc_info - IOC information returned from SCSI Parallel IOC.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@ioc_status: U32 IOCStatus word from IOC
@@ -6416,7 +6435,7 @@ EXPORT_SYMBOL(mpt_free_fw_memory);
 EXPORT_SYMBOL(mptbase_sas_persist_operation);
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	fusion_init - Fusion MPT base driver initialization routine.
  *
  *	Returns 0 for success, non-zero for failure.
@@ -6456,7 +6475,7 @@ fusion_init(void)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
+/**
  *	fusion_exit - Perform driver unload cleanup.
  *
  *	This routine frees all resources associated with each MPT adapter

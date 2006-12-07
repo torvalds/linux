@@ -411,8 +411,7 @@ static void i2o_scsi_notify_device_add(struct i2o_device *i2o_dev)
 };
 
 /**
- *	i2o_scsi_notify_device_remove - Retrieve notifications of removed
- *				        devices
+ *	i2o_scsi_notify_device_remove - Retrieve notifications of removed devices
  *	@i2o_dev: the I2O device which was removed
  *
  *	If a I2O device is removed, we catch the notification to remove the
@@ -432,8 +431,7 @@ static void i2o_scsi_notify_device_remove(struct i2o_device *i2o_dev)
 };
 
 /**
- *	i2o_scsi_notify_controller_add - Retrieve notifications of added
- *					 controllers
+ *	i2o_scsi_notify_controller_add - Retrieve notifications of added controllers
  *	@c: the controller which was added
  *
  *	If a I2O controller is added, we catch the notification to add a
@@ -463,8 +461,7 @@ static void i2o_scsi_notify_controller_add(struct i2o_controller *c)
 };
 
 /**
- *	i2o_scsi_notify_controller_remove - Retrieve notifications of removed
- *					    controllers
+ *	i2o_scsi_notify_controller_remove - Retrieve notifications of removed controllers
  *	@c: the controller which was removed
  *
  *	If a I2O controller is removed, we catch the notification to remove the
@@ -751,7 +748,7 @@ static int i2o_scsi_abort(struct scsi_cmnd *SCpnt)
  *	@capacity: size in sectors
  *	@ip: geometry array
  *
- *	This is anyones guess quite frankly. We use the same rules everyone
+ *	This is anyone's guess quite frankly. We use the same rules everyone
  *	else appears to and hope. It seems to work.
  */
 
