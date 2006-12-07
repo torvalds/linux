@@ -269,6 +269,7 @@ static int cciss_proc_get_info(char *buffer, char **start, off_t offset,
 		       "Firmware Version: %c%c%c%c\n"
 		       "IRQ: %d\n"
 		       "Logical drives: %d\n"
+		       "Max sectors: %d\n"
 		       "Current Q depth: %d\n"
 		       "Current # commands on controller: %d\n"
 		       "Max Q depth since init: %d\n"
@@ -279,7 +280,9 @@ static int cciss_proc_get_info(char *buffer, char **start, off_t offset,
 		       (unsigned long)h->board_id,
 		       h->firm_ver[0], h->firm_ver[1], h->firm_ver[2],
 		       h->firm_ver[3], (unsigned int)h->intr[SIMPLE_MODE_INT],
-		       h->num_luns, h->Qdepth, h->commands_outstanding,
+		       h->num_luns,
+		       h->cciss_max_sectors,
+		       h->Qdepth, h->commands_outstanding,
 		       h->maxQsinceinit, h->max_outstanding, h->maxSG);
 
 	pos += size;
@@ -1395,7 +1398,7 @@ static void cciss_update_drive_info(int ctlr, int drv_index)
 		/* This is a limit in the driver and could be eliminated. */
 		blk_queue_max_phys_segments(disk->queue, MAXSGENTRIES);
 
-		blk_queue_max_sectors(disk->queue, 512);
+		blk_queue_max_sectors(disk->queue, h->cciss_max_sectors);
 
 		blk_queue_softirq_done(disk->queue, cciss_softirq_done);
 
@@ -3347,6 +3350,9 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	hba[i]->access.set_intr_mask(hba[i], CCISS_INTR_ON);
 
 	cciss_procinit(i);
+
+	hba[i]->cciss_max_sectors = 2048;
+
 	hba[i]->busy_initializing = 0;
 
 	for (j = 0; j < NWD; j++) {	/* mfm */
@@ -3371,7 +3377,7 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 		/* This is a limit in the driver and could be eliminated. */
 		blk_queue_max_phys_segments(q, MAXSGENTRIES);
 
-		blk_queue_max_sectors(q, 512);
+		blk_queue_max_sectors(q, hba[i]->cciss_max_sectors);
 
 		blk_queue_softirq_done(q, cciss_softirq_done);
 
