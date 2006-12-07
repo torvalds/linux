@@ -685,9 +685,15 @@ void drain_node_pages(int nodeid)
 
 			pcp = &pset->pcp[i];
 			if (pcp->count) {
+				int to_drain;
+
 				local_irq_save(flags);
-				free_pages_bulk(zone, pcp->count, &pcp->list, 0);
-				pcp->count = 0;
+				if (pcp->count >= pcp->batch)
+					to_drain = pcp->batch;
+				else
+					to_drain = pcp->count;
+				free_pages_bulk(zone, to_drain, &pcp->list, 0);
+				pcp->count -= to_drain;
 				local_irq_restore(flags);
 			}
 		}
