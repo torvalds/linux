@@ -465,15 +465,13 @@ EXPORT_SYMBOL_GPL(spi_unregister_master);
  */
 struct spi_master *spi_busnum_to_master(u16 bus_num)
 {
-	if (bus_num) {
-		char			name[8];
-		struct kobject		*bus;
+	char			name[9];
+	struct kobject		*bus;
 
-		snprintf(name, sizeof name, "spi%u", bus_num);
-		bus = kset_find_obj(&spi_master_class.subsys.kset, name);
-		if (bus)
-			return container_of(bus, struct spi_master, cdev.kobj);
-	}
+	snprintf(name, sizeof name, "spi%u", bus_num);
+	bus = kset_find_obj(&spi_master_class.subsys.kset, name);
+	if (bus)
+		return container_of(bus, struct spi_master, cdev.kobj);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(spi_busnum_to_master);
