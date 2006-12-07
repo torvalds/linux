@@ -28,8 +28,6 @@ typedef struct kmem_cache kmem_cache_t;
 
 #define SLAB_LEVEL_MASK		GFP_LEVEL_MASK
 
-#define	SLAB_NO_GROW		__GFP_NO_GROW	/* don't grow a cache */
-
 /* flags to pass to kmem_cache_create().
  * The first 3 are only valid when the allocator as been build
  * SLAB_DEBUG_SUPPORT.
