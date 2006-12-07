@@ -19,7 +19,7 @@
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
 
-extern char __start_unwind[], __end_unwind[];
+extern const char __start_unwind[], __end_unwind[];
 extern const u8 __start_unwind_hdr[], __end_unwind_hdr[];
 
 #define MAX_STACK_DEPTH 8

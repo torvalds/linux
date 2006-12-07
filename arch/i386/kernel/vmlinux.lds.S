@@ -102,15 +102,6 @@ SECTIONS
 	_edata = .;		/* End of data section */
   }
 
-#ifdef CONFIG_STACK_UNWIND
-  . = ALIGN(4);
-  .eh_frame : AT(ADDR(.eh_frame) - LOAD_OFFSET) {
-	__start_unwind = .;
-  	*(.eh_frame)
-	__end_unwind = .;
-  }
-#endif
-
   . = ALIGN(THREAD_SIZE);	/* init_task */
   .data.init_task : AT(ADDR(.data.init_task) - LOAD_OFFSET) {
 	*(.data.init_task)

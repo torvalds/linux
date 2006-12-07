@@ -119,8 +119,7 @@
 		*(__ksymtab_strings)					\
 	}								\
 									\
-	/* Unwind data binary search table */				\
-	EH_FRAME_HDR							\
+	EH_FRAME							\
 									\
 	/* Built-in module parameters. */				\
 	__param : AT(ADDR(__param) - LOAD_OFFSET) {			\
@@ -162,15 +161,23 @@
 		VMLINUX_SYMBOL(__kprobes_text_end) = .;
 
 #ifdef CONFIG_STACK_UNWIND
-		/* Unwind data binary search table */
-#define EH_FRAME_HDR							\
+#define EH_FRAME							\
+		/* Unwind data binary search table */			\
+		. = ALIGN(8);						\
         	.eh_frame_hdr : AT(ADDR(.eh_frame_hdr) - LOAD_OFFSET) {	\
 			VMLINUX_SYMBOL(__start_unwind_hdr) = .;		\
 			*(.eh_frame_hdr)				\
 			VMLINUX_SYMBOL(__end_unwind_hdr) = .;		\
+		}							\
+		/* Unwind data */					\
+		. = ALIGN(8);						\
+		.eh_frame : AT(ADDR(.eh_frame) - LOAD_OFFSET) {		\
+			VMLINUX_SYMBOL(__start_unwind) = .;		\
+		  	*(.eh_frame)					\
+			VMLINUX_SYMBOL(__end_unwind) = .;		\
 		}
 #else
-#define EH_FRAME_HDR
+#define EH_FRAME
 #endif
 
 		/* DWARF debug sections.
