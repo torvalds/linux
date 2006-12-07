@@ -18,9 +18,6 @@ typedef struct kmem_cache kmem_cache_t;
 #include	<asm/page.h>		/* kmalloc_sizes.h needs PAGE_SIZE */
 #include	<asm/cache.h>		/* kmalloc_sizes.h needs L1_CACHE_BYTES */
 
-/* flags for kmem_cache_alloc() */
-#define	SLAB_DMA		GFP_DMA
-
 /* flags to pass to kmem_cache_create().
  * The first 3 are only valid when the allocator as been build
  * SLAB_DEBUG_SUPPORT.

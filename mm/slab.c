@@ -2637,7 +2637,7 @@ static void cache_init_objs(struct kmem_cache *cachep,
 
 static void kmem_flagcheck(struct kmem_cache *cachep, gfp_t flags)
 {
-	if (flags & SLAB_DMA)
+	if (flags & GFP_DMA)
 		BUG_ON(!(cachep->gfpflags & GFP_DMA));
 	else
 		BUG_ON(cachep->gfpflags & GFP_DMA);
@@ -2721,7 +2721,7 @@ static int cache_grow(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 	 * Be lazy and only check for valid flags here,  keeping it out of the
 	 * critical path in kmem_cache_alloc().
 	 */
-	BUG_ON(flags & ~(SLAB_DMA | GFP_LEVEL_MASK | __GFP_NO_GROW));
+	BUG_ON(flags & ~(GFP_DMA | GFP_LEVEL_MASK | __GFP_NO_GROW));
 	if (flags & __GFP_NO_GROW)
 		return 0;
 

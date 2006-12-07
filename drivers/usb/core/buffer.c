@@ -93,7 +93,7 @@ void hcd_buffer_destroy (struct usb_hcd *hcd)
 }
 
 
-/* sometimes alloc/free could use kmalloc with SLAB_DMA, for
+/* sometimes alloc/free could use kmalloc with GFP_DMA, for
  * better sharing and to leverage mm/slab.c intelligence.
  */
 

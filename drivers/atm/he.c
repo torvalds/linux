@@ -820,7 +820,7 @@ he_init_group(struct he_dev *he_dev, int group)
 		void *cpuaddr;
 
 #ifdef USE_RBPS_POOL 
-		cpuaddr = pci_pool_alloc(he_dev->rbps_pool, GFP_KERNEL|SLAB_DMA, &dma_handle);
+		cpuaddr = pci_pool_alloc(he_dev->rbps_pool, GFP_KERNEL|GFP_DMA, &dma_handle);
 		if (cpuaddr == NULL)
 			return -ENOMEM;
 #else
@@ -884,7 +884,7 @@ he_init_group(struct he_dev *he_dev, int group)
 		void *cpuaddr;
 
 #ifdef USE_RBPL_POOL
-		cpuaddr = pci_pool_alloc(he_dev->rbpl_pool, GFP_KERNEL|SLAB_DMA, &dma_handle);
+		cpuaddr = pci_pool_alloc(he_dev->rbpl_pool, GFP_KERNEL|GFP_DMA, &dma_handle);
 		if (cpuaddr == NULL)
 			return -ENOMEM;
 #else
@@ -1724,7 +1724,7 @@ __alloc_tpd(struct he_dev *he_dev)
 	struct he_tpd *tpd;
 	dma_addr_t dma_handle; 
 
-	tpd = pci_pool_alloc(he_dev->tpd_pool, GFP_ATOMIC|SLAB_DMA, &dma_handle);
+	tpd = pci_pool_alloc(he_dev->tpd_pool, GFP_ATOMIC|GFP_DMA, &dma_handle);
 	if (tpd == NULL)
 		return NULL;
 			
