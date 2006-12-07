@@ -184,7 +184,7 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
 	mutex_lock(&kprobe_mutex);
-	free_insn_slot(p->ainsn.insn);
+	free_insn_slot(p->ainsn.insn, (p->ainsn.boostable == 1));
 	mutex_unlock(&kprobe_mutex);
 }
 
@@ -333,7 +333,7 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 		return 1;
 
 ss_probe:
-#ifndef CONFIG_PREEMPT
+#if !defined(CONFIG_PREEMPT) || defined(CONFIG_PM)
 	if (p->ainsn.boostable == 1 && !p->post_handler){
 		/* Boost up -- we can execute copied instructions directly */
 		reset_current_kprobe();
