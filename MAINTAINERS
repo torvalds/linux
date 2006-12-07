@@ -1091,13 +1091,19 @@ M:	miku@iki.fi
 S:	Maintained
 
 EXT2 FILE SYSTEM
-L:	ext2-devel@lists.sourceforge.net
+L:	linux-ext4@vger.kernel.org
 S:	Maintained
 
 EXT3 FILE SYSTEM
 P:	Stephen Tweedie, Andrew Morton
 M:	sct@redhat.com, akpm@osdl.org, adilger@clusterfs.com
-L:	ext2-devel@lists.sourceforge.net
+L:	linux-ext4@vger.kernel.org
+S:	Maintained
+
+EXT4 FILE SYSTEM
+P:	Stephen Tweedie, Andrew Morton
+M:	sct@redhat.com, akpm@osdl.org, adilger@clusterfs.com
+L:	linux-ext4@vger.kernel.org
 S:	Maintained
 
 F71805F HARDWARE MONITORING DRIVER
@@ -1673,7 +1679,7 @@ S:	Supported
 JOURNALLING LAYER FOR BLOCK DEVICES (JBD)
 P:	Stephen Tweedie, Andrew Morton
 M:	sct@redhat.com, akpm@osdl.org
-L:	ext2-devel@lists.sourceforge.net
+L:	linux-ext4@vger.kernel.org
 S:	Maintained
 
 K8TEMP HARDWARE MONITORING DRIVER
