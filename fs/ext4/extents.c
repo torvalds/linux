@@ -800,9 +800,6 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 	}
 
 	/* insert new index */
-	if (err)
-		goto cleanup;
-
 	err = ext4_ext_insert_index(handle, inode, path + at,
 				    le32_to_cpu(border), newblock);
 
