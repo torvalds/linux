@@ -343,6 +343,25 @@ static int parse(struct nlattr *na, cpumask_t *mask)
 	return ret;
 }
 
+static int mk_reply(struct sk_buff *skb, int type, u32 pid, struct taskstats *stats)
+{
+	struct nlattr *na;
+	int aggr;
+
+	aggr = TASKSTATS_TYPE_AGGR_TGID;
+	if (type == TASKSTATS_TYPE_PID)
+		aggr = TASKSTATS_TYPE_AGGR_PID;
+
+	na = nla_nest_start(skb, aggr);
+	NLA_PUT_U32(skb, type, pid);
+	NLA_PUT_TYPE(skb, struct taskstats, TASKSTATS_TYPE_STATS, *stats);
+	nla_nest_end(skb, na);
+
+	return 0;
+nla_put_failure:
+	return -1;
+}
+
 static int taskstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
 {
 	int rc = 0;
@@ -350,7 +369,6 @@ static int taskstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
 	struct taskstats stats;
 	void *reply;
 	size_t size;
-	struct nlattr *na;
 	cpumask_t mask;
 
 	rc = parse(info->attrs[TASKSTATS_CMD_ATTR_REGISTER_CPUMASK], &mask);
@@ -382,26 +400,20 @@ static int taskstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
 		if (rc < 0)
 			goto err;
 
-		na = nla_nest_start(rep_skb, TASKSTATS_TYPE_AGGR_PID);
-		NLA_PUT_U32(rep_skb, TASKSTATS_TYPE_PID, pid);
-		NLA_PUT_TYPE(rep_skb, struct taskstats, TASKSTATS_TYPE_STATS,
-				stats);
+		if (mk_reply(rep_skb, TASKSTATS_TYPE_PID, pid, &stats))
+			goto nla_put_failure;
 	} else if (info->attrs[TASKSTATS_CMD_ATTR_TGID]) {
 		u32 tgid = nla_get_u32(info->attrs[TASKSTATS_CMD_ATTR_TGID]);
 		rc = fill_tgid(tgid, NULL, &stats);
 		if (rc < 0)
 			goto err;
 
-		na = nla_nest_start(rep_skb, TASKSTATS_TYPE_AGGR_TGID);
-		NLA_PUT_U32(rep_skb, TASKSTATS_TYPE_TGID, tgid);
-		NLA_PUT_TYPE(rep_skb, struct taskstats, TASKSTATS_TYPE_STATS,
-				stats);
+		if (mk_reply(rep_skb, TASKSTATS_TYPE_TGID, tgid, &stats))
+			goto nla_put_failure;
 	} else {
 		rc = -EINVAL;
 		goto err;
 	}
-
-	nla_nest_end(rep_skb, na);
 
 	return send_reply(rep_skb, info->snd_pid);
 
@@ -446,7 +458,6 @@ void taskstats_exit(struct task_struct *tsk, int group_dead)
 	void *reply;
 	size_t size;
 	int is_thread_group;
-	struct nlattr *na;
 
 	if (!family_registered)
 		return;
@@ -481,27 +492,17 @@ void taskstats_exit(struct task_struct *tsk, int group_dead)
 	if (rc < 0)
 		goto err_skb;
 
-	na = nla_nest_start(rep_skb, TASKSTATS_TYPE_AGGR_PID);
-	NLA_PUT_U32(rep_skb, TASKSTATS_TYPE_PID, (u32)tsk->pid);
-	NLA_PUT_TYPE(rep_skb, struct taskstats, TASKSTATS_TYPE_STATS,
-			*tidstats);
-	nla_nest_end(rep_skb, na);
-
-	if (!is_thread_group)
-		goto send;
+	if (mk_reply(rep_skb, TASKSTATS_TYPE_PID, tsk->pid, tidstats))
+		goto nla_put_failure;
 
 	/*
 	 * Doesn't matter if tsk is the leader or the last group member leaving
 	 */
-	if (!group_dead)
+	if (!is_thread_group || !group_dead)
 		goto send;
 
-	na = nla_nest_start(rep_skb, TASKSTATS_TYPE_AGGR_TGID);
-	NLA_PUT_U32(rep_skb, TASKSTATS_TYPE_TGID, (u32)tsk->tgid);
-	/* No locking needed for tsk->signal->stats since group is dead */
-	NLA_PUT_TYPE(rep_skb, struct taskstats, TASKSTATS_TYPE_STATS,
-			*tsk->signal->stats);
-	nla_nest_end(rep_skb, na);
+	if (mk_reply(rep_skb, TASKSTATS_TYPE_TGID, tsk->tgid, tsk->signal->stats))
+		goto nla_put_failure;
 
 send:
 	send_cpu_listeners(rep_skb, listeners);
