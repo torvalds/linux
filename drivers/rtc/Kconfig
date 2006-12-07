@@ -163,6 +163,14 @@ config RTC_DRV_DS1742
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1742.
 
+config RTC_DRV_OMAP
+	tristate "TI OMAP1"
+	depends on RTC_CLASS && ( \
+		ARCH_OMAP15XX || ARCH_OMAP16XX || ARCH_OMAP730 )
+	help
+	  Say "yes" here to support the real time clock on TI OMAP1 chips.
+	  This driver can also be built as a module called rtc-omap.
+
 config RTC_DRV_PCF8563
 	tristate "Philips PCF8563/Epson RTC8564"
 	depends on RTC_CLASS && I2C
