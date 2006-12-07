@@ -144,7 +144,7 @@ restart:
 
 	printk("Block Allocation Reservation Windows Map (%s):\n", fn);
 	while (n) {
-		rsv = list_entry(n, struct ext3_reserve_window_node, rsv_node);
+		rsv = rb_entry(n, struct ext3_reserve_window_node, rsv_node);
 		if (verbose)
 			printk("reservation window 0x%p "
 			       "start:  %lu, end:  %lu\n",
@@ -949,7 +949,7 @@ static int find_next_reservable_window(
 
 		prev = rsv;
 		next = rb_next(&rsv->rsv_node);
-		rsv = list_entry(next,struct ext3_reserve_window_node,rsv_node);
+		rsv = rb_entry(next,struct ext3_reserve_window_node,rsv_node);
 
 		/*
 		 * Reached the last reservation, we can just append to the
@@ -1193,7 +1193,7 @@ static void try_to_extend_reservation(struct ext3_reserve_window_node *my_rsv,
 	if (!next)
 		my_rsv->rsv_end += size;
 	else {
-		next_rsv = list_entry(next, struct ext3_reserve_window_node, rsv_node);
+		next_rsv = rb_entry(next, struct ext3_reserve_window_node, rsv_node);
 
 		if ((next_rsv->rsv_start - my_rsv->rsv_end - 1) >= size)
 			my_rsv->rsv_end += size;
