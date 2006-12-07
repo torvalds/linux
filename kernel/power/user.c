@@ -126,7 +126,8 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 {
 	int error = 0;
 	struct snapshot_data *data;
-	loff_t offset, avail;
+	loff_t avail;
+	sector_t offset;
 
 	if (_IOC_TYPE(cmd) != SNAPSHOT_IOC_MAGIC)
 		return -ENOTTY;
@@ -240,10 +241,10 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 				break;
 			}
 		}
-		offset = alloc_swap_page(data->swap, data->bitmap);
+		offset = alloc_swapdev_block(data->swap, data->bitmap);
 		if (offset) {
 			offset <<= PAGE_SHIFT;
-			error = put_user(offset, (loff_t __user *)arg);
+			error = put_user(offset, (sector_t __user *)arg);
 		} else {
 			error = -ENOSPC;
 		}

@@ -134,18 +134,18 @@ static int bitmap_set(struct bitmap_page *bitmap, unsigned long bit)
 	return 0;
 }
 
-unsigned long alloc_swap_page(int swap, struct bitmap_page *bitmap)
+sector_t alloc_swapdev_block(int swap, struct bitmap_page *bitmap)
 {
 	unsigned long offset;
 
 	offset = swp_offset(get_swap_page_of_type(swap));
 	if (offset) {
-		if (bitmap_set(bitmap, offset)) {
+		if (bitmap_set(bitmap, offset))
 			swap_free(swp_entry(swap, offset));
-			offset = 0;
-		}
+		else
+			return swapdev_block(swap, offset);
 	}
-	return offset;
+	return 0;
 }
 
 void free_all_swap_pages(int swap, struct bitmap_page *bitmap)

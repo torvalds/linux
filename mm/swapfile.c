@@ -945,6 +945,23 @@ sector_t map_swap_page(struct swap_info_struct *sis, pgoff_t offset)
 	}
 }
 
+#ifdef CONFIG_SOFTWARE_SUSPEND
+/*
+ * Get the (PAGE_SIZE) block corresponding to given offset on the swapdev
+ * corresponding to given index in swap_info (swap type).
+ */
+sector_t swapdev_block(int swap_type, pgoff_t offset)
+{
+	struct swap_info_struct *sis;
+
+	if (swap_type >= nr_swapfiles)
+		return 0;
+
+	sis = swap_info + swap_type;
+	return (sis->flags & SWP_WRITEOK) ? map_swap_page(sis, offset) : 0;
+}
+#endif /* CONFIG_SOFTWARE_SUSPEND */
+
 /*
  * Free all of a swapdev's extent information
  */

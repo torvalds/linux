@@ -146,7 +146,7 @@ struct bitmap_page {
 
 extern void free_bitmap(struct bitmap_page *bitmap);
 extern struct bitmap_page *alloc_bitmap(unsigned int nr_bits);
-extern unsigned long alloc_swap_page(int swap, struct bitmap_page *bitmap);
+extern sector_t alloc_swapdev_block(int swap, struct bitmap_page *bitmap);
 extern void free_all_swap_pages(int swap, struct bitmap_page *bitmap);
 
 extern int swsusp_check(void);
