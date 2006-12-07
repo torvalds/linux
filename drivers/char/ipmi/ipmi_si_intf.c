@@ -2774,7 +2774,12 @@ static __devinit int init_ipmi_si(void)
 #endif
 
 #ifdef CONFIG_PCI
-	pci_module_init(&ipmi_pci_driver);
+	rv = pci_register_driver(&ipmi_pci_driver);
+	if (rv){
+		printk(KERN_ERR
+		       "init_ipmi_si: Unable to register PCI driver: %d\n",
+		       rv);
+	}
 #endif
 
 	if (si_trydefaults) {
