@@ -1102,14 +1102,14 @@ asmlinkage long sys_setreuid(uid_t ruid, uid_t euid)
 asmlinkage long sys_setuid(uid_t uid)
 {
 	int old_euid = current->euid;
-	int old_ruid, old_suid, new_ruid, new_suid;
+	int old_ruid, old_suid, new_suid;
 	int retval;
 
 	retval = security_task_setuid(uid, (uid_t)-1, (uid_t)-1, LSM_SETID_ID);
 	if (retval)
 		return retval;
 
-	old_ruid = new_ruid = current->uid;
+	old_ruid = current->uid;
 	old_suid = current->suid;
 	new_suid = old_suid;
 	
