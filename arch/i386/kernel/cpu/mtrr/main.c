@@ -263,8 +263,8 @@ static void set_mtrr(unsigned int reg, unsigned long base,
 
 /**
  *	mtrr_add_page - Add a memory type region
- *	@base: Physical base address of region in pages (4 KB)
- *	@size: Physical size of region in pages (4 KB)
+ *	@base: Physical base address of region in pages (in units of 4 kB!)
+ *	@size: Physical size of region in pages (4 kB)
  *	@type: Type of MTRR desired
  *	@increment: If this is true do usage counting on the region
  *
