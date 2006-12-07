@@ -27,7 +27,7 @@ PHDRS {
 }
 SECTIONS
 {
-  . = __KERNEL_START;
+  . = LOAD_OFFSET + CONFIG_PHYSICAL_START;
   phys_startup_32 = startup_32 - LOAD_OFFSET;
   /* read-only */
   .text : AT(ADDR(.text) - LOAD_OFFSET) {
