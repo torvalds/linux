@@ -65,10 +65,10 @@ enum {
 	ACPI_EC_EVENT_IBF_0,		/* Input buffer empty */
 };
 
-#define ACPI_EC_DELAY		50	/* Wait 50ms max. during EC ops */
+#define ACPI_EC_DELAY		500	/* Wait 500ms max. during EC ops */
 #define ACPI_EC_UDELAY_GLK	1000	/* Wait 1ms max. to get global lock */
 #define ACPI_EC_UDELAY         100	/* Poll @ 100us increments */
-#define ACPI_EC_UDELAY_COUNT   1000	/* Wait 10ms max. during EC ops */
+#define ACPI_EC_UDELAY_COUNT   1000	/* Wait 100ms max. during EC ops */
 
 enum {
 	EC_INTR = 1,	/* Output buffer full */
