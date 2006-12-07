@@ -342,6 +342,10 @@
 #include "board-palmtt.h"
 #endif
 
+#ifdef CONFIG_MACH_SX1
+#include "board-sx1.h"
+#endif
+
 #endif /* !__ASSEMBLER__ */
 
 #endif	/* __ASM_ARCH_OMAP_HARDWARE_H */
