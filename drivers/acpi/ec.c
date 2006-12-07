@@ -56,14 +56,15 @@ ACPI_MODULE_NAME("acpi_ec")
 #define ACPI_EC_FLAG_SCI	0x20	/* EC-SCI occurred */
 
 /* EC commands */
-#define ACPI_EC_COMMAND_READ	0x80
-#define ACPI_EC_COMMAND_WRITE	0x81
-#define ACPI_EC_BURST_ENABLE	0x82
-#define ACPI_EC_BURST_DISABLE	0x83
-#define ACPI_EC_COMMAND_QUERY	0x84
-
+enum ec_command {
+	ACPI_EC_COMMAND_READ	= 0x80,
+	ACPI_EC_COMMAND_WRITE	= 0x81,
+	ACPI_EC_BURST_ENABLE	= 0x82,
+	ACPI_EC_BURST_DISABLE	= 0x83,
+	ACPI_EC_COMMAND_QUERY	= 0x84,
+};
 /* EC events */
-enum {
+enum ec_event {
 	ACPI_EC_EVENT_OBF_1 = 1,	/* Output buffer full */
 	ACPI_EC_EVENT_IBF_0,		/* Input buffer empty */
 };
@@ -71,10 +72,10 @@ enum {
 #define ACPI_EC_DELAY		500	/* Wait 500ms max. during EC ops */
 #define ACPI_EC_UDELAY_GLK	1000	/* Wait 1ms max. to get global lock */
 
-enum {
+static enum ec_mode {
 	EC_INTR = 1,	/* Output buffer full */
 	EC_POLL,	/* Input buffer empty */
-};
+} acpi_ec_mode = EC_INTR;
 
 static int acpi_ec_remove(struct acpi_device *device, int type);
 static int acpi_ec_start(struct acpi_device *device);
@@ -109,7 +110,6 @@ struct acpi_ec {
 
 /* External interfaces use first EC only, so remember */
 static struct acpi_device *first_ec;
-static int acpi_ec_mode = EC_INTR;
 
 /* --------------------------------------------------------------------------
                              Transaction Management
@@ -135,7 +135,7 @@ static inline void acpi_ec_write_data(struct acpi_ec *ec, u8 data)
 	outb(data, ec->data_addr);
 }
 
-static inline int acpi_ec_check_status(struct acpi_ec *ec, u8 event)
+static inline int acpi_ec_check_status(struct acpi_ec *ec, enum ec_event event)
 {
 	u8 status = acpi_ec_read_status(ec);
 
@@ -150,7 +150,7 @@ static inline int acpi_ec_check_status(struct acpi_ec *ec, u8 event)
 	return 0;
 }
 
-static int acpi_ec_wait(struct acpi_ec *ec, u8 event)
+static int acpi_ec_wait(struct acpi_ec *ec, enum ec_event event)
 {
 	if (acpi_ec_mode == EC_POLL) {
 		unsigned long delay = jiffies + msecs_to_jiffies(ACPI_EC_DELAY);
