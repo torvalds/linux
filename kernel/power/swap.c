@@ -161,13 +161,14 @@ static int mark_swapfiles(sector_t start)
 {
 	int error;
 
-	bio_read_page(0, &swsusp_header, NULL);
+	bio_read_page(swsusp_resume_block, &swsusp_header, NULL);
 	if (!memcmp("SWAP-SPACE",swsusp_header.sig, 10) ||
 	    !memcmp("SWAPSPACE2",swsusp_header.sig, 10)) {
 		memcpy(swsusp_header.orig_sig,swsusp_header.sig, 10);
 		memcpy(swsusp_header.sig,SWSUSP_SIG, 10);
 		swsusp_header.image = start;
-		error = bio_write_page(0, &swsusp_header, NULL);
+		error = bio_write_page(swsusp_resume_block,
+					&swsusp_header, NULL);
 	} else {
 		printk(KERN_ERR "swsusp: Swap header not found!\n");
 		error = -ENODEV;
@@ -184,7 +185,7 @@ static int swsusp_swap_check(void) /* This is called before saving image */
 {
 	int res;
 
-	res = swap_type_of(swsusp_resume_device, 0);
+	res = swap_type_of(swsusp_resume_device, swsusp_resume_block);
 	if (res < 0)
 		return res;
 
@@ -610,12 +611,16 @@ int swsusp_check(void)
 	if (!IS_ERR(resume_bdev)) {
 		set_blocksize(resume_bdev, PAGE_SIZE);
 		memset(&swsusp_header, 0, sizeof(swsusp_header));
-		if ((error = bio_read_page(0, &swsusp_header, NULL)))
+		error = bio_read_page(swsusp_resume_block,
+					&swsusp_header, NULL);
+		if (error)
 			return error;
+
 		if (!memcmp(SWSUSP_SIG, swsusp_header.sig, 10)) {
 			memcpy(swsusp_header.sig, swsusp_header.orig_sig, 10);
 			/* Reset swap signature now */
-			error = bio_write_page(0, &swsusp_header, NULL);
+			error = bio_write_page(swsusp_resume_block,
+						&swsusp_header, NULL);
 		} else {
 			return -EINVAL;
 		}

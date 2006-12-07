@@ -27,6 +27,7 @@
 static int noresume = 0;
 char resume_file[256] = CONFIG_PM_STD_PARTITION;
 dev_t swsusp_resume_device;
+sector_t swsusp_resume_block;
 
 /**
  *	power_down - Shut machine down for hibernate.
@@ -423,6 +424,19 @@ static int __init resume_setup(char *str)
 	return 1;
 }
 
+static int __init resume_offset_setup(char *str)
+{
+	unsigned long long offset;
+
+	if (noresume)
+		return 1;
+
+	if (sscanf(str, "%llu", &offset) == 1)
+		swsusp_resume_block = offset;
+
+	return 1;
+}
+
 static int __init noresume_setup(char *str)
 {
 	noresume = 1;
@@ -430,4 +444,5 @@ static int __init noresume_setup(char *str)
 }
 
 __setup("noresume", noresume_setup);
+__setup("resume_offset=", resume_offset_setup);
 __setup("resume=", resume_setup);
