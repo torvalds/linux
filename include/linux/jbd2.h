@@ -848,7 +848,6 @@ struct journal_s
  */
 
 /* Filing buffers */
-extern void __jbd2_journal_temp_unlink_buffer(struct journal_head *jh);
 extern void jbd2_journal_unfile_buffer(journal_t *, struct journal_head *);
 extern void __jbd2_journal_unfile_buffer(struct journal_head *);
 extern void __jbd2_journal_refile_buffer(struct journal_head *);
