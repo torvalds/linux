@@ -151,7 +151,7 @@ int pm_suspend_disk(void)
 		return error;
 
 	if (pm_disk_mode == PM_DISK_TESTPROC)
-		goto Thaw;
+		return 0;
 
 	suspend_console();
 	error = device_suspend(PMSG_FREEZE);
