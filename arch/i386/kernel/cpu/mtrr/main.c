@@ -59,7 +59,11 @@ struct mtrr_ops * mtrr_if = NULL;
 static void set_mtrr(unsigned int reg, unsigned long base,
 		     unsigned long size, mtrr_type type);
 
+#ifndef CONFIG_X86_64
 extern int arr3_protected;
+#else
+#define arr3_protected 0
+#endif
 
 void set_mtrr_ops(struct mtrr_ops * ops)
 {
@@ -544,9 +548,11 @@ extern void centaur_init_mtrr(void);
 
 static void __init init_ifs(void)
 {
+#ifndef CONFIG_X86_64
 	amd_init_mtrr();
 	cyrix_init_mtrr();
 	centaur_init_mtrr();
+#endif
 }
 
 /* The suspend/resume methods are only for CPU without MTRR. CPU using generic
