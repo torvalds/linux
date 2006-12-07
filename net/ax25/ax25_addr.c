@@ -29,11 +29,20 @@
 #include <linux/interrupt.h>
 
 /*
- *	The null address is defined as a callsign of all spaces with an
- *	SSID of zero.
+ * The default broadcast address of an interface is QST-0; the default address
+ * is LINUX-1.  The null address is defined as a callsign of all spaces with
+ * an SSID of zero.
  */
-ax25_address null_ax25_address = {{0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x00}};
 
+const ax25_address ax25_bcast =
+	{{'Q' << 1, 'S' << 1, 'T' << 1, ' ' << 1, ' ' << 1, ' ' << 1, 0 << 1}};
+const ax25_address ax25_defaddr =
+	{{'L' << 1, 'I' << 1, 'N' << 1, 'U' << 1, 'X' << 1, ' ' << 1, 1 << 1}};
+const ax25_address null_ax25_address =
+	{{' ' << 1, ' ' << 1, ' ' << 1, ' ' << 1, ' ' << 1, ' ' << 1, 0 << 1}};
+
+EXPORT_SYMBOL_GPL(ax25_bcast);
+EXPORT_SYMBOL_GPL(ax25_defaddr);
 EXPORT_SYMBOL(null_ax25_address);
 
 /*

@@ -672,11 +672,6 @@ static struct net_device_stats *ax_get_stats(struct net_device *dev)
 
 static void ax_setup(struct net_device *dev)
 {
-	static char ax25_bcast[AX25_ADDR_LEN] =
-		{'Q'<<1,'S'<<1,'T'<<1,' '<<1,' '<<1,' '<<1,'0'<<1};
-	static char ax25_test[AX25_ADDR_LEN] =
-		{'L'<<1,'I'<<1,'N'<<1,'U'<<1,'X'<<1,' '<<1,'1'<<1};
-
 	/* Finish setting up the DEVICE info. */
 	dev->mtu             = AX_MTU;
 	dev->hard_start_xmit = ax_xmit;
@@ -691,8 +686,8 @@ static void ax_setup(struct net_device *dev)
 	dev->hard_header     = ax_header;
 	dev->rebuild_header  = ax_rebuild_header;
 
-	memcpy(dev->broadcast, ax25_bcast, AX25_ADDR_LEN);
-	memcpy(dev->dev_addr,  ax25_test,  AX25_ADDR_LEN);
+	memcpy(dev->broadcast, &ax25_bcast, AX25_ADDR_LEN);
+	memcpy(dev->dev_addr,  &ax25_defaddr,  AX25_ADDR_LEN);
 
 	dev->flags      = IFF_BROADCAST | IFF_MULTICAST;
 }

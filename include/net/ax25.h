@@ -282,9 +282,9 @@ extern void ax25_fillin_cb(ax25_cb *, ax25_dev *);
 extern struct sock *ax25_make_new(struct sock *, struct ax25_dev *);
 
 /* ax25_addr.c */
-extern ax25_address null_ax25_address;
-extern char *ax2asc(char *buf, const ax25_address *);
-extern void asc2ax(ax25_address *addr, const char *callsign);
+extern const ax25_address ax25_bcast;
+extern const ax25_address ax25_defaddr;
+extern const ax25_address null_ax25_address;
 extern int ax25cmp(const ax25_address *, const ax25_address *);
 extern int ax25digicmp(const ax25_digi *, const ax25_digi *);
 extern const unsigned char *ax25_addr_parse(const unsigned char *, int,

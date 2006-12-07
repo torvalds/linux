@@ -264,12 +264,6 @@ static int io[MAX_NUM_DEVS] __initdata = { 0, };
 
 /* Beware! hw[] is also used in cleanup_module(). */
 static struct scc_hardware hw[NUM_TYPES] __initdata_or_module = HARDWARE;
-static char ax25_broadcast[7] __initdata =
-    { 'Q' << 1, 'S' << 1, 'T' << 1, ' ' << 1, ' ' << 1, ' ' << 1,
-'0' << 1 };
-static char ax25_test[7] __initdata =
-    { 'L' << 1, 'I' << 1, 'N' << 1, 'U' << 1, 'X' << 1, ' ' << 1,
-'1' << 1 };
 
 
 /* Global variables */
@@ -443,8 +437,8 @@ static void __init dev_setup(struct net_device *dev)
 	dev->mtu = 1500;
 	dev->addr_len = AX25_ADDR_LEN;
 	dev->tx_queue_len = 64;
-	memcpy(dev->broadcast, ax25_broadcast, AX25_ADDR_LEN);
-	memcpy(dev->dev_addr, ax25_test, AX25_ADDR_LEN);
+	memcpy(dev->broadcast, &ax25_bcast, AX25_ADDR_LEN);
+	memcpy(dev->dev_addr, &ax25_defaddr, AX25_ADDR_LEN);
 }
 
 static int __init setup_adapter(int card_base, int type, int n)

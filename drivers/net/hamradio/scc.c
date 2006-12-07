@@ -1540,11 +1540,6 @@ static int scc_net_alloc(const char *name, struct scc_channel *scc)
 /* *			    Network driver methods		      * */
 /* ******************************************************************** */
 
-static unsigned char ax25_bcast[AX25_ADDR_LEN] =
-{'Q' << 1, 'S' << 1, 'T' << 1, ' ' << 1, ' ' << 1, ' ' << 1, '0' << 1};
-static unsigned char ax25_nocall[AX25_ADDR_LEN] =
-{'L' << 1, 'I' << 1, 'N' << 1, 'U' << 1, 'X' << 1, ' ' << 1, '1' << 1};
-
 /* ----> Initialize device <----- */
 
 static void scc_net_setup(struct net_device *dev)
@@ -1562,8 +1557,8 @@ static void scc_net_setup(struct net_device *dev)
 	dev->do_ioctl        = scc_net_ioctl;
 	dev->tx_timeout      = NULL;
 
-	memcpy(dev->broadcast, ax25_bcast,  AX25_ADDR_LEN);
-	memcpy(dev->dev_addr,  ax25_nocall, AX25_ADDR_LEN);
+	memcpy(dev->broadcast, &ax25_bcast,  AX25_ADDR_LEN);
+	memcpy(dev->dev_addr,  &ax25_defaddr, AX25_ADDR_LEN);
  
 	dev->flags      = 0;
 
