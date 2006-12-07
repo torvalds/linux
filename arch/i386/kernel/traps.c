@@ -61,9 +61,6 @@ int panic_on_unrecovered_nmi;
 
 asmlinkage int system_call(void);
 
-struct desc_struct default_ldt[] = { { 0, 0 }, { 0, 0 }, { 0, 0 },
-		{ 0, 0 }, { 0, 0 } };
-
 /* Do we ignore FPU interrupts ? */
 char ignore_fpu_irq = 0;
 

@@ -44,7 +44,7 @@ static inline void switch_mm(struct mm_struct *prev,
 		 * load the LDT, if the LDT is different:
 		 */
 		if (unlikely(prev->context.ldt != next->context.ldt))
-			load_LDT_nolock(&next->context, cpu);
+			load_LDT_nolock(&next->context);
 	}
 #ifdef CONFIG_SMP
 	else {
@@ -56,7 +56,7 @@ static inline void switch_mm(struct mm_struct *prev,
 			 * tlb flush IPI delivery. We must reload %cr3.
 			 */
 			load_cr3(next->pgd);
-			load_LDT_nolock(&next->context, cpu);
+			load_LDT_nolock(&next->context);
 		}
 	}
 #endif

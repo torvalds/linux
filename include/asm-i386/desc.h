@@ -33,11 +33,6 @@ static inline struct desc_struct *get_cpu_gdt_table(unsigned int cpu)
 	return (struct desc_struct *)per_cpu(cpu_gdt_descr, cpu).address;
 }
 
-/*
- * This is the ldt that every process will get unless we need
- * something other than this.
- */
-extern struct desc_struct default_ldt[];
 extern struct desc_struct idt_table[];
 extern void set_intr_gate(unsigned int irq, void * addr);
 
@@ -65,7 +60,6 @@ static inline void pack_gate(__u32 *a, __u32 *b,
 #define DESCTYPE_S	0x10	/* !system */
 
 #define load_TR_desc() __asm__ __volatile__("ltr %w0"::"q" (GDT_ENTRY_TSS*8))
-#define load_LDT_desc() __asm__ __volatile__("lldt %w0"::"q" (GDT_ENTRY_LDT*8))
 
 #define load_gdt(dtr) __asm__ __volatile("lgdt %0"::"m" (*dtr))
 #define load_idt(dtr) __asm__ __volatile("lidt %0"::"m" (*dtr))
@@ -115,13 +109,20 @@ static inline void __set_tss_desc(unsigned int cpu, unsigned int entry, const vo
 	write_gdt_entry(get_cpu_gdt_table(cpu), entry, a, b);
 }
 
-static inline void set_ldt_desc(unsigned int cpu, void *addr, unsigned int entries)
+static inline void set_ldt(void *addr, unsigned int entries)
 {
-	__u32 a, b;
-	pack_descriptor(&a, &b, (unsigned long)addr,
-			entries * sizeof(struct desc_struct) - 1,
-			DESCTYPE_LDT, 0);
-	write_gdt_entry(get_cpu_gdt_table(cpu), GDT_ENTRY_LDT, a, b);
+	if (likely(entries == 0))
+		__asm__ __volatile__("lldt %w0"::"q" (0));
+	else {
+		unsigned cpu = smp_processor_id();
+		__u32 a, b;
+
+		pack_descriptor(&a, &b, (unsigned long)addr,
+				entries * sizeof(struct desc_struct) - 1,
+				DESCTYPE_LDT, 0);
+		write_gdt_entry(get_cpu_gdt_table(cpu), GDT_ENTRY_LDT, a, b);
+		__asm__ __volatile__("lldt %w0"::"q" (GDT_ENTRY_LDT*8));
+	}
 }
 
 #define set_tss_desc(cpu,addr) __set_tss_desc(cpu, GDT_ENTRY_TSS, addr)
@@ -153,35 +154,22 @@ static inline void set_ldt_desc(unsigned int cpu, void *addr, unsigned int entri
 
 static inline void clear_LDT(void)
 {
-	int cpu = get_cpu();
-
-	set_ldt_desc(cpu, &default_ldt[0], 5);
-	load_LDT_desc();
-	put_cpu();
+	set_ldt(NULL, 0);
 }
 
 /*
  * load one particular LDT into the current CPU
  */
-static inline void load_LDT_nolock(mm_context_t *pc, int cpu)
+static inline void load_LDT_nolock(mm_context_t *pc)
 {
-	void *segments = pc->ldt;
-	int count = pc->size;
-
-	if (likely(!count)) {
-		segments = &default_ldt[0];
-		count = 5;
-	}
-		
-	set_ldt_desc(cpu, segments, count);
-	load_LDT_desc();
+	set_ldt(pc->ldt, pc->size);
 }
 
 static inline void load_LDT(mm_context_t *pc)
 {
-	int cpu = get_cpu();
-	load_LDT_nolock(pc, cpu);
-	put_cpu();
+	preempt_disable();
+	load_LDT_nolock(pc);
+	preempt_enable();
 }
 
 static inline unsigned long get_desc_base(unsigned long *desc)
