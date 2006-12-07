@@ -236,28 +236,13 @@ static int __cpuinit have_cpuid_p(void)
 	return flag_is_changeable_p(X86_EFLAGS_ID);
 }
 
-/* Do minimum CPU detection early.
-   Fields really needed: vendor, cpuid_level, family, model, mask, cache alignment.
-   The others are not touched to avoid unwanted side effects.
-
-   WARNING: this function is only called on the BP.  Don't add code here
-   that is supposed to run on all CPUs. */
-static void __init early_cpu_detect(void)
+void __init cpu_detect(struct cpuinfo_x86 *c)
 {
-	struct cpuinfo_x86 *c = &boot_cpu_data;
-
-	c->x86_cache_alignment = 32;
-
-	if (!have_cpuid_p())
-		return;
-
 	/* Get vendor name */
 	cpuid(0x00000000, &c->cpuid_level,
 	      (int *)&c->x86_vendor_id[0],
 	      (int *)&c->x86_vendor_id[8],
 	      (int *)&c->x86_vendor_id[4]);
-
-	get_cpu_vendor(c, 1);
 
 	c->x86 = 4;
 	if (c->cpuid_level >= 0x00000001) {
@@ -273,6 +258,26 @@ static void __init early_cpu_detect(void)
 		if (cap0 & (1<<19))
 			c->x86_cache_alignment = ((misc >> 8) & 0xff) * 8;
 	}
+}
+
+/* Do minimum CPU detection early.
+   Fields really needed: vendor, cpuid_level, family, model, mask, cache alignment.
+   The others are not touched to avoid unwanted side effects.
+
+   WARNING: this function is only called on the BP.  Don't add code here
+   that is supposed to run on all CPUs. */
+static void __init early_cpu_detect(void)
+{
+	struct cpuinfo_x86 *c = &boot_cpu_data;
+
+	c->x86_cache_alignment = 32;
+
+	if (!have_cpuid_p())
+		return;
+
+	cpu_detect(c);
+
+	get_cpu_vendor(c, 1);
 }
 
 static void __cpuinit generic_identify(struct cpuinfo_x86 * c)

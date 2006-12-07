@@ -20,6 +20,7 @@
 #include <linux/threads.h>
 #include <asm/percpu.h>
 #include <linux/cpumask.h>
+#include <linux/init.h>
 
 /* flag for disabling the tsc */
 extern int tsc_disable;
@@ -111,6 +112,8 @@ extern struct cpuinfo_x86 cpu_data[];
 
 extern	int cpu_llc_id[NR_CPUS];
 extern char ignore_fpu_irq;
+
+void __init cpu_detect(struct cpuinfo_x86 *c);
 
 extern void identify_cpu(struct cpuinfo_x86 *);
 extern void print_cpu_info(struct cpuinfo_x86 *);

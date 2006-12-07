@@ -29,6 +29,7 @@
 #include <linux/percpu.h>
 #include <linux/kmod.h>
 #include <linux/kernel_stat.h>
+#include <linux/start_kernel.h>
 #include <linux/security.h>
 #include <linux/workqueue.h>
 #include <linux/profile.h>
