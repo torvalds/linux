@@ -247,14 +247,18 @@ static void deliver_recv_msg(struct smi_info *smi_info,
 	spin_lock(&(smi_info->si_lock));
 }
 
-static void return_hosed_msg(struct smi_info *smi_info)
+static void return_hosed_msg(struct smi_info *smi_info, int cCode)
 {
 	struct ipmi_smi_msg *msg = smi_info->curr_msg;
+
+	if (cCode < 0 || cCode > IPMI_ERR_UNSPECIFIED)
+		cCode = IPMI_ERR_UNSPECIFIED;
+	/* else use it as is */
 
 	/* Make it a reponse */
 	msg->rsp[0] = msg->data[0] | 4;
 	msg->rsp[1] = msg->data[1];
-	msg->rsp[2] = IPMI_ERR_UNSPECIFIED;
+	msg->rsp[2] = cCode;
 	msg->rsp_size = 3;
 
 	smi_info->curr_msg = NULL;
@@ -305,7 +309,7 @@ static enum si_sm_result start_next_msg(struct smi_info *smi_info)
 			smi_info->curr_msg->data,
 			smi_info->curr_msg->data_size);
 		if (err) {
-			return_hosed_msg(smi_info);
+			return_hosed_msg(smi_info, err);
 		}
 
 		rv = SI_SM_CALL_WITHOUT_DELAY;
@@ -647,7 +651,7 @@ static enum si_sm_result smi_event_handler(struct smi_info *smi_info,
 			/* If we were handling a user message, format
                            a response to send to the upper layer to
                            tell it about the error. */
-			return_hosed_msg(smi_info);
+			return_hosed_msg(smi_info, IPMI_ERR_UNSPECIFIED);
 		}
 		si_sm_result = smi_info->handlers->event(smi_info->si_sm, 0);
 	}

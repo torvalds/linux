@@ -261,12 +261,14 @@ static int start_kcs_transaction(struct si_sm_data *kcs, unsigned char *data,
 {
 	unsigned int i;
 
-	if ((size < 2) || (size > MAX_KCS_WRITE_SIZE)) {
-		return -1;
-	}
-	if ((kcs->state != KCS_IDLE) && (kcs->state != KCS_HOSED)) {
-		return -2;
-	}
+	if (size < 2)
+		return IPMI_REQ_LEN_INVALID_ERR;
+	if (size > MAX_KCS_WRITE_SIZE)
+		return IPMI_REQ_LEN_EXCEEDED_ERR;
+
+	if ((kcs->state != KCS_IDLE) && (kcs->state != KCS_HOSED))
+		return IPMI_NOT_IN_MY_STATE_ERR;
+
 	if (kcs_debug & KCS_DEBUG_MSG) {
 		printk(KERN_DEBUG "start_kcs_transaction -");
 		for (i = 0; i < size; i ++) {
