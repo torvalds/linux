@@ -43,6 +43,8 @@
 #define ACPI_BUTTON_HID_POWERF		"ACPI_FPB"
 #define ACPI_BUTTON_HID_SLEEPF		"ACPI_FSB"
 
+#define ACPI_VIDEO_HID			"ACPI_VID"
+#define ACPI_PCI_BRIDGE_HID		"ACPI_PCI"
 /* --------------------------------------------------------------------------
                                        PCI
    -------------------------------------------------------------------------- */

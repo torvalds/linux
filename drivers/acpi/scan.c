@@ -166,8 +166,6 @@ static int acpi_bus_match(struct device *dev, struct device_driver *drv)
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 	struct acpi_driver *acpi_drv = to_acpi_driver(drv);
 
-	if (acpi_drv->ops.match)
-		return !acpi_drv->ops.match(acpi_dev, acpi_drv);
 	return !acpi_match_ids(acpi_dev, acpi_drv->ids);
 }
 
@@ -706,6 +704,53 @@ static void acpi_device_get_busid(struct acpi_device *device,
 	}
 }
 
+static int
+acpi_video_bus_match(struct acpi_device *device)
+{
+	acpi_handle h_dummy1;
+	acpi_handle h_dummy2;
+	acpi_handle h_dummy3;
+
+
+	if (!device)
+		return -EINVAL;
+
+	/* Since there is no HID, CID for ACPI Video drivers, we have
+	 * to check well known required nodes for each feature we support.
+	 */
+
+	/* Does this device able to support video switching ? */
+	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "_DOD", &h_dummy1)) &&
+	    ACPI_SUCCESS(acpi_get_handle(device->handle, "_DOS", &h_dummy2)))
+		return 0;
+
+	/* Does this device able to retrieve a video ROM ? */
+	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "_ROM", &h_dummy1)))
+		return 0;
+
+	/* Does this device able to configure which video head to be POSTed ? */
+	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "_VPO", &h_dummy1)) &&
+	    ACPI_SUCCESS(acpi_get_handle(device->handle, "_GPD", &h_dummy2)) &&
+	    ACPI_SUCCESS(acpi_get_handle(device->handle, "_SPD", &h_dummy3)))
+		return 0;
+
+	return -ENODEV;
+}
+
+static int acpi_pci_bridge_match(struct acpi_device *device)
+{
+       acpi_status status;
+       acpi_handle handle;
+
+       /* pci bridge has _PRT but isn't PNP0A03 */
+       status = acpi_get_handle(device->handle, METHOD_NAME__PRT, &handle);
+       if (ACPI_FAILURE(status))
+               return -ENODEV;
+       if (!acpi_match_ids(device, "PNP0A03"))
+               return -ENODEV;
+       return 0;
+}
+
 static void acpi_device_set_id(struct acpi_device *device,
 			       struct acpi_device *parent, acpi_handle handle,
 			       int type)
@@ -735,6 +780,16 @@ static void acpi_device_set_id(struct acpi_device *device,
 		if (info->valid & ACPI_VALID_ADR) {
 			device->pnp.bus_address = info->address;
 			device->flags.bus_address = 1;
+		}
+
+		if(!(info->valid & (ACPI_VALID_HID | ACPI_VALID_CID))){
+			status = acpi_video_bus_match(device);
+			if(ACPI_SUCCESS(status))
+				hid = ACPI_VIDEO_HID;
+
+			status = acpi_pci_bridge_match(device);
+			if(ACPI_SUCCESS(status))
+				hid = ACPI_PCI_BRIDGE_HID;
 		}
 		break;
 	case ACPI_BUS_TYPE_POWER:
