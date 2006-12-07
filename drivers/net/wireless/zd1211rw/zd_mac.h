@@ -133,6 +133,8 @@ struct zd_mac {
 	struct iw_statistics iw_stats;
 
 	struct housekeeping housekeeping;
+	struct work_struct set_multicast_hash_work;
+	struct zd_mc_hash multicast_hash;
 	struct delayed_work set_rts_cts_work;
 	struct delayed_work set_basic_rates_work;
 
@@ -189,6 +191,7 @@ int zd_mac_init_hw(struct zd_mac *mac, u8 device_type);
 int zd_mac_open(struct net_device *netdev);
 int zd_mac_stop(struct net_device *netdev);
 int zd_mac_set_mac_address(struct net_device *dev, void *p);
+void zd_mac_set_multicast_list(struct net_device *netdev);
 
 int zd_mac_rx(struct zd_mac *mac, const u8 *buffer, unsigned int length);
 

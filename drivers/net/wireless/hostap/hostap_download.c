@@ -685,14 +685,12 @@ static int prism2_download(local_info_t *local,
 		goto out;
 	}
 
-	dl = kmalloc(sizeof(*dl) + param->num_areas *
+	dl = kzalloc(sizeof(*dl) + param->num_areas *
 		     sizeof(struct prism2_download_data_area), GFP_KERNEL);
 	if (dl == NULL) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	memset(dl, 0, sizeof(*dl) + param->num_areas *
-	       sizeof(struct prism2_download_data_area));
 	dl->dl_cmd = param->dl_cmd;
 	dl->start_addr = param->start_addr;
 	dl->num_areas = param->num_areas;
