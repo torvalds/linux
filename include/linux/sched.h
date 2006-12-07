@@ -194,7 +194,16 @@ extern void init_idle(struct task_struct *idle, int cpu);
 
 extern cpumask_t nohz_cpu_mask;
 
-extern void show_state(void);
+/*
+ * Only dump TASK_* tasks. (-1 for all tasks)
+ */
+extern void show_state_filter(unsigned long state_filter);
+
+static inline void show_state(void)
+{
+	show_state_filter(-1);
+}
+
 extern void show_regs(struct pt_regs *);
 
 /*

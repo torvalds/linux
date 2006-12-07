@@ -4804,7 +4804,7 @@ static void show_task(struct task_struct *p)
 		show_stack(p, NULL);
 }
 
-void show_state(void)
+void show_state_filter(unsigned long state_filter)
 {
 	struct task_struct *g, *p;
 
@@ -4824,11 +4824,16 @@ void show_state(void)
 		 * console might take alot of time:
 		 */
 		touch_nmi_watchdog();
-		show_task(p);
+		if (p->state & state_filter)
+			show_task(p);
 	} while_each_thread(g, p);
 
 	read_unlock(&tasklist_lock);
-	debug_show_all_locks();
+	/*
+	 * Only show locks if all tasks are dumped:
+	 */
+	if (state_filter == -1)
+		debug_show_all_locks();
 }
 
 /**

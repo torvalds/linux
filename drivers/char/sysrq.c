@@ -182,6 +182,18 @@ static struct sysrq_key_op sysrq_showstate_op = {
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
 
+static void sysrq_handle_showstate_blocked(int key, struct tty_struct *tty)
+{
+	show_state_filter(TASK_UNINTERRUPTIBLE);
+}
+static struct sysrq_key_op sysrq_showstate_blocked_op = {
+	.handler	= sysrq_handle_showstate_blocked,
+	.help_msg	= "showBlockedTasks",
+	.action_msg	= "Show Blocked State",
+	.enable_mask	= SYSRQ_ENABLE_DUMP,
+};
+
+
 static void sysrq_handle_showmem(int key, struct tty_struct *tty)
 {
 	show_mem();
@@ -304,7 +316,7 @@ static struct sysrq_key_op *sysrq_key_table[36] = {
 	/* May be assigned at init time by SMP VOYAGER */
 	NULL,				/* v */
 	NULL,				/* w */
-	NULL,				/* x */
+	&sysrq_showstate_blocked_op,	/* x */
 	NULL,				/* y */
 	NULL				/* z */
 };
