@@ -91,7 +91,7 @@ asmlinkage void alignment_check(void);
 asmlinkage void spurious_interrupt_bug(void);
 asmlinkage void machine_check(void);
 
-static int kstack_depth_to_print = 24;
+int kstack_depth_to_print = 24;
 #ifdef CONFIG_STACK_UNWIND
 static int call_trace = 1;
 #else
