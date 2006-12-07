@@ -221,7 +221,7 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 	do {
 		struct page *page;
-		unsigned int nid;
+		int nid;
 
 		if (!pte_present(*pte))
 			continue;

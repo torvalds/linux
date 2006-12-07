@@ -456,7 +456,7 @@ static inline int page_zone_id(struct page *page)
 	return (page->flags >> ZONEID_PGSHIFT) & ZONEID_MASK;
 }
 
-static inline unsigned long zone_to_nid(struct zone *zone)
+static inline int zone_to_nid(struct zone *zone)
 {
 #ifdef CONFIG_NUMA
 	return zone->node;
@@ -466,9 +466,9 @@ static inline unsigned long zone_to_nid(struct zone *zone)
 }
 
 #ifdef NODE_NOT_IN_PAGE_FLAGS
-extern unsigned long page_to_nid(struct page *page);
+extern int page_to_nid(struct page *page);
 #else
-static inline unsigned long page_to_nid(struct page *page)
+static inline int page_to_nid(struct page *page)
 {
 	return (page->flags >> NODES_PGSHIFT) & NODES_MASK;
 }
