@@ -770,11 +770,10 @@ static void msg(int level, const char *fmt, ...)
 	
 	msgnum++;
 	if (msgnum>99) msgnum=0;
-	sprintf(buf, MSG_LEVEL "%s-%d [%02d]:  ", major_name, current_drive - D_S, msgnum);
 	va_start(args, fmt);
-	vsprintf(&buf[18], fmt, args);
+	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
-	printk(buf);
+	printk(MSG_LEVEL "%s-%d [%02d]:  %s", major_name, current_drive - D_S, msgnum, buf);
 #if KLOGD_PAUSE
 	sbp_sleep(KLOGD_PAUSE); /* else messages get lost */
 #endif /* KLOGD_PAUSE */ 
