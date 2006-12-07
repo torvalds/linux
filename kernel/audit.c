@@ -57,6 +57,7 @@
 #include <linux/netlink.h>
 #include <linux/selinux.h>
 #include <linux/inotify.h>
+#include <linux/freezer.h>
 
 #include "audit.h"
 

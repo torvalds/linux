@@ -36,6 +36,7 @@
 #include <media/v4l2-common.h>
 #include <linux/kthread.h>
 #include <linux/highmem.h>
+#include <linux/freezer.h>
 
 /* Wake up at about 30 fps */
 #define WAKE_NUMERATOR 30

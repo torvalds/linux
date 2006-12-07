@@ -56,6 +56,7 @@
 #include <linux/mempool.h>
 #include <linux/writeback.h>
 #include <linux/kthread.h>
+#include <linux/freezer.h>
 
 STATIC struct quotactl_ops xfs_quotactl_operations;
 STATIC struct super_operations xfs_super_operations;

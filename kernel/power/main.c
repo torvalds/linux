@@ -18,6 +18,7 @@
 #include <linux/console.h>
 #include <linux/cpu.h>
 #include <linux/resume-trace.h>
+#include <linux/freezer.h>
 
 #include "power.h"
 

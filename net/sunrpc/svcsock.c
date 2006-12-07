@@ -32,6 +32,7 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/file.h>
+#include <linux/freezer.h>
 #include <net/sock.h>
 #include <net/checksum.h>
 #include <net/ip.h>

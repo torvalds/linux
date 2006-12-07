@@ -34,6 +34,7 @@
 #include <linux/mempool.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
+#include <linux/freezer.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
 #define DECLARE_GLOBALS_HERE

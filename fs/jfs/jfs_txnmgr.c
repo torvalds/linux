@@ -46,7 +46,7 @@
 #include <linux/vmalloc.h>
 #include <linux/smp_lock.h>
 #include <linux/completion.h>
-#include <linux/suspend.h>
+#include <linux/freezer.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kthread.h>

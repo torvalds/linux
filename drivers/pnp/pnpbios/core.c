@@ -61,6 +61,7 @@
 #include <linux/dmi.h>
 #include <linux/delay.h>
 #include <linux/acpi.h>
+#include <linux/freezer.h>
 
 #include <asm/page.h>
 #include <asm/desc.h>

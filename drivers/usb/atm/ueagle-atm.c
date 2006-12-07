@@ -64,6 +64,8 @@
 #include <linux/kthread.h>
 #include <linux/version.h>
 #include <linux/mutex.h>
+#include <linux/freezer.h>
+
 #include <asm/unaligned.h>
 
 #include "usbatm.h"

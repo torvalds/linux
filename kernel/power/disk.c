@@ -20,6 +20,7 @@
 #include <linux/pm.h>
 #include <linux/console.h>
 #include <linux/cpu.h>
+#include <linux/freezer.h>
 
 #include "power.h"
 

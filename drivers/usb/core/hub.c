@@ -22,6 +22,7 @@
 #include <linux/usbdevice_fs.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
+#include <linux/freezer.h>
 
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>

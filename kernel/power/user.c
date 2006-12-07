@@ -22,6 +22,7 @@
 #include <linux/fs.h>
 #include <linux/console.h>
 #include <linux/cpu.h>
+#include <linux/freezer.h>
 
 #include <asm/uaccess.h>
 

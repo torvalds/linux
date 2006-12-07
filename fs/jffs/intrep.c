@@ -66,6 +66,7 @@
 #include <linux/smp_lock.h>
 #include <linux/time.h>
 #include <linux/ctype.h>
+#include <linux/freezer.h>
 
 #include "intrep.h"
 #include "jffs_fm.h"

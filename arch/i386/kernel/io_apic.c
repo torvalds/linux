@@ -34,6 +34,7 @@
 #include <linux/pci.h>
 #include <linux/msi.h>
 #include <linux/htirq.h>
+#include <linux/freezer.h>
 
 #include <asm/io.h>
 #include <asm/smp.h>

@@ -39,10 +39,10 @@
 #include <linux/raid/bitmap.h>
 #include <linux/sysctl.h>
 #include <linux/buffer_head.h> /* for invalidate_bdev */
-#include <linux/suspend.h>
 #include <linux/poll.h>
 #include <linux/mutex.h>
 #include <linux/ctype.h>
+#include <linux/freezer.h>
 
 #include <linux/init.h>
 

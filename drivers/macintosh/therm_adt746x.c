@@ -24,6 +24,7 @@
 #include <linux/suspend.h>
 #include <linux/kthread.h>
 #include <linux/moduleparam.h>
+#include <linux/freezer.h>
 
 #include <asm/prom.h>
 #include <asm/machdep.h>

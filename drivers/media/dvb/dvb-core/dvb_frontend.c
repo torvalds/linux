@@ -34,7 +34,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/list.h>
-#include <linux/suspend.h>
+#include <linux/freezer.h>
 #include <linux/jiffies.h>
 #include <asm/processor.h>
 

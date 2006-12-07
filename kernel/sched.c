@@ -34,7 +34,7 @@
 #include <linux/security.h>
 #include <linux/notifier.h>
 #include <linux/profile.h>
-#include <linux/suspend.h>
+#include <linux/freezer.h>
 #include <linux/vmalloc.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>

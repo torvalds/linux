@@ -31,7 +31,7 @@
 #include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/mm.h>
-#include <linux/suspend.h>
+#include <linux/freezer.h>
 #include <linux/pagemap.h>
 #include <linux/kthread.h>
 #include <linux/poison.h>
