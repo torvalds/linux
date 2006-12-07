@@ -60,7 +60,7 @@ static inline void lops_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 }
 
 static inline void lops_before_scan(struct gfs2_jdesc *jd,
-				    struct gfs2_log_header *head,
+				    struct gfs2_log_header_host *head,
 				    unsigned int pass)
 {
 	int x;

@@ -27,15 +27,16 @@
 #include "util.h"
 
 static struct dentry *gfs2_decode_fh(struct super_block *sb,
-				     __u32 *fh,
+				     __u32 *p,
 				     int fh_len,
 				     int fh_type,
 				     int (*acceptable)(void *context,
 						       struct dentry *dentry),
 				     void *context)
 {
+	__be32 *fh = (__force __be32 *)p;
 	struct gfs2_fh_obj fh_obj;
-	struct gfs2_inum *this, parent;
+	struct gfs2_inum_host *this, parent;
 
 	if (fh_type != fh_len)
 		return NULL;
@@ -65,9 +66,10 @@ static struct dentry *gfs2_decode_fh(struct super_block *sb,
 						    acceptable, context);
 }
 
-static int gfs2_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
+static int gfs2_encode_fh(struct dentry *dentry, __u32 *p, int *len,
 			  int connectable)
 {
+	__be32 *fh = (__force __be32 *)p;
 	struct inode *inode = dentry->d_inode;
 	struct super_block *sb = inode->i_sb;
 	struct gfs2_inode *ip = GFS2_I(inode);
@@ -76,14 +78,10 @@ static int gfs2_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
 	    (connectable && *len < GFS2_LARGE_FH_SIZE))
 		return 255;
 
-	fh[0] = ip->i_num.no_formal_ino >> 32;
-	fh[0] = cpu_to_be32(fh[0]);
-	fh[1] = ip->i_num.no_formal_ino & 0xFFFFFFFF;
-	fh[1] = cpu_to_be32(fh[1]);
-	fh[2] = ip->i_num.no_addr >> 32;
-	fh[2] = cpu_to_be32(fh[2]);
-	fh[3] = ip->i_num.no_addr & 0xFFFFFFFF;
-	fh[3] = cpu_to_be32(fh[3]);
+	fh[0] = cpu_to_be32(ip->i_num.no_formal_ino >> 32);
+	fh[1] = cpu_to_be32(ip->i_num.no_formal_ino & 0xFFFFFFFF);
+	fh[2] = cpu_to_be32(ip->i_num.no_addr >> 32);
+	fh[3] = cpu_to_be32(ip->i_num.no_addr & 0xFFFFFFFF);
 	*len = GFS2_SMALL_FH_SIZE;
 
 	if (!connectable || inode == sb->s_root->d_inode)
@@ -95,14 +93,10 @@ static int gfs2_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
 	igrab(inode);
 	spin_unlock(&dentry->d_lock);
 
-	fh[4] = ip->i_num.no_formal_ino >> 32;
-	fh[4] = cpu_to_be32(fh[4]);
-	fh[5] = ip->i_num.no_formal_ino & 0xFFFFFFFF;
-	fh[5] = cpu_to_be32(fh[5]);
-	fh[6] = ip->i_num.no_addr >> 32;
-	fh[6] = cpu_to_be32(fh[6]);
-	fh[7] = ip->i_num.no_addr & 0xFFFFFFFF;
-	fh[7] = cpu_to_be32(fh[7]);
+	fh[4] = cpu_to_be32(ip->i_num.no_formal_ino >> 32);
+	fh[5] = cpu_to_be32(ip->i_num.no_formal_ino & 0xFFFFFFFF);
+	fh[6] = cpu_to_be32(ip->i_num.no_addr >> 32);
+	fh[7] = cpu_to_be32(ip->i_num.no_addr & 0xFFFFFFFF);
 
 	fh[8]  = cpu_to_be32(inode->i_mode);
 	fh[9]  = 0;	/* pad to double word */
@@ -114,12 +108,12 @@ static int gfs2_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
 }
 
 struct get_name_filldir {
-	struct gfs2_inum inum;
+	struct gfs2_inum_host inum;
 	char *name;
 };
 
 static int get_name_filldir(void *opaque, const char *name, unsigned int length,
-			    u64 offset, struct gfs2_inum *inum,
+			    u64 offset, struct gfs2_inum_host *inum,
 			    unsigned int type)
 {
 	struct get_name_filldir *gnfd = (struct get_name_filldir *)opaque;
@@ -202,7 +196,7 @@ static struct dentry *gfs2_get_dentry(struct super_block *sb, void *inum_obj)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_fh_obj *fh_obj = (struct gfs2_fh_obj *)inum_obj;
-	struct gfs2_inum *inum = &fh_obj->this;
+	struct gfs2_inum_host *inum = &fh_obj->this;
 	struct gfs2_holder i_gh, ri_gh, rgd_gh;
 	struct gfs2_rgrpd *rgd;
 	struct inode *inode;

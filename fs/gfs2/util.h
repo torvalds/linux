@@ -83,8 +83,7 @@ static inline int gfs2_meta_check_i(struct gfs2_sbd *sdp,
 				    char *file, unsigned int line)
 {
 	struct gfs2_meta_header *mh = (struct gfs2_meta_header *)bh->b_data;
-	u32 magic = mh->mh_magic;
-	magic = be32_to_cpu(magic);
+	u32 magic = be32_to_cpu(mh->mh_magic);
 	if (unlikely(magic != GFS2_MAGIC))
 		return gfs2_meta_check_ii(sdp, bh, "magic number", function,
 					  file, line);
@@ -107,9 +106,8 @@ static inline int gfs2_metatype_check_i(struct gfs2_sbd *sdp,
 					char *file, unsigned int line)
 {
 	struct gfs2_meta_header *mh = (struct gfs2_meta_header *)bh->b_data;
-	u32 magic = mh->mh_magic;
+	u32 magic = be32_to_cpu(mh->mh_magic);
 	u16 t = be32_to_cpu(mh->mh_type);
-	magic = be32_to_cpu(magic);
 	if (unlikely(magic != GFS2_MAGIC))
 		return gfs2_meta_check_ii(sdp, bh, "magic number", function,
 					  file, line);

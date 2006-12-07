@@ -74,11 +74,11 @@ int gfs2_acl_validate_remove(struct gfs2_inode *ip, int access)
 {
 	if (!GFS2_SB(&ip->i_inode)->sd_args.ar_posix_acl)
 		return -EOPNOTSUPP;
-	if (current->fsuid != ip->i_di.di_uid && !capable(CAP_FOWNER))
+	if (current->fsuid != ip->i_inode.i_uid && !capable(CAP_FOWNER))
 		return -EPERM;
-	if (S_ISLNK(ip->i_di.di_mode))
+	if (S_ISLNK(ip->i_inode.i_mode))
 		return -EOPNOTSUPP;
-	if (!access && !S_ISDIR(ip->i_di.di_mode))
+	if (!access && !S_ISDIR(ip->i_inode.i_mode))
 		return -EACCES;
 
 	return 0;
@@ -145,14 +145,14 @@ out:
 }
 
 /**
- * gfs2_check_acl_locked - Check an ACL to see if we're allowed to do something
+ * gfs2_check_acl - Check an ACL to see if we're allowed to do something
  * @inode: the file we want to do something to
  * @mask: what we want to do
  *
  * Returns: errno
  */
 
-int gfs2_check_acl_locked(struct inode *inode, int mask)
+int gfs2_check_acl(struct inode *inode, int mask)
 {
 	struct posix_acl *acl = NULL;
 	int error;
@@ -170,21 +170,6 @@ int gfs2_check_acl_locked(struct inode *inode, int mask)
 	return -EAGAIN;
 }
 
-int gfs2_check_acl(struct inode *inode, int mask)
-{
-	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_holder i_gh;
-	int error;
-
-	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
-	if (!error) {
-		error = gfs2_check_acl_locked(inode, mask);
-		gfs2_glock_dq_uninit(&i_gh);
-	}
-
-	return error;
-}
-
 static int munge_mode(struct gfs2_inode *ip, mode_t mode)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
@@ -198,10 +183,10 @@ static int munge_mode(struct gfs2_inode *ip, mode_t mode)
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (!error) {
 		gfs2_assert_withdraw(sdp,
-				(ip->i_di.di_mode & S_IFMT) == (mode & S_IFMT));
-		ip->i_di.di_mode = mode;
+				(ip->i_inode.i_mode & S_IFMT) == (mode & S_IFMT));
+		ip->i_inode.i_mode = mode;
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-		gfs2_dinode_out(&ip->i_di, dibh->b_data);
+		gfs2_dinode_out(ip, dibh->b_data);
 		brelse(dibh);
 	}
 
@@ -215,12 +200,12 @@ int gfs2_acl_create(struct gfs2_inode *dip, struct gfs2_inode *ip)
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	struct posix_acl *acl = NULL, *clone;
 	struct gfs2_ea_request er;
-	mode_t mode = ip->i_di.di_mode;
+	mode_t mode = ip->i_inode.i_mode;
 	int error;
 
 	if (!sdp->sd_args.ar_posix_acl)
 		return 0;
-	if (S_ISLNK(ip->i_di.di_mode))
+	if (S_ISLNK(ip->i_inode.i_mode))
 		return 0;
 
 	memset(&er, 0, sizeof(struct gfs2_ea_request));
@@ -232,7 +217,7 @@ int gfs2_acl_create(struct gfs2_inode *dip, struct gfs2_inode *ip)
 		return error;
 	if (!acl) {
 		mode &= ~current->fs->umask;
-		if (mode != ip->i_di.di_mode)
+		if (mode != ip->i_inode.i_mode)
 			error = munge_mode(ip, mode);
 		return error;
 	}
@@ -244,7 +229,7 @@ int gfs2_acl_create(struct gfs2_inode *dip, struct gfs2_inode *ip)
 	posix_acl_release(acl);
 	acl = clone;
 
-	if (S_ISDIR(ip->i_di.di_mode)) {
+	if (S_ISDIR(ip->i_inode.i_mode)) {
 		er.er_name = GFS2_POSIX_ACL_DEFAULT;
 		er.er_name_len = GFS2_POSIX_ACL_DEFAULT_LEN;
 		error = gfs2_system_eaops.eo_set(ip, &er);

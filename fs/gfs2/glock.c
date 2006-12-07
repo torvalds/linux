@@ -96,7 +96,7 @@ static inline rwlock_t *gl_lock_addr(unsigned int x)
 	return &gl_hash_locks[x & (GL_HASH_LOCK_SZ-1)];
 }
 #else /* not SMP, so no spinlocks required */
-static inline rwlock_t *gl_lock_addr(x)
+static inline rwlock_t *gl_lock_addr(unsigned int x)
 {
 	return NULL;
 }
@@ -769,7 +769,7 @@ restart:
 	} else {
 		spin_unlock(&gl->gl_spin);
 
-		new_gh = gfs2_holder_get(gl, state, LM_FLAG_TRY, GFP_KERNEL);
+		new_gh = gfs2_holder_get(gl, state, LM_FLAG_TRY, GFP_NOFS);
 		if (!new_gh)
 			return;
 		set_bit(HIF_DEMOTE, &new_gh->gh_iflags);
@@ -783,21 +783,6 @@ out:
 
 	if (new_gh)
 		gfs2_holder_put(new_gh);
-}
-
-void gfs2_glock_inode_squish(struct inode *inode)
-{
-	struct gfs2_holder gh;
-	struct gfs2_glock *gl = GFS2_I(inode)->i_gl;
-	gfs2_holder_init(gl, LM_ST_UNLOCKED, 0, &gh);
-	set_bit(HIF_DEMOTE, &gh.gh_iflags);
-	spin_lock(&gl->gl_spin);
-	gfs2_assert(inode->i_sb->s_fs_info, list_empty(&gl->gl_holders));
-	list_add_tail(&gh.gh_list, &gl->gl_waiters2);
-	run_queue(gl);
-	spin_unlock(&gl->gl_spin);
-	wait_for_completion(&gh.gh_wait);
-	gfs2_holder_uninit(&gh);
 }
 
 /**
@@ -847,12 +832,12 @@ static void xmote_bh(struct gfs2_glock *gl, unsigned int ret)
 
 	if (prev_state != LM_ST_UNLOCKED && !(ret & LM_OUT_CACHEABLE)) {
 		if (glops->go_inval)
-			glops->go_inval(gl, DIO_METADATA | DIO_DATA);
+			glops->go_inval(gl, DIO_METADATA);
 	} else if (gl->gl_state == LM_ST_DEFERRED) {
 		/* We might not want to do this here.
 		   Look at moving to the inode glops. */
 		if (glops->go_inval)
-			glops->go_inval(gl, DIO_DATA);
+			glops->go_inval(gl, 0);
 	}
 
 	/*  Deal with each possible exit condition  */
@@ -954,7 +939,7 @@ void gfs2_glock_xmote_th(struct gfs2_glock *gl, unsigned int state, int flags)
 	gfs2_assert_warn(sdp, state != gl->gl_state);
 
 	if (gl->gl_state == LM_ST_EXCLUSIVE && glops->go_sync)
-		glops->go_sync(gl, DIO_METADATA | DIO_DATA | DIO_RELEASE);
+		glops->go_sync(gl);
 
 	gfs2_glock_hold(gl);
 	gl->gl_req_bh = xmote_bh;
@@ -995,7 +980,7 @@ static void drop_bh(struct gfs2_glock *gl, unsigned int ret)
 	state_change(gl, LM_ST_UNLOCKED);
 
 	if (glops->go_inval)
-		glops->go_inval(gl, DIO_METADATA | DIO_DATA);
+		glops->go_inval(gl, DIO_METADATA);
 
 	if (gh) {
 		spin_lock(&gl->gl_spin);
@@ -1041,7 +1026,7 @@ void gfs2_glock_drop_th(struct gfs2_glock *gl)
 	gfs2_assert_warn(sdp, gl->gl_state != LM_ST_UNLOCKED);
 
 	if (gl->gl_state == LM_ST_EXCLUSIVE && glops->go_sync)
-		glops->go_sync(gl, DIO_METADATA | DIO_DATA | DIO_RELEASE);
+		glops->go_sync(gl);
 
 	gfs2_glock_hold(gl);
 	gl->gl_req_bh = drop_bh;
@@ -1243,9 +1228,6 @@ restart:
 	}
 
 	clear_bit(GLF_PREFETCH, &gl->gl_flags);
-
-	if (error == GLR_TRYFAILED && (gh->gh_flags & GL_DUMP))
-		dump_glock(gl);
 
 	return error;
 }
@@ -1923,7 +1905,7 @@ out:
 
 static void scan_glock(struct gfs2_glock *gl)
 {
-	if (gl->gl_ops == &gfs2_inode_glops)
+	if (gl->gl_ops == &gfs2_inode_glops && gl->gl_object)
 		return;
 
 	if (gfs2_glmutex_trylock(gl)) {
@@ -2078,7 +2060,7 @@ static int dump_inode(struct gfs2_inode *ip)
 	printk(KERN_INFO "    num = %llu %llu\n",
 		    (unsigned long long)ip->i_num.no_formal_ino,
 		    (unsigned long long)ip->i_num.no_addr);
-	printk(KERN_INFO "    type = %u\n", IF2DT(ip->i_di.di_mode));
+	printk(KERN_INFO "    type = %u\n", IF2DT(ip->i_inode.i_mode));
 	printk(KERN_INFO "    i_flags =");
 	for (x = 0; x < 32; x++)
 		if (test_bit(x, &ip->i_flags))
