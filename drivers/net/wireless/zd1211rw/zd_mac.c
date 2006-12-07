@@ -39,7 +39,7 @@ static void housekeeping_init(struct zd_mac *mac);
 static void housekeeping_enable(struct zd_mac *mac);
 static void housekeeping_disable(struct zd_mac *mac);
 
-static void set_multicast_hash_handler(void *mac_ptr);
+static void set_multicast_hash_handler(struct work_struct *work);
 
 int zd_mac_init(struct zd_mac *mac,
 	        struct net_device *netdev,
@@ -57,8 +57,7 @@ int zd_mac_init(struct zd_mac *mac,
 	softmac_init(ieee80211_priv(netdev));
 	zd_chip_init(&mac->chip, netdev, intf);
 	housekeeping_init(mac);
-	INIT_WORK(&mac->set_multicast_hash_work, set_multicast_hash_handler,
-		  mac);
+	INIT_WORK(&mac->set_multicast_hash_work, set_multicast_hash_handler);
 	return 0;
 }
 
@@ -261,9 +260,10 @@ int zd_mac_set_mac_address(struct net_device *netdev, void *p)
 	return 0;
 }
 
-static void set_multicast_hash_handler(void *mac_ptr)
+static void set_multicast_hash_handler(struct work_struct *work)
 {
-	struct zd_mac *mac = mac_ptr;
+	struct zd_mac *mac = container_of(work, struct zd_mac,
+					  set_multicast_hash_work);
 	struct zd_mc_hash hash;
 
 	spin_lock_irq(&mac->lock);
