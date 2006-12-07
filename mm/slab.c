@@ -3459,29 +3459,45 @@ out:
  * @flags: See kmalloc().
  * @nodeid: node number of the target node.
  *
- * Identical to kmem_cache_alloc, except that this function is slow
- * and can sleep. And it will allocate memory on the given node, which
- * can improve the performance for cpu bound structures.
- * New and improved: it will now make sure that the object gets
- * put on the correct node list so that there is no false sharing.
+ * Identical to kmem_cache_alloc but it will allocate memory on the given
+ * node, which can improve the performance for cpu bound structures.
+ *
+ * Fallback to other node is possible if __GFP_THISNODE is not set.
  */
 static __always_inline void *
 __cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
 		int nodeid, void *caller)
 {
 	unsigned long save_flags;
-	void *ptr;
+	void *ptr = NULL;
 
 	cache_alloc_debugcheck_before(cachep, flags);
 	local_irq_save(save_flags);
 
-	if (nodeid == -1 || nodeid == numa_node_id() ||
-			!cachep->nodelists[nodeid])
-		ptr = ____cache_alloc(cachep, flags);
-	else
-		ptr = ____cache_alloc_node(cachep, flags, nodeid);
-	local_irq_restore(save_flags);
+	if (unlikely(nodeid == -1))
+		nodeid = numa_node_id();
 
+	if (likely(cachep->nodelists[nodeid])) {
+		if (nodeid == numa_node_id()) {
+			/*
+			 * Use the locally cached objects if possible.
+			 * However ____cache_alloc does not allow fallback
+			 * to other nodes. It may fail while we still have
+			 * objects on other nodes available.
+			 */
+			ptr = ____cache_alloc(cachep, flags);
+		}
+		if (!ptr) {
+			/* ___cache_alloc_node can fall back to other nodes */
+			ptr = ____cache_alloc_node(cachep, flags, nodeid);
+		}
+	} else {
+		/* Node not bootstrapped yet */
+		if (!(flags & __GFP_THISNODE))
+			ptr = fallback_alloc(cachep, flags);
+	}
+
+	local_irq_restore(save_flags);
 	ptr = cache_alloc_debugcheck_after(cachep, flags, ptr, caller);
 
 	return ptr;
