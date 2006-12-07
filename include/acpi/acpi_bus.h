@@ -300,6 +300,7 @@ struct acpi_device {
 	struct acpi_driver *driver;
 	void *driver_data;
 	struct device dev;
+	struct acpi_bus_ops bus_ops;	/* workaround for different code path for hotplug */
 };
 
 #define acpi_driver_data(d)	((d)->driver_data)
