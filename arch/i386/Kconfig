@@ -721,20 +721,6 @@ config BOOT_IOREMAP
 	depends on (((X86_SUMMIT || X86_GENERICARCH) && NUMA) || (X86 && EFI))
 	default y
 
-config REGPARM
-	bool "Use register arguments"
-	default y
-	help
-	Compile the kernel with -mregparm=3. This instructs gcc to use
-	a more efficient function call ABI which passes the first three
-	arguments of a function call via registers, which results in denser
-	and faster code.
-
-	If this option is disabled, then the default ABI of passing
-	arguments via the stack is used.
-
-	If unsure, say Y.
-
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
 	depends on PROC_FS
