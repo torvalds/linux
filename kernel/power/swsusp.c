@@ -49,6 +49,7 @@
 #include <linux/bootmem.h>
 #include <linux/syscalls.h>
 #include <linux/highmem.h>
+#include <linux/time.h>
 
 #include "power.h"
 
@@ -164,6 +165,34 @@ void free_all_swap_pages(int swap, struct bitmap_page *bitmap)
 }
 
 /**
+ *	swsusp_show_speed - print the time elapsed between two events represented by
+ *	@start and @stop
+ *
+ *	@nr_pages -	number of pages processed between @start and @stop
+ *	@msg -		introductory message to print
+ */
+
+void swsusp_show_speed(struct timeval *start, struct timeval *stop,
+			unsigned nr_pages, char *msg)
+{
+	s64 elapsed_centisecs64;
+	int centisecs;
+	int k;
+	int kps;
+
+	elapsed_centisecs64 = timeval_to_ns(stop) - timeval_to_ns(start);
+	do_div(elapsed_centisecs64, NSEC_PER_SEC / 100);
+	centisecs = elapsed_centisecs64;
+	if (centisecs == 0)
+		centisecs = 1;	/* avoid div-by-zero */
+	k = nr_pages * (PAGE_SIZE / 1024);
+	kps = (k * 100) / centisecs;
+	printk("%s %d kbytes in %d.%02d seconds (%d.%02d MB/s)\n", msg, k,
+			centisecs / 100, centisecs % 100,
+			kps / 1000, (kps % 1000) / 10);
+}
+
+/**
  *	swsusp_shrink_memory -  Try to free as much memory as needed
  *
  *	... but do not OOM-kill anyone
@@ -187,8 +216,10 @@ int swsusp_shrink_memory(void)
 	unsigned long pages = 0;
 	unsigned int i = 0;
 	char *p = "-\\|/";
+	struct timeval start, stop;
 
 	printk("Shrinking memory...  ");
+	do_gettimeofday(&start);
 	do {
 		long size, highmem_size;
 
@@ -222,7 +253,9 @@ int swsusp_shrink_memory(void)
 		}
 		printk("\b%c", p[i++%4]);
 	} while (tmp > 0);
+	do_gettimeofday(&stop);
 	printk("\bdone (%lu pages freed)\n", pages);
+	swsusp_show_speed(&start, &stop, pages, "Freed");
 
 	return 0;
 }

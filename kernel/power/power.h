@@ -171,3 +171,7 @@ extern int swsusp_read(void);
 extern int swsusp_write(void);
 extern void swsusp_close(void);
 extern int suspend_enter(suspend_state_t state);
+
+struct timeval;
+extern void swsusp_show_speed(struct timeval *, struct timeval *,
+				unsigned int, char *);

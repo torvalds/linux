@@ -133,26 +133,6 @@ static int wait_on_bio_chain(struct bio **bio_chain)
 	return ret;
 }
 
-static void show_speed(struct timeval *start, struct timeval *stop,
-			unsigned nr_pages, char *msg)
-{
-	s64 elapsed_centisecs64;
-	int centisecs;
-	int k;
-	int kps;
-
-	elapsed_centisecs64 = timeval_to_ns(stop) - timeval_to_ns(start);
-	do_div(elapsed_centisecs64, NSEC_PER_SEC / 100);
-	centisecs = elapsed_centisecs64;
-	if (centisecs == 0)
-		centisecs = 1;	/* avoid div-by-zero */
-	k = nr_pages * (PAGE_SIZE / 1024);
-	kps = (k * 100) / centisecs;
-	printk("%s %d kbytes in %d.%02d seconds (%d.%02d MB/s)\n", msg, k,
-			centisecs / 100, centisecs % 100,
-			kps / 1000, (kps % 1000) / 10);
-}
-
 /*
  * Saving part
  */
@@ -375,7 +355,7 @@ static int save_image(struct swap_map_handle *handle,
 		error = err2;
 	if (!error)
 		printk("\b\b\b\bdone\n");
-	show_speed(&start, &stop, nr_to_write, "Wrote");
+	swsusp_show_speed(&start, &stop, nr_to_write, "Wrote");
 	return error;
 }
 
@@ -562,7 +542,7 @@ static int load_image(struct swap_map_handle *handle,
 		if (!snapshot_image_loaded(snapshot))
 			error = -ENODATA;
 	}
-	show_speed(&start, &stop, nr_to_read, "Read");
+	swsusp_show_speed(&start, &stop, nr_to_read, "Read");
 	return error;
 }
 
