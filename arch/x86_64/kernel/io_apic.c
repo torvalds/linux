@@ -174,14 +174,20 @@ static struct IO_APIC_route_entry ioapic_read_entry(int apic, int pin)
  * the interrupt, and we need to make sure the entry is fully populated
  * before that happens.
  */
+static void
+__ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
+{
+	union entry_union eu;
+	eu.entry = e;
+	io_apic_write(apic, 0x11 + 2*pin, eu.w2);
+	io_apic_write(apic, 0x10 + 2*pin, eu.w1);
+}
+
 static void ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
 {
 	unsigned long flags;
-	union entry_union eu;
-	eu.entry = e;
 	spin_lock_irqsave(&ioapic_lock, flags);
-	io_apic_write(apic, 0x11 + 2*pin, eu.w2);
-	io_apic_write(apic, 0x10 + 2*pin, eu.w1);
+	__ioapic_write_entry(apic, pin, e);
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 }
 
