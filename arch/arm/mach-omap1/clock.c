@@ -496,7 +496,7 @@ static int omap1_clk_enable_generic(struct clk *clk)
 		}
 	}
 
-	return 0;
+	return;
 }
 
 static void omap1_clk_disable_generic(struct clk *clk)
@@ -654,7 +654,8 @@ int __init omap1_clk_init(void)
 	/* USB_REQ_EN will be disabled later if necessary (usb_dc_ck) */
 	reg = omap_readw(SOFT_REQ_REG) & (1 << 4);
 	omap_writew(reg, SOFT_REQ_REG);
-	omap_writew(0, SOFT_REQ_REG2);
+	if (!cpu_is_omap15xx())
+		omap_writew(0, SOFT_REQ_REG2);
 
 	clk_init(&omap1_clk_functions);
 

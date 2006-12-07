@@ -256,7 +256,8 @@ void omap_pm_suspend(void)
 		tps65010_set_led(LED1, OFF);
 	}
 
-	omap_writew(0xffff, ULPD_SOFT_DISABLE_REQ_REG);
+	if (!cpu_is_omap15xx())
+		omap_writew(0xffff, ULPD_SOFT_DISABLE_REQ_REG);
 
 	/*
 	 * Step 1: turn off interrupts (FIXME: NOTE: already disabled)
@@ -434,7 +435,8 @@ void omap_pm_suspend(void)
 		MPUI1610_RESTORE(OMAP_IH2_3_MIR);
 	}
 
-	omap_writew(0, ULPD_SOFT_DISABLE_REQ_REG);
+	if (!cpu_is_omap15xx())
+		omap_writew(0, ULPD_SOFT_DISABLE_REQ_REG);
 
 	/*
 	 * Reenable interrupts
