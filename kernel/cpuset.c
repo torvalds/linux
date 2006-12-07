@@ -729,8 +729,10 @@ static int validate_change(const struct cpuset *cur, const struct cpuset *trial)
 	}
 
 	/* Remaining checks don't apply to root cpuset */
-	if ((par = cur->parent) == NULL)
+	if (cur == &top_cpuset)
 		return 0;
+
+	par = cur->parent;
 
 	/* We must be a subset of our parent cpuset */
 	if (!is_cpuset_subset(trial, par))
@@ -1060,10 +1062,7 @@ static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs, char *buf)
 	cpu_exclusive_changed =
 		(is_cpu_exclusive(cs) != is_cpu_exclusive(&trialcs));
 	mutex_lock(&callback_mutex);
-	if (turning_on)
-		set_bit(bit, &cs->flags);
-	else
-		clear_bit(bit, &cs->flags);
+	cs->flags = trialcs.flags;
 	mutex_unlock(&callback_mutex);
 
 	if (cpu_exclusive_changed)
