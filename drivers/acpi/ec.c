@@ -135,20 +135,16 @@ static inline void acpi_ec_write_data(struct acpi_ec *ec, u8 data)
 	outb(data, ec->data_addr);
 }
 
-static int acpi_ec_check_status(struct acpi_ec *ec, u8 event)
+static inline int acpi_ec_check_status(struct acpi_ec *ec, u8 event)
 {
 	u8 status = acpi_ec_read_status(ec);
-	switch (event) {
-	case ACPI_EC_EVENT_OBF_1:
+
+	if (event == ACPI_EC_EVENT_OBF_1) {
 		if (status & ACPI_EC_FLAG_OBF)
 			return 1;
-		break;
-	case ACPI_EC_EVENT_IBF_0:
+	} else if (event == ACPI_EC_EVENT_IBF_0) {
 		if (!(status & ACPI_EC_FLAG_IBF))
 			return 1;
-		break;
-	default:
-		break;
 	}
 
 	return 0;
@@ -238,7 +234,7 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec, u8 command,
 
 	acpi_ec_write_cmd(ec, command);
 
-	for (; wdata_len > 0; wdata_len --) {
+	for (; wdata_len > 0; --wdata_len) {
 		result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBF_0);
 		if (result) {
 			printk(KERN_ERR PREFIX "write_cmd timeout, command = %d\n",
@@ -259,7 +255,7 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec, u8 command,
 		atomic_set(&ec->query_pending, 0);
 	}
 
-	for (; rdata_len > 0; rdata_len --) {
+	for (; rdata_len > 0; --rdata_len) {
 		result = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF_1);
 		if (result) {
 			printk(KERN_ERR PREFIX "read timeout, command = %d\n",
