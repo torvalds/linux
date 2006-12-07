@@ -773,6 +773,18 @@ config CRASH_DUMP
           PHYSICAL_START.
 	  For more details see Documentation/kdump/kdump.txt
 
+config RELOCATABLE
+	bool "Build a relocatable kernel"
+	help
+	  This build a kernel image that retains relocation information
+          so it can be loaded someplace besides the default 1MB.
+	  The relocations tend to the kernel binary about 10% larger,
+          but are discarded at runtime.
+
+	  One use is for the kexec on panic case where the recovery kernel
+          must live at a different physical address than the primary
+          kernel.
+
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP)
 

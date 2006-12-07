@@ -26,7 +26,9 @@ endif
 
 LDFLAGS		:= -m elf_i386
 OBJCOPYFLAGS	:= -O binary -R .note -R .comment -S
-LDFLAGS_vmlinux :=
+ifdef CONFIG_RELOCATABLE
+LDFLAGS_vmlinux := --emit-relocs
+endif
 CHECKFLAGS	+= -D__i386__
 
 CFLAGS += -pipe -msoft-float

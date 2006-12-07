@@ -588,11 +588,6 @@ rmodeswtch_normal:
 	call	default_switch
 
 rmodeswtch_end:
-# we get the code32 start address and modify the below 'jmpi'
-# (loader may have changed it)
-	movl	%cs:code32_start, %eax
-	movl	%eax, %cs:code32
-
 # Now we move the system to its rightful place ... but we check if we have a
 # big-kernel. In that case we *must* not move it ...
 	testb	$LOADED_HIGH, %cs:loadflags
@@ -788,11 +783,12 @@ a20_err_msg:
 a20_done:
 
 #endif /* CONFIG_X86_VOYAGER */
-# set up gdt and idt
+# set up gdt and idt and 32bit start address
 	lidt	idt_48				# load idt with 0,0
 	xorl	%eax, %eax			# Compute gdt_base
 	movw	%ds, %ax			# (Convert %ds:gdt to a linear ptr)
 	shll	$4, %eax
+	addl	%eax, code32
 	addl	$gdt, %eax
 	movl	%eax, (gdt_48+2)
 	lgdt	gdt_48				# load gdt with whatever is
@@ -851,9 +847,26 @@ flush_instr:
 #	Manual, Mixing 16-bit and 32-bit code, page 16-6)
 
 	.byte 0x66, 0xea			# prefix + jmpi-opcode
-code32:	.long	0x1000				# will be set to 0x100000
-						# for big kernels
+code32:	.long	startup_32			# will be set to %cs+startup_32
 	.word	__BOOT_CS
+.code32
+startup_32:
+	movl $(__BOOT_DS), %eax
+	movl %eax, %ds
+	movl %eax, %es
+	movl %eax, %fs
+	movl %eax, %gs
+	movl %eax, %ss
+
+	xorl %eax, %eax
+1:	incl %eax				# check that A20 really IS enabled
+	movl %eax, 0x00000000			# loop forever if it isn't
+	cmpl %eax, 0x00100000
+	je 1b
+
+	# Jump to the 32bit entry point
+	jmpl *(code32_start - start + (DELTA_INITSEG << 4))(%esi)
+.code16
 
 # Here's a bunch of information about your current kernel..
 kernel_version:	.ascii	UTS_RELEASE
