@@ -470,6 +470,7 @@ config PPC_MAPLE
 	select PPC_UDBG_16550
 	select PPC_970_NAP
 	select PPC_NATIVE
+	select PPC_RTAS
 	default n
 	help
           This option enables support for the Maple 970FX Evaluation Board.
