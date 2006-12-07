@@ -46,6 +46,9 @@ ACPI_MODULE_NAME("acpi_ec")
 #define ACPI_EC_DEVICE_NAME		"Embedded Controller"
 #define ACPI_EC_FILE_INFO		"info"
 
+#undef PREFIX
+#define PREFIX				"ACPI: EC: "
+
 /* EC status register */
 #define ACPI_EC_FLAG_OBF	0x01	/* Output buffer full */
 #define ACPI_EC_FLAG_IBF	0x02	/* Input buffer full */
@@ -101,7 +104,6 @@ struct acpi_ec {
 	unsigned long data_addr;
 	unsigned long global_lock;
 	struct semaphore sem;
-	unsigned int expect_event;
 	atomic_t leaving_burst;	/* 0 : No, 1 : Yes, 2: abort */
 	wait_queue_head_t wait;
 } *ec_ecdt;
@@ -155,34 +157,25 @@ static int acpi_ec_check_status(struct acpi_ec *ec, u8 event)
 
 static int acpi_ec_wait(struct acpi_ec *ec, u8 event)
 {
-	int i = (acpi_ec_mode == EC_POLL) ? ACPI_EC_UDELAY_COUNT : 0;
-	long time_left;
-
-	ec->expect_event = event;
-	if (acpi_ec_check_status(ec, event)) {
-		ec->expect_event = 0;
-		return 0;
-	}
-
-	do {
-		if (acpi_ec_mode == EC_POLL) {
-			udelay(ACPI_EC_UDELAY);
-		} else {
-			time_left = wait_event_timeout(ec->wait,
-				    !ec->expect_event,
-				    msecs_to_jiffies(ACPI_EC_DELAY));
-			if (time_left > 0) {
-				ec->expect_event = 0;
+	if (acpi_ec_mode == EC_POLL) {
+		int i;
+		for (i = 0; i < ACPI_EC_UDELAY_COUNT; ++i) {
+			if (acpi_ec_check_status(ec, event))
 				return 0;
-			}
+			udelay(ACPI_EC_UDELAY);
 		}
-		if (acpi_ec_check_status(ec, event)) {
-			ec->expect_event = 0;
+	} else {
+		if (wait_event_timeout(ec->wait,
+				       acpi_ec_check_status(ec, event),
+				       msecs_to_jiffies(ACPI_EC_DELAY)) ||
+		    acpi_ec_check_status(ec, event)) {
 			return 0;
+		} else {
+			printk(KERN_ERR PREFIX "acpi_ec_wait timeout,"
+			       " status = %d, expect_event = %d\n",
+			     acpi_ec_read_status(ec), event);
 		}
-	} while (--i > 0);
-
-	ec->expect_event = 0;
+	}
 
 	return -ETIME;
 }
@@ -243,32 +236,41 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec, u8 command,
 					const u8 *wdata, unsigned wdata_len,
 					u8 *rdata, unsigned rdata_len)
 {
-	int result;
+	int result = 0;
 
 	acpi_ec_write_cmd(ec, command);
 
 	for (; wdata_len > 0; wdata_len --) {
 		result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBF_0);
-		if (result)
-			return result;
+		if (result) {
+			printk(KERN_ERR PREFIX "write_cmd timeout, command = %d\n",
+			     command);
+			goto end;
+		}
 		acpi_ec_write_data(ec, *(wdata++));
 	}
 
 	if (!rdata_len) {
 		result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBF_0);
-		if (result)
-			return result;
+		if (result) {
+			printk(KERN_ERR PREFIX "finish-write timeout, command = %d\n",
+			     command);
+			goto end;
+		}
 	}
 
 	for (; rdata_len > 0; rdata_len --) {
 		result = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF_1);
-		if (result)
-			return result;
+		if (result) {
+			printk(KERN_ERR PREFIX "read timeout, command = %d\n",
+			     command);
+			goto end;
+		}
 
 		*(rdata++) = acpi_ec_read_data(ec);
 	}
-
-	return 0;
+      end:
+	return result;
 }
 
 static int acpi_ec_transaction(struct acpi_ec *ec, u8 command,
@@ -419,11 +421,6 @@ static int acpi_ec_query(struct acpi_ec *ec, u8 *data)
                                 Event Management
    -------------------------------------------------------------------------- */
 
-struct acpi_ec_query_data {
-	acpi_handle handle;
-	u8 data;
-};
-
 static void acpi_ec_gpe_query(void *ec_cxt)
 {
 	struct acpi_ec *ec = (struct acpi_ec *)ec_cxt;
@@ -443,7 +440,7 @@ static void acpi_ec_gpe_query(void *ec_cxt)
 
 	snprintf(object_name, 8, "_Q%2.2X", value);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Evaluating %s", object_name));
+	printk(KERN_INFO PREFIX "evaluating %s\n", object_name);
 
 	acpi_evaluate_object(ec->handle, object_name, NULL, NULL);
 
@@ -460,17 +457,12 @@ static u32 acpi_ec_gpe_handler(void *data)
 	acpi_clear_gpe(NULL, ec->gpe_bit, ACPI_ISR);
 
 	if (acpi_ec_mode == EC_INTR) {
-		if (acpi_ec_check_status(ec, ec->expect_event)) {
-			ec->expect_event = 0;
-			wake_up(&ec->wait);
-		}
+		wake_up(&ec->wait);
 	}
 
 	value = acpi_ec_read_status(ec);
 	if (value & ACPI_EC_FLAG_SCI) {
 		status = acpi_os_execute(OSL_EC_BURST_HANDLER, acpi_ec_gpe_query, ec);
-		return status == AE_OK ?
-		    ACPI_INTERRUPT_HANDLED : ACPI_INTERRUPT_NOT_HANDLED;
 	}
 	acpi_enable_gpe(NULL, ec->gpe_bit, ACPI_ISR);
 	return status == AE_OK ?
