@@ -283,14 +283,16 @@ extern struct sock *ax25_make_new(struct sock *, struct ax25_dev *);
 
 /* ax25_addr.c */
 extern ax25_address null_ax25_address;
-extern char *ax2asc(char *buf, ax25_address *);
-extern void asc2ax(ax25_address *addr, char *callsign);
-extern int  ax25cmp(ax25_address *, ax25_address *);
-extern int  ax25digicmp(ax25_digi *, ax25_digi *);
-extern unsigned char *ax25_addr_parse(unsigned char *, int, ax25_address *, ax25_address *, ax25_digi *, int *, int *);
-extern int  ax25_addr_build(unsigned char *, ax25_address *, ax25_address *, ax25_digi *, int, int);
-extern int  ax25_addr_size(ax25_digi *);
-extern void ax25_digi_invert(ax25_digi *, ax25_digi *);
+extern char *ax2asc(char *buf, const ax25_address *);
+extern void asc2ax(ax25_address *addr, const char *callsign);
+extern int ax25cmp(const ax25_address *, const ax25_address *);
+extern int ax25digicmp(const ax25_digi *, const ax25_digi *);
+extern const unsigned char *ax25_addr_parse(const unsigned char *, int,
+	ax25_address *, ax25_address *, ax25_digi *, int *, int *);
+extern int  ax25_addr_build(unsigned char *, const ax25_address *,
+	const ax25_address *, const ax25_digi *, int, int);
+extern int  ax25_addr_size(const ax25_digi *);
+extern void ax25_digi_invert(const ax25_digi *, ax25_digi *);
 
 /* ax25_dev.c */
 extern ax25_dev *ax25_dev_list;
