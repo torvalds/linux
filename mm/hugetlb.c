@@ -365,6 +365,11 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 	pte_t pte;
 	struct page *page;
 	struct page *tmp;
+	/*
+	 * A page gathering list, protected by per file i_mmap_lock. The
+	 * lock is used to avoid list corruption from multiple unmapping
+	 * of the same page since we are using page->lru.
+	 */
 	LIST_HEAD(page_list);
 
 	WARN_ON(!is_vm_hugetlb_page(vma));
