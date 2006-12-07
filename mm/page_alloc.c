@@ -83,13 +83,6 @@ int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
 
 EXPORT_SYMBOL(totalram_pages);
 
-/*
- * Used by page_zone() to look up the address of the struct zone whose
- * id is encoded in the upper bits of page->flags
- */
-struct zone *zone_table[1 << ZONETABLE_SHIFT] __read_mostly;
-EXPORT_SYMBOL(zone_table);
-
 static char *zone_names[MAX_NR_ZONES] = {
 	 "DMA",
 #ifdef CONFIG_ZONE_DMA32
@@ -1715,20 +1708,6 @@ void zone_init_free_lists(struct pglist_data *pgdat, struct zone *zone,
 	}
 }
 
-#define ZONETABLE_INDEX(x, zone_nr)	((x << ZONES_SHIFT) | zone_nr)
-void zonetable_add(struct zone *zone, int nid, enum zone_type zid,
-		unsigned long pfn, unsigned long size)
-{
-	unsigned long snum = pfn_to_section_nr(pfn);
-	unsigned long end = pfn_to_section_nr(pfn + size);
-
-	if (FLAGS_HAS_NODE)
-		zone_table[ZONETABLE_INDEX(nid, zid)] = zone;
-	else
-		for (; snum <= end; snum++)
-			zone_table[ZONETABLE_INDEX(snum, zid)] = zone;
-}
-
 #ifndef __HAVE_ARCH_MEMMAP_INIT
 #define memmap_init(size, nid, zone, start_pfn) \
 	memmap_init_zone((size), (nid), (zone), (start_pfn))
@@ -2421,7 +2400,6 @@ static void __meminit free_area_init_core(struct pglist_data *pgdat,
 		if (!size)
 			continue;
 
-		zonetable_add(zone, nid, j, zone_start_pfn, size);
 		ret = init_currently_empty_zone(zone, zone_start_pfn, size);
 		BUG_ON(ret);
 		zone_start_pfn += size;
