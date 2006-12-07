@@ -50,22 +50,20 @@ void kunmap_atomic(void *kvaddr, enum km_type type)
 	unsigned long vaddr = (unsigned long) kvaddr & PAGE_MASK;
 	enum fixed_addresses idx = type + KM_TYPE_NR*smp_processor_id();
 
-#ifdef CONFIG_DEBUG_HIGHMEM
-	if (vaddr >= PAGE_OFFSET && vaddr < (unsigned long)high_memory) {
-		pagefault_enable();
-		return;
-	}
-
-	if (vaddr != __fix_to_virt(FIX_KMAP_BEGIN+idx))
-		BUG();
-#endif
 	/*
 	 * Force other mappings to Oops if they'll try to access this pte
 	 * without first remap it.  Keeping stale mappings around is a bad idea
 	 * also, in case the page changes cacheability attributes or becomes
 	 * a protected page in a hypervisor.
 	 */
-	kpte_clear_flush(kmap_pte-idx, vaddr);
+	if (vaddr == __fix_to_virt(FIX_KMAP_BEGIN+idx))
+		kpte_clear_flush(kmap_pte-idx, vaddr);
+	else {
+#ifdef CONFIG_DEBUG_HIGHMEM
+		BUG_ON(vaddr < PAGE_OFFSET);
+		BUG_ON(vaddr >= (unsigned long)high_memory);
+#endif
+	}
 
 	pagefault_enable();
 }
