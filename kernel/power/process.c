@@ -97,7 +97,9 @@ int freeze_processes(void)
 				continue;
 			if (frozen(p))
 				continue;
-			if (p->state == TASK_TRACED && frozen(p->parent)) {
+			if (p->state == TASK_TRACED &&
+			    (frozen(p->parent) ||
+			     p->parent->state == TASK_STOPPED)) {
 				cancel_freezing(p);
 				continue;
 			}
