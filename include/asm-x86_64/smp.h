@@ -82,11 +82,6 @@ extern u8 x86_cpu_to_apicid[NR_CPUS];	/* physical ID */
 extern u8 x86_cpu_to_log_apicid[NR_CPUS];
 extern u8 bios_cpu_apicid[];
 
-static inline unsigned int cpu_mask_to_apicid(cpumask_t cpumask)
-{
-	return cpus_addr(cpumask)[0];
-}
-
 static inline int cpu_present_to_apicid(int mps_cpu)
 {
 	if (mps_cpu < NR_CPUS)
