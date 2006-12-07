@@ -122,7 +122,7 @@ endchoice
 
 choice
 	prompt "Processor family"
-	default MK8
+	default GENERIC_CPU
 
 config MK8
 	bool "AMD-Opteron/Athlon64"
@@ -130,16 +130,31 @@ config MK8
 	  Optimize for AMD Opteron/Athlon64/Hammer/K8 CPUs.
 
 config MPSC
-       bool "Intel EM64T"
+       bool "Intel P4 / older Netburst based Xeon"
        help
-	  Optimize for Intel Pentium 4 and Xeon CPUs with Intel
-	  Extended Memory 64 Technology(EM64T). For details see
+	  Optimize for Intel Pentium 4 and older Nocona/Dempsey Xeon CPUs
+	  with Intel Extended Memory 64 Technology(EM64T). For details see
 	  <http://www.intel.com/technology/64bitextensions/>.
+	  Note the the latest Xeons (Xeon 51xx and 53xx) are not based on the
+          Netburst core and shouldn't use this option. You can distingush them
+	  using the cpu family field
+	  in /proc/cpuinfo. Family 15 is a older Xeon, Family 6 a newer one
+	  (this rule only applies to system that support EM64T)
+
+config MCORE2
+	bool "Intel Core2 / newer Xeon"
+	help
+	  Optimize for Intel Core2 and newer Xeons (51xx)
+	  You can distingush the newer Xeons from the older ones using
+	  the cpu family field in /proc/cpuinfo. 15 is a older Xeon
+	  (use CONFIG_MPSC then), 6 is a newer one. This rule only
+	  applies to CPUs that support EM64T.
 
 config GENERIC_CPU
 	bool "Generic-x86-64"
 	help
 	  Generic x86-64 CPU.
+	  Run equally well on all x86-64 CPUs.
 
 endchoice
 
@@ -149,12 +164,12 @@ endchoice
 config X86_L1_CACHE_BYTES
 	int
 	default "128" if GENERIC_CPU || MPSC
-	default "64" if MK8
+	default "64" if MK8 || MCORE2
 
 config X86_L1_CACHE_SHIFT
 	int
 	default "7" if GENERIC_CPU || MPSC
-	default "6" if MK8
+	default "6" if MK8 || MCORE2
 
 config X86_INTERNODE_CACHE_BYTES
 	int
