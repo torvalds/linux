@@ -1875,7 +1875,7 @@ static int __do_proc_dointvec(void *tbl_data, ctl_table *table,
 			p = buf;
 			if (*p == '-' && left > 1) {
 				neg = 1;
-				left--, p++;
+				p++;
 			}
 			if (*p < '0' || *p > '9')
 				break;
@@ -2126,7 +2126,7 @@ static int __do_proc_doulongvec_minmax(void *data, ctl_table *table, int write,
 			p = buf;
 			if (*p == '-' && left > 1) {
 				neg = 1;
-				left--, p++;
+				p++;
 			}
 			if (*p < '0' || *p > '9')
 				break;
