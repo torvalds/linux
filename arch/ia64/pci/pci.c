@@ -564,8 +564,8 @@ pcibios_enable_device (struct pci_dev *dev, int mask)
 void
 pcibios_disable_device (struct pci_dev *dev)
 {
-	if (dev->is_enabled)
-		acpi_pci_irq_disable(dev);
+	BUG_ON(atomic_read(&dev->enable_cnt));
+	acpi_pci_irq_disable(dev);
 }
 
 void
