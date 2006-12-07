@@ -133,13 +133,12 @@ struct acpi_device_ops {
 };
 
 struct acpi_driver {
-	struct list_head node;
 	char name[80];
 	char class[80];
-	atomic_t references;
 	char *ids;		/* Supported Hardware IDs */
 	struct acpi_device_ops ops;
 	struct device_driver drv;
+	struct module *owner;
 };
 
 /*
