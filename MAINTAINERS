@@ -1214,7 +1214,8 @@ HARDWARE MONITORING
 P:	Jean Delvare
 M:	khali@linux-fr.org
 L:	lm-sensors@lm-sensors.org
-W:	http://www.lm-sensors.nu/
+W:	http://www.lm-sensors.org/
+T:	quilt http://khali.linux-fr.org/devel/linux-2.6/jdelvare-hwmon/
 S:	Maintained
 
 HARDWARE RANDOM NUMBER GENERATOR CORE
@@ -1340,8 +1341,7 @@ I2C SUBSYSTEM
 P:	Jean Delvare
 M:	khali@linux-fr.org
 L:	i2c@lm-sensors.org
-W:	http://www.lm-sensors.nu/
-T:	quilt kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
+T:	quilt http://khali.linux-fr.org/devel/linux-2.6/jdelvare-i2c/
 S:	Maintained
 
 I2O
