@@ -65,64 +65,6 @@
 
 	.text
 	.set	noreorder
-
-/* unknown src alignment and < 8 bytes to go  */
-small_csumcpy:
-	move	a1, t2
-
-	andi	t0, a1, 4
-	beqz	t0, 1f
-	 andi	t0, a1, 2
-
-	/* Still a full word to go  */
-	ulw	t1, (src)
-	PTR_ADDIU	src, 4
-	ADDC(sum, t1)
-
-1:	move	t1, zero
-	beqz	t0, 1f
-	 andi	t0, a1, 1
-
-	/* Still a halfword to go  */
-	ulhu	t1, (src)
-	PTR_ADDIU	src, 2
-
-1:	beqz	t0, 1f
-	 sll	t1, t1, 16
-
-	lbu	t2, (src)
-	 nop
-
-#ifdef __MIPSEB__
-	sll	t2, t2, 8
-#endif
-	or	t1, t2
-
-1:	ADDC(sum, t1)
-
-	/* fold checksum */
-	sll	v1, sum, 16
-	addu	sum, v1
-	sltu	v1, sum, v1
-	srl	sum, sum, 16
-	addu	sum, v1
-
-	/* odd buffer alignment? */
-	beqz	t7, 1f
-	 nop
-	sll	v1, sum, 8
-	srl	sum, sum, 8
-	or	sum, v1
-	andi	sum, 0xffff
-1:
-	.set	reorder
-	/* Add the passed partial csum.  */
-	ADDC(sum, a2)
-	jr	ra
-	.set	noreorder
-
-/* ------------------------------------------------------------------------- */
-
 	.align	5
 LEAF(csum_partial)
 	move	sum, zero
@@ -132,8 +74,7 @@ LEAF(csum_partial)
 	bnez	t8, small_csumcpy		/* < 8 bytes to copy */
 	 move	t2, a1
 
-	beqz	a1, out
-	 andi	t7, src, 0x1			/* odd buffer? */
+	andi	t7, src, 0x1			/* odd buffer? */
 
 hword_align:
 	beqz	t7, word_align
@@ -232,8 +173,9 @@ move_32bytes:
 	PTR_ADDU	src, src, 0x20
 
 do_end_words:
-	beqz	t8, maybe_end_cruft
-	 LONG_SRL	t8, t8, 0x2
+	beqz	t8, small_csumcpy
+	 andi	t2, a1, 0x3
+	LONG_SRL	t8, t8, 0x2
 
 end_words:
 	lw	t0, (src)
@@ -242,21 +184,58 @@ end_words:
 	bnez	t8, end_words
 	 PTR_ADDU	src, src, 0x4
 
-maybe_end_cruft:
-	andi	t2, a1, 0x3
+/* unknown src alignment and < 8 bytes to go  */
+small_csumcpy:
+	move	a1, t2
 
-small_memcpy:
- j small_csumcpy; move a1, t2		/* XXX ??? */
-	beqz	t2, out
-	 move	a1, t2
+	andi	t0, a1, 4
+	beqz	t0, 1f
+	 andi	t0, a1, 2
 
-end_bytes:
-	lb	t0, (src)
-	LONG_SUBU	a1, a1, 0x1
-	bnez	a2, end_bytes
-	 PTR_ADDU	src, src, 0x1
+	/* Still a full word to go  */
+	ulw	t1, (src)
+	PTR_ADDIU	src, 4
+	ADDC(sum, t1)
 
-out:
+1:	move	t1, zero
+	beqz	t0, 1f
+	 andi	t0, a1, 1
+
+	/* Still a halfword to go  */
+	ulhu	t1, (src)
+	PTR_ADDIU	src, 2
+
+1:	beqz	t0, 1f
+	 sll	t1, t1, 16
+
+	lbu	t2, (src)
+	 nop
+
+#ifdef __MIPSEB__
+	sll	t2, t2, 8
+#endif
+	or	t1, t2
+
+1:	ADDC(sum, t1)
+
+	/* fold checksum */
+	sll	v1, sum, 16
+	addu	sum, v1
+	sltu	v1, sum, v1
+	srl	sum, sum, 16
+	addu	sum, v1
+
+	/* odd buffer alignment? */
+	beqz	t7, 1f
+	 nop
+	sll	v1, sum, 8
+	srl	sum, sum, 8
+	or	sum, v1
+	andi	sum, 0xffff
+1:
+	.set	reorder
+	/* Add the passed partial csum.  */
+	ADDC(sum, a2)
 	jr	ra
-	 move	v0, sum
+	.set	noreorder
 	END(csum_partial)
