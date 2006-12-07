@@ -1058,6 +1058,35 @@ static int xs_bindresvport(struct rpc_xprt *xprt, struct socket *sock)
 	return err;
 }
 
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+static struct lock_class_key xs_key[2];
+static struct lock_class_key xs_slock_key[2];
+
+static inline void xs_reclassify_socket(struct socket *sock)
+{
+	struct sock *sk = sock->sk;
+	BUG_ON(sk->sk_lock.owner != NULL);
+	switch (sk->sk_family) {
+	case AF_INET:
+		sock_lock_init_class_and_name(sk, "slock-AF_INET-NFS",
+			&xs_slock_key[0], "sk_lock-AF_INET-NFS", &xs_key[0]);
+		break;
+
+	case AF_INET6:
+		sock_lock_init_class_and_name(sk, "slock-AF_INET6-NFS",
+			&xs_slock_key[1], "sk_lock-AF_INET6-NFS", &xs_key[1]);
+		break;
+
+	default:
+		BUG();
+	}
+}
+#else
+static inline void xs_reclassify_socket(struct socket *sock)
+{
+}
+#endif
+
 /**
  * xs_udp_connect_worker - set up a UDP socket
  * @work: RPC transport to connect
@@ -1081,6 +1110,7 @@ static void xs_udp_connect_worker(struct work_struct *work)
 		dprintk("RPC:      can't create UDP transport socket (%d).\n", -err);
 		goto out;
 	}
+	xs_reclassify_socket(sock);
 
 	if (xprt->resvport && xs_bindresvport(xprt, sock) < 0) {
 		sock_release(sock);
@@ -1165,6 +1195,7 @@ static void xs_tcp_connect_worker(struct work_struct *work)
 			dprintk("RPC:      can't create TCP transport socket (%d).\n", -err);
 			goto out;
 		}
+		xs_reclassify_socket(sock);
 
 		if (xprt->resvport && xs_bindresvport(xprt, sock) < 0) {
 			sock_release(sock);

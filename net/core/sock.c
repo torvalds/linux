@@ -810,24 +810,11 @@ lenout:
  */
 static void inline sock_lock_init(struct sock *sk)
 {
-	spin_lock_init(&sk->sk_lock.slock);
-	sk->sk_lock.owner = NULL;
-	init_waitqueue_head(&sk->sk_lock.wq);
-	/*
-	 * Make sure we are not reinitializing a held lock:
-	 */
-	debug_check_no_locks_freed((void *)&sk->sk_lock, sizeof(sk->sk_lock));
-
-	/*
-	 * Mark both the sk_lock and the sk_lock.slock as a
-	 * per-address-family lock class:
-	 */
-	lockdep_set_class_and_name(&sk->sk_lock.slock,
-				   af_family_slock_keys + sk->sk_family,
-				   af_family_slock_key_strings[sk->sk_family]);
-	lockdep_init_map(&sk->sk_lock.dep_map,
-			 af_family_key_strings[sk->sk_family],
-			 af_family_keys + sk->sk_family, 0);
+	sock_lock_init_class_and_name(sk,
+			af_family_slock_key_strings[sk->sk_family],
+			af_family_slock_keys + sk->sk_family,
+			af_family_key_strings[sk->sk_family],
+			af_family_keys + sk->sk_family);
 }
 
 /**

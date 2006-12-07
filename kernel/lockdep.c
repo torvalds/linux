@@ -2645,6 +2645,7 @@ void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
 	}
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL_GPL(debug_check_no_locks_freed);
 
 static void print_held_locks_bug(struct task_struct *curr)
 {
