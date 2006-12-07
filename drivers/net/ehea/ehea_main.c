@@ -2224,11 +2224,12 @@ static int ehea_stop(struct net_device *dev)
 	return ret;
 }
 
-static void ehea_reset_port(void *data)
+static void ehea_reset_port(struct work_struct *work)
 {
 	int ret;
-	struct net_device *dev = data;
-	struct ehea_port *port = netdev_priv(dev);
+	struct ehea_port *port =
+		container_of(work, struct ehea_port, reset_task);
+	struct net_device *dev = port->netdev;
 
 	port->resets++;
 	down(&port->port_lock);
@@ -2379,7 +2380,7 @@ static int ehea_setup_single_port(struct ehea_port *port,
 	dev->tx_timeout = &ehea_tx_watchdog;
 	dev->watchdog_timeo = EHEA_WATCH_DOG_TIMEOUT;
 
-	INIT_WORK(&port->reset_task, ehea_reset_port, dev);
+	INIT_WORK(&port->reset_task, ehea_reset_port);
 
 	ehea_set_ethtool_ops(dev);
 

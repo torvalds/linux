@@ -19,7 +19,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/page.h>
 #include <asm/cacheflush.h>
 #include <asm/cpu/sq.h>
@@ -67,6 +67,7 @@ void sq_flush_range(unsigned long start, unsigned int len)
 	/* Wait for completion */
 	store_queue_barrier();
 }
+EXPORT_SYMBOL(sq_flush_range);
 
 static inline void sq_mapping_list_add(struct sq_mapping *map)
 {
@@ -166,7 +167,7 @@ unsigned long sq_remap(unsigned long phys, unsigned int size,
 	map->size = size;
 	map->name = name;
 
-	page = bitmap_find_free_region(sq_bitmap, 0x04000000,
+	page = bitmap_find_free_region(sq_bitmap, 0x04000000 >> PAGE_SHIFT,
 				       get_order(map->size));
 	if (unlikely(page < 0)) {
 		ret = -ENOSPC;
@@ -193,6 +194,7 @@ out:
 	kmem_cache_free(sq_cache, map);
 	return ret;
 }
+EXPORT_SYMBOL(sq_remap);
 
 /**
  * sq_unmap - Unmap a Store Queue allocation
@@ -234,6 +236,7 @@ void sq_unmap(unsigned long vaddr)
 
 	kmem_cache_free(sq_cache, map);
 }
+EXPORT_SYMBOL(sq_unmap);
 
 /*
  * Needlessly complex sysfs interface. Unfortunately it doesn't seem like
@@ -402,7 +405,3 @@ module_exit(sq_api_exit);
 MODULE_AUTHOR("Paul Mundt <lethal@linux-sh.org>, M. R. Brown <mrbrown@0xd6.org>");
 MODULE_DESCRIPTION("Simple API for SH-4 integrated Store Queues");
 MODULE_LICENSE("GPL");
-
-EXPORT_SYMBOL(sq_remap);
-EXPORT_SYMBOL(sq_unmap);
-EXPORT_SYMBOL(sq_flush_range);

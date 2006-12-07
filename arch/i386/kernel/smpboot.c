@@ -1049,13 +1049,15 @@ void cpu_exit_clear(void)
 
 struct warm_boot_cpu_info {
 	struct completion *complete;
+	struct work_struct task;
 	int apicid;
 	int cpu;
 };
 
-static void __cpuinit do_warm_boot_cpu(void *p)
+static void __cpuinit do_warm_boot_cpu(struct work_struct *work)
 {
-	struct warm_boot_cpu_info *info = p;
+	struct warm_boot_cpu_info *info =
+		container_of(work, struct warm_boot_cpu_info, task);
 	do_boot_cpu(info->apicid, info->cpu);
 	complete(info->complete);
 }
@@ -1064,7 +1066,6 @@ static int __cpuinit __smp_prepare_cpu(int cpu)
 {
 	DECLARE_COMPLETION_ONSTACK(done);
 	struct warm_boot_cpu_info info;
-	struct work_struct task;
 	int	apicid, ret;
 	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, cpu);
 
@@ -1089,7 +1090,7 @@ static int __cpuinit __smp_prepare_cpu(int cpu)
 	info.complete = &done;
 	info.apicid = apicid;
 	info.cpu = cpu;
-	INIT_WORK(&task, do_warm_boot_cpu, &info);
+	INIT_WORK(&info.task, do_warm_boot_cpu);
 
 	tsc_sync_disabled = 1;
 
@@ -1097,7 +1098,7 @@ static int __cpuinit __smp_prepare_cpu(int cpu)
 	clone_pgd_range(swapper_pg_dir, swapper_pg_dir + USER_PGD_PTRS,
 			KERNEL_PGD_PTRS);
 	flush_tlb_all();
-	schedule_work(&task);
+	schedule_work(&info.task);
 	wait_for_completion(&done);
 
 	tsc_sync_disabled = 0;

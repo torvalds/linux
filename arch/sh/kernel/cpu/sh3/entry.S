@@ -1,5 +1,5 @@
 /*
- *  linux/arch/sh/entry.S
+ * arch/sh/kernel/entry.S
  *
  *  Copyright (C) 1999, 2000, 2002  Niibe Yutaka
  *  Copyright (C) 2003 - 2006  Paul Mundt
@@ -7,15 +7,16 @@
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
- *
  */
 #include <linux/sys.h>
 #include <linux/errno.h>
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
-#include <asm/cpu/mmu_context.h>
 #include <asm/unistd.h>
+#include <asm/cpu/mmu_context.h>
+#include <asm/pgtable.h>
+#include <asm/page.h>
 
 ! NOTE:
 ! GNU as (as of 2.9.1) changes bf/s into bt/s and bra, when the address
@@ -81,6 +82,8 @@ OFF_TRA	=  (16*4+6*4)
 #define k_g_imask	r6_bank	/* r6_bank1 */
 #define current		r7	/* r7_bank1 */
 
+#include <asm/entry-macros.S>
+	
 /*
  * Kernel mode register usage:
  *	k0	scratch
@@ -106,26 +109,6 @@ OFF_TRA	=  (16*4+6*4)
 ! Although this could be written in assembly language (and it'd be faster),
 ! this first version depends *much* on C implementation.
 !
-
-#define CLI()				\
-	stc	sr, r0;			\
-	or	#0xf0, r0;		\
-	ldc	r0, sr
-
-#define STI()				\
-	mov.l	__INV_IMASK, r11;	\
-	stc	sr, r10;		\
-	and	r11, r10;		\
-	stc	k_g_imask, r11;		\
-	or	r11, r10;		\
-	ldc	r10, sr
-
-#if defined(CONFIG_PREEMPT)
-#  define preempt_stop()	CLI()
-#else
-#  define preempt_stop()
-#  define resume_kernel		restore_all
-#endif
 
 #if defined(CONFIG_MMU)
 	.align	2
@@ -155,29 +138,14 @@ ENTRY(tlb_protection_violation_store)
 
 call_dpf:
 	mov.l	1f, r0
-	mov	r5, r8
-	mov.l	@r0, r6
-	mov	r6, r9
-	mov.l	2f, r0
-	sts	pr, r10
-	jsr	@r0
-	 mov	r15, r4
-	!
-	tst	r0, r0
-	bf/s	0f
-	 lds	r10, pr
-	rts
-	 nop
-0:	STI()
+ 	mov.l	@r0, r6		! address
 	mov.l	3f, r0
-	mov	r9, r6
-	mov	r8, r5
+
 	jmp	@r0
-	 mov	r15, r4
+ 	 mov	r15, r4		! regs
 
 	.align 2
 1:	.long	MMU_TEA
-2:	.long	__do_page_fault
 3:	.long	do_page_fault
 
 	.align	2
@@ -202,32 +170,6 @@ call_dae:
 1:	.long	MMU_TEA
 2:	.long   do_address_error
 #endif /* CONFIG_MMU */
-
-#if defined(CONFIG_SH_STANDARD_BIOS) || defined(CONFIG_SH_KGDB)
-! Handle kernel debug if either kgdb (SW) or gdb-stub (FW) is present.
-! If both are configured, handle the debug traps (breakpoints) in SW,
-! but still allow BIOS traps to FW.
-
-	.align	2
-debug_kernel:
-#if defined(CONFIG_SH_STANDARD_BIOS) && defined(CONFIG_SH_KGDB)
-	/* Force BIOS call to FW (debug_trap put TRA in r8) */
-	mov	r8,r0
-	shlr2	r0
-	cmp/eq	#0x3f,r0
-	bt	debug_kernel_fw
-#endif /* CONFIG_SH_STANDARD_BIOS && CONFIG_SH_KGDB */
-
-debug_enter:		
-#if defined(CONFIG_SH_KGDB)
-	/* Jump to kgdb, pass stacked regs as arg */
-debug_kernel_sw:
-	mov.l	3f, r0
-	jmp	@r0
-	 mov	r15, r4
-	.align	2
-3:	.long	kgdb_handle_exception
-#endif /* CONFIG_SH_KGDB */
 
 #if defined(CONFIG_SH_STANDARD_BIOS)
 	/* Unwind the stack and jmp to the debug entry */
@@ -269,276 +211,6 @@ debug_kernel_fw:
 2:	.long	gdb_vbr_vector
 #endif /* CONFIG_SH_STANDARD_BIOS */
 
-#endif /* CONFIG_SH_STANDARD_BIOS || CONFIG_SH_KGDB */
-
-
-	.align	2
-debug_trap:	
-#if defined(CONFIG_SH_STANDARD_BIOS) || defined(CONFIG_SH_KGDB)
-	mov	#OFF_SR, r0
-	mov.l	@(r0,r15), r0		! get status register
-	shll	r0
-	shll	r0			! kernel space?
-	bt/s	debug_kernel
-#endif
-	 mov.l	@r15, r0		! Restore R0 value
-	mov.l	1f, r8
-	jmp	@r8
-	 nop
-
-	.align	2
-ENTRY(exception_error)
-	!
-	STI()
-	mov.l	2f, r0
-	jmp	@r0
-	 nop
-
-!
-	.align	2
-1:	.long	break_point_trap_software
-2:	.long	do_exception_error
-
-	.align	2
-ret_from_exception:
-	preempt_stop()
-ENTRY(ret_from_irq)
-	!
-	mov	#OFF_SR, r0
-	mov.l	@(r0,r15), r0	! get status register
-	shll	r0
-	shll	r0		! kernel space?
-	bt/s	resume_kernel	! Yes, it's from kernel, go back soon
-	 GET_THREAD_INFO(r8)
-
-#ifdef CONFIG_PREEMPT
-	bra	resume_userspace
-	 nop
-ENTRY(resume_kernel)
-	mov.l	@(TI_PRE_COUNT,r8), r0	! current_thread_info->preempt_count
-	tst	r0, r0
-	bf	noresched
-need_resched:
-	mov.l	@(TI_FLAGS,r8), r0	! current_thread_info->flags
-	tst	#_TIF_NEED_RESCHED, r0	! need_resched set?
-	bt	noresched
-
-	mov	#OFF_SR, r0
-	mov.l	@(r0,r15), r0		! get status register
-	and	#0xf0, r0		! interrupts off (exception path)?
-	cmp/eq	#0xf0, r0
-	bt	noresched
-
-	mov.l	1f, r0
-	mov.l	r0, @(TI_PRE_COUNT,r8)
-
-	STI()
-	mov.l	2f, r0
-	jsr	@r0
-	 nop
-	mov	#0, r0
-	mov.l	r0, @(TI_PRE_COUNT,r8)
-	CLI()
-
-	bra	need_resched
-	 nop
-noresched:
-	bra	restore_all
-	 nop
-
-	.align 2
-1:	.long	PREEMPT_ACTIVE
-2:	.long	schedule
-#endif
-
-ENTRY(resume_userspace)
-	! r8: current_thread_info
-	CLI()
-	mov.l	@(TI_FLAGS,r8), r0		! current_thread_info->flags
-	tst	#_TIF_WORK_MASK, r0
-	bt/s	restore_all
-	 tst	#_TIF_NEED_RESCHED, r0
-
-	.align	2
-work_pending:
-	! r0: current_thread_info->flags
-	! r8: current_thread_info
-	! t:  result of "tst	#_TIF_NEED_RESCHED, r0"
-	bf/s	work_resched
-	 tst	#(_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK), r0
-work_notifysig:
-	bt/s	restore_all
-	 mov	r15, r4
-	mov	r12, r5		! set arg1(save_r0)
-	mov	r0, r6
-	mov.l	2f, r1
-	mova	restore_all, r0
-	jmp	@r1
-	 lds	r0, pr
-work_resched:
-#ifndef CONFIG_PREEMPT
-	! gUSA handling
-	mov.l	@(OFF_SP,r15), r0	! get user space stack pointer
-	mov	r0, r1
-	shll	r0
-	bf/s	1f
-	 shll	r0
-	bf/s	1f
-	 mov	#OFF_PC, r0
-	! 				  SP >= 0xc0000000 : gUSA mark
-	mov.l	@(r0,r15), r2		! get user space PC (program counter)
-	mov.l	@(OFF_R0,r15), r3	! end point
-	cmp/hs	r3, r2			! r2 >= r3? 
-	bt	1f
-	add	r3, r1			! rewind point #2
-	mov.l	r1, @(r0,r15)		! reset PC to rewind point #2
-	!
-1:
-#endif
-	mov.l	1f, r1
-	jsr	@r1				! schedule
-	 nop
-	CLI()
-	!
-	mov.l	@(TI_FLAGS,r8), r0		! current_thread_info->flags
-	tst	#_TIF_WORK_MASK, r0
-	bt	restore_all
-	bra	work_pending
-	 tst	#_TIF_NEED_RESCHED, r0
-
-	.align	2
-1:	.long	schedule
-2:	.long	do_notify_resume
-
-	.align	2
-syscall_exit_work:
-	! r0: current_thread_info->flags
-	! r8: current_thread_info
-	tst	#_TIF_SYSCALL_TRACE, r0
-	bt/s	work_pending
-	 tst	#_TIF_NEED_RESCHED, r0
-	STI()
-	! XXX setup arguments...
-	mov.l	4f, r0			! do_syscall_trace
-	jsr	@r0
-	 nop
-	bra	resume_userspace
-	 nop
-
-	.align	2
-syscall_trace_entry:
-	!                     	Yes it is traced.
-	! XXX setup arguments...
-	mov.l	4f, r11		! Call do_syscall_trace which notifies
-	jsr	@r11	    	! superior (will chomp R[0-7])
-	 nop
-	!			Reload R0-R4 from kernel stack, where the
-	!   	    	    	parent may have modified them using
-	!   	    	    	ptrace(POKEUSR).  (Note that R0-R2 are
-	!   	    	    	used by the system call handler directly
-	!   	    	    	from the kernel stack anyway, so don't need
-	!   	    	    	to be reloaded here.)  This allows the parent
-	!   	    	    	to rewrite system calls and args on the fly.
-	mov.l	@(OFF_R4,r15), r4   ! arg0
-	mov.l	@(OFF_R5,r15), r5
-	mov.l	@(OFF_R6,r15), r6
-	mov.l	@(OFF_R7,r15), r7   ! arg3
-	mov.l	@(OFF_R3,r15), r3   ! syscall_nr
-	!   	    	    Arrange for do_syscall_trace to be called
-	!   	    	    again as the system call returns.
-	mov.l	2f, r10			! Number of syscalls
-	cmp/hs	r10, r3
-	bf	syscall_call
-	mov	#-ENOSYS, r0
-	bra	syscall_exit
-	 mov.l	r0, @(OFF_R0,r15)	! Return value
-
-/*
- * Syscall interface:
- *
- *	Syscall #: R3
- *	Arguments #0 to #3: R4--R7
- *	Arguments #4 to #6: R0, R1, R2
- *	TRA: (number of arguments + 0x10) x 4
- *
- * This code also handles delegating other traps to the BIOS/gdb stub
- * according to:
- *
- * Trap number
- * (TRA>>2) 	    Purpose
- * -------- 	    -------
- * 0x0-0xf  	    old syscall ABI
- * 0x10-0x1f  	    new syscall ABI
- * 0x20-0xff  	    delegated through debug_trap to BIOS/gdb stub.
- *
- * Note: When we're first called, the TRA value must be shifted
- * right 2 bits in order to get the value that was used as the "trapa"
- * argument.
- */
-
-	.align	2
-	.globl	ret_from_fork
-ret_from_fork:
-	mov.l	1f, r8
-	jsr	@r8
-	 mov	r0, r4
-	bra	syscall_exit
-	 nop
-	.align	2
-1:	.long	schedule_tail
-	!
-ENTRY(system_call)
-	mov.l	1f, r9
-	mov.l	@r9, r8		! Read from TRA (Trap Address) Register
-	!
-	! Is the trap argument >= 0x20? (TRA will be >= 0x80)
-	mov	#0x7f, r9
-	cmp/hi	r9, r8
-	bt/s	0f
-	 mov	#OFF_TRA, r9
-	add	r15, r9
-	!
-	mov.l	r8, @r9			! set TRA value to tra
-	STI()
-	!   	    	    Call the system call handler through the table.
-	!   	    	    First check for bad syscall number
-	mov	r3, r9
-	mov.l	2f, r8			! Number of syscalls
-	cmp/hs	r8, r9
-	bf/s	good_system_call
-	 GET_THREAD_INFO(r8)
-syscall_badsys:			! Bad syscall number
-	mov	#-ENOSYS, r0
-	bra	resume_userspace
-	 mov.l	r0, @(OFF_R0,r15)	! Return value
-	!
-0:
-	bra	debug_trap
-	 nop
-	!
-good_system_call:		! Good syscall number
-	mov.l	@(TI_FLAGS,r8), r8
-	mov	#_TIF_SYSCALL_TRACE, r10
-	tst	r10, r8
-	bf	syscall_trace_entry
-	!
-syscall_call:
-	shll2	r9		! x4
-	mov.l	3f, r8		! Load the address of sys_call_table
-	add	r8, r9
-	mov.l	@r9, r8
-	jsr	@r8	    	! jump to specific syscall handler
-	 nop
-	mov.l	@(OFF_R0,r15), r12		! save r0
-	mov.l	r0, @(OFF_R0,r15)		! save the return value
-	!
-syscall_exit:
-	CLI()
-	!
-	GET_THREAD_INFO(r8)
-	mov.l	@(TI_FLAGS,r8), r0		! current_thread_info->flags
-	tst	#_TIF_ALLWORK_MASK, r0
-	bf	syscall_exit_work
 restore_all:
 	mov.l	@r15+, r0
 	mov.l	@r15+, r1
@@ -606,7 +278,9 @@ skip_restore:
 	!
 	! Calculate new SR value
 	mov	k3, k2			! original SR value
-	mov.l	9f, k1
+	mov	#0xf0, k1
+	extu.b	k1, k1
+	not	k1, k1
 	and	k1, k2			! Mask orignal SR value
 	!
 	mov	k3, k0			! Calculate IMASK-bits
@@ -632,16 +306,12 @@ skip_restore:
 	 nop
 
 	.align	2
-1:	.long	TRA
-2:	.long	NR_syscalls
-3:	.long	sys_call_table
-4:	.long	do_syscall_trace
 5:	.long	0x00001000	! DSP
 7:	.long	0x30000000
-9:
-__INV_IMASK:
-	.long	0xffffff0f	! ~(IMASK)
 
+! common exception handler
+#include "../../entry-common.S"
+	
 ! Exception Vector Base
 !
 !	Should be aligned page boundary.
@@ -661,9 +331,176 @@ general_exception:
 2:	.long	ret_from_exception
 !
 !
+
+/* This code makes some assumptions to improve performance.
+ * Make sure they are stil true. */
+#if PTRS_PER_PGD != PTRS_PER_PTE
+#error PGD and PTE sizes don't match
+#endif
+
+/* gas doesn't flag impossible values for mov #immediate as an error */
+#if (_PAGE_PRESENT >> 2) > 0x7f
+#error cannot load PAGE_PRESENT as an immediate
+#endif
+#if _PAGE_DIRTY > 0x7f
+#error cannot load PAGE_DIRTY as an immediate
+#endif
+#if (_PAGE_PRESENT << 2) != _PAGE_ACCESSED
+#error cannot derive PAGE_ACCESSED from PAGE_PRESENT
+#endif
+
+#if defined(CONFIG_CPU_SH4)
+#define ldmmupteh(r)	mov.l	8f, r
+#else
+#define ldmmupteh(r)	mov	#MMU_PTEH, r
+#endif
+
 	.balign 	1024,0,1024
 tlb_miss:
-	mov.l	1f, k2
+#ifdef COUNT_EXCEPTIONS
+	! Increment the counts
+	mov.l	9f, k1
+	mov.l	@k1, k2
+	add	#1, k2
+	mov.l	k2, @k1
+#endif
+
+	! k0 scratch
+	! k1 pgd and pte pointers
+	! k2 faulting address
+	! k3 pgd and pte index masks
+	! k4 shift
+
+	! Load up the pgd entry (k1)
+
+	ldmmupteh(k0)			!  9 LS (latency=2)	MMU_PTEH
+
+	mov.w	4f, k3			!  8 LS (latency=2)	(PTRS_PER_PGD-1) << 2
+	mov	#-(PGDIR_SHIFT-2), k4	!  6 EX
+
+	mov.l	@(MMU_TEA-MMU_PTEH,k0), k2	! 18 LS (latency=2)
+
+	mov.l	@(MMU_TTB-MMU_PTEH,k0), k1	! 18 LS (latency=2)
+
+	mov	k2, k0			!   5 MT (latency=0)
+	shld	k4, k0			!  99 EX
+
+	and	k3, k0			!  78 EX
+
+	mov.l	@(k0, k1), k1		!  21 LS (latency=2)
+	mov	#-(PAGE_SHIFT-2), k4	!   6 EX
+
+	! Load up the pte entry (k2)
+
+	mov	k2, k0			!   5 MT (latency=0)
+	shld	k4, k0			!  99 EX
+
+	tst	k1, k1			!  86 MT
+
+	bt	20f			! 110 BR
+
+	and	k3, k0			!  78 EX
+	mov.w	5f, k4			!   8 LS (latency=2)	_PAGE_PRESENT
+
+	mov.l	@(k0, k1), k2		!  21 LS (latency=2)
+	add	k0, k1			!  49 EX
+
+#ifdef CONFIG_CPU_HAS_PTEA
+	! Test the entry for present and _PAGE_ACCESSED
+
+	mov	#-28, k3		!   6 EX
+	mov	k2, k0			!   5 MT (latency=0)
+
+	tst	k4, k2			!  68 MT
+	shld	k3, k0			!  99 EX
+
+	bt	20f			! 110 BR
+
+	! Set PTEA register
+	! MMU_PTEA = ((pteval >> 28) & 0xe) | (pteval & 0x1)
+	!
+	! k0=pte>>28, k1=pte*, k2=pte, k3=<unused>, k4=_PAGE_PRESENT
+
+	and	#0xe, k0		!  79 EX
+
+	mov	k0, k3			!   5 MT (latency=0)
+	mov	k2, k0			!   5 MT (latency=0)
+
+	and	#1, k0			!  79 EX
+
+	or	k0, k3			!  82 EX
+
+	ldmmupteh(k0)			!   9 LS (latency=2)
+	shll2	k4			! 101 EX		_PAGE_ACCESSED
+
+	tst	k4, k2			!  68 MT
+
+	mov.l	k3, @(MMU_PTEA-MMU_PTEH,k0)	! 27 LS
+
+	mov.l	7f, k3			!   9 LS (latency=2)	_PAGE_FLAGS_HARDWARE_MASK
+
+	! k0=MMU_PTEH, k1=pte*, k2=pte, k3=_PAGE_FLAGS_HARDWARE, k4=_PAGE_ACCESSED
+#else
+
+	! Test the entry for present and _PAGE_ACCESSED
+
+	mov.l	7f, k3			!   9 LS (latency=2)	_PAGE_FLAGS_HARDWARE_MASK
+	tst	k4, k2			!  68 MT
+
+	shll2	k4			! 101 EX		_PAGE_ACCESSED
+	ldmmupteh(k0)			!   9 LS (latency=2)
+
+	bt	20f			! 110 BR
+	tst	k4, k2			!  68 MT
+
+	! k0=MMU_PTEH, k1=pte*, k2=pte, k3=_PAGE_FLAGS_HARDWARE, k4=_PAGE_ACCESSED
+
+#endif
+
+	! Set up the entry
+
+	and	k2, k3			!  78 EX
+	bt/s	10f			! 108 BR
+
+	 mov.l	k3, @(MMU_PTEL-MMU_PTEH,k0)	! 27 LS
+
+	ldtlb				! 128 CO
+
+	! At least one instruction between ldtlb and rte
+	nop				! 119 NOP
+
+	rte				! 126 CO
+
+	 nop				! 119 NOP
+
+
+10:	or	k4, k2			!  82 EX
+
+	ldtlb				! 128 CO
+
+	! At least one instruction between ldtlb and rte
+	mov.l	k2, @k1			!  27 LS
+
+	rte				! 126 CO
+
+	! Note we cannot execute mov here, because it is executed after
+	! restoring SSR, so would be executed in user space.
+	 nop				! 119 NOP
+
+
+	.align 5
+	! Once cache line if possible...
+1:	.long	swapper_pg_dir
+4:	.short	(PTRS_PER_PGD-1) << 2
+5:	.short	_PAGE_PRESENT
+7:	.long	_PAGE_FLAGS_HARDWARE_MASK
+8:	.long	MMU_PTEH
+#ifdef COUNT_EXCEPTIONS
+9:	.long	exception_count_miss
+#endif
+
+	! Either pgd or pte not present
+20:	mov.l	1f, k2
 	mov.l	4f, k3
 	bra	handle_exception
 	 mov.l	@k2, k2
@@ -710,8 +547,9 @@ ENTRY(handle_exception)
 	bt/s	1f		! It's a kernel to kernel transition.
 	 mov	r15, k0		! save original stack to k0
 	/* User space to kernel */
-	mov	#(THREAD_SIZE >> 8), k1
+	mov	#(THREAD_SIZE >> 10), k1
 	shll8	k1		! k1 := THREAD_SIZE
+	shll2	k1
 	add	current, k1
 	mov	k1, r15		! change to kernel stack
 	!
@@ -761,7 +599,7 @@ skip_save:
 	! Save the user registers on the stack.
 	mov.l	k2, @-r15	! EXPEVT
 
- 	mov	#-1, k4
+	mov	#-1, k4
 	mov.l	k4, @-r15	! set TRA (default: -1)
 	!
 	sts.l	macl, @-r15
@@ -813,6 +651,15 @@ skip_save:
 	bf	interrupt_exception
 	shlr2	r8
 	shlr	r8
+
+#ifdef COUNT_EXCEPTIONS
+	mov.l	5f, r9
+	add	r8, r9
+	mov.l	@r9, r10
+	add	#1, r10
+	mov.l	r10, @r9
+#endif
+
 	mov.l	4f, r9
 	add	r8, r9
 	mov.l	@r9, r9
@@ -826,6 +673,9 @@ skip_save:
 2:	.long	0x000080f0	! FD=1, IMASK=15
 3:	.long	0xcfffffff	! RB=0, BL=0
 4:	.long	exception_handling_table
+#ifdef COUNT_EXCEPTIONS
+5:	.long	exception_count_table
+#endif
 
 interrupt_exception:
 	mov.l	1f, r9

@@ -96,7 +96,7 @@ struct i2o_block_request {
 
 /* I2O Block device delayed request */
 struct i2o_block_delayed_request {
-	struct work_struct work;
+	struct delayed_work work;
 	struct request_queue *queue;
 };
 

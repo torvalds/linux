@@ -1,12 +1,12 @@
-/* $Id: copy_page.S,v 1.8 2003/08/25 17:03:10 lethal Exp $
- *
+/*
  * copy_page, __copy_user_page, __copy_user implementation of SuperH
  *
  * Copyright (C) 2001  Niibe Yutaka & Kaz Kojima
  * Copyright (C) 2002  Toshinobu Sugioka
- *
+ * Copyright (C) 2006  Paul Mundt
  */
 #include <linux/linkage.h>
+#include <asm/page.h>
 
 /*
  * copy_page_slow
@@ -18,7 +18,7 @@
 
 /*
  * r0, r1, r2, r3, r4, r5, r6, r7 --- scratch 
- * r8 --- from + 4096
+ * r8 --- from + PAGE_SIZE
  * r9 --- not used
  * r10 --- to
  * r11 --- from
@@ -30,7 +30,7 @@ ENTRY(copy_page_slow)
 	mov	r4,r10
 	mov	r5,r11
 	mov	r5,r8
-	mov.w	.L4096,r0
+	mov.l	.Lpsz,r0
 	add	r0,r8
 	!
 1:	mov.l	@r11+,r0
@@ -80,7 +80,7 @@ ENTRY(copy_page_slow)
 
 /*
  * r0, r1, r2, r3, r4, r5, r6, r7 --- scratch 
- * r8 --- from + 4096
+ * r8 --- from + PAGE_SIZE
  * r9 --- orig_to
  * r10 --- to
  * r11 --- from
@@ -94,7 +94,7 @@ ENTRY(__copy_user_page)
 	mov	r5,r11
 	mov	r6,r9
 	mov	r5,r8
-	mov.w	.L4096,r0
+	mov.l	.Lpsz,r0
 	add	r0,r8
 	!
 1:	ocbi	@r9
@@ -129,7 +129,7 @@ ENTRY(__copy_user_page)
 	rts
 	 nop
 #endif
-.L4096:	.word	4096
+.Lpsz:	.long	PAGE_SIZE
 /*
  * __kernel_size_t __copy_user(void *to, const void *from, __kernel_size_t n);
  * Return the number of bytes NOT copied

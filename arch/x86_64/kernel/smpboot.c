@@ -753,14 +753,16 @@ static int __cpuinit wakeup_secondary_via_INIT(int phys_apicid, unsigned int sta
 }
 
 struct create_idle {
+	struct work_struct work;
 	struct task_struct *idle;
 	struct completion done;
 	int cpu;
 };
 
-void do_fork_idle(void *_c_idle)
+void do_fork_idle(struct work_struct *work)
 {
-	struct create_idle *c_idle = _c_idle;
+	struct create_idle *c_idle =
+		container_of(work, struct create_idle, work);
 
 	c_idle->idle = fork_idle(c_idle->cpu);
 	complete(&c_idle->done);
@@ -775,10 +777,10 @@ static int __cpuinit do_boot_cpu(int cpu, int apicid)
 	int timeout;
 	unsigned long start_rip;
 	struct create_idle c_idle = {
+		.work = __WORK_INITIALIZER(c_idle.work, do_fork_idle),
 		.cpu = cpu,
 		.done = COMPLETION_INITIALIZER_ONSTACK(c_idle.done),
 	};
-	DECLARE_WORK(work, do_fork_idle, &c_idle);
 
 	/* allocate memory for gdts of secondary cpus. Hotplug is considered */
 	if (!cpu_gdt_descr[cpu].address &&
@@ -825,9 +827,9 @@ static int __cpuinit do_boot_cpu(int cpu, int apicid)
 	 * thread.
 	 */
 	if (!keventd_up() || current_is_keventd())
-		work.func(work.data);
+		c_idle.work.func(&c_idle.work);
 	else {
-		schedule_work(&work);
+		schedule_work(&c_idle.work);
 		wait_for_completion(&c_idle.done);
 	}
 

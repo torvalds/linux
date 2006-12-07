@@ -385,6 +385,7 @@ struct fcc_enet_private {
 	phy_info_t	*phy;
 	struct work_struct phy_relink;
 	struct work_struct phy_display_config;
+	struct net_device *dev;
 
 	uint	sequence_done;
 
@@ -1391,10 +1392,11 @@ static phy_info_t *phy_info[] = {
 	NULL
 };
 
-static void mii_display_status(void *data)
+static void mii_display_status(struct work_struct *work)
 {
-	struct net_device *dev = data;
-	volatile struct fcc_enet_private *fep = dev->priv;
+	volatile struct fcc_enet_private *fep =
+		container_of(work, struct fcc_enet_private, phy_relink);
+	struct net_device *dev = fep->dev;
 	uint s = fep->phy_status;
 
 	if (!fep->link && !fep->old_link) {
@@ -1428,10 +1430,12 @@ static void mii_display_status(void *data)
 	printk(".\n");
 }
 
-static void mii_display_config(void *data)
+static void mii_display_config(struct work_struct *work)
 {
-	struct net_device *dev = data;
-	volatile struct fcc_enet_private *fep = dev->priv;
+	volatile struct fcc_enet_private *fep =
+		container_of(work, struct fcc_enet_private,
+			     phy_display_config);
+	struct net_device *dev = fep->dev;
 	uint s = fep->phy_status;
 
 	printk("%s: config: auto-negotiation ", dev->name);
@@ -1758,8 +1762,9 @@ static int __init fec_enet_init(void)
 		cep->phy_id_done = 0;
 		cep->phy_addr = fip->fc_phyaddr;
 		mii_queue(dev, mk_mii_read(MII_PHYSID1), mii_discover_phy);
-		INIT_WORK(&cep->phy_relink, mii_display_status, dev);
-		INIT_WORK(&cep->phy_display_config, mii_display_config, dev);
+		INIT_WORK(&cep->phy_relink, mii_display_status);
+		INIT_WORK(&cep->phy_display_config, mii_display_config);
+		cep->dev = dev;
 #endif	/* CONFIG_USE_MDIO */
 
 		fip++;

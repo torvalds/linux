@@ -37,7 +37,7 @@
 #include "ap_bus.h"
 
 /* Some prototypes. */
-static void ap_scan_bus(void *);
+static void ap_scan_bus(struct work_struct *);
 static void ap_poll_all(unsigned long);
 static void ap_poll_timeout(unsigned long);
 static int ap_poll_thread_start(void);
@@ -71,7 +71,7 @@ static struct device *ap_root_device = NULL;
 static struct workqueue_struct *ap_work_queue;
 static struct timer_list ap_config_timer;
 static int ap_config_time = AP_CONFIG_TIME;
-static DECLARE_WORK(ap_config_work, ap_scan_bus, NULL);
+static DECLARE_WORK(ap_config_work, ap_scan_bus);
 
 /**
  * Tasklet & timer for AP request polling.
@@ -732,7 +732,7 @@ static void ap_device_release(struct device *dev)
 	kfree(ap_dev);
 }
 
-static void ap_scan_bus(void *data)
+static void ap_scan_bus(struct work_struct *unused)
 {
 	struct ap_device *ap_dev;
 	struct device *dev;

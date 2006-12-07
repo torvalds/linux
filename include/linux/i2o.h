@@ -461,7 +461,7 @@ struct i2o_driver {
 	int (*reply) (struct i2o_controller *, u32, struct i2o_message *);
 
 	/* Event handler */
-	void (*event) (struct i2o_event *);
+	work_func_t event;
 
 	struct workqueue_struct *event_queue;	/* Event queue */
 

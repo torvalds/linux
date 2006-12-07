@@ -3654,9 +3654,9 @@ static void tg3_poll_controller(struct net_device *dev)
 }
 #endif
 
-static void tg3_reset_task(void *_data)
+static void tg3_reset_task(struct work_struct *work)
 {
-	struct tg3 *tp = _data;
+	struct tg3 *tp = container_of(work, struct tg3, reset_task);
 	unsigned int restart_timer;
 
 	tg3_full_lock(tp, 0);
@@ -11734,7 +11734,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 #endif
 	spin_lock_init(&tp->lock);
 	spin_lock_init(&tp->indirect_lock);
-	INIT_WORK(&tp->reset_task, tg3_reset_task, tp);
+	INIT_WORK(&tp->reset_task, tg3_reset_task);
 
 	tp->regs = ioremap_nocache(tg3reg_base, tg3reg_len);
 	if (tp->regs == 0UL) {

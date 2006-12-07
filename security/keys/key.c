@@ -30,8 +30,8 @@ DEFINE_SPINLOCK(key_user_lock);
 static LIST_HEAD(key_types_list);
 static DECLARE_RWSEM(key_types_sem);
 
-static void key_cleanup(void *data);
-static DECLARE_WORK(key_cleanup_task, key_cleanup, NULL);
+static void key_cleanup(struct work_struct *work);
+static DECLARE_WORK(key_cleanup_task, key_cleanup);
 
 /* we serialise key instantiation and link */
 DECLARE_RWSEM(key_construction_sem);
@@ -552,7 +552,7 @@ EXPORT_SYMBOL(key_negate_and_link);
  * do cleaning up in process context so that we don't have to disable
  * interrupts all over the place
  */
-static void key_cleanup(void *data)
+static void key_cleanup(struct work_struct *work)
 {
 	struct rb_node *_n;
 	struct key *key;

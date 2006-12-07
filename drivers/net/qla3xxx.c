@@ -2008,7 +2008,7 @@ static irqreturn_t ql3xxx_isr(int irq, void *dev_id)
 			       "%s: Another function issued a reset to the "
 			       "chip. ISR value = %x.\n", ndev->name, value);
 		}
-		queue_work(qdev->workqueue, &qdev->reset_work);
+		queue_delayed_work(qdev->workqueue, &qdev->reset_work, 0);
 		spin_unlock(&qdev->adapter_lock);
 	} else if (value & ISP_IMR_DISABLE_CMPL_INT) {
 		ql_disable_interrupts(qdev);
@@ -3182,11 +3182,13 @@ static void ql3xxx_tx_timeout(struct net_device *ndev)
 	/*
 	 * Wake up the worker to process this event.
 	 */
-	queue_work(qdev->workqueue, &qdev->tx_timeout_work);
+	queue_delayed_work(qdev->workqueue, &qdev->tx_timeout_work, 0);
 }
 
-static void ql_reset_work(struct ql3_adapter *qdev)
+static void ql_reset_work(struct work_struct *work)
 {
+	struct ql3_adapter *qdev =
+		container_of(work, struct ql3_adapter, reset_work.work);
 	struct net_device *ndev = qdev->ndev;
 	u32 value;
 	struct ql_tx_buf_cb *tx_cb;
@@ -3278,9 +3280,12 @@ static void ql_reset_work(struct ql3_adapter *qdev)
 	}
 }
 
-static void ql_tx_timeout_work(struct ql3_adapter *qdev)
+static void ql_tx_timeout_work(struct work_struct *work)
 {
-	ql_cycle_adapter(qdev,QL_DO_RESET);
+	struct ql3_adapter *qdev =
+		container_of(work, struct ql3_adapter, tx_timeout_work.work);
+
+	ql_cycle_adapter(qdev, QL_DO_RESET);
 }
 
 static void ql_get_board_info(struct ql3_adapter *qdev)
@@ -3459,9 +3464,8 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 	netif_stop_queue(ndev);
 
 	qdev->workqueue = create_singlethread_workqueue(ndev->name);
-	INIT_WORK(&qdev->reset_work, (void (*)(void *))ql_reset_work, qdev);
-	INIT_WORK(&qdev->tx_timeout_work,
-		  (void (*)(void *))ql_tx_timeout_work, qdev);
+	INIT_DELAYED_WORK(&qdev->reset_work, ql_reset_work);
+	INIT_DELAYED_WORK(&qdev->tx_timeout_work, ql_tx_timeout_work);
 
 	init_timer(&qdev->adapter_timer);
 	qdev->adapter_timer.function = ql3xxx_timer;

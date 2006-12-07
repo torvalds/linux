@@ -89,7 +89,6 @@ IRQ  Device
 
 static void toshiba_rbtx4938_irq_ioc_enable(unsigned int irq);
 static void toshiba_rbtx4938_irq_ioc_disable(unsigned int irq);
-static void toshiba_rbtx4938_irq_ioc_end(unsigned int irq);
 
 #define TOSHIBA_RBTX4938_IOC_NAME "RBTX4938-IOC"
 static struct irq_chip toshiba_rbtx4938_irq_ioc_type = {
@@ -98,7 +97,6 @@ static struct irq_chip toshiba_rbtx4938_irq_ioc_type = {
 	.mask = toshiba_rbtx4938_irq_ioc_disable,
 	.mask_ack = toshiba_rbtx4938_irq_ioc_disable,
 	.unmask = toshiba_rbtx4938_irq_ioc_enable,
-	.end = toshiba_rbtx4938_irq_ioc_end,
 };
 
 #define TOSHIBA_RBTX4938_IOC_INTR_ENAB 0xb7f02000
@@ -165,14 +163,6 @@ toshiba_rbtx4938_irq_ioc_disable(unsigned int irq)
 	TX4938_WR08(TOSHIBA_RBTX4938_IOC_INTR_ENAB, v);
 	mmiowb();
 	TX4938_RD08(TOSHIBA_RBTX4938_IOC_INTR_ENAB);
-}
-
-static void
-toshiba_rbtx4938_irq_ioc_end(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS))) {
-		toshiba_rbtx4938_irq_ioc_enable(irq);
-	}
 }
 
 extern void __init txx9_spi_irqinit(int irc_irq);

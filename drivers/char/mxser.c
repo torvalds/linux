@@ -389,7 +389,7 @@ static int mxser_init(void);
 /* static void   mxser_poll(unsigned long); */
 static int mxser_get_ISA_conf(int, struct mxser_hwconf *);
 static int mxser_get_PCI_conf(int, int, int, struct mxser_hwconf *);
-static void mxser_do_softint(void *);
+static void mxser_do_softint(struct work_struct *);
 static int mxser_open(struct tty_struct *, struct file *);
 static void mxser_close(struct tty_struct *, struct file *);
 static int mxser_write(struct tty_struct *, const unsigned char *, int);
@@ -590,7 +590,7 @@ static int mxser_initbrd(int board, struct mxser_hwconf *hwconf)
 		info->custom_divisor = hwconf->baud_base[i] * 16;
 		info->close_delay = 5 * HZ / 10;
 		info->closing_wait = 30 * HZ;
-		INIT_WORK(&info->tqueue, mxser_do_softint, info);
+		INIT_WORK(&info->tqueue, mxser_do_softint);
 		info->normal_termios = mxvar_sdriver->init_termios;
 		init_waitqueue_head(&info->open_wait);
 		init_waitqueue_head(&info->close_wait);
@@ -917,9 +917,10 @@ static int mxser_init(void)
 	return 0;
 }
 
-static void mxser_do_softint(void *private_)
+static void mxser_do_softint(struct work_struct *work)
 {
-	struct mxser_struct *info = private_;
+	struct mxser_struct *info =
+		container_of(work, struct mxser_struct, tqueue);
 	struct tty_struct *tty;
 
 	tty = info->tty;

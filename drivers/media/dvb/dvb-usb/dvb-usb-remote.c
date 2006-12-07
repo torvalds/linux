@@ -13,9 +13,10 @@
  *
  * TODO: Fix the repeat rate of the input device.
  */
-static void dvb_usb_read_remote_control(void *data)
+static void dvb_usb_read_remote_control(struct work_struct *work)
 {
-	struct dvb_usb_device *d = data;
+	struct dvb_usb_device *d =
+		container_of(work, struct dvb_usb_device, rc_query_work.work);
 	u32 event;
 	int state;
 
@@ -128,7 +129,7 @@ int dvb_usb_remote_init(struct dvb_usb_device *d)
 
 	input_register_device(d->rc_input_dev);
 
-	INIT_WORK(&d->rc_query_work, dvb_usb_read_remote_control, d);
+	INIT_DELAYED_WORK(&d->rc_query_work, dvb_usb_read_remote_control);
 
 	info("schedule remote query interval to %d msecs.", d->props.rc_interval);
 	schedule_delayed_work(&d->rc_query_work,msecs_to_jiffies(d->props.rc_interval));

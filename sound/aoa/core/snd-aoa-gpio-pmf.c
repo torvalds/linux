@@ -69,9 +69,10 @@ static void pmf_gpio_all_amps_restore(struct gpio_runtime *rt)
 	pmf_gpio_set_lineout(rt, (s>>2)&1);
 }
 
-static void pmf_handle_notify(void *data)
+static void pmf_handle_notify(struct work_struct *work)
 {
-	struct gpio_notification *notif = data;
+	struct gpio_notification *notif =
+		container_of(work, struct gpio_notification, work.work);
 
 	mutex_lock(&notif->mutex);
 	if (notif->notify)
@@ -83,12 +84,9 @@ static void pmf_gpio_init(struct gpio_runtime *rt)
 {
 	pmf_gpio_all_amps_off(rt);
 	rt->implementation_private = 0;
-	INIT_WORK(&rt->headphone_notify.work, pmf_handle_notify,
-		  &rt->headphone_notify);
-	INIT_WORK(&rt->line_in_notify.work, pmf_handle_notify,
-		  &rt->line_in_notify);
-	INIT_WORK(&rt->line_out_notify.work, pmf_handle_notify,
-		  &rt->line_out_notify);
+	INIT_DELAYED_WORK(&rt->headphone_notify.work, pmf_handle_notify);
+	INIT_DELAYED_WORK(&rt->line_in_notify.work, pmf_handle_notify);
+	INIT_DELAYED_WORK(&rt->line_out_notify.work, pmf_handle_notify);
 	mutex_init(&rt->headphone_notify.mutex);
 	mutex_init(&rt->line_in_notify.mutex);
 	mutex_init(&rt->line_out_notify.mutex);
@@ -129,7 +127,7 @@ static void pmf_handle_notify_irq(void *data)
 {
 	struct gpio_notification *notif = data;
 
-	schedule_work(&notif->work);
+	schedule_delayed_work(&notif->work, 0);
 }
 
 static int pmf_set_notify(struct gpio_runtime *rt,

@@ -493,20 +493,25 @@ static void sbp2util_notify_fetch_agent(struct scsi_id_instance_data *scsi_id,
 		scsi_unblock_requests(scsi_id->scsi_host);
 }
 
-static void sbp2util_write_orb_pointer(void *p)
+static void sbp2util_write_orb_pointer(struct work_struct *work)
 {
+	struct scsi_id_instance_data *scsi_id =
+		container_of(work, struct scsi_id_instance_data,
+			     protocol_work.work);
 	quadlet_t data[2];
 
-	data[0] = ORB_SET_NODE_ID(
-			((struct scsi_id_instance_data *)p)->hi->host->node_id);
-	data[1] = ((struct scsi_id_instance_data *)p)->last_orb_dma;
+	data[0] = ORB_SET_NODE_ID(scsi_id->hi->host->node_id);
+	data[1] = scsi_id->last_orb_dma;
 	sbp2util_cpu_to_be32_buffer(data, 8);
-	sbp2util_notify_fetch_agent(p, SBP2_ORB_POINTER_OFFSET, data, 8);
+	sbp2util_notify_fetch_agent(scsi_id, SBP2_ORB_POINTER_OFFSET, data, 8);
 }
 
-static void sbp2util_write_doorbell(void *p)
+static void sbp2util_write_doorbell(struct work_struct *work)
 {
-	sbp2util_notify_fetch_agent(p, SBP2_DOORBELL_OFFSET, NULL, 4);
+	struct scsi_id_instance_data *scsi_id =
+		container_of(work, struct scsi_id_instance_data,
+			     protocol_work.work);
+	sbp2util_notify_fetch_agent(scsi_id, SBP2_DOORBELL_OFFSET, NULL, 4);
 }
 
 /*
@@ -843,7 +848,7 @@ static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *ud
 	INIT_LIST_HEAD(&scsi_id->scsi_list);
 	spin_lock_init(&scsi_id->sbp2_command_orb_lock);
 	atomic_set(&scsi_id->state, SBP2LU_STATE_RUNNING);
-	INIT_WORK(&scsi_id->protocol_work, NULL, NULL);
+	INIT_DELAYED_WORK(&scsi_id->protocol_work, NULL);
 
 	ud->device.driver_data = scsi_id;
 
@@ -2047,11 +2052,10 @@ static void sbp2_link_orb_command(struct scsi_id_instance_data *scsi_id,
 		 * We do not accept new commands until the job is over.
 		 */
 		scsi_block_requests(scsi_id->scsi_host);
-		PREPARE_WORK(&scsi_id->protocol_work,
+		PREPARE_DELAYED_WORK(&scsi_id->protocol_work,
 			     last_orb ? sbp2util_write_doorbell:
-					sbp2util_write_orb_pointer,
-			     scsi_id);
-		schedule_work(&scsi_id->protocol_work);
+					sbp2util_write_orb_pointer);
+		schedule_delayed_work(&scsi_id->protocol_work, 0);
 	}
 }
 

@@ -480,9 +480,9 @@ islpci_eth_receive(islpci_private *priv)
 }
 
 void
-islpci_do_reset_and_wake(void *data)
+islpci_do_reset_and_wake(struct work_struct *work)
 {
-	islpci_private *priv = data;
+	islpci_private *priv = container_of(work, islpci_private, reset_task);
 
 	islpci_reset(priv, 1);
 	priv->reset_task_pending = 0;

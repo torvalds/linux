@@ -775,7 +775,7 @@ static int sci_notifier(struct notifier_block *self,
 			 *
 			 * Clean this up later..
 			 */
-			clk = clk_get("module_clk");
+			clk = clk_get(NULL, "module_clk");
 			port->uartclk = clk_get_rate(clk) * 16;
 			clk_put(clk);
 		}
@@ -960,7 +960,7 @@ static void sci_set_termios(struct uart_port *port, struct termios *termios,
 		default:
 		{
 #if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
-			struct clk *clk = clk_get("module_clk");
+			struct clk *clk = clk_get(NULL, "module_clk");
 			t = SCBRR_VALUE(baud, clk_get_rate(clk));
 			clk_put(clk);
 #else
@@ -1128,7 +1128,7 @@ static void __init sci_init_ports(void)
 		 * XXX: We should use a proper SCI/SCIF clock
 		 */
 		{
-			struct clk *clk = clk_get("module_clk");
+			struct clk *clk = clk_get(NULL, "module_clk");
 			sci_ports[i].port.uartclk = clk_get_rate(clk) * 16;
 			clk_put(clk);
 		}

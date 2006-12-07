@@ -2963,7 +2963,7 @@ static void ata_scsi_remove_dev(struct ata_device *dev)
 
 /**
  *	ata_scsi_hotplug - SCSI part of hotplug
- *	@data: Pointer to ATA port to perform SCSI hotplug on
+ *	@work: Pointer to ATA port to perform SCSI hotplug on
  *
  *	Perform SCSI part of hotplug.  It's executed from a separate
  *	workqueue after EH completes.  This is necessary because SCSI
@@ -2973,9 +2973,10 @@ static void ata_scsi_remove_dev(struct ata_device *dev)
  *	LOCKING:
  *	Kernel thread context (may sleep).
  */
-void ata_scsi_hotplug(void *data)
+void ata_scsi_hotplug(struct work_struct *work)
 {
-	struct ata_port *ap = data;
+	struct ata_port *ap =
+		container_of(work, struct ata_port, hotplug_task.work);
 	int i;
 
 	if (ap->pflags & ATA_PFLAG_UNLOADING) {
@@ -3076,7 +3077,7 @@ static int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
 
 /**
  *	ata_scsi_dev_rescan - initiate scsi_rescan_device()
- *	@data: Pointer to ATA port to perform scsi_rescan_device()
+ *	@work: Pointer to ATA port to perform scsi_rescan_device()
  *
  *	After ATA pass thru (SAT) commands are executed successfully,
  *	libata need to propagate the changes to SCSI layer.  This
@@ -3086,9 +3087,10 @@ static int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
  *	LOCKING:
  *	Kernel thread context (may sleep).
  */
-void ata_scsi_dev_rescan(void *data)
+void ata_scsi_dev_rescan(struct work_struct *work)
 {
-	struct ata_port *ap = data;
+	struct ata_port *ap =
+		container_of(work, struct ata_port, scsi_rescan_task);
 	unsigned long flags;
 	unsigned int i;
 

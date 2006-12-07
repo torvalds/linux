@@ -575,8 +575,9 @@ struct ata_port {
 	struct ata_host		*host;
 	struct device 		*dev;
 
-	struct work_struct	port_task;
-	struct work_struct	hotplug_task;
+	void			*port_task_data;
+	struct delayed_work	port_task;
+	struct delayed_work	hotplug_task;
 	struct work_struct	scsi_rescan_task;
 
 	unsigned int		hsm_task_state;
@@ -755,7 +756,7 @@ extern void ata_host_resume(struct ata_host *host);
 extern int ata_ratelimit(void);
 extern int ata_busy_sleep(struct ata_port *ap,
 			  unsigned long timeout_pat, unsigned long timeout);
-extern void ata_port_queue_task(struct ata_port *ap, void (*fn)(void *),
+extern void ata_port_queue_task(struct ata_port *ap, work_func_t fn,
 				void *data, unsigned long delay);
 extern u32 ata_wait_register(void __iomem *reg, u32 mask, u32 val,
 			     unsigned long interval_msec,

@@ -14,7 +14,7 @@ static unsigned long avr_clock;
 
 static struct work_struct wd_work;
 
-static void wd_stop(void *unused)
+static void wd_stop(struct work_struct *unused)
 {
 	const char string[] = "AAAAFFFFJJJJ>>>>VVVV>>>>ZZZZVVVVKKKK";
 	int i = 0, rescue = 8;
@@ -122,7 +122,7 @@ static int __init ls_uarts_init(void)
 
 	ls_uart_init();
 
-	INIT_WORK(&wd_work, wd_stop, NULL);
+	INIT_WORK(&wd_work, wd_stop);
 	schedule_work(&wd_work);
 
 	return 0;

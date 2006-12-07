@@ -200,7 +200,7 @@ static int pc_ioctl(struct tty_struct *, struct file *,
 static int info_ioctl(struct tty_struct *, struct file *,
                     unsigned int, unsigned long);
 static void pc_set_termios(struct tty_struct *, struct termios *);
-static void do_softint(void *);
+static void do_softint(struct work_struct *work);
 static void pc_stop(struct tty_struct *);
 static void pc_start(struct tty_struct *);
 static void pc_throttle(struct tty_struct * tty);
@@ -1505,7 +1505,7 @@ static void post_fep_init(unsigned int crd)
 
 		ch->brdchan        = bc;
 		ch->mailbox        = gd; 
-		INIT_WORK(&ch->tqueue, do_softint, ch);
+		INIT_WORK(&ch->tqueue, do_softint);
 		ch->board          = &boards[crd];
 
 		spin_lock_irqsave(&epca_lock, flags);
@@ -2566,9 +2566,9 @@ static void pc_set_termios(struct tty_struct *tty, struct termios *old_termios)
 
 /* --------------------- Begin do_softint  ----------------------- */
 
-static void do_softint(void *private_)
+static void do_softint(struct work_struct *work)
 { /* Begin do_softint */
-	struct channel *ch = (struct channel *) private_;
+	struct channel *ch = container_of(work, struct channel, tqueue);
 	/* Called in response to a modem change event */
 	if (ch && ch->magic == EPCA_MAGIC)  { /* Begin EPCA_MAGIC */
 		struct tty_struct *tty = ch->tty;

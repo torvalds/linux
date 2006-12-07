@@ -942,10 +942,11 @@ static void check_mute(struct snd_pmac *chip, struct pmac_gpio *gp, int val, int
 }
 
 static struct work_struct device_change;
+static struct snd_pmac *device_change_chip;
 
-static void device_change_handler(void *self)
+static void device_change_handler(struct work_struct *work)
 {
-	struct snd_pmac *chip = self;
+	struct snd_pmac *chip = device_change_chip;
 	struct pmac_tumbler *mix;
 	int headphone, lineout;
 
@@ -1417,7 +1418,8 @@ int __init snd_pmac_tumbler_init(struct snd_pmac *chip)
 	chip->resume = tumbler_resume;
 #endif
 
-	INIT_WORK(&device_change, device_change_handler, (void *)chip);
+	INIT_WORK(&device_change, device_change_handler);
+	device_change_chip = chip;
 
 #ifdef PMAC_SUPPORT_AUTOMUTE
 	if ((mix->headphone_irq >=0 || mix->lineout_irq >= 0)

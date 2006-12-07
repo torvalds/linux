@@ -53,9 +53,10 @@ static int rtc_dev_open(struct inode *inode, struct file *file)
  * Routine to poll RTC seconds field for change as often as possible,
  * after first RTC_UIE use timer to reduce polling
  */
-static void rtc_uie_task(void *data)
+static void rtc_uie_task(struct work_struct *work)
 {
-	struct rtc_device *rtc = data;
+	struct rtc_device *rtc =
+		container_of(work, struct rtc_device, uie_task);
 	struct rtc_time tm;
 	int num = 0;
 	int err;
@@ -411,7 +412,7 @@ static int rtc_dev_add_device(struct class_device *class_dev,
 	spin_lock_init(&rtc->irq_lock);
 	init_waitqueue_head(&rtc->irq_queue);
 #ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
-	INIT_WORK(&rtc->uie_task, rtc_uie_task, rtc);
+	INIT_WORK(&rtc->uie_task, rtc_uie_task);
 	setup_timer(&rtc->uie_timer, rtc_uie_timer, (unsigned long)rtc);
 #endif
 

@@ -880,7 +880,7 @@ asmlinkage long sys_reboot(int magic1, int magic2, unsigned int cmd, void __user
 	return 0;
 }
 
-static void deferred_cad(void *dummy)
+static void deferred_cad(struct work_struct *dummy)
 {
 	kernel_restart(NULL);
 }
@@ -892,7 +892,7 @@ static void deferred_cad(void *dummy)
  */
 void ctrl_alt_del(void)
 {
-	static DECLARE_WORK(cad_work, deferred_cad, NULL);
+	static DECLARE_WORK(cad_work, deferred_cad);
 
 	if (C_A_D)
 		schedule_work(&cad_work);

@@ -437,9 +437,10 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	goto retry;
 }
 
-static void scsi_target_reap_usercontext(void *data)
+static void scsi_target_reap_usercontext(struct work_struct *work)
 {
-	struct scsi_target *starget = data;
+	struct scsi_target *starget =
+		container_of(work, struct scsi_target, ew.work);
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	unsigned long flags;
 
@@ -475,7 +476,7 @@ void scsi_target_reap(struct scsi_target *starget)
 		starget->state = STARGET_DEL;
 		spin_unlock_irqrestore(shost->host_lock, flags);
 		execute_in_process_context(scsi_target_reap_usercontext,
-					   starget, &starget->ew);
+					   &starget->ew);
 		return;
 
 	}

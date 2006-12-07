@@ -176,7 +176,7 @@ struct iscsi_cls_session {
 
 	/* recovery fields */
 	int recovery_tmo;
-	struct work_struct recovery_work;
+	struct delayed_work recovery_work;
 
 	int target_id;
 

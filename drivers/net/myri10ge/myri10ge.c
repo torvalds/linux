@@ -2615,9 +2615,10 @@ static u32 myri10ge_read_reboot(struct myri10ge_priv *mgp)
  * This watchdog is used to check whether the board has suffered
  * from a parity error and needs to be recovered.
  */
-static void myri10ge_watchdog(void *arg)
+static void myri10ge_watchdog(struct work_struct *work)
 {
-	struct myri10ge_priv *mgp = arg;
+	struct myri10ge_priv *mgp =
+		container_of(work, struct myri10ge_priv, watchdog_work);
 	u32 reboot;
 	int status;
 	u16 cmd, vendor;
@@ -2887,7 +2888,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		    (unsigned long)mgp);
 
 	SET_ETHTOOL_OPS(netdev, &myri10ge_ethtool_ops);
-	INIT_WORK(&mgp->watchdog_work, myri10ge_watchdog, mgp);
+	INIT_WORK(&mgp->watchdog_work, myri10ge_watchdog);
 	status = register_netdev(netdev);
 	if (status != 0) {
 		dev_err(&pdev->dev, "register_netdev failed: %d\n", status);

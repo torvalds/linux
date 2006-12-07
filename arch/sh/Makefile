@@ -13,10 +13,6 @@
 # for "archclean" and "archdep" for cleaning up and making dependencies for
 # this architecture
 #
-
-cflags-y				:= -mb
-cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	:= -ml
-
 isa-y					:= any
 isa-$(CONFIG_SH_DSP)			:= sh
 isa-$(CONFIG_CPU_SH2)			:= sh2
@@ -38,13 +34,16 @@ isa-y			:= $(isa-y)-nofpu
 endif
 endif
 
-cflags-y	+= $(call as-option,-Wa$(comma)-isa=$(isa-y),)
-
-cflags-$(CONFIG_CPU_SH2)		+= -m2
-cflags-$(CONFIG_CPU_SH3)		+= -m3
-cflags-$(CONFIG_CPU_SH4)		+= -m4 \
+cflags-$(CONFIG_CPU_SH2)		:= -m2
+cflags-$(CONFIG_CPU_SH3)		:= -m3
+cflags-$(CONFIG_CPU_SH4)		:= -m4 \
 	$(call cc-option,-mno-implicit-fp,-m4-nofpu)
-cflags-$(CONFIG_CPU_SH4A)		+= $(call cc-option,-m4a-nofpu,)
+cflags-$(CONFIG_CPU_SH4A)		:= -m4a $(call cc-option,-m4a-nofpu,)
+
+cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -mb
+cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -ml
+
+cflags-y	+= $(call as-option,-Wa$(comma)-isa=$(isa-y),) -ffreestanding
 
 cflags-$(CONFIG_SH_DSP)			+= -Wa,-dsp
 cflags-$(CONFIG_SH_KGDB)		+= -g
@@ -59,7 +58,9 @@ OBJCOPYFLAGS	:= -O binary -R .note -R .comment -R .stab -R .stabstr -S
 # never be used by anyone. Use a board-specific defconfig that has a
 # reasonable chance of being current instead.
 #
-KBUILD_DEFCONFIG := rts7751r2d_defconfig
+KBUILD_DEFCONFIG := r7780rp_defconfig
+
+KBUILD_IMAGE	:= arch/sh/boot/zImage
 
 #
 # Choosing incompatible machines durings configuration will result in
@@ -109,6 +110,8 @@ machdir-$(CONFIG_SH_SH4202_MICRODEV)		:= superh/microdev
 machdir-$(CONFIG_SH_LANDISK)			:= landisk
 machdir-$(CONFIG_SH_TITAN)			:= titan
 machdir-$(CONFIG_SH_SHMIN)			:= shmin
+machdir-$(CONFIG_SH_7206_SOLUTION_ENGINE)	:= se/7206
+machdir-$(CONFIG_SH_7619_SOLUTION_ENGINE)	:= se/7619
 machdir-$(CONFIG_SH_UNKNOWN)			:= unknown
 
 incdir-y			:= $(notdir $(machdir-y))
@@ -124,6 +127,7 @@ core-$(CONFIG_HD64465)		+= arch/sh/cchips/hd6446x/hd64465/
 core-$(CONFIG_VOYAGERGX)	+= arch/sh/cchips/voyagergx/
 
 cpuincdir-$(CONFIG_CPU_SH2)	:= cpu-sh2
+cpuincdir-$(CONFIG_CPU_SH2A)	:= cpu-sh2a
 cpuincdir-$(CONFIG_CPU_SH3)	:= cpu-sh3
 cpuincdir-$(CONFIG_CPU_SH4)	:= cpu-sh4
 

@@ -54,7 +54,7 @@ static void dasd_flush_request_queue(struct dasd_device *);
 static void dasd_int_handler(struct ccw_device *, unsigned long, struct irb *);
 static int dasd_flush_ccw_queue(struct dasd_device *, int);
 static void dasd_tasklet(struct dasd_device *);
-static void do_kick_device(void *data);
+static void do_kick_device(struct work_struct *);
 
 /*
  * SECTION: Operations on the device structure.
@@ -100,7 +100,7 @@ dasd_alloc_device(void)
 		     (unsigned long) device);
 	INIT_LIST_HEAD(&device->ccw_queue);
 	init_timer(&device->timer);
-	INIT_WORK(&device->kick_work, do_kick_device, device);
+	INIT_WORK(&device->kick_work, do_kick_device);
 	device->state = DASD_STATE_NEW;
 	device->target = DASD_STATE_NEW;
 
@@ -407,11 +407,9 @@ dasd_change_state(struct dasd_device *device)
  * event daemon.
  */
 static void
-do_kick_device(void *data)
+do_kick_device(struct work_struct *work)
 {
-	struct dasd_device *device;
-
-	device = (struct dasd_device *) data;
+	struct dasd_device *device = container_of(work, struct dasd_device, kick_work);
 	dasd_change_state(device);
 	dasd_schedule_bh(device);
 	dasd_put_device(device);

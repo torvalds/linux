@@ -1000,7 +1000,7 @@ s2io_msix_fifo_handle(int irq, void *dev_id);
 static irqreturn_t s2io_isr(int irq, void *dev_id);
 static int verify_xena_quiescence(nic_t *sp, u64 val64, int flag);
 static const struct ethtool_ops netdev_ethtool_ops;
-static void s2io_set_link(unsigned long data);
+static void s2io_set_link(struct work_struct *work);
 static int s2io_set_swapper(nic_t * sp);
 static void s2io_card_down(nic_t *nic);
 static int s2io_card_up(nic_t *nic);

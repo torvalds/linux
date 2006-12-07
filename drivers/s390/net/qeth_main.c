@@ -1039,8 +1039,9 @@ qeth_do_start_thread(struct qeth_card *card, unsigned long thread)
 }
 
 static void
-qeth_start_kernel_thread(struct qeth_card *card)
+qeth_start_kernel_thread(struct work_struct *work)
 {
+	struct qeth_card *card = container_of(work, struct qeth_card, kernel_thread_starter);
 	QETH_DBF_TEXT(trace , 2, "strthrd");
 
 	if (card->read.state != CH_STATE_UP &&
@@ -1103,8 +1104,7 @@ qeth_setup_card(struct qeth_card *card)
 	card->thread_start_mask = 0;
 	card->thread_allowed_mask = 0;
 	card->thread_running_mask = 0;
-	INIT_WORK(&card->kernel_thread_starter,
-		  (void *)qeth_start_kernel_thread,card);
+	INIT_WORK(&card->kernel_thread_starter, qeth_start_kernel_thread);
 	INIT_LIST_HEAD(&card->ip_list);
 	card->ip_tbd_list = kmalloc(sizeof(struct list_head), GFP_KERNEL);
 	if (!card->ip_tbd_list) {

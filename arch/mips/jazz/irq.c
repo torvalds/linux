@@ -39,19 +39,12 @@ void disable_r4030_irq(unsigned int irq)
 	spin_unlock_irqrestore(&r4030_lock, flags);
 }
 
-static void end_r4030_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		enable_r4030_irq(irq);
-}
-
 static struct irq_chip r4030_irq_type = {
 	.typename = "R4030",
 	.ack = disable_r4030_irq,
 	.mask = disable_r4030_irq,
 	.mask_ack = disable_r4030_irq,
 	.unmask = enable_r4030_irq,
-	.end = end_r4030_irq,
 };
 
 void __init init_r4030_ints(void)

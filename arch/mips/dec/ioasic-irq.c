@@ -67,7 +67,6 @@ static struct irq_chip ioasic_irq_type = {
 	.mask = mask_ioasic_irq,
 	.mask_ack = ack_ioasic_irq,
 	.unmask = unmask_ioasic_irq,
-	.end = end_ioasic_irq,
 };
 
 
@@ -106,8 +105,7 @@ void __init init_ioasic_irqs(int base)
 		set_irq_chip_and_handler(i, &ioasic_irq_type,
 					 handle_level_irq);
 	for (; i < base + IO_IRQ_LINES; i++)
-		set_irq_chip_and_handler(i, &ioasic_dma_irq_type,
-					 handle_level_irq);
+		set_irq_chip(i, &ioasic_dma_irq_type);
 
 	ioasic_irq_base = base;
 }

@@ -2261,9 +2261,10 @@ static void sx_start(struct tty_struct * tty)
  * 	do_sx_hangup() -> tty->hangup() -> sx_hangup()
  *
  */
-static void do_sx_hangup(void *private_)
+static void do_sx_hangup(struct work_struct *work)
 {
-	struct specialix_port	*port = (struct specialix_port *) private_;
+	struct specialix_port	*port =
+		container_of(work, struct specialix_port, tqueue_hangup);
 	struct tty_struct	*tty;
 
 	func_enter();
@@ -2336,9 +2337,10 @@ static void sx_set_termios(struct tty_struct * tty, struct termios * old_termios
 }
 
 
-static void do_softint(void *private_)
+static void do_softint(struct work_struct *work)
 {
-	struct specialix_port	*port = (struct specialix_port *) private_;
+	struct specialix_port	*port =
+		container_of(work, struct specialix_port, tqueue);
 	struct tty_struct	*tty;
 
 	func_enter();
@@ -2411,8 +2413,8 @@ static int sx_init_drivers(void)
 	memset(sx_port, 0, sizeof(sx_port));
 	for (i = 0; i < SX_NPORT * SX_NBOARD; i++) {
 		sx_port[i].magic = SPECIALIX_MAGIC;
-		INIT_WORK(&sx_port[i].tqueue, do_softint, &sx_port[i]);
-		INIT_WORK(&sx_port[i].tqueue_hangup, do_sx_hangup, &sx_port[i]);
+		INIT_WORK(&sx_port[i].tqueue, do_softint);
+		INIT_WORK(&sx_port[i].tqueue_hangup, do_sx_hangup);
 		sx_port[i].close_delay = 50 * HZ/100;
 		sx_port[i].closing_wait = 3000 * HZ/100;
 		init_waitqueue_head(&sx_port[i].open_wait);

@@ -1083,8 +1083,9 @@ tx_b_frame(struct hfc4s8s_btype *bch)
 /* bottom half handler for interrupt */
 /*************************************/
 static void
-hfc4s8s_bh(hfc4s8s_hw * hw)
+hfc4s8s_bh(struct work_struct *work)
 {
+	hfc4s8s_hw *hw = container_of(work, hfc4s8s_hw, tqueue);
 	u_char b;
 	struct hfc4s8s_l1 *l1p;
 	volatile u_char *fifo_stat;
@@ -1550,7 +1551,7 @@ setup_instance(hfc4s8s_hw * hw)
 		goto out;
 	}
 
-	INIT_WORK(&hw->tqueue, (void *) (void *) hfc4s8s_bh, hw);
+	INIT_WORK(&hw->tqueue, hfc4s8s_bh);
 
 	if (request_irq
 	    (hw->irq, hfc4s8s_interrupt, IRQF_SHARED, hw->card_name, hw)) {

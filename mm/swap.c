@@ -216,7 +216,7 @@ void lru_add_drain(void)
 }
 
 #ifdef CONFIG_NUMA
-static void lru_add_drain_per_cpu(void *dummy)
+static void lru_add_drain_per_cpu(struct work_struct *dummy)
 {
 	lru_add_drain();
 }
@@ -226,7 +226,7 @@ static void lru_add_drain_per_cpu(void *dummy)
  */
 int lru_add_drain_all(void)
 {
-	return schedule_on_each_cpu(lru_add_drain_per_cpu, NULL);
+	return schedule_on_each_cpu(lru_add_drain_per_cpu);
 }
 
 #else

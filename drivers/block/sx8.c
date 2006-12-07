@@ -1244,9 +1244,10 @@ out:
 	return IRQ_RETVAL(handled);
 }
 
-static void carm_fsm_task (void *_data)
+static void carm_fsm_task (struct work_struct *work)
 {
-	struct carm_host *host = _data;
+	struct carm_host *host =
+		container_of(work, struct carm_host, fsm_task);
 	unsigned long flags;
 	unsigned int state;
 	int rc, i, next_dev;
@@ -1619,7 +1620,7 @@ static int carm_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	host->pdev = pdev;
 	host->flags = pci_dac ? FL_DAC : 0;
 	spin_lock_init(&host->lock);
-	INIT_WORK(&host->fsm_task, carm_fsm_task, host);
+	INIT_WORK(&host->fsm_task, carm_fsm_task);
 	init_completion(&host->probe_comp);
 
 	for (i = 0; i < ARRAY_SIZE(host->req); i++)

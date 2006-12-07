@@ -101,7 +101,7 @@ struct cm_av {
 };
 
 struct cm_work {
-	struct work_struct work;
+	struct delayed_work work;
 	struct list_head list;
 	struct cm_port *port;
 	struct ib_mad_recv_wc *mad_recv_wc;	/* Received MADs */
@@ -161,7 +161,7 @@ struct cm_id_private {
 	atomic_t work_count;
 };
 
-static void cm_work_handler(void *data);
+static void cm_work_handler(struct work_struct *work);
 
 static inline void cm_deref_id(struct cm_id_private *cm_id_priv)
 {
@@ -668,8 +668,7 @@ static struct cm_timewait_info * cm_create_timewait_info(__be32 local_id)
 		return ERR_PTR(-ENOMEM);
 
 	timewait_info->work.local_id = local_id;
-	INIT_WORK(&timewait_info->work.work, cm_work_handler,
-		  &timewait_info->work);
+	INIT_DELAYED_WORK(&timewait_info->work.work, cm_work_handler);
 	timewait_info->work.cm_event.event = IB_CM_TIMEWAIT_EXIT;
 	return timewait_info;
 }
@@ -2995,9 +2994,9 @@ static void cm_send_handler(struct ib_mad_agent *mad_agent,
 	}
 }
 
-static void cm_work_handler(void *data)
+static void cm_work_handler(struct work_struct *_work)
 {
-	struct cm_work *work = data;
+	struct cm_work *work = container_of(_work, struct cm_work, work.work);
 	int ret;
 
 	switch (work->cm_event.event) {
@@ -3087,12 +3086,12 @@ static int cm_establish(struct ib_cm_id *cm_id)
 	 * we need to find the cm_id once we're in the context of the
 	 * worker thread, rather than holding a reference on it.
 	 */
-	INIT_WORK(&work->work, cm_work_handler, work);
+	INIT_DELAYED_WORK(&work->work, cm_work_handler);
 	work->local_id = cm_id->local_id;
 	work->remote_id = cm_id->remote_id;
 	work->mad_recv_wc = NULL;
 	work->cm_event.event = IB_CM_USER_ESTABLISHED;
-	queue_work(cm.wq, &work->work);
+	queue_delayed_work(cm.wq, &work->work, 0);
 out:
 	return ret;
 }
@@ -3191,11 +3190,11 @@ static void cm_recv_handler(struct ib_mad_agent *mad_agent,
 		return;
 	}
 
-	INIT_WORK(&work->work, cm_work_handler, work);
+	INIT_DELAYED_WORK(&work->work, cm_work_handler);
 	work->cm_event.event = event;
 	work->mad_recv_wc = mad_recv_wc;
 	work->port = (struct cm_port *)mad_agent->context;
-	queue_work(cm.wq, &work->work);
+	queue_delayed_work(cm.wq, &work->work, 0);
 }
 
 static int cm_init_qp_init_attr(struct cm_id_private *cm_id_priv,

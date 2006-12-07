@@ -477,9 +477,10 @@ int xprt_adjust_timeout(struct rpc_rqst *req)
 	return status;
 }
 
-static void xprt_autoclose(void *args)
+static void xprt_autoclose(struct work_struct *work)
 {
-	struct rpc_xprt *xprt = (struct rpc_xprt *)args;
+	struct rpc_xprt *xprt =
+		container_of(work, struct rpc_xprt, task_cleanup);
 
 	xprt_disconnect(xprt);
 	xprt->ops->close(xprt);
@@ -916,7 +917,7 @@ struct rpc_xprt *xprt_create_transport(int proto, struct sockaddr *ap, size_t si
 
 	INIT_LIST_HEAD(&xprt->free);
 	INIT_LIST_HEAD(&xprt->recv);
-	INIT_WORK(&xprt->task_cleanup, xprt_autoclose, xprt);
+	INIT_WORK(&xprt->task_cleanup, xprt_autoclose);
 	init_timer(&xprt->timer);
 	xprt->timer.function = xprt_init_autodisconnect;
 	xprt->timer.data = (unsigned long) xprt;

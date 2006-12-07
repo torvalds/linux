@@ -846,8 +846,10 @@ static int do_sas_task_abort(struct sas_task *task)
 	return -EAGAIN;
 }
 
-void sas_task_abort(struct sas_task *task)
+void sas_task_abort(struct work_struct *work)
 {
+	struct sas_task *task =
+		container_of(work, struct sas_task, abort_work);
 	int i;
 
 	for (i = 0; i < 5; i++)

@@ -252,7 +252,7 @@ static inline void z8530_isr(struct scc_info *info);
 static irqreturn_t scc_isr(int irq, void *dev_id);
 static void rx_isr(struct scc_priv *priv);
 static void special_condition(struct scc_priv *priv, int rc);
-static void rx_bh(void *arg);
+static void rx_bh(struct work_struct *);
 static void tx_isr(struct scc_priv *priv);
 static void es_isr(struct scc_priv *priv);
 static void tm_isr(struct scc_priv *priv);
@@ -579,7 +579,7 @@ static int __init setup_adapter(int card_base, int type, int n)
 		priv->param.clocks = TCTRxCP | RCRTxCP;
 		priv->param.persist = 256;
 		priv->param.dma = -1;
-		INIT_WORK(&priv->rx_work, rx_bh, priv);
+		INIT_WORK(&priv->rx_work, rx_bh);
 		dev->priv = priv;
 		sprintf(dev->name, "dmascc%i", 2 * n + i);
 		dev->base_addr = card_base;
@@ -1272,9 +1272,9 @@ static void special_condition(struct scc_priv *priv, int rc)
 }
 
 
-static void rx_bh(void *arg)
+static void rx_bh(struct work_struct *ugli_api)
 {
-	struct scc_priv *priv = arg;
+	struct scc_priv *priv = container_of(ugli_api, struct scc_priv, rx_work);
 	int i = priv->rx_tail;
 	int cb;
 	unsigned long flags;

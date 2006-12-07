@@ -208,9 +208,9 @@ static int sunkbd_initialize(struct sunkbd *sunkbd)
  * were in.
  */
 
-static void sunkbd_reinit(void *data)
+static void sunkbd_reinit(struct work_struct *work)
 {
-	struct sunkbd *sunkbd = data;
+	struct sunkbd *sunkbd = container_of(work, struct sunkbd, tq);
 
 	wait_event_interruptible_timeout(sunkbd->wait, sunkbd->reset >= 0, HZ);
 
@@ -248,7 +248,7 @@ static int sunkbd_connect(struct serio *serio, struct serio_driver *drv)
 	sunkbd->serio = serio;
 	sunkbd->dev = input_dev;
 	init_waitqueue_head(&sunkbd->wait);
-	INIT_WORK(&sunkbd->tq, sunkbd_reinit, sunkbd);
+	INIT_WORK(&sunkbd->tq, sunkbd_reinit);
 	snprintf(sunkbd->phys, sizeof(sunkbd->phys), "%s/input0", serio->phys);
 
 	serio_set_drvdata(serio, sunkbd);

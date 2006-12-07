@@ -157,8 +157,9 @@ prism54_mib_init(islpci_private *priv)
  * schedule_work(), thus we can as well use sleeping semaphore
  * locking */
 void
-prism54_update_stats(islpci_private *priv)
+prism54_update_stats(struct work_struct *work)
 {
+	islpci_private *priv = container_of(work, islpci_private, stats_work);
 	char *data;
 	int j;
 	struct obj_bss bss, *bss2;
@@ -2493,9 +2494,10 @@ prism54_process_trap_helper(islpci_private *priv, enum oid_num_t oid,
  * interrupt context, no locks held.
  */
 void
-prism54_process_trap(void *data)
+prism54_process_trap(struct work_struct *work)
 {
-	struct islpci_mgmtframe *frame = data;
+	struct islpci_mgmtframe *frame =
+		container_of(work, struct islpci_mgmtframe, ws);
 	struct net_device *ndev = frame->ndev;
 	enum oid_num_t n = mgt_oidtonum(frame->header->oid);
 

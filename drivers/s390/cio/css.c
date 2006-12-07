@@ -334,7 +334,7 @@ static LIST_HEAD(slow_subchannels_head);
 static DEFINE_SPINLOCK(slow_subchannel_lock);
 
 static void
-css_trigger_slow_path(void)
+css_trigger_slow_path(struct work_struct *unused)
 {
 	CIO_TRACE_EVENT(4, "slowpath");
 
@@ -359,8 +359,7 @@ css_trigger_slow_path(void)
 	spin_unlock_irq(&slow_subchannel_lock);
 }
 
-typedef void (*workfunc)(void *);
-DECLARE_WORK(slow_path_work, (workfunc)css_trigger_slow_path, NULL);
+DECLARE_WORK(slow_path_work, css_trigger_slow_path);
 struct workqueue_struct *slow_path_wq;
 
 /* Reprobe subchannel if unregistered. */
@@ -397,7 +396,7 @@ static int reprobe_subchannel(struct subchannel_id schid, void *data)
 }
 
 /* Work function used to reprobe all unregistered subchannels. */
-static void reprobe_all(void *data)
+static void reprobe_all(struct work_struct *unused)
 {
 	int ret;
 
@@ -413,7 +412,7 @@ static void reprobe_all(void *data)
 		      need_reprobe);
 }
 
-DECLARE_WORK(css_reprobe_work, reprobe_all, NULL);
+DECLARE_WORK(css_reprobe_work, reprobe_all);
 
 /* Schedule reprobing of all unregistered subchannels. */
 void css_schedule_reprobe(void)
