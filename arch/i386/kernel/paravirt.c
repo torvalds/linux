@@ -29,6 +29,8 @@
 #include <asm/time.h>
 #include <asm/irq.h>
 #include <asm/delay.h>
+#include <asm/fixmap.h>
+#include <asm/apic.h>
 
 /* nop stub */
 static void native_nop(void)
@@ -445,6 +447,12 @@ struct paravirt_ops paravirt_ops = {
 	.set_iopl_mask = native_set_iopl_mask,
 	.io_delay = native_io_delay,
 	.const_udelay = __const_udelay,
+
+#ifdef CONFIG_X86_LOCAL_APIC
+	.apic_write = native_apic_write,
+	.apic_write_atomic = native_apic_write_atomic,
+	.apic_read = native_apic_read,
+#endif
 
 	.irq_enable_sysexit = native_irq_enable_sysexit,
 	.iret = native_iret,

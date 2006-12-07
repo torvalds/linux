@@ -115,6 +115,12 @@ struct paravirt_ops
 	void (fastcall *io_delay)(void);
 	void (*const_udelay)(unsigned long loops);
 
+#ifdef CONFIG_X86_LOCAL_APIC
+	void (fastcall *apic_write)(unsigned long reg, unsigned long v);
+	void (fastcall *apic_write_atomic)(unsigned long reg, unsigned long v);
+	unsigned long (fastcall *apic_read)(unsigned long reg);
+#endif
+
 	/* These two are jmp to, not actually called. */
 	void (fastcall *irq_enable_sysexit)(void);
 	void (fastcall *iret)(void);
@@ -269,6 +275,27 @@ static inline void slow_down_io(void) {
 	paravirt_ops.io_delay();
 #endif
 }
+
+#ifdef CONFIG_X86_LOCAL_APIC
+/*
+ * Basic functions accessing APICs.
+ */
+static inline void apic_write(unsigned long reg, unsigned long v)
+{
+	paravirt_ops.apic_write(reg,v);
+}
+
+static inline void apic_write_atomic(unsigned long reg, unsigned long v)
+{
+	paravirt_ops.apic_write_atomic(reg,v);
+}
+
+static inline unsigned long apic_read(unsigned long reg)
+{
+	return paravirt_ops.apic_read(reg);
+}
+#endif
+
 
 /* These all sit in the .parainstructions section to tell us what to patch. */
 struct paravirt_patch {
