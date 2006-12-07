@@ -317,9 +317,9 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 #define HANDLE_STACK(cond) \
 	do while (cond) { \
 		unsigned long addr = *stack++; \
-		if (oops_in_progress ? 		\
-			__kernel_text_address(addr) : \
-			kernel_text_address(addr)) { \
+		/* Use unlocked access here because except for NMIs	\
+		   we should be already protected against module unloads */ \
+		if (__kernel_text_address(addr)) { \
 			/* \
 			 * If the address is either in the text segment of the \
 			 * kernel, or in the region which contains vmalloc'ed \
