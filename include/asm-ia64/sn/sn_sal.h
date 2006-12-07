@@ -88,6 +88,8 @@
 #define  SN_SAL_INJECT_ERROR			   0x02000067
 #define  SN_SAL_SET_CPU_NUMBER			   0x02000068
 
+#define  SN_SAL_KERNEL_LAUNCH_EVENT		   0x02000069
+
 /*
  * Service-specific constants
  */
@@ -1153,6 +1155,13 @@ ia64_sn_set_cpu_number(int cpu)
 	struct ia64_sal_retval rv;
 
 	SAL_CALL_NOLOCK(rv, SN_SAL_SET_CPU_NUMBER, cpu, 0, 0, 0, 0, 0, 0);
+	return rv.status;
+}
+static inline int
+ia64_sn_kernel_launch_event(void)
+{
+ 	struct ia64_sal_retval rv;
+	SAL_CALL_NOLOCK(rv, SN_SAL_KERNEL_LAUNCH_EVENT, 0, 0, 0, 0, 0, 0, 0);
 	return rv.status;
 }
 #endif /* _ASM_IA64_SN_SN_SAL_H */

@@ -108,6 +108,10 @@ int kexec_should_crash(struct task_struct *);
 extern struct kimage *kexec_image;
 extern struct kimage *kexec_crash_image;
 
+#ifndef kexec_flush_icache_page
+#define kexec_flush_icache_page(page)
+#endif
+
 #define KEXEC_ON_CRASH  0x00000001
 #define KEXEC_ARCH_MASK 0xffff0000
 
@@ -132,6 +136,7 @@ extern struct kimage *kexec_crash_image;
 extern struct resource crashk_res;
 typedef u32 note_buf_t[MAX_NOTE_BYTES/4];
 extern note_buf_t *crash_notes;
+
 
 #else /* !CONFIG_KEXEC */
 struct pt_regs;

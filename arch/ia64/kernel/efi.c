@@ -26,6 +26,7 @@
 #include <linux/types.h>
 #include <linux/time.h>
 #include <linux/efi.h>
+#include <linux/kexec.h>
 
 #include <asm/io.h>
 #include <asm/kregs.h>
@@ -41,7 +42,7 @@ extern efi_status_t efi_call_phys (void *, ...);
 struct efi efi;
 EXPORT_SYMBOL(efi);
 static efi_runtime_services_t *runtime;
-static unsigned long mem_limit = ~0UL, max_addr = ~0UL;
+static unsigned long mem_limit = ~0UL, max_addr = ~0UL, min_addr = 0UL;
 
 #define efi_call_virt(f, args...)	(*(f))(args)
 
@@ -421,6 +422,8 @@ efi_init (void)
 			mem_limit = memparse(cp + 4, &cp);
 		} else if (memcmp(cp, "max_addr=", 9) == 0) {
 			max_addr = GRANULEROUNDDOWN(memparse(cp + 9, &cp));
+		} else if (memcmp(cp, "min_addr=", 9) == 0) {
+			min_addr = GRANULEROUNDDOWN(memparse(cp + 9, &cp));
 		} else {
 			while (*cp != ' ' && *cp)
 				++cp;
@@ -428,6 +431,8 @@ efi_init (void)
 				++cp;
 		}
 	}
+	if (min_addr != 0UL)
+		printk(KERN_INFO "Ignoring memory below %luMB\n", min_addr >> 20);
 	if (max_addr != ~0UL)
 		printk(KERN_INFO "Ignoring memory above %luMB\n", max_addr >> 20);
 
@@ -894,7 +899,8 @@ find_memmap_space (void)
 		as = max(contig_low, md->phys_addr);
 		ae = min(contig_high, efi_md_end(md));
 
-		/* keep within max_addr= command line arg */
+		/* keep within max_addr= and min_addr= command line arg */
+		as = max(as, min_addr);
 		ae = min(ae, max_addr);
 		if (ae <= as)
 			continue;
@@ -1004,7 +1010,8 @@ efi_memmap_init(unsigned long *s, unsigned long *e)
 		} else
 			ae = efi_md_end(md);
 
-		/* keep within max_addr= command line arg */
+		/* keep within max_addr= and min_addr= command line arg */
+		as = max(as, min_addr);
 		ae = min(ae, max_addr);
 		if (ae <= as)
 			continue;
@@ -1116,6 +1123,58 @@ efi_initialize_iomem_resources(struct resource *code_resource,
 			 */
 			insert_resource(res, code_resource);
 			insert_resource(res, data_resource);
+#ifdef CONFIG_KEXEC
+                        insert_resource(res, &efi_memmap_res);
+                        insert_resource(res, &boot_param_res);
+			if (crashk_res.end > crashk_res.start)
+				insert_resource(res, &crashk_res);
+#endif
 		}
 	}
 }
+
+#ifdef CONFIG_KEXEC
+/* find a block of memory aligned to 64M exclude reserved regions
+   rsvd_regions are sorted
+ */
+unsigned long
+kdump_find_rsvd_region (unsigned long size,
+		struct rsvd_region *r, int n)
+{
+  int i;
+  u64 start, end;
+  u64 alignment = 1UL << _PAGE_SIZE_64M;
+  void *efi_map_start, *efi_map_end, *p;
+  efi_memory_desc_t *md;
+  u64 efi_desc_size;
+
+  efi_map_start = __va(ia64_boot_param->efi_memmap);
+  efi_map_end   = efi_map_start + ia64_boot_param->efi_memmap_size;
+  efi_desc_size = ia64_boot_param->efi_memdesc_size;
+
+  for (p = efi_map_start; p < efi_map_end; p += efi_desc_size) {
+	  md = p;
+	  if (!efi_wb(md))
+		  continue;
+	  start = ALIGN(md->phys_addr, alignment);
+	  end = efi_md_end(md);
+	  for (i = 0; i < n; i++) {
+		if (__pa(r[i].start) >= start && __pa(r[i].end) < end) {
+			if (__pa(r[i].start) > start + size)
+				return start;
+			start = ALIGN(__pa(r[i].end), alignment);
+			if (i < n-1 && __pa(r[i+1].start) < start + size)
+				continue;
+			else
+				break;
+		}
+	  }
+	  if (end > start + size)
+		return start;
+  }
+
+  printk(KERN_WARNING "Cannot reserve 0x%lx byte of memory for crashdump\n",
+	size);
+  return ~0UL;
+}
+#endif

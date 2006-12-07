@@ -37,6 +37,7 @@ typedef int ia64_mv_pci_legacy_write_t (struct pci_bus *, u16 port, u32 val,
 					u8 size);
 typedef void ia64_mv_migrate_t(struct task_struct * task);
 typedef void ia64_mv_pci_fixup_bus_t (struct pci_bus *);
+typedef void ia64_mv_kernel_launch_event_t(void);
 
 /* DMA-mapping interface: */
 typedef void ia64_mv_dma_init (void);
@@ -218,6 +219,7 @@ struct ia64_machine_vector {
 	ia64_mv_setup_msi_irq_t *setup_msi_irq;
 	ia64_mv_teardown_msi_irq_t *teardown_msi_irq;
 	ia64_mv_pci_fixup_bus_t *pci_fixup_bus;
+	ia64_mv_kernel_launch_event_t *kernel_launch_event;
 } __attribute__((__aligned__(16))); /* align attrib? see above comment */
 
 #define MACHVEC_INIT(name)			\
@@ -317,6 +319,9 @@ extern ia64_mv_dma_supported		swiotlb_dma_supported;
 #endif
 #ifndef platform_tlb_migrate_finish
 # define platform_tlb_migrate_finish	machvec_noop_mm
+#endif
+#ifndef platform_kernel_launch_event
+# define platform_kernel_launch_event	machvec_noop
 #endif
 #ifndef platform_dma_init
 # define platform_dma_init		swiotlb_init

@@ -769,5 +769,13 @@ int sn_prom_feature_available(int id)
 		return 0;
 	return test_bit(id, sn_prom_features);
 }
+
+void
+sn_kernel_launch_event(void)
+{
+	/* ignore status until we understand possible failure, if any*/
+	if (ia64_sn_kernel_launch_event())
+		printk(KERN_ERR "KEXEC is not supported in this PROM, Please update the PROM.\n");
+}
 EXPORT_SYMBOL(sn_prom_feature_available);
 
