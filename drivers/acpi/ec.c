@@ -70,8 +70,6 @@ enum {
 
 #define ACPI_EC_DELAY		500	/* Wait 500ms max. during EC ops */
 #define ACPI_EC_UDELAY_GLK	1000	/* Wait 1ms max. to get global lock */
-#define ACPI_EC_UDELAY         100	/* Poll @ 100us increments */
-#define ACPI_EC_UDELAY_COUNT   1000	/* Wait 100ms max. during EC ops */
 
 enum {
 	EC_INTR = 1,	/* Output buffer full */
@@ -159,11 +157,10 @@ static int acpi_ec_check_status(struct acpi_ec *ec, u8 event)
 static int acpi_ec_wait(struct acpi_ec *ec, u8 event)
 {
 	if (acpi_ec_mode == EC_POLL) {
-		int i;
-		for (i = 0; i < ACPI_EC_UDELAY_COUNT; ++i) {
+		unsigned long delay = jiffies + msecs_to_jiffies(ACPI_EC_DELAY);
+		while (time_before(jiffies, delay)) {
 			if (acpi_ec_check_status(ec, event))
 				return 0;
-			udelay(ACPI_EC_UDELAY);
 		}
 	} else {
 		if (wait_event_timeout(ec->wait,
