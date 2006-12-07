@@ -714,7 +714,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: <RDP>,<reset>,<pci_scan>,<verbosity>
 
 	isolcpus=	[KNL,SMP] Isolate CPUs from the general scheduler.
-			Format: <cpu number>,...,<cpu number>
+			Format:
+			<cpu number>,...,<cpu number>
+			or
+			<cpu number>-<cpu number>  (must be a positive range in ascending order)
+			or a mixture
+			<cpu number>,...,<cpu number>-<cpu number>
 			This option can be used to specify one or more CPUs
 			to isolate from the general SMP balancing and scheduling
 			algorithms. The only way to move a process onto or off
