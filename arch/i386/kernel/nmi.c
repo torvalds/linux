@@ -870,14 +870,16 @@ static unsigned int
 
 void touch_nmi_watchdog (void)
 {
-	int i;
+	if (nmi_watchdog > 0) {
+		unsigned cpu;
 
-	/*
-	 * Just reset the alert counters, (other CPUs might be
-	 * spinning on locks we hold):
-	 */
-	for_each_possible_cpu(i)
-		alert_counter[i] = 0;
+		/*
+		 * Just reset the alert counters, (other CPUs might be
+		 * spinning on locks we hold):
+		 */
+		for_each_present_cpu (cpu)
+			alert_counter[cpu] = 0;
+	}
 
 	/*
 	 * Tickle the softlockup detector too:
