@@ -127,4 +127,4 @@ static int register_mcast(void)
 	return 0;
 }
 
-__initcall(register_mcast);
+late_initcall(register_mcast);
