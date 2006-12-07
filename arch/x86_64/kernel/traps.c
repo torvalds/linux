@@ -280,7 +280,7 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 		if (unw_ret > 0) {
 			if (call_trace == 1 && !arch_unw_user_mode(&info)) {
 				ops->warning_symbol(data,
-					     "DWARF2 unwinder stuck at %s\n",
+					     "DWARF2 unwinder stuck at %s",
 					     UNW_PC(&info));
 				if ((long)UNW_SP(&info) < 0) {
 					MSG("Leftover inexact backtrace:");
@@ -288,13 +288,13 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 					if (!stack)
 						return;
 				} else
-					MSG("Full inexact backtrace again:\n");
+					MSG("Full inexact backtrace again:");
 			} else if (call_trace >= 1)
 				return;
 			else
-				MSG("Full inexact backtrace again:\n");
+				MSG("Full inexact backtrace again:");
 		} else
-			MSG("Inexact backtrace:\n");
+			MSG("Inexact backtrace:");
 	}
 	if (!stack) {
 		unsigned long dummy;
