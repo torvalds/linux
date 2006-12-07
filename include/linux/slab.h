@@ -308,9 +308,6 @@ static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
 
 #endif /* CONFIG_SLOB */
 
-/* System wide caches */
-extern kmem_cache_t	*names_cachep;
-
 #endif	/* __KERNEL__ */
 
 #endif	/* _LINUX_SLAB_H */
