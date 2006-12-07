@@ -11,6 +11,7 @@
 
 #include <linux/suspend.h>
 #include <linux/syscalls.h>
+#include <linux/reboot.h>
 #include <linux/string.h>
 #include <linux/device.h>
 #include <linux/miscdevice.h>
@@ -311,6 +312,33 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 
 OutS3:
 		up(&pm_sem);
+		break;
+
+	case SNAPSHOT_PMOPS:
+		switch (arg) {
+
+		case PMOPS_PREPARE:
+			if (pm_ops->prepare) {
+				error = pm_ops->prepare(PM_SUSPEND_DISK);
+			}
+			break;
+
+		case PMOPS_ENTER:
+			kernel_shutdown_prepare(SYSTEM_SUSPEND_DISK);
+			error = pm_ops->enter(PM_SUSPEND_DISK);
+			break;
+
+		case PMOPS_FINISH:
+			if (pm_ops && pm_ops->finish) {
+				pm_ops->finish(PM_SUSPEND_DISK);
+			}
+			break;
+
+		default:
+			printk(KERN_ERR "SNAPSHOT_PMOPS: invalid argument %ld\n", arg);
+			error = -EINVAL;
+
+		}
 		break;
 
 	default:
