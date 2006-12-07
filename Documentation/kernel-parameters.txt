@@ -1370,6 +1370,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	resume=		[SWSUSP]
 			Specify the partition device for software suspend
 
+	resume_offset=	[SWSUSP]
+			Specify the offset from the beginning of the partition
+			given by "resume=" at which the swap header is located,
+			in <PAGE_SIZE> units (needed only for swap files).
+			See  Documentation/power/swsusp-and-swap-files.txt
+
 	rhash_entries=	[KNL,NET]
 			Set number of hash buckets for route cache
 
