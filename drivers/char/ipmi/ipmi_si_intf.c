@@ -807,7 +807,12 @@ static void poll(void *send_info)
 {
 	struct smi_info *smi_info = send_info;
 
-	smi_event_handler(smi_info, 0);
+	/*
+	 * Make sure there is some delay in the poll loop so we can
+	 * drive time forward and timeout things.
+	 */
+	udelay(10);
+	smi_event_handler(smi_info, 10);
 }
 
 static void request_events(void *send_info)
