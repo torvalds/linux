@@ -2397,6 +2397,7 @@ HANDLE_IOCTL(SIOCGIFMAP, dev_ifsioc)
 HANDLE_IOCTL(SIOCSIFMAP, dev_ifsioc)
 HANDLE_IOCTL(SIOCGIFADDR, dev_ifsioc)
 HANDLE_IOCTL(SIOCSIFADDR, dev_ifsioc)
+HANDLE_IOCTL(SIOCSIFHWBROADCAST, dev_ifsioc)
 
 /* ioctls used by appletalk ddp.c */
 HANDLE_IOCTL(SIOCATALKDIFADDR, dev_ifsioc)
