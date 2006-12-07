@@ -144,9 +144,9 @@ int genl_register_ops(struct genl_family *family, struct genl_ops *ops)
 	}
 
 	if (ops->dumpit)
-		ops->flags |= GENL_CMD_CAP_DO;
-	if (ops->doit)
 		ops->flags |= GENL_CMD_CAP_DUMP;
+	if (ops->doit)
+		ops->flags |= GENL_CMD_CAP_DO;
 	if (ops->policy)
 		ops->flags |= GENL_CMD_CAP_HASPOL;
 
