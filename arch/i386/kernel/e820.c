@@ -9,6 +9,7 @@
 #include <linux/mm.h>
 #include <linux/efi.h>
 #include <linux/pfn.h>
+#include <linux/uaccess.h>
 
 #include <asm/pgtable.h>
 #include <asm/page.h>
@@ -155,7 +156,14 @@ static struct resource standard_io_resources[] = { {
 	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
 } };
 
-#define romsignature(x) (*(unsigned short *)(x) == 0xaa55)
+static int romsignature(const unsigned char *x)
+{
+	unsigned short sig;
+	int ret = 0;
+	if (probe_kernel_address((const unsigned short *)x, sig) == 0)
+		ret = (sig == 0xaa55);
+	return ret;
+}
 
 static int __init romchecksum(unsigned char *rom, unsigned long length)
 {
