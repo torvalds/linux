@@ -140,7 +140,6 @@ void clear_local_APIC(void)
 		apic_write(APIC_LVTERR, APIC_LVT_MASKED);
 	if (maxlvt >= 4)
 		apic_write(APIC_LVTPC, APIC_LVT_MASKED);
-	v = GET_APIC_VERSION(apic_read(APIC_LVR));
 	apic_write(APIC_ESR, 0);
 	apic_read(APIC_ESR);
 }
@@ -736,10 +735,9 @@ void __init init_apic_mappings(void)
 
 static void __setup_APIC_LVTT(unsigned int clocks)
 {
-	unsigned int lvtt_value, tmp_value, ver;
+	unsigned int lvtt_value, tmp_value;
 	int cpu = smp_processor_id();
 
-	ver = GET_APIC_VERSION(apic_read(APIC_LVR));
 	lvtt_value = APIC_LVT_TIMER_PERIODIC | LOCAL_TIMER_VECTOR;
 
 	if (cpu_isset(cpu, timer_interrupt_broadcast_ipi_mask))
