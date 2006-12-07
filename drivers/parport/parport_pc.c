@@ -1975,7 +1975,7 @@ static int __devinit parport_ECPPS2_supported(struct parport *pb){return 0;}
 /* --- IRQ detection -------------------------------------- */
 
 /* Only if supports ECP mode */
-static int __devinit programmable_irq_support(struct parport *pb)
+static int programmable_irq_support(struct parport *pb)
 {
 	int irq, intrLine;
 	unsigned char oecr = inb (ECONTROL (pb));
@@ -1992,7 +1992,7 @@ static int __devinit programmable_irq_support(struct parport *pb)
 	return irq;
 }
 
-static int __devinit irq_probe_ECP(struct parport *pb)
+static int irq_probe_ECP(struct parport *pb)
 {
 	int i;
 	unsigned long irqs;
@@ -2020,7 +2020,7 @@ static int __devinit irq_probe_ECP(struct parport *pb)
  * This detection seems that only works in National Semiconductors
  * This doesn't work in SMC, LGS, and Winbond 
  */
-static int __devinit irq_probe_EPP(struct parport *pb)
+static int irq_probe_EPP(struct parport *pb)
 {
 #ifndef ADVANCED_DETECT
 	return PARPORT_IRQ_NONE;
@@ -2059,7 +2059,7 @@ static int __devinit irq_probe_EPP(struct parport *pb)
 #endif /* Advanced detection */
 }
 
-static int __devinit irq_probe_SPP(struct parport *pb)
+static int irq_probe_SPP(struct parport *pb)
 {
 	/* Don't even try to do this. */
 	return PARPORT_IRQ_NONE;
