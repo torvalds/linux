@@ -324,12 +324,11 @@ static int refill_pi_state_cache(void)
 	if (likely(current->pi_state_cache))
 		return 0;
 
-	pi_state = kmalloc(sizeof(*pi_state), GFP_KERNEL);
+	pi_state = kzalloc(sizeof(*pi_state), GFP_KERNEL);
 
 	if (!pi_state)
 		return -ENOMEM;
 
-	memset(pi_state, 0, sizeof(*pi_state));
 	INIT_LIST_HEAD(&pi_state->list);
 	/* pi_mutex gets initialized later */
 	pi_state->owner = NULL;
