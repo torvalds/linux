@@ -3003,6 +3003,17 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	}
 #endif
 
+	/* Disabling DMA prefetch for the P600
+	 * An ASIC bug may result in a prefetch beyond
+	 * physical memory.
+	 */
+	if(board_id == 0x3225103C) {
+		__u32 dma_prefetch;
+		dma_prefetch = readl(c->vaddr + I2O_DMA1_CFG);
+		dma_prefetch |= 0x8000;
+		writel(dma_prefetch, c->vaddr + I2O_DMA1_CFG);
+	}
+
 #ifdef CCISS_DEBUG
 	printk("Trying to put board into Simple mode\n");
 #endif				/* CCISS_DEBUG */
