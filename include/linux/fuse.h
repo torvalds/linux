@@ -133,6 +133,7 @@ enum fuse_opcode {
 	FUSE_CREATE        = 35,
 	FUSE_INTERRUPT     = 36,
 	FUSE_BMAP          = 37,
+	FUSE_DESTROY       = 38,
 };
 
 /* The read buffer is required to be at least 8k, but may be much larger */
