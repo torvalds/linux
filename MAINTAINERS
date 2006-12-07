@@ -3454,6 +3454,12 @@ W:	http://oss.sgi.com/projects/xfs
 T:	git git://oss.sgi.com:8090/xfs/xfs-2.6
 S:	Supported
 
+XILINX UARTLITE SERIAL DRIVER
+P:	Peter Korsgaard
+M:	jacmet@sunsite.dk
+L:	linux-serial@vger.kernel.org
+S:	Maintained
+
 X86 3-LEVEL PAGING (PAE) SUPPORT
 P:	Ingo Molnar
 M:	mingo@redhat.com
