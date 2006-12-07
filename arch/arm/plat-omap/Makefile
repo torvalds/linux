@@ -3,7 +3,8 @@
 #
 
 # Common support
-obj-y := common.o sram.o sram-fn.o clock.o devices.o dma.o mux.o gpio.o mcbsp.o usb.o fb.o
+obj-y := common.o sram.o sram-fn.o clock.o devices.o dma.o mux.o gpio.o \
+	 usb.o fb.o
 obj-m :=
 obj-n :=
 obj-  :=

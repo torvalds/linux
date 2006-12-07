@@ -93,8 +93,12 @@ static const void *get_config(u16 tag, size_t len, int skip, size_t *len_out)
 	 * in the kernel. */
 	for (i = 0; i < omap_board_config_size; i++) {
 		if (omap_board_config[i].tag == tag) {
-			kinfo = &omap_board_config[i];
-			break;
+			if (skip == 0) {
+				kinfo = &omap_board_config[i];
+				break;
+			} else {
+				skip--;
+			}
 		}
 	}
 	if (kinfo == NULL)

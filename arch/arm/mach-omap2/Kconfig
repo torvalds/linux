@@ -9,6 +9,7 @@ config ARCH_OMAP2420
 	bool "OMAP2420 support"
 	depends on ARCH_OMAP24XX
 	select OMAP_DM_TIMER
+	select ARCH_OMAP_OTG
 
 comment "OMAP Board Type"
 	depends on ARCH_OMAP2

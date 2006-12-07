@@ -66,6 +66,40 @@ static void omap_init_i2c(void) {}
 
 #endif
 
+#if defined(CONFIG_OMAP_DSP) || defined(CONFIG_OMAP_DSP_MODULE)
+#define OMAP2_MBOX_BASE		IO_ADDRESS(OMAP24XX_MAILBOX_BASE)
+
+static struct resource mbox_resources[] = {
+	{
+		.start		= OMAP2_MBOX_BASE,
+		.end		= OMAP2_MBOX_BASE + 0x11f,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= INT_24XX_MAIL_U0_MPU,
+		.flags		= IORESOURCE_IRQ,
+	},
+	{
+		.start		= INT_24XX_MAIL_U3_MPU,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mbox_device = {
+	.name		= "mailbox",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(mbox_resources),
+	.resource	= mbox_resources,
+};
+
+static inline void omap_init_mbox(void)
+{
+	platform_device_register(&mbox_device);
+}
+#else
+static inline void omap_init_mbox(void) { }
+#endif
+
 #if defined(CONFIG_OMAP_STI)
 
 #define OMAP2_STI_BASE		IO_ADDRESS(0x48068000)
@@ -111,29 +145,45 @@ static inline void omap_init_sti(void) {}
 #define OMAP2_MCSPI1_BASE		0x48098000
 #define OMAP2_MCSPI2_BASE		0x4809a000
 
-/* FIXME: use resources instead */
-
 static struct omap2_mcspi_platform_config omap2_mcspi1_config = {
-	.base		= io_p2v(OMAP2_MCSPI1_BASE),
 	.num_cs		= 4,
+};
+
+static struct resource omap2_mcspi1_resources[] = {
+	{
+		.start		= OMAP2_MCSPI1_BASE,
+		.end		= OMAP2_MCSPI1_BASE + 0xff,
+		.flags		= IORESOURCE_MEM,
+	},
 };
 
 struct platform_device omap2_mcspi1 = {
 	.name		= "omap2_mcspi",
 	.id		= 1,
+	.num_resources	= ARRAY_SIZE(omap2_mcspi1_resources),
+	.resource	= omap2_mcspi1_resources,
 	.dev		= {
 		.platform_data = &omap2_mcspi1_config,
 	},
 };
 
 static struct omap2_mcspi_platform_config omap2_mcspi2_config = {
-	.base		= io_p2v(OMAP2_MCSPI2_BASE),
 	.num_cs		= 2,
+};
+
+static struct resource omap2_mcspi2_resources[] = {
+	{
+		.start		= OMAP2_MCSPI2_BASE,
+		.end		= OMAP2_MCSPI2_BASE + 0xff,
+		.flags		= IORESOURCE_MEM,
+	},
 };
 
 struct platform_device omap2_mcspi2 = {
 	.name		= "omap2_mcspi",
 	.id		= 2,
+	.num_resources	= ARRAY_SIZE(omap2_mcspi2_resources),
+	.resource	= omap2_mcspi2_resources,
 	.dev		= {
 		.platform_data = &omap2_mcspi2_config,
 	},
@@ -157,10 +207,10 @@ static int __init omap2_init_devices(void)
 	 * in alphabetical order so they're easier to sort through.
 	 */
 	omap_init_i2c();
+	omap_init_mbox();
 	omap_init_mcspi();
 	omap_init_sti();
 
 	return 0;
 }
 arch_initcall(omap2_init_devices);
-
