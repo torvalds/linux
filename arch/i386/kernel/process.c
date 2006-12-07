@@ -100,22 +100,18 @@ EXPORT_SYMBOL(enable_hlt);
  */
 void default_idle(void)
 {
-	local_irq_enable();
-
 	if (!hlt_counter && boot_cpu_data.hlt_works_ok) {
 		current_thread_info()->status &= ~TS_POLLING;
 		smp_mb__after_clear_bit();
-		while (!need_resched()) {
-			local_irq_disable();
-			if (!need_resched())
-				safe_halt();
-			else
-				local_irq_enable();
-		}
+		local_irq_disable();
+		if (!need_resched())
+			safe_halt();	/* enables interrupts racelessly */
+		else
+			local_irq_enable();
 		current_thread_info()->status |= TS_POLLING;
 	} else {
-		while (!need_resched())
-			cpu_relax();
+		/* loop is done by the caller */
+		cpu_relax();
 	}
 }
 #ifdef CONFIG_APM_MODULE
@@ -129,14 +125,7 @@ EXPORT_SYMBOL(default_idle);
  */
 static void poll_idle (void)
 {
-	local_irq_enable();
-
-	asm volatile(
-		"2:"
-		"testl %0, %1;"
-		"rep; nop;"
-		"je 2b;"
-		: : "i"(_TIF_NEED_RESCHED), "m" (current_thread_info()->flags));
+	cpu_relax();
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -257,8 +246,7 @@ void mwait_idle_with_hints(unsigned long eax, unsigned long ecx)
 static void mwait_idle(void)
 {
 	local_irq_enable();
-	while (!need_resched())
-		mwait_idle_with_hints(0, 0);
+	mwait_idle_with_hints(0, 0);
 }
 
 void __devinit select_idle_routine(const struct cpuinfo_x86 *c)
