@@ -89,7 +89,7 @@ typedef union _u64bit
 //###########################################################################
 //STRUCTURES
 //###########################################################################
-#define CISS_MAX_LUN	16	
+#define CISS_MAX_LUN	1024
 #define CISS_MAX_PHYS_LUN	1024
 // SCSI-3 Cmmands 
 
