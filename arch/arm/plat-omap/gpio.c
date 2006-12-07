@@ -773,29 +773,35 @@ static int _set_gpio_wakeup(struct gpio_bank *bank, int gpio, int enable)
 {
 	switch (bank->method) {
 #ifdef CONFIG_ARCH_OMAP16XX
+	case METHOD_MPUIO:
 	case METHOD_GPIO_1610:
 		spin_lock(&bank->lock);
-		if (enable)
+		if (enable) {
 			bank->suspend_wakeup |= (1 << gpio);
-		else
+			enable_irq_wake(bank->irq);
+		} else {
+			disable_irq_wake(bank->irq);
 			bank->suspend_wakeup &= ~(1 << gpio);
+		}
 		spin_unlock(&bank->lock);
 		return 0;
 #endif
 #ifdef CONFIG_ARCH_OMAP24XX
 	case METHOD_GPIO_24XX:
+		if (bank->non_wakeup_gpios & (1 << gpio)) {
+			printk(KERN_ERR "Unable to modify wakeup on "
+					"non-wakeup GPIO%d\n",
+					(bank - gpio_bank) * 32 + gpio);
+			return -EINVAL;
+		}
 		spin_lock(&bank->lock);
 		if (enable) {
-			if (bank->non_wakeup_gpios & (1 << gpio)) {
-				printk(KERN_ERR "Unable to enable wakeup on "
-						"non-wakeup GPIO%d\n",
-						(bank - gpio_bank) * 32 + gpio);
-				spin_unlock(&bank->lock);
-				return -EINVAL;
-			}
 			bank->suspend_wakeup |= (1 << gpio);
-		} else
+			enable_irq_wake(bank->irq);
+		} else {
+			disable_irq_wake(bank->irq);
 			bank->suspend_wakeup &= ~(1 << gpio);
+		}
 		spin_unlock(&bank->lock);
 		return 0;
 #endif
@@ -1111,16 +1117,81 @@ static struct irq_chip mpuio_irq_chip = {
 	.mask		= mpuio_mask_irq,
 	.unmask		= mpuio_unmask_irq,
 	.set_type	= gpio_irq_type,
+#ifdef CONFIG_ARCH_OMAP16XX
+	/* REVISIT: assuming only 16xx supports MPUIO wake events */
+	.set_wake	= gpio_wake_enable,
+#endif
 };
 
 
 #define bank_is_mpuio(bank)	((bank)->method == METHOD_MPUIO)
+
+
+#ifdef CONFIG_ARCH_OMAP16XX
+
+#include <linux/platform_device.h>
+
+static int omap_mpuio_suspend_late(struct platform_device *pdev, pm_message_t mesg)
+{
+	struct gpio_bank	*bank = platform_get_drvdata(pdev);
+	void __iomem		*mask_reg = bank->base + OMAP_MPUIO_GPIO_MASKIT;
+
+	spin_lock(&bank->lock);
+	bank->saved_wakeup = __raw_readl(mask_reg);
+	__raw_writel(0xffff & ~bank->suspend_wakeup, mask_reg);
+	spin_unlock(&bank->lock);
+
+	return 0;
+}
+
+static int omap_mpuio_resume_early(struct platform_device *pdev)
+{
+	struct gpio_bank	*bank = platform_get_drvdata(pdev);
+	void __iomem		*mask_reg = bank->base + OMAP_MPUIO_GPIO_MASKIT;
+
+	spin_lock(&bank->lock);
+	__raw_writel(bank->saved_wakeup, mask_reg);
+	spin_unlock(&bank->lock);
+
+	return 0;
+}
+
+/* use platform_driver for this, now that there's no longer any
+ * point to sys_device (other than not disturbing old code).
+ */
+static struct platform_driver omap_mpuio_driver = {
+	.suspend_late	= omap_mpuio_suspend_late,
+	.resume_early	= omap_mpuio_resume_early,
+	.driver		= {
+		.name	= "mpuio",
+	},
+};
+
+static struct platform_device omap_mpuio_device = {
+	.name		= "mpuio",
+	.id		= -1,
+	.dev = {
+		.driver = &omap_mpuio_driver.driver,
+	}
+	/* could list the /proc/iomem resources */
+};
+
+static inline void mpuio_init(void)
+{
+	if (platform_driver_register(&omap_mpuio_driver) == 0)
+		(void) platform_device_register(&omap_mpuio_device);
+}
+
+#else
+static inline void mpuio_init(void) {}
+#endif	/* 16xx */
 
 #else
 
 extern struct irq_chip mpuio_irq_chip;
 
 #define bank_is_mpuio(bank)	0
+static inline void mpuio_init(void) {}
 
 #endif
 
@@ -1486,6 +1557,8 @@ static int __init omap_gpio_sysinit(void)
 
 	if (!initialized)
 		ret = _omap_gpio_init();
+
+	mpuio_init();
 
 #if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP24XX)
 	if (cpu_is_omap16xx() || cpu_is_omap24xx()) {
