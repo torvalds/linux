@@ -1242,9 +1242,6 @@ EXPORT_SYMBOL(inode_needs_sync);
  */
 #ifdef CONFIG_QUOTA
 
-/* Function back in dquot.c */
-int remove_inode_dquot_ref(struct inode *, int, struct list_head *);
-
 void remove_dquot_ref(struct super_block *sb, int type,
 			struct list_head *tofree_head)
 {
