@@ -82,7 +82,7 @@
 } )
 
 
-static void deferred_poweroff(void *dummy)
+static void deferred_poweroff(struct work_struct *unused)
 {
 	if (kill_cad_pid(SIGINT, 1)) {
 		/* just in case killing init process failed */
@@ -96,7 +96,7 @@ static void deferred_poweroff(void *dummy)
  * use schedule_work().
  */
 
-static DECLARE_WORK(poweroff_work, deferred_poweroff, NULL);
+static DECLARE_WORK(poweroff_work, deferred_poweroff);
 
 static void poweroff(void)
 {
