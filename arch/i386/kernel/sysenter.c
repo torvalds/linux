@@ -27,7 +27,11 @@
  * Should the kernel map a VDSO page into processes and pass its
  * address down to glibc upon exec()?
  */
+#ifdef CONFIG_PARAVIRT
+unsigned int __read_mostly vdso_enabled = 0;
+#else
 unsigned int __read_mostly vdso_enabled = 1;
+#endif
 
 EXPORT_SYMBOL_GPL(vdso_enabled);
 
