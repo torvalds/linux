@@ -366,6 +366,7 @@ spi_alloc_master(struct device *dev, unsigned size)
 
 	class_device_initialize(&master->cdev);
 	master->cdev.class = &spi_master_class;
+	kobj_set_kset_s(&master->cdev, spi_master_class.subsys);
 	master->cdev.dev = get_device(dev);
 	spi_master_set_devdata(master, &master[1]);
 
