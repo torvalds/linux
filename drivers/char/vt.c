@@ -152,7 +152,7 @@ static void gotoxy(struct vc_data *vc, int new_x, int new_y);
 static void save_cur(struct vc_data *vc);
 static void reset_terminal(struct vc_data *vc, int do_clear);
 static void con_flush_chars(struct tty_struct *tty);
-static void set_vesa_blanking(char __user *p);
+static int set_vesa_blanking(char __user *p);
 static void set_cursor(struct vc_data *vc);
 static void hide_cursor(struct vc_data *vc);
 static void console_callback(struct work_struct *ignored);
@@ -2369,7 +2369,7 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 			ret = __put_user(data, p);
 			break;
 		case TIOCL_SETVESABLANK:
-			set_vesa_blanking(p);
+			ret = set_vesa_blanking(p);
 			break;
 		case TIOCL_GETKMSGREDIRECT:
 			data = kmsg_redirect;
@@ -3313,11 +3313,15 @@ postcore_initcall(vtconsole_class_init);
  *	Screen blanking
  */
 
-static void set_vesa_blanking(char __user *p)
+static int set_vesa_blanking(char __user *p)
 {
-    unsigned int mode;
-    get_user(mode, p + 1);
-    vesa_blank_mode = (mode < 4) ? mode : 0;
+	unsigned int mode;
+
+	if (get_user(mode, p + 1))
+		return -EFAULT;
+
+	vesa_blank_mode = (mode < 4) ? mode : 0;
+	return 0;
 }
 
 void do_blank_screen(int entering_gfx)
