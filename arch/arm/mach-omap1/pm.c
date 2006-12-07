@@ -706,6 +706,8 @@ static struct pm_ops omap_pm_ops ={
 
 static int __init omap_pm_init(void)
 {
+	int error;
+
 	printk("Power Management for TI OMAP.\n");
 
 	/*
@@ -762,7 +764,9 @@ static int __init omap_pm_init(void)
 	omap_pm_init_proc();
 #endif
 
-	subsys_create_file(&power_subsys, &sleep_while_idle_attr);
+	error = subsys_create_file(&power_subsys, &sleep_while_idle_attr);
+	if (error)
+		printk(KERN_ERR "subsys_create_file failed: %d\n", error);
 
 	if (cpu_is_omap16xx()) {
 		/* configure LOW_PWR pin */
