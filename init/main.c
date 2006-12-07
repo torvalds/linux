@@ -73,6 +73,10 @@
 #error Sorry, your GCC is too old. It builds incorrect kernels.
 #endif
 
+#if __GNUC__ == 4 && __GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ == 0
+#warning gcc-4.1.0 is known to miscompile the kernel.  A different compiler version is recommended.
+#endif
+
 static int init(void *);
 
 extern void init_IRQ(void);
