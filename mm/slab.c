@@ -103,12 +103,12 @@
 #include	<linux/module.h>
 #include	<linux/rcupdate.h>
 #include	<linux/string.h>
+#include	<linux/uaccess.h>
 #include	<linux/nodemask.h>
 #include	<linux/mempolicy.h>
 #include	<linux/mutex.h>
 #include	<linux/rtmutex.h>
 
-#include	<asm/uaccess.h>
 #include	<asm/cacheflush.h>
 #include	<asm/tlbflush.h>
 #include	<asm/page.h>
@@ -2124,7 +2124,6 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 	mutex_lock(&cache_chain_mutex);
 
 	list_for_each_entry(pc, &cache_chain, next) {
-		mm_segment_t old_fs = get_fs();
 		char tmp;
 		int res;
 
@@ -2133,9 +2132,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 		 * destroy its slab cache and no-one else reuses the vmalloc
 		 * area of the module.  Print a warning.
 		 */
-		set_fs(KERNEL_DS);
-		res = __get_user(tmp, pc->name);
-		set_fs(old_fs);
+		res = probe_kernel_address(pc->name, tmp);
 		if (res) {
 			printk("SLAB: cache with size %d has lost its name\n",
 			       pc->buffer_size);
