@@ -141,9 +141,11 @@ static struct zonelist *bind_zonelist(nodemask_t *nodes)
 	enum zone_type k;
 
 	max = 1 + MAX_NR_ZONES * nodes_weight(*nodes);
+	max++;			/* space for zlcache_ptr (see mmzone.h) */
 	zl = kmalloc(sizeof(struct zone *) * max, GFP_KERNEL);
 	if (!zl)
 		return NULL;
+	zl->zlcache_ptr = NULL;
 	num = 0;
 	/* First put in the highest zones from all nodes, then all the next 
 	   lower zones etc. Avoid empty zones because the memory allocator

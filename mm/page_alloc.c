@@ -918,6 +918,126 @@ int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
 	return 1;
 }
 
+#ifdef CONFIG_NUMA
+/*
+ * zlc_setup - Setup for "zonelist cache".  Uses cached zone data to
+ * skip over zones that are not allowed by the cpuset, or that have
+ * been recently (in last second) found to be nearly full.  See further
+ * comments in mmzone.h.  Reduces cache footprint of zonelist scans
+ * that have to skip over alot of full or unallowed zones.
+ *
+ * If the zonelist cache is present in the passed in zonelist, then
+ * returns a pointer to the allowed node mask (either the current
+ * tasks mems_allowed, or node_online_map.)
+ *
+ * If the zonelist cache is not available for this zonelist, does
+ * nothing and returns NULL.
+ *
+ * If the fullzones BITMAP in the zonelist cache is stale (more than
+ * a second since last zap'd) then we zap it out (clear its bits.)
+ *
+ * We hold off even calling zlc_setup, until after we've checked the
+ * first zone in the zonelist, on the theory that most allocations will
+ * be satisfied from that first zone, so best to examine that zone as
+ * quickly as we can.
+ */
+static nodemask_t *zlc_setup(struct zonelist *zonelist, int alloc_flags)
+{
+	struct zonelist_cache *zlc;	/* cached zonelist speedup info */
+	nodemask_t *allowednodes;	/* zonelist_cache approximation */
+
+	zlc = zonelist->zlcache_ptr;
+	if (!zlc)
+		return NULL;
+
+	if (jiffies - zlc->last_full_zap > 1 * HZ) {
+		bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
+		zlc->last_full_zap = jiffies;
+	}
+
+	allowednodes = !in_interrupt() && (alloc_flags & ALLOC_CPUSET) ?
+					&cpuset_current_mems_allowed :
+					&node_online_map;
+	return allowednodes;
+}
+
+/*
+ * Given 'z' scanning a zonelist, run a couple of quick checks to see
+ * if it is worth looking at further for free memory:
+ *  1) Check that the zone isn't thought to be full (doesn't have its
+ *     bit set in the zonelist_cache fullzones BITMAP).
+ *  2) Check that the zones node (obtained from the zonelist_cache
+ *     z_to_n[] mapping) is allowed in the passed in allowednodes mask.
+ * Return true (non-zero) if zone is worth looking at further, or
+ * else return false (zero) if it is not.
+ *
+ * This check -ignores- the distinction between various watermarks,
+ * such as GFP_HIGH, GFP_ATOMIC, PF_MEMALLOC, ...  If a zone is
+ * found to be full for any variation of these watermarks, it will
+ * be considered full for up to one second by all requests, unless
+ * we are so low on memory on all allowed nodes that we are forced
+ * into the second scan of the zonelist.
+ *
+ * In the second scan we ignore this zonelist cache and exactly
+ * apply the watermarks to all zones, even it is slower to do so.
+ * We are low on memory in the second scan, and should leave no stone
+ * unturned looking for a free page.
+ */
+static int zlc_zone_worth_trying(struct zonelist *zonelist, struct zone **z,
+						nodemask_t *allowednodes)
+{
+	struct zonelist_cache *zlc;	/* cached zonelist speedup info */
+	int i;				/* index of *z in zonelist zones */
+	int n;				/* node that zone *z is on */
+
+	zlc = zonelist->zlcache_ptr;
+	if (!zlc)
+		return 1;
+
+	i = z - zonelist->zones;
+	n = zlc->z_to_n[i];
+
+	/* This zone is worth trying if it is allowed but not full */
+	return node_isset(n, *allowednodes) && !test_bit(i, zlc->fullzones);
+}
+
+/*
+ * Given 'z' scanning a zonelist, set the corresponding bit in
+ * zlc->fullzones, so that subsequent attempts to allocate a page
+ * from that zone don't waste time re-examining it.
+ */
+static void zlc_mark_zone_full(struct zonelist *zonelist, struct zone **z)
+{
+	struct zonelist_cache *zlc;	/* cached zonelist speedup info */
+	int i;				/* index of *z in zonelist zones */
+
+	zlc = zonelist->zlcache_ptr;
+	if (!zlc)
+		return;
+
+	i = z - zonelist->zones;
+
+	set_bit(i, zlc->fullzones);
+}
+
+#else	/* CONFIG_NUMA */
+
+static nodemask_t *zlc_setup(struct zonelist *zonelist, int alloc_flags)
+{
+	return NULL;
+}
+
+static int zlc_zone_worth_trying(struct zonelist *zonelist, struct zone **z,
+				nodemask_t *allowednodes)
+{
+	return 1;
+}
+
+static void zlc_mark_zone_full(struct zonelist *zonelist, struct zone **z)
+{
+}
+#endif	/* CONFIG_NUMA */
+
 /*
  * get_page_from_freelist goes through the zonelist trying to allocate
  * a page.
@@ -926,23 +1046,32 @@ static struct page *
 get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
 		struct zonelist *zonelist, int alloc_flags)
 {
-	struct zone **z = zonelist->zones;
+	struct zone **z;
 	struct page *page = NULL;
-	int classzone_idx = zone_idx(*z);
+	int classzone_idx = zone_idx(zonelist->zones[0]);
 	struct zone *zone;
+	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
+	int zlc_active = 0;		/* set if using zonelist_cache */
+	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
 
+zonelist_scan:
 	/*
-	 * Go through the zonelist once, looking for a zone with enough free.
+	 * Scan zonelist, looking for a zone with enough free.
 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
 	 */
+	z = zonelist->zones;
+
 	do {
+		if (NUMA_BUILD && zlc_active &&
+			!zlc_zone_worth_trying(zonelist, z, allowednodes))
+				continue;
 		zone = *z;
 		if (unlikely(NUMA_BUILD && (gfp_mask & __GFP_THISNODE) &&
 			zone->zone_pgdat != zonelist->zones[0]->zone_pgdat))
 				break;
 		if ((alloc_flags & ALLOC_CPUSET) &&
 			!cpuset_zone_allowed(zone, gfp_mask))
-				continue;
+				goto try_next_zone;
 
 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
 			unsigned long mark;
@@ -956,15 +1085,30 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
 				    classzone_idx, alloc_flags)) {
 				if (!zone_reclaim_mode ||
 				    !zone_reclaim(zone, gfp_mask, order))
-					continue;
+					goto this_zone_full;
 			}
 		}
 
 		page = buffered_rmqueue(zonelist, zone, order, gfp_mask);
 		if (page)
 			break;
-
+this_zone_full:
+		if (NUMA_BUILD)
+			zlc_mark_zone_full(zonelist, z);
+try_next_zone:
+		if (NUMA_BUILD && !did_zlc_setup) {
+			/* we do zlc_setup after the first zone is tried */
+			allowednodes = zlc_setup(zonelist, alloc_flags);
+			zlc_active = 1;
+			did_zlc_setup = 1;
+		}
 	} while (*(++z) != NULL);
+
+	if (unlikely(NUMA_BUILD && page == NULL && zlc_active)) {
+		/* Disable zlc cache for second zonelist scan */
+		zlc_active = 0;
+		goto zonelist_scan;
+	}
 	return page;
 }
 
@@ -1535,6 +1679,24 @@ static void __meminit build_zonelists(pg_data_t *pgdat)
 	}
 }
 
+/* Construct the zonelist performance cache - see further mmzone.h */
+static void __meminit build_zonelist_cache(pg_data_t *pgdat)
+{
+	int i;
+
+	for (i = 0; i < MAX_NR_ZONES; i++) {
+		struct zonelist *zonelist;
+		struct zonelist_cache *zlc;
+		struct zone **z;
+
+		zonelist = pgdat->node_zonelists + i;
+		zonelist->zlcache_ptr = zlc = &zonelist->zlcache;
+		bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
+		for (z = zonelist->zones; *z; z++)
+			zlc->z_to_n[z - zonelist->zones] = zone_to_nid(*z);
+	}
+}
+
 #else	/* CONFIG_NUMA */
 
 static void __meminit build_zonelists(pg_data_t *pgdat)
@@ -1572,14 +1734,26 @@ static void __meminit build_zonelists(pg_data_t *pgdat)
 	}
 }
 
+/* non-NUMA variant of zonelist performance cache - just NULL zlcache_ptr */
+static void __meminit build_zonelist_cache(pg_data_t *pgdat)
+{
+	int i;
+
+	for (i = 0; i < MAX_NR_ZONES; i++)
+		pgdat->node_zonelists[i].zlcache_ptr = NULL;
+}
+
 #endif	/* CONFIG_NUMA */
 
 /* return values int ....just for stop_machine_run() */
 static int __meminit __build_all_zonelists(void *dummy)
 {
 	int nid;
-	for_each_online_node(nid)
+
+	for_each_online_node(nid) {
 		build_zonelists(NODE_DATA(nid));
+		build_zonelist_cache(NODE_DATA(nid));
+	}
 	return 0;
 }
 
