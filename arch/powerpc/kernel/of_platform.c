@@ -169,7 +169,7 @@ static void of_platform_make_bus_id(struct of_device *dev)
 	char *name = dev->dev.bus_id;
 	const u32 *reg;
 	u64 addr;
-	long magic;
+	int magic;
 
 	/*
 	 * If it's a DCR based device, use 'd' for native DCRs
