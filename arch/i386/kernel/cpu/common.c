@@ -650,6 +650,7 @@ __cpuinit int alloc_gdt(int cpu)
 /* Initial PDA used by boot CPU */
 struct i386_pda boot_pda = {
 	._pda = &boot_pda,
+	.cpu_number = 0,
 };
 
 static inline void set_kernel_gs(void)
@@ -694,6 +695,7 @@ __cpuinit int init_gdt(int cpu, struct task_struct *idle)
 
 	memset(pda, 0, sizeof(*pda));
 	pda->_pda = pda;
+	pda->cpu_number = cpu;
 
 	return 1;
 }

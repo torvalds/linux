@@ -524,8 +524,7 @@ syscall_badsys:
 
 #define FIXUP_ESPFIX_STACK \
 	/* since we are on a wrong stack, we cant make it a C code :( */ \
-	GET_THREAD_INFO(%ebp); \
-	movl TI_cpu(%ebp), %ebx; \
+	movl %gs:PDA_cpu, %ebx; \
 	PER_CPU(cpu_gdt_descr, %ebx); \
 	movl GDS_address(%ebx), %ebx; \
 	GET_DESC_BASE(GDT_ENTRY_ESPFIX_SS, %ebx, %eax, %ax, %al, %ah); \

@@ -11,6 +11,8 @@
 struct i386_pda
 {
 	struct i386_pda *_pda;		/* pointer to self */
+
+	int cpu_number;
 };
 
 extern struct i386_pda *_cpu_pda[];
