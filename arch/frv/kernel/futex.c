@@ -10,9 +10,9 @@
  */
 
 #include <linux/futex.h>
+#include <linux/uaccess.h>
 #include <asm/futex.h>
 #include <asm/errno.h>
-#include <asm/uaccess.h>
 
 /*
  * the various futex operations; MMU fault checking is ignored under no-MMU
