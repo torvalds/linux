@@ -235,6 +235,8 @@ static int dump_trace_unwind(struct unwind_frame_info *info, void *context)
 	return n;
 }
 
+#define MSG(txt) ops->warning(data, txt)
+
 /*
  * x86-64 can have upto three kernel stacks: 
  * process stack
@@ -248,11 +250,12 @@ static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
         return p > t && p < t + THREAD_SIZE - 3;
 }
 
-void dump_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * stack,
+void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
+		unsigned long *stack,
 		struct stacktrace_ops *ops, void *data)
 {
 	const unsigned cpu = smp_processor_id();
-	unsigned long *irqstack_end = (unsigned long *)cpu_pda(cpu)->irqstackptr;
+	unsigned long *irqstack_end = (unsigned long*)cpu_pda(cpu)->irqstackptr;
 	unsigned used = 0;
 	struct thread_info *tinfo;
 
@@ -268,28 +271,30 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 			if (unwind_init_frame_info(&info, tsk, regs) == 0)
 				unw_ret = dump_trace_unwind(&info, &oad);
 		} else if (tsk == current)
-			unw_ret = unwind_init_running(&info, dump_trace_unwind, &oad);
+			unw_ret = unwind_init_running(&info, dump_trace_unwind,
+						      &oad);
 		else {
 			if (unwind_init_blocked(&info, tsk) == 0)
 				unw_ret = dump_trace_unwind(&info, &oad);
 		}
 		if (unw_ret > 0) {
 			if (call_trace == 1 && !arch_unw_user_mode(&info)) {
-				ops->warning_symbol(data, "DWARF2 unwinder stuck at %s\n",
+				ops->warning_symbol(data,
+					     "DWARF2 unwinder stuck at %s\n",
 					     UNW_PC(&info));
 				if ((long)UNW_SP(&info) < 0) {
-					ops->warning(data, "Leftover inexact backtrace:\n");
+					MSG("Leftover inexact backtrace:");
 					stack = (unsigned long *)UNW_SP(&info);
 					if (!stack)
 						return;
 				} else
-					ops->warning(data, "Full inexact backtrace again:\n");
+					MSG("Full inexact backtrace again:\n");
 			} else if (call_trace >= 1)
 				return;
 			else
-				ops->warning(data, "Full inexact backtrace again:\n");
+				MSG("Full inexact backtrace again:\n");
 		} else
-			ops->warning(data, "Inexact backtrace:\n");
+			MSG("Inexact backtrace:\n");
 	}
 	if (!stack) {
 		unsigned long dummy;
