@@ -1259,7 +1259,7 @@ int __init init_module(void)
 	return IS_ERR(dev_ni65) ? PTR_ERR(dev_ni65) : 0;
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
  	unregister_netdev(dev_ni65);
  	cleanup_card(dev_ni65);

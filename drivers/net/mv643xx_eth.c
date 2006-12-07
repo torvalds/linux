@@ -1100,7 +1100,7 @@ static void eth_tx_fill_frag_descs(struct mv643xx_private *mp,
 					 ETH_TX_ENABLE_INTERRUPT;
 			mp->tx_skb[tx_index] = skb;
 		} else
-			mp->tx_skb[tx_index] = 0;
+			mp->tx_skb[tx_index] = NULL;
 
 		desc = &mp->p_tx_desc_area[tx_index];
 		desc->l4i_chk = 0;
@@ -1136,7 +1136,7 @@ static void eth_tx_submit_descs_for_skb(struct mv643xx_private *mp,
 		eth_tx_fill_frag_descs(mp, skb);
 
 		length = skb_headlen(skb);
-		mp->tx_skb[tx_index] = 0;
+		mp->tx_skb[tx_index] = NULL;
 	} else {
 		cmd_sts |= ETH_ZERO_PADDING |
 			   ETH_TX_LAST_DESC |

@@ -390,10 +390,19 @@
 #define CR_BSSID_P1			CTL_REG(0x0618)
 #define CR_BSSID_P2			CTL_REG(0x061C)
 #define CR_BCN_PLCP_CFG			CTL_REG(0x0620)
+
+/* Group hash table for filtering incoming packets.
+ *
+ * The group hash table is 64 bit large and split over two parts. The first
+ * part is the lower part. The upper 6 bits of the last byte of the target
+ * address are used as index. Packets are received if the hash table bit is
+ * set. This is used for multicast handling, but for broadcasts (address
+ * ff:ff:ff:ff:ff:ff) the highest bit in the second table must also be set.
+ */
 #define CR_GROUP_HASH_P1		CTL_REG(0x0624)
 #define CR_GROUP_HASH_P2		CTL_REG(0x0628)
-#define CR_RX_TIMEOUT			CTL_REG(0x062C)
 
+#define CR_RX_TIMEOUT			CTL_REG(0x062C)
 /* Basic rates supported by the BSS. When producing ACK or CTS messages, the
  * device will use a rate in this table that is less than or equal to the rate
  * of the incoming frame which prompted the response */
@@ -863,5 +872,37 @@ u8 zd_rx_qual_percent(const void *rx_frame, unsigned int size,
 u8 zd_rx_strength_percent(u8 rssi);
 
 u16 zd_rx_rate(const void *rx_frame, const struct rx_status *status);
+
+struct zd_mc_hash {
+	u32 low;
+	u32 high;
+};
+
+static inline void zd_mc_clear(struct zd_mc_hash *hash)
+{
+	hash->low = 0;
+	/* The interfaces must always received broadcasts.
+	 * The hash of the broadcast address ff:ff:ff:ff:ff:ff is 63.
+	 */
+	hash->high = 0x80000000;
+}
+
+static inline void zd_mc_add_all(struct zd_mc_hash *hash)
+{
+	hash->low = hash->high = 0xffffffff;
+}
+
+static inline void zd_mc_add_addr(struct zd_mc_hash *hash, u8 *addr)
+{
+	unsigned int i = addr[5] >> 2;
+	if (i < 32) {
+		hash->low |= 1 << i;
+	} else {
+		hash->high |= 1 << (i-32);
+	}
+}
+
+int zd_chip_set_multicast_hash(struct zd_chip *chip,
+	                       struct zd_mc_hash *hash);
 
 #endif /* _ZD_CHIP_H */

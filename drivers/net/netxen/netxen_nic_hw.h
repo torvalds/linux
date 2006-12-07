@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2003 - 2006 NetXen, Inc.
  * All rights reserved.
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -16,10 +16,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA  02111-1307, USA.
- * 
+ *
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.
- * 
+ *
  * Contact Information:
  *    info@netxen.com
  * NetXen,
@@ -83,8 +83,8 @@ struct netxen_adapter;
 #define NETXEN_PCI_MAPSIZE_BYTES  (NETXEN_PCI_MAPSIZE << 20)
 
 #define NETXEN_NIC_LOCKED_READ_REG(X, Y)	\
-	addr = pci_base_offset(adapter, (X));	\
-	*(u32 *)Y = readl(addr);
+	addr = pci_base_offset(adapter, X);	\
+	*(u32 *)Y = readl((void __iomem*) addr);
 
 struct netxen_port;
 void netxen_nic_set_link_parameters(struct netxen_port *port);

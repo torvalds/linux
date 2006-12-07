@@ -368,7 +368,7 @@ static void cleanup_card(struct net_device *dev)
 	kfree(lp);
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
 	int this_dev;
 

@@ -431,6 +431,17 @@ ieee80211softmac_handle_assoc_response(struct net_device * dev,
 	return 0;
 }
 
+void
+ieee80211softmac_try_reassoc(struct ieee80211softmac_device *mac)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&mac->lock, flags);
+	mac->associnfo.associating = 1;
+	schedule_work(&mac->associnfo.work);
+	spin_unlock_irqrestore(&mac->lock, flags);
+}
+
 int
 ieee80211softmac_handle_disassoc(struct net_device * dev,
 				 struct ieee80211_disassoc *disassoc)
@@ -449,8 +460,7 @@ ieee80211softmac_handle_disassoc(struct net_device * dev,
 	dprintk(KERN_INFO PFX "got disassoc frame\n");
 	ieee80211softmac_disassoc(mac);
 
-	/* try to reassociate */
-	schedule_delayed_work(&mac->associnfo.work, 0);
+	ieee80211softmac_try_reassoc(mac);
 
 	return 0;
 }

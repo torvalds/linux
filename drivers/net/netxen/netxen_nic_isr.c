@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2003 - 2006 NetXen, Inc.
  * All rights reserved.
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -16,10 +16,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA  02111-1307, USA.
- * 
+ *
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.
- * 
+ *
  * Contact Information:
  *    info@netxen.com
  * NetXen,
@@ -68,8 +68,7 @@ struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
 void netxen_indicate_link_status(struct netxen_adapter *adapter, u32 portno,
 				 u32 link)
 {
-	struct netxen_port *pport = adapter->port[portno];
-	struct net_device *netdev = pport->netdev;
+	struct net_device *netdev = (adapter->port[portno])->netdev;
 
 	if (link)
 		netif_carrier_on(netdev);
@@ -84,46 +83,41 @@ void netxen_handle_port_int(struct netxen_adapter *adapter, u32 portno,
 	struct netxen_port *port;
 
 	/*  This should clear the interrupt source */
-	if (adapter->ops->phy_read)
-		adapter->ops->phy_read(adapter, portno,
-				       NETXEN_NIU_GB_MII_MGMT_ADDR_INT_STATUS,
-				       &int_src);
+	if (adapter->phy_read)
+		adapter->phy_read(adapter, portno,
+				  NETXEN_NIU_GB_MII_MGMT_ADDR_INT_STATUS,
+				  &int_src);
 	if (int_src == 0) {
 		DPRINTK(INFO, "No phy interrupts for port #%d\n", portno);
 		return;
 	}
-	if (adapter->ops->disable_phy_interrupts)
-		adapter->ops->disable_phy_interrupts(adapter, portno);
+	if (adapter->disable_phy_interrupts)
+		adapter->disable_phy_interrupts(adapter, portno);
 
 	port = adapter->port[portno];
 
 	if (netxen_get_phy_int_jabber(int_src))
-		DPRINTK(INFO, "NetXen: %s Jabber interrupt \n",
-			port->netdev->name);
+		DPRINTK(INFO, "Jabber interrupt \n");
 
 	if (netxen_get_phy_int_polarity_changed(int_src))
-		DPRINTK(INFO, "NetXen: %s POLARITY CHANGED int \n",
-			port->netdev->name);
+		DPRINTK(INFO, "POLARITY CHANGED int \n");
 
 	if (netxen_get_phy_int_energy_detect(int_src))
-		DPRINTK(INFO, "NetXen: %s ENERGY DETECT INT \n",
-			port->netdev->name);
+		DPRINTK(INFO, "ENERGY DETECT INT \n");
 
 	if (netxen_get_phy_int_downshift(int_src))
-		DPRINTK(INFO, "NetXen: %s DOWNSHIFT INT \n",
-			port->netdev->name);
+		DPRINTK(INFO, "DOWNSHIFT INT \n");
 	/* write it down later.. */
 	if ((netxen_get_phy_int_speed_changed(int_src))
 	    || (netxen_get_phy_int_link_status_changed(int_src))) {
 		__le32 status;
 
-		DPRINTK(INFO, "NetXen: %s SPEED CHANGED OR"
-			" LINK STATUS CHANGED \n", port->netdev->name);
+		DPRINTK(INFO, "SPEED CHANGED OR LINK STATUS CHANGED \n");
 
-		if (adapter->ops->phy_read
-		    && adapter->ops->phy_read(adapter, portno,
-					      NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
-					      &status) == 0) {
+		if (adapter->phy_read
+		    && adapter->phy_read(adapter, portno,
+					 NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
+					 &status) == 0) {
 			if (netxen_get_phy_int_link_status_changed(int_src)) {
 				if (netxen_get_phy_link(status)) {
 					netxen_niu_gbe_init_port(adapter,
@@ -143,8 +137,8 @@ void netxen_handle_port_int(struct netxen_adapter *adapter, u32 portno,
 			}
 		}
 	}
-	if (adapter->ops->enable_phy_interrupts)
-		adapter->ops->enable_phy_interrupts(adapter, portno);
+	if (adapter->enable_phy_interrupts)
+		adapter->enable_phy_interrupts(adapter, portno);
 }
 
 void netxen_nic_isr_other(struct netxen_adapter *adapter)
@@ -159,8 +153,7 @@ void netxen_nic_isr_other(struct netxen_adapter *adapter)
 
 	qg_linksup = adapter->ahw.qg_linksup;
 	adapter->ahw.qg_linksup = val;
-	DPRINTK(1, INFO, "%s: link update 0x%08x\n", netxen_nic_driver_name,
-		val);
+	DPRINTK(INFO, "link update 0x%08x\n", val);
 	for (portno = 0; portno < NETXEN_NIU_MAX_GBE_PORTS; portno++) {
 		linkup = val & 1;
 		if (linkup != (qg_linksup & 1)) {

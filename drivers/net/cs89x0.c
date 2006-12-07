@@ -1974,7 +1974,7 @@ out:
 	return ret;
 }
 
-void
+void __exit
 cleanup_module(void)
 {
 	unregister_netdev(dev_cs89x0);
