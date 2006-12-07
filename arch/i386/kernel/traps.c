@@ -777,7 +777,6 @@ void __kprobes die_nmi(struct pt_regs *regs, const char *msg)
 	printk(" on CPU%d, eip %08lx, registers:\n",
 		smp_processor_id(), regs->eip);
 	show_registers(regs);
-	printk(KERN_EMERG "console shuts up ...\n");
 	console_silent();
 	spin_unlock(&nmi_print_lock);
 	bust_spinlocks(0);
