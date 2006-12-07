@@ -459,14 +459,11 @@ static void ext4_xattr_update_super_block(handle_t *handle,
 	if (EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_EXT_ATTR))
 		return;
 
-	lock_super(sb);
 	if (ext4_journal_get_write_access(handle, EXT4_SB(sb)->s_sbh) == 0) {
-		EXT4_SB(sb)->s_es->s_feature_compat |=
-			cpu_to_le32(EXT4_FEATURE_COMPAT_EXT_ATTR);
+		EXT4_SET_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_EXT_ATTR);
 		sb->s_dirt = 1;
 		ext4_journal_dirty_metadata(handle, EXT4_SB(sb)->s_sbh);
 	}
-	unlock_super(sb);
 }
 
 /*
