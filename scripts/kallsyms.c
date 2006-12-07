@@ -277,8 +277,12 @@ static void write_src(void)
 	output_label("kallsyms_addresses");
 	for (i = 0; i < table_cnt; i++) {
 		if (toupper(table[i].sym[0]) != 'A') {
-			printf("\tPTR\t_text + %#llx\n",
-				table[i].addr - _text);
+			if (_text <= table[i].addr)
+				printf("\tPTR\t_text + %#llx\n",
+					table[i].addr - _text);
+			else
+				printf("\tPTR\t_text - %#llx\n",
+					_text - table[i].addr);
 		} else {
 			printf("\tPTR\t%#llx\n", table[i].addr);
 		}
