@@ -432,8 +432,7 @@ static int omap1_clk_enable(struct clk *clk)
 			}
 
 			if (clk->flags & CLOCK_NO_IDLE_PARENT)
-				if (!cpu_is_omap24xx())
-					omap1_clk_deny_idle(clk->parent);
+				omap1_clk_deny_idle(clk->parent);
 		}
 
 		ret = clk->enable(clk);
@@ -454,8 +453,7 @@ static void omap1_clk_disable(struct clk *clk)
 		if (likely(clk->parent)) {
 			omap1_clk_disable(clk->parent);
 			if (clk->flags & CLOCK_NO_IDLE_PARENT)
-				if (!cpu_is_omap24xx())
-					omap1_clk_allow_idle(clk->parent);
+				omap1_clk_allow_idle(clk->parent);
 		}
 	}
 }
@@ -471,7 +469,7 @@ static int omap1_clk_enable_generic(struct clk *clk)
 	if (unlikely(clk->enable_reg == 0)) {
 		printk(KERN_ERR "clock.c: Enable for %s without enable code\n",
 		       clk->name);
-		return 0;
+		return -EINVAL;
 	}
 
 	if (clk->flags & ENABLE_REG_32BIT) {
@@ -496,7 +494,7 @@ static int omap1_clk_enable_generic(struct clk *clk)
 		}
 	}
 
-	return;
+	return 0;
 }
 
 static void omap1_clk_disable_generic(struct clk *clk)
