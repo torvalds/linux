@@ -60,6 +60,7 @@
 #include <asm/irq.h>
 #include <asm/hw_irq.h>
 #include <asm/numa.h>
+#include <asm/genapic.h>
 
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
@@ -1167,6 +1168,13 @@ int __cpuinit __cpu_up(unsigned int cpu)
 
 	while (!cpu_isset(cpu, cpu_online_map))
 		cpu_relax();
+
+	if (num_online_cpus() > 8 && genapic == &apic_flat) {
+		printk(KERN_WARNING
+		       "flat APIC routing can't be used with > 8 cpus\n");
+		BUG();
+	}
+
 	err = 0;
 
 	return err;

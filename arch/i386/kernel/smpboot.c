@@ -58,6 +58,7 @@
 #include <asm/arch_hooks.h>
 #include <asm/nmi.h>
 #include <asm/pda.h>
+#include <asm/genapic.h>
 
 #include <mach_apic.h>
 #include <mach_wakecpu.h>
@@ -1482,6 +1483,12 @@ int __devinit __cpu_up(unsigned int cpu)
 	cpu_set(cpu, smp_commenced_mask);
 	while (!cpu_isset(cpu, cpu_online_map))
 		cpu_relax();
+
+#ifdef CONFIG_X86_GENERICARCH
+	if (num_online_cpus() > 8 && genapic == &apic_default)
+		panic("Default flat APIC routing can't be used with > 8 cpus\n");
+#endif
+
 	return 0;
 }
 
