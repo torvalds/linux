@@ -1014,7 +1014,7 @@ static int aoa_fabric_layout_probe(struct soundbus_dev *sdev)
 
 	ldev->gpio.methods->init(&ldev->gpio);
 
-	err = aoa_fabric_register(&layout_fabric);
+	err = aoa_fabric_register(&layout_fabric, &sdev->ofdev.dev);
 	if (err && err != -EALREADY) {
 		printk(KERN_INFO "snd-aoa-fabric-layout: can't use,"
 				 " another fabric is active!\n");
