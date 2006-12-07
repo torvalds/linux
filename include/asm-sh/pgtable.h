@@ -548,7 +548,7 @@ extern void update_mmu_cache(struct vm_area_struct * vma,
 #else
 #define __swp_type(x)			((x).val & 0xff)
 #define __swp_offset(x)			((x).val >> 10)
-#define __swp_entry(type, offset)	((swp_entry_t){(type) | (offset) <<10)})
+#define __swp_entry(type, offset)	((swp_entry_t){(type) | (offset) <<10})
 
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) >> 1 })
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val << 1 })

@@ -16,8 +16,8 @@
  */
 #include <linux/init.h>
 #include <linux/irq.h>
-#include <asm/io.h>
-#include <asm/irq.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
 #include <asm/landisk/iodata_landisk.h>
 
 static void enable_landisk_irq(unsigned int irq);
