@@ -921,7 +921,7 @@ static int __init calgary_init(void)
 
 error:
 	do {
-		dev = pci_find_device_reverse(PCI_VENDOR_ID_IBM,
+		dev = pci_get_device_reverse(PCI_VENDOR_ID_IBM,
 					      PCI_DEVICE_ID_IBM_CALGARY,
 					      dev);
 		if (!dev)
