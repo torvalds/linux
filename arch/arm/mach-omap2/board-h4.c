@@ -131,26 +131,6 @@ static struct platform_device h4_flash_device = {
 	.resource	= &h4_flash_resource,
 };
 
-static struct resource h4_smc91x_resources[] = {
-	[0] = {
-		.start  = OMAP24XX_ETHR_START,          /* Physical */
-		.end    = OMAP24XX_ETHR_START + 0xf,
-		.flags  = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start  = OMAP_GPIO_IRQ(OMAP24XX_ETHR_GPIO_IRQ),
-		.end    = OMAP_GPIO_IRQ(OMAP24XX_ETHR_GPIO_IRQ),
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device h4_smc91x_device = {
-	.name		= "smc91x",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(h4_smc91x_resources),
-	.resource	= h4_smc91x_resources,
-};
-
 /* Select between the IrDA and aGPS module
  */
 static int h4_select_irda(struct device *dev, int state)
@@ -266,29 +246,14 @@ static struct platform_device h4_lcd_device = {
 	.id		= -1,
 };
 
-static struct resource h4_led_resources[] = {
-	[0] = {
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device h4_led_device = {
-	.name		= "omap_dbg_led",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(h4_led_resources),
-	.resource	= h4_led_resources,
-};
-
 static struct platform_device *h4_devices[] __initdata = {
-	&h4_smc91x_device,
 	&h4_flash_device,
 	&h4_irda_device,
 	&h4_kp_device,
 	&h4_lcd_device,
-	&h4_led_device,
 };
 
-static inline void __init h4_init_smc91x(void)
+static inline void __init h4_init_debug(void)
 {
 	/* Make sure CS1 timings are correct */
 	GPMC_CONFIG1_1 = 0x00011200;
@@ -301,12 +266,8 @@ static inline void __init h4_init_smc91x(void)
 	udelay(100);
 
 	omap_cfg_reg(M15_24XX_GPIO92);
-	if (omap_request_gpio(OMAP24XX_ETHR_GPIO_IRQ) < 0) {
-		printk(KERN_ERR "Failed to request GPIO%d for smc91x IRQ\n",
-			OMAP24XX_ETHR_GPIO_IRQ);
-		return;
-	}
-	omap_set_gpio_direction(OMAP24XX_ETHR_GPIO_IRQ, 1);
+	if (debug_card_init(cs_mem_base, OMAP24XX_ETHR_GPIO_IRQ) < 0)
+		gpmc_cs_free(eth_cs);
 }
 
 static void __init omap_h4_init_irq(void)
@@ -314,7 +275,6 @@ static void __init omap_h4_init_irq(void)
 	omap2_init_common_hw();
 	omap_init_irq();
 	omap_gpio_init();
-	h4_init_smc91x();
 }
 
 static struct omap_uart_config h4_uart_config __initdata = {
