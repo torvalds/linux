@@ -448,7 +448,16 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
 		tsk->vfork_done = NULL;
 		complete(vfork_done);
 	}
-	if (tsk->clear_child_tid && atomic_read(&mm->mm_users) > 1) {
+
+	/*
+	 * If we're exiting normally, clear a user-space tid field if
+	 * requested.  We leave this alone when dying by signal, to leave
+	 * the value intact in a core dump, and to save the unnecessary
+	 * trouble otherwise.  Userland only wants this done for a sys_exit.
+	 */
+	if (tsk->clear_child_tid
+	    && !(tsk->flags & PF_SIGNALED)
+	    && atomic_read(&mm->mm_users) > 1) {
 		u32 __user * tidptr = tsk->clear_child_tid;
 		tsk->clear_child_tid = NULL;
 
