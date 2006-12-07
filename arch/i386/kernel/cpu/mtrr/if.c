@@ -44,10 +44,9 @@ mtrr_file_add(unsigned long base, unsigned long size,
 
 	max = num_var_ranges;
 	if (fcount == NULL) {
-		fcount = kmalloc(max * sizeof *fcount, GFP_KERNEL);
+		fcount = kzalloc(max * sizeof *fcount, GFP_KERNEL);
 		if (!fcount)
 			return -ENOMEM;
-		memset(fcount, 0, max * sizeof *fcount);
 		FILE_FCOUNT(file) = fcount;
 	}
 	if (!page) {
