@@ -182,6 +182,10 @@ static int __init do_collect(void)
 
 static int __init do_header(void)
 {
+	if (memcmp(collected, "070707", 6)==0) {
+		error("incorrect cpio method used: use -H newc option");
+		return 1;
+	}
 	if (memcmp(collected, "070701", 6)) {
 		error("no cpio magic");
 		return 1;
