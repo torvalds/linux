@@ -1735,6 +1735,9 @@ and is between 256 and 4096 characters. It is defined in the file
 	norandmaps	Don't use address space randomization
 			Equivalent to echo 0 > /proc/sys/kernel/randomize_va_space
 
+ 	unwind_debug=N 	N > 0 will enable dwarf2 unwinder debugging
+			This is useful to get more information why
+			you got a "dwarf2 unwinder stuck"
 
 ______________________________________________________________________
 
