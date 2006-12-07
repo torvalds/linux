@@ -1,0 +1,16 @@
+menu "Userspace I/O"
+	depends on !S390
+
+config UIO
+	tristate "Userspace I/O drivers"
+	default n
+	help
+	  Enable this to allow the userspace driver core code to be
+	  built.  This code allows userspace programs easy access to
+	  kernel interrupts and memory locations, allowing some drivers
+	  to be written in userspace.  Note that a small kernel driver
+	  is also required for interrupt handling to work properly.
+
+	  If you don't know what to do here, say N.
+
+endmenu
