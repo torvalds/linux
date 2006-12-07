@@ -427,34 +427,48 @@ void free_swap_and_cache(swp_entry_t entry)
 
 #ifdef CONFIG_SOFTWARE_SUSPEND
 /*
- * Find the swap type that corresponds to given device (if any)
+ * Find the swap type that corresponds to given device (if any).
  *
- * This is needed for software suspend and is done in such a way that inode
- * aliasing is allowed.
+ * @offset - number of the PAGE_SIZE-sized block of the device, starting
+ * from 0, in which the swap header is expected to be located.
+ *
+ * This is needed for the suspend to disk (aka swsusp).
  */
-int swap_type_of(dev_t device)
+int swap_type_of(dev_t device, sector_t offset)
 {
+	struct block_device *bdev = NULL;
 	int i;
+
+	if (device)
+		bdev = bdget(device);
 
 	spin_lock(&swap_lock);
 	for (i = 0; i < nr_swapfiles; i++) {
-		struct inode *inode;
+		struct swap_info_struct *sis = swap_info + i;
 
-		if (!(swap_info[i].flags & SWP_WRITEOK))
+		if (!(sis->flags & SWP_WRITEOK))
 			continue;
 
-		if (!device) {
+		if (!bdev) {
 			spin_unlock(&swap_lock);
 			return i;
 		}
-		inode = swap_info[i].swap_file->f_dentry->d_inode;
-		if (S_ISBLK(inode->i_mode) &&
-		    device == MKDEV(imajor(inode), iminor(inode))) {
-			spin_unlock(&swap_lock);
-			return i;
+		if (bdev == sis->bdev) {
+			struct swap_extent *se;
+
+			se = list_entry(sis->extent_list.next,
+					struct swap_extent, list);
+			if (se->start_block == offset) {
+				spin_unlock(&swap_lock);
+				bdput(bdev);
+				return i;
+			}
 		}
 	}
 	spin_unlock(&swap_lock);
+	if (bdev)
+		bdput(bdev);
+
 	return -ENODEV;
 }
 

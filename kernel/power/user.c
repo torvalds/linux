@@ -55,7 +55,8 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 	filp->private_data = data;
 	memset(&data->handle, 0, sizeof(struct snapshot_handle));
 	if ((filp->f_flags & O_ACCMODE) == O_RDONLY) {
-		data->swap = swsusp_resume_device ? swap_type_of(swsusp_resume_device) : -1;
+		data->swap = swsusp_resume_device ?
+				swap_type_of(swsusp_resume_device, 0) : -1;
 		data->mode = O_RDONLY;
 	} else {
 		data->swap = -1;
@@ -265,7 +266,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 			 * so we need to recode them
 			 */
 			if (old_decode_dev(arg)) {
-				data->swap = swap_type_of(old_decode_dev(arg));
+				data->swap = swap_type_of(old_decode_dev(arg), 0);
 				if (data->swap < 0)
 					error = -ENODEV;
 			} else {

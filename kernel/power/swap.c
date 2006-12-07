@@ -74,7 +74,7 @@ static int mark_swapfiles(swp_entry_t start)
 
 static int swsusp_swap_check(void) /* This is called before saving image */
 {
-	int res = swap_type_of(swsusp_resume_device);
+	int res = swap_type_of(swsusp_resume_device, 0);
 
 	if (res >= 0) {
 		root_swap = res;
