@@ -29,6 +29,7 @@
 #include <linux/kthread.h>
 #include <linux/hardirq.h>
 #include <linux/mempolicy.h>
+#include <linux/freezer.h>
 
 /*
  * The per-CPU workqueue (if single thread, we always use the first
@@ -55,6 +56,8 @@ struct cpu_workqueue_struct {
 	struct task_struct *thread;
 
 	int run_depth;		/* Detect run_workqueue() recursion depth */
+
+	int freezeable;		/* Freeze the thread during suspend */
 } ____cacheline_aligned;
 
 /*
@@ -265,7 +268,8 @@ static int worker_thread(void *__cwq)
 	struct k_sigaction sa;
 	sigset_t blocked;
 
-	current->flags |= PF_NOFREEZE;
+	if (!cwq->freezeable)
+		current->flags |= PF_NOFREEZE;
 
 	set_user_nice(current, -5);
 
@@ -288,6 +292,9 @@ static int worker_thread(void *__cwq)
 
 	set_current_state(TASK_INTERRUPTIBLE);
 	while (!kthread_should_stop()) {
+		if (cwq->freezeable)
+			try_to_freeze();
+
 		add_wait_queue(&cwq->more_work, &wait);
 		if (list_empty(&cwq->worklist))
 			schedule();
@@ -364,7 +371,7 @@ void fastcall flush_workqueue(struct workqueue_struct *wq)
 EXPORT_SYMBOL_GPL(flush_workqueue);
 
 static struct task_struct *create_workqueue_thread(struct workqueue_struct *wq,
-						   int cpu)
+						   int cpu, int freezeable)
 {
 	struct cpu_workqueue_struct *cwq = per_cpu_ptr(wq->cpu_wq, cpu);
 	struct task_struct *p;
@@ -374,6 +381,7 @@ static struct task_struct *create_workqueue_thread(struct workqueue_struct *wq,
 	cwq->thread = NULL;
 	cwq->insert_sequence = 0;
 	cwq->remove_sequence = 0;
+	cwq->freezeable = freezeable;
 	INIT_LIST_HEAD(&cwq->worklist);
 	init_waitqueue_head(&cwq->more_work);
 	init_waitqueue_head(&cwq->work_done);
@@ -389,7 +397,7 @@ static struct task_struct *create_workqueue_thread(struct workqueue_struct *wq,
 }
 
 struct workqueue_struct *__create_workqueue(const char *name,
-					    int singlethread)
+					    int singlethread, int freezeable)
 {
 	int cpu, destroy = 0;
 	struct workqueue_struct *wq;
@@ -409,7 +417,7 @@ struct workqueue_struct *__create_workqueue(const char *name,
 	mutex_lock(&workqueue_mutex);
 	if (singlethread) {
 		INIT_LIST_HEAD(&wq->list);
-		p = create_workqueue_thread(wq, singlethread_cpu);
+		p = create_workqueue_thread(wq, singlethread_cpu, freezeable);
 		if (!p)
 			destroy = 1;
 		else
@@ -417,7 +425,7 @@ struct workqueue_struct *__create_workqueue(const char *name,
 	} else {
 		list_add(&wq->list, &workqueues);
 		for_each_online_cpu(cpu) {
-			p = create_workqueue_thread(wq, cpu);
+			p = create_workqueue_thread(wq, cpu, freezeable);
 			if (p) {
 				kthread_bind(p, cpu);
 				wake_up_process(p);
@@ -667,7 +675,7 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 		mutex_lock(&workqueue_mutex);
 		/* Create a new workqueue thread for it. */
 		list_for_each_entry(wq, &workqueues, list) {
-			if (!create_workqueue_thread(wq, hotcpu)) {
+			if (!create_workqueue_thread(wq, hotcpu, 0)) {
 				printk("workqueue for %i failed\n", hotcpu);
 				return NOTIFY_BAD;
 			}
