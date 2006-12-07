@@ -40,8 +40,6 @@
 #include <asm/prom.h>
 #include <asm/udbg.h>
 #include <sysdev/fsl_soc.h>
-#include <asm/qe.h>
-#include <asm/qe_ic.h>
 #include <asm/of_platform.h>
 
 #include <asm/mpc52xx.h>
