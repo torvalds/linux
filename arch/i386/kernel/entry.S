@@ -457,6 +457,7 @@ work_resched:
 
 work_notifysig:				# deal with pending signals and
 					# notify-resume requests
+#ifdef CONFIG_VM86
 	testl $VM_MASK, PT_EFLAGS(%esp)
 	movl %esp, %eax
 	jne work_notifysig_v86		# returning to kernel-space or
@@ -467,17 +468,18 @@ work_notifysig:				# deal with pending signals and
 
 	ALIGN
 work_notifysig_v86:
-#ifdef CONFIG_VM86
 	pushl %ecx			# save ti_flags for do_notify_resume
 	CFI_ADJUST_CFA_OFFSET 4
 	call save_v86_state		# %eax contains pt_regs pointer
 	popl %ecx
 	CFI_ADJUST_CFA_OFFSET -4
 	movl %eax, %esp
+#else
+	movl %esp, %eax
+#endif
 	xorl %edx, %edx
 	call do_notify_resume
 	jmp resume_userspace_sig
-#endif
 
 	# perform syscall exit tracing
 	ALIGN
