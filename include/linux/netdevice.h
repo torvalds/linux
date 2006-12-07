@@ -199,7 +199,7 @@ struct hh_cache
                                          */
 	u16		hh_len;		/* length of header */
 	int		(*hh_output)(struct sk_buff *skb);
-	rwlock_t	hh_lock;
+	seqlock_t	hh_lock;
 
 	/* cached hardware header; allow for machine alignment needs.        */
 #define HH_DATA_MOD	16

@@ -164,7 +164,6 @@ EXPORT_SYMBOL_GPL(ip_build_and_send_pkt);
 static inline int ip_finish_output2(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb->dst;
-	struct hh_cache *hh = dst->hh;
 	struct net_device *dev = dst->dev;
 	int hh_len = LL_RESERVED_SPACE(dev);
 
@@ -183,16 +182,9 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 		skb = skb2;
 	}
 
-	if (hh) {
-		int hh_alen;
-
-		read_lock_bh(&hh->hh_lock);
-		hh_alen = HH_DATA_ALIGN(hh->hh_len);
-  		memcpy(skb->data - hh_alen, hh->hh_data, hh_alen);
-		read_unlock_bh(&hh->hh_lock);
-	        skb_push(skb, hh->hh_len);
-		return hh->hh_output(skb);
-	} else if (dst->neighbour)
+	if (dst->hh)
+		return neigh_hh_output(dst->hh, skb);
+	else if (dst->neighbour)
 		return dst->neighbour->output(skb);
 
 	if (net_ratelimit())
