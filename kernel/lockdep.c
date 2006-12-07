@@ -140,13 +140,6 @@ void lockdep_on(void)
 
 EXPORT_SYMBOL(lockdep_on);
 
-int lockdep_internal(void)
-{
-	return current->lockdep_recursion != 0;
-}
-
-EXPORT_SYMBOL(lockdep_internal);
-
 /*
  * Debugging switches:
  */

@@ -193,7 +193,6 @@ extern void lockdep_free_key_range(void *start, unsigned long size);
 
 extern void lockdep_off(void);
 extern void lockdep_on(void);
-extern int lockdep_internal(void);
 
 /*
  * These methods are used by specific locking variants (spinlocks,
@@ -253,11 +252,6 @@ static inline void lockdep_off(void)
 
 static inline void lockdep_on(void)
 {
-}
-
-static inline int lockdep_internal(void)
-{
-	return 0;
 }
 
 # define lock_acquire(l, s, t, r, c, i)		do { } while (0)
