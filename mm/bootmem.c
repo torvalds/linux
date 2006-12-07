@@ -27,8 +27,6 @@ unsigned long max_low_pfn;
 unsigned long min_low_pfn;
 unsigned long max_pfn;
 
-EXPORT_UNUSED_SYMBOL(max_pfn);  /*  June 2006  */
-
 static LIST_HEAD(bdata_list);
 #ifdef CONFIG_CRASH_DUMP
 /*
