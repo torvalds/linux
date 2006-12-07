@@ -30,6 +30,8 @@
 #include <linux/hardirq.h>
 #include <linux/mempolicy.h>
 #include <linux/freezer.h>
+#include <linux/kallsyms.h>
+#include <linux/debug_locks.h>
 
 /*
  * The per-CPU workqueue (if single thread, we always use the first
@@ -252,6 +254,17 @@ static void run_workqueue(struct cpu_workqueue_struct *cwq)
 		if (!test_bit(WORK_STRUCT_NOAUTOREL, &work->management))
 			work_release(work);
 		f(work);
+
+		if (unlikely(in_atomic() || lockdep_depth(current) > 0)) {
+			printk(KERN_ERR "BUG: workqueue leaked lock or atomic: "
+					"%s/0x%08x/%d\n",
+					current->comm, preempt_count(),
+				       	current->pid);
+			printk(KERN_ERR "    last function: ");
+			print_symbol("%s\n", (unsigned long)f);
+			debug_show_held_locks(current);
+			dump_stack();
+		}
 
 		spin_lock_irqsave(&cwq->lock, flags);
 		cwq->remove_sequence++;

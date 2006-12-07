@@ -243,6 +243,8 @@ extern void lock_release(struct lockdep_map *lock, int nested,
 
 # define INIT_LOCKDEP				.lockdep_recursion = 0,
 
+#define lockdep_depth(tsk)	((tsk)->lockdep_depth)
+
 #else /* !LOCKDEP */
 
 static inline void lockdep_off(void)
@@ -277,6 +279,9 @@ static inline int lockdep_internal(void)
  * The class key takes no space if lockdep is disabled:
  */
 struct lock_class_key { };
+
+#define lockdep_depth(tsk)	(0)
+
 #endif /* !LOCKDEP */
 
 #if defined(CONFIG_TRACE_IRQFLAGS) && defined(CONFIG_GENERIC_HARDIRQS)
