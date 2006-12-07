@@ -13,6 +13,7 @@
 #include <linux/personality.h>
 #include <linux/freezer.h>
 
+#include <asm/elf.h>
 #include <asm/cacheflush.h>
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>

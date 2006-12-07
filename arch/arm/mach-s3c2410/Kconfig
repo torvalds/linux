@@ -41,9 +41,16 @@ config BAST_PC104_IRQ
 	  Say Y	here to enable the PC104 IRQ routing on the
 	  Simtec BAST (EB2410ITX)
 
+config PM_H1940
+	bool
+	depends on PM
+	help
+	  Internal node for H1940 and related PM
+
 config ARCH_H1940
 	bool "IPAQ H1940"
 	select CPU_S3C2410
+	select PM_H1940
 	help
 	  Say Y here if you are using the HP IPAQ H1940
 
@@ -115,6 +122,7 @@ config MACH_VR1000
 config MACH_RX3715
 	bool "HP iPAQ rx3715"
 	select CPU_S3C2440
+	select PM_H1940
 	help
 	  Say Y here if you are using the HP iPAQ rx3715.
 

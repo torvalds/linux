@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/arch-at91rm9200/at91rm9200_ssc.h
+ * include/asm-arm/arch-at91rm9200/at91_ssc.h
  *
  * Copyright (C) SAN People
  *
@@ -12,8 +12,8 @@
  * (at your option) any later version.
  */
 
-#ifndef AT91RM9200_SSC_H
-#define AT91RM9200_SSC_H
+#ifndef AT91_SSC_H
+#define AT91_SSC_H
 
 #define AT91_SSC_CR		0x00	/* Control Register */
 #define		AT91_SSC_RXEN		(1 <<  0)	/* Receive Enable */
@@ -36,6 +36,10 @@
 #define		AT91_SSC_CKI		(1    <<  5)	/* Clock Inversion */
 #define			AT91_SSC_CKI_FALLING		(0 << 5)
 #define			AT91_SSC_CK_RISING		(1 << 5)
+#define		AT91_SSC_CKG		(1    <<  6)	/* Receive Clock Gating Selection [AT91SAM9261 only] */
+#define			AT91_SSC_CKG_NONE		(0 << 6)
+#define			AT91_SSC_CKG_RFLOW		(1 << 6)
+#define			AT91_SSC_CKG_RFHIGH		(2 << 6)
 #define		AT91_SSC_START		(0xf  <<  8)	/* Start Selection */
 #define			AT91_SSC_START_CONTINUOUS	(0 << 8)
 #define			AT91_SSC_START_TX_RX		(1 << 8)
@@ -45,6 +49,7 @@
 #define			AT91_SSC_START_RISING_RF	(5 << 8)
 #define			AT91_SSC_START_LEVEL_RF		(6 << 8)
 #define			AT91_SSC_START_EDGE_RF		(7 << 8)
+#define		AT91_SSC_STOP		(1    << 12)	/* Receive Stop Selection [AT91SAM9261 only] */
 #define		AT91_SSC_STTDLY		(0xff << 16)	/* Start Delay */
 #define		AT91_SSC_PERIOD		(0xff << 24)	/* Period Divider Selection */
 
@@ -75,6 +80,9 @@
 #define AT91_SSC_RSHR		0x30	/* Receive Sync Holding Register */
 #define AT91_SSC_TSHR		0x34	/* Transmit Sync Holding Register */
 
+#define AT91_SSC_RC0R		0x38	/* Receive Compare 0 Register [AT91SAM9261 only] */
+#define AT91_SSC_RC1R		0x3c	/* Receive Compare 1 Register [AT91SAM9261 only] */
+
 #define AT91_SSC_SR		0x40	/* Status Register */
 #define		AT91_SSC_TXRDY		(1 <<  0)	/* Transmit Ready */
 #define		AT91_SSC_TXEMPTY	(1 <<  1)	/* Transmit Empty */
@@ -84,6 +92,8 @@
 #define		AT91_SSC_OVRUN		(1 <<  5)	/* Receive Overrun */
 #define		AT91_SSC_ENDRX		(1 <<  6)	/* End of Reception */
 #define		AT91_SSC_RXBUFF		(1 <<  7)	/* Receive Buffer Full */
+#define		AT91_SSC_CP0		(1 <<  8)	/* Compare 0 [AT91SAM9261 only] */
+#define		AT91_SSC_CP1		(1 <<  9)	/* Compare 1 [AT91SAM9261 only] */
 #define		AT91_SSC_TXSYN		(1 << 10)	/* Transmit Sync */
 #define		AT91_SSC_RXSYN		(1 << 11)	/* Receive Sync */
 #define		AT91_SSC_TXENA		(1 << 16)	/* Transmit Enable */

@@ -160,7 +160,7 @@ void __init gic_dist_init(void __iomem *base)
 	 */
 	for (i = 29; i < max_irq; i++) {
 		set_irq_chip(i, &gic_chip);
-		set_irq_handler(i, do_level_IRQ);
+		set_irq_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 	}
 

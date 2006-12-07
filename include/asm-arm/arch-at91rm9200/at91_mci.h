@@ -1,11 +1,11 @@
 /*
- * include/asm-arm/arch-at91rm9200/at91rm9200_mci.h
+ * include/asm-arm/arch-at91rm9200/at91_mci.h
  *
  * Copyright (C) 2005 Ivan Kokshaysky
  * Copyright (C) SAN People
  *
  * MultiMedia Card Interface (MCI) registers.
- * Based on AT91RM9200 datasheet revision E.
+ * Based on AT91RM9200 datasheet revision F.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
  * (at your option) any later version.
  */
 
-#ifndef AT91RM9200_MCI_H
-#define AT91RM9200_MCI_H
+#ifndef AT91_MCI_H
+#define AT91_MCI_H
 
 #define AT91_MCI_CR		0x00		/* Control Register */
 #define		AT91_MCI_MCIEN		(1 <<  0)	/* Multi-Media Interface Enable */
@@ -25,10 +25,10 @@
 
 #define AT91_MCI_MR		0x04		/* Mode Register */
 #define		AT91_MCI_CLKDIV		(0xff  <<  0)	/* Clock Divider */
-#define		AT91_MCI_PWSDIV		(3     <<  8)	/* Power Saving Divider */
+#define		AT91_MCI_PWSDIV		(7     <<  8)	/* Power Saving Divider */
 #define		AT91_MCI_PDCPADV	(1     << 14)	/* PDC Padding Value */
 #define		AT91_MCI_PDCMODE	(1     << 15)	/* PDC-orientated Mode */
-#define		AT91_MCI_BLKLEN 	(0xfff << 18)	/* Data Block Length */
+#define		AT91_MCI_BLKLEN		(0xfff << 18)	/* Data Block Length */
 
 #define AT91_MCI_DTOR		0x08		/* Data Timeout Register */
 #define		AT91_MCI_DTOCYC		(0xf << 0)	/* Data Timeout Cycle Number */
@@ -43,8 +43,8 @@
 #define		AT91_MCI_DTOMUL_1M		(7 <<  4)
 
 #define AT91_MCI_SDCR		0x0c		/* SD Card Register */
-#define		AT91_MCI_SDCSEL		(0xf << 0)	/* SD Card Selector */
-#define		AT91_MCI_SDCBUS		(1   << 7)	/* 1-bit or 4-bit bus */
+#define		AT91_MCI_SDCSEL		(3 << 0)	/* SD Card Selector */
+#define		AT91_MCI_SDCBUS		(1 << 7)	/* 1-bit or 4-bit bus */
 
 #define AT91_MCI_ARGR		0x10		/* Argument Register */
 
@@ -78,18 +78,20 @@
 
 #define AT91_MCI_SR		0x40		/* Status Register */
 #define		AT91_MCI_CMDRDY		(1 <<  0)	/* Command Ready */
-#define		AT91_MCI_RXRDY		(1 <<  1) 	/* Receiver Ready */
+#define		AT91_MCI_RXRDY		(1 <<  1)	/* Receiver Ready */
 #define		AT91_MCI_TXRDY		(1 <<  2)	/* Transmit Ready */
 #define		AT91_MCI_BLKE		(1 <<  3)	/* Data Block Ended */
 #define		AT91_MCI_DTIP		(1 <<  4)	/* Data Transfer in Progress */
 #define		AT91_MCI_NOTBUSY	(1 <<  5)	/* Data Not Busy */
 #define		AT91_MCI_ENDRX		(1 <<  6)	/* End of RX Buffer */
 #define		AT91_MCI_ENDTX		(1 <<  7)	/* End fo TX Buffer */
+#define		AT91_MCI_SDIOIRQA	(1 <<  8)	/* SDIO Interrupt for Slot A */
+#define		At91_MCI_SDIOIRQB	(1 <<  9)	/* SDIO Interrupt for Slot B [AT91RM9200 only] */
 #define		AT91_MCI_RXBUFF		(1 << 14)	/* RX Buffer Full */
 #define		AT91_MCI_TXBUFE		(1 << 15)	/* TX Buffer Empty */
-#define		AT91_MCI_RINDE		(1 << 16)  	/* Response Index Error */
+#define		AT91_MCI_RINDE		(1 << 16)	/* Response Index Error */
 #define		AT91_MCI_RDIRE		(1 << 17)	/* Response Direction Error */
-#define		AT91_MCI_RCRCE		(1 << 18)   	/* Response CRC Error */
+#define		AT91_MCI_RCRCE		(1 << 18)	/* Response CRC Error */
 #define		AT91_MCI_RENDE		(1 << 19)	/* Response End Bit Error */
 #define		AT91_MCI_RTOE		(1 << 20)	/* Reponse Time-out Error */
 #define		AT91_MCI_DCRCE		(1 << 21)	/* Data CRC Error */

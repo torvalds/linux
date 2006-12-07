@@ -357,9 +357,6 @@ static void __init setup_processor(void)
 #ifndef CONFIG_VFP
 	elf_hwcap &= ~HWCAP_VFP;
 #endif
-#ifndef CONFIG_IWMMXT
-	elf_hwcap &= ~HWCAP_IWMMXT;
-#endif
 
 	cpu_proc_init();
 }
@@ -441,16 +438,19 @@ __early_param("initrd=", early_initrd);
 
 static void __init arm_add_memory(unsigned long start, unsigned long size)
 {
+	struct membank *bank;
+
 	/*
 	 * Ensure that start/size are aligned to a page boundary.
 	 * Size is appropriately rounded down, start is rounded up.
 	 */
 	size -= start & ~PAGE_MASK;
 
-	meminfo.bank[meminfo.nr_banks].start = PAGE_ALIGN(start);
-	meminfo.bank[meminfo.nr_banks].size  = size & PAGE_MASK;
-	meminfo.bank[meminfo.nr_banks].node  = PHYS_TO_NID(start);
-	meminfo.nr_banks += 1;
+	bank = &meminfo.bank[meminfo.nr_banks++];
+
+	bank->start = PAGE_ALIGN(start);
+	bank->size  = size & PAGE_MASK;
+	bank->node  = PHYS_TO_NID(start);
 }
 
 /*

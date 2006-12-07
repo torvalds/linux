@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/arch-at91rm9200/at91rm9200_tc.h
+ * include/asm-arm/arch-at91rm9200/at91_tc.h
  *
  * Copyright (C) SAN People
  *
@@ -12,8 +12,8 @@
  * (at your option) any later version.
  */
 
-#ifndef AT91RM9200_TC_H
-#define AT91RM9200_TC_H
+#ifndef AT91_TC_H
+#define AT91_TC_H
 
 #define AT91_TC_BCR		0xc0		/* TC Block Control Register */
 #define		AT91_TC_SYNC		(1 << 0)	/* Synchro Command */

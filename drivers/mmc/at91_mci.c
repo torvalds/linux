@@ -73,8 +73,8 @@
 #include <asm/mach/mmc.h>
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
-#include <asm/arch/at91rm9200_mci.h>
-#include <asm/arch/at91rm9200_pdc.h>
+#include <asm/arch/at91_mci.h>
+#include <asm/arch/at91_pdc.h>
 
 #define DRIVER_NAME "at91_mci"
 

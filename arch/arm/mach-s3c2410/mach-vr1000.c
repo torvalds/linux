@@ -41,6 +41,7 @@
 
 #include <asm/arch/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
+#include <asm/arch/leds-gpio.h>
 
 #include "clock.h"
 #include "devs.h"
@@ -313,6 +314,50 @@ static struct platform_device vr1000_dm9k1 = {
 	}
 };
 
+/* LEDS */
+
+static struct s3c24xx_led_platdata vr1000_led1_pdata = {
+	.name		= "led1",
+	.gpio		= S3C2410_GPB0,
+	.def_trigger	= "",
+};
+
+static struct s3c24xx_led_platdata vr1000_led2_pdata = {
+	.name		= "led2",
+	.gpio		= S3C2410_GPB1,
+	.def_trigger	= "",
+};
+
+static struct s3c24xx_led_platdata vr1000_led3_pdata = {
+	.name		= "led3",
+	.gpio		= S3C2410_GPB2,
+	.def_trigger	= "",
+};
+
+static struct platform_device vr1000_led1 = {
+	.name		= "s3c24xx_led",
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &vr1000_led1_pdata,
+	},
+};
+
+static struct platform_device vr1000_led2 = {
+	.name		= "s3c24xx_led",
+	.id		= 2,
+	.dev		= {
+		.platform_data	= &vr1000_led2_pdata,
+	},
+};
+
+static struct platform_device vr1000_led3 = {
+	.name		= "s3c24xx_led",
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &vr1000_led3_pdata,
+	},
+};
+
 /* devices for this board */
 
 static struct platform_device *vr1000_devices[] __initdata = {
@@ -325,7 +370,10 @@ static struct platform_device *vr1000_devices[] __initdata = {
 	&serial_device,
 	&vr1000_nor,
 	&vr1000_dm9k0,
-	&vr1000_dm9k1
+	&vr1000_dm9k1,
+	&vr1000_led1,
+	&vr1000_led2,
+	&vr1000_led3,
 };
 
 static struct clk *vr1000_clocks[] = {

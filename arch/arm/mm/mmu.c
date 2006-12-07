@@ -265,7 +265,7 @@ static void __init build_mem_type_table(void)
 	if (arch_is_coherent()) {
 		if (cpu_is_xsc3()) {
 			mem_types[MT_MEMORY].prot_sect |= PMD_SECT_S;
-			mem_types[MT_MEMORY].prot_pte |= L_PTE_COHERENT;
+			mem_types[MT_MEMORY].prot_pte |= L_PTE_SHARED;
 		}
 	}
 
@@ -618,6 +618,13 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 		res_size = 0x00020000;
 	if (machine_is_p720t())
 		res_size = 0x00014000;
+
+	/* H1940 and RX3715 need to reserve this for suspend */
+
+	if (machine_is_h1940() || machine_is_rx3715()) {
+		reserve_bootmem_node(pgdat, 0x30003000, 0x1000);
+		reserve_bootmem_node(pgdat, 0x30081000, 0x1000);
+	}
 
 #ifdef CONFIG_SA1111
 	/*

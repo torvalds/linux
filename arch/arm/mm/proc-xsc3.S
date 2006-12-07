@@ -27,7 +27,7 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
-#include <asm/procinfo.h>
+#include <asm/elf.h>
 #include <asm/hardware.h>
 #include <asm/pgtable.h>
 #include <asm/pgtable-hwdef.h>
@@ -55,11 +55,6 @@
  * Run with L2 enabled.
  */
 #define L2_CACHE_ENABLE	1
-
-/*
- * Enable the Branch Target Buffer (can cause crashes, see erratum #42.)
- */
-#define BTB_ENABLE	0
 
 /*
  * This macro is used to wait for a CP15 write and is needed
@@ -371,8 +366,10 @@ ENTRY(cpu_xsc3_switch_mm)
 ENTRY(cpu_xsc3_set_pte)
 	str	r1, [r0], #-2048		@ linux version
 
-	bic	r2, r1, #0xdf0			@ Keep C, B, coherency bits
+	bic	r2, r1, #0xff0			@ Keep C, B bits
 	orr	r2, r2, #PTE_TYPE_EXT		@ extended page
+	tst	r1, #L_PTE_SHARED		@ Shared?
+	orrne	r2, r2, #0x200
 
 	eor	r3, r1, #L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_WRITE | L_PTE_DIRTY
 
@@ -432,9 +429,7 @@ __xsc3_setup:
 	mrc	p15, 0, r0, c1, c0, 0		@ get control register
 	bic	r0, r0, r5			@ .... .... .... ..A.
 	orr	r0, r0, r6			@ .... .... .... .C.M
-#if BTB_ENABLE
 	orr	r0, r0, #0x00000800		@ ..VI Z..S .... ....
-#endif
 #if L2_CACHE_ENABLE
 	orr 	r0, r0, #0x04000000		@ L2 enable
 #endif

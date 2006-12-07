@@ -65,7 +65,6 @@ static void __init carmeva_init_irq(void)
 	at91rm9200_init_interrupts(NULL);
 }
 
-
 static struct at91_eth_data __initdata carmeva_eth_data = {
 	.phy_irq_pin	= AT91_PIN_PC4,
 	.is_rmii	= 1,
@@ -89,8 +88,33 @@ static struct at91_udc_data __initdata carmeva_udc_data = {
 // };
 
 static struct at91_mmc_data __initdata carmeva_mmc_data = {
-	.is_b		= 0,
+	.slot_b		= 0,
 	.wire4		= 1,
+	.det_pin	= AT91_PIN_PB10,
+	.wp_pin		= AT91_PIN_PC14,
+};
+
+static struct spi_board_info carmeva_spi_devices[] = {
+	{ /* DataFlash chip */
+		.modalias = "mtd_dataflash",
+		.chip_select  = 0,
+		.max_speed_hz = 10 * 1000 * 1000,
+	},
+	{ /* User accessable spi - cs1 (250KHz) */
+		.modalias = "spi-cs1",
+		.chip_select  = 1,
+		.max_speed_hz = 250 *  1000,
+	},
+	{ /* User accessable spi - cs2 (1MHz) */
+		.modalias = "spi-cs2",
+		.chip_select  = 2,
+		.max_speed_hz = 1 * 1000 *  1000,
+	},
+	{ /* User accessable spi - cs3 (10MHz) */
+		.modalias = "spi-cs3",
+		.chip_select  = 3,
+		.max_speed_hz = 10 * 1000 *  1000,
+	},
 };
 
 static void __init carmeva_board_init(void)
@@ -105,10 +129,10 @@ static void __init carmeva_board_init(void)
 	at91_add_device_udc(&carmeva_udc_data);
 	/* I2C */
 	at91_add_device_i2c();
+	/* SPI */
+	at91_add_device_spi(carmeva_spi_devices, ARRAY_SIZE(carmeva_spi_devices));
 	/* Compact Flash */
 //	at91_add_device_cf(&carmeva_cf_data);
-	/* SPI */
-//	at91_add_device_spi(NULL, 0);
 	/* MMC */
 	at91_add_device_mmc(&carmeva_mmc_data);
 }

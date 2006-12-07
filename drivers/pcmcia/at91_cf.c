@@ -23,9 +23,9 @@
 #include <asm/io.h>
 #include <asm/sizes.h>
 
-#include <asm/arch/at91rm9200.h>
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
+#include <asm/arch/at91rm9200_mc.h>
 
 
 /*

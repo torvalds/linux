@@ -22,12 +22,6 @@ extern void init_FIQ(void);
 extern int show_fiq_list(struct seq_file *, void *);
 
 /*
- * Function wrappers
- */
-#define set_irq_chipdata(irq, d)	set_irq_chip_data(irq, d)
-#define get_irq_chipdata(irq)		get_irq_chip_data(irq)
-
-/*
  * Obsolete inline function for calling irq descriptor handlers.
  */
 static inline void desc_handle_irq(unsigned int irq, struct irq_desc *desc)
@@ -44,12 +38,6 @@ void set_irq_flags(unsigned int irq, unsigned int flags);
 /*
  * This is for easy migration, but should be changed in the source
  */
-#define do_level_IRQ	handle_level_irq
-#define do_edge_IRQ	handle_edge_irq
-#define do_simple_IRQ	handle_simple_irq
-#define irqdesc		irq_desc
-#define irqchip		irq_chip
-
 #define do_bad_IRQ(irq,desc)				\
 do {							\
 	spin_lock(&desc->lock);				\

@@ -99,7 +99,7 @@ static struct at91_cf_data __initdata csb337_cf_data = {
 
 static struct at91_mmc_data __initdata csb337_mmc_data = {
 	.det_pin	= AT91_PIN_PD5,
-	.is_b		= 0,
+	.slot_b		= 0,
 	.wire4		= 1,
 	.wp_pin		= AT91_PIN_PD6,
 };
