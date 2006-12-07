@@ -134,8 +134,9 @@ static inline void acpi_ec_write_data(struct acpi_ec *ec, u8 data)
 	outb(data, ec->data_addr);
 }
 
-static int acpi_ec_check_status(u8 status, u8 event)
+static int acpi_ec_check_status(struct acpi_ec *ec, u8 event)
 {
+	u8 status = acpi_ec_read_status(ec);
 	switch (event) {
 	case ACPI_EC_EVENT_OBF_1:
 		if (status & ACPI_EC_FLAG_OBF)
@@ -158,7 +159,7 @@ static int acpi_ec_wait(struct acpi_ec *ec, u8 event)
 	long time_left;
 
 	ec->expect_event = event;
-	if (acpi_ec_check_status(acpi_ec_read_status(ec), event)) {
+	if (acpi_ec_check_status(ec, event)) {
 		ec->expect_event = 0;
 		return 0;
 	}
@@ -175,7 +176,7 @@ static int acpi_ec_wait(struct acpi_ec *ec, u8 event)
 				return 0;
 			}
 		}
-		if (acpi_ec_check_status(acpi_ec_read_status(ec), event)) {
+		if (acpi_ec_check_status(ec, event)) {
 			ec->expect_event = 0;
 			return 0;
 		}
@@ -457,15 +458,15 @@ static u32 acpi_ec_gpe_handler(void *data)
 	struct acpi_ec *ec = (struct acpi_ec *)data;
 
 	acpi_clear_gpe(NULL, ec->gpe_bit, ACPI_ISR);
-	value = acpi_ec_read_status(ec);
 
 	if (acpi_ec_mode == EC_INTR) {
-		if (acpi_ec_check_status(value, ec->expect_event)) {
+		if (acpi_ec_check_status(ec, ec->expect_event)) {
 			ec->expect_event = 0;
 			wake_up(&ec->wait);
 		}
 	}
 
+	value = acpi_ec_read_status(ec);
 	if (value & ACPI_EC_FLAG_SCI) {
 		status = acpi_os_execute(OSL_EC_BURST_HANDLER, acpi_ec_gpe_query, ec);
 		return status == AE_OK ?
