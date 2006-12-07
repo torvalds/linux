@@ -63,7 +63,7 @@ static int submit(int rw, pgoff_t page_off, struct page *page,
 {
 	struct bio *bio;
 
-	bio = bio_alloc(GFP_ATOMIC, 1);
+	bio = bio_alloc(__GFP_WAIT | __GFP_HIGH, 1);
 	if (!bio)
 		return -ENOMEM;
 	bio->bi_sector = page_off * (PAGE_SIZE >> 9);
@@ -216,7 +216,7 @@ static int write_page(void *buf, sector_t offset, struct bio **bio_chain)
 		return -ENOSPC;
 
 	if (bio_chain) {
-		src = (void *)__get_free_page(GFP_ATOMIC);
+		src = (void *)__get_free_page(__GFP_WAIT | __GFP_HIGH);
 		if (src) {
 			memcpy(src, buf, PAGE_SIZE);
 		} else {
@@ -473,7 +473,7 @@ static int get_swap_reader(struct swap_map_handle *handle, sector_t start)
 	if (!start)
 		return -EINVAL;
 
-	handle->cur = (struct swap_map_page *)get_zeroed_page(GFP_ATOMIC);
+	handle->cur = (struct swap_map_page *)get_zeroed_page(__GFP_WAIT | __GFP_HIGH);
 	if (!handle->cur)
 		return -ENOMEM;
 
