@@ -286,12 +286,12 @@ static int acpi_ec_transaction(struct acpi_ec *ec, u8 command,
         if (rdata)
                 memset(rdata, 0, rdata_len);
 
+	mutex_lock(&ec->lock);
 	if (ec->global_lock) {
 		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
 		if (ACPI_FAILURE(status))
 			return -ENODEV;
 	}
-	mutex_lock(&ec->lock);
 
 	/* Make sure GPE is enabled before doing transaction */
 	acpi_enable_gpe(NULL, ec->gpe, ACPI_NOT_ISR);
@@ -307,10 +307,10 @@ static int acpi_ec_transaction(struct acpi_ec *ec, u8 command,
                                               rdata, rdata_len);
 
 end:
-	mutex_unlock(&ec->lock);
 
 	if (ec->global_lock)
 		acpi_release_global_lock(glk);
+	mutex_unlock(&ec->lock);
 
 	return status;
 }
