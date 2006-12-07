@@ -20,7 +20,7 @@ $(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
 
 quiet_cmd_relocs = RELOCS  $@
-      cmd_relocs = $(obj)/relocs $< > $@
+      cmd_relocs = $(obj)/relocs $< > $@;$(obj)/relocs --abs-relocs $<
 $(obj)/vmlinux.relocs: vmlinux $(obj)/relocs FORCE
 	$(call if_changed,relocs)
 

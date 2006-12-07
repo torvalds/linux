@@ -19,6 +19,33 @@ static char *strtab[MAX_SHDRS];
 static unsigned long reloc_count, reloc_idx;
 static unsigned long *relocs;
 
+/*
+ * Following symbols have been audited. There values are constant and do
+ * not change if bzImage is loaded at a different physical address than
+ * the address for which it has been compiled. Don't warn user about
+ * absolute relocations present w.r.t these symbols.
+ */
+static const char* safe_abs_relocs[] = {
+		"__kernel_vsyscall",
+		"__kernel_rt_sigreturn",
+		"__kernel_sigreturn",
+		"SYSENTER_RETURN",
+};
+
+static int is_safe_abs_reloc(const char* sym_name)
+{
+	int i, array_size;
+
+	array_size = sizeof(safe_abs_relocs)/sizeof(char*);
+
+	for(i = 0; i < array_size; i++) {
+		if (!strcmp(sym_name, safe_abs_relocs[i]))
+			/* Match found */
+			return 1;
+	}
+	return 0;
+}
+
 static void die(char *fmt, ...)
 {
 	va_list ap;
@@ -359,9 +386,8 @@ static void print_absolute_symbols(void)
 
 static void print_absolute_relocs(void)
 {
-	int i;
-	printf("Absolute relocations\n");
-	printf("Offset     Info     Type     Sym.Value Sym.Name\n");
+	int i, printed = 0;
+
 	for(i = 0; i < ehdr.e_shnum; i++) {
 		char *sym_strtab;
 		Elf32_Sym *sh_symtab;
@@ -387,6 +413,31 @@ static void print_absolute_relocs(void)
 			if (sym->st_shndx != SHN_ABS) {
 				continue;
 			}
+
+			/* Absolute symbols are not relocated if bzImage is
+			 * loaded at a non-compiled address. Display a warning
+			 * to user at compile time about the absolute
+			 * relocations present.
+			 *
+			 * User need to audit the code to make sure
+			 * some symbols which should have been section
+			 * relative have not become absolute because of some
+			 * linker optimization or wrong programming usage.
+			 *
+			 * Before warning check if this absolute symbol
+			 * relocation is harmless.
+			 */
+			if (is_safe_abs_reloc(name))
+				continue;
+
+			if (!printed) {
+				printf("WARNING: Absolute relocations"
+					" present\n");
+				printf("Offset     Info     Type     Sym.Value "
+					"Sym.Name\n");
+				printed = 1;
+			}
+
 			printf("%08x %08x %10s %08x  %s\n",
 				rel->r_offset,
 				rel->r_info,
@@ -395,7 +446,9 @@ static void print_absolute_relocs(void)
 				name);
 		}
 	}
-	printf("\n");
+
+	if (printed)
+		printf("\n");
 }
 
 static void walk_relocs(void (*visit)(Elf32_Rel *rel, Elf32_Sym *sym))
@@ -508,25 +561,31 @@ static void emit_relocs(int as_text)
 
 static void usage(void)
 {
-	die("i386_reloc [--abs | --text] vmlinux\n");
+	die("relocs [--abs-syms |--abs-relocs | --text] vmlinux\n");
 }
 
 int main(int argc, char **argv)
 {
-	int show_absolute;
+	int show_absolute_syms, show_absolute_relocs;
 	int as_text;
 	const char *fname;
 	FILE *fp;
 	int i;
 
-	show_absolute = 0;
+	show_absolute_syms = 0;
+	show_absolute_relocs = 0;
 	as_text = 0;
 	fname = NULL;
 	for(i = 1; i < argc; i++) {
 		char *arg = argv[i];
 		if (*arg == '-') {
-			if (strcmp(argv[1], "--abs") == 0) {
-				show_absolute = 1;
+			if (strcmp(argv[1], "--abs-syms") == 0) {
+				show_absolute_syms = 1;
+				continue;
+			}
+
+			if (strcmp(argv[1], "--abs-relocs") == 0) {
+				show_absolute_relocs = 1;
 				continue;
 			}
 			else if (strcmp(argv[1], "--text") == 0) {
@@ -553,8 +612,11 @@ int main(int argc, char **argv)
 	read_strtabs(fp);
 	read_symtabs(fp);
 	read_relocs(fp);
-	if (show_absolute) {
+	if (show_absolute_syms) {
 		print_absolute_symbols();
+		return 0;
+	}
+	if (show_absolute_relocs) {
 		print_absolute_relocs();
 		return 0;
 	}
