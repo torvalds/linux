@@ -4960,6 +4960,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 	if (ap->flags & ATA_FLAG_PIO_POLLING) {
 		switch (qc->tf.protocol) {
 		case ATA_PROT_PIO:
+		case ATA_PROT_NODATA:
 		case ATA_PROT_ATAPI:
 		case ATA_PROT_ATAPI_NODATA:
 			qc->tf.flags |= ATA_TFLAG_POLLING;
