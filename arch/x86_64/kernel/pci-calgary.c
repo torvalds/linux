@@ -653,13 +653,8 @@ static void __init calgary_reserve_peripheral_mem_2(struct pci_dev *dev)
 static void __init calgary_reserve_regions(struct pci_dev *dev)
 {
 	unsigned int npages;
-	void __iomem *bbar;
-	unsigned char busnum;
 	u64 start;
 	struct iommu_table *tbl = dev->sysdata;
-
-	bbar = tbl->bbar;
-	busnum = dev->bus->number;
 
 	/* reserve bad_dma_address in case it's a legal address */
 	iommu_range_reserve(tbl, bad_dma_address, 1);
