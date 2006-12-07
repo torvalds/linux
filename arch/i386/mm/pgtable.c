@@ -95,8 +95,11 @@ static void set_pte_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags)
 		return;
 	}
 	pte = pte_offset_kernel(pmd, vaddr);
-	/* <pfn,flags> stored as-is, to permit clearing entries */
-	set_pte(pte, pfn_pte(pfn, flags));
+	if (pgprot_val(flags))
+		/* <pfn,flags> stored as-is, to permit clearing entries */
+		set_pte(pte, pfn_pte(pfn, flags));
+	else
+		pte_clear(&init_mm, vaddr, pte);
 
 	/*
 	 * It's enough to flush this one mapping.
