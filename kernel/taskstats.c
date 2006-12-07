@@ -416,7 +416,6 @@ err:
 void taskstats_exit_alloc(struct taskstats **ptidstats, unsigned int *mycpu)
 {
 	struct listener_list *listeners;
-	struct taskstats *tmp;
 	/*
 	 * This is the cpu on which the task is exiting currently and will
 	 * be the one for which the exit event is sent, even if the cpu
@@ -424,19 +423,11 @@ void taskstats_exit_alloc(struct taskstats **ptidstats, unsigned int *mycpu)
 	 */
 	*mycpu = raw_smp_processor_id();
 
-	*ptidstats = NULL;
-	tmp = kmem_cache_zalloc(taskstats_cache, GFP_KERNEL);
-	if (!tmp)
-		return;
-
 	listeners = &per_cpu(listener_array, *mycpu);
-	down_read(&listeners->sem);
-	if (!list_empty(&listeners->list)) {
-		*ptidstats = tmp;
-		tmp = NULL;
-	}
-	up_read(&listeners->sem);
-	kfree(tmp);
+
+	*ptidstats = NULL;
+	if (!list_empty(&listeners->list))
+		*ptidstats = kmem_cache_zalloc(taskstats_cache, GFP_KERNEL);
 }
 
 /* Send pid data out on exit */
