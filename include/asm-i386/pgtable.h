@@ -277,7 +277,7 @@ static inline pte_t pte_mkhuge(pte_t pte)	{ (pte).pte_low |= _PAGE_PSE; return p
 do {									\
 	if (dirty) {							\
 		(ptep)->pte_low = (entry).pte_low;			\
-		pte_update_defer((vma)->vm_mm, (addr), (ptep));		\
+		pte_update_defer((vma)->vm_mm, (address), (ptep));	\
 		flush_tlb_page(vma, address);				\
 	}								\
 } while (0)
@@ -307,7 +307,7 @@ do {									\
 	__dirty = pte_dirty(*(ptep));					\
 	if (__dirty) {							\
 		clear_bit(_PAGE_BIT_DIRTY, &(ptep)->pte_low);		\
-		pte_update_defer((vma)->vm_mm, (addr), (ptep));		\
+		pte_update_defer((vma)->vm_mm, (address), (ptep));	\
 		flush_tlb_page(vma, address);				\
 	}								\
 	__dirty;							\
@@ -320,7 +320,7 @@ do {									\
 	__young = pte_young(*(ptep));					\
 	if (__young) {							\
 		clear_bit(_PAGE_BIT_ACCESSED, &(ptep)->pte_low);	\
-		pte_update_defer((vma)->vm_mm, (addr), (ptep));		\
+		pte_update_defer((vma)->vm_mm, (address), (ptep));	\
 		flush_tlb_page(vma, address);				\
 	}								\
 	__young;							\
