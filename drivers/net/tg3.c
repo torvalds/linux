@@ -1402,8 +1402,10 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 static void tg3_link_report(struct tg3 *tp)
 {
 	if (!netif_carrier_ok(tp->dev)) {
-		printk(KERN_INFO PFX "%s: Link is down.\n", tp->dev->name);
-	} else {
+		if (netif_msg_link(tp))
+			printk(KERN_INFO PFX "%s: Link is down.\n",
+			       tp->dev->name);
+	} else if (netif_msg_link(tp)) {
 		printk(KERN_INFO PFX "%s: Link is up at %d Mbps, %s duplex.\n",
 		       tp->dev->name,
 		       (tp->link_config.active_speed == SPEED_1000 ?
@@ -3710,8 +3712,9 @@ static void tg3_tx_timeout(struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
 
-	printk(KERN_ERR PFX "%s: transmit timed out, resetting\n",
-	       dev->name);
+	if (netif_msg_tx_err(tp))
+		printk(KERN_ERR PFX "%s: transmit timed out, resetting\n",
+		       dev->name);
 
 	schedule_work(&tp->reset_task);
 }
@@ -8665,7 +8668,9 @@ static int tg3_test_registers(struct tg3 *tp)
 	return 0;
 
 out:
-	printk(KERN_ERR PFX "Register test failed at offset %x\n", offset);
+	if (netif_msg_hw(tp))
+		printk(KERN_ERR PFX "Register test failed at offset %x\n",
+		       offset);
 	tw32(offset, save_val);
 	return -EIO;
 }
