@@ -9467,16 +9467,12 @@ static void __devinit tg3_get_5906_nvram_info(struct tg3 *tp)
 /* Chips other than 5700/5701 use the NVRAM for fetching info. */
 static void __devinit tg3_nvram_init(struct tg3 *tp)
 {
-	int j;
-
 	tw32_f(GRC_EEPROM_ADDR,
 	     (EEPROM_ADDR_FSM_RESET |
 	      (EEPROM_DEFAULT_CLOCK_PERIOD <<
 	       EEPROM_ADDR_CLKPERD_SHIFT)));
 
-	/* XXX schedule_timeout() ... */
-	for (j = 0; j < 100; j++)
-		udelay(10);
+	msleep(1);
 
 	/* Enable seeprom accesses. */
 	tw32_f(GRC_LOCAL_CTRL,
@@ -9537,12 +9533,12 @@ static int tg3_nvram_read_using_eeprom(struct tg3 *tp,
 	      EEPROM_ADDR_ADDR_MASK) |
 	     EEPROM_ADDR_READ | EEPROM_ADDR_START);
 
-	for (i = 0; i < 10000; i++) {
+	for (i = 0; i < 1000; i++) {
 		tmp = tr32(GRC_EEPROM_ADDR);
 
 		if (tmp & EEPROM_ADDR_COMPLETE)
 			break;
-		udelay(100);
+		msleep(1);
 	}
 	if (!(tmp & EEPROM_ADDR_COMPLETE))
 		return -EBUSY;
@@ -9667,12 +9663,12 @@ static int tg3_nvram_write_block_using_eeprom(struct tg3 *tp,
 			EEPROM_ADDR_START |
 			EEPROM_ADDR_WRITE);
 
-		for (j = 0; j < 10000; j++) {
+		for (j = 0; j < 1000; j++) {
 			val = tr32(GRC_EEPROM_ADDR);
 
 			if (val & EEPROM_ADDR_COMPLETE)
 				break;
-			udelay(100);
+			msleep(1);
 		}
 		if (!(val & EEPROM_ADDR_COMPLETE)) {
 			rc = -EBUSY;
