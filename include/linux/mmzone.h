@@ -352,8 +352,8 @@ struct zone {
 
 
 struct zonelist_cache {
-	DECLARE_BITMAP(fullzones, MAX_ZONES_PER_ZONELIST);	/* zone full? */
 	unsigned short z_to_n[MAX_ZONES_PER_ZONELIST];		/* zone->nid */
+	DECLARE_BITMAP(fullzones, MAX_ZONES_PER_ZONELIST);	/* zone full? */
 	unsigned long last_full_zap;		/* when last zap'd (jiffies) */
 };
 #else
