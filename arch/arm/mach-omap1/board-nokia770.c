@@ -103,7 +103,7 @@ static struct ads7846_platform_data nokia770_ads7846_platform_data __initdata = 
 
 static struct spi_board_info nokia770_spi_board_info[] __initdata = {
 	[0] = {
-		.modalias       = "lcd_lph8923",
+		.modalias		= "lcd_mipid",
 		.bus_num        = 2,
 		.chip_select    = 3,
 		.max_speed_hz   = 12000000,
