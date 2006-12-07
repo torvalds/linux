@@ -19,7 +19,6 @@ typedef struct kmem_cache kmem_cache_t;
 #include	<asm/cache.h>		/* kmalloc_sizes.h needs L1_CACHE_BYTES */
 
 /* flags for kmem_cache_alloc() */
-#define	SLAB_ATOMIC		GFP_ATOMIC
 #define	SLAB_KERNEL		GFP_KERNEL
 #define	SLAB_DMA		GFP_DMA
 

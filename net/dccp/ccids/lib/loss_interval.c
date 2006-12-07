@@ -125,7 +125,7 @@ int dccp_li_hist_interval_new(struct dccp_li_hist *hist,
 	int i;
 
 	for (i = 0; i < DCCP_LI_HIST_IVAL_F_LENGTH; i++) {
-		entry = dccp_li_hist_entry_new(hist, SLAB_ATOMIC);
+		entry = dccp_li_hist_entry_new(hist, GFP_ATOMIC);
 		if (entry == NULL) {
 			dccp_li_hist_purge(hist, list);
 			DCCP_BUG("loss interval list entry is NULL");

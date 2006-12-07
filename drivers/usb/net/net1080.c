@@ -383,7 +383,7 @@ static void nc_ensure_sync(struct usbnet *dev)
 		int			status;
 
 		/* Send a flush */
-		urb = usb_alloc_urb(0, SLAB_ATOMIC);
+		urb = usb_alloc_urb(0, GFP_ATOMIC);
 		if (!urb)
 			return;
 

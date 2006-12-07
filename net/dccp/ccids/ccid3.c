@@ -295,7 +295,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 	new_packet = dccp_tx_hist_head(&hctx->ccid3hctx_hist);
 	if (new_packet == NULL || new_packet->dccphtx_sent) {
 		new_packet = dccp_tx_hist_entry_new(ccid3_tx_hist,
-						    SLAB_ATOMIC);
+						    GFP_ATOMIC);
 
 		if (unlikely(new_packet == NULL)) {
 			DCCP_WARN("%s, sk=%p, not enough mem to add to history,"
@@ -889,7 +889,7 @@ static void ccid3_hc_rx_update_li(struct sock *sk, u64 seq_loss, u8 win_loss)
 		/* new loss event detected */
 		/* calculate last interval length */
 		seq_temp = dccp_delta_seqno(head->dccplih_seqno, seq_loss);
-		entry = dccp_li_hist_entry_new(ccid3_li_hist, SLAB_ATOMIC);
+		entry = dccp_li_hist_entry_new(ccid3_li_hist, GFP_ATOMIC);
 
 		if (entry == NULL) {
 			DCCP_BUG("out of memory - can not allocate entry");
@@ -1011,7 +1011,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	}
 
 	packet = dccp_rx_hist_entry_new(ccid3_rx_hist, sk, opt_recv->dccpor_ndp,
-					skb, SLAB_ATOMIC);
+					skb, GFP_ATOMIC);
 	if (unlikely(packet == NULL)) {
 		DCCP_WARN("%s, sk=%p, Not enough mem to add rx packet "
 			  "to history, consider it lost!\n", dccp_role(sk), sk);

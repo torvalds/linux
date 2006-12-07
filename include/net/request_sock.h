@@ -60,7 +60,7 @@ struct request_sock {
 
 static inline struct request_sock *reqsk_alloc(const struct request_sock_ops *ops)
 {
-	struct request_sock *req = kmem_cache_alloc(ops->slab, SLAB_ATOMIC);
+	struct request_sock *req = kmem_cache_alloc(ops->slab, GFP_ATOMIC);
 
 	if (req != NULL)
 		req->rsk_ops = ops;

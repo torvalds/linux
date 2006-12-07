@@ -377,7 +377,7 @@ static void interfacekit_irq(struct urb *urb)
 		schedule_delayed_work(&kit->do_notify, 0);
 
 resubmit:
-	status = usb_submit_urb(urb, SLAB_ATOMIC);
+	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status)
 		err("can't resubmit intr, %s-%s/interfacekit0, status %d",
 			kit->udev->bus->bus_name,
@@ -568,7 +568,7 @@ static int interfacekit_probe(struct usb_interface *intf, const struct usb_devic
 
 	kit->dev_no = -1;
 	kit->ifkit = ifkit;
-	kit->data = usb_buffer_alloc(dev, URB_INT_SIZE, SLAB_ATOMIC, &kit->data_dma);
+	kit->data = usb_buffer_alloc(dev, URB_INT_SIZE, GFP_ATOMIC, &kit->data_dma);
 	if (!kit->data)
 		goto out;
 

@@ -4989,7 +4989,7 @@ static struct sctp_bind_bucket *sctp_bucket_create(
 {
 	struct sctp_bind_bucket *pp;
 
-	pp = kmem_cache_alloc(sctp_bucket_cachep, SLAB_ATOMIC);
+	pp = kmem_cache_alloc(sctp_bucket_cachep, GFP_ATOMIC);
 	SCTP_DBG_OBJCNT_INC(bind_bucket);
 	if (pp) {
 		pp->port = snum;

@@ -297,7 +297,7 @@ restart:
 			}
 		}
 	}
-	if (!(page = pool_alloc_page (pool, SLAB_ATOMIC))) {
+	if (!(page = pool_alloc_page (pool, GFP_ATOMIC))) {
 		if (mem_flags & __GFP_WAIT) {
 			DECLARE_WAITQUEUE (wait, current);
 

@@ -180,7 +180,7 @@ try_next_2:;
 	spi = 0;
 	goto out;
 alloc_spi:
-	x6spi = kmem_cache_alloc(xfrm6_tunnel_spi_kmem, SLAB_ATOMIC);
+	x6spi = kmem_cache_alloc(xfrm6_tunnel_spi_kmem, GFP_ATOMIC);
 	if (!x6spi)
 		goto out;
 

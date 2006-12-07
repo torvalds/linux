@@ -819,7 +819,7 @@ error:
 
 	/* resubmit if we need to, else mark this as done */
 	if ((status == 0) && (ctx->pending < ctx->count)) {
-		if ((status = usb_submit_urb (urb, SLAB_ATOMIC)) != 0) {
+		if ((status = usb_submit_urb (urb, GFP_ATOMIC)) != 0) {
 			dbg ("can't resubmit ctrl %02x.%02x, err %d",
 				reqp->bRequestType, reqp->bRequest, status);
 			urb->dev = NULL;
@@ -999,7 +999,7 @@ test_ctrl_queue (struct usbtest_dev *dev, struct usbtest_param *param)
 	context.urb = urb;
 	spin_lock_irq (&context.lock);
 	for (i = 0; i < param->sglen; i++) {
-		context.status = usb_submit_urb (urb [i], SLAB_ATOMIC);
+		context.status = usb_submit_urb (urb [i], GFP_ATOMIC);
 		if (context.status != 0) {
 			dbg ("can't submit urb[%d], status %d",
 					i, context.status);
@@ -1041,7 +1041,7 @@ static void unlink1_callback (struct urb *urb)
 
 	// we "know" -EPIPE (stall) never happens
 	if (!status)
-		status = usb_submit_urb (urb, SLAB_ATOMIC);
+		status = usb_submit_urb (urb, GFP_ATOMIC);
 	if (status) {
 		urb->status = status;
 		complete ((struct completion *) urb->context);
@@ -1481,7 +1481,7 @@ test_iso_queue (struct usbtest_dev *dev, struct usbtest_param *param,
 	spin_lock_irq (&context.lock);
 	for (i = 0; i < param->sglen; i++) {
 		++context.pending;
-		status = usb_submit_urb (urbs [i], SLAB_ATOMIC);
+		status = usb_submit_urb (urbs [i], GFP_ATOMIC);
 		if (status < 0) {
 			ERROR (dev, "submit iso[%d], error %d\n", i, status);
 			if (i == 0) {

@@ -979,7 +979,7 @@ struct sctp_chunk *sctp_chunkify(struct sk_buff *skb,
 {
 	struct sctp_chunk *retval;
 
-	retval = kmem_cache_alloc(sctp_chunk_cachep, SLAB_ATOMIC);
+	retval = kmem_cache_alloc(sctp_chunk_cachep, GFP_ATOMIC);
 
 	if (!retval)
 		goto nodata;

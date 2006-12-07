@@ -31,7 +31,7 @@ struct inet_bind_bucket *inet_bind_bucket_create(kmem_cache_t *cachep,
 						 struct inet_bind_hashbucket *head,
 						 const unsigned short snum)
 {
-	struct inet_bind_bucket *tb = kmem_cache_alloc(cachep, SLAB_ATOMIC);
+	struct inet_bind_bucket *tb = kmem_cache_alloc(cachep, GFP_ATOMIC);
 
 	if (tb != NULL) {
 		tb->port      = snum;

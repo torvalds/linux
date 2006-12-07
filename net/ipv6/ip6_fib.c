@@ -150,7 +150,7 @@ static __inline__ struct fib6_node * node_alloc(void)
 {
 	struct fib6_node *fn;
 
-	if ((fn = kmem_cache_alloc(fib6_node_kmem, SLAB_ATOMIC)) != NULL)
+	if ((fn = kmem_cache_alloc(fib6_node_kmem, GFP_ATOMIC)) != NULL)
 		memset(fn, 0, sizeof(struct fib6_node));
 
 	return fn;

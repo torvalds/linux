@@ -91,7 +91,7 @@ struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk, const int stat
 {
 	struct inet_timewait_sock *tw =
 		kmem_cache_alloc(sk->sk_prot_creator->twsk_prot->twsk_slab,
-				 SLAB_ATOMIC);
+				 GFP_ATOMIC);
 	if (tw != NULL) {
 		const struct inet_sock *inet = inet_sk(sk);
 

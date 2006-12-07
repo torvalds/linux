@@ -188,7 +188,7 @@ static DEFINE_TIMER(bulk_eot_timer, NULL, 0, 0);
 #define CHECK_ALIGN(x) if (((__u32)(x)) & 0x00000003) \
 {panic("Alignment check (DWORD) failed at %s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);}
 
-#define SLAB_FLAG     (in_interrupt() ? SLAB_ATOMIC : SLAB_KERNEL)
+#define SLAB_FLAG     (in_interrupt() ? GFP_ATOMIC : SLAB_KERNEL)
 #define KMALLOC_FLAG  (in_interrupt() ? GFP_ATOMIC : GFP_KERNEL)
 
 /* Most helpful debugging aid */
@@ -1743,7 +1743,7 @@ static irqreturn_t etrax_usb_tx_interrupt(int irq, void *vhc)
 
 		*R_DMA_CH8_SUB3_CLR_INTR = IO_STATE(R_DMA_CH8_SUB3_CLR_INTR, clr_descr, do);
 
-		comp_data = (usb_isoc_complete_data_t*)kmem_cache_alloc(isoc_compl_cache, SLAB_ATOMIC);
+		comp_data = (usb_isoc_complete_data_t*)kmem_cache_alloc(isoc_compl_cache, GFP_ATOMIC);
 		assert(comp_data != NULL);
 
                 INIT_WORK(&comp_data->usb_bh, etrax_usb_isoc_descr_interrupt_bottom_half, comp_data);
@@ -3010,7 +3010,7 @@ static void etrax_usb_add_to_isoc_sb_list(struct urb *urb, int epid)
 			if (!urb->iso_frame_desc[i].length)
 				continue;
 
-			next_sb_desc = (USB_SB_Desc_t*)kmem_cache_alloc(usb_desc_cache, SLAB_ATOMIC);
+			next_sb_desc = (USB_SB_Desc_t*)kmem_cache_alloc(usb_desc_cache, GFP_ATOMIC);
 			assert(next_sb_desc != NULL);
 
 			if (urb->iso_frame_desc[i].length > 0) {
@@ -3063,7 +3063,7 @@ static void etrax_usb_add_to_isoc_sb_list(struct urb *urb, int epid)
 		if (TxIsocEPList[epid].sub == 0) {
 			dbg_isoc("Isoc traffic not already running, allocating SB");
 
-			next_sb_desc = (USB_SB_Desc_t*)kmem_cache_alloc(usb_desc_cache, SLAB_ATOMIC);
+			next_sb_desc = (USB_SB_Desc_t*)kmem_cache_alloc(usb_desc_cache, GFP_ATOMIC);
 			assert(next_sb_desc != NULL);
 
 			next_sb_desc->command = (IO_STATE(USB_SB_command, tt, in) |
@@ -3317,7 +3317,7 @@ static irqreturn_t etrax_usb_hc_interrupt_top_half(int irq, void *vhc)
 
 	restore_flags(flags);
 
-	reg = (usb_interrupt_registers_t *)kmem_cache_alloc(top_half_reg_cache, SLAB_ATOMIC);
+	reg = (usb_interrupt_registers_t *)kmem_cache_alloc(top_half_reg_cache, GFP_ATOMIC);
 
 	assert(reg != NULL);
 

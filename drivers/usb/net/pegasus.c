@@ -856,7 +856,7 @@ static void intr_callback(struct urb *urb)
 		pegasus->stats.rx_missed_errors += ((d[3] & 0x7f) << 8) | d[4];
 	}
 
-	status = usb_submit_urb(urb, SLAB_ATOMIC);
+	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status == -ENODEV)
 		netif_device_detach(pegasus->net);
 	if (status && netif_msg_timer(pegasus))

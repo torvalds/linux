@@ -1079,7 +1079,7 @@ static void hid_irq_in(struct urb *urb)
 			warn("input irq status %d received", urb->status);
 	}
 
-	status = usb_submit_urb(urb, SLAB_ATOMIC);
+	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status) {
 		clear_bit(HID_IN_RUNNING, &hid->iofl);
 		if (status != -EPERM) {
@@ -1864,13 +1864,13 @@ static void hid_find_max_report(struct hid_device *hid, unsigned int type, int *
 
 static int hid_alloc_buffers(struct usb_device *dev, struct hid_device *hid)
 {
-	if (!(hid->inbuf = usb_buffer_alloc(dev, hid->bufsize, SLAB_ATOMIC, &hid->inbuf_dma)))
+	if (!(hid->inbuf = usb_buffer_alloc(dev, hid->bufsize, GFP_ATOMIC, &hid->inbuf_dma)))
 		return -1;
-	if (!(hid->outbuf = usb_buffer_alloc(dev, hid->bufsize, SLAB_ATOMIC, &hid->outbuf_dma)))
+	if (!(hid->outbuf = usb_buffer_alloc(dev, hid->bufsize, GFP_ATOMIC, &hid->outbuf_dma)))
 		return -1;
-	if (!(hid->cr = usb_buffer_alloc(dev, sizeof(*(hid->cr)), SLAB_ATOMIC, &hid->cr_dma)))
+	if (!(hid->cr = usb_buffer_alloc(dev, sizeof(*(hid->cr)), GFP_ATOMIC, &hid->cr_dma)))
 		return -1;
-	if (!(hid->ctrlbuf = usb_buffer_alloc(dev, hid->bufsize, SLAB_ATOMIC, &hid->ctrlbuf_dma)))
+	if (!(hid->ctrlbuf = usb_buffer_alloc(dev, hid->bufsize, GFP_ATOMIC, &hid->ctrlbuf_dma)))
 		return -1;
 
 	return 0;

@@ -76,7 +76,7 @@ static void usb_onetouch_irq(struct urb *urb)
 	input_sync(dev);
 
 resubmit:
-	status = usb_submit_urb (urb, SLAB_ATOMIC);
+	status = usb_submit_urb (urb, GFP_ATOMIC);
 	if (status)
 		err ("can't resubmit intr, %s-%s/input0, status %d",
 			onetouch->udev->bus->bus_name,
@@ -154,7 +154,7 @@ int onetouch_connect_input(struct us_data *ss)
 		goto fail1;
 
 	onetouch->data = usb_buffer_alloc(udev, ONETOUCH_PKT_LEN,
-					  SLAB_ATOMIC, &onetouch->data_dma);
+					  GFP_ATOMIC, &onetouch->data_dma);
 	if (!onetouch->data)
 		goto fail1;
 

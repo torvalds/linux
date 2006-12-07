@@ -147,7 +147,7 @@ static void mon_text_event(struct mon_reader_text *rp, struct urb *urb,
 	stamp = mon_get_timestamp();
 
 	if (rp->nevents >= EVENT_MAX ||
-	    (ep = kmem_cache_alloc(rp->e_slab, SLAB_ATOMIC)) == NULL) {
+	    (ep = kmem_cache_alloc(rp->e_slab, GFP_ATOMIC)) == NULL) {
 		rp->r.m_bus->cnt_text_lost++;
 		return;
 	}
@@ -188,7 +188,7 @@ static void mon_text_error(void *data, struct urb *urb, int error)
 	struct mon_event_text *ep;
 
 	if (rp->nevents >= EVENT_MAX ||
-	    (ep = kmem_cache_alloc(rp->e_slab, SLAB_ATOMIC)) == NULL) {
+	    (ep = kmem_cache_alloc(rp->e_slab, GFP_ATOMIC)) == NULL) {
 		rp->r.m_bus->cnt_text_lost++;
 		return;
 	}

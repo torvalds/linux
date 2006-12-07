@@ -211,7 +211,7 @@ void *flow_cache_lookup(struct flowi *key, u16 family, u8 dir,
 		if (flow_count(cpu) > flow_hwm)
 			flow_cache_shrink(cpu);
 
-		fle = kmem_cache_alloc(flow_cachep, SLAB_ATOMIC);
+		fle = kmem_cache_alloc(flow_cachep, GFP_ATOMIC);
 		if (fle) {
 			fle->next = *head;
 			*head = fle;

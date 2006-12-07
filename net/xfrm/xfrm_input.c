@@ -27,7 +27,7 @@ struct sec_path *secpath_dup(struct sec_path *src)
 {
 	struct sec_path *sp;
 
-	sp = kmem_cache_alloc(secpath_cachep, SLAB_ATOMIC);
+	sp = kmem_cache_alloc(secpath_cachep, GFP_ATOMIC);
 	if (!sp)
 		return NULL;
 

@@ -151,7 +151,7 @@ static void motorcontrol_irq(struct urb *urb)
 		schedule_delayed_work(&mc->do_notify, 0);
 
 resubmit:
-	status = usb_submit_urb(urb, SLAB_ATOMIC);
+	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status)
 		dev_err(&mc->intf->dev,
 			"can't resubmit intr, %s-%s/motorcontrol0, status %d",
@@ -338,7 +338,7 @@ static int motorcontrol_probe(struct usb_interface *intf, const struct usb_devic
 		goto out;
 
 	mc->dev_no = -1;
-	mc->data = usb_buffer_alloc(dev, URB_INT_SIZE, SLAB_ATOMIC, &mc->data_dma);
+	mc->data = usb_buffer_alloc(dev, URB_INT_SIZE, GFP_ATOMIC, &mc->data_dma);
 	if (!mc->data)
 		goto out;
 
