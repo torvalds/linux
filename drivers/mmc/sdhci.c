@@ -1170,8 +1170,8 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	}
 
 	if (pci_resource_len(pdev, first_bar + slot) != 0x100) {
-		printk(KERN_ERR DRIVER_NAME ": Invalid iomem size. Aborting.\n");
-		return -ENODEV;
+		printk(KERN_ERR DRIVER_NAME ": Invalid iomem size. "
+			"You may experience problems.\n");
 	}
 
 	if ((pdev->class & 0x0000FF) == PCI_SDHCI_IFVENDOR) {
