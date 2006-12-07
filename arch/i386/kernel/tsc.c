@@ -13,7 +13,6 @@
 
 #include <asm/delay.h>
 #include <asm/tsc.h>
-#include <asm/delay.h>
 #include <asm/io.h>
 
 #include "mach_timer.h"
