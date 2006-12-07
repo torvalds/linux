@@ -168,7 +168,7 @@ static void container_notify_cb(acpi_handle handle, u32 type, void *context)
 			if (ACPI_FAILURE(status) || !device) {
 				result = container_device_add(&device, handle);
 				if (!result)
-					kobject_uevent(&device->kobj,
+					kobject_uevent(&device->dev.kobj,
 						       KOBJ_ONLINE);
 				else
 					printk("Failed to add container\n");
@@ -176,13 +176,13 @@ static void container_notify_cb(acpi_handle handle, u32 type, void *context)
 		} else {
 			if (ACPI_SUCCESS(status)) {
 				/* device exist and this is a remove request */
-				kobject_uevent(&device->kobj, KOBJ_OFFLINE);
+				kobject_uevent(&device->dev.kobj, KOBJ_OFFLINE);
 			}
 		}
 		break;
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		if (!acpi_bus_get_device(handle, &device) && device) {
-			kobject_uevent(&device->kobj, KOBJ_OFFLINE);
+			kobject_uevent(&device->dev.kobj, KOBJ_OFFLINE);
 		}
 		break;
 	default:

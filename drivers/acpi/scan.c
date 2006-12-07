@@ -24,126 +24,6 @@ static LIST_HEAD(acpi_device_list);
 DEFINE_SPINLOCK(acpi_device_lock);
 LIST_HEAD(acpi_wakeup_device_list);
 
-
-static void acpi_device_release_legacy(struct kobject *kobj)
-{
-	struct acpi_device *dev = container_of(kobj, struct acpi_device, kobj);
-	kfree(dev->pnp.cid_list);
-	kfree(dev);
-}
-
-struct acpi_device_attribute {
-	struct attribute attr;
-	 ssize_t(*show) (struct acpi_device *, char *);
-	 ssize_t(*store) (struct acpi_device *, const char *, size_t);
-};
-
-typedef void acpi_device_sysfs_files(struct kobject *,
-				     const struct attribute *);
-
-static void setup_sys_fs_device_files(struct acpi_device *dev,
-				      acpi_device_sysfs_files * func);
-
-#define create_sysfs_device_files(dev)	\
-	setup_sys_fs_device_files(dev, (acpi_device_sysfs_files *)&sysfs_create_file)
-#define remove_sysfs_device_files(dev)	\
-	setup_sys_fs_device_files(dev, (acpi_device_sysfs_files *)&sysfs_remove_file)
-
-#define to_acpi_dev(n) container_of(n, struct acpi_device, kobj)
-#define to_handle_attr(n) container_of(n, struct acpi_device_attribute, attr);
-
-static ssize_t acpi_device_attr_show(struct kobject *kobj,
-				     struct attribute *attr, char *buf)
-{
-	struct acpi_device *device = to_acpi_dev(kobj);
-	struct acpi_device_attribute *attribute = to_handle_attr(attr);
-	return attribute->show ? attribute->show(device, buf) : -EIO;
-}
-static ssize_t acpi_device_attr_store(struct kobject *kobj,
-				      struct attribute *attr, const char *buf,
-				      size_t len)
-{
-	struct acpi_device *device = to_acpi_dev(kobj);
-	struct acpi_device_attribute *attribute = to_handle_attr(attr);
-	return attribute->store ? attribute->store(device, buf, len) : -EIO;
-}
-
-static struct sysfs_ops acpi_device_sysfs_ops = {
-	.show = acpi_device_attr_show,
-	.store = acpi_device_attr_store,
-};
-
-static struct kobj_type ktype_acpi_ns = {
-	.sysfs_ops = &acpi_device_sysfs_ops,
-	.release = acpi_device_release_legacy,
-};
-
-static int namespace_uevent(struct kset *kset, struct kobject *kobj,
-			     char **envp, int num_envp, char *buffer,
-			     int buffer_size)
-{
-	struct acpi_device *dev = to_acpi_dev(kobj);
-	int i = 0;
-	int len = 0;
-
-	if (!dev->driver)
-		return 0;
-
-	if (add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &len,
-			   "PHYSDEVDRIVER=%s", dev->driver->name))
-		return -ENOMEM;
-
-	envp[i] = NULL;
-
-	return 0;
-}
-
-static struct kset_uevent_ops namespace_uevent_ops = {
-	.uevent = &namespace_uevent,
-};
-
-static struct kset acpi_namespace_kset = {
-	.kobj = {
-		 .name = "namespace",
-		 },
-	.subsys = &acpi_subsys,
-	.ktype = &ktype_acpi_ns,
-	.uevent_ops = &namespace_uevent_ops,
-};
-
-/* --------------------------------------------------------------------------
-		ACPI sysfs device file support
-   -------------------------------------------------------------------------- */
-static ssize_t acpi_eject_store(struct acpi_device *device,
-				const char *buf, size_t count);
-
-#define ACPI_DEVICE_ATTR(_name,_mode,_show,_store) \
-static struct acpi_device_attribute acpi_device_attr_##_name = \
-		__ATTR(_name, _mode, _show, _store)
-
-ACPI_DEVICE_ATTR(eject, 0200, NULL, acpi_eject_store);
-
-/**
- * setup_sys_fs_device_files - sets up the device files under device namespace
- * @dev:	acpi_device object
- * @func:	function pointer to create or destroy the device file
- */
-static void
-setup_sys_fs_device_files(struct acpi_device *dev,
-			  acpi_device_sysfs_files * func)
-{
-	acpi_status status;
-	acpi_handle temp = NULL;
-
-	/*
-	 * If device has _EJ0, 'eject' file is created that is used to trigger
-	 * hot-removal function from userland.
-	 */
-	status = acpi_get_handle(dev->handle, "_EJ0", &temp);
-	if (ACPI_SUCCESS(status))
-		(*(func)) (&dev->kobj, &acpi_device_attr_eject.attr);
-}
-
 static int acpi_eject_operation(acpi_handle handle, int lockable)
 {
 	struct acpi_object_list arg_list;
@@ -180,7 +60,8 @@ static int acpi_eject_operation(acpi_handle handle, int lockable)
 }
 
 static ssize_t
-acpi_eject_store(struct acpi_device *device, const char *buf, size_t count)
+acpi_eject_store(struct device *d, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
 	int result;
 	int ret = count;
@@ -188,26 +69,27 @@ acpi_eject_store(struct acpi_device *device, const char *buf, size_t count)
 	acpi_status status;
 	acpi_handle handle;
 	acpi_object_type type = 0;
+	struct acpi_device *acpi_device = to_acpi_device(d);
 
 	if ((!count) || (buf[0] != '1')) {
 		return -EINVAL;
 	}
 #ifndef FORCE_EJECT
-	if (device->driver == NULL) {
+	if (acpi_device->driver == NULL) {
 		ret = -ENODEV;
 		goto err;
 	}
 #endif
-	status = acpi_get_type(device->handle, &type);
-	if (ACPI_FAILURE(status) || (!device->flags.ejectable)) {
+	status = acpi_get_type(acpi_device->handle, &type);
+	if (ACPI_FAILURE(status) || (!acpi_device->flags.ejectable)) {
 		ret = -ENODEV;
 		goto err;
 	}
 
-	islockable = device->flags.lockable;
-	handle = device->handle;
+	islockable = acpi_device->flags.lockable;
+	handle = acpi_device->handle;
 
-	result = acpi_bus_trim(device, 1);
+	result = acpi_bus_trim(acpi_device, 1);
 
 	if (!result)
 		result = acpi_eject_operation(handle, islockable);
@@ -219,6 +101,35 @@ acpi_eject_store(struct acpi_device *device, const char *buf, size_t count)
 	return ret;
 }
 
+static DEVICE_ATTR(eject, 0200, NULL, acpi_eject_store);
+
+static void acpi_device_setup_files(struct acpi_device *dev)
+{
+	acpi_status status;
+	acpi_handle temp;
+
+	/*
+	 * If device has _EJ0, 'eject' file is created that is used to trigger
+	 * hot-removal function from userland.
+	 */
+	status = acpi_get_handle(dev->handle, "_EJ0", &temp);
+	if (ACPI_SUCCESS(status))
+		device_create_file(&dev->dev, &dev_attr_eject);
+}
+
+static void acpi_device_remove_files(struct acpi_device *dev)
+{
+	acpi_status status;
+	acpi_handle temp;
+
+	/*
+	 * If device has _EJ0, 'eject' file is created that is used to trigger
+	 * hot-removal function from userland.
+	 */
+	status = acpi_get_handle(dev->handle, "_EJ0", &temp);
+	if (ACPI_SUCCESS(status))
+		device_remove_file(&dev->dev, &dev_attr_eject);
+}
 /* --------------------------------------------------------------------------
 			ACPI Bus operations
    -------------------------------------------------------------------------- */
@@ -353,8 +264,6 @@ static struct bus_type acpi_bus_type = {
 static void acpi_device_register(struct acpi_device *device,
 				 struct acpi_device *parent)
 {
-	int err;
-
 	/*
 	 * Linkage
 	 * -------
@@ -375,17 +284,6 @@ static void acpi_device_register(struct acpi_device *device,
 		list_add_tail(&device->wakeup_list, &acpi_wakeup_device_list);
 	spin_unlock(&acpi_device_lock);
 
-	strlcpy(device->kobj.name, device->pnp.bus_id, KOBJ_NAME_LEN);
-	if (parent)
-		device->kobj.parent = &parent->kobj;
-	device->kobj.ktype = &ktype_acpi_ns;
-	device->kobj.kset = &acpi_namespace_kset;
-	err = kobject_register(&device->kobj);
-	if (err < 0)
-		printk(KERN_WARNING "%s: kobject_register error: %d\n",
-			__FUNCTION__, err);
-	create_sysfs_device_files(device);
-
 	if (device->parent)
 		device->dev.parent = &parent->dev;
 	device->dev.bus = &acpi_bus_type;
@@ -393,6 +291,8 @@ static void acpi_device_register(struct acpi_device *device,
 	sprintf(device->dev.bus_id, "%s", device->pnp.bus_id);
 	device->dev.release = &acpi_device_release;
 	device_add(&device->dev);
+
+	acpi_device_setup_files(device);
 }
 
 static void acpi_device_unregister(struct acpi_device *device, int type)
@@ -409,9 +309,8 @@ static void acpi_device_unregister(struct acpi_device *device, int type)
 	spin_unlock(&acpi_device_lock);
 
 	acpi_detach_data(device->handle, acpi_bus_data_handler);
-	remove_sysfs_device_files(device);
-	kobject_unregister(&device->kobj);
 
+	acpi_device_remove_files(device);
 	device_unregister(&device->dev);
 }
 
@@ -1352,10 +1251,6 @@ static int __init acpi_scan_init(void)
 
 	if (acpi_disabled)
 		return 0;
-
-	result = kset_register(&acpi_namespace_kset);
-	if (result < 0)
-		printk(KERN_ERR PREFIX "kset_register error: %d\n", result);
 
 	result = bus_register(&acpi_bus_type);
 	if (result) {

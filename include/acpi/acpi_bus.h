@@ -299,7 +299,6 @@ struct acpi_device {
 	struct acpi_device_ops ops;
 	struct acpi_driver *driver;
 	void *driver_data;
-	struct kobject kobj;
 	struct device dev;
 };
 

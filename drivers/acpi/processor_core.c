@@ -711,7 +711,7 @@ int acpi_processor_device_add(acpi_handle handle, struct acpi_device **device)
 		return -ENODEV;
 
 	if ((pr->id >= 0) && (pr->id < NR_CPUS)) {
-		kobject_uevent(&(*device)->kobj, KOBJ_ONLINE);
+		kobject_uevent(&(*device)->dev.kobj, KOBJ_ONLINE);
 	}
 	return 0;
 }
@@ -749,13 +749,13 @@ acpi_processor_hotplug_notify(acpi_handle handle, u32 event, void *data)
 		}
 
 		if (pr->id >= 0 && (pr->id < NR_CPUS)) {
-			kobject_uevent(&device->kobj, KOBJ_OFFLINE);
+			kobject_uevent(&device->dev.kobj, KOBJ_OFFLINE);
 			break;
 		}
 
 		result = acpi_processor_start(device);
 		if ((!result) && ((pr->id >= 0) && (pr->id < NR_CPUS))) {
-			kobject_uevent(&device->kobj, KOBJ_ONLINE);
+			kobject_uevent(&device->dev.kobj, KOBJ_ONLINE);
 		} else {
 			printk(KERN_ERR PREFIX "Device [%s] failed to start\n",
 				    acpi_device_bid(device));
@@ -778,7 +778,7 @@ acpi_processor_hotplug_notify(acpi_handle handle, u32 event, void *data)
 		}
 
 		if ((pr->id < NR_CPUS) && (cpu_present(pr->id)))
-			kobject_uevent(&device->kobj, KOBJ_OFFLINE);
+			kobject_uevent(&device->dev.kobj, KOBJ_OFFLINE);
 		break;
 	default:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
