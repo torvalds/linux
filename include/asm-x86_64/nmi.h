@@ -77,4 +77,7 @@ extern int proc_nmi_enabled(struct ctl_table *, int , struct file *,
 
 extern int unknown_nmi_panic;
 
+void __trigger_all_cpu_backtrace(void);
+#define trigger_all_cpu_backtrace() __trigger_all_cpu_backtrace()
+
 #endif /* ASM_NMI_H */

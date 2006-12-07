@@ -7,6 +7,7 @@
  */
 
 #include <linux/spinlock.h>
+#include <linux/nmi.h>
 #include <linux/interrupt.h>
 #include <linux/debug_locks.h>
 #include <linux/delay.h>
@@ -117,6 +118,9 @@ static void __spin_lock_debug(spinlock_t *lock)
 				raw_smp_processor_id(), current->comm,
 				current->pid, lock);
 			dump_stack();
+#ifdef CONFIG_SMP
+			trigger_all_cpu_backtrace();
+#endif
 		}
 	}
 }
