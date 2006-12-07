@@ -43,6 +43,12 @@
 #include <asm/dma.h>
 #include <asm/rio.h>
 
+#ifdef CONFIG_CALGARY_IOMMU_ENABLED_BY_DEFAULT
+int use_calgary __read_mostly = 1;
+#else
+int use_calgary __read_mostly = 0;
+#endif /* CONFIG_CALGARY_DEFAULT_ENABLED */
+
 #define PCI_DEVICE_ID_IBM_CALGARY 0x02a1
 #define PCI_VENDOR_DEVICE_ID_CALGARY \
 	(PCI_VENDOR_ID_IBM | PCI_DEVICE_ID_IBM_CALGARY << 16)
@@ -1059,6 +1065,9 @@ void __init detect_calgary(void)
 	 * another HW IOMMU already, bail out.
 	 */
 	if (swiotlb || no_iommu || iommu_detected)
+		return;
+
+	if (!use_calgary)
 		return;
 
 	if (!early_pci_allowed())

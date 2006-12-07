@@ -179,7 +179,7 @@ PCI
 IOMMU
 
  iommu=[size][,noagp][,off][,force][,noforce][,leak][,memaper[=order]][,merge]
-         [,forcesac][,fullflush][,nomerge][,noaperture]
+         [,forcesac][,fullflush][,nomerge][,noaperture][,calgary]
    size  set size of iommu (in bytes)
    noagp don't initialize the AGP driver and use full aperture.
    off   don't use the IOMMU
@@ -200,6 +200,7 @@ IOMMU
 	    buffering.
    nodac    Forbid DMA >4GB
    panic    Always panic when IOMMU overflows
+   calgary  Use the Calgary IOMMU if it is available
 
   swiotlb=pages[,force]
 
