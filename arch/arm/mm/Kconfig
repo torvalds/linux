@@ -333,7 +333,7 @@ config CPU_XSCALE
 # XScale Core Version 3
 config CPU_XSC3
 	bool
-	depends on ARCH_IXP23XX
+	depends on ARCH_IXP23XX || ARCH_IOP13XX
 	default y
 	select CPU_32v5
 	select CPU_ABRT_EV5T

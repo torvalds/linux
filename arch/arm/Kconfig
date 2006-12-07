@@ -223,6 +223,12 @@ config ARCH_IOP33X
 	help
 	  Support for Intel's IOP33X (XScale) family of processors.
 
+config ARCH_IOP13XX
+	bool "IOP13xx-based"
+	select PCI
+	help
+	  Support for Intel's IOP13XX (XScale) family of processors.
+
 config ARCH_IXP4XX
 	bool "IXP4xx-based"
 	depends on MMU
@@ -330,6 +336,8 @@ source "arch/arm/mach-integrator/Kconfig"
 source "arch/arm/mach-iop32x/Kconfig"
 
 source "arch/arm/mach-iop33x/Kconfig"
+
+source "arch/arm/mach-iop13xx/Kconfig"
 
 source "arch/arm/mach-ixp4xx/Kconfig"
 
