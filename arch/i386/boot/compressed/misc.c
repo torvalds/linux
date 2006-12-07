@@ -9,6 +9,7 @@
  * High loaded stuff by Hans Lermen & Werner Almesberger, Feb. 1996
  */
 
+#undef CONFIG_PARAVIRT
 #include <linux/linkage.h>
 #include <linux/vmalloc.h>
 #include <linux/screen_info.h>

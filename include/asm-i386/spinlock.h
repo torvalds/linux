@@ -7,8 +7,12 @@
 #include <asm/processor.h>
 #include <linux/compiler.h>
 
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#else
 #define CLI_STRING	"cli"
 #define STI_STRING	"sti"
+#endif /* CONFIG_PARAVIRT */
 
 /*
  * Your basic SMP spinlocks, allowing only a single CPU anywhere

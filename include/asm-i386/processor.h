@@ -144,8 +144,8 @@ static inline void detect_ht(struct cpuinfo_x86 *c) {}
 #define X86_EFLAGS_VIP	0x00100000 /* Virtual Interrupt Pending */
 #define X86_EFLAGS_ID	0x00200000 /* CPUID detection flag */
 
-static inline void __cpuid(unsigned int *eax, unsigned int *ebx,
-			   unsigned int *ecx, unsigned int *edx)
+static inline fastcall void native_cpuid(unsigned int *eax, unsigned int *ebx,
+					 unsigned int *ecx, unsigned int *edx)
 {
 	/* ecx is often an input as well as an output. */
 	__asm__("cpuid"
@@ -491,6 +491,12 @@ struct thread_struct {
 	.io_bitmap	= { [ 0 ... IO_BITMAP_LONGS] = ~0 },		\
 }
 
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#else
+#define paravirt_enabled() 0
+#define __cpuid native_cpuid
+
 static inline void load_esp0(struct tss_struct *tss, struct thread_struct *thread)
 {
 	tss->esp0 = thread->esp0;
@@ -524,10 +530,13 @@ static inline void load_esp0(struct tss_struct *tss, struct thread_struct *threa
 			: /* no output */			\
 			:"r" (value))
 
+#define set_iopl_mask native_set_iopl_mask
+#endif /* CONFIG_PARAVIRT */
+
 /*
  * Set IOPL bits in EFLAGS from given mask
  */
-static inline void set_iopl_mask(unsigned mask)
+static fastcall inline void native_set_iopl_mask(unsigned mask)
 {
 	unsigned int reg;
 	__asm__ __volatile__ ("pushfl;"

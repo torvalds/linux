@@ -495,6 +495,12 @@ static void set_mca_bus(int x)
 static void set_mca_bus(int x) { }
 #endif
 
+/* Overridden in paravirt.c if CONFIG_PARAVIRT */
+char * __attribute__((weak)) memory_setup(void)
+{
+	return machine_specific_memory_setup();
+}
+
 /*
  * Determine if we were loaded by an EFI loader.  If so, then we have also been
  * passed the efi memmap, systab, etc., so we should use these data structures
@@ -547,7 +553,7 @@ void __init setup_arch(char **cmdline_p)
 		efi_init();
 	else {
 		printk(KERN_INFO "BIOS-provided physical RAM map:\n");
-		print_memory_map(machine_specific_memory_setup());
+		print_memory_map(memory_setup());
 	}
 
 	copy_edd();

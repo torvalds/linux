@@ -1,6 +1,10 @@
 #ifndef __ASM_MSR_H
 #define __ASM_MSR_H
 
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#else
+
 /*
  * Access to machine-specific registers (available on 586 and better only)
  * Note: the rd* operations modify the parameters directly (without using
@@ -77,6 +81,7 @@ static inline void wrmsrl (unsigned long msr, unsigned long long val)
      __asm__ __volatile__("rdpmc" \
 			  : "=a" (low), "=d" (high) \
 			  : "c" (counter))
+#endif	/* !CONFIG_PARAVIRT */
 
 /* symbolic names for some interesting MSRs */
 /* Intel defined MSRs. */

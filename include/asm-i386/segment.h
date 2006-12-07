@@ -131,5 +131,7 @@
 #define SEGMENT_LDT		0x4
 #define SEGMENT_GDT		0x0
 
+#ifndef CONFIG_PARAVIRT
 #define get_kernel_rpl()  0
+#endif
 #endif

@@ -33,6 +33,11 @@
  *		Dave Jones	:	Report invalid combinations of Athlon CPUs.
 *		Rusty Russell	:	Hacked into shape for new "hotplug" boot process. */
 
+
+/* SMP boot always wants to use real time delay to allow sufficient time for
+ * the APs to come online */
+#define USE_REAL_TIME_DELAY
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>

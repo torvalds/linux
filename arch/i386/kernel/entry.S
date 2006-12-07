@@ -62,13 +62,6 @@ DF_MASK		= 0x00000400
 NT_MASK		= 0x00004000
 VM_MASK		= 0x00020000
 
-/* These are replaces for paravirtualization */
-#define DISABLE_INTERRUPTS		cli
-#define ENABLE_INTERRUPTS		sti
-#define ENABLE_INTERRUPTS_SYSEXIT	sti; sysexit
-#define INTERRUPT_RETURN		iret
-#define GET_CR0_INTO_EAX		movl %cr0, %eax
-
 #ifdef CONFIG_PREEMPT
 #define preempt_stop		DISABLE_INTERRUPTS; TRACE_IRQS_OFF
 #else
@@ -416,6 +409,20 @@ ldt_ss:
 	jnz restore_nocheck
 	testl $0x00400000, %eax		# returning to 32bit stack?
 	jnz restore_nocheck		# allright, normal return
+
+#ifdef CONFIG_PARAVIRT
+	/*
+	 * The kernel can't run on a non-flat stack if paravirt mode
+	 * is active.  Rather than try to fixup the high bits of
+	 * ESP, bypass this code entirely.  This may break DOSemu
+	 * and/or Wine support in a paravirt VM, although the option
+	 * is still available to implement the setting of the high
+	 * 16-bits in the INTERRUPT_RETURN paravirt-op.
+	 */
+	cmpl $0, paravirt_ops+PARAVIRT_enabled
+	jne restore_nocheck
+#endif
+
 	/* If returning to userspace with 16bit stack,
 	 * try to fix the higher word of ESP, as the CPU
 	 * won't restore it.
@@ -832,6 +839,19 @@ nmi_espfix_stack:
 	.long 1b,iret_exc
 .previous
 KPROBE_END(nmi)
+
+#ifdef CONFIG_PARAVIRT
+ENTRY(native_iret)
+1:	iret
+.section __ex_table,"a"
+	.align 4
+	.long 1b,iret_exc
+.previous
+
+ENTRY(native_irq_enable_sysexit)
+	sti
+	sysexit
+#endif
 
 KPROBE_ENTRY(int3)
 	RING0_INT_FRAME

@@ -41,4 +41,7 @@ extern int irqbalance_disable(char *str);
 extern void fixup_irqs(cpumask_t map);
 #endif
 
+void init_IRQ(void);
+void __init native_init_IRQ(void);
+
 #endif /* _ASM_IRQ_H */

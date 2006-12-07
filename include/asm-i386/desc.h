@@ -55,6 +55,9 @@ static inline void pack_gate(__u32 *a, __u32 *b,
 #define DESCTYPE_DPL3	0x60	/* DPL-3 */
 #define DESCTYPE_S	0x10	/* !system */
 
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#else
 #define load_TR_desc() __asm__ __volatile__("ltr %w0"::"q" (GDT_ENTRY_TSS*8))
 
 #define load_gdt(dtr) __asm__ __volatile("lgdt %0"::"m" (*dtr))
@@ -105,7 +108,11 @@ static inline void __set_tss_desc(unsigned int cpu, unsigned int entry, const vo
 	write_gdt_entry(get_cpu_gdt_table(cpu), entry, a, b);
 }
 
-static inline void set_ldt(void *addr, unsigned int entries)
+#define set_ldt native_set_ldt
+#endif /* CONFIG_PARAVIRT */
+
+static inline fastcall void native_set_ldt(const void *addr,
+					   unsigned int entries)
 {
 	if (likely(entries == 0))
 		__asm__ __volatile__("lldt %w0"::"q" (0));

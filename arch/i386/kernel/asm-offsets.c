@@ -101,4 +101,14 @@ void foo(void)
 	BLANK();
  	OFFSET(PDA_cpu, i386_pda, cpu_number);
 	OFFSET(PDA_pcurrent, i386_pda, pcurrent);
+
+#ifdef CONFIG_PARAVIRT
+	BLANK();
+	OFFSET(PARAVIRT_enabled, paravirt_ops, paravirt_enabled);
+	OFFSET(PARAVIRT_irq_disable, paravirt_ops, irq_disable);
+	OFFSET(PARAVIRT_irq_enable, paravirt_ops, irq_enable);
+	OFFSET(PARAVIRT_irq_enable_sysexit, paravirt_ops, irq_enable_sysexit);
+	OFFSET(PARAVIRT_iret, paravirt_ops, iret);
+	OFFSET(PARAVIRT_read_cr0, paravirt_ops, read_cr0);
+#endif
 }
