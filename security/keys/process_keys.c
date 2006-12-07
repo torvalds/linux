@@ -27,7 +27,7 @@ static DEFINE_MUTEX(key_session_mutex);
 struct key_user root_key_user = {
 	.usage		= ATOMIC_INIT(3),
 	.consq		= LIST_HEAD_INIT(root_key_user.consq),
-	.lock		= SPIN_LOCK_UNLOCKED,
+	.lock		= __SPIN_LOCK_UNLOCKED(root_key_user.lock),
 	.nkeys		= ATOMIC_INIT(2),
 	.nikeys		= ATOMIC_INIT(2),
 	.uid		= 0,
