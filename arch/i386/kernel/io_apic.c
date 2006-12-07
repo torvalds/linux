@@ -2179,9 +2179,15 @@ static inline void unlock_ExtINT_logic(void)
 	unsigned char save_control, save_freq_select;
 
 	pin  = find_isa_irq_pin(8, mp_INT);
-	apic = find_isa_irq_apic(8, mp_INT);
-	if (pin == -1)
+	if (pin == -1) {
+		WARN_ON_ONCE(1);
 		return;
+	}
+	apic = find_isa_irq_apic(8, mp_INT);
+	if (apic == -1) {
+		WARN_ON_ONCE(1);
+		return;
+	}
 
 	entry0 = ioapic_read_entry(apic, pin);
 	clear_IO_APIC_pin(apic, pin);
