@@ -138,12 +138,12 @@ static struct pi_protocol fit2 = {
 
 static int __init fit2_init(void)
 {
-	return pi_register(&fit2)-1;
+	return paride_register(&fit2);
 }
 
 static void __exit fit2_exit(void)
 {
-	pi_unregister(&fit2);
+	paride_unregister(&fit2);
 }
 
 MODULE_LICENSE("GPL");

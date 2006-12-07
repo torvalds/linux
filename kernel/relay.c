@@ -1013,7 +1013,7 @@ static ssize_t relay_file_sendfile(struct file *filp,
 				       actor, &desc);
 }
 
-struct file_operations relay_file_operations = {
+const struct file_operations relay_file_operations = {
 	.open		= relay_file_open,
 	.poll		= relay_file_poll,
 	.mmap		= relay_file_mmap,

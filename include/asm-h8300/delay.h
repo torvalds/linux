@@ -9,7 +9,7 @@
  * Delay routines, using a pre-computed "loops_per_second" value.
  */
 
-extern __inline__ void __delay(unsigned long loops)
+static inline void __delay(unsigned long loops)
 {
 	__asm__ __volatile__ ("1:\n\t"
 			      "dec.l #1,%0\n\t"
@@ -27,7 +27,7 @@ extern __inline__ void __delay(unsigned long loops)
 
 extern unsigned long loops_per_jiffy;
 
-extern __inline__ void udelay(unsigned long usecs)
+static inline void udelay(unsigned long usecs)
 {
 	usecs *= 4295;		/* 2**32 / 1000000 */
 	usecs /= (loops_per_jiffy*HZ);

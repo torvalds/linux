@@ -1016,7 +1016,6 @@ i2Output(i2ChanStrPtr pCh, const char *pSource, int count)
 	unsigned short channel;
 	unsigned short stuffIndex;
 	unsigned long flags;
-	int rc = 0;
 
 	int bailout = 10;
 

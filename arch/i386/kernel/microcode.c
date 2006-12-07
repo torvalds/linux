@@ -703,7 +703,6 @@ static struct sysdev_driver mc_sysdev_driver = {
 	.resume = mc_sysdev_resume,
 };
 
-#ifdef CONFIG_HOTPLUG_CPU
 static __cpuinit int
 mc_cpu_callback(struct notifier_block *nb, unsigned long action, void *hcpu)
 {
@@ -726,7 +725,6 @@ mc_cpu_callback(struct notifier_block *nb, unsigned long action, void *hcpu)
 static struct notifier_block mc_cpu_notifier = {
 	.notifier_call = mc_cpu_callback,
 };
-#endif
 
 static int __init microcode_init (void)
 {

@@ -249,8 +249,6 @@ static void __init MP_bus_info (struct mpc_config_bus *m)
 		mp_current_pci_id++;
 	} else if (strncmp(str, BUSTYPE_MCA, sizeof(BUSTYPE_MCA)-1) == 0) {
 		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_MCA;
-	} else if (strncmp(str, BUSTYPE_NEC98, sizeof(BUSTYPE_NEC98)-1) == 0) {
-		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_NEC98;
 	} else {
 		printk(KERN_WARNING "Unknown bustype %s - ignoring\n", str);
 	}

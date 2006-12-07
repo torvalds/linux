@@ -124,7 +124,7 @@ DEFINE_PER_CPU(struct avc_cache_stats, avc_cache_stats) = { 0 };
 
 static struct avc_cache avc_cache;
 static struct avc_callback_node *avc_callbacks;
-static kmem_cache_t *avc_node_cachep;
+static struct kmem_cache *avc_node_cachep;
 
 static inline int avc_hash(u32 ssid, u32 tsid, u16 tclass)
 {
@@ -332,7 +332,7 @@ static struct avc_node *avc_alloc_node(void)
 {
 	struct avc_node *node;
 
-	node = kmem_cache_alloc(avc_node_cachep, SLAB_ATOMIC);
+	node = kmem_cache_alloc(avc_node_cachep, GFP_ATOMIC);
 	if (!node)
 		goto out;
 

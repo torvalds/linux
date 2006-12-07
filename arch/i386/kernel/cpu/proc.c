@@ -152,9 +152,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 				seq_printf(m, " [%d]", i);
 		}
 
-	seq_printf(m, "\nbogomips\t: %lu.%02lu\n\n",
+	seq_printf(m, "\nbogomips\t: %lu.%02lu\n",
 		     c->loops_per_jiffy/(500000/HZ),
 		     (c->loops_per_jiffy/(5000/HZ)) % 100);
+	seq_printf(m, "clflush size\t: %u\n\n", c->x86_clflush_size);
 
 	return 0;
 }

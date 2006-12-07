@@ -54,6 +54,7 @@ extern int proc_nr_files(ctl_table *table, int write, struct file *filp,
 
 #ifdef CONFIG_X86
 #include <asm/nmi.h>
+#include <asm/stacktrace.h>
 #endif
 
 #if defined(CONFIG_SYSCTL)
@@ -170,7 +171,7 @@ static ssize_t proc_readsys(struct file *, char __user *, size_t, loff_t *);
 static ssize_t proc_writesys(struct file *, const char __user *, size_t, loff_t *);
 static int proc_opensys(struct inode *, struct file *);
 
-struct file_operations proc_sys_file_operations = {
+const struct file_operations proc_sys_file_operations = {
 	.open		= proc_opensys,
 	.read		= proc_readsys,
 	.write		= proc_writesys,
@@ -707,6 +708,14 @@ static ctl_table kern_table[] = {
 		.mode		= 0444,
 		.proc_handler	= &proc_dointvec,
 	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "kstack_depth_to_print",
+		.data		= &kstack_depth_to_print,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
 #endif
 #if defined(CONFIG_MMU)
 	{
@@ -975,17 +984,6 @@ static ctl_table vm_table[] = {
 		.proc_handler	= &proc_dointvec,
 		.strategy	= &sysctl_intvec,
 		.extra1		= &zero,
-	},
-#endif
-#ifdef CONFIG_SWAP
-	{
-		.ctl_name	= VM_SWAP_TOKEN_TIMEOUT,
-		.procname	= "swap_token_timeout",
-		.data		= &swap_token_default_timeout,
-		.maxlen		= sizeof(swap_token_default_timeout),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-		.strategy	= &sysctl_jiffies,
 	},
 #endif
 #ifdef CONFIG_NUMA
@@ -1886,7 +1884,7 @@ static int __do_proc_dointvec(void *tbl_data, ctl_table *table,
 			p = buf;
 			if (*p == '-' && left > 1) {
 				neg = 1;
-				left--, p++;
+				p++;
 			}
 			if (*p < '0' || *p > '9')
 				break;
@@ -2137,7 +2135,7 @@ static int __do_proc_doulongvec_minmax(void *data, ctl_table *table, int write,
 			p = buf;
 			if (*p == '-' && left > 1) {
 				neg = 1;
-				left--, p++;
+				p++;
 			}
 			if (*p < '0' || *p > '9')
 				break;

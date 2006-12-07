@@ -51,6 +51,22 @@ homepage:
 
   http://fuse.sourceforge.net/
 
+Filesystem type
+~~~~~~~~~~~~~~~
+
+The filesystem type given to mount(2) can be one of the following:
+
+'fuse'
+
+  This is the usual way to mount a FUSE filesystem.  The first
+  argument of the mount system call may contain an arbitrary string,
+  which is not interpreted by the kernel.
+
+'fuseblk'
+
+  The filesystem is block device based.  The first argument of the
+  mount system call is interpreted as the name of the device.
+
 Mount options
 ~~~~~~~~~~~~~
 
@@ -93,6 +109,11 @@ Mount options
   With this option the maximum size of read operations can be set.
   The default is infinite.  Note that the size of read requests is
   limited anyway to 32 pages (which is 128kbyte on i386).
+
+'blksize=N'
+
+  Set the block size for the filesystem.  The default is 512.  This
+  option is only valid for 'fuseblk' type mounts.
 
 Control filesystem
 ~~~~~~~~~~~~~~~~~~

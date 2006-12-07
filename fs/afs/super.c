@@ -35,7 +35,7 @@ struct afs_mount_params {
 	struct afs_volume	*volume;
 };
 
-static void afs_i_init_once(void *foo, kmem_cache_t *cachep,
+static void afs_i_init_once(void *foo, struct kmem_cache *cachep,
 			    unsigned long flags);
 
 static int afs_get_sb(struct file_system_type *fs_type,
@@ -65,7 +65,7 @@ static struct super_operations afs_super_ops = {
 	.put_super	= afs_put_super,
 };
 
-static kmem_cache_t *afs_inode_cachep;
+static struct kmem_cache *afs_inode_cachep;
 static atomic_t afs_count_active_inodes;
 
 /*****************************************************************************/
@@ -242,13 +242,11 @@ static int afs_fill_super(struct super_block *sb, void *data, int silent)
 	kenter("");
 
 	/* allocate a superblock info record */
-	as = kmalloc(sizeof(struct afs_super_info), GFP_KERNEL);
+	as = kzalloc(sizeof(struct afs_super_info), GFP_KERNEL);
 	if (!as) {
 		_leave(" = -ENOMEM");
 		return -ENOMEM;
 	}
-
-	memset(as, 0, sizeof(struct afs_super_info));
 
 	afs_get_volume(params->volume);
 	as->volume = params->volume;
@@ -384,7 +382,7 @@ static void afs_put_super(struct super_block *sb)
 /*
  * initialise an inode cache slab element prior to any use
  */
-static void afs_i_init_once(void *_vnode, kmem_cache_t *cachep,
+static void afs_i_init_once(void *_vnode, struct kmem_cache *cachep,
 			    unsigned long flags)
 {
 	struct afs_vnode *vnode = (struct afs_vnode *) _vnode;
@@ -412,7 +410,7 @@ static struct inode *afs_alloc_inode(struct super_block *sb)
 	struct afs_vnode *vnode;
 
 	vnode = (struct afs_vnode *)
-		kmem_cache_alloc(afs_inode_cachep, SLAB_KERNEL);
+		kmem_cache_alloc(afs_inode_cachep, GFP_KERNEL);
 	if (!vnode)
 		return NULL;
 

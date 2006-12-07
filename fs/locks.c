@@ -142,12 +142,12 @@ int lease_break_time = 45;
 static LIST_HEAD(file_lock_list);
 static LIST_HEAD(blocked_list);
 
-static kmem_cache_t *filelock_cache __read_mostly;
+static struct kmem_cache *filelock_cache __read_mostly;
 
 /* Allocate an empty lock structure. */
 static struct file_lock *locks_alloc_lock(void)
 {
-	return kmem_cache_alloc(filelock_cache, SLAB_KERNEL);
+	return kmem_cache_alloc(filelock_cache, GFP_KERNEL);
 }
 
 static void locks_release_private(struct file_lock *fl)
@@ -199,7 +199,7 @@ EXPORT_SYMBOL(locks_init_lock);
  * Initialises the fields of the file lock which are invariant for
  * free file_locks.
  */
-static void init_once(void *foo, kmem_cache_t *cache, unsigned long flags)
+static void init_once(void *foo, struct kmem_cache *cache, unsigned long flags)
 {
 	struct file_lock *lock = (struct file_lock *) foo;
 

@@ -1736,7 +1736,7 @@ int split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
 	if (mm->map_count >= sysctl_max_map_count)
 		return -ENOMEM;
 
-	new = kmem_cache_alloc(vm_area_cachep, SLAB_KERNEL);
+	new = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
 
@@ -2057,7 +2057,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 		    vma_start < new_vma->vm_end)
 			*vmap = new_vma;
 	} else {
-		new_vma = kmem_cache_alloc(vm_area_cachep, SLAB_KERNEL);
+		new_vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
 		if (new_vma) {
 			*new_vma = *vma;
 			pol = mpol_copy(vma_policy(vma));

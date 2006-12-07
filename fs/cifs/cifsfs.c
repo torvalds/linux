@@ -34,6 +34,7 @@
 #include <linux/mempool.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
+#include <linux/freezer.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
 #define DECLARE_GLOBALS_HERE
@@ -81,7 +82,7 @@ extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
 extern mempool_t *cifs_mid_poolp;
 
-extern kmem_cache_t *cifs_oplock_cachep;
+extern struct kmem_cache *cifs_oplock_cachep;
 
 static int
 cifs_read_super(struct super_block *sb, void *data,
@@ -232,11 +233,11 @@ static int cifs_permission(struct inode * inode, int mask, struct nameidata *nd)
 		return generic_permission(inode, mask, NULL);
 }
 
-static kmem_cache_t *cifs_inode_cachep;
-static kmem_cache_t *cifs_req_cachep;
-static kmem_cache_t *cifs_mid_cachep;
-kmem_cache_t *cifs_oplock_cachep;
-static kmem_cache_t *cifs_sm_req_cachep;
+static struct kmem_cache *cifs_inode_cachep;
+static struct kmem_cache *cifs_req_cachep;
+static struct kmem_cache *cifs_mid_cachep;
+struct kmem_cache *cifs_oplock_cachep;
+static struct kmem_cache *cifs_sm_req_cachep;
 mempool_t *cifs_sm_req_poolp;
 mempool_t *cifs_req_poolp;
 mempool_t *cifs_mid_poolp;
@@ -245,7 +246,7 @@ static struct inode *
 cifs_alloc_inode(struct super_block *sb)
 {
 	struct cifsInodeInfo *cifs_inode;
-	cifs_inode = kmem_cache_alloc(cifs_inode_cachep, SLAB_KERNEL);
+	cifs_inode = kmem_cache_alloc(cifs_inode_cachep, GFP_KERNEL);
 	if (!cifs_inode)
 		return NULL;
 	cifs_inode->cifsAttrs = 0x20;	/* default */
@@ -668,7 +669,7 @@ const struct file_operations cifs_dir_ops = {
 };
 
 static void
-cifs_init_once(void *inode, kmem_cache_t * cachep, unsigned long flags)
+cifs_init_once(void *inode, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct cifsInodeInfo *cifsi = inode;
 

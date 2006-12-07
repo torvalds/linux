@@ -119,7 +119,8 @@ EXPORT_SYMBOL(svc_auth_unregister);
 #define	DN_HASHMASK	(DN_HASHMAX-1)
 
 static struct hlist_head	auth_domain_table[DN_HASHMAX];
-static spinlock_t	auth_domain_lock = SPIN_LOCK_UNLOCKED;
+static spinlock_t	auth_domain_lock =
+	__SPIN_LOCK_UNLOCKED(auth_domain_lock);
 
 void auth_domain_put(struct auth_domain *dom)
 {

@@ -13,6 +13,7 @@
 #include <linux/spinlock.h>
 #include <linux/sysdev.h>
 #include <linux/timer.h>
+#include <linux/freezer.h>
 
 #include "rtmutex.h"
 

@@ -624,13 +624,13 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 		skb_shinfo(skb)->frag_list = NULL;
 		/* BUILD HEADER */
 
+		*prevhdr = NEXTHDR_FRAGMENT;
 		tmp_hdr = kmemdup(skb->nh.raw, hlen, GFP_ATOMIC);
 		if (!tmp_hdr) {
 			IP6_INC_STATS(ip6_dst_idev(skb->dst), IPSTATS_MIB_FRAGFAILS);
 			return -ENOMEM;
 		}
 
-		*prevhdr = NEXTHDR_FRAGMENT;
 		__skb_pull(skb, hlen);
 		fh = (struct frag_hdr*)__skb_push(skb, sizeof(struct frag_hdr));
 		skb->nh.raw = __skb_push(skb, hlen);

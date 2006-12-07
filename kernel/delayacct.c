@@ -20,7 +20,7 @@
 #include <linux/delayacct.h>
 
 int delayacct_on __read_mostly = 1;	/* Delay accounting turned on/off */
-kmem_cache_t *delayacct_cache;
+struct kmem_cache *delayacct_cache;
 
 static int __init delayacct_setup_disable(char *str)
 {
@@ -41,7 +41,7 @@ void delayacct_init(void)
 
 void __delayacct_tsk_init(struct task_struct *tsk)
 {
-	tsk->delays = kmem_cache_zalloc(delayacct_cache, SLAB_KERNEL);
+	tsk->delays = kmem_cache_zalloc(delayacct_cache, GFP_KERNEL);
 	if (tsk->delays)
 		spin_lock_init(&tsk->delays->lock);
 }

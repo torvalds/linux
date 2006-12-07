@@ -2,7 +2,7 @@
 #include <signal.h>
 #include <asm/ptrace.h>
 #include <asm/user.h>
-#include <linux/stddef.h>
+#include <stddef.h>
 #include <sys/poll.h>
 
 #define DEFINE(sym, val) \

@@ -32,6 +32,7 @@
 #include <linux/kthread.h>
 #include <linux/migrate.h>
 #include <linux/backing-dev.h>
+#include <linux/freezer.h>
 
 STATIC kmem_zone_t *xfs_buf_zone;
 STATIC kmem_shaker_t xfs_buf_shake;
@@ -1826,11 +1827,11 @@ xfs_buf_init(void)
 	if (!xfs_buf_zone)
 		goto out_free_trace_buf;
 
-	xfslogd_workqueue = create_workqueue("xfslogd");
+	xfslogd_workqueue = create_freezeable_workqueue("xfslogd");
 	if (!xfslogd_workqueue)
 		goto out_free_buf_zone;
 
-	xfsdatad_workqueue = create_workqueue("xfsdatad");
+	xfsdatad_workqueue = create_freezeable_workqueue("xfsdatad");
 	if (!xfsdatad_workqueue)
 		goto out_destroy_xfslogd_workqueue;
 

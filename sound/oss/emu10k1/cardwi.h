@@ -83,7 +83,7 @@ void emu10k1_wavein_close(struct emu10k1_wavedevice *);
 void emu10k1_wavein_start(struct emu10k1_wavedevice *);
 void emu10k1_wavein_stop(struct emu10k1_wavedevice *);
 void emu10k1_wavein_getxfersize(struct wiinst *, u32 *);
-void emu10k1_wavein_xferdata(struct wiinst *, u8 __user *, u32 *);
+int emu10k1_wavein_xferdata(struct wiinst *, u8 __user *, u32 *);
 int emu10k1_wavein_setformat(struct emu10k1_wavedevice *, struct wave_format *);
 void emu10k1_wavein_update(struct emu10k1_card *, struct wiinst *);
 

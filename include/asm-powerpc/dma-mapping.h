@@ -342,9 +342,9 @@ static inline int dma_mapping_error(dma_addr_t dma_addr)
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
 #ifdef CONFIG_NOT_COHERENT_CACHE
-#define dma_is_consistent(d)	(0)
+#define dma_is_consistent(d, h)	(0)
 #else
-#define dma_is_consistent(d)	(1)
+#define dma_is_consistent(d, h)	(1)
 #endif
 
 static inline int dma_get_cache_alignment(void)
@@ -378,7 +378,7 @@ static inline void dma_sync_single_range_for_device(struct device *dev,
 	dma_sync_single_for_device(dev, dma_handle, offset + size, direction);
 }
 
-static inline void dma_cache_sync(void *vaddr, size_t size,
+static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 		enum dma_data_direction direction)
 {
 	BUG_ON(direction == DMA_NONE);

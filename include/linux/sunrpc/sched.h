@@ -217,7 +217,7 @@ struct rpc_wait_queue {
 
 #ifndef RPC_DEBUG
 # define RPC_WAITQ_INIT(var,qname) { \
-		.lock = SPIN_LOCK_UNLOCKED, \
+		.lock = __SPIN_LOCK_UNLOCKED(var.lock), \
 		.tasks = { \
 			[0] = LIST_HEAD_INIT(var.tasks[0]), \
 			[1] = LIST_HEAD_INIT(var.tasks[1]), \
@@ -226,7 +226,7 @@ struct rpc_wait_queue {
 	}
 #else
 # define RPC_WAITQ_INIT(var,qname) { \
-		.lock = SPIN_LOCK_UNLOCKED, \
+		.lock = __SPIN_LOCK_UNLOCKED(var.lock), \
 		.tasks = { \
 			[0] = LIST_HEAD_INIT(var.tasks[0]), \
 			[1] = LIST_HEAD_INIT(var.tasks[1]), \

@@ -44,17 +44,17 @@ static struct io_context *current_io_context(gfp_t gfp_flags, int node);
 /*
  * For the allocated request tables
  */
-static kmem_cache_t *request_cachep;
+static struct kmem_cache *request_cachep;
 
 /*
  * For queue allocation
  */
-static kmem_cache_t *requestq_cachep;
+static struct kmem_cache *requestq_cachep;
 
 /*
  * For io context allocations
  */
-static kmem_cache_t *iocontext_cachep;
+static struct kmem_cache *iocontext_cachep;
 
 /*
  * Controlling structure to kblockd
@@ -3459,8 +3459,6 @@ static void blk_done_softirq(struct softirq_action *h)
 	}
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-
 static int blk_cpu_notify(struct notifier_block *self, unsigned long action,
 			  void *hcpu)
 {
@@ -3485,8 +3483,6 @@ static int blk_cpu_notify(struct notifier_block *self, unsigned long action,
 static struct notifier_block __devinitdata blk_cpu_notifier = {
 	.notifier_call	= blk_cpu_notify,
 };
-
-#endif /* CONFIG_HOTPLUG_CPU */
 
 /**
  * blk_complete_request - end I/O on a request

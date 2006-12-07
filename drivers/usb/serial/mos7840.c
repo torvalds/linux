@@ -826,7 +826,7 @@ static int mos7840_open(struct usb_serial_port *port, struct file *filp)
 
 	/* Initialising the write urb pool */
 	for (j = 0; j < NUM_URBS; ++j) {
-		urb = usb_alloc_urb(0, SLAB_ATOMIC);
+		urb = usb_alloc_urb(0, GFP_ATOMIC);
 		mos7840_port->write_urb_pool[j] = urb;
 
 		if (urb == NULL) {
@@ -2786,7 +2786,7 @@ static int mos7840_startup(struct usb_serial *serial)
 				    i + 1, status);
 
 		}
-		mos7840_port->control_urb = usb_alloc_urb(0, SLAB_ATOMIC);
+		mos7840_port->control_urb = usb_alloc_urb(0, GFP_ATOMIC);
 		mos7840_port->ctrl_buf = kmalloc(16, GFP_KERNEL);
 
 	}

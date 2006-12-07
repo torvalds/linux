@@ -210,6 +210,17 @@ config SERIAL_8250_BOCA
 	  To compile this driver as a module, choose M here: the module
 	  will be called 8250_boca.
 
+config SERIAL_8250_EXAR_ST16C554
+	tristate "Support Exar ST16C554/554D Quad UART"
+	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
+	help
+	  The Uplogix Envoy TU301 uses this Exar Quad UART.  If you are
+	  tinkering with your Envoy TU301, or have a machine with this UART,
+	  say Y here.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called 8250_exar_st16c554.
+
 config SERIAL_8250_HUB6
 	tristate "Support Hub6 cards"
 	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
@@ -510,6 +521,25 @@ config SERIAL_IMX_CONSOLE
 	  "console=ttySA0". (Try "man bootparam" or see the documentation of
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
+
+config SERIAL_UARTLITE
+	tristate "Xilinx uartlite serial port support"
+	depends on PPC32
+	select SERIAL_CORE
+	help
+	  Say Y here if you want to use the Xilinx uartlite serial controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called uartlite.ko.
+
+config SERIAL_UARTLITE_CONSOLE
+	bool "Support for console on Xilinx uartlite serial port"
+	depends on SERIAL_UARTLITE=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Say Y here if you wish to use a Xilinx uartlite as the system
+	  console (the system console is the device which receives all kernel
+	  messages and warnings and which allows logins in single user mode).
 
 config SERIAL_SUNCORE
 	bool

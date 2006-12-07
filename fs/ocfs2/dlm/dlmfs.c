@@ -66,7 +66,7 @@ static struct file_operations dlmfs_file_operations;
 static struct inode_operations dlmfs_dir_inode_operations;
 static struct inode_operations dlmfs_root_inode_operations;
 static struct inode_operations dlmfs_file_inode_operations;
-static kmem_cache_t *dlmfs_inode_cache;
+static struct kmem_cache *dlmfs_inode_cache;
 
 struct workqueue_struct *user_dlm_worker;
 
@@ -257,7 +257,7 @@ static ssize_t dlmfs_file_write(struct file *filp,
 }
 
 static void dlmfs_init_once(void *foo,
-			    kmem_cache_t *cachep,
+			    struct kmem_cache *cachep,
 			    unsigned long flags)
 {
 	struct dlmfs_inode_private *ip =
@@ -276,7 +276,7 @@ static struct inode *dlmfs_alloc_inode(struct super_block *sb)
 {
 	struct dlmfs_inode_private *ip;
 
-	ip = kmem_cache_alloc(dlmfs_inode_cache, SLAB_NOFS);
+	ip = kmem_cache_alloc(dlmfs_inode_cache, GFP_NOFS);
 	if (!ip)
 		return NULL;
 

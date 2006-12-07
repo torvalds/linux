@@ -176,7 +176,6 @@ struct elf_prpsinfo32
 
 #include <linux/highuid.h>
 
-#define elf_addr_t	u32
 /*
 #define init_elf_binfmt init_elf32_binfmt
 */

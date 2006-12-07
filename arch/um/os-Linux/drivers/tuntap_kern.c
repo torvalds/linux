@@ -90,4 +90,4 @@ static int register_tuntap(void)
 	return 0;
 }
 
-__initcall(register_tuntap);
+late_initcall(register_tuntap);

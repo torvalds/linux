@@ -973,8 +973,8 @@ ide_settings_t *ide_find_setting_by_name (ide_drive_t *drive, char *name)
  *	@drive: drive
  *
  *	Automatically remove all the driver specific settings for this
- *	drive. This function may sleep and must not be called from IRQ
- *	context. The caller must hold ide_setting_sem.
+ *	drive. This function may not be called from IRQ context. The
+ *	caller must hold ide_setting_sem.
  */
  
 static void auto_remove_settings (ide_drive_t *drive)
@@ -1874,11 +1874,22 @@ void ide_unregister_subdriver(ide_drive_t *drive, ide_driver_t *driver)
 {
 	unsigned long flags;
 	
-	down(&ide_setting_sem);
-	spin_lock_irqsave(&ide_lock, flags);
 #ifdef CONFIG_PROC_FS
 	ide_remove_proc_entries(drive->proc, driver->proc);
 #endif
+	down(&ide_setting_sem);
+	spin_lock_irqsave(&ide_lock, flags);
+	/*
+	 * ide_setting_sem protects the settings list
+	 * ide_lock protects the use of settings
+	 *
+	 * so we need to hold both, ide_settings_sem because we want to
+	 * modify the settings list, and ide_lock because we cannot take
+	 * a setting out that is being used.
+	 *
+	 * OTOH both ide_{read,write}_setting are only ever used under
+	 * ide_setting_sem.
+	 */
 	auto_remove_settings(drive);
 	spin_unlock_irqrestore(&ide_lock, flags);
 	up(&ide_setting_sem);

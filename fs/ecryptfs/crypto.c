@@ -628,7 +628,7 @@ int ecryptfs_decrypt_page(struct file *file, struct page *page)
 	num_extents_per_page = PAGE_CACHE_SIZE / crypt_stat->extent_size;
 	base_extent = (page->index * num_extents_per_page);
 	lower_page_virt = kmem_cache_alloc(ecryptfs_lower_page_cache,
-					   SLAB_KERNEL);
+					   GFP_KERNEL);
 	if (!lower_page_virt) {
 		rc = -ENOMEM;
 		ecryptfs_printk(KERN_ERR, "Error getting page for encrypted "
@@ -1334,7 +1334,7 @@ int ecryptfs_write_headers(struct dentry *ecryptfs_dentry,
 		goto out;
 	}
 	/* Released in this function */
-	page_virt = kmem_cache_alloc(ecryptfs_header_cache_0, SLAB_USER);
+	page_virt = kmem_cache_alloc(ecryptfs_header_cache_0, GFP_USER);
 	if (!page_virt) {
 		ecryptfs_printk(KERN_ERR, "Out of memory\n");
 		rc = -ENOMEM;
@@ -1493,7 +1493,7 @@ int ecryptfs_read_headers(struct dentry *ecryptfs_dentry,
 	    &ecryptfs_inode_to_private(ecryptfs_dentry->d_inode)->crypt_stat;
 
 	/* Read the first page from the underlying file */
-	page_virt = kmem_cache_alloc(ecryptfs_header_cache_1, SLAB_USER);
+	page_virt = kmem_cache_alloc(ecryptfs_header_cache_1, GFP_USER);
 	if (!page_virt) {
 		rc = -ENOMEM;
 		ecryptfs_printk(KERN_ERR, "Unable to allocate page_virt\n");

@@ -79,7 +79,7 @@ for( ; ((f) = *(fp)) != NULL && dn_key_eq((f)->fn_key, (key)); (fp) = &(f)->fn_n
 static struct hlist_head dn_fib_table_hash[DN_FIB_TABLE_HASHSZ];
 static DEFINE_RWLOCK(dn_fib_tables_lock);
 
-static kmem_cache_t *dn_hash_kmem __read_mostly;
+static struct kmem_cache *dn_hash_kmem __read_mostly;
 static int dn_fib_hash_zombies;
 
 static inline dn_fib_idx_t dn_hash(dn_fib_key_t key, struct dn_zone *dz)
@@ -590,7 +590,7 @@ create:
 
 replace:
 	err = -ENOBUFS;
-	new_f = kmem_cache_alloc(dn_hash_kmem, SLAB_KERNEL);
+	new_f = kmem_cache_alloc(dn_hash_kmem, GFP_KERNEL);
 	if (new_f == NULL)
 		goto out;
 

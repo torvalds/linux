@@ -27,6 +27,7 @@
 #include <linux/proc_fs.h>
 #include <linux/init.h>
 #include <net/xfrm.h>
+#include <linux/audit.h>
 
 #include <net/sock.h>
 
@@ -1420,6 +1421,9 @@ static int pfkey_add(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr,
 	else
 		err = xfrm_state_update(x);
 
+	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
+		       AUDIT_MAC_IPSEC_ADDSA, err ? 0 : 1, NULL, x);
+
 	if (err < 0) {
 		x->km.state = XFRM_STATE_DEAD;
 		__xfrm_state_put(x);
@@ -1460,8 +1464,12 @@ static int pfkey_delete(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 		err = -EPERM;
 		goto out;
 	}
-	
+
 	err = xfrm_state_delete(x);
+
+	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
+		       AUDIT_MAC_IPSEC_DELSA, err ? 0 : 1, NULL, x);
+
 	if (err < 0)
 		goto out;
 
@@ -1637,12 +1645,15 @@ static int pfkey_flush(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hd
 {
 	unsigned proto;
 	struct km_event c;
+	struct xfrm_audit audit_info;
 
 	proto = pfkey_satype2proto(hdr->sadb_msg_satype);
 	if (proto == 0)
 		return -EINVAL;
 
-	xfrm_state_flush(proto);
+	audit_info.loginuid = audit_get_loginuid(current->audit_context);
+	audit_info.secid = 0;
+	xfrm_state_flush(proto, &audit_info);
 	c.data.proto = proto;
 	c.seq = hdr->sadb_msg_seq;
 	c.pid = hdr->sadb_msg_pid;
@@ -2205,6 +2216,9 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	err = xfrm_policy_insert(pol->sadb_x_policy_dir-1, xp,
 				 hdr->sadb_msg_type != SADB_X_SPDUPDATE);
 
+	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
+		       AUDIT_MAC_IPSEC_ADDSPD, err ? 0 : 1, xp, NULL);
+
 	if (err)
 		goto out;
 
@@ -2282,6 +2296,10 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 	xp = xfrm_policy_bysel_ctx(XFRM_POLICY_TYPE_MAIN, pol->sadb_x_policy_dir-1,
 				   &sel, tmp.security, 1);
 	security_xfrm_policy_free(&tmp);
+
+	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
+		       AUDIT_MAC_IPSEC_DELSPD, (xp) ? 1 : 0, xp, NULL);
+
 	if (xp == NULL)
 		return -ENOENT;
 
@@ -2416,8 +2434,11 @@ static int key_notify_policy_flush(struct km_event *c)
 static int pfkey_spdflush(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr, void **ext_hdrs)
 {
 	struct km_event c;
+	struct xfrm_audit audit_info;
 
-	xfrm_policy_flush(XFRM_POLICY_TYPE_MAIN);
+	audit_info.loginuid = audit_get_loginuid(current->audit_context);
+	audit_info.secid = 0;
+	xfrm_policy_flush(XFRM_POLICY_TYPE_MAIN, &audit_info);
 	c.data.type = XFRM_POLICY_TYPE_MAIN;
 	c.event = XFRM_MSG_FLUSHPOLICY;
 	c.pid = hdr->sadb_msg_pid;

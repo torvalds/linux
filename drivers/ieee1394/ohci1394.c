@@ -1225,7 +1225,7 @@ static int ohci_iso_recv_init(struct hpsb_iso *iso)
 	int ctx;
 	int ret = -ENOMEM;
 
-	recv = kmalloc(sizeof(*recv), SLAB_KERNEL);
+	recv = kmalloc(sizeof(*recv), GFP_KERNEL);
 	if (!recv)
 		return -ENOMEM;
 
@@ -1918,7 +1918,7 @@ static int ohci_iso_xmit_init(struct hpsb_iso *iso)
 	int ctx;
 	int ret = -ENOMEM;
 
-	xmit = kmalloc(sizeof(*xmit), SLAB_KERNEL);
+	xmit = kmalloc(sizeof(*xmit), GFP_KERNEL);
 	if (!xmit)
 		return -ENOMEM;
 
@@ -3021,7 +3021,7 @@ alloc_dma_rcv_ctx(struct ti_ohci *ohci, struct dma_rcv_ctx *d,
 			return -ENOMEM;
 		}
 
-		d->prg_cpu[i] = pci_pool_alloc(d->prg_pool, SLAB_KERNEL, d->prg_bus+i);
+		d->prg_cpu[i] = pci_pool_alloc(d->prg_pool, GFP_KERNEL, d->prg_bus+i);
 		OHCI_DMA_ALLOC("pool dma_rcv prg[%d]", i);
 
                 if (d->prg_cpu[i] != NULL) {
@@ -3117,7 +3117,7 @@ alloc_dma_trm_ctx(struct ti_ohci *ohci, struct dma_trm_ctx *d,
 	OHCI_DMA_ALLOC("dma_rcv prg pool");
 
 	for (i = 0; i < d->num_desc; i++) {
-		d->prg_cpu[i] = pci_pool_alloc(d->prg_pool, SLAB_KERNEL, d->prg_bus+i);
+		d->prg_cpu[i] = pci_pool_alloc(d->prg_pool, GFP_KERNEL, d->prg_bus+i);
 		OHCI_DMA_ALLOC("pool dma_trm prg[%d]", i);
 
                 if (d->prg_cpu[i] != NULL) {

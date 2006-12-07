@@ -199,6 +199,8 @@ int misc_register(struct miscdevice * misc)
 	dev_t dev;
 	int err = 0;
 
+	INIT_LIST_HEAD(&misc->list);
+
 	down(&misc_sem);
 	list_for_each_entry(c, &misc_list, list) {
 		if (c->minor == misc->minor) {

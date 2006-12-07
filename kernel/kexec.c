@@ -20,6 +20,8 @@
 #include <linux/syscalls.h>
 #include <linux/ioport.h>
 #include <linux/hardirq.h>
+#include <linux/elf.h>
+#include <linux/elfcore.h>
 
 #include <asm/page.h>
 #include <asm/uaccess.h>
@@ -108,11 +110,10 @@ static int do_kimage_alloc(struct kimage **rimage, unsigned long entry,
 
 	/* Allocate a controlling structure */
 	result = -ENOMEM;
-	image = kmalloc(sizeof(*image), GFP_KERNEL);
+	image = kzalloc(sizeof(*image), GFP_KERNEL);
 	if (!image)
 		goto out;
 
-	memset(image, 0, sizeof(*image));
 	image->head = 0;
 	image->entry = &image->head;
 	image->last_entry = &image->head;
@@ -1065,6 +1066,60 @@ void crash_kexec(struct pt_regs *regs)
 		locked = xchg(&kexec_lock, 0);
 		BUG_ON(!locked);
 	}
+}
+
+static u32 *append_elf_note(u32 *buf, char *name, unsigned type, void *data,
+			    size_t data_len)
+{
+	struct elf_note note;
+
+	note.n_namesz = strlen(name) + 1;
+	note.n_descsz = data_len;
+	note.n_type   = type;
+	memcpy(buf, &note, sizeof(note));
+	buf += (sizeof(note) + 3)/4;
+	memcpy(buf, name, note.n_namesz);
+	buf += (note.n_namesz + 3)/4;
+	memcpy(buf, data, note.n_descsz);
+	buf += (note.n_descsz + 3)/4;
+
+	return buf;
+}
+
+static void final_note(u32 *buf)
+{
+	struct elf_note note;
+
+	note.n_namesz = 0;
+	note.n_descsz = 0;
+	note.n_type   = 0;
+	memcpy(buf, &note, sizeof(note));
+}
+
+void crash_save_cpu(struct pt_regs *regs, int cpu)
+{
+	struct elf_prstatus prstatus;
+	u32 *buf;
+
+	if ((cpu < 0) || (cpu >= NR_CPUS))
+		return;
+
+	/* Using ELF notes here is opportunistic.
+	 * I need a well defined structure format
+	 * for the data I pass, and I need tags
+	 * on the data to indicate what information I have
+	 * squirrelled away.  ELF notes happen to provide
+	 * all of that, so there is no need to invent something new.
+	 */
+	buf = (u32*)per_cpu_ptr(crash_notes, cpu);
+	if (!buf)
+		return;
+	memset(&prstatus, 0, sizeof(prstatus));
+	prstatus.pr_pid = current->pid;
+	elf_core_copy_regs(&prstatus.pr_reg, regs);
+	buf = append_elf_note(buf, "CORE", NT_PRSTATUS, &prstatus,
+				sizeof(prstatus));
+	final_note(buf);
 }
 
 static int __init crash_notes_memory_init(void)

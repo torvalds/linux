@@ -808,10 +808,9 @@ unsigned long do_mmap_pgoff(struct file *file,
 	vm_flags = determine_vm_flags(file, prot, flags, capabilities);
 
 	/* we're going to need to record the mapping if it works */
-	vml = kmalloc(sizeof(struct vm_list_struct), GFP_KERNEL);
+	vml = kzalloc(sizeof(struct vm_list_struct), GFP_KERNEL);
 	if (!vml)
 		goto error_getting_vml;
-	memset(vml, 0, sizeof(*vml));
 
 	down_write(&nommu_vma_sem);
 
@@ -887,11 +886,10 @@ unsigned long do_mmap_pgoff(struct file *file,
 	}
 
 	/* we're going to need a VMA struct as well */
-	vma = kmalloc(sizeof(struct vm_area_struct), GFP_KERNEL);
+	vma = kzalloc(sizeof(struct vm_area_struct), GFP_KERNEL);
 	if (!vma)
 		goto error_getting_vma;
 
-	memset(vma, 0, sizeof(*vma));
 	INIT_LIST_HEAD(&vma->anon_vma_node);
 	atomic_set(&vma->vm_usage, 1);
 	if (file)

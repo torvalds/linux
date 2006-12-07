@@ -386,6 +386,7 @@ void device_initialize(struct device *dev)
 	INIT_LIST_HEAD(&dev->node);
 	init_MUTEX(&dev->sem);
 	device_init_wakeup(dev, 0);
+	set_dev_node(dev, -1);
 }
 
 #ifdef CONFIG_SYSFS_DEPRECATED

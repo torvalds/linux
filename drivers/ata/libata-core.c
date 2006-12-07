@@ -2303,7 +2303,7 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 	 * DMA cycle timing is slower/equal than the fastest PIO timing.
 	 */
 
-	if (speed > XFER_PIO_4) {
+	if (speed > XFER_PIO_6) {
 		ata_timing_compute(adev, adev->pio_mode, &p, T, UT);
 		ata_timing_merge(&p, t, t, ATA_TIMING_ALL);
 	}
@@ -4960,6 +4960,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 	if (ap->flags & ATA_FLAG_PIO_POLLING) {
 		switch (qc->tf.protocol) {
 		case ATA_PROT_PIO:
+		case ATA_PROT_NODATA:
 		case ATA_PROT_ATAPI:
 		case ATA_PROT_ATAPI_NODATA:
 			qc->tf.flags |= ATA_TFLAG_POLLING;

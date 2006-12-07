@@ -65,7 +65,7 @@
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
 
-extern kmem_cache_t *sctp_chunk_cachep;
+extern struct kmem_cache *sctp_chunk_cachep;
 
 SCTP_STATIC
 struct sctp_chunk *sctp_make_chunk(const struct sctp_association *asoc,
@@ -979,7 +979,7 @@ struct sctp_chunk *sctp_chunkify(struct sk_buff *skb,
 {
 	struct sctp_chunk *retval;
 
-	retval = kmem_cache_alloc(sctp_chunk_cachep, SLAB_ATOMIC);
+	retval = kmem_cache_alloc(sctp_chunk_cachep, GFP_ATOMIC);
 
 	if (!retval)
 		goto nodata;

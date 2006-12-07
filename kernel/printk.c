@@ -53,8 +53,6 @@ int console_printk[4] = {
 	DEFAULT_CONSOLE_LOGLEVEL,	/* default_console_loglevel */
 };
 
-EXPORT_UNUSED_SYMBOL(console_printk);  /*  June 2006  */
-
 /*
  * Low lever drivers may need that to know if they can schedule in
  * their unblank() callback or not. So let's export it.
@@ -335,13 +333,25 @@ static void __call_console_drivers(unsigned long start, unsigned long end)
 	}
 }
 
+static int __read_mostly ignore_loglevel;
+
+int __init ignore_loglevel_setup(char *str)
+{
+	ignore_loglevel = 1;
+	printk(KERN_INFO "debug: ignoring loglevel setting.\n");
+
+	return 1;
+}
+
+__setup("ignore_loglevel", ignore_loglevel_setup);
+
 /*
  * Write out chars from start to end - 1 inclusive
  */
 static void _call_console_drivers(unsigned long start,
 				unsigned long end, int msg_log_level)
 {
-	if (msg_log_level < console_loglevel &&
+	if ((msg_log_level < console_loglevel || ignore_loglevel) &&
 			console_drivers && start != end) {
 		if ((start & LOG_BUF_MASK) > (end & LOG_BUF_MASK)) {
 			/* wrapped write */
@@ -631,12 +641,7 @@ EXPORT_SYMBOL(vprintk);
 
 asmlinkage long sys_syslog(int type, char __user *buf, int len)
 {
-	return 0;
-}
-
-int do_syslog(int type, char __user *buf, int len)
-{
-	return 0;
+	return -ENOSYS;
 }
 
 static void call_console_drivers(unsigned long start, unsigned long end)
@@ -777,7 +782,6 @@ int is_console_locked(void)
 {
 	return console_locked;
 }
-EXPORT_UNUSED_SYMBOL(is_console_locked);  /*  June 2006  */
 
 /**
  * release_console_sem - unlock the console system

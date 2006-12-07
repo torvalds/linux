@@ -36,6 +36,7 @@
 #include <linux/rwsem.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
+#include <linux/freezer.h>
 
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -1172,11 +1173,12 @@ loop_again:
 			if (!zone_watermark_ok(zone, order, zone->pages_high,
 					       0, 0)) {
 				end_zone = i;
-				goto scan;
+				break;
 			}
 		}
-		goto out;
-scan:
+		if (i < 0)
+			goto out;
+
 		for (i = 0; i <= end_zone; i++) {
 			struct zone *zone = pgdat->node_zones + i;
 
@@ -1259,6 +1261,9 @@ out:
 	}
 	if (!all_zones_ok) {
 		cond_resched();
+
+		try_to_freeze();
+
 		goto loop_again;
 	}
 
@@ -1508,7 +1513,6 @@ out:
 }
 #endif
 
-#ifdef CONFIG_HOTPLUG_CPU
 /* It's optimal to keep kswapds on the same CPUs as their memory, but
    not required for correctness.  So if the last cpu in a node goes
    away, we get changed to run anywhere: as the first one comes back,
@@ -1529,7 +1533,6 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
 	}
 	return NOTIFY_OK;
 }
-#endif /* CONFIG_HOTPLUG_CPU */
 
 /*
  * This kswapd start function will be called by init and node-hot-add.

@@ -221,7 +221,7 @@ EXPORT_SYMBOL_GPL(dlm_dump_all_mles);
 #endif  /*  0  */
 
 
-static kmem_cache_t *dlm_mle_cache = NULL;
+static struct kmem_cache *dlm_mle_cache = NULL;
 
 
 static void dlm_mle_release(struct kref *kref);

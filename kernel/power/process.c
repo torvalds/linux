@@ -13,12 +13,15 @@
 #include <linux/suspend.h>
 #include <linux/module.h>
 #include <linux/syscalls.h>
+#include <linux/freezer.h>
 
 /* 
  * Timeout for stopping processes
  */
 #define TIMEOUT	(20 * HZ)
 
+#define FREEZER_KERNEL_THREADS 0
+#define FREEZER_USER_SPACE 1
 
 static inline int freezeable(struct task_struct * p)
 {
@@ -39,7 +42,6 @@ void refrigerator(void)
 	long save;
 	save = current->state;
 	pr_debug("%s entered refrigerator\n", current->comm);
-	printk("=");
 
 	frozen_process(current);
 	spin_lock_irq(&current->sighand->siglock);
@@ -79,96 +81,136 @@ static void cancel_freezing(struct task_struct *p)
 	}
 }
 
-/* 0 = success, else # of processes that we failed to stop */
-int freeze_processes(void)
+static inline int is_user_space(struct task_struct *p)
 {
-	int todo, nr_user, user_frozen;
-	unsigned long start_time;
-	struct task_struct *g, *p;
+	return p->mm && !(p->flags & PF_BORROWED_MM);
+}
 
-	printk( "Stopping tasks: " );
-	start_time = jiffies;
-	user_frozen = 0;
+static unsigned int try_to_freeze_tasks(int freeze_user_space)
+{
+	struct task_struct *g, *p;
+	unsigned long end_time;
+	unsigned int todo;
+
+	end_time = jiffies + TIMEOUT;
 	do {
-		nr_user = todo = 0;
+		todo = 0;
 		read_lock(&tasklist_lock);
 		do_each_thread(g, p) {
 			if (!freezeable(p))
 				continue;
+
 			if (frozen(p))
 				continue;
-			if (p->state == TASK_TRACED && frozen(p->parent)) {
+
+			if (p->state == TASK_TRACED &&
+			    (frozen(p->parent) ||
+			     p->parent->state == TASK_STOPPED)) {
 				cancel_freezing(p);
 				continue;
 			}
-			if (p->mm && !(p->flags & PF_BORROWED_MM)) {
-				/* The task is a user-space one.
-				 * Freeze it unless there's a vfork completion
-				 * pending
+			if (is_user_space(p)) {
+				if (!freeze_user_space)
+					continue;
+
+				/* Freeze the task unless there is a vfork
+				 * completion pending
 				 */
 				if (!p->vfork_done)
 					freeze_process(p);
-				nr_user++;
 			} else {
-				/* Freeze only if the user space is frozen */
-				if (user_frozen)
-					freeze_process(p);
-				todo++;
+				if (freeze_user_space)
+					continue;
+
+				freeze_process(p);
 			}
+			todo++;
 		} while_each_thread(g, p);
 		read_unlock(&tasklist_lock);
-		todo += nr_user;
-		if (!user_frozen && !nr_user) {
-			sys_sync();
-			start_time = jiffies;
-		}
-		user_frozen = !nr_user;
 		yield();			/* Yield is okay here */
-		if (todo && time_after(jiffies, start_time + TIMEOUT))
+		if (todo && time_after(jiffies, end_time))
 			break;
-	} while(todo);
+	} while (todo);
 
-	/* This does not unfreeze processes that are already frozen
-	 * (we have slightly ugly calling convention in that respect,
-	 * and caller must call thaw_processes() if something fails),
-	 * but it cleans up leftover PF_FREEZE requests.
-	 */
 	if (todo) {
-		printk( "\n" );
-		printk(KERN_ERR " stopping tasks timed out "
-			"after %d seconds (%d tasks remaining):\n",
-			TIMEOUT / HZ, todo);
+		/* This does not unfreeze processes that are already frozen
+		 * (we have slightly ugly calling convention in that respect,
+		 * and caller must call thaw_processes() if something fails),
+		 * but it cleans up leftover PF_FREEZE requests.
+		 */
+		printk("\n");
+		printk(KERN_ERR "Stopping %s timed out after %d seconds "
+				"(%d tasks refusing to freeze):\n",
+				freeze_user_space ? "user space processes" :
+					"kernel threads",
+				TIMEOUT / HZ, todo);
 		read_lock(&tasklist_lock);
 		do_each_thread(g, p) {
+			if (is_user_space(p) == !freeze_user_space)
+				continue;
+
 			if (freezeable(p) && !frozen(p))
-				printk(KERN_ERR "  %s\n", p->comm);
+				printk(KERN_ERR " %s\n", p->comm);
+
 			cancel_freezing(p);
 		} while_each_thread(g, p);
 		read_unlock(&tasklist_lock);
-		return todo;
 	}
 
-	printk( "|\n" );
+	return todo;
+}
+
+/**
+ *	freeze_processes - tell processes to enter the refrigerator
+ *
+ *	Returns 0 on success, or the number of processes that didn't freeze,
+ *	although they were told to.
+ */
+int freeze_processes(void)
+{
+	unsigned int nr_unfrozen;
+
+	printk("Stopping tasks ... ");
+	nr_unfrozen = try_to_freeze_tasks(FREEZER_USER_SPACE);
+	if (nr_unfrozen)
+		return nr_unfrozen;
+
+	sys_sync();
+	nr_unfrozen = try_to_freeze_tasks(FREEZER_KERNEL_THREADS);
+	if (nr_unfrozen)
+		return nr_unfrozen;
+
+	printk("done.\n");
 	BUG_ON(in_atomic());
 	return 0;
 }
 
-void thaw_processes(void)
+static void thaw_tasks(int thaw_user_space)
 {
 	struct task_struct *g, *p;
 
-	printk( "Restarting tasks..." );
 	read_lock(&tasklist_lock);
 	do_each_thread(g, p) {
 		if (!freezeable(p))
 			continue;
-		if (!thaw_process(p))
-			printk(KERN_INFO " Strange, %s not stopped\n", p->comm );
-	} while_each_thread(g, p);
 
+		if (is_user_space(p) == !thaw_user_space)
+			continue;
+
+		if (!thaw_process(p))
+			printk(KERN_WARNING " Strange, %s not stopped\n",
+				p->comm );
+	} while_each_thread(g, p);
 	read_unlock(&tasklist_lock);
+}
+
+void thaw_processes(void)
+{
+	printk("Restarting tasks ... ");
+	thaw_tasks(FREEZER_KERNEL_THREADS);
+	thaw_tasks(FREEZER_USER_SPACE);
 	schedule();
-	printk( " done\n" );
+	printk("done.\n");
 }
 
 EXPORT_SYMBOL(refrigerator);

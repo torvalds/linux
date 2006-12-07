@@ -2861,7 +2861,7 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* alloc, and start init */
-	dev = kzalloc (sizeof *dev, SLAB_KERNEL);
+	dev = kzalloc (sizeof *dev, GFP_KERNEL);
 	if (dev == NULL){
 		retval = -ENOMEM;
 		goto done;

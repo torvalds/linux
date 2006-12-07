@@ -71,6 +71,7 @@ static inline void arch_unw_init_blocked(struct unwind_frame_info *info)
 	info->regs.xss = __KERNEL_DS;
 	info->regs.xds = __USER_DS;
 	info->regs.xes = __USER_DS;
+	info->regs.xgs = __KERNEL_PDA;
 }
 
 extern asmlinkage int arch_unwind_init_running(struct unwind_frame_info *,
@@ -78,17 +79,13 @@ extern asmlinkage int arch_unwind_init_running(struct unwind_frame_info *,
                                                                           void *arg),
                                                void *arg);
 
-static inline int arch_unw_user_mode(const struct unwind_frame_info *info)
+static inline int arch_unw_user_mode(/*const*/ struct unwind_frame_info *info)
 {
-#if 0 /* This can only work when selector register and EFLAGS saves/restores
-         are properly annotated (and tracked in UNW_REGISTER_INFO). */
-	return user_mode_vm(&info->regs);
-#else
-	return info->regs.eip < PAGE_OFFSET
+	return user_mode_vm(&info->regs)
+	       || info->regs.eip < PAGE_OFFSET
 	       || (info->regs.eip >= __fix_to_virt(FIX_VDSO)
-	            && info->regs.eip < __fix_to_virt(FIX_VDSO) + PAGE_SIZE)
+	           && info->regs.eip < __fix_to_virt(FIX_VDSO) + PAGE_SIZE)
 	       || info->regs.esp < PAGE_OFFSET;
-#endif
 }
 
 #else

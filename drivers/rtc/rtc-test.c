@@ -123,11 +123,18 @@ static int test_probe(struct platform_device *plat_dev)
 		err = PTR_ERR(rtc);
 		return err;
 	}
-	device_create_file(&plat_dev->dev, &dev_attr_irq);
+
+	err = device_create_file(&plat_dev->dev, &dev_attr_irq);
+	if (err)
+		goto err;
 
 	platform_set_drvdata(plat_dev, rtc);
 
 	return 0;
+
+err:
+	rtc_device_unregister(rtc);
+	return err;
 }
 
 static int __devexit test_remove(struct platform_device *plat_dev)

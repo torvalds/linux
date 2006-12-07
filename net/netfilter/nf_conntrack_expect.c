@@ -29,7 +29,7 @@
 LIST_HEAD(nf_conntrack_expect_list);
 EXPORT_SYMBOL_GPL(nf_conntrack_expect_list);
 
-kmem_cache_t *nf_conntrack_expect_cachep __read_mostly;
+struct kmem_cache *nf_conntrack_expect_cachep __read_mostly;
 static unsigned int nf_conntrack_expect_next_id;
 
 /* nf_conntrack_expect helper functions */
@@ -91,25 +91,28 @@ EXPORT_SYMBOL_GPL(nf_conntrack_expect_find_get);
 struct nf_conntrack_expect *
 find_expectation(const struct nf_conntrack_tuple *tuple)
 {
-	struct nf_conntrack_expect *i;
+	struct nf_conntrack_expect *exp;
 
-	list_for_each_entry(i, &nf_conntrack_expect_list, list) {
+	exp = __nf_conntrack_expect_find(tuple);
+	if (!exp)
+		return NULL;
+
 	/* If master is not in hash table yet (ie. packet hasn't left
 	   this machine yet), how can other end know about expected?
 	   Hence these are not the droids you are looking for (if
 	   master ct never got confirmed, we'd hold a reference to it
 	   and weird things would happen to future packets). */
-		if (nf_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask)
-		    && nf_ct_is_confirmed(i->master)) {
-			if (i->flags & NF_CT_EXPECT_PERMANENT) {
-				atomic_inc(&i->use);
-				return i;
-			} else if (del_timer(&i->timeout)) {
-				nf_ct_unlink_expect(i);
-				return i;
-			}
-		}
+	if (!nf_ct_is_confirmed(exp->master))
+		return NULL;
+
+	if (exp->flags & NF_CT_EXPECT_PERMANENT) {
+		atomic_inc(&exp->use);
+		return exp;
+	} else if (del_timer(&exp->timeout)) {
+		nf_ct_unlink_expect(exp);
+		return exp;
 	}
+
 	return NULL;
 }
 

@@ -23,7 +23,7 @@
 
 int dir_notify_enable __read_mostly = 1;
 
-static kmem_cache_t *dn_cache __read_mostly;
+static struct kmem_cache *dn_cache __read_mostly;
 
 static void redo_inode_mask(struct inode *inode)
 {
@@ -77,7 +77,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 	inode = filp->f_dentry->d_inode;
 	if (!S_ISDIR(inode->i_mode))
 		return -ENOTDIR;
-	dn = kmem_cache_alloc(dn_cache, SLAB_KERNEL);
+	dn = kmem_cache_alloc(dn_cache, GFP_KERNEL);
 	if (dn == NULL)
 		return -ENOMEM;
 	spin_lock(&inode->i_lock);

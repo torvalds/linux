@@ -1,6 +1,7 @@
 
 config PRINTK_TIME
 	bool "Show timing information on printks"
+	depends on PRINTK
 	help
 	  Selecting this option causes timing information to be
 	  included in printk output.  This allows you to measure

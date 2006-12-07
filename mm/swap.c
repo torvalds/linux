@@ -57,9 +57,9 @@ static void put_compound_page(struct page *page)
 {
 	page = (struct page *)page_private(page);
 	if (put_page_testzero(page)) {
-		void (*dtor)(struct page *page);
+		compound_page_dtor *dtor;
 
-		dtor = (void (*)(struct page *))page[1].lru.next;
+		dtor = get_compound_page_dtor(page);
 		(*dtor)(page);
 	}
 }
@@ -514,5 +514,7 @@ void __init swap_setup(void)
 	 * Right now other parts of the system means that we
 	 * _really_ don't want to cluster much more
 	 */
+#ifdef CONFIG_HOTPLUG_CPU
 	hotcpu_notifier(cpu_swap_callback, 0);
+#endif
 }

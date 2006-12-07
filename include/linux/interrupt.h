@@ -11,6 +11,7 @@
 #include <linux/hardirq.h>
 #include <linux/sched.h>
 #include <linux/irqflags.h>
+#include <linux/bottom_half.h>
 #include <asm/atomic.h>
 #include <asm/ptrace.h>
 #include <asm/system.h>
@@ -216,12 +217,6 @@ static inline void __deprecated save_and_cli(unsigned long *x)
 }
 #define save_and_cli(x)	save_and_cli(&x)
 #endif /* CONFIG_SMP */
-
-extern void local_bh_disable(void);
-extern void __local_bh_enable(void);
-extern void _local_bh_enable(void);
-extern void local_bh_enable(void);
-extern void local_bh_enable_ip(unsigned long ip);
 
 /* PLEASE, avoid to allocate new softirqs, if you need not _really_ high
    frequency threaded job scheduling. For almost all the purposes

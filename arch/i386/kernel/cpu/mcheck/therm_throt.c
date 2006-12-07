@@ -116,7 +116,6 @@ static __cpuinit int thermal_throttle_add_dev(struct sys_device *sys_dev)
 	return sysfs_create_group(&sys_dev->kobj, &thermal_throttle_attr_group);
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static __cpuinit void thermal_throttle_remove_dev(struct sys_device *sys_dev)
 {
 	return sysfs_remove_group(&sys_dev->kobj, &thermal_throttle_attr_group);
@@ -153,7 +152,6 @@ static struct notifier_block thermal_throttle_cpu_notifier =
 {
 	.notifier_call = thermal_throttle_cpu_callback,
 };
-#endif /* CONFIG_HOTPLUG_CPU */
 
 static __init int thermal_throttle_init_device(void)
 {

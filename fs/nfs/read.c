@@ -39,7 +39,7 @@ static int nfs_pagein_one(struct list_head *, struct inode *);
 static const struct rpc_call_ops nfs_read_partial_ops;
 static const struct rpc_call_ops nfs_read_full_ops;
 
-static kmem_cache_t *nfs_rdata_cachep;
+static struct kmem_cache *nfs_rdata_cachep;
 static mempool_t *nfs_rdata_mempool;
 
 #define MIN_POOL_READ	(32)
@@ -47,7 +47,7 @@ static mempool_t *nfs_rdata_mempool;
 struct nfs_read_data *nfs_readdata_alloc(size_t len)
 {
 	unsigned int pagecount = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	struct nfs_read_data *p = mempool_alloc(nfs_rdata_mempool, SLAB_NOFS);
+	struct nfs_read_data *p = mempool_alloc(nfs_rdata_mempool, GFP_NOFS);
 
 	if (p) {
 		memset(p, 0, sizeof(*p));

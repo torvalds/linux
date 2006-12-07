@@ -264,7 +264,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 
 
 	/* Allocate a VMA structure and fill it up */
-	vma = kmem_cache_zalloc(vm_area_cachep, SLAB_KERNEL);
+	vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
 	if (vma == NULL) {
 		rc = -ENOMEM;
 		goto fail_mmapsem;

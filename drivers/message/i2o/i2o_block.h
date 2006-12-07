@@ -64,7 +64,7 @@
 
 /* I2O Block OSM mempool struct */
 struct i2o_block_mempool {
-	kmem_cache_t *slab;
+	struct kmem_cache *slab;
 	mempool_t *pool;
 };
 

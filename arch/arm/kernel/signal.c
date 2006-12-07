@@ -11,6 +11,7 @@
 #include <linux/signal.h>
 #include <linux/ptrace.h>
 #include <linux/personality.h>
+#include <linux/freezer.h>
 
 #include <asm/cacheflush.h>
 #include <asm/ucontext.h>

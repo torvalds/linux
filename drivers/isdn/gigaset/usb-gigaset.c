@@ -410,7 +410,7 @@ static void gigaset_read_int_callback(struct urb *urb)
 
 	if (resubmit) {
 		spin_lock_irqsave(&cs->lock, flags);
-		r = cs->connected ? usb_submit_urb(urb, SLAB_ATOMIC) : -ENODEV;
+		r = cs->connected ? usb_submit_urb(urb, GFP_ATOMIC) : -ENODEV;
 		spin_unlock_irqrestore(&cs->lock, flags);
 		if (r)
 			dev_err(cs->dev, "error %d when resubmitting urb.\n",
@@ -486,7 +486,7 @@ static int send_cb(struct cardstate *cs, struct cmdbuf_t *cb)
 			atomic_set(&ucs->busy, 1);
 
 			spin_lock_irqsave(&cs->lock, flags);
-			status = cs->connected ? usb_submit_urb(ucs->bulk_out_urb, SLAB_ATOMIC) : -ENODEV;
+			status = cs->connected ? usb_submit_urb(ucs->bulk_out_urb, GFP_ATOMIC) : -ENODEV;
 			spin_unlock_irqrestore(&cs->lock, flags);
 
 			if (status) {
@@ -664,7 +664,7 @@ static int write_modem(struct cardstate *cs)
 						  ucs->bulk_out_endpointAddr & 0x0f),
 				  ucs->bulk_out_buffer, count,
 				  gigaset_write_bulk_callback, cs);
-		ret = usb_submit_urb(ucs->bulk_out_urb, SLAB_ATOMIC);
+		ret = usb_submit_urb(ucs->bulk_out_urb, GFP_ATOMIC);
 	} else {
 		ret = -ENODEV;
 	}
@@ -763,7 +763,7 @@ static int gigaset_probe(struct usb_interface *interface,
 		goto error;
 	}
 
-	ucs->bulk_out_urb = usb_alloc_urb(0, SLAB_KERNEL);
+	ucs->bulk_out_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!ucs->bulk_out_urb) {
 		dev_err(cs->dev, "Couldn't allocate bulk_out_urb\n");
 		retval = -ENOMEM;
@@ -774,7 +774,7 @@ static int gigaset_probe(struct usb_interface *interface,
 
 	atomic_set(&ucs->busy, 0);
 
-	ucs->read_urb = usb_alloc_urb(0, SLAB_KERNEL);
+	ucs->read_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!ucs->read_urb) {
 		dev_err(cs->dev, "No free urbs available\n");
 		retval = -ENOMEM;
@@ -797,7 +797,7 @@ static int gigaset_probe(struct usb_interface *interface,
 			 gigaset_read_int_callback,
 			 cs->inbuf + 0, endpoint->bInterval);
 
-	retval = usb_submit_urb(ucs->read_urb, SLAB_KERNEL);
+	retval = usb_submit_urb(ucs->read_urb, GFP_KERNEL);
 	if (retval) {
 		dev_err(cs->dev, "Could not submit URB (error %d)\n", -retval);
 		goto error;

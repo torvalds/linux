@@ -1091,13 +1091,19 @@ M:	miku@iki.fi
 S:	Maintained
 
 EXT2 FILE SYSTEM
-L:	ext2-devel@lists.sourceforge.net
+L:	linux-ext4@vger.kernel.org
 S:	Maintained
 
 EXT3 FILE SYSTEM
 P:	Stephen Tweedie, Andrew Morton
 M:	sct@redhat.com, akpm@osdl.org, adilger@clusterfs.com
-L:	ext2-devel@lists.sourceforge.net
+L:	linux-ext4@vger.kernel.org
+S:	Maintained
+
+EXT4 FILE SYSTEM
+P:	Stephen Tweedie, Andrew Morton
+M:	sct@redhat.com, akpm@osdl.org, adilger@clusterfs.com
+L:	linux-ext4@vger.kernel.org
 S:	Maintained
 
 F71805F HARDWARE MONITORING DRIVER
@@ -1214,7 +1220,8 @@ HARDWARE MONITORING
 P:	Jean Delvare
 M:	khali@linux-fr.org
 L:	lm-sensors@lm-sensors.org
-W:	http://www.lm-sensors.nu/
+W:	http://www.lm-sensors.org/
+T:	quilt http://khali.linux-fr.org/devel/linux-2.6/jdelvare-hwmon/
 S:	Maintained
 
 HARDWARE RANDOM NUMBER GENERATOR CORE
@@ -1340,8 +1347,7 @@ I2C SUBSYSTEM
 P:	Jean Delvare
 M:	khali@linux-fr.org
 L:	i2c@lm-sensors.org
-W:	http://www.lm-sensors.nu/
-T:	quilt kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
+T:	quilt http://khali.linux-fr.org/devel/linux-2.6/jdelvare-i2c/
 S:	Maintained
 
 I2O
@@ -1673,7 +1679,7 @@ S:	Supported
 JOURNALLING LAYER FOR BLOCK DEVICES (JBD)
 P:	Stephen Tweedie, Andrew Morton
 M:	sct@redhat.com, akpm@osdl.org
-L:	ext2-devel@lists.sourceforge.net
+L:	linux-ext4@vger.kernel.org
 S:	Maintained
 
 K8TEMP HARDWARE MONITORING DRIVER
@@ -2913,7 +2919,6 @@ S:	Maintained
 SUN3/3X
 P:	Sam Creasey
 M:	sammy@sammy.net
-L:	sun3-list@redhat.com
 W:	http://sammy.net/sun3/
 S:	Maintained
 
@@ -3453,6 +3458,12 @@ L:	xfs@oss.sgi.com
 W:	http://oss.sgi.com/projects/xfs
 T:	git git://oss.sgi.com:8090/xfs/xfs-2.6
 S:	Supported
+
+XILINX UARTLITE SERIAL DRIVER
+P:	Peter Korsgaard
+M:	jacmet@sunsite.dk
+L:	linux-serial@vger.kernel.org
+S:	Maintained
 
 X86 3-LEVEL PAGING (PAE) SUPPORT
 P:	Ingo Molnar

@@ -3340,7 +3340,6 @@ void unregister_netdev(struct net_device *dev)
 
 EXPORT_SYMBOL(unregister_netdev);
 
-#ifdef CONFIG_HOTPLUG_CPU
 static int dev_cpu_callback(struct notifier_block *nfb,
 			    unsigned long action,
 			    void *ocpu)
@@ -3384,7 +3383,6 @@ static int dev_cpu_callback(struct notifier_block *nfb,
 
 	return NOTIFY_OK;
 }
-#endif /* CONFIG_HOTPLUG_CPU */
 
 #ifdef CONFIG_NET_DMA
 /**

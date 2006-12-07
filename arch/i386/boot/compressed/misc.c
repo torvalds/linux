@@ -9,11 +9,94 @@
  * High loaded stuff by Hans Lermen & Werner Almesberger, Feb. 1996
  */
 
+#undef CONFIG_PARAVIRT
 #include <linux/linkage.h>
 #include <linux/vmalloc.h>
 #include <linux/screen_info.h>
 #include <asm/io.h>
 #include <asm/page.h>
+#include <asm/boot.h>
+
+/* WARNING!!
+ * This code is compiled with -fPIC and it is relocated dynamically
+ * at run time, but no relocation processing is performed.
+ * This means that it is not safe to place pointers in static structures.
+ */
+
+/*
+ * Getting to provable safe in place decompression is hard.
+ * Worst case behaviours need to be analized.
+ * Background information:
+ *
+ * The file layout is:
+ *    magic[2]
+ *    method[1]
+ *    flags[1]
+ *    timestamp[4]
+ *    extraflags[1]
+ *    os[1]
+ *    compressed data blocks[N]
+ *    crc[4] orig_len[4]
+ *
+ * resulting in 18 bytes of non compressed data overhead.
+ *
+ * Files divided into blocks
+ * 1 bit (last block flag)
+ * 2 bits (block type)
+ *
+ * 1 block occurs every 32K -1 bytes or when there 50% compression has been achieved.
+ * The smallest block type encoding is always used.
+ *
+ * stored:
+ *    32 bits length in bytes.
+ *
+ * fixed:
+ *    magic fixed tree.
+ *    symbols.
+ *
+ * dynamic:
+ *    dynamic tree encoding.
+ *    symbols.
+ *
+ *
+ * The buffer for decompression in place is the length of the
+ * uncompressed data, plus a small amount extra to keep the algorithm safe.
+ * The compressed data is placed at the end of the buffer.  The output
+ * pointer is placed at the start of the buffer and the input pointer
+ * is placed where the compressed data starts.  Problems will occur
+ * when the output pointer overruns the input pointer.
+ *
+ * The output pointer can only overrun the input pointer if the input
+ * pointer is moving faster than the output pointer.  A condition only
+ * triggered by data whose compressed form is larger than the uncompressed
+ * form.
+ *
+ * The worst case at the block level is a growth of the compressed data
+ * of 5 bytes per 32767 bytes.
+ *
+ * The worst case internal to a compressed block is very hard to figure.
+ * The worst case can at least be boundined by having one bit that represents
+ * 32764 bytes and then all of the rest of the bytes representing the very
+ * very last byte.
+ *
+ * All of which is enough to compute an amount of extra data that is required
+ * to be safe.  To avoid problems at the block level allocating 5 extra bytes
+ * per 32767 bytes of data is sufficient.  To avoind problems internal to a block
+ * adding an extra 32767 bytes (the worst case uncompressed block size) is
+ * sufficient, to ensure that in the worst case the decompressed data for
+ * block will stop the byte before the compressed data for a block begins.
+ * To avoid problems with the compressed data's meta information an extra 18
+ * bytes are needed.  Leading to the formula:
+ *
+ * extra_bytes = (uncompressed_size >> 12) + 32768 + 18 + decompressor_size.
+ *
+ * Adding 8 bytes per 32K is a bit excessive but much easier to calculate.
+ * Adding 32768 instead of 32767 just makes for round numbers.
+ * Adding the decompressor_size is necessary as it musht live after all
+ * of the data as well.  Last I measured the decompressor is about 14K.
+ * 10K of actuall data and 4K of bss.
+ *
+ */
 
 /*
  * gzip declarations
@@ -30,15 +113,20 @@ typedef unsigned char  uch;
 typedef unsigned short ush;
 typedef unsigned long  ulg;
 
-#define WSIZE 0x8000		/* Window size must be at least 32k, */
-				/* and a power of two */
+#define WSIZE 0x80000000	/* Window size must be at least 32k,
+				 * and a power of two
+				 * We don't actually have a window just
+				 * a huge output buffer so I report
+				 * a 2G windows size, as that should
+				 * always be larger than our output buffer.
+				 */
 
-static uch *inbuf;	     /* input buffer */
-static uch window[WSIZE];    /* Sliding window buffer */
+static uch *inbuf;	/* input buffer */
+static uch *window;	/* Sliding window buffer, (and final output buffer) */
 
-static unsigned insize = 0;  /* valid bytes in inbuf */
-static unsigned inptr = 0;   /* index of next byte to be processed in inbuf */
-static unsigned outcnt = 0;  /* bytes in output buffer */
+static unsigned insize;  /* valid bytes in inbuf */
+static unsigned inptr;   /* index of next byte to be processed in inbuf */
+static unsigned outcnt;  /* bytes in output buffer */
 
 /* gzip flag byte */
 #define ASCII_FLAG   0x01 /* bit 0 set: file probably ASCII text */
@@ -89,8 +177,6 @@ extern unsigned char input_data[];
 extern int input_len;
 
 static long bytes_out = 0;
-static uch *output_data;
-static unsigned long output_ptr = 0;
 
 static void *malloc(int size);
 static void free(void *where);
@@ -100,24 +186,17 @@ static void *memcpy(void *dest, const void *src, unsigned n);
 
 static void putstr(const char *);
 
-extern int end;
-static long free_mem_ptr = (long)&end;
-static long free_mem_end_ptr;
+static unsigned long free_mem_ptr;
+static unsigned long free_mem_end_ptr;
 
-#define INPLACE_MOVE_ROUTINE  0x1000
-#define LOW_BUFFER_START      0x2000
-#define LOW_BUFFER_MAX       0x90000
 #define HEAP_SIZE             0x3000
-static unsigned int low_buffer_end, low_buffer_size;
-static int high_loaded =0;
-static uch *high_buffer_start /* = (uch *)(((ulg)&end) + HEAP_SIZE)*/;
 
 static char *vidmem = (char *)0xb8000;
 static int vidport;
 static int lines, cols;
 
 #ifdef CONFIG_X86_NUMAQ
-static void * xquad_portio = NULL;
+void *xquad_portio;
 #endif
 
 #include "../../../../lib/inflate.c"
@@ -151,7 +230,7 @@ static void gzip_mark(void **ptr)
 
 static void gzip_release(void **ptr)
 {
-	free_mem_ptr = (long) *ptr;
+	free_mem_ptr = (unsigned long) *ptr;
 }
  
 static void scroll(void)
@@ -179,7 +258,7 @@ static void putstr(const char *s)
 				y--;
 			}
 		} else {
-			vidmem [ ( x + cols * y ) * 2 ] = c; 
+			vidmem [ ( x + cols * y ) * 2 ] = c;
 			if ( ++x >= cols ) {
 				x = 0;
 				if ( ++y >= lines ) {
@@ -224,58 +303,31 @@ static void* memcpy(void* dest, const void* src, unsigned n)
  */
 static int fill_inbuf(void)
 {
-	if (insize != 0) {
-		error("ran out of input data");
-	}
-
-	inbuf = input_data;
-	insize = input_len;
-	inptr = 1;
-	return inbuf[0];
+	error("ran out of input data");
+	return 0;
 }
 
 /* ===========================================================================
  * Write the output window window[0..outcnt-1] and update crc and bytes_out.
  * (Used for the decompressed data only.)
  */
-static void flush_window_low(void)
-{
-    ulg c = crc;         /* temporary variable */
-    unsigned n;
-    uch *in, *out, ch;
-    
-    in = window;
-    out = &output_data[output_ptr]; 
-    for (n = 0; n < outcnt; n++) {
-	    ch = *out++ = *in++;
-	    c = crc_32_tab[((int)c ^ ch) & 0xff] ^ (c >> 8);
-    }
-    crc = c;
-    bytes_out += (ulg)outcnt;
-    output_ptr += (ulg)outcnt;
-    outcnt = 0;
-}
-
-static void flush_window_high(void)
-{
-    ulg c = crc;         /* temporary variable */
-    unsigned n;
-    uch *in,  ch;
-    in = window;
-    for (n = 0; n < outcnt; n++) {
-	ch = *output_data++ = *in++;
-	if ((ulg)output_data == low_buffer_end) output_data=high_buffer_start;
-	c = crc_32_tab[((int)c ^ ch) & 0xff] ^ (c >> 8);
-    }
-    crc = c;
-    bytes_out += (ulg)outcnt;
-    outcnt = 0;
-}
-
 static void flush_window(void)
 {
-	if (high_loaded) flush_window_high();
-	else flush_window_low();
+	/* With my window equal to my output buffer
+	 * I only need to compute the crc here.
+	 */
+	ulg c = crc;         /* temporary variable */
+	unsigned n;
+	uch *in, ch;
+
+	in = window;
+	for (n = 0; n < outcnt; n++) {
+		ch = *in++;
+		c = crc_32_tab[((int)c ^ ch) & 0xff] ^ (c >> 8);
+	}
+	crc = c;
+	bytes_out += (ulg)outcnt;
+	outcnt = 0;
 }
 
 static void error(char *x)
@@ -287,66 +339,8 @@ static void error(char *x)
 	while(1);	/* Halt */
 }
 
-#define STACK_SIZE (4096)
-
-long user_stack [STACK_SIZE];
-
-struct {
-	long * a;
-	short b;
-	} stack_start = { & user_stack [STACK_SIZE] , __BOOT_DS };
-
-static void setup_normal_output_buffer(void)
-{
-#ifdef STANDARD_MEMORY_BIOS_CALL
-	if (RM_EXT_MEM_K < 1024) error("Less than 2MB of memory");
-#else
-	if ((RM_ALT_MEM_K > RM_EXT_MEM_K ? RM_ALT_MEM_K : RM_EXT_MEM_K) < 1024) error("Less than 2MB of memory");
-#endif
-	output_data = (unsigned char *)__PHYSICAL_START; /* Normally Points to 1M */
-	free_mem_end_ptr = (long)real_mode;
-}
-
-struct moveparams {
-	uch *low_buffer_start;  int lcount;
-	uch *high_buffer_start; int hcount;
-};
-
-static void setup_output_buffer_if_we_run_high(struct moveparams *mv)
-{
-	high_buffer_start = (uch *)(((ulg)&end) + HEAP_SIZE);
-#ifdef STANDARD_MEMORY_BIOS_CALL
-	if (RM_EXT_MEM_K < (3*1024)) error("Less than 4MB of memory");
-#else
-	if ((RM_ALT_MEM_K > RM_EXT_MEM_K ? RM_ALT_MEM_K : RM_EXT_MEM_K) < (3*1024)) error("Less than 4MB of memory");
-#endif	
-	mv->low_buffer_start = output_data = (unsigned char *)LOW_BUFFER_START;
-	low_buffer_end = ((unsigned int)real_mode > LOW_BUFFER_MAX
-	  ? LOW_BUFFER_MAX : (unsigned int)real_mode) & ~0xfff;
-	low_buffer_size = low_buffer_end - LOW_BUFFER_START;
-	high_loaded = 1;
-	free_mem_end_ptr = (long)high_buffer_start;
-	if ( (__PHYSICAL_START + low_buffer_size) > ((ulg)high_buffer_start)) {
-		high_buffer_start = (uch *)(__PHYSICAL_START + low_buffer_size);
-		mv->hcount = 0; /* say: we need not to move high_buffer */
-	}
-	else mv->hcount = -1;
-	mv->high_buffer_start = high_buffer_start;
-}
-
-static void close_output_buffer_if_we_run_high(struct moveparams *mv)
-{
-	if (bytes_out > low_buffer_size) {
-		mv->lcount = low_buffer_size;
-		if (mv->hcount)
-			mv->hcount = bytes_out - low_buffer_size;
-	} else {
-		mv->lcount = bytes_out;
-		mv->hcount = 0;
-	}
-}
-
-asmlinkage int decompress_kernel(struct moveparams *mv, void *rmode)
+asmlinkage void decompress_kernel(void *rmode, unsigned long end,
+			uch *input_data, unsigned long input_len, uch *output)
 {
 	real_mode = rmode;
 
@@ -361,13 +355,25 @@ asmlinkage int decompress_kernel(struct moveparams *mv, void *rmode)
 	lines = RM_SCREEN_INFO.orig_video_lines;
 	cols = RM_SCREEN_INFO.orig_video_cols;
 
-	if (free_mem_ptr < 0x100000) setup_normal_output_buffer();
-	else setup_output_buffer_if_we_run_high(mv);
+	window = output;  	/* Output buffer (Normally at 1M) */
+	free_mem_ptr     = end;	/* Heap  */
+	free_mem_end_ptr = end + HEAP_SIZE;
+	inbuf  = input_data;	/* Input buffer */
+	insize = input_len;
+	inptr  = 0;
+
+	if ((u32)output & (CONFIG_PHYSICAL_ALIGN -1))
+		error("Destination address not CONFIG_PHYSICAL_ALIGN aligned");
+	if (end > ((-__PAGE_OFFSET-(512 <<20)-1) & 0x7fffffff))
+		error("Destination address too large");
+#ifndef CONFIG_RELOCATABLE
+	if ((u32)output != LOAD_PHYSICAL_ADDR)
+		error("Wrong destination address");
+#endif
 
 	makecrc();
 	putstr("Uncompressing Linux... ");
 	gunzip();
 	putstr("Ok, booting the kernel.\n");
-	if (high_loaded) close_output_buffer_if_we_run_high(mv);
-	return high_loaded;
+	return;
 }

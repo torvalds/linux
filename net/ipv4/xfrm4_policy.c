@@ -274,6 +274,8 @@ static void xfrm4_dst_destroy(struct dst_entry *dst)
 
 	if (likely(xdst->u.rt.idev))
 		in_dev_put(xdst->u.rt.idev);
+	if (likely(xdst->u.rt.peer))
+		inet_putpeer(xdst->u.rt.peer);
 	xfrm_dst_destroy(xdst);
 }
 

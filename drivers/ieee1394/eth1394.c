@@ -133,7 +133,7 @@ struct eth1394_node_info {
 #define ETH1394_DRIVER_NAME "eth1394"
 static const char driver_name[] = ETH1394_DRIVER_NAME;
 
-static kmem_cache_t *packet_task_cache;
+static struct kmem_cache *packet_task_cache;
 
 static struct hpsb_highlevel eth1394_highlevel;
 

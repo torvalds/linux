@@ -29,6 +29,9 @@
 #include <linux/kthread.h>
 #include <linux/hardirq.h>
 #include <linux/mempolicy.h>
+#include <linux/freezer.h>
+#include <linux/kallsyms.h>
+#include <linux/debug_locks.h>
 
 /*
  * The per-CPU workqueue (if single thread, we always use the first
@@ -55,6 +58,8 @@ struct cpu_workqueue_struct {
 	struct task_struct *thread;
 
 	int run_depth;		/* Detect run_workqueue() recursion depth */
+
+	int freezeable;		/* Freeze the thread during suspend */
 } ____cacheline_aligned;
 
 /*
@@ -102,6 +107,79 @@ static inline void *get_wq_data(struct work_struct *work)
 {
 	return (void *) (work->management & WORK_STRUCT_WQ_DATA_MASK);
 }
+
+static int __run_work(struct cpu_workqueue_struct *cwq, struct work_struct *work)
+{
+	int ret = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&cwq->lock, flags);
+	/*
+	 * We need to re-validate the work info after we've gotten
+	 * the cpu_workqueue lock. We can run the work now iff:
+	 *
+	 *  - the wq_data still matches the cpu_workqueue_struct
+	 *  - AND the work is still marked pending
+	 *  - AND the work is still on a list (which will be this
+	 *    workqueue_struct list)
+	 *
+	 * All these conditions are important, because we
+	 * need to protect against the work being run right
+	 * now on another CPU (all but the last one might be
+	 * true if it's currently running and has not been
+	 * released yet, for example).
+	 */
+	if (get_wq_data(work) == cwq
+	    && work_pending(work)
+	    && !list_empty(&work->entry)) {
+		work_func_t f = work->func;
+		list_del_init(&work->entry);
+		spin_unlock_irqrestore(&cwq->lock, flags);
+
+		if (!test_bit(WORK_STRUCT_NOAUTOREL, &work->management))
+			work_release(work);
+		f(work);
+
+		spin_lock_irqsave(&cwq->lock, flags);
+		cwq->remove_sequence++;
+		wake_up(&cwq->work_done);
+		ret = 1;
+	}
+	spin_unlock_irqrestore(&cwq->lock, flags);
+	return ret;
+}
+
+/**
+ * run_scheduled_work - run scheduled work synchronously
+ * @work: work to run
+ *
+ * This checks if the work was pending, and runs it
+ * synchronously if so. It returns a boolean to indicate
+ * whether it had any scheduled work to run or not.
+ *
+ * NOTE! This _only_ works for normal work_structs. You
+ * CANNOT use this for delayed work, because the wq data
+ * for delayed work will not point properly to the per-
+ * CPU workqueue struct, but will change!
+ */
+int fastcall run_scheduled_work(struct work_struct *work)
+{
+	for (;;) {
+		struct cpu_workqueue_struct *cwq;
+
+		if (!work_pending(work))
+			return 0;
+		if (list_empty(&work->entry))
+			return 0;
+		/* NOTE! This depends intimately on __queue_work! */
+		cwq = get_wq_data(work);
+		if (!cwq)
+			return 0;
+		if (__run_work(cwq, work))
+			return 1;
+	}
+}
+EXPORT_SYMBOL(run_scheduled_work);
 
 /* Preempt must be disabled. */
 static void __queue_work(struct cpu_workqueue_struct *cwq,
@@ -250,6 +328,17 @@ static void run_workqueue(struct cpu_workqueue_struct *cwq)
 			work_release(work);
 		f(work);
 
+		if (unlikely(in_atomic() || lockdep_depth(current) > 0)) {
+			printk(KERN_ERR "BUG: workqueue leaked lock or atomic: "
+					"%s/0x%08x/%d\n",
+					current->comm, preempt_count(),
+				       	current->pid);
+			printk(KERN_ERR "    last function: ");
+			print_symbol("%s\n", (unsigned long)f);
+			debug_show_held_locks(current);
+			dump_stack();
+		}
+
 		spin_lock_irqsave(&cwq->lock, flags);
 		cwq->remove_sequence++;
 		wake_up(&cwq->work_done);
@@ -265,7 +354,8 @@ static int worker_thread(void *__cwq)
 	struct k_sigaction sa;
 	sigset_t blocked;
 
-	current->flags |= PF_NOFREEZE;
+	if (!cwq->freezeable)
+		current->flags |= PF_NOFREEZE;
 
 	set_user_nice(current, -5);
 
@@ -288,6 +378,9 @@ static int worker_thread(void *__cwq)
 
 	set_current_state(TASK_INTERRUPTIBLE);
 	while (!kthread_should_stop()) {
+		if (cwq->freezeable)
+			try_to_freeze();
+
 		add_wait_queue(&cwq->more_work, &wait);
 		if (list_empty(&cwq->worklist))
 			schedule();
@@ -364,7 +457,7 @@ void fastcall flush_workqueue(struct workqueue_struct *wq)
 EXPORT_SYMBOL_GPL(flush_workqueue);
 
 static struct task_struct *create_workqueue_thread(struct workqueue_struct *wq,
-						   int cpu)
+						   int cpu, int freezeable)
 {
 	struct cpu_workqueue_struct *cwq = per_cpu_ptr(wq->cpu_wq, cpu);
 	struct task_struct *p;
@@ -374,6 +467,7 @@ static struct task_struct *create_workqueue_thread(struct workqueue_struct *wq,
 	cwq->thread = NULL;
 	cwq->insert_sequence = 0;
 	cwq->remove_sequence = 0;
+	cwq->freezeable = freezeable;
 	INIT_LIST_HEAD(&cwq->worklist);
 	init_waitqueue_head(&cwq->more_work);
 	init_waitqueue_head(&cwq->work_done);
@@ -389,7 +483,7 @@ static struct task_struct *create_workqueue_thread(struct workqueue_struct *wq,
 }
 
 struct workqueue_struct *__create_workqueue(const char *name,
-					    int singlethread)
+					    int singlethread, int freezeable)
 {
 	int cpu, destroy = 0;
 	struct workqueue_struct *wq;
@@ -409,7 +503,7 @@ struct workqueue_struct *__create_workqueue(const char *name,
 	mutex_lock(&workqueue_mutex);
 	if (singlethread) {
 		INIT_LIST_HEAD(&wq->list);
-		p = create_workqueue_thread(wq, singlethread_cpu);
+		p = create_workqueue_thread(wq, singlethread_cpu, freezeable);
 		if (!p)
 			destroy = 1;
 		else
@@ -417,7 +511,7 @@ struct workqueue_struct *__create_workqueue(const char *name,
 	} else {
 		list_add(&wq->list, &workqueues);
 		for_each_online_cpu(cpu) {
-			p = create_workqueue_thread(wq, cpu);
+			p = create_workqueue_thread(wq, cpu, freezeable);
 			if (p) {
 				kthread_bind(p, cpu);
 				wake_up_process(p);
@@ -634,7 +728,6 @@ int current_is_keventd(void)
 
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 /* Take the work from this (downed) CPU. */
 static void take_over_work(struct workqueue_struct *wq, unsigned int cpu)
 {
@@ -667,7 +760,7 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 		mutex_lock(&workqueue_mutex);
 		/* Create a new workqueue thread for it. */
 		list_for_each_entry(wq, &workqueues, list) {
-			if (!create_workqueue_thread(wq, hotcpu)) {
+			if (!create_workqueue_thread(wq, hotcpu, 0)) {
 				printk("workqueue for %i failed\n", hotcpu);
 				return NOTIFY_BAD;
 			}
@@ -717,7 +810,6 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 
 	return NOTIFY_OK;
 }
-#endif
 
 void init_workqueues(void)
 {

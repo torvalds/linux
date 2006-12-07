@@ -97,7 +97,7 @@ static DEFINE_MUTEX(iprune_mutex);
  */
 struct inodes_stat_t inodes_stat;
 
-static kmem_cache_t * inode_cachep __read_mostly;
+static struct kmem_cache * inode_cachep __read_mostly;
 
 static struct inode *alloc_inode(struct super_block *sb)
 {
@@ -109,7 +109,7 @@ static struct inode *alloc_inode(struct super_block *sb)
 	if (sb->s_op->alloc_inode)
 		inode = sb->s_op->alloc_inode(sb);
 	else
-		inode = (struct inode *) kmem_cache_alloc(inode_cachep, SLAB_KERNEL);
+		inode = (struct inode *) kmem_cache_alloc(inode_cachep, GFP_KERNEL);
 
 	if (inode) {
 		struct address_space * const mapping = &inode->i_data;
@@ -209,7 +209,7 @@ void inode_init_once(struct inode *inode)
 
 EXPORT_SYMBOL(inode_init_once);
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct inode * inode = (struct inode *) foo;
 
@@ -1241,9 +1241,6 @@ EXPORT_SYMBOL(inode_needs_sync);
  *	Quota functions that want to walk the inode lists..
  */
 #ifdef CONFIG_QUOTA
-
-/* Function back in dquot.c */
-int remove_inode_dquot_ref(struct inode *, int, struct list_head *);
 
 void remove_dquot_ref(struct super_block *sb, int type,
 			struct list_head *tofree_head)

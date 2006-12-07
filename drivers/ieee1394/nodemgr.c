@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/moduleparam.h>
+#include <linux/freezer.h>
 #include <asm/atomic.h>
 
 #include "csr.h"

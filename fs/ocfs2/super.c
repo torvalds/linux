@@ -68,7 +68,7 @@
 
 #include "buffer_head_io.h"
 
-static kmem_cache_t *ocfs2_inode_cachep = NULL;
+static struct kmem_cache *ocfs2_inode_cachep = NULL;
 
 /* OCFS2 needs to schedule several differnt types of work which
  * require cluster locking, disk I/O, recovery waits, etc. Since these
@@ -303,7 +303,7 @@ static struct inode *ocfs2_alloc_inode(struct super_block *sb)
 {
 	struct ocfs2_inode_info *oi;
 
-	oi = kmem_cache_alloc(ocfs2_inode_cachep, SLAB_NOFS);
+	oi = kmem_cache_alloc(ocfs2_inode_cachep, GFP_NOFS);
 	if (!oi)
 		return NULL;
 
@@ -914,7 +914,7 @@ bail:
 }
 
 static void ocfs2_inode_init_once(void *data,
-				  kmem_cache_t *cachep,
+				  struct kmem_cache *cachep,
 				  unsigned long flags)
 {
 	struct ocfs2_inode_info *oi = data;
@@ -1674,7 +1674,7 @@ void __ocfs2_error(struct super_block *sb,
 	va_list args;
 
 	va_start(args, fmt);
-	vsprintf(error_buf, fmt, args);
+	vsnprintf(error_buf, sizeof(error_buf), fmt, args);
 	va_end(args);
 
 	/* Not using mlog here because we want to show the actual
@@ -1695,7 +1695,7 @@ void __ocfs2_abort(struct super_block* sb,
 	va_list args;
 
 	va_start(args, fmt);
-	vsprintf(error_buf, fmt, args);
+	vsnprintf(error_buf, sizeof(error_buf), fmt, args);
 	va_end(args);
 
 	printk(KERN_CRIT "OCFS2: abort (device %s): %s: %s\n",

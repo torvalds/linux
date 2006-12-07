@@ -1,25 +1,25 @@
 /*
  * Copyright (C) 2003 - 2006 NetXen, Inc.
  * All rights reserved.
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- *                            
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *                                   
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA  02111-1307, USA.
- * 
+ *
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.
- * 
+ *
  * Contact Information:
  *    info@netxen.com
  * NetXen,
@@ -118,7 +118,7 @@ netxen_nic_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 	u32 fw_minor = 0;
 	u32 fw_build = 0;
 
-	strncpy(drvinfo->driver, "netxen_nic", 32);
+	strncpy(drvinfo->driver, netxen_nic_driver_name, 32);
 	strncpy(drvinfo->version, NETXEN_NIC_LINUX_VERSIONID, 32);
 	fw_major = readl(NETXEN_CRB_NORMALIZE(adapter,
 					      NETXEN_FW_VERSION_MAJOR));
@@ -210,7 +210,6 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		printk(KERN_ERR "netxen-nic: Unsupported board model %d\n",
 		       (netxen_brdtype_t) boardinfo->board_type);
 		return -EIO;
-
 	}
 
 	return 0;
@@ -226,18 +225,18 @@ netxen_nic_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	/* read which mode */
 	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
 		/* autonegotiation */
-		if (adapter->ops->phy_write
-		    && adapter->ops->phy_write(adapter, port->portnum,
-					       NETXEN_NIU_GB_MII_MGMT_ADDR_AUTONEG,
-					       (__le32) ecmd->autoneg) != 0)
+		if (adapter->phy_write
+		    && adapter->phy_write(adapter, port->portnum,
+					  NETXEN_NIU_GB_MII_MGMT_ADDR_AUTONEG,
+					  (__le32) ecmd->autoneg) != 0)
 			return -EIO;
 		else
 			port->link_autoneg = ecmd->autoneg;
 
-		if (adapter->ops->phy_read
-		    && adapter->ops->phy_read(adapter, port->portnum,
-					      NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
-					      &status) != 0)
+		if (adapter->phy_read
+		    && adapter->phy_read(adapter, port->portnum,
+					 NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
+					 &status) != 0)
 			return -EIO;
 
 		/* speed */
@@ -257,10 +256,10 @@ netxen_nic_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 			netxen_clear_phy_duplex(status);
 		if (ecmd->duplex == DUPLEX_FULL)
 			netxen_set_phy_duplex(status);
-		if (adapter->ops->phy_write
-		    && adapter->ops->phy_write(adapter, port->portnum,
-					       NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
-					       *((int *)&status)) != 0)
+		if (adapter->phy_write
+		    && adapter->phy_write(adapter, port->portnum,
+					  NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
+					  *((int *)&status)) != 0)
 			return -EIO;
 		else {
 			port->link_speed = ecmd->speed;
@@ -422,10 +421,10 @@ static u32 netxen_nic_get_link(struct net_device *dev)
 
 	/* read which mode */
 	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
-		if (adapter->ops->phy_read
-		    && adapter->ops->phy_read(adapter, port->portnum,
-					      NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
-					      &status) != 0)
+		if (adapter->phy_read
+		    && adapter->phy_read(adapter, port->portnum,
+					 NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
+					 &status) != 0)
 			return -EIO;
 		else
 			return (netxen_get_phy_link(status));
@@ -460,20 +459,22 @@ netxen_nic_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ring)
 {
 	struct netxen_port *port = netdev_priv(dev);
 	struct netxen_adapter *adapter = port->adapter;
-	int i, j;
+	int i;
 
 	ring->rx_pending = 0;
+	ring->rx_jumbo_pending = 0;
 	for (i = 0; i < MAX_RCV_CTX; ++i) {
-		for (j = 0; j < NUM_RCV_DESC_RINGS; j++)
-			ring->rx_pending +=
-			    adapter->recv_ctx[i].rcv_desc[j].rcv_pending;
+		ring->rx_pending += adapter->recv_ctx[i].
+		    rcv_desc[RCV_DESC_NORMAL_CTXID].rcv_pending;
+		ring->rx_jumbo_pending += adapter->recv_ctx[i].
+		    rcv_desc[RCV_DESC_JUMBO_CTXID].rcv_pending;
 	}
 
 	ring->rx_max_pending = adapter->max_rx_desc_count;
 	ring->tx_max_pending = adapter->max_tx_desc_count;
+	ring->rx_jumbo_max_pending = adapter->max_jumbo_rx_desc_count;
 	ring->rx_mini_max_pending = 0;
 	ring->rx_mini_pending = 0;
-	ring->rx_jumbo_max_pending = 0;
 	ring->rx_jumbo_pending = 0;
 }
 
@@ -526,10 +527,10 @@ netxen_nic_set_pauseparam(struct net_device *dev,
 				    *(u32 *) (&val));
 		/* set autoneg */
 		autoneg = pause->autoneg;
-		if (adapter->ops->phy_write
-		    && adapter->ops->phy_write(adapter, port->portnum,
-					       NETXEN_NIU_GB_MII_MGMT_ADDR_AUTONEG,
-					       (__le32) autoneg) != 0)
+		if (adapter->phy_write
+		    && adapter->phy_write(adapter, port->portnum,
+					  NETXEN_NIU_GB_MII_MGMT_ADDR_AUTONEG,
+					  (__le32) autoneg) != 0)
 			return -EIO;
 		else {
 			port->link_autoneg = pause->autoneg;

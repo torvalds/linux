@@ -3476,6 +3476,8 @@ static int stli_initecp(stlibrd_t *brdp)
 	if (sig.magic != cpu_to_le32(ECP_MAGIC))
 	{
 		release_region(brdp->iobase, brdp->iosize);
+		iounmap(brdp->membase);
+		brdp->membase = NULL;
 		return -ENODEV;
 	}
 
@@ -3632,6 +3634,8 @@ static int stli_initonb(stlibrd_t *brdp)
 	    sig.magic3 != cpu_to_le16(ONB_MAGIC3))
 	{
 		release_region(brdp->iobase, brdp->iosize);
+		iounmap(brdp->membase);
+		brdp->membase = NULL;
 		return -ENODEV;
 	}
 

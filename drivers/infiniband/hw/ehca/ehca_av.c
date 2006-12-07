@@ -57,7 +57,7 @@ struct ib_ah *ehca_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 	struct ehca_shca *shca = container_of(pd->device, struct ehca_shca,
 					      ib_device);
 
-	av = kmem_cache_alloc(av_cache, SLAB_KERNEL);
+	av = kmem_cache_alloc(av_cache, GFP_KERNEL);
 	if (!av) {
 		ehca_err(pd->device, "Out of memory pd=%p ah_attr=%p",
 			 pd, ah_attr);

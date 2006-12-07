@@ -76,6 +76,12 @@ config LEDS_NET48XX
 	  This option enables support for the Soekris net4801 and net4826 error
 	  LED.
 
+config LEDS_WRAP
+	tristate "LED Support for the WRAP series LEDs"
+	depends on LEDS_CLASS && SCx200_GPIO
+	help
+	  This option enables support for the PCEngines WRAP programmable LEDs.
+
 comment "LED Triggers"
 
 config LEDS_TRIGGERS

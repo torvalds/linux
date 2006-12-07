@@ -871,7 +871,7 @@ asmlinkage long compat_sys_mount(char __user * dev_name, char __user * dir_name,
 
 	retval = -EINVAL;
 
-	if (type_page) {
+	if (type_page && data_page) {
 		if (!strcmp((char *)type_page, SMBFS_NAME)) {
 			do_smb_super_data_conv((void *)data_page);
 		} else if (!strcmp((char *)type_page, NCPFS_NAME)) {
@@ -1144,7 +1144,9 @@ asmlinkage long compat_sys_getdents64(unsigned int fd,
 	lastdirent = buf.previous;
 	if (lastdirent) {
 		typeof(lastdirent->d_off) d_off = file->f_pos;
-		__put_user_unaligned(d_off, &lastdirent->d_off);
+		error = -EFAULT;
+		if (__put_user_unaligned(d_off, &lastdirent->d_off))
+			goto out_putf;
 		error = count - buf.count;
 	}
 
@@ -1611,14 +1613,14 @@ int compat_get_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 		nr &= ~1UL;
 		while (nr) {
 			unsigned long h, l;
-			__get_user(l, ufdset);
-			__get_user(h, ufdset+1);
+			if (__get_user(l, ufdset) || __get_user(h, ufdset+1))
+				return -EFAULT;
 			ufdset += 2;
 			*fdset++ = h << 32 | l;
 			nr -= 2;
 		}
-		if (odd)
-			__get_user(*fdset, ufdset);
+		if (odd && __get_user(*fdset, ufdset))
+			return -EFAULT;
 	} else {
 		/* Tricky, must clear full unsigned long in the
 		 * kernel fdset at the end, this makes sure that
@@ -1630,14 +1632,14 @@ int compat_get_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 }
 
 static
-void compat_set_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
-			unsigned long *fdset)
+int compat_set_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
+		      unsigned long *fdset)
 {
 	unsigned long odd;
 	nr = ROUND_UP(nr, __COMPAT_NFDBITS);
 
 	if (!ufdset)
-		return;
+		return 0;
 
 	odd = nr & 1UL;
 	nr &= ~1UL;
@@ -1645,13 +1647,14 @@ void compat_set_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 		unsigned long h, l;
 		l = *fdset++;
 		h = l >> 32;
-		__put_user(l, ufdset);
-		__put_user(h, ufdset+1);
+		if (__put_user(l, ufdset) || __put_user(h, ufdset+1))
+			return -EFAULT;
 		ufdset += 2;
 		nr -= 2;
 	}
-	if (odd)
-		__put_user(*fdset, ufdset);
+	if (odd && __put_user(*fdset, ufdset))
+		return -EFAULT;
+	return 0;
 }
 
 
@@ -1726,10 +1729,10 @@ int compat_core_sys_select(int n, compat_ulong_t __user *inp,
 		ret = 0;
 	}
 
-	compat_set_fd_set(n, inp, fds.res_in);
-	compat_set_fd_set(n, outp, fds.res_out);
-	compat_set_fd_set(n, exp, fds.res_ex);
-
+	if (compat_set_fd_set(n, inp, fds.res_in) ||
+	    compat_set_fd_set(n, outp, fds.res_out) ||
+	    compat_set_fd_set(n, exp, fds.res_ex))
+		ret = -EFAULT;
 out:
 	kfree(bits);
 out_nofds:

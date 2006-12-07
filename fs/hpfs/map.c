@@ -126,32 +126,40 @@ struct fnode *hpfs_map_fnode(struct super_block *s, ino_t ino, struct buffer_hea
 			struct extended_attribute *ea;
 			struct extended_attribute *ea_end;
 			if (fnode->magic != FNODE_MAGIC) {
-				hpfs_error(s, "bad magic on fnode %08x", ino);
+				hpfs_error(s, "bad magic on fnode %08lx",
+					(unsigned long)ino);
 				goto bail;
 			}
 			if (!fnode->dirflag) {
 				if ((unsigned)fnode->btree.n_used_nodes + (unsigned)fnode->btree.n_free_nodes !=
 				    (fnode->btree.internal ? 12 : 8)) {
-					hpfs_error(s, "bad number of nodes in fnode %08x", ino);
+					hpfs_error(s,
+					   "bad number of nodes in fnode %08lx",
+					    (unsigned long)ino);
 					goto bail;
 				}
 				if (fnode->btree.first_free !=
 				    8 + fnode->btree.n_used_nodes * (fnode->btree.internal ? 8 : 12)) {
-					hpfs_error(s, "bad first_free pointer in fnode %08x", ino);
+					hpfs_error(s,
+					    "bad first_free pointer in fnode %08lx",
+					    (unsigned long)ino);
 					goto bail;
 				}
 			}
 			if (fnode->ea_size_s && ((signed int)fnode->ea_offs < 0xc4 ||
 			   (signed int)fnode->ea_offs + fnode->acl_size_s + fnode->ea_size_s > 0x200)) {
-				hpfs_error(s, "bad EA info in fnode %08x: ea_offs == %04x ea_size_s == %04x",
-					ino, fnode->ea_offs, fnode->ea_size_s);
+				hpfs_error(s,
+					"bad EA info in fnode %08lx: ea_offs == %04x ea_size_s == %04x",
+					(unsigned long)ino,
+					fnode->ea_offs, fnode->ea_size_s);
 				goto bail;
 			}
 			ea = fnode_ea(fnode);
 			ea_end = fnode_end_ea(fnode);
 			while (ea != ea_end) {
 				if (ea > ea_end) {
-					hpfs_error(s, "bad EA in fnode %08x", ino);
+					hpfs_error(s, "bad EA in fnode %08lx",
+						(unsigned long)ino);
 					goto bail;
 				}
 				ea = next_ea(ea);

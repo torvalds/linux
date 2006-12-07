@@ -592,7 +592,7 @@ static void ati_remote_irq_in(struct urb *urb)
 			__FUNCTION__, urb->status);
 	}
 
-	retval = usb_submit_urb(urb, SLAB_ATOMIC);
+	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
 		dev_err(&ati_remote->interface->dev, "%s: usb_submit_urb()=%d\n",
 			__FUNCTION__, retval);
@@ -604,12 +604,12 @@ static void ati_remote_irq_in(struct urb *urb)
 static int ati_remote_alloc_buffers(struct usb_device *udev,
 				    struct ati_remote *ati_remote)
 {
-	ati_remote->inbuf = usb_buffer_alloc(udev, DATA_BUFSIZE, SLAB_ATOMIC,
+	ati_remote->inbuf = usb_buffer_alloc(udev, DATA_BUFSIZE, GFP_ATOMIC,
 					     &ati_remote->inbuf_dma);
 	if (!ati_remote->inbuf)
 		return -1;
 
-	ati_remote->outbuf = usb_buffer_alloc(udev, DATA_BUFSIZE, SLAB_ATOMIC,
+	ati_remote->outbuf = usb_buffer_alloc(udev, DATA_BUFSIZE, GFP_ATOMIC,
 					      &ati_remote->outbuf_dma);
 	if (!ati_remote->outbuf)
 		return -1;

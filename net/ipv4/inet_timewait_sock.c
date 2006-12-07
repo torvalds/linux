@@ -91,7 +91,7 @@ struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk, const int stat
 {
 	struct inet_timewait_sock *tw =
 		kmem_cache_alloc(sk->sk_prot_creator->twsk_prot->twsk_slab,
-				 SLAB_ATOMIC);
+				 GFP_ATOMIC);
 	if (tw != NULL) {
 		const struct inet_sock *inet = inet_sk(sk);
 
@@ -178,7 +178,6 @@ void inet_twdr_hangman(unsigned long data)
 	need_timer = 0;
 	if (inet_twdr_do_twkill_work(twdr, twdr->slot)) {
 		twdr->thread_slots |= (1 << twdr->slot);
-		mb();
 		schedule_work(&twdr->twkill_work);
 		need_timer = 1;
 	} else {

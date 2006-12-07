@@ -308,7 +308,7 @@ dasd_fba_build_cp(struct dasd_device * device, struct request *req)
 		dst = page_address(bv->bv_page) + bv->bv_offset;
 		if (dasd_page_cache) {
 			char *copy = kmem_cache_alloc(dasd_page_cache,
-						      SLAB_DMA | __GFP_NOWARN);
+						      GFP_DMA | __GFP_NOWARN);
 			if (copy && rq_data_dir(req) == WRITE)
 				memcpy(copy + bv->bv_offset, dst, bv->bv_len);
 			if (copy)

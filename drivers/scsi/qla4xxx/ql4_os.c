@@ -19,7 +19,7 @@ char qla4xxx_version_str[40];
 /*
  * SRB allocation cache
  */
-static kmem_cache_t *srb_cachep;
+static struct kmem_cache *srb_cachep;
 
 /*
  * Module parameter information and variables

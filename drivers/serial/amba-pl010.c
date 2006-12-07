@@ -129,6 +129,8 @@ static void pl010_rx_chars(struct uart_port *port)
 		 */
 		rsr = readb(port->membase + UART01x_RSR) | UART_DUMMY_RSR_RX;
 		if (unlikely(rsr & UART01x_RSR_ANY)) {
+			writel(0, port->membase + UART01x_ECR);
+
 			if (rsr & UART01x_RSR_BE) {
 				rsr &= ~(UART01x_RSR_FE | UART01x_RSR_PE);
 				port->icount.brk++;

@@ -24,10 +24,11 @@
 #include <linux/compiler.h>
 #include <linux/cpumask.h>
 #include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 struct cpu {
 	int node_id;		/* The node which contains the CPU */
-	int no_control;		/* Should the sysfs control file be created? */
+	int hotpluggable;	/* creates sysfs control file if hotpluggable */
 	struct sys_device sysdev;
 };
 
@@ -74,6 +75,17 @@ extern struct sysdev_class cpu_sysdev_class;
 
 #ifdef CONFIG_HOTPLUG_CPU
 /* Stop CPUs going up and down. */
+
+static inline void cpuhotplug_mutex_lock(struct mutex *cpu_hp_mutex)
+{
+	mutex_lock(cpu_hp_mutex);
+}
+
+static inline void cpuhotplug_mutex_unlock(struct mutex *cpu_hp_mutex)
+{
+	mutex_unlock(cpu_hp_mutex);
+}
+
 extern void lock_cpu_hotplug(void);
 extern void unlock_cpu_hotplug(void);
 #define hotcpu_notifier(fn, pri) {				\
@@ -85,17 +97,24 @@ extern void unlock_cpu_hotplug(void);
 #define unregister_hotcpu_notifier(nb)	unregister_cpu_notifier(nb)
 int cpu_down(unsigned int cpu);
 #define cpu_is_offline(cpu) unlikely(!cpu_online(cpu))
-#else
+
+#else		/* CONFIG_HOTPLUG_CPU */
+
+static inline void cpuhotplug_mutex_lock(struct mutex *cpu_hp_mutex)
+{ }
+static inline void cpuhotplug_mutex_unlock(struct mutex *cpu_hp_mutex)
+{ }
+
 #define lock_cpu_hotplug()	do { } while (0)
 #define unlock_cpu_hotplug()	do { } while (0)
 #define lock_cpu_hotplug_interruptible() 0
-#define hotcpu_notifier(fn, pri)	do { } while (0)
-#define register_hotcpu_notifier(nb)	do { } while (0)
-#define unregister_hotcpu_notifier(nb)	do { } while (0)
+#define hotcpu_notifier(fn, pri)	do { (void)(fn); } while (0)
+#define register_hotcpu_notifier(nb)	do { (void)(nb); } while (0)
+#define unregister_hotcpu_notifier(nb)	do { (void)(nb); } while (0)
 
 /* CPUs don't go offline once they're online w/o CONFIG_HOTPLUG_CPU */
 static inline int cpu_is_offline(int cpu) { return 0; }
-#endif
+#endif		/* CONFIG_HOTPLUG_CPU */
 
 #ifdef CONFIG_SUSPEND_SMP
 extern int disable_nonboot_cpus(void);

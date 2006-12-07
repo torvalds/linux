@@ -259,6 +259,7 @@ static irqreturn_t i2o_pci_interrupt(int irq, void *dev_id)
 
 /**
  *	i2o_pci_irq_enable - Allocate interrupt for I2O controller
+ *	@c: i2o_controller that the request is for
  *
  *	Allocate an interrupt for the I2O controller, and activate interrupts
  *	on the I2O controller.
@@ -305,7 +306,7 @@ static void i2o_pci_irq_disable(struct i2o_controller *c)
 
 /**
  *	i2o_pci_probe - Probe the PCI device for an I2O controller
- *	@dev: PCI device to test
+ *	@pdev: PCI device to test
  *	@id: id which matched with the PCI device id table
  *
  *	Probe the PCI device for any device which is a memory of the
@@ -447,7 +448,7 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 
 /**
  *	i2o_pci_remove - Removes a I2O controller from the system
- *	pdev: I2O controller which should be removed
+ *	@pdev: I2O controller which should be removed
  *
  *	Reset the I2O controller, disable interrupts and remove all allocated
  *	resources.

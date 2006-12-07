@@ -1902,7 +1902,6 @@ int vmtruncate_range(struct inode *inode, loff_t offset, loff_t end)
 
 	return 0;
 }
-EXPORT_UNUSED_SYMBOL(vmtruncate_range);  /*  June 2006  */
 
 /**
  * swapin_readahead - swap in pages in hope we need them soon
@@ -1991,6 +1990,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
 	page = lookup_swap_cache(entry);
 	if (!page) {
+		grab_swap_token(); /* Contend for token _before_ read-in */
  		swapin_readahead(entry, address, vma);
  		page = read_swap_cache_async(entry, vma, address);
 		if (!page) {
@@ -2008,7 +2008,6 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		/* Had to read the page from swap area: Major fault */
 		ret = VM_FAULT_MAJOR;
 		count_vm_event(PGMAJFAULT);
-		grab_swap_token();
 	}
 
 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);

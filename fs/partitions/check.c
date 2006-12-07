@@ -153,7 +153,7 @@ static struct parsed_partitions *
 check_partition(struct gendisk *hd, struct block_device *bdev)
 {
 	struct parsed_partitions *state;
-	int i, res;
+	int i, res, err;
 
 	state = kmalloc(sizeof(struct parsed_partitions), GFP_KERNEL);
 	if (!state)
@@ -165,19 +165,30 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 		sprintf(state->name, "p");
 
 	state->limit = hd->minors;
-	i = res = 0;
+	i = res = err = 0;
 	while (!res && check_part[i]) {
 		memset(&state->parts, 0, sizeof(state->parts));
 		res = check_part[i++](state, bdev);
+		if (res < 0) {
+			/* We have hit an I/O error which we don't report now.
+		 	* But record it, and let the others do their job.
+		 	*/
+			err = res;
+			res = 0;
+		}
+
 	}
 	if (res > 0)
 		return state;
+	if (!err)
+	/* The partition is unrecognized. So report I/O errors if there were any */
+		res = err;
 	if (!res)
 		printk(" unknown partition table\n");
 	else if (warn_no_part)
 		printk(" unable to read partition table\n");
 	kfree(state);
-	return NULL;
+	return ERR_PTR(res);
 }
 
 /*
@@ -494,6 +505,8 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 		disk->fops->revalidate_disk(disk);
 	if (!get_capacity(disk) || !(state = check_partition(disk, bdev)))
 		return 0;
+	if (IS_ERR(state))	/* I/O error reading the partition table */
+		return PTR_ERR(state);
 	for (p = 1; p < state->limit; p++) {
 		sector_t size = state->parts[p].size;
 		sector_t from = state->parts[p].from;

@@ -179,9 +179,9 @@ static int init_status (struct usbnet *dev, struct usb_interface *intf)
 	period = max ((int) dev->status->desc.bInterval,
 		(dev->udev->speed == USB_SPEED_HIGH) ? 7 : 3);
 
-	buf = kmalloc (maxp, SLAB_KERNEL);
+	buf = kmalloc (maxp, GFP_KERNEL);
 	if (buf) {
-		dev->interrupt = usb_alloc_urb (0, SLAB_KERNEL);
+		dev->interrupt = usb_alloc_urb (0, GFP_KERNEL);
 		if (!dev->interrupt) {
 			kfree (buf);
 			return -ENOMEM;

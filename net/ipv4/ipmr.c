@@ -105,7 +105,7 @@ static DEFINE_SPINLOCK(mfc_unres_lock);
    In this case data path is free of exclusive locks at all.
  */
 
-static kmem_cache_t *mrt_cachep __read_mostly;
+static struct kmem_cache *mrt_cachep __read_mostly;
 
 static int ip_mr_forward(struct sk_buff *skb, struct mfc_cache *cache, int local);
 static int ipmr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert);

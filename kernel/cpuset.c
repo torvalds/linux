@@ -729,8 +729,10 @@ static int validate_change(const struct cpuset *cur, const struct cpuset *trial)
 	}
 
 	/* Remaining checks don't apply to root cpuset */
-	if ((par = cur->parent) == NULL)
+	if (cur == &top_cpuset)
 		return 0;
+
+	par = cur->parent;
 
 	/* We must be a subset of our parent cpuset */
 	if (!is_cpuset_subset(trial, par))
@@ -1060,10 +1062,7 @@ static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs, char *buf)
 	cpu_exclusive_changed =
 		(is_cpu_exclusive(cs) != is_cpu_exclusive(&trialcs));
 	mutex_lock(&callback_mutex);
-	if (turning_on)
-		set_bit(bit, &cs->flags);
-	else
-		clear_bit(bit, &cs->flags);
+	cs->flags = trialcs.flags;
 	mutex_unlock(&callback_mutex);
 
 	if (cpu_exclusive_changed)
@@ -1281,7 +1280,8 @@ typedef enum {
 	FILE_TASKLIST,
 } cpuset_filetype_t;
 
-static ssize_t cpuset_common_file_write(struct file *file, const char __user *userbuf,
+static ssize_t cpuset_common_file_write(struct file *file,
+					const char __user *userbuf,
 					size_t nbytes, loff_t *unused_ppos)
 {
 	struct cpuset *cs = __d_cs(file->f_dentry->d_parent);
@@ -1292,7 +1292,7 @@ static ssize_t cpuset_common_file_write(struct file *file, const char __user *us
 	int retval = 0;
 
 	/* Crude upper limit on largest legitimate cpulist user might write. */
-	if (nbytes > 100 + 6 * NR_CPUS)
+	if (nbytes > 100 + 6 * max(NR_CPUS, MAX_NUMNODES))
 		return -E2BIG;
 
 	/* +1 for nul-terminator */
@@ -1532,7 +1532,7 @@ static int cpuset_rename(struct inode *old_dir, struct dentry *old_dentry,
 	return simple_rename(old_dir, old_dentry, new_dir, new_dentry);
 }
 
-static struct file_operations cpuset_file_operations = {
+static const struct file_operations cpuset_file_operations = {
 	.read = cpuset_file_read,
 	.write = cpuset_file_write,
 	.llseek = generic_file_llseek,
@@ -2045,7 +2045,6 @@ out:
 	return err;
 }
 
-#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_MEMORY_HOTPLUG)
 /*
  * If common_cpu_mem_hotplug_unplug(), below, unplugs any CPUs
  * or memory nodes, we need to walk over the cpuset hierarchy,
@@ -2109,9 +2108,7 @@ static void common_cpu_mem_hotplug_unplug(void)
 	mutex_unlock(&callback_mutex);
 	mutex_unlock(&manage_mutex);
 }
-#endif
 
-#ifdef CONFIG_HOTPLUG_CPU
 /*
  * The top_cpuset tracks what CPUs and Memory Nodes are online,
  * period.  This is necessary in order to make cpusets transparent
@@ -2128,7 +2125,6 @@ static int cpuset_handle_cpuhp(struct notifier_block *nb,
 	common_cpu_mem_hotplug_unplug();
 	return 0;
 }
-#endif
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 /*
@@ -2610,7 +2606,7 @@ static int cpuset_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_cpuset_show, pid);
 }
 
-struct file_operations proc_cpuset_operations = {
+const struct file_operations proc_cpuset_operations = {
 	.open		= cpuset_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

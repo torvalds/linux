@@ -43,7 +43,7 @@ static __cacheline_aligned_in_smp DEFINE_SEQLOCK(rename_lock);
 
 EXPORT_SYMBOL(dcache_lock);
 
-static kmem_cache_t *dentry_cache __read_mostly;
+static struct kmem_cache *dentry_cache __read_mostly;
 
 #define DNAME_INLINE_LEN (sizeof(struct dentry)-offsetof(struct dentry,d_iname))
 
@@ -68,13 +68,17 @@ struct dentry_stat_t dentry_stat = {
 	.age_limit = 45,
 };
 
-static void d_callback(struct rcu_head *head)
+static void __d_free(struct dentry *dentry)
 {
-	struct dentry * dentry = container_of(head, struct dentry, d_u.d_rcu);
-
 	if (dname_external(dentry))
 		kfree(dentry->d_name.name);
 	kmem_cache_free(dentry_cache, dentry); 
+}
+
+static void d_callback(struct rcu_head *head)
+{
+	struct dentry * dentry = container_of(head, struct dentry, d_u.d_rcu);
+	__d_free(dentry);
 }
 
 /*
@@ -85,7 +89,11 @@ static void d_free(struct dentry *dentry)
 {
 	if (dentry->d_op && dentry->d_op->d_release)
 		dentry->d_op->d_release(dentry);
- 	call_rcu(&dentry->d_u.d_rcu, d_callback);
+	/* if dentry was never inserted into hash, immediate free is OK */
+	if (dentry->d_hash.pprev == NULL)
+		__d_free(dentry);
+	else
+		call_rcu(&dentry->d_u.d_rcu, d_callback);
 }
 
 /*
@@ -2072,10 +2080,10 @@ static void __init dcache_init(unsigned long mempages)
 }
 
 /* SLAB cache for __getname() consumers */
-kmem_cache_t *names_cachep __read_mostly;
+struct kmem_cache *names_cachep __read_mostly;
 
 /* SLAB cache for file structures */
-kmem_cache_t *filp_cachep __read_mostly;
+struct kmem_cache *filp_cachep __read_mostly;
 
 EXPORT_SYMBOL(d_genocide);
 

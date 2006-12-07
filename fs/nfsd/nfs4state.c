@@ -84,10 +84,10 @@ static void nfs4_set_recdir(char *recdir);
  */
 static DEFINE_MUTEX(client_mutex);
 
-static kmem_cache_t *stateowner_slab = NULL;
-static kmem_cache_t *file_slab = NULL;
-static kmem_cache_t *stateid_slab = NULL;
-static kmem_cache_t *deleg_slab = NULL;
+static struct kmem_cache *stateowner_slab = NULL;
+static struct kmem_cache *file_slab = NULL;
+static struct kmem_cache *stateid_slab = NULL;
+static struct kmem_cache *deleg_slab = NULL;
 
 void
 nfs4_lock_state(void)
@@ -1003,7 +1003,7 @@ alloc_init_file(struct inode *ino)
 }
 
 static void
-nfsd4_free_slab(kmem_cache_t **slab)
+nfsd4_free_slab(struct kmem_cache **slab)
 {
 	if (*slab == NULL)
 		return;

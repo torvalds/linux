@@ -231,6 +231,7 @@
 #include <asm/uaccess.h>
 #include <asm/desc.h>
 #include <asm/i8253.h>
+#include <asm/paravirt.h>
 
 #include "io_ports.h"
 
@@ -2235,7 +2236,7 @@ static int __init apm_init(void)
 
 	dmi_check_system(apm_dmi_table);
 
-	if (apm_info.bios.version == 0) {
+	if (apm_info.bios.version == 0 || paravirt_enabled()) {
 		printk(KERN_INFO "apm: BIOS not found.\n");
 		return -ENODEV;
 	}

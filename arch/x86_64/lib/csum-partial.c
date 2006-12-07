@@ -9,8 +9,6 @@
 #include <linux/module.h>
 #include <asm/checksum.h>
 
-#define __force_inline inline __attribute__((always_inline))
-
 static inline unsigned short from32to16(unsigned a) 
 {
 	unsigned short b = a >> 16; 
@@ -33,7 +31,7 @@ static inline unsigned short from32to16(unsigned a)
  * Unrolling to an 128 bytes inner loop.
  * Using interleaving with more registers to break the carry chains.
  */
-static __force_inline unsigned do_csum(const unsigned char *buff, unsigned len)
+static unsigned do_csum(const unsigned char *buff, unsigned len)
 {
 	unsigned odd, count;
 	unsigned long result = 0;

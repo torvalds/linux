@@ -1,6 +1,8 @@
 #ifndef _ASM_STACKTRACE_H
 #define _ASM_STACKTRACE_H 1
 
+extern int kstack_depth_to_print;
+
 /* Generic stack tracer with callbacks */
 
 struct stacktrace_ops {

@@ -571,7 +571,7 @@ struct proto {
 	int			*sysctl_rmem;
 	int			max_header;
 
-	kmem_cache_t		*slab;
+	struct kmem_cache		*slab;
 	unsigned int		obj_size;
 
 	atomic_t		*orphan_count;
@@ -745,6 +745,25 @@ static inline int sk_stream_wmem_schedule(struct sock *sk, int size)
  * accesses from user process context.
  */
 #define sock_owned_by_user(sk)	((sk)->sk_lock.owner)
+
+/*
+ * Macro so as to not evaluate some arguments when
+ * lockdep is not enabled.
+ *
+ * Mark both the sk_lock and the sk_lock.slock as a
+ * per-address-family lock class.
+ */
+#define sock_lock_init_class_and_name(sk, sname, skey, name, key) 	\
+do {									\
+	sk->sk_lock.owner = NULL;					\
+	init_waitqueue_head(&sk->sk_lock.wq);				\
+	spin_lock_init(&(sk)->sk_lock.slock);				\
+	debug_check_no_locks_freed((void *)&(sk)->sk_lock,		\
+			sizeof((sk)->sk_lock));				\
+	lockdep_set_class_and_name(&(sk)->sk_lock.slock,		\
+		       	(skey), (sname));				\
+	lockdep_init_map(&(sk)->sk_lock.dep_map, (name), (key), 0);	\
+} while (0)
 
 extern void FASTCALL(lock_sock_nested(struct sock *sk, int subclass));
 

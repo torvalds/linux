@@ -450,7 +450,7 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 	if (pd->uobject && udata)
 		context = pd->uobject->context;
 
-	my_qp = kmem_cache_alloc(qp_cache, SLAB_KERNEL);
+	my_qp = kmem_cache_alloc(qp_cache, GFP_KERNEL);
 	if (!my_qp) {
 		ehca_err(pd->device, "pd=%p not enough memory to alloc qp", pd);
 		return ERR_PTR(-ENOMEM);

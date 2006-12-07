@@ -42,6 +42,7 @@
 #include <asm/topology.h>
 
 #define __vsyscall(nr) __attribute__ ((unused,__section__(".vsyscall_" #nr)))
+#define __syscall_clobber "r11","rcx","memory"
 
 int __sysctl_vsyscall __section_sysctl_vsyscall = 1;
 seqlock_t __xtime_lock __section_xtime_lock = SEQLOCK_UNLOCKED;
@@ -274,7 +275,6 @@ static void __cpuinit cpu_vsyscall_init(void *arg)
 	vsyscall_set_cpu(raw_smp_processor_id());
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static int __cpuinit
 cpu_vsyscall_notifier(struct notifier_block *n, unsigned long action, void *arg)
 {
@@ -283,13 +283,13 @@ cpu_vsyscall_notifier(struct notifier_block *n, unsigned long action, void *arg)
 		smp_call_function_single(cpu, cpu_vsyscall_init, NULL, 0, 1);
 	return NOTIFY_DONE;
 }
-#endif
 
 static void __init map_vsyscall(void)
 {
 	extern char __vsyscall_0;
 	unsigned long physaddr_page0 = __pa_symbol(&__vsyscall_0);
 
+	/* Note that VSYSCALL_MAPPED_PAGES must agree with the code below. */
 	__set_fixmap(VSYSCALL_FIRST_PAGE, physaddr_page0, PAGE_KERNEL_VSYSCALL);
 }
 

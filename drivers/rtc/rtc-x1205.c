@@ -562,10 +562,18 @@ static int x1205_probe(struct i2c_adapter *adapter, int address, int kind)
 	else
 		dev_err(&client->dev, "couldn't read status\n");
 
-	device_create_file(&client->dev, &dev_attr_atrim);
-	device_create_file(&client->dev, &dev_attr_dtrim);
+	err = device_create_file(&client->dev, &dev_attr_atrim);
+	if (err) goto exit_devreg;
+	err = device_create_file(&client->dev, &dev_attr_dtrim);
+	if (err) goto exit_atrim;
 
 	return 0;
+
+exit_atrim:
+	device_remove_file(&client->dev, &dev_attr_atrim);
+
+exit_devreg:
+	rtc_device_unregister(rtc);
 
 exit_detach:
 	i2c_detach_client(client);

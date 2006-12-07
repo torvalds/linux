@@ -646,14 +646,14 @@ static int __init pg_init(void)
 	int err;
 
 	if (disable){
-		err = -1;
+		err = -EINVAL;
 		goto out;
 	}
 
 	pg_init_units();
 
 	if (pg_detect()) {
-		err = -1;
+		err = -ENODEV;
 		goto out;
 	}
 

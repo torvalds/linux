@@ -51,7 +51,7 @@ struct line {
 	char *tail;
 
 	int sigio;
-	struct work_struct task;
+	struct delayed_work task;
 	const struct line_driver *driver;
 	int have_irq;
 };

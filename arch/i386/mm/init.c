@@ -192,8 +192,6 @@ static inline int page_kills_ppro(unsigned long pagenr)
 	return 0;
 }
 
-extern int is_available_memory(efi_memory_desc_t *);
-
 int page_is_ram(unsigned long pagenr)
 {
 	int i;
@@ -699,8 +697,8 @@ int remove_memory(u64 start, u64 size)
 #endif
 #endif
 
-kmem_cache_t *pgd_cache;
-kmem_cache_t *pmd_cache;
+struct kmem_cache *pgd_cache;
+struct kmem_cache *pmd_cache;
 
 void __init pgtable_cache_init(void)
 {

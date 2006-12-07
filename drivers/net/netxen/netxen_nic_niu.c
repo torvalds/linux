@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2003 - 2006 NetXen, Inc.
  * All rights reserved.
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -16,10 +16,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA  02111-1307, USA.
- * 
+ *
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.
- * 
+ *
  * Contact Information:
  *    info@netxen.com
  * NetXen,
@@ -40,13 +40,15 @@
 
 static long phy_lock_timeout = 100000000;
 
-static inline int phy_lock(void)
+static inline int phy_lock(struct netxen_adapter *adapter)
 {
 	int i;
 	int done = 0, timeout = 0;
 
 	while (!done) {
-		done = readl((void __iomem *)NETXEN_PCIE_REG(PCIE_SEM3_LOCK));
+		done =
+		    readl(pci_base_offset
+			  (adapter, NETXEN_PCIE_REG(PCIE_SEM3_LOCK)));
 		if (done == 1)
 			break;
 		if (timeout >= phy_lock_timeout) {
@@ -61,13 +63,15 @@ static inline int phy_lock(void)
 		}
 	}
 
-	writel(NETXEN_PHY_LOCK_ID, (void __iomem *)PHY_LOCK_DRIVER);
+	writel(PHY_LOCK_DRIVER,
+	       NETXEN_CRB_NORMALIZE(adapter, NETXEN_PHY_LOCK_ID));
 	return 0;
 }
 
-static inline int phy_unlock(void)
+static inline int phy_unlock(struct netxen_adapter *adapter)
 {
-	readl((void __iomem *)NETXEN_PCIE_REG(PCIE_SEM3_UNLOCK));
+	readl(pci_base_offset(adapter, NETXEN_PCIE_REG(PCIE_SEM3_UNLOCK)));
+
 	return 0;
 }
 
@@ -95,7 +99,7 @@ int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long phy,
 	__le32 status;
 	__le32 mac_cfg0;
 
-	if (phy_lock() != 0) {
+	if (phy_lock(adapter) != 0) {
 		return -1;
 	}
 
@@ -162,7 +166,7 @@ int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long phy,
 					   NETXEN_NIU_GB_MAC_CONFIG_0(0),
 					   &mac_cfg0, 4))
 			return -EIO;
-	phy_unlock();
+	phy_unlock(adapter);
 	return result;
 }
 
@@ -399,8 +403,8 @@ int netxen_niu_gbe_init_port(struct netxen_adapter *adapter, int port)
 {
 	int result = 0;
 	__le32 status;
-	if (adapter->ops->disable_phy_interrupts)
-		adapter->ops->disable_phy_interrupts(adapter, port);
+	if (adapter->disable_phy_interrupts)
+		adapter->disable_phy_interrupts(adapter, port);
 	mdelay(2);
 
 	if (0 ==
@@ -612,7 +616,7 @@ int netxen_niu_macaddr_set(struct netxen_port *port,
 	__le32 temp = 0;
 	struct netxen_adapter *adapter = port->adapter;
 	int phy = port->portnum;
-	unsigned char mac_addr[MAX_ADDR_LEN];
+	unsigned char mac_addr[6];
 	int i;
 
 	for (i = 0; i < 10; i++) {
@@ -631,7 +635,7 @@ int netxen_niu_macaddr_set(struct netxen_port *port,
 
 		netxen_niu_macaddr_get(adapter, phy,
 				       (netxen_ethernet_macaddr_t *) mac_addr);
-		if (memcmp(mac_addr, addr, MAX_ADDR_LEN == 0))
+		if (memcmp(mac_addr, addr, 6) == 0)
 			break;
 	}
 

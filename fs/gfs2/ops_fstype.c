@@ -237,7 +237,7 @@ fail:
 }
 
 static struct inode *gfs2_lookup_root(struct super_block *sb,
-				      struct gfs2_inum *inum)
+				      struct gfs2_inum_host *inum)
 {
 	return gfs2_inode_lookup(sb, inum, DT_DIR);
 }
@@ -246,7 +246,7 @@ static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 {
 	struct super_block *sb = sdp->sd_vfs;
 	struct gfs2_holder sb_gh;
-	struct gfs2_inum *inum;
+	struct gfs2_inum_host *inum;
 	struct inode *inode;
 	int error = 0;
 

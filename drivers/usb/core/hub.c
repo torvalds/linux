@@ -22,6 +22,7 @@
 #include <linux/usbdevice_fs.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
+#include <linux/freezer.h>
 
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
@@ -460,7 +461,7 @@ void usb_hub_tt_clear_buffer (struct usb_device *udev, int pipe)
 	 * since each TT has "at least two" buffers that can need it (and
 	 * there can be many TTs per hub).  even if they're uncommon.
 	 */
-	if ((clear = kmalloc (sizeof *clear, SLAB_ATOMIC)) == NULL) {
+	if ((clear = kmalloc (sizeof *clear, GFP_ATOMIC)) == NULL) {
 		dev_err (&udev->dev, "can't save CLEAR_TT_BUFFER state\n");
 		/* FIXME recover somehow ... RESET_TT? */
 		return;
@@ -2371,7 +2372,7 @@ check_highspeed (struct usb_hub *hub, struct usb_device *udev, int port1)
 	struct usb_qualifier_descriptor	*qual;
 	int				status;
 
-	qual = kmalloc (sizeof *qual, SLAB_KERNEL);
+	qual = kmalloc (sizeof *qual, GFP_KERNEL);
 	if (qual == NULL)
 		return;
 
@@ -2922,7 +2923,7 @@ static int config_descriptors_changed(struct usb_device *udev)
 		if (len < le16_to_cpu(udev->config[index].desc.wTotalLength))
 			len = le16_to_cpu(udev->config[index].desc.wTotalLength);
 	}
-	buf = kmalloc (len, SLAB_KERNEL);
+	buf = kmalloc (len, GFP_KERNEL);
 	if (buf == NULL) {
 		dev_err(&udev->dev, "no mem to re-read configs after reset\n");
 		/* assume the worst */

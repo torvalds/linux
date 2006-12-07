@@ -680,7 +680,7 @@ static int usbtouch_probe(struct usb_interface *intf,
 		type->process_pkt = usbtouch_process_pkt;
 
 	usbtouch->data = usb_buffer_alloc(udev, type->rept_size,
-	                                  SLAB_KERNEL, &usbtouch->data_dma);
+	                                  GFP_KERNEL, &usbtouch->data_dma);
 	if (!usbtouch->data)
 		goto out_free;
 

@@ -108,7 +108,6 @@ static int __cpuinit topology_add_dev(unsigned int cpu)
 	return rc;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static void __cpuinit topology_remove_dev(unsigned int cpu)
 {
 	struct sys_device *sys_dev = get_cpu_sysdev(cpu);
@@ -136,7 +135,6 @@ static int __cpuinit topology_cpu_callback(struct notifier_block *nfb,
 	}
 	return rc ? NOTIFY_BAD : NOTIFY_OK;
 }
-#endif
 
 static int __cpuinit topology_sysfs_init(void)
 {

@@ -219,8 +219,9 @@ static int tifm_device_remove(struct device *dev)
 	struct tifm_driver *drv = fm_dev->drv;
 
 	if (drv) {
-		if (drv->remove) drv->remove(fm_dev);
-		fm_dev->drv = 0;
+		if (drv->remove)
+			drv->remove(fm_dev);
+		fm_dev->drv = NULL;
 	}
 
 	put_device(dev);

@@ -132,6 +132,8 @@
 
 #define PORT_S3C2412	73
 
+/* Xilinx uartlite */
+#define PORT_UARTLITE	74
 
 #ifdef __KERNEL__
 

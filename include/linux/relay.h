@@ -274,7 +274,7 @@ static inline void subbuf_start_reserve(struct rchan_buf *buf,
 /*
  * exported relay file operations, kernel/relay.c
  */
-extern struct file_operations relay_file_operations;
+extern const struct file_operations relay_file_operations;
 
 #endif /* _LINUX_RELAY_H */
 

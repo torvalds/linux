@@ -148,13 +148,7 @@ int read_cache_pages(struct address_space *mapping, struct list_head *pages,
 		if (!pagevec_add(&lru_pvec, page))
 			__pagevec_lru_add(&lru_pvec);
 		if (ret) {
-			while (!list_empty(pages)) {
-				struct page *victim;
-
-				victim = list_to_page(pages);
-				list_del(&victim->lru);
-				page_cache_release(victim);
-			}
+			put_pages_list(pages);
 			break;
 		}
 	}

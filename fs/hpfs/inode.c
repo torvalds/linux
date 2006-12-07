@@ -251,7 +251,10 @@ void hpfs_write_inode_nolock(struct inode *i)
 			de->file_size = 0;
 			hpfs_mark_4buffers_dirty(&qbh);
 			hpfs_brelse4(&qbh);
-		} else hpfs_error(i->i_sb, "directory %08x doesn't have '.' entry", i->i_ino);
+		} else
+			hpfs_error(i->i_sb,
+				"directory %08lx doesn't have '.' entry",
+				(unsigned long)i->i_ino);
 	}
 	mark_buffer_dirty(bh);
 	brelse(bh);

@@ -36,7 +36,7 @@
 struct mcp_gen_header {
 	/* the first 4 fields are filled at compile time */
 	unsigned header_length;
-	unsigned mcp_type;
+	__be32 mcp_type;
 	char version[128];
 	unsigned mcp_globals;	/* pointer to mcp-type specific structure */
 

@@ -557,7 +557,7 @@ struct sas_task {
 
 static inline struct sas_task *sas_alloc_task(gfp_t flags)
 {
-	extern kmem_cache_t *sas_task_cache;
+	extern struct kmem_cache *sas_task_cache;
 	struct sas_task *task = kmem_cache_alloc(sas_task_cache, flags);
 
 	if (task) {
@@ -575,7 +575,7 @@ static inline struct sas_task *sas_alloc_task(gfp_t flags)
 static inline void sas_free_task(struct sas_task *task)
 {
 	if (task) {
-		extern kmem_cache_t *sas_task_cache;
+		extern struct kmem_cache *sas_task_cache;
 		BUG_ON(!list_empty(&task->list));
 		kmem_cache_free(sas_task_cache, task);
 	}

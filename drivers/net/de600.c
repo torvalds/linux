@@ -43,7 +43,6 @@ static const char version[] = "de600.c: $Revision: 1.41-2.5 $,  Bjorn Ekwall (bj
  * modify the following "#define": (see <asm/io.h> for more info)
 #define REALLY_SLOW_IO
  */
-#define SLOW_IO_BY_JUMPING /* Looks "better" than dummy write to port 0x80 :-) */
 
 /* use 0 for production, 1 for verification, >2 for debug */
 #ifdef DE600_DEBUG

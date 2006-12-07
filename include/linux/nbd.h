@@ -64,6 +64,7 @@ struct nbd_device {
 	struct gendisk *disk;
 	int blksize;
 	u64 bytesize;
+	pid_t pid; /* pid of nbd-client, if attached */
 };
 
 #endif

@@ -1026,6 +1026,7 @@ static int __init rio_init(void)
 			found++;
 		} else {
 			iounmap(p->RIOHosts[p->RIONumHosts].Caddr);
+			p->RIOHosts[p->RIONumHosts].Caddr = NULL;
 		}
 	}
 
@@ -1078,6 +1079,7 @@ static int __init rio_init(void)
 			found++;
 		} else {
 			iounmap(p->RIOHosts[p->RIONumHosts].Caddr);
+			p->RIOHosts[p->RIONumHosts].Caddr = NULL;
 		}
 #else
 		printk(KERN_ERR "Found an older RIO PCI card, but the driver is not " "compiled to support it.\n");
@@ -1117,8 +1119,10 @@ static int __init rio_init(void)
 				}
 			}
 
-			if (!okboard)
+			if (!okboard) {
 				iounmap(hp->Caddr);
+				hp->Caddr = NULL;
+			}
 		}
 	}
 
@@ -1188,6 +1192,8 @@ static void __exit rio_exit(void)
 		}
 		/* It is safe/allowed to del_timer a non-active timer */
 		del_timer(&hp->timer);
+		if (hp->Caddr)
+			iounmap(hp->Caddr);
 		if (hp->Type == RIO_PCI)
 			pci_dev_put(hp->pdev);
 	}

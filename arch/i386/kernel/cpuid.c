@@ -34,7 +34,6 @@
 #include <linux/major.h>
 #include <linux/fs.h>
 #include <linux/smp_lock.h>
-#include <linux/fs.h>
 #include <linux/device.h>
 #include <linux/cpu.h>
 #include <linux/notifier.h>
@@ -167,7 +166,6 @@ static int cpuid_device_create(int i)
 	return err;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static int cpuid_class_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
@@ -187,7 +185,6 @@ static struct notifier_block __cpuinitdata cpuid_class_cpu_notifier =
 {
 	.notifier_call = cpuid_class_cpu_callback,
 };
-#endif /* !CONFIG_HOTPLUG_CPU */
 
 static int __init cpuid_init(void)
 {

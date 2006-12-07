@@ -44,6 +44,7 @@ int ext2_ioctl (struct inode * inode, struct file * filp, unsigned int cmd,
 		if (!S_ISDIR(inode->i_mode))
 			flags &= ~EXT2_DIRSYNC_FL;
 
+		mutex_lock(&inode->i_mutex);
 		oldflags = ei->i_flags;
 
 		/*
@@ -53,13 +54,16 @@ int ext2_ioctl (struct inode * inode, struct file * filp, unsigned int cmd,
 		 * This test looks nicer. Thanks to Pauline Middelink
 		 */
 		if ((flags ^ oldflags) & (EXT2_APPEND_FL | EXT2_IMMUTABLE_FL)) {
-			if (!capable(CAP_LINUX_IMMUTABLE))
+			if (!capable(CAP_LINUX_IMMUTABLE)) {
+				mutex_unlock(&inode->i_mutex);
 				return -EPERM;
+			}
 		}
 
 		flags = flags & EXT2_FL_USER_MODIFIABLE;
 		flags |= oldflags & ~EXT2_FL_USER_MODIFIABLE;
 		ei->i_flags = flags;
+		mutex_unlock(&inode->i_mutex);
 
 		ext2_set_inode_flags(inode);
 		inode->i_ctime = CURRENT_TIME_SEC;

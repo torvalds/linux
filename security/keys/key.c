@@ -20,7 +20,7 @@
 #include <linux/err.h>
 #include "internal.h"
 
-static kmem_cache_t	*key_jar;
+static struct kmem_cache	*key_jar;
 struct rb_root		key_serial_tree; /* tree of keys indexed by serial */
 DEFINE_SPINLOCK(key_serial_lock);
 
@@ -285,16 +285,14 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 	}
 
 	/* allocate and initialise the key and its description */
-	key = kmem_cache_alloc(key_jar, SLAB_KERNEL);
+	key = kmem_cache_alloc(key_jar, GFP_KERNEL);
 	if (!key)
 		goto no_memory_2;
 
 	if (desc) {
-		key->description = kmalloc(desclen, GFP_KERNEL);
+		key->description = kmemdup(desc, desclen, GFP_KERNEL);
 		if (!key->description)
 			goto no_memory_3;
-
-		memcpy(key->description, desc, desclen);
 	}
 
 	atomic_set(&key->usage, 1);

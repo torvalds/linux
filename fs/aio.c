@@ -47,8 +47,8 @@ unsigned long aio_nr;		/* current system wide number of aio requests */
 unsigned long aio_max_nr = 0x10000; /* system wide maximum number of aio requests */
 /*----end sysctl variables---*/
 
-static kmem_cache_t	*kiocb_cachep;
-static kmem_cache_t	*kioctx_cachep;
+static struct kmem_cache	*kiocb_cachep;
+static struct kmem_cache	*kioctx_cachep;
 
 static struct workqueue_struct *aio_wq;
 
@@ -666,17 +666,6 @@ static ssize_t aio_run_iocb(struct kiocb *iocb)
 	ssize_t (*retry)(struct kiocb *);
 	ssize_t ret;
 
-	if (iocb->ki_retried++ > 1024*1024) {
-		printk("Maximal retry count.  Bytes done %Zd\n",
-			iocb->ki_nbytes - iocb->ki_left);
-		return -EAGAIN;
-	}
-
-	if (!(iocb->ki_retried & 0xff)) {
-		pr_debug("%ld retry: %zd of %zd\n", iocb->ki_retried,
-			iocb->ki_nbytes - iocb->ki_left, iocb->ki_nbytes);
-	}
-
 	if (!(retry = iocb->ki_retry)) {
 		printk("aio_run_iocb: iocb->ki_retry = NULL\n");
 		return 0;
@@ -1005,9 +994,6 @@ int fastcall aio_complete(struct kiocb *iocb, long res, long res2)
 	kunmap_atomic(ring, KM_IRQ1);
 
 	pr_debug("added to ring %p at [%lu]\n", iocb, tail);
-
-	pr_debug("%ld retries: %zd of %zd\n", iocb->ki_retried,
-		iocb->ki_nbytes - iocb->ki_left, iocb->ki_nbytes);
 put_rq:
 	/* everything turned out well, dispose of the aiocb. */
 	ret = __aio_put_req(ctx, iocb);
@@ -1413,7 +1399,6 @@ static ssize_t aio_setup_single_vector(struct kiocb *kiocb)
 	kiocb->ki_iovec->iov_len = kiocb->ki_left;
 	kiocb->ki_nr_segs = 1;
 	kiocb->ki_cur_seg = 0;
-	kiocb->ki_nbytes = kiocb->ki_left;
 	return 0;
 }
 
@@ -1591,7 +1576,6 @@ int fastcall io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 	req->ki_opcode = iocb->aio_lio_opcode;
 	init_waitqueue_func_entry(&req->ki_wait, aio_wake_function);
 	INIT_LIST_HEAD(&req->ki_wait.task_list);
-	req->ki_retried = 0;
 
 	ret = aio_setup_iocb(req);
 

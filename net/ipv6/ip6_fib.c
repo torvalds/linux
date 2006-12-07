@@ -50,7 +50,7 @@
 
 struct rt6_statistics	rt6_stats;
 
-static kmem_cache_t * fib6_node_kmem __read_mostly;
+static struct kmem_cache * fib6_node_kmem __read_mostly;
 
 enum fib_walk_state_t
 {
@@ -150,7 +150,7 @@ static __inline__ struct fib6_node * node_alloc(void)
 {
 	struct fib6_node *fn;
 
-	if ((fn = kmem_cache_alloc(fib6_node_kmem, SLAB_ATOMIC)) != NULL)
+	if ((fn = kmem_cache_alloc(fib6_node_kmem, GFP_ATOMIC)) != NULL)
 		memset(fn, 0, sizeof(struct fib6_node));
 
 	return fn;

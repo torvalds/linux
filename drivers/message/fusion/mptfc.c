@@ -1395,8 +1395,7 @@ mptfc_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
- *	mptfc_init - Register MPT adapter(s) as SCSI host(s) with
- *	linux scsi mid-layer.
+ *	mptfc_init - Register MPT adapter(s) as SCSI host(s) with SCSI mid-layer.
  *
  *	Returns 0 for success, non-zero for failure.
  */
@@ -1440,7 +1439,7 @@ mptfc_init(void)
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
- *	mptfc_remove - Removed fc infrastructure for devices
+ *	mptfc_remove - Remove fc infrastructure for devices
  *	@pdev: Pointer to pci_dev structure
  *
  */

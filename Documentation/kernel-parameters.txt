@@ -599,8 +599,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	hugepages=	[HW,IA-32,IA-64] Maximal number of HugeTLB pages.
 
-	noirqbalance	[IA-32,SMP,KNL] Disable kernel irq balancing
-
 	i8042.direct	[HW] Put keyboard port into non-translated mode
 	i8042.dumbkbd	[HW] Pretend that controller can only read data from
 			     keyboard and cannot control its state
@@ -649,6 +647,10 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	idle=		[HW]
 			Format: idle=poll or idle=halt
+
+	ignore_loglevel	[KNL]
+			Ignore loglevel setting - this will print /all/
+			kernel messages to the console. Useful for debugging.
 
 	ihash_entries=	[KNL]
 			Set number of hash buckets for inode cache.
@@ -714,7 +716,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: <RDP>,<reset>,<pci_scan>,<verbosity>
 
 	isolcpus=	[KNL,SMP] Isolate CPUs from the general scheduler.
-			Format: <cpu number>,...,<cpu number>
+			Format:
+			<cpu number>,...,<cpu number>
+			or
+			<cpu number>-<cpu number>  (must be a positive range in ascending order)
+			or a mixture
+			<cpu number>,...,<cpu number>-<cpu number>
 			This option can be used to specify one or more CPUs
 			to isolate from the general SMP balancing and scheduling
 			algorithms. The only way to move a process onto or off
@@ -1012,6 +1019,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			emulation library even if a 387 maths coprocessor
 			is present.
 
+	noaliencache	[MM, NUMA] Disables the allcoation of alien caches in
+			the slab allocator.  Saves per-node memory, but will
+			impact performance on real NUMA hardware.
+
 	noalign		[KNL,ARM]
 
 	noapic		[SMP,APIC] Tells the kernel to not make use of any
@@ -1052,8 +1063,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			in certain environments such as networked servers or
 			real-time systems.
 
+	noirqbalance	[IA-32,SMP,KNL] Disable kernel irq balancing
+
 	noirqdebug	[IA-32] Disables the code which attempts to detect and
 			disable unhandled interrupt sources.
+
+	no_timer_check	[IA-32,X86_64,APIC] Disables the code which tests for
+			broken timer IRQ sources.
 
 	noisapnp	[ISAPNP] Disables ISA PnP code.
 
@@ -1285,6 +1301,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			Param: "schedule" - profile schedule points.
 			Param: <number> - step/bucket size as a power of 2 for
 				statistical time based profiling.
+			Param: "sleep" - profile D-state sleeping (millisecs)
 
 	processor.max_cstate=	[HW,ACPI]
 			Limit processor to maximum C-state
@@ -1365,6 +1382,12 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	resume=		[SWSUSP]
 			Specify the partition device for software suspend
+
+	resume_offset=	[SWSUSP]
+			Specify the offset from the beginning of the partition
+			given by "resume=" at which the swap header is located,
+			in <PAGE_SIZE> units (needed only for swap files).
+			See  Documentation/power/swsusp-and-swap-files.txt
 
 	rhash_entries=	[KNL,NET]
 			Set number of hash buckets for route cache
@@ -1732,6 +1755,9 @@ and is between 256 and 4096 characters. It is defined in the file
 	norandmaps	Don't use address space randomization
 			Equivalent to echo 0 > /proc/sys/kernel/randomize_va_space
 
+ 	unwind_debug=N 	N > 0 will enable dwarf2 unwinder debugging
+			This is useful to get more information why
+			you got a "dwarf2 unwinder stuck"
 
 ______________________________________________________________________
 

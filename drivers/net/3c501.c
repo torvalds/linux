@@ -922,7 +922,7 @@ int __init init_module(void)
  * and then free up the resources we took when the card was found.
  */
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
 	struct net_device *dev = dev_3c501;
 	unregister_netdev(dev);

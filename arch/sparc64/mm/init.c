@@ -176,9 +176,9 @@ unsigned long sparc64_kern_sec_context __read_mostly;
 
 int bigkernel = 0;
 
-kmem_cache_t *pgtable_cache __read_mostly;
+struct kmem_cache *pgtable_cache __read_mostly;
 
-static void zero_ctor(void *addr, kmem_cache_t *cache, unsigned long flags)
+static void zero_ctor(void *addr, struct kmem_cache *cache, unsigned long flags)
 {
 	clear_page(addr);
 }

@@ -16,6 +16,8 @@ struct pt_regs {
 	long eax;
 	int  xds;
 	int  xes;
+	/* int  xfs; */
+	int  xgs;
 	long orig_eax;
 	long eip;
 	int  xcs;

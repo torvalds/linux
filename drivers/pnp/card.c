@@ -164,9 +164,17 @@ static DEVICE_ATTR(card_id,S_IRUGO,pnp_show_card_ids,NULL);
 
 static int pnp_interface_attach_card(struct pnp_card *card)
 {
-	device_create_file(&card->dev,&dev_attr_name);
-	device_create_file(&card->dev,&dev_attr_card_id);
+	int rc = device_create_file(&card->dev,&dev_attr_name);
+	if (rc) return rc;
+
+	rc = device_create_file(&card->dev,&dev_attr_card_id);
+	if (rc) goto err_name;
+
 	return 0;
+
+err_name:
+	device_remove_file(&card->dev,&dev_attr_name);
+	return rc;
 }
 
 /**
@@ -306,16 +314,20 @@ found:
 	down_write(&dev->dev.bus->subsys.rwsem);
 	dev->card_link = clink;
 	dev->dev.driver = &drv->link.driver;
-	if (pnp_bus_type.probe(&dev->dev)) {
-		dev->dev.driver = NULL;
-		dev->card_link = NULL;
-		up_write(&dev->dev.bus->subsys.rwsem);
-		return NULL;
-	}
-	device_bind_driver(&dev->dev);
+	if (pnp_bus_type.probe(&dev->dev))
+		goto err_out;
+	if (device_bind_driver(&dev->dev))
+		goto err_out;
+
 	up_write(&dev->dev.bus->subsys.rwsem);
 
 	return dev;
+
+err_out:
+	dev->dev.driver = NULL;
+	dev->card_link = NULL;
+	up_write(&dev->dev.bus->subsys.rwsem);
+	return NULL;
 }
 
 /**

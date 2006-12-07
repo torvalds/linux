@@ -29,7 +29,7 @@ struct proto;
 struct request_sock_ops {
 	int		family;
 	int		obj_size;
-	kmem_cache_t	*slab;
+	struct kmem_cache	*slab;
 	int		(*rtx_syn_ack)(struct sock *sk,
 				       struct request_sock *req,
 				       struct dst_entry *dst);
@@ -60,7 +60,7 @@ struct request_sock {
 
 static inline struct request_sock *reqsk_alloc(const struct request_sock_ops *ops)
 {
-	struct request_sock *req = kmem_cache_alloc(ops->slab, SLAB_ATOMIC);
+	struct request_sock *req = kmem_cache_alloc(ops->slab, GFP_ATOMIC);
 
 	if (req != NULL)
 		req->rsk_ops = ops;

@@ -242,7 +242,7 @@ struct net_device *zd_netdev_alloc(struct usb_interface *intf)
 	netdev->open = zd_mac_open;
 	netdev->stop = zd_mac_stop;
 	/* netdev->get_stats = */
-	/* netdev->set_multicast_list = */
+	netdev->set_multicast_list = zd_mac_set_multicast_list;
 	netdev->set_mac_address = zd_mac_set_mac_address;
 	netdev->wireless_handlers = &iw_handler_def;
 	/* netdev->ethtool_ops = */

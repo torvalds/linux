@@ -15,7 +15,7 @@
 #include <net/sock.h>
 
 struct timewait_sock_ops {
-	kmem_cache_t	*twsk_slab;
+	struct kmem_cache	*twsk_slab;
 	unsigned int	twsk_obj_size;
 	int		(*twsk_unique)(struct sock *sk,
 				       struct sock *sktw, void *twp);

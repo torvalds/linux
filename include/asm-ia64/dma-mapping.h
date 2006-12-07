@@ -50,7 +50,8 @@ dma_set_mask (struct device *dev, u64 mask)
 extern int dma_get_cache_alignment(void);
 
 static inline void
-dma_cache_sync (void *vaddr, size_t size, enum dma_data_direction dir)
+dma_cache_sync (struct device *dev, void *vaddr, size_t size,
+	enum dma_data_direction dir)
 {
 	/*
 	 * IA-64 is cache-coherent, so this is mostly a no-op.  However, we do need to
@@ -59,6 +60,6 @@ dma_cache_sync (void *vaddr, size_t size, enum dma_data_direction dir)
 	mb();
 }
 
-#define dma_is_consistent(dma_handle)	(1)	/* all we do is coherent memory... */
+#define dma_is_consistent(d, h)	(1)	/* all we do is coherent memory... */
 
 #endif /* _ASM_IA64_DMA_MAPPING_H */

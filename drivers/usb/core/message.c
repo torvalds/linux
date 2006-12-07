@@ -488,7 +488,7 @@ void usb_sg_wait (struct usb_sg_request *io)
 		int	retval;
 
 		io->urbs [i]->dev = io->dev;
-		retval = usb_submit_urb (io->urbs [i], SLAB_ATOMIC);
+		retval = usb_submit_urb (io->urbs [i], GFP_ATOMIC);
 
 		/* after we submit, let completions or cancelations fire;
 		 * we handshake using io->status.

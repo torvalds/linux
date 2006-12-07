@@ -641,7 +641,6 @@ static __cpuinit int mce_create_device(unsigned int cpu)
 	return err;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static void mce_remove_device(unsigned int cpu)
 {
 	int i;
@@ -652,6 +651,7 @@ static void mce_remove_device(unsigned int cpu)
 	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_tolerant);
 	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_check_interval);
 	sysdev_unregister(&per_cpu(device_mce,cpu));
+	memset(&per_cpu(device_mce, cpu).kobj, 0, sizeof(struct kobject));
 }
 
 /* Get notified when a cpu comes on/off. Be hotplug friendly. */
@@ -674,7 +674,6 @@ mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 static struct notifier_block mce_cpu_notifier = {
 	.notifier_call = mce_cpu_callback,
 };
-#endif
 
 static __init int mce_init_device(void)
 {

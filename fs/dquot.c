@@ -131,7 +131,7 @@ static struct quota_format_type *quota_formats;	/* List of registered formats */
 static struct quota_module_name module_names[] = INIT_QUOTA_MODULE_NAMES;
 
 /* SLAB cache for dquot structures */
-static kmem_cache_t *dquot_cachep;
+static struct kmem_cache *dquot_cachep;
 
 int register_quota_format(struct quota_format_type *fmt)
 {
@@ -600,7 +600,7 @@ static struct dquot *get_empty_dquot(struct super_block *sb, int type)
 {
 	struct dquot *dquot;
 
-	dquot = kmem_cache_alloc(dquot_cachep, SLAB_NOFS);
+	dquot = kmem_cache_alloc(dquot_cachep, GFP_NOFS);
 	if(!dquot)
 		return NODQUOT;
 

@@ -122,7 +122,7 @@ static void usb_kbd_irq(struct urb *urb)
 	memcpy(kbd->old, kbd->new, 8);
 
 resubmit:
-	i = usb_submit_urb (urb, SLAB_ATOMIC);
+	i = usb_submit_urb (urb, GFP_ATOMIC);
 	if (i)
 		err ("can't resubmit intr, %s-%s/input0, status %d",
 				kbd->usbdev->bus->bus_name,
@@ -196,11 +196,11 @@ static int usb_kbd_alloc_mem(struct usb_device *dev, struct usb_kbd *kbd)
 		return -1;
 	if (!(kbd->led = usb_alloc_urb(0, GFP_KERNEL)))
 		return -1;
-	if (!(kbd->new = usb_buffer_alloc(dev, 8, SLAB_ATOMIC, &kbd->new_dma)))
+	if (!(kbd->new = usb_buffer_alloc(dev, 8, GFP_ATOMIC, &kbd->new_dma)))
 		return -1;
-	if (!(kbd->cr = usb_buffer_alloc(dev, sizeof(struct usb_ctrlrequest), SLAB_ATOMIC, &kbd->cr_dma)))
+	if (!(kbd->cr = usb_buffer_alloc(dev, sizeof(struct usb_ctrlrequest), GFP_ATOMIC, &kbd->cr_dma)))
 		return -1;
-	if (!(kbd->leds = usb_buffer_alloc(dev, 1, SLAB_ATOMIC, &kbd->leds_dma)))
+	if (!(kbd->leds = usb_buffer_alloc(dev, 1, GFP_ATOMIC, &kbd->leds_dma)))
 		return -1;
 
 	return 0;

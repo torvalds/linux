@@ -141,9 +141,6 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 		struct fuse_req *forget_req;
 		struct dentry *parent;
 
-		/* Doesn't hurt to "reset" the validity timeout */
-		fuse_invalidate_entry_cache(entry);
-
 		/* For negative dentries, always do a fresh lookup */
 		if (!inode)
 			return 0;
@@ -1027,6 +1024,8 @@ static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 	if (attr->ia_valid & ATTR_SIZE) {
 		unsigned long limit;
 		is_truncate = 1;
+		if (IS_SWAPFILE(inode))
+			return -ETXTBSY;
 		limit = current->signal->rlim[RLIMIT_FSIZE].rlim_cur;
 		if (limit != RLIM_INFINITY && attr->ia_size > (loff_t) limit) {
 			send_sig(SIGXFSZ, current, 0);

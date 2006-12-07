@@ -108,7 +108,7 @@ static struct kmem_cache *ctblk_cache = NULL;
 
 void *ehca_alloc_fw_ctrlblock(void)
 {
-	void *ret = kmem_cache_zalloc(ctblk_cache, SLAB_KERNEL);
+	void *ret = kmem_cache_zalloc(ctblk_cache, GFP_KERNEL);
 	if (!ret)
 		ehca_gen_err("Out of memory for ctblk");
 	return ret;

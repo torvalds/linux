@@ -108,17 +108,15 @@ void exit_idle(void)
  */
 static void default_idle(void)
 {
-	local_irq_enable();
-
 	current_thread_info()->status &= ~TS_POLLING;
 	smp_mb__after_clear_bit();
-	while (!need_resched()) {
-		local_irq_disable();
-		if (!need_resched())
-			safe_halt();
-		else
-			local_irq_enable();
-	}
+	local_irq_disable();
+	if (!need_resched()) {
+		/* Enables interrupts one instruction before HLT.
+		   x86 special cases this so there is no race. */
+		safe_halt();
+	} else
+		local_irq_enable();
 	current_thread_info()->status |= TS_POLLING;
 }
 
@@ -130,15 +128,7 @@ static void default_idle(void)
 static void poll_idle (void)
 {
 	local_irq_enable();
-
-	asm volatile(
-		"2:"
-		"testl %0,%1;"
-		"rep; nop;"
-		"je 2b;"
-		: :
-		"i" (_TIF_NEED_RESCHED),
-		"m" (current_thread_info()->flags));
+	cpu_relax();
 }
 
 void cpu_idle_wait(void)
@@ -219,6 +209,12 @@ void cpu_idle (void)
 				idle = default_idle;
 			if (cpu_is_offline(smp_processor_id()))
 				play_dead();
+			/*
+			 * Idle routines should keep interrupts disabled
+			 * from here on, until they go to idle.
+			 * Otherwise, idle callbacks can misfire.
+			 */
+			local_irq_disable();
 			enter_idle();
 			idle();
 			/* In many cases the interrupt that ended idle
@@ -256,9 +252,16 @@ void mwait_idle_with_hints(unsigned long eax, unsigned long ecx)
 /* Default MONITOR/MWAIT with no hints, used for default C1 state */
 static void mwait_idle(void)
 {
-	local_irq_enable();
-	while (!need_resched())
-		mwait_idle_with_hints(0,0);
+	if (!need_resched()) {
+		__monitor((void *)&current_thread_info()->flags, 0, 0);
+		smp_mb();
+		if (!need_resched())
+			__sti_mwait(0, 0);
+		else
+			local_irq_enable();
+	} else {
+		local_irq_enable();
+	}
 }
 
 void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)

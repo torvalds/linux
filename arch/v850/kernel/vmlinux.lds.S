@@ -90,6 +90,7 @@
 
 /* Kernel text segment, and some constant data areas.  */
 #define TEXT_CONTENTS							      \
+		_text = .;						      \
 		__stext = . ;						      \
         	*(.text)						      \
 		SCHED_TEXT						      \

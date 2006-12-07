@@ -235,7 +235,7 @@ struct raid5_private_data {
 	 */
 	int			active_name;
 	char			cache_name[2][20];
-	kmem_cache_t		*slab_cache; /* for allocating stripes */
+	struct kmem_cache		*slab_cache; /* for allocating stripes */
 
 	int			seq_flush, seq_write;
 	int			quiesce;

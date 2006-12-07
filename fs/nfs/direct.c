@@ -58,7 +58,7 @@
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
-static kmem_cache_t *nfs_direct_cachep;
+static struct kmem_cache *nfs_direct_cachep;
 
 /*
  * This represents a set of asynchronous requests that we're waiting on
@@ -143,7 +143,7 @@ static inline struct nfs_direct_req *nfs_direct_req_alloc(void)
 {
 	struct nfs_direct_req *dreq;
 
-	dreq = kmem_cache_alloc(nfs_direct_cachep, SLAB_KERNEL);
+	dreq = kmem_cache_alloc(nfs_direct_cachep, GFP_KERNEL);
 	if (!dreq)
 		return NULL;
 

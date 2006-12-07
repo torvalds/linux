@@ -52,6 +52,7 @@
 #include <linux/thread_info.h>
 #include <linux/kernel.h>
 #include <linux/stringify.h>
+#include <linux/bottom_half.h>
 
 #include <asm/system.h>
 

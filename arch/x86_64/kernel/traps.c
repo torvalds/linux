@@ -30,9 +30,9 @@
 #include <linux/kprobes.h>
 #include <linux/kexec.h>
 #include <linux/unwind.h>
+#include <linux/uaccess.h>
 
 #include <asm/system.h>
-#include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/atomic.h>
 #include <asm/debugreg.h>
@@ -108,7 +108,7 @@ static inline void preempt_conditional_cli(struct pt_regs *regs)
 	preempt_enable_no_resched();
 }
 
-static int kstack_depth_to_print = 12;
+int kstack_depth_to_print = 12;
 #ifdef CONFIG_STACK_UNWIND
 static int call_trace = 1;
 #else
@@ -225,15 +225,24 @@ static int dump_trace_unwind(struct unwind_frame_info *info, void *context)
 {
 	struct ops_and_data *oad = (struct ops_and_data *)context;
 	int n = 0;
+	unsigned long sp = UNW_SP(info);
 
+	if (arch_unw_user_mode(info))
+		return -1;
 	while (unwind(info) == 0 && UNW_PC(info)) {
 		n++;
 		oad->ops->address(oad->data, UNW_PC(info));
 		if (arch_unw_user_mode(info))
 			break;
+		if ((sp & ~(PAGE_SIZE - 1)) == (UNW_SP(info) & ~(PAGE_SIZE - 1))
+		    && sp > UNW_SP(info))
+			break;
+		sp = UNW_SP(info);
 	}
 	return n;
 }
+
+#define MSG(txt) ops->warning(data, txt)
 
 /*
  * x86-64 can have upto three kernel stacks: 
@@ -248,11 +257,12 @@ static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
         return p > t && p < t + THREAD_SIZE - 3;
 }
 
-void dump_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * stack,
+void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
+		unsigned long *stack,
 		struct stacktrace_ops *ops, void *data)
 {
-	const unsigned cpu = smp_processor_id();
-	unsigned long *irqstack_end = (unsigned long *)cpu_pda(cpu)->irqstackptr;
+	const unsigned cpu = get_cpu();
+	unsigned long *irqstack_end = (unsigned long*)cpu_pda(cpu)->irqstackptr;
 	unsigned used = 0;
 	struct thread_info *tinfo;
 
@@ -268,28 +278,30 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 			if (unwind_init_frame_info(&info, tsk, regs) == 0)
 				unw_ret = dump_trace_unwind(&info, &oad);
 		} else if (tsk == current)
-			unw_ret = unwind_init_running(&info, dump_trace_unwind, &oad);
+			unw_ret = unwind_init_running(&info, dump_trace_unwind,
+						      &oad);
 		else {
 			if (unwind_init_blocked(&info, tsk) == 0)
 				unw_ret = dump_trace_unwind(&info, &oad);
 		}
 		if (unw_ret > 0) {
 			if (call_trace == 1 && !arch_unw_user_mode(&info)) {
-				ops->warning_symbol(data, "DWARF2 unwinder stuck at %s\n",
+				ops->warning_symbol(data,
+					     "DWARF2 unwinder stuck at %s",
 					     UNW_PC(&info));
 				if ((long)UNW_SP(&info) < 0) {
-					ops->warning(data, "Leftover inexact backtrace:\n");
+					MSG("Leftover inexact backtrace:");
 					stack = (unsigned long *)UNW_SP(&info);
 					if (!stack)
-						return;
+						goto out;
 				} else
-					ops->warning(data, "Full inexact backtrace again:\n");
+					MSG("Full inexact backtrace again:");
 			} else if (call_trace >= 1)
-				return;
+				goto out;
 			else
-				ops->warning(data, "Full inexact backtrace again:\n");
+				MSG("Full inexact backtrace again:");
 		} else
-			ops->warning(data, "Inexact backtrace:\n");
+			MSG("Inexact backtrace:");
 	}
 	if (!stack) {
 		unsigned long dummy;
@@ -297,12 +309,6 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 		if (tsk && tsk != current)
 			stack = (unsigned long *)tsk->thread.rsp;
 	}
-	/*
-	 * Align the stack pointer on word boundary, later loops
-	 * rely on that (and corruption / debug info bugs can cause
-	 * unaligned values here):
-	 */
-	stack = (unsigned long *)((unsigned long)stack & ~(sizeof(long)-1));
 
 	/*
 	 * Print function call entries within a stack. 'cond' is the
@@ -312,9 +318,9 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 #define HANDLE_STACK(cond) \
 	do while (cond) { \
 		unsigned long addr = *stack++; \
-		if (oops_in_progress ? 		\
-			__kernel_text_address(addr) : \
-			kernel_text_address(addr)) { \
+		/* Use unlocked access here because except for NMIs	\
+		   we should be already protected against module unloads */ \
+		if (__kernel_text_address(addr)) { \
 			/* \
 			 * If the address is either in the text segment of the \
 			 * kernel, or in the region which contains vmalloc'ed \
@@ -380,6 +386,8 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 	tinfo = current_thread_info();
 	HANDLE_STACK (valid_stack_ptr(tinfo, stack));
 #undef HANDLE_STACK
+out:
+	put_cpu();
 }
 EXPORT_SYMBOL(dump_trace);
 
@@ -786,8 +794,7 @@ mem_parity_error(unsigned char reason, struct pt_regs * regs)
 {
 	printk(KERN_EMERG "Uhhuh. NMI received for unknown reason %02x.\n",
 		reason);
-	printk(KERN_EMERG "You probably have a hardware problem with your "
-		"RAM chips\n");
+	printk(KERN_EMERG "You have some hardware problem, likely on the PCI bus.\n");
 
 	if (panic_on_unrecovered_nmi)
 		panic("NMI: Not continuing");

@@ -29,6 +29,7 @@
 #include <linux/percpu.h>
 #include <linux/kmod.h>
 #include <linux/kernel_stat.h>
+#include <linux/start_kernel.h>
 #include <linux/security.h>
 #include <linux/workqueue.h>
 #include <linux/profile.h>
@@ -71,6 +72,10 @@
  */
 #if (__GNUC__ < 3) || (__GNUC__ == 3 && __GNUC_MINOR__ < 2)
 #error Sorry, your GCC is too old. It builds incorrect kernels.
+#endif
+
+#if __GNUC__ == 4 && __GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ == 0
+#warning gcc-4.1.0 is known to miscompile the kernel.  A different compiler version is recommended.
 #endif
 
 static int init(void *);

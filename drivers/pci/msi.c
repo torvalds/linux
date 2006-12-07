@@ -26,7 +26,7 @@
 
 static DEFINE_SPINLOCK(msi_lock);
 static struct msi_desc* msi_desc[NR_IRQS] = { [0 ... NR_IRQS-1] = NULL };
-static kmem_cache_t* msi_cachep;
+static struct kmem_cache* msi_cachep;
 
 static int pci_msi_enable = 1;
 

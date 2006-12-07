@@ -3027,7 +3027,7 @@ static struct page * snd_pcm_mmap_status_nopage(struct vm_area_struct *area,
 	struct page * page;
 	
 	if (substream == NULL)
-		return NOPAGE_OOM;
+		return NOPAGE_SIGBUS;
 	runtime = substream->runtime;
 	page = virt_to_page(runtime->status);
 	get_page(page);
@@ -3070,7 +3070,7 @@ static struct page * snd_pcm_mmap_control_nopage(struct vm_area_struct *area,
 	struct page * page;
 	
 	if (substream == NULL)
-		return NOPAGE_OOM;
+		return NOPAGE_SIGBUS;
 	runtime = substream->runtime;
 	page = virt_to_page(runtime->control);
 	get_page(page);
@@ -3131,18 +3131,18 @@ static struct page *snd_pcm_mmap_data_nopage(struct vm_area_struct *area,
 	size_t dma_bytes;
 	
 	if (substream == NULL)
-		return NOPAGE_OOM;
+		return NOPAGE_SIGBUS;
 	runtime = substream->runtime;
 	offset = area->vm_pgoff << PAGE_SHIFT;
 	offset += address - area->vm_start;
-	snd_assert((offset % PAGE_SIZE) == 0, return NOPAGE_OOM);
+	snd_assert((offset % PAGE_SIZE) == 0, return NOPAGE_SIGBUS);
 	dma_bytes = PAGE_ALIGN(runtime->dma_bytes);
 	if (offset > dma_bytes - PAGE_SIZE)
 		return NOPAGE_SIGBUS;
 	if (substream->ops->page) {
 		page = substream->ops->page(substream, offset);
 		if (! page)
-			return NOPAGE_OOM;
+			return NOPAGE_OOM; /* XXX: is this really due to OOM? */
 	} else {
 		vaddr = runtime->dma_area + offset;
 		page = virt_to_page(vaddr);

@@ -50,7 +50,7 @@ struct ib_pd *ehca_alloc_pd(struct ib_device *device,
 {
 	struct ehca_pd *pd;
 
-	pd = kmem_cache_alloc(pd_cache, SLAB_KERNEL);
+	pd = kmem_cache_alloc(pd_cache, GFP_KERNEL);
 	if (!pd) {
 		ehca_err(device, "device=%p context=%p out of memory",
 			 device, context);

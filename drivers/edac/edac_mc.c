@@ -28,6 +28,7 @@
 #include <linux/sysdev.h>
 #include <linux/ctype.h>
 #include <linux/kthread.h>
+#include <linux/freezer.h>
 #include <asm/uaccess.h>
 #include <asm/page.h>
 #include <asm/edac.h>

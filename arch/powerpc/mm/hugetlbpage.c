@@ -146,6 +146,11 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
 	return hugepte_offset(hpdp, addr);
 }
 
+int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+{
+	return 0;
+}
+
 static void free_hugepte_range(struct mmu_gather *tlb, hugepd_t *hpdp)
 {
 	pte_t *hugepte = hugepd_page(*hpdp);
@@ -1042,7 +1047,7 @@ repeat:
 	return err;
 }
 
-static void zero_ctor(void *addr, kmem_cache_t *cache, unsigned long flags)
+static void zero_ctor(void *addr, struct kmem_cache *cache, unsigned long flags)
 {
 	memset(addr, 0, kmem_cache_size(cache));
 }

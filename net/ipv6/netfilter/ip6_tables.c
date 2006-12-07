@@ -440,6 +440,13 @@ mark_source_chains(struct xt_table_info *newinfo,
 			    && unconditional(&e->ipv6)) {
 				unsigned int oldpos, size;
 
+				if (t->verdict < -NF_MAX_VERDICT - 1) {
+					duprintf("mark_source_chains: bad "
+						"negative verdict (%i)\n",
+								t->verdict);
+					return 0;
+				}
+
 				/* Return: backtrack through the last
 				   big jump. */
 				do {
@@ -477,6 +484,13 @@ mark_source_chains(struct xt_table_info *newinfo,
 				if (strcmp(t->target.u.user.name,
 					   IP6T_STANDARD_TARGET) == 0
 				    && newpos >= 0) {
+					if (newpos > newinfo->size -
+						sizeof(struct ip6t_entry)) {
+						duprintf("mark_source_chains: "
+							"bad verdict (%i)\n",
+								newpos);
+						return 0;
+					}
 					/* This a jump; chase it. */
 					duprintf("Jump rule %u -> %u\n",
 						 pos, newpos);
@@ -506,27 +520,6 @@ cleanup_match(struct ip6t_entry_match *m, unsigned int *i)
 		m->u.kernel.match->destroy(m->u.kernel.match, m->data);
 	module_put(m->u.kernel.match->me);
 	return 0;
-}
-
-static inline int
-standard_check(const struct ip6t_entry_target *t,
-	       unsigned int max_offset)
-{
-	struct ip6t_standard_target *targ = (void *)t;
-
-	/* Check standard info. */
-	if (targ->verdict >= 0
-	    && targ->verdict > max_offset - sizeof(struct ip6t_entry)) {
-		duprintf("ip6t_standard_check: bad verdict (%i)\n",
-			 targ->verdict);
-		return 0;
-	}
-	if (targ->verdict < -NF_MAX_VERDICT - 1) {
-		duprintf("ip6t_standard_check: bad negative verdict (%i)\n",
-			 targ->verdict);
-		return 0;
-	}
-	return 1;
 }
 
 static inline int
@@ -616,12 +609,7 @@ check_entry(struct ip6t_entry *e, const char *name, unsigned int size,
 	if (ret)
 		goto err;
 
-	if (t->u.kernel.target == &ip6t_standard_target) {
-		if (!standard_check(t, size)) {
-			ret = -EINVAL;
-			goto err;
-		}
-	} else if (t->u.kernel.target->checkentry
+	if (t->u.kernel.target->checkentry
 		   && !t->u.kernel.target->checkentry(name, e, target, t->data,
 						      e->comefrom)) {
 		duprintf("ip_tables: check failed for `%s'.\n",
@@ -758,17 +746,19 @@ translate_table(const char *name,
 		}
 	}
 
+	if (!mark_source_chains(newinfo, valid_hooks, entry0))
+		return -ELOOP;
+
 	/* Finally, each sanity check must pass */
 	i = 0;
 	ret = IP6T_ENTRY_ITERATE(entry0, newinfo->size,
 				check_entry, name, size, &i);
 
-	if (ret != 0)
-		goto cleanup;
-
-	ret = -ELOOP;
-	if (!mark_source_chains(newinfo, valid_hooks, entry0))
-		goto cleanup;
+	if (ret != 0) {
+		IP6T_ENTRY_ITERATE(entry0, newinfo->size,
+				   cleanup_entry, &i);
+		return ret;
+	}
 
 	/* And one copy for every other CPU */
 	for_each_possible_cpu(i) {
@@ -777,9 +767,6 @@ translate_table(const char *name,
 	}
 
 	return 0;
-cleanup:
-	IP6T_ENTRY_ITERATE(entry0, newinfo->size, cleanup_entry, &i);
-	return ret;
 }
 
 /* Gets counters. */

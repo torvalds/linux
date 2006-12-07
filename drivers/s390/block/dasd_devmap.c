@@ -25,7 +25,7 @@
 
 #include "dasd_int.h"
 
-kmem_cache_t *dasd_page_cache;
+struct kmem_cache *dasd_page_cache;
 EXPORT_SYMBOL_GPL(dasd_page_cache);
 
 /*

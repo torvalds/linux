@@ -285,6 +285,7 @@ struct sadb_x_sec_ctx {
 #define SADB_X_AALG_SHA2_384HMAC	6
 #define SADB_X_AALG_SHA2_512HMAC	7
 #define SADB_X_AALG_RIPEMD160HMAC	8
+#define SADB_X_AALG_AES_XCBC_MAC	9
 #define SADB_X_AALG_NULL		251	/* kame */
 #define SADB_AALG_MAX			251
 

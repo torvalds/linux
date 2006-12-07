@@ -38,7 +38,7 @@ struct sq_mapping {
 
 static struct sq_mapping *sq_mapping_list;
 static DEFINE_SPINLOCK(sq_mapping_lock);
-static kmem_cache_t *sq_cache;
+static struct kmem_cache *sq_cache;
 static unsigned long *sq_bitmap;
 
 #define store_queue_barrier()			\

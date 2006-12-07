@@ -85,7 +85,7 @@ struct mb_cache {
 #ifndef MB_CACHE_INDEXES_COUNT
 	int				c_indexes_count;
 #endif
-	kmem_cache_t			*c_entry_cache;
+	struct kmem_cache			*c_entry_cache;
 	struct list_head		*c_block_hash;
 	struct list_head		*c_indexes_hash[0];
 };

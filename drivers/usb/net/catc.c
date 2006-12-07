@@ -345,7 +345,7 @@ static void catc_irq_done(struct urb *urb)
 		} 
 	}
 resubmit:
-	status = usb_submit_urb (urb, SLAB_ATOMIC);
+	status = usb_submit_urb (urb, GFP_ATOMIC);
 	if (status)
 		err ("can't resubmit intr, %s-%s, status %d",
 				catc->usbdev->bus->bus_name,

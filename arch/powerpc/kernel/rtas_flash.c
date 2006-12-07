@@ -101,7 +101,7 @@ struct flash_block_list_header { /* just the header of flash_block_list */
 static struct flash_block_list_header rtas_firmware_flash_list = {0, NULL};
 
 /* Use slab cache to guarantee 4k alignment */
-static kmem_cache_t *flash_block_cache = NULL;
+static struct kmem_cache *flash_block_cache = NULL;
 
 #define FLASH_BLOCK_LIST_VERSION (1UL)
 
@@ -286,7 +286,7 @@ static ssize_t rtas_flash_read(struct file *file, char __user *buf,
 }
 
 /* constructor for flash_block_cache */
-void rtas_block_ctor(void *ptr, kmem_cache_t *cache, unsigned long flags)
+void rtas_block_ctor(void *ptr, struct kmem_cache *cache, unsigned long flags)
 {
 	memset(ptr, 0, RTAS_BLK_SIZE);
 }

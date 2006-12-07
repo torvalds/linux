@@ -67,7 +67,7 @@
 #include <linux/kthread.h>
 #include <linux/buffer_head.h>		/* for sync_blockdev() */
 #include <linux/bio.h>
-#include <linux/suspend.h>
+#include <linux/freezer.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include "jfs_incore.h"

@@ -81,7 +81,7 @@ MODULE_PARM_DESC(debug, "Debug level");
 static char *errbuf;
 #define ERRBUF_LEN    (32 * 1024)
 
-static kmem_cache_t *uhci_up_cachep;	/* urb_priv */
+static struct kmem_cache *uhci_up_cachep;	/* urb_priv */
 
 static void suspend_rh(struct uhci_hcd *uhci, enum uhci_rh_state new_state);
 static void wakeup_rh(struct uhci_hcd *uhci);

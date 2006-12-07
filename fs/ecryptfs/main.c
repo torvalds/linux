@@ -378,7 +378,7 @@ ecryptfs_fill_super(struct super_block *sb, void *raw_data, int silent)
 	/* Released in ecryptfs_put_super() */
 	ecryptfs_set_superblock_private(sb,
 					kmem_cache_alloc(ecryptfs_sb_info_cache,
-							 SLAB_KERNEL));
+							 GFP_KERNEL));
 	if (!ecryptfs_superblock_to_private(sb)) {
 		ecryptfs_printk(KERN_WARNING, "Out of memory\n");
 		rc = -ENOMEM;
@@ -402,7 +402,7 @@ ecryptfs_fill_super(struct super_block *sb, void *raw_data, int silent)
 	/* through deactivate_super(sb) from get_sb_nodev() */
 	ecryptfs_set_dentry_private(sb->s_root,
 				    kmem_cache_alloc(ecryptfs_dentry_info_cache,
-						     SLAB_KERNEL));
+						     GFP_KERNEL));
 	if (!ecryptfs_dentry_to_private(sb->s_root)) {
 		ecryptfs_printk(KERN_ERR,
 				"dentry_info_cache alloc failed\n");
@@ -546,7 +546,7 @@ inode_info_init_once(void *vptr, struct kmem_cache *cachep, unsigned long flags)
 }
 
 static struct ecryptfs_cache_info {
-	kmem_cache_t **cache;
+	struct kmem_cache **cache;
 	const char *name;
 	size_t size;
 	void (*ctor)(void*, struct kmem_cache *, unsigned long);
@@ -691,7 +691,7 @@ static ssize_t version_show(struct ecryptfs_obj *obj, char *buff)
 
 static struct ecryptfs_attribute sysfs_attr_version = __ATTR_RO(version);
 
-struct ecryptfs_version_str_map_elem {
+static struct ecryptfs_version_str_map_elem {
 	u32 flag;
 	char *str;
 } ecryptfs_version_str_map[] = {

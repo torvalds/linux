@@ -731,7 +731,7 @@ static inline void audit_free_context(struct audit_context *context)
 		printk(KERN_ERR "audit: freed %d contexts\n", count);
 }
 
-static void audit_log_task_context(struct audit_buffer *ab)
+void audit_log_task_context(struct audit_buffer *ab)
 {
 	char *ctx = NULL;
 	ssize_t len = 0;
@@ -759,6 +759,8 @@ error_path:
 	audit_panic("error in audit_log_task_context");
 	return;
 }
+
+EXPORT_SYMBOL(audit_log_task_context);
 
 static void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
 {
@@ -1487,6 +1489,8 @@ uid_t audit_get_loginuid(struct audit_context *ctx)
 {
 	return ctx ? ctx->loginuid : -1;
 }
+
+EXPORT_SYMBOL(audit_get_loginuid);
 
 /**
  * __audit_mq_open - record audit data for a POSIX MQ open

@@ -53,7 +53,7 @@ static struct ehca_mr *ehca_mr_new(void)
 {
 	struct ehca_mr *me;
 
-	me = kmem_cache_alloc(mr_cache, SLAB_KERNEL);
+	me = kmem_cache_alloc(mr_cache, GFP_KERNEL);
 	if (me) {
 		memset(me, 0, sizeof(struct ehca_mr));
 		spin_lock_init(&me->mrlock);
@@ -72,7 +72,7 @@ static struct ehca_mw *ehca_mw_new(void)
 {
 	struct ehca_mw *me;
 
-	me = kmem_cache_alloc(mw_cache, SLAB_KERNEL);
+	me = kmem_cache_alloc(mw_cache, GFP_KERNEL);
 	if (me) {
 		memset(me, 0, sizeof(struct ehca_mw));
 		spin_lock_init(&me->mwlock);

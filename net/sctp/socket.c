@@ -107,7 +107,7 @@ static void sctp_sock_migrate(struct sock *, struct sock *,
 			      struct sctp_association *, sctp_socket_type_t);
 static char *sctp_hmac_alg = SCTP_COOKIE_HMAC_ALG;
 
-extern kmem_cache_t *sctp_bucket_cachep;
+extern struct kmem_cache *sctp_bucket_cachep;
 
 /* Get the sndbuf space available at the time on the association.  */
 static inline int sctp_wspace(struct sctp_association *asoc)
@@ -4989,7 +4989,7 @@ static struct sctp_bind_bucket *sctp_bucket_create(
 {
 	struct sctp_bind_bucket *pp;
 
-	pp = kmem_cache_alloc(sctp_bucket_cachep, SLAB_ATOMIC);
+	pp = kmem_cache_alloc(sctp_bucket_cachep, GFP_ATOMIC);
 	SCTP_DBG_OBJCNT_INC(bind_bucket);
 	if (pp) {
 		pp->port = snum;

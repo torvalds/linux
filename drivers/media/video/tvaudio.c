@@ -29,6 +29,7 @@
 #include <linux/init.h>
 #include <linux/smp_lock.h>
 #include <linux/kthread.h>
+#include <linux/freezer.h>
 
 #include <media/tvaudio.h>
 #include <media/v4l2-common.h>

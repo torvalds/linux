@@ -33,6 +33,7 @@ SECTIONS
 
 	/* Text and gots */
 	.text : {
+		_text = .;
 		*(.text .text.*)
 		SCHED_TEXT
 		LOCK_TEXT

@@ -42,7 +42,7 @@ struct queue_item {
 	unsigned long data;
 };
 
-static kmem_cache_t *tipc_queue_item_cache;
+static struct kmem_cache *tipc_queue_item_cache;
 static struct list_head signal_queue_head;
 static DEFINE_SPINLOCK(qitem_lock);
 static int handler_enabled = 0;
