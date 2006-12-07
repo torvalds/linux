@@ -35,6 +35,8 @@ Protocol 2.03:	(Kernel 2.4.18-pre1) Explicitly makes the highest possible
 		initrd address available to the bootloader.
 
 Protocol 2.04:	(Kernel 2.6.14) Extend the syssize field to four bytes.
+Protocol 2.05:	(Kernel 2.6.20) Make protected mode kernel relocatable.
+		Introduce relocatable_kernel and kernel_alignment fields.
 
 
 **** MEMORY LAYOUT
@@ -129,6 +131,8 @@ Offset	Proto	Name		Meaning
 0226/2	N/A	pad1		Unused
 0228/4	2.02+	cmd_line_ptr	32-bit pointer to the kernel command line
 022C/4	2.03+	initrd_addr_max	Highest legal initrd address
+0230/4	2.04+	kernel_alignment Physical addr alignment required for kernel
+0234/1	2.04+	relocatable_kernel Whether kernel is relocatable or not
 
 (1) For backwards compatibility, if the setup_sects field contains 0, the
     real value is 4.
