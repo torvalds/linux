@@ -313,15 +313,24 @@ static int oom_kill_task(struct task_struct *p, const char *message)
 	if (mm == NULL)
 		return 1;
 
+	/*
+	 * Don't kill the process if any threads are set to OOM_DISABLE
+	 */
+	do_each_thread(g, q) {
+		if (q->mm == mm && p->oomkilladj == OOM_DISABLE)
+			return 1;
+	} while_each_thread(g, q);
+
 	__oom_kill_task(p, message);
+
 	/*
 	 * kill all processes that share the ->mm (i.e. all threads),
 	 * but are in a different thread group
 	 */
-	do_each_thread(g, q)
+	do_each_thread(g, q) {
 		if (q->mm == mm && q->tgid != p->tgid)
 			__oom_kill_task(q, message);
-	while_each_thread(g, q);
+	} while_each_thread(g, q);
 
 	return 0;
 }
