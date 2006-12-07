@@ -123,7 +123,7 @@ struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 	int i;
 	int hostnum = 0;
 
-	h = kzalloc(sizeof(*h) + extra, SLAB_KERNEL);
+	h = kzalloc(sizeof(*h) + extra, GFP_KERNEL);
 	if (!h)
 		return NULL;
 

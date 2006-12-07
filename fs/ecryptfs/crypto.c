@@ -628,7 +628,7 @@ int ecryptfs_decrypt_page(struct file *file, struct page *page)
 	num_extents_per_page = PAGE_CACHE_SIZE / crypt_stat->extent_size;
 	base_extent = (page->index * num_extents_per_page);
 	lower_page_virt = kmem_cache_alloc(ecryptfs_lower_page_cache,
-					   SLAB_KERNEL);
+					   GFP_KERNEL);
 	if (!lower_page_virt) {
 		rc = -ENOMEM;
 		ecryptfs_printk(KERN_ERR, "Error getting page for encrypted "

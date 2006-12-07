@@ -425,7 +425,7 @@ void taskstats_exit_alloc(struct taskstats **ptidstats, unsigned int *mycpu)
 	*mycpu = raw_smp_processor_id();
 
 	*ptidstats = NULL;
-	tmp = kmem_cache_zalloc(taskstats_cache, SLAB_KERNEL);
+	tmp = kmem_cache_zalloc(taskstats_cache, GFP_KERNEL);
 	if (!tmp)
 		return;
 

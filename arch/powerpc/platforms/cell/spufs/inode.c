@@ -48,7 +48,7 @@ spufs_alloc_inode(struct super_block *sb)
 {
 	struct spufs_inode_info *ei;
 
-	ei = kmem_cache_alloc(spufs_inode_cache, SLAB_KERNEL);
+	ei = kmem_cache_alloc(spufs_inode_cache, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 

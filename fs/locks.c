@@ -147,7 +147,7 @@ static kmem_cache_t *filelock_cache __read_mostly;
 /* Allocate an empty lock structure. */
 static struct file_lock *locks_alloc_lock(void)
 {
-	return kmem_cache_alloc(filelock_cache, SLAB_KERNEL);
+	return kmem_cache_alloc(filelock_cache, GFP_KERNEL);
 }
 
 static void locks_release_private(struct file_lock *fl)

@@ -378,7 +378,7 @@ ecryptfs_fill_super(struct super_block *sb, void *raw_data, int silent)
 	/* Released in ecryptfs_put_super() */
 	ecryptfs_set_superblock_private(sb,
 					kmem_cache_alloc(ecryptfs_sb_info_cache,
-							 SLAB_KERNEL));
+							 GFP_KERNEL));
 	if (!ecryptfs_superblock_to_private(sb)) {
 		ecryptfs_printk(KERN_WARNING, "Out of memory\n");
 		rc = -ENOMEM;
@@ -402,7 +402,7 @@ ecryptfs_fill_super(struct super_block *sb, void *raw_data, int silent)
 	/* through deactivate_super(sb) from get_sb_nodev() */
 	ecryptfs_set_dentry_private(sb->s_root,
 				    kmem_cache_alloc(ecryptfs_dentry_info_cache,
-						     SLAB_KERNEL));
+						     GFP_KERNEL));
 	if (!ecryptfs_dentry_to_private(sb->s_root)) {
 		ecryptfs_printk(KERN_ERR,
 				"dentry_info_cache alloc failed\n");

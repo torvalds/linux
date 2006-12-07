@@ -1187,7 +1187,7 @@ static int fn_trie_insert(struct fib_table *tb, struct fib_config *cfg)
 			u8 state;
 
 			err = -ENOBUFS;
-			new_fa = kmem_cache_alloc(fn_alias_kmem, SLAB_KERNEL);
+			new_fa = kmem_cache_alloc(fn_alias_kmem, GFP_KERNEL);
 			if (new_fa == NULL)
 				goto out;
 
@@ -1232,7 +1232,7 @@ static int fn_trie_insert(struct fib_table *tb, struct fib_config *cfg)
 		goto out;
 
 	err = -ENOBUFS;
-	new_fa = kmem_cache_alloc(fn_alias_kmem, SLAB_KERNEL);
+	new_fa = kmem_cache_alloc(fn_alias_kmem, GFP_KERNEL);
 	if (new_fa == NULL)
 		goto out;
 

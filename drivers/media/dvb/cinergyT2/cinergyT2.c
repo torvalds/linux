@@ -287,7 +287,7 @@ static int cinergyt2_alloc_stream_urbs (struct cinergyt2 *cinergyt2)
 	int i;
 
 	cinergyt2->streambuf = usb_buffer_alloc(cinergyt2->udev, STREAM_URB_COUNT*STREAM_BUF_SIZE,
-					      SLAB_KERNEL, &cinergyt2->streambuf_dmahandle);
+					      GFP_KERNEL, &cinergyt2->streambuf_dmahandle);
 	if (!cinergyt2->streambuf) {
 		dprintk(1, "failed to alloc consistent stream memory area, bailing out!\n");
 		return -ENOMEM;

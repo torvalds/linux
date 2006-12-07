@@ -51,7 +51,7 @@ AllocMidQEntry(const struct smb_hdr *smb_buffer, struct cifsSesInfo *ses)
 	}
 	
 	temp = (struct mid_q_entry *) mempool_alloc(cifs_mid_poolp,
-						    SLAB_KERNEL | GFP_NOFS);
+						    GFP_KERNEL | GFP_NOFS);
 	if (temp == NULL)
 		return temp;
 	else {
@@ -118,7 +118,7 @@ AllocOplockQEntry(struct inode * pinode, __u16 fid, struct cifsTconInfo * tcon)
 		return NULL;
 	}
 	temp = (struct oplock_q_entry *) kmem_cache_alloc(cifs_oplock_cachep,
-						       SLAB_KERNEL);
+						       GFP_KERNEL);
 	if (temp == NULL)
 		return temp;
 	else {

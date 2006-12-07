@@ -63,7 +63,7 @@ void fat_cache_destroy(void)
 
 static inline struct fat_cache *fat_cache_alloc(struct inode *inode)
 {
-	return kmem_cache_alloc(fat_cache_cachep, SLAB_KERNEL);
+	return kmem_cache_alloc(fat_cache_cachep, GFP_KERNEL);
 }
 
 static inline void fat_cache_free(struct fat_cache *cache)

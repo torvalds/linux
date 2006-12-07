@@ -2218,21 +2218,21 @@ static int gigaset_probe(struct usb_interface *interface,
 	 * - three for the different uses of the default control pipe
 	 * - three for each isochronous pipe
 	 */
-	if (!(ucs->urb_int_in = usb_alloc_urb(0, SLAB_KERNEL)) ||
-	    !(ucs->urb_cmd_in = usb_alloc_urb(0, SLAB_KERNEL)) ||
-	    !(ucs->urb_cmd_out = usb_alloc_urb(0, SLAB_KERNEL)) ||
-	    !(ucs->urb_ctrl = usb_alloc_urb(0, SLAB_KERNEL)))
+	if (!(ucs->urb_int_in = usb_alloc_urb(0, GFP_KERNEL)) ||
+	    !(ucs->urb_cmd_in = usb_alloc_urb(0, GFP_KERNEL)) ||
+	    !(ucs->urb_cmd_out = usb_alloc_urb(0, GFP_KERNEL)) ||
+	    !(ucs->urb_ctrl = usb_alloc_urb(0, GFP_KERNEL)))
 		goto allocerr;
 
 	for (j = 0; j < 2; ++j) {
 		ubc = cs->bcs[j].hw.bas;
 		for (i = 0; i < BAS_OUTURBS; ++i)
 			if (!(ubc->isoouturbs[i].urb =
-			      usb_alloc_urb(BAS_NUMFRAMES, SLAB_KERNEL)))
+			      usb_alloc_urb(BAS_NUMFRAMES, GFP_KERNEL)))
 				goto allocerr;
 		for (i = 0; i < BAS_INURBS; ++i)
 			if (!(ubc->isoinurbs[i] =
-			      usb_alloc_urb(BAS_NUMFRAMES, SLAB_KERNEL)))
+			      usb_alloc_urb(BAS_NUMFRAMES, GFP_KERNEL)))
 				goto allocerr;
 	}
 
@@ -2246,7 +2246,7 @@ static int gigaset_probe(struct usb_interface *interface,
 					(endpoint->bEndpointAddress) & 0x0f),
 			 ucs->int_in_buf, 3, read_int_callback, cs,
 			 endpoint->bInterval);
-	if ((rc = usb_submit_urb(ucs->urb_int_in, SLAB_KERNEL)) != 0) {
+	if ((rc = usb_submit_urb(ucs->urb_int_in, GFP_KERNEL)) != 0) {
 		dev_err(cs->dev, "could not submit interrupt URB: %s\n",
 			get_usb_rcmsg(rc));
 		goto error;

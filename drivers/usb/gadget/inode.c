@@ -412,7 +412,7 @@ ep_read (struct file *fd, char __user *buf, size_t len, loff_t *ptr)
 	/* FIXME readahead for O_NONBLOCK and poll(); careful with ZLPs */
 
 	value = -ENOMEM;
-	kbuf = kmalloc (len, SLAB_KERNEL);
+	kbuf = kmalloc (len, GFP_KERNEL);
 	if (unlikely (!kbuf))
 		goto free1;
 
@@ -456,7 +456,7 @@ ep_write (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	/* FIXME writebehind for O_NONBLOCK and poll(), qlen = 1 */
 
 	value = -ENOMEM;
-	kbuf = kmalloc (len, SLAB_KERNEL);
+	kbuf = kmalloc (len, GFP_KERNEL);
 	if (!kbuf)
 		goto free1;
 	if (copy_from_user (kbuf, buf, len)) {
@@ -1898,7 +1898,7 @@ dev_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	buf += 4;
 	length -= 4;
 
-	kbuf = kmalloc (length, SLAB_KERNEL);
+	kbuf = kmalloc (length, GFP_KERNEL);
 	if (!kbuf)
 		return -ENOMEM;
 	if (copy_from_user (kbuf, buf, length)) {

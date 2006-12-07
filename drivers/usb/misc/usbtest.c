@@ -213,7 +213,7 @@ static struct urb *simple_alloc_urb (
 
 	if (bytes < 0)
 		return NULL;
-	urb = usb_alloc_urb (0, SLAB_KERNEL);
+	urb = usb_alloc_urb (0, GFP_KERNEL);
 	if (!urb)
 		return urb;
 	usb_fill_bulk_urb (urb, udev, pipe, NULL, bytes, simple_callback, NULL);
@@ -223,7 +223,7 @@ static struct urb *simple_alloc_urb (
 	urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 	if (usb_pipein (pipe))
 		urb->transfer_flags |= URB_SHORT_NOT_OK;
-	urb->transfer_buffer = usb_buffer_alloc (udev, bytes, SLAB_KERNEL,
+	urb->transfer_buffer = usb_buffer_alloc (udev, bytes, GFP_KERNEL,
 			&urb->transfer_dma);
 	if (!urb->transfer_buffer) {
 		usb_free_urb (urb);
@@ -315,7 +315,7 @@ static int simple_io (
 		init_completion (&completion);
 		if (usb_pipeout (urb->pipe))
 			simple_fill_buf (urb);
-		if ((retval = usb_submit_urb (urb, SLAB_KERNEL)) != 0)
+		if ((retval = usb_submit_urb (urb, GFP_KERNEL)) != 0)
 			break;
 
 		/* NOTE:  no timeouts; can't be broken out of by interrupt */
@@ -374,7 +374,7 @@ alloc_sglist (int nents, int max, int vary)
 	unsigned		i;
 	unsigned		size = max;
 
-	sg = kmalloc (nents * sizeof *sg, SLAB_KERNEL);
+	sg = kmalloc (nents * sizeof *sg, GFP_KERNEL);
 	if (!sg)
 		return NULL;
 
@@ -382,7 +382,7 @@ alloc_sglist (int nents, int max, int vary)
 		char		*buf;
 		unsigned	j;
 
-		buf = kzalloc (size, SLAB_KERNEL);
+		buf = kzalloc (size, GFP_KERNEL);
 		if (!buf) {
 			free_sglist (sg, i);
 			return NULL;
@@ -428,7 +428,7 @@ static int perform_sglist (
 				(udev->speed == USB_SPEED_HIGH)
 					? (INTERRUPT_RATE << 3)
 					: INTERRUPT_RATE,
-				sg, nents, 0, SLAB_KERNEL);
+				sg, nents, 0, GFP_KERNEL);
 		
 		if (retval)
 			break;
@@ -855,7 +855,7 @@ test_ctrl_queue (struct usbtest_dev *dev, struct usbtest_param *param)
 	 * as with bulk/intr sglists, sglen is the queue depth; it also
 	 * controls which subtests run (more tests than sglen) or rerun.
 	 */
-	urb = kcalloc(param->sglen, sizeof(struct urb *), SLAB_KERNEL);
+	urb = kcalloc(param->sglen, sizeof(struct urb *), GFP_KERNEL);
 	if (!urb)
 		return -ENOMEM;
 	for (i = 0; i < param->sglen; i++) {
@@ -981,7 +981,7 @@ test_ctrl_queue (struct usbtest_dev *dev, struct usbtest_param *param)
 		if (!u)
 			goto cleanup;
 
-		reqp = usb_buffer_alloc (udev, sizeof *reqp, SLAB_KERNEL,
+		reqp = usb_buffer_alloc (udev, sizeof *reqp, GFP_KERNEL,
 				&u->setup_dma);
 		if (!reqp)
 			goto cleanup;
@@ -1067,7 +1067,7 @@ static int unlink1 (struct usbtest_dev *dev, int pipe, int size, int async)
 	 * FIXME want additional tests for when endpoint is STALLing
 	 * due to errors, or is just NAKing requests.
 	 */
-	if ((retval = usb_submit_urb (urb, SLAB_KERNEL)) != 0) {
+	if ((retval = usb_submit_urb (urb, GFP_KERNEL)) != 0) {
 		dev_dbg (&dev->intf->dev, "submit fail %d\n", retval);
 		return retval;
 	}
@@ -1251,7 +1251,7 @@ static int ctrl_out (struct usbtest_dev *dev,
 	if (length < 1 || length > 0xffff || vary >= length)
 		return -EINVAL;
 
-	buf = kmalloc(length, SLAB_KERNEL);
+	buf = kmalloc(length, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -1403,7 +1403,7 @@ static struct urb *iso_alloc_urb (
 	maxp *= 1 + (0x3 & (le16_to_cpu(desc->wMaxPacketSize) >> 11));
 	packets = (bytes + maxp - 1) / maxp;
 
-	urb = usb_alloc_urb (packets, SLAB_KERNEL);
+	urb = usb_alloc_urb (packets, GFP_KERNEL);
 	if (!urb)
 		return urb;
 	urb->dev = udev;
@@ -1411,7 +1411,7 @@ static struct urb *iso_alloc_urb (
 
 	urb->number_of_packets = packets;
 	urb->transfer_buffer_length = bytes;
-	urb->transfer_buffer = usb_buffer_alloc (udev, bytes, SLAB_KERNEL,
+	urb->transfer_buffer = usb_buffer_alloc (udev, bytes, GFP_KERNEL,
 			&urb->transfer_dma);
 	if (!urb->transfer_buffer) {
 		usb_free_urb (urb);
@@ -1900,7 +1900,7 @@ usbtest_probe (struct usb_interface *intf, const struct usb_device_id *id)
 	}
 #endif
 
-	dev = kzalloc(sizeof(*dev), SLAB_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 	info = (struct usbtest_info *) id->driver_info;
@@ -1910,7 +1910,7 @@ usbtest_probe (struct usb_interface *intf, const struct usb_device_id *id)
 	dev->intf = intf;
 
 	/* cacheline-aligned scratch for i/o */
-	if ((dev->buf = kmalloc (TBUF_SIZE, SLAB_KERNEL)) == NULL) {
+	if ((dev->buf = kmalloc (TBUF_SIZE, GFP_KERNEL)) == NULL) {
 		kfree (dev);
 		return -ENOMEM;
 	}

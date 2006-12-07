@@ -35,7 +35,7 @@ static inline void taskstats_tgid_alloc(struct task_struct *tsk)
 		return;
 
 	/* No problem if kmem_cache_zalloc() fails */
-	stats = kmem_cache_zalloc(taskstats_cache, SLAB_KERNEL);
+	stats = kmem_cache_zalloc(taskstats_cache, GFP_KERNEL);
 
 	spin_lock_irq(&tsk->sighand->siglock);
 	if (!sig->stats) {
