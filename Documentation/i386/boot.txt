@@ -2,7 +2,7 @@
 		     ----------------------------
 
 		    H. Peter Anvin <hpa@zytor.com>
-			Last update 2005-09-02
+			Last update 2006-11-17
 
 On the i386 platform, the Linux kernel uses a rather complicated boot
 convention.  This has evolved partially due to historical aspects, as
@@ -131,8 +131,8 @@ Offset	Proto	Name		Meaning
 0226/2	N/A	pad1		Unused
 0228/4	2.02+	cmd_line_ptr	32-bit pointer to the kernel command line
 022C/4	2.03+	initrd_addr_max	Highest legal initrd address
-0230/4	2.04+	kernel_alignment Physical addr alignment required for kernel
-0234/1	2.04+	relocatable_kernel Whether kernel is relocatable or not
+0230/4	2.05+	kernel_alignment Physical addr alignment required for kernel
+0234/1	2.05+	relocatable_kernel Whether kernel is relocatable or not
 
 (1) For backwards compatibility, if the setup_sects field contains 0, the
     real value is 4.
