@@ -302,6 +302,7 @@ extern void efi_initialize_iomem_resources(struct resource *code_resource,
 					struct resource *data_resource);
 extern unsigned long efi_get_time(void);
 extern int __init efi_set_rtc_mmss(unsigned long nowtime);
+extern int is_available_memory(efi_memory_desc_t * md);
 extern struct efi_memory_map memmap;
 
 /**

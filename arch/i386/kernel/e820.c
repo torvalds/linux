@@ -742,29 +742,55 @@ void __init print_memory_map(char *who)
 	}
 }
 
-void __init limit_regions(unsigned long long size)
+static __init __always_inline void efi_limit_regions(unsigned long long size)
 {
 	unsigned long long current_addr = 0;
+	efi_memory_desc_t *md, *next_md;
+	void *p, *p1;
+	int i, j;
+
+	j = 0;
+	p1 = memmap.map;
+	for (p = p1, i = 0; p < memmap.map_end; p += memmap.desc_size, i++) {
+		md = p;
+		next_md = p1;
+		current_addr = md->phys_addr +
+			PFN_PHYS(md->num_pages);
+		if (is_available_memory(md)) {
+			if (md->phys_addr >= size) continue;
+			memcpy(next_md, md, memmap.desc_size);
+			if (current_addr >= size) {
+				next_md->num_pages -=
+					PFN_UP(current_addr-size);
+			}
+			p1 += memmap.desc_size;
+			next_md = p1;
+			j++;
+		} else if ((md->attribute & EFI_MEMORY_RUNTIME) ==
+			   EFI_MEMORY_RUNTIME) {
+			/* In order to make runtime services
+			 * available we have to include runtime
+			 * memory regions in memory map */
+			memcpy(next_md, md, memmap.desc_size);
+			p1 += memmap.desc_size;
+			next_md = p1;
+			j++;
+		}
+	}
+	memmap.nr_map = j;
+	memmap.map_end = memmap.map +
+		(memmap.nr_map * memmap.desc_size);
+}
+
+void __init limit_regions(unsigned long long size)
+{
+	unsigned long long current_addr;
 	int i;
 
 	print_memory_map("limit_regions start");
 	if (efi_enabled) {
-		efi_memory_desc_t *md;
-		void *p;
-
-		for (p = memmap.map, i = 0; p < memmap.map_end;
-			p += memmap.desc_size, i++) {
-			md = p;
-			current_addr = md->phys_addr + (md->num_pages << 12);
-			if (md->type == EFI_CONVENTIONAL_MEMORY) {
-				if (current_addr >= size) {
-					md->num_pages -=
-						(((current_addr-size) + PAGE_SIZE-1) >> PAGE_SHIFT);
-					memmap.nr_map = i + 1;
-					return;
-				}
-			}
-		}
+		efi_limit_regions(size);
+		return;
 	}
 	for (i = 0; i < e820.nr_map; i++) {
 		current_addr = e820.map[i].addr + e820.map[i].size;
