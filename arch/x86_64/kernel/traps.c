@@ -225,12 +225,19 @@ static int dump_trace_unwind(struct unwind_frame_info *info, void *context)
 {
 	struct ops_and_data *oad = (struct ops_and_data *)context;
 	int n = 0;
+	unsigned long sp = UNW_SP(info);
 
+	if (arch_unw_user_mode(info))
+		return -1;
 	while (unwind(info) == 0 && UNW_PC(info)) {
 		n++;
 		oad->ops->address(oad->data, UNW_PC(info));
 		if (arch_unw_user_mode(info))
 			break;
+		if ((sp & ~(PAGE_SIZE - 1)) == (UNW_SP(info) & ~(PAGE_SIZE - 1))
+		    && sp > UNW_SP(info))
+			break;
+		sp = UNW_SP(info);
 	}
 	return n;
 }

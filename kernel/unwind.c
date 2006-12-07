@@ -95,6 +95,7 @@ static const struct {
 
 typedef unsigned long uleb128_t;
 typedef   signed long sleb128_t;
+#define sleb128abs __builtin_labs
 
 static struct unwind_table {
 	struct {
@@ -787,7 +788,7 @@ int unwind(struct unwind_frame_info *frame)
 #define FRAME_REG(r, t) (((t *)frame)[reg_info[r].offs])
 	const u32 *fde = NULL, *cie = NULL;
 	const u8 *ptr = NULL, *end = NULL;
-	unsigned long pc = UNW_PC(frame) - frame->call_frame;
+	unsigned long pc = UNW_PC(frame) - frame->call_frame, sp;
 	unsigned long startLoc = 0, endLoc = 0, cfa;
 	unsigned i;
 	signed ptrType = -1;
@@ -936,6 +937,9 @@ int unwind(struct unwind_frame_info *frame)
 		state.dataAlign = get_sleb128(&ptr, end);
 		if (state.codeAlign == 0 || state.dataAlign == 0 || ptr >= end)
 			cie = NULL;
+		else if (UNW_PC(frame) % state.codeAlign
+		         || UNW_SP(frame) % sleb128abs(state.dataAlign))
+			return -EPERM;
 		else {
 			retAddrReg = state.version <= 1 ? *ptr++ : get_uleb128(&ptr, end);
 			/* skip augmentation */
@@ -968,6 +972,8 @@ int unwind(struct unwind_frame_info *frame)
 #ifdef CONFIG_FRAME_POINTER
 		unsigned long top, bottom;
 
+		if ((UNW_SP(frame) | UNW_FP(frame)) % sizeof(unsigned long))
+			return -EPERM;
 		top = STACK_TOP(frame->task);
 		bottom = STACK_BOTTOM(frame->task);
 # if FRAME_RETADDR_OFFSET < 0
@@ -1018,6 +1024,7 @@ int unwind(struct unwind_frame_info *frame)
 	   || state.regs[retAddrReg].where == Nowhere
 	   || state.cfa.reg >= ARRAY_SIZE(reg_info)
 	   || reg_info[state.cfa.reg].width != sizeof(unsigned long)
+	   || FRAME_REG(state.cfa.reg, unsigned long) % sizeof(unsigned long)
 	   || state.cfa.offs % sizeof(unsigned long))
 		return -EIO;
 	/* update frame */
@@ -1038,6 +1045,8 @@ int unwind(struct unwind_frame_info *frame)
 #else
 # define CASES CASE(8); CASE(16); CASE(32); CASE(64)
 #endif
+	pc = UNW_PC(frame);
+	sp = UNW_SP(frame);
 	for (i = 0; i < ARRAY_SIZE(state.regs); ++i) {
 		if (REG_INVALID(i)) {
 			if (state.regs[i].where == Nowhere)
@@ -1117,6 +1126,11 @@ int unwind(struct unwind_frame_info *frame)
 			break;
 		}
 	}
+
+	if (UNW_PC(frame) % state.codeAlign
+	    || UNW_SP(frame) % sleb128abs(state.dataAlign)
+	    || (pc == UNW_PC(frame) && sp == UNW_SP(frame)))
+		return -EIO;
 
 	return 0;
 #undef CASES
