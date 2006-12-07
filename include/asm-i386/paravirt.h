@@ -4,6 +4,7 @@
  * para-virtualization: those hooks are defined here. */
 #include <linux/linkage.h>
 #include <linux/stringify.h>
+#include <asm/page.h>
 
 #ifdef CONFIG_PARAVIRT
 /* These are the most performance critical ops, so we want to be able to patch
@@ -27,6 +28,7 @@
 struct thread_struct;
 struct Xgt_desc_struct;
 struct tss_struct;
+struct mm_struct;
 struct paravirt_ops
 {
 	unsigned int kernel_rpl;
@@ -119,6 +121,23 @@ struct paravirt_ops
 	void (fastcall *apic_write)(unsigned long reg, unsigned long v);
 	void (fastcall *apic_write_atomic)(unsigned long reg, unsigned long v);
 	unsigned long (fastcall *apic_read)(unsigned long reg);
+#endif
+
+	void (fastcall *flush_tlb_user)(void);
+	void (fastcall *flush_tlb_kernel)(void);
+	void (fastcall *flush_tlb_single)(u32 addr);
+
+	void (fastcall *set_pte)(pte_t *ptep, pte_t pteval);
+	void (fastcall *set_pte_at)(struct mm_struct *mm, u32 addr, pte_t *ptep, pte_t pteval);
+	void (fastcall *set_pmd)(pmd_t *pmdp, pmd_t pmdval);
+	void (fastcall *pte_update)(struct mm_struct *mm, u32 addr, pte_t *ptep);
+	void (fastcall *pte_update_defer)(struct mm_struct *mm, u32 addr, pte_t *ptep);
+#ifdef CONFIG_X86_PAE
+	void (fastcall *set_pte_atomic)(pte_t *ptep, pte_t pteval);
+	void (fastcall *set_pte_present)(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte);
+	void (fastcall *set_pud)(pud_t *pudp, pud_t pudval);
+	void (fastcall *pte_clear)(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
+	void (fastcall *pmd_clear)(pmd_t *pmdp);
 #endif
 
 	/* These two are jmp to, not actually called. */
@@ -296,6 +315,62 @@ static inline unsigned long apic_read(unsigned long reg)
 }
 #endif
 
+
+#define __flush_tlb() paravirt_ops.flush_tlb_user()
+#define __flush_tlb_global() paravirt_ops.flush_tlb_kernel()
+#define __flush_tlb_single(addr) paravirt_ops.flush_tlb_single(addr)
+
+static inline void set_pte(pte_t *ptep, pte_t pteval)
+{
+	paravirt_ops.set_pte(ptep, pteval);
+}
+
+static inline void set_pte_at(struct mm_struct *mm, u32 addr, pte_t *ptep, pte_t pteval)
+{
+	paravirt_ops.set_pte_at(mm, addr, ptep, pteval);
+}
+
+static inline void set_pmd(pmd_t *pmdp, pmd_t pmdval)
+{
+	paravirt_ops.set_pmd(pmdp, pmdval);
+}
+
+static inline void pte_update(struct mm_struct *mm, u32 addr, pte_t *ptep)
+{
+	paravirt_ops.pte_update(mm, addr, ptep);
+}
+
+static inline void pte_update_defer(struct mm_struct *mm, u32 addr, pte_t *ptep)
+{
+	paravirt_ops.pte_update_defer(mm, addr, ptep);
+}
+
+#ifdef CONFIG_X86_PAE
+static inline void set_pte_atomic(pte_t *ptep, pte_t pteval)
+{
+	paravirt_ops.set_pte_atomic(ptep, pteval);
+}
+
+static inline void set_pte_present(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte)
+{
+	paravirt_ops.set_pte_present(mm, addr, ptep, pte);
+}
+
+static inline void set_pud(pud_t *pudp, pud_t pudval)
+{
+	paravirt_ops.set_pud(pudp, pudval);
+}
+
+static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+{
+	paravirt_ops.pte_clear(mm, addr, ptep);
+}
+
+static inline void pmd_clear(pmd_t *pmdp)
+{
+	paravirt_ops.pmd_clear(pmdp);
+}
+#endif
 
 /* These all sit in the .parainstructions section to tell us what to patch. */
 struct paravirt_patch {

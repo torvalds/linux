@@ -15,6 +15,7 @@
 #include <asm/processor.h>
 #include <asm/fixmap.h>
 #include <linux/threads.h>
+#include <asm/paravirt.h>
 
 #ifndef _I386_BITOPS_H
 #include <asm/bitops.h>
@@ -246,6 +247,7 @@ static inline pte_t pte_mkhuge(pte_t pte)	{ (pte).pte_low |= _PAGE_PSE; return p
 # include <asm/pgtable-2level.h>
 #endif
 
+#ifndef CONFIG_PARAVIRT
 /*
  * Rules for using pte_update - it must be called after any PTE update which
  * has not been done using the set_pte / clear_pte interfaces.  It is used by
@@ -261,7 +263,7 @@ static inline pte_t pte_mkhuge(pte_t pte)	{ (pte).pte_low |= _PAGE_PSE; return p
  */
 #define pte_update(mm, addr, ptep)		do { } while (0)
 #define pte_update_defer(mm, addr, ptep)	do { } while (0)
-
+#endif
 
 /*
  * We only update the dirty/accessed state if we set

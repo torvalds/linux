@@ -31,6 +31,7 @@
 #include <asm/delay.h>
 #include <asm/fixmap.h>
 #include <asm/apic.h>
+#include <asm/tlbflush.h>
 
 /* nop stub */
 static void native_nop(void)
@@ -379,6 +380,97 @@ static fastcall void native_io_delay(void)
 	asm volatile("outb %al,$0x80");
 }
 
+static fastcall void native_flush_tlb(void)
+{
+	__native_flush_tlb();
+}
+
+/*
+ * Global pages have to be flushed a bit differently. Not a real
+ * performance problem because this does not happen often.
+ */
+static fastcall void native_flush_tlb_global(void)
+{
+	__native_flush_tlb_global();
+}
+
+static fastcall void native_flush_tlb_single(u32 addr)
+{
+	__native_flush_tlb_single(addr);
+}
+
+#ifndef CONFIG_X86_PAE
+static fastcall void native_set_pte(pte_t *ptep, pte_t pteval)
+{
+	*ptep = pteval;
+}
+
+static fastcall void native_set_pte_at(struct mm_struct *mm, u32 addr, pte_t *ptep, pte_t pteval)
+{
+	*ptep = pteval;
+}
+
+static fastcall void native_set_pmd(pmd_t *pmdp, pmd_t pmdval)
+{
+	*pmdp = pmdval;
+}
+
+#else /* CONFIG_X86_PAE */
+
+static fastcall void native_set_pte(pte_t *ptep, pte_t pte)
+{
+	ptep->pte_high = pte.pte_high;
+	smp_wmb();
+	ptep->pte_low = pte.pte_low;
+}
+
+static fastcall void native_set_pte_at(struct mm_struct *mm, u32 addr, pte_t *ptep, pte_t pte)
+{
+	ptep->pte_high = pte.pte_high;
+	smp_wmb();
+	ptep->pte_low = pte.pte_low;
+}
+
+static fastcall void native_set_pte_present(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte)
+{
+	ptep->pte_low = 0;
+	smp_wmb();
+	ptep->pte_high = pte.pte_high;
+	smp_wmb();
+	ptep->pte_low = pte.pte_low;
+}
+
+static fastcall void native_set_pte_atomic(pte_t *ptep, pte_t pteval)
+{
+	set_64bit((unsigned long long *)ptep,pte_val(pteval));
+}
+
+static fastcall void native_set_pmd(pmd_t *pmdp, pmd_t pmdval)
+{
+	set_64bit((unsigned long long *)pmdp,pmd_val(pmdval));
+}
+
+static fastcall void native_set_pud(pud_t *pudp, pud_t pudval)
+{
+	*pudp = pudval;
+}
+
+static fastcall void native_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+{
+	ptep->pte_low = 0;
+	smp_wmb();
+	ptep->pte_high = 0;
+}
+
+static fastcall void native_pmd_clear(pmd_t *pmd)
+{
+	u32 *tmp = (u32 *)pmd;
+	*tmp = 0;
+	smp_wmb();
+	*(tmp + 1) = 0;
+}
+#endif /* CONFIG_X86_PAE */
+
 /* These are in entry.S */
 extern fastcall void native_iret(void);
 extern fastcall void native_irq_enable_sysexit(void);
@@ -452,6 +544,23 @@ struct paravirt_ops paravirt_ops = {
 	.apic_write = native_apic_write,
 	.apic_write_atomic = native_apic_write_atomic,
 	.apic_read = native_apic_read,
+#endif
+
+	.flush_tlb_user = native_flush_tlb,
+	.flush_tlb_kernel = native_flush_tlb_global,
+	.flush_tlb_single = native_flush_tlb_single,
+
+	.set_pte = native_set_pte,
+	.set_pte_at = native_set_pte_at,
+	.set_pmd = native_set_pmd,
+	.pte_update = (void *)native_nop,
+	.pte_update_defer = (void *)native_nop,
+#ifdef CONFIG_X86_PAE
+	.set_pte_atomic = native_set_pte_atomic,
+	.set_pte_present = native_set_pte_present,
+	.set_pud = native_set_pud,
+	.pte_clear = native_pte_clear,
+	.pmd_clear = native_pmd_clear,
 #endif
 
 	.irq_enable_sysexit = native_irq_enable_sysexit,
