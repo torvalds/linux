@@ -31,6 +31,7 @@
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 #include <linux/in6.h>
 #endif
+#include <linux/audit.h>
 
 static int verify_one_alg(struct rtattr **xfrma, enum xfrm_attr_type_t type)
 {
@@ -454,6 +455,9 @@ static int xfrm_add_sa(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
 	else
 		err = xfrm_state_update(x);
 
+	xfrm_audit_log(NETLINK_CB(skb).loginuid, NETLINK_CB(skb).sid,
+		       AUDIT_MAC_IPSEC_ADDSA, err ? 0 : 1, NULL, x);
+
 	if (err < 0) {
 		x->km.state = XFRM_STATE_DEAD;
 		__xfrm_state_put(x);
@@ -523,6 +527,10 @@ static int xfrm_del_sa(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
 	}
 
 	err = xfrm_state_delete(x);
+
+	xfrm_audit_log(NETLINK_CB(skb).loginuid, NETLINK_CB(skb).sid,
+		       AUDIT_MAC_IPSEC_DELSA, err ? 0 : 1, NULL, x);
+
 	if (err < 0)
 		goto out;
 
@@ -1030,6 +1038,9 @@ static int xfrm_add_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfr
 	 * a type XFRM_MSG_UPDPOLICY - JHS */
 	excl = nlh->nlmsg_type == XFRM_MSG_NEWPOLICY;
 	err = xfrm_policy_insert(p->dir, xp, excl);
+	xfrm_audit_log(NETLINK_CB(skb).loginuid, NETLINK_CB(skb).sid,
+		       AUDIT_MAC_IPSEC_DELSPD, err ? 0 : 1, xp, NULL);
+
 	if (err) {
 		security_xfrm_policy_free(xp);
 		kfree(xp);
@@ -1257,6 +1268,10 @@ static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfr
 		xp = xfrm_policy_bysel_ctx(type, p->dir, &p->sel, tmp.security, delete);
 		security_xfrm_policy_free(&tmp);
 	}
+	if (delete)
+		xfrm_audit_log(NETLINK_CB(skb).loginuid, NETLINK_CB(skb).sid,
+			       AUDIT_MAC_IPSEC_DELSPD, (xp) ? 1 : 0, xp, NULL);
+
 	if (xp == NULL)
 		return -ENOENT;
 
@@ -1291,8 +1306,11 @@ static int xfrm_flush_sa(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma
 {
 	struct km_event c;
 	struct xfrm_usersa_flush *p = NLMSG_DATA(nlh);
+	struct xfrm_audit audit_info;
 
-	xfrm_state_flush(p->proto);
+	audit_info.loginuid = NETLINK_CB(skb).loginuid;
+	audit_info.secid = NETLINK_CB(skb).sid;
+	xfrm_state_flush(p->proto, &audit_info);
 	c.data.proto = p->proto;
 	c.event = nlh->nlmsg_type;
 	c.seq = nlh->nlmsg_seq;
@@ -1442,12 +1460,15 @@ static int xfrm_flush_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **x
 	struct km_event c;
 	u8 type = XFRM_POLICY_TYPE_MAIN;
 	int err;
+	struct xfrm_audit audit_info;
 
 	err = copy_from_user_policy_type(&type, (struct rtattr **)xfrma);
 	if (err)
 		return err;
 
-	xfrm_policy_flush(type);
+	audit_info.loginuid = NETLINK_CB(skb).loginuid;
+	audit_info.secid = NETLINK_CB(skb).sid;
+	xfrm_policy_flush(type, &audit_info);
 	c.data.type = type;
 	c.event = nlh->nlmsg_type;
 	c.seq = nlh->nlmsg_seq;
@@ -1502,6 +1523,9 @@ static int xfrm_add_pol_expire(struct sk_buff *skb, struct nlmsghdr *nlh, void *
 	err = 0;
 	if (up->hard) {
 		xfrm_policy_delete(xp, p->dir);
+		xfrm_audit_log(NETLINK_CB(skb).loginuid, NETLINK_CB(skb).sid,
+				AUDIT_MAC_IPSEC_DELSPD, 1, xp, NULL);
+
 	} else {
 		// reset the timers here?
 		printk("Dont know what to do with soft policy expire\n");
@@ -1533,8 +1557,11 @@ static int xfrm_add_sa_expire(struct sk_buff *skb, struct nlmsghdr *nlh, void **
 		goto out;
 	km_state_expired(x, ue->hard, current->pid);
 
-	if (ue->hard)
+	if (ue->hard) {
 		__xfrm_state_delete(x);
+		xfrm_audit_log(NETLINK_CB(skb).loginuid, NETLINK_CB(skb).sid,
+			       AUDIT_MAC_IPSEC_DELSA, 1, NULL, x);
+	}
 out:
 	spin_unlock_bh(&x->lock);
 	xfrm_state_put(x);

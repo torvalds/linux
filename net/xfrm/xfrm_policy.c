@@ -25,6 +25,7 @@
 #include <linux/cache.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
+#include <linux/audit.h>
 
 #include "xfrm_hash.h"
 
@@ -804,7 +805,7 @@ struct xfrm_policy *xfrm_policy_byid(u8 type, int dir, u32 id, int delete)
 }
 EXPORT_SYMBOL(xfrm_policy_byid);
 
-void xfrm_policy_flush(u8 type)
+void xfrm_policy_flush(u8 type, struct xfrm_audit *audit_info)
 {
 	int dir;
 
@@ -824,6 +825,9 @@ void xfrm_policy_flush(u8 type)
 			hlist_del(&pol->byidx);
 			write_unlock_bh(&xfrm_policy_lock);
 
+			xfrm_audit_log(audit_info->loginuid, audit_info->secid,
+				       AUDIT_MAC_IPSEC_DELSPD, 1, pol, NULL);
+
 			xfrm_policy_kill(pol);
 			killed++;
 
@@ -841,6 +845,11 @@ void xfrm_policy_flush(u8 type)
 				hlist_del(&pol->bydst);
 				hlist_del(&pol->byidx);
 				write_unlock_bh(&xfrm_policy_lock);
+
+				xfrm_audit_log(audit_info->loginuid,
+					       audit_info->secid,
+					       AUDIT_MAC_IPSEC_DELSPD, 1,
+					       pol, NULL);
 
 				xfrm_policy_kill(pol);
 				killed++;
@@ -860,33 +869,12 @@ EXPORT_SYMBOL(xfrm_policy_flush);
 int xfrm_policy_walk(u8 type, int (*func)(struct xfrm_policy *, int, int, void*),
 		     void *data)
 {
-	struct xfrm_policy *pol;
+	struct xfrm_policy *pol, *last = NULL;
 	struct hlist_node *entry;
-	int dir, count, error;
+	int dir, last_dir = 0, count, error;
 
 	read_lock_bh(&xfrm_policy_lock);
 	count = 0;
-	for (dir = 0; dir < 2*XFRM_POLICY_MAX; dir++) {
-		struct hlist_head *table = xfrm_policy_bydst[dir].table;
-		int i;
-
-		hlist_for_each_entry(pol, entry,
-				     &xfrm_policy_inexact[dir], bydst) {
-			if (pol->type == type)
-				count++;
-		}
-		for (i = xfrm_policy_bydst[dir].hmask; i >= 0; i--) {
-			hlist_for_each_entry(pol, entry, table + i, bydst) {
-				if (pol->type == type)
-					count++;
-			}
-		}
-	}
-
-	if (count == 0) {
-		error = -ENOENT;
-		goto out;
-	}
 
 	for (dir = 0; dir < 2*XFRM_POLICY_MAX; dir++) {
 		struct hlist_head *table = xfrm_policy_bydst[dir].table;
@@ -896,21 +884,37 @@ int xfrm_policy_walk(u8 type, int (*func)(struct xfrm_policy *, int, int, void*)
 				     &xfrm_policy_inexact[dir], bydst) {
 			if (pol->type != type)
 				continue;
-			error = func(pol, dir % XFRM_POLICY_MAX, --count, data);
-			if (error)
-				goto out;
+			if (last) {
+				error = func(last, last_dir % XFRM_POLICY_MAX,
+					     count, data);
+				if (error)
+					goto out;
+			}
+			last = pol;
+			last_dir = dir;
+			count++;
 		}
 		for (i = xfrm_policy_bydst[dir].hmask; i >= 0; i--) {
 			hlist_for_each_entry(pol, entry, table + i, bydst) {
 				if (pol->type != type)
 					continue;
-				error = func(pol, dir % XFRM_POLICY_MAX, --count, data);
-				if (error)
-					goto out;
+				if (last) {
+					error = func(last, last_dir % XFRM_POLICY_MAX,
+						     count, data);
+					if (error)
+						goto out;
+				}
+				last = pol;
+				last_dir = dir;
+				count++;
 			}
 		}
 	}
-	error = 0;
+	if (count == 0) {
+		error = -ENOENT;
+		goto out;
+	}
+	error = func(last, last_dir % XFRM_POLICY_MAX, 0, data);
 out:
 	read_unlock_bh(&xfrm_policy_lock);
 	return error;
@@ -1981,6 +1985,117 @@ int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 }
 
 EXPORT_SYMBOL(xfrm_bundle_ok);
+
+#ifdef CONFIG_AUDITSYSCALL
+/* Audit addition and deletion of SAs and ipsec policy */
+
+void xfrm_audit_log(uid_t auid, u32 sid, int type, int result,
+		    struct xfrm_policy *xp, struct xfrm_state *x)
+{
+
+	char *secctx;
+	u32 secctx_len;
+	struct xfrm_sec_ctx *sctx = NULL;
+	struct audit_buffer *audit_buf;
+	int family;
+	extern int audit_enabled;
+
+	if (audit_enabled == 0)
+		return;
+
+	audit_buf = audit_log_start(current->audit_context, GFP_ATOMIC, type);
+	if (audit_buf == NULL)
+	return;
+
+	switch(type) {
+	case AUDIT_MAC_IPSEC_ADDSA:
+		audit_log_format(audit_buf, "SAD add: auid=%u", auid);
+		break;
+	case AUDIT_MAC_IPSEC_DELSA:
+		audit_log_format(audit_buf, "SAD delete: auid=%u", auid);
+		break;
+	case AUDIT_MAC_IPSEC_ADDSPD:
+		audit_log_format(audit_buf, "SPD add: auid=%u", auid);
+		break;
+	case AUDIT_MAC_IPSEC_DELSPD:
+		audit_log_format(audit_buf, "SPD delete: auid=%u", auid);
+		break;
+	default:
+		return;
+	}
+
+	if (sid != 0 &&
+		security_secid_to_secctx(sid, &secctx, &secctx_len) == 0)
+		audit_log_format(audit_buf, " subj=%s", secctx);
+	else
+		audit_log_task_context(audit_buf);
+
+	if (xp) {
+		family = xp->selector.family;
+		if (xp->security)
+			sctx = xp->security;
+	} else {
+		family = x->props.family;
+		if (x->security)
+			sctx = x->security;
+	}
+
+	if (sctx)
+		audit_log_format(audit_buf,
+				" sec_alg=%u sec_doi=%u sec_obj=%s",
+				sctx->ctx_alg, sctx->ctx_doi, sctx->ctx_str);
+
+	switch(family) {
+	case AF_INET:
+		{
+			struct in_addr saddr, daddr;
+			if (xp) {
+				saddr.s_addr = xp->selector.saddr.a4;
+				daddr.s_addr = xp->selector.daddr.a4;
+			} else {
+				saddr.s_addr = x->props.saddr.a4;
+				daddr.s_addr = x->id.daddr.a4;
+			}
+			audit_log_format(audit_buf,
+					 " src=%u.%u.%u.%u dst=%u.%u.%u.%u",
+					 NIPQUAD(saddr), NIPQUAD(daddr));
+		}
+			break;
+	case AF_INET6:
+		{
+			struct in6_addr saddr6, daddr6;
+			if (xp) {
+				memcpy(&saddr6, xp->selector.saddr.a6,
+					sizeof(struct in6_addr));
+				memcpy(&daddr6, xp->selector.daddr.a6,
+					sizeof(struct in6_addr));
+			} else {
+				memcpy(&saddr6, x->props.saddr.a6,
+					sizeof(struct in6_addr));
+				memcpy(&daddr6, x->id.daddr.a6,
+					sizeof(struct in6_addr));
+			}
+			audit_log_format(audit_buf,
+					 " src=" NIP6_FMT "dst=" NIP6_FMT,
+					 NIP6(saddr6), NIP6(daddr6));
+		}
+		break;
+	}
+
+	if (x)
+		audit_log_format(audit_buf, " spi=%lu(0x%lx) protocol=%s",
+				(unsigned long)ntohl(x->id.spi),
+				(unsigned long)ntohl(x->id.spi),
+				x->id.proto == IPPROTO_AH ? "AH" :
+				(x->id.proto == IPPROTO_ESP ?
+				"ESP" : "IPCOMP"));
+
+	audit_log_format(audit_buf, " res=%u", result);
+	audit_log_end(audit_buf);
+}
+
+EXPORT_SYMBOL(xfrm_audit_log);
+#endif /* CONFIG_AUDITSYSCALL */
 
 int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 {

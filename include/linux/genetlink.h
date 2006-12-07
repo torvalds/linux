@@ -17,6 +17,9 @@ struct genlmsghdr {
 #define GENL_HDRLEN	NLMSG_ALIGN(sizeof(struct genlmsghdr))
 
 #define GENL_ADMIN_PERM		0x01
+#define GENL_CMD_CAP_DO		0x02
+#define GENL_CMD_CAP_DUMP	0x04
+#define GENL_CMD_CAP_HASPOL	0x08
 
 /*
  * List of reserved static generic netlink identifiers:
@@ -58,9 +61,6 @@ enum {
 	CTRL_ATTR_OP_UNSPEC,
 	CTRL_ATTR_OP_ID,
 	CTRL_ATTR_OP_FLAGS,
-	CTRL_ATTR_OP_POLICY,
-	CTRL_ATTR_OP_DOIT,
-	CTRL_ATTR_OP_DUMPIT,
 	__CTRL_ATTR_OP_MAX,
 };
 

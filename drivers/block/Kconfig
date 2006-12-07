@@ -306,6 +306,7 @@ config BLK_DEV_LOOP
 config BLK_DEV_CRYPTOLOOP
 	tristate "Cryptoloop Support"
 	select CRYPTO
+	select CRYPTO_CBC
 	depends on BLK_DEV_LOOP
 	---help---
 	  Say Y here if you want to be able to use the ciphers that are 

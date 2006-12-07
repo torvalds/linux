@@ -143,6 +143,13 @@ int genl_register_ops(struct genl_family *family, struct genl_ops *ops)
 		goto errout;
 	}
 
+	if (ops->dumpit)
+		ops->flags |= GENL_CMD_CAP_DUMP;
+	if (ops->doit)
+		ops->flags |= GENL_CMD_CAP_DO;
+	if (ops->policy)
+		ops->flags |= GENL_CMD_CAP_HASPOL;
+
 	genl_lock();
 	list_add_tail(&ops->ops_list, &family->ops_list);
 	genl_unlock();
@@ -387,7 +394,7 @@ static void genl_rcv(struct sock *sk, int len)
 static struct genl_family genl_ctrl = {
 	.id = GENL_ID_CTRL,
 	.name = "nlctrl",
-	.version = 0x1,
+	.version = 0x2,
 	.maxattr = CTRL_ATTR_MAX,
 };
 
@@ -424,15 +431,6 @@ static int ctrl_fill_info(struct genl_family *family, u32 pid, u32 seq,
 
 			NLA_PUT_U32(skb, CTRL_ATTR_OP_ID, ops->cmd);
 			NLA_PUT_U32(skb, CTRL_ATTR_OP_FLAGS, ops->flags);
-
-			if (ops->policy)
-				NLA_PUT_FLAG(skb, CTRL_ATTR_OP_POLICY);
-
-			if (ops->doit)
-				NLA_PUT_FLAG(skb, CTRL_ATTR_OP_DOIT);
-
-			if (ops->dumpit)
-				NLA_PUT_FLAG(skb, CTRL_ATTR_OP_DUMPIT);
 
 			nla_nest_end(skb, nest);
 		}

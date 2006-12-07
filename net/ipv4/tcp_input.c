@@ -4235,7 +4235,7 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 		 * Change state from SYN-SENT only after copied_seq
 		 * is initialized. */
 		tp->copied_seq = tp->rcv_nxt;
-		mb();
+		smp_mb();
 		tcp_set_state(sk, TCP_ESTABLISHED);
 
 		security_inet_conn_established(sk, skb);
@@ -4483,7 +4483,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		case TCP_SYN_RECV:
 			if (acceptable) {
 				tp->copied_seq = tp->rcv_nxt;
-				mb();
+				smp_mb();
 				tcp_set_state(sk, TCP_ESTABLISHED);
 				sk->sk_state_change(sk);
 

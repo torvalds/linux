@@ -1093,7 +1093,7 @@ static void free_conntrack_hash(struct list_head *hash, int vmalloced, int size)
 			   get_order(sizeof(struct list_head) * size));
 }
 
-void nf_conntrack_flush()
+void nf_conntrack_flush(void)
 {
 	nf_ct_iterate_cleanup(kill_all, NULL);
 }

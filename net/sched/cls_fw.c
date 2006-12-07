@@ -101,9 +101,10 @@ static int fw_classify(struct sk_buff *skb, struct tcf_proto *tp,
 	struct fw_head *head = (struct fw_head*)tp->root;
 	struct fw_filter *f;
 	int r;
-	u32 id = skb->mark & head->mask;
+	u32 id = skb->mark;
 
 	if (head != NULL) {
+		id &= head->mask;
 		for (f=head->ht[fw_hash(id)]; f; f=f->next) {
 			if (f->id == id) {
 				*res = f->res;
