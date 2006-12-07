@@ -107,7 +107,7 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 	 * Note that the workaround only should be initialized once...
 	 */
 	c->f00f_bug = 0;
-	if ( c->x86 == 5 ) {
+	if (!paravirt_enabled() && c->x86 == 5) {
 		static int f00f_workaround_enabled = 0;
 
 		c->f00f_bug = 1;
