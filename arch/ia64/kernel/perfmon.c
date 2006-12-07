@@ -853,9 +853,8 @@ pfm_context_alloc(void)
 	 * allocate context descriptor 
 	 * must be able to free with interrupts disabled
 	 */
-	ctx = kmalloc(sizeof(pfm_context_t), GFP_KERNEL);
+	ctx = kzalloc(sizeof(pfm_context_t), GFP_KERNEL);
 	if (ctx) {
-		memset(ctx, 0, sizeof(pfm_context_t));
 		DPRINT(("alloc ctx @%p\n", ctx));
 	}
 	return ctx;

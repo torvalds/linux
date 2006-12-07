@@ -125,11 +125,10 @@ alloc_pci_controller (int seg)
 {
 	struct pci_controller *controller;
 
-	controller = kmalloc(sizeof(*controller), GFP_KERNEL);
+	controller = kzalloc(sizeof(*controller), GFP_KERNEL);
 	if (!controller)
 		return NULL;
 
-	memset(controller, 0, sizeof(*controller));
 	controller->segment = seg;
 	controller->node = -1;
 	return controller;

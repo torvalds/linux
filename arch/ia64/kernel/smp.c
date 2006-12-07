@@ -30,6 +30,7 @@
 #include <linux/delay.h>
 #include <linux/efi.h>
 #include <linux/bitops.h>
+#include <linux/kexec.h>
 
 #include <asm/atomic.h>
 #include <asm/current.h>
@@ -66,6 +67,7 @@ static volatile struct call_data_struct *call_data;
 
 #define IPI_CALL_FUNC		0
 #define IPI_CPU_STOP		1
+#define IPI_KDUMP_CPU_STOP	3
 
 /* This needs to be cacheline aligned because it is written to by *other* CPUs.  */
 static DEFINE_PER_CPU(u64, ipi_operation) ____cacheline_aligned;
@@ -155,7 +157,11 @@ handle_IPI (int irq, void *dev_id)
 			      case IPI_CPU_STOP:
 				stop_this_cpu();
 				break;
-
+#ifdef CONFIG_CRASH_DUMP
+			      case IPI_KDUMP_CPU_STOP:
+				unw_init_running(kdump_cpu_freeze, NULL);
+				break;
+#endif
 			      default:
 				printk(KERN_CRIT "Unknown IPI on CPU %d: %lu\n", this_cpu, which);
 				break;
@@ -213,6 +219,26 @@ send_IPI_self (int op)
 	send_IPI_single(smp_processor_id(), op);
 }
 
+#ifdef CONFIG_CRASH_DUMP
+void
+kdump_smp_send_stop()
+{
+ 	send_IPI_allbutself(IPI_KDUMP_CPU_STOP);
+}
+
+void
+kdump_smp_send_init()
+{
+	unsigned int cpu, self_cpu;
+	self_cpu = smp_processor_id();
+	for_each_online_cpu(cpu) {
+		if (cpu != self_cpu) {
+			if(kdump_status[cpu] == 0)
+				platform_send_ipi(cpu, 0, IA64_IPI_DM_INIT, 0);
+		}
+	}
+}
+#endif
 /*
  * Called with preeemption disabled.
  */

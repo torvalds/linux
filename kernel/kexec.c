@@ -852,6 +852,7 @@ static int kimage_load_crash_segment(struct kimage *image,
 			memset(ptr + uchunk, 0, mchunk - uchunk);
 		}
 		result = copy_from_user(ptr, buf, uchunk);
+		kexec_flush_icache_page(page);
 		kunmap(page);
 		if (result) {
 			result = (result < 0) ? result : -EIO;

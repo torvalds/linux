@@ -70,4 +70,10 @@ static inline __sum16 csum_fold(__wsum csum)
 	return (__force __sum16)~sum;
 }
 
+#define _HAVE_ARCH_IPV6_CSUM	1
+struct in6_addr;
+extern unsigned short int csum_ipv6_magic(struct in6_addr *saddr,
+	struct in6_addr *daddr, __u32 len, unsigned short proto,
+	unsigned int csum);
+
 #endif /* _ASM_IA64_CHECKSUM_H */

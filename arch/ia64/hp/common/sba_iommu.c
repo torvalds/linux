@@ -1672,15 +1672,13 @@ ioc_sac_init(struct ioc *ioc)
 	 * SAC (single address cycle) addressable, so allocate a
 	 * pseudo-device to enforce that.
 	 */
-	sac = kmalloc(sizeof(*sac), GFP_KERNEL);
+	sac = kzalloc(sizeof(*sac), GFP_KERNEL);
 	if (!sac)
 		panic(PFX "Couldn't allocate struct pci_dev");
-	memset(sac, 0, sizeof(*sac));
 
-	controller = kmalloc(sizeof(*controller), GFP_KERNEL);
+	controller = kzalloc(sizeof(*controller), GFP_KERNEL);
 	if (!controller)
 		panic(PFX "Couldn't allocate struct pci_controller");
-	memset(controller, 0, sizeof(*controller));
 
 	controller->iommu = ioc;
 	sac->sysdata = controller;
@@ -1737,11 +1735,9 @@ ioc_init(u64 hpa, void *handle)
 	struct ioc *ioc;
 	struct ioc_iommu *info;
 
-	ioc = kmalloc(sizeof(*ioc), GFP_KERNEL);
+	ioc = kzalloc(sizeof(*ioc), GFP_KERNEL);
 	if (!ioc)
 		return NULL;
-
-	memset(ioc, 0, sizeof(*ioc));
 
 	ioc->next = ioc_list;
 	ioc_list = ioc;
