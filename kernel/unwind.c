@@ -164,7 +164,9 @@ static struct unwind_table *find_table(unsigned long pc)
 
 static unsigned long read_pointer(const u8 **pLoc,
                                   const void *end,
-                                  signed ptrType);
+                                  signed ptrType,
+                                  unsigned long text_base,
+                                  unsigned long data_base);
 
 static void init_unwind_table(struct unwind_table *table,
                               const char *name,
@@ -189,10 +191,13 @@ static void init_unwind_table(struct unwind_table *table,
 	/* See if the linker provided table looks valid. */
 	if (header_size <= 4
 	    || header_start[0] != 1
-	    || (void *)read_pointer(&ptr, end, header_start[1]) != table_start
-	    || header_start[2] == DW_EH_PE_omit
-	    || read_pointer(&ptr, end, header_start[2]) <= 0
-	    || header_start[3] == DW_EH_PE_omit)
+	    || (void *)read_pointer(&ptr, end, header_start[1], 0, 0)
+	       != table_start
+	    || !read_pointer(&ptr, end, header_start[2], 0, 0)
+	    || !read_pointer(&ptr, end, header_start[3], 0,
+	                     (unsigned long)header_start)
+	    || !read_pointer(&ptr, end, header_start[3], 0,
+	                     (unsigned long)header_start))
 		header_start = NULL;
 	table->hdrsz = header_size;
 	smp_wmb();
@@ -282,7 +287,7 @@ static void __init setup_unwind_table(struct unwind_table *table,
 		ptr = (const u8 *)(fde + 2);
 		if (!read_pointer(&ptr,
 		                  (const u8 *)(fde + 1) + *fde,
-		                  ptrType))
+		                  ptrType, 0, 0))
 			return;
 		++n;
 	}
@@ -317,7 +322,7 @@ static void __init setup_unwind_table(struct unwind_table *table,
 		ptr = (const u8 *)(fde + 2);
 		header->table[n].start = read_pointer(&ptr,
 		                                      (const u8 *)(fde + 1) + *fde,
-		                                      fde_pointer_type(cie));
+		                                      fde_pointer_type(cie), 0, 0);
 		header->table[n].fde = (unsigned long)fde;
 		++n;
 	}
@@ -500,7 +505,9 @@ static const u32 *cie_for_fde(const u32 *fde, const struct unwind_table *table)
 
 static unsigned long read_pointer(const u8 **pLoc,
                                   const void *end,
-                                  signed ptrType)
+                                  signed ptrType,
+                                  unsigned long text_base,
+                                  unsigned long data_base)
 {
 	unsigned long value = 0;
 	union {
@@ -572,6 +579,22 @@ static unsigned long read_pointer(const u8 **pLoc,
 	case DW_EH_PE_pcrel:
 		value += (unsigned long)*pLoc;
 		break;
+	case DW_EH_PE_textrel:
+		if (likely(text_base)) {
+			value += text_base;
+			break;
+		}
+		dprintk(2, "Text-relative encoding %02X (%p,%p), but zero text base.",
+		        ptrType, *pLoc, end);
+		return 0;
+	case DW_EH_PE_datarel:
+		if (likely(data_base)) {
+			value += data_base;
+			break;
+		}
+		dprintk(2, "Data-relative encoding %02X (%p,%p), but zero data base.",
+		        ptrType, *pLoc, end);
+		return 0;
 	default:
 		dprintk(2, "Cannot adjust pointer type %02X (%p,%p).",
 		        ptrType, *pLoc, end);
@@ -625,7 +648,8 @@ static signed fde_pointer_type(const u32 *cie)
 			case 'P': {
 					signed ptrType = *ptr++;
 
-					if (!read_pointer(&ptr, end, ptrType) || ptr > end)
+					if (!read_pointer(&ptr, end, ptrType, 0, 0)
+					    || ptr > end)
 						return -1;
 				}
 				break;
@@ -685,7 +709,8 @@ static int processCFI(const u8 *start,
 			case DW_CFA_nop:
 				break;
 			case DW_CFA_set_loc:
-				if ((state->loc = read_pointer(&ptr.p8, end, ptrType)) == 0)
+				state->loc = read_pointer(&ptr.p8, end, ptrType, 0, 0);
+				if (state->loc == 0)
 					result = 0;
 				break;
 			case DW_CFA_advance_loc1:
@@ -854,9 +879,9 @@ int unwind(struct unwind_frame_info *frame)
 			ptr = hdr + 4;
 			end = hdr + table->hdrsz;
 			if (tableSize
-			    && read_pointer(&ptr, end, hdr[1])
+			    && read_pointer(&ptr, end, hdr[1], 0, 0)
 			       == (unsigned long)table->address
-			    && (i = read_pointer(&ptr, end, hdr[2])) > 0
+			    && (i = read_pointer(&ptr, end, hdr[2], 0, 0)) > 0
 			    && i == (end - ptr) / (2 * tableSize)
 			    && !((end - ptr) % (2 * tableSize))) {
 				do {
@@ -864,7 +889,8 @@ int unwind(struct unwind_frame_info *frame)
 
 					startLoc = read_pointer(&cur,
 					                        cur + tableSize,
-					                        hdr[3]);
+					                        hdr[3], 0,
+					                        (unsigned long)hdr);
 					if (pc < startLoc)
 						i /= 2;
 					else {
@@ -875,11 +901,13 @@ int unwind(struct unwind_frame_info *frame)
 				if (i == 1
 				    && (startLoc = read_pointer(&ptr,
 				                                ptr + tableSize,
-				                                hdr[3])) != 0
+				                                hdr[3], 0,
+				                                (unsigned long)hdr)) != 0
 				    && pc >= startLoc)
 					fde = (void *)read_pointer(&ptr,
 					                           ptr + tableSize,
-					                           hdr[3]);
+					                           hdr[3], 0,
+					                           (unsigned long)hdr);
 			}
 		}
 		if(hdr && !fde)
@@ -894,13 +922,13 @@ int unwind(struct unwind_frame_info *frame)
 			   && (ptrType = fde_pointer_type(cie)) >= 0
 			   && read_pointer(&ptr,
 			                   (const u8 *)(fde + 1) + *fde,
-			                   ptrType) == startLoc) {
+			                   ptrType, 0, 0) == startLoc) {
 				if (!(ptrType & DW_EH_PE_indirect))
 					ptrType &= DW_EH_PE_FORM|DW_EH_PE_signed;
 				endLoc = startLoc
 				         + read_pointer(&ptr,
 				                        (const u8 *)(fde + 1) + *fde,
-				                        ptrType);
+				                        ptrType, 0, 0);
 				if(pc >= endLoc)
 					fde = NULL;
 			} else
@@ -926,7 +954,7 @@ int unwind(struct unwind_frame_info *frame)
 				ptr = (const u8 *)(fde + 2);
 				startLoc = read_pointer(&ptr,
 				                        (const u8 *)(fde + 1) + *fde,
-				                        ptrType);
+				                        ptrType, 0, 0);
 				if (!startLoc)
 					continue;
 				if (!(ptrType & DW_EH_PE_indirect))
@@ -934,7 +962,7 @@ int unwind(struct unwind_frame_info *frame)
 				endLoc = startLoc
 				         + read_pointer(&ptr,
 				                        (const u8 *)(fde + 1) + *fde,
-				                        ptrType);
+				                        ptrType, 0, 0);
 				if (pc >= startLoc && pc < endLoc)
 					break;
 			}
