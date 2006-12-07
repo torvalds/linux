@@ -324,7 +324,7 @@ int kernel_execve(const char *filename, char *const argv[], char *const envp[])
 	register long __sc4 __asm__ ("r4") = (long) filename;
 	register long __sc5 __asm__ ("r5") = (long) argv;
 	register long __sc6 __asm__ ("r6") = (long) envp;
-	__asm__ __volatile__ ("trapa	#0x13" : "=z" (__sc0)
+	__asm__ __volatile__ (SYSCALL_ARG3 : "=z" (__sc0)	
 			: "0" (__sc0), "r" (__sc4), "r" (__sc5), "r" (__sc6)
 			: "memory");
 	return __sc0;

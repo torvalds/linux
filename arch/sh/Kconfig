@@ -479,7 +479,7 @@ config SH_CLK_MD
 	int "CPU Mode Pin Setting"
 	depends on CPU_SUBTYPE_SH7619 || CPU_SUBTYPE_SH7206
 	help
-	  MD2 - MD0 Setting.
+	  MD2 - MD0 pin setting.
 
 menu "CPU Frequency scaling"
 
@@ -579,18 +579,6 @@ config NR_CPUS
 	  approximately eight kilobytes to the kernel image.
 
 source "kernel/Kconfig.preempt"
-
-config CPU_HAS_SR_RB
-	bool "CPU has SR.RB"
-	depends on CPU_SH3 || CPU_SH4
-	default y
-	help
-	  This will enable the use of SR.RB register bank usage. Processors
-	  that are lacking this bit must have another method in place for
-	  accomplishing what is taken care of by the banked registers.
-
-	  See <file:Documentation/sh/register-banks.txt> for further
-	  information on SR.RB and register banking in the kernel in general.
 
 config NODES_SHIFT
 	int
