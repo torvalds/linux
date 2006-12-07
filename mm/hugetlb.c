@@ -109,7 +109,7 @@ static int alloc_fresh_huge_page(void)
 	if (nid == MAX_NUMNODES)
 		nid = first_node(node_online_map);
 	if (page) {
-		page[1].lru.next = (void *)free_huge_page;	/* dtor */
+		set_compound_page_dtor(page, free_huge_page);
 		spin_lock(&hugetlb_lock);
 		nr_huge_pages++;
 		nr_huge_pages_node[page_to_nid(page)]++;

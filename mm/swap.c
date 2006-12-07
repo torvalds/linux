@@ -57,9 +57,9 @@ static void put_compound_page(struct page *page)
 {
 	page = (struct page *)page_private(page);
 	if (put_page_testzero(page)) {
-		void (*dtor)(struct page *page);
+		compound_page_dtor *dtor;
 
-		dtor = (void (*)(struct page *))page[1].lru.next;
+		dtor = get_compound_page_dtor(page);
 		(*dtor)(page);
 	}
 }
