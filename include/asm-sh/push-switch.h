@@ -4,6 +4,7 @@
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
+#include <linux/platform_device.h>
 
 struct push_switch {
 	/* switch state */
@@ -12,6 +13,8 @@ struct push_switch {
 	struct timer_list	debounce;
 	/* workqueue */
 	struct work_struct	work;
+	/* platform device, for workqueue handler */
+	struct platform_device	*pdev;
 };
 
 struct push_switch_platform_info {
