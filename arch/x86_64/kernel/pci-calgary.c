@@ -740,7 +740,7 @@ static void __init calgary_increase_split_completion_timeout(void __iomem *bbar,
 {
 	u64 val64;
 	void __iomem *target;
-	unsigned long phb_shift = -1;
+	unsigned int phb_shift = ~0; /* silence gcc */
 	u64 mask;
 
 	switch (busno_to_phbid(busnum)) {
