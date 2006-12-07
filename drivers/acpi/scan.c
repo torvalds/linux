@@ -222,11 +222,6 @@ acpi_eject_store(struct acpi_device *device, const char *buf, size_t count)
 /* --------------------------------------------------------------------------
 			ACPI Bus operations
    -------------------------------------------------------------------------- */
-static inline struct acpi_device * to_acpi_device(struct device * dev)
-{
-	return container_of(dev, struct acpi_device, dev);
-}
-
 static int root_suspend(struct acpi_device * acpi_dev, pm_message_t state)
 {
 	struct acpi_device * dev, * next;
