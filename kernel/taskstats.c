@@ -69,7 +69,7 @@ enum actions {
 };
 
 static int prepare_reply(struct genl_info *info, u8 cmd, struct sk_buff **skbp,
-			void **replyp, size_t size)
+				size_t size)
 {
 	struct sk_buff *skb;
 	void *reply;
@@ -94,7 +94,6 @@ static int prepare_reply(struct genl_info *info, u8 cmd, struct sk_buff **skbp,
 	}
 
 	*skbp = skb;
-	*replyp = reply;
 	return 0;
 }
 
@@ -351,11 +350,13 @@ static struct taskstats *mk_reply(struct sk_buff *skb, int type, u32 pid)
 	struct nlattr *na, *ret;
 	int aggr;
 
-	aggr = TASKSTATS_TYPE_AGGR_TGID;
-	if (type == TASKSTATS_TYPE_PID)
-		aggr = TASKSTATS_TYPE_AGGR_PID;
+	aggr = (type == TASKSTATS_TYPE_PID)
+			? TASKSTATS_TYPE_AGGR_PID
+			: TASKSTATS_TYPE_AGGR_TGID;
 
 	na = nla_nest_start(skb, aggr);
+	if (!na)
+		goto err;
 	if (nla_put(skb, type, sizeof(pid), &pid) < 0)
 		goto err;
 	ret = nla_reserve(skb, TASKSTATS_TYPE_STATS, sizeof(struct taskstats));
@@ -373,7 +374,6 @@ static int taskstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
 	int rc = 0;
 	struct sk_buff *rep_skb;
 	struct taskstats *stats;
-	void *reply;
 	size_t size;
 	cpumask_t mask;
 
@@ -395,7 +395,7 @@ static int taskstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
 	size = nla_total_size(sizeof(u32)) +
 		nla_total_size(sizeof(struct taskstats)) + nla_total_size(0);
 
-	rc = prepare_reply(info, TASKSTATS_CMD_NEW, &rep_skb, &reply, size);
+	rc = prepare_reply(info, TASKSTATS_CMD_NEW, &rep_skb, size);
 	if (rc < 0)
 		return rc;
 
@@ -404,27 +404,24 @@ static int taskstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
 		u32 pid = nla_get_u32(info->attrs[TASKSTATS_CMD_ATTR_PID]);
 		stats = mk_reply(rep_skb, TASKSTATS_TYPE_PID, pid);
 		if (!stats)
-			goto nla_err;
+			goto err;
 
 		rc = fill_pid(pid, NULL, stats);
 		if (rc < 0)
-			goto nla_err;
+			goto err;
 	} else if (info->attrs[TASKSTATS_CMD_ATTR_TGID]) {
 		u32 tgid = nla_get_u32(info->attrs[TASKSTATS_CMD_ATTR_TGID]);
 		stats = mk_reply(rep_skb, TASKSTATS_TYPE_TGID, tgid);
 		if (!stats)
-			goto nla_err;
+			goto err;
 
 		rc = fill_tgid(tgid, NULL, stats);
 		if (rc < 0)
-			goto nla_err;
+			goto err;
 	} else
 		goto err;
 
 	return send_reply(rep_skb, info->snd_pid);
-
-nla_err:
-	genlmsg_cancel(rep_skb, reply);
 err:
 	nlmsg_free(rep_skb);
 	return rc;
@@ -461,7 +458,6 @@ void taskstats_exit(struct task_struct *tsk, int group_dead)
 	struct listener_list *listeners;
 	struct taskstats *stats;
 	struct sk_buff *rep_skb;
-	void *reply;
 	size_t size;
 	int is_thread_group;
 
@@ -486,17 +482,17 @@ void taskstats_exit(struct task_struct *tsk, int group_dead)
 	if (list_empty(&listeners->list))
 		return;
 
-	rc = prepare_reply(NULL, TASKSTATS_CMD_NEW, &rep_skb, &reply, size);
+	rc = prepare_reply(NULL, TASKSTATS_CMD_NEW, &rep_skb, size);
 	if (rc < 0)
 		return;
 
 	stats = mk_reply(rep_skb, TASKSTATS_TYPE_PID, tsk->pid);
 	if (!stats)
-		goto nla_err;
+		goto err;
 
 	rc = fill_pid(tsk->pid, tsk, stats);
 	if (rc < 0)
-		goto nla_err;
+		goto err;
 
 	/*
 	 * Doesn't matter if tsk is the leader or the last group member leaving
@@ -506,16 +502,14 @@ void taskstats_exit(struct task_struct *tsk, int group_dead)
 
 	stats = mk_reply(rep_skb, TASKSTATS_TYPE_TGID, tsk->tgid);
 	if (!stats)
-		goto nla_err;
+		goto err;
 
 	memcpy(stats, tsk->signal->stats, sizeof(*stats));
 
 send:
 	send_cpu_listeners(rep_skb, listeners);
 	return;
-
-nla_err:
-	genlmsg_cancel(rep_skb, reply);
+err:
 	nlmsg_free(rep_skb);
 }
 
