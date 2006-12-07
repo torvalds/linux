@@ -242,13 +242,11 @@ static int afs_fill_super(struct super_block *sb, void *data, int silent)
 	kenter("");
 
 	/* allocate a superblock info record */
-	as = kmalloc(sizeof(struct afs_super_info), GFP_KERNEL);
+	as = kzalloc(sizeof(struct afs_super_info), GFP_KERNEL);
 	if (!as) {
 		_leave(" = -ENOMEM");
 		return -ENOMEM;
 	}
-
-	memset(as, 0, sizeof(struct afs_super_info));
 
 	afs_get_volume(params->volume);
 	as->volume = params->volume;
