@@ -359,11 +359,6 @@ config ARCH_DISCONTIGMEM_ENABLE
        depends on NUMA
        default y
 
-
-config ARCH_DISCONTIGMEM_ENABLE
-	def_bool y
-	depends on NUMA
-
 config ARCH_DISCONTIGMEM_DEFAULT
 	def_bool y
 	depends on NUMA
