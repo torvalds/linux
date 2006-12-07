@@ -1182,6 +1182,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 	struct lockdep_subclass_key *key;
 	struct list_head *hash_head;
 	struct lock_class *class;
+	unsigned long flags;
 
 	class = look_up_lock_class(lock, subclass);
 	if (likely(class))
@@ -1203,6 +1204,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 	key = lock->key->subkeys + subclass;
 	hash_head = classhashentry(key);
 
+	raw_local_irq_save(flags);
 	__raw_spin_lock(&hash_lock);
 	/*
 	 * We have to do the hash-walk again, to avoid races
@@ -1217,6 +1219,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 	 */
 	if (nr_lock_classes >= MAX_LOCKDEP_KEYS) {
 		__raw_spin_unlock(&hash_lock);
+		raw_local_irq_restore(flags);
 		debug_locks_off();
 		printk("BUG: MAX_LOCKDEP_KEYS too low!\n");
 		printk("turning off the locking correctness validator.\n");
@@ -1239,15 +1242,18 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 
 	if (verbose(class)) {
 		__raw_spin_unlock(&hash_lock);
+		raw_local_irq_restore(flags);
 		printk("\nnew class %p: %s", class->key, class->name);
 		if (class->name_version > 1)
 			printk("#%d", class->name_version);
 		printk("\n");
 		dump_stack();
+		raw_local_irq_save(flags);
 		__raw_spin_lock(&hash_lock);
 	}
 out_unlock_set:
 	__raw_spin_unlock(&hash_lock);
+	raw_local_irq_restore(flags);
 
 	if (!subclass || force)
 		lock->class_cache = class;
