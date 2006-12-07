@@ -64,6 +64,8 @@ struct files_struct {
 
 #define files_fdtable(files) (rcu_dereference((files)->fdt))
 
+extern struct kmem_cache *filp_cachep;
+
 extern void FASTCALL(__fput(struct file *));
 extern void FASTCALL(fput(struct file *));
 

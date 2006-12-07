@@ -310,7 +310,6 @@ static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
 
 /* System wide caches */
 extern kmem_cache_t	*names_cachep;
-extern kmem_cache_t	*filp_cachep;
 extern kmem_cache_t	*fs_cachep;
 
 #endif	/* __KERNEL__ */
