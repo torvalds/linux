@@ -30,9 +30,9 @@
 #include <linux/kprobes.h>
 #include <linux/kexec.h>
 #include <linux/unwind.h>
+#include <linux/uaccess.h>
 
 #include <asm/system.h>
-#include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/atomic.h>
 #include <asm/debugreg.h>
