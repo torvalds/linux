@@ -99,7 +99,7 @@ static struct acpi_driver acpi_ec_driver = {
 struct acpi_ec {
 	acpi_handle handle;
 	unsigned long uid;
-	unsigned long gpe_bit;
+	unsigned long gpe;
 	unsigned long command_addr;
 	unsigned long data_addr;
 	unsigned long global_lock;
@@ -297,7 +297,7 @@ static int acpi_ec_transaction(struct acpi_ec *ec, u8 command,
 	mutex_lock(&ec->lock);
 
 	/* Make sure GPE is enabled before doing transaction */
-	acpi_enable_gpe(NULL, ec->gpe_bit, ACPI_NOT_ISR);
+	acpi_enable_gpe(NULL, ec->gpe, ACPI_NOT_ISR);
 
 	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBF_0);
 	if (status) {
@@ -563,14 +563,14 @@ static int acpi_ec_read_info(struct seq_file *seq, void *offset)
 	if (!ec)
 		goto end;
 
-	seq_printf(seq, "gpe bit:                 0x%02x\n",
-		   (u32) ec->gpe_bit);
+	seq_printf(seq, "gpe:                 0x%02x\n",
+		   (u32) ec->gpe);
 	seq_printf(seq, "ports:                   0x%02x, 0x%02x\n",
 		   (u32) ec->command_addr,
 		   (u32) ec->data_addr);
 	seq_printf(seq, "use global lock:         %s\n",
 		   ec->global_lock ? "yes" : "no");
-	acpi_enable_gpe(NULL, ec->gpe_bit, ACPI_NOT_ISR);
+	acpi_enable_gpe(NULL, ec->gpe, ACPI_NOT_ISR);
 
       end:
 	return 0;
@@ -668,7 +668,7 @@ static int acpi_ec_add(struct acpi_device *device)
 						  ACPI_ADR_SPACE_EC,
 						  &acpi_ec_space_handler);
 
-		acpi_remove_gpe_handler(NULL, ec_ecdt->gpe_bit,
+		acpi_remove_gpe_handler(NULL, ec_ecdt->gpe,
 					&acpi_ec_gpe_handler);
 
 		kfree(ec_ecdt);
@@ -678,7 +678,7 @@ static int acpi_ec_add(struct acpi_device *device)
 	/* TODO: Add support for _GPE returning a package */
 	status =
 	    acpi_evaluate_integer(ec->handle, "_GPE", NULL,
-				  &ec->gpe_bit);
+				  &ec->gpe);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Obtaining GPE bit assignment"));
 		result = -ENODEV;
@@ -691,7 +691,7 @@ static int acpi_ec_add(struct acpi_device *device)
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "%s [%s] (gpe %d) interrupt mode.",
 	       acpi_device_name(device), acpi_device_bid(device),
-	       (u32) ec->gpe_bit));
+	       (u32) ec->gpe));
 
 	if (!first_ec)
 		first_ec = device;
@@ -771,26 +771,26 @@ static int acpi_ec_start(struct acpi_device *device)
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "gpe=0x%02lx, ports=0x%2lx,0x%2lx",
-			  ec->gpe_bit, ec->command_addr, ec->data_addr));
+			  ec->gpe, ec->command_addr, ec->data_addr));
 
 	/*
 	 * Install GPE handler
 	 */
-	status = acpi_install_gpe_handler(NULL, ec->gpe_bit,
+	status = acpi_install_gpe_handler(NULL, ec->gpe,
 					  ACPI_GPE_EDGE_TRIGGERED,
 					  &acpi_ec_gpe_handler, ec);
 	if (ACPI_FAILURE(status)) {
 		return -ENODEV;
 	}
-	acpi_set_gpe_type(NULL, ec->gpe_bit, ACPI_GPE_TYPE_RUNTIME);
-	acpi_enable_gpe(NULL, ec->gpe_bit, ACPI_NOT_ISR);
+	acpi_set_gpe_type(NULL, ec->gpe, ACPI_GPE_TYPE_RUNTIME);
+	acpi_enable_gpe(NULL, ec->gpe, ACPI_NOT_ISR);
 
 	status = acpi_install_address_space_handler(ec->handle,
 						    ACPI_ADR_SPACE_EC,
 						    &acpi_ec_space_handler,
 						    &acpi_ec_space_setup, ec);
 	if (ACPI_FAILURE(status)) {
-		acpi_remove_gpe_handler(NULL, ec->gpe_bit,
+		acpi_remove_gpe_handler(NULL, ec->gpe,
 					&acpi_ec_gpe_handler);
 		return -ENODEV;
 	}
@@ -816,7 +816,7 @@ static int acpi_ec_stop(struct acpi_device *device, int type)
 		return -ENODEV;
 
 	status =
-	    acpi_remove_gpe_handler(NULL, ec->gpe_bit,
+	    acpi_remove_gpe_handler(NULL, ec->gpe,
 				    &acpi_ec_gpe_handler);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
@@ -844,14 +844,14 @@ acpi_fake_ecdt_callback(acpi_handle handle,
 
 	status =
 	    acpi_evaluate_integer(handle, "_GPE", NULL,
-				  &ec_ecdt->gpe_bit);
+				  &ec_ecdt->gpe);
 	if (ACPI_FAILURE(status))
 		return status;
 	ec_ecdt->global_lock = TRUE;
 	ec_ecdt->handle = handle;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "GPE=0x%02lx, ports=0x%2lx, 0x%2lx",
-	       ec_ecdt->gpe_bit, ec_ecdt->command_addr, ec_ecdt->data_addr));
+	       ec_ecdt->gpe, ec_ecdt->command_addr, ec_ecdt->data_addr));
 
 	return AE_CTRL_TERMINATE;
 }
@@ -921,7 +921,7 @@ static int __init acpi_ec_get_real_ecdt(void)
 	}
 	ec_ecdt->command_addr = ecdt_ptr->ec_control.address;
 	ec_ecdt->data_addr = ecdt_ptr->ec_data.address;
-	ec_ecdt->gpe_bit = ecdt_ptr->gpe_bit;
+	ec_ecdt->gpe = ecdt_ptr->gpe_bit;
 	/* use the GL just to be safe */
 	ec_ecdt->global_lock = TRUE;
 	ec_ecdt->uid = ecdt_ptr->uid;
@@ -959,14 +959,14 @@ int __init acpi_ec_ecdt_probe(void)
 	/*
 	 * Install GPE handler
 	 */
-	status = acpi_install_gpe_handler(NULL, ec_ecdt->gpe_bit,
+	status = acpi_install_gpe_handler(NULL, ec_ecdt->gpe,
 					  ACPI_GPE_EDGE_TRIGGERED,
 					  &acpi_ec_gpe_handler, ec_ecdt);
 	if (ACPI_FAILURE(status)) {
 		goto error;
 	}
-	acpi_set_gpe_type(NULL, ec_ecdt->gpe_bit, ACPI_GPE_TYPE_RUNTIME);
-	acpi_enable_gpe(NULL, ec_ecdt->gpe_bit, ACPI_NOT_ISR);
+	acpi_set_gpe_type(NULL, ec_ecdt->gpe, ACPI_GPE_TYPE_RUNTIME);
+	acpi_enable_gpe(NULL, ec_ecdt->gpe, ACPI_NOT_ISR);
 
 	status = acpi_install_address_space_handler(ACPI_ROOT_OBJECT,
 						    ACPI_ADR_SPACE_EC,
@@ -974,7 +974,7 @@ int __init acpi_ec_ecdt_probe(void)
 						    &acpi_ec_space_setup,
 						    ec_ecdt);
 	if (ACPI_FAILURE(status)) {
-		acpi_remove_gpe_handler(NULL, ec_ecdt->gpe_bit,
+		acpi_remove_gpe_handler(NULL, ec_ecdt->gpe,
 					&acpi_ec_gpe_handler);
 		goto error;
 	}
