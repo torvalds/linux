@@ -1118,7 +1118,7 @@ fastcall unsigned long patch_espfix_desc(unsigned long uesp,
  * Must be called with kernel preemption disabled (in this case,
  * local interrupts are disabled at the call-site in entry.S).
  */
-asmlinkage void math_state_restore(struct pt_regs regs)
+asmlinkage void math_state_restore(void)
 {
 	struct thread_info *thread = current_thread_info();
 	struct task_struct *tsk = thread->task;
@@ -1128,6 +1128,7 @@ asmlinkage void math_state_restore(struct pt_regs regs)
 		init_fpu(tsk);
 	restore_fpu(tsk);
 	thread->status |= TS_USEDFPU;	/* So we fnsave on switch_to() */
+	tsk->fpu_counter++;
 }
 
 #ifndef CONFIG_MATH_EMULATION

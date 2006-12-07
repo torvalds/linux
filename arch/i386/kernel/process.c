@@ -648,6 +648,11 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 
 	__unlazy_fpu(prev_p);
 
+
+	/* we're going to use this soon, after a few expensive things */
+	if (next_p->fpu_counter > 5)
+		prefetch(&next->i387.fxsave);
+
 	/*
 	 * Reload esp0.
 	 */
@@ -696,6 +701,13 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 		__switch_to_xtra(next_p, tss);
 
 	disable_tsc(prev_p, next_p);
+
+	/* If the task has used fpu the last 5 timeslices, just do a full
+	 * restore of the math state immediately to avoid the trap; the
+	 * chances of needing FPU soon are obviously high now
+	 */
+	if (next_p->fpu_counter > 5)
+		math_state_restore();
 
 	return prev_p;
 }
