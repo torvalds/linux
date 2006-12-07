@@ -1857,10 +1857,16 @@ static struct file_system_type futex_fs_type = {
 
 static int __init init(void)
 {
-	unsigned int i;
+	int i = register_filesystem(&futex_fs_type);
 
-	register_filesystem(&futex_fs_type);
+	if (i)
+		return i;
+
 	futex_mnt = kern_mount(&futex_fs_type);
+	if (IS_ERR(futex_mnt)) {
+		unregister_filesystem(&futex_fs_type);
+		return PTR_ERR(futex_mnt);
+	}
 
 	for (i = 0; i < ARRAY_SIZE(futex_queues); i++) {
 		INIT_LIST_HEAD(&futex_queues[i].chain);
