@@ -41,6 +41,8 @@ extern int e820_all_mapped(unsigned long start, unsigned long end,
 extern void find_max_pfn(void);
 extern void register_bootmem_low_pages(unsigned long max_low_pfn);
 extern void register_memory(void);
+extern void limit_regions(unsigned long long size);
+extern void print_memory_map(char *who);
 
 #endif/*!__ASSEMBLY__*/
 

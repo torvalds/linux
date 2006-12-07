@@ -33,6 +33,7 @@ unsigned long pci_mem_start = 0x10000000;
 #ifdef CONFIG_PCI
 EXPORT_SYMBOL(pci_mem_start);
 #endif
+extern int user_defined_memmap;
 struct resource data_resource = {
 	.name	= "Kernel data",
 	.start	= 0,
@@ -706,3 +707,154 @@ void __init register_memory(void)
 	printk("Allocating PCI resources starting at %08lx (gap: %08lx:%08lx)\n",
 		pci_mem_start, gapstart, gapsize);
 }
+
+void __init print_memory_map(char *who)
+{
+	int i;
+
+	for (i = 0; i < e820.nr_map; i++) {
+		printk(" %s: %016Lx - %016Lx ", who,
+			e820.map[i].addr,
+			e820.map[i].addr + e820.map[i].size);
+		switch (e820.map[i].type) {
+		case E820_RAM:	printk("(usable)\n");
+				break;
+		case E820_RESERVED:
+				printk("(reserved)\n");
+				break;
+		case E820_ACPI:
+				printk("(ACPI data)\n");
+				break;
+		case E820_NVS:
+				printk("(ACPI NVS)\n");
+				break;
+		default:	printk("type %lu\n", e820.map[i].type);
+				break;
+		}
+	}
+}
+
+void __init limit_regions(unsigned long long size)
+{
+	unsigned long long current_addr = 0;
+	int i;
+
+	print_memory_map("limit_regions start");
+	if (efi_enabled) {
+		efi_memory_desc_t *md;
+		void *p;
+
+		for (p = memmap.map, i = 0; p < memmap.map_end;
+			p += memmap.desc_size, i++) {
+			md = p;
+			current_addr = md->phys_addr + (md->num_pages << 12);
+			if (md->type == EFI_CONVENTIONAL_MEMORY) {
+				if (current_addr >= size) {
+					md->num_pages -=
+						(((current_addr-size) + PAGE_SIZE-1) >> PAGE_SHIFT);
+					memmap.nr_map = i + 1;
+					return;
+				}
+			}
+		}
+	}
+	for (i = 0; i < e820.nr_map; i++) {
+		current_addr = e820.map[i].addr + e820.map[i].size;
+		if (current_addr < size)
+			continue;
+
+		if (e820.map[i].type != E820_RAM)
+			continue;
+
+		if (e820.map[i].addr >= size) {
+			/*
+			 * This region starts past the end of the
+			 * requested size, skip it completely.
+			 */
+			e820.nr_map = i;
+		} else {
+			e820.nr_map = i + 1;
+			e820.map[i].size -= current_addr - size;
+		}
+		print_memory_map("limit_regions endfor");
+		return;
+	}
+	print_memory_map("limit_regions endfunc");
+}
+
+ /*
+  * This function checks if the entire range <start,end> is mapped with type.
+  *
+  * Note: this function only works correct if the e820 table is sorted and
+  * not-overlapping, which is the case
+  */
+int __init
+e820_all_mapped(unsigned long s, unsigned long e, unsigned type)
+{
+	u64 start = s;
+	u64 end = e;
+	int i;
+	for (i = 0; i < e820.nr_map; i++) {
+		struct e820entry *ei = &e820.map[i];
+		if (type && ei->type != type)
+			continue;
+		/* is the region (part) in overlap with the current region ?*/
+		if (ei->addr >= end || ei->addr + ei->size <= start)
+			continue;
+		/* if the region is at the beginning of <start,end> we move
+		 * start to the end of the region since it's ok until there
+		 */
+		if (ei->addr <= start)
+			start = ei->addr + ei->size;
+		/* if start is now at or beyond end, we're done, full
+		 * coverage */
+		if (start >= end)
+			return 1; /* we're done */
+	}
+	return 0;
+}
+
+static int __init parse_memmap(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+
+	if (strcmp(arg, "exactmap") == 0) {
+#ifdef CONFIG_CRASH_DUMP
+		/* If we are doing a crash dump, we
+		 * still need to know the real mem
+		 * size before original memory map is
+		 * reset.
+		 */
+		find_max_pfn();
+		saved_max_pfn = max_pfn;
+#endif
+		e820.nr_map = 0;
+		user_defined_memmap = 1;
+	} else {
+		/* If the user specifies memory size, we
+		 * limit the BIOS-provided memory map to
+		 * that size. exactmap can be used to specify
+		 * the exact map. mem=number can be used to
+		 * trim the existing memory map.
+		 */
+		unsigned long long start_at, mem_size;
+
+		mem_size = memparse(arg, &arg);
+		if (*arg == '@') {
+			start_at = memparse(arg+1, &arg);
+			add_memory_region(start_at, mem_size, E820_RAM);
+		} else if (*arg == '#') {
+			start_at = memparse(arg+1, &arg);
+			add_memory_region(start_at, mem_size, E820_ACPI);
+		} else if (*arg == '$') {
+			start_at = memparse(arg+1, &arg);
+			add_memory_region(start_at, mem_size, E820_RESERVED);
+		} else {
+			limit_regions(mem_size);
+			user_defined_memmap = 1;
+		}
+	}
+	return 0;
+}
+early_param("memmap", parse_memmap);
