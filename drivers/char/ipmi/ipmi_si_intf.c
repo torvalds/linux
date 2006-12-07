@@ -684,22 +684,24 @@ static enum si_sm_result smi_event_handler(struct smi_info *smi_info,
 	{
 		/* We are idle and the upper layer requested that I fetch
 		   events, so do so. */
-		unsigned char msg[2];
-
-		spin_lock(&smi_info->count_lock);
-		smi_info->flag_fetches++;
-		spin_unlock(&smi_info->count_lock);
-
 		atomic_set(&smi_info->req_events, 0);
-		msg[0] = (IPMI_NETFN_APP_REQUEST << 2);
-		msg[1] = IPMI_GET_MSG_FLAGS_CMD;
+
+		smi_info->curr_msg = ipmi_alloc_smi_msg();
+		if (!smi_info->curr_msg)
+			goto out;
+
+		smi_info->curr_msg->data[0] = (IPMI_NETFN_APP_REQUEST << 2);
+		smi_info->curr_msg->data[1] = IPMI_READ_EVENT_MSG_BUFFER_CMD;
+		smi_info->curr_msg->data_size = 2;
 
 		smi_info->handlers->start_transaction(
-			smi_info->si_sm, msg, 2);
-		smi_info->si_state = SI_GETTING_FLAGS;
+			smi_info->si_sm,
+			smi_info->curr_msg->data,
+			smi_info->curr_msg->data_size);
+		smi_info->si_state = SI_GETTING_EVENTS;
 		goto restart;
 	}
-
+ out:
 	return si_sm_result;
 }
 
