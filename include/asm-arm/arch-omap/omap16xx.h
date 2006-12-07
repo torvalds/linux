@@ -159,15 +159,6 @@
 #define UART3_MVR               (OMAP_UART3_BASE + 0x50)
 
 /*
- * ----------------------------------------------------------------------------
- * Pulse-Width Light
- * ----------------------------------------------------------------------------
- */
-#define OMAP16XX_PWL_BASE	(0xfffb5800)
-#define OMAP16XX_PWL_ENABLE	(OMAP16XX_PWL_BASE + 0x00)
-#define OMAP16XX_PWL_CLK_ENABLE	(OMAP16XX_PWL_BASE + 0x04)
-
-/*
  * ---------------------------------------------------------------------------
  * Watchdog timer
  * ---------------------------------------------------------------------------
@@ -198,6 +189,9 @@
 #define WSPR_ENABLE_1          (0x00004444)
 #define WSPR_DISABLE_0         (0x0000aaaa)
 #define WSPR_DISABLE_1         (0x00005555)
+
+/* Mailbox */
+#define OMAP16XX_MAILBOX_BASE	(0xfffcf000)
 
 #endif /*  __ASM_ARCH_OMAP16XX_H */
 
