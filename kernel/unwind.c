@@ -14,6 +14,7 @@
 #include <linux/bootmem.h>
 #include <linux/sort.h>
 #include <linux/stop_machine.h>
+#include <linux/uaccess.h>
 #include <asm/sections.h>
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
@@ -550,7 +551,7 @@ static unsigned long read_pointer(const u8 **pLoc,
 		return 0;
 	}
 	if ((ptrType & DW_EH_PE_indirect)
-	    && __get_user(value, (unsigned long *)value))
+	    && probe_kernel_address((unsigned long *)value, value))
 		return 0;
 	*pLoc = ptr.p8;
 
@@ -982,18 +983,19 @@ int unwind(struct unwind_frame_info *frame)
 		        & (sizeof(unsigned long) - 1))) {
 			unsigned long link;
 
-			if (!__get_user(link,
+			if (!probe_kernel_address(
 			                (unsigned long *)(UNW_FP(frame)
-			                                  + FRAME_LINK_OFFSET))
+			                                  + FRAME_LINK_OFFSET),
+						  link)
 # if FRAME_RETADDR_OFFSET < 0
 			   && link > bottom && link < UNW_FP(frame)
 # else
 			   && link > UNW_FP(frame) && link < bottom
 # endif
 			   && !(link & (sizeof(link) - 1))
-			   && !__get_user(UNW_PC(frame),
+			   && !probe_kernel_address(
 			                  (unsigned long *)(UNW_FP(frame)
-			                                    + FRAME_RETADDR_OFFSET))) {
+			                                    + FRAME_RETADDR_OFFSET), UNW_PC(frame))) {
 				UNW_SP(frame) = UNW_FP(frame) + FRAME_RETADDR_OFFSET
 # if FRAME_RETADDR_OFFSET < 0
 					-
@@ -1104,7 +1106,7 @@ int unwind(struct unwind_frame_info *frame)
 					return -EIO;
 				switch(reg_info[i].width) {
 #define CASE(n)     case sizeof(u##n): \
-					__get_user(FRAME_REG(i, u##n), (u##n *)addr); \
+					probe_kernel_address((u##n *)addr, FRAME_REG(i, u##n)); \
 					break
 				CASES;
 #undef CASE
