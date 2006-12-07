@@ -30,6 +30,22 @@ dev_t swsusp_resume_device;
 sector_t swsusp_resume_block;
 
 /**
+ *	platform_prepare - prepare the machine for hibernation using the
+ *	platform driver if so configured and return an error code if it fails
+ */
+
+static inline int platform_prepare(void)
+{
+	int error = 0;
+
+	if (pm_disk_mode == PM_DISK_PLATFORM) {
+		if (pm_ops && pm_ops->prepare)
+			error = pm_ops->prepare(PM_SUSPEND_DISK);
+	}
+	return error;
+}
+
+/**
  *	power_down - Shut machine down for hibernate.
  *	@mode:		Suspend-to-disk mode
  *
@@ -91,9 +107,15 @@ static int prepare_processes(void)
 		goto thaw;
 	}
 
+	error = platform_prepare();
+	if (error)
+		goto thaw;
+
 	/* Free memory before shutting down devices. */
 	if (!(error = swsusp_shrink_memory()))
 		return 0;
+
+	platform_finish();
 thaw:
 	thaw_processes();
 enable_cpus:
