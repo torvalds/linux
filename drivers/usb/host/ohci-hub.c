@@ -555,7 +555,7 @@ static void start_hnp(struct ohci_hcd *ohci);
 #define tick_before(t1,t2) ((s16)(((s16)(t1))-((s16)(t2))) < 0)
 
 /* called from some task, normally khubd */
-static inline void root_port_reset (struct ohci_hcd *ohci, unsigned port)
+static inline int root_port_reset (struct ohci_hcd *ohci, unsigned port)
 {
 	__hc32 __iomem *portstat = &ohci->regs->roothub.portstatus [port];
 	u32	temp;
@@ -570,6 +570,9 @@ static inline void root_port_reset (struct ohci_hcd *ohci, unsigned port)
 		/* spin until any current reset finishes */
 		for (;;) {
 			temp = ohci_readl (ohci, portstat);
+			/* handle e.g. CardBus eject */
+			if (temp == ~(u32)0)
+				return -ESHUTDOWN;
 			if (!(temp & RH_PS_PRS))
 				break;
 			udelay (500);
@@ -586,6 +589,8 @@ static inline void root_port_reset (struct ohci_hcd *ohci, unsigned port)
 		now = ohci_readl(ohci, &ohci->regs->fmnumber);
 	} while (tick_before(now, reset_done));
 	/* caller synchronizes using PRSC */
+
+	return 0;
 }
 
 static int ohci_hub_control (
@@ -702,7 +707,7 @@ static int ohci_hub_control (
 				&ohci->regs->roothub.portstatus [wIndex]);
 			break;
 		case USB_PORT_FEAT_RESET:
-			root_port_reset (ohci, wIndex);
+			retval = root_port_reset (ohci, wIndex);
 			break;
 		default:
 			goto error;
