@@ -20,6 +20,8 @@
  */
 #define TIMEOUT	(20 * HZ)
 
+#define FREEZER_KERNEL_THREADS 0
+#define FREEZER_USER_SPACE 1
 
 static inline int freezeable(struct task_struct * p)
 {
@@ -79,6 +81,11 @@ static void cancel_freezing(struct task_struct *p)
 	}
 }
 
+static inline int is_user_space(struct task_struct *p)
+{
+	return p->mm && !(p->flags & PF_BORROWED_MM);
+}
+
 /* 0 = success, else # of processes that we failed to stop */
 int freeze_processes(void)
 {
@@ -103,10 +110,9 @@ int freeze_processes(void)
 				cancel_freezing(p);
 				continue;
 			}
-			if (p->mm && !(p->flags & PF_BORROWED_MM)) {
-				/* The task is a user-space one.
-				 * Freeze it unless there's a vfork completion
-				 * pending
+			if (is_user_space(p)) {
+				/* Freeze the task unless there is a vfork
+				 * completion pending
 				 */
 				if (!p->vfork_done)
 					freeze_process(p);
@@ -155,31 +161,30 @@ int freeze_processes(void)
 	return 0;
 }
 
-void thaw_some_processes(int all)
+static void thaw_tasks(int thaw_user_space)
 {
 	struct task_struct *g, *p;
-	int pass = 0; /* Pass 0 = Kernel space, 1 = Userspace */
 
-	printk("Restarting tasks... ");
 	read_lock(&tasklist_lock);
-	do {
-		do_each_thread(g, p) {
-			/*
-			 * is_user = 0 if kernel thread or borrowed mm,
-			 * 1 otherwise.
-			 */
-			int is_user = !!(p->mm && !(p->flags & PF_BORROWED_MM));
-			if (!freezeable(p) || (is_user != pass))
-				continue;
-			if (!thaw_process(p))
-				printk(KERN_INFO
-					"Strange, %s not stopped\n", p->comm);
-		} while_each_thread(g, p);
+	do_each_thread(g, p) {
+		if (!freezeable(p))
+			continue;
 
-		pass++;
-	} while (pass < 2 && all);
+		if (is_user_space(p) == !thaw_user_space)
+			continue;
 
+		if (!thaw_process(p))
+			printk(KERN_WARNING " Strange, %s not stopped\n",
+				p->comm );
+	} while_each_thread(g, p);
 	read_unlock(&tasklist_lock);
+}
+
+void thaw_processes(void)
+{
+	printk("Restarting tasks ... ");
+	thaw_tasks(FREEZER_KERNEL_THREADS);
+	thaw_tasks(FREEZER_USER_SPACE);
 	schedule();
 	printk("done.\n");
 }
