@@ -6,6 +6,8 @@
 #include <linux/elf-em.h>
 #include <asm/elf.h>
 
+struct file;
+
 #ifndef elf_read_implies_exec
   /* Executables for which elf_read_implies_exec() returns TRUE will
      have the READ_IMPLIES_EXEC personality flag set automatically.
