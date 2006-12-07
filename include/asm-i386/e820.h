@@ -39,6 +39,8 @@ extern struct e820map e820;
 extern int e820_all_mapped(unsigned long start, unsigned long end,
 			   unsigned type);
 extern void find_max_pfn(void);
+extern void register_bootmem_low_pages(unsigned long max_low_pfn);
+extern void register_memory(void);
 
 #endif/*!__ASSEMBLY__*/
 

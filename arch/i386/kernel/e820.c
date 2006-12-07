@@ -28,6 +28,11 @@ static struct change_member change_point_list[2*E820MAX] __initdata;
 static struct change_member *change_point[2*E820MAX] __initdata;
 static struct e820entry *overlap_list[E820MAX] __initdata;
 static struct e820entry new_bios[E820MAX] __initdata;
+/* For PCI or other memory-mapped resources */
+unsigned long pci_mem_start = 0x10000000;
+#ifdef CONFIG_PCI
+EXPORT_SYMBOL(pci_mem_start);
+#endif
 struct resource data_resource = {
 	.name	= "Kernel data",
 	.start	= 0,
@@ -590,4 +595,114 @@ void __init find_max_pfn(void)
 			max_pfn = end;
 		memory_present(0, start, end);
 	}
+}
+
+/*
+ * Free all available memory for boot time allocation.  Used
+ * as a callback function by efi_memory_walk()
+ */
+
+static int __init
+free_available_memory(unsigned long start, unsigned long end, void *arg)
+{
+	/* check max_low_pfn */
+	if (start >= (max_low_pfn << PAGE_SHIFT))
+		return 0;
+	if (end >= (max_low_pfn << PAGE_SHIFT))
+		end = max_low_pfn << PAGE_SHIFT;
+	if (start < end)
+		free_bootmem(start, end - start);
+
+	return 0;
+}
+/*
+ * Register fully available low RAM pages with the bootmem allocator.
+ */
+void __init register_bootmem_low_pages(unsigned long max_low_pfn)
+{
+	int i;
+
+	if (efi_enabled) {
+		efi_memmap_walk(free_available_memory, NULL);
+		return;
+	}
+	for (i = 0; i < e820.nr_map; i++) {
+		unsigned long curr_pfn, last_pfn, size;
+		/*
+		 * Reserve usable low memory
+		 */
+		if (e820.map[i].type != E820_RAM)
+			continue;
+		/*
+		 * We are rounding up the start address of usable memory:
+		 */
+		curr_pfn = PFN_UP(e820.map[i].addr);
+		if (curr_pfn >= max_low_pfn)
+			continue;
+		/*
+		 * ... and at the end of the usable range downwards:
+		 */
+		last_pfn = PFN_DOWN(e820.map[i].addr + e820.map[i].size);
+
+		if (last_pfn > max_low_pfn)
+			last_pfn = max_low_pfn;
+
+		/*
+		 * .. finally, did all the rounding and playing
+		 * around just make the area go away?
+		 */
+		if (last_pfn <= curr_pfn)
+			continue;
+
+		size = last_pfn - curr_pfn;
+		free_bootmem(PFN_PHYS(curr_pfn), PFN_PHYS(size));
+	}
+}
+
+void __init register_memory(void)
+{
+	unsigned long gapstart, gapsize, round;
+	unsigned long long last;
+	int i;
+
+	/*
+	 * Search for the bigest gap in the low 32 bits of the e820
+	 * memory space.
+	 */
+	last = 0x100000000ull;
+	gapstart = 0x10000000;
+	gapsize = 0x400000;
+	i = e820.nr_map;
+	while (--i >= 0) {
+		unsigned long long start = e820.map[i].addr;
+		unsigned long long end = start + e820.map[i].size;
+
+		/*
+		 * Since "last" is at most 4GB, we know we'll
+		 * fit in 32 bits if this condition is true
+		 */
+		if (last > end) {
+			unsigned long gap = last - end;
+
+			if (gap > gapsize) {
+				gapsize = gap;
+				gapstart = end;
+			}
+		}
+		if (start < last)
+			last = start;
+	}
+
+	/*
+	 * See how much we want to round up: start off with
+	 * rounding to the next 1MB area.
+	 */
+	round = 0x100000;
+	while ((gapsize >> 4) > round)
+		round += round;
+	/* Fun with two's complement */
+	pci_mem_start = (gapstart + round) & -round;
+
+	printk("Allocating PCI resources starting at %08lx (gap: %08lx:%08lx)\n",
+		pci_mem_start, gapstart, gapsize);
 }
