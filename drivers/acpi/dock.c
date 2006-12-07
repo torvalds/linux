@@ -636,7 +636,7 @@ static int dock_add(acpi_handle handle)
 	dock_device.name = dock_device_name;
 	ret = platform_device_register(&dock_device);
 	if (ret) {
-		printk(KERN_ERR PREFIX "Error registering dock device\n", ret);
+		printk(KERN_ERR PREFIX "Error %d registering dock device\n", ret);
 		kfree(dock_station);
 		return ret;
 	}
