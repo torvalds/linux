@@ -153,18 +153,29 @@ int freeze_processes(void)
 	return 0;
 }
 
-void thaw_processes(void)
+void thaw_some_processes(int all)
 {
 	struct task_struct *g, *p;
+	int pass = 0; /* Pass 0 = Kernel space, 1 = Userspace */
 
 	printk("Restarting tasks... ");
 	read_lock(&tasklist_lock);
-	do_each_thread(g, p) {
-		if (!freezeable(p))
-			continue;
-		if (!thaw_process(p))
-			printk(KERN_INFO "Strange, %s not stopped\n", p->comm);
-	} while_each_thread(g, p);
+	do {
+		do_each_thread(g, p) {
+			/*
+			 * is_user = 0 if kernel thread or borrowed mm,
+			 * 1 otherwise.
+			 */
+			int is_user = !!(p->mm && !(p->flags & PF_BORROWED_MM));
+			if (!freezeable(p) || (is_user != pass))
+				continue;
+			if (!thaw_process(p))
+				printk(KERN_INFO
+					"Strange, %s not stopped\n", p->comm);
+		} while_each_thread(g, p);
+
+		pass++;
+	} while (pass < 2 && all);
 
 	read_unlock(&tasklist_lock);
 	schedule();

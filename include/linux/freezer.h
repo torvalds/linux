@@ -1,5 +1,8 @@
 /* Freezer declarations */
 
+#define FREEZER_KERNEL_THREADS 0
+#define FREEZER_ALL_THREADS 1
+
 #ifdef CONFIG_PM
 /*
  * Check if a process has been frozen
@@ -57,7 +60,8 @@ static inline void frozen_process(struct task_struct *p)
 
 extern void refrigerator(void);
 extern int freeze_processes(void);
-extern void thaw_processes(void);
+#define thaw_processes() do { thaw_some_processes(FREEZER_ALL_THREADS); } while(0)
+#define thaw_kernel_threads() do { thaw_some_processes(FREEZER_KERNEL_THREADS); } while(0)
 
 static inline int try_to_freeze(void)
 {
@@ -67,6 +71,9 @@ static inline int try_to_freeze(void)
 	} else
 		return 0;
 }
+
+extern void thaw_some_processes(int all);
+
 #else
 static inline int frozen(struct task_struct *p) { return 0; }
 static inline int freezing(struct task_struct *p) { return 0; }
