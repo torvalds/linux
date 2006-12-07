@@ -27,7 +27,7 @@
 
 struct cpu {
 	int node_id;		/* The node which contains the CPU */
-	int no_control;		/* Should the sysfs control file be created? */
+	int hotpluggable;	/* creates sysfs control file if hotpluggable */
 	struct sys_device sysdev;
 };
 

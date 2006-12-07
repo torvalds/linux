@@ -44,8 +44,8 @@ int arch_register_cpu(int num)
 	 * Also certain PCI quirks require not to enable hotplug control
 	 * for all CPU's.
 	 */
-	if (!num || !enable_cpu_hotplug)
-		cpu_devices[num].cpu.no_control = 1;
+	if (num && enable_cpu_hotplug)
+		cpu_devices[num].cpu.hotpluggable = 1;
 
 	return register_cpu(&cpu_devices[num].cpu, num);
 }

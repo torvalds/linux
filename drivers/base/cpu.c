@@ -104,8 +104,8 @@ static SYSDEV_ATTR(crash_notes, 0400, show_crash_notes, NULL);
 
 /*
  * register_cpu - Setup a driverfs device for a CPU.
- * @cpu - Callers can set the cpu->no_control field to 1, to indicate not to
- *		  generate a control file in sysfs for this CPU.
+ * @cpu - cpu->hotpluggable field set to 1 will generate a control file in
+ *	  sysfs for this CPU.
  * @num - CPU number to use when creating the device.
  *
  * Initialize and register the CPU device.
@@ -119,7 +119,7 @@ int __devinit register_cpu(struct cpu *cpu, int num)
 
 	error = sysdev_register(&cpu->sysdev);
 
-	if (!error && !cpu->no_control)
+	if (!error && cpu->hotpluggable)
 		register_cpu_control(cpu);
 	if (!error)
 		cpu_sys_devices[num] = &cpu->sysdev;
