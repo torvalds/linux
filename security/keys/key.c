@@ -290,11 +290,9 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 		goto no_memory_2;
 
 	if (desc) {
-		key->description = kmalloc(desclen, GFP_KERNEL);
+		key->description = kmemdup(desc, desclen, GFP_KERNEL);
 		if (!key->description)
 			goto no_memory_3;
-
-		memcpy(key->description, desc, desclen);
 	}
 
 	atomic_set(&key->usage, 1);
