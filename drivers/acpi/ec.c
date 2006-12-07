@@ -103,7 +103,7 @@ struct acpi_ec {
 	unsigned long command_addr;
 	unsigned long data_addr;
 	unsigned long global_lock;
-	struct semaphore sem;
+	struct mutex lock;
 	atomic_t query_pending;
 	atomic_t leaving_burst;	/* 0 : No, 1 : Yes, 2: abort */
 	wait_queue_head_t wait;
@@ -294,7 +294,7 @@ static int acpi_ec_transaction(struct acpi_ec *ec, u8 command,
 		if (ACPI_FAILURE(status))
 			return -ENODEV;
 	}
-	down(&ec->sem);
+	mutex_lock(&ec->lock);
 
 	/* Make sure GPE is enabled before doing transaction */
 	acpi_enable_gpe(NULL, ec->gpe_bit, ACPI_NOT_ISR);
@@ -310,7 +310,7 @@ static int acpi_ec_transaction(struct acpi_ec *ec, u8 command,
                                               rdata, rdata_len);
 
 end:
-	up(&ec->sem);
+	mutex_unlock(&ec->lock);
 
 	if (ec->global_lock)
 		acpi_release_global_lock(glk);
@@ -647,7 +647,7 @@ static int acpi_ec_add(struct acpi_device *device)
 
 	ec->handle = device->handle;
 	ec->uid = -1;
-	init_MUTEX(&ec->sem);
+	mutex_init(&ec->lock);
 	atomic_set(&ec->query_pending, 0);
 	if (acpi_ec_mode == EC_INTR) {
 		atomic_set(&ec->leaving_burst, 1);
@@ -830,7 +830,7 @@ acpi_fake_ecdt_callback(acpi_handle handle,
 {
 	acpi_status status;
 
-	init_MUTEX(&ec_ecdt->sem);
+	mutex_init(&ec_ecdt->lock);
 	if (acpi_ec_mode == EC_INTR) {
 		init_waitqueue_head(&ec_ecdt->wait);
 	}
@@ -915,7 +915,7 @@ static int __init acpi_ec_get_real_ecdt(void)
 		return -ENOMEM;
 	memset(ec_ecdt, 0, sizeof(struct acpi_ec));
 
-	init_MUTEX(&ec_ecdt->sem);
+	mutex_init(&ec_ecdt->lock);
 	if (acpi_ec_mode == EC_INTR) {
 		init_waitqueue_head(&ec_ecdt->wait);
 	}
