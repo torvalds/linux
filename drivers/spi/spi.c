@@ -447,7 +447,9 @@ static int __unregister(struct device *dev, void *unused)
  */
 void spi_unregister_master(struct spi_master *master)
 {
-	(void) device_for_each_child(master->cdev.dev, NULL, __unregister);
+	int dummy;
+
+	dummy = device_for_each_child(master->cdev.dev, NULL, __unregister);
 	class_device_unregister(&master->cdev);
 }
 EXPORT_SYMBOL_GPL(spi_unregister_master);
