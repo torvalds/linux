@@ -529,7 +529,8 @@ static int __init apm_emu_init(void)
 	if (apm_proc)
 		apm_proc->owner = THIS_MODULE;
 
-	misc_register(&apm_device);
+	if (misc_register(&apm_device) != 0)
+		printk(KERN_INFO "Could not create misc. device for apm\n");
 
 	pmu_register_sleep_notifier(&apm_sleep_notifier);
 

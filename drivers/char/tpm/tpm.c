@@ -1155,6 +1155,7 @@ struct tpm_chip *tpm_register_hardware(struct device *dev, const struct tpm_vend
 
 	if (sysfs_create_group(&dev->kobj, chip->vendor.attr_group)) {
 		list_del(&chip->list);
+		misc_deregister(&chip->vendor.miscdev);
 		put_device(dev);
 		clear_bit(chip->dev_num, dev_mask);
 		kfree(chip);
