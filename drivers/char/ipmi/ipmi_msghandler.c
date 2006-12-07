@@ -48,7 +48,7 @@
 
 #define PFX "IPMI message handler: "
 
-#define IPMI_DRIVER_VERSION "39.0"
+#define IPMI_DRIVER_VERSION "39.1"
 
 static struct ipmi_recv_msg *ipmi_alloc_recv_msg(void);
 static int ipmi_init_msghandler(void);
@@ -58,6 +58,9 @@ static int initialized = 0;
 #ifdef CONFIG_PROC_FS
 static struct proc_dir_entry *proc_ipmi_root = NULL;
 #endif /* CONFIG_PROC_FS */
+
+/* Remain in auto-maintenance mode for this amount of time (in ms). */
+#define IPMI_MAINTENANCE_MODE_TIMEOUT 30000
 
 #define MAX_EVENTS_IN_QUEUE	25
 
@@ -261,6 +264,12 @@ struct ipmi_smi
 	unsigned char event_receiver_lun;
 	unsigned char local_sel_device;
 	unsigned char local_event_generator;
+
+	/* For handling of maintenance mode. */
+	int maintenance_mode;
+	int maintenance_mode_enable;
+	int auto_maintenance_timeout;
+	spinlock_t maintenance_mode_lock; /* Used in a timer... */
 
 	/* A cheap hack, if this is non-null and a message to an
 	   interface comes in with a NULL user, call this routine with
@@ -985,6 +994,65 @@ int ipmi_get_my_LUN(ipmi_user_t   user,
 	return 0;
 }
 
+int ipmi_get_maintenance_mode(ipmi_user_t user)
+{
+	int           mode;
+	unsigned long flags;
+
+	spin_lock_irqsave(&user->intf->maintenance_mode_lock, flags);
+	mode = user->intf->maintenance_mode;
+	spin_unlock_irqrestore(&user->intf->maintenance_mode_lock, flags);
+
+	return mode;
+}
+EXPORT_SYMBOL(ipmi_get_maintenance_mode);
+
+static void maintenance_mode_update(ipmi_smi_t intf)
+{
+	if (intf->handlers->set_maintenance_mode)
+		intf->handlers->set_maintenance_mode(
+			intf->send_info, intf->maintenance_mode_enable);
+}
+
+int ipmi_set_maintenance_mode(ipmi_user_t user, int mode)
+{
+	int           rv = 0;
+	unsigned long flags;
+	ipmi_smi_t    intf = user->intf;
+
+	spin_lock_irqsave(&intf->maintenance_mode_lock, flags);
+	if (intf->maintenance_mode != mode) {
+		switch (mode) {
+		case IPMI_MAINTENANCE_MODE_AUTO:
+			intf->maintenance_mode = mode;
+			intf->maintenance_mode_enable
+				= (intf->auto_maintenance_timeout > 0);
+			break;
+
+		case IPMI_MAINTENANCE_MODE_OFF:
+			intf->maintenance_mode = mode;
+			intf->maintenance_mode_enable = 0;
+			break;
+
+		case IPMI_MAINTENANCE_MODE_ON:
+			intf->maintenance_mode = mode;
+			intf->maintenance_mode_enable = 1;
+			break;
+
+		default:
+			rv = -EINVAL;
+			goto out_unlock;
+		}
+
+		maintenance_mode_update(intf);
+	}
+ out_unlock:
+	spin_unlock_irqrestore(&intf->maintenance_mode_lock, flags);
+
+	return rv;
+}
+EXPORT_SYMBOL(ipmi_set_maintenance_mode);
+
 int ipmi_set_gets_events(ipmi_user_t user, int val)
 {
 	unsigned long        flags;
@@ -1320,6 +1388,24 @@ static int i_ipmi_request(ipmi_user_t          user,
 			spin_unlock_irqrestore(&intf->counter_lock, flags);
 			rv = -EINVAL;
 			goto out_err;
+		}
+
+		if (((msg->netfn == IPMI_NETFN_APP_REQUEST)
+		      && ((msg->cmd == IPMI_COLD_RESET_CMD)
+			  || (msg->cmd == IPMI_WARM_RESET_CMD)))
+		     || (msg->netfn == IPMI_NETFN_FIRMWARE_REQUEST))
+		{
+			spin_lock_irqsave(&intf->maintenance_mode_lock, flags);
+			intf->auto_maintenance_timeout
+				= IPMI_MAINTENANCE_MODE_TIMEOUT;
+			if (!intf->maintenance_mode
+			    && !intf->maintenance_mode_enable)
+			{
+				intf->maintenance_mode_enable = 1;
+				maintenance_mode_update(intf);
+			}
+			spin_unlock_irqrestore(&intf->maintenance_mode_lock,
+					       flags);
 		}
 
 		if ((msg->data_len + 2) > IPMI_MAX_MSG_LENGTH) {
@@ -2605,6 +2691,7 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 	INIT_LIST_HEAD(&intf->waiting_events);
 	intf->waiting_events_count = 0;
 	mutex_init(&intf->cmd_rcvrs_mutex);
+	spin_lock_init(&intf->maintenance_mode_lock);
 	INIT_LIST_HEAD(&intf->cmd_rcvrs);
 	init_waitqueue_head(&intf->waitq);
 
@@ -3593,6 +3680,30 @@ static void ipmi_timeout_handler(long timeout_period)
 
 		list_for_each_entry_safe(msg, msg2, &timeouts, link)
 			deliver_err_response(msg, IPMI_TIMEOUT_COMPLETION_CODE);
+
+		/*
+		 * Maintenance mode handling.  Check the timeout
+		 * optimistically before we claim the lock.  It may
+		 * mean a timeout gets missed occasionally, but that
+		 * only means the timeout gets extended by one period
+		 * in that case.  No big deal, and it avoids the lock
+		 * most of the time.
+		 */
+		if (intf->auto_maintenance_timeout > 0) {
+			spin_lock_irqsave(&intf->maintenance_mode_lock, flags);
+			if (intf->auto_maintenance_timeout > 0) {
+				intf->auto_maintenance_timeout
+					-= timeout_period;
+				if (!intf->maintenance_mode
+				    && (intf->auto_maintenance_timeout <= 0))
+				{
+					intf->maintenance_mode_enable = 0;
+					maintenance_mode_update(intf);
+				}
+			}
+			spin_unlock_irqrestore(&intf->maintenance_mode_lock,
+					       flags);
+		}
 	}
 	rcu_read_unlock();
 }
@@ -3606,6 +3717,10 @@ static void ipmi_request_event(void)
 	/* Called from the timer, no need to check if handlers is
 	 * valid. */
 	list_for_each_entry_rcu(intf, &ipmi_interfaces, link) {
+		/* No event requests when in maintenance mode. */
+		if (intf->maintenance_mode_enable)
+			continue;
+
 		handlers = intf->handlers;
 		if (handlers)
 			handlers->request_events(intf->send_info);

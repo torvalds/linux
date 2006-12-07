@@ -115,6 +115,13 @@ struct ipmi_smi_handlers
 	   poll for operations during things like crash dumps. */
 	void (*poll)(void *send_info);
 
+	/* Enable/disable firmware maintenance mode.  Note that this
+	   is *not* the modes defined, this is simply an on/off
+	   setting.  The message handler does the mode handling.  Note
+	   that this is called from interupt context, so it cannot
+	   block. */
+	void (*set_maintenance_mode)(void *send_info, int enable);
+
 	/* Tell the handler that we are using it/not using it.  The
 	   message handler get the modules that this handler belongs
 	   to; this function lets the SMI claim any modules that it

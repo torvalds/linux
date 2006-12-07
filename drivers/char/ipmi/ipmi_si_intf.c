@@ -949,12 +949,21 @@ static int smi_start_processing(void       *send_info,
 	return 0;
 }
 
+static void set_maintenance_mode(void *send_info, int enable)
+{
+	struct smi_info   *smi_info = send_info;
+
+	if (!enable)
+		atomic_set(&smi_info->req_events, 0);
+}
+
 static struct ipmi_smi_handlers handlers =
 {
 	.owner                  = THIS_MODULE,
 	.start_processing       = smi_start_processing,
 	.sender			= sender,
 	.request_events		= request_events,
+	.set_maintenance_mode   = set_maintenance_mode,
 	.set_run_to_completion  = set_run_to_completion,
 	.poll			= poll,
 };
