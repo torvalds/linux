@@ -104,6 +104,7 @@ struct acpi_ec {
 	unsigned long data_addr;
 	unsigned long global_lock;
 	struct semaphore sem;
+	atomic_t query_pending;
 	atomic_t leaving_burst;	/* 0 : No, 1 : Yes, 2: abort */
 	wait_queue_head_t wait;
 } *ec_ecdt;
@@ -257,6 +258,8 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec, u8 command,
 			     command);
 			goto end;
 		}
+	} else if (command == ACPI_EC_COMMAND_QUERY) {
+		atomic_set(&ec->query_pending, 0);
 	}
 
 	for (; rdata_len > 0; rdata_len --) {
@@ -425,17 +428,9 @@ static void acpi_ec_gpe_query(void *ec_cxt)
 {
 	struct acpi_ec *ec = (struct acpi_ec *)ec_cxt;
 	u8 value = 0;
-	static char object_name[8];
+	char object_name[8];
 
-	if (!ec)
-		return;
-
-	value = acpi_ec_read_status(ec);
-
-	if (!(value & ACPI_EC_FLAG_SCI))
-		return;
-
-	if (acpi_ec_query(ec, &value))
+	if (!ec || acpi_ec_query(ec, &value))
 		return;
 
 	snprintf(object_name, 8, "_Q%2.2X", value);
@@ -457,7 +452,8 @@ static u32 acpi_ec_gpe_handler(void *data)
 	}
 
 	value = acpi_ec_read_status(ec);
-	if (value & ACPI_EC_FLAG_SCI) {
+	if ((value & ACPI_EC_FLAG_SCI) && !atomic_read(&ec->query_pending)) {
+		atomic_set(&ec->query_pending, 1);
 		status = acpi_os_execute(OSL_EC_BURST_HANDLER, acpi_ec_gpe_query, ec);
 	}
 
@@ -652,6 +648,7 @@ static int acpi_ec_add(struct acpi_device *device)
 	ec->handle = device->handle;
 	ec->uid = -1;
 	init_MUTEX(&ec->sem);
+	atomic_set(&ec->query_pending, 0);
 	if (acpi_ec_mode == EC_INTR) {
 		atomic_set(&ec->leaving_burst, 1);
 		init_waitqueue_head(&ec->wait);
