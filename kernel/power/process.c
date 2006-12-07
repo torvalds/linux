@@ -86,7 +86,7 @@ int freeze_processes(void)
 	unsigned long start_time;
 	struct task_struct *g, *p;
 
-	printk( "Stopping tasks: " );
+	printk("Stopping tasks... ");
 	start_time = jiffies;
 	user_frozen = 0;
 	do {
@@ -134,21 +134,21 @@ int freeze_processes(void)
 	 * but it cleans up leftover PF_FREEZE requests.
 	 */
 	if (todo) {
-		printk( "\n" );
-		printk(KERN_ERR " stopping tasks timed out "
+		printk("\n");
+		printk(KERN_ERR "Stopping tasks timed out "
 			"after %d seconds (%d tasks remaining):\n",
 			TIMEOUT / HZ, todo);
 		read_lock(&tasklist_lock);
 		do_each_thread(g, p) {
 			if (freezeable(p) && !frozen(p))
-				printk(KERN_ERR "  %s\n", p->comm);
+				printk(KERN_ERR " %s\n", p->comm);
 			cancel_freezing(p);
 		} while_each_thread(g, p);
 		read_unlock(&tasklist_lock);
 		return todo;
 	}
 
-	printk( "|\n" );
+	printk("done.\n");
 	BUG_ON(in_atomic());
 	return 0;
 }
@@ -157,18 +157,18 @@ void thaw_processes(void)
 {
 	struct task_struct *g, *p;
 
-	printk( "Restarting tasks..." );
+	printk("Restarting tasks... ");
 	read_lock(&tasklist_lock);
 	do_each_thread(g, p) {
 		if (!freezeable(p))
 			continue;
 		if (!thaw_process(p))
-			printk(KERN_INFO " Strange, %s not stopped\n", p->comm );
+			printk(KERN_INFO "Strange, %s not stopped\n", p->comm);
 	} while_each_thread(g, p);
 
 	read_unlock(&tasklist_lock);
 	schedule();
-	printk( " done\n" );
+	printk("done.\n");
 }
 
 EXPORT_SYMBOL(refrigerator);
