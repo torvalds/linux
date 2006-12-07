@@ -454,7 +454,8 @@ source "drivers/firmware/Kconfig"
 
 choice
 	prompt "High Memory Support"
-	default NOHIGHMEM
+	default HIGHMEM4G if !X86_NUMAQ
+	default HIGHMEM64G if X86_NUMAQ
 
 config NOHIGHMEM
 	bool "off"
