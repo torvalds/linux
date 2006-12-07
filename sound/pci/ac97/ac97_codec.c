@@ -382,7 +382,7 @@ int snd_ac97_update_bits_nolock(struct snd_ac97 *ac97, unsigned short reg,
 	unsigned short old, new;
 
 	old = snd_ac97_read_cache(ac97, reg);
-	new = (old & ~mask) | value;
+	new = (old & ~mask) | (value & mask);
 	change = old != new;
 	if (change) {
 		ac97->regs[reg] = new;
@@ -399,7 +399,7 @@ static int snd_ac97_ad18xx_update_pcm_bits(struct snd_ac97 *ac97, int codec, uns
 
 	mutex_lock(&ac97->page_mutex);
 	old = ac97->spec.ad18xx.pcmreg[codec];
-	new = (old & ~mask) | value;
+	new = (old & ~mask) | (value & mask);
 	change = old != new;
 	if (change) {
 		mutex_lock(&ac97->reg_mutex);
