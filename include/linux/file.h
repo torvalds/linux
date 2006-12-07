@@ -114,4 +114,6 @@ struct files_struct *get_files_struct(struct task_struct *);
 void FASTCALL(put_files_struct(struct files_struct *fs));
 void reset_files_struct(struct task_struct *, struct files_struct *);
 
+extern struct kmem_cache *files_cachep;
+
 #endif /* __LINUX_FILE_H */
