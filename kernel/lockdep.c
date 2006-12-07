@@ -237,8 +237,10 @@ e	   locks. */
 	trace->max_entries = trace->nr_entries;
 
 	nr_stack_trace_entries += trace->nr_entries;
-	if (DEBUG_LOCKS_WARN_ON(nr_stack_trace_entries > MAX_STACK_TRACE_ENTRIES))
+	if (DEBUG_LOCKS_WARN_ON(nr_stack_trace_entries > MAX_STACK_TRACE_ENTRIES)) {
+		__raw_spin_unlock(&hash_lock);
 		return 0;
+	}
 
 	if (nr_stack_trace_entries == MAX_STACK_TRACE_ENTRIES) {
 		__raw_spin_unlock(&hash_lock);
@@ -474,7 +476,8 @@ static int add_lock_to_list(struct lock_class *class, struct lock_class *this,
 		return 0;
 
 	entry->class = this;
-	save_trace(&entry->trace);
+	if (!save_trace(&entry->trace))
+		return 0;
 
 	/*
 	 * Since we never remove from the dependency list, the list can
@@ -562,8 +565,12 @@ static noinline int print_circular_bug_tail(void)
 	if (debug_locks_silent)
 		return 0;
 
+	/* hash_lock unlocked by the header */
+	__raw_spin_lock(&hash_lock);
 	this.class = check_source->class;
-	save_trace(&this.trace);
+	if (!save_trace(&this.trace))
+		return 0;
+	__raw_spin_unlock(&hash_lock);
 	print_circular_bug_entry(&this, 0);
 
 	printk("\nother info that might help us debug this:\n\n");
@@ -966,14 +973,11 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 			       &prev->class->locks_after, next->acquire_ip);
 	if (!ret)
 		return 0;
-	/*
-	 * Return value of 2 signals 'dependency already added',
-	 * in that case we dont have to add the backlink either.
-	 */
-	if (ret == 2)
-		return 2;
+
 	ret = add_lock_to_list(next->class, prev->class,
 			       &next->class->locks_before, next->acquire_ip);
+	if (!ret)
+		return 0;
 
 	/*
 	 * Debugging printouts:
@@ -1025,7 +1029,8 @@ check_prevs_add(struct task_struct *curr, struct held_lock *next)
 		 * added:
 		 */
 		if (hlock->read != 2) {
-			check_prev_add(curr, hlock, next);
+			if (!check_prev_add(curr, hlock, next))
+				return 0;
 			/*
 			 * Stop after the first non-trylock entry,
 			 * as non-trylock entries have added their
