@@ -660,7 +660,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 	sll->sll_ifindex = dev->ifindex;
 
 	h->tp_status = status;
-	mb();
+	smp_mb();
 
 	{
 		struct page *p_start, *p_end;

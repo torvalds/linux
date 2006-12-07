@@ -2130,7 +2130,7 @@ int iw_handler_set_spy(struct net_device *	dev,
 	 * The rtnl_lock() make sure we don't race with the other iw_handlers.
 	 * This make sure wireless_spy_update() "see" that the spy list
 	 * is temporarily disabled. */
-	wmb();
+	smp_wmb();
 
 	/* Are there are addresses to copy? */
 	if(wrqu->data.length > 0) {
@@ -2159,7 +2159,7 @@ int iw_handler_set_spy(struct net_device *	dev,
 	}
 
 	/* Make sure above is updated before re-enabling */
-	wmb();
+	smp_wmb();
 
 	/* Enable addresses */
 	spydata->spy_number = wrqu->data.length;

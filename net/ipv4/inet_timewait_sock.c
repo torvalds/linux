@@ -178,7 +178,7 @@ void inet_twdr_hangman(unsigned long data)
 	need_timer = 0;
 	if (inet_twdr_do_twkill_work(twdr, twdr->slot)) {
 		twdr->thread_slots |= (1 << twdr->slot);
-		mb();
+		smp_mb();
 		schedule_work(&twdr->twkill_work);
 		need_timer = 1;
 	} else {
