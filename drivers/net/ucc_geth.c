@@ -1852,6 +1852,8 @@ static int init_phy(struct net_device *dev)
 	mii_info->mdio_read = &read_phy_reg;
 	mii_info->mdio_write = &write_phy_reg;
 
+	spin_lock_init(&mii_info->mdio_lock);
+
 	ugeth->mii_info = mii_info;
 
 	spin_lock_irq(&ugeth->lock);
