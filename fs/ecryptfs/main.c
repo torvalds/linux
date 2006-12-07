@@ -691,7 +691,7 @@ static ssize_t version_show(struct ecryptfs_obj *obj, char *buff)
 
 static struct ecryptfs_attribute sysfs_attr_version = __ATTR_RO(version);
 
-struct ecryptfs_version_str_map_elem {
+static struct ecryptfs_version_str_map_elem {
 	u32 flag;
 	char *str;
 } ecryptfs_version_str_map[] = {
