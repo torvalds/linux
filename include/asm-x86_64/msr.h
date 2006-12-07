@@ -210,6 +210,10 @@ static inline unsigned int cpuid_edx(unsigned int op)
 #define MSR_IA32_LASTINTFROMIP     0x1dd
 #define MSR_IA32_LASTINTTOIP       0x1de
 
+#define MSR_IA32_PEBS_ENABLE		0x3f1
+#define MSR_IA32_DS_AREA		0x600
+#define MSR_IA32_PERF_CAPABILITIES	0x345
+
 #define MSR_MTRRfix64K_00000	0x250
 #define MSR_MTRRfix16K_80000	0x258
 #define MSR_MTRRfix16K_A0000	0x259
@@ -406,5 +410,14 @@ static inline unsigned int cpuid_edx(unsigned int op)
 #define MSR_P4_TC_ESCR1 		0x3c5
 #define MSR_P4_U2L_ESCR0 		0x3b0
 #define MSR_P4_U2L_ESCR1 		0x3b1
+
+/* Intel Core-based CPU performance counters */
+#define MSR_CORE_PERF_FIXED_CTR0	0x309
+#define MSR_CORE_PERF_FIXED_CTR1	0x30a
+#define MSR_CORE_PERF_FIXED_CTR2	0x30b
+#define MSR_CORE_PERF_FIXED_CTR_CTRL	0x38d
+#define MSR_CORE_PERF_GLOBAL_STATUS	0x38e
+#define MSR_CORE_PERF_GLOBAL_CTRL	0x38f
+#define MSR_CORE_PERF_GLOBAL_OVF_CTRL	0x390
 
 #endif
