@@ -598,6 +598,8 @@ static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
 			1 << PG_checked | 1 << PG_mappedtodisk);
 	set_page_private(page, 0);
 	set_page_refcounted(page);
+
+	arch_alloc_page(page, order);
 	kernel_map_pages(page, 1 << order, 1);
 
 	if (gfp_flags & __GFP_ZERO)

@@ -116,6 +116,9 @@ static inline enum zone_type gfp_zone(gfp_t flags)
 #ifndef HAVE_ARCH_FREE_PAGE
 static inline void arch_free_page(struct page *page, int order) { }
 #endif
+#ifndef HAVE_ARCH_ALLOC_PAGE
+static inline void arch_alloc_page(struct page *page, int order) { }
+#endif
 
 extern struct page *
 FASTCALL(__alloc_pages(gfp_t, unsigned int, struct zonelist *));
