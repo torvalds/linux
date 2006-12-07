@@ -2303,7 +2303,7 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 	 * DMA cycle timing is slower/equal than the fastest PIO timing.
 	 */
 
-	if (speed > XFER_PIO_4) {
+	if (speed > XFER_PIO_6) {
 		ata_timing_compute(adev, adev->pio_mode, &p, T, UT);
 		ata_timing_merge(&p, t, t, ATA_TIMING_ALL);
 	}
