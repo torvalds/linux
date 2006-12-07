@@ -103,8 +103,8 @@ struct snapshot_handle {
 extern unsigned int snapshot_additional_pages(struct zone *zone);
 extern int snapshot_read_next(struct snapshot_handle *handle, size_t count);
 extern int snapshot_write_next(struct snapshot_handle *handle, size_t count);
+extern void snapshot_write_finalize(struct snapshot_handle *handle);
 extern int snapshot_image_loaded(struct snapshot_handle *handle);
-extern void snapshot_free_unused_memory(struct snapshot_handle *handle);
 
 /*
  * This structure is used to pass the values needed for the identification

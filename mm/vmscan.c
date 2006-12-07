@@ -1260,6 +1260,9 @@ out:
 	}
 	if (!all_zones_ok) {
 		cond_resched();
+
+		try_to_freeze();
+
 		goto loop_again;
 	}
 

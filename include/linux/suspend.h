@@ -9,10 +9,13 @@
 #include <linux/init.h>
 #include <linux/pm.h>
 
-/* page backup entry */
+/* struct pbe is used for creating lists of pages that should be restored
+ * atomically during the resume from disk, because the page frames they have
+ * occupied before the suspend are in use.
+ */
 struct pbe {
-	unsigned long address;		/* address of the copy */
-	unsigned long orig_address;	/* original address of page */
+	void *address;		/* address of the copy */
+	void *orig_address;	/* original address of a page */
 	struct pbe *next;
 };
 

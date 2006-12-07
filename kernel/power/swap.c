@@ -558,7 +558,7 @@ static int load_image(struct swap_map_handle *handle,
 		error = err2;
 	if (!error) {
 		printk("\b\b\b\bdone\n");
-		snapshot_free_unused_memory(snapshot);
+		snapshot_write_finalize(snapshot);
 		if (!snapshot_image_loaded(snapshot))
 			error = -ENODATA;
 	}
