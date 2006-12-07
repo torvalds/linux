@@ -43,6 +43,7 @@ amiga_partition(struct parsed_partitions *state, struct block_device *bdev)
 			if (warn_no_part)
 				printk("Dev %s: unable to read RDB block %d\n",
 				       bdevname(bdev, b), blk);
+			res = -1;
 			goto rdb_done;
 		}
 		if (*(__be32 *)data != cpu_to_be32(IDNAME_RIGIDDISK))
@@ -79,6 +80,7 @@ amiga_partition(struct parsed_partitions *state, struct block_device *bdev)
 			if (warn_no_part)
 				printk("Dev %s: unable to read partition block %d\n",
 				       bdevname(bdev, b), blk);
+			res = -1;
 			goto rdb_done;
 		}
 		pb  = (struct PartitionBlock *)data;
