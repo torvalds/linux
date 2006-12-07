@@ -471,8 +471,7 @@ void __init setup_arch(char **cmdline_p)
 	if (LOADER_TYPE && INITRD_START) {
 		if (INITRD_START + INITRD_SIZE <= (end_pfn << PAGE_SHIFT)) {
 			reserve_bootmem_generic(INITRD_START, INITRD_SIZE);
-			initrd_start =
-				INITRD_START ? INITRD_START + PAGE_OFFSET : 0;
+			initrd_start = INITRD_START + PAGE_OFFSET;
 			initrd_end = initrd_start+INITRD_SIZE;
 		}
 		else {
