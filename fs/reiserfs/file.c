@@ -1045,6 +1045,7 @@ static int reiserfs_prepare_file_region_for_write(struct inode *inode
 			char *kaddr = kmap_atomic(prepared_pages[0], KM_USER0);
 			memset(kaddr, 0, from);
 			kunmap_atomic(kaddr, KM_USER0);
+			flush_dcache_page(prepared_pages[0]);
 		}
 		if (to != PAGE_CACHE_SIZE) {	/* Last page needs to be partially zeroed */
 			char *kaddr =
@@ -1052,6 +1053,7 @@ static int reiserfs_prepare_file_region_for_write(struct inode *inode
 					KM_USER0);
 			memset(kaddr + to, 0, PAGE_CACHE_SIZE - to);
 			kunmap_atomic(kaddr, KM_USER0);
+			flush_dcache_page(prepared_pages[num_pages - 1]);
 		}
 
 		/* Since all blocks are new - use already calculated value */
@@ -1185,6 +1187,7 @@ static int reiserfs_prepare_file_region_for_write(struct inode *inode
 					memset(kaddr + block_start, 0,
 					       from - block_start);
 					kunmap_atomic(kaddr, KM_USER0);
+					flush_dcache_page(prepared_pages[0]);
 					set_buffer_uptodate(bh);
 				}
 			}
@@ -1222,6 +1225,7 @@ static int reiserfs_prepare_file_region_for_write(struct inode *inode
 							KM_USER0);
 					memset(kaddr + to, 0, block_end - to);
 					kunmap_atomic(kaddr, KM_USER0);
+					flush_dcache_page(prepared_pages[num_pages - 1]);
 					set_buffer_uptodate(bh);
 				}
 			}
