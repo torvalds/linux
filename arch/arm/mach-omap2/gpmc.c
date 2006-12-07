@@ -22,7 +22,14 @@
 
 #undef DEBUG
 
+#ifdef CONFIG_ARCH_OMAP2420
 #define GPMC_BASE		0x6800a000
+#endif
+
+#ifdef CONFIG_ARCH_OMAP2430
+#define GPMC_BASE		0x6E000000
+#endif
+
 #define GPMC_REVISION		0x00
 #define GPMC_SYSCONFIG		0x10
 #define GPMC_SYSSTATUS		0x14

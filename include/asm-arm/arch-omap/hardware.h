@@ -318,6 +318,10 @@
 #include "board-h4.h"
 #endif
 
+#ifdef CONFIG_MACH_OMAP_2430SDP
+#include "board-2430sdp.h"
+#endif
+
 #ifdef CONFIG_MACH_OMAP_APOLLON
 #include "board-apollon.h"
 #endif
