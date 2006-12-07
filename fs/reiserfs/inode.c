@@ -216,11 +216,12 @@ static int file_capable(struct inode *inode, long block)
 	BUG_ON(!th->t_trans_id);
 	BUG_ON(!th->t_refcount);
 
+	pathrelse(path);
+
 	/* we cannot restart while nested */
 	if (th->t_refcount > 1) {
 		return 0;
 	}
-	pathrelse(path);
 	reiserfs_update_sd(th, inode);
 	err = journal_end(th, s, len);
 	if (!err) {
