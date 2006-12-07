@@ -41,7 +41,11 @@
 #define MACH_Q40     10
 #define MACH_SUN3X   11
 
+#define COMMAND_LINE_SIZE 256
+
 #ifdef __KERNEL__
+
+#define CL_SIZE COMMAND_LINE_SIZE
 
 #ifndef __ASSEMBLY__
 extern unsigned long m68k_machtype;
@@ -355,8 +359,6 @@ extern int m68k_is040or060;
      */
 
 #define NUM_MEMINFO	4
-#define CL_SIZE		256
-#define COMMAND_LINE_SIZE	CL_SIZE
 
 #ifndef __ASSEMBLY__
 struct mem_info {

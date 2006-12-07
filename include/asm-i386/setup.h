@@ -6,6 +6,8 @@
 #ifndef _i386_SETUP_H
 #define _i386_SETUP_H
 
+#define COMMAND_LINE_SIZE 256
+
 #ifdef __KERNEL__
 #include <linux/pfn.h>
 
@@ -14,10 +16,8 @@
  */
 #define MAXMEM_PFN	PFN_DOWN(MAXMEM)
 #define MAX_NONPAE_PFN	(1 << 20)
-#endif
 
 #define PARAM_SIZE 4096
-#define COMMAND_LINE_SIZE 256
 
 #define OLD_CL_MAGIC_ADDR	0x90020
 #define OLD_CL_MAGIC		0xA33F
@@ -77,5 +77,7 @@ void __init add_memory_region(unsigned long long start,
 			      unsigned long long size, int type);
 
 #endif /* __ASSEMBLY__ */
+
+#endif  /*  __KERNEL__  */
 
 #endif /* _i386_SETUP_H */
