@@ -344,7 +344,6 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
 			entry = *src_pte;
 			ptepage = pte_page(entry);
 			get_page(ptepage);
-			add_mm_counter(dst, file_rss, HPAGE_SIZE / PAGE_SIZE);
 			set_huge_pte_at(dst, addr, dst_pte, entry);
 		}
 		spin_unlock(&src->page_table_lock);
@@ -377,10 +376,6 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 	BUG_ON(end & ~HPAGE_MASK);
 
 	spin_lock(&mm->page_table_lock);
-
-	/* Update high watermark before we lower rss */
-	update_hiwater_rss(mm);
-
 	for (address = start; address < end; address += HPAGE_SIZE) {
 		ptep = huge_pte_offset(mm, address);
 		if (!ptep)
@@ -395,9 +390,7 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 
 		page = pte_page(pte);
 		list_add(&page->lru, &page_list);
-		add_mm_counter(mm, file_rss, (int) -(HPAGE_SIZE / PAGE_SIZE));
 	}
-
 	spin_unlock(&mm->page_table_lock);
 	flush_tlb_range(vma, start, end);
 	list_for_each_entry_safe(page, tmp, &page_list, lru) {
@@ -523,7 +516,6 @@ retry:
 	if (!pte_none(*ptep))
 		goto backout;
 
-	add_mm_counter(mm, file_rss, HPAGE_SIZE / PAGE_SIZE);
 	new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
 				&& (vma->vm_flags & VM_SHARED)));
 	set_huge_pte_at(mm, address, ptep, new_pte);
