@@ -2747,6 +2747,7 @@ enum parport_pc_pci_cards {
 	titan_1284p2,
 	avlab_1p,
 	avlab_2p,
+	oxsemi_952,
 	oxsemi_954,
 	oxsemi_840,
 	aks_0100,
@@ -2822,6 +2823,7 @@ static struct parport_pc_pci {
 	/* avlab_2p		*/	{ 2, { { 0, 1}, { 2, 3 },} },
 	/* The Oxford Semi cards are unusual: 954 doesn't support ECP,
 	 * and 840 locks up if you write 1 to bit 2! */
+	/* oxsemi_952 */		{ 1, { { 0, 1 }, } },
 	/* oxsemi_954 */		{ 1, { { 0, -1 }, } },
 	/* oxsemi_840 */		{ 1, { { 0, -1 }, } },
 	/* aks_0100 */                  { 1, { { 0, -1 }, } },
@@ -2895,6 +2897,8 @@ static const struct pci_device_id parport_pc_pci_tbl[] = {
 	/* PCI_VENDOR_ID_AVLAB/Intek21 has another bunch of cards ...*/
 	{ 0x14db, 0x2120, PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_1p}, /* AFAVLAB_TK9902 */
 	{ 0x14db, 0x2121, PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_2p},
+	{ PCI_VENDOR_ID_OXSEMI, PCI_DEVICE_ID_OXSEMI_16PCI952PP,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, oxsemi_952 },
 	{ PCI_VENDOR_ID_OXSEMI, PCI_DEVICE_ID_OXSEMI_16PCI954PP,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, oxsemi_954 },
 	{ PCI_VENDOR_ID_OXSEMI, PCI_DEVICE_ID_OXSEMI_12PCI840,
