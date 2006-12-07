@@ -243,8 +243,9 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	if (interp_aout) {
 		argv = sp + 2;
 		envp = argv + argc + 1;
-		__put_user((elf_addr_t)(unsigned long)argv, sp++);
-		__put_user((elf_addr_t)(unsigned long)envp, sp++);
+		if (__put_user((elf_addr_t)(unsigned long)argv, sp++) ||
+		    __put_user((elf_addr_t)(unsigned long)envp, sp++))
+			return -EFAULT;
 	} else {
 		argv = sp;
 		envp = argv + argc + 1;
@@ -254,7 +255,8 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	p = current->mm->arg_end = current->mm->arg_start;
 	while (argc-- > 0) {
 		size_t len;
-		__put_user((elf_addr_t)p, argv++);
+		if (__put_user((elf_addr_t)p, argv++))
+			return -EFAULT;
 		len = strnlen_user((void __user *)p, PAGE_SIZE*MAX_ARG_PAGES);
 		if (!len || len > PAGE_SIZE*MAX_ARG_PAGES)
 			return 0;
@@ -265,7 +267,8 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	current->mm->arg_end = current->mm->env_start = p;
 	while (envc-- > 0) {
 		size_t len;
-		__put_user((elf_addr_t)p, envp++);
+		if (__put_user((elf_addr_t)p, envp++))
+			return -EFAULT;
 		len = strnlen_user((void __user *)p, PAGE_SIZE*MAX_ARG_PAGES);
 		if (!len || len > PAGE_SIZE*MAX_ARG_PAGES)
 			return 0;
