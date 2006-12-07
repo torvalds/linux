@@ -6,7 +6,6 @@ ALTARCHDEF := defined __i386__
 
 header-y += boot.h
 header-y += bootsetup.h
-header-y += cpufeature.h
 header-y += debugreg.h
 header-y += ldt.h
 header-y += msr.h
