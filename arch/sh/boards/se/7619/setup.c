@@ -8,8 +8,8 @@
 
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <asm/io.h>
 #include <asm/se7619.h>
+#include <asm/io.h>
 #include <asm/machvec.h>
 
 /*
@@ -19,25 +19,25 @@
 struct sh_machine_vector mv_se __initmv = {
 	.mv_name		= "SolutionEngine",
 	.mv_nr_irqs		= 108,
-	.mv_inb			= se7619___inb,
-	.mv_inw			= se7619___inw,
-	.mv_inl			= se7619___inl,
-	.mv_outb		= se7619___outb,
-	.mv_outw		= se7619___outw,
-	.mv_outl		= se7619___outl,
+	.mv_inb			= se7619_inb,
+	.mv_inw			= se7619_inw,
+	.mv_inl			= se7619_inl,
+	.mv_outb		= se7619_outb,
+	.mv_outw		= se7619_outw,
+	.mv_outl		= se7619_outl,
 
-	.mv_inb_p		= se7619___inb_p,
-	.mv_inw_p		= se7619___inw,
-	.mv_inl_p		= se7619___inl,
-	.mv_outb_p		= se7619___outb_p,
-	.mv_outw_p		= se7619___outw,
-	.mv_outl_p		= se7619___outl,
+	.mv_inb_p		= se7619_inb_p,
+	.mv_inw_p		= se7619_inw,
+	.mv_inl_p		= se7619_inl,
+	.mv_outb_p		= se7619_outb_p,
+	.mv_outw_p		= se7619_outw,
+	.mv_outl_p		= se7619_outl,
 
-	.mv_insb		= se7619___insb,
-	.mv_insw		= se7619___insw,
-	.mv_insl		= se7619___insl,
-	.mv_outsb		= se7619___outsb,
-	.mv_outsw		= se7619___outsw,
-	.mv_outsl		= se7619___outsl,
+	.mv_insb		= se7619_insb,
+	.mv_insw		= se7619_insw,
+	.mv_insl		= se7619_insl,
+	.mv_outsb		= se7619_outsb,
+	.mv_outsw		= se7619_outsw,
+	.mv_outsl		= se7619_outsl,
 };
 ALIAS_MV(se)
