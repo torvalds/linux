@@ -339,6 +339,9 @@ struct fuse_conn {
 	/** Is interrupt not implemented by fs? */
 	unsigned no_interrupt : 1;
 
+	/** Is bmap not implemented by fs? */
+	unsigned no_bmap : 1;
+
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;
 

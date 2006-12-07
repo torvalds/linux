@@ -132,6 +132,7 @@ enum fuse_opcode {
 	FUSE_ACCESS        = 34,
 	FUSE_CREATE        = 35,
 	FUSE_INTERRUPT     = 36,
+	FUSE_BMAP          = 37,
 };
 
 /* The read buffer is required to be at least 8k, but may be much larger */
@@ -300,6 +301,16 @@ struct fuse_init_out {
 
 struct fuse_interrupt_in {
 	__u64	unique;
+};
+
+struct fuse_bmap_in {
+	__u64	block;
+	__u32	blocksize;
+	__u32	padding;
+};
+
+struct fuse_bmap_out {
+	__u64	block;
 };
 
 struct fuse_in_header {
