@@ -835,6 +835,13 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 			set_bit(X86_FEATURE_ARCH_PERFMON, &c->x86_capability);
 	}
 
+	if (cpu_has_ds) {
+		unsigned int l1, l2;
+		rdmsr(MSR_IA32_MISC_ENABLE, l1, l2);
+		if (!(l1 & (1<<12)))
+			set_bit(X86_FEATURE_PEBS, c->x86_capability);
+	}
+
 	n = c->extended_cpuid_level;
 	if (n >= 0x80000008) {
 		unsigned eax = cpuid_eax(0x80000008);

@@ -68,6 +68,7 @@
 #define X86_FEATURE_FXSAVE_LEAK (3*32+7)  /* FIP/FOP/FDP leaks through FXSAVE */
 #define X86_FEATURE_UP		(3*32+8) /* SMP kernel running on UP */
 #define X86_FEATURE_ARCH_PERFMON (3*32+9) /* Intel Architectural PerfMon */
+#define X86_FEATURE_PEBS	(3*32+10) /* Precise-Event Based Sampling */
 
 /* Intel-defined CPU features, CPUID level 0x00000001 (ecx), word 4 */
 #define X86_FEATURE_XMM3	(4*32+ 0) /* Streaming SIMD Extensions-3 */
@@ -113,5 +114,6 @@
 #define cpu_has_centaur_mcr    0
 #define cpu_has_clflush	       boot_cpu_has(X86_FEATURE_CLFLSH)
 #define cpu_has_ds 	       boot_cpu_has(X86_FEATURE_DS)
+#define cpu_has_pebs 	       boot_cpu_has(X86_FEATURE_PEBS)
 
 #endif /* __ASM_X8664_CPUFEATURE_H */
