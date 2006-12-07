@@ -323,11 +323,12 @@ static int oom_kill_task(struct task_struct *p)
 
 	/*
 	 * kill all processes that share the ->mm (i.e. all threads),
-	 * but are in a different thread group.
+	 * but are in a different thread group. Don't let them have access
+	 * to memory reserves though, otherwise we might deplete all memory.
 	 */
 	do_each_thread(g, q) {
 		if (q->mm == mm && q->tgid != p->tgid)
-			__oom_kill_task(q, 1);
+			force_sig(SIGKILL, p);
 	} while_each_thread(g, q);
 
 	return 0;
