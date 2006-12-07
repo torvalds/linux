@@ -29,6 +29,7 @@
 #include <linux/kexec.h>
 #include <linux/unwind.h>
 #include <linux/uaccess.h>
+#include <linux/nmi.h>
 
 #ifdef CONFIG_EISA
 #include <linux/ioport.h>
@@ -248,6 +249,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 		stack = (unsigned long*)context->previous_esp;
 		if (!stack)
 			break;
+		touch_nmi_watchdog();
 	}
 }
 EXPORT_SYMBOL(dump_trace);
