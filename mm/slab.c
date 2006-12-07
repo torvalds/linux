@@ -2197,18 +2197,17 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 	if (flags & SLAB_RED_ZONE || flags & SLAB_STORE_USER)
 		ralign = BYTES_PER_WORD;
 
-	/* 2) arch mandated alignment: disables debug if necessary */
+	/* 2) arch mandated alignment */
 	if (ralign < ARCH_SLAB_MINALIGN) {
 		ralign = ARCH_SLAB_MINALIGN;
-		if (ralign > BYTES_PER_WORD)
-			flags &= ~(SLAB_RED_ZONE | SLAB_STORE_USER);
 	}
-	/* 3) caller mandated alignment: disables debug if necessary */
+	/* 3) caller mandated alignment */
 	if (ralign < align) {
 		ralign = align;
-		if (ralign > BYTES_PER_WORD)
-			flags &= ~(SLAB_RED_ZONE | SLAB_STORE_USER);
 	}
+	/* disable debug if necessary */
+	if (ralign > BYTES_PER_WORD)
+		flags &= ~(SLAB_RED_ZONE | SLAB_STORE_USER);
 	/*
 	 * 4) Store it.
 	 */
@@ -3063,6 +3062,12 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
 
 		cachep->ctor(objp, cachep, ctor_flags);
 	}
+#if ARCH_SLAB_MINALIGN
+	if ((u32)objp & (ARCH_SLAB_MINALIGN-1)) {
+		printk(KERN_ERR "0x%p: not aligned to ARCH_SLAB_MINALIGN=%d\n",
+		       objp, ARCH_SLAB_MINALIGN);
+	}
+#endif
 	return objp;
 }
 #else
