@@ -172,6 +172,13 @@ static void ipi_handler(void *info)
 
 #endif
 
+static inline int types_compatible(mtrr_type type1, mtrr_type type2) {
+	return type1 == MTRR_TYPE_UNCACHABLE ||
+	       type2 == MTRR_TYPE_UNCACHABLE ||
+	       (type1 == MTRR_TYPE_WRTHROUGH && type2 == MTRR_TYPE_WRBACK) ||
+	       (type1 == MTRR_TYPE_WRBACK && type2 == MTRR_TYPE_WRTHROUGH);
+}
+
 /**
  * set_mtrr - update mtrrs on all processors
  * @reg:	mtrr in question
@@ -304,11 +311,9 @@ static void set_mtrr(unsigned int reg, unsigned long base,
 int mtrr_add_page(unsigned long base, unsigned long size, 
 		  unsigned int type, char increment)
 {
-	int i;
+	int i, replace, error;
 	mtrr_type ltype;
-	unsigned long lbase;
-	unsigned int lsize;
-	int error;
+	unsigned long lbase, lsize;
 
 	if (!mtrr_if)
 		return -ENXIO;
@@ -328,12 +333,18 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 		return -ENOSYS;
 	}
 
+	if (!size) {
+		printk(KERN_WARNING "mtrr: zero sized request\n");
+		return -EINVAL;
+	}
+
 	if (base & size_or_mask || size & size_or_mask) {
 		printk(KERN_WARNING "mtrr: base or size exceeds the MTRR width\n");
 		return -EINVAL;
 	}
 
 	error = -EINVAL;
+	replace = -1;
 
 	/* No CPU hotplug when we change MTRR entries */
 	lock_cpu_hotplug();
@@ -341,21 +352,28 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 	mutex_lock(&mtrr_mutex);
 	for (i = 0; i < num_var_ranges; ++i) {
 		mtrr_if->get(i, &lbase, &lsize, &ltype);
-		if (base >= lbase + lsize)
-			continue;
-		if ((base < lbase) && (base + size <= lbase))
+		if (!lsize || base > lbase + lsize - 1 || base + size - 1 < lbase)
 			continue;
 		/*  At this point we know there is some kind of overlap/enclosure  */
-		if ((base < lbase) || (base + size > lbase + lsize)) {
+		if (base < lbase || base + size - 1 > lbase + lsize - 1) {
+			if (base <= lbase && base + size - 1 >= lbase + lsize - 1) {
+				/*  New region encloses an existing region  */
+				if (type == ltype) {
+					replace = replace == -1 ? i : -2;
+					continue;
+				}
+				else if (types_compatible(type, ltype))
+					continue;
+			}
 			printk(KERN_WARNING
 			       "mtrr: 0x%lx000,0x%lx000 overlaps existing"
-			       " 0x%lx000,0x%x000\n", base, size, lbase,
+			       " 0x%lx000,0x%lx000\n", base, size, lbase,
 			       lsize);
 			goto out;
 		}
 		/*  New region is enclosed by an existing region  */
 		if (ltype != type) {
-			if (type == MTRR_TYPE_UNCACHABLE)
+			if (types_compatible(type, ltype))
 				continue;
 			printk (KERN_WARNING "mtrr: type mismatch for %lx000,%lx000 old: %s new: %s\n",
 			     base, size, mtrr_attrib_to_str(ltype),
@@ -368,10 +386,18 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 		goto out;
 	}
 	/*  Search for an empty MTRR  */
-	i = mtrr_if->get_free_region(base, size);
+	i = mtrr_if->get_free_region(base, size, replace);
 	if (i >= 0) {
 		set_mtrr(i, base, size, type);
-		usage_table[i] = 1;
+		if (likely(replace < 0))
+			usage_table[i] = 1;
+		else {
+			usage_table[i] = usage_table[replace] + !!increment;
+			if (unlikely(replace != i)) {
+				set_mtrr(replace, 0, 0, 0);
+				usage_table[replace] = 0;
+			}
+		}
 	} else
 		printk(KERN_INFO "mtrr: no more MTRRs available\n");
 	error = i;
@@ -459,8 +485,7 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 {
 	int i, max;
 	mtrr_type ltype;
-	unsigned long lbase;
-	unsigned int lsize;
+	unsigned long lbase, lsize;
 	int error = -EINVAL;
 
 	if (!mtrr_if)
@@ -561,7 +586,7 @@ static void __init init_ifs(void)
 struct mtrr_value {
 	mtrr_type	ltype;
 	unsigned long	lbase;
-	unsigned int	lsize;
+	unsigned long	lsize;
 };
 
 static struct mtrr_value * mtrr_state;
