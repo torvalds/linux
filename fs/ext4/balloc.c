@@ -1288,7 +1288,7 @@ ext4_try_to_allocate_with_rsv(struct super_block *sb, handle_t *handle,
 	}
 	/*
 	 * grp_goal is a group relative block number (if there is a goal)
-	 * 0 < grp_goal < EXT4_BLOCKS_PER_GROUP(sb)
+	 * 0 <= grp_goal < EXT4_BLOCKS_PER_GROUP(sb)
 	 * first block is a filesystem wide block number
 	 * first block is the block number of the first block in this group
 	 */
@@ -1324,7 +1324,7 @@ ext4_try_to_allocate_with_rsv(struct super_block *sb, handle_t *handle,
 			if (!goal_in_my_reservation(&my_rsv->rsv_window,
 							grp_goal, group, sb))
 				grp_goal = -1;
-		} else if (grp_goal > 0) {
+		} else if (grp_goal >= 0) {
 			int curr = my_rsv->rsv_end -
 					(grp_goal + group_first_block) + 1;
 
