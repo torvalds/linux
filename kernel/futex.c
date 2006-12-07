@@ -282,9 +282,9 @@ static inline int get_futex_value_locked(u32 *dest, u32 __user *from)
 {
 	int ret;
 
-	inc_preempt_count();
+	pagefault_disable();
 	ret = __copy_from_user_inatomic(dest, from, sizeof(u32));
-	dec_preempt_count();
+	pagefault_enable();
 
 	return ret ? -EFAULT : 0;
 }
@@ -585,9 +585,9 @@ static int wake_futex_pi(u32 __user *uaddr, u32 uval, struct futex_q *this)
 	if (!(uval & FUTEX_OWNER_DIED)) {
 		newval = FUTEX_WAITERS | new_owner->pid;
 
-		inc_preempt_count();
+		pagefault_disable();
 		curval = futex_atomic_cmpxchg_inatomic(uaddr, uval, newval);
-		dec_preempt_count();
+		pagefault_enable();
 		if (curval == -EFAULT)
 			return -EFAULT;
 		if (curval != uval)
@@ -618,9 +618,9 @@ static int unlock_futex_pi(u32 __user *uaddr, u32 uval)
 	 * There is no waiter, so we unlock the futex. The owner died
 	 * bit has not to be preserved here. We are the owner:
 	 */
-	inc_preempt_count();
+	pagefault_disable();
 	oldval = futex_atomic_cmpxchg_inatomic(uaddr, uval, 0);
-	dec_preempt_count();
+	pagefault_enable();
 
 	if (oldval == -EFAULT)
 		return oldval;
@@ -1158,9 +1158,9 @@ static int futex_lock_pi(u32 __user *uaddr, int detect, unsigned long sec,
 	 */
 	newval = current->pid;
 
-	inc_preempt_count();
+	pagefault_disable();
 	curval = futex_atomic_cmpxchg_inatomic(uaddr, 0, newval);
-	dec_preempt_count();
+	pagefault_enable();
 
 	if (unlikely(curval == -EFAULT))
 		goto uaddr_faulted;
@@ -1183,9 +1183,9 @@ static int futex_lock_pi(u32 __user *uaddr, int detect, unsigned long sec,
 	uval = curval;
 	newval = uval | FUTEX_WAITERS;
 
-	inc_preempt_count();
+	pagefault_disable();
 	curval = futex_atomic_cmpxchg_inatomic(uaddr, uval, newval);
-	dec_preempt_count();
+	pagefault_enable();
 
 	if (unlikely(curval == -EFAULT))
 		goto uaddr_faulted;
@@ -1215,10 +1215,10 @@ static int futex_lock_pi(u32 __user *uaddr, int detect, unsigned long sec,
 			newval = current->pid |
 				FUTEX_OWNER_DIED | FUTEX_WAITERS;
 
-			inc_preempt_count();
+			pagefault_disable();
 			curval = futex_atomic_cmpxchg_inatomic(uaddr,
 							       uval, newval);
-			dec_preempt_count();
+			pagefault_enable();
 
 			if (unlikely(curval == -EFAULT))
 				goto uaddr_faulted;
@@ -1390,9 +1390,9 @@ retry_locked:
 	 * anyone else up:
 	 */
 	if (!(uval & FUTEX_OWNER_DIED)) {
-		inc_preempt_count();
+		pagefault_disable();
 		uval = futex_atomic_cmpxchg_inatomic(uaddr, current->pid, 0);
-		dec_preempt_count();
+		pagefault_enable();
 	}
 
 	if (unlikely(uval == -EFAULT))

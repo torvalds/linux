@@ -11,7 +11,7 @@
 
 #include <linux/errno.h>
 #include <linux/mm.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/futex.h>
 
 #ifndef __s390x__
@@ -258,7 +258,7 @@ int futex_atomic_op(int op, int __user *uaddr, int oparg, int *old)
 {
 	int oldval = 0, newval, ret;
 
-	inc_preempt_count();
+	pagefault_disable();
 
 	switch (op) {
 	case FUTEX_OP_SET:
@@ -284,7 +284,7 @@ int futex_atomic_op(int op, int __user *uaddr, int oparg, int *old)
 	default:
 		ret = -ENOSYS;
 	}
-	dec_preempt_count();
+	pagefault_enable();
 	*old = oldval;
 	return ret;
 }

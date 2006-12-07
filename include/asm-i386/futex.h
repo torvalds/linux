@@ -56,7 +56,7 @@ futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 	if (! access_ok (VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
 
-	inc_preempt_count();
+	pagefault_disable();
 
 	if (op == FUTEX_OP_SET)
 		__futex_atomic_op1("xchgl %0, %2", ret, oldval, uaddr, oparg);
@@ -88,7 +88,7 @@ futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 		}
 	}
 
-	dec_preempt_count();
+	pagefault_enable();
 
 	if (!ret) {
 		switch (cmp) {
