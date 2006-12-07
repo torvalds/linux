@@ -2788,23 +2788,21 @@ static void __devinit cciss_interrupt_mode(ctlr_info_t *c,
 		if (err > 0) {
 			printk(KERN_WARNING "cciss: only %d MSI-X vectors "
 			       "available\n", err);
+			goto default_int_mode;
 		} else {
 			printk(KERN_WARNING "cciss: MSI-X init failed %d\n",
 			       err);
+			goto default_int_mode;
 		}
 	}
 	if (pci_find_capability(pdev, PCI_CAP_ID_MSI)) {
 		if (!pci_enable_msi(pdev)) {
-			c->intr[SIMPLE_MODE_INT] = pdev->irq;
 			c->msi_vector = 1;
-			return;
 		} else {
 			printk(KERN_WARNING "cciss: MSI init failed\n");
-			c->intr[SIMPLE_MODE_INT] = pdev->irq;
-			return;
 		}
 	}
-      default_int_mode:
+default_int_mode:
 #endif				/* CONFIG_PCI_MSI */
 	/* if we get here we're going to use the default interrupt mode */
 	c->intr[SIMPLE_MODE_INT] = pdev->irq;
