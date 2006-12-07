@@ -36,7 +36,7 @@ static inline unsigned long __copy_from_user_nocache(void *to,
 		long ret;				\
 							\
 		inc_preempt_count();			\
-		ret = __get_user(retval, addr);		\
+		ret = __get_user(retval, (__force typeof(*addr) __user *)addr);\
 		dec_preempt_count();			\
 		ret;					\
 	})
