@@ -1134,8 +1134,7 @@ int kill_pid_info(int sig, struct siginfo *info, struct pid *pid)
 	return error;
 }
 
-int
-kill_proc_info(int sig, struct siginfo *info, pid_t pid)
+static int kill_proc_info(int sig, struct siginfo *info, pid_t pid)
 {
 	int error;
 	rcu_read_lock();
