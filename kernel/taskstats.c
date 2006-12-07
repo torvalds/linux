@@ -119,10 +119,10 @@ static int send_reply(struct sk_buff *skb, pid_t pid)
 /*
  * Send taskstats data in @skb to listeners registered for @cpu's exit data
  */
-static void send_cpu_listeners(struct sk_buff *skb, unsigned int cpu)
+static void send_cpu_listeners(struct sk_buff *skb,
+					struct listener_list *listeners)
 {
 	struct genlmsghdr *genlhdr = nlmsg_data((struct nlmsghdr *)skb->data);
-	struct listener_list *listeners;
 	struct listener *s, *tmp;
 	struct sk_buff *skb_next, *skb_cur = skb;
 	void *reply = genlmsg_data(genlhdr);
@@ -135,7 +135,6 @@ static void send_cpu_listeners(struct sk_buff *skb, unsigned int cpu)
 	}
 
 	rc = 0;
-	listeners = &per_cpu(listener_array, cpu);
 	down_read(&listeners->sem);
 	list_for_each_entry(s, &listeners->list, list) {
 		skb_next = NULL;
@@ -413,28 +412,12 @@ err:
 	return rc;
 }
 
-void taskstats_exit_alloc(struct taskstats **ptidstats, unsigned int *mycpu)
-{
-	struct listener_list *listeners;
-	/*
-	 * This is the cpu on which the task is exiting currently and will
-	 * be the one for which the exit event is sent, even if the cpu
-	 * on which this function is running changes later.
-	 */
-	*mycpu = raw_smp_processor_id();
-
-	listeners = &per_cpu(listener_array, *mycpu);
-
-	*ptidstats = NULL;
-	if (!list_empty(&listeners->list))
-		*ptidstats = kmem_cache_zalloc(taskstats_cache, GFP_KERNEL);
-}
-
 /* Send pid data out on exit */
-void taskstats_exit_send(struct task_struct *tsk, struct taskstats *tidstats,
-			int group_dead, unsigned int mycpu)
+void taskstats_exit(struct task_struct *tsk, int group_dead)
 {
 	int rc;
+	struct listener_list *listeners;
+	struct taskstats *tidstats;
 	struct sk_buff *rep_skb;
 	void *reply;
 	size_t size;
@@ -458,12 +441,17 @@ void taskstats_exit_send(struct task_struct *tsk, struct taskstats *tidstats,
 		fill_tgid_exit(tsk);
 	}
 
+	listeners = &__raw_get_cpu_var(listener_array);
+	if (list_empty(&listeners->list))
+		return;
+
+	tidstats = kmem_cache_zalloc(taskstats_cache, GFP_KERNEL);
 	if (!tidstats)
 		return;
 
 	rc = prepare_reply(NULL, TASKSTATS_CMD_NEW, &rep_skb, &reply, size);
 	if (rc < 0)
-		goto ret;
+		goto free_stats;
 
 	rc = fill_pid(tsk->pid, tsk, tidstats);
 	if (rc < 0)
@@ -492,15 +480,16 @@ void taskstats_exit_send(struct task_struct *tsk, struct taskstats *tidstats,
 	nla_nest_end(rep_skb, na);
 
 send:
-	send_cpu_listeners(rep_skb, mycpu);
+	send_cpu_listeners(rep_skb, listeners);
+free_stats:
+	kmem_cache_free(taskstats_cache, tidstats);
 	return;
 
 nla_put_failure:
 	genlmsg_cancel(rep_skb, reply);
 err_skb:
 	nlmsg_free(rep_skb);
-ret:
-	return;
+	goto free_stats;
 }
 
 static struct genl_ops taskstats_ops = {
