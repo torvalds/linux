@@ -292,8 +292,9 @@ struct omapfb_device {
 };
 
 struct omapfb_platform_data {
-	struct omap_lcd_config   lcd;
-	struct omap_fbmem_config fbmem;
+	struct omap_lcd_config	lcd;
+	struct omapfb_mem_desc	mem_desc;
+	void			*ctrl_platform_data;
 };
 
 #define OMAPFB_EVENT_READY	1
@@ -317,8 +318,9 @@ extern int  omapfb_update_window_async(struct omapfb_update_window *win,
 					void (*callback)(void *),
 					void *callback_data);
 
-/* in arch/arm/plat-omap/devices.c */
+/* in arch/arm/plat-omap/fb.c */
 extern void omapfb_reserve_mem(void);
+extern void omapfb_set_ctrl_platform_data(void *pdata);
 
 #endif /* __KERNEL__ */
 

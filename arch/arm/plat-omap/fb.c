@@ -55,6 +55,11 @@ void omapfb_reserve_mem(void)
 	}
 }
 
+void omapfb_set_ctrl_platform_data(void *data)
+{
+	omapfb_config.ctrl_platform_data = data;
+}
+
 static inline int omap_init_fb(void)
 {
 	const struct omap_lcd_config *conf;
