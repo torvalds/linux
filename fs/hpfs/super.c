@@ -46,21 +46,17 @@ static void unmark_dirty(struct super_block *s)
 }
 
 /* Filesystem error... */
+static char err_buf[1024];
 
-#define ERR_BUF_SIZE 1024
-
-void hpfs_error(struct super_block *s, char *m,...)
+void hpfs_error(struct super_block *s, const char *fmt, ...)
 {
-	char *buf;
-	va_list l;
-	va_start(l, m);
-	if (!(buf = kmalloc(ERR_BUF_SIZE, GFP_KERNEL)))
-		printk("HPFS: No memory for error message '%s'\n",m);
-	else if (vsprintf(buf, m, l) >= ERR_BUF_SIZE)
-		printk("HPFS: Grrrr... Kernel memory corrupted ... going on, but it'll crash very soon :-(\n");
-	printk("HPFS: filesystem error: ");
-	if (buf) printk("%s", buf);
-	else printk("%s\n",m);
+	va_list args;
+
+	va_start(args, fmt);
+	vsnprintf(err_buf, sizeof(err_buf), fmt, args);
+	va_end(args);
+
+	printk("HPFS: filesystem error: %s", err_buf);
 	if (!hpfs_sb(s)->sb_was_error) {
 		if (hpfs_sb(s)->sb_err == 2) {
 			printk("; crashing the system because you wanted it\n");
@@ -76,7 +72,6 @@ void hpfs_error(struct super_block *s, char *m,...)
 		} else if (s->s_flags & MS_RDONLY) printk("; going on - but anything won't be destroyed because it's read-only\n");
 		else printk("; corrupted filesystem mounted read/write - your computer will explode within 20 seconds ... but you wanted it so!\n");
 	} else printk("\n");
-	kfree(buf);
 	hpfs_sb(s)->sb_was_error = 1;
 }
 
