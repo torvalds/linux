@@ -8,6 +8,7 @@
  *
  */
 
+#include <linux/module.h>
 #include <linux/suspend.h>
 #include <linux/kobject.h>
 #include <linux/string.h>
@@ -230,7 +231,7 @@ int pm_suspend(suspend_state_t state)
 	return -EINVAL;
 }
 
-
+EXPORT_SYMBOL(pm_suspend);
 
 decl_subsys(power,NULL,NULL);
 

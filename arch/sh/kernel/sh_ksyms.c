@@ -99,10 +99,6 @@ EXPORT_SYMBOL(__down_trylock);
 EXPORT_SYMBOL(synchronize_irq);
 #endif
 
-#ifdef CONFIG_PM
-EXPORT_SYMBOL(pm_suspend);
-#endif
-
 EXPORT_SYMBOL(csum_partial);
 #ifdef CONFIG_IPV6
 EXPORT_SYMBOL(csum_ipv6_magic);
