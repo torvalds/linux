@@ -238,10 +238,18 @@ static int rs5c372_probe(struct i2c_adapter *adapter, int address, int kind)
 
 	i2c_set_clientdata(client, rtc);
 
-	device_create_file(&client->dev, &dev_attr_trim);
-	device_create_file(&client->dev, &dev_attr_osc);
+	err = device_create_file(&client->dev, &dev_attr_trim);
+	if (err) goto exit_devreg;
+	err = device_create_file(&client->dev, &dev_attr_osc);
+	if (err) goto exit_trim;
 
 	return 0;
+
+exit_trim:
+	device_remove_file(&client->dev, &dev_attr_trim);
+
+exit_devreg:
+	rtc_device_unregister(rtc);
 
 exit_detach:
 	i2c_detach_client(client);
