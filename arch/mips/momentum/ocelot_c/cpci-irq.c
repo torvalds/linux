@@ -66,15 +66,6 @@ static inline void unmask_cpci_irq(unsigned int irq)
 }
 
 /*
- * End IRQ processing
- */
-static void end_cpci_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		unmask_cpci_irq(irq);
-}
-
-/*
  * Interrupt handler for interrupts coming from the FPGA chip.
  * It could be built in ethernet ports etc...
  */
@@ -98,7 +89,6 @@ struct irq_chip cpci_irq_type = {
 	.mask = mask_cpci_irq,
 	.mask_ack = mask_cpci_irq,
 	.unmask = unmask_cpci_irq,
-	.end = end_cpci_irq,
 };
 
 void cpci_irq_init(void)

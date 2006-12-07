@@ -242,6 +242,7 @@ config LASAT
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select GENERIC_HARDIRQS_NO__DO_IRQ
 
 config MIPS_ATLAS
 	bool "MIPS Atlas board"
@@ -265,6 +266,7 @@ config MIPS_ATLAS
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_MULTITHREADING if EXPERIMENTAL
+	select GENERIC_HARDIRQS_NO__DO_IRQ
 	help
 	  This enables support for the MIPS Technologies Atlas evaluation
 	  board.
@@ -419,6 +421,7 @@ config MOMENCO_OCELOT_C
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
+	select GENERIC_HARDIRQS_NO__DO_IRQ
 	help
 	  The Ocelot is a MIPS-based Single Board Computer (SBC) made by
 	  Momentum Computer <http://www.momenco.com/>.
@@ -569,6 +572,7 @@ config SGI_IP27
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_NUMA
 	select SYS_SUPPORTS_SMP
+	select GENERIC_HARDIRQS_NO__DO_IRQ
 	help
 	  This are the SGI Origin 200, Origin 2000 and Onyx 2 Graphics
 	  workstations.  To compile a Linux kernel that runs on these, say Y
@@ -835,6 +839,10 @@ config SCHED_NO_NO_OMIT_FRAME_POINTER
 	bool
 	default y
 
+config GENERIC_HARDIRQS_NO__DO_IRQ
+	bool
+	default n
+
 #
 # Select some configuration options automatically based on user selections.
 #
@@ -996,6 +1004,7 @@ config SOC_PNX8550
 	select HW_HAS_PCI
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
+	select GENERIC_HARDIRQS_NO__DO_IRQ
 
 config SWAP_IO_SPACE
 	bool

@@ -80,19 +80,12 @@ static void rm9k_perfcounter_irq_shutdown(unsigned int irq)
 	on_each_cpu(local_rm9k_perfcounter_irq_shutdown, (void *) irq, 0, 1);
 }
 
-static void rm9k_cpu_irq_end(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
-		unmask_rm9k_irq(irq);
-}
-
 static struct irq_chip rm9k_irq_controller = {
 	.typename = "RM9000",
 	.ack = mask_rm9k_irq,
 	.mask = mask_rm9k_irq,
 	.mask_ack = mask_rm9k_irq,
 	.unmask = unmask_rm9k_irq,
-	.end = rm9k_cpu_irq_end,
 };
 
 static struct irq_chip rm9k_perfcounter_irq = {
@@ -103,7 +96,6 @@ static struct irq_chip rm9k_perfcounter_irq = {
 	.mask = mask_rm9k_irq,
 	.mask_ack = mask_rm9k_irq,
 	.unmask = unmask_rm9k_irq,
-	.end = rm9k_cpu_irq_end,
 };
 
 unsigned int rm9000_perfcount_irq;

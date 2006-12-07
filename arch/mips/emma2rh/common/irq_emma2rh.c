@@ -56,19 +56,12 @@ static void emma2rh_irq_disable(unsigned int irq)
 	ll_emma2rh_irq_disable(irq - emma2rh_irq_base);
 }
 
-static void emma2rh_irq_end(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
-		ll_emma2rh_irq_enable(irq - emma2rh_irq_base);
-}
-
 struct irq_chip emma2rh_irq_controller = {
 	.typename = "emma2rh_irq",
 	.ack = emma2rh_irq_disable,
 	.mask = emma2rh_irq_disable,
 	.mask_ack = emma2rh_irq_disable,
 	.unmask = emma2rh_irq_enable,
-	.end = emma2rh_irq_end,
 };
 
 void emma2rh_irq_init(u32 irq_base)

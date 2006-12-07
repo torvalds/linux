@@ -67,15 +67,6 @@ static inline void unmask_mv64340_irq(unsigned int irq)
 }
 
 /*
- * End IRQ processing
- */
-static void end_mv64340_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		unmask_mv64340_irq(irq);
-}
-
-/*
  * Interrupt handler for interrupts coming from the Marvell chip.
  * It could be built in ethernet ports etc...
  */
@@ -106,7 +97,6 @@ struct irq_chip mv64340_irq_type = {
 	.mask = mask_mv64340_irq,
 	.mask_ack = mask_mv64340_irq,
 	.unmask = unmask_mv64340_irq,
-	.end = end_mv64340_irq,
 };
 
 void __init mv64340_irq_init(unsigned int base)

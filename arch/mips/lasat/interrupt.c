@@ -44,19 +44,12 @@ void enable_lasat_irq(unsigned int irq_nr)
 	*lasat_int_mask |= (1 << irq_nr) << lasat_int_mask_shift;
 }
 
-static void end_lasat_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		enable_lasat_irq(irq);
-}
-
 static struct irq_chip lasat_irq_type = {
 	.typename = "Lasat",
 	.ack = disable_lasat_irq,
 	.mask = disable_lasat_irq,
 	.mask_ack = disable_lasat_irq,
 	.unmask = enable_lasat_irq,
-	.end = end_lasat_irq,
 };
 
 static inline int ls1bit32(unsigned int x)
