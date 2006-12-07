@@ -67,8 +67,10 @@
 #include <linux/workqueue.h>
 #include <linux/hdlc.h>
 
-#ifdef CONFIG_HDLC_MODULE
-#define CONFIG_HDLC 1
+#if defined(CONFIG_HDLC) || (defined(CONFIG_HDLC_MODULE) && defined(CONFIG_SYNCLINKMP_MODULE))
+#define SYNCLINK_GENERIC_HDLC 1
+#else
+#define SYNCLINK_GENERIC_HDLC 0
 #endif
 
 #define GET_USER(error,value,addr) error = get_user(value,addr)
@@ -280,7 +282,7 @@ typedef struct _synclinkmp_info {
 	int dosyncppp;
 	spinlock_t netlock;
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 	struct net_device *netdev;
 #endif
 
@@ -536,7 +538,7 @@ static void throttle(struct tty_struct * tty);
 static void unthrottle(struct tty_struct * tty);
 static void set_break(struct tty_struct *tty, int break_state);
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 #define dev_to_port(D) (dev_to_hdlc(D)->priv)
 static void hdlcdev_tx_done(SLMP_INFO *info);
 static void hdlcdev_rx(SLMP_INFO *info, char *buf, int size);
@@ -1607,7 +1609,7 @@ static void set_break(struct tty_struct *tty, int break_state)
 	spin_unlock_irqrestore(&info->lock,flags);
 }
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 
 /**
  * called by generic HDLC layer when protocol selected (PPP, frame relay, etc.)
@@ -2339,7 +2341,7 @@ static void isr_txeom(SLMP_INFO * info, unsigned char status)
 			set_signals(info);
 		}
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 		if (info->netcount)
 			hdlcdev_tx_done(info);
 		else
@@ -2523,7 +2525,7 @@ void isr_io_pin( SLMP_INFO *info, u16 status )
 				info->input_signal_events.dcd_up++;
 			} else
 				info->input_signal_events.dcd_down++;
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 			if (info->netcount) {
 				if (status & SerialSignal_DCD)
 					netif_carrier_on(info->netdev);
@@ -3783,7 +3785,7 @@ void add_device(SLMP_INFO *info)
 		info->irq_level,
 		info->max_frame_size );
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 	hdlcdev_init(info);
 #endif
 }
@@ -3977,7 +3979,7 @@ static void synclinkmp_cleanup(void)
 	/* release devices */
 	info = synclinkmp_device_list;
 	while(info) {
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 		hdlcdev_exit(info);
 #endif
 		free_dma_bufs(info);
@@ -4979,7 +4981,7 @@ CheckAgain:
 			info->icount.rxcrc++;
 
 		framesize = 0;
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 		{
 			struct net_device_stats *stats = hdlc_stats(info->netdev);
 			stats->rx_errors++;
@@ -5020,7 +5022,7 @@ CheckAgain:
 					index = 0;
 			}
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 			if (info->netcount)
 				hdlcdev_rx(info,info->tmp_rx_buf,framesize);
 			else
@@ -5531,7 +5533,7 @@ void tx_timeout(unsigned long context)
 
 	spin_unlock_irqrestore(&info->lock,flags);
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 	if (info->netcount)
 		hdlcdev_tx_done(info);
 	else
