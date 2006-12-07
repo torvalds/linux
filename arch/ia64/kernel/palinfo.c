@@ -952,7 +952,6 @@ remove_palinfo_proc_entries(unsigned int hcpu)
 	}
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static int palinfo_cpu_callback(struct notifier_block *nfb,
 					unsigned long action, void *hcpu)
 {
@@ -974,7 +973,6 @@ static struct notifier_block palinfo_cpu_notifier =
 	.notifier_call = palinfo_cpu_callback,
 	.priority = 0,
 };
-#endif
 
 static int __init
 palinfo_init(void)

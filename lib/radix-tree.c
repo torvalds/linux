@@ -996,7 +996,6 @@ static __init void radix_tree_init_maxindex(void)
 		height_to_maxindex[i] = __maxindex(i);
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static int radix_tree_callback(struct notifier_block *nfb,
                             unsigned long action,
                             void *hcpu)
@@ -1016,7 +1015,6 @@ static int radix_tree_callback(struct notifier_block *nfb,
        }
        return NOTIFY_OK;
 }
-#endif /* CONFIG_HOTPLUG_CPU */
 
 void __init radix_tree_init(void)
 {

@@ -655,7 +655,6 @@ int current_is_keventd(void)
 
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 /* Take the work from this (downed) CPU. */
 static void take_over_work(struct workqueue_struct *wq, unsigned int cpu)
 {
@@ -738,7 +737,6 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 
 	return NOTIFY_OK;
 }
-#endif
 
 void init_workqueues(void)
 {

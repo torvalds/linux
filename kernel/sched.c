@@ -6740,8 +6740,6 @@ SYSDEV_ATTR(sched_smt_power_savings, 0644, sched_smt_power_savings_show,
 	    sched_smt_power_savings_store);
 #endif
 
-
-#ifdef CONFIG_HOTPLUG_CPU
 /*
  * Force a reinitialization of the sched domains hierarchy.  The domains
  * and groups cannot be updated in place without racing with the balancing
@@ -6774,7 +6772,6 @@ static int update_sched_domains(struct notifier_block *nfb,
 
 	return NOTIFY_OK;
 }
-#endif
 
 void __init sched_init_smp(void)
 {

@@ -641,7 +641,6 @@ static __cpuinit int mce_create_device(unsigned int cpu)
 	return err;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static void mce_remove_device(unsigned int cpu)
 {
 	int i;
@@ -674,7 +673,6 @@ mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 static struct notifier_block mce_cpu_notifier = {
 	.notifier_call = mce_cpu_callback,
 };
-#endif
 
 static __init int mce_init_device(void)
 {

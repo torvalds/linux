@@ -89,9 +89,9 @@ int cpu_down(unsigned int cpu);
 #define lock_cpu_hotplug()	do { } while (0)
 #define unlock_cpu_hotplug()	do { } while (0)
 #define lock_cpu_hotplug_interruptible() 0
-#define hotcpu_notifier(fn, pri)	do { } while (0)
-#define register_hotcpu_notifier(nb)	do { } while (0)
-#define unregister_hotcpu_notifier(nb)	do { } while (0)
+#define hotcpu_notifier(fn, pri)	do { (void)(fn); } while (0)
+#define register_hotcpu_notifier(nb)	do { (void)(nb); } while (0)
+#define unregister_hotcpu_notifier(nb)	do { (void)(nb); } while (0)
 
 /* CPUs don't go offline once they're online w/o CONFIG_HOTPLUG_CPU */
 static inline int cpu_is_offline(int cpu) { return 0; }

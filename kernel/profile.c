@@ -319,7 +319,6 @@ out:
 	put_cpu();
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static int __devinit profile_cpu_callback(struct notifier_block *info,
 					unsigned long action, void *__cpu)
 {
@@ -372,10 +371,10 @@ static int __devinit profile_cpu_callback(struct notifier_block *info,
 	}
 	return NOTIFY_OK;
 }
-#endif /* CONFIG_HOTPLUG_CPU */
 #else /* !CONFIG_SMP */
 #define profile_flip_buffers()		do { } while (0)
 #define profile_discard_flip_buffers()	do { } while (0)
+#define profile_cpu_callback		NULL
 
 void profile_hits(int type, void *__pc, unsigned int nr_hits)
 {

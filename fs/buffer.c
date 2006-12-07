@@ -2972,7 +2972,6 @@ init_buffer_head(void *data, struct kmem_cache *cachep, unsigned long flags)
 	}
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static void buffer_exit_cpu(int cpu)
 {
 	int i;
@@ -2994,7 +2993,6 @@ static int buffer_cpu_notify(struct notifier_block *self,
 		buffer_exit_cpu((unsigned long)hcpu);
 	return NOTIFY_OK;
 }
-#endif /* CONFIG_HOTPLUG_CPU */
 
 void __init buffer_init(void)
 {
