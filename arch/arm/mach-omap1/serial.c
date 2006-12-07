@@ -1,7 +1,7 @@
 /*
  * linux/arch/arm/mach-omap1/serial.c
  *
- * OMAP1 CPU identification code
+ * OMAP1 serial support.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -59,7 +59,7 @@ static void __init omap_serial_reset(struct plat_serial8250_port *p)
 	omap_serial_outp(p, UART_OMAP_SCR, 0x08);	/* TX watermark */
 	omap_serial_outp(p, UART_OMAP_MDR1, 0x00);	/* enable UART */
 
-	if (!cpu_is_omap1510()) {
+	if (!cpu_is_omap15xx()) {
 		omap_serial_outp(p, UART_OMAP_SYSC, 0x01);
 		while (!(omap_serial_in(p, UART_OMAP_SYSC) & 0x01));
 	}
@@ -121,7 +121,7 @@ void __init omap_serial_init(void)
 		serial_platform_data[1].irq = INT_730_UART_MODEM_IRDA_2;
 	}
 
-	if (cpu_is_omap1510()) {
+	if (cpu_is_omap15xx()) {
 		serial_platform_data[0].uartclk = OMAP1510_BASE_BAUD * 16;
 		serial_platform_data[1].uartclk = OMAP1510_BASE_BAUD * 16;
 		serial_platform_data[2].uartclk = OMAP1510_BASE_BAUD * 16;
@@ -147,10 +147,10 @@ void __init omap_serial_init(void)
 				printk("Could not get uart1_ck\n");
 			else {
 				clk_enable(uart1_ck);
-				if (cpu_is_omap1510())
+				if (cpu_is_omap15xx())
 					clk_set_rate(uart1_ck, 12000000);
 			}
-			if (cpu_is_omap1510()) {
+			if (cpu_is_omap15xx()) {
 				omap_cfg_reg(UART1_TX);
 				omap_cfg_reg(UART1_RTS);
 				if (machine_is_omap_innovator()) {
@@ -167,12 +167,12 @@ void __init omap_serial_init(void)
 				printk("Could not get uart2_ck\n");
 			else {
 				clk_enable(uart2_ck);
-				if (cpu_is_omap1510())
+				if (cpu_is_omap15xx())
 					clk_set_rate(uart2_ck, 12000000);
 				else
 					clk_set_rate(uart2_ck, 48000000);
 			}
-			if (cpu_is_omap1510()) {
+			if (cpu_is_omap15xx()) {
 				omap_cfg_reg(UART2_TX);
 				omap_cfg_reg(UART2_RTS);
 				if (machine_is_omap_innovator()) {
@@ -189,10 +189,10 @@ void __init omap_serial_init(void)
 				printk("Could not get uart3_ck\n");
 			else {
 				clk_enable(uart3_ck);
-				if (cpu_is_omap1510())
+				if (cpu_is_omap15xx())
 					clk_set_rate(uart3_ck, 12000000);
 			}
-			if (cpu_is_omap1510()) {
+			if (cpu_is_omap15xx()) {
 				omap_cfg_reg(UART3_TX);
 				omap_cfg_reg(UART3_RX);
 			}
