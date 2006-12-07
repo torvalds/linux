@@ -93,8 +93,8 @@ enum kcs_states {
 				   state machine. */
 };
 
-#define MAX_KCS_READ_SIZE 80
-#define MAX_KCS_WRITE_SIZE 80
+#define MAX_KCS_READ_SIZE IPMI_MAX_MSG_LENGTH
+#define MAX_KCS_WRITE_SIZE IPMI_MAX_MSG_LENGTH
 
 /* Timeouts in microseconds. */
 #define IBF_RETRY_TIMEOUT 1000000
