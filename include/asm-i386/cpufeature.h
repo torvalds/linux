@@ -137,6 +137,7 @@
 #define cpu_has_pmm_enabled	boot_cpu_has(X86_FEATURE_PMM_EN)
 #define cpu_has_ds		boot_cpu_has(X86_FEATURE_DS)
 #define cpu_has_pebs 		boot_cpu_has(X86_FEATURE_PEBS)
+#define cpu_has_clflush		boot_cpu_has(X86_FEATURE_CLFLSH)
 
 #endif /* __ASM_I386_CPUFEATURE_H */
 
