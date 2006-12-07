@@ -6,18 +6,7 @@
 #include <asm/desc.h>
 #include <asm/i387.h>
 
-static inline int
-arch_prepare_suspend(void)
-{
-	/* If you want to make non-PSE machine work, turn off paging
-           in swsusp_arch_suspend. swsusp_pg_dir should have identity mapping, so
-           it could work...  */
-	if (!cpu_has_pse) {
-		printk(KERN_ERR "PSE is required for swsusp.\n");
-		return -EPERM;
-	}
-	return 0;
-}
+static inline int arch_prepare_suspend(void) { return 0; }
 
 /* image of the saved processor state */
 struct saved_context {
