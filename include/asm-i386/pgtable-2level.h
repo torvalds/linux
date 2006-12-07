@@ -1,8 +1,6 @@
 #ifndef _I386_PGTABLE_2LEVEL_H
 #define _I386_PGTABLE_2LEVEL_H
 
-#include <asm-generic/pgtable-nopmd.h>
-
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, (e).pte_low)
 #define pgd_ERROR(e) \

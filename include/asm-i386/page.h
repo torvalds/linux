@@ -52,6 +52,7 @@ typedef struct { unsigned long long pgprot; } pgprot_t;
 #define pte_val(x)	((x).pte_low | ((unsigned long long)(x).pte_high << 32))
 #define __pmd(x) ((pmd_t) { (x) } )
 #define HPAGE_SHIFT	21
+#include <asm-generic/pgtable-nopud.h>
 #else
 typedef struct { unsigned long pte_low; } pte_t;
 typedef struct { unsigned long pgd; } pgd_t;
@@ -59,6 +60,7 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #define boot_pte_t pte_t /* or would you rather have a typedef */
 #define pte_val(x)	((x).pte_low)
 #define HPAGE_SHIFT	22
+#include <asm-generic/pgtable-nopmd.h>
 #endif
 #define PTE_MASK	PAGE_MASK
 
