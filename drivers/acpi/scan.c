@@ -49,13 +49,13 @@ static void setup_sys_fs_device_files(struct acpi_device *dev,
 #define remove_sysfs_device_files(dev)	\
 	setup_sys_fs_device_files(dev, (acpi_device_sysfs_files *)&sysfs_remove_file)
 
-#define to_acpi_device(n) container_of(n, struct acpi_device, kobj)
+#define to_acpi_dev(n) container_of(n, struct acpi_device, kobj)
 #define to_handle_attr(n) container_of(n, struct acpi_device_attribute, attr);
 
 static ssize_t acpi_device_attr_show(struct kobject *kobj,
 				     struct attribute *attr, char *buf)
 {
-	struct acpi_device *device = to_acpi_device(kobj);
+	struct acpi_device *device = to_acpi_dev(kobj);
 	struct acpi_device_attribute *attribute = to_handle_attr(attr);
 	return attribute->show ? attribute->show(device, buf) : -EIO;
 }
@@ -63,7 +63,7 @@ static ssize_t acpi_device_attr_store(struct kobject *kobj,
 				      struct attribute *attr, const char *buf,
 				      size_t len)
 {
-	struct acpi_device *device = to_acpi_device(kobj);
+	struct acpi_device *device = to_acpi_dev(kobj);
 	struct acpi_device_attribute *attribute = to_handle_attr(attr);
 	return attribute->store ? attribute->store(device, buf, len) : -EIO;
 }
@@ -82,7 +82,7 @@ static int namespace_uevent(struct kset *kset, struct kobject *kobj,
 			     char **envp, int num_envp, char *buffer,
 			     int buffer_size)
 {
-	struct acpi_device *dev = to_acpi_device(kobj);
+	struct acpi_device *dev = to_acpi_dev(kobj);
 	int i = 0;
 	int len = 0;
 
@@ -222,7 +222,7 @@ acpi_eject_store(struct acpi_device *device, const char *buf, size_t count)
 /* --------------------------------------------------------------------------
 			ACPI Bus operations
    -------------------------------------------------------------------------- */
-static inline struct acpi_device * to_acpi_dev(struct device * dev)
+static inline struct acpi_device * to_acpi_device(struct device * dev)
 {
 	return container_of(dev, struct acpi_device, dev);
 }
@@ -251,7 +251,7 @@ static int root_suspend(struct acpi_device * acpi_dev, pm_message_t state)
 
 static int acpi_device_suspend(struct device * dev, pm_message_t state)
 {
-	struct acpi_device * acpi_dev = to_acpi_dev(dev);
+	struct acpi_device * acpi_dev = to_acpi_device(dev);
 
 	/*
 	 * For now, we should only register 1 generic device -
@@ -288,7 +288,7 @@ static int root_resume(struct acpi_device * acpi_dev)
 
 static int acpi_device_resume(struct device * dev)
 {
-	struct acpi_device * acpi_dev = to_acpi_dev(dev);
+	struct acpi_device * acpi_dev = to_acpi_device(dev);
 
 	/*
 	 * For now, we should only register 1 generic device -
