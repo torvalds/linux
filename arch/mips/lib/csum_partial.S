@@ -29,30 +29,49 @@
 #define t5	$13
 #define t6	$14
 #define t7	$15
+
+#define USE_DOUBLE
 #endif
 
-#define ADDC(sum,reg)						\
-	addu	sum, reg;					\
-	sltu	v1, sum, reg;					\
-	addu	sum, v1
+#ifdef USE_DOUBLE
 
+#define LOAD   ld
+#define ADD    daddu
+#define NBYTES 8
+
+#else
+
+#define LOAD   lw
+#define ADD    addu
+#define NBYTES 4
+
+#endif /* USE_DOUBLE */
+
+#define UNIT(unit)  ((unit)*NBYTES)
+
+#define ADDC(sum,reg)						\
+	ADD	sum, reg;					\
+	sltu	v1, sum, reg;					\
+	ADD	sum, v1
+
+#define CSUM_BIGCHUNK1(src, offset, sum, _t0, _t1, _t2, _t3)	\
+	LOAD	_t0, (offset + UNIT(0))(src);			\
+	LOAD	_t1, (offset + UNIT(1))(src);			\
+	LOAD	_t2, (offset + UNIT(2))(src); 			\
+	LOAD	_t3, (offset + UNIT(3))(src); 			\
+	ADDC(sum, _t0);						\
+	ADDC(sum, _t1);						\
+	ADDC(sum, _t2);						\
+	ADDC(sum, _t3)
+
+#ifdef USE_DOUBLE
 #define CSUM_BIGCHUNK(src, offset, sum, _t0, _t1, _t2, _t3)	\
-	lw	_t0, (offset + 0x00)(src);			\
-	lw	_t1, (offset + 0x04)(src);			\
-	lw	_t2, (offset + 0x08)(src); 			\
-	lw	_t3, (offset + 0x0c)(src); 			\
-	ADDC(sum, _t0);						\
-	ADDC(sum, _t1);						\
-	ADDC(sum, _t2);						\
-	ADDC(sum, _t3);						\
-	lw	_t0, (offset + 0x10)(src);			\
-	lw	_t1, (offset + 0x14)(src);			\
-	lw	_t2, (offset + 0x18)(src);			\
-	lw	_t3, (offset + 0x1c)(src);			\
-	ADDC(sum, _t0);						\
-	ADDC(sum, _t1);						\
-	ADDC(sum, _t2);						\
-	ADDC(sum, _t3);						\
+	CSUM_BIGCHUNK1(src, offset, sum, _t0, _t1, _t2, _t3)
+#else
+#define CSUM_BIGCHUNK(src, offset, sum, _t0, _t1, _t2, _t3)	\
+	CSUM_BIGCHUNK1(src, offset, sum, _t0, _t1, _t2, _t3);	\
+	CSUM_BIGCHUNK1(src, offset + 0x10, sum, _t0, _t1, _t2, _t3)
+#endif
 
 /*
  * a0: source address
@@ -117,11 +136,17 @@ qword_align:
 	beqz	t8, oword_align
 	 andi	t8, src, 0x10
 
+#ifdef USE_DOUBLE
+	ld	t0, 0x00(src)
+	LONG_SUBU	a1, a1, 0x8
+	ADDC(sum, t0)
+#else
 	lw	t0, 0x00(src)
 	lw	t1, 0x04(src)
 	LONG_SUBU	a1, a1, 0x8
 	ADDC(sum, t0)
 	ADDC(sum, t1)
+#endif
 	PTR_ADDU	src, src, 0x8
 	andi	t8, src, 0x10
 
@@ -129,14 +154,14 @@ oword_align:
 	beqz	t8, begin_movement
 	 LONG_SRL	t8, a1, 0x7
 
-	lw	t3, 0x08(src)
-	lw	t4, 0x0c(src)
-	lw	t0, 0x00(src)
-	lw	t1, 0x04(src)
-	ADDC(sum, t3)
-	ADDC(sum, t4)
+#ifdef USE_DOUBLE
+	ld	t0, 0x00(src)
+	ld	t1, 0x08(src)
 	ADDC(sum, t0)
 	ADDC(sum, t1)
+#else
+	CSUM_BIGCHUNK1(src, 0x00, sum, t0, t1, t3, t4)
+#endif
 	LONG_SUBU	a1, a1, 0x10
 	PTR_ADDU	src, src, 0x10
 	LONG_SRL	t8, a1, 0x7
@@ -219,6 +244,13 @@ small_csumcpy:
 1:	ADDC(sum, t1)
 
 	/* fold checksum */
+#ifdef USE_DOUBLE
+	dsll32	v1, sum, 0
+	daddu	sum, v1
+	sltu	v1, sum, v1
+	dsra32	sum, sum, 0
+	addu	sum, v1
+#endif
 	sll	v1, sum, 16
 	addu	sum, v1
 	sltu	v1, sum, v1
