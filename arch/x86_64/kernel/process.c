@@ -127,6 +127,7 @@ static void default_idle(void)
  */
 static void poll_idle (void)
 {
+	local_irq_enable();
 	cpu_relax();
 }
 
@@ -208,6 +209,12 @@ void cpu_idle (void)
 				idle = default_idle;
 			if (cpu_is_offline(smp_processor_id()))
 				play_dead();
+			/*
+			 * Idle routines should keep interrupts disabled
+			 * from here on, until they go to idle.
+			 * Otherwise, idle callbacks can misfire.
+			 */
+			local_irq_disable();
 			enter_idle();
 			idle();
 			/* In many cases the interrupt that ended idle
@@ -245,8 +252,16 @@ void mwait_idle_with_hints(unsigned long eax, unsigned long ecx)
 /* Default MONITOR/MWAIT with no hints, used for default C1 state */
 static void mwait_idle(void)
 {
-	local_irq_enable();
-	mwait_idle_with_hints(0,0);
+	if (!need_resched()) {
+		__monitor((void *)&current_thread_info()->flags, 0, 0);
+		smp_mb();
+		if (!need_resched())
+			__sti_mwait(0, 0);
+		else
+			local_irq_enable();
+	} else {
+		local_irq_enable();
+	}
 }
 
 void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
