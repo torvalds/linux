@@ -3,7 +3,6 @@
  *          and include/asm-i386/mach-default/bios_ebda.h
  *
  * Author: Laurent Vivier <Laurent.Vivier@bull.net>
- *
  */
 
 #ifndef __ASM_RIO_H
@@ -19,7 +18,7 @@ struct rio_table_hdr {
 
 struct scal_detail {
 	u8 node_id;      /* Scalability Node ID                    */
-	u32  CBAR;       /* Address of 1MB register space          */
+	u32 CBAR;        /* Address of 1MB register space          */
 	u8 port0node;    /* Node ID port connected to: 0xFF=None   */
 	u8 port0port;    /* Port num port connected to: 0,1,2, or  */
 	                 /* 0xFF=None                              */
@@ -34,7 +33,7 @@ struct scal_detail {
 
 struct rio_detail {
 	u8 node_id;      /* RIO Node ID                            */
-	u32  BBAR;       /* Address of 1MB register space          */
+	u32 BBAR;        /* Address of 1MB register space          */
 	u8 type;         /* Type of device                         */
 	u8 owner_id;     /* Node ID of Hurricane that owns this    */
 	                 /* node                                   */
@@ -65,10 +64,9 @@ enum {
  * there is a real-mode segmented pointer pointing to the
  * 4K EBDA area at 0x40E.
  */
-
 static inline unsigned long get_bios_ebda(void)
 {
-	unsigned long address= *(unsigned short *)phys_to_virt(0x40Eul);
+	unsigned long address = *(unsigned short *)phys_to_virt(0x40EUL);
 	address <<= 4;
 	return address;
 }
