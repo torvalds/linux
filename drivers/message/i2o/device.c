@@ -214,18 +214,17 @@ static struct i2o_device *i2o_device_alloc(void)
  *	Allocate a new I2O device and initialize it with the LCT entry. The
  *	device is appended to the device list of the controller.
  *
- *	Returns a pointer to the I2O device on success or negative error code
- *	on failure.
+ *	Returns zero on success, or a -ve errno.
  */
-static struct i2o_device *i2o_device_add(struct i2o_controller *c,
-					 i2o_lct_entry * entry)
+static int i2o_device_add(struct i2o_controller *c, i2o_lct_entry *entry)
 {
 	struct i2o_device *i2o_dev, *tmp;
+	int rc;
 
 	i2o_dev = i2o_device_alloc();
 	if (IS_ERR(i2o_dev)) {
 		printk(KERN_ERR "i2o: unable to allocate i2o device\n");
-		return i2o_dev;
+		return PTR_ERR(i2o_dev);
 	}
 
 	i2o_dev->lct_data = *entry;
@@ -236,7 +235,9 @@ static struct i2o_device *i2o_device_add(struct i2o_controller *c,
 	i2o_dev->iop = c;
 	i2o_dev->device.parent = &c->device;
 
-	device_register(&i2o_dev->device);
+	rc = device_register(&i2o_dev->device);
+	if (rc)
+		goto err;
 
 	list_add_tail(&i2o_dev->list, &c->devices);
 
@@ -270,7 +271,11 @@ static struct i2o_device *i2o_device_add(struct i2o_controller *c,
 
 	pr_debug("i2o: device %s added\n", i2o_dev->device.bus_id);
 
-	return i2o_dev;
+	return 0;
+
+err:
+	kfree(i2o_dev);
+	return rc;
 }
 
 /**
