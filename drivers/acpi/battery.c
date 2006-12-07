@@ -64,7 +64,7 @@ extern void *acpi_unlock_battery_dir(struct proc_dir_entry *acpi_battery_dir);
 
 static int acpi_battery_add(struct acpi_device *device);
 static int acpi_battery_remove(struct acpi_device *device, int type);
-static int acpi_battery_resume(struct acpi_device *device, int status);
+static int acpi_battery_resume(struct acpi_device *device);
 
 static struct acpi_driver acpi_battery_driver = {
 	.name = ACPI_BATTERY_DRIVER_NAME,
@@ -756,7 +756,7 @@ static int acpi_battery_remove(struct acpi_device *device, int type)
 }
 
 /* this is needed to learn about changes made in suspended state */
-static int acpi_battery_resume(struct acpi_device *device, int state)
+static int acpi_battery_resume(struct acpi_device *device)
 {
 	struct acpi_battery *battery;
 

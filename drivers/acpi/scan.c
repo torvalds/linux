@@ -222,100 +222,124 @@ acpi_eject_store(struct acpi_device *device, const char *buf, size_t count)
 /* --------------------------------------------------------------------------
 			ACPI Bus operations
    -------------------------------------------------------------------------- */
-static int root_suspend(struct acpi_device * acpi_dev, pm_message_t state)
+static int acpi_device_suspend(struct device *dev, pm_message_t state)
 {
-	struct acpi_device * dev, * next;
-	int result;
+	struct acpi_device *acpi_dev = to_acpi_device(dev);
+	struct acpi_driver *acpi_drv = acpi_dev->driver;
 
-	spin_lock(&acpi_device_lock);
-	list_for_each_entry_safe_reverse(dev, next, &acpi_device_list, g_list) {
-		if (dev->driver && dev->driver->ops.suspend) {
-			spin_unlock(&acpi_device_lock);
-			result = dev->driver->ops.suspend(dev, 0);
-			if (result) {
-				printk(KERN_ERR PREFIX "[%s - %s] Suspend failed: %d\n",
-				       acpi_device_name(dev),
-				       acpi_device_bid(dev), result);
-			}
-			spin_lock(&acpi_device_lock);
+	if (acpi_drv && acpi_drv->ops.suspend)
+		return acpi_drv->ops.suspend(acpi_dev, state);
+	return 0;
+}
+
+static int acpi_device_resume(struct device *dev)
+{
+	struct acpi_device *acpi_dev = to_acpi_device(dev);
+	struct acpi_driver *acpi_drv = acpi_dev->driver;
+
+	if (acpi_drv && acpi_drv->ops.resume)
+		return acpi_drv->ops.resume(acpi_dev);
+	return 0;
+}
+
+static int acpi_bus_match(struct device *dev, struct device_driver *drv)
+{
+	struct acpi_device *acpi_dev = to_acpi_device(dev);
+	struct acpi_driver *acpi_drv = to_acpi_driver(drv);
+
+	if (acpi_drv->ops.match)
+		return !acpi_drv->ops.match(acpi_dev, acpi_drv);
+	return !acpi_match_ids(acpi_dev, acpi_drv->ids);
+}
+
+static int acpi_device_uevent(struct device *dev, char **envp, int num_envp,
+	char *buffer, int buffer_size)
+{
+	struct acpi_device *acpi_dev = to_acpi_device(dev);
+	int i = 0, length = 0, ret = 0;
+
+	if (acpi_dev->flags.hardware_id)
+		ret = add_uevent_var(envp, num_envp, &i,
+			buffer, buffer_size, &length,
+			"HWID=%s", acpi_dev->pnp.hardware_id);
+	if (ret)
+		return -ENOMEM;
+	if (acpi_dev->flags.compatible_ids) {
+		int j;
+		struct acpi_compatible_id_list *cid_list;
+
+		cid_list = acpi_dev->pnp.cid_list;
+
+		for (j = 0; j < cid_list->count; j++) {
+			ret = add_uevent_var(envp, num_envp, &i, buffer,
+				buffer_size, &length, "COMPTID=%s",
+				cid_list->id[j].value);
+			if (ret)
+				return -ENOMEM;
 		}
 	}
-	spin_unlock(&acpi_device_lock);
+
+	envp[i] = NULL;
 	return 0;
 }
 
-static int acpi_device_suspend(struct device * dev, pm_message_t state)
+static int acpi_bus_driver_init(struct acpi_device *, struct acpi_driver *);
+static int acpi_start_single_object(struct acpi_device *);
+static int acpi_device_probe(struct device * dev)
 {
-	struct acpi_device * acpi_dev = to_acpi_device(dev);
+	struct acpi_device *acpi_dev = to_acpi_device(dev);
+	struct acpi_driver *acpi_drv = to_acpi_driver(dev->driver);
+	int ret;
 
-	/*
-	 * For now, we should only register 1 generic device -
-	 * the ACPI root device - and from there, we walk the
-	 * tree of ACPI devices to suspend each one using the
-	 * ACPI driver methods.
-	 */
-	if (acpi_dev->handle == ACPI_ROOT_OBJECT)
-		root_suspend(acpi_dev, state);
-	return 0;
-}
-
-static int root_resume(struct acpi_device * acpi_dev)
-{
-	struct acpi_device * dev, * next;
-	int result;
-
-	spin_lock(&acpi_device_lock);
-	list_for_each_entry_safe(dev, next, &acpi_device_list, g_list) {
-		if (dev->driver && dev->driver->ops.resume) {
-			spin_unlock(&acpi_device_lock);
-			result = dev->driver->ops.resume(dev, 0);
-			if (result) {
-				printk(KERN_ERR PREFIX "[%s - %s] resume failed: %d\n",
-				       acpi_device_name(dev),
-				       acpi_device_bid(dev), result);
-			}
-			spin_lock(&acpi_device_lock);
-		}
+	ret = acpi_bus_driver_init(acpi_dev, acpi_drv);
+	if (!ret) {
+		acpi_start_single_object(acpi_dev);
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			"Found driver [%s] for device [%s]\n",
+			acpi_drv->name, acpi_dev->pnp.bus_id));
+		get_device(dev);
 	}
-	spin_unlock(&acpi_device_lock);
+	return ret;
+}
+
+static int acpi_device_remove(struct device * dev)
+{
+	struct acpi_device *acpi_dev = to_acpi_device(dev);
+	struct acpi_driver *acpi_drv = acpi_dev->driver;
+
+	if (acpi_drv) {
+		if (acpi_drv->ops.stop)
+			acpi_drv->ops.stop(acpi_dev, ACPI_BUS_REMOVAL_NORMAL);
+		if (acpi_drv->ops.remove)
+			acpi_drv->ops.remove(acpi_dev, ACPI_BUS_REMOVAL_NORMAL);
+	}
+	acpi_dev->driver = NULL;
+	acpi_driver_data(dev) = NULL;
+
+	put_device(dev);
 	return 0;
 }
 
-static int acpi_device_resume(struct device * dev)
+static void acpi_device_shutdown(struct device *dev)
 {
-	struct acpi_device * acpi_dev = to_acpi_device(dev);
+	struct acpi_device *acpi_dev = to_acpi_device(dev);
+	struct acpi_driver *acpi_drv = acpi_dev->driver;
 
-	/*
-	 * For now, we should only register 1 generic device -
-	 * the ACPI root device - and from there, we walk the
-	 * tree of ACPI devices to resume each one using the
-	 * ACPI driver methods.
-	 */
-	if (acpi_dev->handle == ACPI_ROOT_OBJECT)
-		root_resume(acpi_dev);
-	return 0;
-}
+	if (acpi_drv && acpi_drv->ops.shutdown)
+		acpi_drv->ops.shutdown(acpi_dev);
 
-/**
- * acpi_bus_match - match device IDs to driver's supported IDs
- * @device: the device that we are trying to match to a driver
- * @driver: driver whose device id table is being checked
- *
- * Checks the device's hardware (_HID) or compatible (_CID) ids to see if it
- * matches the specified driver's criteria.
- */
-static int
-acpi_bus_match(struct acpi_device *device, struct acpi_driver *driver)
-{
-	if (driver && driver->ops.match)
-		return driver->ops.match(device, driver);
-	return acpi_match_ids(device, driver->ids);
+	return ;
 }
 
 static struct bus_type acpi_bus_type = {
 	.name		= "acpi",
 	.suspend	= acpi_device_suspend,
 	.resume		= acpi_device_resume,
+	.shutdown	= acpi_device_shutdown,
+	.match		= acpi_bus_match,
+	.probe		= acpi_device_probe,
+	.remove		= acpi_device_remove,
+	.uevent		= acpi_device_uevent,
 };
 
 static void acpi_device_register(struct acpi_device *device,
@@ -449,7 +473,7 @@ static void acpi_driver_attach(struct acpi_driver *drv)
 			continue;
 		spin_unlock(&acpi_device_lock);
 
-		if (!acpi_bus_match(dev, drv)) {
+		if (!acpi_bus_match(&(dev->dev), &(drv->drv))) {
 			if (!acpi_bus_driver_init(dev, drv)) {
 				acpi_start_single_object(dev);
 				atomic_inc(&drv->references);
@@ -551,7 +575,7 @@ static int acpi_bus_find_driver(struct acpi_device *device)
 
 		atomic_inc(&driver->references);
 		spin_unlock(&acpi_device_lock);
-		if (!acpi_bus_match(device, driver)) {
+		if (!acpi_bus_match(&(device->dev), &(driver->drv))) {
 			result = acpi_bus_driver_init(device, driver);
 			if (!result)
 				goto Done;

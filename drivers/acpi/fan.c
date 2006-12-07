@@ -48,8 +48,8 @@ MODULE_LICENSE("GPL");
 
 static int acpi_fan_add(struct acpi_device *device);
 static int acpi_fan_remove(struct acpi_device *device, int type);
-static int acpi_fan_suspend(struct acpi_device *device, int state);
-static int acpi_fan_resume(struct acpi_device *device, int state);
+static int acpi_fan_suspend(struct acpi_device *device, pm_message_t state);
+static int acpi_fan_resume(struct acpi_device *device);
 
 static struct acpi_driver acpi_fan_driver = {
 	.name = ACPI_FAN_DRIVER_NAME,
@@ -238,7 +238,7 @@ static int acpi_fan_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-static int acpi_fan_suspend(struct acpi_device *device, int state)
+static int acpi_fan_suspend(struct acpi_device *device, pm_message_t state)
 {
 	if (!device)
 		return -EINVAL;
@@ -248,7 +248,7 @@ static int acpi_fan_suspend(struct acpi_device *device, int state)
 	return AE_OK;
 }
 
-static int acpi_fan_resume(struct acpi_device *device, int state)
+static int acpi_fan_resume(struct acpi_device *device)
 {
 	int result = 0;
 	int power_state = 0;

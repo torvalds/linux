@@ -82,7 +82,7 @@ MODULE_PARM_DESC(tzp, "Thermal zone polling frequency, in 1/10 seconds.\n");
 
 static int acpi_thermal_add(struct acpi_device *device);
 static int acpi_thermal_remove(struct acpi_device *device, int type);
-static int acpi_thermal_resume(struct acpi_device *device, int state);
+static int acpi_thermal_resume(struct acpi_device *device);
 static int acpi_thermal_state_open_fs(struct inode *inode, struct file *file);
 static int acpi_thermal_temp_open_fs(struct inode *inode, struct file *file);
 static int acpi_thermal_trip_open_fs(struct inode *inode, struct file *file);
@@ -1356,7 +1356,7 @@ static int acpi_thermal_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-static int acpi_thermal_resume(struct acpi_device *device, int state)
+static int acpi_thermal_resume(struct acpi_device *device)
 {
 	struct acpi_thermal *tz = NULL;
 	int i;

@@ -92,13 +92,14 @@ typedef int (*acpi_op_remove) (struct acpi_device * device, int type);
 typedef int (*acpi_op_lock) (struct acpi_device * device, int type);
 typedef int (*acpi_op_start) (struct acpi_device * device);
 typedef int (*acpi_op_stop) (struct acpi_device * device, int type);
-typedef int (*acpi_op_suspend) (struct acpi_device * device, int state);
-typedef int (*acpi_op_resume) (struct acpi_device * device, int state);
+typedef int (*acpi_op_suspend) (struct acpi_device * device, pm_message_t state);
+typedef int (*acpi_op_resume) (struct acpi_device * device);
 typedef int (*acpi_op_scan) (struct acpi_device * device);
 typedef int (*acpi_op_bind) (struct acpi_device * device);
 typedef int (*acpi_op_unbind) (struct acpi_device * device);
 typedef int (*acpi_op_match) (struct acpi_device * device,
 			      struct acpi_driver * driver);
+typedef int (*acpi_op_shutdown) (struct acpi_device * device);
 
 struct acpi_bus_ops {
 	u32 acpi_op_add:1;
@@ -112,7 +113,8 @@ struct acpi_bus_ops {
 	u32 acpi_op_bind:1;
 	u32 acpi_op_unbind:1;
 	u32 acpi_op_match:1;
-	u32 reserved:21;
+	u32 acpi_op_shutdown:1;
+	u32 reserved:20;
 };
 
 struct acpi_device_ops {
@@ -127,6 +129,7 @@ struct acpi_device_ops {
 	acpi_op_bind bind;
 	acpi_op_unbind unbind;
 	acpi_op_match match;
+	acpi_op_shutdown shutdown;
 };
 
 struct acpi_driver {
