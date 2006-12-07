@@ -479,6 +479,10 @@ static struct mm_struct *dup_mm(struct task_struct *tsk)
 
 	memcpy(mm, oldmm, sizeof(*mm));
 
+	/* Initializing for Swap token stuff */
+	mm->token_priority = 0;
+	mm->last_interval = 0;
+
 	if (!mm_init(mm))
 		goto fail_nomem;
 
@@ -542,6 +546,10 @@ static int copy_mm(unsigned long clone_flags, struct task_struct * tsk)
 		goto fail_nomem;
 
 good_mm:
+	/* Initializing for Swap token stuff */
+	mm->token_priority = 0;
+	mm->last_interval = 0;
+
 	tsk->mm = mm;
 	tsk->active_mm = mm;
 	return 0;
