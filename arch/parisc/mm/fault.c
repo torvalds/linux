@@ -152,7 +152,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
 	const struct exception_table_entry *fix;
 	unsigned long acc_type;
 
-	if (in_interrupt() || !mm)
+	if (in_atomic() || !mm)
 		goto no_context;
 
 	down_read(&mm->mmap_sem);
