@@ -36,7 +36,34 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 		"2:\t" : "=m" (lock->slock) : : "memory");
 }
 
-#define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
+/*
+ * Same as __raw_spin_lock, but reenable interrupts during spinning.
+ */
+#ifndef CONFIG_PROVE_LOCKING
+static inline void __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long flags)
+{
+	asm volatile(
+		"\n1:\t"
+		LOCK_PREFIX " ; decl %0\n\t"
+		"jns 5f\n"
+		"testl $0x200, %1\n\t"	/* interrupts were disabled? */
+		"jz 4f\n\t"
+	        "sti\n"
+		"3:\t"
+		"rep;nop\n\t"
+		"cmpl $0, %0\n\t"
+		"jle 3b\n\t"
+		"cli\n\t"
+		"jmp 1b\n"
+		"4:\t"
+		"rep;nop\n\t"
+		"cmpl $0, %0\n\t"
+		"jg 1b\n\t"
+		"jmp 4b\n"
+		"5:\n\t"
+		: "+m" (lock->slock) : "r" ((unsigned)flags) : "memory");
+}
+#endif
 
 static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
