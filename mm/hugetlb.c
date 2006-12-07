@@ -386,6 +386,9 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 		if (!ptep)
 			continue;
 
+		if (huge_pmd_unshare(mm, &address, ptep))
+			continue;
+
 		pte = huge_ptep_get_and_clear(mm, address, ptep);
 		if (pte_none(pte))
 			continue;
@@ -658,10 +661,13 @@ void hugetlb_change_protection(struct vm_area_struct *vma,
 	BUG_ON(address >= end);
 	flush_cache_range(vma, address, end);
 
+	spin_lock(&vma->vm_file->f_mapping->i_mmap_lock);
 	spin_lock(&mm->page_table_lock);
 	for (; address < end; address += HPAGE_SIZE) {
 		ptep = huge_pte_offset(mm, address);
 		if (!ptep)
+			continue;
+		if (huge_pmd_unshare(mm, &address, ptep))
 			continue;
 		if (!pte_none(*ptep)) {
 			pte = huge_ptep_get_and_clear(mm, address, ptep);
@@ -671,6 +677,7 @@ void hugetlb_change_protection(struct vm_area_struct *vma,
 		}
 	}
 	spin_unlock(&mm->page_table_lock);
+	spin_unlock(&vma->vm_file->f_mapping->i_mmap_lock);
 
 	flush_tlb_range(vma, start, end);
 }
