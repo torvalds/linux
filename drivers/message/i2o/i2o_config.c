@@ -520,7 +520,6 @@ static int i2o_cfg_evt_get(unsigned long arg, struct file *fp)
 	return 0;
 }
 
-#ifdef CONFIG_I2O_EXT_ADAPTEC
 #ifdef CONFIG_COMPAT
 static int i2o_cfg_passthru32(struct file *file, unsigned cmnd,
 			      unsigned long arg)
@@ -763,6 +762,7 @@ static long i2o_cfg_compat_ioctl(struct file *file, unsigned cmd,
 
 #endif
 
+#ifdef CONFIG_I2O_EXT_ADAPTEC
 static int i2o_cfg_passthru(unsigned long arg)
 {
 	struct i2o_cmd_passthru __user *cmd =
