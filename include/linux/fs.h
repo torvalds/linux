@@ -543,7 +543,6 @@ struct inode {
 	struct list_head	i_dentry;
 	unsigned long		i_ino;
 	atomic_t		i_count;
-	umode_t			i_mode;
 	unsigned int		i_nlink;
 	uid_t			i_uid;
 	gid_t			i_gid;
@@ -559,6 +558,7 @@ struct inode {
 	unsigned int		i_blkbits;
 	blkcnt_t		i_blocks;
 	unsigned short          i_bytes;
+	umode_t			i_mode;
 	spinlock_t		i_lock;	/* i_blocks, i_bytes, maybe i_size */
 	struct mutex		i_mutex;
 	struct rw_semaphore	i_alloc_sem;
