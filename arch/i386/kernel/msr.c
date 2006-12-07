@@ -195,7 +195,6 @@ static ssize_t msr_write(struct file *file, const char __user *buf,
 {
 	const u32 __user *tmp = (const u32 __user *)buf;
 	u32 data[2];
-	size_t rv;
 	u32 reg = *ppos;
 	int cpu = iminor(file->f_dentry->d_inode);
 	int err;
@@ -203,7 +202,7 @@ static ssize_t msr_write(struct file *file, const char __user *buf,
 	if (count % 8)
 		return -EINVAL;	/* Invalid chunk size */
 
-	for (rv = 0; count; count -= 8) {
+	for (; count; count -= 8) {
 		if (copy_from_user(&data, tmp, 8))
 			return -EFAULT;
 		err = do_wrmsr(cpu, reg, data[0], data[1]);
