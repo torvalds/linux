@@ -428,24 +428,21 @@ static void acpi_ec_gpe_query(void *ec_cxt)
 	static char object_name[8];
 
 	if (!ec)
-		goto end;
+		return;
 
 	value = acpi_ec_read_status(ec);
 
 	if (!(value & ACPI_EC_FLAG_SCI))
-		goto end;
+		return;
 
 	if (acpi_ec_query(ec, &value))
-		goto end;
+		return;
 
 	snprintf(object_name, 8, "_Q%2.2X", value);
 
 	printk(KERN_INFO PREFIX "evaluating %s\n", object_name);
 
 	acpi_evaluate_object(ec->handle, object_name, NULL, NULL);
-
-      end:
-	acpi_enable_gpe(NULL, ec->gpe_bit, ACPI_NOT_ISR);
 }
 
 static u32 acpi_ec_gpe_handler(void *data)
@@ -454,7 +451,6 @@ static u32 acpi_ec_gpe_handler(void *data)
 	u8 value;
 	struct acpi_ec *ec = (struct acpi_ec *)data;
 
-	acpi_clear_gpe(NULL, ec->gpe_bit, ACPI_ISR);
 
 	if (acpi_ec_mode == EC_INTR) {
 		wake_up(&ec->wait);
@@ -464,7 +460,7 @@ static u32 acpi_ec_gpe_handler(void *data)
 	if (value & ACPI_EC_FLAG_SCI) {
 		status = acpi_os_execute(OSL_EC_BURST_HANDLER, acpi_ec_gpe_query, ec);
 	}
-	acpi_enable_gpe(NULL, ec->gpe_bit, ACPI_ISR);
+
 	return status == AE_OK ?
 	    ACPI_INTERRUPT_HANDLED : ACPI_INTERRUPT_NOT_HANDLED;
 }
