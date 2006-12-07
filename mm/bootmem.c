@@ -196,6 +196,10 @@ __alloc_bootmem_core(struct bootmem_data *bdata, unsigned long size,
 	if (limit && bdata->node_boot_start >= limit)
 		return NULL;
 
+	/* on nodes without memory - bootmem_map is NULL */
+	if (!bdata->node_bootmem_map)
+		return NULL;
+
 	end_pfn = bdata->node_low_pfn;
 	limit = PFN_DOWN(limit);
 	if (limit && end_pfn > limit)
