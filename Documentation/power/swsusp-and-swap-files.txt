@@ -38,15 +38,21 @@ resume=<swap_file_partition> resume_offset=<swap_file_offset>
 
 where <swap_file_partition> is the partition on which the swap file is located
 and <swap_file_offset> is the offset of the swap header determined by the
-application in 2).  [Of course, this step may be carried out automatically
+application in 2) (of course, this step may be carried out automatically
 by the same application that determies the swap file's header offset using the
-FIBMAP ioctl.]
+FIBMAP ioctl)
+
+OR
+
+Use a userland suspend application that will set the partition and offset
+with the help of the SNAPSHOT_SET_SWAP_AREA ioctl described in
+Documentation/power/userland-swsusp.txt (this is the only method to suspend
+to a swap file allowing the resume to be initiated from an initrd or initramfs
+image).
 
 Now, swsusp will use the swap file in the same way in which it would use a swap
-partition.  [Of course this means that the resume from a swap file cannot be
-initiated from whithin an initrd of initramfs image.]  In particular, the
-swap file has to be active (ie. be present in /proc/swaps) so that it can be
-used for suspending.
+partition.  In particular, the swap file has to be active (ie. be present in
+/proc/swaps) so that it can be used for suspending.
 
 Note that if the swap file used for suspending is deleted and recreated,
 the location of its header need not be the same as before.  Thus every time
