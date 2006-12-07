@@ -649,6 +649,13 @@ int __init omap1_clk_init(void)
 	int crystal_type = 0; /* Default 12 MHz */
 	u32 reg;
 
+#ifdef CONFIG_DEBUG_LL
+	/* Resets some clocks that may be left on from bootloader,
+	 * but leaves serial clocks on.
+ 	 */
+	omap_writel(0x3 << 29, MOD_CONF_CTRL_0);
+#endif
+
 	/* USB_REQ_EN will be disabled later if necessary (usb_dc_ck) */
 	reg = omap_readw(SOFT_REQ_REG) & (1 << 4);
 	omap_writew(reg, SOFT_REQ_REG);
