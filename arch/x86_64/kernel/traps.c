@@ -309,12 +309,6 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 		if (tsk && tsk != current)
 			stack = (unsigned long *)tsk->thread.rsp;
 	}
-	/*
-	 * Align the stack pointer on word boundary, later loops
-	 * rely on that (and corruption / debug info bugs can cause
-	 * unaligned values here):
-	 */
-	stack = (unsigned long *)((unsigned long)stack & ~(sizeof(long)-1));
 
 	/*
 	 * Print function call entries within a stack. 'cond' is the
