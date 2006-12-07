@@ -1172,11 +1172,12 @@ loop_again:
 			if (!zone_watermark_ok(zone, order, zone->pages_high,
 					       0, 0)) {
 				end_zone = i;
-				goto scan;
+				break;
 			}
 		}
-		goto out;
-scan:
+		if (i < 0)
+			goto out;
+
 		for (i = 0; i <= end_zone; i++) {
 			struct zone *zone = pgdat->node_zones + i;
 
