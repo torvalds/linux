@@ -45,19 +45,12 @@ static void ack_i8259_irq(unsigned int irq)
 	mask_and_ack_8259A(irq - I8259_IRQ_BASE);
 }
 
-static void end_i8259_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		enable_8259A_irq(irq - I8259_IRQ_BASE);
-}
-
 static struct irq_chip i8259_irq_type = {
 	.typename       = "XT-PIC",
 	.ack            = ack_i8259_irq,
 	.mask		= disable_i8259_irq,
 	.mask_ack	= ack_i8259_irq,
 	.unmask		= enable_i8259_irq,
-	.end            = end_i8259_irq,
 };
 
 static int i8259_get_irq_number(int irq)
@@ -92,7 +85,7 @@ void __init rockhopper_init_irq(void)
 	}
 
 	for (i = I8259_IRQ_BASE; i <= I8259_IRQ_LAST; i++)
-		set_irq_chip(i, &i8259_irq_type);
+		set_irq_chip_and_handler(i, &i8259_irq_type, handle_level_irq);
 
 	setup_irq(I8259_SLAVE_IRQ, &i8259_slave_cascade);
 
