@@ -65,6 +65,12 @@ SECTIONS
 	CONSTRUCTORS
 	} :data
 
+  __start_paravirtprobe = .;
+  .paravirtprobe : AT(ADDR(.paravirtprobe) - LOAD_OFFSET) {
+	*(.paravirtprobe)
+  }
+  __stop_paravirtprobe = .;
+
   . = ALIGN(4096);
   .data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) {
   	__nosave_begin = .;

@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/efi.h>
 #include <linux/bcd.h>
+#include <linux/start_kernel.h>
 
 #include <asm/bug.h>
 #include <asm/paravirt.h>
@@ -386,6 +387,9 @@ static int __init print_banner(void)
 	return 0;
 }
 core_initcall(print_banner);
+
+/* We simply declare start_kernel to be the paravirt probe of last resort. */
+paravirt_probe(start_kernel);
 
 struct paravirt_ops paravirt_ops = {
 	.name = "bare hardware",
