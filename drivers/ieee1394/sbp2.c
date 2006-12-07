@@ -458,17 +458,20 @@ static void sbp2util_notify_fetch_agent(struct sbp2_lu *lu, u64 offset,
 
 static void sbp2util_write_orb_pointer(struct work_struct *work)
 {
+	struct sbp2_lu *lu = container_of(work, struct sbp2_lu, protocol_work);
 	quadlet_t data[2];
 
-	data[0] = ORB_SET_NODE_ID((container_of(work, struct sbp2_lu, protocol_work))->hi->host->node_id);
-	data[1] = (container_of(work, struct sbp2_lu, protocol_work))->last_orb_dma;
+	data[0] = ORB_SET_NODE_ID(lu->hi->host->node_id);
+	data[1] = lu->last_orb_dma;
 	sbp2util_cpu_to_be32_buffer(data, 8);
-	sbp2util_notify_fetch_agent(container_of(work, struct sbp2_lu, protocol_work), SBP2_ORB_POINTER_OFFSET, data, 8);
+	sbp2util_notify_fetch_agent(lu, SBP2_ORB_POINTER_OFFSET, data, 8);
 }
 
 static void sbp2util_write_doorbell(struct work_struct *work)
 {
-	sbp2util_notify_fetch_agent(container_of(work, struct sbp2_lu, protocol_work), SBP2_DOORBELL_OFFSET, NULL, 4);
+	struct sbp2_lu *lu = container_of(work, struct sbp2_lu, protocol_work);
+
+	sbp2util_notify_fetch_agent(lu, SBP2_DOORBELL_OFFSET, NULL, 4);
 }
 
 static int sbp2util_create_command_orb_pool(struct sbp2_lu *lu)
@@ -1399,7 +1402,7 @@ static int sbp2_agent_reset(struct sbp2_lu *lu, int wait)
 	int retval;
 	unsigned long flags;
 
-	/* cancel_delayed_work(&lu->protocol_work); */
+	/* flush lu->protocol_work */
 	if (wait)
 		flush_scheduled_work();
 
@@ -1682,8 +1685,7 @@ static void sbp2_link_orb_command(struct sbp2_lu *lu,
 		scsi_block_requests(lu->shost);
 		PREPARE_WORK(&lu->protocol_work,
 			     last_orb ? sbp2util_write_doorbell:
-					sbp2util_write_orb_pointer
-			     /* */);
+					sbp2util_write_orb_pointer);
 		schedule_work(&lu->protocol_work);
 	}
 }
