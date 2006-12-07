@@ -54,22 +54,6 @@
 
 #define nr_syscalls ((syscall_table_size)/4)
 
-EBX		= 0x00
-ECX		= 0x04
-EDX		= 0x08
-ESI		= 0x0C
-EDI		= 0x10
-EBP		= 0x14
-EAX		= 0x18
-DS		= 0x1C
-ES		= 0x20
-ORIG_EAX	= 0x24
-EIP		= 0x28
-CS		= 0x2C
-EFLAGS		= 0x30
-OLDESP		= 0x34
-OLDSS		= 0x38
-
 CF_MASK		= 0x00000001
 TF_MASK		= 0x00000100
 IF_MASK		= 0x00000200
@@ -93,7 +77,7 @@ VM_MASK		= 0x00020000
 
 .macro TRACE_IRQS_IRET
 #ifdef CONFIG_TRACE_IRQFLAGS
-	testl $IF_MASK,EFLAGS(%esp)     # interrupts off?
+	testl $IF_MASK,PT_EFLAGS(%esp)     # interrupts off?
 	jz 1f
 	TRACE_IRQS_ON
 1:
@@ -199,18 +183,18 @@ VM_MASK		= 0x00020000
 #define RING0_PTREGS_FRAME \
 	CFI_STARTPROC simple;\
 	CFI_SIGNAL_FRAME;\
-	CFI_DEF_CFA esp, OLDESP-EBX;\
-	/*CFI_OFFSET cs, CS-OLDESP;*/\
-	CFI_OFFSET eip, EIP-OLDESP;\
-	/*CFI_OFFSET es, ES-OLDESP;*/\
-	/*CFI_OFFSET ds, DS-OLDESP;*/\
-	CFI_OFFSET eax, EAX-OLDESP;\
-	CFI_OFFSET ebp, EBP-OLDESP;\
-	CFI_OFFSET edi, EDI-OLDESP;\
-	CFI_OFFSET esi, ESI-OLDESP;\
-	CFI_OFFSET edx, EDX-OLDESP;\
-	CFI_OFFSET ecx, ECX-OLDESP;\
-	CFI_OFFSET ebx, EBX-OLDESP
+	CFI_DEF_CFA esp, PT_OLDESP-PT_EBX;\
+	/*CFI_OFFSET cs, PT_CS-PT_OLDESP;*/\
+	CFI_OFFSET eip, PT_EIP-PT_OLDESP;\
+	/*CFI_OFFSET es, PT_ES-PT_OLDESP;*/\
+	/*CFI_OFFSET ds, PT_DS-PT_OLDESP;*/\
+	CFI_OFFSET eax, PT_EAX-PT_OLDESP;\
+	CFI_OFFSET ebp, PT_EBP-PT_OLDESP;\
+	CFI_OFFSET edi, PT_EDI-PT_OLDESP;\
+	CFI_OFFSET esi, PT_ESI-PT_OLDESP;\
+	CFI_OFFSET edx, PT_EDX-PT_OLDESP;\
+	CFI_OFFSET ecx, PT_ECX-PT_OLDESP;\
+	CFI_OFFSET ebx, PT_EBX-PT_OLDESP
 
 ENTRY(ret_from_fork)
 	CFI_STARTPROC
@@ -242,8 +226,8 @@ ret_from_exception:
 ret_from_intr:
 	GET_THREAD_INFO(%ebp)
 check_userspace:
-	movl EFLAGS(%esp), %eax		# mix EFLAGS and CS
-	movb CS(%esp), %al
+	movl PT_EFLAGS(%esp), %eax	# mix EFLAGS and CS
+	movb PT_CS(%esp), %al
 	andl $(VM_MASK | SEGMENT_RPL_MASK), %eax
 	cmpl $USER_RPL, %eax
 	jb resume_kernel		# not returning to v8086 or userspace
@@ -266,7 +250,7 @@ need_resched:
 	movl TI_flags(%ebp), %ecx	# need_resched set ?
 	testb $_TIF_NEED_RESCHED, %cl
 	jz restore_all
-	testl $IF_MASK,EFLAGS(%esp)     # interrupts off (exception path) ?
+	testl $IF_MASK,PT_EFLAGS(%esp)	# interrupts off (exception path) ?
 	jz restore_all
 	call preempt_schedule_irq
 	jmp need_resched
@@ -332,15 +316,15 @@ sysenter_past_esp:
 	cmpl $(nr_syscalls), %eax
 	jae syscall_badsys
 	call *sys_call_table(,%eax,4)
-	movl %eax,EAX(%esp)
+	movl %eax,PT_EAX(%esp)
 	DISABLE_INTERRUPTS
 	TRACE_IRQS_OFF
 	movl TI_flags(%ebp), %ecx
 	testw $_TIF_ALLWORK_MASK, %cx
 	jne syscall_exit_work
 /* if something modifies registers it must also disable sysexit */
-	movl EIP(%esp), %edx
-	movl OLDESP(%esp), %ecx
+	movl PT_EIP(%esp), %edx
+	movl PT_OLDESP(%esp), %ecx
 	xorl %ebp,%ebp
 	TRACE_IRQS_ON
 	ENABLE_INTERRUPTS_SYSEXIT
@@ -354,7 +338,7 @@ ENTRY(system_call)
 	CFI_ADJUST_CFA_OFFSET 4
 	SAVE_ALL
 	GET_THREAD_INFO(%ebp)
-	testl $TF_MASK,EFLAGS(%esp)
+	testl $TF_MASK,PT_EFLAGS(%esp)
 	jz no_singlestep
 	orl $_TIF_SINGLESTEP,TI_flags(%ebp)
 no_singlestep:
@@ -366,7 +350,7 @@ no_singlestep:
 	jae syscall_badsys
 syscall_call:
 	call *sys_call_table(,%eax,4)
-	movl %eax,EAX(%esp)		# store the return value
+	movl %eax,PT_EAX(%esp)		# store the return value
 syscall_exit:
 	DISABLE_INTERRUPTS		# make sure we don't miss an interrupt
 					# setting need_resched or sigpending
@@ -377,12 +361,12 @@ syscall_exit:
 	jne syscall_exit_work
 
 restore_all:
-	movl EFLAGS(%esp), %eax		# mix EFLAGS, SS and CS
-	# Warning: OLDSS(%esp) contains the wrong/random values if we
+	movl PT_EFLAGS(%esp), %eax	# mix EFLAGS, SS and CS
+	# Warning: PT_OLDSS(%esp) contains the wrong/random values if we
 	# are returning to the kernel.
 	# See comments in process.c:copy_thread() for details.
-	movb OLDSS(%esp), %ah
-	movb CS(%esp), %al
+	movb PT_OLDSS(%esp), %ah
+	movb PT_CS(%esp), %al
 	andl $(VM_MASK | (SEGMENT_TI_MASK << 8) | SEGMENT_RPL_MASK), %eax
 	cmpl $((SEGMENT_LDT << 8) | USER_RPL), %eax
 	CFI_REMEMBER_STATE
@@ -409,7 +393,7 @@ iret_exc:
 
 	CFI_RESTORE_STATE
 ldt_ss:
-	larl OLDSS(%esp), %eax
+	larl PT_OLDSS(%esp), %eax
 	jnz restore_nocheck
 	testl $0x00400000, %eax		# returning to 32bit stack?
 	jnz restore_nocheck		# allright, normal return
@@ -419,7 +403,7 @@ ldt_ss:
 	 * This is an "official" bug of all the x86-compatible
 	 * CPUs, which we can try to work around to make
 	 * dosemu and wine happy. */
-	movl OLDESP(%esp), %eax
+	movl PT_OLDESP(%esp), %eax
 	movl %esp, %edx
 	call patch_espfix_desc
 	pushl $__ESPFIX_SS
@@ -454,7 +438,7 @@ work_resched:
 
 work_notifysig:				# deal with pending signals and
 					# notify-resume requests
-	testl $VM_MASK, EFLAGS(%esp)
+	testl $VM_MASK, PT_EFLAGS(%esp)
 	movl %esp, %eax
 	jne work_notifysig_v86		# returning to kernel-space or
 					# vm86-space
@@ -479,14 +463,14 @@ work_notifysig_v86:
 	# perform syscall exit tracing
 	ALIGN
 syscall_trace_entry:
-	movl $-ENOSYS,EAX(%esp)
+	movl $-ENOSYS,PT_EAX(%esp)
 	movl %esp, %eax
 	xorl %edx,%edx
 	call do_syscall_trace
 	cmpl $0, %eax
 	jne resume_userspace		# ret != 0 -> running under PTRACE_SYSEMU,
 					# so must skip actual syscall
-	movl ORIG_EAX(%esp), %eax
+	movl PT_ORIG_EAX(%esp), %eax
 	cmpl $(nr_syscalls), %eax
 	jnae syscall_call
 	jmp syscall_exit
@@ -511,11 +495,11 @@ syscall_fault:
 	CFI_ADJUST_CFA_OFFSET 4
 	SAVE_ALL
 	GET_THREAD_INFO(%ebp)
-	movl $-EFAULT,EAX(%esp)
+	movl $-EFAULT,PT_EAX(%esp)
 	jmp resume_userspace
 
 syscall_badsys:
-	movl $-ENOSYS,EAX(%esp)
+	movl $-ENOSYS,PT_EAX(%esp)
 	jmp resume_userspace
 	CFI_ENDPROC
 
@@ -636,10 +620,10 @@ error_code:
 	popl %ecx
 	CFI_ADJUST_CFA_OFFSET -4
 	/*CFI_REGISTER es, ecx*/
-	movl ES(%esp), %edi		# get the function address
-	movl ORIG_EAX(%esp), %edx	# get the error code
-	movl $-1, ORIG_EAX(%esp)
-	movl %ecx, ES(%esp)
+	movl PT_ES(%esp), %edi		# get the function address
+	movl PT_ORIG_EAX(%esp), %edx	# get the error code
+	movl $-1, PT_ORIG_EAX(%esp)
+	movl %ecx, PT_ES(%esp)
 	/*CFI_REL_OFFSET es, ES*/
 	movl $(__USER_DS), %ecx
 	movl %ecx, %ds
@@ -942,26 +926,26 @@ ENTRY(arch_unwind_init_running)
 	movl	4(%esp), %edx
 	movl	(%esp), %ecx
 	leal	4(%esp), %eax
-	movl	%ebx, EBX(%edx)
+	movl	%ebx, PT_EBX(%edx)
 	xorl	%ebx, %ebx
-	movl	%ebx, ECX(%edx)
-	movl	%ebx, EDX(%edx)
-	movl	%esi, ESI(%edx)
-	movl	%edi, EDI(%edx)
-	movl	%ebp, EBP(%edx)
-	movl	%ebx, EAX(%edx)
-	movl	$__USER_DS, DS(%edx)
-	movl	$__USER_DS, ES(%edx)
-	movl	%ebx, ORIG_EAX(%edx)
-	movl	%ecx, EIP(%edx)
+	movl	%ebx, PT_ECX(%edx)
+	movl	%ebx, PT_EDX(%edx)
+	movl	%esi, PT_ESI(%edx)
+	movl	%edi, PT_EDI(%edx)
+	movl	%ebp, PT_EBP(%edx)
+	movl	%ebx, PT_EAX(%edx)
+	movl	$__USER_DS, PT_DS(%edx)
+	movl	$__USER_DS, PT_ES(%edx)
+	movl	%ebx, PT_ORIG_EAX(%edx)
+	movl	%ecx, PT_EIP(%edx)
 	movl	12(%esp), %ecx
-	movl	$__KERNEL_CS, CS(%edx)
-	movl	%ebx, EFLAGS(%edx)
-	movl	%eax, OLDESP(%edx)
+	movl	$__KERNEL_CS, PT_CS(%edx)
+	movl	%ebx, PT_EFLAGS(%edx)
+	movl	%eax, PT_OLDESP(%edx)
 	movl	8(%esp), %eax
 	movl	%ecx, 8(%esp)
-	movl	EBX(%edx), %ebx
-	movl	$__KERNEL_DS, OLDSS(%edx)
+	movl	PT_EBX(%edx), %ebx
+	movl	$__KERNEL_DS, PT_OLDSS(%edx)
 	jmpl	*%eax
 	CFI_ENDPROC
 ENDPROC(arch_unwind_init_running)
