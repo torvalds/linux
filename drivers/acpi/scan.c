@@ -229,9 +229,9 @@ static int acpi_device_remove(struct device * dev)
 
 	if (acpi_drv) {
 		if (acpi_drv->ops.stop)
-			acpi_drv->ops.stop(acpi_dev, ACPI_BUS_REMOVAL_NORMAL);
+			acpi_drv->ops.stop(acpi_dev, acpi_dev->removal_type);
 		if (acpi_drv->ops.remove)
-			acpi_drv->ops.remove(acpi_dev, ACPI_BUS_REMOVAL_NORMAL);
+			acpi_drv->ops.remove(acpi_dev, acpi_dev->removal_type);
 	}
 	acpi_dev->driver = NULL;
 	acpi_driver_data(dev) = NULL;
@@ -294,6 +294,7 @@ static void acpi_device_register(struct acpi_device *device,
 	device_add(&device->dev);
 
 	acpi_device_setup_files(device);
+	device->removal_type = ACPI_BUS_REMOVAL_NORMAL;
 }
 
 static void acpi_device_unregister(struct acpi_device *device, int type)
@@ -859,6 +860,7 @@ static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
 	if (!dev)
 		return -EINVAL;
 
+	dev->removal_type = ACPI_BUS_REMOVAL_EJECT;
 	device_release_driver(&dev->dev);
 
 	if (!rmdevice)
