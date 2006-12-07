@@ -1769,6 +1769,7 @@ int ipmi_request_supply_msgs(ipmi_user_t          user,
 			      -1, 0);
 }
 
+#ifdef CONFIG_PROC_FS
 static int ipmb_file_read_proc(char *page, char **start, off_t off,
 			       int count, int *eof, void *data)
 {
@@ -1857,6 +1858,7 @@ static int stat_file_read_proc(char *page, char **start, off_t off,
 
 	return (out - ((char *) page));
 }
+#endif /* CONFIG_PROC_FS */
 
 int ipmi_smi_add_proc_entry(ipmi_smi_t smi, char *name,
 			    read_proc_t *read_proc, write_proc_t *write_proc,

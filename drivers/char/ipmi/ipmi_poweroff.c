@@ -702,9 +702,9 @@ static int ipmi_poweroff_init (void)
 		printk(KERN_ERR PFX "Unable to register SMI watcher: %d\n", rv);
 		goto out_err;
 	}
-#endif
 
  out_err:
+#endif
 	return rv;
 }
 
