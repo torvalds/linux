@@ -1015,7 +1015,7 @@ static inline void *alternate_node_alloc(struct kmem_cache *cachep,
 	return NULL;
 }
 
-static inline void *__cache_alloc_node(struct kmem_cache *cachep,
+static inline void *____cache_alloc_node(struct kmem_cache *cachep,
 		 gfp_t flags, int nodeid)
 {
 	return NULL;
@@ -1023,7 +1023,7 @@ static inline void *__cache_alloc_node(struct kmem_cache *cachep,
 
 #else	/* CONFIG_NUMA */
 
-static void *__cache_alloc_node(struct kmem_cache *, gfp_t, int);
+static void *____cache_alloc_node(struct kmem_cache *, gfp_t, int);
 static void *alternate_node_alloc(struct kmem_cache *, gfp_t);
 
 static struct array_cache **alloc_alien_cache(int node, int limit)
@@ -3130,10 +3130,10 @@ static __always_inline void *__cache_alloc(struct kmem_cache *cachep,
 		objp = ____cache_alloc(cachep, flags);
 	/*
 	 * We may just have run out of memory on the local node.
-	 * __cache_alloc_node() knows how to locate memory on other nodes
+	 * ____cache_alloc_node() knows how to locate memory on other nodes
 	 */
  	if (NUMA_BUILD && !objp)
- 		objp = __cache_alloc_node(cachep, flags, numa_node_id());
+ 		objp = ____cache_alloc_node(cachep, flags, numa_node_id());
 	local_irq_restore(save_flags);
 	objp = cache_alloc_debugcheck_after(cachep, flags, objp,
 					    caller);
@@ -3160,7 +3160,7 @@ static void *alternate_node_alloc(struct kmem_cache *cachep, gfp_t flags)
 	else if (current->mempolicy)
 		nid_alloc = slab_node(current->mempolicy);
 	if (nid_alloc != nid_here)
-		return __cache_alloc_node(cachep, flags, nid_alloc);
+		return ____cache_alloc_node(cachep, flags, nid_alloc);
 	return NULL;
 }
 
@@ -3183,7 +3183,7 @@ void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
 		if (zone_idx(*z) <= ZONE_NORMAL &&
 				cpuset_zone_allowed(*z, flags) &&
 				cache->nodelists[nid])
-			obj = __cache_alloc_node(cache,
+			obj = ____cache_alloc_node(cache,
 					flags | __GFP_THISNODE, nid);
 	}
 	return obj;
@@ -3192,7 +3192,7 @@ void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
 /*
  * A interface to enable slab creation on nodeid
  */
-static void *__cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
+static void *____cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
 				int nodeid)
 {
 	struct list_head *entry;
@@ -3465,7 +3465,9 @@ out:
  * New and improved: it will now make sure that the object gets
  * put on the correct node list so that there is no false sharing.
  */
-void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+static __always_inline void *
+__cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
+		int nodeid, void *caller)
 {
 	unsigned long save_flags;
 	void *ptr;
@@ -3477,17 +3479,23 @@ void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 			!cachep->nodelists[nodeid])
 		ptr = ____cache_alloc(cachep, flags);
 	else
-		ptr = __cache_alloc_node(cachep, flags, nodeid);
+		ptr = ____cache_alloc_node(cachep, flags, nodeid);
 	local_irq_restore(save_flags);
 
-	ptr = cache_alloc_debugcheck_after(cachep, flags, ptr,
-					   __builtin_return_address(0));
+	ptr = cache_alloc_debugcheck_after(cachep, flags, ptr, caller);
 
 	return ptr;
 }
+
+void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+{
+	return __cache_alloc_node(cachep, flags, nodeid,
+			__builtin_return_address(0));
+}
 EXPORT_SYMBOL(kmem_cache_alloc_node);
 
-void *__kmalloc_node(size_t size, gfp_t flags, int node)
+static __always_inline void *
+__do_kmalloc_node(size_t size, gfp_t flags, int node, void *caller)
 {
 	struct kmem_cache *cachep;
 
@@ -3496,8 +3504,29 @@ void *__kmalloc_node(size_t size, gfp_t flags, int node)
 		return NULL;
 	return kmem_cache_alloc_node(cachep, flags, node);
 }
+
+#ifdef CONFIG_DEBUG_SLAB
+void *__kmalloc_node(size_t size, gfp_t flags, int node)
+{
+	return __do_kmalloc_node(size, flags, node,
+			__builtin_return_address(0));
+}
 EXPORT_SYMBOL(__kmalloc_node);
-#endif
+
+void *__kmalloc_node_track_caller(size_t size, gfp_t flags,
+		int node, void *caller)
+{
+	return __do_kmalloc_node(size, flags, node, caller);
+}
+EXPORT_SYMBOL(__kmalloc_node_track_caller);
+#else
+void *__kmalloc_node(size_t size, gfp_t flags, int node)
+{
+	return __do_kmalloc_node(size, flags, node, NULL);
+}
+EXPORT_SYMBOL(__kmalloc_node);
+#endif /* CONFIG_DEBUG_SLAB */
+#endif /* CONFIG_NUMA */
 
 /**
  * __do_kmalloc - allocate memory

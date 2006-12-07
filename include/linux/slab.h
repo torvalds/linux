@@ -236,7 +236,25 @@ found:
 	}
 	return __kmalloc_node(size, flags, node);
 }
+
+/*
+ * kmalloc_node_track_caller is a special version of kmalloc_node that
+ * records the calling function of the routine calling it for slab leak
+ * tracking instead of just the calling function (confusing, eh?).
+ * It's useful when the call to kmalloc_node comes from a widely-used
+ * standard allocator where we care about the real place the memory
+ * allocation request comes from.
+ */
+#ifndef CONFIG_DEBUG_SLAB
+#define kmalloc_node_track_caller(size, flags, node) \
+	__kmalloc_node(size, flags, node)
 #else
+extern void *__kmalloc_node_track_caller(size_t, gfp_t, int, void *);
+#define kmalloc_node_track_caller(size, flags, node) \
+	__kmalloc_node_track_caller(size, flags, node, \
+			__builtin_return_address(0))
+#endif
+#else /* CONFIG_NUMA */
 static inline void *kmem_cache_alloc_node(kmem_cache_t *cachep, gfp_t flags, int node)
 {
 	return kmem_cache_alloc(cachep, flags);
@@ -245,6 +263,9 @@ static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 {
 	return kmalloc(size, flags);
 }
+
+#define kmalloc_node_track_caller(size, flags, node) \
+	kmalloc_track_caller(size, flags)
 #endif
 
 extern int FASTCALL(kmem_cache_reap(int));
@@ -282,6 +303,8 @@ static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
 #define kmalloc_node(s, f, n) kmalloc(s, f)
 #define kzalloc(s, f) __kzalloc(s, f)
 #define kmalloc_track_caller kmalloc
+
+#define kmalloc_node_track_caller kmalloc_node
 
 #endif /* CONFIG_SLOB */
 
