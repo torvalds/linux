@@ -394,8 +394,7 @@ err:
 	if (bt) {
 		if (bt->dropped_file)
 			debugfs_remove(bt->dropped_file);
-		if (bt->sequence)
-			free_percpu(bt->sequence);
+		free_percpu(bt->sequence);
 		if (bt->rchan)
 			relay_close(bt->rchan);
 		kfree(bt);

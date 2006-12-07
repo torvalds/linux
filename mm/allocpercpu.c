@@ -17,10 +17,9 @@
 void percpu_depopulate(void *__pdata, int cpu)
 {
 	struct percpu_data *pdata = __percpu_disguise(__pdata);
-	if (pdata->ptrs[cpu]) {
-		kfree(pdata->ptrs[cpu]);
-		pdata->ptrs[cpu] = NULL;
-	}
+
+	kfree(pdata->ptrs[cpu]);
+	pdata->ptrs[cpu] = NULL;
 }
 EXPORT_SYMBOL_GPL(percpu_depopulate);
 
@@ -123,6 +122,8 @@ EXPORT_SYMBOL_GPL(__percpu_alloc_mask);
  */
 void percpu_free(void *__pdata)
 {
+	if (unlikely(!__pdata))
+		return;
 	__percpu_depopulate_mask(__pdata, &cpu_possible_map);
 	kfree(__percpu_disguise(__pdata));
 }

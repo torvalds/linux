@@ -720,10 +720,8 @@ snmp6_mib_free(void *ptr[2])
 {
 	if (ptr == NULL)
 		return;
-	if (ptr[0])
-		free_percpu(ptr[0]);
-	if (ptr[1])
-		free_percpu(ptr[1]);
+	free_percpu(ptr[0]);
+	free_percpu(ptr[1]);
 	ptr[0] = ptr[1] = NULL;
 }
 
