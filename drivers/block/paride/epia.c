@@ -303,12 +303,12 @@ static struct pi_protocol epia = {
 
 static int __init epia_init(void)
 {
-	return pi_register(&epia)-1;
+	return paride_register(&epia)-1;
 }
 
 static void __exit epia_exit(void)
 {
-	pi_unregister(&epia);
+	paride_unregister(&epia);
 }
 
 MODULE_LICENSE("GPL");

@@ -265,12 +265,12 @@ static int __init bpck6_init(void)
 	printk(KERN_INFO "bpck6: Copyright 2001 by Micro Solutions, Inc., DeKalb IL. USA\n");
 	if(verbose)
 		printk(KERN_DEBUG "bpck6: verbose debug enabled.\n");
-	return pi_register(&bpck6) - 1;  
+	return paride_register(&bpck6) - 1;
 }
 
 static void __exit bpck6_exit(void)
 {
-	pi_unregister(&bpck6);
+	paride_unregister(&bpck6);
 }
 
 MODULE_LICENSE("GPL");

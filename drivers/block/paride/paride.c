@@ -229,7 +229,7 @@ static int pi_test_proto(PIA * pi, char *scratch, int verbose)
 	return res;
 }
 
-int pi_register(PIP * pr)
+int paride_register(PIP * pr)
 {
 	int k;
 
@@ -252,9 +252,9 @@ int pi_register(PIP * pr)
 	return 1;
 }
 
-EXPORT_SYMBOL(pi_register);
+EXPORT_SYMBOL(paride_register);
 
-void pi_unregister(PIP * pr)
+void paride_unregister(PIP * pr)
 {
 	if (!pr)
 		return;
@@ -265,7 +265,7 @@ void pi_unregister(PIP * pr)
 	protocols[pr->index] = NULL;
 }
 
-EXPORT_SYMBOL(pi_unregister);
+EXPORT_SYMBOL(paride_unregister);
 
 static int pi_register_parport(PIA * pi, int verbose)
 {

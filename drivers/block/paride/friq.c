@@ -263,12 +263,12 @@ static struct pi_protocol friq = {
 
 static int __init friq_init(void)
 {
-	return pi_register(&friq)-1;
+	return paride_register(&friq)-1;
 }
 
 static void __exit friq_exit(void)
 {
-	pi_unregister(&friq);
+	paride_unregister(&friq);
 }
 
 MODULE_LICENSE("GPL");

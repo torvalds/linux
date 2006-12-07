@@ -300,12 +300,12 @@ static struct pi_protocol frpw = {
 
 static int __init frpw_init(void)
 {
-	return pi_register(&frpw)-1;
+	return paride_register(&frpw)-1;
 }
 
 static void __exit frpw_exit(void)
 {
-	pi_unregister(&frpw);
+	paride_unregister(&frpw);
 }
 
 MODULE_LICENSE("GPL");

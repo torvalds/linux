@@ -198,12 +198,12 @@ static struct pi_protocol fit3 = {
 
 static int __init fit3_init(void)
 {
-	return pi_register(&fit3)-1;
+	return paride_register(&fit3)-1;
 }
 
 static void __exit fit3_exit(void)
 {
-	pi_unregister(&fit3);
+	paride_unregister(&fit3);
 }
 
 MODULE_LICENSE("GPL");
