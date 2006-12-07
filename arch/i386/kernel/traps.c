@@ -380,7 +380,7 @@ void show_registers(struct pt_regs *regs)
 	 * time of the fault..
 	 */
 	if (in_kernel) {
-		u8 __user *eip;
+		u8 *eip;
 		int code_bytes = 64;
 		unsigned char c;
 
@@ -389,18 +389,20 @@ void show_registers(struct pt_regs *regs)
 
 		printk(KERN_EMERG "Code: ");
 
-		eip = (u8 __user *)regs->eip - 43;
-		if (eip < (u8 __user *)PAGE_OFFSET || __get_user(c, eip)) {
+		eip = (u8 *)regs->eip - 43;
+		if (eip < (u8 *)PAGE_OFFSET ||
+			probe_kernel_address(eip, c)) {
 			/* try starting at EIP */
-			eip = (u8 __user *)regs->eip;
+			eip = (u8 *)regs->eip;
 			code_bytes = 32;
 		}
 		for (i = 0; i < code_bytes; i++, eip++) {
-			if (eip < (u8 __user *)PAGE_OFFSET || __get_user(c, eip)) {
+			if (eip < (u8 *)PAGE_OFFSET ||
+				probe_kernel_address(eip, c)) {
 				printk(" Bad EIP value.");
 				break;
 			}
-			if (eip == (u8 __user *)regs->eip)
+			if (eip == (u8 *)regs->eip)
 				printk("<%02x> ", c);
 			else
 				printk("%02x ", c);
@@ -416,7 +418,7 @@ static void handle_BUG(struct pt_regs *regs)
 
 	if (eip < PAGE_OFFSET)
 		return;
-	if (probe_kernel_address((unsigned short __user *)eip, ud2))
+	if (probe_kernel_address((unsigned short *)eip, ud2))
 		return;
 	if (ud2 != 0x0b0f)
 		return;
@@ -429,11 +431,11 @@ static void handle_BUG(struct pt_regs *regs)
 		char *file;
 		char c;
 
-		if (probe_kernel_address((unsigned short __user *)(eip + 2),
-					line))
+		if (probe_kernel_address((unsigned short *)(eip + 2), line))
 			break;
-		if (__get_user(file, (char * __user *)(eip + 4)) ||
-		    (unsigned long)file < PAGE_OFFSET || __get_user(c, file))
+		if (probe_kernel_address((char **)(eip + 4), file) ||
+		    (unsigned long)file < PAGE_OFFSET ||
+			probe_kernel_address(file, c))
 			file = "<bad filename>";
 
 		printk(KERN_EMERG "kernel BUG at %s:%d!\n", file, line);
