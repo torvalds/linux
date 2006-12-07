@@ -4822,12 +4822,12 @@ void show_state_filter(unsigned long state_filter)
 
 #if (BITS_PER_LONG == 32)
 	printk("\n"
-	       "                                               sibling\n");
-	printk("  task             PC      pid father child younger older\n");
+	       "                         free                        sibling\n");
+	printk("  task             PC    stack   pid father child younger older\n");
 #else
 	printk("\n"
-	       "                                                       sibling\n");
-	printk("  task                 PC          pid father child younger older\n");
+	       "                                 free                        sibling\n");
+	printk("  task                 PC        stack   pid father child younger older\n");
 #endif
 	read_lock(&tasklist_lock);
 	do_each_thread(g, p) {
