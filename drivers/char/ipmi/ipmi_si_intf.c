@@ -2362,6 +2362,7 @@ static int try_smi_init(struct smi_info *new_smi)
 			       new_smi,
 			       &new_smi->device_id,
 			       new_smi->dev,
+			       "bmc",
 			       new_smi->slave_addr);
 	if (rv) {
 		printk(KERN_ERR
