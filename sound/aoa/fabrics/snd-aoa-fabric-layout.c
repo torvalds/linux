@@ -1107,6 +1107,9 @@ static struct soundbus_driver aoa_soundbus_driver = {
 	.suspend = aoa_fabric_layout_suspend,
 	.resume = aoa_fabric_layout_resume,
 #endif
+	.driver = {
+		.owner = THIS_MODULE,
+	}
 };
 
 static int __init aoa_fabric_layout_init(void)
