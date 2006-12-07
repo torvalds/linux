@@ -72,6 +72,7 @@ struct cpuinfo_x86 {
 #endif
 	unsigned char x86_max_cores;	/* cpuid returned max cores value */
 	unsigned char apicid;
+	unsigned short x86_clflush_size;
 #ifdef CONFIG_SMP
 	unsigned char booted_cores;	/* number of cores as seen by OS */
 	__u8 phys_proc_id; 		/* Physical processor id. */

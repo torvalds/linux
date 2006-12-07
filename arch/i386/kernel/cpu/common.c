@@ -309,6 +309,8 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 * c)
 #else
 			c->apicid = (ebx >> 24) & 0xFF;
 #endif
+			if (c->x86_capability[0] & (1<<19))
+				c->x86_clflush_size = ((ebx >> 8) & 0xff) * 8;
 		} else {
 			/* Have CPUID level 0 only - unheard of */
 			c->x86 = 4;
@@ -373,6 +375,7 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	c->x86_vendor_id[0] = '\0'; /* Unset */
 	c->x86_model_id[0] = '\0';  /* Unset */
 	c->x86_max_cores = 1;
+	c->x86_clflush_size = 32;
 	memset(&c->x86_capability, 0, sizeof c->x86_capability);
 
 	if (!have_cpuid_p()) {
