@@ -296,12 +296,21 @@ config PATA_ISAPNP
 	  If unsure, say N.
 
 config PATA_IT821X
-	tristate "IT821x PATA support (Experimental)"
+	tristate "IT8211/2 PATA support (Experimental)"
 	depends on PCI && EXPERIMENTAL
 	help
 	  This option enables support for the ITE 8211 and 8212
 	  PATA controllers via the new ATA layer, including RAID
 	  mode.
+
+	  If unsure, say N.
+
+config PATA_IT8213
+	tristate "IT8213 PATA support (Experimental)"
+	depends on PCI && EXPERIMENTAL
+	help
+	  This option enables support for the ITE 821 PATA
+          controllers via the new ATA layer.
 
 	  If unsure, say N.
 
