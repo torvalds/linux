@@ -732,11 +732,8 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	/* Fix cpuid4 emulation for more */
 	num_cache_leaves = 3;
 
-	/* When there is only one core no need to synchronize RDTSC */
-	if (num_possible_cpus() == 1)
-	        set_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
-	else
-	        clear_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
+	/* RDTSC can be speculated around */
+	clear_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
 }
 
 static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
