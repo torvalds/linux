@@ -2120,8 +2120,8 @@ static struct page * via_mm_nopage (struct vm_area_struct * vma,
 		return NOPAGE_SIGBUS; /* Disallow mremap */
 	}
         if (!card) {
-		DPRINTK ("EXIT, returning NOPAGE_OOM\n");
-		return NOPAGE_OOM;	/* Nothing allocated */
+		DPRINTK ("EXIT, returning NOPAGE_SIGBUS\n");
+		return NOPAGE_SIGBUS;	/* Nothing allocated */
 	}
 
 	pgoff = vma->vm_pgoff + ((address - vma->vm_start) >> PAGE_SHIFT);
