@@ -270,11 +270,7 @@ int disable_nonboot_cpus(void)
 			goto out;
 		}
 	}
-	error = set_cpus_allowed(current, cpumask_of_cpu(first_cpu));
-	if (error) {
-		printk(KERN_ERR "Could not run on CPU%d\n", first_cpu);
-		goto out;
-	}
+
 	/* We take down all of the non-boot CPUs in one shot to avoid races
 	 * with the userspace trying to use the CPU hotplug at the same time
 	 */
