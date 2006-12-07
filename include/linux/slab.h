@@ -7,16 +7,17 @@
 #ifndef _LINUX_SLAB_H
 #define	_LINUX_SLAB_H
 
-#if	defined(__KERNEL__)
+#ifdef __KERNEL__
+
+#include <linux/gfp.h>
+#include <linux/init.h>
+#include <linux/types.h>
+#include <asm/page.h>		/* kmalloc_sizes.h needs PAGE_SIZE */
+#include <asm/cache.h>		/* kmalloc_sizes.h needs L1_CACHE_BYTES */
+#include <linux/compiler.h>
 
 /* kmem_cache_t exists for legacy reasons and is not used by code in mm */
-typedef struct kmem_cache kmem_cache_t;
-
-#include	<linux/gfp.h>
-#include	<linux/init.h>
-#include	<linux/types.h>
-#include	<asm/page.h>		/* kmalloc_sizes.h needs PAGE_SIZE */
-#include	<asm/cache.h>		/* kmalloc_sizes.h needs L1_CACHE_BYTES */
+typedef struct kmem_cache kmem_cache_t __deprecated;
 
 /* flags to pass to kmem_cache_create().
  * The first 3 are only valid when the allocator as been build
