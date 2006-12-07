@@ -43,6 +43,9 @@
 
 #define PFX "IPMI poweroff: "
 
+static void ipmi_po_smi_gone(int if_num);
+static void ipmi_po_new_smi(int if_num, struct device *device);
+
 /* Definitions for controlling power off (if the system supports it).  It
  * conveniently matches the IPMI chassis control values. */
 #define IPMI_CHASSIS_POWER_DOWN		0	/* power down, the default. */
@@ -50,6 +53,37 @@
 
 /* the IPMI data command */
 static int poweroff_powercycle;
+
+/* Which interface to use, -1 means the first we see. */
+static int ifnum_to_use = -1;
+
+/* Our local state. */
+static int ready = 0;
+static ipmi_user_t ipmi_user;
+static int ipmi_ifnum;
+static void (*specific_poweroff_func)(ipmi_user_t user) = NULL;
+
+/* Holds the old poweroff function so we can restore it on removal. */
+static void (*old_poweroff_func)(void);
+
+static int set_param_ifnum(const char *val, struct kernel_param *kp)
+{
+	int rv = param_set_int(val, kp);
+	if (rv)
+		return rv;
+	if ((ifnum_to_use < 0) || (ifnum_to_use == ipmi_ifnum))
+		return 0;
+
+	ipmi_po_smi_gone(ipmi_ifnum);
+	ipmi_po_new_smi(ifnum_to_use, NULL);
+	return 0;
+}
+
+module_param_call(ifnum_to_use, set_param_ifnum, param_get_int,
+		  &ifnum_to_use, 0644);
+MODULE_PARM_DESC(ifnum_to_use, "The interface number to use for the watchdog "
+		 "timer.  Setting to -1 defaults to the first registered "
+		 "interface");
 
 /* parameter definition to allow user to flag power cycle */
 module_param(poweroff_powercycle, int, 0644);
@@ -440,15 +474,6 @@ static struct poweroff_function poweroff_functions[] = {
 		      / sizeof(struct poweroff_function))
 
 
-/* Our local state. */
-static int ready = 0;
-static ipmi_user_t ipmi_user;
-static void (*specific_poweroff_func)(ipmi_user_t user) = NULL;
-
-/* Holds the old poweroff function so we can restore it on removal. */
-static void (*old_poweroff_func)(void);
-
-
 /* Called on a powerdown request. */
 static void ipmi_poweroff_function (void)
 {
@@ -473,6 +498,9 @@ static void ipmi_po_new_smi(int if_num, struct device *device)
 	if (ready)
 		return;
 
+	if ((ifnum_to_use >= 0) && (ifnum_to_use != if_num))
+		return;
+
 	rv = ipmi_create_user(if_num, &ipmi_poweroff_handler, NULL,
 			      &ipmi_user);
 	if (rv) {
@@ -480,6 +508,8 @@ static void ipmi_po_new_smi(int if_num, struct device *device)
 		       rv);
 		return;
 	}
+
+	ipmi_ifnum = if_num;
 
         /*
          * Do a get device ide and store some results, since this is
@@ -541,9 +571,15 @@ static void ipmi_po_new_smi(int if_num, struct device *device)
 
 static void ipmi_po_smi_gone(int if_num)
 {
-	/* This can never be called, because once poweroff driver is
-	   registered, the interface can't go away until the power
-	   driver is unregistered. */
+	if (!ready)
+		return;
+
+	if (ipmi_ifnum != if_num)
+		return;
+
+	ready = 0;
+	ipmi_destroy_user(ipmi_user);
+	pm_power_off = old_poweroff_func;
 }
 
 static struct ipmi_smi_watcher smi_watcher =

@@ -502,7 +502,10 @@ used to control it:
 
   modprobe ipmi_watchdog timeout=<t> pretimeout=<t> action=<action type>
       preaction=<preaction type> preop=<preop type> start_now=x
-      nowayout=x
+      nowayout=x ifnum_to_use=n
+
+ifnum_to_use specifies which interface the watchdog timer should use.
+The default is -1, which means to pick the first one registered.
 
 The timeout is the number of seconds to the action, and the pretimeout
 is the amount of seconds before the reset that the pre-timeout panic will
@@ -623,6 +626,10 @@ ipmi_poweroff.poweroff_control=x will do the same thing on the kernel
 command line.  The parameter is also available via the proc filesystem
 in /proc/sys/dev/ipmi/poweroff_powercycle.  Note that if the system
 does not support power cycling, it will always do the power off.
+
+The "ifnum_to_use" parameter specifies which interface the poweroff
+code should use.  The default is -1, which means to pick the first one
+registered.
 
 Note that if you have ACPI enabled, the system will prefer using ACPI to
 power off.
