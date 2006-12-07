@@ -501,7 +501,7 @@ static ssize_t write_profile(struct file *file, const char __user *buf,
 	return count;
 }
 
-static struct file_operations proc_profile_operations = {
+static const struct file_operations proc_profile_operations = {
 	.read		= read_profile,
 	.write		= write_profile,
 };

@@ -1707,8 +1707,8 @@ void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
  * Display pages allocated per node and memory policy via /proc.
  */
 
-static const char *policy_types[] = { "default", "prefer", "bind",
-				      "interleave" };
+static const char * const policy_types[] =
+	{ "default", "prefer", "bind", "interleave" };
 
 /*
  * Convert a mempolicy into a string.

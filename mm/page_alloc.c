@@ -83,7 +83,7 @@ int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
 
 EXPORT_SYMBOL(totalram_pages);
 
-static char *zone_names[MAX_NR_ZONES] = {
+static char * const zone_names[MAX_NR_ZONES] = {
 	 "DMA",
 #ifdef CONFIG_ZONE_DMA32
 	 "DMA32",

@@ -1531,7 +1531,7 @@ static int cpuset_rename(struct inode *old_dir, struct dentry *old_dentry,
 	return simple_rename(old_dir, old_dentry, new_dir, new_dentry);
 }
 
-static struct file_operations cpuset_file_operations = {
+static const struct file_operations cpuset_file_operations = {
 	.read = cpuset_file_read,
 	.write = cpuset_file_write,
 	.llseek = generic_file_llseek,
@@ -2605,7 +2605,7 @@ static int cpuset_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_cpuset_show, pid);
 }
 
-struct file_operations proc_cpuset_operations = {
+const struct file_operations proc_cpuset_operations = {
 	.open		= cpuset_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

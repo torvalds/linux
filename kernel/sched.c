@@ -505,7 +505,7 @@ static int schedstat_open(struct inode *inode, struct file *file)
 	return res;
 }
 
-struct file_operations proc_schedstat_operations = {
+const struct file_operations proc_schedstat_operations = {
 	.open    = schedstat_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,

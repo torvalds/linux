@@ -278,7 +278,7 @@ struct zone {
 	/*
 	 * rarely used fields:
 	 */
-	char			*name;
+	const char		*name;
 } ____cacheline_internodealigned_in_smp;
 
 /*

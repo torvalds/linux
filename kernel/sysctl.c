@@ -170,7 +170,7 @@ static ssize_t proc_readsys(struct file *, char __user *, size_t, loff_t *);
 static ssize_t proc_writesys(struct file *, const char __user *, size_t, loff_t *);
 static int proc_opensys(struct inode *, struct file *);
 
-struct file_operations proc_sys_file_operations = {
+const struct file_operations proc_sys_file_operations = {
 	.open		= proc_opensys,
 	.read		= proc_readsys,
 	.write		= proc_writesys,

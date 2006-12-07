@@ -398,7 +398,7 @@ static int s_show(struct seq_file *m, void *p)
 	return 0;
 }
 
-static struct seq_operations kallsyms_op = {
+static const struct seq_operations kallsyms_op = {
 	.start = s_start,
 	.next = s_next,
 	.stop = s_stop,
@@ -433,7 +433,7 @@ static int kallsyms_release(struct inode *inode, struct file *file)
 	return seq_release(inode, file);
 }
 
-static struct file_operations kallsyms_operations = {
+static const struct file_operations kallsyms_operations = {
 	.open = kallsyms_open,
 	.read = seq_read,
 	.llseek = seq_lseek,

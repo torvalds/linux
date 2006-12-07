@@ -383,7 +383,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 	return error;
 }
 
-static struct file_operations snapshot_fops = {
+static const struct file_operations snapshot_fops = {
 	.open = snapshot_open,
 	.release = snapshot_release,
 	.read = snapshot_read,

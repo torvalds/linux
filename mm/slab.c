@@ -4142,7 +4142,7 @@ static int s_show(struct seq_file *m, void *p)
  * + further values on SMP and with statistics enabled
  */
 
-struct seq_operations slabinfo_op = {
+const struct seq_operations slabinfo_op = {
 	.start = s_start,
 	.next = s_next,
 	.stop = s_stop,
@@ -4340,7 +4340,7 @@ static int leaks_show(struct seq_file *m, void *p)
 	return 0;
 }
 
-struct seq_operations slabstats_op = {
+const struct seq_operations slabstats_op = {
 	.start = leaks_start,
 	.next = s_next,
 	.stop = s_stop,

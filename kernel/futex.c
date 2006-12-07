@@ -1492,7 +1492,7 @@ static unsigned int futex_poll(struct file *filp,
 	return ret;
 }
 
-static struct file_operations futex_fops = {
+static const struct file_operations futex_fops = {
 	.release	= futex_close,
 	.poll		= futex_poll,
 };

@@ -1368,7 +1368,7 @@ static int swap_show(struct seq_file *swap, void *v)
 	return 0;
 }
 
-static struct seq_operations swaps_op = {
+static const struct seq_operations swaps_op = {
 	.start =	swap_start,
 	.next =		swap_next,
 	.stop =		swap_stop,
@@ -1380,7 +1380,7 @@ static int swaps_open(struct inode *inode, struct file *file)
 	return seq_open(file, &swaps_op);
 }
 
-static struct file_operations proc_swaps_operations = {
+static const struct file_operations proc_swaps_operations = {
 	.open		= swaps_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
