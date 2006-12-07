@@ -40,7 +40,7 @@ int (*timer_hook)(struct pt_regs *) __read_mostly;
 
 static atomic_t *prof_buffer;
 static unsigned long prof_len, prof_shift;
-static int prof_on __read_mostly;
+int prof_on __read_mostly;
 static cpumask_t prof_cpu_mask = CPU_MASK_ALL;
 #ifdef CONFIG_SMP
 static DEFINE_PER_CPU(struct profile_hit *[2], cpu_profile_hits);
@@ -51,9 +51,19 @@ static DEFINE_MUTEX(profile_flip_mutex);
 static int __init profile_setup(char * str)
 {
 	static char __initdata schedstr[] = "schedule";
+	static char __initdata sleepstr[] = "sleep";
 	int par;
 
-	if (!strncmp(str, schedstr, strlen(schedstr))) {
+	if (!strncmp(str, sleepstr, strlen(sleepstr))) {
+		prof_on = SLEEP_PROFILING;
+		if (str[strlen(sleepstr)] == ',')
+			str += strlen(sleepstr) + 1;
+		if (get_option(&str, &par))
+			prof_shift = par;
+		printk(KERN_INFO
+			"kernel sleep profiling enabled (shift: %ld)\n",
+			prof_shift);
+	} else if (!strncmp(str, sleepstr, strlen(sleepstr))) {
 		prof_on = SCHED_PROFILING;
 		if (str[strlen(schedstr)] == ',')
 			str += strlen(schedstr) + 1;
@@ -204,7 +214,8 @@ EXPORT_SYMBOL_GPL(profile_event_unregister);
  * positions to which hits are accounted during short intervals (e.g.
  * several seconds) is usually very small. Exclusion from buffer
  * flipping is provided by interrupt disablement (note that for
- * SCHED_PROFILING profile_hit() may be called from process context).
+ * SCHED_PROFILING or SLEEP_PROFILING profile_hit() may be called from
+ * process context).
  * The hash function is meant to be lightweight as opposed to strong,
  * and was vaguely inspired by ppc64 firmware-supported inverted
  * pagetable hash functions, but uses a full hashtable full of finite
@@ -257,7 +268,7 @@ static void profile_discard_flip_buffers(void)
 	mutex_unlock(&profile_flip_mutex);
 }
 
-void profile_hit(int type, void *__pc)
+void profile_hits(int type, void *__pc, unsigned int nr_hits)
 {
 	unsigned long primary, secondary, flags, pc = (unsigned long)__pc;
 	int i, j, cpu;
@@ -274,21 +285,31 @@ void profile_hit(int type, void *__pc)
 		put_cpu();
 		return;
 	}
+	/*
+	 * We buffer the global profiler buffer into a per-CPU
+	 * queue and thus reduce the number of global (and possibly
+	 * NUMA-alien) accesses. The write-queue is self-coalescing:
+	 */
 	local_irq_save(flags);
 	do {
 		for (j = 0; j < PROFILE_GRPSZ; ++j) {
 			if (hits[i + j].pc == pc) {
-				hits[i + j].hits++;
+				hits[i + j].hits += nr_hits;
 				goto out;
 			} else if (!hits[i + j].hits) {
 				hits[i + j].pc = pc;
-				hits[i + j].hits = 1;
+				hits[i + j].hits = nr_hits;
 				goto out;
 			}
 		}
 		i = (i + secondary) & (NR_PROFILE_HIT - 1);
 	} while (i != primary);
-	atomic_inc(&prof_buffer[pc]);
+
+	/*
+	 * Add the current hit(s) and flush the write-queue out
+	 * to the global buffer:
+	 */
+	atomic_add(nr_hits, &prof_buffer[pc]);
 	for (i = 0; i < NR_PROFILE_HIT; ++i) {
 		atomic_add(hits[i].hits, &prof_buffer[hits[i].pc]);
 		hits[i].pc = hits[i].hits = 0;
@@ -356,14 +377,14 @@ static int __devinit profile_cpu_callback(struct notifier_block *info,
 #define profile_flip_buffers()		do { } while (0)
 #define profile_discard_flip_buffers()	do { } while (0)
 
-void profile_hit(int type, void *__pc)
+void profile_hits(int type, void *__pc, unsigned int nr_hits)
 {
 	unsigned long pc;
 
 	if (prof_on != type || !prof_buffer)
 		return;
 	pc = ((unsigned long)__pc - (unsigned long)_stext) >> prof_shift;
-	atomic_inc(&prof_buffer[min(pc, prof_len - 1)]);
+	atomic_add(nr_hits, &prof_buffer[min(pc, prof_len - 1)]);
 }
 #endif /* !CONFIG_SMP */
 

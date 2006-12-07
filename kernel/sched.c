@@ -948,6 +948,17 @@ static void activate_task(struct task_struct *p, struct rq *rq, int local)
 	}
 #endif
 
+	/*
+	 * Sleep time is in units of nanosecs, so shift by 20 to get a
+	 * milliseconds-range estimation of the amount of time that the task
+	 * spent sleeping:
+	 */
+	if (unlikely(prof_on == SLEEP_PROFILING)) {
+		if (p->state == TASK_UNINTERRUPTIBLE)
+			profile_hits(SLEEP_PROFILING, (void *)get_wchan(p),
+				     (now - p->timestamp) >> 20);
+	}
+
 	if (!rt_task(p))
 		p->prio = recalc_task_prio(p, now);
 

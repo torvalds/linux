@@ -1294,6 +1294,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			Param: "schedule" - profile schedule points.
 			Param: <number> - step/bucket size as a power of 2 for
 				statistical time based profiling.
+			Param: "sleep" - profile D-state sleeping (millisecs)
 
 	processor.max_cstate=	[HW,ACPI]
 			Limit processor to maximum C-state
