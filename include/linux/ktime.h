@@ -248,9 +248,9 @@ static inline struct timeval ktime_to_timeval(const ktime_t kt)
  *
  * Returns the scalar nanoseconds representation of kt
  */
-static inline u64 ktime_to_ns(const ktime_t kt)
+static inline s64 ktime_to_ns(const ktime_t kt)
 {
-	return (u64) kt.tv.sec * NSEC_PER_SEC + kt.tv.nsec;
+	return (s64) kt.tv.sec * NSEC_PER_SEC + kt.tv.nsec;
 }
 
 #endif
