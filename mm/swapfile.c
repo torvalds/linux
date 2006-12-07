@@ -1274,10 +1274,13 @@ static void *swap_start(struct seq_file *swap, loff_t *pos)
 
 	mutex_lock(&swapon_mutex);
 
+	if (!l)
+		return SEQ_START_TOKEN;
+
 	for (i = 0; i < nr_swapfiles; i++, ptr++) {
 		if (!(ptr->flags & SWP_USED) || !ptr->swap_map)
 			continue;
-		if (!l--)
+		if (!--l)
 			return ptr;
 	}
 
@@ -1286,10 +1289,17 @@ static void *swap_start(struct seq_file *swap, loff_t *pos)
 
 static void *swap_next(struct seq_file *swap, void *v, loff_t *pos)
 {
-	struct swap_info_struct *ptr = v;
+	struct swap_info_struct *ptr;
 	struct swap_info_struct *endptr = swap_info + nr_swapfiles;
 
-	for (++ptr; ptr < endptr; ptr++) {
+	if (v == SEQ_START_TOKEN)
+		ptr = swap_info;
+	else {
+		ptr = v;
+		ptr++;
+	}
+
+	for (; ptr < endptr; ptr++) {
 		if (!(ptr->flags & SWP_USED) || !ptr->swap_map)
 			continue;
 		++*pos;
@@ -1310,8 +1320,10 @@ static int swap_show(struct seq_file *swap, void *v)
 	struct file *file;
 	int len;
 
-	if (v == swap_info)
-		seq_puts(swap, "Filename\t\t\t\tType\t\tSize\tUsed\tPriority\n");
+	if (ptr == SEQ_START_TOKEN) {
+		seq_puts(swap,"Filename\t\t\t\tType\t\tSize\tUsed\tPriority\n");
+		return 0;
+	}
 
 	file = ptr->swap_file;
 	len = seq_path(swap, file->f_vfsmnt, file->f_dentry, " \t\n\\");
