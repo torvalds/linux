@@ -15,6 +15,7 @@ struct i386_pda
 
 	int cpu_number;
 	struct task_struct *pcurrent;	/* current process */
+	struct pt_regs *irq_regs;
 };
 
 extern struct i386_pda *_cpu_pda[];
