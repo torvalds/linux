@@ -30,12 +30,13 @@
  *	18(%esp) - %eax
  *	1C(%esp) - %ds
  *	20(%esp) - %es
- *	24(%esp) - orig_eax
- *	28(%esp) - %eip
- *	2C(%esp) - %cs
- *	30(%esp) - %eflags
- *	34(%esp) - %oldesp
- *	38(%esp) - %oldss
+ *	24(%esp) - %gs
+ *	28(%esp) - orig_eax
+ *	2C(%esp) - %eip
+ *	30(%esp) - %cs
+ *	34(%esp) - %eflags
+ *	38(%esp) - %oldesp
+ *	3C(%esp) - %oldss
  *
  * "current" is in register %ebx during any slow entries.
  */
@@ -92,6 +93,9 @@ VM_MASK		= 0x00020000
 
 #define SAVE_ALL \
 	cld; \
+	pushl %gs; \
+	CFI_ADJUST_CFA_OFFSET 4;\
+	/*CFI_REL_OFFSET gs, 0;*/\
 	pushl %es; \
 	CFI_ADJUST_CFA_OFFSET 4;\
 	/*CFI_REL_OFFSET es, 0;*/\
@@ -121,7 +125,9 @@ VM_MASK		= 0x00020000
 	CFI_REL_OFFSET ebx, 0;\
 	movl $(__USER_DS), %edx; \
 	movl %edx, %ds; \
-	movl %edx, %es;
+	movl %edx, %es; \
+	movl $(__KERNEL_PDA), %edx; \
+	movl %edx, %gs
 
 #define RESTORE_INT_REGS \
 	popl %ebx;	\
@@ -154,17 +160,22 @@ VM_MASK		= 0x00020000
 2:	popl %es;	\
 	CFI_ADJUST_CFA_OFFSET -4;\
 	/*CFI_RESTORE es;*/\
-.section .fixup,"ax";	\
-3:	movl $0,(%esp);	\
-	jmp 1b;		\
+3:	popl %gs;	\
+	CFI_ADJUST_CFA_OFFSET -4;\
+	/*CFI_RESTORE gs;*/\
+.pushsection .fixup,"ax";	\
 4:	movl $0,(%esp);	\
+	jmp 1b;		\
+5:	movl $0,(%esp);	\
 	jmp 2b;		\
-.previous;		\
+6:	movl $0,(%esp);	\
+	jmp 3b;		\
 .section __ex_table,"a";\
 	.align 4;	\
-	.long 1b,3b;	\
-	.long 2b,4b;	\
-.previous
+	.long 1b,4b;	\
+	.long 2b,5b;	\
+	.long 3b,6b;	\
+.popsection
 
 #define RING0_INT_FRAME \
 	CFI_STARTPROC simple;\
@@ -231,6 +242,7 @@ check_userspace:
 	andl $(VM_MASK | SEGMENT_RPL_MASK), %eax
 	cmpl $USER_RPL, %eax
 	jb resume_kernel		# not returning to v8086 or userspace
+
 ENTRY(resume_userspace)
  	DISABLE_INTERRUPTS		# make sure we don't miss an interrupt
 					# setting need_resched or sigpending
@@ -327,9 +339,16 @@ sysenter_past_esp:
 	movl PT_OLDESP(%esp), %ecx
 	xorl %ebp,%ebp
 	TRACE_IRQS_ON
+1:	mov  PT_GS(%esp), %gs
 	ENABLE_INTERRUPTS_SYSEXIT
 	CFI_ENDPROC
-
+.pushsection .fixup,"ax"
+2:	movl $0,PT_GS(%esp)
+	jmp 1b
+.section __ex_table,"a"
+	.align 4
+	.long 1b,2b
+.popsection
 
 	# system call handler stub
 ENTRY(system_call)
@@ -375,7 +394,7 @@ restore_nocheck:
 	TRACE_IRQS_IRET
 restore_nocheck_notrace:
 	RESTORE_REGS
-	addl $4, %esp
+	addl $4, %esp			# skip orig_eax/error_code
 	CFI_ADJUST_CFA_OFFSET -4
 1:	INTERRUPT_RETURN
 .section .fixup,"ax"
@@ -588,6 +607,10 @@ KPROBE_ENTRY(page_fault)
 	CFI_ADJUST_CFA_OFFSET 4
 	ALIGN
 error_code:
+	/* the function address is in %gs's slot on the stack */
+	pushl %es
+	CFI_ADJUST_CFA_OFFSET 4
+	/*CFI_REL_OFFSET es, 0*/
 	pushl %ds
 	CFI_ADJUST_CFA_OFFSET 4
 	/*CFI_REL_OFFSET ds, 0*/
@@ -613,18 +636,20 @@ error_code:
 	CFI_ADJUST_CFA_OFFSET 4
 	CFI_REL_OFFSET ebx, 0
 	cld
-	pushl %es
+	pushl %gs
 	CFI_ADJUST_CFA_OFFSET 4
-	/*CFI_REL_OFFSET es, 0*/
+	/*CFI_REL_OFFSET gs, 0*/
+	movl $(__KERNEL_PDA), %ecx
+	movl %ecx, %gs
 	UNWIND_ESPFIX_STACK
 	popl %ecx
 	CFI_ADJUST_CFA_OFFSET -4
 	/*CFI_REGISTER es, ecx*/
-	movl PT_ES(%esp), %edi		# get the function address
+	movl PT_GS(%esp), %edi		# get the function address
 	movl PT_ORIG_EAX(%esp), %edx	# get the error code
-	movl $-1, PT_ORIG_EAX(%esp)
-	movl %ecx, PT_ES(%esp)
-	/*CFI_REL_OFFSET es, ES*/
+	movl $-1, PT_ORIG_EAX(%esp)	# no syscall to restart
+	mov  %ecx, PT_GS(%esp)
+	/*CFI_REL_OFFSET gs, ES*/
 	movl $(__USER_DS), %ecx
 	movl %ecx, %ds
 	movl %ecx, %es
@@ -936,6 +961,7 @@ ENTRY(arch_unwind_init_running)
 	movl	%ebx, PT_EAX(%edx)
 	movl	$__USER_DS, PT_DS(%edx)
 	movl	$__USER_DS, PT_ES(%edx)
+	movl	$0, PT_GS(%edx)
 	movl	%ebx, PT_ORIG_EAX(%edx)
 	movl	%ecx, PT_EIP(%edx)
 	movl	12(%esp), %ecx

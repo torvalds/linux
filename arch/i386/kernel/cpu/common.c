@@ -593,6 +593,14 @@ void __init early_cpu_init(void)
 #endif
 }
 
+/* Make sure %gs is initialized properly in idle threads */
+struct pt_regs * __devinit idle_regs(struct pt_regs *regs)
+{
+	memset(regs, 0, sizeof(struct pt_regs));
+	regs->xgs = __KERNEL_PDA;
+	return regs;
+}
+
 __cpuinit int alloc_gdt(int cpu)
 {
 	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, cpu);
@@ -644,6 +652,14 @@ struct i386_pda boot_pda = {
 	._pda = &boot_pda,
 };
 
+static inline void set_kernel_gs(void)
+{
+	/* Set %gs for this CPU's PDA.  Memory clobber is to create a
+	   barrier with respect to any PDA operations, so the compiler
+	   doesn't move any before here. */
+	asm volatile ("mov %0, %%gs" : : "r" (__KERNEL_PDA) : "memory");
+}
+
 /* Initialize the CPU's GDT and PDA.  The boot CPU does this for
    itself, but secondaries find this done for them. */
 __cpuinit int init_gdt(int cpu, struct task_struct *idle)
@@ -693,6 +709,7 @@ static void __cpuinit _cpu_init(int cpu, struct task_struct *curr)
 	   the boot CPU, this will transition from the boot gdt+pda to
 	   the real ones). */
 	load_gdt(cpu_gdt_descr);
+	set_kernel_gs();
 
 	if (cpu_test_and_set(cpu, cpu_initialized)) {
 		printk(KERN_WARNING "CPU#%d already initialized!\n", cpu);
@@ -731,8 +748,8 @@ static void __cpuinit _cpu_init(int cpu, struct task_struct *curr)
 	__set_tss_desc(cpu, GDT_ENTRY_DOUBLEFAULT_TSS, &doublefault_tss);
 #endif
 
-	/* Clear %fs and %gs. */
-	asm volatile ("movl %0, %%fs; movl %0, %%gs" : : "r" (0));
+	/* Clear %fs. */
+	asm volatile ("mov %0, %%fs" : : "r" (0));
 
 	/* Clear all 6 debug registers: */
 	set_debugreg(0, 0);
