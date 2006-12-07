@@ -1012,6 +1012,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			emulation library even if a 387 maths coprocessor
 			is present.
 
+	noaliencache	[MM, NUMA] Disables the allcoation of alien caches in
+			the slab allocator.  Saves per-node memory, but will
+			impact performance on real NUMA hardware.
+
 	noalign		[KNL,ARM]
 
 	noapic		[SMP,APIC] Tells the kernel to not make use of any

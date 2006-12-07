@@ -869,6 +869,22 @@ static void __slab_error(const char *function, struct kmem_cache *cachep,
 	dump_stack();
 }
 
+/*
+ * By default on NUMA we use alien caches to stage the freeing of
+ * objects allocated from other nodes. This causes massive memory
+ * inefficiencies when using fake NUMA setup to split memory into a
+ * large number of small nodes, so it can be disabled on the command
+ * line
+  */
+
+static int use_alien_caches __read_mostly = 1;
+static int __init noaliencache_setup(char *s)
+{
+	use_alien_caches = 0;
+	return 1;
+}
+__setup("noaliencache", noaliencache_setup);
+
 #ifdef CONFIG_NUMA
 /*
  * Special reaping functions for NUMA systems called from cache_reap().
@@ -1117,7 +1133,7 @@ static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
 	 * Make sure we are not freeing a object from another node to the array
 	 * cache on this cpu.
 	 */
-	if (likely(slabp->nodeid == node))
+	if (likely(slabp->nodeid == node) || unlikely(!use_alien_caches))
 		return 0;
 
 	l3 = cachep->nodelists[node];
@@ -1195,7 +1211,7 @@ static int __cpuinit cpuup_callback(struct notifier_block *nfb,
 		list_for_each_entry(cachep, &cache_chain, next) {
 			struct array_cache *nc;
 			struct array_cache *shared;
-			struct array_cache **alien;
+			struct array_cache **alien = NULL;
 
 			nc = alloc_arraycache(node, cachep->limit,
 						cachep->batchcount);
@@ -1207,9 +1223,11 @@ static int __cpuinit cpuup_callback(struct notifier_block *nfb,
 			if (!shared)
 				goto bad;
 
-			alien = alloc_alien_cache(node, cachep->limit);
-			if (!alien)
-				goto bad;
+			if (use_alien_caches) {
+                                alien = alloc_alien_cache(node, cachep->limit);
+                                if (!alien)
+                                        goto bad;
+                        }
 			cachep->array[cpu] = nc;
 			l3 = cachep->nodelists[node];
 			BUG_ON(!l3);
@@ -3590,13 +3608,15 @@ static int alloc_kmemlist(struct kmem_cache *cachep)
 	int node;
 	struct kmem_list3 *l3;
 	struct array_cache *new_shared;
-	struct array_cache **new_alien;
+	struct array_cache **new_alien = NULL;
 
 	for_each_online_node(node) {
 
-		new_alien = alloc_alien_cache(node, cachep->limit);
-		if (!new_alien)
-			goto fail;
+                if (use_alien_caches) {
+                        new_alien = alloc_alien_cache(node, cachep->limit);
+                        if (!new_alien)
+                                goto fail;
+                }
 
 		new_shared = alloc_arraycache(node,
 				cachep->shared*cachep->batchcount,
