@@ -321,7 +321,6 @@ static inline void leave_mm (unsigned long cpu)
 
 fastcall void smp_invalidate_interrupt(struct pt_regs *regs)
 {
-	struct pt_regs *old_regs = set_irq_regs(regs);
 	unsigned long cpu;
 
 	cpu = get_cpu();
@@ -352,7 +351,6 @@ fastcall void smp_invalidate_interrupt(struct pt_regs *regs)
 	smp_mb__after_clear_bit();
 out:
 	put_cpu_no_resched();
-	set_irq_regs(old_regs);
 }
 
 static void flush_tlb_others(cpumask_t cpumask, struct mm_struct *mm,
@@ -607,14 +605,11 @@ void smp_send_stop(void)
  */
 fastcall void smp_reschedule_interrupt(struct pt_regs *regs)
 {
-	struct pt_regs *old_regs = set_irq_regs(regs);
 	ack_APIC_irq();
-	set_irq_regs(old_regs);
 }
 
 fastcall void smp_call_function_interrupt(struct pt_regs *regs)
 {
-	struct pt_regs *old_regs = set_irq_regs(regs);
 	void (*func) (void *info) = call_data->func;
 	void *info = call_data->info;
 	int wait = call_data->wait;
@@ -637,7 +632,6 @@ fastcall void smp_call_function_interrupt(struct pt_regs *regs)
 		mb();
 		atomic_inc(&call_data->finished);
 	}
-	set_irq_regs(old_regs);
 }
 
 /*
