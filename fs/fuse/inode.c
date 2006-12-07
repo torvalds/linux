@@ -39,6 +39,7 @@ struct fuse_mount_data {
 	unsigned group_id_present : 1;
 	unsigned flags;
 	unsigned max_read;
+	unsigned blksize;
 };
 
 static struct inode *fuse_alloc_inode(struct super_block *sb)
@@ -274,6 +275,7 @@ enum {
 	OPT_DEFAULT_PERMISSIONS,
 	OPT_ALLOW_OTHER,
 	OPT_MAX_READ,
+	OPT_BLKSIZE,
 	OPT_ERR
 };
 
@@ -285,14 +287,16 @@ static match_table_t tokens = {
 	{OPT_DEFAULT_PERMISSIONS,	"default_permissions"},
 	{OPT_ALLOW_OTHER,		"allow_other"},
 	{OPT_MAX_READ,			"max_read=%u"},
+	{OPT_BLKSIZE,			"blksize=%u"},
 	{OPT_ERR,			NULL}
 };
 
-static int parse_fuse_opt(char *opt, struct fuse_mount_data *d)
+static int parse_fuse_opt(char *opt, struct fuse_mount_data *d, int is_bdev)
 {
 	char *p;
 	memset(d, 0, sizeof(struct fuse_mount_data));
 	d->max_read = ~0;
+	d->blksize = 512;
 
 	while ((p = strsep(&opt, ",")) != NULL) {
 		int token;
@@ -343,6 +347,12 @@ static int parse_fuse_opt(char *opt, struct fuse_mount_data *d)
 			if (match_int(&args[0], &value))
 				return 0;
 			d->max_read = value;
+			break;
+
+		case OPT_BLKSIZE:
+			if (!is_bdev || match_int(&args[0], &value))
+				return 0;
+			d->blksize = value;
 			break;
 
 		default:
@@ -500,15 +510,21 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	struct dentry *root_dentry;
 	struct fuse_req *init_req;
 	int err;
+	int is_bdev = sb->s_bdev != NULL;
 
 	if (sb->s_flags & MS_MANDLOCK)
 		return -EINVAL;
 
-	if (!parse_fuse_opt((char *) data, &d))
+	if (!parse_fuse_opt((char *) data, &d, is_bdev))
 		return -EINVAL;
 
-	sb->s_blocksize = PAGE_CACHE_SIZE;
-	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
+	if (is_bdev) {
+		if (!sb_set_blocksize(sb, d.blksize))
+			return -EINVAL;
+	} else {
+		sb->s_blocksize = PAGE_CACHE_SIZE;
+		sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
+	}
 	sb->s_magic = FUSE_SUPER_MAGIC;
 	sb->s_op = &fuse_super_operations;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;

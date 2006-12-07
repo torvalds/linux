@@ -110,6 +110,11 @@ Mount options
   The default is infinite.  Note that the size of read requests is
   limited anyway to 32 pages (which is 128kbyte on i386).
 
+'blksize=N'
+
+  Set the block size for the filesystem.  The default is 512.  This
+  option is only valid for 'fuseblk' type mounts.
+
 Control filesystem
 ~~~~~~~~~~~~~~~~~~
 
