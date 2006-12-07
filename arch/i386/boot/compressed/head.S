@@ -26,6 +26,7 @@
 #include <linux/linkage.h>
 #include <asm/segment.h>
 #include <asm/page.h>
+#include <asm/boot.h>
 
 .section ".text.head"
 	.globl startup_32
@@ -52,17 +53,17 @@ startup_32:
 1:	popl %ebp
 	subl $1b, %ebp
 
-/* Compute the delta between where we were compiled to run at
- * and where the code will actually run at.
+/* %ebp contains the address we are loaded at by the boot loader and %ebx
+ * contains the address where we should move the kernel image temporarily
+ * for safe in-place decompression.
  */
-	/* Start with the delta to where the kernel will run at.  If we are
-	 * a relocatable kernel this is the delta to our load address otherwise
-	 * this is the delta to CONFIG_PHYSICAL start.
-	 */
+
 #ifdef CONFIG_RELOCATABLE
-	movl %ebp, %ebx
+	movl 	%ebp, %ebx
+	addl    $(CONFIG_PHYSICAL_ALIGN - 1), %ebx
+	andl    $(~(CONFIG_PHYSICAL_ALIGN - 1)), %ebx
 #else
-	movl $(CONFIG_PHYSICAL_START - startup_32), %ebx
+	movl $LOAD_PHYSICAL_ADDR, %ebx
 #endif
 
 	/* Replace the compressed data size with the uncompressed size */
@@ -94,9 +95,10 @@ startup_32:
 /* Compute the kernel start address.
  */
 #ifdef CONFIG_RELOCATABLE
-	leal	startup_32(%ebp), %ebp
+	addl    $(CONFIG_PHYSICAL_ALIGN - 1), %ebp
+	andl    $(~(CONFIG_PHYSICAL_ALIGN - 1)), %ebp
 #else
-	movl	$CONFIG_PHYSICAL_START, %ebp
+	movl	$LOAD_PHYSICAL_ADDR, %ebp
 #endif
 
 /*
@@ -150,8 +152,8 @@ relocated:
  * and where it was actually loaded.
  */
 	movl %ebp, %ebx
-	subl $CONFIG_PHYSICAL_START, %ebx
-
+	subl $LOAD_PHYSICAL_ADDR, %ebx
+	jz   2f		/* Nothing to be done if loaded at compiled addr. */
 /*
  * Process relocations.
  */

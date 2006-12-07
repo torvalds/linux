@@ -785,23 +785,26 @@ config RELOCATABLE
           must live at a different physical address than the primary
           kernel.
 
-config PHYSICAL_START
-	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP)
-
-	default "0x1000000" if CRASH_DUMP
+config PHYSICAL_ALIGN
+	hex "Alignment value to which kernel should be aligned"
 	default "0x100000"
+	range 0x2000 0x400000
 	help
-	  This gives the physical address where the kernel is loaded. Normally
-	  for regular kernels this value is 0x100000 (1MB). But in the case
-	  of kexec on panic the fail safe kernel needs to run at a different
-	  address than the panic-ed kernel. This option is used to set the load
-	  address for kernels used to capture crash dump on being kexec'ed
-	  after panic. The default value for crash dump kernels is
-	  0x1000000 (16MB). This can also be set based on the "X" value as
-	  specified in the "crashkernel=YM@XM" command line boot parameter
-	  passed to the panic-ed kernel. Typically this parameter is set as
-	  crashkernel=64M@16M. Please take a look at
-	  Documentation/kdump/kdump.txt for more details about crash dumps.
+	  This value puts the alignment restrictions on physical address
+ 	  where kernel is loaded and run from. Kernel is compiled for an
+ 	  address which meets above alignment restriction.
+
+ 	  If bootloader loads the kernel at a non-aligned address and
+ 	  CONFIG_RELOCATABLE is set, kernel will move itself to nearest
+ 	  address aligned to above value and run from there.
+
+ 	  If bootloader loads the kernel at a non-aligned address and
+ 	  CONFIG_RELOCATABLE is not set, kernel will ignore the run time
+ 	  load address and decompress itself to the address it has been
+ 	  compiled for and run from there. The address for which kernel is
+ 	  compiled already meets above alignment restrictions. Hence the
+ 	  end result is that kernel runs from a physical address meeting
+	  above alignment restrictions.
 
 	  Don't change this unless you know what you are doing.
 

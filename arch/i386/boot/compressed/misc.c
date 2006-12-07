@@ -14,6 +14,7 @@
 #include <linux/screen_info.h>
 #include <asm/io.h>
 #include <asm/page.h>
+#include <asm/boot.h>
 
 /* WARNING!!
  * This code is compiled with -fPIC and it is relocated dynamically
@@ -360,12 +361,12 @@ asmlinkage void decompress_kernel(void *rmode, unsigned long end,
 	insize = input_len;
 	inptr  = 0;
 
-	if (((u32)output - CONFIG_PHYSICAL_START) & 0x3fffff)
-		error("Destination address not 4M aligned");
+	if ((u32)output & (CONFIG_PHYSICAL_ALIGN -1))
+		error("Destination address not CONFIG_PHYSICAL_ALIGN aligned");
 	if (end > ((-__PAGE_OFFSET-(512 <<20)-1) & 0x7fffffff))
 		error("Destination address too large");
 #ifndef CONFIG_RELOCATABLE
-	if ((u32)output != CONFIG_PHYSICAL_START)
+	if ((u32)output != LOAD_PHYSICAL_ADDR)
 		error("Wrong destination address");
 #endif
 

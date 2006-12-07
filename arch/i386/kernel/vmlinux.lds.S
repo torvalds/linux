@@ -14,6 +14,7 @@
 #include <asm/thread_info.h>
 #include <asm/page.h>
 #include <asm/cache.h>
+#include <asm/boot.h>
 
 OUTPUT_FORMAT("elf32-i386", "elf32-i386", "elf32-i386")
 OUTPUT_ARCH(i386)
@@ -27,7 +28,7 @@ PHDRS {
 }
 SECTIONS
 {
-  . = LOAD_OFFSET + CONFIG_PHYSICAL_START;
+  . = LOAD_OFFSET + LOAD_PHYSICAL_ADDR;
   phys_startup_32 = startup_32 - LOAD_OFFSET;
   /* read-only */
   .text : AT(ADDR(.text) - LOAD_OFFSET) {
