@@ -85,22 +85,19 @@ static inline int is_single_threaded(struct workqueue_struct *wq)
 	return list_empty(&wq->list);
 }
 
+/*
+ * Set the workqueue on which a work item is to be run
+ * - Must *only* be called if the pending flag is set
+ */
 static inline void set_wq_data(struct work_struct *work, void *wq)
 {
-	unsigned long new, old, res;
+	unsigned long new;
 
-	/* assume the pending flag is already set and that the task has already
-	 * been queued on this workqueue */
+	BUG_ON(!work_pending(work));
+
 	new = (unsigned long) wq | (1UL << WORK_STRUCT_PENDING);
-	res = work->management;
-	if (res != new) {
-		do {
-			old = res;
-			new = (unsigned long) wq;
-			new |= (old & WORK_STRUCT_FLAG_MASK);
-			res = cmpxchg(&work->management, old, new);
-		} while (res != old);
-	}
+	new |= work->management & WORK_STRUCT_FLAG_MASK;
+	work->management = new;
 }
 
 static inline void *get_wq_data(struct work_struct *work)
