@@ -101,7 +101,6 @@ int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 {
 	int err = -ENOMEM;
 	pte_t *pte;
-	pte_t pte_val;
 	spinlock_t *ptl;
 
 	pte = get_locked_pte(mm, addr, &ptl);
@@ -114,7 +113,6 @@ int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 	}
 
 	set_pte_at(mm, addr, pte, pgoff_to_pte(pgoff));
-	pte_val = *pte;
 	/*
 	 * We don't need to run update_mmu_cache() here because the "file pte"
 	 * being installed by install_file_pte() is not a real pte - it's a
