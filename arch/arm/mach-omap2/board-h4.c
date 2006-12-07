@@ -266,12 +266,26 @@ static struct platform_device h4_lcd_device = {
 	.id		= -1,
 };
 
+static struct resource h4_led_resources[] = {
+	[0] = {
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device h4_led_device = {
+	.name		= "omap_dbg_led",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(h4_led_resources),
+	.resource	= h4_led_resources,
+};
+
 static struct platform_device *h4_devices[] __initdata = {
 	&h4_smc91x_device,
 	&h4_flash_device,
 	&h4_irda_device,
 	&h4_kp_device,
 	&h4_lcd_device,
+	&h4_led_device,
 };
 
 static inline void __init h4_init_smc91x(void)

@@ -19,6 +19,11 @@ endchoice
 
 comment "OMAP Feature Selections"
 
+config OMAP_DEBUG_LEDS
+	bool
+	help
+	  For debug card leds on TI reference boards.
+
 config OMAP_RESET_CLOCKS
 	bool "Reset unused clocks during boot"
 	depends on ARCH_OMAP
