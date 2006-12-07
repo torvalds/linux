@@ -40,7 +40,6 @@ void refrigerator(void)
 	long save;
 	save = current->state;
 	pr_debug("%s entered refrigerator\n", current->comm);
-	printk("=");
 
 	frozen_process(current);
 	spin_lock_irq(&current->sighand->siglock);
