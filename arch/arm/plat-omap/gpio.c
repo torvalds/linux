@@ -1082,6 +1082,10 @@ static int __init _omap_gpio_init(void)
 		if (bank->method == METHOD_GPIO_24XX) {
 			__raw_writel(0x00000000, bank->base + OMAP24XX_GPIO_IRQENABLE1);
 			__raw_writel(0xffffffff, bank->base + OMAP24XX_GPIO_IRQSTATUS1);
+			__raw_writew(0x0015, bank->base + OMAP24XX_GPIO_SYSCONFIG);
+
+			/* Initialize interface clock ungated, module enabled */
+			__raw_writel(0, bank->base + OMAP24XX_GPIO_CTRL);
 
 			gpio_count = 32;
 		}
@@ -1103,6 +1107,12 @@ static int __init _omap_gpio_init(void)
 	 * The CAM_CLK_CTRL *is* really the right place. */
 	if (cpu_is_omap16xx())
 		omap_writel(omap_readl(ULPD_CAM_CLK_CTRL) | 0x04, ULPD_CAM_CLK_CTRL);
+
+#ifdef CONFIG_ARCH_OMAP24XX
+	/* Enable autoidle for the OCP interface */
+	if (cpu_is_omap24xx())
+		omap_writel(1 << 0, 0x48019010);
+#endif
 
 	return 0;
 }
