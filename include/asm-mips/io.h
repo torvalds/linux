@@ -20,6 +20,7 @@
 #include <asm/byteorder.h>
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
+#include <asm-generic/iomap.h>
 #include <asm/page.h>
 #include <asm/pgtable-bits.h>
 #include <asm/processor.h>
@@ -516,34 +517,6 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src, int 
 {
 	memcpy((void __force *) dst, src, count);
 }
-
-/*
- * Memory Mapped I/O
- */
-#define ioread8(addr)		readb(addr)
-#define ioread16(addr)		readw(addr)
-#define ioread32(addr)		readl(addr)
-
-#define iowrite8(b,addr)	writeb(b,addr)
-#define iowrite16(w,addr)	writew(w,addr)
-#define iowrite32(l,addr)	writel(l,addr)
-
-#define ioread8_rep(a,b,c)	readsb(a,b,c)
-#define ioread16_rep(a,b,c)	readsw(a,b,c)
-#define ioread32_rep(a,b,c)	readsl(a,b,c)
-
-#define iowrite8_rep(a,b,c)	writesb(a,b,c)
-#define iowrite16_rep(a,b,c)	writesw(a,b,c)
-#define iowrite32_rep(a,b,c)	writesl(a,b,c)
-
-/* Create a virtual mapping cookie for an IO port range */
-extern void __iomem *ioport_map(unsigned long port, unsigned int nr);
-extern void ioport_unmap(void __iomem *);
-
-/* Create a virtual mapping cookie for a PCI BAR (memory or IO) */
-struct pci_dev;
-extern void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long max);
-extern void pci_iounmap(struct pci_dev *dev, void __iomem *);
 
 /*
  * ISA space is 'always mapped' on currently supported MIPS systems, no need
