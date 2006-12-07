@@ -31,11 +31,11 @@ int arch_register_cpu(int num)
 {
 #if defined (CONFIG_ACPI) && defined (CONFIG_HOTPLUG_CPU)
 	/*
-	 * If CPEI cannot be re-targetted, and this is
-	 * CPEI target, then dont create the control file
+	 * If CPEI can be re-targetted or if this is not
+	 * CPEI target, then it is hotpluggable
 	 */
-	if (!can_cpei_retarget() && is_cpu_cpei_target(num))
-		sysfs_cpus[num].cpu.no_control = 1;
+	if (can_cpei_retarget() || !is_cpu_cpei_target(num))
+		sysfs_cpus[num].cpu.hotpluggable = 1;
 	map_cpu_to_node(num, node_cpuid[num].nid);
 #endif
 

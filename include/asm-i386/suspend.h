@@ -12,12 +12,8 @@ static inline int arch_prepare_suspend(void) { return 0; }
 struct saved_context {
   	u16 es, fs, gs, ss;
 	unsigned long cr0, cr2, cr3, cr4;
-	u16 gdt_pad;
-	u16 gdt_limit;
-	unsigned long gdt_base;
-	u16 idt_pad;
-	u16 idt_limit;
-	unsigned long idt_base;
+	struct Xgt_desc_struct gdt;
+	struct Xgt_desc_struct idt;
 	u16 ldt;
 	u16 tss;
 	unsigned long tr;

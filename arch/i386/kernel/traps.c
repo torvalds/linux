@@ -29,6 +29,7 @@
 #include <linux/kexec.h>
 #include <linux/unwind.h>
 #include <linux/uaccess.h>
+#include <linux/nmi.h>
 
 #ifdef CONFIG_EISA
 #include <linux/ioport.h>
@@ -61,9 +62,6 @@ int panic_on_unrecovered_nmi;
 
 asmlinkage int system_call(void);
 
-struct desc_struct default_ldt[] = { { 0, 0 }, { 0, 0 }, { 0, 0 },
-		{ 0, 0 }, { 0, 0 } };
-
 /* Do we ignore FPU interrupts ? */
 char ignore_fpu_irq = 0;
 
@@ -94,7 +92,7 @@ asmlinkage void alignment_check(void);
 asmlinkage void spurious_interrupt_bug(void);
 asmlinkage void machine_check(void);
 
-static int kstack_depth_to_print = 24;
+int kstack_depth_to_print = 24;
 #ifdef CONFIG_STACK_UNWIND
 static int call_trace = 1;
 #else
@@ -163,15 +161,24 @@ dump_trace_unwind(struct unwind_frame_info *info, void *data)
 {
 	struct ops_and_data *oad = (struct ops_and_data *)data;
 	int n = 0;
+	unsigned long sp = UNW_SP(info);
 
+	if (arch_unw_user_mode(info))
+		return -1;
 	while (unwind(info) == 0 && UNW_PC(info)) {
 		n++;
 		oad->ops->address(oad->data, UNW_PC(info));
 		if (arch_unw_user_mode(info))
 			break;
+		if ((sp & ~(PAGE_SIZE - 1)) == (UNW_SP(info) & ~(PAGE_SIZE - 1))
+		    && sp > UNW_SP(info))
+			break;
+		sp = UNW_SP(info);
 	}
 	return n;
 }
+
+#define MSG(msg) ops->warning(data, msg)
 
 void dump_trace(struct task_struct *task, struct pt_regs *regs,
 	        unsigned long *stack,
@@ -191,29 +198,31 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 			if (unwind_init_frame_info(&info, task, regs) == 0)
 				unw_ret = dump_trace_unwind(&info, &oad);
 		} else if (task == current)
-			unw_ret = unwind_init_running(&info, dump_trace_unwind, &oad);
+			unw_ret = unwind_init_running(&info, dump_trace_unwind,
+						      &oad);
 		else {
 			if (unwind_init_blocked(&info, task) == 0)
 				unw_ret = dump_trace_unwind(&info, &oad);
 		}
 		if (unw_ret > 0) {
 			if (call_trace == 1 && !arch_unw_user_mode(&info)) {
-				ops->warning_symbol(data, "DWARF2 unwinder stuck at %s\n",
+				ops->warning_symbol(data,
+					     "DWARF2 unwinder stuck at %s",
 					     UNW_PC(&info));
 				if (UNW_SP(&info) >= PAGE_OFFSET) {
-					ops->warning(data, "Leftover inexact backtrace:\n");
+					MSG("Leftover inexact backtrace:");
 					stack = (void *)UNW_SP(&info);
 					if (!stack)
 						return;
 					ebp = UNW_FP(&info);
 				} else
-					ops->warning(data, "Full inexact backtrace again:\n");
+					MSG("Full inexact backtrace again:");
 			} else if (call_trace >= 1)
 				return;
 			else
-				ops->warning(data, "Full inexact backtrace again:\n");
+				MSG("Full inexact backtrace again:");
 		} else
-			ops->warning(data, "Inexact backtrace:\n");
+			MSG("Inexact backtrace:");
 	}
 	if (!stack) {
 		unsigned long dummy;
@@ -247,6 +256,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 		stack = (unsigned long*)context->previous_esp;
 		if (!stack)
 			break;
+		touch_nmi_watchdog();
 	}
 }
 EXPORT_SYMBOL(dump_trace);
@@ -379,7 +389,7 @@ void show_registers(struct pt_regs *regs)
 	 * time of the fault..
 	 */
 	if (in_kernel) {
-		u8 __user *eip;
+		u8 *eip;
 		int code_bytes = 64;
 		unsigned char c;
 
@@ -388,18 +398,20 @@ void show_registers(struct pt_regs *regs)
 
 		printk(KERN_EMERG "Code: ");
 
-		eip = (u8 __user *)regs->eip - 43;
-		if (eip < (u8 __user *)PAGE_OFFSET || __get_user(c, eip)) {
+		eip = (u8 *)regs->eip - 43;
+		if (eip < (u8 *)PAGE_OFFSET ||
+			probe_kernel_address(eip, c)) {
 			/* try starting at EIP */
-			eip = (u8 __user *)regs->eip;
+			eip = (u8 *)regs->eip;
 			code_bytes = 32;
 		}
 		for (i = 0; i < code_bytes; i++, eip++) {
-			if (eip < (u8 __user *)PAGE_OFFSET || __get_user(c, eip)) {
+			if (eip < (u8 *)PAGE_OFFSET ||
+				probe_kernel_address(eip, c)) {
 				printk(" Bad EIP value.");
 				break;
 			}
-			if (eip == (u8 __user *)regs->eip)
+			if (eip == (u8 *)regs->eip)
 				printk("<%02x> ", c);
 			else
 				printk("%02x ", c);
@@ -415,7 +427,7 @@ static void handle_BUG(struct pt_regs *regs)
 
 	if (eip < PAGE_OFFSET)
 		return;
-	if (probe_kernel_address((unsigned short __user *)eip, ud2))
+	if (probe_kernel_address((unsigned short *)eip, ud2))
 		return;
 	if (ud2 != 0x0b0f)
 		return;
@@ -428,11 +440,11 @@ static void handle_BUG(struct pt_regs *regs)
 		char *file;
 		char c;
 
-		if (probe_kernel_address((unsigned short __user *)(eip + 2),
-					line))
+		if (probe_kernel_address((unsigned short *)(eip + 2), line))
 			break;
-		if (__get_user(file, (char * __user *)(eip + 4)) ||
-		    (unsigned long)file < PAGE_OFFSET || __get_user(c, file))
+		if (probe_kernel_address((char **)(eip + 4), file) ||
+		    (unsigned long)file < PAGE_OFFSET ||
+			probe_kernel_address(file, c))
 			file = "<bad filename>";
 
 		printk(KERN_EMERG "kernel BUG at %s:%d!\n", file, line);
@@ -707,8 +719,7 @@ mem_parity_error(unsigned char reason, struct pt_regs * regs)
 {
 	printk(KERN_EMERG "Uhhuh. NMI received for unknown reason %02x on "
 		"CPU %d.\n", reason, smp_processor_id());
-	printk(KERN_EMERG "You probably have a hardware problem with your RAM "
-			"chips\n");
+	printk(KERN_EMERG "You have some hardware problem, likely on the PCI bus.\n");
 	if (panic_on_unrecovered_nmi)
                 panic("NMI: Not continuing");
 
@@ -773,7 +784,6 @@ void __kprobes die_nmi(struct pt_regs *regs, const char *msg)
 	printk(" on CPU%d, eip %08lx, registers:\n",
 		smp_processor_id(), regs->eip);
 	show_registers(regs);
-	printk(KERN_EMERG "console shuts up ...\n");
 	console_silent();
 	spin_unlock(&nmi_print_lock);
 	bust_spinlocks(0);
@@ -1088,49 +1098,24 @@ fastcall void do_spurious_interrupt_bug(struct pt_regs * regs,
 #endif
 }
 
-fastcall void setup_x86_bogus_stack(unsigned char * stk)
+fastcall unsigned long patch_espfix_desc(unsigned long uesp,
+					  unsigned long kesp)
 {
-	unsigned long *switch16_ptr, *switch32_ptr;
-	struct pt_regs *regs;
-	unsigned long stack_top, stack_bot;
-	unsigned short iret_frame16_off;
 	int cpu = smp_processor_id();
-	/* reserve the space on 32bit stack for the magic switch16 pointer */
-	memmove(stk, stk + 8, sizeof(struct pt_regs));
-	switch16_ptr = (unsigned long *)(stk + sizeof(struct pt_regs));
-	regs = (struct pt_regs *)stk;
-	/* now the switch32 on 16bit stack */
-	stack_bot = (unsigned long)&per_cpu(cpu_16bit_stack, cpu);
-	stack_top = stack_bot +	CPU_16BIT_STACK_SIZE;
-	switch32_ptr = (unsigned long *)(stack_top - 8);
-	iret_frame16_off = CPU_16BIT_STACK_SIZE - 8 - 20;
-	/* copy iret frame on 16bit stack */
-	memcpy((void *)(stack_bot + iret_frame16_off), &regs->eip, 20);
-	/* fill in the switch pointers */
-	switch16_ptr[0] = (regs->esp & 0xffff0000) | iret_frame16_off;
-	switch16_ptr[1] = __ESPFIX_SS;
-	switch32_ptr[0] = (unsigned long)stk + sizeof(struct pt_regs) +
-		8 - CPU_16BIT_STACK_SIZE;
-	switch32_ptr[1] = __KERNEL_DS;
-}
-
-fastcall unsigned char * fixup_x86_bogus_stack(unsigned short sp)
-{
-	unsigned long *switch32_ptr;
-	unsigned char *stack16, *stack32;
-	unsigned long stack_top, stack_bot;
-	int len;
-	int cpu = smp_processor_id();
-	stack_bot = (unsigned long)&per_cpu(cpu_16bit_stack, cpu);
-	stack_top = stack_bot +	CPU_16BIT_STACK_SIZE;
-	switch32_ptr = (unsigned long *)(stack_top - 8);
-	/* copy the data from 16bit stack to 32bit stack */
-	len = CPU_16BIT_STACK_SIZE - 8 - sp;
-	stack16 = (unsigned char *)(stack_bot + sp);
-	stack32 = (unsigned char *)
-		(switch32_ptr[0] + CPU_16BIT_STACK_SIZE - 8 - len);
-	memcpy(stack32, stack16, len);
-	return stack32;
+	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, cpu);
+	struct desc_struct *gdt = (struct desc_struct *)cpu_gdt_descr->address;
+	unsigned long base = (kesp - uesp) & -THREAD_SIZE;
+	unsigned long new_kesp = kesp - base;
+	unsigned long lim_pages = (new_kesp | (THREAD_SIZE - 1)) >> PAGE_SHIFT;
+	__u64 desc = *(__u64 *)&gdt[GDT_ENTRY_ESPFIX_SS];
+	/* Set up base for espfix segment */
+ 	desc &= 0x00f0ff0000000000ULL;
+ 	desc |=	((((__u64)base) << 16) & 0x000000ffffff0000ULL) |
+		((((__u64)base) << 32) & 0xff00000000000000ULL) |
+		((((__u64)lim_pages) << 32) & 0x000f000000000000ULL) |
+		(lim_pages & 0xffff);
+	*(__u64 *)&gdt[GDT_ENTRY_ESPFIX_SS] = desc;
+	return new_kesp;
 }
 
 /*
@@ -1143,7 +1128,7 @@ fastcall unsigned char * fixup_x86_bogus_stack(unsigned short sp)
  * Must be called with kernel preemption disabled (in this case,
  * local interrupts are disabled at the call-site in entry.S).
  */
-asmlinkage void math_state_restore(struct pt_regs regs)
+asmlinkage void math_state_restore(void)
 {
 	struct thread_info *thread = current_thread_info();
 	struct task_struct *tsk = thread->task;
@@ -1153,6 +1138,7 @@ asmlinkage void math_state_restore(struct pt_regs regs)
 		init_fpu(tsk);
 	restore_fpu(tsk);
 	thread->status |= TS_USEDFPU;	/* So we fnsave on switch_to() */
+	tsk->fpu_counter++;
 }
 
 #ifndef CONFIG_MATH_EMULATION

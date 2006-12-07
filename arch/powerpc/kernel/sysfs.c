@@ -239,7 +239,7 @@ static void unregister_cpu_online(unsigned int cpu)
 	struct cpu *c = &per_cpu(cpu_devices, cpu);
 	struct sys_device *s = &c->sysdev;
 
-	BUG_ON(c->no_control);
+	BUG_ON(!c->hotpluggable);
 
 	if (!firmware_has_feature(FW_FEATURE_ISERIES) &&
 			cpu_has_feature(CPU_FTR_SMT))
@@ -424,10 +424,10 @@ static int __init topology_init(void)
 		 * CPU.  For instance, the boot cpu might never be valid
 		 * for hotplugging.
 		 */
-		if (!ppc_md.cpu_die)
-			c->no_control = 1;
+		if (ppc_md.cpu_die)
+			c->hotpluggable = 1;
 
-		if (cpu_online(cpu) || (c->no_control == 0)) {
+		if (cpu_online(cpu) || c->hotpluggable) {
 			register_cpu(c, cpu);
 
 			sysdev_create_file(&c->sysdev, &attr_physical_id);

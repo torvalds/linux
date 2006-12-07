@@ -730,14 +730,15 @@ static __init int x8664_sysctl_init(void)
 __initcall(x8664_sysctl_init);
 #endif
 
-/* A pseudo VMAs to allow ptrace access for the vsyscall page.   This only
+/* A pseudo VMA to allow ptrace access for the vsyscall page.  This only
    covers the 64bit vsyscall page now. 32bit has a real VMA now and does
    not need special handling anymore. */
 
 static struct vm_area_struct gate_vma = {
 	.vm_start = VSYSCALL_START,
-	.vm_end = VSYSCALL_END,
-	.vm_page_prot = PAGE_READONLY
+	.vm_end = VSYSCALL_START + (VSYSCALL_MAPPED_PAGES << PAGE_SHIFT),
+	.vm_page_prot = PAGE_READONLY_EXEC,
+	.vm_flags = VM_READ | VM_EXEC
 };
 
 struct vm_area_struct *get_gate_vma(struct task_struct *tsk)

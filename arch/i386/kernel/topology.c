@@ -40,14 +40,18 @@ int arch_register_cpu(int num)
 	 * restrictions and assumptions in kernel. This basically
 	 * doesnt add a control file, one cannot attempt to offline
 	 * BSP.
+	 *
+	 * Also certain PCI quirks require not to enable hotplug control
+	 * for all CPU's.
 	 */
-	if (!num)
-		cpu_devices[num].cpu.no_control = 1;
+	if (num && enable_cpu_hotplug)
+		cpu_devices[num].cpu.hotpluggable = 1;
 
 	return register_cpu(&cpu_devices[num].cpu, num);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
+int enable_cpu_hotplug = 1;
 
 void arch_unregister_cpu(int num) {
 	return unregister_cpu(&cpu_devices[num].cpu);

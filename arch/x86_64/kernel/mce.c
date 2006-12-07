@@ -651,6 +651,7 @@ static void mce_remove_device(unsigned int cpu)
 	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_tolerant);
 	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_check_interval);
 	sysdev_unregister(&per_cpu(device_mce,cpu));
+	memset(&per_cpu(device_mce, cpu).kobj, 0, sizeof(struct kobject));
 }
 
 /* Get notified when a cpu comes on/off. Be hotplug friendly. */

@@ -70,6 +70,7 @@ extern unsigned char boot_params[PARAM_SIZE];
 struct e820entry;
 
 char * __init machine_specific_memory_setup(void);
+char *memory_setup(void);
 
 int __init copy_e820_map(struct e820entry * biosmap, int nr_map);
 int __init sanitize_e820_map(struct e820entry * biosmap, char * pnr_map);

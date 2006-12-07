@@ -389,6 +389,7 @@ int smp_call_function_single (int cpu, void (*func) (void *info), void *info,
 	put_cpu();
 	return 0;
 }
+EXPORT_SYMBOL(smp_call_function_single);
 
 /*
  * this function sends a 'generic call function' IPI to all other CPUs

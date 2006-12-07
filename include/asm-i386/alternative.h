@@ -4,7 +4,7 @@
 #ifdef __KERNEL__
 
 #include <asm/types.h>
-
+#include <linux/stddef.h>
 #include <linux/types.h>
 
 struct alt_instr {
@@ -116,6 +116,17 @@ static inline void alternatives_smp_switch(int smp) {}
 
 #else /* ! CONFIG_SMP */
 #define LOCK_PREFIX ""
+#endif
+
+struct paravirt_patch;
+#ifdef CONFIG_PARAVIRT
+void apply_paravirt(struct paravirt_patch *start, struct paravirt_patch *end);
+#else
+static inline void
+apply_paravirt(struct paravirt_patch *start, struct paravirt_patch *end)
+{}
+#define __start_parainstructions NULL
+#define __stop_parainstructions NULL
 #endif
 
 #endif /* _I386_ALTERNATIVE_H */

@@ -599,8 +599,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	hugepages=	[HW,IA-32,IA-64] Maximal number of HugeTLB pages.
 
-	noirqbalance	[IA-32,SMP,KNL] Disable kernel irq balancing
-
 	i8042.direct	[HW] Put keyboard port into non-translated mode
 	i8042.dumbkbd	[HW] Pretend that controller can only read data from
 			     keyboard and cannot control its state
@@ -1065,8 +1063,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			in certain environments such as networked servers or
 			real-time systems.
 
+	noirqbalance	[IA-32,SMP,KNL] Disable kernel irq balancing
+
 	noirqdebug	[IA-32] Disables the code which attempts to detect and
 			disable unhandled interrupt sources.
+
+	no_timer_check	[IA-32,X86_64,APIC] Disables the code which tests for
+			broken timer IRQ sources.
 
 	noisapnp	[ISAPNP] Disables ISA PnP code.
 
@@ -1752,6 +1755,9 @@ and is between 256 and 4096 characters. It is defined in the file
 	norandmaps	Don't use address space randomization
 			Equivalent to echo 0 > /proc/sys/kernel/randomize_va_space
 
+ 	unwind_debug=N 	N > 0 will enable dwarf2 unwinder debugging
+			This is useful to get more information why
+			you got a "dwarf2 unwinder stuck"
 
 ______________________________________________________________________
 

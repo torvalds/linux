@@ -22,6 +22,7 @@
 #include <linux/percpu.h>
 #include <linux/dmi.h>
 #include <linux/kprobes.h>
+#include <linux/cpumask.h>
 
 #include <asm/smp.h>
 #include <asm/nmi.h>
@@ -41,6 +42,8 @@ int nmi_watchdog_enabled;
  */
 static DEFINE_PER_CPU(unsigned long, perfctr_nmi_owner);
 static DEFINE_PER_CPU(unsigned long, evntsel_nmi_owner[3]);
+
+static cpumask_t backtrace_mask = CPU_MASK_NONE;
 
 /* this number is calculated from Intel's MSR_P4_CRU_ESCR5 register and it's
  * offset from MSR_P4_BSU_ESCR0.  It will be the max for all platforms (for now)
@@ -867,14 +870,16 @@ static unsigned int
 
 void touch_nmi_watchdog (void)
 {
-	int i;
+	if (nmi_watchdog > 0) {
+		unsigned cpu;
 
-	/*
-	 * Just reset the alert counters, (other CPUs might be
-	 * spinning on locks we hold):
-	 */
-	for_each_possible_cpu(i)
-		alert_counter[i] = 0;
+		/*
+		 * Just reset the alert counters, (other CPUs might be
+		 * spinning on locks we hold):
+		 */
+		for_each_present_cpu (cpu)
+			alert_counter[cpu] = 0;
+	}
 
 	/*
 	 * Tickle the softlockup detector too:
@@ -905,6 +910,16 @@ __kprobes int nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 			== NOTIFY_STOP) {
 		rc = 1;
 		touched = 1;
+	}
+
+	if (cpu_isset(cpu, backtrace_mask)) {
+		static DEFINE_SPINLOCK(lock);	/* Serialise the printks */
+
+		spin_lock(&lock);
+		printk("NMI backtrace for cpu %d\n", cpu);
+		dump_stack();
+		spin_unlock(&lock);
+		cpu_clear(cpu, backtrace_mask);
 	}
 
 	sum = per_cpu(irq_stat, cpu).apic_timer_irqs;
@@ -1032,6 +1047,19 @@ int proc_nmi_enabled(struct ctl_table *table, int write, struct file *file,
 }
 
 #endif
+
+void __trigger_all_cpu_backtrace(void)
+{
+	int i;
+
+	backtrace_mask = cpu_online_map;
+	/* Wait for up to 10 seconds for all CPUs to do the backtrace */
+	for (i = 0; i < 10 * 1000; i++) {
+		if (cpus_empty(backtrace_mask))
+			break;
+		mdelay(1);
+	}
+}
 
 EXPORT_SYMBOL(nmi_active);
 EXPORT_SYMBOL(nmi_watchdog);

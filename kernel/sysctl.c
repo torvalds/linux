@@ -54,6 +54,7 @@ extern int proc_nr_files(ctl_table *table, int write, struct file *filp,
 
 #ifdef CONFIG_X86
 #include <asm/nmi.h>
+#include <asm/stacktrace.h>
 #endif
 
 #if defined(CONFIG_SYSCTL)
@@ -705,6 +706,14 @@ static ctl_table kern_table[] = {
 		.data		= &bootloader_type,
 		.maxlen		= sizeof (int),
 		.mode		= 0444,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "kstack_depth_to_print",
+		.data		= &kstack_depth_to_print,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
 #endif

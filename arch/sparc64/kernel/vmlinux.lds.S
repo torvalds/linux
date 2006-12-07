@@ -13,6 +13,7 @@ SECTIONS
   . = 0x4000;
   .text 0x0000000000404000 :
   {
+    _text = .;
     *(.text)
     SCHED_TEXT
     LOCK_TEXT

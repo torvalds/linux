@@ -731,11 +731,8 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	/* Fix cpuid4 emulation for more */
 	num_cache_leaves = 3;
 
-	/* When there is only one core no need to synchronize RDTSC */
-	if (num_possible_cpus() == 1)
-	        set_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
-	else
-	        clear_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
+	/* RDTSC can be speculated around */
+	clear_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
 }
 
 static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
@@ -834,6 +831,15 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 			set_bit(X86_FEATURE_ARCH_PERFMON, &c->x86_capability);
 	}
 
+	if (cpu_has_ds) {
+		unsigned int l1, l2;
+		rdmsr(MSR_IA32_MISC_ENABLE, l1, l2);
+		if (!(l1 & (1<<11)))
+			set_bit(X86_FEATURE_BTS, c->x86_capability);
+		if (!(l1 & (1<<12)))
+			set_bit(X86_FEATURE_PEBS, c->x86_capability);
+	}
+
 	n = c->extended_cpuid_level;
 	if (n >= 0x80000008) {
 		unsigned eax = cpuid_eax(0x80000008);
@@ -853,7 +859,10 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 		set_bit(X86_FEATURE_CONSTANT_TSC, &c->x86_capability);
 	if (c->x86 == 6)
 		set_bit(X86_FEATURE_REP_GOOD, &c->x86_capability);
-	set_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
+	if (c->x86 == 15)
+		set_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
+	else
+		clear_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
  	c->x86_max_cores = intel_num_cpu_cores(c);
 
 	srat_detect_node();

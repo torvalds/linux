@@ -85,4 +85,14 @@ config DOUBLEFAULT
           option saves about 4k and might cause you much additional grey
           hair.
 
+config DEBUG_PARAVIRT
+	bool "Enable some paravirtualization debugging"
+	default y
+	depends on PARAVIRT && DEBUG_KERNEL
+	help
+	  Currently deliberately clobbers regs which are allowed to be
+	  clobbered in inlined paravirt hooks, even in native mode.
+	  If turning this off solves a problem, then DISABLE_INTERRUPTS() or
+	  ENABLE_INTERRUPTS() is lying about what registers can be clobbered.
+
 endmenu

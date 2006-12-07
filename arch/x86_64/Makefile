@@ -30,6 +30,10 @@ cflags-y	:=
 cflags-kernel-y	:=
 cflags-$(CONFIG_MK8) += $(call cc-option,-march=k8)
 cflags-$(CONFIG_MPSC) += $(call cc-option,-march=nocona)
+# gcc doesn't support -march=core2 yet as of gcc 4.3, but I hope it
+# will eventually. Use -mtune=generic as fallback
+cflags-$(CONFIG_MCORE2) += \
+	$(call cc-option,-march=core2,$(call cc-option,-mtune=generic))
 cflags-$(CONFIG_GENERIC_CPU) += $(call cc-option,-mtune=generic)
 
 cflags-y += -m64

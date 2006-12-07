@@ -169,8 +169,8 @@ static inline unsigned int cpuid_edx(unsigned int op)
 #define MSR_LSTAR 0xc0000082 		/* long mode SYSCALL target */
 #define MSR_CSTAR 0xc0000083		/* compatibility mode SYSCALL target */
 #define MSR_SYSCALL_MASK 0xc0000084	/* EFLAGS mask for syscall */
-#define MSR_FS_BASE 0xc0000100		/* 64bit GS base */
-#define MSR_GS_BASE 0xc0000101		/* 64bit FS base */
+#define MSR_FS_BASE 0xc0000100		/* 64bit FS base */
+#define MSR_GS_BASE 0xc0000101		/* 64bit GS base */
 #define MSR_KERNEL_GS_BASE  0xc0000102	/* SwapGS GS shadow (or USER_GS from kernel) */ 
 /* EFER bits: */ 
 #define _EFER_SCE 0  /* SYSCALL/SYSRET */
@@ -209,6 +209,10 @@ static inline unsigned int cpuid_edx(unsigned int op)
 #define MSR_IA32_LASTBRANCHTOIP        0x1dc
 #define MSR_IA32_LASTINTFROMIP     0x1dd
 #define MSR_IA32_LASTINTTOIP       0x1de
+
+#define MSR_IA32_PEBS_ENABLE		0x3f1
+#define MSR_IA32_DS_AREA		0x600
+#define MSR_IA32_PERF_CAPABILITIES	0x345
 
 #define MSR_MTRRfix64K_00000	0x250
 #define MSR_MTRRfix16K_80000	0x258
@@ -406,5 +410,14 @@ static inline unsigned int cpuid_edx(unsigned int op)
 #define MSR_P4_TC_ESCR1 		0x3c5
 #define MSR_P4_U2L_ESCR0 		0x3b0
 #define MSR_P4_U2L_ESCR1 		0x3b1
+
+/* Intel Core-based CPU performance counters */
+#define MSR_CORE_PERF_FIXED_CTR0	0x309
+#define MSR_CORE_PERF_FIXED_CTR1	0x30a
+#define MSR_CORE_PERF_FIXED_CTR2	0x30b
+#define MSR_CORE_PERF_FIXED_CTR_CTRL	0x38d
+#define MSR_CORE_PERF_GLOBAL_STATUS	0x38e
+#define MSR_CORE_PERF_GLOBAL_CTRL	0x38f
+#define MSR_CORE_PERF_GLOBAL_OVF_CTRL	0x390
 
 #endif
