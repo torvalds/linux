@@ -2042,16 +2042,16 @@ static int __cpuinit pageset_cpuup_callback(struct notifier_block *nfb,
 	int ret = NOTIFY_OK;
 
 	switch (action) {
-		case CPU_UP_PREPARE:
-			if (process_zones(cpu))
-				ret = NOTIFY_BAD;
-			break;
-		case CPU_UP_CANCELED:
-		case CPU_DEAD:
-			free_zone_pagesets(cpu);
-			break;
-		default:
-			break;
+	case CPU_UP_PREPARE:
+		if (process_zones(cpu))
+			ret = NOTIFY_BAD;
+		break;
+	case CPU_UP_CANCELED:
+	case CPU_DEAD:
+		free_zone_pagesets(cpu);
+		break;
+	default:
+		break;
 	}
 	return ret;
 }
