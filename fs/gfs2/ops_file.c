@@ -510,6 +510,11 @@ static int gfs2_close(struct inode *inode, struct file *file)
  * is set. For stuffed inodes we must flush the log in order to
  * ensure that all data is on disk.
  *
+ * The call to write_inode_now() is there to write back metadata and
+ * the inode itself. It does also try and write the data, but thats
+ * (hopefully) a no-op due to the VFS having already called filemap_fdatawrite()
+ * for us.
+ *
  * Returns: errno
  */
 
@@ -518,10 +523,6 @@ static int gfs2_fsync(struct file *file, struct dentry *dentry, int datasync)
 	struct inode *inode = dentry->d_inode;
 	int sync_state = inode->i_state & (I_DIRTY_SYNC|I_DIRTY_DATASYNC);
 	int ret = 0;
-	struct writeback_control wbc = {
-		.sync_mode = WB_SYNC_ALL,
-		.nr_to_write = 0,
-	};
 
 	if (gfs2_is_jdata(GFS2_I(inode))) {
 		gfs2_log_flush(GFS2_SB(inode), GFS2_I(inode)->i_gl);
@@ -530,7 +531,7 @@ static int gfs2_fsync(struct file *file, struct dentry *dentry, int datasync)
 
 	if (sync_state != 0) {
 		if (!datasync)
-			ret = sync_inode(inode, &wbc);
+			ret = write_inode_now(inode, 0);
 
 		if (gfs2_is_stuffed(GFS2_I(inode)))
 			gfs2_log_flush(GFS2_SB(inode), GFS2_I(inode)->i_gl);
