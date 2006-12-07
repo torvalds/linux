@@ -600,7 +600,7 @@ static struct dquot *get_empty_dquot(struct super_block *sb, int type)
 {
 	struct dquot *dquot;
 
-	dquot = kmem_cache_alloc(dquot_cachep, SLAB_NOFS);
+	dquot = kmem_cache_alloc(dquot_cachep, GFP_NOFS);
 	if(!dquot)
 		return NODQUOT;
 

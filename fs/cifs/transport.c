@@ -51,7 +51,7 @@ AllocMidQEntry(const struct smb_hdr *smb_buffer, struct cifsSesInfo *ses)
 	}
 	
 	temp = (struct mid_q_entry *) mempool_alloc(cifs_mid_poolp,
-						    SLAB_KERNEL | SLAB_NOFS);
+						    SLAB_KERNEL | GFP_NOFS);
 	if (temp == NULL)
 		return temp;
 	else {
