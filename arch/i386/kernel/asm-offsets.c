@@ -15,6 +15,7 @@
 #include <asm/processor.h>
 #include <asm/thread_info.h>
 #include <asm/elf.h>
+#include <asm/pda.h>
 
 #define DEFINE(sym, val) \
         asm volatile("\n->" #sym " %0 " #val : : "i" (val))
@@ -99,4 +100,5 @@ void foo(void)
 
 	BLANK();
  	OFFSET(PDA_cpu, i386_pda, cpu_number);
+	OFFSET(PDA_pcurrent, i386_pda, pcurrent);
 }

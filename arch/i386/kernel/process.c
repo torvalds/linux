@@ -684,6 +684,7 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 	if (unlikely(prev->fs | next->fs))
 		loadsegment(fs, next->fs);
 
+	write_pda(pcurrent, next_p);
 
 	/*
 	 * Restore IOPL if needed.

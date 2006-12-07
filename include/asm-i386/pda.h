@@ -7,12 +7,14 @@
 #define _I386_PDA_H
 
 #include <linux/stddef.h>
+#include <linux/types.h>
 
 struct i386_pda
 {
 	struct i386_pda *_pda;		/* pointer to self */
 
 	int cpu_number;
+	struct task_struct *pcurrent;	/* current process */
 };
 
 extern struct i386_pda *_cpu_pda[];
