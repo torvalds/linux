@@ -34,20 +34,20 @@ static u8 ams_delta_latch1_reg;
 static u16 ams_delta_latch2_reg;
 
 static int ams_delta_keymap[] = {
-	KEY(0, 0, KEY_F1),	/* Advert	*/
+	KEY(0, 0, KEY_F1),		/* Advert    */
 
-	KEY(3, 0, KEY_COFFEE),	/* Games	 */
+	KEY(3, 0, KEY_COFFEE),		/* Games     */
 	KEY(2, 0, KEY_QUESTION),	/* Directory */
-	KEY(3, 2, KEY_CONNECT),	/* Internet  */
-	KEY(2, 1, KEY_SHOP),	/* Services  */
-	KEY(1, 1, KEY_PHONE),	/* VoiceMail */
+	KEY(3, 2, KEY_CONNECT),		/* Internet  */
+	KEY(2, 1, KEY_SHOP),		/* Services  */
+	KEY(1, 1, KEY_PHONE),		/* VoiceMail */
 
-	KEY(1, 0, KEY_DELETE),	/* Delete	*/
-	KEY(2, 2, KEY_PLAY),	/* Play	  */
-	KEY(0, 1, KEY_PAGEUP),	/* Up	*/
-	KEY(3, 1, KEY_PAGEDOWN),	/* Down	  */
-	KEY(0, 2, KEY_EMAIL),	/* ReadEmail */
-	KEY(1, 2, KEY_STOP),	/* Stop	  */
+	KEY(1, 0, KEY_DELETE),		/* Delete    */
+	KEY(2, 2, KEY_PLAY),		/* Play      */
+	KEY(0, 1, KEY_PAGEUP),		/* Up        */
+	KEY(3, 1, KEY_PAGEDOWN),	/* Down      */
+	KEY(0, 2, KEY_EMAIL),		/* ReadEmail */
+	KEY(1, 2, KEY_STOP),		/* Stop      */
 
 	/* Numeric keypad portion */
 	KEY(7, 0, KEY_KP1),
@@ -61,20 +61,20 @@ static int ams_delta_keymap[] = {
 	KEY(5, 2, KEY_KP9),
 	KEY(6, 3, KEY_KP0),
 	KEY(7, 3, KEY_KPASTERISK),
-	KEY(5, 3, KEY_KPDOT),	/* # key	 */
-	KEY(2, 7, KEY_NUMLOCK),	/* Mute	  */
-	KEY(1, 7, KEY_KPMINUS),	/* Recall	*/
-	KEY(1, 6, KEY_KPPLUS),	/* Redial	*/
-	KEY(6, 7, KEY_KPSLASH),	/* Handsfree */
-	KEY(0, 6, KEY_ENTER),	/* Video	 */
+	KEY(5, 3, KEY_KPDOT),		/* # key     */
+	KEY(2, 7, KEY_NUMLOCK),		/* Mute      */
+	KEY(1, 7, KEY_KPMINUS),		/* Recall    */
+	KEY(1, 6, KEY_KPPLUS),		/* Redial    */
+	KEY(6, 7, KEY_KPSLASH),		/* Handsfree */
+	KEY(0, 6, KEY_ENTER),		/* Video     */
 
-	KEY(4, 7, KEY_CAMERA),	/* Photo	 */
+	KEY(4, 7, KEY_CAMERA),		/* Photo     */
 
-	KEY(4, 0, KEY_F2),	/* Home	  */
-	KEY(4, 1, KEY_F3),	/* Office	*/
-	KEY(4, 2, KEY_F4),	/* Mobile	*/
-	KEY(7, 7, KEY_F5),	/* SMS		*/
-	KEY(5, 7, KEY_F6),	/* Email	 */
+	KEY(4, 0, KEY_F2),		/* Home      */
+	KEY(4, 1, KEY_F3),		/* Office    */
+	KEY(4, 2, KEY_F4),		/* Mobile    */
+	KEY(7, 7, KEY_F5),		/* SMS       */
+	KEY(5, 7, KEY_F6),		/* Email     */
 
 	/* QWERTY portion of keypad */
 	KEY(4, 3, KEY_Q),
@@ -107,7 +107,7 @@ static int ams_delta_keymap[] = {
 	KEY(3, 6, KEY_M),
 	KEY(2, 6, KEY_SPACE),
 
-	KEY(0, 7, KEY_LEFTSHIFT),	/* Vol up	*/
+	KEY(0, 7, KEY_LEFTSHIFT),	/* Vol up    */
 	KEY(3, 7, KEY_LEFTCTRL),	/* Vol down  */
 
 	0
@@ -158,6 +158,10 @@ static struct map_desc ams_delta_io_desc[] __initdata = {
 	}
 };
 
+static struct omap_lcd_config ams_delta_lcd_config __initdata = {
+	.ctrl_name	= "internal",
+};
+
 static struct omap_uart_config ams_delta_uart_config __initdata = {
 	.enabled_uarts = 1,
 };
@@ -169,6 +173,7 @@ static struct omap_usb_config ams_delta_usb_config __initdata = {
 };
 
 static struct omap_board_config_kernel ams_delta_config[] = {
+	{ OMAP_TAG_LCD,		&ams_delta_lcd_config },
 	{ OMAP_TAG_UART,	&ams_delta_uart_config },
 	{ OMAP_TAG_USB,		&ams_delta_usb_config },
 };
@@ -199,6 +204,11 @@ static struct platform_device ams_delta_kp_device = {
 	.resource	= ams_delta_kp_resources,
 };
 
+static struct platform_device ams_delta_lcd_device = {
+	.name	= "lcd_ams_delta",
+	.id	= -1,
+};
+
 static struct platform_device ams_delta_led_device = {
 	.name	= "ams-delta-led",
 	.id	= -1
@@ -206,6 +216,7 @@ static struct platform_device ams_delta_led_device = {
 
 static struct platform_device *ams_delta_devices[] __initdata = {
 	&ams_delta_kp_device,
+	&ams_delta_lcd_device,
 	&ams_delta_led_device,
 };
 

@@ -314,8 +314,8 @@ static struct omap_uart_config palmtt_uart_config __initdata = {
 };
 
 static struct omap_board_config_kernel palmtt_config[] = {
-	{ OMAP_TAG_USB,	&palmtt_usb_config	},
-	{ OMAP_TAG_LCD,	&palmtt_lcd_config	},
+	{ OMAP_TAG_USB,		&palmtt_usb_config	},
+	{ OMAP_TAG_LCD,		&palmtt_lcd_config	},
 	{ OMAP_TAG_UART,	&palmtt_uart_config	},
 };
 

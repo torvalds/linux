@@ -34,6 +34,8 @@
 #include <asm/arch/aic23.h>
 #include <asm/arch/gpio.h>
 
+#include "../plat-omap/dsp/dsp_common.h"
+
 static void __init omap_nokia770_init_irq(void)
 {
 	/* On Nokia 770, the SleepX signal is masked with an
@@ -91,7 +93,7 @@ static struct platform_device nokia770_kp_device = {
 };
 
 static struct platform_device *nokia770_devices[] __initdata = {
-        &nokia770_kp_device,
+	&nokia770_kp_device,
 };
 
 static struct ads7846_platform_data nokia770_ads7846_platform_data __initdata = {
@@ -105,7 +107,7 @@ static struct ads7846_platform_data nokia770_ads7846_platform_data __initdata = 
 
 static struct spi_board_info nokia770_spi_board_info[] __initdata = {
 	[0] = {
-		.modalias		= "lcd_mipid",
+		.modalias       = "lcd_mipid",
 		.bus_num        = 2,
 		.chip_select    = 3,
 		.max_speed_hz   = 12000000,
@@ -153,6 +155,7 @@ static struct omap_board_config_kernel nokia770_config[] = {
 	{ OMAP_TAG_MMC,		&nokia770_mmc_config },
 };
 
+#if	defined(CONFIG_OMAP_DSP)
 /*
  * audio power control
  */
@@ -183,7 +186,7 @@ static void nokia770_audio_pwr_up(void)
 	clk_enable(dspxor_ck);
 
 	/* Turn on codec */
-	tlv320aic23_power_up();
+	aic23_power_up();
 
 	if (omap_get_gpio_datain(HEADPHONE_GPIO))
 		/* HP not connected, turn on amplifier */
@@ -197,7 +200,7 @@ static void codec_delayed_power_down(struct work_struct *work)
 {
 	down(&audio_pwr_sem);
 	if (audio_pwr_state == -1)
-		tlv320aic23_power_down();
+		aic23_power_down();
 	clk_disable(dspxor_ck);
 	up(&audio_pwr_sem);
 }
@@ -213,7 +216,8 @@ static void nokia770_audio_pwr_down(void)
 	schedule_delayed_work(&codec_power_down_work, HZ / 20);	/* 50ms */
 }
 
-void nokia770_audio_pwr_up_request(int stage)
+static int
+nokia770_audio_pwr_up_request(struct dsp_kfunc_device *kdev, int stage)
 {
 	down(&audio_pwr_sem);
 	if (audio_pwr_state == -1)
@@ -221,9 +225,11 @@ void nokia770_audio_pwr_up_request(int stage)
 	/* force audio_pwr_state = 0, even if it was 1. */
 	audio_pwr_state = 0;
 	up(&audio_pwr_sem);
+	return 0;
 }
 
-void nokia770_audio_pwr_down_request(int stage)
+static int
+nokia770_audio_pwr_down_request(struct dsp_kfunc_device *kdev, int stage)
 {
 	down(&audio_pwr_sem);
 	switch (stage) {
@@ -239,7 +245,38 @@ void nokia770_audio_pwr_down_request(int stage)
 		break;
 	}
 	up(&audio_pwr_sem);
+	return 0;
 }
+
+static struct dsp_kfunc_device nokia770_audio_device = {
+	.name	 = "audio",
+	.type	 = DSP_KFUNC_DEV_TYPE_AUDIO,
+	.enable  = nokia770_audio_pwr_up_request,
+	.disable = nokia770_audio_pwr_down_request,
+};
+
+static __init int omap_dsp_init(void)
+{
+	int ret;
+
+	dspxor_ck = clk_get(0, "dspxor_ck");
+	if (IS_ERR(dspxor_ck)) {
+		printk(KERN_ERR "couldn't acquire dspxor_ck\n");
+		return PTR_ERR(dspxor_ck);
+	}
+
+	ret = dsp_kfunc_device_register(&nokia770_audio_device);
+	if (ret) {
+		printk(KERN_ERR
+		       "KFUNC device registration faild: %s\n",
+		       nokia770_audio_device.name);
+		goto out;
+	}
+	return 0;
+ out:
+	return ret;
+}
+#endif	/* CONFIG_OMAP_DSP */
 
 static void __init omap_nokia770_init(void)
 {
@@ -251,9 +288,7 @@ static void __init omap_nokia770_init(void)
 	omap_board_config = nokia770_config;
 	omap_board_config_size = ARRAY_SIZE(nokia770_config);
 	omap_serial_init();
-	omap_dsp_audio_pwr_up_request = nokia770_audio_pwr_up_request;
-	omap_dsp_audio_pwr_down_request = nokia770_audio_pwr_down_request;
-	dspxor_ck = clk_get(0, "dspxor_ck");
+	omap_dsp_init();
 }
 
 static void __init omap_nokia770_map_io(void)
