@@ -52,6 +52,7 @@
 #include <asm/desc.h>
 #include <asm/arch_hooks.h>
 #include <asm/nmi.h>
+#include <asm/pda.h>
 
 #include <mach_apic.h>
 #include <mach_wakecpu.h>
@@ -536,11 +537,11 @@ set_cpu_sibling_map(int cpu)
 static void __devinit start_secondary(void *unused)
 {
 	/*
-	 * Dont put anything before smp_callin(), SMP
+	 * Don't put *anything* before secondary_cpu_init(), SMP
 	 * booting is too fragile that we want to limit the
 	 * things done here to the most necessary things.
 	 */
-	cpu_init();
+	secondary_cpu_init();
 	preempt_disable();
 	smp_callin();
 	while (!cpu_isset(smp_processor_id(), smp_commenced_mask))
@@ -599,13 +600,16 @@ void __devinit initialize_secondary(void)
 		"movl %0,%%esp\n\t"
 		"jmp *%1"
 		:
-		:"r" (current->thread.esp),"r" (current->thread.eip));
+		:"m" (current->thread.esp),"m" (current->thread.eip));
 }
 
+/* Static state in head.S used to set up a CPU */
 extern struct {
 	void * esp;
 	unsigned short ss;
 } stack_start;
+extern struct i386_pda *start_pda;
+extern struct Xgt_desc_struct cpu_gdt_descr;
 
 #ifdef CONFIG_NUMA
 
@@ -936,9 +940,6 @@ static int __devinit do_boot_cpu(int apicid, int cpu)
 	unsigned long start_eip;
 	unsigned short nmi_high = 0, nmi_low = 0;
 
-	++cpucount;
-	alternatives_smp_switch(1);
-
 	/*
 	 * We can't use kernel_thread since we must avoid to
 	 * reschedule the child.
@@ -946,14 +947,29 @@ static int __devinit do_boot_cpu(int apicid, int cpu)
 	idle = alloc_idle_task(cpu);
 	if (IS_ERR(idle))
 		panic("failed fork for CPU %d", cpu);
+
+	/* Pre-allocate and initialize the CPU's GDT and PDA so it
+	   doesn't have to do any memory allocation during the
+	   delicate CPU-bringup phase. */
+	if (!init_gdt(cpu, idle)) {
+		printk(KERN_INFO "Couldn't allocate GDT/PDA for CPU %d\n", cpu);
+		return -1;	/* ? */
+	}
+
 	idle->thread.eip = (unsigned long) start_secondary;
 	/* start_eip had better be page-aligned! */
 	start_eip = setup_trampoline();
+
+	++cpucount;
+	alternatives_smp_switch(1);
 
 	/* So we see what's up   */
 	printk("Booting processor %d/%d eip %lx\n", cpu, apicid, start_eip);
 	/* Stack for startup_32 can be just as for start_secondary onwards */
 	stack_start.esp = (void *) idle->thread.esp;
+
+	start_pda = cpu_pda(cpu);
+	cpu_gdt_descr = per_cpu(cpu_gdt_descr, cpu);
 
 	irq_ctx_init(cpu);
 

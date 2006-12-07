@@ -18,11 +18,15 @@
 #include <asm/apic.h>
 #include <mach_apic.h>
 #endif
+#include <asm/pda.h>
 
 #include "cpu.h"
 
 DEFINE_PER_CPU(struct Xgt_desc_struct, cpu_gdt_descr);
 EXPORT_PER_CPU_SYMBOL(cpu_gdt_descr);
+
+struct i386_pda *_cpu_pda[NR_CPUS] __read_mostly;
+EXPORT_SYMBOL(_cpu_pda);
 
 static int cachesize_override __cpuinitdata = -1;
 static int disable_x86_fxsr __cpuinitdata;
@@ -588,24 +592,113 @@ void __init early_cpu_init(void)
 	disable_pse = 1;
 #endif
 }
-/*
- * cpu_init() initializes state that is per-CPU. Some data is already
- * initialized (naturally) in the bootstrap process, such as the GDT
- * and IDT. We reload them nevertheless, this function acts as a
- * 'CPU state barrier', nothing should get across.
- */
-void __cpuinit cpu_init(void)
+
+__cpuinit int alloc_gdt(int cpu)
 {
-	int cpu = smp_processor_id();
-	struct tss_struct * t = &per_cpu(init_tss, cpu);
-	struct thread_struct *thread = &current->thread;
-	struct desc_struct *gdt;
 	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, cpu);
+	struct desc_struct *gdt;
+	struct i386_pda *pda;
+
+	gdt = (struct desc_struct *)cpu_gdt_descr->address;
+	pda = cpu_pda(cpu);
+
+	/*
+	 * This is a horrible hack to allocate the GDT.  The problem
+	 * is that cpu_init() is called really early for the boot CPU
+	 * (and hence needs bootmem) but much later for the secondary
+	 * CPUs, when bootmem will have gone away
+	 */
+	if (NODE_DATA(0)->bdata->node_bootmem_map) {
+		BUG_ON(gdt != NULL || pda != NULL);
+
+		gdt = alloc_bootmem_pages(PAGE_SIZE);
+		pda = alloc_bootmem(sizeof(*pda));
+		/* alloc_bootmem(_pages) panics on failure, so no check */
+
+		memset(gdt, 0, PAGE_SIZE);
+		memset(pda, 0, sizeof(*pda));
+	} else {
+		/* GDT and PDA might already have been allocated if
+		   this is a CPU hotplug re-insertion. */
+		if (gdt == NULL)
+			gdt = (struct desc_struct *)get_zeroed_page(GFP_KERNEL);
+
+		if (pda == NULL)
+			pda = kmalloc_node(sizeof(*pda), GFP_KERNEL, cpu_to_node(cpu));
+
+		if (unlikely(!gdt || !pda)) {
+			free_pages((unsigned long)gdt, 0);
+			kfree(pda);
+			return 0;
+		}
+	}
+
+ 	cpu_gdt_descr->address = (unsigned long)gdt;
+	cpu_pda(cpu) = pda;
+
+	return 1;
+}
+
+/* Initial PDA used by boot CPU */
+struct i386_pda boot_pda = {
+	._pda = &boot_pda,
+};
+
+/* Initialize the CPU's GDT and PDA.  The boot CPU does this for
+   itself, but secondaries find this done for them. */
+__cpuinit int init_gdt(int cpu, struct task_struct *idle)
+{
+	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, cpu);
+	struct desc_struct *gdt;
+	struct i386_pda *pda;
+
+	/* For non-boot CPUs, the GDT and PDA should already have been
+	   allocated. */
+	if (!alloc_gdt(cpu)) {
+		printk(KERN_CRIT "CPU%d failed to allocate GDT or PDA\n", cpu);
+		return 0;
+	}
+
+	gdt = (struct desc_struct *)cpu_gdt_descr->address;
+	pda = cpu_pda(cpu);
+
+	BUG_ON(gdt == NULL || pda == NULL);
+
+	/*
+	 * Initialize the per-CPU GDT with the boot GDT,
+	 * and set up the GDT descriptor:
+	 */
+ 	memcpy(gdt, cpu_gdt_table, GDT_SIZE);
+	cpu_gdt_descr->size = GDT_SIZE - 1;
+
+	pack_descriptor((u32 *)&gdt[GDT_ENTRY_PDA].a,
+			(u32 *)&gdt[GDT_ENTRY_PDA].b,
+			(unsigned long)pda, sizeof(*pda) - 1,
+			0x80 | DESCTYPE_S | 0x2, 0); /* present read-write data segment */
+
+	memset(pda, 0, sizeof(*pda));
+	pda->_pda = pda;
+
+	return 1;
+}
+
+/* Common CPU init for both boot and secondary CPUs */
+static void __cpuinit _cpu_init(int cpu, struct task_struct *curr)
+{
+	struct tss_struct * t = &per_cpu(init_tss, cpu);
+	struct thread_struct *thread = &curr->thread;
+	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, cpu);
+
+	/* Reinit these anyway, even if they've already been done (on
+	   the boot CPU, this will transition from the boot gdt+pda to
+	   the real ones). */
+	load_gdt(cpu_gdt_descr);
 
 	if (cpu_test_and_set(cpu, cpu_initialized)) {
 		printk(KERN_WARNING "CPU#%d already initialized!\n", cpu);
 		for (;;) local_irq_enable();
 	}
+
 	printk(KERN_INFO "Initializing CPU#%d\n", cpu);
 
 	if (cpu_has_vme || cpu_has_tsc || cpu_has_de)
@@ -617,49 +710,16 @@ void __cpuinit cpu_init(void)
 		set_in_cr4(X86_CR4_TSD);
 	}
 
-	/* The CPU hotplug case */
-	if (cpu_gdt_descr->address) {
-		gdt = (struct desc_struct *)cpu_gdt_descr->address;
-		memset(gdt, 0, PAGE_SIZE);
-		goto old_gdt;
-	}
-	/*
-	 * This is a horrible hack to allocate the GDT.  The problem
-	 * is that cpu_init() is called really early for the boot CPU
-	 * (and hence needs bootmem) but much later for the secondary
-	 * CPUs, when bootmem will have gone away
-	 */
-	if (NODE_DATA(0)->bdata->node_bootmem_map) {
-		gdt = (struct desc_struct *)alloc_bootmem_pages(PAGE_SIZE);
-		/* alloc_bootmem_pages panics on failure, so no check */
-		memset(gdt, 0, PAGE_SIZE);
-	} else {
-		gdt = (struct desc_struct *)get_zeroed_page(GFP_KERNEL);
-		if (unlikely(!gdt)) {
-			printk(KERN_CRIT "CPU%d failed to allocate GDT\n", cpu);
-			for (;;)
-				local_irq_enable();
-		}
-	}
-old_gdt:
-	/*
-	 * Initialize the per-CPU GDT with the boot GDT,
-	 * and set up the GDT descriptor:
-	 */
- 	memcpy(gdt, cpu_gdt_table, GDT_SIZE);
-	cpu_gdt_descr->size = GDT_SIZE - 1;
- 	cpu_gdt_descr->address = (unsigned long)gdt;
-
-	load_gdt(cpu_gdt_descr);
 	load_idt(&idt_descr);
 
 	/*
 	 * Set up and load the per-CPU TSS and LDT
 	 */
 	atomic_inc(&init_mm.mm_count);
-	current->active_mm = &init_mm;
-	BUG_ON(current->mm);
-	enter_lazy_tlb(&init_mm, current);
+	curr->active_mm = &init_mm;
+	if (curr->mm)
+		BUG();
+	enter_lazy_tlb(&init_mm, curr);
 
 	load_esp0(t, thread);
 	set_tss_desc(cpu,t);
@@ -688,6 +748,37 @@ old_gdt:
 	current_thread_info()->status = 0;
 	clear_used_math();
 	mxcsr_feature_mask_init();
+}
+
+/* Entrypoint to initialize secondary CPU */
+void __cpuinit secondary_cpu_init(void)
+{
+	int cpu = smp_processor_id();
+	struct task_struct *curr = current;
+
+	_cpu_init(cpu, curr);
+}
+
+/*
+ * cpu_init() initializes state that is per-CPU. Some data is already
+ * initialized (naturally) in the bootstrap process, such as the GDT
+ * and IDT. We reload them nevertheless, this function acts as a
+ * 'CPU state barrier', nothing should get across.
+ */
+void __cpuinit cpu_init(void)
+{
+	int cpu = smp_processor_id();
+	struct task_struct *curr = current;
+
+	/* Set up the real GDT and PDA, so we can transition from the
+	   boot versions. */
+	if (!init_gdt(cpu, curr)) {
+		/* failed to allocate something; not much we can do... */
+		for (;;)
+			local_irq_enable();
+	}
+
+	_cpu_init(cpu, curr);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
