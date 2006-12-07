@@ -24,6 +24,7 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/irq.h>
 
 #include <asm/mach/time.h>
 #include <asm/arch/dmtimer.h>
