@@ -106,6 +106,16 @@ extern int snapshot_write_next(struct snapshot_handle *handle, size_t count);
 extern int snapshot_image_loaded(struct snapshot_handle *handle);
 extern void snapshot_free_unused_memory(struct snapshot_handle *handle);
 
+/*
+ * This structure is used to pass the values needed for the identification
+ * of the resume swap area from a user space to the kernel via the
+ * SNAPSHOT_SET_SWAP_AREA ioctl
+ */
+struct resume_swap_area {
+	loff_t offset;
+	u_int32_t dev;
+} __attribute__((packed));
+
 #define SNAPSHOT_IOC_MAGIC	'3'
 #define SNAPSHOT_FREEZE			_IO(SNAPSHOT_IOC_MAGIC, 1)
 #define SNAPSHOT_UNFREEZE		_IO(SNAPSHOT_IOC_MAGIC, 2)
@@ -119,7 +129,9 @@ extern void snapshot_free_unused_memory(struct snapshot_handle *handle);
 #define SNAPSHOT_SET_SWAP_FILE		_IOW(SNAPSHOT_IOC_MAGIC, 10, unsigned int)
 #define SNAPSHOT_S2RAM			_IO(SNAPSHOT_IOC_MAGIC, 11)
 #define SNAPSHOT_PMOPS			_IOW(SNAPSHOT_IOC_MAGIC, 12, unsigned int)
-#define SNAPSHOT_IOC_MAXNR	12
+#define SNAPSHOT_SET_SWAP_AREA		_IOW(SNAPSHOT_IOC_MAGIC, 13, \
+							struct resume_swap_area)
+#define SNAPSHOT_IOC_MAXNR	13
 
 #define PMOPS_PREPARE	1
 #define PMOPS_ENTER	2

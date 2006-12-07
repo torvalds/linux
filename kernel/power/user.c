@@ -343,6 +343,37 @@ OutS3:
 		}
 		break;
 
+	case SNAPSHOT_SET_SWAP_AREA:
+		if (data->bitmap) {
+			error = -EPERM;
+		} else {
+			struct resume_swap_area swap_area;
+			dev_t swdev;
+
+			error = copy_from_user(&swap_area, (void __user *)arg,
+					sizeof(struct resume_swap_area));
+			if (error) {
+				error = -EFAULT;
+				break;
+			}
+
+			/*
+			 * User space encodes device types as two-byte values,
+			 * so we need to recode them
+			 */
+			swdev = old_decode_dev(swap_area.dev);
+			if (swdev) {
+				offset = swap_area.offset;
+				data->swap = swap_type_of(swdev, offset);
+				if (data->swap < 0)
+					error = -ENODEV;
+			} else {
+				data->swap = -1;
+				error = -EINVAL;
+			}
+		}
+		break;
+
 	default:
 		error = -ENOTTY;
 
