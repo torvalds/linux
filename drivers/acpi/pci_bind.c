@@ -223,8 +223,6 @@ int acpi_pci_bind(struct acpi_device *device)
 				  data->id.segment, data->id.bus,
 				  data->id.device, data->id.function));
 		data->bus = data->dev->subordinate;
-		device->ops.bind = acpi_pci_bind;
-		device->ops.unbind = acpi_pci_unbind;
 	}
 
 	/*
@@ -354,8 +352,6 @@ acpi_pci_bind_root(struct acpi_device *device,
 
 	data->id = *id;
 	data->bus = bus;
-	device->ops.bind = acpi_pci_bind;
-	device->ops.unbind = acpi_pci_unbind;
 
 	acpi_get_name(device->handle, ACPI_FULL_PATHNAME, &buffer);
 
@@ -378,3 +374,55 @@ acpi_pci_bind_root(struct acpi_device *device,
 
 	return result;
 }
+
+#define ACPI_PCI_BRIDGE_DRIVER_NAME "ACPI PCI Bridge Driver"
+
+static int acpi_pci_bridge_add(struct acpi_device *device);
+static int acpi_pci_bridge_remove(struct acpi_device *device, int type);
+static int acpi_pci_bridge_match(struct acpi_device *device,
+       struct acpi_driver *driver);
+static struct acpi_driver acpi_pci_bridge_driver = {
+       .name = ACPI_PCI_BRIDGE_DRIVER_NAME,
+       .ops = {
+               .add = acpi_pci_bridge_add,
+               .remove = acpi_pci_bridge_remove,
+               .match = acpi_pci_bridge_match,
+       },
+};
+
+static int acpi_pci_bridge_match(struct acpi_device *device,
+       struct acpi_driver *driver)
+{
+       acpi_status status;
+       acpi_handle handle;
+
+       /* pci bridge has _PRT but isn't PNP0A03 */
+       status = acpi_get_handle(device->handle, METHOD_NAME__PRT, &handle);
+       if (ACPI_FAILURE(status))
+               return -ENODEV;
+       if (!acpi_match_ids(device, "PNP0A03"))
+               return -ENODEV;
+       return 0;
+}
+
+static int acpi_pci_bridge_add(struct acpi_device *device)
+{
+       return acpi_pci_bind(device);
+}
+
+static int acpi_pci_bridge_remove(struct acpi_device *device, int type)
+{
+       return acpi_pci_unbind(device);
+}
+
+static int __init acpi_pci_bridge_init(void)
+{
+       if (acpi_pci_disabled)
+               return 0;
+       if (acpi_bus_register_driver(&acpi_pci_bridge_driver) < 0)
+               return -ENODEV;
+       return 0;
+}
+
+/* Should be called after ACPI pci root driver */
+subsys_initcall(acpi_pci_bridge_init);

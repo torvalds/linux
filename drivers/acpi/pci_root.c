@@ -175,11 +175,6 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	strcpy(acpi_device_class(device), ACPI_PCI_ROOT_CLASS);
 	acpi_driver_data(device) = root;
 
-	/*
-	 * TBD: Doesn't the bus driver automatically set this?
-	 */
-	device->ops.bind = acpi_pci_bind;
-
 	/* 
 	 * Segment
 	 * -------
