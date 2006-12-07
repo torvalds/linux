@@ -21,7 +21,7 @@
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #ifdef CONFIG_CPU_SH3
 #define rtc_reg_size		sizeof(u16)
@@ -33,22 +33,22 @@
 
 #define RTC_REG(r)	((r) * rtc_reg_size)
 
-#define R64CNT  	RTC_REG(0)
-#define RSECCNT 	RTC_REG(1)
-#define RMINCNT 	RTC_REG(2)
-#define RHRCNT  	RTC_REG(3)
-#define RWKCNT  	RTC_REG(4)
-#define RDAYCNT 	RTC_REG(5)
-#define RMONCNT 	RTC_REG(6)
-#define RYRCNT  	RTC_REG(7)
-#define RSECAR  	RTC_REG(8)
-#define RMINAR  	RTC_REG(9)
-#define RHRAR   	RTC_REG(10)
-#define RWKAR   	RTC_REG(11)
-#define RDAYAR  	RTC_REG(12)
-#define RMONAR  	RTC_REG(13)
-#define RCR1    	RTC_REG(14)
-#define RCR2    	RTC_REG(15)
+#define R64CNT		RTC_REG(0)
+#define RSECCNT		RTC_REG(1)
+#define RMINCNT		RTC_REG(2)
+#define RHRCNT		RTC_REG(3)
+#define RWKCNT		RTC_REG(4)
+#define RDAYCNT		RTC_REG(5)
+#define RMONCNT		RTC_REG(6)
+#define RYRCNT		RTC_REG(7)
+#define RSECAR		RTC_REG(8)
+#define RMINAR		RTC_REG(9)
+#define RHRAR		RTC_REG(10)
+#define RWKAR		RTC_REG(11)
+#define RDAYAR		RTC_REG(12)
+#define RMONAR		RTC_REG(13)
+#define RCR1		RTC_REG(14)
+#define RCR2		RTC_REG(15)
 
 /* RCR1 Bits */
 #define RCR1_CF		0x80	/* Carry Flag             */
@@ -73,9 +73,9 @@ struct sh_rtc {
 	spinlock_t lock;
 };
 
-static irqreturn_t sh_rtc_interrupt(int irq, void *id)
+static irqreturn_t sh_rtc_interrupt(int irq, void *dev_id)
 {
-	struct platform_device *pdev = id;
+	struct platform_device *pdev = to_platform_device(dev_id);
 	struct sh_rtc *rtc = platform_get_drvdata(pdev);
 	unsigned int tmp, events = 0;
 
@@ -97,9 +97,10 @@ static irqreturn_t sh_rtc_interrupt(int irq, void *id)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t sh_rtc_periodic(int irq, void *id)
+static irqreturn_t sh_rtc_periodic(int irq, void *dev_id)
 {
-	struct sh_rtc *rtc = dev_get_drvdata(id);
+	struct platform_device *pdev = to_platform_device(dev_id);
+	struct sh_rtc *rtc = platform_get_drvdata(pdev);
 
 	spin_lock(&rtc->lock);
 
