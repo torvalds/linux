@@ -47,14 +47,14 @@
 #define __D (1 << CSR1212_KV_TYPE_DIRECTORY)
 #define __L (1 << CSR1212_KV_TYPE_LEAF)
 static const u_int8_t csr1212_key_id_type_map[0x30] = {
-	0,			/* Reserved */
+	__C,			/* used by Apple iSight */
 	__D | __L,		/* Descriptor */
 	__I | __D | __L,	/* Bus_Dependent_Info */
 	__I | __D | __L,	/* Vendor */
 	__I,			/* Hardware_Version */
 	0, 0,			/* Reserved */
-	__D | __L,		/* Module */
-	0, 0, 0, 0,		/* Reserved */
+	__D | __L | __I,	/* Module */
+	__I, 0, 0, 0,		/* used by Apple iSight, Reserved */
 	__I,			/* Node_Capabilities */
 	__L,			/* EUI_64 */
 	0, 0, 0,		/* Reserved */
