@@ -8,6 +8,12 @@
  * put it inside the section definition.
  */
 
+/* Don't define absolute symbols until and unless you know that symbol
+ * value is should remain constant even if kernel image is relocated
+ * at run time. Absolute symbols are not relocated. If symbol value should
+ * change if kernel is relocated, make the symbol section relative and
+ * put it inside the section definition.
+ */
 #define LOAD_OFFSET __PAGE_OFFSET
 
 #include <asm-generic/vmlinux.lds.h>
@@ -65,11 +71,11 @@ SECTIONS
 	CONSTRUCTORS
 	} :data
 
-  __start_paravirtprobe = .;
   .paravirtprobe : AT(ADDR(.paravirtprobe) - LOAD_OFFSET) {
+  	__start_paravirtprobe = .;
 	*(.paravirtprobe)
+  	__stop_paravirtprobe = .;
   }
-  __stop_paravirtprobe = .;
 
   . = ALIGN(4096);
   .data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) {
@@ -172,11 +178,11 @@ SECTIONS
 	*(.altinstr_replacement)
   }
   . = ALIGN(4);
-  __start_parainstructions = .;
   .parainstructions : AT(ADDR(.parainstructions) - LOAD_OFFSET) {
+  	__start_parainstructions = .;
 	*(.parainstructions)
+  	__stop_parainstructions = .;
   }
-  __stop_parainstructions = .;
   /* .exit.text is discard at runtime, not link time, to deal with references
      from .altinstructions and .eh_frame */
   .exit.text : AT(ADDR(.exit.text) - LOAD_OFFSET) { *(.exit.text) }
