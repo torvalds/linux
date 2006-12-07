@@ -969,7 +969,7 @@ static void netxen_tx_timeout(struct net_device *netdev)
 {
 	struct netxen_port *port = (struct netxen_port *)netdev_priv(netdev);
 
-	SCHEDULE_WORK(port->adapter->tx_timeout_task + port->portnum);
+	SCHEDULE_WORK(&port->adapter->tx_timeout_task);
 }
 
 static void netxen_tx_timeout_task(struct work_struct *work)

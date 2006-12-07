@@ -1023,8 +1023,7 @@ int netxen_process_cmd_ring(unsigned long data)
 			     && netif_carrier_ok(port->netdev))
 		    && ((jiffies - port->netdev->trans_start) >
 			port->netdev->watchdog_timeo)) {
-			SCHEDULE_WORK(port->adapter->tx_timeout_task
-				      + port->portnum);
+			SCHEDULE_WORK(&port->adapter->tx_timeout_task);
 		}
 
 		last_consumer = get_next_index(last_consumer,
