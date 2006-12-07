@@ -338,7 +338,6 @@ struct mm_struct {
 
 	unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
 
-	unsigned dumpable:2;
 	cpumask_t cpu_vm_mask;
 
 	/* Architecture-specific MM context */
@@ -354,6 +353,8 @@ struct mm_struct {
 	unsigned int faultstamp;
 	unsigned int token_priority;
 	unsigned int last_interval;
+
+	unsigned char dumpable:2;
 
 	/* coredumping support */
 	int core_waiters;
