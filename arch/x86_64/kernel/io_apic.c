@@ -750,6 +750,22 @@ static int assign_irq_vector(int irq, cpumask_t mask, cpumask_t *result)
 	return vector;
 }
 
+static void __clear_irq_vector(int irq)
+{
+	cpumask_t mask;
+	int cpu, vector;
+
+	BUG_ON(!irq_vector[irq]);
+
+	vector = irq_vector[irq];
+	cpus_and(mask, irq_domain[irq], cpu_online_map);
+	for_each_cpu_mask(cpu, mask)
+		per_cpu(vector_irq, cpu)[vector] = -1;
+
+	irq_vector[irq] = 0;
+	irq_domain[irq] = CPU_MASK_NONE;
+}
+
 void __setup_vector_irq(int cpu)
 {
 	/* Initialize vector_irq on a new cpu */
@@ -1837,7 +1853,7 @@ void destroy_irq(unsigned int irq)
 	dynamic_irq_cleanup(irq);
 
 	spin_lock_irqsave(&vector_lock, flags);
-	irq_vector[irq] = 0;
+	__clear_irq_vector(irq);
 	spin_unlock_irqrestore(&vector_lock, flags);
 }
 
