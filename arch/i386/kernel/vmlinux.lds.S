@@ -121,6 +121,12 @@ SECTIONS
 	*(.smp_altinstr_replacement)
   	__smp_alt_end = .;
   }
+  /* will be freed after init
+   * Following ALIGN() is required to make sure no other data falls on the
+   * same page where __smp_alt_end is pointing as that page might be freed
+   * after boot. Always make sure that ALIGN() directive is present after
+   * the section which contains __smp_alt_end.
+   */
   . = ALIGN(4096);
 
   /* will be freed after init */
