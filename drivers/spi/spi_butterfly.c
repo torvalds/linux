@@ -251,6 +251,8 @@ static void butterfly_attach(struct parport *p)
 	 * setting up a platform device like this is an ugly kluge...
 	 */
 	pdev = platform_device_register_simple("butterfly", -1, NULL, 0);
+	if (IS_ERR(pdev))
+		return;
 
 	master = spi_alloc_master(&pdev->dev, sizeof *pp);
 	if (!master) {
