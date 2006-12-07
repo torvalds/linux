@@ -114,6 +114,15 @@ static struct s3c2410_uartcfg osiris_uartcfgs[] __initdata = {
 		.clocks	     = osiris_serial_clocks,
 		.clocks_size = ARRAY_SIZE(osiris_serial_clocks),
 	},
+	[2] = {
+		.hwport	     = 2,
+		.flags	     = 0,
+		.ucon	     = UCON,
+		.ulcon	     = ULCON,
+		.ufcon	     = UFCON,
+		.clocks	     = osiris_serial_clocks,
+		.clocks_size = ARRAY_SIZE(osiris_serial_clocks),
+	}
 };
 
 /* NAND Flash on Osiris board */

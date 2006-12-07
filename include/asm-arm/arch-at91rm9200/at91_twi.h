@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/arch-at91rm9200/at91rm9200_twi.h
+ * include/asm-arm/arch-at91rm9200/at91_twi.h
  *
  * Copyright (C) 2005 Ivan Kokshaysky
  * Copyright (C) SAN People
@@ -13,8 +13,8 @@
  * (at your option) any later version.
  */
 
-#ifndef AT91RM9200_TWI_H
-#define AT91RM9200_TWI_H
+#ifndef AT91_TWI_H
+#define AT91_TWI_H
 
 #define	AT91_TWI_CR		0x00		/* Control Register */
 #define		AT91_TWI_START		(1 <<  0)	/* Send a Start Condition */
@@ -43,8 +43,8 @@
 #define		AT91_TWI_TXCOMP		(1 <<  0)	/* Transmission Complete */
 #define		AT91_TWI_RXRDY		(1 <<  1)	/* Receive Holding Register Ready */
 #define		AT91_TWI_TXRDY		(1 <<  2)	/* Transmit Holding Register Ready */
-#define		AT91_TWI_OVRE		(1 <<  6)	/* Overrun Error */
-#define		AT91_TWI_UNRE		(1 <<  7)	/* Underrun Error */
+#define		AT91_TWI_OVRE		(1 <<  6)	/* Overrun Error [AT91RM9200 only] */
+#define		AT91_TWI_UNRE		(1 <<  7)	/* Underrun Error [AT91RM9200 only] */
 #define		AT91_TWI_NACK		(1 <<  8)	/* Not Acknowledged */
 
 #define	AT91_TWI_IER		0x24		/* Interrupt Enable Register */

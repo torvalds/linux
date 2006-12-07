@@ -124,6 +124,7 @@ static struct irqaction pxa_timer_irq = {
 static void __init pxa_timer_init(void)
 {
 	struct timespec tv;
+	unsigned long flags;
 
 	set_rtc = pxa_set_rtc;
 
@@ -132,12 +133,12 @@ static void __init pxa_timer_init(void)
 	do_settimeofday(&tv);
 
 	OIER = 0;		/* disable any timer interrupts */
-	OSCR = LATCH*2;		/* push OSCR out of the way */
-	OSMR0 = LATCH;		/* set initial match */
 	OSSR = 0xf;		/* clear status on all timers */
 	setup_irq(IRQ_OST0, &pxa_timer_irq);
+	local_irq_save(flags);
 	OIER = OIER_E0;		/* enable match on timer 0 to cause interrupts */
-	OSCR = 0;		/* initialize free-running timer */
+	OSMR0 = OSCR + LATCH;	/* set initial match */
+	local_irq_restore(flags);
 }
 
 #ifdef CONFIG_NO_IDLE_HZ

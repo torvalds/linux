@@ -348,6 +348,13 @@ P:	Ian Molton
 M:	spyro@f2s.com
 S:	Maintained
 
+ARM/ATMEL AT91RM9200 ARM ARCHITECTURE
+P:      Andrew Victor
+M:      andrew@sanpeople.com
+L:      linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+W:      http://maxim.org.za/at91_26.html
+S:      Maintained
+
 ARM/CORGI MACHINE SUPPORT
 P:	Richard Purdie
 M:	rpurdie@rpsys.net

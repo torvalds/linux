@@ -12,6 +12,7 @@
 #include <linux/ptrace.h>
 #include <linux/personality.h>
 
+#include <asm/elf.h>
 #include <asm/cacheflush.h>
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>

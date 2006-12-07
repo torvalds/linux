@@ -935,7 +935,7 @@ MODULE_LICENSE ("GPL");
 #include "ohci-ppc-soc.c"
 #endif
 
-#if defined(CONFIG_ARCH_AT91RM9200) || defined(CONFIG_ARCH_AT91SAM9261)
+#ifdef CONFIG_ARCH_AT91
 #include "ohci-at91.c"
 #endif
 
@@ -952,8 +952,7 @@ MODULE_LICENSE ("GPL");
       || defined (CONFIG_ARCH_EP93XX) \
       || defined (CONFIG_SOC_AU1X00) \
       || defined (CONFIG_USB_OHCI_HCD_PPC_SOC) \
-      || defined (CONFIG_ARCH_AT91RM9200) \
-      || defined (CONFIG_ARCH_AT91SAM9261) \
+      || defined (CONFIG_ARCH_AT91) \
       || defined (CONFIG_ARCH_PNX4008) \
 	)
 #error "missing bus glue for ohci-hcd"

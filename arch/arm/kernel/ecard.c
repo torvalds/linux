@@ -529,7 +529,7 @@ static void ecard_dump_irq_state(void)
 	}
 }
 
-static void ecard_check_lockup(struct irqdesc *desc)
+static void ecard_check_lockup(struct irq_desc *desc)
 {
 	static unsigned long last;
 	static int lockup;
@@ -567,7 +567,7 @@ static void ecard_check_lockup(struct irqdesc *desc)
 }
 
 static void
-ecard_irq_handler(unsigned int irq, struct irqdesc *desc)
+ecard_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	ecard_t *ec;
 	int called = 0;
@@ -585,7 +585,7 @@ ecard_irq_handler(unsigned int irq, struct irqdesc *desc)
 			pending = ecard_default_ops.irqpending(ec);
 
 		if (pending) {
-			struct irqdesc *d = irq_desc + ec->irq;
+			struct irq_desc *d = irq_desc + ec->irq;
 			desc_handle_irq(ec->irq, d);
 			called ++;
 		}
@@ -609,7 +609,7 @@ static unsigned char first_set[] =
 };
 
 static void
-ecard_irqexp_handler(unsigned int irq, struct irqdesc *desc)
+ecard_irqexp_handler(unsigned int irq, struct irq_desc *desc)
 {
 	const unsigned int statusmask = 15;
 	unsigned int status;
@@ -1022,7 +1022,7 @@ ecard_probe(int slot, card_type_t type)
 	if (slot < 8) {
 		ec->irq = 32 + slot;
 		set_irq_chip(ec->irq, &ecard_chip);
-		set_irq_handler(ec->irq, do_level_IRQ);
+		set_irq_handler(ec->irq, handle_level_irq);
 		set_irq_flags(ec->irq, IRQF_VALID);
 	}
 

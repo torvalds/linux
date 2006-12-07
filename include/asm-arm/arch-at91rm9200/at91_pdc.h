@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/arch-at91rm9200/at91rm9200_pdc.h
+ * include/asm-arm/arch-at91rm9200/at91_pdc.h
  *
  * Copyright (C) 2005 Ivan Kokshaysky
  * Copyright (C) SAN People
@@ -13,8 +13,8 @@
  * (at your option) any later version.
  */
 
-#ifndef AT91RM9200_PDC_H
-#define AT91RM9200_PDC_H
+#ifndef AT91_PDC_H
+#define AT91_PDC_H
 
 #define AT91_PDC_RPR		0x100	/* Receive Pointer Register */
 #define AT91_PDC_RCR		0x104	/* Receive Counter Register */

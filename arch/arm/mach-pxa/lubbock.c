@@ -85,7 +85,7 @@ static struct irq_chip lubbock_irq_chip = {
 	.unmask		= lubbock_unmask_irq,
 };
 
-static void lubbock_irq_handler(unsigned int irq, struct irqdesc *desc)
+static void lubbock_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned long pending = LUB_IRQ_SET_CLR & lubbock_irq_enabled;
 	do {
@@ -108,7 +108,7 @@ static void __init lubbock_init_irq(void)
 	/* setup extra lubbock irqs */
 	for (irq = LUBBOCK_IRQ(0); irq <= LUBBOCK_LAST_IRQ; irq++) {
 		set_irq_chip(irq, &lubbock_irq_chip);
-		set_irq_handler(irq, do_level_IRQ);
+		set_irq_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 

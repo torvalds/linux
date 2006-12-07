@@ -84,7 +84,7 @@ static struct at91_udc_data __initdata kb9202_udc_data = {
 
 static struct at91_mmc_data __initdata kb9202_mmc_data = {
 	.det_pin	= AT91_PIN_PB2,
-	.is_b		= 0,
+	.slot_b		= 0,
 	.wire4		= 1,
 };
 

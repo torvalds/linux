@@ -104,6 +104,9 @@ EXPORT_SYMBOL(imx_gpio_mode);
  */
 static unsigned int imx_decode_pll(unsigned int pll)
 {
+	unsigned long long ll;
+	unsigned long quot;
+
 	u32 mfi = (pll >> 10) & 0xf;
 	u32 mfn = pll & 0x3ff;
 	u32 mfd = (pll >> 16) & 0x3ff;
@@ -112,7 +115,11 @@ static unsigned int imx_decode_pll(unsigned int pll)
 
 	mfi = mfi <= 5 ? 5 : mfi;
 
-	return (2 * (f_ref>>10) * ( (mfi<<10) + (mfn<<10) / (mfd+1) )) / (pd+1);
+	ll = 2 * (unsigned long long)f_ref * ( (mfi<<16) + (mfn<<16) / (mfd+1) );
+	quot = (pd+1) * (1<<16);
+	ll += quot / 2;
+	do_div(ll, quot);
+	return (unsigned int) ll;
 }
 
 unsigned int imx_get_system_clk(void)
