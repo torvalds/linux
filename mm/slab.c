@@ -1605,12 +1605,7 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 	flags |= __GFP_COMP;
 #endif
 
-	/*
-	 * Under NUMA we want memory on the indicated node. We will handle
-	 * the needed fallback ourselves since we want to serve from our
-	 * per node object lists first for other nodes.
-	 */
-	flags |= cachep->gfpflags | GFP_THISNODE;
+	flags |= cachep->gfpflags;
 
 	page = alloc_pages_node(nodeid, flags, cachep->gfporder);
 	if (!page)
@@ -2567,7 +2562,7 @@ static struct slab *alloc_slabmgmt(struct kmem_cache *cachep, void *objp,
 	if (OFF_SLAB(cachep)) {
 		/* Slab management obj is off-slab. */
 		slabp = kmem_cache_alloc_node(cachep->slabp_cache,
-					      local_flags, nodeid);
+					      local_flags & ~GFP_THISNODE, nodeid);
 		if (!slabp)
 			return NULL;
 	} else {
@@ -2708,10 +2703,10 @@ static void slab_map_pages(struct kmem_cache *cache, struct slab *slab,
  * Grow (by 1) the number of slabs within a cache.  This is called by
  * kmem_cache_alloc() when there are no active objs left in a cache.
  */
-static int cache_grow(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+static int cache_grow(struct kmem_cache *cachep,
+		gfp_t flags, int nodeid, void *objp)
 {
 	struct slab *slabp;
-	void *objp;
 	size_t offset;
 	gfp_t local_flags;
 	unsigned long ctor_flags;
@@ -2763,12 +2758,14 @@ static int cache_grow(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 	 * Get mem for the objs.  Attempt to allocate a physical page from
 	 * 'nodeid'.
 	 */
-	objp = kmem_getpages(cachep, flags, nodeid);
+	if (!objp)
+		objp = kmem_getpages(cachep, flags, nodeid);
 	if (!objp)
 		goto failed;
 
 	/* Get slab management. */
-	slabp = alloc_slabmgmt(cachep, objp, offset, local_flags, nodeid);
+	slabp = alloc_slabmgmt(cachep, objp, offset,
+			local_flags & ~GFP_THISNODE, nodeid);
 	if (!slabp)
 		goto opps1;
 
@@ -3006,7 +3003,7 @@ alloc_done:
 
 	if (unlikely(!ac->avail)) {
 		int x;
-		x = cache_grow(cachep, flags, node);
+		x = cache_grow(cachep, flags | GFP_THISNODE, node, NULL);
 
 		/* cache_grow can reenable interrupts, then ac could change. */
 		ac = cpu_cache_get(cachep);
@@ -3166,9 +3163,11 @@ static void *alternate_node_alloc(struct kmem_cache *cachep, gfp_t flags)
 
 /*
  * Fallback function if there was no memory available and no objects on a
- * certain node and we are allowed to fall back. We mimick the behavior of
- * the page allocator. We fall back according to a zonelist determined by
- * the policy layer while obeying cpuset constraints.
+ * certain node and fall back is permitted. First we scan all the
+ * available nodelists for available objects. If that fails then we
+ * perform an allocation without specifying a node. This allows the page
+ * allocator to do its reclaim / fallback magic. We then insert the
+ * slab into the proper nodelist and then allocate from it.
  */
 void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
 {
@@ -3176,15 +3175,51 @@ void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
 					->node_zonelists[gfp_zone(flags)];
 	struct zone **z;
 	void *obj = NULL;
+	int nid;
 
+retry:
+	/*
+	 * Look through allowed nodes for objects available
+	 * from existing per node queues.
+	 */
 	for (z = zonelist->zones; *z && !obj; z++) {
-		int nid = zone_to_nid(*z);
+		nid = zone_to_nid(*z);
 
-		if (zone_idx(*z) <= ZONE_NORMAL &&
-				cpuset_zone_allowed(*z, flags) &&
-				cache->nodelists[nid])
-			obj = ____cache_alloc_node(cache,
-					flags | __GFP_THISNODE, nid);
+		if (cpuset_zone_allowed(*z, flags) &&
+			cache->nodelists[nid] &&
+			cache->nodelists[nid]->free_objects)
+				obj = ____cache_alloc_node(cache,
+					flags | GFP_THISNODE, nid);
+	}
+
+	if (!obj) {
+		/*
+		 * This allocation will be performed within the constraints
+		 * of the current cpuset / memory policy requirements.
+		 * We may trigger various forms of reclaim on the allowed
+		 * set and go into memory reserves if necessary.
+		 */
+		obj = kmem_getpages(cache, flags, -1);
+		if (obj) {
+			/*
+			 * Insert into the appropriate per node queues
+			 */
+			nid = page_to_nid(virt_to_page(obj));
+			if (cache_grow(cache, flags, nid, obj)) {
+				obj = ____cache_alloc_node(cache,
+					flags | GFP_THISNODE, nid);
+				if (!obj)
+					/*
+					 * Another processor may allocate the
+					 * objects in the slab since we are
+					 * not holding any locks.
+					 */
+					goto retry;
+			} else {
+				kmem_freepages(cache, obj);
+				obj = NULL;
+			}
+		}
 	}
 	return obj;
 }
@@ -3241,7 +3276,7 @@ retry:
 
 must_grow:
 	spin_unlock(&l3->list_lock);
-	x = cache_grow(cachep, flags, nodeid);
+	x = cache_grow(cachep, flags | GFP_THISNODE, nodeid, NULL);
 	if (x)
 		goto retry;
 
