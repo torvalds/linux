@@ -459,7 +459,7 @@ anything like this.  You must also be extra careful about accessing
 memory you intend to sync partially.
 
 void
-dma_cache_sync(void *vaddr, size_t size,
+dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	       enum dma_data_direction direction)
 
 Do a partial sync of memory that was allocated by

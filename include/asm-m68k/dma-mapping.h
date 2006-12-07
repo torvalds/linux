@@ -41,7 +41,7 @@ static inline void dma_free_noncoherent(struct device *dev, size_t size,
 {
 	dma_free_coherent(dev, size, addr, handle);
 }
-static inline void dma_cache_sync(void *vaddr, size_t size,
+static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 				  enum dma_data_direction dir)
 {
 	/* we use coherent allocation, so not much to do here. */

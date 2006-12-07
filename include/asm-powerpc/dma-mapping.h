@@ -378,7 +378,7 @@ static inline void dma_sync_single_range_for_device(struct device *dev,
 	dma_sync_single_for_device(dev, dma_handle, offset + size, direction);
 }
 
-static inline void dma_cache_sync(void *vaddr, size_t size,
+static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 		enum dma_data_direction direction)
 {
 	BUG_ON(direction == DMA_NONE);

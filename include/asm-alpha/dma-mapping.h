@@ -60,7 +60,7 @@ int dma_set_mask(struct device *dev, u64 mask);
 #define dma_sync_single_range(dev, addr, off, size, dir)  do { } while (0)
 #define dma_sync_sg_for_cpu(dev, sg, nents, dir)	  do { } while (0)
 #define dma_sync_sg_for_device(dev, sg, nents, dir)	  do { } while (0)
-#define dma_cache_sync(va, size, dir)			  do { } while (0)
+#define dma_cache_sync(dev, va, size, dir)		  do { } while (0)
 
 #define dma_get_cache_alignment()			  L1_CACHE_BYTES
 

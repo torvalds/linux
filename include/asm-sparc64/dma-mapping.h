@@ -210,7 +210,7 @@ dma_sync_single_range_for_device(struct device *dev, dma_addr_t dma_handle,
 }
 
 static inline void
-dma_cache_sync(void *vaddr, size_t size,
+dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	       enum dma_data_direction direction)
 {
 	/* could define this in terms of the dma_cache ... operations,

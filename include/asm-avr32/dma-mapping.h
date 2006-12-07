@@ -8,7 +8,8 @@
 #include <asm/cacheflush.h>
 #include <asm/io.h>
 
-extern void dma_cache_sync(void *vaddr, size_t size, int direction);
+extern void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
+	int direction);
 
 /*
  * Return whether the given device DMA address mask can be supported
