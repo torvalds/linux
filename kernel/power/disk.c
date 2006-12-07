@@ -213,10 +213,10 @@ static int software_resume(void)
 {
 	int error;
 
-	down(&pm_sem);
+	mutex_lock(&pm_mutex);
 	if (!swsusp_resume_device) {
 		if (!strlen(resume_file)) {
-			up(&pm_sem);
+			mutex_unlock(&pm_mutex);
 			return -ENOENT;
 		}
 		swsusp_resume_device = name_to_dev_t(resume_file);
@@ -231,7 +231,7 @@ static int software_resume(void)
 		 * FIXME: If noresume is specified, we need to find the partition
 		 * and reset it back to normal swap space.
 		 */
-		up(&pm_sem);
+		mutex_unlock(&pm_mutex);
 		return 0;
 	}
 
@@ -275,7 +275,7 @@ static int software_resume(void)
 	unprepare_processes();
  Done:
 	/* For success case, the suspend path will release the lock */
-	up(&pm_sem);
+	mutex_unlock(&pm_mutex);
 	pr_debug("PM: Resume from disk failed.\n");
 	return 0;
 }
@@ -336,7 +336,7 @@ static ssize_t disk_store(struct subsystem * s, const char * buf, size_t n)
 	p = memchr(buf, '\n', n);
 	len = p ? p - buf : n;
 
-	down(&pm_sem);
+	mutex_lock(&pm_mutex);
 	for (i = PM_DISK_FIRMWARE; i < PM_DISK_MAX; i++) {
 		if (!strncmp(buf, pm_disk_modes[i], len)) {
 			mode = i;
@@ -360,7 +360,7 @@ static ssize_t disk_store(struct subsystem * s, const char * buf, size_t n)
 
 	pr_debug("PM: suspend-to-disk mode set to '%s'\n",
 		 pm_disk_modes[mode]);
-	up(&pm_sem);
+	mutex_unlock(&pm_mutex);
 	return error ? error : n;
 }
 
@@ -385,9 +385,9 @@ static ssize_t resume_store(struct subsystem *subsys, const char *buf, size_t n)
 	if (maj != MAJOR(res) || min != MINOR(res))
 		goto out;
 
-	down(&pm_sem);
+	mutex_lock(&pm_mutex);
 	swsusp_resume_device = res;
-	up(&pm_sem);
+	mutex_unlock(&pm_mutex);
 	printk("Attempting manual resume\n");
 	noresume = 0;
 	software_resume();

@@ -22,7 +22,9 @@ static inline int pm_suspend_disk(void)
 	return -EPERM;
 }
 #endif
-extern struct semaphore pm_sem;
+
+extern struct mutex pm_mutex;
+
 #define power_attr(_name) \
 static struct subsys_attribute _name##_attr = {	\
 	.attr	= {				\

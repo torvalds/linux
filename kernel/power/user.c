@@ -79,10 +79,10 @@ static int snapshot_release(struct inode *inode, struct file *filp)
 	free_all_swap_pages(data->swap, data->bitmap);
 	free_bitmap(data->bitmap);
 	if (data->frozen) {
-		down(&pm_sem);
+		mutex_lock(&pm_mutex);
 		thaw_processes();
 		enable_nonboot_cpus();
-		up(&pm_sem);
+		mutex_unlock(&pm_mutex);
 	}
 	atomic_inc(&device_available);
 	return 0;
@@ -144,7 +144,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 	case SNAPSHOT_FREEZE:
 		if (data->frozen)
 			break;
-		down(&pm_sem);
+		mutex_lock(&pm_mutex);
 		error = disable_nonboot_cpus();
 		if (!error) {
 			error = freeze_processes();
@@ -154,7 +154,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 				error = -EBUSY;
 			}
 		}
-		up(&pm_sem);
+		mutex_unlock(&pm_mutex);
 		if (!error)
 			data->frozen = 1;
 		break;
@@ -162,10 +162,10 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 	case SNAPSHOT_UNFREEZE:
 		if (!data->frozen)
 			break;
-		down(&pm_sem);
+		mutex_lock(&pm_mutex);
 		thaw_processes();
 		enable_nonboot_cpus();
-		up(&pm_sem);
+		mutex_unlock(&pm_mutex);
 		data->frozen = 0;
 		break;
 
@@ -174,7 +174,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 			error = -EPERM;
 			break;
 		}
-		down(&pm_sem);
+		mutex_lock(&pm_mutex);
 		/* Free memory before shutting down devices. */
 		error = swsusp_shrink_memory();
 		if (!error) {
@@ -187,7 +187,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 			}
 			resume_console();
 		}
-		up(&pm_sem);
+		mutex_unlock(&pm_mutex);
 		if (!error)
 			error = put_user(in_suspend, (unsigned int __user *)arg);
 		if (!error)
@@ -201,7 +201,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 			error = -EPERM;
 			break;
 		}
-		down(&pm_sem);
+		mutex_lock(&pm_mutex);
 		pm_prepare_console();
 		suspend_console();
 		error = device_suspend(PMSG_PRETHAW);
@@ -211,7 +211,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		}
 		resume_console();
 		pm_restore_console();
-		up(&pm_sem);
+		mutex_unlock(&pm_mutex);
 		break;
 
 	case SNAPSHOT_FREE:
@@ -286,7 +286,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 			break;
 		}
 
-		if (down_trylock(&pm_sem)) {
+		if (!mutex_trylock(&pm_mutex)) {
 			error = -EBUSY;
 			break;
 		}
@@ -314,7 +314,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 			pm_ops->finish(PM_SUSPEND_MEM);
 
 OutS3:
-		up(&pm_sem);
+		mutex_unlock(&pm_mutex);
 		break;
 
 	case SNAPSHOT_PMOPS:
