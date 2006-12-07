@@ -552,7 +552,7 @@ static void wake_futex(struct futex_q *q)
 	 * at the end of wake_up_all() does not prevent this store from
 	 * moving.
 	 */
-	wmb();
+	smp_wmb();
 	q->lock_ptr = NULL;
 }
 
