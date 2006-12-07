@@ -33,7 +33,7 @@
 #include "scsi_tgt_priv.h"
 
 static struct workqueue_struct *scsi_tgtd;
-static kmem_cache_t *scsi_tgt_cmd_cache;
+static struct kmem_cache *scsi_tgt_cmd_cache;
 
 /*
  * TODO: this struct will be killed when the block layer supports large bios

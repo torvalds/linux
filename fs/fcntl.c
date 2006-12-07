@@ -553,7 +553,7 @@ int send_sigurg(struct fown_struct *fown)
 }
 
 static DEFINE_RWLOCK(fasync_lock);
-static kmem_cache_t *fasync_cache __read_mostly;
+static struct kmem_cache *fasync_cache __read_mostly;
 
 /*
  * fasync_helper() is used by some character device drivers (mainly mice)

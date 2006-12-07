@@ -44,17 +44,17 @@ static struct io_context *current_io_context(gfp_t gfp_flags, int node);
 /*
  * For the allocated request tables
  */
-static kmem_cache_t *request_cachep;
+static struct kmem_cache *request_cachep;
 
 /*
  * For queue allocation
  */
-static kmem_cache_t *requestq_cachep;
+static struct kmem_cache *requestq_cachep;
 
 /*
  * For io context allocations
  */
-static kmem_cache_t *iocontext_cachep;
+static struct kmem_cache *iocontext_cachep;
 
 /*
  * Controlling structure to kblockd

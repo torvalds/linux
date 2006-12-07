@@ -81,7 +81,7 @@ extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
 extern mempool_t *cifs_mid_poolp;
 
-extern kmem_cache_t *cifs_oplock_cachep;
+extern struct kmem_cache *cifs_oplock_cachep;
 
 static int
 cifs_read_super(struct super_block *sb, void *data,
@@ -232,11 +232,11 @@ static int cifs_permission(struct inode * inode, int mask, struct nameidata *nd)
 		return generic_permission(inode, mask, NULL);
 }
 
-static kmem_cache_t *cifs_inode_cachep;
-static kmem_cache_t *cifs_req_cachep;
-static kmem_cache_t *cifs_mid_cachep;
-kmem_cache_t *cifs_oplock_cachep;
-static kmem_cache_t *cifs_sm_req_cachep;
+static struct kmem_cache *cifs_inode_cachep;
+static struct kmem_cache *cifs_req_cachep;
+static struct kmem_cache *cifs_mid_cachep;
+struct kmem_cache *cifs_oplock_cachep;
+static struct kmem_cache *cifs_sm_req_cachep;
 mempool_t *cifs_sm_req_poolp;
 mempool_t *cifs_req_poolp;
 mempool_t *cifs_mid_poolp;
@@ -668,7 +668,7 @@ const struct file_operations cifs_dir_ops = {
 };
 
 static void
-cifs_init_once(void *inode, kmem_cache_t * cachep, unsigned long flags)
+cifs_init_once(void *inode, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct cifsInodeInfo *cifsi = inode;
 

@@ -40,7 +40,7 @@
 
 #include "spufs.h"
 
-static kmem_cache_t *spufs_inode_cache;
+static struct kmem_cache *spufs_inode_cache;
 char *isolated_loader;
 
 static struct inode *
@@ -65,7 +65,7 @@ spufs_destroy_inode(struct inode *inode)
 }
 
 static void
-spufs_init_once(void *p, kmem_cache_t * cachep, unsigned long flags)
+spufs_init_once(void *p, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct spufs_inode_info *ei = p;
 

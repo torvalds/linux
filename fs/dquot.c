@@ -131,7 +131,7 @@ static struct quota_format_type *quota_formats;	/* List of registered formats */
 static struct quota_module_name module_names[] = INIT_QUOTA_MODULE_NAMES;
 
 /* SLAB cache for dquot structures */
-static kmem_cache_t *dquot_cachep;
+static struct kmem_cache *dquot_cachep;
 
 int register_quota_format(struct quota_format_type *fmt)
 {

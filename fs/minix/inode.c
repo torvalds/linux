@@ -51,7 +51,7 @@ static void minix_put_super(struct super_block *sb)
 	return;
 }
 
-static kmem_cache_t * minix_inode_cachep;
+static struct kmem_cache * minix_inode_cachep;
 
 static struct inode *minix_alloc_inode(struct super_block *sb)
 {
@@ -67,7 +67,7 @@ static void minix_destroy_inode(struct inode *inode)
 	kmem_cache_free(minix_inode_cachep, minix_i(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct minix_inode_info *ei = (struct minix_inode_info *) foo;
 

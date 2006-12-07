@@ -50,7 +50,7 @@ struct mon_event_text {
 
 #define SLAB_NAME_SZ  30
 struct mon_reader_text {
-	kmem_cache_t *e_slab;
+	struct kmem_cache *e_slab;
 	int nevents;
 	struct list_head e_list;
 	struct mon_reader r;	/* In C, parent class can be placed anywhere */
@@ -63,7 +63,7 @@ struct mon_reader_text {
 	char slab_name[SLAB_NAME_SZ];
 };
 
-static void mon_text_ctor(void *, kmem_cache_t *, unsigned long);
+static void mon_text_ctor(void *, struct kmem_cache *, unsigned long);
 
 /*
  * mon_text_submit
@@ -450,7 +450,7 @@ const struct file_operations mon_fops_text = {
 /*
  * Slab interface: constructor.
  */
-static void mon_text_ctor(void *mem, kmem_cache_t *slab, unsigned long sflags)
+static void mon_text_ctor(void *mem, struct kmem_cache *slab, unsigned long sflags)
 {
 	/*
 	 * Nothing to initialize. No, really!

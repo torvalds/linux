@@ -1630,7 +1630,7 @@ void * __jbd_kmalloc (const char *where, size_t size, gfp_t flags, int retry)
 #define JBD_MAX_SLABS 5
 #define JBD_SLAB_INDEX(size)  (size >> 11)
 
-static kmem_cache_t *jbd_slab[JBD_MAX_SLABS];
+static struct kmem_cache *jbd_slab[JBD_MAX_SLABS];
 static const char *jbd_slab_names[JBD_MAX_SLABS] = {
 	"jbd_1k", "jbd_2k", "jbd_4k", NULL, "jbd_8k"
 };
@@ -1693,7 +1693,7 @@ void jbd_slab_free(void *ptr,  size_t size)
 /*
  * Journal_head storage management
  */
-static kmem_cache_t *journal_head_cache;
+static struct kmem_cache *journal_head_cache;
 #ifdef CONFIG_JBD_DEBUG
 static atomic_t nr_journal_heads = ATOMIC_INIT(0);
 #endif
@@ -1996,7 +1996,7 @@ static void __exit remove_jbd_proc_entry(void)
 
 #endif
 
-kmem_cache_t *jbd_handle_cache;
+struct kmem_cache *jbd_handle_cache;
 
 static int __init journal_init_handle_cache(void)
 {

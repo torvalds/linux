@@ -34,7 +34,7 @@
 #include "cifs_debug.h"
   
 extern mempool_t *cifs_mid_poolp;
-extern kmem_cache_t *cifs_oplock_cachep;
+extern struct kmem_cache *cifs_oplock_cachep;
 
 static struct mid_q_entry *
 AllocMidQEntry(const struct smb_hdr *smb_buffer, struct cifsSesInfo *ses)

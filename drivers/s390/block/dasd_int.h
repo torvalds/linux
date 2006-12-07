@@ -474,7 +474,7 @@ extern struct dasd_profile_info_t dasd_global_profile;
 extern unsigned int dasd_profile_level;
 extern struct block_device_operations dasd_device_operations;
 
-extern kmem_cache_t *dasd_page_cache;
+extern struct kmem_cache *dasd_page_cache;
 
 struct dasd_ccw_req *
 dasd_kmalloc_request(char *, int, int, struct dasd_device *);

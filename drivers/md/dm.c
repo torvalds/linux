@@ -121,8 +121,8 @@ struct mapped_device {
 };
 
 #define MIN_IOS 256
-static kmem_cache_t *_io_cache;
-static kmem_cache_t *_tio_cache;
+static struct kmem_cache *_io_cache;
+static struct kmem_cache *_tio_cache;
 
 static int __init local_init(void)
 {

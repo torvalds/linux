@@ -136,7 +136,7 @@ const char * scsi_device_type(unsigned type)
 EXPORT_SYMBOL(scsi_device_type);
 
 struct scsi_host_cmd_pool {
-	kmem_cache_t	*slab;
+	struct kmem_cache	*slab;
 	unsigned int	users;
 	char		*name;
 	unsigned int	slab_flags;

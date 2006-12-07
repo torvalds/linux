@@ -203,7 +203,7 @@ struct kcopyd_job {
 /* FIXME: this should scale with the number of pages */
 #define MIN_JOBS 512
 
-static kmem_cache_t *_job_cache;
+static struct kmem_cache *_job_cache;
 static mempool_t *_job_pool;
 
 /*

@@ -141,7 +141,7 @@ static int __init setup_kcore(void)
 }
 module_init(setup_kcore);
 
-static void zero_ctor(void *addr, kmem_cache_t *cache, unsigned long flags)
+static void zero_ctor(void *addr, struct kmem_cache *cache, unsigned long flags)
 {
 	memset(addr, 0, kmem_cache_size(cache));
 }
@@ -166,9 +166,9 @@ static const char *pgtable_cache_name[ARRAY_SIZE(pgtable_cache_size)] = {
 /* Hugepages need one extra cache, initialized in hugetlbpage.c.  We
  * can't put into the tables above, because HPAGE_SHIFT is not compile
  * time constant. */
-kmem_cache_t *pgtable_cache[ARRAY_SIZE(pgtable_cache_size)+1];
+struct kmem_cache *pgtable_cache[ARRAY_SIZE(pgtable_cache_size)+1];
 #else
-kmem_cache_t *pgtable_cache[ARRAY_SIZE(pgtable_cache_size)];
+struct kmem_cache *pgtable_cache[ARRAY_SIZE(pgtable_cache_size)];
 #endif
 
 void pgtable_cache_init(void)

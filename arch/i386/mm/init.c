@@ -699,8 +699,8 @@ int remove_memory(u64 start, u64 size)
 #endif
 #endif
 
-kmem_cache_t *pgd_cache;
-kmem_cache_t *pmd_cache;
+struct kmem_cache *pgd_cache;
+struct kmem_cache *pmd_cache;
 
 void __init pgtable_cache_init(void)
 {

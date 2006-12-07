@@ -28,7 +28,7 @@
  (keyp->source_type << 9)) & \
  AVTAB_HASH_MASK)
 
-static kmem_cache_t *avtab_node_cachep;
+static struct kmem_cache *avtab_node_cachep;
 
 static struct avtab_node*
 avtab_insert_node(struct avtab *h, int hvalue,

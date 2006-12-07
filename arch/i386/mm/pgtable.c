@@ -193,7 +193,7 @@ struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
 	return pte;
 }
 
-void pmd_ctor(void *pmd, kmem_cache_t *cache, unsigned long flags)
+void pmd_ctor(void *pmd, struct kmem_cache *cache, unsigned long flags)
 {
 	memset(pmd, 0, PTRS_PER_PMD*sizeof(pmd_t));
 }
@@ -233,7 +233,7 @@ static inline void pgd_list_del(pgd_t *pgd)
 		set_page_private(next, (unsigned long)pprev);
 }
 
-void pgd_ctor(void *pgd, kmem_cache_t *cache, unsigned long unused)
+void pgd_ctor(void *pgd, struct kmem_cache *cache, unsigned long unused)
 {
 	unsigned long flags;
 
@@ -253,7 +253,7 @@ void pgd_ctor(void *pgd, kmem_cache_t *cache, unsigned long unused)
 }
 
 /* never called when PTRS_PER_PMD > 1 */
-void pgd_dtor(void *pgd, kmem_cache_t *cache, unsigned long unused)
+void pgd_dtor(void *pgd, struct kmem_cache *cache, unsigned long unused)
 {
 	unsigned long flags; /* can be called from interrupt context */
 

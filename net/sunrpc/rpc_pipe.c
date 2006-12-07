@@ -33,7 +33,7 @@ static int rpc_mount_count;
 static struct file_system_type rpc_pipe_fs_type;
 
 
-static kmem_cache_t *rpc_inode_cachep __read_mostly;
+static struct kmem_cache *rpc_inode_cachep __read_mostly;
 
 #define RPC_UPCALL_TIMEOUT (30*HZ)
 
@@ -824,7 +824,7 @@ static struct file_system_type rpc_pipe_fs_type = {
 };
 
 static void
-init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct rpc_inode *rpci = (struct rpc_inode *) foo;
 

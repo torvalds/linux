@@ -34,8 +34,8 @@ static int			rpc_task_id;
 #define RPC_BUFFER_MAXSIZE	(2048)
 #define RPC_BUFFER_POOLSIZE	(8)
 #define RPC_TASK_POOLSIZE	(8)
-static kmem_cache_t	*rpc_task_slabp __read_mostly;
-static kmem_cache_t	*rpc_buffer_slabp __read_mostly;
+static struct kmem_cache	*rpc_task_slabp __read_mostly;
+static struct kmem_cache	*rpc_buffer_slabp __read_mostly;
 static mempool_t	*rpc_task_mempool __read_mostly;
 static mempool_t	*rpc_buffer_mempool __read_mostly;
 

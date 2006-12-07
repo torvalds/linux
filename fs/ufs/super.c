@@ -1204,7 +1204,7 @@ static int ufs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static kmem_cache_t * ufs_inode_cachep;
+static struct kmem_cache * ufs_inode_cachep;
 
 static struct inode *ufs_alloc_inode(struct super_block *sb)
 {
@@ -1221,7 +1221,7 @@ static void ufs_destroy_inode(struct inode *inode)
 	kmem_cache_free(ufs_inode_cachep, UFS_I(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct ufs_inode_info *ei = (struct ufs_inode_info *) foo;
 

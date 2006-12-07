@@ -21,8 +21,8 @@
 
 #include <net/sock.h>
 
-static kmem_cache_t *dccp_ackvec_slab;
-static kmem_cache_t *dccp_ackvec_record_slab;
+static struct kmem_cache *dccp_ackvec_slab;
+static struct kmem_cache *dccp_ackvec_record_slab;
 
 static struct dccp_ackvec_record *dccp_ackvec_record_new(void)
 {

@@ -43,8 +43,8 @@ static int cfq_slice_idle = HZ / 125;
 #define RQ_CIC(rq)		((struct cfq_io_context*)(rq)->elevator_private)
 #define RQ_CFQQ(rq)		((rq)->elevator_private2)
 
-static kmem_cache_t *cfq_pool;
-static kmem_cache_t *cfq_ioc_pool;
+static struct kmem_cache *cfq_pool;
+static struct kmem_cache *cfq_ioc_pool;
 
 static DEFINE_PER_CPU(unsigned long, ioc_count);
 static struct completion *ioc_gone;

@@ -36,7 +36,7 @@
 
 #include "../scsi_sas_internal.h"
 
-kmem_cache_t *sas_task_cache;
+struct kmem_cache *sas_task_cache;
 
 /*------------ SAS addr hash -----------*/
 void sas_hash_addr(u8 *hashed, const u8 *sas_addr)

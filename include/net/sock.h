@@ -571,7 +571,7 @@ struct proto {
 	int			*sysctl_rmem;
 	int			max_header;
 
-	kmem_cache_t		*slab;
+	struct kmem_cache		*slab;
 	unsigned int		obj_size;
 
 	atomic_t		*orphan_count;

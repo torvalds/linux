@@ -81,7 +81,7 @@ static void proc_read_inode(struct inode * inode)
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 }
 
-static kmem_cache_t * proc_inode_cachep;
+static struct kmem_cache * proc_inode_cachep;
 
 static struct inode *proc_alloc_inode(struct super_block *sb)
 {
@@ -105,7 +105,7 @@ static void proc_destroy_inode(struct inode *inode)
 	kmem_cache_free(proc_inode_cachep, PROC_I(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct proc_inode *ei = (struct proc_inode *) foo;
 

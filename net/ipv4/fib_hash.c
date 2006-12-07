@@ -45,8 +45,8 @@
 
 #include "fib_lookup.h"
 
-static kmem_cache_t *fn_hash_kmem __read_mostly;
-static kmem_cache_t *fn_alias_kmem __read_mostly;
+static struct kmem_cache *fn_hash_kmem __read_mostly;
+static struct kmem_cache *fn_alias_kmem __read_mostly;
 
 struct fib_node {
 	struct hlist_node	fn_hash;

@@ -70,8 +70,8 @@
 #include <linux/init.h>
 #endif
 
-static kmem_cache_t *jbd2_revoke_record_cache;
-static kmem_cache_t *jbd2_revoke_table_cache;
+static struct kmem_cache *jbd2_revoke_record_cache;
+static struct kmem_cache *jbd2_revoke_table_cache;
 
 /* Each revoke record represents one single revoked block.  During
    journal replay, this involves recording the transaction ID of the

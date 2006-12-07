@@ -61,7 +61,7 @@ static const struct super_operations befs_sops = {
 };
 
 /* slab cache for befs_inode_info objects */
-static kmem_cache_t *befs_inode_cachep;
+static struct kmem_cache *befs_inode_cachep;
 
 static const struct file_operations befs_dir_operations = {
 	.read		= generic_read_dir,
@@ -289,7 +289,7 @@ befs_destroy_inode(struct inode *inode)
         kmem_cache_free(befs_inode_cachep, BEFS_I(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
         struct befs_inode_info *bi = (struct befs_inode_info *) foo;
 	

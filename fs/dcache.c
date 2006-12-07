@@ -43,7 +43,7 @@ static __cacheline_aligned_in_smp DEFINE_SEQLOCK(rename_lock);
 
 EXPORT_SYMBOL(dcache_lock);
 
-static kmem_cache_t *dentry_cache __read_mostly;
+static struct kmem_cache *dentry_cache __read_mostly;
 
 #define DNAME_INLINE_LEN (sizeof(struct dentry)-offsetof(struct dentry,d_iname))
 
@@ -2072,10 +2072,10 @@ static void __init dcache_init(unsigned long mempages)
 }
 
 /* SLAB cache for __getname() consumers */
-kmem_cache_t *names_cachep __read_mostly;
+struct kmem_cache *names_cachep __read_mostly;
 
 /* SLAB cache for file structures */
-kmem_cache_t *filp_cachep __read_mostly;
+struct kmem_cache *filp_cachep __read_mostly;
 
 EXPORT_SYMBOL(d_genocide);
 

@@ -490,7 +490,7 @@ static void reiserfs_put_super(struct super_block *s)
 	return;
 }
 
-static kmem_cache_t *reiserfs_inode_cachep;
+static struct kmem_cache *reiserfs_inode_cachep;
 
 static struct inode *reiserfs_alloc_inode(struct super_block *sb)
 {
@@ -507,7 +507,7 @@ static void reiserfs_destroy_inode(struct inode *inode)
 	kmem_cache_free(reiserfs_inode_cachep, REISERFS_I(inode));
 }
 
-static void init_once(void *foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void *foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct reiserfs_inode_info *ei = (struct reiserfs_inode_info *)foo;
 

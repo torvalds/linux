@@ -348,7 +348,7 @@ static int grow_one_stripe(raid5_conf_t *conf)
 
 static int grow_stripes(raid5_conf_t *conf, int num)
 {
-	kmem_cache_t *sc;
+	struct kmem_cache *sc;
 	int devs = conf->raid_disks;
 
 	sprintf(conf->cache_name[0], "raid5/%s", mdname(conf->mddev));
@@ -397,7 +397,7 @@ static int resize_stripes(raid5_conf_t *conf, int newsize)
 	LIST_HEAD(newstripes);
 	struct disk_info *ndisks;
 	int err = 0;
-	kmem_cache_t *sc;
+	struct kmem_cache *sc;
 	int i;
 
 	if (newsize <= conf->pool_size)

@@ -30,7 +30,7 @@ struct anon_vma {
 
 #ifdef CONFIG_MMU
 
-extern kmem_cache_t *anon_vma_cachep;
+extern struct kmem_cache *anon_vma_cachep;
 
 static inline struct anon_vma *anon_vma_alloc(void)
 {

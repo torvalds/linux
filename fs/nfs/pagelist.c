@@ -20,7 +20,7 @@
 
 #define NFS_PARANOIA 1
 
-static kmem_cache_t *nfs_page_cachep;
+static struct kmem_cache *nfs_page_cachep;
 
 static inline struct nfs_page *
 nfs_page_alloc(void)

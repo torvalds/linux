@@ -68,7 +68,7 @@
 
 #include "buffer_head_io.h"
 
-static kmem_cache_t *ocfs2_inode_cachep = NULL;
+static struct kmem_cache *ocfs2_inode_cachep = NULL;
 
 /* OCFS2 needs to schedule several differnt types of work which
  * require cluster locking, disk I/O, recovery waits, etc. Since these
@@ -914,7 +914,7 @@ bail:
 }
 
 static void ocfs2_inode_init_once(void *data,
-				  kmem_cache_t *cachep,
+				  struct kmem_cache *cachep,
 				  unsigned long flags)
 {
 	struct ocfs2_inode_info *oi = data;

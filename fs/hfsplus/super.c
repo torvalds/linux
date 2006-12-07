@@ -434,7 +434,7 @@ MODULE_AUTHOR("Brad Boyer");
 MODULE_DESCRIPTION("Extended Macintosh Filesystem");
 MODULE_LICENSE("GPL");
 
-static kmem_cache_t *hfsplus_inode_cachep;
+static struct kmem_cache *hfsplus_inode_cachep;
 
 static struct inode *hfsplus_alloc_inode(struct super_block *sb)
 {
@@ -467,7 +467,7 @@ static struct file_system_type hfsplus_fs_type = {
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 
-static void hfsplus_init_once(void *p, kmem_cache_t *cachep, unsigned long flags)
+static void hfsplus_init_once(void *p, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct hfsplus_inode_info *i = p;
 

@@ -7,7 +7,7 @@
 #include <net/netfilter/nf_conntrack.h>
 
 extern struct list_head nf_conntrack_expect_list;
-extern kmem_cache_t *nf_conntrack_expect_cachep;
+extern struct kmem_cache *nf_conntrack_expect_cachep;
 extern struct file_operations exp_file_ops;
 
 struct nf_conntrack_expect

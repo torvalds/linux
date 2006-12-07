@@ -107,7 +107,7 @@ static struct file_system_type udf_fstype = {
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 
-static kmem_cache_t * udf_inode_cachep;
+static struct kmem_cache * udf_inode_cachep;
 
 static struct inode *udf_alloc_inode(struct super_block *sb)
 {
@@ -130,7 +130,7 @@ static void udf_destroy_inode(struct inode *inode)
 	kmem_cache_free(udf_inode_cachep, UDF_I(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct udf_inode_info *ei = (struct udf_inode_info *) foo;
 

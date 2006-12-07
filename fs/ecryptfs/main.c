@@ -546,7 +546,7 @@ inode_info_init_once(void *vptr, struct kmem_cache *cachep, unsigned long flags)
 }
 
 static struct ecryptfs_cache_info {
-	kmem_cache_t **cache;
+	struct kmem_cache **cache;
 	const char *name;
 	size_t size;
 	void (*ctor)(void*, struct kmem_cache *, unsigned long);

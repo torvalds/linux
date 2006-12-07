@@ -254,7 +254,7 @@ mmap_subpage (struct file *file, unsigned long start, unsigned long end, int pro
 }
 
 /* SLAB cache for partial_page structures */
-kmem_cache_t *partial_page_cachep;
+struct kmem_cache *partial_page_cachep;
 
 /*
  * init partial_page_list.

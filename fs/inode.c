@@ -97,7 +97,7 @@ static DEFINE_MUTEX(iprune_mutex);
  */
 struct inodes_stat_t inodes_stat;
 
-static kmem_cache_t * inode_cachep __read_mostly;
+static struct kmem_cache * inode_cachep __read_mostly;
 
 static struct inode *alloc_inode(struct super_block *sb)
 {
@@ -209,7 +209,7 @@ void inode_init_once(struct inode *inode)
 
 EXPORT_SYMBOL(inode_init_once);
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct inode * inode = (struct inode *) foo;
 

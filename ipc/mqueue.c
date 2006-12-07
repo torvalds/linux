@@ -90,7 +90,7 @@ static struct super_operations mqueue_super_ops;
 static void remove_notification(struct mqueue_inode_info *info);
 
 static spinlock_t mq_lock;
-static kmem_cache_t *mqueue_inode_cachep;
+static struct kmem_cache *mqueue_inode_cachep;
 static struct vfsmount *mqueue_mnt;
 
 static unsigned int queues_count;
@@ -211,7 +211,7 @@ static int mqueue_get_sb(struct file_system_type *fs_type,
 	return get_sb_single(fs_type, flags, data, mqueue_fill_super, mnt);
 }
 
-static void init_once(void *foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void *foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct mqueue_inode_info *p = (struct mqueue_inode_info *) foo;
 

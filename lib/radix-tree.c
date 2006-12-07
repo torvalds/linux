@@ -63,7 +63,7 @@ static unsigned long height_to_maxindex[RADIX_TREE_MAX_PATH] __read_mostly;
 /*
  * Radix tree node cache.
  */
-static kmem_cache_t *radix_tree_node_cachep;
+static struct kmem_cache *radix_tree_node_cachep;
 
 /*
  * Per-cpu pool of preloaded nodes
@@ -846,7 +846,7 @@ int radix_tree_tagged(struct radix_tree_root *root, unsigned int tag)
 EXPORT_SYMBOL(radix_tree_tagged);
 
 static void
-radix_tree_node_ctor(void *node, kmem_cache_t *cachep, unsigned long flags)
+radix_tree_node_ctor(void *node, struct kmem_cache *cachep, unsigned long flags)
 {
 	memset(node, 0, sizeof(struct radix_tree_node));
 }

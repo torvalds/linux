@@ -66,7 +66,7 @@ affs_write_super(struct super_block *sb)
 	pr_debug("AFFS: write_super() at %lu, clean=%d\n", get_seconds(), clean);
 }
 
-static kmem_cache_t * affs_inode_cachep;
+static struct kmem_cache * affs_inode_cachep;
 
 static struct inode *affs_alloc_inode(struct super_block *sb)
 {
@@ -83,7 +83,7 @@ static void affs_destroy_inode(struct inode *inode)
 	kmem_cache_free(affs_inode_cachep, AFFS_I(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct affs_inode_info *ei = (struct affs_inode_info *) foo;
 

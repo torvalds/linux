@@ -34,14 +34,14 @@ struct vm_area_struct;
 #define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
 extern unsigned long empty_zero_page[1024];
 extern pgd_t swapper_pg_dir[1024];
-extern kmem_cache_t *pgd_cache;
-extern kmem_cache_t *pmd_cache;
+extern struct kmem_cache *pgd_cache;
+extern struct kmem_cache *pmd_cache;
 extern spinlock_t pgd_lock;
 extern struct page *pgd_list;
 
-void pmd_ctor(void *, kmem_cache_t *, unsigned long);
-void pgd_ctor(void *, kmem_cache_t *, unsigned long);
-void pgd_dtor(void *, kmem_cache_t *, unsigned long);
+void pmd_ctor(void *, struct kmem_cache *, unsigned long);
+void pgd_ctor(void *, struct kmem_cache *, unsigned long);
+void pgd_dtor(void *, struct kmem_cache *, unsigned long);
 void pgtable_cache_init(void);
 void paging_init(void);
 

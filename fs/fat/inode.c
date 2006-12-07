@@ -477,7 +477,7 @@ static void fat_put_super(struct super_block *sb)
 	kfree(sbi);
 }
 
-static kmem_cache_t *fat_inode_cachep;
+static struct kmem_cache *fat_inode_cachep;
 
 static struct inode *fat_alloc_inode(struct super_block *sb)
 {
@@ -493,7 +493,7 @@ static void fat_destroy_inode(struct inode *inode)
 	kmem_cache_free(fat_inode_cachep, MSDOS_I(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct msdos_inode_info *ei = (struct msdos_inode_info *)foo;
 

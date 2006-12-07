@@ -135,7 +135,7 @@ static void ext2_put_super (struct super_block * sb)
 	return;
 }
 
-static kmem_cache_t * ext2_inode_cachep;
+static struct kmem_cache * ext2_inode_cachep;
 
 static struct inode *ext2_alloc_inode(struct super_block *sb)
 {
@@ -156,7 +156,7 @@ static void ext2_destroy_inode(struct inode *inode)
 	kmem_cache_free(ext2_inode_cachep, EXT2_I(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct ext2_inode_info *ei = (struct ext2_inode_info *) foo;
 

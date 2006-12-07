@@ -88,8 +88,8 @@ struct pending_exception {
  * Hash table mapping origin volumes to lists of snapshots and
  * a lock to protect it
  */
-static kmem_cache_t *exception_cache;
-static kmem_cache_t *pending_cache;
+static struct kmem_cache *exception_cache;
+static struct kmem_cache *pending_cache;
 static mempool_t *pending_pool;
 
 /*
@@ -228,7 +228,7 @@ static int init_exception_table(struct exception_table *et, uint32_t size)
 	return 0;
 }
 
-static void exit_exception_table(struct exception_table *et, kmem_cache_t *mem)
+static void exit_exception_table(struct exception_table *et, struct kmem_cache *mem)
 {
 	struct list_head *slot;
 	struct exception *ex, *next;

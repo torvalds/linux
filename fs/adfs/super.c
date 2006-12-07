@@ -212,7 +212,7 @@ static int adfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static kmem_cache_t *adfs_inode_cachep;
+static struct kmem_cache *adfs_inode_cachep;
 
 static struct inode *adfs_alloc_inode(struct super_block *sb)
 {
@@ -228,7 +228,7 @@ static void adfs_destroy_inode(struct inode *inode)
 	kmem_cache_free(adfs_inode_cachep, ADFS_I(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct adfs_inode_info *ei = (struct adfs_inode_info *) foo;
 

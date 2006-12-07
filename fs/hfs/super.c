@@ -24,7 +24,7 @@
 #include "hfs_fs.h"
 #include "btree.h"
 
-static kmem_cache_t *hfs_inode_cachep;
+static struct kmem_cache *hfs_inode_cachep;
 
 MODULE_LICENSE("GPL");
 
@@ -430,7 +430,7 @@ static struct file_system_type hfs_fs_type = {
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 
-static void hfs_init_once(void *p, kmem_cache_t *cachep, unsigned long flags)
+static void hfs_init_once(void *p, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct hfs_inode_info *i = p;
 

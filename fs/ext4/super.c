@@ -486,7 +486,7 @@ static void ext4_put_super (struct super_block * sb)
 	return;
 }
 
-static kmem_cache_t *ext4_inode_cachep;
+static struct kmem_cache *ext4_inode_cachep;
 
 /*
  * Called inside transaction, so use GFP_NOFS
@@ -513,7 +513,7 @@ static void ext4_destroy_inode(struct inode *inode)
 	kmem_cache_free(ext4_inode_cachep, EXT4_I(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct ext4_inode_info *ei = (struct ext4_inode_info *) foo;
 

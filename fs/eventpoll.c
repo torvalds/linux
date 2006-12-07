@@ -283,10 +283,10 @@ static struct mutex epmutex;
 static struct poll_safewake psw;
 
 /* Slab cache used to allocate "struct epitem" */
-static kmem_cache_t *epi_cache __read_mostly;
+static struct kmem_cache *epi_cache __read_mostly;
 
 /* Slab cache used to allocate "struct eppoll_entry" */
-static kmem_cache_t *pwq_cache __read_mostly;
+static struct kmem_cache *pwq_cache __read_mostly;
 
 /* Virtual fs used to allocate inodes for eventpoll files */
 static struct vfsmount *eventpoll_mnt __read_mostly;

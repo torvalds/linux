@@ -82,26 +82,26 @@ int nr_processes(void)
 #ifndef __HAVE_ARCH_TASK_STRUCT_ALLOCATOR
 # define alloc_task_struct()	kmem_cache_alloc(task_struct_cachep, GFP_KERNEL)
 # define free_task_struct(tsk)	kmem_cache_free(task_struct_cachep, (tsk))
-static kmem_cache_t *task_struct_cachep;
+static struct kmem_cache *task_struct_cachep;
 #endif
 
 /* SLAB cache for signal_struct structures (tsk->signal) */
-static kmem_cache_t *signal_cachep;
+static struct kmem_cache *signal_cachep;
 
 /* SLAB cache for sighand_struct structures (tsk->sighand) */
-kmem_cache_t *sighand_cachep;
+struct kmem_cache *sighand_cachep;
 
 /* SLAB cache for files_struct structures (tsk->files) */
-kmem_cache_t *files_cachep;
+struct kmem_cache *files_cachep;
 
 /* SLAB cache for fs_struct structures (tsk->fs) */
-kmem_cache_t *fs_cachep;
+struct kmem_cache *fs_cachep;
 
 /* SLAB cache for vm_area_struct structures */
-kmem_cache_t *vm_area_cachep;
+struct kmem_cache *vm_area_cachep;
 
 /* SLAB cache for mm_struct structures (tsk->mm) */
-static kmem_cache_t *mm_cachep;
+static struct kmem_cache *mm_cachep;
 
 void free_task(struct task_struct *tsk)
 {
@@ -1421,7 +1421,7 @@ long do_fork(unsigned long clone_flags,
 #define ARCH_MIN_MMSTRUCT_ALIGN 0
 #endif
 
-static void sighand_ctor(void *data, kmem_cache_t *cachep, unsigned long flags)
+static void sighand_ctor(void *data, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct sighand_struct *sighand = data;
 

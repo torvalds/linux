@@ -68,8 +68,8 @@
 
 #include "kmap_skb.h"
 
-static kmem_cache_t *skbuff_head_cache __read_mostly;
-static kmem_cache_t *skbuff_fclone_cache __read_mostly;
+static struct kmem_cache *skbuff_head_cache __read_mostly;
+static struct kmem_cache *skbuff_fclone_cache __read_mostly;
 
 /*
  *	Keep out-of-line to prevent kernel bloat.
@@ -144,7 +144,7 @@ EXPORT_SYMBOL(skb_truesize_bug);
 struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 			    int fclone, int node)
 {
-	kmem_cache_t *cache;
+	struct kmem_cache *cache;
 	struct skb_shared_info *shinfo;
 	struct sk_buff *skb;
 	u8 *data;
@@ -211,7 +211,7 @@ nodata:
  *	Buffers may only be allocated from interrupts using a @gfp_mask of
  *	%GFP_ATOMIC.
  */
-struct sk_buff *alloc_skb_from_cache(kmem_cache_t *cp,
+struct sk_buff *alloc_skb_from_cache(struct kmem_cache *cp,
 				     unsigned int size,
 				     gfp_t gfp_mask)
 {

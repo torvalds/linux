@@ -12,7 +12,7 @@
 #include <net/genetlink.h>
 
 #ifdef CONFIG_TASKSTATS
-extern kmem_cache_t *taskstats_cache;
+extern struct kmem_cache *taskstats_cache;
 extern struct mutex taskstats_exit_mutex;
 
 static inline void taskstats_exit_free(struct taskstats *tidstats)

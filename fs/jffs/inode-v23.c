@@ -61,8 +61,8 @@ static const struct file_operations jffs_dir_operations;
 static struct inode_operations jffs_dir_inode_operations;
 static const struct address_space_operations jffs_address_operations;
 
-kmem_cache_t     *node_cache = NULL;
-kmem_cache_t     *fm_cache = NULL;
+struct kmem_cache     *node_cache = NULL;
+struct kmem_cache     *fm_cache = NULL;
 
 /* Called by the VFS at mount time to initialize the whole file system.  */
 static int jffs_fill_super(struct super_block *sb, void *data, int silent)

@@ -101,7 +101,7 @@ struct crypt_config {
 #define MIN_POOL_PAGES 32
 #define MIN_BIO_PAGES  8
 
-static kmem_cache_t *_crypt_io_pool;
+static struct kmem_cache *_crypt_io_pool;
 
 /*
  * Different IV generation algorithms:

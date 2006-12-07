@@ -124,7 +124,7 @@ static struct security_operations *secondary_ops = NULL;
 static LIST_HEAD(superblock_security_head);
 static DEFINE_SPINLOCK(sb_security_lock);
 
-static kmem_cache_t *sel_inode_cache;
+static struct kmem_cache *sel_inode_cache;
 
 /* Return security context for a given sid or just the context 
    length if the buffer is null or length is 0 */

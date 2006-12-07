@@ -20,7 +20,7 @@
 #include <linux/err.h>
 #include "internal.h"
 
-static kmem_cache_t	*key_jar;
+static struct kmem_cache	*key_jar;
 struct rb_root		key_serial_tree; /* tree of keys indexed by serial */
 DEFINE_SPINLOCK(key_serial_lock);
 

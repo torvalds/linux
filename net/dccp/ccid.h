@@ -27,9 +27,9 @@ struct ccid_operations {
 	unsigned char	ccid_id;
 	const char	*ccid_name;
 	struct module	*ccid_owner;
-	kmem_cache_t	*ccid_hc_rx_slab;
+	struct kmem_cache	*ccid_hc_rx_slab;
 	__u32		ccid_hc_rx_obj_size;
-	kmem_cache_t	*ccid_hc_tx_slab;
+	struct kmem_cache	*ccid_hc_tx_slab;
 	__u32		ccid_hc_tx_obj_size;
 	int		(*ccid_hc_rx_init)(struct ccid *ccid, struct sock *sk);
 	int		(*ccid_hc_tx_init)(struct ccid *ccid, struct sock *sk);

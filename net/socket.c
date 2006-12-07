@@ -230,7 +230,7 @@ int move_addr_to_user(void *kaddr, int klen, void __user *uaddr,
 
 #define SOCKFS_MAGIC 0x534F434B
 
-static kmem_cache_t *sock_inode_cachep __read_mostly;
+static struct kmem_cache *sock_inode_cachep __read_mostly;
 
 static struct inode *sock_alloc_inode(struct super_block *sb)
 {
@@ -257,7 +257,7 @@ static void sock_destroy_inode(struct inode *inode)
 			container_of(inode, struct socket_alloc, vfs_inode));
 }
 
-static void init_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
+static void init_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct socket_alloc *ei = (struct socket_alloc *)foo;
 

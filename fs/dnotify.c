@@ -23,7 +23,7 @@
 
 int dir_notify_enable __read_mostly = 1;
 
-static kmem_cache_t *dn_cache __read_mostly;
+static struct kmem_cache *dn_cache __read_mostly;
 
 static void redo_inode_mask(struct inode *inode)
 {

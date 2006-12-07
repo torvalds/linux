@@ -490,7 +490,7 @@ struct i2o_dma {
  */
 struct i2o_pool {
 	char *name;
-	kmem_cache_t *slab;
+	struct kmem_cache *slab;
 	mempool_t *mempool;
 };
 

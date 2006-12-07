@@ -330,7 +330,7 @@ out:
 	return 0;
 }
 
-static kmem_cache_t *op_inode_cachep;
+static struct kmem_cache *op_inode_cachep;
 
 static struct inode *openprom_alloc_inode(struct super_block *sb)
 {
@@ -415,7 +415,7 @@ static struct file_system_type openprom_fs_type = {
 	.kill_sb	= kill_anon_super,
 };
 
-static void op_inode_init_once(void *data, kmem_cache_t * cachep, unsigned long flags)
+static void op_inode_init_once(void *data, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct op_inode_info *oi = (struct op_inode_info *) data;
 

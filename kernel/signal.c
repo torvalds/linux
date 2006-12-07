@@ -33,7 +33,7 @@
  * SLAB caches for signal bits.
  */
 
-static kmem_cache_t *sigqueue_cachep;
+static struct kmem_cache *sigqueue_cachep;
 
 /*
  * In POSIX a signal is sent either to a specific thread (Linux task)

@@ -44,7 +44,7 @@ static DEFINE_PER_CPU(struct flow_cache_entry **, flow_tables) = { NULL };
 
 #define flow_table(cpu) (per_cpu(flow_tables, cpu))
 
-static kmem_cache_t *flow_cachep __read_mostly;
+static struct kmem_cache *flow_cachep __read_mostly;
 
 static int flow_lwm, flow_hwm;
 

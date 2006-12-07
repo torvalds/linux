@@ -958,7 +958,7 @@ void jbd2_journal_put_journal_head(struct journal_head *jh);
 /*
  * handle management
  */
-extern kmem_cache_t *jbd2_handle_cache;
+extern struct kmem_cache *jbd2_handle_cache;
 
 static inline handle_t *jbd_alloc_handle(gfp_t gfp_flags)
 {

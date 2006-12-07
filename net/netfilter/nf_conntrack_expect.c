@@ -29,7 +29,7 @@
 LIST_HEAD(nf_conntrack_expect_list);
 EXPORT_SYMBOL_GPL(nf_conntrack_expect_list);
 
-kmem_cache_t *nf_conntrack_expect_cachep __read_mostly;
+struct kmem_cache *nf_conntrack_expect_cachep __read_mostly;
 static unsigned int nf_conntrack_expect_next_id;
 
 /* nf_conntrack_expect helper functions */

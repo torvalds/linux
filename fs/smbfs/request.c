@@ -25,7 +25,7 @@
 #define ROUND_UP(x) (((x)+3) & ~3)
 
 /* cache for request structures */
-static kmem_cache_t *req_cachep;
+static struct kmem_cache *req_cachep;
 
 static int smb_request_send_req(struct smb_request *req);
 

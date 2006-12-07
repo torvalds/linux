@@ -12,7 +12,7 @@
 #include <net/ip.h>
 #include <net/xfrm.h>
 
-static kmem_cache_t *secpath_cachep __read_mostly;
+static struct kmem_cache *secpath_cachep __read_mostly;
 
 void __secpath_destroy(struct sec_path *sp)
 {

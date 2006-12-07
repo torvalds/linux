@@ -345,7 +345,7 @@ static inline struct sk_buff *alloc_skb_fclone(unsigned int size,
 	return __alloc_skb(size, priority, 1, -1);
 }
 
-extern struct sk_buff *alloc_skb_from_cache(kmem_cache_t *cp,
+extern struct sk_buff *alloc_skb_from_cache(struct kmem_cache *cp,
 					    unsigned int size,
 					    gfp_t priority);
 extern void	       kfree_skbmem(struct sk_buff *skb);

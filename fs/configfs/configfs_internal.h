@@ -49,7 +49,7 @@ struct configfs_dirent {
 #define CONFIGFS_NOT_PINNED	(CONFIGFS_ITEM_ATTR)
 
 extern struct vfsmount * configfs_mount;
-extern kmem_cache_t *configfs_dir_cachep;
+extern struct kmem_cache *configfs_dir_cachep;
 
 extern int configfs_is_root(struct config_item *item);
 

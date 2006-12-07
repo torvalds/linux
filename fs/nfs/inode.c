@@ -55,7 +55,7 @@ static int nfs_update_inode(struct inode *, struct nfs_fattr *);
 
 static void nfs_zap_acl_cache(struct inode *);
 
-static kmem_cache_t * nfs_inode_cachep;
+static struct kmem_cache * nfs_inode_cachep;
 
 static inline unsigned long
 nfs_fattr_to_ino_t(struct nfs_fattr *fattr)
@@ -1111,7 +1111,7 @@ static inline void nfs4_init_once(struct nfs_inode *nfsi)
 #endif
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct nfs_inode *nfsi = (struct nfs_inode *) foo;
 

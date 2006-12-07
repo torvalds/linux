@@ -34,9 +34,9 @@ static inline int fat_max_cache(struct inode *inode)
 	return FAT_MAX_CACHE;
 }
 
-static kmem_cache_t *fat_cache_cachep;
+static struct kmem_cache *fat_cache_cachep;
 
-static void init_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
+static void init_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct fat_cache *cache = (struct fat_cache *)foo;
 

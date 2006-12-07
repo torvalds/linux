@@ -450,8 +450,8 @@ static inline void asd_destroy_ha_caches(struct asd_ha_struct *asd_ha)
 	asd_ha->scb_pool = NULL;
 }
 
-kmem_cache_t *asd_dma_token_cache;
-kmem_cache_t *asd_ascb_cache;
+struct kmem_cache *asd_dma_token_cache;
+struct kmem_cache *asd_ascb_cache;
 
 static int asd_create_global_caches(void)
 {

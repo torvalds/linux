@@ -301,7 +301,7 @@ static void sysv_delete_inode(struct inode *inode)
 	unlock_kernel();
 }
 
-static kmem_cache_t *sysv_inode_cachep;
+static struct kmem_cache *sysv_inode_cachep;
 
 static struct inode *sysv_alloc_inode(struct super_block *sb)
 {
@@ -318,7 +318,7 @@ static void sysv_destroy_inode(struct inode *inode)
 	kmem_cache_free(sysv_inode_cachep, SYSV_I(inode));
 }
 
-static void init_once(void *p, kmem_cache_t *cachep, unsigned long flags)
+static void init_once(void *p, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct sysv_inode_info *si = (struct sysv_inode_info *)p;
 

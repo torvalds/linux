@@ -38,7 +38,7 @@ static int nfs_pagein_one(struct list_head *, struct inode *);
 static const struct rpc_call_ops nfs_read_partial_ops;
 static const struct rpc_call_ops nfs_read_full_ops;
 
-static kmem_cache_t *nfs_rdata_cachep;
+static struct kmem_cache *nfs_rdata_cachep;
 static mempool_t *nfs_rdata_mempool;
 
 #define MIN_POOL_READ	(32)

@@ -22,7 +22,7 @@ MODULE_AUTHOR("Miklos Szeredi <miklos@szeredi.hu>");
 MODULE_DESCRIPTION("Filesystem in Userspace");
 MODULE_LICENSE("GPL");
 
-static kmem_cache_t *fuse_inode_cachep;
+static struct kmem_cache *fuse_inode_cachep;
 struct list_head fuse_conn_list;
 DEFINE_MUTEX(fuse_mutex);
 
@@ -601,7 +601,7 @@ static struct file_system_type fuse_fs_type = {
 static decl_subsys(fuse, NULL, NULL);
 static decl_subsys(connections, NULL, NULL);
 
-static void fuse_inode_init_once(void *foo, kmem_cache_t *cachep,
+static void fuse_inode_init_once(void *foo, struct kmem_cache *cachep,
 				 unsigned long flags)
 {
 	struct inode * inode = foo;

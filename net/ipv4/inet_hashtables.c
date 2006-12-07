@@ -27,7 +27,7 @@
  * Allocate and initialize a new local port bind bucket.
  * The bindhash mutex for snum's hash chain must be held here.
  */
-struct inet_bind_bucket *inet_bind_bucket_create(kmem_cache_t *cachep,
+struct inet_bind_bucket *inet_bind_bucket_create(struct kmem_cache *cachep,
 						 struct inet_bind_hashbucket *head,
 						 const unsigned short snum)
 {
@@ -45,7 +45,7 @@ struct inet_bind_bucket *inet_bind_bucket_create(kmem_cache_t *cachep,
 /*
  * Caller must hold hashbucket lock for this tb with local BH disabled
  */
-void inet_bind_bucket_destroy(kmem_cache_t *cachep, struct inet_bind_bucket *tb)
+void inet_bind_bucket_destroy(struct kmem_cache *cachep, struct inet_bind_bucket *tb)
 {
 	if (hlist_empty(&tb->owners)) {
 		__hlist_del(&tb->node);

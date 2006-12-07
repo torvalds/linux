@@ -841,7 +841,7 @@ struct sock *sk_alloc(int family, gfp_t priority,
 		      struct proto *prot, int zero_it)
 {
 	struct sock *sk = NULL;
-	kmem_cache_t *slab = prot->slab;
+	struct kmem_cache *slab = prot->slab;
 
 	if (slab != NULL)
 		sk = kmem_cache_alloc(slab, priority);

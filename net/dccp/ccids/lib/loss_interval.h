@@ -20,7 +20,7 @@
 #define DCCP_LI_HIST_IVAL_F_LENGTH  8
 
 struct dccp_li_hist {
-	kmem_cache_t *dccplih_slab;
+	struct kmem_cache *dccplih_slab;
 };
 
 extern struct dccp_li_hist *dccp_li_hist_new(const char *name);

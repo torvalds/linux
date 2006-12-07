@@ -36,7 +36,7 @@
 struct scsi_host_sg_pool {
 	size_t		size;
 	char		*name; 
-	kmem_cache_t	*slab;
+	struct kmem_cache	*slab;
 	mempool_t	*pool;
 };
 
@@ -241,7 +241,7 @@ struct scsi_io_context {
 	char sense[SCSI_SENSE_BUFFERSIZE];
 };
 
-static kmem_cache_t *scsi_io_context_cache;
+static struct kmem_cache *scsi_io_context_cache;
 
 static void scsi_end_async(struct request *req, int uptodate)
 {

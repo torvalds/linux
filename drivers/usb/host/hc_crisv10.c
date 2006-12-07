@@ -275,13 +275,13 @@ static volatile USB_SB_Desc_t TxIntrSB_zout __attribute__ ((aligned (4)));
 static int zout_buffer[4] __attribute__ ((aligned (4)));
 
 /* Cache for allocating new EP and SB descriptors. */
-static kmem_cache_t *usb_desc_cache;
+static struct kmem_cache *usb_desc_cache;
 
 /* Cache for the registers allocated in the top half. */
-static kmem_cache_t *top_half_reg_cache;
+static struct kmem_cache *top_half_reg_cache;
 
 /* Cache for the data allocated in the isoc descr top half. */
-static kmem_cache_t *isoc_compl_cache;
+static struct kmem_cache *isoc_compl_cache;
 
 static struct usb_bus *etrax_usb_bus;
 

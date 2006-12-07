@@ -46,7 +46,7 @@ extern const struct address_space_operations vxfs_immed_aops;
 
 extern struct inode_operations vxfs_immed_symlink_iops;
 
-kmem_cache_t		*vxfs_inode_cachep;
+struct kmem_cache		*vxfs_inode_cachep;
 
 
 #ifdef DIAGNOSTIC

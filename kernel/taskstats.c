@@ -34,7 +34,7 @@
 
 static DEFINE_PER_CPU(__u32, taskstats_seqnum) = { 0 };
 static int family_registered;
-kmem_cache_t *taskstats_cache;
+struct kmem_cache *taskstats_cache;
 
 static struct genl_family family = {
 	.id		= GENL_ID_GENERATE,

@@ -108,7 +108,7 @@ static struct {
 	size_t size;
 
 	/* slab cache pointer */
-	kmem_cache_t *cachep;
+	struct kmem_cache *cachep;
 
 	/* allocated slab cache + modules which uses this slab cache */
 	int use;
@@ -147,7 +147,7 @@ int nf_conntrack_register_cache(u_int32_t features, const char *name,
 {
 	int ret = 0;
 	char *cache_name;
-	kmem_cache_t *cachep;
+	struct kmem_cache *cachep;
 
 	DEBUGP("nf_conntrack_register_cache: features=0x%x, name=%s, size=%d\n",
 	       features, name, size);
@@ -226,7 +226,7 @@ EXPORT_SYMBOL_GPL(nf_conntrack_register_cache);
 /* FIXME: In the current, only nf_conntrack_cleanup() can call this function. */
 void nf_conntrack_unregister_cache(u_int32_t features)
 {
-	kmem_cache_t *cachep;
+	struct kmem_cache *cachep;
 	char *name;
 
 	/*

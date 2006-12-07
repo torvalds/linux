@@ -30,7 +30,7 @@
 
 #define BIO_POOL_SIZE 256
 
-static kmem_cache_t *bio_slab __read_mostly;
+static struct kmem_cache *bio_slab __read_mostly;
 
 #define BIOVEC_NR_POOLS 6
 
@@ -44,7 +44,7 @@ mempool_t *bio_split_pool __read_mostly;
 struct biovec_slab {
 	int nr_vecs;
 	char *name; 
-	kmem_cache_t *slab;
+	struct kmem_cache *slab;
 };
 
 /*
