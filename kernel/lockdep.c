@@ -228,11 +228,7 @@ static int save_trace(struct stack_trace *trace)
 	trace->skip = 3;
 	trace->all_contexts = 0;
 
-	/* Make sure to not recurse in case the the unwinder needs to tak
-e	   locks. */
-	lockdep_off();
 	save_stack_trace(trace, NULL);
-	lockdep_on();
 
 	trace->max_entries = trace->nr_entries;
 
