@@ -149,7 +149,7 @@ static struct pi_protocol aten = {
 
 static int __init aten_init(void)
 {
-	return paride_register(&aten)-1;
+	return paride_register(&aten);
 }
 
 static void __exit aten_exit(void)

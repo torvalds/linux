@@ -303,7 +303,7 @@ static struct pi_protocol epia = {
 
 static int __init epia_init(void)
 {
-	return paride_register(&epia)-1;
+	return paride_register(&epia);
 }
 
 static void __exit epia_exit(void)

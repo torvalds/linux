@@ -300,7 +300,7 @@ static struct pi_protocol frpw = {
 
 static int __init frpw_init(void)
 {
-	return paride_register(&frpw)-1;
+	return paride_register(&frpw);
 }
 
 static void __exit frpw_exit(void)

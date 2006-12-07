@@ -220,7 +220,7 @@ static struct pi_protocol dstr = {
 
 static int __init dstr_init(void)
 {
-	return paride_register(&dstr)-1;
+	return paride_register(&dstr);
 }
 
 static void __exit dstr_exit(void)

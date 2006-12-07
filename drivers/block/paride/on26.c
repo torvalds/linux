@@ -306,7 +306,7 @@ static struct pi_protocol on26 = {
 
 static int __init on26_init(void)
 {
-	return paride_register(&on26)-1;
+	return paride_register(&on26);
 }
 
 static void __exit on26_exit(void)

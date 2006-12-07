@@ -198,7 +198,7 @@ static struct pi_protocol fit3 = {
 
 static int __init fit3_init(void)
 {
-	return paride_register(&fit3)-1;
+	return paride_register(&fit3);
 }
 
 static void __exit fit3_exit(void)

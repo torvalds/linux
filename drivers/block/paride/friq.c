@@ -263,7 +263,7 @@ static struct pi_protocol friq = {
 
 static int __init friq_init(void)
 {
-	return paride_register(&friq)-1;
+	return paride_register(&friq);
 }
 
 static void __exit friq_exit(void)

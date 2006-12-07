@@ -237,19 +237,19 @@ int paride_register(PIP * pr)
 		if (protocols[k] && !strcmp(pr->name, protocols[k]->name)) {
 			printk("paride: %s protocol already registered\n",
 			       pr->name);
-			return 0;
+			return -1;
 		}
 	k = 0;
 	while ((k < MAX_PROTOS) && (protocols[k]))
 		k++;
 	if (k == MAX_PROTOS) {
 		printk("paride: protocol table full\n");
-		return 0;
+		return -1;
 	}
 	protocols[k] = pr;
 	pr->index = k;
 	printk("paride: %s registered as protocol %d\n", pr->name, k);
-	return 1;
+	return 0;
 }
 
 EXPORT_SYMBOL(paride_register);

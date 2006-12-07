@@ -464,7 +464,7 @@ static struct pi_protocol bpck = {
 
 static int __init bpck_init(void)
 {
-	return paride_register(&bpck)-1;
+	return paride_register(&bpck);
 }
 
 static void __exit bpck_exit(void)

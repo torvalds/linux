@@ -205,7 +205,7 @@ static struct pi_protocol comm = {
 
 static int __init comm_init(void)
 {
-	return paride_register(&comm)-1;
+	return paride_register(&comm);
 }
 
 static void __exit comm_exit(void)

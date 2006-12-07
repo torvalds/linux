@@ -327,7 +327,7 @@ static int __init epat_init(void)
 #ifdef CONFIG_PARIDE_EPATC8
 	epatc8 = 1;
 #endif
-	return paride_register(&epat)-1;
+	return paride_register(&epat);
 }
 
 static void __exit epat_exit(void)

@@ -140,7 +140,7 @@ static struct pi_protocol on20 = {
 
 static int __init on20_init(void)
 {
-	return paride_register(&on20)-1;
+	return paride_register(&on20);
 }
 
 static void __exit on20_exit(void)
