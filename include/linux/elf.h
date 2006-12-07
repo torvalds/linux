@@ -358,6 +358,7 @@ extern Elf32_Dyn _DYNAMIC [];
 #define elfhdr		elf32_hdr
 #define elf_phdr	elf32_phdr
 #define elf_note	elf32_note
+#define elf_addr_t	Elf32_Off
 
 #else
 
@@ -365,6 +366,7 @@ extern Elf64_Dyn _DYNAMIC [];
 #define elfhdr		elf64_hdr
 #define elf_phdr	elf64_phdr
 #define elf_note	elf64_note
+#define elf_addr_t	Elf64_Off
 
 #endif
 

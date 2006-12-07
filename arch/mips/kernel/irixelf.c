@@ -52,10 +52,6 @@ static struct linux_binfmt irix_format = {
 	irix_core_dump, PAGE_SIZE
 };
 
-#ifndef elf_addr_t
-#define elf_addr_t unsigned long
-#endif
-
 #ifdef DEBUG
 /* Debugging routines. */
 static char *get_elf_p_type(Elf32_Word p_type)

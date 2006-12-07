@@ -124,12 +124,10 @@ typedef elf_greg_t32 elf_gregset_t32[ELF_NGREG];
 # define ELF_DATA	ELFDATA2MSB
   typedef elf_greg_t64 elf_greg_t;
   typedef elf_gregset_t64 elf_gregset_t;
-# define elf_addr_t unsigned long
 #else
   /* Assumption: ELF_ARCH == EM_PPC and ELF_CLASS == ELFCLASS32 */
   typedef elf_greg_t32 elf_greg_t;
   typedef elf_gregset_t32 elf_gregset_t;
-# define elf_addr_t __u32
 #endif /* ELF_ARCH */
 
 /* Floating point registers */

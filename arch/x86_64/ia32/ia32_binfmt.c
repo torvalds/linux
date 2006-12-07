@@ -305,8 +305,6 @@ MODULE_AUTHOR("Eric Youngdale, Andi Kleen");
 #undef MODULE_DESCRIPTION
 #undef MODULE_AUTHOR
 
-#define elf_addr_t __u32
-
 static void elf32_init(struct pt_regs *);
 
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES 1

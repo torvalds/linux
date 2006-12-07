@@ -47,10 +47,6 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs);
 static int load_elf_library(struct file *);
 static unsigned long elf_map (struct file *, unsigned long, struct elf_phdr *, int, int);
 
-#ifndef elf_addr_t
-#define elf_addr_t unsigned long
-#endif
-
 /*
  * If we don't support core dumping, then supply a NULL so we
  * don't even try.
