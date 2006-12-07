@@ -81,31 +81,15 @@ static inline void load_TLS(struct thread_struct *t, unsigned int cpu)
 #undef C
 }
 
+#define write_ldt_entry(dt, entry, a, b) write_dt_entry(dt, entry, a, b)
+#define write_gdt_entry(dt, entry, a, b) write_dt_entry(dt, entry, a, b)
+#define write_idt_entry(dt, entry, a, b) write_dt_entry(dt, entry, a, b)
+
 static inline void write_dt_entry(void *dt, int entry, __u32 entry_a, __u32 entry_b)
 {
 	__u32 *lp = (__u32 *)((char *)dt + entry*8);
 	*lp = entry_a;
 	*(lp+1) = entry_b;
-}
-
-#define write_ldt_entry(dt, entry, a, b) write_dt_entry(dt, entry, a, b)
-#define write_gdt_entry(dt, entry, a, b) write_dt_entry(dt, entry, a, b)
-#define write_idt_entry(dt, entry, a, b) write_dt_entry(dt, entry, a, b)
-
-static inline void _set_gate(int gate, unsigned int type, void *addr, unsigned short seg)
-{
-	__u32 a, b;
-	pack_gate(&a, &b, (unsigned long)addr, seg, type, 0);
-	write_idt_entry(idt_table, gate, a, b);
-}
-
-static inline void __set_tss_desc(unsigned int cpu, unsigned int entry, const void *addr)
-{
-	__u32 a, b;
-	pack_descriptor(&a, &b, (unsigned long)addr,
-			offsetof(struct tss_struct, __cacheline_filler) - 1,
-			DESCTYPE_TSS, 0);
-	write_gdt_entry(get_cpu_gdt_table(cpu), entry, a, b);
 }
 
 #define set_ldt native_set_ldt
@@ -127,6 +111,23 @@ static inline fastcall void native_set_ldt(const void *addr,
 		__asm__ __volatile__("lldt %w0"::"q" (GDT_ENTRY_LDT*8));
 	}
 }
+
+static inline void _set_gate(int gate, unsigned int type, void *addr, unsigned short seg)
+{
+	__u32 a, b;
+	pack_gate(&a, &b, (unsigned long)addr, seg, type, 0);
+	write_idt_entry(idt_table, gate, a, b);
+}
+
+static inline void __set_tss_desc(unsigned int cpu, unsigned int entry, const void *addr)
+{
+	__u32 a, b;
+	pack_descriptor(&a, &b, (unsigned long)addr,
+			offsetof(struct tss_struct, __cacheline_filler) - 1,
+			DESCTYPE_TSS, 0);
+	write_gdt_entry(get_cpu_gdt_table(cpu), entry, a, b);
+}
+
 
 #define set_tss_desc(cpu,addr) __set_tss_desc(cpu, GDT_ENTRY_TSS, addr)
 

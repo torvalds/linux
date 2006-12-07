@@ -53,6 +53,19 @@
 #include <asm/dwarf2.h>
 #include "irq_vectors.h"
 
+/*
+ * We use macros for low-level operations which need to be overridden
+ * for paravirtualization.  The following will never clobber any registers:
+ *   INTERRUPT_RETURN (aka. "iret")
+ *   GET_CR0_INTO_EAX (aka. "movl %cr0, %eax")
+ *   ENABLE_INTERRUPTS_SYSEXIT (aka "sti; sysexit").
+ *
+ * For DISABLE_INTERRUPTS/ENABLE_INTERRUPTS (aka "cli"/"sti"), you must
+ * specify what registers can be overwritten (CLBR_NONE, CLBR_EAX/EDX/ECX/ANY).
+ * Allowing a register to be clobbered can shrink the paravirt replacement
+ * enough to patch inline, increasing performance.
+ */
+
 #define nr_syscalls ((syscall_table_size)/4)
 
 CF_MASK		= 0x00000001
@@ -63,9 +76,9 @@ NT_MASK		= 0x00004000
 VM_MASK		= 0x00020000
 
 #ifdef CONFIG_PREEMPT
-#define preempt_stop		DISABLE_INTERRUPTS; TRACE_IRQS_OFF
+#define preempt_stop(clobbers)	DISABLE_INTERRUPTS(clobbers); TRACE_IRQS_OFF
 #else
-#define preempt_stop
+#define preempt_stop(clobbers)
 #define resume_kernel		restore_nocheck
 #endif
 
@@ -226,7 +239,7 @@ ENTRY(ret_from_fork)
 	ALIGN
 	RING0_PTREGS_FRAME
 ret_from_exception:
-	preempt_stop
+	preempt_stop(CLBR_ANY)
 ret_from_intr:
 	GET_THREAD_INFO(%ebp)
 check_userspace:
@@ -237,7 +250,7 @@ check_userspace:
 	jb resume_kernel		# not returning to v8086 or userspace
 
 ENTRY(resume_userspace)
- 	DISABLE_INTERRUPTS		# make sure we don't miss an interrupt
+ 	DISABLE_INTERRUPTS(CLBR_ANY)	# make sure we don't miss an interrupt
 					# setting need_resched or sigpending
 					# between sampling and the iret
 	movl TI_flags(%ebp), %ecx
@@ -248,7 +261,7 @@ ENTRY(resume_userspace)
 
 #ifdef CONFIG_PREEMPT
 ENTRY(resume_kernel)
-	DISABLE_INTERRUPTS
+	DISABLE_INTERRUPTS(CLBR_ANY)
 	cmpl $0,TI_preempt_count(%ebp)	# non-zero preempt_count ?
 	jnz restore_nocheck
 need_resched:
@@ -277,7 +290,7 @@ sysenter_past_esp:
 	 * No need to follow this irqs on/off section: the syscall
 	 * disabled irqs and here we enable it straight after entry:
 	 */
-	ENABLE_INTERRUPTS
+	ENABLE_INTERRUPTS(CLBR_NONE)
 	pushl $(__USER_DS)
 	CFI_ADJUST_CFA_OFFSET 4
 	/*CFI_REL_OFFSET ss, 0*/
@@ -322,7 +335,7 @@ sysenter_past_esp:
 	jae syscall_badsys
 	call *sys_call_table(,%eax,4)
 	movl %eax,PT_EAX(%esp)
-	DISABLE_INTERRUPTS
+	DISABLE_INTERRUPTS(CLBR_ECX|CLBR_EDX)
 	TRACE_IRQS_OFF
 	movl TI_flags(%ebp), %ecx
 	testw $_TIF_ALLWORK_MASK, %cx
@@ -364,7 +377,7 @@ syscall_call:
 	call *sys_call_table(,%eax,4)
 	movl %eax,PT_EAX(%esp)		# store the return value
 syscall_exit:
-	DISABLE_INTERRUPTS		# make sure we don't miss an interrupt
+	DISABLE_INTERRUPTS(CLBR_ANY)	# make sure we don't miss an interrupt
 					# setting need_resched or sigpending
 					# between sampling and the iret
 	TRACE_IRQS_OFF
@@ -393,7 +406,7 @@ restore_nocheck_notrace:
 .section .fixup,"ax"
 iret_exc:
 	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS
+	ENABLE_INTERRUPTS(CLBR_NONE)
 	pushl $0			# no error code
 	pushl $do_iret_error
 	jmp error_code
@@ -436,7 +449,7 @@ ldt_ss:
 	CFI_ADJUST_CFA_OFFSET 4
 	pushl %eax
 	CFI_ADJUST_CFA_OFFSET 4
-	DISABLE_INTERRUPTS
+	DISABLE_INTERRUPTS(CLBR_EAX)
 	TRACE_IRQS_OFF
 	lss (%esp), %esp
 	CFI_ADJUST_CFA_OFFSET -8
@@ -451,7 +464,7 @@ work_pending:
 	jz work_notifysig
 work_resched:
 	call schedule
-	DISABLE_INTERRUPTS		# make sure we don't miss an interrupt
+	DISABLE_INTERRUPTS(CLBR_ANY)	# make sure we don't miss an interrupt
 					# setting need_resched or sigpending
 					# between sampling and the iret
 	TRACE_IRQS_OFF
@@ -509,7 +522,7 @@ syscall_exit_work:
 	testb $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SINGLESTEP), %cl
 	jz work_pending
 	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS		# could let do_syscall_trace() call
+	ENABLE_INTERRUPTS(CLBR_ANY)	# could let do_syscall_trace() call
 					# schedule() instead
 	movl %esp, %eax
 	movl $1, %edx
@@ -693,7 +706,7 @@ ENTRY(device_not_available)
 	GET_CR0_INTO_EAX
 	testl $0x4, %eax		# EM (math emulation bit)
 	jne device_not_available_emulate
-	preempt_stop
+	preempt_stop(CLBR_ANY)
 	call math_state_restore
 	jmp ret_from_exception
 device_not_available_emulate:

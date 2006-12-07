@@ -79,8 +79,8 @@ static inline unsigned long __raw_local_irq_save(void)
 }
 
 #else
-#define DISABLE_INTERRUPTS		cli
-#define ENABLE_INTERRUPTS		sti
+#define DISABLE_INTERRUPTS(clobbers)	cli
+#define ENABLE_INTERRUPTS(clobbers)	sti
 #define ENABLE_INTERRUPTS_SYSEXIT	sti; sysexit
 #define INTERRUPT_RETURN		iret
 #define GET_CR0_INTO_EAX		movl %cr0, %eax

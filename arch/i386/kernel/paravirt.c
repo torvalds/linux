@@ -45,6 +45,49 @@ char *memory_setup(void)
 	return paravirt_ops.memory_setup();
 }
 
+/* Simple instruction patching code. */
+#define DEF_NATIVE(name, code)					\
+	extern const char start_##name[], end_##name[];		\
+	asm("start_" #name ": " code "; end_" #name ":")
+DEF_NATIVE(cli, "cli");
+DEF_NATIVE(sti, "sti");
+DEF_NATIVE(popf, "push %eax; popf");
+DEF_NATIVE(pushf, "pushf; pop %eax");
+DEF_NATIVE(pushf_cli, "pushf; pop %eax; cli");
+DEF_NATIVE(iret, "iret");
+DEF_NATIVE(sti_sysexit, "sti; sysexit");
+
+static const struct native_insns
+{
+	const char *start, *end;
+} native_insns[] = {
+	[PARAVIRT_IRQ_DISABLE] = { start_cli, end_cli },
+	[PARAVIRT_IRQ_ENABLE] = { start_sti, end_sti },
+	[PARAVIRT_RESTORE_FLAGS] = { start_popf, end_popf },
+	[PARAVIRT_SAVE_FLAGS] = { start_pushf, end_pushf },
+	[PARAVIRT_SAVE_FLAGS_IRQ_DISABLE] = { start_pushf_cli, end_pushf_cli },
+	[PARAVIRT_INTERRUPT_RETURN] = { start_iret, end_iret },
+	[PARAVIRT_STI_SYSEXIT] = { start_sti_sysexit, end_sti_sysexit },
+};
+
+static unsigned native_patch(u8 type, u16 clobbers, void *insns, unsigned len)
+{
+	unsigned int insn_len;
+
+	/* Don't touch it if we don't have a replacement */
+	if (type >= ARRAY_SIZE(native_insns) || !native_insns[type].start)
+		return len;
+
+	insn_len = native_insns[type].end - native_insns[type].start;
+
+	/* Similarly if we can't fit replacement. */
+	if (len < insn_len)
+		return len;
+
+	memcpy(insns, native_insns[type].start, insn_len);
+	return insn_len;
+}
+
 static fastcall unsigned long native_get_debugreg(int regno)
 {
 	unsigned long val = 0; 	/* Damn you, gcc! */
@@ -349,6 +392,7 @@ struct paravirt_ops paravirt_ops = {
 	.paravirt_enabled = 0,
 	.kernel_rpl = 0,
 
+ 	.patch = native_patch,
 	.banner = default_banner,
 	.arch_setup = native_nop,
 	.memory_setup = machine_specific_memory_setup,
