@@ -265,7 +265,11 @@ static int i2o_cfg_swdl(unsigned long arg)
 		return -ENOMEM;
 	}
 
-	__copy_from_user(buffer.virt, kxfer.buf, fragsize);
+	if (__copy_from_user(buffer.virt, kxfer.buf, fragsize)) {
+		i2o_msg_nop(c, msg);
+		i2o_dma_free(&c->pdev->dev, &buffer);
+		return -EFAULT;
+	}
 
 	msg->u.head[0] = cpu_to_le32(NINE_WORD_MSG_SIZE | SGL_OFFSET_7);
 	msg->u.head[1] =
