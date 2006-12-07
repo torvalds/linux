@@ -85,7 +85,8 @@ unsigned long get_safe_page(gfp_t gfp_mask)
 	return (unsigned long)get_image_page(gfp_mask, PG_SAFE);
 }
 
-static struct page *alloc_image_page(gfp_t gfp_mask) {
+static struct page *alloc_image_page(gfp_t gfp_mask)
+{
 	struct page *page;
 
 	page = alloc_page(gfp_mask);
