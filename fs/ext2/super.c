@@ -1090,8 +1090,10 @@ static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf)
 {
 	struct super_block *sb = dentry->d_sb;
 	struct ext2_sb_info *sbi = EXT2_SB(sb);
+	struct ext2_super_block *es = sbi->s_es;
 	unsigned long overhead;
 	int i;
+	u64 fsid;
 
 	if (test_opt (sb, MINIX_DF))
 		overhead = 0;
@@ -1104,7 +1106,7 @@ static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf)
 		 * All of the blocks before first_data_block are
 		 * overhead
 		 */
-		overhead = le32_to_cpu(sbi->s_es->s_first_data_block);
+		overhead = le32_to_cpu(es->s_first_data_block);
 
 		/*
 		 * Add the overhead attributed to the superblock and
@@ -1125,14 +1127,18 @@ static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf)
 
 	buf->f_type = EXT2_SUPER_MAGIC;
 	buf->f_bsize = sb->s_blocksize;
-	buf->f_blocks = le32_to_cpu(sbi->s_es->s_blocks_count) - overhead;
+	buf->f_blocks = le32_to_cpu(es->s_blocks_count) - overhead;
 	buf->f_bfree = ext2_count_free_blocks(sb);
-	buf->f_bavail = buf->f_bfree - le32_to_cpu(sbi->s_es->s_r_blocks_count);
-	if (buf->f_bfree < le32_to_cpu(sbi->s_es->s_r_blocks_count))
+	buf->f_bavail = buf->f_bfree - le32_to_cpu(es->s_r_blocks_count);
+	if (buf->f_bfree < le32_to_cpu(es->s_r_blocks_count))
 		buf->f_bavail = 0;
-	buf->f_files = le32_to_cpu(sbi->s_es->s_inodes_count);
-	buf->f_ffree = ext2_count_free_inodes (sb);
+	buf->f_files = le32_to_cpu(es->s_inodes_count);
+	buf->f_ffree = ext2_count_free_inodes(sb);
 	buf->f_namelen = EXT2_NAME_LEN;
+	fsid = le64_to_cpup((void *)es->s_uuid) ^
+	       le64_to_cpup((void *)es->s_uuid + sizeof(u64));
+	buf->f_fsid.val[0] = fsid & 0xFFFFFFFFUL;
+	buf->f_fsid.val[1] = (fsid >> 32) & 0xFFFFFFFFUL;
 	return 0;
 }
 
