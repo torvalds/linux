@@ -31,6 +31,7 @@ obj-$(CONFIG_CPU_S3C2410_DMA)	+= s3c2410-dma.o
 
 obj-$(CONFIG_PM)		+= pm.o sleep.o
 obj-$(CONFIG_PM_SIMTEC)		+= pm-simtec.o
+obj-$(CONFIG_PM_H1940)		+= pm-h1940.o
 
 # S3C2412 support
 obj-$(CONFIG_CPU_S3C2412)	+= s3c2412.o
@@ -77,7 +78,7 @@ obj-$(CONFIG_MACH_AML_M5900)	+= mach-amlm5900.o
 obj-$(CONFIG_MACH_ANUBIS)	+= mach-anubis.o
 obj-$(CONFIG_MACH_OSIRIS)	+= mach-osiris.o
 obj-$(CONFIG_ARCH_BAST)		+= mach-bast.o usb-simtec.o
-obj-$(CONFIG_ARCH_H1940)	+= mach-h1940.o pm-h1940.o
+obj-$(CONFIG_ARCH_H1940)	+= mach-h1940.o
 obj-$(CONFIG_MACH_N30)		+= mach-n30.o
 obj-$(CONFIG_ARCH_SMDK2410)	+= mach-smdk2410.o
 obj-$(CONFIG_MACH_SMDK2413)	+= mach-smdk2413.o

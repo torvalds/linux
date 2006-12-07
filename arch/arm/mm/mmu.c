@@ -619,7 +619,9 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 	if (machine_is_p720t())
 		res_size = 0x00014000;
 
-	if (machine_is_h1940()) {
+	/* H1940 and RX3715 need to reserve this for suspend */
+
+	if (machine_is_h1940() || machine_is_rx3715()) {
 		reserve_bootmem_node(pgdat, 0x30003000, 0x1000);
 		reserve_bootmem_node(pgdat, 0x30081000, 0x1000);
 	}

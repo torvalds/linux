@@ -66,6 +66,22 @@ static void s3c2410_pm_prepare(void)
 		__raw_writel(calc, phys_to_virt(H1940_SUSPEND_CHECKSUM));
 	}
 
+	/* the RX3715 uses similar code and the same H1940 and the
+	 * same offsets for resume and checksum pointers */
+
+	if (machine_is_rx3715()) {
+		void *base = phys_to_virt(H1940_SUSPEND_CHECK);
+		unsigned long ptr;
+		unsigned long calc = 0;
+
+		/* generate check for the bootloader to check on resume */
+
+		for (ptr = 0; ptr < 0x40000; ptr += 0x4)
+			calc += __raw_readl(base+ptr);
+
+		__raw_writel(calc, phys_to_virt(H1940_SUSPEND_CHECKSUM));
+	}
+
 	if ( machine_is_aml_m5900() )
 		s3c2410_gpio_setpin(S3C2410_GPF2, 1);
 
