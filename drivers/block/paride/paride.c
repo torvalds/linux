@@ -29,14 +29,7 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/sched.h>	/* TASK_* */
-
-#ifdef CONFIG_PARPORT_MODULE
-#define CONFIG_PARPORT
-#endif
-
-#ifdef CONFIG_PARPORT
 #include <linux/parport.h>
-#endif
 
 #include "paride.h"
 
@@ -76,8 +69,6 @@ void pi_read_block(PIA * pi, char *buf, int count)
 
 EXPORT_SYMBOL(pi_read_block);
 
-#ifdef CONFIG_PARPORT
-
 static void pi_wake_up(void *p)
 {
 	PIA *pi = (PIA *) p;
@@ -100,11 +91,8 @@ static void pi_wake_up(void *p)
 		cont();
 }
 
-#endif
-
 int pi_schedule_claimed(PIA * pi, void (*cont) (void))
 {
-#ifdef CONFIG_PARPORT
 	unsigned long flags;
 
 	spin_lock_irqsave(&pi_spinlock, flags);
@@ -115,7 +103,6 @@ int pi_schedule_claimed(PIA * pi, void (*cont) (void))
 	}
 	pi->claimed = 1;
 	spin_unlock_irqrestore(&pi_spinlock, flags);
-#endif
 	return 1;
 }
 EXPORT_SYMBOL(pi_schedule_claimed);
@@ -133,20 +120,16 @@ static void pi_claim(PIA * pi)
 	if (pi->claimed)
 		return;
 	pi->claimed = 1;
-#ifdef CONFIG_PARPORT
 	if (pi->pardev)
 		wait_event(pi->parq,
 			   !parport_claim((struct pardevice *) pi->pardev));
-#endif
 }
 
 static void pi_unclaim(PIA * pi)
 {
 	pi->claimed = 0;
-#ifdef CONFIG_PARPORT
 	if (pi->pardev)
 		parport_release((struct pardevice *) (pi->pardev));
-#endif
 }
 
 void pi_connect(PIA * pi)
@@ -167,21 +150,15 @@ EXPORT_SYMBOL(pi_disconnect);
 
 static void pi_unregister_parport(PIA * pi)
 {
-#ifdef CONFIG_PARPORT
 	if (pi->pardev) {
 		parport_unregister_device((struct pardevice *) (pi->pardev));
 		pi->pardev = NULL;
 	}
-#endif
 }
 
 void pi_release(PIA * pi)
 {
 	pi_unregister_parport(pi);
-#ifndef CONFIG_PARPORT
-	if (pi->reserved)
-		release_region(pi->port, pi->reserved);
-#endif				/* !CONFIG_PARPORT */
 	if (pi->proto->release_proto)
 		pi->proto->release_proto(pi);
 	module_put(pi->proto->owner);
@@ -269,8 +246,6 @@ EXPORT_SYMBOL(paride_unregister);
 
 static int pi_register_parport(PIA * pi, int verbose)
 {
-#ifdef CONFIG_PARPORT
-
 	struct parport *port;
 
 	port = parport_find_base(pi->port);
@@ -290,7 +265,6 @@ static int pi_register_parport(PIA * pi, int verbose)
 		printk("%s: 0x%x is %s\n", pi->device, pi->port, port->name);
 
 	pi->parname = (char *) port->name;
-#endif
 
 	return 1;
 }
@@ -447,13 +421,6 @@ int pi_init(PIA * pi, int autoprobe, int port, int mode,
 			printk("%s: Adapter not found\n", device);
 		return 0;
 	}
-#ifndef CONFIG_PARPORT
-	if (!request_region(pi->port, pi->reserved, pi->device)) {
-		printk(KERN_WARNING "paride: Unable to request region 0x%x\n",
-		       pi->port);
-		return 0;
-	}
-#endif				/* !CONFIG_PARPORT */
 
 	if (pi->parname)
 		printk("%s: Sharing %s at 0x%x\n", pi->device,
