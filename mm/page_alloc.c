@@ -486,7 +486,7 @@ static void free_one_page(struct zone *zone, struct page *page, int order)
 	spin_lock(&zone->lock);
 	zone->all_unreclaimable = 0;
 	zone->pages_scanned = 0;
-	__free_one_page(page, zone ,order);
+	__free_one_page(page, zone, order);
 	spin_unlock(&zone->lock);
 }
 
@@ -926,7 +926,7 @@ int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
 }
 
 /*
- * get_page_from_freeliest goes through the zonelist trying to allocate
+ * get_page_from_freelist goes through the zonelist trying to allocate
  * a page.
  */
 static struct page *
@@ -948,8 +948,8 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
 			zone->zone_pgdat != zonelist->zones[0]->zone_pgdat))
 				break;
 		if ((alloc_flags & ALLOC_CPUSET) &&
-				!cpuset_zone_allowed(zone, gfp_mask))
-			continue;
+			!cpuset_zone_allowed(zone, gfp_mask))
+				continue;
 
 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
 			unsigned long mark;
@@ -959,17 +959,18 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
 				mark = zone->pages_low;
 			else
 				mark = zone->pages_high;
-			if (!zone_watermark_ok(zone , order, mark,
-				    classzone_idx, alloc_flags))
+			if (!zone_watermark_ok(zone, order, mark,
+				    classzone_idx, alloc_flags)) {
 				if (!zone_reclaim_mode ||
 				    !zone_reclaim(zone, gfp_mask, order))
 					continue;
+			}
 		}
 
 		page = buffered_rmqueue(zonelist, zone, order, gfp_mask);
-		if (page) {
+		if (page)
 			break;
-		}
+
 	} while (*(++z) != NULL);
 	return page;
 }
@@ -1005,9 +1006,8 @@ restart:
 	if (page)
 		goto got_pg;
 
-	do {
+	for (z = zonelist->zones; *z; z++)
 		wakeup_kswapd(*z, order);
-	} while (*(++z));
 
 	/*
 	 * OK, we're below the kswapd watermark and have kicked background
