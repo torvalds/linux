@@ -253,7 +253,7 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec, u8 command,
 		acpi_ec_write_data(ec, *(wdata++));
 	}
 
-	if (command == ACPI_EC_COMMAND_WRITE) {
+	if (!rdata_len) {
 		result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBF_0);
 		if (result)
 			return result;
