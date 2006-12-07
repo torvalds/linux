@@ -304,11 +304,12 @@ void emu10k1_wavein_getxfersize(struct wiinst *wiinst, u32 * size)
 	}
 }
 
-static void copy_block(u8 __user *dst, u8 * src, u32 str, u32 len, u8 cov)
+static int copy_block(u8 __user *dst, u8 * src, u32 str, u32 len, u8 cov)
 {
-	if (cov == 1)
-		__copy_to_user(dst, src + str, len);
-	else {
+	if (cov == 1) {
+		if (__copy_to_user(dst, src + str, len))
+			return -EFAULT;
+	} else {
 		u8 byte;
 		u32 i;
 
@@ -316,22 +317,26 @@ static void copy_block(u8 __user *dst, u8 * src, u32 str, u32 len, u8 cov)
 
 		for (i = 0; i < len; i++) {
 			byte = src[2 * i] ^ 0x80;
-			__copy_to_user(dst + i, &byte, 1);
+			if (__copy_to_user(dst + i, &byte, 1))
+				return -EFAULT;
 		}
 	}
+
+	return 0;
 }
 
-void emu10k1_wavein_xferdata(struct wiinst *wiinst, u8 __user *data, u32 * size)
+int emu10k1_wavein_xferdata(struct wiinst *wiinst, u8 __user *data, u32 * size)
 {
 	struct wavein_buffer *buffer = &wiinst->buffer;
 	u32 sizetocopy, sizetocopy_now, start;
 	unsigned long flags;
+	int ret;
 
 	sizetocopy = min_t(u32, buffer->size, *size);
 	*size = sizetocopy;
 
 	if (!sizetocopy)
-		return;
+		return 0;
 
 	spin_lock_irqsave(&wiinst->lock, flags);
 	start = buffer->pos;
@@ -345,11 +350,17 @@ void emu10k1_wavein_xferdata(struct wiinst *wiinst, u8 __user *data, u32 * size)
 	if (sizetocopy > sizetocopy_now) {
 		sizetocopy -= sizetocopy_now;
 
-		copy_block(data, buffer->addr, start, sizetocopy_now, buffer->cov);
-		copy_block(data + sizetocopy_now, buffer->addr, 0, sizetocopy, buffer->cov);
+		ret = copy_block(data, buffer->addr, start, sizetocopy_now,
+				 buffer->cov);
+		if (ret == 0)
+			ret = copy_block(data + sizetocopy_now, buffer->addr, 0,
+					 sizetocopy, buffer->cov);
 	} else {
-		copy_block(data, buffer->addr, start, sizetocopy, buffer->cov);
+		ret = copy_block(data, buffer->addr, start, sizetocopy,
+				 buffer->cov);
 	}
+
+	return ret;
 }
 
 void emu10k1_wavein_update(struct emu10k1_card *card, struct wiinst *wiinst)
