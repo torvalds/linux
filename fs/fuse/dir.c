@@ -141,9 +141,6 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 		struct fuse_req *forget_req;
 		struct dentry *parent;
 
-		/* Doesn't hurt to "reset" the validity timeout */
-		fuse_invalidate_entry_cache(entry);
-
 		/* For negative dentries, always do a fresh lookup */
 		if (!inode)
 			return 0;
