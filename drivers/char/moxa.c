@@ -498,9 +498,12 @@ static void __exit moxa_exit(void)
 		printk("Couldn't unregister MOXA Intellio family serial driver\n");
 	put_tty_driver(moxaDriver);
 
-	for (i = 0; i < MAX_BOARDS; i++)
+	for (i = 0; i < MAX_BOARDS; i++) {
+		if (moxaBaseAddr[i])
+			iounmap(moxaBaseAddr[i]);
 		if (moxa_boards[i].busType == MOXA_BUS_TYPE_PCI)
 			pci_dev_put(moxa_boards[i].pciInfo.pdev);
+	}
 
 	if (verbose)
 		printk("Done\n");
