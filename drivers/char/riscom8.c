@@ -82,11 +82,6 @@
 static struct riscom_board * IRQ_to_board[16];
 static struct tty_driver *riscom_driver;
 
-static unsigned long baud_table[] =  {
-	0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800,
-	9600, 19200, 38400, 57600, 76800, 0, 
-};
-
 static struct riscom_board rc_board[RC_NBOARD] =  {
 	{
 		.base	= RC_IOBASE1,
