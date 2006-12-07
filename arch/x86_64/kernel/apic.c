@@ -459,9 +459,12 @@ static struct {
 static int lapic_suspend(struct sys_device *dev, pm_message_t state)
 {
 	unsigned long flags;
+	int maxlvt;
 
 	if (!apic_pm_state.active)
 		return 0;
+
+	maxlvt = get_maxlvt();
 
 	apic_pm_state.apic_id = apic_read(APIC_ID);
 	apic_pm_state.apic_taskpri = apic_read(APIC_TASKPRI);
@@ -469,13 +472,17 @@ static int lapic_suspend(struct sys_device *dev, pm_message_t state)
 	apic_pm_state.apic_dfr = apic_read(APIC_DFR);
 	apic_pm_state.apic_spiv = apic_read(APIC_SPIV);
 	apic_pm_state.apic_lvtt = apic_read(APIC_LVTT);
-	apic_pm_state.apic_lvtpc = apic_read(APIC_LVTPC);
+	if (maxlvt >= 4)
+		apic_pm_state.apic_lvtpc = apic_read(APIC_LVTPC);
 	apic_pm_state.apic_lvt0 = apic_read(APIC_LVT0);
 	apic_pm_state.apic_lvt1 = apic_read(APIC_LVT1);
 	apic_pm_state.apic_lvterr = apic_read(APIC_LVTERR);
 	apic_pm_state.apic_tmict = apic_read(APIC_TMICT);
 	apic_pm_state.apic_tdcr = apic_read(APIC_TDCR);
-	apic_pm_state.apic_thmr = apic_read(APIC_LVTTHMR);
+#ifdef CONFIG_X86_MCE_INTEL
+	if (maxlvt >= 5)
+		apic_pm_state.apic_thmr = apic_read(APIC_LVTTHMR);
+#endif
 	local_irq_save(flags);
 	disable_local_APIC();
 	local_irq_restore(flags);
@@ -486,9 +493,12 @@ static int lapic_resume(struct sys_device *dev)
 {
 	unsigned int l, h;
 	unsigned long flags;
+	int maxlvt;
 
 	if (!apic_pm_state.active)
 		return 0;
+
+	maxlvt = get_maxlvt();
 
 	local_irq_save(flags);
 	rdmsr(MSR_IA32_APICBASE, l, h);
@@ -503,8 +513,12 @@ static int lapic_resume(struct sys_device *dev)
 	apic_write(APIC_SPIV, apic_pm_state.apic_spiv);
 	apic_write(APIC_LVT0, apic_pm_state.apic_lvt0);
 	apic_write(APIC_LVT1, apic_pm_state.apic_lvt1);
-	apic_write(APIC_LVTTHMR, apic_pm_state.apic_thmr);
-	apic_write(APIC_LVTPC, apic_pm_state.apic_lvtpc);
+#ifdef CONFIG_X86_MCE_INTEL
+	if (maxlvt >= 5)
+		apic_write(APIC_LVTTHMR, apic_pm_state.apic_thmr);
+#endif
+	if (maxlvt >= 4)
+		apic_write(APIC_LVTPC, apic_pm_state.apic_lvtpc);
 	apic_write(APIC_LVTT, apic_pm_state.apic_lvtt);
 	apic_write(APIC_TDCR, apic_pm_state.apic_tdcr);
 	apic_write(APIC_TMICT, apic_pm_state.apic_tmict);
