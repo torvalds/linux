@@ -290,6 +290,9 @@ static int acpi_ec_transaction(struct acpi_ec *ec, u8 command,
 	}
 	down(&ec->sem);
 
+	/* Make sure GPE is enabled before doing transaction */
+	acpi_enable_gpe(NULL, ec->gpe_bit, ACPI_NOT_ISR);
+
 	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBF_0);
 	if (status) {
 		printk(KERN_DEBUG PREFIX "read EC, IB not empty\n");
