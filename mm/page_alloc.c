@@ -1180,6 +1180,7 @@ restart:
 
 	/* This allocation should allow future memory freeing. */
 
+rebalance:
 	if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
 			&& !in_interrupt()) {
 		if (!(gfp_mask & __GFP_NOMEMALLOC)) {
@@ -1201,7 +1202,6 @@ nofail_alloc:
 	if (!wait)
 		goto nopage;
 
-rebalance:
 	cond_resched();
 
 	/* We now go into synchronous reclaim */
