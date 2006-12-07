@@ -177,7 +177,7 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 	else if (warn_no_part)
 		printk(" unable to read partition table\n");
 	kfree(state);
-	return NULL;
+	return ERR_PTR(res);
 }
 
 /*
@@ -494,6 +494,8 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 		disk->fops->revalidate_disk(disk);
 	if (!get_capacity(disk) || !(state = check_partition(disk, bdev)))
 		return 0;
+	if (IS_ERR(state))	/* I/O error reading the partition table */
+		return PTR_ERR(state);
 	for (p = 1; p < state->limit; p++) {
 		sector_t size = state->parts[p].size;
 		sector_t from = state->parts[p].from;
