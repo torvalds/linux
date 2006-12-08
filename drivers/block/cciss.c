@@ -535,7 +535,7 @@ static int do_ioctl(struct file *f, unsigned cmd, unsigned long arg)
 {
 	int ret;
 	lock_kernel();
-	ret = cciss_ioctl(f->f_dentry->d_inode, f, cmd, arg);
+	ret = cciss_ioctl(f->f_path.dentry->d_inode, f, cmd, arg);
 	unlock_kernel();
 	return ret;
 }

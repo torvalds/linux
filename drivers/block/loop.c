@@ -1000,7 +1000,7 @@ loop_get_status(struct loop_device *lo, struct loop_info64 *info)
 
 	if (lo->lo_state != Lo_bound)
 		return -ENXIO;
-	error = vfs_getattr(file->f_vfsmnt, file->f_dentry, &stat);
+	error = vfs_getattr(file->f_path.mnt, file->f_path.dentry, &stat);
 	if (error)
 		return error;
 	memset(info, 0, sizeof(*info));
@@ -1287,7 +1287,7 @@ loop_get_status_compat(struct loop_device *lo,
 
 static long lo_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct loop_device *lo = inode->i_bdev->bd_disk->private_data;
 	int err;
 
