@@ -290,7 +290,7 @@ int blkdev_ioctl(struct inode *inode, struct file *file, unsigned cmd,
    ENOIOCTLCMD for unknown ioctls. */
 long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
-	struct block_device *bdev = file->f_dentry->d_inode->i_bdev;
+	struct block_device *bdev = file->f_path.dentry->d_inode->i_bdev;
 	struct gendisk *disk = bdev->bd_disk;
 	int ret = -ENOIOCTLCMD;
 	if (disk->fops->compat_ioctl) {
