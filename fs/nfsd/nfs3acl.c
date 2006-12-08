@@ -171,19 +171,19 @@ static int nfs3svc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p,
 	p = nfs3svc_encode_post_op_attr(rqstp, p, &resp->fh);
 	if (resp->status == 0 && dentry && dentry->d_inode) {
 		struct inode *inode = dentry->d_inode;
-		int w = nfsacl_size(
-			(resp->mask & NFS_ACL)   ? resp->acl_access  : NULL,
-			(resp->mask & NFS_DFACL) ? resp->acl_default : NULL);
 		struct kvec *head = rqstp->rq_res.head;
 		unsigned int base;
 		int n;
+		int w;
 
 		*p++ = htonl(resp->mask);
 		if (!xdr_ressize_check(rqstp, p))
 			return 0;
 		base = (char *)p - (char *)head->iov_base;
 
-		rqstp->rq_res.page_len = w;
+		rqstp->rq_res.page_len = w = nfsacl_size(
+			(resp->mask & NFS_ACL)   ? resp->acl_access  : NULL,
+			(resp->mask & NFS_DFACL) ? resp->acl_default : NULL);
 		while (w > 0) {
 			if (!rqstp->rq_respages[rqstp->rq_resused++])
 				return 0;
