@@ -2536,6 +2536,11 @@ static struct sk_buff *isdn_ppp_decompress(struct sk_buff *skb,struct ippp_struc
   		rsparm.maxdlen = IPPP_RESET_MAXDATABYTES;
   
   		skb_out = dev_alloc_skb(is->mru + PPP_HDRLEN);
+  		if (!skb_out) {
+  			kfree_skb(skb);
+  			printk(KERN_ERR "ippp: decomp memory allocation failure\n");
+			return NULL;
+  		}
 		len = ipc->decompress(stat, skb, skb_out, &rsparm);
 		kfree_skb(skb);
 		if (len <= 0) {
