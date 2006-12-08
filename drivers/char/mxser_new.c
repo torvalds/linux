@@ -2563,6 +2563,22 @@ static const struct tty_operations mxser_ops = {
  * The MOXA Smartio/Industio serial driver boot-time initialization code!
  */
 
+static void mxser_release_res(struct mxser_board *brd, unsigned int irq)
+{
+	struct pci_dev *pdev = brd->pdev;
+
+	if (irq)
+		free_irq(brd->irq, brd);
+	if (pdev != NULL) {	/* PCI */
+		pci_release_region(pdev, 2);
+		pci_release_region(pdev, 3);
+		pci_dev_put(pdev);
+	} else {
+		release_region(brd->ports[0].ioaddr, 8 * brd->nports);
+		release_region(brd->vector, 1);
+	}
+}
+
 static int __devinit mxser_initbrd(struct mxser_board *brd)
 {
 	struct mxser_port *info;
@@ -2613,6 +2629,8 @@ static int __devinit mxser_initbrd(struct mxser_board *brd)
 		printk(KERN_ERR "Board %s: Request irq failed, IRQ (%d) may "
 			"conflict with another device.\n",
 			mxser_brdname[brd->board_type - 1], brd->irq);
+		/* We hold resources, we need to release them. */
+		mxser_release_res(brd, 0);
 		return retval;
 	}
 	return 0;
@@ -2963,14 +2981,9 @@ static int __init mxser_module_init(void)
 				" driver !\n");
 		put_tty_driver(mxvar_sdriver);
 
-		for (i = 0; i < MXSER_BOARDS; i++) {
-			if (mxser_boards[i].board_type == -1)
-				continue;
-			else {
-				free_irq(mxser_boards[i].irq, &mxser_boards[i]);
-				/* todo: release io, vector */
-			}
-		}
+		for (i = 0; i < MXSER_BOARDS; i++)
+			if (mxser_boards[i].board_type != -1)
+				mxser_release_res(&mxser_boards[i], 1);
 		return retval;
 	}
 
@@ -2991,24 +3004,10 @@ static void __exit mxser_module_exit(void)
 	else
 		printk(KERN_ERR "Couldn't unregister MOXA Smartio/Industio family serial driver\n");
 
-	for (i = 0; i < MXSER_BOARDS; i++) {
-		struct pci_dev *pdev;
+	for (i = 0; i < MXSER_BOARDS; i++)
+		if (mxser_boards[i].board_type != -1)
+			mxser_release_res(&mxser_boards[i], 1);
 
-		if (mxser_boards[i].board_type == -1)
-			continue;
-		else {
-			pdev = mxser_boards[i].pdev;
-			free_irq(mxser_boards[i].irq, &mxser_boards[i]);
-			if (pdev != NULL) {	/* PCI */
-				pci_release_region(pdev, 2);
-				pci_release_region(pdev, 3);
-				pci_dev_put(pdev);
-			} else {
-				release_region(mxser_boards[i].ports[0].ioaddr, 8 * mxser_boards[i].nports);
-				release_region(mxser_boards[i].vector, 1);
-			}
-		}
-	}
 	pr_debug("Done.\n");
 }
 
