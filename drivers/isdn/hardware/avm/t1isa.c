@@ -584,6 +584,7 @@ static void __exit t1isa_exit(void)
 {
 	int i;
 
+	unregister_capi_driver(&capi_driver_t1isa);
 	for (i = 0; i < MAX_CARDS; i++) {
 		if (!io[i])
 			break;
