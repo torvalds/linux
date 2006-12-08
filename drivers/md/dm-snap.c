@@ -564,6 +564,17 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	return r;
 }
 
+static void __free_exceptions(struct dm_snapshot *s)
+{
+	kcopyd_client_destroy(s->kcopyd_client);
+	s->kcopyd_client = NULL;
+
+	exit_exception_table(&s->pending, pending_cache);
+	exit_exception_table(&s->complete, exception_cache);
+
+	s->store.destroy(&s->store);
+}
+
 static void snapshot_dtr(struct dm_target *ti)
 {
 	struct dm_snapshot *s = (struct dm_snapshot *) ti->private;
@@ -574,13 +585,7 @@ static void snapshot_dtr(struct dm_target *ti)
 	/* After this returns there can be no new kcopyd jobs. */
 	unregister_snapshot(s);
 
-	kcopyd_client_destroy(s->kcopyd_client);
-
-	exit_exception_table(&s->pending, pending_cache);
-	exit_exception_table(&s->complete, exception_cache);
-
-	/* Deallocate memory used */
-	s->store.destroy(&s->store);
+	__free_exceptions(s);
 
 	dm_put_device(ti, s->origin);
 	dm_put_device(ti, s->cow);
