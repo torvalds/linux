@@ -207,11 +207,6 @@ __v6_setup:
 #endif
 	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
 #endif /* CONFIG_MMU */
-#ifdef CONFIG_VFP
-	mrc	p15, 0, r0, c1, c0, 2
-	orr	r0, r0, #(0xf << 20)
-	mcr	p15, 0, r0, c1, c0, 2		@ Enable full access to VFP
-#endif
 	adr	r5, v6_crval
 	ldmia	r5, {r5, r6}
 	mrc	p15, 0, r0, c1, c0, 0		@ read control register
@@ -273,7 +268,7 @@ __v6_proc_info:
 	b	__v6_setup
 	.long	cpu_arch_name
 	.long	cpu_elf_name
-	.long	HWCAP_SWP|HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT|HWCAP_VFP|HWCAP_EDSP|HWCAP_JAVA
+	.long	HWCAP_SWP|HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT|HWCAP_EDSP|HWCAP_JAVA
 	.long	cpu_v6_name
 	.long	v6_processor_functions
 	.long	v6wbi_tlb_fns
