@@ -86,7 +86,6 @@ configuration of fault-injection capabilities.
 	specifies the maximum stacktrace depth walked during search
 	for a caller within [address-start,address-end).
 
-- /debug/failslab/ignore-gfp-highmem:
 - /debug/fail_page_alloc/ignore-gfp-highmem:
 
 	Format: { 0 | 1 }
@@ -167,7 +166,6 @@ echo 10 > /debug/$FAILNAME/probability
 echo 100 > /debug/$FAILNAME/interval
 echo -1 > /debug/$FAILNAME/times
 echo 2 > /debug/$FAILNAME/verbose
-echo 1 > /debug/$FAILNAME/ignore-gfp-highmem
 echo 1 > /debug/$FAILNAME/ignore-gfp-wait
 
 blacklist()
