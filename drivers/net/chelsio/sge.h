@@ -76,7 +76,9 @@ struct sge *t1_sge_create(struct adapter *, struct sge_params *);
 int t1_sge_configure(struct sge *, struct sge_params *);
 int t1_sge_set_coalesce_params(struct sge *, struct sge_params *);
 void t1_sge_destroy(struct sge *);
-irq_handler_t t1_select_intr_handler(adapter_t *adapter);
+irqreturn_t t1_interrupt(int irq, void *cookie);
+int t1_poll(struct net_device *, int *);
+
 int t1_start_xmit(struct sk_buff *skb, struct net_device *dev);
 void t1_set_vlan_accel(struct adapter *adapter, int on_off);
 void t1_sge_start(struct sge *);

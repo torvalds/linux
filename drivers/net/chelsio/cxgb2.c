@@ -220,9 +220,8 @@ static int cxgb_up(struct adapter *adapter)
 
 	t1_interrupts_clear(adapter);
 
-	adapter->params.has_msi = !disable_msi && pci_enable_msi(adapter->pdev) == 0;
-	err = request_irq(adapter->pdev->irq,
-			  t1_select_intr_handler(adapter),
+	adapter->params.has_msi = !disable_msi && !pci_enable_msi(adapter->pdev);
+	err = request_irq(adapter->pdev->irq, t1_interrupt,
 			  adapter->params.has_msi ? 0 : IRQF_SHARED,
 			  adapter->name, adapter);
 	if (err) {
@@ -764,18 +763,7 @@ static int set_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 {
 	struct adapter *adapter = dev->priv;
 
-	/*
-	 * If RX coalescing is requested we use NAPI, otherwise interrupts.
-	 * This choice can be made only when all ports and the TOE are off.
-	 */
-	if (adapter->open_device_map == 0)
-		adapter->params.sge.polling = c->use_adaptive_rx_coalesce;
-
-	if (adapter->params.sge.polling) {
-		adapter->params.sge.rx_coalesce_usecs = 0;
-	} else {
-		adapter->params.sge.rx_coalesce_usecs = c->rx_coalesce_usecs;
-	}
+	adapter->params.sge.rx_coalesce_usecs = c->rx_coalesce_usecs;
  	adapter->params.sge.coalesce_enable = c->use_adaptive_rx_coalesce;
 	adapter->params.sge.sample_interval_usecs = c->rate_sample_interval;
 	t1_sge_set_coalesce_params(adapter->sge, &adapter->params.sge);
@@ -944,7 +932,7 @@ static void t1_netpoll(struct net_device *dev)
 	struct adapter *adapter = dev->priv;
 
 	local_irq_save(flags);
-	t1_select_intr_handler(adapter)(adapter->pdev->irq, adapter);
+	t1_interrupt(adapter->pdev->irq, adapter);
 	local_irq_restore(flags);
 }
 #endif
@@ -1165,7 +1153,10 @@ static int __devinit init_one(struct pci_dev *pdev,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 		netdev->poll_controller = t1_netpoll;
 #endif
+#ifdef CONFIG_CHELSIO_T1_NAPI
 		netdev->weight = 64;
+		netdev->poll = t1_poll;
+#endif
 
 		SET_ETHTOOL_OPS(netdev, &t1_ethtool_ops);
 	}
