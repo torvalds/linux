@@ -355,14 +355,10 @@ static int bdev_set(struct inode *inode, void *data)
 
 static LIST_HEAD(all_bdevs);
 
-static struct lock_class_key bdev_part_lock_key;
-
 struct block_device *bdget(dev_t dev)
 {
 	struct block_device *bdev;
 	struct inode *inode;
-	struct gendisk *disk;
-	int part = 0;
 
 	inode = iget5_locked(bd_mnt->mnt_sb, hash(dev),
 			bdev_test, bdev_set, &dev);
@@ -388,11 +384,6 @@ struct block_device *bdget(dev_t dev)
 		list_add(&bdev->bd_list, &all_bdevs);
 		spin_unlock(&bdev_lock);
 		unlock_new_inode(inode);
-		mutex_init(&bdev->bd_mutex);
-		disk = get_gendisk(dev, &part);
-		if (part)
-			lockdep_set_class(&bdev->bd_mutex, &bdev_part_lock_key);
-		put_disk(disk);
 	}
 	return bdev;
 }
