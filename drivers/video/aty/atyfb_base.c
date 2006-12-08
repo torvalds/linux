@@ -2825,9 +2825,9 @@ static int atyfb_blank(int blank, struct fb_info *info)
 #endif
 
 	gen_cntl = aty_ld_le32(CRTC_GEN_CNTL, par);
+	gen_cntl &= ~0x400004c;
 	switch (blank) {
-        	case FB_BLANK_UNBLANK:
-			gen_cntl &= ~0x400004c;
+		case FB_BLANK_UNBLANK:
 			break;
 		case FB_BLANK_NORMAL:
 			gen_cntl |= 0x4000040;
