@@ -26,15 +26,7 @@ extern void clear_pages(void *page, int order);
 static inline void clear_page(void *page) { clear_pages(page, 0); }
 extern void copy_page(void *to, void *from);
 
-/* Pure 2^n version of get_order */
-extern __inline__ int get_order(unsigned long size)
-{
-	int lz;
-
-	size = (size-1) >> PAGE_SHIFT;
-	asm ("cntlzw %0,%1" : "=r" (lz) : "r" (size));
-	return 32 - lz;
-}
+#include <asm-generic/page.h>
 
 #endif /* __ASSEMBLY__ */
 

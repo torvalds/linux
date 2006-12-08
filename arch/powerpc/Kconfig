@@ -43,11 +43,11 @@ config RWSEM_XCHGADD_ALGORITHM
 
 config ARCH_HAS_ILOG2_U32
 	bool
-	default n
+	default y
 
 config ARCH_HAS_ILOG2_U64
 	bool
-	default n
+	default y if 64BIT
 
 config GENERIC_HWEIGHT
 	bool
