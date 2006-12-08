@@ -1602,10 +1602,6 @@ static int mxser_read_register(int port, unsigned short *regs)
 	return id;
 }
 
-#ifndef CMSPAR
-#define	CMSPAR 010000000000
-#endif
-
 static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 {
 	struct mxser_port *port;
