@@ -1218,12 +1218,7 @@ static int mxser_write_room(struct tty_struct *tty)
 static int mxser_chars_in_buffer(struct tty_struct *tty)
 {
 	struct mxser_port *info = tty->driver_data;
-	int len = info->xmit_cnt;
-
-	if (!(inb(info->ioaddr + UART_LSR) & UART_LSR_THRE))
-		len++;
-
-	return len;
+	return info->xmit_cnt;
 }
 
 static void mxser_flush_buffer(struct tty_struct *tty)
@@ -1953,7 +1948,7 @@ static void mxser_stoprx(struct tty_struct *tty)
 		if (info->board->chip_flag) {
 			info->IER &= ~MOXA_MUST_RECV_ISR;
 			outb(info->IER, info->ioaddr + UART_IER);
-		} else if (!(info->flags & ASYNC_CLOSING)) {
+		} else {
 			info->x_char = STOP_CHAR(tty);
 			outb(0, info->ioaddr + UART_IER);
 			info->IER |= UART_IER_THRI;
@@ -1990,7 +1985,7 @@ static void mxser_unthrottle(struct tty_struct *tty)
 			if (info->board->chip_flag) {
 				info->IER |= MOXA_MUST_RECV_ISR;
 				outb(info->IER, info->ioaddr + UART_IER);
-			} else if (!(info->flags & ASYNC_CLOSING)) {
+			} else {
 				info->x_char = START_CHAR(tty);
 				outb(0, info->ioaddr + UART_IER);
 				info->IER |= UART_IER_THRI;
@@ -2265,10 +2260,8 @@ static void mxser_receive_chars(struct mxser_port *port, int *status)
 					flag = TTY_OVERRUN;
 /* added by casper 1/11/2000 */
 					port->icount.overrun++;
-				} else
-					flags = TTY_BREAK;
-			} else
-				flags = 0;
+				}
+			}
 			tty_insert_flip_char(tty, ch, flag);
 			cnt++;
 			if (cnt >= recv_room) {
@@ -2324,14 +2317,8 @@ static void mxser_transmit_chars(struct mxser_port *port)
 	if (port->xmit_buf == 0)
 		goto unlock;
 
-	if (port->xmit_cnt == 0) {
-		if (port->xmit_cnt < WAKEUP_CHARS) { /* XXX what's this for?? */
-			set_bit(MXSER_EVENT_TXLOW, &port->event);
-			schedule_work(&port->tqueue);
-		}
-		goto unlock;
-	}
-	if (port->tty->stopped || (port->tty->hw_stopped &&
+	if ((port->xmit_cnt <= 0) || port->tty->stopped ||
+			(port->tty->hw_stopped &&
 			(port->type != PORT_16550A) &&
 			(!port->board->chip_flag))) {
 		port->IER &= ~UART_IER_THRI;
