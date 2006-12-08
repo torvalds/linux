@@ -900,7 +900,10 @@ void bd_set_size(struct block_device *bdev, loff_t size)
 }
 EXPORT_SYMBOL(bd_set_size);
 
-static int do_open(struct block_device *bdev, struct file *file)
+static int __blkdev_get(struct block_device *bdev, mode_t mode, unsigned flags,
+			int for_part);
+
+static int do_open(struct block_device *bdev, struct file *file, int for_part)
 {
 	struct module *owner = NULL;
 	struct gendisk *disk;
@@ -944,25 +947,21 @@ static int do_open(struct block_device *bdev, struct file *file)
 			ret = -ENOMEM;
 			if (!whole)
 				goto out_first;
-			ret = blkdev_get(whole, file->f_mode, file->f_flags);
+			BUG_ON(for_part);
+			ret = __blkdev_get(whole, file->f_mode, file->f_flags, 1);
 			if (ret)
 				goto out_first;
 			bdev->bd_contains = whole;
-			mutex_lock(&whole->bd_mutex);
-			whole->bd_part_count++;
 			p = disk->part[part - 1];
 			bdev->bd_inode->i_data.backing_dev_info =
 			   whole->bd_inode->i_data.backing_dev_info;
 			if (!(disk->flags & GENHD_FL_UP) || !p || !p->nr_sects) {
-				whole->bd_part_count--;
-				mutex_unlock(&whole->bd_mutex);
 				ret = -ENXIO;
 				goto out_first;
 			}
 			kobject_get(&p->kobj);
 			bdev->bd_part = p;
 			bd_set_size(bdev, (loff_t) p->nr_sects << 9);
-			mutex_unlock(&whole->bd_mutex);
 		}
 	} else {
 		put_disk(disk);
@@ -975,13 +974,11 @@ static int do_open(struct block_device *bdev, struct file *file)
 			}
 			if (bdev->bd_invalidated)
 				rescan_partitions(bdev->bd_disk, bdev);
-		} else {
-			mutex_lock(&bdev->bd_contains->bd_mutex);
-			bdev->bd_contains->bd_part_count++;
-			mutex_unlock(&bdev->bd_contains->bd_mutex);
 		}
 	}
 	bdev->bd_openers++;
+	if (for_part)
+		bdev->bd_part_count++;
 	mutex_unlock(&bdev->bd_mutex);
 	unlock_kernel();
 	return 0;
@@ -1002,7 +999,8 @@ out:
 	return ret;
 }
 
-int blkdev_get(struct block_device *bdev, mode_t mode, unsigned flags)
+static int __blkdev_get(struct block_device *bdev, mode_t mode, unsigned flags,
+			int for_part)
 {
 	/*
 	 * This crockload is due to bad choice of ->open() type.
@@ -1017,9 +1015,13 @@ int blkdev_get(struct block_device *bdev, mode_t mode, unsigned flags)
 	fake_file.f_dentry = &fake_dentry;
 	fake_dentry.d_inode = bdev->bd_inode;
 
-	return do_open(bdev, &fake_file);
+	return do_open(bdev, &fake_file, for_part);
 }
 
+int blkdev_get(struct block_device *bdev, mode_t mode, unsigned flags)
+{
+	return __blkdev_get(bdev, mode, flags, 0);
+}
 EXPORT_SYMBOL(blkdev_get);
 
 static int blkdev_open(struct inode * inode, struct file * filp)
@@ -1039,7 +1041,7 @@ static int blkdev_open(struct inode * inode, struct file * filp)
 	if (bdev == NULL)
 		return -ENOMEM;
 
-	res = do_open(bdev, filp);
+	res = do_open(bdev, filp, 0);
 	if (res)
 		return res;
 
@@ -1053,14 +1055,18 @@ static int blkdev_open(struct inode * inode, struct file * filp)
 	return res;
 }
 
-int blkdev_put(struct block_device *bdev)
+static int __blkdev_put(struct block_device *bdev, int for_part)
 {
 	int ret = 0;
 	struct inode *bd_inode = bdev->bd_inode;
 	struct gendisk *disk = bdev->bd_disk;
+	struct block_device *victim = NULL;
 
 	mutex_lock(&bdev->bd_mutex);
 	lock_kernel();
+	if (for_part)
+		bdev->bd_part_count--;
+
 	if (!--bdev->bd_openers) {
 		sync_blockdev(bdev);
 		kill_bdev(bdev);
@@ -1068,10 +1074,6 @@ int blkdev_put(struct block_device *bdev)
 	if (bdev->bd_contains == bdev) {
 		if (disk->fops->release)
 			ret = disk->fops->release(bd_inode, NULL);
-	} else {
-		mutex_lock(&bdev->bd_contains->bd_mutex);
-		bdev->bd_contains->bd_part_count--;
-		mutex_unlock(&bdev->bd_contains->bd_mutex);
 	}
 	if (!bdev->bd_openers) {
 		struct module *owner = disk->fops->owner;
@@ -1085,17 +1087,22 @@ int blkdev_put(struct block_device *bdev)
 		}
 		bdev->bd_disk = NULL;
 		bdev->bd_inode->i_data.backing_dev_info = &default_backing_dev_info;
-		if (bdev != bdev->bd_contains) {
-			blkdev_put(bdev->bd_contains);
-		}
+		if (bdev != bdev->bd_contains)
+			victim = bdev->bd_contains;
 		bdev->bd_contains = NULL;
 	}
 	unlock_kernel();
 	mutex_unlock(&bdev->bd_mutex);
 	bdput(bdev);
+	if (victim)
+		__blkdev_put(victim, 1);
 	return ret;
 }
 
+int blkdev_put(struct block_device *bdev)
+{
+	return __blkdev_put(bdev, 0);
+}
 EXPORT_SYMBOL(blkdev_put);
 
 static int blkdev_close(struct inode * inode, struct file * filp)
