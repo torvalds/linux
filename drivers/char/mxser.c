@@ -556,7 +556,7 @@ static int mxser_initbrd(int board, struct mxser_hwconf *hwconf)
 	n = board * MXSER_PORTS_PER_BOARD;
 	info = &mxvar_table[n];
 	/*if (verbose) */  {
-		printk(KERN_DEBUG "        ttyM%d - ttyM%d ",
+		printk(KERN_DEBUG "        ttyMI%d - ttyMI%d ",
 			n, n + hwconf->ports - 1);
 		printk(" max. baud rate = %d bps.\n",
 			hwconf->MaxCanSetBaudRate[0]);
@@ -717,7 +717,7 @@ static int mxser_init(void)
 	/* Initialize the tty_driver structure */
 	memset(mxvar_sdriver, 0, sizeof(struct tty_driver));
 	mxvar_sdriver->magic = TTY_DRIVER_MAGIC;
-	mxvar_sdriver->name = "ttyM";
+	mxvar_sdriver->name = "ttyMI";
 	mxvar_sdriver->major = ttymajor;
 	mxvar_sdriver->minor_start = 0;
 	mxvar_sdriver->num = MXSER_PORTS + 1;
