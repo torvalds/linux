@@ -100,7 +100,7 @@ static int compat_mga_init(struct file *file, unsigned int cmd,
 	if (err)
 		return -EFAULT;
 
-	return drm_ioctl(file->f_dentry->d_inode, file,
+	return drm_ioctl(file->f_path.dentry->d_inode, file,
 			 DRM_IOCTL_MGA_INIT, (unsigned long)init);
 }
 
@@ -125,7 +125,7 @@ static int compat_mga_getparam(struct file *file, unsigned int cmd,
 			  &getparam->value))
 		return -EFAULT;
 
-	return drm_ioctl(file->f_dentry->d_inode, file,
+	return drm_ioctl(file->f_path.dentry->d_inode, file,
 			 DRM_IOCTL_MGA_GETPARAM, (unsigned long)getparam);
 }
 
@@ -166,7 +166,7 @@ static int compat_mga_dma_bootstrap(struct file *file, unsigned int cmd,
 	    || __put_user(dma_bootstrap32.agp_size, &dma_bootstrap->agp_size))
 		return -EFAULT;
 
-	err = drm_ioctl(file->f_dentry->d_inode, file,
+	err = drm_ioctl(file->f_path.dentry->d_inode, file,
 			DRM_IOCTL_MGA_DMA_BOOTSTRAP,
 			(unsigned long)dma_bootstrap);
 	if (err)
@@ -224,7 +224,7 @@ long mga_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	if (fn != NULL)
 		ret = (*fn) (filp, cmd, arg);
 	else
-		ret = drm_ioctl(filp->f_dentry->d_inode, filp, cmd, arg);
+		ret = drm_ioctl(filp->f_path.dentry->d_inode, filp, cmd, arg);
 	unlock_kernel();
 
 	return ret;
