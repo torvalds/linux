@@ -220,7 +220,13 @@ gx_configure_tft(struct fb_info *info)
 	/*  Set the dither control */
 	writel(0x70, par->vid_regs + GX_FP_DFC);
 
-	/* Turn on the device */
+	/* Enable the FP data and power (in case the BIOS didn't) */
+
+	fp = readl(par->vid_regs + GX_DCFG);
+	fp |= GX_DCFG_FP_PWR_EN | GX_DCFG_FP_DATA_EN;
+	writel(fp, par->vid_regs + GX_DCFG);
+
+	/* Unblank the panel */
 
 	fp = readl(par->vid_regs + GX_FP_PM);
 	fp |= GX_FP_PM_P;
@@ -245,8 +251,11 @@ static void gx_configure_display(struct fb_info *info)
 	writel(misc, par->vid_regs + GX_MISC);
 
 	/* Write the display configuration */
-
 	dcfg = readl(par->vid_regs + GX_DCFG);
+
+	/* Disable hsync and vsync */
+	dcfg &= ~(GX_DCFG_VSYNC_EN | GX_DCFG_HSYNC_EN);
+	writel(dcfg, par->vid_regs + GX_DCFG);
 
 	/* Clear bits from existing mode. */
 	dcfg &= ~(GX_DCFG_CRT_SYNC_SKW_MASK

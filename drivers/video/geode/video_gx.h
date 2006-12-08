@@ -25,6 +25,8 @@ extern struct geode_vid_ops gx_vid_ops;
 #  define GX_DCFG_HSYNC_EN		0x00000002
 #  define GX_DCFG_VSYNC_EN		0x00000004
 #  define GX_DCFG_DAC_BL_EN		0x00000008
+#  define GX_DCFG_FP_PWR_EN		0x00000040
+#  define GX_DCFG_FP_DATA_EN		0x00000080
 #  define GX_DCFG_CRT_HSYNC_POL		0x00000100
 #  define GX_DCFG_CRT_VSYNC_POL		0x00000200
 #  define GX_DCFG_CRT_SYNC_SKW_MASK	0x0001C000
