@@ -1288,7 +1288,7 @@ static ssize_t reiserfs_file_write(struct file *file,	/* the file we are going t
 	loff_t pos;		// Current position in the file.
 	ssize_t res;		// return value of various functions that we call.
 	int err = 0;
-	struct inode *inode = file->f_dentry->d_inode;	// Inode of the file that we are writing to.
+	struct inode *inode = file->f_path.dentry->d_inode;	// Inode of the file that we are writing to.
 	/* To simplify coding at this time, we store
 	   locked pages in array for now */
 	struct page *prepared_pages[REISERFS_WRITE_PAGES_AT_A_TIME];
@@ -1335,7 +1335,7 @@ static ssize_t reiserfs_file_write(struct file *file,	/* the file we are going t
 	if (count == 0)
 		goto out;
 
-	res = remove_suid(file->f_dentry);
+	res = remove_suid(file->f_path.dentry);
 	if (res)
 		goto out;
 
