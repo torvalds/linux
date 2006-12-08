@@ -106,8 +106,8 @@ static void __init setup_ro_region(void)
 	}
 }
 
-extern unsigned long __initdata zholes_size[];
 extern void vmem_map_init(void);
+
 /*
  * paging_init() sets up the page tables
  */
@@ -117,8 +117,7 @@ void __init paging_init(void)
 	int i;
 	unsigned long pgdir_k;
 	static const int ssm_mask = 0x04000000L;
-	unsigned long zones_size[MAX_NR_ZONES];
-	unsigned long dma_pfn, high_pfn;
+	unsigned long max_zone_pfns[MAX_NR_ZONES];
 
 	pg_dir = swapper_pg_dir;
 	
@@ -142,20 +141,10 @@ void __init paging_init(void)
 	__ctl_load(pgdir_k, 13, 13);
 	__raw_local_irq_ssm(ssm_mask);
 
-	memset(zones_size, 0, sizeof(zones_size));
-	dma_pfn = MAX_DMA_ADDRESS >> PAGE_SHIFT;
-	high_pfn = max_low_pfn;
-
-	if (dma_pfn > high_pfn)
-		zones_size[ZONE_DMA] = high_pfn;
-	else {
-		zones_size[ZONE_DMA] = dma_pfn;
-		zones_size[ZONE_NORMAL] = high_pfn - dma_pfn;
-	}
-
-	/* Initialize mem_map[].  */
-	free_area_init_node(0, &contig_page_data, zones_size,
-			    __pa(PAGE_OFFSET) >> PAGE_SHIFT, zholes_size);
+	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
+	max_zone_pfns[ZONE_DMA] = PFN_DOWN(MAX_DMA_ADDRESS);
+	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
+	free_area_init_nodes(max_zone_pfns);
 }
 
 void __init mem_init(void)
