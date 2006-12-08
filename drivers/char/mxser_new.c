@@ -54,20 +54,16 @@
 #define	MXSERCUMAJOR	 175
 
 #define	MXSER_EVENT_TXLOW	1
-#define	MXSER_EVENT_HANGUP	2
 
 #define MXSER_BOARDS		4	/* Max. boards */
-#define MXSER_PORTS		32	/* Max. ports */
 #define MXSER_PORTS_PER_BOARD	8	/* Max. ports per board */
+#define MXSER_PORTS		(MXSER_BOARDS * MXSER_PORTS_PER_BOARD)
 #define MXSER_ISR_PASS_LIMIT	99999L
 
 #define	MXSER_ERR_IOADDR	-1
 #define	MXSER_ERR_IRQ		-2
 #define	MXSER_ERR_IRQ_CONFLIT	-3
 #define	MXSER_ERR_VECTOR	-4
-
-#define SERIAL_TYPE_NORMAL	1
-#define SERIAL_TYPE_CALLOUT	2
 
 #define WAKEUP_CHARS		256
 
@@ -365,14 +361,10 @@ static void process_txrx_fifo(struct mxser_port *info)
 static void mxser_do_softint(void *private_)
 {
 	struct mxser_port *info = private_;
-	struct tty_struct *tty;
-
-	tty = info->tty;
+	struct tty_struct *tty = info->tty;
 
 	if (test_and_clear_bit(MXSER_EVENT_TXLOW, &info->event))
 		tty_wakeup(tty);
-	if (test_and_clear_bit(MXSER_EVENT_HANGUP, &info->event))
-		tty_hangup(tty);
 }
 
 static unsigned char mxser_get_msr(int baseaddr, int mode, int port)
