@@ -250,9 +250,9 @@
 
 /* Register access macros */
 #define macb_readl(port,reg)				\
-	readl((port)->regs + MACB_##reg)
+	__raw_readl((port)->regs + MACB_##reg)
 #define macb_writel(port,reg,value)			\
-	writel((value), (port)->regs + MACB_##reg)
+	__raw_writel((value), (port)->regs + MACB_##reg)
 
 struct dma_desc {
 	u32	addr;

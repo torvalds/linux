@@ -264,7 +264,7 @@ static void macb_update_stats(struct macb *bp)
 	WARN_ON((unsigned long)(end - p - 1) != (MACB_TPF - MACB_PFR) / 4);
 
 	for(; p < end; p++, reg++)
-		*p += readl(reg);
+		*p += __raw_readl(reg);
 }
 
 static void macb_periodic_task(struct work_struct *work)
