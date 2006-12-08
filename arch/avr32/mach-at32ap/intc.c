@@ -136,3 +136,7 @@ fail:
 	panic("Interrupt controller initialization failed!\n");
 }
 
+unsigned long intc_get_pending(int group)
+{
+	return intc_readl(&intc0, INTREQ0 + 4 * group);
+}
