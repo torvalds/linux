@@ -1353,10 +1353,7 @@ static void sx_pollfunc(unsigned long data)
 
 	sx_interrupt(0, board);
 
-	init_timer(&board->timer);
-
-	board->timer.expires = jiffies + sx_poll;
-	add_timer(&board->timer);
+	mod_timer(&board->timer, jiffies + sx_poll);
 	func_exit();
 }
 
@@ -2134,14 +2131,10 @@ static int sx_init_board(struct sx_board *board)
 
 		/* The timer should be initialized anyway: That way we can
 		   safely del_timer it when the module is unloaded. */
-		init_timer(&board->timer);
+		setup_timer(&board->timer, sx_pollfunc, (unsigned long)board);
 
-		if (board->poll) {
-			board->timer.data = (unsigned long)board;
-			board->timer.function = sx_pollfunc;
-			board->timer.expires = jiffies + board->poll;
-			add_timer(&board->timer);
-		}
+		if (board->poll)
+			mod_timer(&board->timer, jiffies + board->poll);
 	} else {
 		board->irq = 0;
 	}
