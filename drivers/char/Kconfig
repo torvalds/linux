@@ -201,6 +201,21 @@ config MOXA_SMARTIO
 	  The module will be called mxser. If you want to do that, say M
 	  here.
 
+config MOXA_SMARTIO_NEW
+	tristate "Moxa SmartIO support v. 2.0 (EXPERIMENTAL)"
+	depends on SERIAL_NONSTANDARD
+	help
+	  Say Y here if you have a Moxa SmartIO multiport serial card and/or
+	  want to help develop a new version of this driver.
+
+	  This is upgraded (1.9.1) driver from original Moxa drivers with
+	  changes finally resulting in PCI probing.
+
+	  Use at your own risk.
+
+	  This driver can also be built as a module. The module will be called
+	  mxser_new. If you want to do that, say M here.
+
 config ISI
 	tristate "Multi-Tech multiport card support (EXPERIMENTAL)"
 	depends on SERIAL_NONSTANDARD
