@@ -754,8 +754,8 @@ int nfs_updatepage(struct file *file, struct page *page,
 	nfs_inc_stats(inode, NFSIOS_VFSUPDATEPAGE);
 
 	dprintk("NFS:      nfs_updatepage(%s/%s %d@%Ld)\n",
-		file->f_dentry->d_parent->d_name.name,
-		file->f_dentry->d_name.name, count,
+		file->f_path.dentry->d_parent->d_name.name,
+		file->f_path.dentry->d_name.name, count,
 		(long long)(page_offset(page) +offset));
 
 	/* If we're not using byte range locks, and we know the page
