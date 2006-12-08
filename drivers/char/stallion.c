@@ -700,7 +700,7 @@ static struct class *stallion_class;
  *	Check for any arguments passed in on the module load command line.
  */
 
-static void stl_argbrds(void)
+static void __init stl_argbrds(void)
 {
 	struct stlconf	conf;
 	struct stlbrd	*brdp;
@@ -767,7 +767,7 @@ static unsigned long stl_atol(char *str)
  *	Parse the supplied argument string, into the board conf struct.
  */
 
-static int stl_parsebrd(struct stlconf *confp, char **argp)
+static int __init stl_parsebrd(struct stlconf *confp, char **argp)
 {
 	char	*sp;
 	int	i;
@@ -2014,7 +2014,7 @@ static int __init stl_initports(struct stlbrd *brdp, struct stlpanel *panelp)
  *	Try to find and initialize an EasyIO board.
  */
 
-static int stl_initeio(struct stlbrd *brdp)
+static int __init stl_initeio(struct stlbrd *brdp)
 {
 	struct stlpanel	*panelp;
 	unsigned int	status;
@@ -2155,7 +2155,7 @@ static int stl_initeio(struct stlbrd *brdp)
  *	dealing with all types of ECH board.
  */
 
-static int stl_initech(struct stlbrd *brdp)
+static int __init stl_initech(struct stlbrd *brdp)
 {
 	struct stlpanel	*panelp;
 	unsigned int	status, nxtid, ioaddr, conflict;
@@ -2414,7 +2414,7 @@ static int __init stl_brdinit(struct stlbrd *brdp)
  *	Find the next available board number that is free.
  */
 
-static int stl_getbrdnr(void)
+static int __init stl_getbrdnr(void)
 {
 	int	i;
 
@@ -2438,7 +2438,7 @@ static int stl_getbrdnr(void)
  *	configuration space.
  */
 
-static int stl_initpcibrd(int brdtype, struct pci_dev *devp)
+static int __init stl_initpcibrd(int brdtype, struct pci_dev *devp)
 {
 	struct stlbrd	*brdp;
 
@@ -2500,7 +2500,7 @@ static int stl_initpcibrd(int brdtype, struct pci_dev *devp)
  */
 
 
-static int stl_findpcibrds(void)
+static int __init stl_findpcibrds(void)
 {
 	struct pci_dev	*dev = NULL;
 	int		i, rc;
@@ -2536,7 +2536,7 @@ static int stl_findpcibrds(void)
  *	since the initial search and setup is too different.
  */
 
-static int stl_initbrds(void)
+static int __init stl_initbrds(void)
 {
 	struct stlbrd	*brdp;
 	struct stlconf	*confp;
