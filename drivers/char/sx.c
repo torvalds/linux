@@ -2034,7 +2034,7 @@ static int sx_init_board (struct sx_board *board)
 }
 
 
-static void printheader(void)
+static void __devinit printheader(void)
 {
 	static int header_printed;
 
@@ -2047,7 +2047,7 @@ static void printheader(void)
 }
 
 
-static int probe_sx (struct sx_board *board)
+static int __devinit probe_sx (struct sx_board *board)
 {
 	struct vpd_prom vpdp;
 	char *p;
@@ -2125,7 +2125,7 @@ static int probe_sx (struct sx_board *board)
    card. 0xe0000 and 0xf0000 are taken by the BIOS. That only leaves 
    0xc0000, 0xc8000, 0xd0000 and 0xd8000 . */
 
-static int probe_si (struct sx_board *board)
+static int __devinit probe_si (struct sx_board *board)
 {
 	int i;
 
@@ -2364,7 +2364,7 @@ static void __exit sx_release_drivers(void)
    EEprom.  As the bit is read/write for the CPU, we can fix it here,
    if we detect that it isn't set correctly. -- REW */
 
-static void fix_sx_pci (struct pci_dev *pdev, struct sx_board *board)
+static void __devinit fix_sx_pci(struct pci_dev *pdev, struct sx_board *board)
 {
 	unsigned int hwbase;
 	void __iomem *rebase;
