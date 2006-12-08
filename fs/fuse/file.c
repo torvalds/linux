@@ -141,8 +141,8 @@ int fuse_release_common(struct inode *inode, struct file *file, int isdir)
 					isdir ? FUSE_RELEASEDIR : FUSE_RELEASE);
 
 		/* Hold vfsmount and dentry until release is finished */
-		req->vfsmount = mntget(file->f_vfsmnt);
-		req->dentry = dget(file->f_dentry);
+		req->vfsmount = mntget(file->f_path.mnt);
+		req->dentry = dget(file->f_path.dentry);
 		request_send_background(fc, req);
 	}
 
@@ -184,7 +184,7 @@ static u64 fuse_lock_owner_id(struct fuse_conn *fc, fl_owner_t id)
 
 static int fuse_flush(struct file *file, fl_owner_t id)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_file *ff = file->private_data;
 	struct fuse_req *req;
@@ -533,7 +533,7 @@ static int fuse_get_user_pages(struct fuse_req *req, const char __user *buf,
 static ssize_t fuse_direct_io(struct file *file, const char __user *buf,
 			      size_t count, loff_t *ppos, int write)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	size_t nmax = write ? fc->max_write : fc->max_read;
 	loff_t pos = *ppos;
@@ -607,7 +607,7 @@ static ssize_t fuse_direct_read(struct file *file, char __user *buf,
 static ssize_t fuse_direct_write(struct file *file, const char __user *buf,
 				 size_t count, loff_t *ppos)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	ssize_t res;
 	/* Don't allow parallel writes to the same file */
 	mutex_lock(&inode->i_mutex);
@@ -662,7 +662,7 @@ static int convert_fuse_file_lock(const struct fuse_file_lock *ffl,
 static void fuse_lk_fill(struct fuse_req *req, struct file *file,
 			 const struct file_lock *fl, int opcode, pid_t pid)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_file *ff = file->private_data;
 	struct fuse_lk_in *arg = &req->misc.lk_in;
@@ -682,7 +682,7 @@ static void fuse_lk_fill(struct fuse_req *req, struct file *file,
 
 static int fuse_getlk(struct file *file, struct file_lock *fl)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_req *req;
 	struct fuse_lk_out outarg;
@@ -707,7 +707,7 @@ static int fuse_getlk(struct file *file, struct file_lock *fl)
 
 static int fuse_setlk(struct file *file, struct file_lock *fl)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_req *req;
 	int opcode = (fl->fl_flags & FL_SLEEP) ? FUSE_SETLKW : FUSE_SETLK;
@@ -734,7 +734,7 @@ static int fuse_setlk(struct file *file, struct file_lock *fl)
 
 static int fuse_file_lock(struct file *file, int cmd, struct file_lock *fl)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	int err;
 
