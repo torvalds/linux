@@ -428,6 +428,7 @@ static void do_acct_process(struct file *file)
 	u64 elapsed;
 	u64 run_time;
 	struct timespec uptime;
+	struct tty_struct *tty;
 
 	/*
 	 * First check to see if there is enough free_space to continue
@@ -485,12 +486,8 @@ static void do_acct_process(struct file *file)
 #endif
 
 	mutex_lock(&tty_mutex);
-	/* FIXME: Whoever is responsible for current->signal locking needs
-	   to use the same locking all over the kernel and document it */
-	read_lock(&tasklist_lock);
-	ac.ac_tty = current->signal->tty ?
-		old_encode_dev(tty_devnum(current->signal->tty)) : 0;
-	read_unlock(&tasklist_lock);
+	tty = get_current_tty();
+	ac.ac_tty = tty ? old_encode_dev(tty_devnum(tty)) : 0;
 	mutex_unlock(&tty_mutex);
 
 	spin_lock_irq(&current->sighand->siglock);

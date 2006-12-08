@@ -384,9 +384,7 @@ void daemonize(const char *name, ...)
 	exit_mm(current);
 
 	set_special_pids(1, 1);
-	mutex_lock(&tty_mutex);
-	current->signal->tty = NULL;
-	mutex_unlock(&tty_mutex);
+	proc_clear_tty(current);
 
 	/* Block and flush all signals */
 	sigfillset(&blocked);

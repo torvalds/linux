@@ -126,7 +126,7 @@ EXPORT_SYMBOL(tty_std_termios);
    
 LIST_HEAD(tty_drivers);			/* linked list of tty drivers */
 
-/* Semaphore to protect creating and releasing a tty. This is shared with
+/* Mutex to protect creating and releasing a tty. This is shared with
    vt.c for deeply disgusting hack reasons */
 DEFINE_MUTEX(tty_mutex);
 EXPORT_SYMBOL(tty_mutex);
@@ -250,7 +250,7 @@ static int check_tty_count(struct tty_struct *tty, const char *routine)
 				    "!= #fd's(%d) in %s\n",
 		       tty->name, tty->count, count, routine);
 		return count;
-       }	
+	}
 #endif
 	return 0;
 }
@@ -258,18 +258,6 @@ static int check_tty_count(struct tty_struct *tty, const char *routine)
 /*
  * Tty buffer allocation management
  */
-
-
-/**
- *	tty_buffer_free_all		-	free buffers used by a tty
- *	@tty: tty to free from
- *
- *	Remove all the buffers pending on a tty whether queued with data
- *	or in the free ring. Must be called when the tty is no longer in use
- *
- *	Locking: none
- */
-
 
 /**
  *	tty_buffer_free_all		-	free buffers used by a tty
@@ -614,7 +602,7 @@ EXPORT_SYMBOL_GPL(tty_prepare_flip_string_flags);
  *	they are not on hot paths so a little discipline won't do 
  *	any harm.
  *
- *	Locking: takes termios_sem
+ *	Locking: takes termios_mutex
  */
  
 static void tty_set_termios_ldisc(struct tty_struct *tty, int num)
@@ -915,7 +903,7 @@ static void tty_ldisc_enable(struct tty_struct *tty)
  *	context.
  *
  *	Locking: takes tty_ldisc_lock.
- *		called functions take termios_sem
+ *		 called functions take termios_mutex
  */
  
 static int tty_set_ldisc(struct tty_struct *tty, int ldisc)
@@ -1267,12 +1255,12 @@ EXPORT_SYMBOL_GPL(tty_ldisc_flush);
  *
  *	Locking:
  *		BKL
- *		redirect lock for undoing redirection
- *		file list lock for manipulating list of ttys
- *		tty_ldisc_lock from called functions
- *		termios_sem resetting termios data
- *		tasklist_lock to walk task list for hangup event
- *
+ *		  redirect lock for undoing redirection
+ *		  file list lock for manipulating list of ttys
+ *		  tty_ldisc_lock from called functions
+ *		  termios_mutex resetting termios data
+ *		  tasklist_lock to walk task list for hangup event
+ *		    ->siglock to protect ->signal/->sighand
  */
 static void do_tty_hangup(struct work_struct *work)
 {
@@ -1354,14 +1342,18 @@ static void do_tty_hangup(struct work_struct *work)
 	read_lock(&tasklist_lock);
 	if (tty->session > 0) {
 		do_each_task_pid(tty->session, PIDTYPE_SID, p) {
+			spin_lock_irq(&p->sighand->siglock);
 			if (p->signal->tty == tty)
 				p->signal->tty = NULL;
-			if (!p->signal->leader)
+			if (!p->signal->leader) {
+				spin_unlock_irq(&p->sighand->siglock);
 				continue;
-			group_send_sig_info(SIGHUP, SEND_SIG_PRIV, p);
-			group_send_sig_info(SIGCONT, SEND_SIG_PRIV, p);
+			}
+			__group_send_sig_info(SIGHUP, SEND_SIG_PRIV, p);
+			__group_send_sig_info(SIGCONT, SEND_SIG_PRIV, p);
 			if (tty->pgrp > 0)
 				p->signal->tty_old_pgrp = tty->pgrp;
+			spin_unlock_irq(&p->sighand->siglock);
 		} while_each_task_pid(tty->session, PIDTYPE_SID, p);
 	}
 	read_unlock(&tasklist_lock);
@@ -1453,6 +1445,14 @@ int tty_hung_up_p(struct file * filp)
 
 EXPORT_SYMBOL(tty_hung_up_p);
 
+static void session_clear_tty(pid_t session)
+{
+	struct task_struct *p;
+	do_each_task_pid(session, PIDTYPE_SID, p) {
+		proc_clear_tty(p);
+	} while_each_task_pid(session, PIDTYPE_SID, p);
+}
+
 /**
  *	disassociate_ctty	-	disconnect controlling tty
  *	@on_exit: true if exiting so need to "hang up" the session
@@ -1469,31 +1469,35 @@ EXPORT_SYMBOL(tty_hung_up_p);
  *	The argument on_exit is set to 1 if called when a process is
  *	exiting; it is 0 if called by the ioctl TIOCNOTTY.
  *
- *	Locking: tty_mutex is taken to protect current->signal->tty
+ *	Locking:
  *		BKL is taken for hysterical raisins
- *		Tasklist lock is taken (under tty_mutex) to walk process
- *		lists for the session.
+ *		  tty_mutex is taken to protect tty
+ *		  ->siglock is taken to protect ->signal/->sighand
+ *		  tasklist_lock is taken to walk process list for sessions
+ *		    ->siglock is taken to protect ->signal/->sighand
  */
 
 void disassociate_ctty(int on_exit)
 {
 	struct tty_struct *tty;
-	struct task_struct *p;
 	int tty_pgrp = -1;
+	int session;
 
 	lock_kernel();
 
 	mutex_lock(&tty_mutex);
-	tty = current->signal->tty;
+	tty = get_current_tty();
 	if (tty) {
 		tty_pgrp = tty->pgrp;
 		mutex_unlock(&tty_mutex);
+		/* XXX: here we race, there is nothing protecting tty */
 		if (on_exit && tty->driver->type != TTY_DRIVER_TYPE_PTY)
 			tty_vhangup(tty);
 	} else {
-		if (current->signal->tty_old_pgrp) {
-			kill_pg(current->signal->tty_old_pgrp, SIGHUP, on_exit);
-			kill_pg(current->signal->tty_old_pgrp, SIGCONT, on_exit);
+		pid_t old_pgrp = current->signal->tty_old_pgrp;
+		if (old_pgrp) {
+			kill_pg(old_pgrp, SIGHUP, on_exit);
+			kill_pg(old_pgrp, SIGCONT, on_exit);
 		}
 		mutex_unlock(&tty_mutex);
 		unlock_kernel();	
@@ -1505,19 +1509,29 @@ void disassociate_ctty(int on_exit)
 			kill_pg(tty_pgrp, SIGCONT, on_exit);
 	}
 
-	/* Must lock changes to tty_old_pgrp */
-	mutex_lock(&tty_mutex);
+	spin_lock_irq(&current->sighand->siglock);
 	current->signal->tty_old_pgrp = 0;
-	tty->session = 0;
-	tty->pgrp = -1;
+	session = current->signal->session;
+	spin_unlock_irq(&current->sighand->siglock);
+
+	mutex_lock(&tty_mutex);
+	/* It is possible that do_tty_hangup has free'd this tty */
+	tty = get_current_tty();
+	if (tty) {
+		tty->session = 0;
+		tty->pgrp = 0;
+	} else {
+#ifdef TTY_DEBUG_HANGUP
+		printk(KERN_DEBUG "error attempted to write to tty [0x%p]"
+		       " = NULL", tty);
+#endif
+	}
+	mutex_unlock(&tty_mutex);
 
 	/* Now clear signal->tty under the lock */
 	read_lock(&tasklist_lock);
-	do_each_task_pid(current->signal->session, PIDTYPE_SID, p) {
-		p->signal->tty = NULL;
-	} while_each_task_pid(current->signal->session, PIDTYPE_SID, p);
+	session_clear_tty(session);
 	read_unlock(&tasklist_lock);
-	mutex_unlock(&tty_mutex);
 	unlock_kernel();
 }
 
@@ -2337,16 +2351,10 @@ static void release_dev(struct file * filp)
 	 * tty.
 	 */
 	if (tty_closing || o_tty_closing) {
-		struct task_struct *p;
-
 		read_lock(&tasklist_lock);
-		do_each_task_pid(tty->session, PIDTYPE_SID, p) {
-			p->signal->tty = NULL;
-		} while_each_task_pid(tty->session, PIDTYPE_SID, p);
+		session_clear_tty(tty->session);
 		if (o_tty)
-			do_each_task_pid(o_tty->session, PIDTYPE_SID, p) {
-				p->signal->tty = NULL;
-			} while_each_task_pid(o_tty->session, PIDTYPE_SID, p);
+			session_clear_tty(o_tty->session);
 		read_unlock(&tasklist_lock);
 	}
 
@@ -2443,9 +2451,9 @@ static void release_dev(struct file * filp)
  *	The termios state of a pty is reset on first open so that
  *	settings don't persist across reuse.
  *
- *	Locking: tty_mutex protects current->signal->tty, get_tty_driver and
- *		init_dev work. tty->count should protect the rest.
- *		task_lock is held to update task details for sessions
+ *	Locking: tty_mutex protects tty, get_tty_driver and init_dev work.
+ *		 tty->count should protect the rest.
+ *		 ->siglock protects ->signal/->sighand
  */
 
 static int tty_open(struct inode * inode, struct file * filp)
@@ -2467,12 +2475,13 @@ retry_open:
 	mutex_lock(&tty_mutex);
 
 	if (device == MKDEV(TTYAUX_MAJOR,0)) {
-		if (!current->signal->tty) {
+		tty = get_current_tty();
+		if (!tty) {
 			mutex_unlock(&tty_mutex);
 			return -ENXIO;
 		}
-		driver = current->signal->tty->driver;
-		index = current->signal->tty->index;
+		driver = tty->driver;
+		index = tty->index;
 		filp->f_flags |= O_NONBLOCK; /* Don't let /dev/tty block */
 		/* noctty = 1; */
 		goto got_driver;
@@ -2547,17 +2556,16 @@ got_driver:
 			filp->f_op = &tty_fops;
 		goto retry_open;
 	}
+
+	mutex_lock(&tty_mutex);
+	spin_lock_irq(&current->sighand->siglock);
 	if (!noctty &&
 	    current->signal->leader &&
 	    !current->signal->tty &&
-	    tty->session == 0) {
-	    	task_lock(current);
-		current->signal->tty = tty;
-		task_unlock(current);
-		current->signal->tty_old_pgrp = 0;
-		tty->session = current->signal->session;
-		tty->pgrp = process_group(current);
-	}
+	    tty->session == 0)
+		__proc_set_tty(current, tty);
+	spin_unlock_irq(&current->sighand->siglock);
+	mutex_unlock(&tty_mutex);
 	return 0;
 }
 
@@ -2747,7 +2755,7 @@ static int tiocsti(struct tty_struct *tty, char __user *p)
  *
  *	Copies the kernel idea of the window size into the user buffer.
  *
- *	Locking: tty->termios_sem is taken to ensure the winsize data
+ *	Locking: tty->termios_mutex is taken to ensure the winsize data
  *		is consistent.
  */
 
@@ -2774,8 +2782,8 @@ static int tiocgwinsz(struct tty_struct *tty, struct winsize __user * arg)
  *	Locking:
  *		Called function use the console_sem is used to ensure we do
  *	not try and resize the console twice at once.
- *		The tty->termios_sem is used to ensure we don't double
- *	resize and get confused. Lock order - tty->termios.sem before
+ *		The tty->termios_mutex is used to ensure we don't double
+ *	resize and get confused. Lock order - tty->termios_mutex before
  *	console sem
  */
 
@@ -2880,25 +2888,28 @@ static int fionbio(struct file *file, int __user *p)
  *	leader to set this tty as the controlling tty for the session.
  *
  *	Locking:
- *		Takes tasklist lock internally to walk sessions
- *		Takes task_lock() when updating signal->tty
  *		Takes tty_mutex() to protect tty instance
- *
+ *		Takes tasklist_lock internally to walk sessions
+ *		Takes ->siglock() when updating signal->tty
  */
 
 static int tiocsctty(struct tty_struct *tty, int arg)
 {
-	struct task_struct *p;
-
+	int ret = 0;
 	if (current->signal->leader &&
 	    (current->signal->session == tty->session))
-		return 0;
+		return ret;
+
+	mutex_lock(&tty_mutex);
 	/*
 	 * The process must be a session leader and
 	 * not have a controlling tty already.
 	 */
-	if (!current->signal->leader || current->signal->tty)
-		return -EPERM;
+	if (!current->signal->leader || current->signal->tty) {
+		ret = -EPERM;
+		goto unlock;
+	}
+
 	if (tty->session > 0) {
 		/*
 		 * This tty is already the controlling
@@ -2908,24 +2919,18 @@ static int tiocsctty(struct tty_struct *tty, int arg)
 			/*
 			 * Steal it away
 			 */
-
 			read_lock(&tasklist_lock);
-			do_each_task_pid(tty->session, PIDTYPE_SID, p) {
-				p->signal->tty = NULL;
-			} while_each_task_pid(tty->session, PIDTYPE_SID, p);
+			session_clear_tty(tty->session);
 			read_unlock(&tasklist_lock);
-		} else
-			return -EPERM;
+		} else {
+			ret = -EPERM;
+			goto unlock;
+		}
 	}
-	mutex_lock(&tty_mutex);
-	task_lock(current);
-	current->signal->tty = tty;
-	task_unlock(current);
+	proc_set_tty(current, tty);
+unlock:
 	mutex_unlock(&tty_mutex);
-	current->signal->tty_old_pgrp = 0;
-	tty->session = current->signal->session;
-	tty->pgrp = process_group(current);
-	return 0;
+	return ret;
 }
 
 /**
@@ -2937,7 +2942,7 @@ static int tiocsctty(struct tty_struct *tty, int arg)
  *	Obtain the process group of the tty. If there is no process group
  *	return an error.
  *
- *	Locking: none. Reference to ->signal->tty is safe.
+ *	Locking: none. Reference to current->signal->tty is safe.
  */
 
 static int tiocgpgrp(struct tty_struct *tty, struct tty_struct *real_tty, pid_t __user *p)
@@ -2995,7 +3000,7 @@ static int tiocspgrp(struct tty_struct *tty, struct tty_struct *real_tty, pid_t 
  *	Obtain the session id of the tty. If there is no session
  *	return an error.
  *
- *	Locking: none. Reference to ->signal->tty is safe.
+ *	Locking: none. Reference to current->signal->tty is safe.
  */
 
 static int tiocgsid(struct tty_struct *tty, struct tty_struct *real_tty, pid_t __user *p)
@@ -3214,14 +3219,11 @@ int tty_ioctl(struct inode * inode, struct file * file,
 			clear_bit(TTY_EXCLUSIVE, &tty->flags);
 			return 0;
 		case TIOCNOTTY:
-			/* FIXME: taks lock or tty_mutex ? */
 			if (current->signal->tty != tty)
 				return -ENOTTY;
 			if (current->signal->leader)
 				disassociate_ctty(0);
-			task_lock(current);
-			current->signal->tty = NULL;
-			task_unlock(current);
+			proc_clear_tty(current);
 			return 0;
 		case TIOCSCTTY:
 			return tiocsctty(tty, arg);
@@ -3321,7 +3323,7 @@ static void __do_SAK(struct work_struct *work)
 	
 	if (!tty)
 		return;
-	session  = tty->session;
+	session = tty->session;
 	
 	/* We don't want an ldisc switch during this */
 	disc = tty_ldisc_ref(tty);
@@ -3834,9 +3836,52 @@ int tty_unregister_driver(struct tty_driver *driver)
 	cdev_del(&driver->cdev);
 	return 0;
 }
-
 EXPORT_SYMBOL(tty_unregister_driver);
 
+dev_t tty_devnum(struct tty_struct *tty)
+{
+	return MKDEV(tty->driver->major, tty->driver->minor_start) + tty->index;
+}
+EXPORT_SYMBOL(tty_devnum);
+
+void proc_clear_tty(struct task_struct *p)
+{
+	spin_lock_irq(&p->sighand->siglock);
+	p->signal->tty = NULL;
+	spin_unlock_irq(&p->sighand->siglock);
+}
+EXPORT_SYMBOL(proc_clear_tty);
+
+void __proc_set_tty(struct task_struct *tsk, struct tty_struct *tty)
+{
+	if (tty) {
+		tty->session = tsk->signal->session;
+		tty->pgrp = process_group(tsk);
+	}
+	tsk->signal->tty = tty;
+	tsk->signal->tty_old_pgrp = 0;
+}
+
+void proc_set_tty(struct task_struct *tsk, struct tty_struct *tty)
+{
+	spin_lock_irq(&tsk->sighand->siglock);
+	__proc_set_tty(tsk, tty);
+	spin_unlock_irq(&tsk->sighand->siglock);
+}
+
+struct tty_struct *get_current_tty(void)
+{
+	struct tty_struct *tty;
+	WARN_ON_ONCE(!mutex_is_locked(&tty_mutex));
+	tty = current->signal->tty;
+	/*
+	 * session->tty can be changed/cleared from under us, make sure we
+	 * issue the load. The obtained pointer, when not NULL, is valid as
+	 * long as we hold tty_mutex.
+	 */
+	barrier();
+	return tty;
+}
 
 /*
  * Initialize the console device. This is called *early*, so

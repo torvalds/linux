@@ -1484,7 +1484,6 @@ asmlinkage long sys_setsid(void)
 	pid_t session;
 	int err = -EPERM;
 
-	mutex_lock(&tty_mutex);
 	write_lock_irq(&tasklist_lock);
 
 	/* Fail if I am already a session leader */
@@ -1504,12 +1503,15 @@ asmlinkage long sys_setsid(void)
 
 	group_leader->signal->leader = 1;
 	__set_special_pids(session, session);
+
+	spin_lock(&group_leader->sighand->siglock);
 	group_leader->signal->tty = NULL;
 	group_leader->signal->tty_old_pgrp = 0;
+	spin_unlock(&group_leader->sighand->siglock);
+
 	err = process_group(group_leader);
 out:
 	write_unlock_irq(&tasklist_lock);
-	mutex_unlock(&tty_mutex);
 	return err;
 }
 
