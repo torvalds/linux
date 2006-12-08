@@ -3968,6 +3968,10 @@ static int __devinit stli_pciprobe(struct pci_dev *pdev,
 	brdp->state |= BST_PROBED;
 	pci_set_drvdata(pdev, brdp);
 
+	EBRDENABLE(brdp);
+	brdp->enable = NULL;
+	brdp->disable = NULL;
+
 	return 0;
 err_null:
 	stli_brds[brdp->brdnr] = NULL;
@@ -4054,13 +4058,6 @@ static int stli_initbrds(void)
 	if (retval > 0)
 		found += retval;
 
-	retval = pci_register_driver(&stli_pcidriver);
-	if (retval && found == 0) {
-		printk(KERN_ERR "Neither isa nor eisa cards found nor pci "
-				"driver can be registered!\n");
-		goto err;
-	}
-
 /*
  *	All found boards are initialized. Now for a little optimization, if
  *	no boards are sharing the "shared memory" regions then we can just
@@ -4097,6 +4094,13 @@ static int stli_initbrds(void)
 				brdp->disable = NULL;
 			}
 		}
+	}
+
+	retval = pci_register_driver(&stli_pcidriver);
+	if (retval && found == 0) {
+		printk(KERN_ERR "Neither isa nor eisa cards found nor pci "
+				"driver can be registered!\n");
+		goto err;
 	}
 
 	return 0;
