@@ -1055,6 +1055,8 @@ int __init cyberfb_init(void)
 
 	    if (register_framebuffer(&fb_info) < 0) {
 		    DPRINTK("EXIT - register_framebuffer failed\n");
+			if (CyberBase)
+				iounmap(CyberBase);
 		    release_mem_region(CyberMem_phys, 0x400000);
 		    release_mem_region(CyberRegs_phys, 0x10000);
 		    return -EINVAL;
