@@ -422,11 +422,6 @@ static int __init pSeries_probe_hypertas(unsigned long node,
 	if (of_get_flat_dt_prop(node, "ibm,hypertas-functions", NULL) != NULL)
  		powerpc_firmware_features |= FW_FEATURE_LPAR;
 
-	if (firmware_has_feature(FW_FEATURE_LPAR))
-		hpte_init_lpar();
-	else
-		hpte_init_native();
-
  	return 1;
 }
 
@@ -451,6 +446,11 @@ static int __init pSeries_probe(void)
 
 	/* Now try to figure out if we are running on LPAR */
 	of_scan_flat_dt(pSeries_probe_hypertas, NULL);
+
+	if (firmware_has_feature(FW_FEATURE_LPAR))
+		hpte_init_lpar();
+	else
+		hpte_init_native();
 
 	DBG("Machine is%s LPAR !\n",
 	    (powerpc_firmware_features & FW_FEATURE_LPAR) ? "" : " not");
