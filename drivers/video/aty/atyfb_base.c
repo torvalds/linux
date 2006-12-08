@@ -3629,6 +3629,7 @@ static int __init atyfb_atari_probe(void)
 	struct fb_info *info;
 	int m64_num;
 	u32 clock_r;
+	int num_found = 0;
 
 	for (m64_num = 0; m64_num < mach64_count; m64_num++) {
 		if (!phys_vmembase[m64_num] || !phys_size[m64_num] ||
@@ -3676,16 +3677,28 @@ static int __init atyfb_atari_probe(void)
 			break;
 		}
 
-		if (aty_init(info)) {
-			if (info->screen_base)
-				iounmap(info->screen_base);
-			if (par->ati_regbase)
-				iounmap(par->ati_regbase);
+		/* Fake pci_id for correct_chipset() */
+		switch (aty_ld_le32(CONFIG_CHIP_ID, par) & CFG_CHIP_TYPE) {
+		case 0x00d7:
+			par->pci_id = PCI_CHIP_MACH64GX;
+			break;
+		case 0x0057:
+			par->pci_id = PCI_CHIP_MACH64CX;
+			break;
+		default:
+			break;
+		}
+
+		if (correct_chipset(par) || aty_init(info)) {
+			iounmap(info->screen_base);
+			iounmap(par->ati_regbase);
 			framebuffer_release(info);
-			/* This is insufficient! kernel_map has added two large chunks!! */
-			return -ENXIO;
+		} else {
+			num_found++;
 		}
 	}
+
+	return num_found ? 0 : -ENXIO;
 }
 
 #endif /* CONFIG_ATARI */
