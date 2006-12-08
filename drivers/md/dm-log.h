@@ -90,12 +90,12 @@ struct dirty_log_type {
 	int (*get_resync_work)(struct dirty_log *log, region_t *region);
 
 	/*
-	 * This notifies the log that the resync of an area has
-	 * been completed.  The log should then mark this region
-	 * as CLEAN.
+	 * This notifies the log that the resync status of a region
+	 * has changed.  It also clears the region from the recovering
+	 * list (if present).
 	 */
-	void (*complete_resync_work)(struct dirty_log *log,
-				     region_t region, int success);
+	void (*set_region_sync)(struct dirty_log *log,
+				region_t region, int in_sync);
 
         /*
 	 * Returns the number of regions that are in sync.
