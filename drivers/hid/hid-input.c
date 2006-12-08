@@ -128,12 +128,6 @@ static struct hidinput_key_translation powerbook_iso_keyboard[] = {
 	{ }
 };
 
-
-static int usbhid_pb_fnmode = 1;
-module_param_named(pb_fnmode, usbhid_pb_fnmode, int, 0644);
-MODULE_PARM_DESC(pb_fnmode,
-		"Mode of fn key on PowerBooks (0 = disabled, 1 = fkeyslast, 2 = fkeysfirst)");
-
 static struct hidinput_key_translation *find_translation(struct hidinput_key_translation *table, u16 from)
 {
 	struct hidinput_key_translation *trans;
@@ -160,7 +154,7 @@ static int hidinput_pb_event(struct hid_device *hid, struct input_dev *input,
 		return 1;
 	}
 
-	if (usbhid_pb_fnmode) {
+	if (hid->pb_fnmode) {
 		int do_translate;
 
 		trans = find_translation(powerbook_fn_keys, usage->code);
@@ -169,8 +163,8 @@ static int hidinput_pb_event(struct hid_device *hid, struct input_dev *input,
 				do_translate = 1;
 			else if (trans->flags & POWERBOOK_FLAG_FKEY)
 				do_translate =
-					(usbhid_pb_fnmode == 2 &&  (hid->quirks & HID_QUIRK_POWERBOOK_FN_ON)) ||
-					(usbhid_pb_fnmode == 1 && !(hid->quirks & HID_QUIRK_POWERBOOK_FN_ON));
+					(hid->pb_fnmode == 2 &&  (hid->quirks & HID_QUIRK_POWERBOOK_FN_ON)) ||
+					(hid->pb_fnmode == 1 && !(hid->quirks & HID_QUIRK_POWERBOOK_FN_ON));
 			else
 				do_translate = (hid->quirks & HID_QUIRK_POWERBOOK_FN_ON);
 

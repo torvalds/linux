@@ -438,6 +438,7 @@ struct hid_device {							/* device report descriptor */
 				  struct hid_usage *, __s32);
 	void (*hiddev_report_event) (struct hid_device *, struct hid_report *);
 #ifdef CONFIG_USB_HIDINPUT_POWERBOOK
+	unsigned int  pb_fnmode;
 	unsigned long pb_pressed_fn[NBITS(KEY_MAX)];
 	unsigned long pb_pressed_numlock[NBITS(KEY_MAX)];
 #endif

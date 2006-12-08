@@ -56,6 +56,11 @@ static unsigned int hid_mousepoll_interval;
 module_param_named(mousepoll, hid_mousepoll_interval, uint, 0644);
 MODULE_PARM_DESC(mousepoll, "Polling interval of mice");
 
+static int usbhid_pb_fnmode = 1;
+module_param_named(pb_fnmode, usbhid_pb_fnmode, int, 0644);
+MODULE_PARM_DESC(pb_fnmode,
+		"Mode of fn key on PowerBooks (0 = disabled, 1 = fkeyslast, 2 = fkeysfirst)");
+
 /*
  * Input submission and I/O error handler.
  */
@@ -1231,6 +1236,9 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 #ifdef CONFIG_USB_HIDDEV
 	hid->hiddev_hid_event = hiddev_hid_event;
 	hid->hiddev_report_event = hiddev_report_event;
+#endif
+#ifdef CONFIG_USB_HIDINPUT_POWERBOOK
+	hid->pb_fnmode = usbhid_pb_fnmode;
 #endif
 
 	return hid;
