@@ -4545,96 +4545,10 @@ static const struct tty_operations stli_ops = {
  *	Loadable module initialization stuff.
  */
 
-static int __init istallion_module_init(void)
-{
-	int i;
-
-	printk(KERN_INFO "%s: version %s\n", stli_drvtitle, stli_drvversion);
-
-	spin_lock_init(&stli_lock);
-	spin_lock_init(&brd_lock);
-
-	stli_initbrds();
-
-	stli_serial = alloc_tty_driver(STL_MAXBRDS * STL_MAXPORTS);
-	if (!stli_serial)
-		return -ENOMEM;
-
-/*
- *	Allocate a temporary write buffer.
- */
-	stli_txcookbuf = kmalloc(STLI_TXBUFSIZE, GFP_KERNEL);
-	if (!stli_txcookbuf)
-		printk(KERN_ERR "STALLION: failed to allocate memory "
-				"(size=%d)\n", STLI_TXBUFSIZE);
-
-/*
- *	Set up a character driver for the shared memory region. We need this
- *	to down load the slave code image. Also it is a useful debugging tool.
- */
-	if (register_chrdev(STL_SIOMEMMAJOR, "staliomem", &stli_fsiomem))
-		printk(KERN_ERR "STALLION: failed to register serial memory "
-				"device\n");
-
-	istallion_class = class_create(THIS_MODULE, "staliomem");
-	for (i = 0; i < 4; i++)
-		class_device_create(istallion_class, NULL,
-				MKDEV(STL_SIOMEMMAJOR, i),
-				NULL, "staliomem%d", i);
-
-/*
- *	Set up the tty driver structure and register us as a driver.
- */
-	stli_serial->owner = THIS_MODULE;
-	stli_serial->driver_name = stli_drvname;
-	stli_serial->name = stli_serialname;
-	stli_serial->major = STL_SERIALMAJOR;
-	stli_serial->minor_start = 0;
-	stli_serial->type = TTY_DRIVER_TYPE_SERIAL;
-	stli_serial->subtype = SERIAL_TYPE_NORMAL;
-	stli_serial->init_termios = stli_deftermios;
-	stli_serial->flags = TTY_DRIVER_REAL_RAW;
-	tty_set_operations(stli_serial, &stli_ops);
-
-	if (tty_register_driver(stli_serial)) {
-		put_tty_driver(stli_serial);
-		printk(KERN_ERR "STALLION: failed to register serial driver\n");
-		return -EBUSY;
-	}
-	return 0;
-}
-
-/*****************************************************************************/
-
-static void __exit istallion_module_exit(void)
+static void istallion_cleanup_isa(void)
 {
 	struct stlibrd	*brdp;
 	unsigned int j;
-	int		i;
-
-	printk(KERN_INFO "Unloading %s: version %s\n", stli_drvtitle,
-		stli_drvversion);
-
-	pci_unregister_driver(&stli_pcidriver);
-	/*
-	 *	Free up all allocated resources used by the ports. This includes
-	 *	memory and interrupts.
-	 */
-	if (stli_timeron) {
-		stli_timeron = 0;
-		del_timer_sync(&stli_timerlist);
-	}
-
-	i = tty_unregister_driver(stli_serial);
-	put_tty_driver(stli_serial);
-	for (j = 0; j < 4; j++)
-		class_device_destroy(istallion_class, MKDEV(STL_SIOMEMMAJOR, j));
-	class_destroy(istallion_class);
-	if ((i = unregister_chrdev(STL_SIOMEMMAJOR, "staliomem")))
-		printk("STALLION: failed to un-register serial memory device, "
-			"errno=%d\n", -i);
-
-	kfree(stli_txcookbuf);
 
 	for (j = 0; (j < stli_nrbrds); j++) {
 		if ((brdp = stli_brds[j]) == NULL || (brdp->state & BST_PROBED))
@@ -4648,6 +4562,112 @@ static void __exit istallion_module_exit(void)
 		kfree(brdp);
 		stli_brds[j] = NULL;
 	}
+}
+
+static int __init istallion_module_init(void)
+{
+	unsigned int i;
+	int retval;
+
+	printk(KERN_INFO "%s: version %s\n", stli_drvtitle, stli_drvversion);
+
+	spin_lock_init(&stli_lock);
+	spin_lock_init(&brd_lock);
+
+	stli_txcookbuf = kmalloc(STLI_TXBUFSIZE, GFP_KERNEL);
+	if (!stli_txcookbuf) {
+		printk(KERN_ERR "STALLION: failed to allocate memory "
+				"(size=%d)\n", STLI_TXBUFSIZE);
+		retval = -ENOMEM;
+		goto err;
+	}
+
+	stli_serial = alloc_tty_driver(STL_MAXBRDS * STL_MAXPORTS);
+	if (!stli_serial) {
+		retval = -ENOMEM;
+		goto err_free;
+	}
+
+	stli_serial->owner = THIS_MODULE;
+	stli_serial->driver_name = stli_drvname;
+	stli_serial->name = stli_serialname;
+	stli_serial->major = STL_SERIALMAJOR;
+	stli_serial->minor_start = 0;
+	stli_serial->type = TTY_DRIVER_TYPE_SERIAL;
+	stli_serial->subtype = SERIAL_TYPE_NORMAL;
+	stli_serial->init_termios = stli_deftermios;
+	stli_serial->flags = TTY_DRIVER_REAL_RAW;
+	tty_set_operations(stli_serial, &stli_ops);
+
+	retval = tty_register_driver(stli_serial);
+	if (retval) {
+		printk(KERN_ERR "STALLION: failed to register serial driver\n");
+		goto err_ttyput;
+	}
+
+	retval = stli_initbrds();
+	if (retval)
+		goto err_ttyunr;
+
+/*
+ *	Set up a character driver for the shared memory region. We need this
+ *	to down load the slave code image. Also it is a useful debugging tool.
+ */
+	retval = register_chrdev(STL_SIOMEMMAJOR, "staliomem", &stli_fsiomem);
+	if (retval) {
+		printk(KERN_ERR "STALLION: failed to register serial memory "
+				"device\n");
+		goto err_deinit;
+	}
+
+	istallion_class = class_create(THIS_MODULE, "staliomem");
+	for (i = 0; i < 4; i++)
+		class_device_create(istallion_class, NULL,
+				MKDEV(STL_SIOMEMMAJOR, i),
+				NULL, "staliomem%d", i);
+
+	return 0;
+err_deinit:
+	pci_unregister_driver(&stli_pcidriver);
+	istallion_cleanup_isa();
+err_ttyunr:
+	tty_unregister_driver(stli_serial);
+err_ttyput:
+	put_tty_driver(stli_serial);
+err_free:
+	kfree(stli_txcookbuf);
+err:
+	return retval;
+}
+
+/*****************************************************************************/
+
+static void __exit istallion_module_exit(void)
+{
+	unsigned int j;
+
+	printk(KERN_INFO "Unloading %s: version %s\n", stli_drvtitle,
+		stli_drvversion);
+
+	if (stli_timeron) {
+		stli_timeron = 0;
+		del_timer_sync(&stli_timerlist);
+	}
+
+	unregister_chrdev(STL_SIOMEMMAJOR, "staliomem");
+
+	for (j = 0; j < 4; j++)
+		class_device_destroy(istallion_class, MKDEV(STL_SIOMEMMAJOR,
+					j));
+	class_destroy(istallion_class);
+
+	pci_unregister_driver(&stli_pcidriver);
+	istallion_cleanup_isa();
+
+	tty_unregister_driver(stli_serial);
+	put_tty_driver(stli_serial);
+
+	kfree(stli_txcookbuf);
 }
 
 module_init(istallion_module_init);
