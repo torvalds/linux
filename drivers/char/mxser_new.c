@@ -1065,7 +1065,6 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 
 	unsigned long timeout;
 	unsigned long flags;
-	struct tty_ldisc *ld;
 
 	if (tty->index == MXSER_PORTS)
 		return;
@@ -1145,12 +1144,7 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 	if (tty->driver->flush_buffer)
 		tty->driver->flush_buffer(tty);
 
-	ld = tty_ldisc_ref(tty);
-	if (ld) {
-		if (ld->flush_buffer)
-			ld->flush_buffer(tty);
-		tty_ldisc_deref(ld);
-	}
+	tty_ldisc_flush(tty);
 
 	tty->closing = 0;
 	info->event = 0;
@@ -1303,9 +1297,7 @@ static void mxser_flush_buffer(struct tty_struct *tty)
 	spin_unlock_irqrestore(&info->slock, flags);
 	/* above added by shinhay */
 
-	wake_up_interruptible(&tty->write_wait);
-	if ((tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) && tty->ldisc.write_wakeup)
-		(tty->ldisc.write_wakeup) (tty);
+	tty_wakeup(tty);
 }
 
 /*
