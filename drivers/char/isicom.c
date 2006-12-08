@@ -172,6 +172,7 @@ static struct pci_driver isicom_driver = {
 static int prev_card = 3;	/*	start servicing isi_card[0]	*/
 static struct tty_driver *isicom_normal;
 
+static DECLARE_COMPLETION(isi_timerdone);
 static struct timer_list tx;
 static char re_schedule = 1;
 
@@ -514,7 +515,7 @@ static void isicom_tx(unsigned long _data)
 	/*	schedule another tx for hopefully in about 10ms	*/
 sched_again:
 	if (!re_schedule) {
-		re_schedule = 2;
+		complete(&isi_timerdone);
  		return;
 	}
 
@@ -1924,12 +1925,9 @@ error:
 
 static void __exit isicom_exit(void)
 {
-	unsigned int index = 0;
-
 	re_schedule = 0;
 
-	while (re_schedule != 2 && index++ < 100)
-		msleep(10);
+	wait_for_completion_timeout(&isi_timerdone, HZ);
 
 	pci_unregister_driver(&isicom_driver);
 	tty_unregister_driver(isicom_normal);
