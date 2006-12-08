@@ -45,7 +45,7 @@
 #include <linux/sysrq.h>
 #include <linux/vmalloc.h>
 #include <linux/crash_dump.h>
-#include <linux/pspace.h>
+#include <linux/pid_namespace.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
@@ -92,7 +92,7 @@ static int loadavg_read_proc(char *page, char **start, off_t off,
 		LOAD_INT(a), LOAD_FRAC(a),
 		LOAD_INT(b), LOAD_FRAC(b),
 		LOAD_INT(c), LOAD_FRAC(c),
-		nr_running(), nr_threads, init_pspace.last_pid);
+		nr_running(), nr_threads, init_pid_ns.last_pid);
 	return proc_calc_metrics(page, start, off, count, eof, len);
 }
 

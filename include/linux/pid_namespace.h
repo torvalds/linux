@@ -1,5 +1,5 @@
-#ifndef _LINUX_PSPACE_H
-#define _LINUX_PSPACE_H
+#ifndef _LINUX_PID_NS_H
+#define _LINUX_PID_NS_H
 
 #include <linux/sched.h>
 #include <linux/mm.h>
@@ -13,11 +13,11 @@ struct pidmap {
 
 #define PIDMAP_ENTRIES         ((PID_MAX_LIMIT + 8*PAGE_SIZE - 1)/PAGE_SIZE/8)
 
-struct pspace {
+struct pid_namespace {
        struct pidmap pidmap[PIDMAP_ENTRIES];
        int last_pid;
 };
 
-extern struct pspace init_pspace;
+extern struct pid_namespace init_pid_ns;
 
-#endif /* _LINUX_PSPACE_H */
+#endif /* _LINUX_PID_NS_H */
