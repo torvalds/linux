@@ -482,21 +482,6 @@ struct block_device {
 };
 
 /*
- * bdev->bd_mutex nesting subclasses for the lock validator:
- *
- * 0: normal
- * 1: 'whole'
- * 2: 'partition'
- */
-enum bdev_bd_mutex_lock_class
-{
-	BD_MUTEX_NORMAL,
-	BD_MUTEX_WHOLE,
-	BD_MUTEX_PARTITION
-};
-
-
-/*
  * Radix-tree tags, for tagging dirty and writeback pages within the pagecache
  * radix trees
  */
@@ -1499,7 +1484,6 @@ extern void bd_set_size(struct block_device *, loff_t size);
 extern void bd_forget(struct inode *inode);
 extern void bdput(struct block_device *);
 extern struct block_device *open_by_devnum(dev_t, unsigned);
-extern struct block_device *open_partition_by_devnum(dev_t, unsigned);
 extern const struct address_space_operations def_blk_aops;
 #else
 static inline void bd_forget(struct inode *inode) {}
@@ -1517,7 +1501,6 @@ extern int blkdev_driver_ioctl(struct inode *inode, struct file *file,
 extern long compat_blkdev_ioctl(struct file *, unsigned, unsigned long);
 extern int blkdev_get(struct block_device *, mode_t, unsigned);
 extern int blkdev_put(struct block_device *);
-extern int blkdev_put_partition(struct block_device *);
 extern int bd_claim(struct block_device *, void *);
 extern void bd_release(struct block_device *);
 #ifdef CONFIG_SYSFS

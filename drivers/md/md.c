@@ -1413,7 +1413,7 @@ static int lock_rdev(mdk_rdev_t *rdev, dev_t dev)
 	struct block_device *bdev;
 	char b[BDEVNAME_SIZE];
 
-	bdev = open_partition_by_devnum(dev, FMODE_READ|FMODE_WRITE);
+	bdev = open_by_devnum(dev, FMODE_READ|FMODE_WRITE);
 	if (IS_ERR(bdev)) {
 		printk(KERN_ERR "md: could not open %s.\n",
 			__bdevname(dev, b));
@@ -1423,7 +1423,7 @@ static int lock_rdev(mdk_rdev_t *rdev, dev_t dev)
 	if (err) {
 		printk(KERN_ERR "md: could not bd_claim %s.\n",
 			bdevname(bdev, b));
-		blkdev_put_partition(bdev);
+		blkdev_put(bdev);
 		return err;
 	}
 	rdev->bdev = bdev;
@@ -1437,7 +1437,7 @@ static void unlock_rdev(mdk_rdev_t *rdev)
 	if (!bdev)
 		MD_BUG();
 	bd_release(bdev);
-	blkdev_put_partition(bdev);
+	blkdev_put(bdev);
 }
 
 void md_autodetect_dev(dev_t dev);
