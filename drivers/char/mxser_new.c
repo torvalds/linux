@@ -2683,7 +2683,7 @@ static int __init mxser_module_init(void)
 
 	/* Initialize the tty_driver structure */
 	mxvar_sdriver->magic = TTY_DRIVER_MAGIC;
-	mxvar_sdriver->name = "ttyM";
+	mxvar_sdriver->name = "ttyMI";
 	mxvar_sdriver->major = ttymajor;
 	mxvar_sdriver->minor_start = 0;
 	mxvar_sdriver->num = MXSER_PORTS + 1;
