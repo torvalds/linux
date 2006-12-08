@@ -621,7 +621,7 @@ static long read_ecp(unsigned minor, char __user *c, unsigned long cnt)
 static ssize_t bpp_read(struct file *f, char __user *c, size_t cnt, loff_t * ppos)
 {
       long rc;
-      unsigned minor = iminor(f->f_dentry->d_inode);
+      unsigned minor = iminor(f->f_path.dentry->d_inode);
       if (minor >= BPP_NO) return -ENODEV;
       if (!instances[minor].present) return -ENODEV;
 
@@ -774,7 +774,7 @@ static long write_ecp(unsigned minor, const char __user *c, unsigned long cnt)
 static ssize_t bpp_write(struct file *f, const char __user *c, size_t cnt, loff_t * ppos)
 {
       long errno = 0;
-      unsigned minor = iminor(f->f_dentry->d_inode);
+      unsigned minor = iminor(f->f_path.dentry->d_inode);
       if (minor >= BPP_NO) return -ENODEV;
       if (!instances[minor].present) return -ENODEV;
 
