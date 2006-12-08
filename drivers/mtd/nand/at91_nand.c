@@ -128,6 +128,9 @@ static int __init at91_nand_probe(struct platform_device *pdev)
 	nand_chip->ecc.mode = NAND_ECC_SOFT;	/* enable ECC */
 	nand_chip->chip_delay = 20;		/* 20us command delay time */
 
+	if (host->board->bus_width_16)		/* 16-bit bus width */
+		nand_chip->options |= NAND_BUSWIDTH_16;
+
 	platform_set_drvdata(pdev, host);
 	at91_nand_enable(host);
 
