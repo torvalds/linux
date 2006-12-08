@@ -1687,22 +1687,12 @@ static void mxser_startrx(struct tty_struct *tty)
  */
 static void mxser_throttle(struct tty_struct *tty)
 {
-	struct mxser_port *info = tty->driver_data;
-	unsigned long flags;
-
-	spin_lock_irqsave(&info->slock, flags);
 	mxser_stoprx(tty);
-	spin_unlock_irqrestore(&info->slock, flags);
 }
 
 static void mxser_unthrottle(struct tty_struct *tty)
 {
-	struct mxser_port *info = tty->driver_data;
-	unsigned long flags;
-
-	spin_lock_irqsave(&info->slock, flags);
 	mxser_startrx(tty);
-	spin_unlock_irqrestore(&info->slock, flags);
 }
 
 static void mxser_set_termios(struct tty_struct *tty, struct termios *old_termios)
@@ -1930,7 +1920,6 @@ static irqreturn_t mxser_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 				}
 				/* above add by Victor Yu. 09-13-2002 */
 
-				spin_lock(&port->slock);
 				/* following add by Victor Yu. 09-02-2002 */
 				status = inb(port->ioaddr + UART_LSR);
 
@@ -1981,7 +1970,6 @@ static irqreturn_t mxser_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 					if (status & UART_LSR_THRE)
 						mxser_transmit_chars(port);
 				}
-				spin_unlock(&port->slock);
 			} while (int_cnt++ < MXSER_ISR_PASS_LIMIT);
 		}
 		if (pass_counter++ > MXSER_ISR_PASS_LIMIT)
