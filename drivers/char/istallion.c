@@ -355,6 +355,7 @@ MODULE_PARM_DESC(board2, "Board 2 config -> name[,ioaddr[,memaddr]");
 module_param_array(board3, charp, NULL, 0);
 MODULE_PARM_DESC(board3, "Board 3 config -> name[,ioaddr[,memaddr]");
 
+#if STLI_EISAPROBE != 0
 /*
  *	Set up a default memory address table for EISA board probing.
  *	The default addresses are all bellow 1Mbyte, which has to be the
@@ -372,6 +373,7 @@ static unsigned long	stli_eisamemprobeaddrs[] = {
 };
 
 static int	stli_eisamempsize = ARRAY_SIZE(stli_eisamemprobeaddrs);
+#endif
 
 /*
  *	Define the Stallion PCI vendor and device IDs.
@@ -684,7 +686,9 @@ static struct stliport *stli_getport(unsigned int brdnr, unsigned int panelnr, u
 
 static int	stli_initecp(struct stlibrd *brdp);
 static int	stli_initonb(struct stlibrd *brdp);
+#if STLI_EISAPROBE != 0
 static int	stli_eisamemprobe(struct stlibrd *brdp);
+#endif
 static int	stli_initports(struct stlibrd *brdp);
 
 /*****************************************************************************/
@@ -3711,6 +3715,7 @@ static int __devinit stli_brdinit(struct stlibrd *brdp)
 	return 0;
 }
 
+#if STLI_EISAPROBE != 0
 /*****************************************************************************/
 
 /*
@@ -3804,6 +3809,7 @@ static int stli_eisamemprobe(struct stlibrd *brdp)
 	}
 	return 0;
 }
+#endif
 
 static int stli_getbrdnr(void)
 {
@@ -3819,6 +3825,7 @@ static int stli_getbrdnr(void)
 	return -1;
 }
 
+#if STLI_EISAPROBE != 0
 /*****************************************************************************/
 
 /*
@@ -3894,6 +3901,9 @@ static int stli_findeisabrds(void)
 
 	return 0;
 }
+#else
+static inline int stli_findeisabrds(void) { return 0; }
+#endif
 
 /*****************************************************************************/
 
@@ -4019,8 +4029,7 @@ static int stli_initbrds(void)
 		stli_brdinit(brdp);
 	}
 
-	if (STLI_EISAPROBE)
-		stli_findeisabrds();
+	stli_findeisabrds();
 
 	retval = pci_register_driver(&stli_pcidriver);
 	/* TODO: check retval and do something */
