@@ -262,7 +262,7 @@ static void pidff_set_envelope_report(struct pidff_device *pidff,
 	debug("attack %u => %d", envelope->attack_level,
 	      pidff->set_envelope[PID_ATTACK_LEVEL].value[0]);
 
-	hid_submit_report(pidff->hid, pidff->reports[PID_SET_ENVELOPE],
+	usbhid_submit_report(pidff->hid, pidff->reports[PID_SET_ENVELOPE],
 			  USB_DIR_OUT);
 }
 
@@ -289,7 +289,7 @@ static void pidff_set_constant_force_report(struct pidff_device *pidff,
 	pidff_set_signed(&pidff->set_constant[PID_MAGNITUDE],
 			 effect->u.constant.level);
 
-	hid_submit_report(pidff->hid, pidff->reports[PID_SET_CONSTANT],
+	usbhid_submit_report(pidff->hid, pidff->reports[PID_SET_CONSTANT],
 			  USB_DIR_OUT);
 }
 
@@ -324,7 +324,7 @@ static void pidff_set_effect_report(struct pidff_device *pidff,
 				pidff->effect_direction);
 	pidff->set_effect[PID_START_DELAY].value[0] = effect->replay.delay;
 
-	hid_submit_report(pidff->hid, pidff->reports[PID_SET_EFFECT],
+	usbhid_submit_report(pidff->hid, pidff->reports[PID_SET_EFFECT],
 			  USB_DIR_OUT);
 }
 
@@ -356,7 +356,7 @@ static void pidff_set_periodic_report(struct pidff_device *pidff,
 	pidff_set(&pidff->set_periodic[PID_PHASE], effect->u.periodic.phase);
 	pidff->set_periodic[PID_PERIOD].value[0] = effect->u.periodic.period;
 
-	hid_submit_report(pidff->hid, pidff->reports[PID_SET_PERIODIC],
+	usbhid_submit_report(pidff->hid, pidff->reports[PID_SET_PERIODIC],
 			  USB_DIR_OUT);
 
 }
@@ -398,8 +398,8 @@ static void pidff_set_condition_report(struct pidff_device *pidff,
 			  effect->u.condition[i].left_saturation);
 		pidff_set(&pidff->set_condition[PID_DEAD_BAND],
 			  effect->u.condition[i].deadband);
-		hid_wait_io(pidff->hid);
-		hid_submit_report(pidff->hid, pidff->reports[PID_SET_CONDITION],
+		usbhid_wait_io(pidff->hid);
+		usbhid_submit_report(pidff->hid, pidff->reports[PID_SET_CONDITION],
 				  USB_DIR_OUT);
 	}
 }
@@ -440,7 +440,7 @@ static void pidff_set_ramp_force_report(struct pidff_device *pidff,
 			 effect->u.ramp.start_level);
 	pidff_set_signed(&pidff->set_ramp[PID_RAMP_END],
 			 effect->u.ramp.end_level);
-	hid_submit_report(pidff->hid, pidff->reports[PID_SET_RAMP],
+	usbhid_submit_report(pidff->hid, pidff->reports[PID_SET_RAMP],
 			  USB_DIR_OUT);
 }
 
@@ -465,19 +465,19 @@ static int pidff_request_effect_upload(struct pidff_device *pidff, int efnum)
 	int j;
 
 	pidff->create_new_effect_type->value[0] = efnum;
-	hid_submit_report(pidff->hid, pidff->reports[PID_CREATE_NEW_EFFECT],
+	usbhid_submit_report(pidff->hid, pidff->reports[PID_CREATE_NEW_EFFECT],
 			  USB_DIR_OUT);
 	debug("create_new_effect sent, type: %d", efnum);
 
 	pidff->block_load[PID_EFFECT_BLOCK_INDEX].value[0] = 0;
 	pidff->block_load_status->value[0] = 0;
-	hid_wait_io(pidff->hid);
+	usbhid_wait_io(pidff->hid);
 
 	for (j = 0; j < 60; j++) {
 		debug("pid_block_load requested");
-		hid_submit_report(pidff->hid, pidff->reports[PID_BLOCK_LOAD],
+		usbhid_submit_report(pidff->hid, pidff->reports[PID_BLOCK_LOAD],
 				  USB_DIR_IN);
-		hid_wait_io(pidff->hid);
+		usbhid_wait_io(pidff->hid);
 		if (pidff->block_load_status->value[0] ==
 		    pidff->status_id[PID_BLOCK_LOAD_SUCCESS]) {
 			debug("device reported free memory: %d bytes",
@@ -513,8 +513,8 @@ static void pidff_playback_pid(struct pidff_device *pidff, int pid_id, int n)
 		pidff->effect_operation[PID_LOOP_COUNT].value[0] = n;
 	}
 
-	hid_wait_io(pidff->hid);
-	hid_submit_report(pidff->hid, pidff->reports[PID_EFFECT_OPERATION],
+	usbhid_wait_io(pidff->hid);
+	usbhid_submit_report(pidff->hid, pidff->reports[PID_EFFECT_OPERATION],
 			  USB_DIR_OUT);
 }
 
@@ -536,7 +536,7 @@ static int pidff_playback(struct input_dev *dev, int effect_id, int value)
 static void pidff_erase_pid(struct pidff_device *pidff, int pid_id)
 {
 	pidff->block_free[PID_EFFECT_BLOCK_INDEX].value[0] = pid_id;
-	hid_submit_report(pidff->hid, pidff->reports[PID_BLOCK_FREE],
+	usbhid_submit_report(pidff->hid, pidff->reports[PID_BLOCK_FREE],
 			  USB_DIR_OUT);
 }
 
@@ -716,7 +716,7 @@ static void pidff_set_gain(struct input_dev *dev, u16 gain)
 	struct pidff_device *pidff = dev->ff->private;
 
 	pidff_set(&pidff->device_gain[PID_DEVICE_GAIN_FIELD], gain);
-	hid_submit_report(pidff->hid, pidff->reports[PID_DEVICE_GAIN],
+	usbhid_submit_report(pidff->hid, pidff->reports[PID_DEVICE_GAIN],
 			  USB_DIR_OUT);
 }
 
@@ -741,7 +741,7 @@ static void pidff_autocenter(struct pidff_device *pidff, u16 magnitude)
 	pidff_set(&pidff->set_effect[PID_GAIN], magnitude);
 	pidff->set_effect[PID_START_DELAY].value[0] = 0;
 
-	hid_submit_report(pidff->hid, pidff->reports[PID_SET_EFFECT],
+	usbhid_submit_report(pidff->hid, pidff->reports[PID_SET_EFFECT],
 			  USB_DIR_OUT);
 }
 
@@ -1165,19 +1165,19 @@ static void pidff_reset(struct pidff_device *pidff)
 
 	pidff->device_control->value[0] = pidff->control_id[PID_RESET];
 	/* We reset twice as sometimes hid_wait_io isn't waiting long enough */
-	hid_submit_report(hid, pidff->reports[PID_DEVICE_CONTROL], USB_DIR_OUT);
-	hid_wait_io(hid);
-	hid_submit_report(hid, pidff->reports[PID_DEVICE_CONTROL], USB_DIR_OUT);
-	hid_wait_io(hid);
+	usbhid_submit_report(hid, pidff->reports[PID_DEVICE_CONTROL], USB_DIR_OUT);
+	usbhid_wait_io(hid);
+	usbhid_submit_report(hid, pidff->reports[PID_DEVICE_CONTROL], USB_DIR_OUT);
+	usbhid_wait_io(hid);
 
 	pidff->device_control->value[0] =
 		pidff->control_id[PID_ENABLE_ACTUATORS];
-	hid_submit_report(hid, pidff->reports[PID_DEVICE_CONTROL], USB_DIR_OUT);
-	hid_wait_io(hid);
+	usbhid_submit_report(hid, pidff->reports[PID_DEVICE_CONTROL], USB_DIR_OUT);
+	usbhid_wait_io(hid);
 
 	/* pool report is sometimes messed up, refetch it */
-	hid_submit_report(hid, pidff->reports[PID_POOL], USB_DIR_IN);
-	hid_wait_io(hid);
+	usbhid_submit_report(hid, pidff->reports[PID_POOL], USB_DIR_IN);
+	usbhid_wait_io(hid);
 
 	if (pidff->pool[PID_SIMULTANEOUS_MAX].value) {
 		int sim_effects = pidff->pool[PID_SIMULTANEOUS_MAX].value[0];
@@ -1189,9 +1189,9 @@ static void pidff_reset(struct pidff_device *pidff)
 				break;
 			}
 			debug("pid_pool requested again");
-			hid_submit_report(hid, pidff->reports[PID_POOL],
+			usbhid_submit_report(hid, pidff->reports[PID_POOL],
 					  USB_DIR_IN);
-			hid_wait_io(hid);
+			usbhid_wait_io(hid);
 		}
 	}
 }
@@ -1277,7 +1277,7 @@ int hid_pidff_init(struct hid_device *hid)
 
 	if (test_bit(FF_GAIN, dev->ffbit)) {
 		pidff_set(&pidff->device_gain[PID_DEVICE_GAIN_FIELD], 0xffff);
-		hid_submit_report(pidff->hid, pidff->reports[PID_DEVICE_GAIN],
+		usbhid_submit_report(pidff->hid, pidff->reports[PID_DEVICE_GAIN],
 				  USB_DIR_OUT);
 	}
 

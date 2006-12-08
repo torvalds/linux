@@ -410,41 +410,7 @@ struct hid_device {							/* device report descriptor */
 	unsigned country;						/* HID country */
 	struct hid_report_enum report_enum[HID_REPORT_TYPES];
 
-	struct usb_device *dev;						/* device */
-
-	/* USB specific fields */
-
-	struct usb_interface *intf;					/* USB interface */
-	int ifnum;							/* USB interface number */
-
-	unsigned long iofl;						/* I/O flags (CTRL_RUNNING, OUT_RUNNING) */
-	struct timer_list io_retry;					/* Retry timer */
-	unsigned long stop_retry;					/* Time to give up, in jiffies */
-	unsigned int retry_delay;					/* Delay length in ms */
-	struct work_struct reset_work;					/* Task context for resets */
-
-	unsigned int bufsize;						/* URB buffer size */
-
-	struct urb *urbin;						/* Input URB */
-	char *inbuf;							/* Input buffer */
-	dma_addr_t inbuf_dma;						/* Input buffer dma */
-	spinlock_t inlock;						/* Input fifo spinlock */
-
-	struct urb *urbctrl;						/* Control URB */
-	struct usb_ctrlrequest *cr;					/* Control request struct */
-	dma_addr_t cr_dma;						/* Control request struct dma */
-	struct hid_control_fifo ctrl[HID_CONTROL_FIFO_SIZE];		/* Control fifo */
-	unsigned char ctrlhead, ctrltail;				/* Control fifo head & tail */
-	char *ctrlbuf;							/* Control buffer */
-	dma_addr_t ctrlbuf_dma;						/* Control buffer dma */
-	spinlock_t ctrllock;						/* Control fifo spinlock */
-
-	struct urb *urbout;						/* Output URB */
-	struct hid_report *out[HID_CONTROL_FIFO_SIZE];			/* Output pipe fifo */
-	unsigned char outhead, outtail;					/* Output pipe fifo head & tail */
-	char *outbuf;							/* Output buffer */
-	dma_addr_t outbuf_dma;						/* Output buffer dma */
-	spinlock_t outlock;						/* Output fifo spinlock */
+	struct device *dev;						/* device */
 
 	unsigned claimed;						/* Claimed by hidinput, hiddev? */
 	unsigned quirks;						/* Various quirks the device can pull on us */

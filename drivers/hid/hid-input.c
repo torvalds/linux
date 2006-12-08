@@ -798,8 +798,7 @@ int hidinput_connect(struct hid_device *hid)
 				input_dev->id.vendor  = hid->vendor;
 				input_dev->id.product = hid->product;
 				input_dev->id.version = hid->version;
-				input_dev->cdev.dev = &hid->intf->dev;
-
+				input_dev->cdev.dev = hid->dev;
 				hidinput->input = input_dev;
 				list_add_tail(&hidinput->list, &hid->inputs);
 			}
@@ -821,13 +820,8 @@ int hidinput_connect(struct hid_device *hid)
 			}
 		}
 
-	/* This only gets called when we are a single-input (most of the
-	 * time). IOW, not a HID_QUIRK_MULTI_INPUT. The hid_ff_init() is
-	 * only useful in this case, and not for multi-input quirks. */
-	if (hidinput) {
-		hid_ff_init(hid);
+	if (hidinput)
 		input_register_device(hidinput->input);
-	}
 
 	return 0;
 }

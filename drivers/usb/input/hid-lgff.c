@@ -30,6 +30,7 @@
 #include <linux/input.h>
 #include <linux/usb.h>
 #include <linux/hid.h>
+#include "usbhid.h"
 
 struct device_type {
 	u16 idVendor;
@@ -75,7 +76,7 @@ static int hid_lgff_play(struct input_dev *dev, void *data, struct ff_effect *ef
 		report->field[0]->value[2] = x;
 		report->field[0]->value[3] = y;
 		dbg("(x, y)=(%04x, %04x)", x, y);
-		hid_submit_report(hid, report, USB_DIR_OUT);
+		usbhid_submit_report(hid, report, USB_DIR_OUT);
 		break;
 
 	case FF_RUMBLE:
@@ -90,7 +91,7 @@ static int hid_lgff_play(struct input_dev *dev, void *data, struct ff_effect *ef
 		report->field[0]->value[2] = left;
 		report->field[0]->value[3] = right;
 		dbg("(left, right)=(%04x, %04x)", left, right);
-		hid_submit_report(hid, report, USB_DIR_OUT);
+		usbhid_submit_report(hid, report, USB_DIR_OUT);
 		break;
 	}
 	return 0;

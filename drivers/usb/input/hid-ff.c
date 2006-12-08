@@ -70,8 +70,8 @@ static struct hid_ff_initializer inits[] = {
 int hid_ff_init(struct hid_device* hid)
 {
 	struct hid_ff_initializer *init;
-	int vendor = le16_to_cpu(hid->dev->descriptor.idVendor);
-	int product = le16_to_cpu(hid->dev->descriptor.idProduct);
+	int vendor = le16_to_cpu(to_usb_device(hid->dev)->descriptor.idVendor);
+	int product = le16_to_cpu(to_usb_device(hid->dev)->descriptor.idProduct);
 
 	for (init = inits; init->idVendor; init++)
 		if (init->idVendor == vendor && init->idProduct == product)
