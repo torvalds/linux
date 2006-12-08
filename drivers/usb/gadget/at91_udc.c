@@ -1601,6 +1601,10 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 	if (retval) {
 		DBG("driver->bind() returned %d\n", retval);
 		udc->driver = NULL;
+		udc->gadget.dev.driver = NULL;
+		udc->gadget.dev.driver_data = NULL;
+		udc->enabled = 0;
+		udc->selfpowered = 0;
 		return retval;
 	}
 
