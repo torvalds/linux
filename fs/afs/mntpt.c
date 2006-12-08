@@ -136,11 +136,11 @@ static int afs_mntpt_open(struct inode *inode, struct file *file)
 {
 	kenter("%p,%p{%p{%s},%s}",
 	       inode, file,
-	       file->f_dentry->d_parent,
-	       file->f_dentry->d_parent ?
-	       file->f_dentry->d_parent->d_name.name :
+	       file->f_path.dentry->d_parent,
+	       file->f_path.dentry->d_parent ?
+	       file->f_path.dentry->d_parent->d_name.name :
 	       (const unsigned char *) "",
-	       file->f_dentry->d_name.name);
+	       file->f_path.dentry->d_name.name);
 
 	return -EREMOTE;
 } /* end afs_mntpt_open() */
