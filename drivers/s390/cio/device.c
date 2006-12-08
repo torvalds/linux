@@ -23,6 +23,7 @@
 #include <asm/param.h>		/* HZ */
 
 #include "cio.h"
+#include "cio_debug.h"
 #include "css.h"
 #include "device.h"
 #include "ioasm.h"
@@ -294,6 +295,11 @@ online_show (struct device *dev, struct device_attribute *attr, char *buf)
 	return sprintf(buf, cdev->online ? "1\n" : "0\n");
 }
 
+int ccw_device_is_orphan(struct ccw_device *cdev)
+{
+	return sch_is_pseudo_sch(to_subchannel(cdev->dev.parent));
+}
+
 static void ccw_device_unregister(struct work_struct *work)
 {
 	struct ccw_device_private *priv;
@@ -310,10 +316,23 @@ static void
 ccw_device_remove_disconnected(struct ccw_device *cdev)
 {
 	struct subchannel *sch;
+	unsigned long flags;
 	/*
 	 * Forced offline in disconnected state means
 	 * 'throw away device'.
 	 */
+	if (ccw_device_is_orphan(cdev)) {
+		/* Deregister ccw device. */
+		spin_lock_irqsave(cdev->ccwlock, flags);
+		cdev->private->state = DEV_STATE_NOT_OPER;
+		spin_unlock_irqrestore(cdev->ccwlock, flags);
+		if (get_device(&cdev->dev)) {
+			PREPARE_WORK(&cdev->private->kick_work,
+				     ccw_device_unregister);
+			queue_work(ccw_device_work, &cdev->private->kick_work);
+		}
+		return ;
+	}
 	sch = to_subchannel(cdev->dev.parent);
 	css_sch_device_unregister(sch);
 	/* Reset intparm to zeroes. */
@@ -474,6 +493,8 @@ available_show (struct device *dev, struct device_attribute *attr, char *buf)
 	struct ccw_device *cdev = to_ccwdev(dev);
 	struct subchannel *sch;
 
+	if (ccw_device_is_orphan(cdev))
+		return sprintf(buf, "no device\n");
 	switch (cdev->private->state) {
 	case DEV_STATE_BOXED:
 		return sprintf(buf, "boxed\n");
@@ -574,11 +595,10 @@ match_devno(struct device * dev, void * data)
 
 	cdev = to_ccwdev(dev);
 	if ((cdev->private->state == DEV_STATE_DISCONNECTED) &&
+	    !ccw_device_is_orphan(cdev) &&
 	    ccw_dev_id_is_equal(&cdev->private->dev_id, &d->dev_id) &&
-	    (cdev != d->sibling)) {
-		cdev->private->state = DEV_STATE_NOT_OPER;
+	    (cdev != d->sibling))
 		return 1;
-	}
 	return 0;
 }
 
@@ -591,6 +611,28 @@ static struct ccw_device * get_disc_ccwdev_by_dev_id(struct ccw_dev_id *dev_id,
 	data.dev_id = *dev_id;
 	data.sibling = sibling;
 	dev = bus_find_device(&ccw_bus_type, NULL, &data, match_devno);
+
+	return dev ? to_ccwdev(dev) : NULL;
+}
+
+static int match_orphan(struct device *dev, void *data)
+{
+	struct ccw_dev_id *dev_id;
+	struct ccw_device *cdev;
+
+	dev_id = data;
+	cdev = to_ccwdev(dev);
+	return ccw_dev_id_is_equal(&cdev->private->dev_id, dev_id);
+}
+
+static struct ccw_device *
+get_orphaned_ccwdev_by_dev_id(struct channel_subsystem *css,
+			      struct ccw_dev_id *dev_id)
+{
+	struct device *dev;
+
+	dev = device_find_child(&css->pseudo_subchannel->dev, dev_id,
+				match_orphan);
 
 	return dev ? to_ccwdev(dev) : NULL;
 }
@@ -614,64 +656,19 @@ ccw_device_add_changed(struct work_struct *work)
 	}
 }
 
-extern int css_get_ssd_info(struct subchannel *sch);
-
-void
-ccw_device_do_unreg_rereg(struct work_struct *work)
+void ccw_device_do_unreg_rereg(struct work_struct *work)
 {
 	struct ccw_device_private *priv;
 	struct ccw_device *cdev;
 	struct subchannel *sch;
-	int need_rename;
 
 	priv = container_of(work, struct ccw_device_private, kick_work);
 	cdev = priv->cdev;
 	sch = to_subchannel(cdev->dev.parent);
-	if (cdev->private->dev_id.devno != sch->schib.pmcw.dev) {
-		/*
-		 * The device number has changed. This is usually only when
-		 * a device has been detached under VM and then re-appeared
-		 * on another subchannel because of a different attachment
-		 * order than before. Ideally, we should should just switch
-		 * subchannels, but unfortunately, this is not possible with
-		 * the current implementation.
-		 * Instead, we search for the old subchannel for this device
-		 * number and deregister so there are no collisions with the
-		 * newly registered ccw_device.
-		 * FIXME: Find another solution so the block layer doesn't
-		 *        get possibly sick...
-		 */
-		struct ccw_device *other_cdev;
-		struct ccw_dev_id dev_id;
 
-		need_rename = 1;
-		dev_id.devno = sch->schib.pmcw.dev;
-		dev_id.ssid = sch->schid.ssid;
-		other_cdev = get_disc_ccwdev_by_dev_id(&dev_id, cdev);
-		if (other_cdev) {
-			struct subchannel *other_sch;
-
-			other_sch = to_subchannel(other_cdev->dev.parent);
-			if (get_device(&other_sch->dev)) {
-				stsch(other_sch->schid, &other_sch->schib);
-				if (other_sch->schib.pmcw.dnv) {
-					other_sch->schib.pmcw.intparm = 0;
-					cio_modify(other_sch);
-				}
-				css_sch_device_unregister(other_sch);
-			}
-		}
-		/* Update ssd info here. */
-		css_get_ssd_info(sch);
-		cdev->private->dev_id.devno = sch->schib.pmcw.dev;
-	} else
-		need_rename = 0;
 	device_remove_files(&cdev->dev);
 	if (test_and_clear_bit(1, &cdev->private->registered))
 		device_del(&cdev->dev);
-	if (need_rename)
-		snprintf (cdev->dev.bus_id, BUS_ID_SIZE, "0.%x.%04x",
-			  sch->schid.ssid, sch->schib.pmcw.dev);
 	PREPARE_WORK(&cdev->private->kick_work,
 		     ccw_device_add_changed);
 	queue_work(ccw_device_work, &cdev->private->kick_work);
@@ -734,6 +731,131 @@ static struct ccw_device * io_subchannel_create_ccwdev(struct subchannel *sch)
 		}
 	}
 	return cdev;
+}
+
+static int io_subchannel_recog(struct ccw_device *, struct subchannel *);
+
+static void sch_attach_device(struct subchannel *sch,
+			      struct ccw_device *cdev)
+{
+	spin_lock_irq(sch->lock);
+	sch->dev.driver_data = cdev;
+	cdev->private->schid = sch->schid;
+	cdev->ccwlock = sch->lock;
+	device_trigger_reprobe(sch);
+	spin_unlock_irq(sch->lock);
+}
+
+static void sch_attach_disconnected_device(struct subchannel *sch,
+					   struct ccw_device *cdev)
+{
+	struct subchannel *other_sch;
+	int ret;
+
+	other_sch = to_subchannel(get_device(cdev->dev.parent));
+	ret = device_move(&cdev->dev, &sch->dev);
+	if (ret) {
+		CIO_MSG_EVENT(2, "Moving disconnected device 0.%x.%04x failed "
+			      "(ret=%d)!\n", cdev->private->dev_id.ssid,
+			      cdev->private->dev_id.devno, ret);
+		put_device(&other_sch->dev);
+		return;
+	}
+	other_sch->dev.driver_data = NULL;
+	/* No need to keep a subchannel without ccw device around. */
+	css_sch_device_unregister(other_sch);
+	put_device(&other_sch->dev);
+	sch_attach_device(sch, cdev);
+}
+
+static void sch_attach_orphaned_device(struct subchannel *sch,
+				       struct ccw_device *cdev)
+{
+	int ret;
+
+	/* Try to move the ccw device to its new subchannel. */
+	ret = device_move(&cdev->dev, &sch->dev);
+	if (ret) {
+		CIO_MSG_EVENT(0, "Moving device 0.%x.%04x from orphanage "
+			      "failed (ret=%d)!\n",
+			      cdev->private->dev_id.ssid,
+			      cdev->private->dev_id.devno, ret);
+		return;
+	}
+	sch_attach_device(sch, cdev);
+}
+
+static void sch_create_and_recog_new_device(struct subchannel *sch)
+{
+	struct ccw_device *cdev;
+
+	/* Need to allocate a new ccw device. */
+	cdev = io_subchannel_create_ccwdev(sch);
+	if (IS_ERR(cdev)) {
+		/* OK, we did everything we could... */
+		css_sch_device_unregister(sch);
+		return;
+	}
+	spin_lock_irq(sch->lock);
+	sch->dev.driver_data = cdev;
+	spin_unlock_irq(sch->lock);
+	/* Start recognition for the new ccw device. */
+	if (io_subchannel_recog(cdev, sch)) {
+		spin_lock_irq(sch->lock);
+		sch->dev.driver_data = NULL;
+		spin_unlock_irq(sch->lock);
+		if (cdev->dev.release)
+			cdev->dev.release(&cdev->dev);
+		css_sch_device_unregister(sch);
+	}
+}
+
+
+void ccw_device_move_to_orphanage(struct work_struct *work)
+{
+	struct ccw_device_private *priv;
+	struct ccw_device *cdev;
+	struct ccw_device *replacing_cdev;
+	struct subchannel *sch;
+	int ret;
+	struct channel_subsystem *css;
+	struct ccw_dev_id dev_id;
+
+	priv = container_of(work, struct ccw_device_private, kick_work);
+	cdev = priv->cdev;
+	sch = to_subchannel(cdev->dev.parent);
+	css = to_css(sch->dev.parent);
+	dev_id.devno = sch->schib.pmcw.dev;
+	dev_id.ssid = sch->schid.ssid;
+
+	/*
+	 * Move the orphaned ccw device to the orphanage so the replacing
+	 * ccw device can take its place on the subchannel.
+	 */
+	ret = device_move(&cdev->dev, &css->pseudo_subchannel->dev);
+	if (ret) {
+		CIO_MSG_EVENT(0, "Moving device 0.%x.%04x to orphanage failed "
+			      "(ret=%d)!\n", cdev->private->dev_id.ssid,
+			      cdev->private->dev_id.devno, ret);
+		return;
+	}
+	cdev->ccwlock = css->pseudo_subchannel->lock;
+	/*
+	 * Search for the replacing ccw device
+	 * - among the disconnected devices
+	 * - in the orphanage
+	 */
+	replacing_cdev = get_disc_ccwdev_by_dev_id(&dev_id, cdev);
+	if (replacing_cdev) {
+		sch_attach_disconnected_device(sch, replacing_cdev);
+		return;
+	}
+	replacing_cdev = get_orphaned_ccwdev_by_dev_id(css, &dev_id);
+	if (replacing_cdev) {
+		sch_attach_orphaned_device(sch, replacing_cdev);
+		return;
+	}
+	sch_create_and_recog_new_device(sch);
 }
 
 /*
@@ -890,12 +1012,55 @@ io_subchannel_recog(struct ccw_device *cdev, struct subchannel *sch)
 	return rc;
 }
 
+static void ccw_device_move_to_sch(struct work_struct *work)
+{
+	struct ccw_device_private *priv;
+	int rc;
+	struct subchannel *sch;
+	struct ccw_device *cdev;
+	struct subchannel *former_parent;
+
+	priv = container_of(work, struct ccw_device_private, kick_work);
+	sch = priv->sch;
+	cdev = priv->cdev;
+	former_parent = ccw_device_is_orphan(cdev) ?
+		NULL : to_subchannel(get_device(cdev->dev.parent));
+	mutex_lock(&sch->reg_mutex);
+	/* Try to move the ccw device to its new subchannel. */
+	rc = device_move(&cdev->dev, &sch->dev);
+	mutex_unlock(&sch->reg_mutex);
+	if (rc) {
+		CIO_MSG_EVENT(2, "Moving device 0.%x.%04x to subchannel "
+			      "0.%x.%04x failed (ret=%d)!\n",
+			      cdev->private->dev_id.ssid,
+			      cdev->private->dev_id.devno, sch->schid.ssid,
+			      sch->schid.sch_no, rc);
+		css_sch_device_unregister(sch);
+		goto out;
+	}
+	if (former_parent) {
+		spin_lock_irq(former_parent->lock);
+		former_parent->dev.driver_data = NULL;
+		spin_unlock_irq(former_parent->lock);
+		css_sch_device_unregister(former_parent);
+		/* Reset intparm to zeroes. */
+		former_parent->schib.pmcw.intparm = 0;
+		cio_modify(former_parent);
+	}
+	sch_attach_device(sch, cdev);
+out:
+	if (former_parent)
+		put_device(&former_parent->dev);
+	put_device(&cdev->dev);
+}
+
 static int
 io_subchannel_probe (struct subchannel *sch)
 {
 	struct ccw_device *cdev;
 	int rc;
 	unsigned long flags;
+	struct ccw_dev_id dev_id;
 
 	if (sch->dev.driver_data) {
 		/*
@@ -916,6 +1081,28 @@ io_subchannel_probe (struct subchannel *sch)
 		    cdev->private->state != DEV_STATE_OFFLINE &&
 		    cdev->private->state != DEV_STATE_BOXED)
 			get_device(&cdev->dev);
+		return 0;
+	}
+	/*
+	 * First check if a fitting device may be found amongst the
+	 * disconnected devices or in the orphanage.
+	 */
+	dev_id.devno = sch->schib.pmcw.dev;
+	dev_id.ssid = sch->schid.ssid;
+	cdev = get_disc_ccwdev_by_dev_id(&dev_id, NULL);
+	if (!cdev)
+		cdev = get_orphaned_ccwdev_by_dev_id(to_css(sch->dev.parent),
+						     &dev_id);
+	if (cdev) {
+		/*
+		 * Schedule moving the device until when we have a registered
+		 * subchannel to move to and succeed the probe. We can
+		 * unregister later again, when the probe is through.
+		 */
+		cdev->private->sch = sch;
+		PREPARE_WORK(&cdev->private->kick_work,
+			     ccw_device_move_to_sch);
+		queue_work(slow_path_wq, &cdev->private->kick_work);
 		return 0;
 	}
 	cdev = io_subchannel_create_ccwdev(sch);

@@ -186,13 +186,12 @@ ccw_device_handle_oper(struct ccw_device *cdev)
 	/*
 	 * Check if cu type and device type still match. If
 	 * not, it is certainly another device and we have to
-	 * de- and re-register. Also check here for non-matching devno.
+	 * de- and re-register.
 	 */
 	if (cdev->id.cu_type != cdev->private->senseid.cu_type ||
 	    cdev->id.cu_model != cdev->private->senseid.cu_model ||
 	    cdev->id.dev_type != cdev->private->senseid.dev_type ||
-	    cdev->id.dev_model != cdev->private->senseid.dev_model ||
-	    cdev->private->dev_id.devno != sch->schib.pmcw.dev) {
+	    cdev->id.dev_model != cdev->private->senseid.dev_model) {
 		PREPARE_WORK(&cdev->private->kick_work,
 			     ccw_device_do_unreg_rereg);
 		queue_work(ccw_device_work, &cdev->private->kick_work);
@@ -676,6 +675,10 @@ ccw_device_offline(struct ccw_device *cdev)
 {
 	struct subchannel *sch;
 
+	if (ccw_device_is_orphan(cdev)) {
+		ccw_device_done(cdev, DEV_STATE_OFFLINE);
+		return 0;
+	}
 	sch = to_subchannel(cdev->dev.parent);
 	if (stsch(sch->schid, &sch->schib) || !sch->schib.pmcw.dnv)
 		return -ENODEV;
@@ -1121,7 +1124,13 @@ device_trigger_reprobe(struct subchannel *sch)
 		sch->schib.pmcw.mp = 1;
 	sch->schib.pmcw.intparm = (__u32)(unsigned long)sch;
 	/* We should also udate ssd info, but this has to wait. */
-	ccw_device_start_id(cdev, 0);
+	/* Check if this is another device which appeared on the same sch. */
+	if (sch->schib.pmcw.dev != cdev->private->dev_id.devno) {
+		PREPARE_WORK(&cdev->private->kick_work,
+			     ccw_device_move_to_orphanage);
+		queue_work(ccw_device_work, &cdev->private->kick_work);
+	} else
+		ccw_device_start_id(cdev, 0);
 }
 
 static void

@@ -415,6 +415,8 @@ cio_enable_subchannel (struct subchannel *sch, unsigned int isc)
 	CIO_TRACE_EVENT (2, "ensch");
 	CIO_TRACE_EVENT (2, sch->dev.bus_id);
 
+	if (sch_is_pseudo_sch(sch))
+		return -EINVAL;
 	ccode = stsch (sch->schid, &sch->schib);
 	if (ccode)
 		return -ENODEV;
@@ -462,6 +464,8 @@ cio_disable_subchannel (struct subchannel *sch)
 	CIO_TRACE_EVENT (2, "dissch");
 	CIO_TRACE_EVENT (2, sch->dev.bus_id);
 
+	if (sch_is_pseudo_sch(sch))
+		return 0;
 	ccode = stsch (sch->schid, &sch->schib);
 	if (ccode == 3)		/* Not operational. */
 		return -ENODEV;
@@ -496,7 +500,7 @@ cio_disable_subchannel (struct subchannel *sch)
 	return ret;
 }
 
-static int cio_create_sch_lock(struct subchannel *sch)
+int cio_create_sch_lock(struct subchannel *sch)
 {
 	sch->lock = kmalloc(sizeof(spinlock_t), GFP_KERNEL);
 	if (!sch->lock)
