@@ -14,6 +14,53 @@
 #include <linux/err.h>
 #include <linux/fb.h>
 
+#if defined(CONFIG_FB) || (defined(CONFIG_FB_MODULE) && \
+			   defined(CONFIG_LCD_CLASS_DEVICE_MODULE))
+/* This callback gets called when something important happens inside a
+ * framebuffer driver. We're looking if that important event is blanking,
+ * and if it is, we're switching lcd power as well ...
+ */
+static int fb_notifier_callback(struct notifier_block *self,
+				 unsigned long event, void *data)
+{
+	struct lcd_device *ld;
+	struct fb_event *evdata = data;
+
+	/* If we aren't interested in this event, skip it immediately ... */
+	if (event != FB_EVENT_BLANK)
+		return 0;
+
+	ld = container_of(self, struct lcd_device, fb_notif);
+	down(&ld->sem);
+	if (ld->props)
+		if (!ld->props->check_fb || ld->props->check_fb(evdata->info))
+			ld->props->set_power(ld, *(int *)evdata->data);
+	up(&ld->sem);
+	return 0;
+}
+
+static int lcd_register_fb(struct lcd_device *ld)
+{
+	memset(&ld->fb_notif, 0, sizeof(&ld->fb_notif));
+	ld->fb_notif.notifier_call = fb_notifier_callback;
+	return fb_register_client(&ld->fb_notif);
+}
+
+static void lcd_unregister_fb(struct lcd_device *ld)
+{
+	fb_unregister_client(&ld->fb_notif);
+}
+#else
+static int lcd_register_fb(struct lcd_device *ld)
+{
+	return 0;
+}
+
+static inline void lcd_unregister_fb(struct lcd_device *ld)
+{
+}
+#endif /* CONFIG_FB */
+
 static ssize_t lcd_show_power(struct class_device *cdev, char *buf)
 {
 	int rc;
@@ -127,29 +174,6 @@ static const struct class_device_attribute lcd_class_device_attributes[] = {
 	DECLARE_ATTR(max_contrast, 0444, lcd_show_max_contrast, NULL),
 };
 
-/* This callback gets called when something important happens inside a
- * framebuffer driver. We're looking if that important event is blanking,
- * and if it is, we're switching lcd power as well ...
- */
-static int fb_notifier_callback(struct notifier_block *self,
-				 unsigned long event, void *data)
-{
-	struct lcd_device *ld;
-	struct fb_event *evdata =(struct fb_event *)data;
-
-	/* If we aren't interested in this event, skip it immediately ... */
-	if (event != FB_EVENT_BLANK)
-		return 0;
-
-	ld = container_of(self, struct lcd_device, fb_notif);
-	down(&ld->sem);
-	if (ld->props)
-		if (!ld->props->check_fb || ld->props->check_fb(evdata->info))
-			ld->props->set_power(ld, *(int *)evdata->data);
-	up(&ld->sem);
-	return 0;
-}
-
 /**
  * lcd_device_register - register a new object of lcd_device class.
  * @name: the name of the new object(must be the same as the name of the
@@ -186,10 +210,8 @@ error:		kfree(new_ld);
 		return ERR_PTR(rc);
 	}
 
-	memset(&new_ld->fb_notif, 0, sizeof(new_ld->fb_notif));
-	new_ld->fb_notif.notifier_call = fb_notifier_callback;
+	rc = lcd_register_fb(new_ld);
 
-	rc = fb_register_client(&new_ld->fb_notif);
 	if (unlikely(rc))
 		goto error;
 
@@ -232,9 +254,7 @@ void lcd_device_unregister(struct lcd_device *ld)
 	down(&ld->sem);
 	ld->props = NULL;
 	up(&ld->sem);
-
-	fb_unregister_client(&ld->fb_notif);
-
+	lcd_unregister_fb(ld);
 	class_device_unregister(&ld->class_dev);
 }
 EXPORT_SYMBOL(lcd_device_unregister);
