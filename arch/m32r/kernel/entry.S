@@ -596,8 +596,6 @@ ENTRY(ace_handler)
 	beqz	r1, inst
 oprand:
 	ld	r2, @(low(MDEVA_offset),r2)	; set address
-	srli	r2, #12
-	slli	r2, #12
 	srli	r1, #1
 	bra	1f
 inst:
