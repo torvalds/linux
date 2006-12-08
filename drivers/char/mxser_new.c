@@ -622,19 +622,24 @@ static int __init mxser_get_PCI_conf(int board_type, struct mxser_board *brd,
 {
 	unsigned int i, j;
 	unsigned long ioaddress;
+	int retval;
 
 	/* io address */
 	brd->board_type = board_type;
 	brd->nports = mxser_numports[board_type - 1];
 	ioaddress = pci_resource_start(pdev, 2);
-	pci_request_region(pdev, 2, "mxser(IO)");
+	retval = pci_request_region(pdev, 2, "mxser(IO)");
+	if (retval)
+		goto err;
 
 	for (i = 0; i < brd->nports; i++)
 		brd->ports[i].ioaddr = ioaddress + 8 * i;
 
 	/* vector */
 	ioaddress = pci_resource_start(pdev, 3);
-	pci_request_region(pdev, 3, "mxser(vector)");
+	retval = pci_request_region(pdev, 3, "mxser(vector)");
+	if (retval)
+		goto err_relio;
 	brd->vector = ioaddress;
 
 	/* irq */
@@ -674,6 +679,10 @@ static int __init mxser_get_PCI_conf(int board_type, struct mxser_board *brd,
 		brd->ports[i].baud_base = 921600;
 	}
 	return 0;
+err_relio:
+	pci_release_region(pdev, 2);
+err:
+	return retval;
 }
 
 static int __init mxser_init(void)
@@ -3009,8 +3018,12 @@ static int __init mxser_get_ISA_conf(int cap, struct mxser_board *brd)
 		brd->nports = 8;
 	else
 		brd->nports = 4;
-	request_region(brd->ports[0].ioaddr, 8 * brd->nports, "mxser(IO)");
-	request_region(brd->vector, 1, "mxser(vector)");
+	if (!request_region(brd->ports[0].ioaddr, 8 * brd->nports, "mxser(IO)"))
+		return MXSER_ERR_IOADDR;
+	if (!request_region(brd->vector, 1, "mxser(vector)")) {
+		release_region(brd->ports[0].ioaddr, 8 * brd->nports);
+		return MXSER_ERR_VECTOR;
+	}
 	return brd->nports;
 }
 
