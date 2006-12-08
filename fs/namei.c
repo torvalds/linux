@@ -572,11 +572,6 @@ fail:
 	return PTR_ERR(link);
 }
 
-struct path {
-	struct vfsmount *mnt;
-	struct dentry *dentry;
-};
-
 static inline void dput_path(struct path *path, struct nameidata *nd)
 {
 	dput(path->dentry);

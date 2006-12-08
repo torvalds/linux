@@ -29,6 +29,11 @@ struct nameidata {
 	} intent;
 };
 
+struct path {
+	struct vfsmount *mnt;
+	struct dentry *dentry;
+};
+
 /*
  * Type of the last component on LOOKUP_PARENT
  */
