@@ -32,7 +32,6 @@
  *      USA.
  *
  * Revision history:
- * $Log: sx.c,v $
  * Revision 1.33  2000/03/09 10:00:00  pvdl,wolff
  * - Fixed module and port counting
  * - Fixed signal handling
@@ -199,9 +198,7 @@
  *
  * */
 
-
-#define RCS_ID "$Id: sx.c,v 1.33 2000/03/08 10:01:02 wolff, pvdl Exp $"
-#define RCS_REV "$Revision: 1.33 $"
+#define SX_VERSION	1.33
 
 #include <linux/module.h>
 #include <linux/kdev_t.h>
@@ -2052,7 +2049,7 @@ static void printheader(void)
 	if (!header_printed) {
 		printk (KERN_INFO "Specialix SX driver "
 		        "(C) 1998/1999 R.E.Wolff@BitWizard.nl \n");
-		printk (KERN_INFO "sx: version %s\n", RCS_ID);
+		printk (KERN_INFO "sx: version " __stringify(SX_VERSION) "\n");
 		header_printed = 1;
 	}
 }
