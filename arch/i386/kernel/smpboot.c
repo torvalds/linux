@@ -1118,7 +1118,7 @@ static int __cpuinit __smp_prepare_cpu(int cpu)
 
 	/* init low mem mapping */
 	clone_pgd_range(swapper_pg_dir, swapper_pg_dir + USER_PGD_PTRS,
-			KERNEL_PGD_PTRS);
+			min_t(unsigned long, KERNEL_PGD_PTRS, USER_PGD_PTRS));
 	flush_tlb_all();
 	schedule_work(&info.task);
 	wait_for_completion(&done);
