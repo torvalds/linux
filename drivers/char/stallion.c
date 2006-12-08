@@ -1923,7 +1923,7 @@ static void stl_offintr(struct work_struct *work)
  *	Initialize all the ports on a panel.
  */
 
-static int __init stl_initports(struct stlbrd *brdp, struct stlpanel *panelp)
+static int __devinit stl_initports(struct stlbrd *brdp, struct stlpanel *panelp)
 {
 	struct stlport	*portp;
 	int		chipmask, i;
@@ -1995,7 +1995,7 @@ static void stl_cleanup_panels(struct stlbrd *brdp)
  *	Try to find and initialize an EasyIO board.
  */
 
-static int __init stl_initeio(struct stlbrd *brdp)
+static int __devinit stl_initeio(struct stlbrd *brdp)
 {
 	struct stlpanel	*panelp;
 	unsigned int	status;
@@ -2148,7 +2148,7 @@ err:
  *	dealing with all types of ECH board.
  */
 
-static int __init stl_initech(struct stlbrd *brdp)
+static int __devinit stl_initech(struct stlbrd *brdp)
 {
 	struct stlpanel	*panelp;
 	unsigned int	status, nxtid, ioaddr, conflict;
@@ -2372,7 +2372,7 @@ err:
  *	since the initial search and setup is very different.
  */
 
-static int __init stl_brdinit(struct stlbrd *brdp)
+static int __devinit stl_brdinit(struct stlbrd *brdp)
 {
 	int i, retval;
 
@@ -2438,7 +2438,7 @@ err:
  *	Find the next available board number that is free.
  */
 
-static int __init stl_getbrdnr(void)
+static int __devinit stl_getbrdnr(void)
 {
 	int	i;
 
