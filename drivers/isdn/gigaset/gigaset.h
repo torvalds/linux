@@ -876,10 +876,6 @@ static inline void gigaset_rcv_error(struct sk_buff *procskb,
 	}
 }
 
-
-/* bitwise byte inversion table */
-extern __u8 gigaset_invtab[];	/* in common.c */
-
 /* append received bytes to inbuf */
 int gigaset_fill_inbuf(struct inbuf_t *inbuf, const unsigned char *src,
 		       unsigned numbytes);
