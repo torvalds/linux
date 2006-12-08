@@ -29,6 +29,7 @@
 #include <keys/user-type.h>
 #include <linux/fs.h>
 #include <linux/fs_stack.h>
+#include <linux/namei.h>
 #include <linux/scatterlist.h>
 
 /* Version verification for shared data structures w/ userspace */
@@ -228,8 +229,7 @@ struct ecryptfs_inode_info {
 /* dentry private data. Each dentry must keep track of a lower
  * vfsmount too. */
 struct ecryptfs_dentry_info {
-	struct dentry *wdi_dentry;
-	struct vfsmount *lower_mnt;
+	struct path lower_path;
 	struct ecryptfs_crypt_stat *crypt_stat;
 };
 
@@ -356,26 +356,26 @@ ecryptfs_set_dentry_private(struct dentry *dentry,
 static inline struct dentry *
 ecryptfs_dentry_to_lower(struct dentry *dentry)
 {
-	return ((struct ecryptfs_dentry_info *)dentry->d_fsdata)->wdi_dentry;
+	return ((struct ecryptfs_dentry_info *)dentry->d_fsdata)->lower_path.dentry;
 }
 
 static inline void
 ecryptfs_set_dentry_lower(struct dentry *dentry, struct dentry *lower_dentry)
 {
-	((struct ecryptfs_dentry_info *)dentry->d_fsdata)->wdi_dentry =
+	((struct ecryptfs_dentry_info *)dentry->d_fsdata)->lower_path.dentry =
 		lower_dentry;
 }
 
 static inline struct vfsmount *
 ecryptfs_dentry_to_lower_mnt(struct dentry *dentry)
 {
-	return ((struct ecryptfs_dentry_info *)dentry->d_fsdata)->lower_mnt;
+	return ((struct ecryptfs_dentry_info *)dentry->d_fsdata)->lower_path.mnt;
 }
 
 static inline void
 ecryptfs_set_dentry_lower_mnt(struct dentry *dentry, struct vfsmount *lower_mnt)
 {
-	((struct ecryptfs_dentry_info *)dentry->d_fsdata)->lower_mnt =
+	((struct ecryptfs_dentry_info *)dentry->d_fsdata)->lower_path.mnt =
 		lower_mnt;
 }
 
