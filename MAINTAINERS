@@ -684,7 +684,7 @@ S:	Supported
 CIRRUS LOGIC GENERIC FBDEV DRIVER
 P:	Jeff Garzik
 M:	jgarzik@pobox.com
-L:	linux-fbdev-devel@lists.sourceforge.net
+L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
 S:	Odd Fixes
 
 CIRRUS LOGIC CS4280/CS461x SOUNDDRIVER
@@ -791,7 +791,7 @@ S:	Maintained
 CYBLAFB FRAMEBUFFER DRIVER
 P:	Knut Petersen
 M:	Knut_Petersen@t-online.de
-L:	linux-fbdev-devel@lists.sourceforge.net
+L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
 CYCLADES 2X SYNC CARD DRIVER
@@ -1128,7 +1128,7 @@ S:	Supported
 FRAMEBUFFER LAYER
 P:	Antonino Daplas
 M:	adaplas@pol.net
-L:	linux-fbdev-devel@lists.sourceforge.net	
+L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
 W:	http://linux-fbdev.sourceforge.net/
 S:	Maintained
 
@@ -1479,7 +1479,7 @@ S:	Maintained
 IMS TWINTURBO FRAMEBUFFER DRIVER
 P:	Paul Mundt
 M:	lethal@chaoticdreams.org
-L:	linux-fbdev-devel@lists.sourceforge.net
+L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
 INFINIBAND SUBSYSTEM
@@ -1512,13 +1512,13 @@ S:	Maintained
 INTEL FRAMEBUFFER DRIVER (excluding 810 and 815)
 P:	Sylvain Meyer
 M:	sylvain.meyer@worldonline.fr
-L:	linux-fbdev-devel@lists.sourceforge.net
+L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
 INTEL 810/815 FRAMEBUFFER DRIVER
 P:	Antonino Daplas
 M:	adaplas@pol.net
-L:	linux-fbdev-devel@lists.sourceforge.net
+L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
 INTEL APIC/IOAPIC, LOWLEVEL X86 SMP SUPPORT
@@ -1964,7 +1964,7 @@ S:	Odd Fixes for 2.4; Maintained for 2.6.
 MATROX FRAMEBUFFER DRIVER
 P:	Petr Vandrovec
 M:	vandrove@vc.cvut.cz
-L:	linux-fbdev-devel@lists.sourceforge.net
+L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
 MEGARAID SCSI DRIVERS
@@ -2222,7 +2222,7 @@ S:	Maintained
 NVIDIA (rivafb and nvidiafb) FRAMEBUFFER DRIVER
 P:	Antonino Daplas
 M:	adaplas@pol.net
-L:	linux-fbdev-devel@lists.sourceforge.net
+L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
 OPENCORES I2C BUS DRIVER
@@ -2506,13 +2506,13 @@ S:	Maintained
 RADEON FRAMEBUFFER DISPLAY DRIVER
 P:	Benjamin Herrenschmidt
 M:	benh@kernel.crashing.org
-L:	linux-fbdev-devel@lists.sourceforge.net
+L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
 RAGE128 FRAMEBUFFER DISPLAY DRIVER
 P:	Paul Mackerras
 M:	paulus@samba.org
-L:	linux-fbdev-devel@lists.sourceforge.net
+L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
 RAYLINK/WEBGEAR 802.11 WIRELESS LAN DRIVER
@@ -2582,7 +2582,7 @@ S:	Orphan
 S3 SAVAGE FRAMEBUFFER DRIVER
 P:	Antonino Daplas
 M:	adaplas@pol.net
-L:	linux-fbdev-devel@lists.sourceforge.net
+L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
 S390
