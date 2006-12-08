@@ -2601,9 +2601,8 @@ static int __devinit aty_init(struct fb_info *info, const char *name)
 		par->pll_ops->init_pll(info, &par->pll);
 
 	/*
-	 *  Last page of 8 MB (4 MB on ISA) aperture is MMIO
-	 *  FIXME: we should use the auxiliary aperture instead so we can access
-	 *  the full 8 MB of video RAM on 8 MB boards
+	 *  Last page of 8 MB (4 MB on ISA) aperture is MMIO,
+	 *  unless the auxiliary register aperture is used.
 	 */
 
 	if (!par->aux_start &&
