@@ -131,7 +131,7 @@ static void s3c2410fb_set_lcdaddr(struct s3c2410fb_info *fbi)
 	saddr2 += (var->xres * var->yres * var->bits_per_pixel)/8;
 	saddr2>>= 1;
 
-	saddr3 =  S3C2410_OFFSIZE(0) | S3C2410_PAGEWIDTH(var->xres);
+	saddr3 =  S3C2410_OFFSIZE(0) | S3C2410_PAGEWIDTH((var->xres * var->bits_per_pixel / 16) & 0x3ff);
 
 	dprintk("LCDSADDR1 = 0x%08lx\n", saddr1);
 	dprintk("LCDSADDR2 = 0x%08lx\n", saddr2);
@@ -199,27 +199,85 @@ static int s3c2410fb_check_var(struct fb_var_screeninfo *var,
 		var->bits_per_pixel = fbi->mach_info->bpp.min;
 
 	/* set r/g/b positions */
+	switch (var->bits_per_pixel) {
+		case 1:
+		case 2:
+		case 4:
+			var->red.offset    	= 0;
+			var->red.length    	= var->bits_per_pixel;
+			var->green         	= var->red;
+			var->blue          	= var->red;
+			var->transp.offset 	= 0;
+			var->transp.length 	= 0;
+			break;
+		case 8:
+			if ( fbi->mach_info->type != S3C2410_LCDCON1_TFT ) {
+				/* 8 bpp 332 */
+				var->red.length		= 3;
+				var->red.offset		= 5;
+				var->green.length	= 3;
+				var->green.offset	= 2;
+				var->blue.length	= 2;
+				var->blue.offset	= 0;
+				var->transp.length	= 0;
+			} else {
+				var->red.offset    	= 0;
+				var->red.length    	= var->bits_per_pixel;
+				var->green         	= var->red;
+				var->blue          	= var->red;
+				var->transp.offset 	= 0;
+				var->transp.length 	= 0;
+			}
+			break;
+		case 12:
+			/* 12 bpp 444 */
+			var->red.length		= 4;
+			var->red.offset		= 8;
+			var->green.length	= 4;
+			var->green.offset	= 4;
+			var->blue.length	= 4;
+			var->blue.offset	= 0;
+			var->transp.length	= 0;
+			break;
 
-	if (var->bits_per_pixel == 16) {
-		var->red.offset		= 11;
-		var->green.offset	= 5;
-		var->blue.offset	= 0;
-		var->red.length		= 5;
-		var->green.length	= 6;
-		var->blue.length	= 5;
-		var->transp.length	= 0;
-	} else {
-		var->red.length		= var->bits_per_pixel;
-		var->red.offset		= 0;
-		var->green.length	= var->bits_per_pixel;
-		var->green.offset	= 0;
-		var->blue.length	= var->bits_per_pixel;
-		var->blue.offset	= 0;
-		var->transp.length	= 0;
+		default:
+		case 16:
+			if (fbi->regs.lcdcon5 & S3C2410_LCDCON5_FRM565 ) {
+				/* 16 bpp, 565 format */
+				var->red.offset		= 11;
+				var->green.offset	= 5;
+				var->blue.offset	= 0;
+				var->red.length		= 5;
+				var->green.length	= 6;
+				var->blue.length	= 5;
+				var->transp.length	= 0;
+			} else {
+				/* 16 bpp, 5551 format */
+				var->red.offset		= 11;
+				var->green.offset	= 6;
+				var->blue.offset	= 1;
+				var->red.length		= 5;
+				var->green.length	= 5;
+				var->blue.length	= 5;
+				var->transp.length	= 0;
+			}
+			break;
+		case 24:
+			/* 24 bpp 888 */
+			var->red.length		= 8;
+			var->red.offset		= 16;
+			var->green.length	= 8;
+			var->green.offset	= 8;
+			var->blue.length	= 8;
+			var->blue.offset	= 0;
+			var->transp.length	= 0;
+			break;
+
+
 	}
-
 	return 0;
 }
+
 
 /* s3c2410fb_activate_var
  *
@@ -230,29 +288,61 @@ static int s3c2410fb_check_var(struct fb_var_screeninfo *var,
 static void s3c2410fb_activate_var(struct s3c2410fb_info *fbi,
 				   struct fb_var_screeninfo *var)
 {
+	int hs;
+
 	fbi->regs.lcdcon1 &= ~S3C2410_LCDCON1_MODEMASK;
+	fbi->regs.lcdcon1 &= ~S3C2410_LCDCON1_TFT;
 
 	dprintk("%s: var->xres  = %d\n", __FUNCTION__, var->xres);
 	dprintk("%s: var->yres  = %d\n", __FUNCTION__, var->yres);
 	dprintk("%s: var->bpp   = %d\n", __FUNCTION__, var->bits_per_pixel);
 
-	switch (var->bits_per_pixel) {
-	case 1:
-		fbi->regs.lcdcon1 |= S3C2410_LCDCON1_TFT1BPP;
-		break;
-	case 2:
-		fbi->regs.lcdcon1 |= S3C2410_LCDCON1_TFT2BPP;
-		break;
-	case 4:
-		fbi->regs.lcdcon1 |= S3C2410_LCDCON1_TFT4BPP;
-		break;
-	case 8:
-		fbi->regs.lcdcon1 |= S3C2410_LCDCON1_TFT8BPP;
-		break;
-	case 16:
-		fbi->regs.lcdcon1 |= S3C2410_LCDCON1_TFT16BPP;
-		break;
-	}
+	fbi->regs.lcdcon1 |= fbi->mach_info->type;
+
+	if (fbi->mach_info->type == S3C2410_LCDCON1_TFT)
+		switch (var->bits_per_pixel) {
+		case 1:
+			fbi->regs.lcdcon1 |= S3C2410_LCDCON1_TFT1BPP;
+			break;
+		case 2:
+			fbi->regs.lcdcon1 |= S3C2410_LCDCON1_TFT2BPP;
+			break;
+		case 4:
+			fbi->regs.lcdcon1 |= S3C2410_LCDCON1_TFT4BPP;
+			break;
+		case 8:
+			fbi->regs.lcdcon1 |= S3C2410_LCDCON1_TFT8BPP;
+			break;
+		case 16:
+			fbi->regs.lcdcon1 |= S3C2410_LCDCON1_TFT16BPP;
+			break;
+
+		default:
+			/* invalid pixel depth */
+			dev_err(fbi->dev, "invalid bpp %d\n", var->bits_per_pixel);
+		}
+	else
+		switch (var->bits_per_pixel) {
+		case 1:
+			fbi->regs.lcdcon1 |= S3C2410_LCDCON1_STN1BPP;
+			break;
+		case 2:
+			fbi->regs.lcdcon1 |= S3C2410_LCDCON1_STN2GREY;
+			break;
+		case 4:
+			fbi->regs.lcdcon1 |= S3C2410_LCDCON1_STN4GREY;
+			break;
+		case 8:
+			fbi->regs.lcdcon1 |= S3C2410_LCDCON1_STN8BPP;
+			break;
+		case 12:
+			fbi->regs.lcdcon1 |= S3C2410_LCDCON1_STN12BPP;
+			break;
+
+		default:
+			/* invalid pixel depth */
+			dev_err(fbi->dev, "invalid bpp %d\n", var->bits_per_pixel);
+		}
 
 	/* check to see if we need to update sync/borders */
 
@@ -283,15 +373,44 @@ static void s3c2410fb_activate_var(struct s3c2410fb_info *fbi,
 	fbi->regs.lcdcon2 &= ~S3C2410_LCDCON2_LINEVAL(0x3ff);
 	fbi->regs.lcdcon2 |=  S3C2410_LCDCON2_LINEVAL(var->yres - 1);
 
+	switch(fbi->mach_info->type) {
+		case S3C2410_LCDCON1_DSCAN4:
+		case S3C2410_LCDCON1_STN8:
+			hs = var->xres / 8;
+			break;
+		case S3C2410_LCDCON1_STN4:
+			hs = var->xres / 4;
+			break;
+		default:
+		case S3C2410_LCDCON1_TFT:
+			hs = var->xres;
+			break;
+
+	}
+
+	/* Special cases : STN color displays */
+	if ( ((fbi->regs.lcdcon1 & S3C2410_LCDCON1_MODEMASK) == S3C2410_LCDCON1_STN8BPP) \
+	  || ((fbi->regs.lcdcon1 & S3C2410_LCDCON1_MODEMASK) == S3C2410_LCDCON1_STN12BPP) ) {
+		hs = hs * 3;
+	}
+
+
 	fbi->regs.lcdcon3 &= ~S3C2410_LCDCON3_HOZVAL(0x7ff);
-	fbi->regs.lcdcon3 |=  S3C2410_LCDCON3_HOZVAL(var->xres - 1);
+	fbi->regs.lcdcon3 |=  S3C2410_LCDCON3_HOZVAL(hs - 1);
 
 	if (var->pixclock > 0) {
 		int clkdiv = s3c2410fb_calc_pixclk(fbi, var->pixclock);
 
-		clkdiv = (clkdiv / 2) -1;
-		if (clkdiv < 0)
-			clkdiv = 0;
+		if (fbi->mach_info->type == S3C2410_LCDCON1_TFT) {
+			clkdiv = (clkdiv / 2) -1;
+			if (clkdiv < 0)
+				clkdiv = 0;
+		}
+		else {
+			clkdiv = (clkdiv / 2);
+			if (clkdiv < 2)
+				clkdiv = 2;
+		}
 
 		fbi->regs.lcdcon1 &= ~S3C2410_LCDCON1_CLKVAL(0x3ff);
 		fbi->regs.lcdcon1 |=  S3C2410_LCDCON1_CLKVAL(clkdiv);
@@ -329,10 +448,18 @@ static int s3c2410fb_set_par(struct fb_info *info)
 	struct s3c2410fb_info *fbi = info->par;
 	struct fb_var_screeninfo *var = &info->var;
 
-	if (var->bits_per_pixel == 16)
-		fbi->fb->fix.visual = FB_VISUAL_TRUECOLOR;
-	else
-		fbi->fb->fix.visual = FB_VISUAL_PSEUDOCOLOR;
+	switch (var->bits_per_pixel)
+	{
+		case 16:
+			fbi->fb->fix.visual = FB_VISUAL_TRUECOLOR;
+			break;
+		case 1:
+			 fbi->fb->fix.visual = FB_VISUAL_MONO01;
+			 break;
+		default:
+			 fbi->fb->fix.visual = FB_VISUAL_PSEUDOCOLOR;
+			 break;
+	}
 
 	fbi->fb->fix.line_length     = (var->width*var->bits_per_pixel)/8;
 
