@@ -419,9 +419,9 @@ fs3270_open(struct inode *inode, struct file *filp)
 	struct idal_buffer *ib;
 	int minor, rc;
 
-	if (imajor(filp->f_dentry->d_inode) != IBM_FS3270_MAJOR)
+	if (imajor(filp->f_path.dentry->d_inode) != IBM_FS3270_MAJOR)
 		return -ENODEV;
-	minor = iminor(filp->f_dentry->d_inode);
+	minor = iminor(filp->f_path.dentry->d_inode);
 	/* Check for minor 0 multiplexer. */
 	if (minor == 0) {
 		struct tty_struct *tty;
