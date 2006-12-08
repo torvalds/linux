@@ -2994,15 +2994,12 @@ static int __init mxser_module_init(void)
 
 static void __exit mxser_module_exit(void)
 {
-	int i, err;
+	unsigned int i;
 
 	pr_debug("Unloading module mxser ...\n");
 
-	err = tty_unregister_driver(mxvar_sdriver);
-	if (!err)
-		put_tty_driver(mxvar_sdriver);
-	else
-		printk(KERN_ERR "Couldn't unregister MOXA Smartio/Industio family serial driver\n");
+	tty_unregister_driver(mxvar_sdriver);
+	put_tty_driver(mxvar_sdriver);
 
 	for (i = 0; i < MXSER_BOARDS; i++)
 		if (mxser_boards[i].board_type != -1)
