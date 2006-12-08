@@ -57,6 +57,8 @@ SECTIONS
 
   RODATA
 
+  BUG_TABLE
+
   . = ALIGN(4);
   .tracedata : AT(ADDR(.tracedata) - LOAD_OFFSET) {
   	__tracedata_start = .;

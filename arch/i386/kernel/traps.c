@@ -30,6 +30,7 @@
 #include <linux/unwind.h>
 #include <linux/uaccess.h>
 #include <linux/nmi.h>
+#include <linux/bug.h>
 
 #ifdef CONFIG_EISA
 #include <linux/ioport.h>
@@ -420,43 +421,22 @@ void show_registers(struct pt_regs *regs)
 	printk("\n");
 }	
 
-static void handle_BUG(struct pt_regs *regs)
+int is_valid_bugaddr(unsigned long eip)
 {
-	unsigned long eip = regs->eip;
 	unsigned short ud2;
 
 	if (eip < PAGE_OFFSET)
-		return;
+		return 0;
 	if (probe_kernel_address((unsigned short *)eip, ud2))
-		return;
-	if (ud2 != 0x0b0f)
-		return;
+		return 0;
 
-	printk(KERN_EMERG "------------[ cut here ]------------\n");
-
-#ifdef CONFIG_DEBUG_BUGVERBOSE
-	do {
-		unsigned short line;
-		char *file;
-		char c;
-
-		if (probe_kernel_address((unsigned short *)(eip + 2), line))
-			break;
-		if (probe_kernel_address((char **)(eip + 4), file) ||
-		    (unsigned long)file < PAGE_OFFSET ||
-			probe_kernel_address(file, c))
-			file = "<bad filename>";
-
-		printk(KERN_EMERG "kernel BUG at %s:%d!\n", file, line);
-		return;
-	} while (0);
-#endif
-	printk(KERN_EMERG "Kernel BUG at [verbose debug info unavailable]\n");
+	return ud2 == 0x0b0f;
 }
 
-/* This is gone through when something in the kernel
- * has done something bad and is about to be terminated.
-*/
+/*
+ * This is gone through when something in the kernel has done something bad and
+ * is about to be terminated.
+ */
 void die(const char * str, struct pt_regs * regs, long err)
 {
 	static struct {
@@ -488,7 +468,8 @@ void die(const char * str, struct pt_regs * regs, long err)
 		unsigned long esp;
 		unsigned short ss;
 
-		handle_BUG(regs);
+		report_bug(regs->eip);
+
 		printk(KERN_EMERG "%s: %04lx [#%d]\n", str, err & 0xffff, ++die_counter);
 #ifdef CONFIG_PREEMPT
 		printk(KERN_EMERG "PREEMPT ");

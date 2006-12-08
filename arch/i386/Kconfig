@@ -49,6 +49,11 @@ config GENERIC_IOMAP
 	bool
 	default y
 
+config GENERIC_BUG
+	bool
+	default y
+	depends on BUG
+
 config GENERIC_HWEIGHT
 	bool
 	default y
