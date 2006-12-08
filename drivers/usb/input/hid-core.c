@@ -169,65 +169,6 @@ done:
 	spin_unlock_irqrestore(&usbhid->inlock, flags);
 }
 
-
-static int hid_input_report(int type, struct urb *urb, int interrupt)
-{
-	struct hid_device *hid = urb->context;
-	struct hid_report_enum *report_enum = hid->report_enum + type;
-	u8 *data = urb->transfer_buffer;
-	int len = urb->actual_length;
-	struct hid_report *report;
-	int n, size;
-
-	if (!len) {
-		dbg("empty report");
-		return -1;
-	}
-
-#ifdef DEBUG_DATA
-	printk(KERN_DEBUG __FILE__ ": report (size %u) (%snumbered)\n", len, report_enum->numbered ? "" : "un");
-#endif
-
-	n = 0;                          /* Normally report number is 0 */
-	if (report_enum->numbered) {    /* Device uses numbered reports, data[0] is report number */
-		n = *data++;
-		len--;
-	}
-
-#ifdef DEBUG_DATA
-	{
-		int i;
-		printk(KERN_DEBUG __FILE__ ": report %d (size %u) = ", n, len);
-		for (i = 0; i < len; i++)
-			printk(" %02x", data[i]);
-		printk("\n");
-	}
-#endif
-
-	if (!(report = report_enum->report_id_hash[n])) {
-		dbg("undefined report_id %d received", n);
-		return -1;
-	}
-
-	size = ((report->size - 1) >> 3) + 1;
-
-	if (len < size) {
-		dbg("report %d is too short, (%d < %d)", report->id, len, size);
-		memset(data + len, 0, size - len);
-	}
-
-	if (hid->claimed & HID_CLAIMED_HIDDEV)
-		hiddev_report_event(hid, report);
-
-	for (n = 0; n < report->maxfield; n++)
-		hid_input_field(hid, report->field[n], data, interrupt);
-
-	if (hid->claimed & HID_CLAIMED_INPUT)
-		hidinput_report_event(hid, report);
-
-	return 0;
-}
-
 /*
  * Input interrupt completion handler.
  */
@@ -241,7 +182,9 @@ static void hid_irq_in(struct urb *urb)
 	switch (urb->status) {
 		case 0:			/* success */
 			usbhid->retry_delay = 0;
-			hid_input_report(HID_INPUT_REPORT, urb, 1);
+			hid_input_report(urb->context, HID_INPUT_REPORT,
+					 urb->transfer_buffer,
+					 urb->actual_length, 1);
 			break;
 		case -EPIPE:		/* stall */
 			clear_bit(HID_IN_RUNNING, &usbhid->iofl);
@@ -426,7 +369,8 @@ static void hid_ctrl(struct urb *urb)
 	switch (urb->status) {
 		case 0:			/* success */
 			if (usbhid->ctrl[usbhid->ctrltail].dir == USB_DIR_IN)
-				hid_input_report(usbhid->ctrl[usbhid->ctrltail].report->type, urb, 0);
+				hid_input_report(urb->context, usbhid->ctrl[usbhid->ctrltail].report->type,
+						urb->transfer_buffer, urb->actual_length, 0);
 			break;
 		case -ESHUTDOWN:	/* unplug */
 			unplug = 1;
@@ -1286,6 +1230,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	hid->hidinput_close = hidinput_close;
 #ifdef CONFIG_USB_HIDDEV
 	hid->hiddev_hid_event = hiddev_hid_event;
+	hid->hiddev_report_event = hiddev_report_event;
 #endif
 
 	return hid;

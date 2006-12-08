@@ -214,6 +214,7 @@ void hiddev_report_event(struct hid_device *hid, struct hid_report *report)
 
 	hiddev_send_event(hid, &uref);
 }
+
 /*
  * fasync file op
  */

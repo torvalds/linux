@@ -940,5 +940,64 @@ int hid_set_field(struct hid_field *field, unsigned offset, __s32 value)
 }
 EXPORT_SYMBOL_GPL(hid_set_field);
 
+int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int interrupt)
+{
+	struct hid_report_enum *report_enum = hid->report_enum + type;
+	struct hid_report *report;
+	int n, rsize;
+
+	if (!hid)
+		return -ENODEV;
+
+	if (!size) {
+		dbg("empty report");
+		return -1;
+	}
+
+#ifdef DEBUG_DATA
+	printk(KERN_DEBUG __FILE__ ": report (size %u) (%snumbered)\n", len, report_enum->numbered ? "" : "un");
+#endif
+
+	n = 0;                          /* Normally report number is 0 */
+	if (report_enum->numbered) {    /* Device uses numbered reports, data[0] is report number */
+		n = *data++;
+		size--;
+	}
+
+#ifdef DEBUG_DATA
+	{
+		int i;
+		printk(KERN_DEBUG __FILE__ ": report %d (size %u) = ", n, size);
+		for (i = 0; i < size; i++)
+			printk(" %02x", data[i]);
+		printk("\n");
+	}
+#endif
+
+	if (!(report = report_enum->report_id_hash[n])) {
+		dbg("undefined report_id %d received", n);
+		return -1;
+	}
+
+	rsize = ((report->size - 1) >> 3) + 1;
+
+	if (size < rsize) {
+		dbg("report %d is too short, (%d < %d)", report->id, size, rsize);
+		return -1;
+	}
+
+	if ((hid->claimed & HID_CLAIMED_HIDDEV) && hid->hiddev_report_event)
+		hid->hiddev_report_event(hid, report);
+
+	for (n = 0; n < report->maxfield; n++)
+		hid_input_field(hid, report->field[n], data, interrupt);
+
+	if (hid->claimed & HID_CLAIMED_INPUT)
+		hidinput_report_event(hid, report);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hid_input_report);
+
 MODULE_LICENSE(DRIVER_LICENSE);
 

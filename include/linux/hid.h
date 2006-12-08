@@ -436,7 +436,7 @@ struct hid_device {							/* device report descriptor */
 	/* hiddev event handler */
 	void (*hiddev_hid_event) (struct hid_device *, struct hid_field *field,
 				  struct hid_usage *, __s32);
-
+	void (*hiddev_report_event) (struct hid_device *, struct hid_report *);
 #ifdef CONFIG_USB_HIDINPUT_POWERBOOK
 	unsigned long pb_pressed_fn[NBITS(KEY_MAX)];
 	unsigned long pb_pressed_numlock[NBITS(KEY_MAX)];
@@ -492,6 +492,7 @@ extern int hidinput_connect(struct hid_device *);
 extern void hidinput_disconnect(struct hid_device *);
 
 int hid_set_field(struct hid_field *, unsigned, __s32);
+int hid_input_report(struct hid_device *, int type, u8 *, int, int);
 int hidinput_find_field(struct hid_device *hid, unsigned int type, unsigned int code, struct hid_field **field);
 void hid_input_field(struct hid_device *hid, struct hid_field *field, __u8 *data, int interrupt);
 void hid_output_report(struct hid_report *report, __u8 *data);
