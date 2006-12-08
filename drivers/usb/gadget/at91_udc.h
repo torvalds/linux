@@ -141,6 +141,7 @@ struct at91_udc {
 	struct clk			*iclk, *fclk;
 	struct platform_device		*pdev;
 	struct proc_dir_entry		*pde;
+	void __iomem			*udp_baseaddr;
 	int				udp_irq;
 };
 
