@@ -103,38 +103,51 @@ struct tifm_sd {
 	wait_queue_head_t     can_eject;
 
 	size_t                written_blocks;
-	char                  *buffer;
 	size_t                buffer_size;
 	size_t                buffer_pos;
 
 };
+
+static char* tifm_sd_kmap_atomic(struct mmc_data *data)
+{
+	return kmap_atomic(data->sg->page, KM_BIO_SRC_IRQ) + data->sg->offset;
+}
+
+static void tifm_sd_kunmap_atomic(char *buffer, struct mmc_data *data)
+{
+	kunmap_atomic(buffer - data->sg->offset, KM_BIO_SRC_IRQ);
+}
 
 static int tifm_sd_transfer_data(struct tifm_dev *sock, struct tifm_sd *host,
 					unsigned int host_status)
 {
 	struct mmc_command *cmd = host->req->cmd;
 	unsigned int t_val = 0, cnt = 0;
+	char *buffer;
 
 	if (host_status & TIFM_MMCSD_BRS) {
 		/* in non-dma rx mode BRS fires when fifo is still not empty */
-		if (host->buffer && (cmd->data->flags & MMC_DATA_READ)) {
+		if (no_dma && (cmd->data->flags & MMC_DATA_READ)) {
+			buffer = tifm_sd_kmap_atomic(host->req->data);
 			while (host->buffer_size > host->buffer_pos) {
 				t_val = readl(sock->addr + SOCK_MMCSD_DATA);
-				host->buffer[host->buffer_pos++] = t_val & 0xff;
-				host->buffer[host->buffer_pos++] =
+				buffer[host->buffer_pos++] = t_val & 0xff;
+				buffer[host->buffer_pos++] =
 							(t_val >> 8) & 0xff;
 			}
+			tifm_sd_kunmap_atomic(buffer, host->req->data);
 		}
 		return 1;
-	} else if (host->buffer) {
+	} else if (no_dma) {
+		buffer = tifm_sd_kmap_atomic(host->req->data);
 		if ((cmd->data->flags & MMC_DATA_READ) &&
 				(host_status & TIFM_MMCSD_AF)) {
 			for (cnt = 0; cnt < TIFM_MMCSD_FIFO_SIZE; cnt++) {
 				t_val = readl(sock->addr + SOCK_MMCSD_DATA);
 				if (host->buffer_size > host->buffer_pos) {
-					host->buffer[host->buffer_pos++] =
+					buffer[host->buffer_pos++] =
 							t_val & 0xff;
-					host->buffer[host->buffer_pos++] =
+					buffer[host->buffer_pos++] =
 							(t_val >> 8) & 0xff;
 				}
 			}
@@ -142,14 +155,16 @@ static int tifm_sd_transfer_data(struct tifm_dev *sock, struct tifm_sd *host,
 			   && (host_status & TIFM_MMCSD_AE)) {
 			for (cnt = 0; cnt < TIFM_MMCSD_FIFO_SIZE; cnt++) {
 				if (host->buffer_size > host->buffer_pos) {
-					t_val = host->buffer[host->buffer_pos++] & 0x00ff;
-					t_val |= ((host->buffer[host->buffer_pos++]) << 8)
-						 & 0xff00;
+					t_val = buffer[host->buffer_pos++]
+						& 0x00ff;
+					t_val |= ((buffer[host->buffer_pos++])
+						  << 8) & 0xff00;
 					writel(t_val,
 						sock->addr + SOCK_MMCSD_DATA);
 				}
 			}
 		}
+		tifm_sd_kunmap_atomic(buffer, host->req->data);
 	}
 	return 0;
 }
@@ -561,15 +576,6 @@ static void tifm_sd_request_nodma(struct mmc_host *mmc, struct mmc_request *mrq)
 	struct tifm_dev *sock = host->dev;
 	unsigned long flags;
 	struct mmc_data *r_data = mrq->cmd->data;
-	char *t_buffer = NULL;
-
-	if (r_data) {
-		t_buffer = kmap(r_data->sg->page);
-		if (!t_buffer) {
-			printk(KERN_ERR DRIVER_NAME ": kmap failed\n");
-			goto err_out;
-		}
-	}
 
 	spin_lock_irqsave(&sock->lock, flags);
 	if (host->flags & EJECT) {
@@ -586,7 +592,6 @@ static void tifm_sd_request_nodma(struct mmc_host *mmc, struct mmc_request *mrq)
 	if (r_data) {
 		tifm_sd_set_data_timeout(host, r_data);
 
-		host->buffer = t_buffer + r_data->sg->offset;
 		host->buffer_size = mrq->cmd->data->blocks *
 					mrq->cmd->data->blksz;
 
@@ -615,9 +620,6 @@ static void tifm_sd_request_nodma(struct mmc_host *mmc, struct mmc_request *mrq)
 	return;
 
 err_out:
-	if (t_buffer)
-		kunmap(r_data->sg->page);
-
 	mrq->cmd->error = MMC_ERR_TIMEOUT;
 	mmc_request_done(mmc, mrq);
 }
@@ -659,7 +661,6 @@ static void tifm_sd_end_cmd_nodma(struct work_struct *work)
 			r_data->bytes_xfered += r_data->blksz -
 				readl(sock->addr + SOCK_MMCSD_BLOCK_LEN) + 1;
 		}
-		host->buffer = NULL;
 		host->buffer_pos = 0;
 		host->buffer_size = 0;
 	}
@@ -668,9 +669,6 @@ static void tifm_sd_end_cmd_nodma(struct work_struct *work)
 			sock->addr + SOCK_CONTROL);
 
 	spin_unlock_irqrestore(&sock->lock, flags);
-
-        if (r_data)
-		kunmap(r_data->sg->page);
 
 	mmc_request_done(mmc, mrq);
 }
