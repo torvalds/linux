@@ -39,7 +39,7 @@
  */
 #define SNAPSHOT_PAGES 256
 
-struct workqueue_struct *ksnapd;
+static struct workqueue_struct *ksnapd;
 static void flush_queued_bios(struct work_struct *work);
 
 struct pending_exception {
