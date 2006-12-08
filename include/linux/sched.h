@@ -436,7 +436,12 @@ struct signal_struct {
 	/* job control IDs */
 	pid_t pgrp;
 	pid_t tty_old_pgrp;
-	pid_t session;
+
+	union {
+		pid_t session __deprecated;
+		pid_t __session;
+	};
+
 	/* boolean value for session group leader */
 	int leader;
 
@@ -1047,9 +1052,19 @@ static inline pid_t process_group(struct task_struct *tsk)
 	return tsk->signal->pgrp;
 }
 
+static inline pid_t signal_session(struct signal_struct *sig)
+{
+	return sig->__session;
+}
+
 static inline pid_t process_session(struct task_struct *tsk)
 {
-	return tsk->signal->session;
+	return signal_session(tsk->signal);
+}
+
+static inline void set_signal_session(struct signal_struct *sig, pid_t session)
+{
+	sig->__session = session;
 }
 
 static inline struct pid *task_pid(struct task_struct *task)

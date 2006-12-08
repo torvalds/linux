@@ -3855,7 +3855,7 @@ EXPORT_SYMBOL(proc_clear_tty);
 void __proc_set_tty(struct task_struct *tsk, struct tty_struct *tty)
 {
 	if (tty) {
-		tty->session = tsk->signal->session;
+		tty->session = process_session(tsk);
 		tty->pgrp = process_group(tsk);
 	}
 	tsk->signal->tty = tty;

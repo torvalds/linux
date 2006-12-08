@@ -1259,7 +1259,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 		if (thread_group_leader(p)) {
 			p->signal->tty = current->signal->tty;
 			p->signal->pgrp = process_group(current);
-			p->signal->session = process_session(current);
+			set_signal_session(p->signal, process_session(current));
 			attach_pid(p, PIDTYPE_PGID, process_group(p));
 			attach_pid(p, PIDTYPE_SID, process_session(p));
 

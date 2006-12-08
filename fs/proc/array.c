@@ -381,7 +381,7 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 			stime = cputime_add(stime, sig->stime);
 		}
 
-		sid = sig->session;
+		sid = signal_session(sig);
 		pgid = process_group(task);
 		ppid = rcu_dereference(task->real_parent)->tgid;
 

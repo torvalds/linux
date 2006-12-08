@@ -57,17 +57,18 @@
 	.cpu_vm_mask	= CPU_MASK_ALL,				\
 }
 
-#define INIT_SIGNALS(sig) {	\
-	.count		= ATOMIC_INIT(1), 		\
+#define INIT_SIGNALS(sig) {						\
+	.count		= ATOMIC_INIT(1), 				\
 	.wait_chldexit	= __WAIT_QUEUE_HEAD_INITIALIZER(sig.wait_chldexit),\
-	.shared_pending	= { 				\
+	.shared_pending	= { 						\
 		.list = LIST_HEAD_INIT(sig.shared_pending.list),	\
-		.signal =  {{0}}}, \
+		.signal =  {{0}}},					\
 	.posix_timers	 = LIST_HEAD_INIT(sig.posix_timers),		\
 	.cpu_timers	= INIT_CPU_TIMERS(sig.cpu_timers),		\
 	.rlim		= INIT_RLIMITS,					\
 	.pgrp		= 1,						\
-	.session	= 1,						\
+	.tty_old_pgrp   = 0,						\
+	{ .__session      = 1},						\
 }
 
 extern struct nsproxy init_nsproxy;

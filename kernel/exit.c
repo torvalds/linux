@@ -304,7 +304,7 @@ void __set_special_pids(pid_t session, pid_t pgrp)
 
 	if (process_session(curr) != session) {
 		detach_pid(curr, PIDTYPE_SID);
-		curr->signal->session = session;
+		set_signal_session(curr->signal, session);
 		attach_pid(curr, PIDTYPE_SID, session);
 	}
 	if (process_group(curr) != pgrp) {
