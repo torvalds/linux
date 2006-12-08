@@ -2791,6 +2791,7 @@ static int __init sx_init(void)
 		retval = 0;
 	} else if (retval) {
 #ifdef CONFIG_EISA
+		retval = retval1;
 		if (retval1)
 #endif
 			misc_deregister(&sx_fw_device);
