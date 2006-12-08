@@ -485,12 +485,9 @@ static void do_acct_process(struct file *file)
 	ac.ac_ppid = current->parent->tgid;
 #endif
 
-	mutex_lock(&tty_mutex);
-	tty = get_current_tty();
-	ac.ac_tty = tty ? old_encode_dev(tty_devnum(tty)) : 0;
-	mutex_unlock(&tty_mutex);
-
 	spin_lock_irq(&current->sighand->siglock);
+	tty = current->signal->tty;
+	ac.ac_tty = tty ? old_encode_dev(tty_devnum(tty)) : 0;
 	ac.ac_utime = encode_comp_t(jiffies_to_AHZ(cputime_to_jiffies(pacct->ac_utime)));
 	ac.ac_stime = encode_comp_t(jiffies_to_AHZ(cputime_to_jiffies(pacct->ac_stime)));
 	ac.ac_flag = pacct->ac_flag;
