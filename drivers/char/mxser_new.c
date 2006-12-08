@@ -358,9 +358,9 @@ static void process_txrx_fifo(struct mxser_port *info)
 			}
 }
 
-static void mxser_do_softint(void *private_)
+static void mxser_do_softint(struct work_struct *work)
 {
-	struct mxser_port *info = private_;
+	struct mxser_port *info = container_of(work, struct mxser_port, tqueue);
 	struct tty_struct *tty = info->tty;
 
 	if (test_and_clear_bit(MXSER_EVENT_TXLOW, &info->event))
@@ -2416,7 +2416,7 @@ static int __devinit mxser_initbrd(struct mxser_board *brd,
 		info->custom_divisor = info->baud_base * 16;
 		info->close_delay = 5 * HZ / 10;
 		info->closing_wait = 30 * HZ;
-		INIT_WORK(&info->tqueue, mxser_do_softint, info);
+		INIT_WORK(&info->tqueue, mxser_do_softint);
 		info->normal_termios = mxvar_sdriver->init_termios;
 		init_waitqueue_head(&info->open_wait);
 		init_waitqueue_head(&info->close_wait);
