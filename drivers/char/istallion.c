@@ -202,6 +202,7 @@ static int		stli_shared;
  */
 #define	BST_FOUND	0x1
 #define	BST_STARTED	0x2
+#define	BST_PROBED	0x4
 
 /*
  *	Define the set of port state flags. These are marked for internal
@@ -791,7 +792,7 @@ static void __exit istallion_module_exit(void)
 	kfree(stli_txcookbuf);
 
 	for (j = 0; (j < stli_nrbrds); j++) {
-		if ((brdp = stli_brds[j]) == NULL)
+		if ((brdp = stli_brds[j]) == NULL || (brdp->state & BST_PROBED))
 			continue;
 
 		stli_cleanup_ports(brdp);
@@ -3956,6 +3957,7 @@ static int __devinit stli_pciprobe(struct pci_dev *pdev,
 	if (retval)
 		goto err_null;
 
+	brdp->state |= BST_PROBED;
 	pci_set_drvdata(pdev, brdp);
 
 	return 0;
