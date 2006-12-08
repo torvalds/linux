@@ -2350,11 +2350,7 @@ static int __devinit aty_init(struct fb_info *info, const char *name)
 	const char *ramname = NULL, *xtal;
 	int gtb_memsize, has_var = 0;
 	struct fb_var_screeninfo var;
-	u8 pll_ref_div;
 	u32 i;
-#if defined(CONFIG_PPC)
-	int sense;
-#endif
 
 	init_waitqueue_head(&par->vblank.wait);
 	spin_lock_init(&par->int_lock);
@@ -2464,18 +2460,21 @@ static int __devinit aty_init(struct fb_info *info, const char *name)
 			par->pll_limits.mclk = 63;
 	}
 
-	if (M64_HAS(GTB_DSP)
-	    && (pll_ref_div = aty_ld_pll_ct(PLL_REF_DIV, par))) {
-		int diff1, diff2;
-		diff1 = 510 * 14 / pll_ref_div - par->pll_limits.pll_max;
-		diff2 = 510 * 29 / pll_ref_div - par->pll_limits.pll_max;
-		if (diff1 < 0)
-			diff1 = -diff1;
-		if (diff2 < 0)
-			diff2 = -diff2;
-		if (diff2 < diff1) {
-			par->ref_clk_per = 1000000000000ULL / 29498928;
-			xtal = "29.498928";
+	if (M64_HAS(GTB_DSP)) {
+		u8 pll_ref_div = aty_ld_pll_ct(PLL_REF_DIV, par);
+
+		if (pll_ref_div) {
+			int diff1, diff2;
+			diff1 = 510 * 14 / pll_ref_div - par->pll_limits.pll_max;
+			diff2 = 510 * 29 / pll_ref_div - par->pll_limits.pll_max;
+			if (diff1 < 0)
+				diff1 = -diff1;
+			if (diff2 < 0)
+				diff2 = -diff2;
+			if (diff2 < diff1) {
+				par->ref_clk_per = 1000000000000ULL / 29498928;
+				xtal = "29.498928";
+			}
 		}
 	}
 #endif /* CONFIG_FB_ATY_CT */
@@ -2668,6 +2667,7 @@ static int __devinit aty_init(struct fb_info *info, const char *name)
 				has_var = 1;
 		} else {
 			if (default_vmode == VMODE_CHOOSE) {
+				int sense;
 				if (M64_HAS(G3_PB_1024x768))
 					/* G3 PowerBook with 1024x768 LCD */
 					default_vmode = VMODE_1024_768_60;
@@ -3711,6 +3711,8 @@ static int __devinit atyfb_atari_probe(void)
 
 #endif /* CONFIG_ATARI */
 
+#ifdef CONFIG_PCI
+
 static void __devexit atyfb_remove(struct fb_info *info)
 {
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
@@ -3758,7 +3760,6 @@ static void __devexit atyfb_remove(struct fb_info *info)
 	framebuffer_release(info);
 }
 
-#ifdef CONFIG_PCI
 
 static void __devexit atyfb_pci_remove(struct pci_dev *pdev)
 {
