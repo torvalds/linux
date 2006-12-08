@@ -362,6 +362,7 @@ static int __devinit init_setup_pdc20270(struct pci_dev *dev,
 					 ide_pci_device_t *d)
 {
 	struct pci_dev *findev = NULL;
+	int ret;
 
 	if ((dev->bus->self &&
 	     dev->bus->self->vendor == PCI_VENDOR_ID_DEC) &&
@@ -369,14 +370,16 @@ static int __devinit init_setup_pdc20270(struct pci_dev *dev,
 		if (PCI_SLOT(dev->devfn) & 2)
 			return -ENODEV;
 		d->extra = 0;
-		while ((findev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, findev)) != NULL) {
+		while ((findev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, findev)) != NULL) {
 			if ((findev->vendor == dev->vendor) &&
 			    (findev->device == dev->device) &&
 			    (PCI_SLOT(findev->devfn) & 2)) {
 				if (findev->irq != dev->irq) {
 					findev->irq = dev->irq;
 				}
-				return ide_setup_pci_devices(dev, findev, d);
+				ret = ide_setup_pci_devices(dev, findev, d);
+				pci_dev_put(findev);
+				return ret;
 			}
 		}
 	}
