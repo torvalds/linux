@@ -52,6 +52,11 @@ config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
 
+config GENERIC_BUG
+	bool
+	default y
+	depends on BUG
+
 source "init/Kconfig"
 
 menu "Processor"
