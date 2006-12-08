@@ -35,7 +35,7 @@ struct bug_entry {
 #define WARN_ON(condition) ({						\
 	typeof(condition) __ret_warn_on = (condition);			\
 	if (unlikely(__ret_warn_on)) {					\
-		printk("BUG: warning at %s:%d/%s()\n", __FILE__,	\
+		printk("WARNING at %s:%d %s()\n", __FILE__,	\
 			__LINE__, __FUNCTION__);			\
 		dump_stack();						\
 	}								\
