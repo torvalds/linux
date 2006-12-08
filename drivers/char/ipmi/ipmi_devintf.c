@@ -798,7 +798,7 @@ static long compat_ipmi_ioctl(struct file *filep, unsigned int cmd,
 		if (copy_to_user(precv64, &recv64, sizeof(recv64)))
 			return -EFAULT;
 
-		rc = ipmi_ioctl(filep->f_dentry->d_inode, filep,
+		rc = ipmi_ioctl(filep->f_path.dentry->d_inode, filep,
 				((cmd == COMPAT_IPMICTL_RECEIVE_MSG)
 				 ? IPMICTL_RECEIVE_MSG
 				 : IPMICTL_RECEIVE_MSG_TRUNC),
@@ -815,7 +815,7 @@ static long compat_ipmi_ioctl(struct file *filep, unsigned int cmd,
 		return rc;
 	}
 	default:
-		return ipmi_ioctl(filep->f_dentry->d_inode, filep, cmd, arg);
+		return ipmi_ioctl(filep->f_path.dentry->d_inode, filep, cmd, arg);
 	}
 }
 #endif
