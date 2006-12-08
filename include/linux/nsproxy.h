@@ -4,7 +4,7 @@
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 
-struct namespace;
+struct mnt_namespace;
 struct uts_namespace;
 struct ipc_namespace;
 
@@ -25,7 +25,7 @@ struct nsproxy {
 	spinlock_t nslock;
 	struct uts_namespace *uts_ns;
 	struct ipc_namespace *ipc_ns;
-	struct namespace *namespace;
+	struct mnt_namespace *mnt_ns;
 };
 extern struct nsproxy init_nsproxy;
 

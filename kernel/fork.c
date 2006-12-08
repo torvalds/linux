@@ -18,7 +18,7 @@
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/completion.h>
-#include <linux/namespace.h>
+#include <linux/mnt_namespace.h>
 #include <linux/personality.h>
 #include <linux/mempolicy.h>
 #include <linux/sem.h>
@@ -1525,17 +1525,18 @@ static int unshare_fs(unsigned long unshare_flags, struct fs_struct **new_fsp)
 }
 
 /*
- * Unshare the namespace structure if it is being shared
+ * Unshare the mnt_namespace structure if it is being shared
  */
-static int unshare_namespace(unsigned long unshare_flags, struct namespace **new_nsp, struct fs_struct *new_fs)
+static int unshare_mnt_namespace(unsigned long unshare_flags,
+		struct mnt_namespace **new_nsp, struct fs_struct *new_fs)
 {
-	struct namespace *ns = current->nsproxy->namespace;
+	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
 
 	if ((unshare_flags & CLONE_NEWNS) && ns) {
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
-		*new_nsp = dup_namespace(current, new_fs ? new_fs : current->fs);
+		*new_nsp = dup_mnt_ns(current, new_fs ? new_fs : current->fs);
 		if (!*new_nsp)
 			return -ENOMEM;
 	}
@@ -1623,7 +1624,7 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 {
 	int err = 0;
 	struct fs_struct *fs, *new_fs = NULL;
-	struct namespace *ns, *new_ns = NULL;
+	struct mnt_namespace *ns, *new_ns = NULL;
 	struct sighand_struct *new_sigh = NULL;
 	struct mm_struct *mm, *new_mm = NULL, *active_mm = NULL;
 	struct files_struct *fd, *new_fd = NULL;
@@ -1645,7 +1646,7 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 		goto bad_unshare_out;
 	if ((err = unshare_fs(unshare_flags, &new_fs)))
 		goto bad_unshare_cleanup_thread;
-	if ((err = unshare_namespace(unshare_flags, &new_ns, new_fs)))
+	if ((err = unshare_mnt_namespace(unshare_flags, &new_ns, new_fs)))
 		goto bad_unshare_cleanup_fs;
 	if ((err = unshare_sighand(unshare_flags, &new_sigh)))
 		goto bad_unshare_cleanup_ns;
@@ -1686,8 +1687,8 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 		}
 
 		if (new_ns) {
-			ns = current->nsproxy->namespace;
-			current->nsproxy->namespace = new_ns;
+			ns = current->nsproxy->mnt_ns;
+			current->nsproxy->mnt_ns = new_ns;
 			new_ns = ns;
 		}
 
@@ -1748,7 +1749,7 @@ bad_unshare_cleanup_sigh:
 
 bad_unshare_cleanup_ns:
 	if (new_ns)
-		put_namespace(new_ns);
+		put_mnt_ns(new_ns);
 
 bad_unshare_cleanup_fs:
 	if (new_fs)

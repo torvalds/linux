@@ -17,7 +17,7 @@
 #include <linux/version.h>
 #include <linux/nsproxy.h>
 #include <linux/init_task.h>
-#include <linux/namespace.h>
+#include <linux/mnt_namespace.h>
 #include <linux/utsname.h>
 
 struct nsproxy init_nsproxy = INIT_NSPROXY(init_nsproxy);
@@ -60,8 +60,8 @@ struct nsproxy *dup_namespaces(struct nsproxy *orig)
 	struct nsproxy *ns = clone_namespaces(orig);
 
 	if (ns) {
-		if (ns->namespace)
-			get_namespace(ns->namespace);
+		if (ns->mnt_ns)
+			get_mnt_ns(ns->mnt_ns);
 		if (ns->uts_ns)
 			get_uts_ns(ns->uts_ns);
 		if (ns->ipc_ns)
@@ -97,7 +97,7 @@ int copy_namespaces(int flags, struct task_struct *tsk)
 
 	tsk->nsproxy = new_ns;
 
-	err = copy_namespace(flags, tsk);
+	err = copy_mnt_ns(flags, tsk);
 	if (err)
 		goto out_ns;
 
@@ -117,8 +117,8 @@ out_ipc:
 	if (new_ns->uts_ns)
 		put_uts_ns(new_ns->uts_ns);
 out_uts:
-	if (new_ns->namespace)
-		put_namespace(new_ns->namespace);
+	if (new_ns->mnt_ns)
+		put_mnt_ns(new_ns->mnt_ns);
 out_ns:
 	tsk->nsproxy = old_ns;
 	kfree(new_ns);
@@ -127,8 +127,8 @@ out_ns:
 
 void free_nsproxy(struct nsproxy *ns)
 {
-		if (ns->namespace)
-			put_namespace(ns->namespace);
+		if (ns->mnt_ns)
+			put_mnt_ns(ns->mnt_ns);
 		if (ns->uts_ns)
 			put_uts_ns(ns->uts_ns);
 		if (ns->ipc_ns)

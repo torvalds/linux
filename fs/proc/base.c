@@ -59,7 +59,7 @@
 #include <linux/string.h>
 #include <linux/seq_file.h>
 #include <linux/namei.h>
-#include <linux/namespace.h>
+#include <linux/mnt_namespace.h>
 #include <linux/mm.h>
 #include <linux/smp_lock.h>
 #include <linux/rcupdate.h>
@@ -365,33 +365,33 @@ struct proc_mounts {
 static int mounts_open(struct inode *inode, struct file *file)
 {
 	struct task_struct *task = get_proc_task(inode);
-	struct namespace *namespace = NULL;
+	struct mnt_namespace *ns = NULL;
 	struct proc_mounts *p;
 	int ret = -EINVAL;
 
 	if (task) {
 		task_lock(task);
-		namespace = task->nsproxy->namespace;
-		if (namespace)
-			get_namespace(namespace);
+		ns = task->nsproxy->mnt_ns;
+		if (ns)
+			get_mnt_ns(ns);
 		task_unlock(task);
 		put_task_struct(task);
 	}
 
-	if (namespace) {
+	if (ns) {
 		ret = -ENOMEM;
 		p = kmalloc(sizeof(struct proc_mounts), GFP_KERNEL);
 		if (p) {
 			file->private_data = &p->m;
 			ret = seq_open(file, &mounts_op);
 			if (!ret) {
-				p->m.private = namespace;
-				p->event = namespace->event;
+				p->m.private = ns;
+				p->event = ns->event;
 				return 0;
 			}
 			kfree(p);
 		}
-		put_namespace(namespace);
+		put_mnt_ns(ns);
 	}
 	return ret;
 }
@@ -399,15 +399,15 @@ static int mounts_open(struct inode *inode, struct file *file)
 static int mounts_release(struct inode *inode, struct file *file)
 {
 	struct seq_file *m = file->private_data;
-	struct namespace *namespace = m->private;
-	put_namespace(namespace);
+	struct mnt_namespace *ns = m->private;
+	put_mnt_ns(ns);
 	return seq_release(inode, file);
 }
 
 static unsigned mounts_poll(struct file *file, poll_table *wait)
 {
 	struct proc_mounts *p = file->private_data;
-	struct namespace *ns = p->m.private;
+	struct mnt_namespace *ns = p->m.private;
 	unsigned res = 0;
 
 	poll_wait(file, &ns->poll, wait);
@@ -437,21 +437,21 @@ static int mountstats_open(struct inode *inode, struct file *file)
 
 	if (!ret) {
 		struct seq_file *m = file->private_data;
-		struct namespace *namespace = NULL;
+		struct mnt_namespace *mnt_ns = NULL;
 		struct task_struct *task = get_proc_task(inode);
 
 		if (task) {
 			task_lock(task);
 			if (task->nsproxy)
-				namespace = task->nsproxy->namespace;
-			if (namespace)
-				get_namespace(namespace);
+				mnt_ns = task->nsproxy->mnt_ns;
+			if (mnt_ns)
+				get_mnt_ns(mnt_ns);
 			task_unlock(task);
 			put_task_struct(task);
 		}
 
-		if (namespace)
-			m->private = namespace;
+		if (mnt_ns)
+			m->private = mnt_ns;
 		else {
 			seq_release(inode, file);
 			ret = -EINVAL;
