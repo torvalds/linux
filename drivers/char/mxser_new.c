@@ -559,7 +559,7 @@ static void process_txrx_fifo(struct mxser_port *info)
 			}
 }
 
-static int mxser_initbrd(struct mxser_board *brd)
+static int __devinit mxser_initbrd(struct mxser_board *brd)
 {
 	struct mxser_port *info;
 	unsigned int i;
@@ -617,7 +617,7 @@ static int mxser_initbrd(struct mxser_board *brd)
 	return 0;
 }
 
-static int mxser_get_PCI_conf(int board_type, struct mxser_board *brd,
+static int __init mxser_get_PCI_conf(int board_type, struct mxser_board *brd,
 		struct pci_dev *pdev)
 {
 	unsigned int i, j;
@@ -678,7 +678,7 @@ static int mxser_get_PCI_conf(int board_type, struct mxser_board *brd,
 	return 0;
 }
 
-static int mxser_init(void)
+static int __init mxser_init(void)
 {
 	struct pci_dev *pdev = NULL;
 	struct mxser_board *brd;
@@ -2925,7 +2925,7 @@ static int mxser_read_register(int, unsigned short *);
 static int mxser_program_mode(int);
 static void mxser_normal_mode(int);
 
-static int mxser_get_ISA_conf(int cap, struct mxser_board *brd)
+static int __init mxser_get_ISA_conf(int cap, struct mxser_board *brd)
 {
 	int id, i, bits;
 	unsigned short regs[16], irq;
