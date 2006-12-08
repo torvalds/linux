@@ -495,9 +495,6 @@ static int __init mxser_module_init(void)
 
 	if (verbose)
 		printk(KERN_DEBUG "Loading module mxser ...\n");
-	printk(KERN_INFO "This is mxser driver version 1.9.1 and needs TESTING."
-		"If your are willing to test this driver, please report to "
-		"jirislaby@gmail.com. Thanks.\n");
 	ret = mxser_init();
 	if (verbose)
 		printk(KERN_DEBUG "Done.\n");
