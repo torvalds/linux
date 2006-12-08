@@ -399,23 +399,27 @@ static int set_termios(struct tty_struct * tty, void __user *arg, int opt)
 	if (retval)
 		return retval;
 
+	memcpy(&tmp_termios, tty->termios, sizeof(struct ktermios));
+
 	if (opt & TERMIOS_TERMIO) {
-		memcpy(&tmp_termios, tty->termios, sizeof(struct ktermios));
 		if (user_termio_to_kernel_termios(&tmp_termios,
 						(struct termio __user *)arg))
 			return -EFAULT;
 #ifdef TCGETS2
 	} else if (opt & TERMIOS_OLD) {
-		memcpy(&tmp_termios, tty->termios, sizeof(struct termios));
 		if (user_termios_to_kernel_termios_1(&tmp_termios,
-						(struct termios_v1 __user *)arg))
-			return -EFAULT;
-#endif
-	} else {
-		if (user_termios_to_kernel_termios(&tmp_termios,
 						(struct termios __user *)arg))
 			return -EFAULT;
+	} else {
+		if (user_termios_to_kernel_termios(&tmp_termios,
+						(struct termios2 __user *)arg))
+			return -EFAULT;
 	}
+#else
+	} else if (user_termios_to_kernel_termios(&tmp_termios,
+					(struct termios __user *)arg))
+		return -EFAULT;
+#endif
 
 	/* If old style Bfoo values are used then load c_ispeed/c_ospeed with the real speed
 	   so its unconditionally usable */
@@ -707,11 +711,11 @@ int n_tty_ioctl(struct tty_struct * tty, struct file * file,
 			return 0;
 #else
 		case TCGETS:
-			if (kernel_termios_to_user_termios_1((struct termios_v1 __user *)arg, real_tty->termios))
+			if (kernel_termios_to_user_termios_1((struct termios __user *)arg, real_tty->termios))
 				return -EFAULT;
 			return 0;
 		case TCGETS2:
-			if (kernel_termios_to_user_termios((struct termios __user *)arg, real_tty->termios))
+			if (kernel_termios_to_user_termios((struct termios2 __user *)arg, real_tty->termios))
 				return -EFAULT;
 			return 0;
 		case TCSETSF2:
