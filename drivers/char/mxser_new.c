@@ -592,9 +592,6 @@ static int mxser_change_speed(struct mxser_port *info,
 	if (!(info->ioaddr))
 		return ret;
 
-#ifndef B921600
-#define B921600 (B460800 +1)
-#endif
 	if (mxser_set_baud_method[info->tty->index] == 0) {
 		baud = tty_get_baud_rate(info->tty);
 		mxser_set_baud(info, baud);
