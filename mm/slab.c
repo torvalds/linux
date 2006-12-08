@@ -3102,6 +3102,7 @@ static struct failslab_attr {
 
 } failslab = {
 	.attr = FAULT_ATTR_INITIALIZER,
+	.ignore_gfp_wait = 1,
 };
 
 static int __init setup_failslab(char *str)

@@ -910,6 +910,8 @@ static struct fail_page_alloc_attr {
 
 } fail_page_alloc = {
 	.attr = FAULT_ATTR_INITIALIZER,
+	.ignore_gfp_wait = 1,
+	.ignore_gfp_highmem = 1,
 };
 
 static int __init setup_fail_page_alloc(char *str)
