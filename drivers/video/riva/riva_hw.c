@@ -1227,7 +1227,7 @@ static int CalcVClock
  * Calculate extended mode parameters (SVGA) and save in a 
  * mode state structure.
  */
-static void CalcStateExt
+int CalcStateExt
 (
     RIVA_HW_INST  *chip,
     RIVA_HW_STATE *state,
@@ -1249,7 +1249,8 @@ static void CalcStateExt
      * Extended RIVA registers.
      */
     pixelDepth = (bpp + 1)/8;
-    CalcVClock(dotClock, &VClk, &m, &n, &p, chip);
+    if (!CalcVClock(dotClock, &VClk, &m, &n, &p, chip))
+    	return -EINVAL;
 
     switch (chip->Architecture)
     {
@@ -1327,6 +1328,8 @@ static void CalcStateExt
     state->pitch1   =
     state->pitch2   =
     state->pitch3   = pixelDepth * width;
+
+    return 0;
 }
 /*
  * Load fixed function state and pre-calculated/stored state.
@@ -2026,7 +2029,6 @@ static void nv3GetConfig
      */
     chip->Busy            = nv3Busy;
     chip->ShowHideCursor  = ShowHideCursor;
-    chip->CalcStateExt    = CalcStateExt;
     chip->LoadStateExt    = LoadStateExt;
     chip->UnloadStateExt  = UnloadStateExt;
     chip->SetStartAddress = SetStartAddress3;
@@ -2084,7 +2086,6 @@ static void nv4GetConfig
      */
     chip->Busy            = nv4Busy;
     chip->ShowHideCursor  = ShowHideCursor;
-    chip->CalcStateExt    = CalcStateExt;
     chip->LoadStateExt    = LoadStateExt;
     chip->UnloadStateExt  = UnloadStateExt;
     chip->SetStartAddress = SetStartAddress;
@@ -2186,7 +2187,6 @@ static void nv10GetConfig
      */
     chip->Busy            = nv10Busy;
     chip->ShowHideCursor  = ShowHideCursor;
-    chip->CalcStateExt    = CalcStateExt;
     chip->LoadStateExt    = LoadStateExt;
     chip->UnloadStateExt  = UnloadStateExt;
     chip->SetStartAddress = SetStartAddress;

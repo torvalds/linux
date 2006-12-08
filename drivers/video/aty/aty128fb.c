@@ -1333,6 +1333,8 @@ static int aty128_var_to_pll(u32 period_in_ps, struct aty128_pll *pll,
 	if (vclk * 12 < c.ppll_min)
 		vclk = c.ppll_min/12;
 
+	pll->post_divider = -1;
+
 	/* now, find an acceptable divider */
 	for (i = 0; i < sizeof(post_dividers); i++) {
 		output_freq = post_dividers[i] * vclk;
@@ -1341,6 +1343,9 @@ static int aty128_var_to_pll(u32 period_in_ps, struct aty128_pll *pll,
 			break;
 		}
 	}
+
+	if (pll->post_divider < 0)
+		return -EINVAL;
 
 	/* calculate feedback divider */
 	n = c.ref_divider * output_freq;

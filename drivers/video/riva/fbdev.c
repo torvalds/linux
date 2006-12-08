@@ -740,11 +740,12 @@ static void riva_load_state(struct riva_par *par, struct riva_regs *regs)
  * CALLED FROM:
  * rivafb_set_par()
  */
-static void riva_load_video_mode(struct fb_info *info)
+static int riva_load_video_mode(struct fb_info *info)
 {
 	int bpp, width, hDisplaySize, hDisplay, hStart,
 	    hEnd, hTotal, height, vDisplay, vStart, vEnd, vTotal, dotClock;
 	int hBlankStart, hBlankEnd, vBlankStart, vBlankEnd;
+	int rc;
 	struct riva_par *par = info->par;
 	struct riva_regs newmode;
 	
@@ -850,8 +851,10 @@ static void riva_load_video_mode(struct fb_info *info)
 	else
 		newmode.misc_output |= 0x80;	
 
-	par->riva.CalcStateExt(&par->riva, &newmode.ext, bpp, width,
-				  hDisplaySize, height, dotClock);
+	rc = CalcStateExt(&par->riva, &newmode.ext, bpp, width,
+			  hDisplaySize, height, dotClock);
+	if (rc)
+		goto out;
 
 	newmode.ext.scale = NV_RD32(par->riva.PRAMDAC, 0x00000848) &
 		0xfff000ff;
@@ -883,8 +886,12 @@ static void riva_load_video_mode(struct fb_info *info)
 	par->current_state = newmode;
 	riva_load_state(par, &par->current_state);
 	par->riva.LockUnlock(&par->riva, 0); /* important for HW cursor */
+
+out:
 	rivafb_blank(FB_BLANK_UNBLANK, info);
 	NVTRACE_LEAVE();
+
+	return rc;
 }
 
 static void riva_update_var(struct fb_var_screeninfo *var, struct fb_videomode *modedb)
@@ -1252,12 +1259,15 @@ static int rivafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 static int rivafb_set_par(struct fb_info *info)
 {
 	struct riva_par *par = info->par;
+	int rc = 0;
 
 	NVTRACE_ENTER();
 	/* vgaHWunlock() + riva unlock (0x7F) */
 	CRTCout(par, 0x11, 0xFF);
 	par->riva.LockUnlock(&par->riva, 0);
-	riva_load_video_mode(info);
+	rc = riva_load_video_mode(info);
+	if (rc)
+		goto out;
 	if(!(info->flags & FBINFO_HWACCEL_DISABLED))
 		riva_setup_accel(info);
 	
@@ -1270,8 +1280,10 @@ static int rivafb_set_par(struct fb_info *info)
 		info->pixmap.scan_align = 1;
 	else
 		info->pixmap.scan_align = 4;
+
+out:
 	NVTRACE_LEAVE();
-	return 0;
+	return rc;
 }
 
 /**
