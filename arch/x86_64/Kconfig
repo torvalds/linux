@@ -101,6 +101,14 @@ config GENERIC_BUG
 	default y
 	depends on BUG
 
+config ARCH_HAS_ILOG2_U32
+	bool
+	default n
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
+
 source "init/Kconfig"
 
 

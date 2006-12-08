@@ -124,7 +124,7 @@ static int mthca_query_device(struct ib_device *ibdev,
 		props->max_map_per_fmr = 255;
 	else
 		props->max_map_per_fmr =
-			(1 << (32 - long_log2(mdev->limits.num_mpts))) - 1;
+			(1 << (32 - ilog2(mdev->limits.num_mpts))) - 1;
 
 	err = 0;
  out:
@@ -816,7 +816,7 @@ static int mthca_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *uda
 		lkey = ucmd.lkey;
 	}
 
-	ret = mthca_RESIZE_CQ(dev, cq->cqn, lkey, long_log2(entries), &status);
+	ret = mthca_RESIZE_CQ(dev, cq->cqn, lkey, ilog2(entries), &status);
 	if (status)
 		ret = -EINVAL;
 

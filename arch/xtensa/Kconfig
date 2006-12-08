@@ -34,6 +34,14 @@ config GENERIC_HARDIRQS
 	bool
 	default y
 
+config ARCH_HAS_ILOG2_U32
+	bool
+	default n
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
+
 source "init/Kconfig"
 
 menu "Processor type and features"

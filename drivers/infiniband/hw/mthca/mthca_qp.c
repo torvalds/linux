@@ -636,11 +636,11 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 
 	if (mthca_is_memfree(dev)) {
 		if (qp->rq.max)
-			qp_context->rq_size_stride = long_log2(qp->rq.max) << 3;
+			qp_context->rq_size_stride = ilog2(qp->rq.max) << 3;
 		qp_context->rq_size_stride |= qp->rq.wqe_shift - 4;
 
 		if (qp->sq.max)
-			qp_context->sq_size_stride = long_log2(qp->sq.max) << 3;
+			qp_context->sq_size_stride = ilog2(qp->sq.max) << 3;
 		qp_context->sq_size_stride |= qp->sq.wqe_shift - 4;
 	}
 

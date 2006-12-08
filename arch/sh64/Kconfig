@@ -39,6 +39,14 @@ config RWSEM_XCHGADD_ALGORITHM
 config GENERIC_ISA_DMA
 	bool
 
+config ARCH_HAS_ILOG2_U32
+	bool
+	default n
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
+
 source init/Kconfig
 
 menu "System type"

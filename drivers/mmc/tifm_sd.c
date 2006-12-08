@@ -387,7 +387,7 @@ static void tifm_sd_prepare_data(struct tifm_sd *card, struct mmc_command *cmd)
 
 	writel(TIFM_FIFO_INT_SETALL,
 		sock->addr + SOCK_DMA_FIFO_INT_ENABLE_CLEAR);
-	writel(long_log2(cmd->data->blksz) - 2,
+	writel(ilog2(cmd->data->blksz) - 2,
 			sock->addr + SOCK_FIFO_PAGE_SIZE);
 	writel(TIFM_FIFO_ENABLE, sock->addr + SOCK_FIFO_CONTROL);
 	writel(TIFM_FIFO_INTMASK, sock->addr + SOCK_DMA_FIFO_INT_ENABLE_SET);
