@@ -175,7 +175,7 @@ struct tty_struct {
 	int index;
 	struct tty_ldisc ldisc;
 	struct mutex termios_mutex;
-	struct termios *termios, *termios_locked;
+	struct ktermios *termios, *termios_locked;
 	char name[64];
 	int pgrp;
 	int session;
@@ -258,7 +258,7 @@ struct tty_struct {
 
 extern void tty_write_flush(struct tty_struct *);
 
-extern struct termios tty_std_termios;
+extern struct ktermios tty_std_termios;
 
 extern int kmsg_redirect;
 
@@ -293,8 +293,9 @@ extern int tty_hung_up_p(struct file * filp);
 extern void do_SAK(struct tty_struct *tty);
 extern void disassociate_ctty(int priv);
 extern void tty_flip_buffer_push(struct tty_struct *tty);
-extern int tty_get_baud_rate(struct tty_struct *tty);
-extern int tty_termios_baud_rate(struct termios *termios);
+extern speed_t tty_get_baud_rate(struct tty_struct *tty);
+extern speed_t tty_termios_baud_rate(struct ktermios *termios);
+extern speed_t tty_termios_input_baud_rate(struct ktermios *termios);
 
 extern struct tty_ldisc *tty_ldisc_ref(struct tty_struct *);
 extern void tty_ldisc_deref(struct tty_ldisc *);

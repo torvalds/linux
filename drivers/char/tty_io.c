@@ -109,13 +109,15 @@
 #define TTY_PARANOIA_CHECK 1
 #define CHECK_TTY_COUNT 1
 
-struct termios tty_std_termios = {	/* for the benefit of tty drivers  */
+struct ktermios tty_std_termios = {	/* for the benefit of tty drivers  */
 	.c_iflag = ICRNL | IXON,
 	.c_oflag = OPOST | ONLCR,
 	.c_cflag = B38400 | CS8 | CREAD | HUPCL,
 	.c_lflag = ISIG | ICANON | ECHO | ECHOE | ECHOK |
 		   ECHOCTL | ECHOKE | IEXTEN,
-	.c_cc = INIT_C_CC
+	.c_cc = INIT_C_CC,
+	.c_ispeed = 38400,
+	.c_ospeed = 38400
 };
 
 EXPORT_SYMBOL(tty_std_termios);
@@ -1239,6 +1241,22 @@ void tty_ldisc_flush(struct tty_struct *tty)
 }
 
 EXPORT_SYMBOL_GPL(tty_ldisc_flush);
+
+/**
+ *	tty_reset_termios	-	reset terminal state
+ *	@tty: tty to reset
+ *
+ *	Restore a terminal to the driver default state
+ */
+
+static void tty_reset_termios(struct tty_struct *tty)
+{
+	mutex_lock(&tty->termios_mutex);
+	*tty->termios = tty->driver->init_termios;
+	tty->termios->c_ispeed = tty_termios_input_baud_rate(tty->termios);
+	tty->termios->c_ospeed = tty_termios_baud_rate(tty->termios);
+	mutex_unlock(&tty->termios_mutex);
+}
 	
 /**
  *	do_tty_hangup		-	actual handler for hangup events
@@ -1327,11 +1345,7 @@ static void do_tty_hangup(struct work_struct *work)
 	 * N_TTY.
 	 */
 	if (tty->driver->flags & TTY_DRIVER_RESET_TERMIOS)
-	{
-		mutex_lock(&tty->termios_mutex);
-		*tty->termios = tty->driver->init_termios;
-		mutex_unlock(&tty->termios_mutex);
-	}
+		tty_reset_termios(tty);
 	
 	/* Defer ldisc switch */
 	/* tty_deferred_ldisc_switch(N_TTY);
@@ -1870,8 +1884,8 @@ static int init_dev(struct tty_driver *driver, int idx,
 	struct tty_struct **ret_tty)
 {
 	struct tty_struct *tty, *o_tty;
-	struct termios *tp, **tp_loc, *o_tp, **o_tp_loc;
-	struct termios *ltp, **ltp_loc, *o_ltp, **o_ltp_loc;
+	struct ktermios *tp, **tp_loc, *o_tp, **o_tp_loc;
+	struct ktermios *ltp, **ltp_loc, *o_ltp, **o_ltp_loc;
 	int retval = 0;
 
 	/* check whether we're reopening an existing tty */
@@ -1918,7 +1932,7 @@ static int init_dev(struct tty_driver *driver, int idx,
 	}
 
 	if (!*tp_loc) {
-		tp = (struct termios *) kmalloc(sizeof(struct termios),
+		tp = (struct ktermios *) kmalloc(sizeof(struct ktermios),
 						GFP_KERNEL);
 		if (!tp)
 			goto free_mem_out;
@@ -1926,11 +1940,11 @@ static int init_dev(struct tty_driver *driver, int idx,
 	}
 
 	if (!*ltp_loc) {
-		ltp = (struct termios *) kmalloc(sizeof(struct termios),
+		ltp = (struct ktermios *) kmalloc(sizeof(struct ktermios),
 						 GFP_KERNEL);
 		if (!ltp)
 			goto free_mem_out;
-		memset(ltp, 0, sizeof(struct termios));
+		memset(ltp, 0, sizeof(struct ktermios));
 	}
 
 	if (driver->type == TTY_DRIVER_TYPE_PTY) {
@@ -1951,19 +1965,19 @@ static int init_dev(struct tty_driver *driver, int idx,
 		}
 
 		if (!*o_tp_loc) {
-			o_tp = (struct termios *)
-				kmalloc(sizeof(struct termios), GFP_KERNEL);
+			o_tp = (struct ktermios *)
+				kmalloc(sizeof(struct ktermios), GFP_KERNEL);
 			if (!o_tp)
 				goto free_mem_out;
 			*o_tp = driver->other->init_termios;
 		}
 
 		if (!*o_ltp_loc) {
-			o_ltp = (struct termios *)
-				kmalloc(sizeof(struct termios), GFP_KERNEL);
+			o_ltp = (struct ktermios *)
+				kmalloc(sizeof(struct ktermios), GFP_KERNEL);
 			if (!o_ltp)
 				goto free_mem_out;
-			memset(o_ltp, 0, sizeof(struct termios));
+			memset(o_ltp, 0, sizeof(struct ktermios));
 		}
 
 		/*
@@ -2002,6 +2016,9 @@ static int init_dev(struct tty_driver *driver, int idx,
 		*ltp_loc = ltp;
 	tty->termios = *tp_loc;
 	tty->termios_locked = *ltp_loc;
+	/* Compatibility until drivers always set this */
+	tty->termios->c_ispeed = tty_termios_input_baud_rate(tty->termios);
+	tty->termios->c_ospeed = tty_termios_baud_rate(tty->termios);
 	driver->refcount++;
 	tty->count++;
 
@@ -2104,7 +2121,7 @@ release_mem_out:
 static void release_mem(struct tty_struct *tty, int idx)
 {
 	struct tty_struct *o_tty;
-	struct termios *tp;
+	struct ktermios *tp;
 	int devpts = tty->driver->flags & TTY_DRIVER_DEVPTS_MEM;
 
 	if ((o_tty = tty->link) != NULL) {
@@ -3458,84 +3475,6 @@ static void flush_to_ldisc(struct work_struct *work)
 	tty_ldisc_deref(disc);
 }
 
-/*
- * Routine which returns the baud rate of the tty
- *
- * Note that the baud_table needs to be kept in sync with the
- * include/asm/termbits.h file.
- */
-static int baud_table[] = {
-	0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800,
-	9600, 19200, 38400, 57600, 115200, 230400, 460800,
-#ifdef __sparc__
-	76800, 153600, 307200, 614400, 921600
-#else
-	500000, 576000, 921600, 1000000, 1152000, 1500000, 2000000,
-	2500000, 3000000, 3500000, 4000000
-#endif
-};
-
-static int n_baud_table = ARRAY_SIZE(baud_table);
-
-/**
- *	tty_termios_baud_rate
- *	@termios: termios structure
- *
- *	Convert termios baud rate data into a speed. This should be called
- *	with the termios lock held if this termios is a terminal termios
- *	structure. May change the termios data.
- *
- *	Locking: none
- */
- 
-int tty_termios_baud_rate(struct termios *termios)
-{
-	unsigned int cbaud;
-	
-	cbaud = termios->c_cflag & CBAUD;
-
-	if (cbaud & CBAUDEX) {
-		cbaud &= ~CBAUDEX;
-
-		if (cbaud < 1 || cbaud + 15 > n_baud_table)
-			termios->c_cflag &= ~CBAUDEX;
-		else
-			cbaud += 15;
-	}
-	return baud_table[cbaud];
-}
-
-EXPORT_SYMBOL(tty_termios_baud_rate);
-
-/**
- *	tty_get_baud_rate	-	get tty bit rates
- *	@tty: tty to query
- *
- *	Returns the baud rate as an integer for this terminal. The
- *	termios lock must be held by the caller and the terminal bit
- *	flags may be updated.
- *
- *	Locking: none
- */
- 
-int tty_get_baud_rate(struct tty_struct *tty)
-{
-	int baud = tty_termios_baud_rate(tty->termios);
-
-	if (baud == 38400 && tty->alt_speed) {
-		if (!tty->warned) {
-			printk(KERN_WARNING "Use of setserial/setrocket to "
-					    "set SPD_* flags is deprecated\n");
-			tty->warned = 1;
-		}
-		baud = tty->alt_speed;
-	}
-	
-	return baud;
-}
-
-EXPORT_SYMBOL(tty_get_baud_rate);
-
 /**
  *	tty_flip_buffer_push	-	terminal
  *	@tty: tty to push
@@ -3758,8 +3697,8 @@ int tty_register_driver(struct tty_driver *driver)
 
 	if (p) {
 		driver->ttys = (struct tty_struct **)p;
-		driver->termios = (struct termios **)(p + driver->num);
-		driver->termios_locked = (struct termios **)(p + driver->num * 2);
+		driver->termios = (struct ktermios **)(p + driver->num);
+		driver->termios_locked = (struct ktermios **)(p + driver->num * 2);
 	} else {
 		driver->ttys = NULL;
 		driver->termios = NULL;
@@ -3798,7 +3737,7 @@ EXPORT_SYMBOL(tty_register_driver);
 int tty_unregister_driver(struct tty_driver *driver)
 {
 	int i;
-	struct termios *tp;
+	struct ktermios *tp;
 	void *p;
 
 	if (driver->refcount)
