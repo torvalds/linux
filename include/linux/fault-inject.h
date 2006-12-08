@@ -57,7 +57,7 @@ struct fault_attr {
 #define DECLARE_FAULT_ATTR(name) struct fault_attr name = FAULT_ATTR_INITIALIZER
 int setup_fault_attr(struct fault_attr *attr, char *str);
 void should_fail_srandom(unsigned long entropy);
-int should_fail(struct fault_attr *attr, ssize_t size);
+bool should_fail(struct fault_attr *attr, ssize_t size);
 
 #ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
 
