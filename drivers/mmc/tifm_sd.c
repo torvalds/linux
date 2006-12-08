@@ -95,11 +95,11 @@ struct tifm_sd {
 	card_state_t        state;
 	unsigned int        clk_freq;
 	unsigned int        clk_div;
-	unsigned long       timeout_jiffies; // software timeout - 2 sec
+	unsigned long       timeout_jiffies;
 
+	struct timer_list     timer;
 	struct mmc_request    *req;
 	struct work_struct    cmd_handler;
-	struct delayed_work   abort_handler;
 	wait_queue_head_t     can_eject;
 
 	size_t                written_blocks;
@@ -321,8 +321,6 @@ change_state:
 		return;
 	}
 
-	queue_delayed_work(sock->wq, &host->abort_handler,
-				host->timeout_jiffies);
 }
 
 /* Called from interrupt handler */
@@ -335,7 +333,6 @@ static unsigned int tifm_sd_signal_irq(struct tifm_dev *sock,
 
 	spin_lock(&sock->lock);
 	host = mmc_priv((struct mmc_host*)tifm_get_drvdata(sock));
-	cancel_delayed_work(&host->abort_handler);
 
 	if (sock_irq_status & FIFO_EVENT) {
 		fifo_status = readl(sock->addr + SOCK_DMA_FIFO_STATUS);
@@ -375,9 +372,6 @@ static unsigned int tifm_sd_signal_irq(struct tifm_dev *sock,
 					   || host->state == FIFO) {
 					host->req->cmd->error = error_code;
 					tifm_sd_exec(host, host->req->stop);
-					queue_delayed_work(sock->wq,
-						&host->abort_handler,
-						host->timeout_jiffies);
 					host->state = SCMD;
 					goto done;
 				} else {
@@ -506,9 +500,8 @@ static void tifm_sd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	}
 
 	host->req = mrq;
+	mod_timer(&host->timer, jiffies + host->timeout_jiffies);
 	host->state = CMD;
-	queue_delayed_work(sock->wq, &host->abort_handler,
-				host->timeout_jiffies);
 	writel(TIFM_CTRL_LED | readl(sock->addr + SOCK_CONTROL),
 		sock->addr + SOCK_CONTROL);
 	tifm_sd_exec(host, mrq->cmd);
@@ -536,6 +529,7 @@ static void tifm_sd_end_cmd(struct work_struct *work)
 
 	spin_lock_irqsave(&sock->lock, flags);
 
+	del_timer(&host->timer);
 	mrq = host->req;
 	host->req = NULL;
 	host->state = IDLE;
@@ -610,9 +604,8 @@ static void tifm_sd_request_nodma(struct mmc_host *mmc, struct mmc_request *mrq)
 	}
 
 	host->req = mrq;
+	mod_timer(&host->timer, jiffies + host->timeout_jiffies);
 	host->state = CMD;
-	queue_delayed_work(sock->wq, &host->abort_handler,
-				host->timeout_jiffies);
 	writel(TIFM_CTRL_LED | readl(sock->addr + SOCK_CONTROL),
 		sock->addr + SOCK_CONTROL);
 	tifm_sd_exec(host, mrq->cmd);
@@ -635,6 +628,7 @@ static void tifm_sd_end_cmd_nodma(struct work_struct *work)
 
 	spin_lock_irqsave(&sock->lock, flags);
 
+	del_timer(&host->timer);
 	mrq = host->req;
 	host->req = NULL;
 	host->state = IDLE;
@@ -673,14 +667,11 @@ static void tifm_sd_end_cmd_nodma(struct work_struct *work)
 	mmc_request_done(mmc, mrq);
 }
 
-static void tifm_sd_abort(struct work_struct *work)
+static void tifm_sd_abort(unsigned long data)
 {
-	struct tifm_sd *host =
-		container_of(work, struct tifm_sd, abort_handler.work);
-
 	printk(KERN_ERR DRIVER_NAME
-		": card failed to respond for a long period of time");
-	tifm_eject(host->dev);
+	       ": card failed to respond for a long period of time");
+	tifm_eject(((struct tifm_sd*)data)->dev);
 }
 
 static void tifm_sd_ios(struct mmc_host *mmc, struct mmc_ios *ios)
@@ -785,6 +776,7 @@ static void tifm_sd_register_host(struct work_struct *work)
 	unsigned long flags;
 
 	spin_lock_irqsave(&sock->lock, flags);
+	del_timer(&host->timer);
 	host->flags |= HOST_REG;
 	PREPARE_WORK(&host->cmd_handler,
 			no_dma ? tifm_sd_end_cmd_nodma : tifm_sd_end_cmd);
@@ -814,7 +806,7 @@ static int tifm_sd_probe(struct tifm_dev *sock)
 	host->clk_div = 61;
 	init_waitqueue_head(&host->can_eject);
 	INIT_WORK(&host->cmd_handler, tifm_sd_register_host);
-	INIT_DELAYED_WORK(&host->abort_handler, tifm_sd_abort);
+	setup_timer(&host->timer, tifm_sd_abort, (unsigned long)host);
 
 	tifm_set_drvdata(sock, mmc);
 	sock->signal_irq = tifm_sd_signal_irq;
@@ -866,8 +858,7 @@ static int tifm_sd_probe(struct tifm_dev *sock)
 	writel(host->clk_div | TIFM_MMCSD_POWER,
 			sock->addr + SOCK_MMCSD_CONFIG);
 
-	queue_delayed_work(sock->wq, &host->abort_handler,
-			host->timeout_jiffies);
+	mod_timer(&host->timer, jiffies + host->timeout_jiffies);
 
 	return 0;
 }
@@ -891,6 +882,7 @@ static void tifm_sd_remove(struct tifm_dev *sock)
 	struct tifm_sd *host = mmc_priv(mmc);
 	unsigned long flags;
 
+	del_timer_sync(&host->timer);
 	spin_lock_irqsave(&sock->lock, flags);
 	host->flags |= EJECT;
 	if (host->req)
