@@ -76,6 +76,7 @@ cpumask_t cpu_possible_map __read_mostly = CPU_MASK_ALL;	/* Bitmap of Present CP
 EXPORT_SYMBOL(cpu_online_map);
 EXPORT_SYMBOL(cpu_possible_map);
 
+DEFINE_PER_CPU(spinlock_t, ipi_lock) = SPIN_LOCK_UNLOCKED;
 
 struct smp_call_struct {
 	void (*func) (void *info);
@@ -167,10 +168,11 @@ ipi_interrupt(int irq, void *dev_id)
 	mb();	/* Order interrupt and bit testing. */
 
 	for (;;) {
-		spin_lock_irqsave(&(p->lock),flags);
+		spinlock_t *lock = &per_cpu(ipi_lock, this_cpu);
+		spin_lock_irqsave(lock, flags);
 		ops = p->pending_ipi;
 		p->pending_ipi = 0;
-		spin_unlock_irqrestore(&(p->lock),flags);
+		spin_unlock_irqrestore(lock, flags);
 
 		mb(); /* Order bit clearing and data access. */
 
@@ -275,12 +277,13 @@ static inline void
 ipi_send(int cpu, enum ipi_message_type op)
 {
 	struct cpuinfo_parisc *p = &cpu_data[cpu];
+	spinlock_t *lock = &per_cpu(ipi_lock, cpu);
 	unsigned long flags;
 
-	spin_lock_irqsave(&(p->lock),flags);
+	spin_lock_irqsave(lock, flags);
 	p->pending_ipi |= 1 << op;
 	gsc_writel(IPI_IRQ - CPU_IRQ_BASE, cpu_data[cpu].hpa);
-	spin_unlock_irqrestore(&(p->lock),flags);
+	spin_unlock_irqrestore(lock, flags);
 }
 
 
