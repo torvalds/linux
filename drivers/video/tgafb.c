@@ -1439,6 +1439,8 @@ tgafb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
  err1:
+	if (mem_base)
+		iounmap(mem_base);
 	release_mem_region(bar0_start, bar0_len);
  err0:
 	kfree(all);
