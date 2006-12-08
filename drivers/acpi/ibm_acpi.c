@@ -1825,9 +1825,9 @@ static enum fan_control_commands fan_control_commands;
 static int fan_control_status_known;
 static u8 fan_control_initial_status;
 
-static void fan_watchdog_fire(void *ignored);
+static void fan_watchdog_fire(struct work_struct *ignored);
 static int fan_watchdog_maxinterval;
-static DECLARE_WORK(fan_watchdog_task, fan_watchdog_fire, NULL);
+static DECLARE_DELAYED_WORK(fan_watchdog_task, fan_watchdog_fire);
 
 static int fan_init(void)
 {
@@ -2284,7 +2284,7 @@ static int fan_write(char *buf)
 	return rc;
 }
 
-static void fan_watchdog_fire(void *ignored)
+static void fan_watchdog_fire(struct work_struct *ignored)
 {
 	printk(IBM_NOTICE "fan watchdog: enabling fan\n");
 	if (fan_set_enable()) {
