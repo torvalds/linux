@@ -486,7 +486,7 @@ static ssize_t ds_read(struct file *file, char __user *buf,
     user_info_t *user;
     int ret;
 
-    ds_dbg(2, "ds_read(socket %d)\n", iminor(file->f_dentry->d_inode));
+    ds_dbg(2, "ds_read(socket %d)\n", iminor(file->f_path.dentry->d_inode));
 
     if (count < 4)
 	return -EINVAL;
@@ -511,7 +511,7 @@ static ssize_t ds_read(struct file *file, char __user *buf,
 static ssize_t ds_write(struct file *file, const char __user *buf,
 			size_t count, loff_t *ppos)
 {
-    ds_dbg(2, "ds_write(socket %d)\n", iminor(file->f_dentry->d_inode));
+    ds_dbg(2, "ds_write(socket %d)\n", iminor(file->f_path.dentry->d_inode));
 
     if (count != 4)
 	return -EINVAL;
@@ -529,7 +529,7 @@ static u_int ds_poll(struct file *file, poll_table *wait)
     struct pcmcia_socket *s;
     user_info_t *user;
 
-    ds_dbg(2, "ds_poll(socket %d)\n", iminor(file->f_dentry->d_inode));
+    ds_dbg(2, "ds_poll(socket %d)\n", iminor(file->f_path.dentry->d_inode));
 
     user = file->private_data;
     if (CHECK_USER(user))
