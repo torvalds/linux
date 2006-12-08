@@ -14,7 +14,7 @@
 extern struct geode_vid_ops gx_vid_ops;
 
 /* GX Flatpanel control MSR */
-#define GX_VP_MSR_PAD_SELECT           0x2011
+#define GX_VP_MSR_PAD_SELECT           0xC0002011
 #define GX_VP_PAD_SELECT_MASK          0x3FFFFFFF
 #define GX_VP_PAD_SELECT_TFT           0x1FFFFFFF
 
