@@ -1909,10 +1909,10 @@ static int fsync_sub(struct lun *curlun)
 	if (!filp->f_op->fsync)
 		return -EINVAL;
 
-	inode = filp->f_dentry->d_inode;
+	inode = filp->f_path.dentry->d_inode;
 	mutex_lock(&inode->i_mutex);
 	rc = filemap_fdatawrite(inode->i_mapping);
-	err = filp->f_op->fsync(filp, filp->f_dentry, 1);
+	err = filp->f_op->fsync(filp, filp->f_path.dentry, 1);
 	if (!rc)
 		rc = err;
 	err = filemap_fdatawait(inode->i_mapping);
@@ -1950,7 +1950,7 @@ static int do_synchronize_cache(struct fsg_dev *fsg)
 static void invalidate_sub(struct lun *curlun)
 {
 	struct file	*filp = curlun->filp;
-	struct inode	*inode = filp->f_dentry->d_inode;
+	struct inode	*inode = filp->f_path.dentry->d_inode;
 	unsigned long	rc;
 
 	rc = invalidate_inode_pages(inode->i_mapping);
@@ -3526,8 +3526,8 @@ static int open_backing_file(struct lun *curlun, const char *filename)
 	if (!(filp->f_mode & FMODE_WRITE))
 		ro = 1;
 
-	if (filp->f_dentry)
-		inode = filp->f_dentry->d_inode;
+	if (filp->f_path.dentry)
+		inode = filp->f_path.dentry->d_inode;
 	if (inode && S_ISBLK(inode->i_mode)) {
 		if (bdev_read_only(inode->i_bdev))
 			ro = 1;
@@ -3606,7 +3606,7 @@ static ssize_t show_file(struct device *dev, struct device_attribute *attr, char
 
 	down_read(&fsg->filesem);
 	if (backing_file_is_open(curlun)) {	// Get the complete pathname
-		p = d_path(curlun->filp->f_dentry, curlun->filp->f_vfsmnt,
+		p = d_path(curlun->filp->f_path.dentry, curlun->filp->f_path.mnt,
 				buf, PAGE_SIZE - 1);
 		if (IS_ERR(p))
 			rc = PTR_ERR(p);
@@ -4030,8 +4030,8 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 		if (backing_file_is_open(curlun)) {
 			p = NULL;
 			if (pathbuf) {
-				p = d_path(curlun->filp->f_dentry,
-					curlun->filp->f_vfsmnt,
+				p = d_path(curlun->filp->f_path.dentry,
+					curlun->filp->f_path.mnt,
 					pathbuf, PATH_MAX);
 				if (IS_ERR(p))
 					p = NULL;

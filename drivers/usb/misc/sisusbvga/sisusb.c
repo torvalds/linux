@@ -3168,7 +3168,7 @@ sisusb_compat_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 		case SISUSB_GET_CONFIG:
 		case SISUSB_COMMAND:
 			lock_kernel();
-			retval = sisusb_ioctl(f->f_dentry->d_inode, f, cmd, arg);
+			retval = sisusb_ioctl(f->f_path.dentry->d_inode, f, cmd, arg);
 			unlock_kernel();
 			return retval;
 
