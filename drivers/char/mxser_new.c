@@ -2265,7 +2265,7 @@ unlock:
 /*
  * This is the serial driver's generic interrupt routine
  */
-static irqreturn_t mxser_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 {
 	int status, iir, i;
 	struct mxser_board *brd = NULL;
