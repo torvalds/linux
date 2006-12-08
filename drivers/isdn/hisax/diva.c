@@ -1121,7 +1121,11 @@ setup_diva(struct IsdnCard *card)
 			bytecnt = 32;
 		}
 	}
+
+#ifdef __ISAPNP__
 ready:
+#endif
+
 	printk(KERN_INFO
 		"Diva: %s card configured at %#lx IRQ %d\n",
 		(cs->subtyp == DIVA_PCI) ? "PCI" :
