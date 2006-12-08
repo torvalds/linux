@@ -472,7 +472,7 @@ static struct file_operations proc_mountstats_operations = {
 static ssize_t proc_info_read(struct file * file, char __user * buf,
 			  size_t count, loff_t *ppos)
 {
-	struct inode * inode = file->f_dentry->d_inode;
+	struct inode * inode = file->f_path.dentry->d_inode;
 	unsigned long page;
 	ssize_t length;
 	struct task_struct *task = get_proc_task(inode);
@@ -512,7 +512,7 @@ static int mem_open(struct inode* inode, struct file* file)
 static ssize_t mem_read(struct file * file, char __user * buf,
 			size_t count, loff_t *ppos)
 {
-	struct task_struct *task = get_proc_task(file->f_dentry->d_inode);
+	struct task_struct *task = get_proc_task(file->f_path.dentry->d_inode);
 	char *page;
 	unsigned long src = *ppos;
 	int ret = -ESRCH;
@@ -584,7 +584,7 @@ static ssize_t mem_write(struct file * file, const char * buf,
 {
 	int copied;
 	char *page;
-	struct task_struct *task = get_proc_task(file->f_dentry->d_inode);
+	struct task_struct *task = get_proc_task(file->f_path.dentry->d_inode);
 	unsigned long dst = *ppos;
 
 	copied = -ESRCH;
@@ -654,7 +654,7 @@ static struct file_operations proc_mem_operations = {
 static ssize_t oom_adjust_read(struct file *file, char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	struct task_struct *task = get_proc_task(file->f_dentry->d_inode);
+	struct task_struct *task = get_proc_task(file->f_path.dentry->d_inode);
 	char buffer[PROC_NUMBUF];
 	size_t len;
 	int oom_adjust;
@@ -694,7 +694,7 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
 		return -EINVAL;
 	if (*end == '\n')
 		end++;
-	task = get_proc_task(file->f_dentry->d_inode);
+	task = get_proc_task(file->f_path.dentry->d_inode);
 	if (!task)
 		return -ESRCH;
 	if (oom_adjust < task->oomkilladj && !capable(CAP_SYS_RESOURCE)) {
@@ -718,7 +718,7 @@ static struct file_operations proc_oom_adjust_operations = {
 static ssize_t proc_loginuid_read(struct file * file, char __user * buf,
 				  size_t count, loff_t *ppos)
 {
-	struct inode * inode = file->f_dentry->d_inode;
+	struct inode * inode = file->f_path.dentry->d_inode;
 	struct task_struct *task = get_proc_task(inode);
 	ssize_t length;
 	char tmpbuf[TMPBUFLEN];
@@ -734,7 +734,7 @@ static ssize_t proc_loginuid_read(struct file * file, char __user * buf,
 static ssize_t proc_loginuid_write(struct file * file, const char __user * buf,
 				   size_t count, loff_t *ppos)
 {
-	struct inode * inode = file->f_dentry->d_inode;
+	struct inode * inode = file->f_path.dentry->d_inode;
 	char *page, *tmp;
 	ssize_t length;
 	uid_t loginuid;
@@ -1078,7 +1078,7 @@ static int proc_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 	char *name, int len,
 	instantiate_t instantiate, struct task_struct *task, void *ptr)
 {
-	struct dentry *child, *dir = filp->f_dentry;
+	struct dentry *child, *dir = filp->f_path.dentry;
 	struct inode *inode;
 	struct qstr qname;
 	ino_t ino = 0;
@@ -1157,8 +1157,8 @@ static int proc_fd_link(struct inode *inode, struct dentry **dentry, struct vfsm
 		spin_lock(&files->file_lock);
 		file = fcheck_files(files, fd);
 		if (file) {
-			*mnt = mntget(file->f_vfsmnt);
-			*dentry = dget(file->f_dentry);
+			*mnt = mntget(file->f_path.mnt);
+			*dentry = dget(file->f_path.dentry);
 			spin_unlock(&files->file_lock);
 			put_files_struct(files);
 			return 0;
@@ -1293,7 +1293,7 @@ static int proc_fd_fill_cache(struct file *filp, void *dirent, filldir_t filldir
 
 static int proc_readfd(struct file * filp, void * dirent, filldir_t filldir)
 {
-	struct dentry *dentry = filp->f_dentry;
+	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	struct task_struct *p = get_proc_task(inode);
 	unsigned int fd, tid, ino;
@@ -1440,7 +1440,7 @@ static int proc_pident_readdir(struct file *filp,
 {
 	int i;
 	int pid;
-	struct dentry *dentry = filp->f_dentry;
+	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	struct task_struct *task = get_proc_task(inode);
 	struct pid_entry *p, *last;
@@ -1496,7 +1496,7 @@ out_no_task:
 static ssize_t proc_pid_attr_read(struct file * file, char __user * buf,
 				  size_t count, loff_t *ppos)
 {
-	struct inode * inode = file->f_dentry->d_inode;
+	struct inode * inode = file->f_path.dentry->d_inode;
 	unsigned long page;
 	ssize_t length;
 	struct task_struct *task = get_proc_task(inode);
@@ -1512,7 +1512,7 @@ static ssize_t proc_pid_attr_read(struct file * file, char __user * buf,
 		goto out;
 
 	length = security_getprocattr(task,
-				      (char*)file->f_dentry->d_name.name,
+				      (char*)file->f_path.dentry->d_name.name,
 				      (void*)page, count);
 	if (length >= 0)
 		length = simple_read_from_buffer(buf, count, ppos, (char *)page, length);
@@ -1526,7 +1526,7 @@ out_no_task:
 static ssize_t proc_pid_attr_write(struct file * file, const char __user * buf,
 				   size_t count, loff_t *ppos)
 {
-	struct inode * inode = file->f_dentry->d_inode;
+	struct inode * inode = file->f_path.dentry->d_inode;
 	char *page;
 	ssize_t length;
 	struct task_struct *task = get_proc_task(inode);
@@ -1552,7 +1552,7 @@ static ssize_t proc_pid_attr_write(struct file * file, const char __user * buf,
 		goto out_free;
 
 	length = security_setprocattr(task,
-				      (char*)file->f_dentry->d_name.name,
+				      (char*)file->f_path.dentry->d_name.name,
 				      (void*)page, count);
 out_free:
 	free_page((unsigned long) page);
@@ -1994,7 +1994,7 @@ static int proc_pid_fill_cache(struct file *filp, void *dirent, filldir_t filldi
 int proc_pid_readdir(struct file * filp, void * dirent, filldir_t filldir)
 {
 	unsigned int nr = filp->f_pos - FIRST_PROCESS_ENTRY;
-	struct task_struct *reaper = get_proc_task(filp->f_dentry->d_inode);
+	struct task_struct *reaper = get_proc_task(filp->f_path.dentry->d_inode);
 	struct task_struct *task;
 	int tgid;
 
@@ -2235,7 +2235,7 @@ static int proc_task_fill_cache(struct file *filp, void *dirent, filldir_t filld
 /* for the /proc/TGID/task/ directories */
 static int proc_task_readdir(struct file * filp, void * dirent, filldir_t filldir)
 {
-	struct dentry *dentry = filp->f_dentry;
+	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	struct task_struct *leader = get_proc_task(inode);
 	struct task_struct *task;
