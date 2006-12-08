@@ -1399,7 +1399,7 @@ static int isicom_ioctl(struct tty_struct *tty, struct file *filp,
 
 /* set_termios et all */
 static void isicom_set_termios(struct tty_struct *tty,
-	struct termios *old_termios)
+	struct ktermios *old_termios)
 {
 	struct isi_port *port = tty->driver_data;
 

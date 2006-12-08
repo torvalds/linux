@@ -4101,7 +4101,7 @@ cy_ioctl(struct tty_struct *tty, struct file * file,
  * where old == NULL, and try to do something rational.
  */
 static void
-cy_set_termios(struct tty_struct *tty, struct termios * old_termios)
+cy_set_termios(struct tty_struct *tty, struct ktermios * old_termios)
 {
   struct cyclades_port *info = (struct cyclades_port *)tty->driver_data;
 

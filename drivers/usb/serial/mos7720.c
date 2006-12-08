@@ -1014,7 +1014,7 @@ static int send_cmd_write_baud_rate(struct moschip_port *mos7720_port,
  *      the specified new settings.
  */
 static void change_port_settings(struct moschip_port *mos7720_port,
-				 struct termios *old_termios)
+				 struct ktermios *old_termios)
 {
 	struct usb_serial_port *port;
 	struct usb_serial *serial;
@@ -1203,7 +1203,7 @@ static void change_port_settings(struct moschip_port *mos7720_port,
  *	termios structure.
  */
 static void mos7720_set_termios(struct usb_serial_port *port,
-				struct termios *old_termios)
+				struct ktermios *old_termios)
 {
 	int status;
 	unsigned int cflag;

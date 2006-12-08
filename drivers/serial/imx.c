@@ -459,8 +459,8 @@ static void imx_shutdown(struct uart_port *port)
 }
 
 static void
-imx_set_termios(struct uart_port *port, struct termios *termios,
-		   struct termios *old)
+imx_set_termios(struct uart_port *port, struct ktermios *termios,
+		   struct ktermios *old)
 {
 	struct imx_port *sport = (struct imx_port *)port;
 	unsigned long flags;

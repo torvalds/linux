@@ -2311,7 +2311,7 @@ static void sx_hangup(struct tty_struct * tty)
 }
 
 
-static void sx_set_termios(struct tty_struct * tty, struct termios * old_termios)
+static void sx_set_termios(struct tty_struct * tty, struct ktermios * old_termios)
 {
 	struct specialix_port *port = (struct specialix_port *)tty->driver_data;
 	unsigned long flags;
@@ -2400,6 +2400,8 @@ static int sx_init_drivers(void)
 	specialix_driver->init_termios = tty_std_termios;
 	specialix_driver->init_termios.c_cflag =
 		B9600 | CS8 | CREAD | HUPCL | CLOCAL;
+	specialix_driver->init_termios.c_ispeed = 9600;
+	specialix_driver->init_termios.c_ospeed = 9600;
 	specialix_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(specialix_driver, &sx_ops);
 
@@ -2475,7 +2477,7 @@ static int __init specialix_init(void)
 				i++;
 				continue;
 			}
-			pdev = pci_find_device (PCI_VENDOR_ID_SPECIALIX,
+			pdev = pci_get_device (PCI_VENDOR_ID_SPECIALIX,
 			                        PCI_DEVICE_ID_SPECIALIX_IO8,
 			                        pdev);
 			if (!pdev) break;
@@ -2491,6 +2493,9 @@ static int __init specialix_init(void)
 			if (!sx_probe(&sx_board[i]))
 				found ++;
 		}
+		/* May exit pci_get sequence early with lots of boards */
+		if (pdev != NULL)
+			pci_dev_put(pdev);
 	}
 #endif
 

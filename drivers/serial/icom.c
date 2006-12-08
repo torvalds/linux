@@ -1087,8 +1087,8 @@ static void icom_close(struct uart_port *port)
 }
 
 static void icom_set_termios(struct uart_port *port,
-			     struct termios *termios,
-			     struct termios *old_termios)
+			     struct ktermios *termios,
+			     struct ktermios *old_termios)
 {
 	int baud;
 	unsigned cflag, iflag;

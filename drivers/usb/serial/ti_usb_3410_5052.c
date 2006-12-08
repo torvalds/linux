@@ -161,7 +161,7 @@ static void ti_throttle(struct usb_serial_port *port);
 static void ti_unthrottle(struct usb_serial_port *port);
 static int ti_ioctl(struct usb_serial_port *port, struct file *file, unsigned int cmd, unsigned long arg);
 static void ti_set_termios(struct usb_serial_port *port,
-	struct termios *old_termios);
+	struct ktermios *old_termios);
 static int ti_tiocmget(struct usb_serial_port *port, struct file *file);
 static int ti_tiocmset(struct usb_serial_port *port, struct file *file,
 	unsigned int set, unsigned int clear);
@@ -881,7 +881,7 @@ static int ti_ioctl(struct usb_serial_port *port, struct file *file,
 
 
 static void ti_set_termios(struct usb_serial_port *port,
-	struct termios *old_termios)
+	struct ktermios *old_termios)
 {
 	struct ti_port *tport = usb_get_serial_port_data(port);
 	struct tty_struct *tty = port->tty;

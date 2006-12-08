@@ -556,8 +556,8 @@ static void serial_txx9_shutdown(struct uart_port *port)
 }
 
 static void
-serial_txx9_set_termios(struct uart_port *port, struct termios *termios,
-		       struct termios *old)
+serial_txx9_set_termios(struct uart_port *port, struct ktermios *termios,
+		       struct ktermios *old)
 {
 	struct uart_txx9_port *up = (struct uart_txx9_port *)port;
 	unsigned int cval, fcr = 0;

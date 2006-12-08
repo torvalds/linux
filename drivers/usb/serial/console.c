@@ -65,7 +65,7 @@ static int usb_console_setup(struct console *co, char *options)
 	struct usb_serial_port *port;
 	int retval = 0;
 	struct tty_struct *tty;
-	struct termios *termios;
+	struct ktermios *termios;
 
 	dbg ("%s", __FUNCTION__);
 

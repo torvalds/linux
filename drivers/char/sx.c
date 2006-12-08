@@ -2263,6 +2263,8 @@ static int sx_init_drivers(void)
 	sx_driver->init_termios = tty_std_termios;
 	sx_driver->init_termios.c_cflag =
 	  B9600 | CS8 | CREAD | HUPCL | CLOCAL;
+	sx_driver->init_termios.c_ispeed = 9600;
+	sx_driver->init_termios.c_ospeed = 9600;
 	sx_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(sx_driver, &sx_ops);
 

@@ -246,7 +246,7 @@ out_up:
 	return ret;
 }
 
-void line_set_termios(struct tty_struct *tty, struct termios * old)
+void line_set_termios(struct tty_struct *tty, struct ktermios * old)
 {
 	/* nothing */
 }

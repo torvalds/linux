@@ -495,8 +495,8 @@ static int get_sgttyb(struct tty_struct * tty, struct sgttyb __user * sgttyb)
 	struct sgttyb tmp;
 
 	mutex_lock(&tty->termios_mutex);
-	tmp.sg_ispeed = tty->c_ispeed;
-	tmp.sg_ospeed = tty->c_ospeed;
+	tmp.sg_ispeed = tty->termios->c_ispeed;
+	tmp.sg_ospeed = tty->termios->c_ospeed;
 	tmp.sg_erase = tty->termios->c_cc[VERASE];
 	tmp.sg_kill = tty->termios->c_cc[VKILL];
 	tmp.sg_flags = get_sgflags(tty);

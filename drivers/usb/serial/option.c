@@ -59,7 +59,7 @@ static int  option_chars_in_buffer(struct usb_serial_port *port);
 static int  option_ioctl(struct usb_serial_port *port, struct file *file,
 			unsigned int cmd, unsigned long arg);
 static void option_set_termios(struct usb_serial_port *port,
-				struct termios *old);
+				struct ktermios *old);
 static void option_break_ctl(struct usb_serial_port *port, int break_state);
 static int  option_tiocmget(struct usb_serial_port *port, struct file *file);
 static int  option_tiocmset(struct usb_serial_port *port, struct file *file,
@@ -230,7 +230,7 @@ static void option_break_ctl(struct usb_serial_port *port, int break_state)
 }
 
 static void option_set_termios(struct usb_serial_port *port,
-			struct termios *old_termios)
+			struct ktermios *old_termios)
 {
 	dbg("%s", __FUNCTION__);
 

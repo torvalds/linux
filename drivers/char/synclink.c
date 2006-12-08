@@ -3060,7 +3060,7 @@ static int mgsl_ioctl_common(struct mgsl_struct *info, unsigned int cmd, unsigne
  * 	
  * Return Value:		None
  */
-static void mgsl_set_termios(struct tty_struct *tty, struct termios *old_termios)
+static void mgsl_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	struct mgsl_struct *info = (struct mgsl_struct *)tty->driver_data;
 	unsigned long flags;
@@ -4405,6 +4405,8 @@ static int mgsl_init_tty(void)
 	serial_driver->init_termios = tty_std_termios;
 	serial_driver->init_termios.c_cflag =
 		B9600 | CS8 | CREAD | HUPCL | CLOCAL;
+	serial_driver->init_termios.c_ispeed = 9600;
+	serial_driver->init_termios.c_ospeed = 9600;
 	serial_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(serial_driver, &mgsl_ops);
 	if ((rc = tty_register_driver(serial_driver)) < 0) {

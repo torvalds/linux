@@ -199,7 +199,7 @@ static int pc_ioctl(struct tty_struct *, struct file *,
                     unsigned int, unsigned long);
 static int info_ioctl(struct tty_struct *, struct file *,
                     unsigned int, unsigned long);
-static void pc_set_termios(struct tty_struct *, struct termios *);
+static void pc_set_termios(struct tty_struct *, struct ktermios *);
 static void do_softint(struct work_struct *work);
 static void pc_stop(struct tty_struct *);
 static void pc_start(struct tty_struct *);
@@ -1236,6 +1236,8 @@ static int __init pc_init(void)
 	pc_driver->init_termios.c_oflag = 0;
 	pc_driver->init_termios.c_cflag = B9600 | CS8 | CREAD | CLOCAL | HUPCL;
 	pc_driver->init_termios.c_lflag = 0;
+	pc_driver->init_termios.c_ispeed = 9600;
+	pc_driver->init_termios.c_ospeed = 9600;
 	pc_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(pc_driver, &pc_ops);
 
@@ -1250,6 +1252,8 @@ static int __init pc_init(void)
 	pc_info->init_termios.c_oflag = 0;
 	pc_info->init_termios.c_lflag = 0;
 	pc_info->init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL;
+	pc_info->init_termios.c_ispeed = 9600;
+	pc_info->init_termios.c_ospeed = 9600;
 	pc_info->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(pc_info, &info_ops);
 
@@ -1999,7 +2003,7 @@ static void epcaparam(struct tty_struct *tty, struct channel *ch)
 { /* Begin epcaparam */
 
 	unsigned int cmdHead;
-	struct termios *ts;
+	struct ktermios *ts;
 	struct board_chan __iomem *bc;
 	unsigned mval, hflow, cflag, iflag;
 
@@ -2114,7 +2118,7 @@ static void receive_data(struct channel *ch)
 { /* Begin receive_data */
 
 	unchar *rptr;
-	struct termios *ts = NULL;
+	struct ktermios *ts = NULL;
 	struct tty_struct *tty;
 	struct board_chan __iomem *bc;
 	int dataToRead, wrapgap, bytesAvailable;
@@ -2362,12 +2366,14 @@ static int pc_ioctl(struct tty_struct *tty, struct file * file,
 	switch (cmd) 
 	{ /* Begin switch cmd */
 
+#if 0	/* Handled by calling layer properly */
 		case TCGETS:
-			if (copy_to_user(argp, tty->termios, sizeof(struct termios)))
+			if (copy_to_user(argp, tty->termios, sizeof(struct ktermios)))
 				return -EFAULT;
 			return 0;
 		case TCGETA:
 			return get_termio(tty, argp);
+#endif
 		case TCSBRK:	/* SVID version: non-zero arg --> no break */
 			retval = tty_check_change(tty);
 			if (retval)
@@ -2536,7 +2542,7 @@ static int pc_ioctl(struct tty_struct *tty, struct file * file,
 
 /* --------------------- Begin pc_set_termios  ----------------------- */
 
-static void pc_set_termios(struct tty_struct *tty, struct termios *old_termios)
+static void pc_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 { /* Begin pc_set_termios */
 
 	struct channel *ch;

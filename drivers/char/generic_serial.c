@@ -718,11 +718,11 @@ static unsigned int     gs_baudrates[] = {
 
 
 void gs_set_termios (struct tty_struct * tty, 
-                     struct termios * old_termios)
+                     struct ktermios * old_termios)
 {
 	struct gs_port *port;
 	int baudrate, tmp, rv;
-	struct termios *tiosp;
+	struct ktermios *tiosp;
 
 	func_enter();
 

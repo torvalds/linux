@@ -1161,6 +1161,8 @@ static int __init hvsi_init(void)
 	hvsi_driver->type = TTY_DRIVER_TYPE_SYSTEM;
 	hvsi_driver->init_termios = tty_std_termios;
 	hvsi_driver->init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL;
+	hvsi_driver->init_termios.c_ispeed = 9600;
+	hvsi_driver->init_termios.c_ospeed = 9600;
 	hvsi_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(hvsi_driver, &hvsi_ops);
 

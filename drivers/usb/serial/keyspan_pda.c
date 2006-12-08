@@ -365,7 +365,7 @@ static void keyspan_pda_break_ctl (struct usb_serial_port *port, int break_state
 
 
 static void keyspan_pda_set_termios (struct usb_serial_port *port, 
-				     struct termios *old_termios)
+				     struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
 	unsigned int cflag = port->tty->termios->c_cflag;

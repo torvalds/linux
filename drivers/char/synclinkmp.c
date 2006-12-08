@@ -519,7 +519,7 @@ static struct tty_driver *serial_driver;
 static int  open(struct tty_struct *tty, struct file * filp);
 static void close(struct tty_struct *tty, struct file * filp);
 static void hangup(struct tty_struct *tty);
-static void set_termios(struct tty_struct *tty, struct termios *old_termios);
+static void set_termios(struct tty_struct *tty, struct ktermios *old_termios);
 
 static int  write(struct tty_struct *tty, const unsigned char *buf, int count);
 static void put_char(struct tty_struct *tty, unsigned char ch);
@@ -918,7 +918,7 @@ static void hangup(struct tty_struct *tty)
 
 /* Set new termios settings
  */
-static void set_termios(struct tty_struct *tty, struct termios *old_termios)
+static void set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	SLMP_INFO *info = (SLMP_INFO *)tty->driver_data;
 	unsigned long flags;
@@ -4034,6 +4034,8 @@ static int __init synclinkmp_init(void)
 	serial_driver->init_termios = tty_std_termios;
 	serial_driver->init_termios.c_cflag =
 		B9600 | CS8 | CREAD | HUPCL | CLOCAL;
+	serial_driver->init_termios.c_ispeed = 9600;
+	serial_driver->init_termios.c_ospeed = 9600;
 	serial_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(serial_driver, &ops);
 	if ((rc = tty_register_driver(serial_driver)) < 0) {

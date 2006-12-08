@@ -922,8 +922,8 @@ sunzilog_convert_to_zs(struct uart_sunzilog_port *up, unsigned int cflag,
 
 /* The port lock is not held.  */
 static void
-sunzilog_set_termios(struct uart_port *port, struct termios *termios,
-		     struct termios *old)
+sunzilog_set_termios(struct uart_port *port, struct ktermios *termios,
+		     struct ktermios *old)
 {
 	struct uart_sunzilog_port *up = (struct uart_sunzilog_port *) port;
 	unsigned long flags;

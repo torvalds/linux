@@ -712,7 +712,7 @@ static void init_r_port(int board, int aiop, int chan, struct pci_dev *pci_dev)
  *  user mode into the driver (exception handler).  *info CD manipulation is spinlock protected.
  */
 static void configure_r_port(struct r_port *info,
-			     struct termios *old_termios)
+			     struct ktermios *old_termios)
 {
 	unsigned cflag;
 	unsigned long flags;
@@ -1194,7 +1194,7 @@ static void rp_close(struct tty_struct *tty, struct file *filp)
 }
 
 static void rp_set_termios(struct tty_struct *tty,
-			   struct termios *old_termios)
+			   struct ktermios *old_termios)
 {
 	struct r_port *info = (struct r_port *) tty->driver_data;
 	CHANNEL_t *cp;
@@ -2214,7 +2214,7 @@ static int __init init_PCI(int boards_found)
 	int count = 0;
 
 	/*  Work through the PCI device list, pulling out ours */
-	while ((dev = pci_find_device(PCI_VENDOR_ID_RP, PCI_ANY_ID, dev))) {
+	while ((dev = pci_get_device(PCI_VENDOR_ID_RP, PCI_ANY_ID, dev))) {
 		if (register_PCI(count + boards_found, dev))
 			count++;
 	}
@@ -2436,6 +2436,8 @@ static int __init rp_init(void)
 	rocket_driver->init_termios = tty_std_termios;
 	rocket_driver->init_termios.c_cflag =
 	    B9600 | CS8 | CREAD | HUPCL | CLOCAL;
+	rocket_driver->init_termios.c_ispeed = 9600;
+	rocket_driver->init_termios.c_ospeed = 9600;
 #ifdef ROCKET_SOFT_FLOW
 	rocket_driver->flags |= TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 #endif

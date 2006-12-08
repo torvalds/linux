@@ -200,7 +200,7 @@ static void gs_unthrottle(struct tty_struct * tty);
 static void gs_break(struct tty_struct *tty, int break_state);
 static int  gs_ioctl(struct tty_struct *tty, struct file *file,
 	unsigned int cmd, unsigned long arg);
-static void gs_set_termios(struct tty_struct *tty, struct termios *old);
+static void gs_set_termios(struct tty_struct *tty, struct ktermios *old);
 
 static int gs_send(struct gs_dev *dev);
 static int gs_send_packet(struct gs_dev *dev, char *packet,
@@ -1077,7 +1077,7 @@ static int gs_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd,
 /*
  * gs_set_termios
  */
-static void gs_set_termios(struct tty_struct *tty, struct termios *old)
+static void gs_set_termios(struct tty_struct *tty, struct ktermios *old)
 {
 }
 

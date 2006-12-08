@@ -141,9 +141,11 @@ static struct tty_driver	*stl_serial;
  *	with this termios initially. Basically all it defines is a raw port
  *	at 9600, 8 data bits, 1 stop bit.
  */
-static struct termios		stl_deftermios = {
+static struct ktermios		stl_deftermios = {
 	.c_cflag	= (B9600 | CS8 | CREAD | HUPCL | CLOCAL),
 	.c_cc		= INIT_C_CC,
+	.c_ispeed	= 9600,
+	.c_ospeed	= 9600,
 };
 
 /*
@@ -464,7 +466,7 @@ static int	stl_cd1400getreg(struct stlport *portp, int regnr);
 static int	stl_cd1400updatereg(struct stlport *portp, int regnr, int value);
 static int	stl_cd1400panelinit(struct stlbrd *brdp, struct stlpanel *panelp);
 static void	stl_cd1400portinit(struct stlbrd *brdp, struct stlpanel *panelp, struct stlport *portp);
-static void	stl_cd1400setport(struct stlport *portp, struct termios *tiosp);
+static void	stl_cd1400setport(struct stlport *portp, struct ktermios *tiosp);
 static int	stl_cd1400getsignals(struct stlport *portp);
 static void	stl_cd1400setsignals(struct stlport *portp, int dtr, int rts);
 static void	stl_cd1400ccrwait(struct stlport *portp);
@@ -493,7 +495,7 @@ static int	stl_sc26198updatereg(struct stlport *portp, int regnr, int value);
 static int	stl_sc26198getglobreg(struct stlport *portp, int regnr);
 static int	stl_sc26198panelinit(struct stlbrd *brdp, struct stlpanel *panelp);
 static void	stl_sc26198portinit(struct stlbrd *brdp, struct stlpanel *panelp, struct stlport *portp);
-static void	stl_sc26198setport(struct stlport *portp, struct termios *tiosp);
+static void	stl_sc26198setport(struct stlport *portp, struct ktermios *tiosp);
 static int	stl_sc26198getsignals(struct stlport *portp);
 static void	stl_sc26198setsignals(struct stlport *portp, int dtr, int rts);
 static void	stl_sc26198enablerxtx(struct stlport *portp, int rx, int tx);
@@ -521,7 +523,7 @@ static void	stl_sc26198otherisr(struct stlport *port, unsigned int iack);
 typedef struct uart {
 	int	(*panelinit)(struct stlbrd *brdp, struct stlpanel *panelp);
 	void	(*portinit)(struct stlbrd *brdp, struct stlpanel *panelp, struct stlport *portp);
-	void	(*setport)(struct stlport *portp, struct termios *tiosp);
+	void	(*setport)(struct stlport *portp, struct ktermios *tiosp);
 	int	(*getsignals)(struct stlport *portp);
 	void	(*setsignals)(struct stlport *portp, int dtr, int rts);
 	void	(*enablerxtx)(struct stlport *portp, int rx, int tx);
@@ -1427,10 +1429,10 @@ static void stl_start(struct tty_struct *tty)
 
 /*****************************************************************************/
 
-static void stl_settermios(struct tty_struct *tty, struct termios *old)
+static void stl_settermios(struct tty_struct *tty, struct ktermios *old)
 {
 	struct stlport	*portp;
-	struct termios	*tiosp;
+	struct ktermios	*tiosp;
 
 	pr_debug("stl_settermios(tty=%p,old=%p)\n", tty, old);
 
@@ -2468,7 +2470,7 @@ static int __init stl_findpcibrds(void)
 	pr_debug("stl_findpcibrds()\n");
 
 	for (i = 0; (i < stl_nrpcibrds); i++)
-		while ((dev = pci_find_device(stl_pcibrds[i].vendid,
+		while ((dev = pci_get_device(stl_pcibrds[i].vendid,
 		    stl_pcibrds[i].devid, dev))) {
 
 /*
@@ -2947,7 +2949,7 @@ static void stl_cd1400ccrwait(struct stlport *portp)
  *	settings.
  */
 
-static void stl_cd1400setport(struct stlport *portp, struct termios *tiosp)
+static void stl_cd1400setport(struct stlport *portp, struct ktermios *tiosp)
 {
 	struct stlbrd	*brdp;
 	unsigned long	flags;
@@ -3924,7 +3926,7 @@ static void stl_sc26198portinit(struct stlbrd *brdp, struct stlpanel *panelp, st
  *	settings.
  */
 
-static void stl_sc26198setport(struct stlport *portp, struct termios *tiosp)
+static void stl_sc26198setport(struct stlport *portp, struct ktermios *tiosp)
 {
 	struct stlbrd	*brdp;
 	unsigned long	flags;

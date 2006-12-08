@@ -107,7 +107,7 @@ static void ir_close (struct usb_serial_port *port, struct file *filep);
 static int  ir_write (struct usb_serial_port *port, const unsigned char *buf, int count);
 static void ir_write_bulk_callback (struct urb *urb);
 static void ir_read_bulk_callback (struct urb *urb);
-static void ir_set_termios (struct usb_serial_port *port, struct termios *old_termios);
+static void ir_set_termios (struct usb_serial_port *port, struct ktermios *old_termios);
 
 static u8 ir_baud = 0;
 static u8 ir_xbof = 0;
@@ -497,7 +497,7 @@ static void ir_read_bulk_callback (struct urb *urb)
 	return;
 }
 
-static void ir_set_termios (struct usb_serial_port *port, struct termios *old_termios)
+static void ir_set_termios (struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	unsigned char *transfer_buffer;
 	unsigned int cflag;

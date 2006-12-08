@@ -136,7 +136,7 @@ struct kobil_private {
 	int cur_pos; // index of the next char to send in buf
 	__u16 device_type;
 	int line_state;
-	struct termios internal_termios;
+	struct ktermios internal_termios;
 };
 
 
@@ -624,11 +624,11 @@ static int  kobil_ioctl(struct usb_serial_port *port, struct file *file,
 
 	switch (cmd) {
 	case TCGETS:   // 0x5401
-		if (!access_ok(VERIFY_WRITE, user_arg, sizeof(struct termios))) {
+		if (!access_ok(VERIFY_WRITE, user_arg, sizeof(struct ktermios))) {
 			dbg("%s - port %d Error in access_ok", __FUNCTION__, port->number);
 			return -EFAULT;
 		}
-		if (kernel_termios_to_user_termios((struct termios __user *)arg,
+		if (kernel_termios_to_user_termios((struct ktermios __user *)arg,
 						   &priv->internal_termios))
 			return -EFAULT;
 		return 0;
@@ -638,12 +638,12 @@ static int  kobil_ioctl(struct usb_serial_port *port, struct file *file,
 			dbg("%s - port %d Error: port->tty->termios is NULL", __FUNCTION__, port->number);
 			return -ENOTTY;
 		}
-		if (!access_ok(VERIFY_READ, user_arg, sizeof(struct termios))) {
+		if (!access_ok(VERIFY_READ, user_arg, sizeof(struct ktermios))) {
 			dbg("%s - port %d Error in access_ok", __FUNCTION__, port->number);
 			return -EFAULT;
 		}
 		if (user_termios_to_kernel_termios(&priv->internal_termios,
-						   (struct termios __user *)arg))
+						   (struct ktermios __user *)arg))
 			return -EFAULT;
 		
 		settings = kzalloc(50, GFP_KERNEL);

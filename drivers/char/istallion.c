@@ -194,9 +194,11 @@ static struct tty_struct	*stli_txcooktty;
  *	with this termios initially. Basically all it defines is a raw port
  *	at 9600 baud, 8 data bits, no parity, 1 stop bit.
  */
-static struct termios		stli_deftermios = {
+static struct ktermios		stli_deftermios = {
 	.c_cflag	= (B9600 | CS8 | CREAD | HUPCL | CLOCAL),
 	.c_cc		= INIT_C_CC,
+	.c_ispeed	= 9600,
+	.c_ospeed	= 9600,
 };
 
 /*
@@ -639,7 +641,7 @@ static void	stli_flushchars(struct tty_struct *tty);
 static int	stli_writeroom(struct tty_struct *tty);
 static int	stli_charsinbuffer(struct tty_struct *tty);
 static int	stli_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg);
-static void	stli_settermios(struct tty_struct *tty, struct termios *old);
+static void	stli_settermios(struct tty_struct *tty, struct ktermios *old);
 static void	stli_throttle(struct tty_struct *tty);
 static void	stli_unthrottle(struct tty_struct *tty);
 static void	stli_stop(struct tty_struct *tty);
@@ -669,7 +671,7 @@ static int	stli_cmdwait(stlibrd_t *brdp, stliport_t *portp, unsigned long cmd, v
 static void	stli_sendcmd(stlibrd_t *brdp, stliport_t *portp, unsigned long cmd, void *arg, int size, int copyback);
 static void	__stli_sendcmd(stlibrd_t *brdp, stliport_t *portp, unsigned long cmd, void *arg, int size, int copyback);
 static void	stli_dodelaycmd(stliport_t *portp, cdkctrl_t __iomem *cp);
-static void	stli_mkasyport(stliport_t *portp, asyport_t *pp, struct termios *tiosp);
+static void	stli_mkasyport(stliport_t *portp, asyport_t *pp, struct ktermios *tiosp);
 static void	stli_mkasysigs(asysigs_t *sp, int dtr, int rts);
 static long	stli_mktiocm(unsigned long sigvalue);
 static void	stli_read(stlibrd_t *brdp, stliport_t *portp);
@@ -1889,11 +1891,11 @@ static int stli_ioctl(struct tty_struct *tty, struct file *file, unsigned int cm
  *	Looks like it is true for the current ttys implementation..!!
  */
 
-static void stli_settermios(struct tty_struct *tty, struct termios *old)
+static void stli_settermios(struct tty_struct *tty, struct ktermios *old)
 {
 	stliport_t *portp;
 	stlibrd_t *brdp;
-	struct termios *tiosp;
+	struct ktermios *tiosp;
 	asyport_t aport;
 
 	if (tty == NULL)
@@ -2730,7 +2732,7 @@ static void stli_poll(unsigned long arg)
  *	the slave.
  */
 
-static void stli_mkasyport(stliport_t *portp, asyport_t *pp, struct termios *tiosp)
+static void stli_mkasyport(stliport_t *portp, asyport_t *pp, struct ktermios *tiosp)
 {
 	memset(pp, 0, sizeof(asyport_t));
 

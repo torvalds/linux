@@ -943,8 +943,8 @@ static void sci_shutdown(struct uart_port *port)
 		s->disable(port);
 }
 
-static void sci_set_termios(struct uart_port *port, struct termios *termios,
-			    struct termios *old)
+static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
+			    struct ktermios *old)
 {
 	struct sci_port *s = &sci_ports[port->line];
 	unsigned int status, baud, smr_val;

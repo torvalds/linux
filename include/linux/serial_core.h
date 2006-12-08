@@ -166,8 +166,8 @@ struct uart_ops {
 	void		(*break_ctl)(struct uart_port *, int ctl);
 	int		(*startup)(struct uart_port *);
 	void		(*shutdown)(struct uart_port *);
-	void		(*set_termios)(struct uart_port *, struct termios *new,
-				       struct termios *old);
+	void		(*set_termios)(struct uart_port *, struct ktermios *new,
+				       struct ktermios *old);
 	void		(*pm)(struct uart_port *, unsigned int state,
 			      unsigned int oldstate);
 	int		(*set_wake)(struct uart_port *, unsigned int state);
@@ -361,8 +361,8 @@ void uart_write_wakeup(struct uart_port *port);
  */
 void uart_update_timeout(struct uart_port *port, unsigned int cflag,
 			 unsigned int baud);
-unsigned int uart_get_baud_rate(struct uart_port *port, struct termios *termios,
-				struct termios *old, unsigned int min,
+unsigned int uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
+				struct ktermios *old, unsigned int min,
 				unsigned int max);
 unsigned int uart_get_divisor(struct uart_port *port, unsigned int baud);
 

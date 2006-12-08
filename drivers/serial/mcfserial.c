@@ -1132,7 +1132,7 @@ static int mcfrs_ioctl(struct tty_struct *tty, struct file * file,
 	return 0;
 }
 
-static void mcfrs_set_termios(struct tty_struct *tty, struct termios *old_termios)
+static void mcfrs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	struct mcf_serial *info = (struct mcf_serial *)tty->driver_data;
 

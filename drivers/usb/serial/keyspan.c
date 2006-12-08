@@ -264,7 +264,7 @@ static void keyspan_break_ctl (struct usb_serial_port *port, int break_state)
 
 
 static void keyspan_set_termios (struct usb_serial_port *port, 
-				     struct termios *old_termios)
+				     struct ktermios *old_termios)
 {
 	int				baud_rate, device_port;
 	struct keyspan_port_private 	*p_priv;

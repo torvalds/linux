@@ -511,8 +511,8 @@ typedef struct modem_info {
 #endif
   struct tty_struct 	*tty;            /* Pointer to corresponding tty   */
   atemu                 emu;             /* AT-emulator data               */
-  struct termios	normal_termios;  /* For saving termios structs     */
-  struct termios	callout_termios;
+  struct ktermios	normal_termios;  /* For saving termios structs     */
+  struct ktermios	callout_termios;
   wait_queue_head_t	open_wait, close_wait;
   struct semaphore      write_sem;
   spinlock_t	        readlock;
@@ -525,8 +525,8 @@ typedef struct _isdn_modem {
   int                refcount;				/* Number of opens        */
   struct tty_driver  *tty_modem;			/* tty-device             */
   struct tty_struct  *modem_table[ISDN_MAX_CHANNELS];	/* ?? copied from Orig    */
-  struct termios     *modem_termios[ISDN_MAX_CHANNELS];
-  struct termios     *modem_termios_locked[ISDN_MAX_CHANNELS];
+  struct ktermios     *modem_termios[ISDN_MAX_CHANNELS];
+  struct ktermios     *modem_termios_locked[ISDN_MAX_CHANNELS];
   modem_info         info[ISDN_MAX_CHANNELS];	   /* Private data           */
 } isdn_modem_t;
 

@@ -177,7 +177,7 @@ static int  ip2_write_room(PTTY);
 static int  ip2_chars_in_buf(PTTY);
 static void ip2_flush_buffer(PTTY);
 static int  ip2_ioctl(PTTY, struct file *, UINT, ULONG);
-static void ip2_set_termios(PTTY, struct termios *);
+static void ip2_set_termios(PTTY, struct ktermios *);
 static void ip2_set_line_discipline(PTTY);
 static void ip2_throttle(PTTY);
 static void ip2_unthrottle(PTTY);
@@ -198,7 +198,7 @@ static void do_status(struct work_struct *);
 
 static void ip2_wait_until_sent(PTTY,int);
 
-static void set_params (i2ChanStrPtr, struct termios *);
+static void set_params (i2ChanStrPtr, struct ktermios *);
 static int get_serial_info(i2ChanStrPtr, struct serial_struct __user *);
 static int set_serial_info(i2ChanStrPtr, struct serial_struct __user *);
 
@@ -2398,7 +2398,7 @@ set_serial_info( i2ChanStrPtr pCh, struct serial_struct __user *new_info )
 /*                                                                            */
 /******************************************************************************/
 static void
-ip2_set_termios( PTTY tty, struct termios *old_termios )
+ip2_set_termios( PTTY tty, struct ktermios *old_termios )
 {
 	i2ChanStrPtr pCh = (i2ChanStrPtr)tty->driver_data;
 
@@ -2440,11 +2440,11 @@ ip2_set_line_discipline ( PTTY tty )
 /* change.                                                                    */
 /******************************************************************************/
 static void
-set_params( i2ChanStrPtr pCh, struct termios *o_tios )
+set_params( i2ChanStrPtr pCh, struct ktermios *o_tios )
 {
 	tcflag_t cflag, iflag, lflag;
 	char stop_char, start_char;
-	struct termios dummy;
+	struct ktermios dummy;
 
 	lflag = pCh->pTTY->termios->c_lflag;
 	cflag = pCh->pTTY->termios->c_cflag;

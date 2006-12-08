@@ -98,7 +98,7 @@ static void mct_u232_close	         (struct usb_serial_port *port,
 					  struct file *filp);
 static void mct_u232_read_int_callback   (struct urb *urb);
 static void mct_u232_set_termios         (struct usb_serial_port *port,
-					  struct termios * old);
+					  struct ktermios * old);
 static int  mct_u232_ioctl	         (struct usb_serial_port *port,
 					  struct file * file,
 					  unsigned int cmd,
@@ -556,7 +556,7 @@ exit:
 } /* mct_u232_read_int_callback */
 
 static void mct_u232_set_termios (struct usb_serial_port *port,
-				  struct termios *old_termios)
+				  struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
 	struct mct_u232_private *priv = usb_get_serial_port_data(port);

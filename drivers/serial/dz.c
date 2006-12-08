@@ -461,8 +461,8 @@ static void dz_break_ctl(struct uart_port *uport, int break_state)
 	spin_unlock_irqrestore(&uport->lock, flags);
 }
 
-static void dz_set_termios(struct uart_port *uport, struct termios *termios,
-			   struct termios *old_termios)
+static void dz_set_termios(struct uart_port *uport, struct ktermios *termios,
+			   struct ktermios *old_termios)
 {
 	struct dz_port *dport = (struct dz_port *)uport;
 	unsigned long flags;

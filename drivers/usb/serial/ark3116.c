@@ -156,7 +156,7 @@ cleanup:
 }
 
 static void ark3116_set_termios(struct usb_serial_port *port,
-				struct termios *old_termios)
+				struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
 	struct ark3116_private *priv = usb_get_serial_port_data(port);
@@ -326,7 +326,7 @@ static void ark3116_set_termios(struct usb_serial_port *port,
 
 static int ark3116_open(struct usb_serial_port *port, struct file *filp)
 {
-	struct termios tmp_termios;
+	struct ktermios tmp_termios;
 	struct usb_serial *serial = port->serial;
 	char *buf;
 	int result = 0;

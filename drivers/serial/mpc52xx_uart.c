@@ -270,8 +270,8 @@ mpc52xx_uart_shutdown(struct uart_port *port)
 }
 
 static void
-mpc52xx_uart_set_termios(struct uart_port *port, struct termios *new,
-                         struct termios *old)
+mpc52xx_uart_set_termios(struct uart_port *port, struct ktermios *new,
+                         struct ktermios *old)
 {
 	struct mpc52xx_psc __iomem *psc = PSC(port);
 	unsigned long flags;

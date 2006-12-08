@@ -266,8 +266,8 @@ struct mxser_port {
 	int xmit_tail;
 	int xmit_cnt;
 
-	struct termios normal_termios;
-	struct termios callout_termios;
+	struct ktermios normal_termios;
+	struct ktermios callout_termios;
 
 	struct mxser_mon mon_data;
 
@@ -512,7 +512,7 @@ static int mxser_set_baud(struct mxser_port *info, long newspd)
  * the specified baud rate for a serial port.
  */
 static int mxser_change_speed(struct mxser_port *info,
-		struct termios *old_termios)
+		struct ktermios *old_termios)
 {
 	unsigned cflag, cval, fcr;
 	int ret = 0;
@@ -1966,7 +1966,7 @@ static void mxser_start(struct tty_struct *tty)
 	spin_unlock_irqrestore(&info->slock, flags);
 }
 
-static void mxser_set_termios(struct tty_struct *tty, struct termios *old_termios)
+static void mxser_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	struct mxser_port *info = tty->driver_data;
 	unsigned long flags;

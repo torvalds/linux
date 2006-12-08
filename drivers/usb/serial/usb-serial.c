@@ -397,7 +397,7 @@ exit:
 	return retval;
 }
 
-static void serial_set_termios (struct tty_struct *tty, struct termios * old)
+static void serial_set_termios (struct tty_struct *tty, struct ktermios * old)
 {
 	struct usb_serial_port *port = tty->driver_data;
 

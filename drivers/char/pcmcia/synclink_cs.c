@@ -2375,7 +2375,7 @@ static int ioctl_common(MGSLPC_INFO *info, unsigned int cmd, unsigned long arg)
  * 	tty		pointer to tty structure
  * 	termios		pointer to buffer to hold returned old termios
  */
-static void mgslpc_set_termios(struct tty_struct *tty, struct termios *old_termios)
+static void mgslpc_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
 	unsigned long flags;

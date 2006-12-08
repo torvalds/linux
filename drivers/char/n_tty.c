@@ -994,7 +994,7 @@ int is_ignored(int sig)
  *	when the ldisc is closed.
  */
  
-static void n_tty_set_termios(struct tty_struct *tty, struct termios * old)
+static void n_tty_set_termios(struct tty_struct *tty, struct ktermios * old)
 {
 	if (!tty)
 		return;

@@ -328,8 +328,8 @@ struct mxser_struct {
 	int xmit_tail;
 	int xmit_cnt;
 	struct work_struct tqueue;
-	struct termios normal_termios;
-	struct termios callout_termios;
+	struct ktermios normal_termios;
+	struct ktermios callout_termios;
 	wait_queue_head_t open_wait;
 	wait_queue_head_t close_wait;
 	wait_queue_head_t delta_msr_wait;
@@ -364,8 +364,8 @@ static int mxserBoardCAP[MXSER_BOARDS] = {
 static struct tty_driver *mxvar_sdriver;
 static struct mxser_struct mxvar_table[MXSER_PORTS];
 static struct tty_struct *mxvar_tty[MXSER_PORTS + 1];
-static struct termios *mxvar_termios[MXSER_PORTS + 1];
-static struct termios *mxvar_termios_locked[MXSER_PORTS + 1];
+static struct ktermios *mxvar_termios[MXSER_PORTS + 1];
+static struct ktermios *mxvar_termios_locked[MXSER_PORTS + 1];
 static struct mxser_log mxvar_log;
 static int mxvar_diagflag;
 static unsigned char mxser_msr[MXSER_PORTS + 1];
@@ -402,7 +402,7 @@ static int mxser_ioctl(struct tty_struct *, struct file *, uint, ulong);
 static int mxser_ioctl_special(unsigned int, void __user *);
 static void mxser_throttle(struct tty_struct *);
 static void mxser_unthrottle(struct tty_struct *);
-static void mxser_set_termios(struct tty_struct *, struct termios *);
+static void mxser_set_termios(struct tty_struct *, struct ktermios *);
 static void mxser_stop(struct tty_struct *);
 static void mxser_start(struct tty_struct *);
 static void mxser_hangup(struct tty_struct *);
@@ -414,7 +414,7 @@ static void mxser_check_modem_status(struct mxser_struct *, int);
 static int mxser_block_til_ready(struct tty_struct *, struct file *, struct mxser_struct *);
 static int mxser_startup(struct mxser_struct *);
 static void mxser_shutdown(struct mxser_struct *);
-static int mxser_change_speed(struct mxser_struct *, struct termios *old_termios);
+static int mxser_change_speed(struct mxser_struct *, struct ktermios *old_termios);
 static int mxser_get_serial_info(struct mxser_struct *, struct serial_struct __user *);
 static int mxser_set_serial_info(struct mxser_struct *, struct serial_struct __user *);
 static int mxser_get_lsr_info(struct mxser_struct *, unsigned int __user *);
@@ -726,6 +726,8 @@ static int mxser_init(void)
 	mxvar_sdriver->subtype = SERIAL_TYPE_NORMAL;
 	mxvar_sdriver->init_termios = tty_std_termios;
 	mxvar_sdriver->init_termios.c_cflag = B9600|CS8|CREAD|HUPCL|CLOCAL;
+	mxvar_sdriver->init_termios.c_ispeed = 9600;
+	mxvar_sdriver->init_termios.c_ospeed = 9600;
 	mxvar_sdriver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(mxvar_sdriver, &mxser_ops);
 	mxvar_sdriver->ttys = mxvar_tty;
@@ -1749,7 +1751,7 @@ static void mxser_unthrottle(struct tty_struct *tty)
 	/* MX_UNLOCK(&info->slock); */
 }
 
-static void mxser_set_termios(struct tty_struct *tty, struct termios *old_termios)
+static void mxser_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	struct mxser_struct *info = tty->driver_data;
 	unsigned long flags;
@@ -2541,7 +2543,7 @@ static void mxser_shutdown(struct mxser_struct *info)
  * This routine is called to set the UART divisor registers to match
  * the specified baud rate for a serial port.
  */
-static int mxser_change_speed(struct mxser_struct *info, struct termios *old_termios)
+static int mxser_change_speed(struct mxser_struct *info, struct ktermios *old_termios)
 {
 	unsigned cflag, cval, fcr;
 	int ret = 0;

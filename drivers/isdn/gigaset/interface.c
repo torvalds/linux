@@ -127,7 +127,7 @@ static int  if_write_room(struct tty_struct *tty);
 static int  if_chars_in_buffer(struct tty_struct *tty);
 static void if_throttle(struct tty_struct *tty);
 static void if_unthrottle(struct tty_struct *tty);
-static void if_set_termios(struct tty_struct *tty, struct termios *old);
+static void if_set_termios(struct tty_struct *tty, struct ktermios *old);
 static int  if_tiocmget(struct tty_struct *tty, struct file *file);
 static int  if_tiocmset(struct tty_struct *tty, struct file *file,
 			unsigned int set, unsigned int clear);
@@ -490,7 +490,7 @@ static void if_unthrottle(struct tty_struct *tty)
 	mutex_unlock(&cs->mutex);
 }
 
-static void if_set_termios(struct tty_struct *tty, struct termios *old)
+static void if_set_termios(struct tty_struct *tty, struct ktermios *old)
 {
 	struct cardstate *cs;
 	unsigned int iflag;

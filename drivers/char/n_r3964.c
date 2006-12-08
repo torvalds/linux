@@ -142,7 +142,7 @@ static ssize_t r3964_write(struct tty_struct * tty, struct file * file,
                       const unsigned char * buf, size_t nr);
 static int r3964_ioctl(struct tty_struct * tty, struct file * file,
                        unsigned int cmd, unsigned long arg);
-static void r3964_set_termios(struct tty_struct *tty, struct termios * old);
+static void r3964_set_termios(struct tty_struct *tty, struct ktermios * old);
 static unsigned int r3964_poll(struct tty_struct * tty, struct file * file,
 		      struct poll_table_struct  *wait);
 static void r3964_receive_buf(struct tty_struct *tty, const unsigned char *cp,
@@ -1347,7 +1347,7 @@ static int r3964_ioctl(struct tty_struct * tty, struct file * file,
    }
 }
 
-static void r3964_set_termios(struct tty_struct *tty, struct termios * old)
+static void r3964_set_termios(struct tty_struct *tty, struct ktermios * old)
 {
    TRACE_L("set_termios");
 }

@@ -145,7 +145,7 @@ static void whiteheat_close		(struct usb_serial_port *port, struct file *filp);
 static int  whiteheat_write		(struct usb_serial_port *port, const unsigned char *buf, int count);
 static int  whiteheat_write_room	(struct usb_serial_port *port);
 static int  whiteheat_ioctl		(struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg);
-static void whiteheat_set_termios	(struct usb_serial_port *port, struct termios * old);
+static void whiteheat_set_termios	(struct usb_serial_port *port, struct ktermios * old);
 static int  whiteheat_tiocmget		(struct usb_serial_port *port, struct file *file);
 static int  whiteheat_tiocmset		(struct usb_serial_port *port, struct file *file, unsigned int set, unsigned int clear);
 static void whiteheat_break_ctl		(struct usb_serial_port *port, int break_state);
@@ -597,7 +597,7 @@ static void whiteheat_shutdown (struct usb_serial *serial)
 static int whiteheat_open (struct usb_serial_port *port, struct file *filp)
 {
 	int		retval = 0;
-	struct termios	old_term;
+	struct ktermios	old_term;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -870,7 +870,7 @@ static int whiteheat_ioctl (struct usb_serial_port *port, struct file * file, un
 }
 
 
-static void whiteheat_set_termios (struct usb_serial_port *port, struct termios *old_termios)
+static void whiteheat_set_termios (struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	dbg("%s -port %d", __FUNCTION__, port->number);
 

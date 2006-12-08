@@ -361,8 +361,8 @@ static int snp_startup(struct uart_port *port)
  *
  */
 static void
-snp_set_termios(struct uart_port *port, struct termios *termios,
-		struct termios *old)
+snp_set_termios(struct uart_port *port, struct ktermios *termios,
+		struct ktermios *old)
 {
 }
 

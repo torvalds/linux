@@ -595,7 +595,7 @@ static int  ftdi_chars_in_buffer	(struct usb_serial_port *port);
 static void ftdi_write_bulk_callback	(struct urb *urb);
 static void ftdi_read_bulk_callback	(struct urb *urb);
 static void ftdi_process_read		(struct work_struct *work);
-static void ftdi_set_termios		(struct usb_serial_port *port, struct termios * old);
+static void ftdi_set_termios		(struct usb_serial_port *port, struct ktermios * old);
 static int  ftdi_tiocmget               (struct usb_serial_port *port, struct file *file);
 static int  ftdi_tiocmset		(struct usb_serial_port *port, struct file * file, unsigned int set, unsigned int clear);
 static int  ftdi_ioctl			(struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg);
@@ -1880,7 +1880,7 @@ static void ftdi_break_ctl( struct usb_serial_port *port, int break_state )
  * WARNING: set_termios calls this with old_termios in kernel space
  */
 
-static void ftdi_set_termios (struct usb_serial_port *port, struct termios *old_termios)
+static void ftdi_set_termios (struct usb_serial_port *port, struct ktermios *old_termios)
 { /* ftdi_termios */
 	struct usb_device *dev = port->serial->dev;
 	unsigned int cflag = port->tty->termios->c_cflag;

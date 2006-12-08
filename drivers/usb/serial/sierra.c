@@ -145,7 +145,7 @@ static void sierra_break_ctl(struct usb_serial_port *port, int break_state)
 }
 
 static void sierra_set_termios(struct usb_serial_port *port,
-			struct termios *old_termios)
+			struct ktermios *old_termios)
 {
 	dbg("%s", __FUNCTION__);
 

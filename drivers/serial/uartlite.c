@@ -214,8 +214,8 @@ static void ulite_shutdown(struct uart_port *port)
 	free_irq(port->irq, port);
 }
 
-static void ulite_set_termios(struct uart_port *port, struct termios *termios,
-			      struct termios *old)
+static void ulite_set_termios(struct uart_port *port, struct ktermios *termios,
+			      struct ktermios *old)
 {
 	unsigned long flags;
 	unsigned int baud;

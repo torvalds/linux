@@ -337,8 +337,8 @@ static void netx_shutdown(struct uart_port *port)
 }
 
 static void
-netx_set_termios(struct uart_port *port, struct termios *termios,
-		   struct termios *old)
+netx_set_termios(struct uart_port *port, struct ktermios *termios,
+		   struct ktermios *old)
 {
 	unsigned int baud, quot;
 	unsigned char old_cr;

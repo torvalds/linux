@@ -449,7 +449,7 @@ static int digi_transmit_idle( struct usb_serial_port *port,
 static void digi_rx_throttle (struct usb_serial_port *port);
 static void digi_rx_unthrottle (struct usb_serial_port *port);
 static void digi_set_termios( struct usb_serial_port *port, 
-	struct termios *old_termios );
+	struct ktermios *old_termios );
 static void digi_break_ctl( struct usb_serial_port *port, int break_state );
 static int digi_ioctl( struct usb_serial_port *port, struct file *file,
 	unsigned int cmd, unsigned long arg );
@@ -976,7 +976,7 @@ dbg( "digi_rx_unthrottle: TOP: port=%d", priv->dp_port_num );
 
 
 static void digi_set_termios( struct usb_serial_port *port, 
-	struct termios *old_termios )
+	struct ktermios *old_termios )
 {
 
 	struct digi_port *priv = usb_get_serial_port_data(port);
@@ -1463,7 +1463,7 @@ static int digi_open( struct usb_serial_port *port, struct file *filp )
 	int ret;
 	unsigned char buf[32];
 	struct digi_port *priv = usb_get_serial_port_data(port);
-	struct termios not_termios;
+	struct ktermios not_termios;
 	unsigned long flags = 0;
 
 

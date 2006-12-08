@@ -1681,7 +1681,7 @@ static void transmit_chars(struct uart_port *the_port)
  */
 static void
 ioc4_change_speed(struct uart_port *the_port,
-		  struct termios *new_termios, struct termios *old_termios)
+		  struct ktermios *new_termios, struct ktermios *old_termios)
 {
 	struct ioc4_port *port = get_ioc4_port(the_port, 0);
 	int baud, bits;
@@ -1802,7 +1802,7 @@ static inline int ic4_startup_local(struct uart_port *the_port)
 	ioc4_set_proto(port, the_port->mapbase);
 
 	/* set the speed of the serial port */
-	ioc4_change_speed(the_port, info->tty->termios, (struct termios *)0);
+	ioc4_change_speed(the_port, info->tty->termios, (struct ktermios *)0);
 
 	return 0;
 }
@@ -2570,7 +2570,7 @@ static int ic4_startup(struct uart_port *the_port)
  */
 static void
 ic4_set_termios(struct uart_port *the_port,
-		struct termios *termios, struct termios *old_termios)
+		struct ktermios *termios, struct ktermios *old_termios)
 {
 	unsigned long port_flags;
 

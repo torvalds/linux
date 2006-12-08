@@ -1203,7 +1203,7 @@ static int capinc_tty_ioctl(struct tty_struct *tty, struct file * file,
 	return error;
 }
 
-static void capinc_tty_set_termios(struct tty_struct *tty, struct termios * old)
+static void capinc_tty_set_termios(struct tty_struct *tty, struct ktermios * old)
 {
 #ifdef _DEBUG_TTYFUNCS
 	printk(KERN_DEBUG "capinc_tty_set_termios\n");

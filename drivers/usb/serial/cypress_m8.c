@@ -143,7 +143,7 @@ struct cypress_private {
 	wait_queue_head_t delta_msr_wait;  /* used for TIOCMIWAIT */
 	char prev_status, diff_status;	   /* used for TIOCMIWAIT */
 	/* we pass a pointer to this as the arguement sent to cypress_set_termios old_termios */
-	struct termios tmp_termios; 	   /* stores the old termios settings */
+	struct ktermios tmp_termios; 	   /* stores the old termios settings */
 };
 
 /* write buffer structure */
@@ -165,7 +165,7 @@ static int  cypress_write		(struct usb_serial_port *port, const unsigned char *b
 static void cypress_send		(struct usb_serial_port *port);
 static int  cypress_write_room		(struct usb_serial_port *port);
 static int  cypress_ioctl		(struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg);
-static void cypress_set_termios		(struct usb_serial_port *port, struct termios * old);
+static void cypress_set_termios		(struct usb_serial_port *port, struct ktermios * old);
 static int  cypress_tiocmget		(struct usb_serial_port *port, struct file *file);
 static int  cypress_tiocmset		(struct usb_serial_port *port, struct file *file, unsigned int set, unsigned int clear);
 static int  cypress_chars_in_buffer	(struct usb_serial_port *port);
@@ -949,13 +949,13 @@ static int cypress_ioctl (struct usb_serial_port *port, struct file * file, unsi
 
 	switch (cmd) {
 		case TIOCGSERIAL:
-			if (copy_to_user((void __user *)arg, port->tty->termios, sizeof(struct termios))) {
+			if (copy_to_user((void __user *)arg, port->tty->termios, sizeof(struct ktermios))) {
 				return -EFAULT;
 			}
 			return (0);
 			break;
 		case TIOCSSERIAL:
-			if (copy_from_user(port->tty->termios, (void __user *)arg, sizeof(struct termios))) {
+			if (copy_from_user(port->tty->termios, (void __user *)arg, sizeof(struct ktermios))) {
 				return -EFAULT;
 			}
 			/* here we need to call cypress_set_termios to invoke the new settings */
@@ -1019,7 +1019,7 @@ static int cypress_ioctl (struct usb_serial_port *port, struct file * file, unsi
 
 
 static void cypress_set_termios (struct usb_serial_port *port,
-		struct termios *old_termios)
+		struct ktermios *old_termios)
 {
 	struct cypress_private *priv = usb_get_serial_port_data(port);
 	struct tty_struct *tty;
