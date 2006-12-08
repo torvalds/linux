@@ -155,7 +155,7 @@ static int grow_file(struct dentry *ecryptfs_dentry, struct file *lower_file,
 	struct ecryptfs_file_info tmp_file_info;
 
 	memset(&fake_file, 0, sizeof(fake_file));
-	fake_file.f_dentry = ecryptfs_dentry;
+	fake_file.f_path.dentry = ecryptfs_dentry;
 	memset(&tmp_file_info, 0, sizeof(tmp_file_info));
 	ecryptfs_set_file_private(&fake_file, &tmp_file_info);
 	ecryptfs_set_file_lower(&fake_file, lower_file);
@@ -754,7 +754,7 @@ int ecryptfs_truncate(struct dentry *dentry, loff_t new_length)
 	 * the file in the underlying filesystem so that the
 	 * truncation has an effect there as well. */
 	memset(&fake_ecryptfs_file, 0, sizeof(fake_ecryptfs_file));
-	fake_ecryptfs_file.f_dentry = dentry;
+	fake_ecryptfs_file.f_path.dentry = dentry;
 	/* Released at out_free: label */
 	ecryptfs_set_file_private(&fake_ecryptfs_file,
 				  kmem_cache_alloc(ecryptfs_file_info_cache,

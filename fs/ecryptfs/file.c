@@ -76,7 +76,7 @@ static loff_t ecryptfs_llseek(struct file *file, loff_t offset, int origin)
 	}
 	ecryptfs_printk(KERN_DEBUG, "new_end_pos = [0x%.16x]\n", new_end_pos);
 	if (expanding_file) {
-		rc = ecryptfs_truncate(file->f_dentry, new_end_pos);
+		rc = ecryptfs_truncate(file->f_path.dentry, new_end_pos);
 		if (rc) {
 			rv = rc;
 			ecryptfs_printk(KERN_ERR, "Error on attempt to "
@@ -117,8 +117,8 @@ static ssize_t ecryptfs_read_update_atime(struct kiocb *iocb,
 	if (-EIOCBQUEUED == rc)
 		rc = wait_on_sync_kiocb(iocb);
 	if (rc >= 0) {
-		lower_dentry = ecryptfs_dentry_to_lower(file->f_dentry);
-		lower_vfsmount = ecryptfs_dentry_to_lower_mnt(file->f_dentry);
+		lower_dentry = ecryptfs_dentry_to_lower(file->f_path.dentry);
+		lower_vfsmount = ecryptfs_dentry_to_lower_mnt(file->f_path.dentry);
 		touch_atime(lower_vfsmount, lower_dentry);
 	}
 	return rc;
@@ -177,10 +177,10 @@ static int ecryptfs_readdir(struct file *file, void *dirent, filldir_t filldir)
 
 	lower_file = ecryptfs_file_to_lower(file);
 	lower_file->f_pos = file->f_pos;
-	inode = file->f_dentry->d_inode;
+	inode = file->f_path.dentry->d_inode;
 	memset(&buf, 0, sizeof(buf));
 	buf.dirent = dirent;
-	buf.dentry = file->f_dentry;
+	buf.dentry = file->f_path.dentry;
 	buf.filldir = filldir;
 retry:
 	buf.filldir_called = 0;
@@ -193,7 +193,7 @@ retry:
 		goto retry;
 	file->f_pos = lower_file->f_pos;
 	if (rc >= 0)
-		fsstack_copy_attr_atime(inode, lower_file->f_dentry->d_inode);
+		fsstack_copy_attr_atime(inode, lower_file->f_path.dentry->d_inode);
 	return rc;
 }
 
@@ -240,7 +240,7 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 	int rc = 0;
 	struct ecryptfs_crypt_stat *crypt_stat = NULL;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat;
-	struct dentry *ecryptfs_dentry = file->f_dentry;
+	struct dentry *ecryptfs_dentry = file->f_path.dentry;
 	/* Private value of ecryptfs_dentry allocated in
 	 * ecryptfs_lookup() */
 	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(ecryptfs_dentry);
