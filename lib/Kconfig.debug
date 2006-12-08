@@ -415,7 +415,8 @@ config LKDTM
 	drivers/misc/lkdtm.c
 
 config FAULT_INJECTION
-	bool
+	bool "Fault-injection framework"
+	depends on DEBUG_KERNEL
 	select STACKTRACE
 	select FRAME_POINTER
 	help
@@ -423,31 +424,25 @@ config FAULT_INJECTION
 	  For more details, see Documentation/fault-injection/.
 
 config FAILSLAB
-	bool "Fault-injection capabilitiy for kmalloc"
-	depends on DEBUG_KERNEL
-	select FAULT_INJECTION
+	bool "Fault-injection capability for kmalloc"
+	depends on FAULT_INJECTION
 	help
-	  This option provides fault-injection capabilitiy for kmalloc.
+	  Provide fault-injection capability for kmalloc.
 
 config FAIL_PAGE_ALLOC
 	bool "Fault-injection capabilitiy for alloc_pages()"
-	depends on DEBUG_KERNEL
-	select FAULT_INJECTION
+	depends on FAULT_INJECTION
 	help
-	  This option provides fault-injection capabilitiy for alloc_pages().
+	  Provide fault-injection capability for alloc_pages().
 
 config FAIL_MAKE_REQUEST
 	bool "Fault-injection capabilitiy for disk IO"
-	depends on DEBUG_KERNEL
-	select FAULT_INJECTION
+	depends on FAULT_INJECTION
 	help
-	  This option provides fault-injection capabilitiy to disk IO.
+	  Provide fault-injection capability for disk IO.
 
 config FAULT_INJECTION_DEBUG_FS
 	bool "Debugfs entries for fault-injection capabilities"
-	depends on FAULT_INJECTION && SYSFS
-	select DEBUG_FS
+	depends on FAULT_INJECTION && SYSFS && DEBUG_FS
 	help
-	  This option enable configuration of fault-injection capabilities via
-	  debugfs.
-
+	  Enable configuration of fault-injection capabilities via debugfs.
