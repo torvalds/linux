@@ -211,14 +211,16 @@ int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 	if (!dev)
 		return -ENOMEM;
 
-	pci_enable_device(pdev);
+	ret = pci_enable_device(pdev);
+	if (ret)
+		goto err_g1;
 
 	if ((ret = drm_fill_in_dev(dev, pdev, ent, driver))) {
 		printk(KERN_ERR "DRM: Fill_in_dev failed.\n");
-		goto err_g1;
+		goto err_g2;
 	}
 	if ((ret = drm_get_head(dev, &dev->primary)))
-		goto err_g1;
+		goto err_g2;
 	
 	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n",
 		 driver->name, driver->major, driver->minor, driver->patchlevel,
@@ -226,7 +228,9 @@ int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 
 	return 0;
 
-      err_g1:
+err_g2:
+	pci_disable_device(pdev);
+err_g1:
 	drm_free(dev, sizeof(*dev), DRM_MEM_STUB);
 	return ret;
 }
