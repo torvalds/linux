@@ -45,8 +45,8 @@ struct class *drm_sysfs_create(struct module *owner, char *name)
 	int err;
 
 	class = class_create(owner, name);
-	if (!class) {
-		err = -ENOMEM;
+	if (IS_ERR(class)) {
+		err = PTR_ERR(class);
 		goto err_out;
 	}
 
@@ -113,8 +113,8 @@ struct class_device *drm_sysfs_device_add(struct class *cs, drm_head_t *head)
 					MKDEV(DRM_MAJOR, head->minor),
 					&(head->dev->pdev)->dev,
 					"card%d", head->minor);
-	if (!class_dev) {
-		err = -ENOMEM;
+	if (IS_ERR(class_dev)) {
+		err = PTR_ERR(class_dev);
 		goto err_out;
 	}
 
