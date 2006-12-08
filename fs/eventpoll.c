@@ -795,8 +795,8 @@ static int ep_getfd(int *efd, struct inode **einode, struct file **efile,
 		goto eexit_4;
 	dentry->d_op = &eventpollfs_dentry_operations;
 	d_add(dentry, inode);
-	file->f_vfsmnt = mntget(eventpoll_mnt);
-	file->f_dentry = dentry;
+	file->f_path.mnt = mntget(eventpoll_mnt);
+	file->f_path.dentry = dentry;
 	file->f_mapping = inode->i_mapping;
 
 	file->f_pos = 0;

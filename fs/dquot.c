@@ -694,9 +694,9 @@ restart:
 	file_list_lock();
 	list_for_each(p, &sb->s_files) {
 		struct file *filp = list_entry(p, struct file, f_u.fu_list);
-		struct inode *inode = filp->f_dentry->d_inode;
+		struct inode *inode = filp->f_path.dentry->d_inode;
 		if (filp->f_mode & FMODE_WRITE && dqinit_needed(inode, type)) {
-			struct dentry *dentry = dget(filp->f_dentry);
+			struct dentry *dentry = dget(filp->f_path.dentry);
 			file_list_unlock();
 			sb->dq_op->initialize(inode, type);
 			dput(dentry);

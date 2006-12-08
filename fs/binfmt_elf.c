@@ -1190,7 +1190,7 @@ static int maydump(struct vm_area_struct *vma)
 
 	/* Dump shared memory only if mapped from an anonymous file. */
 	if (vma->vm_flags & VM_SHARED)
-		return vma->vm_file->f_dentry->d_inode->i_nlink == 0;
+		return vma->vm_file->f_path.dentry->d_inode->i_nlink == 0;
 
 	/* If it hasn't been written to, don't write it out */
 	if (!vma->anon_vma)

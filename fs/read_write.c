@@ -64,13 +64,13 @@ loff_t remote_llseek(struct file *file, loff_t offset, int origin)
 	lock_kernel();
 	switch (origin) {
 		case 2:
-			offset += i_size_read(file->f_dentry->d_inode);
+			offset += i_size_read(file->f_path.dentry->d_inode);
 			break;
 		case 1:
 			offset += file->f_pos;
 	}
 	retval = -EINVAL;
-	if (offset>=0 && offset<=file->f_dentry->d_inode->i_sb->s_maxbytes) {
+	if (offset>=0 && offset<=file->f_path.dentry->d_inode->i_sb->s_maxbytes) {
 		if (offset != file->f_pos) {
 			file->f_pos = offset;
 			file->f_version = 0;
@@ -95,7 +95,7 @@ loff_t default_llseek(struct file *file, loff_t offset, int origin)
 	lock_kernel();
 	switch (origin) {
 		case 2:
-			offset += i_size_read(file->f_dentry->d_inode);
+			offset += i_size_read(file->f_path.dentry->d_inode);
 			break;
 		case 1:
 			offset += file->f_pos;
@@ -203,7 +203,7 @@ int rw_verify_area(int read_write, struct file *file, loff_t *ppos, size_t count
 	if (unlikely((pos < 0) || (loff_t) (pos + count) < 0))
 		goto Einval;
 
-	inode = file->f_dentry->d_inode;
+	inode = file->f_path.dentry->d_inode;
 	if (unlikely(inode->i_flock && MANDATORY_LOCK(inode))) {
 		int retval = locks_mandatory_area(
 			read_write == READ ? FLOCK_VERIFY_READ : FLOCK_VERIFY_WRITE,
@@ -273,7 +273,7 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 			else
 				ret = do_sync_read(file, buf, count, pos);
 			if (ret > 0) {
-				fsnotify_access(file->f_dentry);
+				fsnotify_access(file->f_path.dentry);
 				current->rchar += ret;
 			}
 			current->syscr++;
@@ -331,7 +331,7 @@ ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_
 			else
 				ret = do_sync_write(file, buf, count, pos);
 			if (ret > 0) {
-				fsnotify_modify(file->f_dentry);
+				fsnotify_modify(file->f_path.dentry);
 				current->wchar += ret;
 			}
 			current->syscw++;
@@ -628,9 +628,9 @@ out:
 		kfree(iov);
 	if ((ret + (type == READ)) > 0) {
 		if (type == READ)
-			fsnotify_access(file->f_dentry);
+			fsnotify_access(file->f_path.dentry);
 		else
-			fsnotify_modify(file->f_dentry);
+			fsnotify_modify(file->f_path.dentry);
 	}
 	return ret;
 }
@@ -722,7 +722,7 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	if (!(in_file->f_mode & FMODE_READ))
 		goto fput_in;
 	retval = -EINVAL;
-	in_inode = in_file->f_dentry->d_inode;
+	in_inode = in_file->f_path.dentry->d_inode;
 	if (!in_inode)
 		goto fput_in;
 	if (!in_file->f_op || !in_file->f_op->sendfile)
@@ -754,7 +754,7 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	retval = -EINVAL;
 	if (!out_file->f_op || !out_file->f_op->sendpage)
 		goto fput_out;
-	out_inode = out_file->f_dentry->d_inode;
+	out_inode = out_file->f_path.dentry->d_inode;
 	retval = rw_verify_area(WRITE, out_file, &out_file->f_pos, count);
 	if (retval < 0)
 		goto fput_out;

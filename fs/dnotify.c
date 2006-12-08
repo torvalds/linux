@@ -42,7 +42,7 @@ void dnotify_flush(struct file *filp, fl_owner_t id)
 	struct dnotify_struct **prev;
 	struct inode *inode;
 
-	inode = filp->f_dentry->d_inode;
+	inode = filp->f_path.dentry->d_inode;
 	if (!S_ISDIR(inode->i_mode))
 		return;
 	spin_lock(&inode->i_lock);
@@ -74,7 +74,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 	}
 	if (!dir_notify_enable)
 		return -EINVAL;
-	inode = filp->f_dentry->d_inode;
+	inode = filp->f_path.dentry->d_inode;
 	if (!S_ISDIR(inode->i_mode))
 		return -ENOTDIR;
 	dn = kmem_cache_alloc(dn_cache, GFP_KERNEL);

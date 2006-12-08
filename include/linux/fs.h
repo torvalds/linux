@@ -269,6 +269,7 @@ extern int dir_notify_enable;
 #include <linux/types.h>
 #include <linux/kdev_t.h>
 #include <linux/dcache.h>
+#include <linux/namei.h>
 #include <linux/stat.h>
 #include <linux/cache.h>
 #include <linux/kobject.h>
@@ -711,8 +712,9 @@ struct file {
 		struct list_head	fu_list;
 		struct rcu_head 	fu_rcuhead;
 	} f_u;
-	struct dentry		*f_dentry;
-	struct vfsmount         *f_vfsmnt;
+	struct path		f_path;
+#define f_dentry	f_path.dentry
+#define f_vfsmnt	f_path.mnt
 	const struct file_operations	*f_op;
 	atomic_t		f_count;
 	unsigned int 		f_flags;
@@ -1224,7 +1226,7 @@ extern void touch_atime(struct vfsmount *mnt, struct dentry *dentry);
 static inline void file_accessed(struct file *file)
 {
 	if (!(file->f_flags & O_NOATIME))
-		touch_atime(file->f_vfsmnt, file->f_dentry);
+		touch_atime(file->f_path.mnt, file->f_path.dentry);
 }
 
 int sync_inode(struct inode *inode, struct writeback_control *wbc);
@@ -1615,7 +1617,7 @@ static inline void put_write_access(struct inode * inode)
 static inline void allow_write_access(struct file *file)
 {
 	if (file)
-		atomic_inc(&file->f_dentry->d_inode->i_writecount);
+		atomic_inc(&file->f_path.dentry->d_inode->i_writecount);
 }
 extern int do_pipe(int *);
 extern struct file *create_read_pipe(struct file *f);

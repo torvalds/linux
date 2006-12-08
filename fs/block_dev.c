@@ -190,7 +190,7 @@ static int blkdev_commit_write(struct file *file, struct page *page, unsigned fr
 
 /*
  * private llseek:
- * for a block special file file->f_dentry->d_inode->i_size is zero
+ * for a block special file file->f_path.dentry->d_inode->i_size is zero
  * so we compute the size by hand (just as in block_read/write above)
  */
 static loff_t block_llseek(struct file *file, loff_t offset, int origin)
@@ -1013,7 +1013,7 @@ static int __blkdev_get(struct block_device *bdev, mode_t mode, unsigned flags,
 	struct dentry fake_dentry = {};
 	fake_file.f_mode = mode;
 	fake_file.f_flags = flags;
-	fake_file.f_dentry = &fake_dentry;
+	fake_file.f_path.dentry = &fake_dentry;
 	fake_dentry.d_inode = bdev->bd_inode;
 
 	return do_open(bdev, &fake_file, for_part);

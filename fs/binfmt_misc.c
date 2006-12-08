@@ -542,7 +542,7 @@ static void kill_node(Node *e)
 static ssize_t
 bm_entry_read(struct file * file, char __user * buf, size_t nbytes, loff_t *ppos)
 {
-	Node *e = file->f_dentry->d_inode->i_private;
+	Node *e = file->f_path.dentry->d_inode->i_private;
 	loff_t pos = *ppos;
 	ssize_t res;
 	char *page;
@@ -576,7 +576,7 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 				size_t count, loff_t *ppos)
 {
 	struct dentry *root;
-	Node *e = file->f_dentry->d_inode->i_private;
+	Node *e = file->f_path.dentry->d_inode->i_private;
 	int res = parse_command(buffer, count);
 
 	switch (res) {
@@ -584,7 +584,7 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 			break;
 		case 2: set_bit(Enabled, &e->flags);
 			break;
-		case 3: root = dget(file->f_vfsmnt->mnt_sb->s_root);
+		case 3: root = dget(file->f_path.mnt->mnt_sb->s_root);
 			mutex_lock(&root->d_inode->i_mutex);
 
 			kill_node(e);
@@ -610,7 +610,7 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 	Node *e;
 	struct inode *inode;
 	struct dentry *root, *dentry;
-	struct super_block *sb = file->f_vfsmnt->mnt_sb;
+	struct super_block *sb = file->f_path.mnt->mnt_sb;
 	int err = 0;
 
 	e = create_entry(buffer, count);
@@ -699,7 +699,7 @@ static ssize_t bm_status_write(struct file * file, const char __user * buffer,
 	switch (res) {
 		case 1: enabled = 0; break;
 		case 2: enabled = 1; break;
-		case 3: root = dget(file->f_vfsmnt->mnt_sb->s_root);
+		case 3: root = dget(file->f_path.mnt->mnt_sb->s_root);
 			mutex_lock(&root->d_inode->i_mutex);
 
 			while (!list_empty(&entries))

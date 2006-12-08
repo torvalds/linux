@@ -204,7 +204,7 @@ asmlinkage long sys_dup(unsigned int fildes)
 
 static int setfl(int fd, struct file * filp, unsigned long arg)
 {
-	struct inode * inode = filp->f_dentry->d_inode;
+	struct inode * inode = filp->f_path.dentry->d_inode;
 	int error = 0;
 
 	/*

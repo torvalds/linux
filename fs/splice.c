@@ -844,7 +844,7 @@ generic_file_splice_write_nolock(struct pipe_inode_info *pipe, struct file *out,
 	ssize_t ret;
 	int err;
 
-	err = remove_suid(out->f_dentry);
+	err = remove_suid(out->f_path.dentry);
 	if (unlikely(err))
 		return err;
 
@@ -890,10 +890,10 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 	ssize_t ret;
 	int err;
 
-	err = should_remove_suid(out->f_dentry);
+	err = should_remove_suid(out->f_path.dentry);
 	if (unlikely(err)) {
 		mutex_lock(&inode->i_mutex);
-		err = __remove_suid(out->f_dentry, err);
+		err = __remove_suid(out->f_path.dentry, err);
 		mutex_unlock(&inode->i_mutex);
 		if (err)
 			return err;
@@ -1008,7 +1008,7 @@ long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 	 * randomly drop data for eg socket -> socket splicing. Use the
 	 * piped splicing for that!
 	 */
-	i_mode = in->f_dentry->d_inode->i_mode;
+	i_mode = in->f_path.dentry->d_inode->i_mode;
 	if (unlikely(!S_ISREG(i_mode) && !S_ISBLK(i_mode)))
 		return -EINVAL;
 
@@ -1132,7 +1132,7 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 	loff_t offset, *off;
 	long ret;
 
-	pipe = pipe_info(in->f_dentry->d_inode);
+	pipe = pipe_info(in->f_path.dentry->d_inode);
 	if (pipe) {
 		if (off_in)
 			return -ESPIPE;
@@ -1153,7 +1153,7 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 		return ret;
 	}
 
-	pipe = pipe_info(out->f_dentry->d_inode);
+	pipe = pipe_info(out->f_path.dentry->d_inode);
 	if (pipe) {
 		if (off_out)
 			return -ESPIPE;
@@ -1321,7 +1321,7 @@ static long do_vmsplice(struct file *file, const struct iovec __user *iov,
 		.ops = &user_page_pipe_buf_ops,
 	};
 
-	pipe = pipe_info(file->f_dentry->d_inode);
+	pipe = pipe_info(file->f_path.dentry->d_inode);
 	if (!pipe)
 		return -EBADF;
 	if (unlikely(nr_segs > UIO_MAXIOV))
@@ -1549,8 +1549,8 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 static long do_tee(struct file *in, struct file *out, size_t len,
 		   unsigned int flags)
 {
-	struct pipe_inode_info *ipipe = pipe_info(in->f_dentry->d_inode);
-	struct pipe_inode_info *opipe = pipe_info(out->f_dentry->d_inode);
+	struct pipe_inode_info *ipipe = pipe_info(in->f_path.dentry->d_inode);
+	struct pipe_inode_info *opipe = pipe_info(out->f_path.dentry->d_inode);
 	int ret = -EINVAL;
 
 	/*
