@@ -92,12 +92,12 @@ void dm_io_put(unsigned int num_pages)
  *---------------------------------------------------------------*/
 static inline void bio_set_region(struct bio *bio, unsigned region)
 {
-	bio->bi_io_vec[bio->bi_max_vecs - 1].bv_len = region;
+	bio->bi_io_vec[bio->bi_max_vecs].bv_len = region;
 }
 
 static inline unsigned bio_get_region(struct bio *bio)
 {
-	return bio->bi_io_vec[bio->bi_max_vecs - 1].bv_len;
+	return bio->bi_io_vec[bio->bi_max_vecs].bv_len;
 }
 
 /*-----------------------------------------------------------------
@@ -136,6 +136,7 @@ static int endio(struct bio *bio, unsigned int done, int error)
 		zero_fill_bio(bio);
 
 	dec_count(io, bio_get_region(bio), error);
+	bio->bi_max_vecs++;
 	bio_put(bio);
 
 	return 0;
@@ -250,16 +251,18 @@ static void do_region(int rw, unsigned int region, struct io_region *where,
 
 	while (remaining) {
 		/*
-		 * Allocate a suitably sized bio, we add an extra
-		 * bvec for bio_get/set_region().
+		 * Allocate a suitably sized-bio: we add an extra
+		 * bvec for bio_get/set_region() and decrement bi_max_vecs
+		 * to hide it from bio_add_page().
 		 */
-		num_bvecs = (remaining / (PAGE_SIZE >> 9)) + 2;
+		num_bvecs = (remaining / (PAGE_SIZE >> SECTOR_SHIFT)) + 2;
 		bio = bio_alloc_bioset(GFP_NOIO, num_bvecs, _bios);
 		bio->bi_sector = where->sector + (where->count - remaining);
 		bio->bi_bdev = where->bdev;
 		bio->bi_end_io = endio;
 		bio->bi_private = io;
 		bio->bi_destructor = dm_bio_destructor;
+		bio->bi_max_vecs--;
 		bio_set_region(bio, region);
 
 		/*
@@ -302,7 +305,7 @@ static void dispatch_io(int rw, unsigned int num_regions,
 	}
 
 	/*
-	 * Drop the extra refence that we were holding to avoid
+	 * Drop the extra reference that we were holding to avoid
 	 * the io being completed too early.
 	 */
 	dec_count(io, 0, 0);
