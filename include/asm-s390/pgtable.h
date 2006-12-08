@@ -107,23 +107,25 @@ extern char empty_zero_page[PAGE_SIZE];
  * The vmalloc() routines leaves a hole of 4kB between each vmalloced
  * area for the same reason. ;)
  */
+extern unsigned long vmalloc_end;
 #define VMALLOC_OFFSET  (8*1024*1024)
 #define VMALLOC_START   (((unsigned long) high_memory + VMALLOC_OFFSET) \
 			 & ~(VMALLOC_OFFSET-1))
+#define VMALLOC_END	vmalloc_end
 
 /*
  * We need some free virtual space to be able to do vmalloc.
  * VMALLOC_MIN_SIZE defines the minimum size of the vmalloc
  * area. On a machine with 2GB memory we make sure that we
  * have at least 128MB free space for vmalloc. On a machine
- * with 4TB we make sure we have at least 1GB.
+ * with 4TB we make sure we have at least 128GB.
  */
 #ifndef __s390x__
 #define VMALLOC_MIN_SIZE	0x8000000UL
-#define VMALLOC_END		0x80000000UL
+#define VMALLOC_END_INIT	0x80000000UL
 #else /* __s390x__ */
-#define VMALLOC_MIN_SIZE	0x40000000UL
-#define VMALLOC_END		0x40000000000UL
+#define VMALLOC_MIN_SIZE	0x2000000000UL
+#define VMALLOC_END_INIT	0x40000000000UL
 #endif /* __s390x__ */
 
 /*
@@ -815,10 +817,16 @@ static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 
 #define kern_addr_valid(addr)   (1)
 
+extern int add_shared_memory(unsigned long start, unsigned long size);
+extern int remove_shared_memory(unsigned long start, unsigned long size);
+
 /*
  * No page table caches to initialise
  */
 #define pgtable_cache_init()	do { } while (0)
+
+#define __HAVE_ARCH_MEMMAP_INIT
+extern void memmap_init(unsigned long, int, unsigned long, unsigned long);
 
 #define __HAVE_ARCH_PTEP_ESTABLISH
 #define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS

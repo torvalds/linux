@@ -127,6 +127,26 @@ page_get_storage_key(unsigned long addr)
 	return skey;
 }
 
+extern unsigned long max_pfn;
+
+static inline int pfn_valid(unsigned long pfn)
+{
+	unsigned long dummy;
+	int ccode;
+
+	if (pfn >= max_pfn)
+		return 0;
+
+	asm volatile(
+		"	lra	%0,0(%2)\n"
+		"	ipm	%1\n"
+		"	srl	%1,28\n"
+		: "=d" (dummy), "=d" (ccode)
+		: "a" (pfn << PAGE_SHIFT)
+		: "cc");
+	return !ccode;
+}
+
 #endif /* !__ASSEMBLY__ */
 
 /* to align the pointer to the (next) page boundary */
@@ -138,8 +158,6 @@ page_get_storage_key(unsigned long addr)
 #define __va(x)                 (void *)(unsigned long)(x)
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
-
-#define pfn_valid(pfn)		((pfn) < max_mapnr)
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
