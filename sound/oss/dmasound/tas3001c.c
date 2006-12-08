@@ -50,6 +50,7 @@ struct tas3001c_data_t {
 	int output_id;
 	int speaker_id;
 	struct tas_drce_t drce_state;
+	struct work_struct change;
 };
 
 
@@ -667,13 +668,12 @@ tas3001c_update_device_parameters(struct tas3001c_data_t *self)
 }
 
 static void
-tas3001c_device_change_handler(void *self)
+tas3001c_device_change_handler(struct work_struct *work)
 {
-	if (self)
-		tas3001c_update_device_parameters(self);
+	struct tas3001c_data_t *self;
+	self = container_of(work, struct tas3001c_data_t, change);
+	tas3001c_update_device_parameters(self);
 }
-
-static struct work_struct device_change;
 
 static int
 tas3001c_output_device_change(	struct tas3001c_data_t *self,
@@ -685,7 +685,7 @@ tas3001c_output_device_change(	struct tas3001c_data_t *self,
 	self->output_id=output_id;
 	self->speaker_id=speaker_id;
 
-	schedule_work(&device_change);
+	schedule_work(&self->change);
 	return 0;
 }
 
@@ -823,7 +823,7 @@ tas3001c_init(struct i2c_client *client)
 			tas3001c_write_biquad_shadow(self, i, j,
 				&tas3001c_eq_unity);
 
-	INIT_WORK(&device_change, tas3001c_device_change_handler, self);
+	INIT_WORK(&self->change, tas3001c_device_change_handler);
 	return 0;
 }
 
