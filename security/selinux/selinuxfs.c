@@ -448,7 +448,7 @@ static ssize_t (*write_op[])(struct file *, char *, size_t) = {
 
 static ssize_t selinux_transaction_write(struct file *file, const char __user *buf, size_t size, loff_t *pos)
 {
-	ino_t ino =  file->f_dentry->d_inode->i_ino;
+	ino_t ino =  file->f_path.dentry->d_inode->i_ino;
 	char *data;
 	ssize_t rv;
 
@@ -805,7 +805,7 @@ static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 		goto out;
 	}
 
-	inode = filep->f_dentry->d_inode;
+	inode = filep->f_path.dentry->d_inode;
 	cur_enforcing = security_get_bool_value(inode->i_ino - BOOL_INO_OFFSET);
 	if (cur_enforcing < 0) {
 		ret = cur_enforcing;
@@ -864,7 +864,7 @@ static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
 	if (new_value)
 		new_value = 1;
 
-	inode = filep->f_dentry->d_inode;
+	inode = filep->f_path.dentry->d_inode;
 	bool_pending_values[inode->i_ino - BOOL_INO_OFFSET] = new_value;
 	length = count;
 
@@ -965,7 +965,7 @@ static void sel_remove_bools(struct dentry *de)
 	file_list_lock();
 	list_for_each(p, &sb->s_files) {
 		struct file * filp = list_entry(p, struct file, f_u.fu_list);
-		struct dentry * dentry = filp->f_dentry;
+		struct dentry * dentry = filp->f_path.dentry;
 
 		if (dentry->d_parent != de) {
 			continue;
