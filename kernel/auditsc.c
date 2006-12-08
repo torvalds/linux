@@ -781,8 +781,8 @@ static void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk
 			if ((vma->vm_flags & VM_EXECUTABLE) &&
 			    vma->vm_file) {
 				audit_log_d_path(ab, "exe=",
-						 vma->vm_file->f_dentry,
-						 vma->vm_file->f_vfsmnt);
+						 vma->vm_file->f_path.dentry,
+						 vma->vm_file->f_path.mnt);
 				break;
 			}
 			vma = vma->vm_next;

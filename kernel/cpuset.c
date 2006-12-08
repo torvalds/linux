@@ -413,8 +413,8 @@ static struct file_system_type cpuset_fs_type = {
  *
  *
  * When reading/writing to a file:
- *	- the cpuset to use in file->f_dentry->d_parent->d_fsdata
- *	- the 'cftype' of the file is file->f_dentry->d_fsdata
+ *	- the cpuset to use in file->f_path.dentry->d_parent->d_fsdata
+ *	- the 'cftype' of the file is file->f_path.dentry->d_fsdata
  */
 
 struct cftype {
@@ -1284,8 +1284,8 @@ static ssize_t cpuset_common_file_write(struct file *file,
 					const char __user *userbuf,
 					size_t nbytes, loff_t *unused_ppos)
 {
-	struct cpuset *cs = __d_cs(file->f_dentry->d_parent);
-	struct cftype *cft = __d_cft(file->f_dentry);
+	struct cpuset *cs = __d_cs(file->f_path.dentry->d_parent);
+	struct cftype *cft = __d_cft(file->f_path.dentry);
 	cpuset_filetype_t type = cft->private;
 	char *buffer;
 	char *pathbuf = NULL;
@@ -1367,7 +1367,7 @@ static ssize_t cpuset_file_write(struct file *file, const char __user *buf,
 						size_t nbytes, loff_t *ppos)
 {
 	ssize_t retval = 0;
-	struct cftype *cft = __d_cft(file->f_dentry);
+	struct cftype *cft = __d_cft(file->f_path.dentry);
 	if (!cft)
 		return -ENODEV;
 
@@ -1417,8 +1417,8 @@ static int cpuset_sprintf_memlist(char *page, struct cpuset *cs)
 static ssize_t cpuset_common_file_read(struct file *file, char __user *buf,
 				size_t nbytes, loff_t *ppos)
 {
-	struct cftype *cft = __d_cft(file->f_dentry);
-	struct cpuset *cs = __d_cs(file->f_dentry->d_parent);
+	struct cftype *cft = __d_cft(file->f_path.dentry);
+	struct cpuset *cs = __d_cs(file->f_path.dentry->d_parent);
 	cpuset_filetype_t type = cft->private;
 	char *page;
 	ssize_t retval = 0;
@@ -1476,7 +1476,7 @@ static ssize_t cpuset_file_read(struct file *file, char __user *buf, size_t nbyt
 								loff_t *ppos)
 {
 	ssize_t retval = 0;
-	struct cftype *cft = __d_cft(file->f_dentry);
+	struct cftype *cft = __d_cft(file->f_path.dentry);
 	if (!cft)
 		return -ENODEV;
 
@@ -1498,7 +1498,7 @@ static int cpuset_file_open(struct inode *inode, struct file *file)
 	if (err)
 		return err;
 
-	cft = __d_cft(file->f_dentry);
+	cft = __d_cft(file->f_path.dentry);
 	if (!cft)
 		return -ENODEV;
 	if (cft->open)
@@ -1511,7 +1511,7 @@ static int cpuset_file_open(struct inode *inode, struct file *file)
 
 static int cpuset_file_release(struct inode *inode, struct file *file)
 {
-	struct cftype *cft = __d_cft(file->f_dentry);
+	struct cftype *cft = __d_cft(file->f_path.dentry);
 	if (cft->release)
 		return cft->release(inode, file);
 	return 0;
@@ -1700,7 +1700,7 @@ static int pid_array_to_buf(char *buf, int sz, pid_t *a, int npids)
  */
 static int cpuset_tasks_open(struct inode *unused, struct file *file)
 {
-	struct cpuset *cs = __d_cs(file->f_dentry->d_parent);
+	struct cpuset *cs = __d_cs(file->f_path.dentry->d_parent);
 	struct ctr_struct *ctr;
 	pid_t *pidarray;
 	int npids;
