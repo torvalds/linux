@@ -330,6 +330,7 @@ static void arp_reply(struct sk_buff *skb)
 	unsigned char *arp_ptr;
 	int size, type = ARPOP_REPLY, ptype = ETH_P_ARP;
 	__be32 sip, tip;
+	unsigned char *sha;
 	struct sk_buff *send_skb;
 	struct netpoll *np = NULL;
 
@@ -356,9 +357,14 @@ static void arp_reply(struct sk_buff *skb)
 	    arp->ar_op != htons(ARPOP_REQUEST))
 		return;
 
-	arp_ptr = (unsigned char *)(arp+1) + skb->dev->addr_len;
+	arp_ptr = (unsigned char *)(arp+1);
+	/* save the location of the src hw addr */
+	sha = arp_ptr;
+	arp_ptr += skb->dev->addr_len;
 	memcpy(&sip, arp_ptr, 4);
-	arp_ptr += 4 + skb->dev->addr_len;
+	arp_ptr += 4;
+	/* if we actually cared about dst hw addr, it would get copied here */
+	arp_ptr += skb->dev->addr_len;
 	memcpy(&tip, arp_ptr, 4);
 
 	/* Should we ignore arp? */
@@ -381,7 +387,7 @@ static void arp_reply(struct sk_buff *skb)
 
 	if (np->dev->hard_header &&
 	    np->dev->hard_header(send_skb, skb->dev, ptype,
-				 np->remote_mac, np->local_mac,
+				 sha, np->local_mac,
 				 send_skb->len) < 0) {
 		kfree_skb(send_skb);
 		return;
@@ -405,7 +411,7 @@ static void arp_reply(struct sk_buff *skb)
 	arp_ptr += np->dev->addr_len;
 	memcpy(arp_ptr, &tip, 4);
 	arp_ptr += 4;
-	memcpy(arp_ptr, np->remote_mac, np->dev->addr_len);
+	memcpy(arp_ptr, sha, np->dev->addr_len);
 	arp_ptr += np->dev->addr_len;
 	memcpy(arp_ptr, &sip, 4);
 
