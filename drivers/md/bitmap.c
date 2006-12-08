@@ -212,8 +212,8 @@ char *file_path(struct file *file, char *buf, int count)
 	if (!buf)
 		return NULL;
 
-	d = file->f_dentry;
-	v = file->f_vfsmnt;
+	d = file->f_path.dentry;
+	v = file->f_path.mnt;
 
 	buf = d_path(d, v, buf, count);
 
@@ -349,7 +349,7 @@ static struct page *read_page(struct file *file, unsigned long index,
 			      unsigned long count)
 {
 	struct page *page = NULL;
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct buffer_head *bh;
 	sector_t block;
 
@@ -662,7 +662,7 @@ static void bitmap_file_put(struct bitmap *bitmap)
 	bitmap_file_unmap(bitmap);
 
 	if (file) {
-		struct inode *inode = file->f_dentry->d_inode;
+		struct inode *inode = file->f_path.dentry->d_inode;
 		invalidate_inode_pages(inode->i_mapping);
 		fput(file);
 	}

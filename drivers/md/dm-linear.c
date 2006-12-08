@@ -108,7 +108,7 @@ static int linear_ioctl(struct dm_target *ti, struct inode *inode,
 	struct dentry fake_dentry = {};
 
 	fake_file.f_mode = lc->dev->mode;
-	fake_file.f_dentry = &fake_dentry;
+	fake_file.f_path.dentry = &fake_dentry;
 	fake_dentry.d_inode = bdev->bd_inode;
 
 	return blkdev_driver_ioctl(bdev->bd_inode, &fake_file, bdev->bd_disk, cmd, arg);

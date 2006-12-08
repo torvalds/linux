@@ -1272,7 +1272,7 @@ static int multipath_ioctl(struct dm_target *ti, struct inode *inode,
 	struct dentry fake_dentry = {};
 	int r = 0;
 
-	fake_file.f_dentry = &fake_dentry;
+	fake_file.f_path.dentry = &fake_dentry;
 
 	spin_lock_irqsave(&m->lock, flags);
 

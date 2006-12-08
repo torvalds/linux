@@ -4846,8 +4846,8 @@ static int md_seq_show(struct seq_file *seq, void *v)
 				chunk_kb ? "KB" : "B");
 			if (bitmap->file) {
 				seq_printf(seq, ", file: ");
-				seq_path(seq, bitmap->file->f_vfsmnt,
-					 bitmap->file->f_dentry," \t\n");
+				seq_path(seq, bitmap->file->f_path.mnt,
+					 bitmap->file->f_path.dentry," \t\n");
 			}
 
 			seq_printf(seq, "\n");
