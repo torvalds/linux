@@ -303,35 +303,6 @@ extern int pdc_pat_io_pci_cfg_write(unsigned long pci_addr, int pci_size, u32 va
 */
 extern int pdc_pat;     /* arch/parisc/kernel/inventory.c */
 
-/********************************************************************
-* PDC_PAT_CELL[Return Cell Module] memaddr[0] conf_base_addr
-* ----------------------------------------------------------
-* Bit  0 to 51 - conf_base_addr
-* Bit 52 to 62 - reserved
-* Bit       63 - endianess bit
-********************************************************************/
-#define PAT_GET_CBA(value) ((value) & 0xfffffffffffff000UL)
-
-/********************************************************************
-* PDC_PAT_CELL[Return Cell Module] memaddr[1] mod_info
-* ----------------------------------------------------
-* Bit  0 to  7 - entity type
-*    0 = central agent,            1 = processor,
-*    2 = memory controller,        3 = system bus adapter,
-*    4 = local bus adapter,        5 = processor bus converter,
-*    6 = crossbar fabric connect,  7 = fabric interconnect,
-*    8 to 254 reserved,            255 = unknown.
-* Bit  8 to 15 - DVI
-* Bit 16 to 23 - IOC functions
-* Bit 24 to 39 - reserved
-* Bit 40 to 63 - mod_pages
-*    number of 4K pages a module occupies starting at conf_base_addr
-********************************************************************/
-#define PAT_GET_ENTITY(value)	(((value) >> 56) & 0xffUL)
-#define PAT_GET_DVI(value)	(((value) >> 48) & 0xffUL)
-#define PAT_GET_IOC(value)	(((value) >> 40) & 0xffUL)
-#define PAT_GET_MOD_PAGES(value) ((value) & 0xffffffUL)
-
 #endif /* __ASSEMBLY__ */
 
 #endif /* ! __PARISC_PATPDC_H */
