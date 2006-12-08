@@ -204,7 +204,7 @@ hysdn_log_read(struct file *file, char __user *buf, size_t count, loff_t * off)
 {
 	struct log_data *inf;
 	int len;
-	struct proc_dir_entry *pde = PDE(file->f_dentry->d_inode);
+	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
 	struct procdata *pd = NULL;
 	hysdn_card *card;
 
@@ -354,7 +354,7 @@ static unsigned int
 hysdn_log_poll(struct file *file, poll_table * wait)
 {
 	unsigned int mask = 0;
-	struct proc_dir_entry *pde = PDE(file->f_dentry->d_inode);
+	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
 	hysdn_card *card;
 	struct procdata *pd = NULL;
 

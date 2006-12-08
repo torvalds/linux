@@ -1059,7 +1059,7 @@ isdn_info_update(void)
 static ssize_t
 isdn_read(struct file *file, char __user *buf, size_t count, loff_t * off)
 {
-	uint minor = iminor(file->f_dentry->d_inode);
+	uint minor = iminor(file->f_path.dentry->d_inode);
 	int len = 0;
 	int drvidx;
 	int chidx;
@@ -1166,7 +1166,7 @@ isdn_read(struct file *file, char __user *buf, size_t count, loff_t * off)
 static ssize_t
 isdn_write(struct file *file, const char __user *buf, size_t count, loff_t * off)
 {
-	uint minor = iminor(file->f_dentry->d_inode);
+	uint minor = iminor(file->f_path.dentry->d_inode);
 	int drvidx;
 	int chidx;
 	int retval;
@@ -1228,7 +1228,7 @@ static unsigned int
 isdn_poll(struct file *file, poll_table * wait)
 {
 	unsigned int mask = 0;
-	unsigned int minor = iminor(file->f_dentry->d_inode);
+	unsigned int minor = iminor(file->f_path.dentry->d_inode);
 	int drvidx = isdn_minor2drv(minor - ISDN_MINOR_CTRL);
 
 	lock_kernel();
