@@ -89,7 +89,7 @@ struct mapped_device {
 	 */
 	atomic_t pending;
 	wait_queue_head_t wait;
- 	struct bio_list deferred;
+	struct bio_list deferred;
 
 	/*
 	 * The current mapping.
@@ -482,7 +482,6 @@ static int clone_endio(struct bio *bio, unsigned int done, int error)
 		r = endio(tio->ti, bio, error, &tio->info);
 		if (r < 0)
 			error = r;
-
 		else if (r > 0)
 			/* the target wants another shot at the io */
 			return 1;
@@ -551,9 +550,7 @@ static void __map_bio(struct dm_target *ti, struct bio *clone,
 				    clone->bi_sector);
 
 		generic_make_request(clone);
-	}
-
-	else if (r < 0) {
+	} else if (r < 0) {
 		/* error the io and bail out */
 		md = tio->io->md;
 		dec_pending(tio->io, r);
@@ -966,8 +963,8 @@ static struct mapped_device *alloc_dev(int minor)
 	md->queue->issue_flush_fn = dm_flush_all;
 
 	md->io_pool = mempool_create_slab_pool(MIN_IOS, _io_cache);
- 	if (!md->io_pool)
- 		goto bad2;
+	if (!md->io_pool)
+		goto bad2;
 
 	md->tio_pool = mempool_create_slab_pool(MIN_IOS, _tio_cache);
 	if (!md->tio_pool)
