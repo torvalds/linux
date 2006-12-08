@@ -920,7 +920,7 @@ static int do_open(struct block_device *bdev, struct file *file, int for_part)
 	}
 	owner = disk->fops->owner;
 
-	mutex_lock(&bdev->bd_mutex);
+	mutex_lock_nested(&bdev->bd_mutex, for_part);
 	if (!bdev->bd_openers) {
 		bdev->bd_disk = disk;
 		bdev->bd_contains = bdev;
@@ -1062,7 +1062,7 @@ static int __blkdev_put(struct block_device *bdev, int for_part)
 	struct gendisk *disk = bdev->bd_disk;
 	struct block_device *victim = NULL;
 
-	mutex_lock(&bdev->bd_mutex);
+	mutex_lock_nested(&bdev->bd_mutex, for_part);
 	lock_kernel();
 	if (for_part)
 		bdev->bd_part_count--;
