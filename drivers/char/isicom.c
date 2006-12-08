@@ -1709,6 +1709,11 @@ static int __devinit load_firmware(struct pci_dev *pdev,
 		}
 
 		data = kmalloc(word_count * 2, GFP_KERNEL);
+		if (data == NULL) {
+			dev_err(&pdev->dev, "Card%d, firmware upload "
+				"failed, not enough memory\n", index + 1);
+			goto errrelfw;
+		}
 		inw(base);
 		insw(base, data, word_count);
 		InterruptTheCard(base);
