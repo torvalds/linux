@@ -193,7 +193,14 @@ struct hh_cache
 {
 	struct hh_cache *hh_next;	/* Next entry			     */
 	atomic_t	hh_refcnt;	/* number of users                   */
-	__be16		hh_type;	/* protocol identifier, f.e ETH_P_IP
+/*
+ * We want hh_output, hh_len, hh_lock and hh_data be a in a separate
+ * cache line on SMP.
+ * They are mostly read, but hh_refcnt may be changed quite frequently,
+ * incurring cache line ping pongs.
+ */
+	__be16		hh_type ____cacheline_aligned_in_smp;
+					/* protocol identifier, f.e ETH_P_IP
                                          *  NOTE:  For VLANs, this will be the
                                          *  encapuslated type. --BLG
                                          */
