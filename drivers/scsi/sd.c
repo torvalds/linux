@@ -863,7 +863,7 @@ static void sd_rescan(struct device *dev)
  */
 static long sd_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct block_device *bdev = file->f_dentry->d_inode->i_bdev;
+	struct block_device *bdev = file->f_path.dentry->d_inode->i_bdev;
 	struct gendisk *disk = bdev->bd_disk;
 	struct scsi_device *sdev = scsi_disk(disk)->device;
 
