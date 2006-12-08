@@ -431,13 +431,17 @@ config CDROM_PKTCDVD
 	tristate "Packet writing on CD/DVD media"
 	depends on !UML
 	help
-	  If you have a CDROM drive that supports packet writing, say Y to
-	  include preliminary support. It should work with any MMC/Mt Fuji
-	  compliant ATAPI or SCSI drive, which is just about any newer CD
-	  writer.
+	  If you have a CDROM/DVD drive that supports packet writing, say
+	  Y to include support. It should work with any MMC/Mt Fuji
+	  compliant ATAPI or SCSI drive, which is just about any newer
+	  DVD/CD writer.
 
-	  Currently only writing to CD-RW, DVD-RW and DVD+RW discs is possible.
+	  Currently only writing to CD-RW, DVD-RW, DVD+RW and DVDRAM discs
+	  is possible.
 	  DVD-RW disks must be in restricted overwrite mode.
+
+	  See the file <file:Documentation/cdrom/packet-writing.txt>
+	  for further information on the use of this driver.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pktcdvd.
