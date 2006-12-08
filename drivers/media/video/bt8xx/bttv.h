@@ -197,33 +197,6 @@ struct bttv_core {
 struct bttv;
 
 
-struct bttv_ir {
-	struct input_dev        *dev;
-	struct ir_input_state   ir;
-	char                    name[32];
-	char                    phys[32];
-
-	/* Usual gpio signalling */
-
-	u32                     mask_keycode;
-	u32                     mask_keydown;
-	u32                     mask_keyup;
-	u32                     polling;
-	u32                     last_gpio;
-	struct work_struct      work;
-	struct timer_list       timer;
-
-	/* RC5 gpio */
-	u32 rc5_gpio;
-	struct timer_list timer_end;	/* timer_end for code completion */
-	struct timer_list timer_keyup;	/* timer_end for key release */
-	u32 last_rc5;			/* last good rc5 code */
-	u32 last_bit;			/* last raw bit seen */
-	u32 code;			/* raw code under construction */
-	struct timeval base_time;	/* time of last seen code */
-	int active;			/* building raw code */
-};
-
 struct tvcard
 {
 	char *name;

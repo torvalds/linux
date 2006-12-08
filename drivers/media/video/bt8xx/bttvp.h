@@ -308,7 +308,7 @@ struct bttv {
 
 	/* infrared remote */
 	int has_remote;
-	struct bttv_ir *remote;
+	struct card_ir *remote;
 
 	/* locking */
 	spinlock_t s_lock;

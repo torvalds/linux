@@ -411,20 +411,6 @@ struct saa7134_dmasound {
 	struct snd_pcm_substream   *substream;
 };
 
-/* IR input */
-struct saa7134_ir {
-	struct input_dev           *dev;
-	struct ir_input_state      ir;
-	char                       name[32];
-	char                       phys[32];
-	u32                        mask_keycode;
-	u32                        mask_keydown;
-	u32                        mask_keyup;
-	int                        polling;
-	u32                        last_gpio;
-	struct timer_list          timer;
-};
-
 /* ts/mpeg status */
 struct saa7134_ts {
 	/* TS capture */
@@ -463,7 +449,7 @@ struct saa7134_dev {
 
 	/* infrared remote */
 	int                        has_remote;
-	struct saa7134_ir          *remote;
+	struct card_ir		   *remote;
 
 	/* pci i/o */
 	char                       name[32];
@@ -697,6 +683,7 @@ int  saa7134_input_init1(struct saa7134_dev *dev);
 void saa7134_input_fini(struct saa7134_dev *dev);
 void saa7134_input_irq(struct saa7134_dev *dev);
 void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir);
+
 
 /*
  * Local variables:
