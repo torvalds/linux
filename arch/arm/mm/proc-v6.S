@@ -156,7 +156,7 @@ ENTRY(cpu_v6_set_pte)
 
 
 cpu_v6_name:
-	.asciz	"Some Random V6 Processor"
+	.asciz	"ARMv6-compatible processor"
 	.align
 
 	.section ".text.init", #alloc, #execinstr
