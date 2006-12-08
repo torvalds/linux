@@ -819,8 +819,8 @@ static void hid_process_event(struct hid_device *hid, struct hid_field *field, s
 	hid_dump_input(usage, value);
 	if (hid->claimed & HID_CLAIMED_INPUT)
 		hidinput_hid_event(hid, field, usage, value);
-	if (hid->claimed & HID_CLAIMED_HIDDEV && interrupt)
-		hiddev_hid_event(hid, field, usage, value);
+	if (hid->claimed & HID_CLAIMED_HIDDEV && interrupt && hid->hiddev_hid_event)
+		hid->hiddev_hid_event(hid, field, usage, value);
 }
 
 /*
@@ -939,4 +939,6 @@ int hid_set_field(struct hid_field *field, unsigned offset, __s32 value)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(hid_set_field);
+
+MODULE_LICENSE(DRIVER_LICENSE);
 

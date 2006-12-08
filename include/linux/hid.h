@@ -433,6 +433,10 @@ struct hid_device {							/* device report descriptor */
 	int (*hidinput_open) (struct input_dev *);
 	void (*hidinput_close) (struct input_dev *);
 
+	/* hiddev event handler */
+	void (*hiddev_hid_event) (struct hid_device *, struct hid_field *field,
+				  struct hid_usage *, __s32);
+
 #ifdef CONFIG_USB_HIDINPUT_POWERBOOK
 	unsigned long pb_pressed_fn[NBITS(KEY_MAX)];
 	unsigned long pb_pressed_numlock[NBITS(KEY_MAX)];
@@ -477,13 +481,9 @@ struct hid_descriptor {
 #define resolv_event(a,b)	do { } while (0)
 #endif
 
-#ifdef CONFIG_HID
 /* Applications from HID Usage Tables 4/8/99 Version 1.1 */
 /* We ignore a few input applications that are not widely used */
 #define IS_INPUT_APPLICATION(a) (((a >= 0x00010000) && (a <= 0x00010008)) || (a == 0x00010080) || (a == 0x000c0001))
-#else
-#define IS_INPUT_APPLICATION(a) (0)
-#endif
 
 /* HID core API */
 extern void hidinput_hid_event(struct hid_device *, struct hid_field *, struct hid_usage *, __s32);

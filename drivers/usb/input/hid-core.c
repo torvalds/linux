@@ -1284,6 +1284,9 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	hid->hidinput_input_event = usb_hidinput_input_event;
 	hid->hidinput_open = hidinput_open;
 	hid->hidinput_close = hidinput_close;
+#ifdef CONFIG_USB_HIDDEV
+	hid->hiddev_hid_event = hiddev_hid_event;
+#endif
 
 	return hid;
 
