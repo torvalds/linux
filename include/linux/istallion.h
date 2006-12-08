@@ -49,7 +49,7 @@
  *	communication with the slave board will always be on a per port
  *	basis.
  */
-typedef struct {
+struct stliport {
 	unsigned long		magic;
 	int			portnr;
 	int			panelnr;
@@ -72,7 +72,7 @@ typedef struct {
 	wait_queue_head_t	close_wait;
 	wait_queue_head_t	raw_wait;
 	struct work_struct	tqhangup;
-	asysigs_t		asig;
+	struct asysigs		asig;
 	unsigned long		addr;
 	unsigned long		rxoffset;
 	unsigned long		txoffset;
@@ -83,13 +83,13 @@ typedef struct {
 	unsigned char		reqbit;
 	unsigned char		portidx;
 	unsigned char		portbit;
-} stliport_t;
+};
 
 /*
  *	Use a structure of function pointers to do board level operations.
  *	These include, enable/disable, paging shared memory, interrupting, etc.
  */
-typedef struct stlibrd {
+struct stlibrd {
 	unsigned long	magic;
 	int		brdnr;
 	int		brdtype;
@@ -116,8 +116,8 @@ typedef struct stlibrd {
 	void		__iomem *(*getmemptr)(struct stlibrd *brdp, unsigned long offset, int line);
 	void		(*intr)(struct stlibrd *brdp);
 	void		(*reset)(struct stlibrd *brdp);
-	stliport_t	*ports[STL_MAXPORTS];
-} stlibrd_t;
+	struct stliport	*ports[STL_MAXPORTS];
+};
 
 
 /*
