@@ -74,7 +74,7 @@ struct inode_operations autofs4_dir_inode_operations = {
 static int autofs4_root_readdir(struct file *file, void *dirent,
 				filldir_t filldir)
 {
-	struct autofs_sb_info *sbi = autofs4_sbi(file->f_dentry->d_sb);
+	struct autofs_sb_info *sbi = autofs4_sbi(file->f_path.dentry->d_sb);
 	int oz_mode = autofs4_oz_mode(sbi);
 
 	DPRINTK("called, filp->f_pos = %lld", file->f_pos);
@@ -95,8 +95,8 @@ static int autofs4_root_readdir(struct file *file, void *dirent,
 
 static int autofs4_dir_open(struct inode *inode, struct file *file)
 {
-	struct dentry *dentry = file->f_dentry;
-	struct vfsmount *mnt = file->f_vfsmnt;
+	struct dentry *dentry = file->f_path.dentry;
+	struct vfsmount *mnt = file->f_path.mnt;
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 	struct dentry *cursor;
 	int status;
@@ -172,7 +172,7 @@ out:
 
 static int autofs4_dir_close(struct inode *inode, struct file *file)
 {
-	struct dentry *dentry = file->f_dentry;
+	struct dentry *dentry = file->f_path.dentry;
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 	struct dentry *cursor = file->private_data;
 	int status = 0;
@@ -204,7 +204,7 @@ out:
 
 static int autofs4_dir_readdir(struct file *file, void *dirent, filldir_t filldir)
 {
-	struct dentry *dentry = file->f_dentry;
+	struct dentry *dentry = file->f_path.dentry;
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 	struct dentry *cursor = file->private_data;
 	int status;
@@ -858,14 +858,14 @@ static int autofs4_root_ioctl(struct inode *inode, struct file *filp,
 		return autofs4_ask_reghost(sbi, p);
 
 	case AUTOFS_IOC_ASKUMOUNT:
-		return autofs4_ask_umount(filp->f_vfsmnt, p);
+		return autofs4_ask_umount(filp->f_path.mnt, p);
 
 	/* return a single thing to expire */
 	case AUTOFS_IOC_EXPIRE:
-		return autofs4_expire_run(inode->i_sb,filp->f_vfsmnt,sbi, p);
+		return autofs4_expire_run(inode->i_sb,filp->f_path.mnt,sbi, p);
 	/* same as above, but can send multiple expires through pipe */
 	case AUTOFS_IOC_EXPIRE_MULTI:
-		return autofs4_expire_multi(inode->i_sb,filp->f_vfsmnt,sbi, p);
+		return autofs4_expire_multi(inode->i_sb,filp->f_path.mnt,sbi, p);
 
 	default:
 		return -ENOSYS;
