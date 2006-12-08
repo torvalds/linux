@@ -111,7 +111,8 @@ struct pkt_ctrl_command {
 #include <linux/blkdev.h>
 #include <linux/completion.h>
 #include <linux/cdrom.h>
-
+#include <linux/kobject.h>
+#include <linux/sysfs.h>
 
 /* default bio write queue congestion marks */
 #define PKT_WRITE_CONGESTION_ON    10000
@@ -247,6 +248,14 @@ struct packet_stacked_data
 };
 #define PSD_POOL_SIZE		64
 
+struct pktcdvd_kobj
+{
+	struct kobject		kobj;
+	struct pktcdvd_device	*pd;
+};
+#define to_pktcdvdkobj(_k) \
+  ((struct pktcdvd_kobj*)container_of(_k,struct pktcdvd_kobj,kobj))
+
 struct pktcdvd_device
 {
 	struct block_device	*bdev;		/* dev attached */
@@ -280,6 +289,13 @@ struct pktcdvd_device
 
 	int			write_congestion_off;
 	int			write_congestion_on;
+
+	struct class_device	*clsdev;	/* sysfs pktcdvd[0-7] class dev */
+	struct pktcdvd_kobj	*kobj_stat;	/* sysfs pktcdvd[0-7]/stat/     */
+	struct pktcdvd_kobj	*kobj_wqueue;	/* sysfs pktcdvd[0-7]/write_queue/ */
+
+	struct dentry		*dfs_d_root;	/* debugfs: devname directory */
+	struct dentry		*dfs_f_info;	/* debugfs: info file */
 };
 
 #endif /* __KERNEL__ */

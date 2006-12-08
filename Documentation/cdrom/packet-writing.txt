@@ -90,6 +90,41 @@ Notes
   to create an ext2 filesystem on the disc.
 
 
+Using the pktcdvd sysfs interface
+---------------------------------
+
+Since Linux 2.6.19, the pktcdvd module has a sysfs interface
+and can be controlled by it. For example the "pktcdvd" tool uses
+this interface. (see http://people.freenet.de/BalaGi#pktcdvd )
+
+"pktcdvd" works similar to "pktsetup", e.g.:
+
+	# pktcdvd -a dev_name /dev/hdc
+	# mkudffs /dev/pktcdvd/dev_name
+	# mount -t udf -o rw,noatime /dev/pktcdvd/dev_name /dvdram
+	# cp files /dvdram
+	# umount /dvdram
+	# pktcdvd -r dev_name
+
+
+For a description of the sysfs interface look into the file:
+
+  Documentation/ABI/testing/sysfs-block-pktcdvd
+
+
+Using the pktcdvd debugfs interface
+-----------------------------------
+
+To read pktcdvd device infos in human readable form, do:
+
+	# cat /debug/pktcdvd/pktcdvd[0-7]/info
+
+For a description of the debugfs interface look into the file:
+
+  Documentation/ABI/testing/debugfs-pktcdvd
+
+
+
 Links
 -----
 
