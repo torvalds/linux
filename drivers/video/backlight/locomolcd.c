@@ -200,6 +200,10 @@ static int locomolcd_remove(struct locomo_dev *dev)
 {
 	unsigned long flags;
 
+	locomobl_data.brightness = 0;
+	locomobl_data.power = 0;
+	locomolcd_set_intensity(locomolcd_bl_device);
+
 	backlight_device_unregister(locomolcd_bl_device);
 	local_irq_save(flags);
 	locomolcd_dev = NULL;

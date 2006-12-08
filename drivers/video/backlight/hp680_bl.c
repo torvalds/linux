@@ -117,6 +117,10 @@ static int __init hp680bl_probe(struct platform_device *dev)
 
 static int hp680bl_remove(struct platform_device *dev)
 {
+	hp680bl_data.brightness = 0;
+	hp680bl_data.power = 0;
+	hp680bl_send_intensity(hp680_backlight_device);
+
 	backlight_device_unregister(hp680_backlight_device);
 
 	return 0;

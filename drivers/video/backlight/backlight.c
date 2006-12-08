@@ -282,12 +282,6 @@ void backlight_device_unregister(struct backlight_device *bd)
 					 &bl_class_device_attributes[i]);
 
 	down(&bd->sem);
-	if (likely(bd->props && bd->props->update_status)) {
-		bd->props->brightness = 0;
-		bd->props->power = 0;
-		bd->props->update_status(bd);
-	}
-
 	bd->props = NULL;
 	up(&bd->sem);
 
