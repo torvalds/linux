@@ -736,10 +736,10 @@ static int
 nfsd_sync(struct file *filp)
 {
         int err;
-	struct inode *inode = filp->f_dentry->d_inode;
-	dprintk("nfsd: sync file %s\n", filp->f_dentry->d_name.name);
+	struct inode *inode = filp->f_path.dentry->d_inode;
+	dprintk("nfsd: sync file %s\n", filp->f_path.dentry->d_name.name);
 	mutex_lock(&inode->i_mutex);
-	err=nfsd_dosync(filp, filp->f_dentry, filp->f_op);
+	err=nfsd_dosync(filp, filp->f_path.dentry, filp->f_op);
 	mutex_unlock(&inode->i_mutex);
 
 	return err;
@@ -845,7 +845,7 @@ nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	int		host_err;
 
 	err = nfserr_perm;
-	inode = file->f_dentry->d_inode;
+	inode = file->f_path.dentry->d_inode;
 #ifdef MSNFS
 	if ((fhp->fh_export->ex_flags & NFSEXP_MSNFS) &&
 		(!lock_may_read(inode, offset, *count)))
@@ -883,7 +883,7 @@ nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 		nfsdstats.io_read += host_err;
 		*count = host_err;
 		err = 0;
-		fsnotify_access(file->f_dentry);
+		fsnotify_access(file->f_path.dentry);
 	} else 
 		err = nfserrno(host_err);
 out:
@@ -917,11 +917,11 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	err = nfserr_perm;
 
 	if ((fhp->fh_export->ex_flags & NFSEXP_MSNFS) &&
-		(!lock_may_write(file->f_dentry->d_inode, offset, cnt)))
+		(!lock_may_write(file->f_path.dentry->d_inode, offset, cnt)))
 		goto out;
 #endif
 
-	dentry = file->f_dentry;
+	dentry = file->f_path.dentry;
 	inode = dentry->d_inode;
 	exp   = fhp->fh_export;
 
@@ -950,7 +950,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	set_fs(oldfs);
 	if (host_err >= 0) {
 		nfsdstats.io_write += cnt;
-		fsnotify_modify(file->f_dentry);
+		fsnotify_modify(file->f_path.dentry);
 	}
 
 	/* clear setuid/setgid flag after write */
