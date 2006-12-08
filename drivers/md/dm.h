@@ -36,12 +36,14 @@
  * Definitions of return values from target end_io function.
  */
 #define DM_ENDIO_INCOMPLETE	1
+#define DM_ENDIO_REQUEUE	2
 
 /*
  * Definitions of return values from target map function.
  */
 #define DM_MAPIO_SUBMITTED	0
 #define DM_MAPIO_REMAPPED	1
+#define DM_MAPIO_REQUEUE	DM_ENDIO_REQUEUE
 
 /*
  * Suspend feature flags

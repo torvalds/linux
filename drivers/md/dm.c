@@ -68,10 +68,12 @@ union map_info *dm_get_mapinfo(struct bio *bio)
 #define DMF_FROZEN 2
 #define DMF_FREEING 3
 #define DMF_DELETING 4
+#define DMF_NOFLUSH_SUSPENDING 5
 
 struct mapped_device {
 	struct rw_semaphore io_lock;
 	struct semaphore suspend_lock;
+	spinlock_t pushback_lock;
 	rwlock_t map_lock;
 	atomic_t holders;
 	atomic_t open_count;
@@ -90,6 +92,7 @@ struct mapped_device {
 	atomic_t pending;
 	wait_queue_head_t wait;
 	struct bio_list deferred;
+	struct bio_list pushback;
 
 	/*
 	 * The current mapping.
@@ -444,23 +447,50 @@ int dm_set_geometry(struct mapped_device *md, struct hd_geometry *geo)
  *   you this clearly demarcated crap.
  *---------------------------------------------------------------*/
 
+static int __noflush_suspending(struct mapped_device *md)
+{
+	return test_bit(DMF_NOFLUSH_SUSPENDING, &md->flags);
+}
+
 /*
  * Decrements the number of outstanding ios that a bio has been
  * cloned into, completing the original io if necc.
  */
 static void dec_pending(struct dm_io *io, int error)
 {
-	if (error)
+	unsigned long flags;
+
+	/* Push-back supersedes any I/O errors */
+	if (error && !(io->error > 0 && __noflush_suspending(io->md)))
 		io->error = error;
 
 	if (atomic_dec_and_test(&io->io_count)) {
+		if (io->error == DM_ENDIO_REQUEUE) {
+			/*
+			 * Target requested pushing back the I/O.
+			 * This must be handled before the sleeper on
+			 * suspend queue merges the pushback list.
+			 */
+			spin_lock_irqsave(&io->md->pushback_lock, flags);
+			if (__noflush_suspending(io->md))
+				bio_list_add(&io->md->pushback, io->bio);
+			else
+				/* noflush suspend was interrupted. */
+				io->error = -EIO;
+			spin_unlock_irqrestore(&io->md->pushback_lock, flags);
+		}
+
 		if (end_io_acct(io))
 			/* nudge anyone waiting on suspend queue */
 			wake_up(&io->md->wait);
 
-		blk_add_trace_bio(io->md->queue, io->bio, BLK_TA_COMPLETE);
+		if (io->error != DM_ENDIO_REQUEUE) {
+			blk_add_trace_bio(io->md->queue, io->bio,
+					  BLK_TA_COMPLETE);
 
-		bio_endio(io->bio, io->bio->bi_size, io->error);
+			bio_endio(io->bio, io->bio->bi_size, io->error);
+		}
+
 		free_io(io->md, io);
 	}
 }
@@ -480,7 +510,11 @@ static int clone_endio(struct bio *bio, unsigned int done, int error)
 
 	if (endio) {
 		r = endio(tio->ti, bio, error, &tio->info);
-		if (r < 0)
+		if (r < 0 || r == DM_ENDIO_REQUEUE)
+			/*
+			 * error and requeue request are handled
+			 * in dec_pending().
+			 */
 			error = r;
 		else if (r == DM_ENDIO_INCOMPLETE)
 			/* The target will handle the io */
@@ -554,8 +588,8 @@ static void __map_bio(struct dm_target *ti, struct bio *clone,
 				    clone->bi_sector);
 
 		generic_make_request(clone);
-	} else if (r < 0) {
-		/* error the io and bail out */
+	} else if (r < 0 || r == DM_MAPIO_REQUEUE) {
+		/* error the io and bail out, or requeue it if needed */
 		md = tio->io->md;
 		dec_pending(tio->io, r);
 		/*
@@ -952,6 +986,7 @@ static struct mapped_device *alloc_dev(int minor)
 	memset(md, 0, sizeof(*md));
 	init_rwsem(&md->io_lock);
 	init_MUTEX(&md->suspend_lock);
+	spin_lock_init(&md->pushback_lock);
 	rwlock_init(&md->map_lock);
 	atomic_set(&md->holders, 1);
 	atomic_set(&md->open_count, 0);
@@ -1282,10 +1317,12 @@ static void unlock_fs(struct mapped_device *md)
 int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 {
 	struct dm_table *map = NULL;
+	unsigned long flags;
 	DECLARE_WAITQUEUE(wait, current);
 	struct bio *def;
 	int r = -EINVAL;
 	int do_lockfs = suspend_flags & DM_SUSPEND_LOCKFS_FLAG ? 1 : 0;
+	int noflush = suspend_flags & DM_SUSPEND_NOFLUSH_FLAG ? 1 : 0;
 
 	down(&md->suspend_lock);
 
@@ -1294,6 +1331,13 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 
 	map = dm_get_table(md);
 
+	/*
+	 * DMF_NOFLUSH_SUSPENDING must be set before presuspend.
+	 * This flag is cleared before dm_suspend returns.
+	 */
+	if (noflush)
+		set_bit(DMF_NOFLUSH_SUSPENDING, &md->flags);
+
 	/* This does not get reverted if there's an error later. */
 	dm_table_presuspend_targets(map);
 
@@ -1301,11 +1345,14 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	if (!md->suspended_bdev) {
 		DMWARN("bdget failed in dm_suspend");
 		r = -ENOMEM;
-		goto out;
+		goto flush_and_out;
 	}
 
-	/* Flush I/O to the device. */
-	if (do_lockfs) {
+	/*
+	 * Flush I/O to the device.
+	 * noflush supersedes do_lockfs, because lock_fs() needs to flush I/Os.
+	 */
+	if (do_lockfs && !noflush) {
 		r = lock_fs(md);
 		if (r)
 			goto out;
@@ -1341,6 +1388,14 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	down_write(&md->io_lock);
 	remove_wait_queue(&md->wait, &wait);
 
+	if (noflush) {
+		spin_lock_irqsave(&md->pushback_lock, flags);
+		clear_bit(DMF_NOFLUSH_SUSPENDING, &md->flags);
+		bio_list_merge_head(&md->deferred, &md->pushback);
+		bio_list_init(&md->pushback);
+		spin_unlock_irqrestore(&md->pushback_lock, flags);
+	}
+
 	/* were we interrupted ? */
 	r = -EINTR;
 	if (atomic_read(&md->pending)) {
@@ -1349,7 +1404,7 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 		__flush_deferred_io(md, def);
 		up_write(&md->io_lock);
 		unlock_fs(md);
-		goto out;
+		goto out; /* pushback list is already flushed, so skip flush */
 	}
 	up_write(&md->io_lock);
 
@@ -1358,6 +1413,25 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	set_bit(DMF_SUSPENDED, &md->flags);
 
 	r = 0;
+
+flush_and_out:
+	if (r && noflush) {
+		/*
+		 * Because there may be already I/Os in the pushback list,
+		 * flush them before return.
+		 */
+		down_write(&md->io_lock);
+
+		spin_lock_irqsave(&md->pushback_lock, flags);
+		clear_bit(DMF_NOFLUSH_SUSPENDING, &md->flags);
+		bio_list_merge_head(&md->deferred, &md->pushback);
+		bio_list_init(&md->pushback);
+		spin_unlock_irqrestore(&md->pushback_lock, flags);
+
+		def = bio_list_get(&md->deferred);
+		__flush_deferred_io(md, def);
+		up_write(&md->io_lock);
+	}
 
 out:
 	if (r && md->suspended_bdev) {
@@ -1444,6 +1518,17 @@ int dm_suspended(struct mapped_device *md)
 {
 	return test_bit(DMF_SUSPENDED, &md->flags);
 }
+
+int dm_noflush_suspending(struct dm_target *ti)
+{
+	struct mapped_device *md = dm_table_get_md(ti->table);
+	int r = __noflush_suspending(md);
+
+	dm_put(md);
+
+	return r;
+}
+EXPORT_SYMBOL_GPL(dm_noflush_suspending);
 
 static struct block_device_operations dm_blk_dops = {
 	.open = dm_blk_open,

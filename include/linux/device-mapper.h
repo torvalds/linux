@@ -40,6 +40,7 @@ typedef void (*dm_dtr_fn) (struct dm_target *ti);
  * < 0: error
  * = 0: The target will handle the io by resubmitting it later
  * = 1: simple remap complete
+ * = 2: The target wants to push back the io
  */
 typedef int (*dm_map_fn) (struct dm_target *ti, struct bio *bio,
 			  union map_info *map_context);
@@ -50,6 +51,7 @@ typedef int (*dm_map_fn) (struct dm_target *ti, struct bio *bio,
  * 0   : ended successfully
  * 1   : for some reason the io has still not completed (eg,
  *       multipath target might want to requeue a failed io).
+ * 2   : The target wants to push back the io
  */
 typedef int (*dm_endio_fn) (struct dm_target *ti,
 			    struct bio *bio, int error,
@@ -188,6 +190,7 @@ int dm_wait_event(struct mapped_device *md, int event_nr);
 const char *dm_device_name(struct mapped_device *md);
 struct gendisk *dm_disk(struct mapped_device *md);
 int dm_suspended(struct mapped_device *md);
+int dm_noflush_suspending(struct dm_target *ti);
 
 /*
  * Geometry functions.
