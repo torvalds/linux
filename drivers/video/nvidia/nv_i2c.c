@@ -210,11 +210,8 @@ int nvidia_probe_i2c_connector(struct fb_info *info, int conn, u8 **out_edid)
 		/* try to get from firmware */
 		const u8 *e = fb_firmware_edid(info->device);
 
-		if (e != NULL) {
-			edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
-			if (edid)
-				memcpy(edid, e, EDID_LENGTH);
-		}
+		if (e != NULL)
+			edid = kmemdup(e, EDID_LENGTH, GFP_KERNEL);
 	}
 
 	*out_edid = edid;

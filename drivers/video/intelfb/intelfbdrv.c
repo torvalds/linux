@@ -1058,10 +1058,9 @@ intelfb_init_var(struct intelfb_info *dinfo)
 		u8 *edid_d = NULL;
 
 		if (edid_s) {
-			edid_d = kmalloc(EDID_LENGTH, GFP_KERNEL);
+			edid_d = kmemdup(edid_s, EDID_LENGTH, GFP_KERNEL);
 
 			if (edid_d) {
-				memcpy(edid_d, edid_s, EDID_LENGTH);
 				fb_edid_to_monspecs(edid_d,
 						    &dinfo->info->monspecs);
 				kfree(edid_d);

@@ -162,9 +162,7 @@ int i810_probe_i2c_connector(struct fb_info *info, u8 **out_edid, int conn)
 
 		if (e != NULL) {
 			DPRINTK("i810-i2c: Getting EDID from BIOS\n");
-			edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
-			if (edid)
-				memcpy(edid, e, EDID_LENGTH);
+			edid = kmemdup(e, EDID_LENGTH, GFP_KERNEL);
 		}
 	}
 

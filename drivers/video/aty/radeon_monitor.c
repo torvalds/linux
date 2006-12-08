@@ -104,10 +104,9 @@ static int __devinit radeon_parse_montype_prop(struct device_node *dp, u8 **out_
 	if (pedid == NULL)
 		return mt;
 
-	tmp = (u8 *)kmalloc(EDID_LENGTH, GFP_KERNEL);
+	tmp = kmemdup(pedid, EDID_LENGTH, GFP_KERNEL);
 	if (!tmp)
 		return mt;
-	memcpy(tmp, pedid, EDID_LENGTH);
 	*out_EDID = tmp;
 	return mt;
 }
