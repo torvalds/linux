@@ -12,6 +12,7 @@
 
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/param.h>
 #include <linux/types.h>
 
 #include <asm/processor.h>
