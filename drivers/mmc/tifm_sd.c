@@ -442,22 +442,21 @@ static void tifm_sd_set_data_timeout(struct tifm_sd *host,
 		return;
 
 	data_timeout += data->timeout_ns /
-			((1000000000 / host->clk_freq) * host->clk_div);
-	data_timeout *= 10; // call it fudge factor for now
+			((1000000000UL / host->clk_freq) * host->clk_div);
 
 	if (data_timeout < 0xffff) {
-		writel((~TIFM_MMCSD_DPE) &
-				readl(sock->addr + SOCK_MMCSD_SDIO_MODE_CONFIG),
-		       sock->addr + SOCK_MMCSD_SDIO_MODE_CONFIG);
 		writel(data_timeout, sock->addr + SOCK_MMCSD_DATA_TO);
+		writel((~TIFM_MMCSD_DPE)
+		       & readl(sock->addr + SOCK_MMCSD_SDIO_MODE_CONFIG),
+		       sock->addr + SOCK_MMCSD_SDIO_MODE_CONFIG);
 	} else {
-		writel(TIFM_MMCSD_DPE |
-				readl(sock->addr + SOCK_MMCSD_SDIO_MODE_CONFIG),
-			sock->addr + SOCK_MMCSD_SDIO_MODE_CONFIG);
 		data_timeout = (data_timeout >> 10) + 1;
 		if(data_timeout > 0xffff)
 			data_timeout = 0;	/* set to unlimited */
 		writel(data_timeout, sock->addr + SOCK_MMCSD_DATA_TO);
+		writel(TIFM_MMCSD_DPE
+		       | readl(sock->addr + SOCK_MMCSD_SDIO_MODE_CONFIG),
+		       sock->addr + SOCK_MMCSD_SDIO_MODE_CONFIG);
 	}
 }
 
