@@ -109,8 +109,6 @@ static void cv64_dump(void);
 #define wb_64(regs,reg,dat) (*(((volatile unsigned char *)regs) + reg) = dat)
 #define rb_64(regs, reg) (*(((volatile unsigned char *)regs) + reg))
 
-#define ww_64(regs,reg,dat) (*((volatile unsigned short *)(regs + reg) = dat)
-
 struct cyberfb_par {
 	struct fb_var_screeninfo var;
 	__u32 type;
