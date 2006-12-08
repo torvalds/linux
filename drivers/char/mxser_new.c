@@ -526,8 +526,8 @@ static void __exit mxser_module_exit(void)
 			pdev = mxser_boards[i].pdev;
 			free_irq(mxser_boards[i].irq, &mxser_boards[i]);
 			if (pdev != NULL) {	/* PCI */
-				release_region(pci_resource_start(pdev, 2), pci_resource_len(pdev, 2));
-				release_region(pci_resource_start(pdev, 3), pci_resource_len(pdev, 3));
+				pci_release_region(pdev, 2);
+				pci_release_region(pdev, 3);
 				pci_dev_put(pdev);
 			} else {
 				release_region(mxser_boards[i].ports[0].ioaddr, 8 * mxser_boards[i].nports);
@@ -627,16 +627,14 @@ static int __init mxser_get_PCI_conf(int board_type, struct mxser_board *brd,
 	brd->board_type = board_type;
 	brd->nports = mxser_numports[board_type - 1];
 	ioaddress = pci_resource_start(pdev, 2);
-	request_region(pci_resource_start(pdev, 2), pci_resource_len(pdev, 2),
-			"mxser(IO)");
+	pci_request_region(pdev, 2, "mxser(IO)");
 
 	for (i = 0; i < brd->nports; i++)
 		brd->ports[i].ioaddr = ioaddress + 8 * i;
 
 	/* vector */
 	ioaddress = pci_resource_start(pdev, 3);
-	request_region(pci_resource_start(pdev, 3), pci_resource_len(pdev, 3),
-			"mxser(vector)");
+	pci_request_region(pdev, 3, "mxser(vector)");
 	brd->vector = ioaddress;
 
 	/* irq */
