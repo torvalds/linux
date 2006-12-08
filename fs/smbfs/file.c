@@ -102,7 +102,7 @@ static int
 smb_readpage(struct file *file, struct page *page)
 {
 	int		error;
-	struct dentry  *dentry = file->f_dentry;
+	struct dentry  *dentry = file->f_path.dentry;
 
 	page_cache_get(page);
 	error = smb_readpage_sync(dentry, page);
@@ -205,7 +205,7 @@ static int
 smb_updatepage(struct file *file, struct page *page, unsigned long offset,
 	       unsigned int count)
 {
-	struct dentry *dentry = file->f_dentry;
+	struct dentry *dentry = file->f_path.dentry;
 
 	DEBUG1("(%s/%s %d@%lld)\n", DENTRY_PATH(dentry), count,
 		((unsigned long long)page->index << PAGE_CACHE_SHIFT) + offset);
@@ -218,7 +218,7 @@ smb_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 			unsigned long nr_segs, loff_t pos)
 {
 	struct file * file = iocb->ki_filp;
-	struct dentry * dentry = file->f_dentry;
+	struct dentry * dentry = file->f_path.dentry;
 	ssize_t	status;
 
 	VERBOSE("file %s/%s, count=%lu@%lu\n", DENTRY_PATH(dentry),
@@ -243,7 +243,7 @@ out:
 static int
 smb_file_mmap(struct file * file, struct vm_area_struct * vma)
 {
-	struct dentry * dentry = file->f_dentry;
+	struct dentry * dentry = file->f_path.dentry;
 	int	status;
 
 	VERBOSE("file %s/%s, address %lu - %lu\n",
@@ -264,7 +264,7 @@ static ssize_t
 smb_file_sendfile(struct file *file, loff_t *ppos,
 		  size_t count, read_actor_t actor, void *target)
 {
-	struct dentry *dentry = file->f_dentry;
+	struct dentry *dentry = file->f_path.dentry;
 	ssize_t status;
 
 	VERBOSE("file %s/%s, pos=%Ld, count=%d\n",
@@ -323,7 +323,7 @@ smb_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 			       unsigned long nr_segs, loff_t pos)
 {
 	struct file * file = iocb->ki_filp;
-	struct dentry * dentry = file->f_dentry;
+	struct dentry * dentry = file->f_path.dentry;
 	ssize_t	result;
 
 	VERBOSE("file %s/%s, count=%lu@%lu\n",
@@ -355,7 +355,7 @@ static int
 smb_file_open(struct inode *inode, struct file * file)
 {
 	int result;
-	struct dentry *dentry = file->f_dentry;
+	struct dentry *dentry = file->f_path.dentry;
 	int smb_mode = (file->f_mode & O_ACCMODE) - 1;
 
 	lock_kernel();
