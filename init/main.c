@@ -51,6 +51,7 @@
 #include <linux/debug_locks.h>
 #include <linux/lockdep.h>
 #include <linux/utsrelease.h>
+#include <linux/pid_namespace.h>
 #include <linux/compile.h>
 
 #include <asm/io.h>
@@ -626,8 +627,6 @@ static int __init initcall_debug_setup(char *str)
 }
 __setup("initcall_debug", initcall_debug_setup);
 
-struct task_struct *child_reaper = &init_task;
-
 extern initcall_t __initcall_start[], __initcall_end[];
 
 static void __init do_initcalls(void)
@@ -727,7 +726,7 @@ static int init(void * unused)
 	 * assumptions about where in the task array this
 	 * can be found.
 	 */
-	child_reaper = current;
+	init_pid_ns.child_reaper = current;
 
 	cad_pid = task_pid(current);
 

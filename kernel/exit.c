@@ -22,6 +22,7 @@
 #include <linux/file.h>
 #include <linux/binfmts.h>
 #include <linux/nsproxy.h>
+#include <linux/pid_namespace.h>
 #include <linux/ptrace.h>
 #include <linux/profile.h>
 #include <linux/mount.h>
@@ -48,7 +49,6 @@
 #include <asm/mmu_context.h>
 
 extern void sem_exit (void);
-extern struct task_struct *child_reaper;
 
 static void exit_mm(struct task_struct * tsk);
 
@@ -260,7 +260,8 @@ static int has_stopped_jobs(int pgrp)
 }
 
 /**
- * reparent_to_init - Reparent the calling kernel thread to the init task.
+ * reparent_to_init - Reparent the calling kernel thread to the init task
+ * of the pid space that the thread belongs to.
  *
  * If a kernel thread is launched as a result of a system call, or if
  * it ever exits, it should generally reparent itself to init so that
@@ -278,8 +279,8 @@ static void reparent_to_init(void)
 	ptrace_unlink(current);
 	/* Reparent to init */
 	remove_parent(current);
-	current->parent = child_reaper;
-	current->real_parent = child_reaper;
+	current->parent = child_reaper(current);
+	current->real_parent = child_reaper(current);
 	add_parent(current);
 
 	/* Set the exit signal to SIGCHLD so we signal init on exit */
@@ -662,7 +663,8 @@ reparent_thread(struct task_struct *p, struct task_struct *father, int traced)
  * When we die, we re-parent all our children.
  * Try to give them to another thread in our thread
  * group, and if no such member exists, give it to
- * the global child reaper process (ie "init")
+ * the child reaper process (ie "init") in our pid
+ * space.
  */
 static void
 forget_original_parent(struct task_struct *father, struct list_head *to_release)
@@ -673,7 +675,7 @@ forget_original_parent(struct task_struct *father, struct list_head *to_release)
 	do {
 		reaper = next_thread(reaper);
 		if (reaper == father) {
-			reaper = child_reaper;
+			reaper = child_reaper(father);
 			break;
 		}
 	} while (reaper->exit_state);
@@ -859,8 +861,13 @@ fastcall NORET_TYPE void do_exit(long code)
 		panic("Aiee, killing interrupt handler!");
 	if (unlikely(!tsk->pid))
 		panic("Attempted to kill the idle task!");
-	if (unlikely(tsk == child_reaper))
-		panic("Attempted to kill init!");
+	if (unlikely(tsk == child_reaper(tsk))) {
+		if (tsk->nsproxy->pid_ns != &init_pid_ns)
+			tsk->nsproxy->pid_ns->child_reaper = init_pid_ns.child_reaper;
+		else
+			panic("Attempted to kill init!");
+	}
+
 
 	if (unlikely(current->ptrace & PT_TRACE_EXIT)) {
 		current->ptrace_message = code;

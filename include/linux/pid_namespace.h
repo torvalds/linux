@@ -19,6 +19,7 @@ struct pid_namespace {
 	struct kref kref;
 	struct pidmap pidmap[PIDMAP_ENTRIES];
 	int last_pid;
+	struct task_struct *child_reaper;
 };
 
 extern struct pid_namespace init_pid_ns;
@@ -34,6 +35,11 @@ extern void free_pid_ns(struct kref *kref);
 static inline void put_pid_ns(struct pid_namespace *ns)
 {
 	kref_put(&ns->kref, free_pid_ns);
+}
+
+static inline struct task_struct *child_reaper(struct task_struct *tsk)
+{
+	return tsk->nsproxy->pid_ns->child_reaper;
 }
 
 #endif /* _LINUX_PID_NS_H */

@@ -65,7 +65,8 @@ struct pid_namespace init_pid_ns = {
 	.pidmap = {
 		[ 0 ... PIDMAP_ENTRIES-1] = { ATOMIC_INIT(BITS_PER_PAGE), NULL }
 	},
-	.last_pid = 0
+	.last_pid = 0,
+	.child_reaper = &init_task
 };
 
 /*
