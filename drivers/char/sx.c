@@ -323,6 +323,8 @@ static int sx_slowpoll;
 
 static int sx_maxints = 100;
 
+#ifdef CONFIG_ISA
+
 /* These are the only open spaces in my computer. Yours may have more
    or less.... -- REW 
    duh: Card at 0xa0000 is possible on HP Netserver?? -- pvdl
@@ -337,13 +339,14 @@ static int si1_probe_addrs[]= { 0xd0000};
 #define NR_SI_ADDRS ARRAY_SIZE(si_probe_addrs)
 #define NR_SI1_ADDRS ARRAY_SIZE(si1_probe_addrs)
 
+module_param_array(sx_probe_addrs, int, NULL, 0);
+module_param_array(si_probe_addrs, int, NULL, 0);
+#endif
 
 /* Set the mask to all-ones. This alas, only supports 32 interrupts. 
    Some architectures may need more. */
 static int sx_irqmask = -1;
 
-module_param_array(sx_probe_addrs, int, NULL, 0);
-module_param_array(si_probe_addrs, int, NULL, 0);
 module_param(sx_poll, int, 0);
 module_param(sx_slowpoll, int, 0);
 module_param(sx_maxints, int, 0);
@@ -2118,7 +2121,7 @@ static int __devinit probe_sx (struct sx_board *board)
 	return 1;
 }
 
-
+#if defined(CONFIG_ISA) || defined(CONFIG_EISA)
 
 /* Specialix probes for this card at 32k increments from 640k to 16M.
    I consider machines with less than 16M unlikely nowadays, so I'm
@@ -2213,6 +2216,7 @@ static int __devinit probe_si (struct sx_board *board)
 	func_exit();
 	return 1;
 }
+#endif
 
 static const struct tty_operations sx_ops = {
 	.break_ctl = sx_break,
@@ -2576,9 +2580,12 @@ static int __init sx_init(void)
 #ifdef CONFIG_EISA
 	int retval1;
 #endif
-	int retval, i;
-	int found = 0;
+#ifdef CONFIG_ISA
 	struct sx_board *board;
+	unsigned int i;
+#endif
+	unsigned int found = 0;
+	int retval;
 
 	func_enter();
 	sx_dprintk (SX_DEBUG_INIT, "Initing sx module... (sx_debug=%d)\n", sx_debug);
@@ -2593,7 +2600,7 @@ static int __init sx_init(void)
 		printk(KERN_ERR "SX: Unable to register firmware loader driver.\n");
 		return -EIO;
 	}
-
+#ifdef CONFIG_ISA
 	for (i=0;i<NR_SX_ADDRS;i++) {
 		board = &boards[found];
 		board->hw_base = sx_probe_addrs[i];
@@ -2640,6 +2647,7 @@ static int __init sx_init(void)
 			iounmap (board->base);
 		}
 	}
+#endif
 #ifdef CONFIG_EISA
 	retval1 = eisa_driver_register(&sx_eisadriver);
 #endif
