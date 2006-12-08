@@ -300,16 +300,16 @@
 //#define MOXA_MUST_RBRL_VALUE  4
 #define SET_MOXA_MUST_FIFO_VALUE(info) {	\
 	u8	__oldlcr, __efr;	\
-	__oldlcr = inb((info)->base+UART_LCR);	\
-	outb(MOXA_MUST_ENTER_ENCHANCE, (info)->base+UART_LCR);	\
-	__efr = inb((info)->base+MOXA_MUST_EFR_REGISTER);	\
+	__oldlcr = inb((info)->ioaddr+UART_LCR);	\
+	outb(MOXA_MUST_ENTER_ENCHANCE, (info)->ioaddr+UART_LCR);	\
+	__efr = inb((info)->ioaddr+MOXA_MUST_EFR_REGISTER);	\
 	__efr &= ~MOXA_MUST_EFR_BANK_MASK;	\
 	__efr |= MOXA_MUST_EFR_BANK1;	\
-	outb(__efr, (info)->base+MOXA_MUST_EFR_REGISTER);	\
-	outb((u8)((info)->rx_high_water), (info)->base+MOXA_MUST_RBRTH_REGISTER);	\
-	outb((u8)((info)->rx_trigger), (info)->base+MOXA_MUST_RBRTI_REGISTER);	\
-	outb((u8)((info)->rx_low_water), (info)->base+MOXA_MUST_RBRTL_REGISTER);	\
-	outb(__oldlcr, (info)->base+UART_LCR);	\
+	outb(__efr, (info)->ioaddr+MOXA_MUST_EFR_REGISTER);	\
+	outb((u8)((info)->rx_high_water), (info)->ioaddr+MOXA_MUST_RBRTH_REGISTER);	\
+	outb((u8)((info)->rx_trigger), (info)->ioaddr+MOXA_MUST_RBRTI_REGISTER);	\
+	outb((u8)((info)->rx_low_water), (info)->ioaddr+MOXA_MUST_RBRTL_REGISTER);	\
+	outb(__oldlcr, (info)->ioaddr+UART_LCR);	\
 }
 
 
