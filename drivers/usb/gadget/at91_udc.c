@@ -51,6 +51,8 @@
 
 #include <asm/arch/gpio.h>
 #include <asm/arch/board.h>
+#include <asm/arch/cpu.h>
+#include <asm/arch/at91sam9261_matrix.h>
 
 #include "at91_udc.h"
 
@@ -909,11 +911,37 @@ static void pullup(struct at91_udc *udc, int is_on)
 	if (is_on) {
 		clk_on(udc);
 		at91_udp_write(udc, AT91_UDP_TXVC, 0);
-		at91_set_gpio_value(udc->board.pullup_pin, 1);
+		if (cpu_is_at91rm9200())
+			at91_set_gpio_value(udc->board.pullup_pin, 1);
+		else if (cpu_is_at91sam9260()) {
+			u32	txvc = at91_udp_read(udc, AT91_UDP_TXVC);
+
+			txvc |= AT91_UDP_TXVC_PUON;
+			at91_udp_write(udc, AT91_UDP_TXVC, txvc);
+		} else if (cpu_is_at91sam9261()) {
+			u32	usbpucr;
+
+			usbpucr = at91_sys_read(AT91_MATRIX_USBPUCR);
+			usbpucr |= AT91_MATRIX_USBPUCR_PUON;
+			at91_sys_write(AT91_MATRIX_USBPUCR, usbpucr);
+		}
 	} else {
 		stop_activity(udc);
 		at91_udp_write(udc, AT91_UDP_TXVC, AT91_UDP_TXVC_TXVDIS);
-		at91_set_gpio_value(udc->board.pullup_pin, 0);
+		if (cpu_is_at91rm9200())
+			at91_set_gpio_value(udc->board.pullup_pin, 0);
+		else if (cpu_is_at91sam9260()) {
+			u32	txvc = at91_udp_read(udc, AT91_UDP_TXVC);
+
+			txvc &= ~AT91_UDP_TXVC_PUON;
+			at91_udp_write(udc, AT91_UDP_TXVC, txvc);
+		} else if (cpu_is_at91sam9261()) {
+			u32	usbpucr;
+
+			usbpucr = at91_sys_read(AT91_MATRIX_USBPUCR);
+			usbpucr &= ~AT91_MATRIX_USBPUCR_PUON;
+			at91_sys_write(AT91_MATRIX_USBPUCR, usbpucr);
+		}
 		clk_off(udc);
 	}
 }
@@ -1668,7 +1696,8 @@ static int __devinit at91udc_probe(struct platform_device *pdev)
 	udc->fclk = clk_get(dev, "udpck");
 	if (IS_ERR(udc->iclk) || IS_ERR(udc->fclk)) {
 		DBG("clocks missing\n");
-		return -ENODEV;
+		retval = -ENODEV;
+		goto fail0;
 	}
 
 	retval = device_register(&udc->gadget.dev);
@@ -1679,6 +1708,8 @@ static int __devinit at91udc_probe(struct platform_device *pdev)
 	clk_enable(udc->iclk);
 	at91_udp_write(udc, AT91_UDP_TXVC, AT91_UDP_TXVC_TXVDIS);
 	at91_udp_write(udc, AT91_UDP_IDR, 0xffffffff);
+	/* Clear all pending interrupts - UDP may be used by bootloader. */
+	at91_udp_write(udc, AT91_UDP_ICR, 0xffffffff);
 	clk_disable(udc->iclk);
 
 	/* request UDC and maybe VBUS irqs */
@@ -1690,6 +1721,11 @@ static int __devinit at91udc_probe(struct platform_device *pdev)
 		goto fail1;
 	}
 	if (udc->board.vbus_pin > 0) {
+		/*
+		 * Get the initial state of VBUS - we cannot expect
+		 * a pending interrupt.
+		 */
+		udc->vbus = at91_get_gpio_value(udc->board.vbus_pin);
 		if (request_irq(udc->board.vbus_pin, at91_vbus_irq,
 				IRQF_DISABLED, driver_name, udc)) {
 			DBG("request vbus irq %d failed\n",
