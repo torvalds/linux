@@ -46,7 +46,7 @@ static int zero_map(struct dm_target *ti, struct bio *bio,
 	bio_endio(bio, bio->bi_size, 0);
 
 	/* accepted bio, don't make new request */
-	return 0;
+	return DM_MAPIO_SUBMITTED;
 }
 
 static struct target_type zero_target = {

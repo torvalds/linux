@@ -962,7 +962,7 @@ static int crypt_map(struct dm_target *ti, struct bio *bio,
 	atomic_set(&io->pending, 0);
 	kcryptd_queue_io(io);
 
-	return 0;
+	return DM_MAPIO_SUBMITTED;
 }
 
 static int crypt_status(struct dm_target *ti, status_type_t type,

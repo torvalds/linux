@@ -285,7 +285,7 @@ failed:
 static int map_io(struct multipath *m, struct bio *bio, struct mpath_io *mpio,
 		  unsigned was_queued)
 {
-	int r = 1;
+	int r = DM_MAPIO_REMAPPED;
 	unsigned long flags;
 	struct pgpath *pgpath;
 
@@ -310,7 +310,7 @@ static int map_io(struct multipath *m, struct bio *bio, struct mpath_io *mpio,
 		    !m->queue_io)
 			queue_work(kmultipathd, &m->process_queued_ios);
 		pgpath = NULL;
-		r = 0;
+		r = DM_MAPIO_SUBMITTED;
 	} else if (!pgpath)
 		r = -EIO;		/* Failed */
 	else
@@ -372,7 +372,7 @@ static void dispatch_queued_ios(struct multipath *m)
 		r = map_io(m, bio, mpio, 1);
 		if (r < 0)
 			bio_endio(bio, bio->bi_size, r);
-		else if (r == 1)
+		else if (r == DM_MAPIO_REMAPPED)
 			generic_make_request(bio);
 
 		bio = next;
@@ -1042,7 +1042,7 @@ static int do_end_io(struct multipath *m, struct bio *bio,
 		queue_work(kmultipathd, &m->process_queued_ios);
 	spin_unlock_irqrestore(&m->lock, flags);
 
-	return 1;	/* io not complete */
+	return DM_ENDIO_INCOMPLETE;	/* io not complete */
 }
 
 static int multipath_end_io(struct dm_target *ti, struct bio *bio,
@@ -1060,7 +1060,7 @@ static int multipath_end_io(struct dm_target *ti, struct bio *bio,
 		if (ps->type->end_io)
 			ps->type->end_io(ps, &pgpath->path);
 	}
-	if (r <= 0)
+	if (r != DM_ENDIO_INCOMPLETE)
 		mempool_free(mpio, m->mpio_pool);
 
 	return r;
