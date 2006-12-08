@@ -955,7 +955,10 @@ static int at91_vbus_session(struct usb_gadget *gadget, int is_active)
 	// VDBG("vbus %s\n", is_active ? "on" : "off");
 	local_irq_save(flags);
 	udc->vbus = (is_active != 0);
-	pullup(udc, is_active);
+	if (udc->driver)
+		pullup(udc, is_active);
+	else
+		pullup(udc, 0);
 	local_irq_restore(flags);
 	return 0;
 }
@@ -1241,7 +1244,10 @@ static void handle_setup(struct at91_udc *udc, struct at91_ep *ep, u32 csr)
 #undef w_length
 
 	/* pass request up to the gadget driver */
-	status = udc->driver->setup(&udc->gadget, &pkt.r);
+	if (udc->driver)
+		status = udc->driver->setup(&udc->gadget, &pkt.r);
+	else
+		status = -ENODEV;
 	if (status < 0) {
 stall:
 		VDBG("req %02x.%02x protocol STALL; stat %d\n",
