@@ -141,7 +141,7 @@ static int get_mixer_levels(void __user * arg)
 
 static ssize_t sound_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-	int dev = iminor(file->f_dentry->d_inode);
+	int dev = iminor(file->f_path.dentry->d_inode);
 	int ret = -EINVAL;
 
 	/*
@@ -174,7 +174,7 @@ static ssize_t sound_read(struct file *file, char __user *buf, size_t count, lof
 
 static ssize_t sound_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
-	int dev = iminor(file->f_dentry->d_inode);
+	int dev = iminor(file->f_path.dentry->d_inode);
 	int ret = -EINVAL;
 	
 	lock_kernel();
@@ -393,7 +393,7 @@ static int sound_ioctl(struct inode *inode, struct file *file,
 
 static unsigned int sound_poll(struct file *file, poll_table * wait)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	int dev = iminor(inode);
 
 	DEB(printk("sound_poll(dev=%d)\n", dev));
@@ -418,7 +418,7 @@ static int sound_mmap(struct file *file, struct vm_area_struct *vma)
 	int dev_class;
 	unsigned long size;
 	struct dma_buffparms *dmap = NULL;
-	int dev = iminor(file->f_dentry->d_inode);
+	int dev = iminor(file->f_path.dentry->d_inode);
 
 	dev_class = dev & 0x0f;
 	dev >>= 4;
