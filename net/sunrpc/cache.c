@@ -670,7 +670,7 @@ cache_read(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
 {
 	struct cache_reader *rp = filp->private_data;
 	struct cache_request *rq;
-	struct cache_detail *cd = PDE(filp->f_dentry->d_inode)->data;
+	struct cache_detail *cd = PDE(filp->f_path.dentry->d_inode)->data;
 	int err;
 
 	if (count == 0)
@@ -747,7 +747,7 @@ cache_write(struct file *filp, const char __user *buf, size_t count,
 	    loff_t *ppos)
 {
 	int err;
-	struct cache_detail *cd = PDE(filp->f_dentry->d_inode)->data;
+	struct cache_detail *cd = PDE(filp->f_path.dentry->d_inode)->data;
 
 	if (count == 0)
 		return 0;
@@ -778,7 +778,7 @@ cache_poll(struct file *filp, poll_table *wait)
 	unsigned int mask;
 	struct cache_reader *rp = filp->private_data;
 	struct cache_queue *cq;
-	struct cache_detail *cd = PDE(filp->f_dentry->d_inode)->data;
+	struct cache_detail *cd = PDE(filp->f_path.dentry->d_inode)->data;
 
 	poll_wait(filp, &queue_wait, wait);
 
@@ -1254,7 +1254,7 @@ static struct file_operations content_file_operations = {
 static ssize_t read_flush(struct file *file, char __user *buf,
 			    size_t count, loff_t *ppos)
 {
-	struct cache_detail *cd = PDE(file->f_dentry->d_inode)->data;
+	struct cache_detail *cd = PDE(file->f_path.dentry->d_inode)->data;
 	char tbuf[20];
 	unsigned long p = *ppos;
 	int len;
@@ -1275,7 +1275,7 @@ static ssize_t read_flush(struct file *file, char __user *buf,
 static ssize_t write_flush(struct file * file, const char __user * buf,
 			     size_t count, loff_t *ppos)
 {
-	struct cache_detail *cd = PDE(file->f_dentry->d_inode)->data;
+	struct cache_detail *cd = PDE(file->f_path.dentry->d_inode)->data;
 	char tbuf[20];
 	char *ep;
 	long flushtime;

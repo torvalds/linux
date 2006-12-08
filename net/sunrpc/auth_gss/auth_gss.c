@@ -501,7 +501,7 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	if (!buf)
 		goto out;
 
-	clnt = RPC_I(filp->f_dentry->d_inode)->private;
+	clnt = RPC_I(filp->f_path.dentry->d_inode)->private;
 	err = -EFAULT;
 	if (copy_from_user(buf, src, mlen))
 		goto err;
