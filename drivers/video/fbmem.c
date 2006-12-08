@@ -52,8 +52,8 @@
 
 #define FBPIXMAPSIZE	(1024 * 8)
 
-struct fb_info *registered_fb[FB_MAX];
-int num_registered_fb;
+struct fb_info *registered_fb[FB_MAX] __read_mostly;
+int num_registered_fb __read_mostly;
 
 /*
  * Helpers
@@ -202,7 +202,7 @@ static void  fb_set_logo_truepalette(struct fb_info *info,
 					    const struct linux_logo *logo,
 					    u32 *palette)
 {
-	unsigned char mask[9] = { 0,0x80,0xc0,0xe0,0xf0,0xf8,0xfc,0xfe,0xff };
+	static const unsigned char mask[] = { 0,0x80,0xc0,0xe0,0xf0,0xf8,0xfc,0xfe,0xff };
 	unsigned char redmask, greenmask, bluemask;
 	int redshift, greenshift, blueshift;
 	int i;
@@ -317,7 +317,7 @@ static struct logo_data {
 	int needs_truepalette;
 	int needs_cmapreset;
 	const struct linux_logo *logo;
-} fb_logo;
+} fb_logo __read_mostly;
 
 static void fb_rotate_logo_ud(const u8 *in, u8 *out, u32 width, u32 height)
 {
@@ -1253,7 +1253,7 @@ fb_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations fb_fops = {
+static const struct file_operations fb_fops = {
 	.owner =	THIS_MODULE,
 	.read =		fb_read,
 	.write =	fb_write,
@@ -1459,8 +1459,8 @@ int fb_new_modelist(struct fb_info *info)
 	return err;
 }
 
-static char *video_options[FB_MAX];
-static int ofonly;
+static char *video_options[FB_MAX] __read_mostly;
+static int ofonly __read_mostly;
 
 extern const char *global_mode_option;
 
