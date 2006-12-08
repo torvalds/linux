@@ -16,6 +16,10 @@ int gx_line_delta(int xres, int bpp);
 
 extern struct geode_dc_ops gx_dc_ops;
 
+/* MSR that tells us if a TFT or CRT is attached */
+#define GLD_MSR_CONFIG   0xC0002001
+#define GLD_MSR_CONFIG_FMT_FP 0x01
+
 /* Display controller registers */
 
 #define DC_UNLOCK 0x00

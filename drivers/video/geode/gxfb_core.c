@@ -308,6 +308,7 @@ static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	struct geodefb_par *par;
 	struct fb_info *info;
 	int ret;
+	unsigned long val;
 
 	info = gxfb_init_fbinfo(&pdev->dev);
 	if (!info)
@@ -322,6 +323,15 @@ static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		dev_err(&pdev->dev, "failed to map frame buffer or controller registers\n");
 		goto err;
 	}
+
+	/* Figure out if this is a TFT or CRT part */
+
+	rdmsrl(GLD_MSR_CONFIG, val);
+
+	if (val & GLD_MSR_CONFIG_FMT_FP)
+		par->enable_crt = 0;
+	else
+		par->enable_crt = 1;
 
 	ret = fb_find_mode(&info->var, info, mode_option,
 			   gx_modedb, ARRAY_SIZE(gx_modedb), NULL, 16);

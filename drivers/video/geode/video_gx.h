@@ -13,6 +13,11 @@
 
 extern struct geode_vid_ops gx_vid_ops;
 
+/* GX Flatpanel control MSR */
+#define GX_VP_MSR_PAD_SELECT           0x2011
+#define GX_VP_PAD_SELECT_MASK          0x3FFFFFFF
+#define GX_VP_PAD_SELECT_TFT           0x1FFFFFFF
+
 /* Geode GX video processor registers */
 
 #define GX_DCFG		0x0008
@@ -36,8 +41,19 @@ extern struct geode_vid_ops gx_vid_ops;
 #define GX_MISC_A_PWRDN    0x00000800
 
 /* Geode GX flat panel display control registers */
+
+#define GX_FP_PT1 0x0400
+#define GX_FP_PT1_VSIZE_MASK 0x7FF0000
+#define GX_FP_PT1_VSIZE_SHIFT 16
+
+#define GX_FP_PT2 0x408
+#define GX_FP_PT2_VSP (1 << 23)
+#define GX_FP_PT2_HSP (1 << 22)
+
 #define GX_FP_PM 0x410
 #  define GX_FP_PM_P 0x01000000
+
+#define GX_FP_DFC 0x418
 
 /* Geode GX clock control MSRs */
 

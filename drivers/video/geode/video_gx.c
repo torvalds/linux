@@ -175,10 +175,62 @@ static void gx_set_dclk_frequency(struct fb_info *info)
 	} while (timeout-- && !(dotpll & MSR_GLCP_DOTPLL_LOCK));
 }
 
+static void
+gx_configure_tft(struct fb_info *info)
+{
+	struct geodefb_par *par = info->par;
+	unsigned long val;
+	unsigned long fp;
+
+	/* Set up the DF pad select MSR */
+
+	rdmsrl(GX_VP_MSR_PAD_SELECT, val);
+	val &= ~GX_VP_PAD_SELECT_MASK;
+	val |= GX_VP_PAD_SELECT_TFT;
+	wrmsrl(GX_VP_MSR_PAD_SELECT, val);
+
+	/* Turn off the panel */
+
+	fp = readl(par->vid_regs + GX_FP_PM);
+	fp &= ~GX_FP_PM_P;
+	writel(fp, par->vid_regs + GX_FP_PM);
+
+	/* Set timing 1 */
+
+	fp = readl(par->vid_regs + GX_FP_PT1);
+	fp &= GX_FP_PT1_VSIZE_MASK;
+	fp |= info->var.yres << GX_FP_PT1_VSIZE_SHIFT;
+	writel(fp, par->vid_regs + GX_FP_PT1);
+
+	/* Timing 2 */
+	/* Set bits that are always on for TFT */
+
+	fp = 0x0F100000;
+
+	/* Add sync polarity */
+
+	if (!(info->var.sync & FB_SYNC_VERT_HIGH_ACT))
+		fp |= GX_FP_PT2_VSP;
+
+	if (!(info->var.sync & FB_SYNC_HOR_HIGH_ACT))
+		fp |= GX_FP_PT2_HSP;
+
+	writel(fp, par->vid_regs + GX_FP_PT2);
+
+	/*  Set the dither control */
+	writel(0x70, par->vid_regs + GX_FP_DFC);
+
+	/* Turn on the device */
+
+	fp = readl(par->vid_regs + GX_FP_PM);
+	fp |= GX_FP_PM_P;
+	writel(fp, par->vid_regs + GX_FP_PM);
+}
+
 static void gx_configure_display(struct fb_info *info)
 {
 	struct geodefb_par *par = info->par;
-	u32 dcfg, fp_pm, misc;
+	u32 dcfg, misc;
 
 	/* Set up the MISC register */
 
@@ -222,11 +274,10 @@ static void gx_configure_display(struct fb_info *info)
 
 	writel(dcfg, par->vid_regs + GX_DCFG);
 
-	/* Power on flat panel. */
+	/* Set up the flat panel (if it is enabled) */
 
-	fp_pm = readl(par->vid_regs + GX_FP_PM);
-	fp_pm |= GX_FP_PM_P;
-	writel(fp_pm, par->vid_regs + GX_FP_PM);
+	if (par->enable_crt == 0)
+		gx_configure_tft(info);
 }
 
 static int gx_blank_display(struct fb_info *info, int blank_mode)
@@ -267,12 +318,15 @@ static int gx_blank_display(struct fb_info *info, int blank_mode)
 	writel(dcfg, par->vid_regs + GX_DCFG);
 
 	/* Power on/off flat panel. */
-	fp_pm = readl(par->vid_regs + GX_FP_PM);
-	if (blank_mode == FB_BLANK_POWERDOWN)
-		fp_pm &= ~GX_FP_PM_P;
-	else
-		fp_pm |= GX_FP_PM_P;
-	writel(fp_pm, par->vid_regs + GX_FP_PM);
+
+	if (par->enable_crt == 0) {
+		fp_pm = readl(par->vid_regs + GX_FP_PM);
+		if (blank_mode == FB_BLANK_POWERDOWN)
+			fp_pm &= ~GX_FP_PM_P;
+		else
+			fp_pm |= GX_FP_PM_P;
+		writel(fp_pm, par->vid_regs + GX_FP_PM);
+	}
 
 	return 0;
 }
