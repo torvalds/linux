@@ -1430,12 +1430,11 @@ isdnloop_initcard(char *id)
 	isdnloop_card *card;
 	int i;
 
-	if (!(card = (isdnloop_card *) kmalloc(sizeof(isdnloop_card), GFP_KERNEL))) {
+	if (!(card = kzalloc(sizeof(isdnloop_card), GFP_KERNEL))) {
 		printk(KERN_WARNING
 		 "isdnloop: (%s) Could not allocate card-struct.\n", id);
 		return (isdnloop_card *) 0;
 	}
-	memset((char *) card, 0, sizeof(isdnloop_card));
 	card->interface.owner = THIS_MODULE;
 	card->interface.channels = ISDNLOOP_BCH;
 	card->interface.hl_hdrlen  = 1; /* scratch area for storing ack flag*/ 

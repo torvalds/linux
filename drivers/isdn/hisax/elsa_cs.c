@@ -146,9 +146,8 @@ static int elsa_cs_probe(struct pcmcia_device *link)
     DEBUG(0, "elsa_cs_attach()\n");
 
     /* Allocate space for private device-specific data */
-    local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
+    local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
     if (!local) return -ENOMEM;
-    memset(local, 0, sizeof(local_info_t));
 
     local->p_dev = link;
     link->priv = local;

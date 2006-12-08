@@ -215,13 +215,12 @@ static struct capiminor *capiminor_alloc(struct capi20_appl *ap, u32 ncci)
 	unsigned int minor = 0;
 	unsigned long flags;
 
-	mp = kmalloc(sizeof(*mp), GFP_ATOMIC);
+	mp = kzalloc(sizeof(*mp), GFP_ATOMIC);
   	if (!mp) {
   		printk(KERN_ERR "capi: can't alloc capiminor\n");
 		return NULL;
 	}
 
-	memset(mp, 0, sizeof(struct capiminor));
 	mp->ap = ap;
 	mp->ncci = ncci;
 	mp->msgid = 0;
@@ -304,10 +303,9 @@ static struct capincci *capincci_alloc(struct capidev *cdev, u32 ncci)
 	struct capiminor *mp = NULL;
 #endif /* CONFIG_ISDN_CAPI_MIDDLEWARE */
 
-	np = kmalloc(sizeof(*np), GFP_ATOMIC);
+	np = kzalloc(sizeof(*np), GFP_ATOMIC);
 	if (!np)
 		return NULL;
-	memset(np, 0, sizeof(struct capincci));
 	np->ncci = ncci;
 	np->cdev = cdev;
 #ifdef CONFIG_ISDN_CAPI_MIDDLEWARE
@@ -384,10 +382,9 @@ static struct capidev *capidev_alloc(void)
 	struct capidev *cdev;
 	unsigned long flags;
 
-	cdev = kmalloc(sizeof(*cdev), GFP_KERNEL);
+	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
 	if (!cdev)
 		return NULL;
-	memset(cdev, 0, sizeof(struct capidev));
 
 	init_MUTEX(&cdev->ncci_list_sem);
 	skb_queue_head_init(&cdev->recvqueue);

@@ -2072,21 +2072,19 @@ isdn_add_channels(isdn_driver_t *d, int drvidx, int n, int adding)
 
 	if ((adding) && (d->rcverr))
 		kfree(d->rcverr);
-	if (!(d->rcverr = kmalloc(sizeof(int) * m, GFP_ATOMIC))) {
+	if (!(d->rcverr = kzalloc(sizeof(int) * m, GFP_ATOMIC))) {
 		printk(KERN_WARNING "register_isdn: Could not alloc rcverr\n");
 		return -1;
 	}
-	memset((char *) d->rcverr, 0, sizeof(int) * m);
 
 	if ((adding) && (d->rcvcount))
 		kfree(d->rcvcount);
-	if (!(d->rcvcount = kmalloc(sizeof(int) * m, GFP_ATOMIC))) {
+	if (!(d->rcvcount = kzalloc(sizeof(int) * m, GFP_ATOMIC))) {
 		printk(KERN_WARNING "register_isdn: Could not alloc rcvcount\n");
 		if (!adding)
 			kfree(d->rcverr);
 		return -1;
 	}
-	memset((char *) d->rcvcount, 0, sizeof(int) * m);
 
 	if ((adding) && (d->rpqueue)) {
 		for (j = 0; j < d->channels; j++)
@@ -2226,11 +2224,10 @@ register_isdn(isdn_if * i)
 		printk(KERN_WARNING "register_isdn: No write routine given.\n");
 		return 0;
 	}
-	if (!(d = kmalloc(sizeof(isdn_driver_t), GFP_KERNEL))) {
+	if (!(d = kzalloc(sizeof(isdn_driver_t), GFP_KERNEL))) {
 		printk(KERN_WARNING "register_isdn: Could not alloc driver-struct\n");
 		return 0;
 	}
-	memset((char *) d, 0, sizeof(isdn_driver_t));
 
 	d->maxbufsize = i->maxbufsize;
 	d->pktcount = 0;

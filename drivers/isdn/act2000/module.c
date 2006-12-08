@@ -573,12 +573,11 @@ act2000_alloccard(int bus, int port, int irq, char *id)
 {
 	int i;
         act2000_card *card;
-        if (!(card = (act2000_card *) kmalloc(sizeof(act2000_card), GFP_KERNEL))) {
+        if (!(card = kzalloc(sizeof(act2000_card), GFP_KERNEL))) {
                 printk(KERN_WARNING
 		       "act2000: (%s) Could not allocate card-struct.\n", id);
                 return;
         }
-        memset((char *) card, 0, sizeof(act2000_card));
         spin_lock_init(&card->lock);
         spin_lock_init(&card->mnlock);
 	skb_queue_head_init(&card->sndq);

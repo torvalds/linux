@@ -123,11 +123,10 @@ static int avma1cs_probe(struct pcmcia_device *p_dev)
     DEBUG(0, "avma1cs_attach()\n");
 
     /* Allocate space for private device-specific data */
-    local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
+    local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
     if (!local)
 	return -ENOMEM;
 
-    memset(local, 0, sizeof(local_info_t));
     p_dev->priv = local;
 
     /* The io structure describes IO port mapping */

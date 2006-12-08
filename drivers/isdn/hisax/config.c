@@ -869,14 +869,13 @@ static int checkcard(int cardnr, char *id, int *busy_flag, struct module *lockow
 	struct IsdnCard *card = cards + cardnr;
 	struct IsdnCardState *cs;
 
-	cs = kmalloc(sizeof(struct IsdnCardState), GFP_ATOMIC);
+	cs = kzalloc(sizeof(struct IsdnCardState), GFP_ATOMIC);
 	if (!cs) {
 		printk(KERN_WARNING
 		       "HiSax: No memory for IsdnCardState(card %d)\n",
 		       cardnr + 1);
 		goto out;
 	}
-	memset(cs, 0, sizeof(struct IsdnCardState));
 	card->cs = cs;
 	spin_lock_init(&cs->statlock);
 	spin_lock_init(&cs->lock);
