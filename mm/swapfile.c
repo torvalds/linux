@@ -1357,10 +1357,10 @@ static int swap_show(struct seq_file *swap, void *v)
 	}
 
 	file = ptr->swap_file;
-	len = seq_path(swap, file->f_vfsmnt, file->f_dentry, " \t\n\\");
+	len = seq_path(swap, file->f_path.mnt, file->f_path.dentry, " \t\n\\");
 	seq_printf(swap, "%*s%s\t%u\t%u\t%d\n",
 		       len < 40 ? 40 - len : 1, " ",
-		       S_ISBLK(file->f_dentry->d_inode->i_mode) ?
+		       S_ISBLK(file->f_path.dentry->d_inode->i_mode) ?
 				"partition" : "file\t",
 		       ptr->pages << (PAGE_SHIFT - 10),
 		       ptr->inuse_pages << (PAGE_SHIFT - 10),
