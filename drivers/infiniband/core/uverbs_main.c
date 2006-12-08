@@ -534,9 +534,9 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 	 * module reference.
 	 */
 	filp->f_op 	   = fops_get(&uverbs_event_fops);
-	filp->f_vfsmnt 	   = mntget(uverbs_event_mnt);
-	filp->f_dentry 	   = dget(uverbs_event_mnt->mnt_root);
-	filp->f_mapping    = filp->f_dentry->d_inode->i_mapping;
+	filp->f_path.mnt 	   = mntget(uverbs_event_mnt);
+	filp->f_path.dentry 	   = dget(uverbs_event_mnt->mnt_root);
+	filp->f_mapping    = filp->f_path.dentry->d_inode->i_mapping;
 	filp->f_flags      = O_RDONLY;
 	filp->f_mode       = FMODE_READ;
 	filp->private_data = ev_file;
