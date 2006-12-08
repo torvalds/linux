@@ -997,7 +997,7 @@ static int mxser_open(struct tty_struct *tty, struct file *filp)
 		mxser_change_speed(info, NULL);
 	}
 
-	info->session = current->signal->session;
+	info->session = process_session(current);
 	info->pgrp = process_group(current);
 
 	/*
