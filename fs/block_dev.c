@@ -902,6 +902,7 @@ EXPORT_SYMBOL(bd_set_size);
 
 static int __blkdev_get(struct block_device *bdev, mode_t mode, unsigned flags,
 			int for_part);
+static int __blkdev_put(struct block_device *bdev, int for_part);
 
 static int do_open(struct block_device *bdev, struct file *file, int for_part)
 {
@@ -987,7 +988,7 @@ out_first:
 	bdev->bd_disk = NULL;
 	bdev->bd_inode->i_data.backing_dev_info = &default_backing_dev_info;
 	if (bdev != bdev->bd_contains)
-		blkdev_put(bdev->bd_contains);
+		__blkdev_put(bdev->bd_contains, 1);
 	bdev->bd_contains = NULL;
 	put_disk(disk);
 	module_put(owner);
