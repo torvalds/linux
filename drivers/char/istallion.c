@@ -402,7 +402,6 @@ static int	stli_eisamempsize = ARRAY_SIZE(stli_eisamemprobeaddrs);
 /*
  *	Define the Stallion PCI vendor and device IDs.
  */
-#ifdef CONFIG_PCI
 #ifndef	PCI_VENDOR_ID_STALLION
 #define	PCI_VENDOR_ID_STALLION		0x124d
 #endif
@@ -416,7 +415,7 @@ static struct pci_device_id istallion_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, istallion_pci_tbl);
 
-#endif /* CONFIG_PCI */
+static struct pci_driver stli_pcidriver;
 
 /*****************************************************************************/
 
@@ -728,10 +727,6 @@ static int	stli_initonb(stlibrd_t *brdp);
 static int	stli_eisamemprobe(stlibrd_t *brdp);
 static int	stli_initports(stlibrd_t *brdp);
 
-#ifdef	CONFIG_PCI
-static int	stli_initpcibrd(int brdtype, struct pci_dev *devp);
-#endif
-
 /*****************************************************************************/
 
 /*
@@ -768,6 +763,21 @@ static int	stli_timeron;
 
 static struct class *istallion_class;
 
+static void stli_cleanup_ports(stlibrd_t *brdp)
+{
+	stliport_t *portp;
+	unsigned int j;
+
+	for (j = 0; j < STL_MAXPORTS; j++) {
+		portp = brdp->ports[j];
+		if (portp != NULL) {
+			if (portp->tty != NULL)
+				tty_hangup(portp->tty);
+			kfree(portp);
+		}
+	}
+}
+
 /*
  *	Loadable module initialization stuff.
  */
@@ -783,12 +793,12 @@ static int __init istallion_module_init(void)
 static void __exit istallion_module_exit(void)
 {
 	stlibrd_t	*brdp;
-	stliport_t	*portp;
-	int		i, j;
+	int		i;
 
 	printk(KERN_INFO "Unloading %s: version %s\n", stli_drvtitle,
 		stli_drvversion);
 
+	pci_unregister_driver(&stli_pcidriver);
 	/*
 	 *	Free up all allocated resources used by the ports. This includes
 	 *	memory and interrupts.
@@ -817,14 +827,8 @@ static void __exit istallion_module_exit(void)
 	for (i = 0; (i < stli_nrbrds); i++) {
 		if ((brdp = stli_brds[i]) == NULL)
 			continue;
-		for (j = 0; (j < STL_MAXPORTS); j++) {
-			portp = brdp->ports[j];
-			if (portp != NULL) {
-				if (portp->tty != NULL)
-					tty_hangup(portp->tty);
-				kfree(portp);
-			}
-		}
+
+		stli_cleanup_ports(brdp);
 
 		iounmap(brdp->membase);
 		if (brdp->iosize > 0)
@@ -3777,7 +3781,7 @@ stli_donestartup:
  *	Probe and initialize the specified board.
  */
 
-static int __init stli_brdinit(stlibrd_t *brdp)
+static int __devinit stli_brdinit(stlibrd_t *brdp)
 {
 	stli_brds[brdp->brdnr] = brdp;
 
@@ -4019,58 +4023,72 @@ static int stli_findeisabrds(void)
 
 /*****************************************************************************/
 
-#ifdef	CONFIG_PCI
-
 /*
  *	We have a Stallion board. Allocate a board structure and
  *	initialize it. Read its IO and MEMORY resources from PCI
  *	configuration space.
  */
 
-static int stli_initpcibrd(int brdtype, struct pci_dev *devp)
+static int __devinit stli_pciprobe(struct pci_dev *pdev,
+		const struct pci_device_id *ent)
 {
 	stlibrd_t *brdp;
+	int retval = -EIO;
 
-	if (pci_enable_device(devp))
-		return -EIO;
-	if ((brdp = stli_allocbrd()) == NULL)
-		return -ENOMEM;
-	if ((brdp->brdnr = stli_getbrdnr()) < 0) {
+	retval = pci_enable_device(pdev);
+	if (retval)
+		goto err;
+	brdp = stli_allocbrd();
+	if (brdp == NULL) {
+		retval = -ENOMEM;
+		goto err;
+	}
+	if ((brdp->brdnr = stli_getbrdnr()) < 0) { /* TODO: locking */
 		printk(KERN_INFO "STALLION: too many boards found, "
 			"maximum supported %d\n", STL_MAXBRDS);
-		return 0;
+		retval = -EIO;
+		goto err_fr;
 	}
-	brdp->brdtype = brdtype;
+	brdp->brdtype = BRD_ECPPCI;
 /*
  *	We have all resources from the board, so lets setup the actual
  *	board structure now.
  */
-	brdp->iobase = pci_resource_start(devp, 3);
-	brdp->memaddr = pci_resource_start(devp, 2);
-	stli_brdinit(brdp);
+	brdp->iobase = pci_resource_start(pdev, 3);
+	brdp->memaddr = pci_resource_start(pdev, 2);
+	retval = stli_brdinit(brdp);
+	if (retval)
+		goto err_fr;
+
+	pci_set_drvdata(pdev, brdp);
 
 	return 0;
+err_fr:
+	kfree(brdp);
+err:
+	return retval;
 }
 
-/*****************************************************************************/
-
-/*
- *	Find all Stallion PCI boards that might be installed. Initialize each
- *	one as it is found.
- */
-
-static int stli_findpcibrds(void)
+static void stli_pciremove(struct pci_dev *pdev)
 {
-	struct pci_dev *dev = NULL;
+	stlibrd_t *brdp = pci_get_drvdata(pdev);
 
-	while ((dev = pci_get_device(PCI_VENDOR_ID_STALLION, PCI_DEVICE_ID_ECRA, dev))) {
-		stli_initpcibrd(BRD_ECPPCI, dev);
-	}
-	return 0;
+	stli_cleanup_ports(brdp);
+
+	iounmap(brdp->membase);
+	if (brdp->iosize > 0)
+		release_region(brdp->iobase, brdp->iosize);
+
+	stli_brds[brdp->brdnr] = NULL;
+	kfree(brdp);
 }
 
-#endif
-
+static struct pci_driver stli_pcidriver = {
+	.name = "istallion",
+	.id_table = istallion_pci_tbl,
+	.probe = stli_pciprobe,
+	.remove = __devexit_p(stli_pciremove)
+};
 /*****************************************************************************/
 
 /*
@@ -4102,7 +4120,7 @@ static int stli_initbrds(void)
 {
 	stlibrd_t *brdp, *nxtbrdp;
 	stlconf_t *confp;
-	int i, j;
+	int i, j, retval;
 
 	if (stli_nrbrds > STL_MAXBRDS) {
 		printk(KERN_INFO "STALLION: too many boards in configuration "
@@ -4134,9 +4152,9 @@ static int stli_initbrds(void)
 	stli_argbrds();
 	if (STLI_EISAPROBE)
 		stli_findeisabrds();
-#ifdef CONFIG_PCI
-	stli_findpcibrds();
-#endif
+
+	retval = pci_register_driver(&stli_pcidriver);
+	/* TODO: check retval and do something */
 
 /*
  *	All found boards are initialized. Now for a little optimization, if
