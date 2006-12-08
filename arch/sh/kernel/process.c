@@ -470,9 +470,10 @@ unsigned long get_wchan(struct task_struct *p)
 	 */
 	pc = thread_saved_pc(p);
 	if (in_sched_functions(pc)) {
-		schedule_frame = ((unsigned long *)(long)p->thread.sp)[1];
-		return (unsigned long)((unsigned long *)schedule_frame)[1];
+		schedule_frame = (unsigned long)p->thread.sp;
+		return ((unsigned long *)schedule_frame)[21];
 	}
+
 	return pc;
 }
 
