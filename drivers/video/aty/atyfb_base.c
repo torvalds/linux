@@ -203,14 +203,6 @@ static void ATIReduceRatio(int *Numerator, int *Denominator)
      *  The Hardware parameters for each card
      */
 
-struct aty_cmap_regs {
-	u8 windex;
-	u8 lut;
-	u8 mask;
-	u8 rindex;
-	u8 cntl;
-};
-
 struct pci_mmap_map {
 	unsigned long voff;
 	unsigned long poff;
@@ -1937,17 +1929,14 @@ static void atyfb_save_palette(struct atyfb_par *par, int enter)
 		aty_st_8(DAC_CNTL, tmp, par);
 		aty_st_8(DAC_MASK, 0xff, par);
 
-		writeb(i, &par->aty_cmap_regs->rindex);
-		atyfb_save.r[enter][i] = readb(&par->aty_cmap_regs->lut);
-		atyfb_save.g[enter][i] = readb(&par->aty_cmap_regs->lut);
-		atyfb_save.b[enter][i] = readb(&par->aty_cmap_regs->lut);
-		writeb(i, &par->aty_cmap_regs->windex);
-		writeb(atyfb_save.r[1 - enter][i],
-		       &par->aty_cmap_regs->lut);
-		writeb(atyfb_save.g[1 - enter][i],
-		       &par->aty_cmap_regs->lut);
-		writeb(atyfb_save.b[1 - enter][i],
-		       &par->aty_cmap_regs->lut);
+		aty_st_8(DAC_R_INDEX, i, par);
+		atyfb_save.r[enter][i] = aty_ld_8(DAC_DATA, par);
+		atyfb_save.g[enter][i] = aty_ld_8(DAC_DATA, par);
+		atyfb_save.b[enter][i] = aty_ld_8(DAC_DATA, par);
+		aty_st_8(DAC_W_INDEX, i, par);
+		aty_st_8(DAC_DATA, atyfb_save.r[1 - enter][i], par);
+		aty_st_8(DAC_DATA, atyfb_save.g[1 - enter][i], par);
+		aty_st_8(DAC_DATA, atyfb_save.b[1 - enter][i], par);
 	}
 }
 
@@ -2354,9 +2343,6 @@ static int __devinit aty_init(struct fb_info *info)
 
 	init_waitqueue_head(&par->vblank.wait);
 	spin_lock_init(&par->int_lock);
-
-	par->aty_cmap_regs =
-	    (struct aty_cmap_regs __iomem *) (par->ati_regbase + 0xc0);
 
 #ifdef CONFIG_PPC_PMAC
 	/* The Apple iBook1 uses non-standard memory frequencies. We detect it
@@ -2862,17 +2848,10 @@ static int atyfb_blank(int blank, struct fb_info *info)
 static void aty_st_pal(u_int regno, u_int red, u_int green, u_int blue,
 		       const struct atyfb_par *par)
 {
-#ifdef CONFIG_ATARI
-	out_8(&par->aty_cmap_regs->windex, regno);
-	out_8(&par->aty_cmap_regs->lut, red);
-	out_8(&par->aty_cmap_regs->lut, green);
-	out_8(&par->aty_cmap_regs->lut, blue);
-#else
-	writeb(regno, &par->aty_cmap_regs->windex);
-	writeb(red, &par->aty_cmap_regs->lut);
-	writeb(green, &par->aty_cmap_regs->lut);
-	writeb(blue, &par->aty_cmap_regs->lut);
-#endif
+	aty_st_8(DAC_W_INDEX, regno, par);
+	aty_st_8(DAC_DATA, red, par);
+	aty_st_8(DAC_DATA, green, par);
+	aty_st_8(DAC_DATA, blue, par);
 }
 
     /*

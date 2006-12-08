@@ -126,7 +126,6 @@ union aty_pll {
      */
 
 struct atyfb_par {
-	struct aty_cmap_regs __iomem *aty_cmap_regs;
 	struct { u8 red, green, blue; } palette[256];
 	const struct aty_dac_ops *dac_ops;
 	const struct aty_pll_ops *pll_ops;
