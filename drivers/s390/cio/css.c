@@ -91,9 +91,9 @@ css_free_subchannel(struct subchannel *sch)
 		/* Reset intparm to zeroes. */
 		sch->schib.pmcw.intparm = 0;
 		cio_modify(sch);
+		kfree(sch->lock);
 		kfree(sch);
 	}
-	
 }
 
 static void
@@ -102,8 +102,10 @@ css_subchannel_release(struct device *dev)
 	struct subchannel *sch;
 
 	sch = to_subchannel(dev);
-	if (!cio_is_console(sch->schid))
+	if (!cio_is_console(sch->schid)) {
+		kfree(sch->lock);
 		kfree(sch);
+	}
 }
 
 extern int css_get_ssd_info(struct subchannel *sch);
@@ -206,18 +208,18 @@ static int css_evaluate_known_subchannel(struct subchannel *sch, int slow)
 	unsigned long flags;
 	enum { NONE, UNREGISTER, UNREGISTER_PROBE, REPROBE } action;
 
-	spin_lock_irqsave(&sch->lock, flags);
+	spin_lock_irqsave(sch->lock, flags);
 	disc = device_is_disconnected(sch);
 	if (disc && slow) {
 		/* Disconnected devices are evaluated directly only.*/
-		spin_unlock_irqrestore(&sch->lock, flags);
+		spin_unlock_irqrestore(sch->lock, flags);
 		return 0;
 	}
 	/* No interrupt after machine check - kill pending timers. */
 	device_kill_pending_timer(sch);
 	if (!disc && !slow) {
 		/* Non-disconnected devices are evaluated on the slow path. */
-		spin_unlock_irqrestore(&sch->lock, flags);
+		spin_unlock_irqrestore(sch->lock, flags);
 		return -EAGAIN;
 	}
 	event = css_get_subchannel_status(sch);
@@ -242,9 +244,9 @@ static int css_evaluate_known_subchannel(struct subchannel *sch, int slow)
 		/* Ask driver what to do with device. */
 		action = UNREGISTER;
 		if (sch->driver && sch->driver->notify) {
-			spin_unlock_irqrestore(&sch->lock, flags);
+			spin_unlock_irqrestore(sch->lock, flags);
 			ret = sch->driver->notify(&sch->dev, event);
-			spin_lock_irqsave(&sch->lock, flags);
+			spin_lock_irqsave(sch->lock, flags);
 			if (ret)
 				action = NONE;
 		}
@@ -269,9 +271,9 @@ static int css_evaluate_known_subchannel(struct subchannel *sch, int slow)
 	case UNREGISTER:
 	case UNREGISTER_PROBE:
 		/* Unregister device (will use subchannel lock). */
-		spin_unlock_irqrestore(&sch->lock, flags);
+		spin_unlock_irqrestore(sch->lock, flags);
 		css_sch_device_unregister(sch);
-		spin_lock_irqsave(&sch->lock, flags);
+		spin_lock_irqsave(sch->lock, flags);
 
 		/* Reset intparm to zeroes. */
 		sch->schib.pmcw.intparm = 0;
@@ -283,7 +285,7 @@ static int css_evaluate_known_subchannel(struct subchannel *sch, int slow)
 	default:
 		break;
 	}
-	spin_unlock_irqrestore(&sch->lock, flags);
+	spin_unlock_irqrestore(sch->lock, flags);
 	/* Probe if necessary. */
 	if (action == UNREGISTER_PROBE)
 		ret = css_probe_device(sch->schid);

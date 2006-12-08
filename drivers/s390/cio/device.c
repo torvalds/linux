@@ -774,9 +774,9 @@ io_subchannel_register(struct work_struct *work)
 		printk (KERN_WARNING "%s: could not register %s\n",
 			__func__, cdev->dev.bus_id);
 		put_device(&cdev->dev);
-		spin_lock_irqsave(&sch->lock, flags);
+		spin_lock_irqsave(sch->lock, flags);
 		sch->dev.driver_data = NULL;
-		spin_unlock_irqrestore(&sch->lock, flags);
+		spin_unlock_irqrestore(sch->lock, flags);
 		kfree (cdev->private);
 		kfree (cdev);
 		put_device(&sch->dev);
@@ -860,7 +860,7 @@ io_subchannel_recog(struct ccw_device *cdev, struct subchannel *sch)
 
 	sch->dev.driver_data = cdev;
 	sch->driver = &io_subchannel_driver;
-	cdev->ccwlock = &sch->lock;
+	cdev->ccwlock = sch->lock;
 
 	/* Init private data. */
 	priv = cdev->private;
@@ -880,9 +880,9 @@ io_subchannel_recog(struct ccw_device *cdev, struct subchannel *sch)
 	atomic_inc(&ccw_device_init_count);
 
 	/* Start async. device sensing. */
-	spin_lock_irq(&sch->lock);
+	spin_lock_irq(sch->lock);
 	rc = ccw_device_recognition(cdev);
-	spin_unlock_irq(&sch->lock);
+	spin_unlock_irq(sch->lock);
 	if (rc) {
 		if (atomic_dec_and_test(&ccw_device_init_count))
 			wake_up(&ccw_device_init_wq);
@@ -924,9 +924,9 @@ io_subchannel_probe (struct subchannel *sch)
 
 	rc = io_subchannel_recog(cdev, sch);
 	if (rc) {
-		spin_lock_irqsave(&sch->lock, flags);
+		spin_lock_irqsave(sch->lock, flags);
 		sch->dev.driver_data = NULL;
-		spin_unlock_irqrestore(&sch->lock, flags);
+		spin_unlock_irqrestore(sch->lock, flags);
 		if (cdev->dev.release)
 			cdev->dev.release(&cdev->dev);
 	}
@@ -1035,6 +1035,13 @@ io_subchannel_shutdown(struct subchannel *sch)
 static struct ccw_device console_cdev;
 static struct ccw_device_private console_private;
 static int console_cdev_in_use;
+
+static DEFINE_SPINLOCK(ccw_console_lock);
+
+spinlock_t * cio_get_console_lock(void)
+{
+	return &ccw_console_lock;
+}
 
 static int
 ccw_device_console_enable (struct ccw_device *cdev, struct subchannel *sch)

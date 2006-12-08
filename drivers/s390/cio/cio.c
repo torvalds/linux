@@ -143,11 +143,11 @@ cio_tpi(void)
 		return 1;
 	local_bh_disable();
 	irq_enter ();
-	spin_lock(&sch->lock);
+	spin_lock(sch->lock);
 	memcpy (&sch->schib.scsw, &irb->scsw, sizeof (struct scsw));
 	if (sch->driver && sch->driver->irq)
 		sch->driver->irq(&sch->dev);
-	spin_unlock(&sch->lock);
+	spin_unlock(sch->lock);
 	irq_exit ();
 	_local_bh_enable();
 	return 1;
@@ -496,6 +496,15 @@ cio_disable_subchannel (struct subchannel *sch)
 	return ret;
 }
 
+static int cio_create_sch_lock(struct subchannel *sch)
+{
+	sch->lock = kmalloc(sizeof(spinlock_t), GFP_KERNEL);
+	if (!sch->lock)
+		return -ENOMEM;
+	spin_lock_init(sch->lock);
+	return 0;
+}
+
 /*
  * cio_validate_subchannel()
  *
@@ -513,6 +522,7 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 {
 	char dbf_txt[15];
 	int ccode;
+	int err;
 
 	sprintf (dbf_txt, "valsch%x", schid.sch_no);
 	CIO_TRACE_EVENT (4, dbf_txt);
@@ -520,9 +530,15 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 	/* Nuke all fields. */
 	memset(sch, 0, sizeof(struct subchannel));
 
-	spin_lock_init(&sch->lock);
+	sch->schid = schid;
+	if (cio_is_console(schid)) {
+		sch->lock = cio_get_console_lock();
+	} else {
+		err = cio_create_sch_lock(sch);
+		if (err)
+			goto out;
+	}
 	mutex_init(&sch->reg_mutex);
-
 	/* Set a name for the subchannel */
 	snprintf (sch->dev.bus_id, BUS_ID_SIZE, "0.%x.%04x", schid.ssid,
 		  schid.sch_no);
@@ -534,10 +550,10 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 	 *  is not valid.
 	 */
 	ccode = stsch_err (schid, &sch->schib);
-	if (ccode)
-		return (ccode == 3) ? -ENXIO : ccode;
-
-	sch->schid = schid;
+	if (ccode) {
+		err = (ccode == 3) ? -ENXIO : ccode;
+		goto out;
+	}
 	/* Copy subchannel type from path management control word. */
 	sch->st = sch->schib.pmcw.st;
 
@@ -550,14 +566,16 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 			  "non-I/O subchannel type %04X\n",
 			  sch->schid.ssid, sch->schid.sch_no, sch->st);
 		/* We stop here for non-io subchannels. */
-		return sch->st;
+		err = sch->st;
+		goto out;
 	}
 
 	/* Initialization for io subchannels. */
-	if (!sch->schib.pmcw.dnv)
+	if (!sch->schib.pmcw.dnv) {
 		/* io subchannel but device number is invalid. */
-		return -ENODEV;
-
+		err = -ENODEV;
+		goto out;
+	}
 	/* Devno is valid. */
 	if (is_blacklisted (sch->schid.ssid, sch->schib.pmcw.dev)) {
 		/*
@@ -567,7 +585,8 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 		CIO_MSG_EVENT(0, "Blacklisted device detected "
 			      "at devno %04X, subchannel set %x\n",
 			      sch->schib.pmcw.dev, sch->schid.ssid);
-		return -ENODEV;
+		err = -ENODEV;
+		goto out;
 	}
 	sch->opm = 0xff;
 	if (!cio_is_console(sch->schid))
@@ -595,6 +614,11 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 	if ((sch->lpm & (sch->lpm - 1)) != 0)
 		sch->schib.pmcw.mp = 1;	/* multipath mode */
 	return 0;
+out:
+	if (!cio_is_console(schid))
+		kfree(sch->lock);
+	sch->lock = NULL;
+	return err;
 }
 
 /*
@@ -637,7 +661,7 @@ do_IRQ (struct pt_regs *regs)
 		}
 		sch = (struct subchannel *)(unsigned long)tpi_info->intparm;
 		if (sch)
-			spin_lock(&sch->lock);
+			spin_lock(sch->lock);
 		/* Store interrupt response block to lowcore. */
 		if (tsch (tpi_info->schid, irb) == 0 && sch) {
 			/* Keep subchannel information word up to date. */
@@ -648,7 +672,7 @@ do_IRQ (struct pt_regs *regs)
 				sch->driver->irq(&sch->dev);
 		}
 		if (sch)
-			spin_unlock(&sch->lock);
+			spin_unlock(sch->lock);
 		/*
 		 * Are more interrupts pending?
 		 * If so, the tpi instruction will update the lowcore
@@ -687,10 +711,10 @@ wait_cons_dev (void)
 	__ctl_load (cr6, 6, 6);
 
 	do {
-		spin_unlock(&console_subchannel.lock);
+		spin_unlock(console_subchannel.lock);
 		if (!cio_tpi())
 			cpu_relax();
-		spin_lock(&console_subchannel.lock);
+		spin_lock(console_subchannel.lock);
 	} while (console_subchannel.schib.scsw.actl != 0);
 	/*
 	 * restore previous isc value
