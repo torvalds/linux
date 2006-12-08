@@ -498,6 +498,16 @@ asmlinkage void break_point_trap_software(unsigned long r4, unsigned long r5,
 {
 	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 
+	/* Rewind */
 	regs->pc -= 2;
+
+#ifdef CONFIG_BUG
+	if (__kernel_text_address(instruction_pointer(regs))) {
+		u16 insn = *(u16 *)instruction_pointer(regs);
+		if (insn == TRAPA_BUG_OPCODE)
+			handle_BUG(regs);
+	}
+#endif
+
 	force_sig(SIGTRAP, current);
 }
