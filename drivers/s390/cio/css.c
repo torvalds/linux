@@ -137,6 +137,7 @@ css_register_subchannel(struct subchannel *sch)
 	sch->dev.parent = &css[0]->device;
 	sch->dev.bus = &css_bus_type;
 	sch->dev.release = &css_subchannel_release;
+	sch->dev.groups = subch_attr_groups;
 
 	/* make it known to the system */
 	ret = css_sch_device_register(sch);
@@ -146,10 +147,6 @@ css_register_subchannel(struct subchannel *sch)
 		return ret;
 	}
 	css_get_ssd_info(sch);
-	ret = subchannel_add_files(&sch->dev);
-	if (ret)
-		printk(KERN_WARNING "%s: could not add attributes to %s\n",
-		       __func__, sch->dev.bus_id);
 	return ret;
 }
 

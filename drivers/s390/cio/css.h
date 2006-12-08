@@ -195,4 +195,5 @@ extern struct workqueue_struct *slow_path_wq;
 extern struct work_struct slow_path_work;
 
 int subchannel_add_files (struct device *);
+extern struct attribute_group *subch_attr_groups[];
 #endif

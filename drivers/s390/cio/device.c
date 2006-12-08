@@ -235,9 +235,11 @@ chpids_show (struct device * dev, struct device_attribute *attr, char * buf)
 	ssize_t ret = 0;
 	int chp;
 
-	for (chp = 0; chp < 8; chp++)
-		ret += sprintf (buf+ret, "%02x ", ssd->chpid[chp]);
-
+	if (ssd)
+		for (chp = 0; chp < 8; chp++)
+			ret += sprintf (buf+ret, "%02x ", ssd->chpid[chp]);
+	else
+		ret += sprintf (buf, "n/a");
 	ret += sprintf (buf+ret, "\n");
 	return min((ssize_t)PAGE_SIZE, ret);
 }
@@ -531,10 +533,10 @@ static struct attribute_group subch_attr_group = {
 	.attrs = subch_attrs,
 };
 
-int subchannel_add_files (struct device *dev)
-{
-	return sysfs_create_group(&dev->kobj, &subch_attr_group);
-}
+struct attribute_group *subch_attr_groups[] = {
+	&subch_attr_group,
+	NULL,
+};
 
 static struct attribute * ccwdev_attrs[] = {
 	&dev_attr_devtype.attr,
