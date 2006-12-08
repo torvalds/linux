@@ -3009,7 +3009,7 @@ static inline struct jfs_dirent *next_jfs_dirent(struct jfs_dirent *dirent)
  */
 int jfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode *ip = filp->f_dentry->d_inode;
+	struct inode *ip = filp->f_path.dentry->d_inode;
 	struct nls_table *codepage = JFS_SBI(ip->i_sb)->nls_tab;
 	int rc = 0;
 	loff_t dtpos;	/* legacy OS/2 style position */
