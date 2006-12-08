@@ -1136,8 +1136,7 @@ static struct cpu_spec cpu_specs[] = {
 		.pvr_mask		= 0xff000fff,
 		.pvr_value		= 0x53000890,
 		.cpu_name		= "440SPe Rev. A",
-		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB,
+		.cpu_features		= CPU_FTRS_44X,
 		.cpu_user_features	= COMMON_USER_BOOKE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
