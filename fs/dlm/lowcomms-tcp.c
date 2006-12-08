@@ -143,7 +143,7 @@ static DECLARE_WAIT_QUEUE_HEAD(lowcomms_recv_waitq);
 /* An array of pointers to connections, indexed by NODEID */
 static struct connection **connections;
 static DECLARE_MUTEX(connections_lock);
-static kmem_cache_t *con_cache;
+static struct kmem_cache *con_cache;
 static int conn_array_size;
 
 /* List of sockets that have reads pending */
