@@ -454,7 +454,7 @@ static ssize_t arcfb_write(struct file *file, const char __user *buf, size_t cou
 	unsigned int xres;
 
 	p = *ppos;
-	inode = file->f_dentry->d_inode;
+	inode = file->f_path.dentry->d_inode;
 	fbidx = iminor(inode);
 	info = registered_fb[fbidx];
 
