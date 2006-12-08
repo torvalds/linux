@@ -173,11 +173,12 @@ static int prev_card = 3;	/*	start servicing isi_card[0]	*/
 static struct tty_driver *isicom_normal;
 
 static DECLARE_COMPLETION(isi_timerdone);
-static struct timer_list tx;
 static char re_schedule = 1;
 
 static void isicom_tx(unsigned long _data);
 static void isicom_start(struct tty_struct *tty);
+
+static DEFINE_TIMER(tx, isicom_tx, 0, 0);
 
 /*   baud index mappings from linux defns to isi */
 
@@ -519,13 +520,7 @@ sched_again:
  		return;
 	}
 
-	init_timer(&tx);
-	tx.expires = jiffies + HZ/100;
-	tx.data = 0;
-	tx.function = isicom_tx;
-	add_timer(&tx);
-
-	return;
+	mod_timer(&tx, jiffies + msecs_to_jiffies(10));
 }
 
 /* 	Interrupt handlers 	*/
@@ -1907,12 +1902,7 @@ static int __init isicom_init(void)
 		goto err_unrtty;
 	}
 
-	init_timer(&tx);
-	tx.expires = jiffies + 1;
-	tx.data = 0;
-	tx.function = isicom_tx;
-	re_schedule = 1;
-	add_timer(&tx);
+	mod_timer(&tx, jiffies + 1);
 
 	return 0;
 err_unrtty:
