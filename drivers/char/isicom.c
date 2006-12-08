@@ -195,6 +195,7 @@ struct	isi_board {
 	signed char		count;
 	spinlock_t		card_lock; /* Card wide lock 11/5/00 -sameer */
 	unsigned long		flags;
+	unsigned int		index;
 };
 
 struct	isi_port {
@@ -1781,6 +1782,7 @@ static int __devinit isicom_probe(struct pci_dev *pdev,
 			break;
 		}
 
+	board->index = index;
 	board->base = ioaddr;
 	board->irq = pciirq;
 	card++;
@@ -1811,6 +1813,10 @@ static int __devinit isicom_probe(struct pci_dev *pdev,
 	if (retval < 0)
 		goto errunri;
 
+	for (index = 0; index < board->port_count; index++)
+		tty_register_device(isicom_normal, board->index * 16 + index,
+				&pdev->dev);
+
 	return 0;
 
 errunri:
@@ -1825,6 +1831,10 @@ err:
 static void __devexit isicom_remove(struct pci_dev *pdev)
 {
 	struct isi_board *board = pci_get_drvdata(pdev);
+	unsigned int i;
+
+	for (i = 0; i < board->port_count; i++)
+		tty_unregister_device(isicom_normal, board->index * 16 + i);
 
 	free_irq(board->irq, board);
 	release_region(board->base, 16);
@@ -1874,7 +1884,8 @@ static int __init isicom_init(void)
 	isicom_normal->init_termios		= tty_std_termios;
 	isicom_normal->init_termios.c_cflag	= B9600 | CS8 | CREAD | HUPCL |
 		CLOCAL;
-	isicom_normal->flags			= TTY_DRIVER_REAL_RAW;
+	isicom_normal->flags			= TTY_DRIVER_REAL_RAW |
+		TTY_DRIVER_DYNAMIC_DEV;
 	tty_set_operations(isicom_normal, &isicom_ops);
 
 	retval = tty_register_driver(isicom_normal);
