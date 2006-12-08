@@ -1836,7 +1836,6 @@ static int __init isicom_init(void)
 	struct isi_port *port;
 
 	card = 0;
-	memset(isi_ports, 0, sizeof(isi_ports));
 
 	for(idx = 0; idx < BOARD_COUNT; idx++) {
 		port = &isi_ports[idx * 16];
