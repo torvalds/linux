@@ -5,6 +5,7 @@
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/module.h>
+#include <linux/interrupt.h>
 #include <linux/fault-inject.h>
 
 /*
@@ -44,6 +45,11 @@ static void fail_dump(struct fault_attr *attr)
 
 #define atomic_dec_not_zero(v)		atomic_add_unless((v), -1, 0)
 
+static int fail_task(struct fault_attr *attr, struct task_struct *task)
+{
+	return !in_interrupt() && task->make_it_fail;
+}
+
 /*
  * This code is stolen from failmalloc-1.0
  * http://www.nongnu.org/failmalloc/
@@ -51,6 +57,9 @@ static void fail_dump(struct fault_attr *attr)
 
 int should_fail(struct fault_attr *attr, ssize_t size)
 {
+	if (attr->task_filter && !fail_task(attr, current))
+		return 0;
+
 	if (atomic_read(&attr->times) == 0)
 		return 0;
 
@@ -135,6 +144,9 @@ void cleanup_fault_attr_dentries(struct fault_attr *attr)
 	debugfs_remove(attr->dentries.verbose_file);
 	attr->dentries.verbose_file = NULL;
 
+	debugfs_remove(attr->dentries.task_filter_file);
+	attr->dentries.task_filter_file = NULL;
+
 	if (attr->dentries.dir)
 		WARN_ON(!simple_empty(attr->dentries.dir));
 
@@ -169,9 +181,12 @@ int init_fault_attr_dentries(struct fault_attr *attr, const char *name)
 	attr->dentries.verbose_file =
 		debugfs_create_ul("verbose", mode, dir, &attr->verbose);
 
+	attr->dentries.task_filter_file = debugfs_create_bool("task-filter",
+						mode, dir, &attr->task_filter);
+
 	if (!attr->dentries.probability_file || !attr->dentries.interval_file
 	    || !attr->dentries.times_file || !attr->dentries.space_file
-	    || !attr->dentries.verbose_file)
+	    || !attr->dentries.verbose_file || !attr->dentries.task_filter_file)
 		goto fail;
 
 	return 0;

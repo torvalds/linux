@@ -17,6 +17,7 @@ struct fault_attr {
 	atomic_t times;
 	atomic_t space;
 	unsigned long verbose;
+	u32 task_filter;
 
 	unsigned long count;
 
@@ -30,6 +31,7 @@ struct fault_attr {
 		struct dentry *times_file;
 		struct dentry *space_file;
 		struct dentry *verbose_file;
+		struct dentry *task_filter_file;
 	} dentries;
 
 #endif
