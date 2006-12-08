@@ -579,7 +579,7 @@ parse_record:
 	if (!memcmp(de->name, MSDOS_DOT, MSDOS_NAME))
 		inum = inode->i_ino;
 	else if (!memcmp(de->name, MSDOS_DOTDOT, MSDOS_NAME)) {
-		inum = parent_ino(filp->f_dentry);
+		inum = parent_ino(filp->f_path.dentry);
 	} else {
 		loff_t i_pos = fat_make_i_pos(sb, bh, de);
 		struct inode *tmp = fat_iget(sb, i_pos);
@@ -643,7 +643,7 @@ out:
 
 static int fat_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	return __fat_readdir(inode, filp, dirent, filldir, 0, 0);
 }
 
@@ -782,7 +782,7 @@ static long fat_compat_dir_ioctl(struct file *file, unsigned cmd,
 
 	set_fs(KERNEL_DS);
 	lock_kernel();
-	ret = fat_dir_ioctl(file->f_dentry->d_inode, file,
+	ret = fat_dir_ioctl(file->f_path.dentry->d_inode, file,
 			    cmd, (unsigned long) &d);
 	unlock_kernel();
 	set_fs(oldfs);
