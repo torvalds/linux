@@ -73,6 +73,8 @@ struct senseid {
 }  __attribute__ ((packed,aligned(4)));
 
 struct ccw_device_private {
+	struct ccw_device *cdev;
+	struct subchannel *sch;
 	int state;		/* device state */
 	atomic_t onoff;
 	unsigned long registered;

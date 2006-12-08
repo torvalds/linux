@@ -2045,11 +2045,13 @@ omit_handler_call:
 }
 
 static void
-qdio_call_shutdown(void *data)
+qdio_call_shutdown(struct work_struct *work)
 {
+	struct ccw_device_private *priv;
 	struct ccw_device *cdev;
 
-	cdev = (struct ccw_device *)data;
+	priv = container_of(work, struct ccw_device_private, kick_work);
+	cdev = priv->cdev;
 	qdio_shutdown(cdev, QDIO_FLAG_CLEANUP_USING_CLEAR);
 	put_device(&cdev->dev);
 }
@@ -2091,7 +2093,7 @@ qdio_timeout_handler(struct ccw_device *cdev)
 		if (get_device(&cdev->dev)) {
 			/* Can't call shutdown from interrupt context. */
 			PREPARE_WORK(&cdev->private->kick_work,
-				     qdio_call_shutdown, (void *)cdev);
+				     qdio_call_shutdown);
 			queue_work(ccw_device_work, &cdev->private->kick_work);
 		}
 		break;

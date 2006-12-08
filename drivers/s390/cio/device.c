@@ -585,12 +585,13 @@ static struct ccw_device * get_disc_ccwdev_by_dev_id(struct ccw_dev_id *dev_id,
 }
 
 static void
-ccw_device_add_changed(void *data)
+ccw_device_add_changed(struct work_struct *work)
 {
-
+	struct ccw_device_private *priv;
 	struct ccw_device *cdev;
 
-	cdev = data;
+	priv = container_of(work, struct ccw_device_private, kick_work);
+	cdev = priv->cdev;
 	if (device_add(&cdev->dev)) {
 		put_device(&cdev->dev);
 		return;
@@ -605,13 +606,15 @@ ccw_device_add_changed(void *data)
 extern int css_get_ssd_info(struct subchannel *sch);
 
 void
-ccw_device_do_unreg_rereg(void *data)
+ccw_device_do_unreg_rereg(struct work_struct *work)
 {
+	struct ccw_device_private *priv;
 	struct ccw_device *cdev;
 	struct subchannel *sch;
 	int need_rename;
 
-	cdev = data;
+	priv = container_of(work, struct ccw_device_private, kick_work);
+	cdev = priv->cdev;
 	sch = to_subchannel(cdev->dev.parent);
 	if (cdev->private->dev_id.devno != sch->schib.pmcw.dev) {
 		/*
@@ -659,7 +662,7 @@ ccw_device_do_unreg_rereg(void *data)
 		snprintf (cdev->dev.bus_id, BUS_ID_SIZE, "0.%x.%04x",
 			  sch->schid.ssid, sch->schib.pmcw.dev);
 	PREPARE_WORK(&cdev->private->kick_work,
-		     ccw_device_add_changed, cdev);
+		     ccw_device_add_changed);
 	queue_work(ccw_device_work, &cdev->private->kick_work);
 }
 
@@ -677,14 +680,16 @@ ccw_device_release(struct device *dev)
  * Register recognized device.
  */
 static void
-io_subchannel_register(void *data)
+io_subchannel_register(struct work_struct *work)
 {
+	struct ccw_device_private *priv;
 	struct ccw_device *cdev;
 	struct subchannel *sch;
 	int ret;
 	unsigned long flags;
 
-	cdev = data;
+	priv = container_of(work, struct ccw_device_private, kick_work);
+	cdev = priv->cdev;
 	sch = to_subchannel(cdev->dev.parent);
 
 	/*
@@ -734,11 +739,14 @@ out:
 }
 
 void
-ccw_device_call_sch_unregister(void *data)
+ccw_device_call_sch_unregister(struct work_struct *work)
 {
-	struct ccw_device *cdev = data;
+	struct ccw_device_private *priv;
+	struct ccw_device *cdev;
 	struct subchannel *sch;
 
+	priv = container_of(work, struct ccw_device_private, kick_work);
+	cdev = priv->cdev;
 	sch = to_subchannel(cdev->dev.parent);
 	css_sch_device_unregister(sch);
 	/* Reset intparm to zeroes. */
@@ -768,7 +776,7 @@ io_subchannel_recog_done(struct ccw_device *cdev)
 			break;
 		sch = to_subchannel(cdev->dev.parent);
 		PREPARE_WORK(&cdev->private->kick_work,
-			     ccw_device_call_sch_unregister, cdev);
+			     ccw_device_call_sch_unregister);
 		queue_work(slow_path_wq, &cdev->private->kick_work);
 		if (atomic_dec_and_test(&ccw_device_init_count))
 			wake_up(&ccw_device_init_wq);
@@ -783,7 +791,7 @@ io_subchannel_recog_done(struct ccw_device *cdev)
 		if (!get_device(&cdev->dev))
 			break;
 		PREPARE_WORK(&cdev->private->kick_work,
-			     io_subchannel_register, cdev);
+			     io_subchannel_register);
 		queue_work(slow_path_wq, &cdev->private->kick_work);
 		break;
 	}
@@ -865,6 +873,7 @@ io_subchannel_probe (struct subchannel *sch)
 		kfree(cdev);
 		return -ENOMEM;
 	}
+	cdev->private->cdev = cdev;
 	atomic_set(&cdev->private->onoff, 0);
 	cdev->dev.parent = &sch->dev;
 	cdev->dev.release = ccw_device_release;
@@ -890,12 +899,13 @@ io_subchannel_probe (struct subchannel *sch)
 	return rc;
 }
 
-static void
-ccw_device_unregister(void *data)
+static void ccw_device_unregister(struct work_struct *work)
 {
+	struct ccw_device_private *priv;
 	struct ccw_device *cdev;
 
-	cdev = (struct ccw_device *)data;
+	priv = container_of(work, struct ccw_device_private, kick_work);
+	cdev = priv->cdev;
 	if (test_and_clear_bit(1, &cdev->private->registered))
 		device_unregister(&cdev->dev);
 	put_device(&cdev->dev);
@@ -921,7 +931,7 @@ io_subchannel_remove (struct subchannel *sch)
 	 */
 	if (get_device(&cdev->dev)) {
 		PREPARE_WORK(&cdev->private->kick_work,
-			     ccw_device_unregister, cdev);
+			     ccw_device_unregister);
 		queue_work(ccw_device_work, &cdev->private->kick_work);
 	}
 	return 0;
@@ -1048,6 +1058,7 @@ ccw_device_probe_console(void)
 	memset(&console_cdev, 0, sizeof(struct ccw_device));
 	memset(&console_private, 0, sizeof(struct ccw_device_private));
 	console_cdev.private = &console_private;
+	console_private.cdev = &console_cdev;
 	ret = ccw_device_console_enable(&console_cdev, sch);
 	if (ret) {
 		cio_release_console();
