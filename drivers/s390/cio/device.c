@@ -294,6 +294,18 @@ online_show (struct device *dev, struct device_attribute *attr, char *buf)
 	return sprintf(buf, cdev->online ? "1\n" : "0\n");
 }
 
+static void ccw_device_unregister(struct work_struct *work)
+{
+	struct ccw_device_private *priv;
+	struct ccw_device *cdev;
+
+	priv = container_of(work, struct ccw_device_private, kick_work);
+	cdev = priv->cdev;
+	if (test_and_clear_bit(1, &cdev->private->registered))
+		device_unregister(&cdev->dev);
+	put_device(&cdev->dev);
+}
+
 static void
 ccw_device_remove_disconnected(struct ccw_device *cdev)
 {
@@ -498,8 +510,7 @@ static struct attribute_group subch_attr_group = {
 	.attrs = subch_attrs,
 };
 
-static inline int
-subchannel_add_files (struct device *dev)
+int subchannel_add_files (struct device *dev)
 {
 	return sysfs_create_group(&dev->kobj, &subch_attr_group);
 }
@@ -676,6 +687,55 @@ ccw_device_release(struct device *dev)
 	kfree(cdev);
 }
 
+static struct ccw_device * io_subchannel_allocate_dev(struct subchannel *sch)
+{
+	struct ccw_device *cdev;
+
+	cdev  = kzalloc(sizeof(*cdev), GFP_KERNEL);
+	if (cdev) {
+		cdev->private = kzalloc(sizeof(struct ccw_device_private),
+					GFP_KERNEL | GFP_DMA);
+		if (cdev->private)
+			return cdev;
+	}
+	kfree(cdev);
+	return ERR_PTR(-ENOMEM);
+}
+
+static int io_subchannel_initialize_dev(struct subchannel *sch,
+					struct ccw_device *cdev)
+{
+	cdev->private->cdev = cdev;
+	atomic_set(&cdev->private->onoff, 0);
+	cdev->dev.parent = &sch->dev;
+	cdev->dev.release = ccw_device_release;
+	INIT_LIST_HEAD(&cdev->private->kick_work.entry);
+	/* Do first half of device_register. */
+	device_initialize(&cdev->dev);
+	if (!get_device(&sch->dev)) {
+		if (cdev->dev.release)
+			cdev->dev.release(&cdev->dev);
+		return -ENODEV;
+	}
+	return 0;
+}
+
+static struct ccw_device * io_subchannel_create_ccwdev(struct subchannel *sch)
+{
+	struct ccw_device *cdev;
+	int ret;
+
+	cdev = io_subchannel_allocate_dev(sch);
+	if (!IS_ERR(cdev)) {
+		ret = io_subchannel_initialize_dev(sch, cdev);
+		if (ret) {
+			kfree(cdev);
+			cdev = ERR_PTR(ret);
+		}
+	}
+	return cdev;
+}
+
 /*
  * Register recognized device.
  */
@@ -724,11 +784,6 @@ io_subchannel_register(struct work_struct *work)
 			wake_up(&ccw_device_init_wq);
 		return;
 	}
-
-	ret = subchannel_add_files(cdev->dev.parent);
-	if (ret)
-		printk(KERN_WARNING "%s: could not add attributes to %s\n",
-		       __func__, sch->dev.bus_id);
 	put_device(&cdev->dev);
 out:
 	cdev->private->flags.recog_done = 1;
@@ -851,7 +906,6 @@ io_subchannel_probe (struct subchannel *sch)
 		cdev = sch->dev.driver_data;
 		device_initialize(&cdev->dev);
 		ccw_device_register(cdev);
-		subchannel_add_files(&sch->dev);
 		/*
 		 * Check if the device is already online. If it is
 		 * the reference count needs to be corrected
@@ -864,28 +918,9 @@ io_subchannel_probe (struct subchannel *sch)
 			get_device(&cdev->dev);
 		return 0;
 	}
-	cdev = kzalloc (sizeof(*cdev), GFP_KERNEL);
-	if (!cdev)
-		return -ENOMEM;
-	cdev->private = kzalloc(sizeof(struct ccw_device_private),
-				GFP_KERNEL | GFP_DMA);
-	if (!cdev->private) {
-		kfree(cdev);
-		return -ENOMEM;
-	}
-	cdev->private->cdev = cdev;
-	atomic_set(&cdev->private->onoff, 0);
-	cdev->dev.parent = &sch->dev;
-	cdev->dev.release = ccw_device_release;
-	INIT_LIST_HEAD(&cdev->private->kick_work.entry);
-	/* Do first half of device_register. */
-	device_initialize(&cdev->dev);
-
-	if (!get_device(&sch->dev)) {
-		if (cdev->dev.release)
-			cdev->dev.release(&cdev->dev);
-		return -ENODEV;
-	}
+	cdev = io_subchannel_create_ccwdev(sch);
+	if (IS_ERR(cdev))
+		return PTR_ERR(cdev);
 
 	rc = io_subchannel_recog(cdev, sch);
 	if (rc) {
@@ -897,18 +932,6 @@ io_subchannel_probe (struct subchannel *sch)
 	}
 
 	return rc;
-}
-
-static void ccw_device_unregister(struct work_struct *work)
-{
-	struct ccw_device_private *priv;
-	struct ccw_device *cdev;
-
-	priv = container_of(work, struct ccw_device_private, kick_work);
-	cdev = priv->cdev;
-	if (test_and_clear_bit(1, &cdev->private->registered))
-		device_unregister(&cdev->dev);
-	put_device(&cdev->dev);
 }
 
 static int

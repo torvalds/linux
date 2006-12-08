@@ -1106,7 +1106,8 @@ device_trigger_reprobe(struct subchannel *sch)
 	/* Update some values. */
 	if (stsch(sch->schid, &sch->schib))
 		return;
-
+	if (!sch->schib.pmcw.dnv)
+		return;
 	/*
 	 * The pim, pam, pom values may not be accurate, but they are the best
 	 * we have before performing device selection :/
