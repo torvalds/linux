@@ -252,7 +252,7 @@ static inline int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 		anon_vma_link(tmp);
 		file = tmp->vm_file;
 		if (file) {
-			struct inode *inode = file->f_dentry->d_inode;
+			struct inode *inode = file->f_path.dentry->d_inode;
 			get_file(file);
 			if (tmp->vm_flags & VM_DENYWRITE)
 				atomic_dec(&inode->i_writecount);

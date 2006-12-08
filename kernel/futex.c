@@ -166,7 +166,7 @@ static inline int match_futex(union futex_key *key1, union futex_key *key2)
 /*
  * Get parameters which are the keys for a futex.
  *
- * For shared mappings, it's (page->index, vma->vm_file->f_dentry->d_inode,
+ * For shared mappings, it's (page->index, vma->vm_file->f_path.dentry->d_inode,
  * offset_within_page).  For private mappings, it's (uaddr, current->mm).
  * We can usually work out the index without swapping in the page.
  *
@@ -223,7 +223,7 @@ static int get_futex_key(u32 __user *uaddr, union futex_key *key)
 	/*
 	 * Linear file mappings are also simple.
 	 */
-	key->shared.inode = vma->vm_file->f_dentry->d_inode;
+	key->shared.inode = vma->vm_file->f_path.dentry->d_inode;
 	key->both.offset++; /* Bit 0 of offset indicates inode-based key. */
 	if (likely(!(vma->vm_flags & VM_NONLINEAR))) {
 		key->shared.pgoff = (((address - vma->vm_start) >> PAGE_SHIFT)
@@ -1528,9 +1528,9 @@ static int futex_fd(u32 __user *uaddr, int signal)
 		goto out;
 	}
 	filp->f_op = &futex_fops;
-	filp->f_vfsmnt = mntget(futex_mnt);
-	filp->f_dentry = dget(futex_mnt->mnt_root);
-	filp->f_mapping = filp->f_dentry->d_inode->i_mapping;
+	filp->f_path.mnt = mntget(futex_mnt);
+	filp->f_path.dentry = dget(futex_mnt->mnt_root);
+	filp->f_mapping = filp->f_path.dentry->d_inode->i_mapping;
 
 	if (signal) {
 		err = __f_setown(filp, task_pid(current), PIDTYPE_PID, 1);

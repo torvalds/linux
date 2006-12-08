@@ -959,7 +959,7 @@ static inline ssize_t relay_file_read_subbufs(struct file *filp,
 	if (!desc->count)
 		return 0;
 
-	mutex_lock(&filp->f_dentry->d_inode->i_mutex);
+	mutex_lock(&filp->f_path.dentry->d_inode->i_mutex);
 	do {
 		if (!relay_file_read_avail(buf, *ppos))
 			break;
@@ -979,7 +979,7 @@ static inline ssize_t relay_file_read_subbufs(struct file *filp,
 			*ppos = relay_file_read_end_pos(buf, read_start, ret);
 		}
 	} while (desc->count && ret);
-	mutex_unlock(&filp->f_dentry->d_inode->i_mutex);
+	mutex_unlock(&filp->f_path.dentry->d_inode->i_mutex);
 
 	return desc->written;
 }

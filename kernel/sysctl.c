@@ -1614,7 +1614,7 @@ static ssize_t do_rw_proc(int write, struct file * file, char __user * buf,
 			  size_t count, loff_t *ppos)
 {
 	int op;
-	struct proc_dir_entry *de = PDE(file->f_dentry->d_inode);
+	struct proc_dir_entry *de = PDE(file->f_path.dentry->d_inode);
 	struct ctl_table *table;
 	size_t res;
 	ssize_t error = -ENOTDIR;
