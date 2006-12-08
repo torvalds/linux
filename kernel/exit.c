@@ -314,7 +314,7 @@ void __set_special_pids(pid_t session, pid_t pgrp)
 	}
 }
 
-void set_special_pids(pid_t session, pid_t pgrp)
+static void set_special_pids(pid_t session, pid_t pgrp)
 {
 	write_lock_irq(&tasklist_lock);
 	__set_special_pids(session, pgrp);

@@ -1240,7 +1240,6 @@ extern struct   mm_struct init_mm;
 
 #define find_task_by_pid(nr)	find_task_by_pid_type(PIDTYPE_PID, nr)
 extern struct task_struct *find_task_by_pid_type(int type, int pid);
-extern void set_special_pids(pid_t session, pid_t pgrp);
 extern void __set_special_pids(pid_t session, pid_t pgrp);
 
 /* per-UID process charging. */
