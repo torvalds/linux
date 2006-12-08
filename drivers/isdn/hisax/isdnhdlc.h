@@ -57,8 +57,6 @@ struct isdnhdlc_vars {
 #define HDLC_CRC_ERROR         2
 #define HDLC_LENGTH_ERROR      3
 
-extern const unsigned char isdnhdlc_bit_rev_tab[256];
-
 extern void isdnhdlc_rcv_init (struct isdnhdlc_vars *hdlc, int do_adapt56);
 
 extern int isdnhdlc_decode (struct isdnhdlc_vars *hdlc, const unsigned char *src, int slen,int *count,
