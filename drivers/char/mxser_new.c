@@ -64,7 +64,7 @@
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 
-#include "mxser.h"
+#include "mxser_new.h"
 
 #define	MXSER_VERSION	"1.8"
 #define	MXSERMAJOR	 174
