@@ -2830,11 +2830,18 @@ static int __init mxser_module_init(void)
 	mxvar_sdriver->subtype = SERIAL_TYPE_NORMAL;
 	mxvar_sdriver->init_termios = tty_std_termios;
 	mxvar_sdriver->init_termios.c_cflag = B9600|CS8|CREAD|HUPCL|CLOCAL;
-	mxvar_sdriver->flags = TTY_DRIVER_REAL_RAW;
+	mxvar_sdriver->flags = TTY_DRIVER_REAL_RAW|TTY_DRIVER_DYNAMIC_DEV;
 	tty_set_operations(mxvar_sdriver, &mxser_ops);
 	mxvar_sdriver->ttys = mxvar_tty;
 	mxvar_sdriver->termios = mxvar_termios;
 	mxvar_sdriver->termios_locked = mxvar_termios_locked;
+
+	retval = tty_register_driver(mxvar_sdriver);
+	if (retval) {
+		printk(KERN_ERR "Couldn't install MOXA Smartio/Industio family "
+				"tty driver !\n");
+		goto err_put;
+	}
 
 	mxvar_diagflag = 0;
 
@@ -2884,6 +2891,10 @@ static int __init mxser_module_init(void)
 			/* mxser_initbrd will hook ISR. */
 			if (mxser_initbrd(brd) < 0)
 				continue;
+
+			for (i = 0; i < brd->nports; i++)
+				tty_register_device(mxvar_sdriver,
+					m * MXSER_PORTS_PER_BOARD + i, NULL);
 
 			m++;
 		}
@@ -2939,6 +2950,11 @@ static int __init mxser_module_init(void)
 			/* mxser_initbrd will hook ISR. */
 			if (mxser_initbrd(brd) < 0)
 				continue;
+			for (i = 0; i < brd->nports; i++)
+				tty_register_device(mxvar_sdriver,
+					m * MXSER_PORTS_PER_BOARD + i,
+					&pdev->dev);
+
 			m++;
 			/* Keep an extra reference if we succeeded. It will
 			   be returned at unload time */
@@ -2946,20 +2962,18 @@ static int __init mxser_module_init(void)
 		}
 	}
 
-	retval = tty_register_driver(mxvar_sdriver);
-	if (retval) {
-		printk(KERN_ERR "Couldn't install MOXA Smartio/Industio family"
-				" driver !\n");
-		put_tty_driver(mxvar_sdriver);
-
-		for (i = 0; i < MXSER_BOARDS; i++)
-			if (mxser_boards[i].board_type != -1)
-				mxser_release_res(&mxser_boards[i], 1);
-		return retval;
+	if (!m) {
+		retval = -ENODEV;
+		goto err_unr;
 	}
 
 	pr_debug("Done.\n");
 
+	return 0;
+err_unr:
+	tty_unregister_driver(mxvar_sdriver);
+err_put:
+	put_tty_driver(mxvar_sdriver);
 	return retval;
 }
 
@@ -2969,6 +2983,8 @@ static void __exit mxser_module_exit(void)
 
 	pr_debug("Unloading module mxser ...\n");
 
+	for (i = 0; i < MXSER_PORTS; i++)
+		tty_unregister_device(mxvar_sdriver, i);
 	tty_unregister_driver(mxvar_sdriver);
 	put_tty_driver(mxvar_sdriver);
 
