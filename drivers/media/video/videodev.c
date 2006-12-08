@@ -105,7 +105,7 @@ static DEFINE_MUTEX(videodev_lock);
 
 struct video_device* video_devdata(struct file *file)
 {
-	return video_device[iminor(file->f_dentry->d_inode)];
+	return video_device[iminor(file->f_path.dentry->d_inode)];
 }
 
 /*
