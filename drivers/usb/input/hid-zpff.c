@@ -27,7 +27,7 @@
 
 #include <linux/input.h>
 #include <linux/usb.h>
-#include "hid.h"
+#include <linux/hid.h>
 
 struct zpff_device {
 	struct hid_report *report;

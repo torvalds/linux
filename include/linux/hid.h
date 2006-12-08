@@ -6,6 +6,7 @@
  *
  *  Copyright (c) 1999 Andreas Gal
  *  Copyright (c) 2000-2001 Vojtech Pavlik
+ *  Copyright (c) 2006 Jiri Kosina
  */
 
 /*
@@ -33,6 +34,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+#include <linux/input.h>
 
 /*
  * USB HID (Human Interface Device) interface class code
@@ -260,7 +262,7 @@ struct hid_item {
 #define HID_QUIRK_POWERBOOK_HAS_FN		0x00001000
 #define HID_QUIRK_POWERBOOK_FN_ON		0x00002000
 #define HID_QUIRK_INVERT_HWHEEL			0x00004000
-#define HID_QUIRK_POWERBOOK_ISO_KEYBOARD	0x00008000
+#define HID_QUIRK_POWERBOOK_ISO_KEYBOARD        0x00008000
 #define HID_QUIRK_BAD_RELATIVE_KEYS		0x00010000
 
 /*
@@ -496,9 +498,7 @@ struct hid_descriptor {
 #define resolv_event(a,b)	do { } while (0)
 #endif
 
-#endif
-
-#ifdef CONFIG_USB_HIDINPUT
+#ifdef CONFIG_HID
 /* Applications from HID Usage Tables 4/8/99 Version 1.1 */
 /* We ignore a few input applications that are not widely used */
 #define IS_INPUT_APPLICATION(a) (((a >= 0x00010000) && (a <= 0x00010008)) || (a == 0x00010080) || (a == 0x000c0001))
@@ -514,13 +514,12 @@ static inline int hidinput_connect(struct hid_device *hid) { return -ENODEV; }
 static inline void hidinput_disconnect(struct hid_device *hid) { }
 #endif
 
-int hid_open(struct hid_device *);
-void hid_close(struct hid_device *);
 int hid_set_field(struct hid_field *, unsigned, __s32);
-void hid_submit_report(struct hid_device *, struct hid_report *, unsigned char dir);
-void hid_init_reports(struct hid_device *hid);
-int hid_wait_io(struct hid_device* hid);
-
+int hidinput_find_field(struct hid_device *hid, unsigned int type, unsigned int code, struct hid_field **field);
+void hid_input_field(struct hid_device *hid, struct hid_field *field, __u8 *data, int interrupt);
+void hid_output_report(struct hid_report *report, __u8 *data);
+void hid_free_device(struct hid_device *device);
+struct hid_device *hid_parse_report(__u8 *start, unsigned size);
 
 #ifdef CONFIG_HID_FF
 int hid_ff_init(struct hid_device *hid);
@@ -536,5 +535,6 @@ static inline int hid_pidff_init(struct hid_device *hid) { return -ENODEV; }
 
 #else
 static inline int hid_ff_init(struct hid_device *hid) { return -1; }
+#endif
 #endif
 

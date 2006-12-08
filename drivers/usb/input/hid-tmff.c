@@ -32,7 +32,7 @@
 #undef DEBUG
 #include <linux/usb.h>
 
-#include "hid.h"
+#include <linux/hid.h>
 
 /* Usages for thrustmaster devices I know about */
 #define THRUSTMASTER_USAGE_RUMBLE_LR	(HID_UP_GENDESK | 0xbb)

@@ -28,7 +28,9 @@
 #include <linux/input.h>
 #include <linux/usb.h>
 
-#include "hid.h"
+#include <linux/hid.h>
+
+#include "usbhid.h"
 
 #define	PID_EFFECTS_MAX		64
 

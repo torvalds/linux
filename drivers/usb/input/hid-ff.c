@@ -32,7 +32,7 @@
 #undef DEBUG
 #include <linux/usb.h>
 
-#include "hid.h"
+#include <linux/hid.h>
 
 /*
  * This table contains pointers to initializers. To add support for new

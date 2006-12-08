@@ -29,7 +29,7 @@
 
 #include <linux/input.h>
 #include <linux/usb.h>
-#include "hid.h"
+#include <linux/hid.h>
 
 struct device_type {
 	u16 idVendor;
