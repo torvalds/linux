@@ -3181,7 +3181,7 @@ static int __devinit atyfb_setup_sparc(struct pci_dev *pdev,
 
 #ifdef __i386__
 #ifdef CONFIG_FB_ATY_GENERIC_LCD
-static void aty_init_lcd(struct atyfb_par *par, u32 bios_base)
+static void __devinit aty_init_lcd(struct atyfb_par *par, u32 bios_base)
 {
 	u32 driv_inf_tab, sig;
 	u16 lcd_ofs;
@@ -3644,7 +3644,7 @@ err_release_mem:
 
 #ifdef CONFIG_ATARI
 
-static int __devinit atyfb_atari_probe(void)
+static int __init atyfb_atari_probe(void)
 {
 	struct atyfb_par *par;
 	struct fb_info *info;
@@ -3794,7 +3794,7 @@ static struct pci_driver atyfb_driver = {
 #endif /* CONFIG_PCI */
 
 #ifndef MODULE
-static int __devinit atyfb_setup(char *options)
+static int __init atyfb_setup(char *options)
 {
 	char *this_opt;
 
@@ -3866,7 +3866,7 @@ static int __devinit atyfb_setup(char *options)
 }
 #endif  /*  MODULE  */
 
-static int __devinit atyfb_init(void)
+static int __init atyfb_init(void)
 {
     int err1 = 1, err2 = 1;
 #ifndef MODULE
