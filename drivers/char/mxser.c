@@ -515,6 +515,7 @@ static void __exit mxser_module_exit(void)
 			if (pdev != NULL) {	/* PCI */
 				release_region(pci_resource_start(pdev, 2), pci_resource_len(pdev, 2));
 				release_region(pci_resource_start(pdev, 3), pci_resource_len(pdev, 3));
+				pci_dev_put(pdev);
 			} else {
 				release_region(mxsercfg[i].ioaddr[0], 8 * mxsercfg[i].ports);
 				release_region(mxsercfg[i].vector, 1);
@@ -839,9 +840,9 @@ static int mxser_init(void)
 	index = 0;
 	b = 0;
 	while (b < n) {
-		pdev = pci_find_device(mxser_pcibrds[b].vendor,
+		pdev = pci_get_device(mxser_pcibrds[b].vendor,
 				mxser_pcibrds[b].device, pdev);
-			if (pdev == NULL) {
+		if (pdev == NULL) {
 			b++;
 			continue;
 		}
@@ -893,6 +894,9 @@ static int mxser_init(void)
 			if (mxser_initbrd(m, &hwconf) < 0)
 				continue;
 			m++;
+			/* Keep an extra reference if we succeeded. It will
+			   be returned at unload time */
+			pci_dev_get(pdev);
 		}
 	}
 #endif
