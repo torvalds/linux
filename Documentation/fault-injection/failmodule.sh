@@ -26,6 +26,6 @@ fi
 # Disable any fault injection
 echo 0 > /debug/$1/stacktrace-depth
 
-echo `cat /sys/module/$2/sections/.text` > /debug/$1/address-start
-echo `cat /sys/module/$2/sections/.exit.text` > /debug/$1/address-end
+echo `cat /sys/module/$2/sections/.text` > /debug/$1/require-start
+echo `cat /sys/module/$2/sections/.exit.text` > /debug/$1/require-end
 echo $STACKTRACE_DEPTH > /debug/$1/stacktrace-depth
