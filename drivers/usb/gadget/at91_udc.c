@@ -1579,7 +1579,7 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 	int		retval;
 
 	if (!driver
-			|| driver->speed != USB_SPEED_FULL
+			|| driver->speed < USB_SPEED_FULL
 			|| !driver->bind
 			|| !driver->setup) {
 		DBG("bad parameter.\n");
