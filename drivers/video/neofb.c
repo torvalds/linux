@@ -1932,7 +1932,7 @@ static int __devinit neo_init_hw(struct fb_info *info)
 	printk(KERN_DEBUG "--- Neo extended register dump ---\n");
 	for (int w = 0; w < 0x85; w++)
 		printk(KERN_DEBUG "CR %p: %p\n", (void *) w,
-		       (void *) vga_rcrt(NULL, w);
+		       (void *) vga_rcrt(NULL, w));
 	for (int w = 0; w < 0xC7; w++)
 		printk(KERN_DEBUG "GR %p: %p\n", (void *) w,
 		       (void *) vga_rgfx(NULL, w));
