@@ -189,21 +189,18 @@ repeat:
 int session_of_pgrp(int pgrp)
 {
 	struct task_struct *p;
-	int sid = -1;
+	int sid = 0;
 
 	read_lock(&tasklist_lock);
-	do_each_task_pid(pgrp, PIDTYPE_PGID, p) {
-		if (process_session(p) > 0) {
-			sid = process_session(p);
-			goto out;
-		}
-	} while_each_task_pid(pgrp, PIDTYPE_PGID, p);
-	p = find_task_by_pid(pgrp);
-	if (p)
+
+	p = find_task_by_pid_type(PIDTYPE_PGID, pgrp);
+	if (p == NULL)
+		p = find_task_by_pid(pgrp);
+	if (p != NULL)
 		sid = process_session(p);
-out:
+
 	read_unlock(&tasklist_lock);
-	
+
 	return sid;
 }
 
