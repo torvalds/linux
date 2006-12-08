@@ -31,12 +31,12 @@ struct pci_controller {
 	int last_busno;
 
 	void __iomem *io_base_virt;
-	unsigned long io_base_phys;
+	resource_size_t io_base_phys;
 
 	/* Some machines have a non 1:1 mapping of
 	 * the PCI memory space in the CPU bus space
 	 */
-	unsigned long pci_mem_offset;
+	resource_size_t pci_mem_offset;
 	unsigned long pci_io_size;
 
 	struct pci_ops *ops;

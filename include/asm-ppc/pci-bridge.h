@@ -20,8 +20,8 @@ extern unsigned long pci_bus_mem_base_phys(unsigned int bus);
 extern struct pci_controller* pcibios_alloc_controller(void);
 
 /* Helper function for setting up resources */
-extern void pci_init_resource(struct resource *res, unsigned long start,
-			      unsigned long end, int flags, char *name);
+extern void pci_init_resource(struct resource *res, resource_size_t start,
+			      resource_size_t end, int flags, char *name);
 
 /* Get the PCI host controller for a bus */
 extern struct pci_controller* pci_bus_to_hose(int bus);
@@ -50,12 +50,12 @@ struct pci_controller {
 	int bus_offset;
 
 	void __iomem *io_base_virt;
-	unsigned long io_base_phys;
+	resource_size_t io_base_phys;
 
 	/* Some machines (PReP) have a non 1:1 mapping of
 	 * the PCI memory space in the CPU bus space
 	 */
-	unsigned long pci_mem_offset;
+	resource_size_t pci_mem_offset;
 
 	struct pci_ops *ops;
 	volatile unsigned int __iomem *cfg_addr;
