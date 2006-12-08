@@ -3527,6 +3527,10 @@ static int __devinit atyfb_setup_generic(struct pci_dev *pdev, struct fb_info *i
 atyfb_setup_generic_fail:
 	iounmap(par->ati_regbase);
 	par->ati_regbase = NULL;
+	if (info->screen_base) {
+		iounmap(info->screen_base);
+		info->screen_base = NULL;
+	}
 	return ret;
 }
 
@@ -3695,6 +3699,10 @@ static int __devinit atyfb_atari_probe(void)
 		}
 
 		if (aty_init(info, "ISA bus")) {
+			if (info->screen_base)
+				iounmap(info->screen_base);
+			if (par->ati_regbase)
+				iounmap(par->ati_regbase);
 			framebuffer_release(info);
 			/* This is insufficient! kernel_map has added two large chunks!! */
 			return -ENXIO;
