@@ -206,7 +206,7 @@ void		  nlmsvc_invalidate_all(void);
 static __inline__ struct inode *
 nlmsvc_file_inode(struct nlm_file *file)
 {
-	return file->f_file->f_dentry->d_inode;
+	return file->f_file->f_path.dentry->d_inode;
 }
 
 /*
