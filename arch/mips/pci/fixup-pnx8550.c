@@ -33,7 +33,7 @@
 #define	DBG(x...)
 #endif
 
-extern char irq_tab_jbs[][5];
+extern char pnx8550_irq_tab[][5];
 
 void __init pcibios_fixup_resources(struct pci_dev *dev)
 {
@@ -47,7 +47,7 @@ void __init pcibios_fixup(void)
 
 int __init pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
-	return irq_tab_jbs[slot][pin];
+	return pnx8550_irq_tab[slot][pin];
 }
 
 /* Do platform specific device initialization at pci_enable_device() time */

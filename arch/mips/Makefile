@@ -463,6 +463,11 @@ libs-$(CONFIG_PNX8550_JBS)	+= arch/mips/philips/pnx8550/jbs/
 #cflags-$(CONFIG_PNX8550_JBS)	+= -Iinclude/asm-mips/mach-pnx8550
 load-$(CONFIG_PNX8550_JBS)	+= 0xffffffff80060000
 
+# Philips PNX8550 STB810 board
+#
+libs-$(CONFIG_PNX8550_STB810)	+= arch/mips/philips/pnx8550/stb810/
+load-$(CONFIG_PNX8550_STB810)	+= 0xffffffff80060000
+
 # NEC EMMA2RH boards
 #
 core-$(CONFIG_EMMA2RH)          += arch/mips/emma2rh/common/

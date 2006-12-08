@@ -461,6 +461,11 @@ config PNX8550_JBS
 	select PNX8550
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
+config PNX8550_STB810
+	bool "Support for Philips PNX8550 based STB810 board"
+	select PNX8550
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+
 config DDB5477
 	bool "NEC DDB Vrc-5477"
 	select DDB5XXX_COMMON
