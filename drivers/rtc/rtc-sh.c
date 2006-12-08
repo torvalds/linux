@@ -268,7 +268,7 @@ static int sh_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		tm->tm_hour	= BCD2BIN(readb(rtc->regbase + RHRCNT));
 		tm->tm_wday	= BCD2BIN(readb(rtc->regbase + RWKCNT));
 		tm->tm_mday	= BCD2BIN(readb(rtc->regbase + RDAYCNT));
-		tm->tm_mon	= BCD2BIN(readb(rtc->regbase + RMONCNT));
+		tm->tm_mon	= BCD2BIN(readb(rtc->regbase + RMONCNT)) - 1;
 
 #if defined(CONFIG_CPU_SH4)
 		yr  = readw(rtc->regbase + RYRCNT);
@@ -296,7 +296,7 @@ static int sh_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
 		__FUNCTION__,
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
-		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
+		tm->tm_mday, tm->tm_mon + 1, tm->tm_year, tm->tm_wday);
 
 	if (rtc_valid_tm(tm) < 0)
 		dev_err(dev, "invalid date\n");
@@ -323,7 +323,7 @@ static int sh_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	writeb(BIN2BCD(tm->tm_hour), rtc->regbase + RHRCNT);
 	writeb(BIN2BCD(tm->tm_wday), rtc->regbase + RWKCNT);
 	writeb(BIN2BCD(tm->tm_mday), rtc->regbase + RDAYCNT);
-	writeb(BIN2BCD(tm->tm_mon),  rtc->regbase + RMONCNT);
+	writeb(BIN2BCD(tm->tm_mon + 1), rtc->regbase + RMONCNT);
 
 #ifdef CONFIG_CPU_SH3
 	year = tm->tm_year % 100;
