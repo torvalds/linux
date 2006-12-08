@@ -262,7 +262,7 @@ found:
 
 static int openpromfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct op_inode_info *oi = OP_I(inode);
 	struct device_node *dp = oi->u.node;
 	struct device_node *child;
