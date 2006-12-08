@@ -21,7 +21,7 @@
  *---------------------------------------------------------------*/
 struct path_info {
 	struct list_head list;
-	struct path *path;
+	struct dm_path *path;
 	unsigned repeat_count;
 };
 
@@ -80,7 +80,7 @@ static void rr_destroy(struct path_selector *ps)
 	ps->context = NULL;
 }
 
-static int rr_status(struct path_selector *ps, struct path *path,
+static int rr_status(struct path_selector *ps, struct dm_path *path,
 		     status_type_t type, char *result, unsigned int maxlen)
 {
 	struct path_info *pi;
@@ -106,7 +106,7 @@ static int rr_status(struct path_selector *ps, struct path *path,
  * Called during initialisation to register each path with an
  * optional repeat_count.
  */
-static int rr_add_path(struct path_selector *ps, struct path *path,
+static int rr_add_path(struct path_selector *ps, struct dm_path *path,
 		       int argc, char **argv, char **error)
 {
 	struct selector *s = (struct selector *) ps->context;
@@ -141,7 +141,7 @@ static int rr_add_path(struct path_selector *ps, struct path *path,
 	return 0;
 }
 
-static void rr_fail_path(struct path_selector *ps, struct path *p)
+static void rr_fail_path(struct path_selector *ps, struct dm_path *p)
 {
 	struct selector *s = (struct selector *) ps->context;
 	struct path_info *pi = p->pscontext;
@@ -149,7 +149,7 @@ static void rr_fail_path(struct path_selector *ps, struct path *p)
 	list_move(&pi->list, &s->invalid_paths);
 }
 
-static int rr_reinstate_path(struct path_selector *ps, struct path *p)
+static int rr_reinstate_path(struct path_selector *ps, struct dm_path *p)
 {
 	struct selector *s = (struct selector *) ps->context;
 	struct path_info *pi = p->pscontext;
@@ -159,7 +159,7 @@ static int rr_reinstate_path(struct path_selector *ps, struct path *p)
 	return 0;
 }
 
-static struct path *rr_select_path(struct path_selector *ps,
+static struct dm_path *rr_select_path(struct path_selector *ps,
 				   unsigned *repeat_count)
 {
 	struct selector *s = (struct selector *) ps->context;
