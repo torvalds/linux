@@ -17,7 +17,7 @@
 #include <asm/io.h>
 
 #define DRIVER_NAME "tifm_sd"
-#define DRIVER_VERSION "0.6"
+#define DRIVER_VERSION "0.7"
 
 static int no_dma = 0;
 static int fixed_timeout = 0;
@@ -239,50 +239,65 @@ change_state:
 			tifm_sd_fetch_resp(cmd, sock);
 			if (cmd->data) {
 				host->state = BRS;
-			} else
+			} else {
 				host->state = READY;
+			}
 			goto change_state;
 		}
 		break;
 	case BRS:
 		if (tifm_sd_transfer_data(sock, host, host_status)) {
-			if (!host->req->stop) {
-				if (cmd->data->flags & MMC_DATA_WRITE) {
-					host->state = CARD;
+			if (cmd->data->flags & MMC_DATA_WRITE) {
+				host->state = CARD;
+			} else {
+				if (no_dma) {
+					if (host->req->stop) {
+						tifm_sd_exec(host, host->req->stop);
+						host->state = SCMD;
+					} else {
+						host->state = READY;
+					}
 				} else {
-					host->state =
-						host->buffer ? READY : FIFO;
+					host->state = FIFO;
 				}
-				goto change_state;
 			}
-			tifm_sd_exec(host, host->req->stop);
-			host->state = SCMD;
+			goto change_state;
 		}
 		break;
 	case SCMD:
 		if (host_status & TIFM_MMCSD_EOC) {
 			tifm_sd_fetch_resp(host->req->stop, sock);
-			if (cmd->error) {
-				host->state = READY;
-			} else if (cmd->data->flags & MMC_DATA_WRITE) {
-				host->state = CARD;
-			} else {
-				host->state = host->buffer ? READY : FIFO;
-			}
+			host->state = READY;
 			goto change_state;
 		}
 		break;
 	case CARD:
+		dev_dbg(&sock->dev, "waiting for CARD, have %zd blocks\n",
+			host->written_blocks);
 		if (!(host->flags & CARD_BUSY)
 		    && (host->written_blocks == cmd->data->blocks)) {
-			host->state = host->buffer ? READY : FIFO;
+			if (no_dma) {
+				if (host->req->stop) {
+					tifm_sd_exec(host, host->req->stop);
+					host->state = SCMD;
+				} else {
+					host->state = READY;
+				}
+			} else {
+				host->state = FIFO;
+			}
 			goto change_state;
 		}
 		break;
 	case FIFO:
 		if (host->flags & FIFO_RDY) {
-			host->state = READY;
 			host->flags &= ~FIFO_RDY;
+			if (host->req->stop) {
+				tifm_sd_exec(host, host->req->stop);
+				host->state = SCMD;
+			} else {
+				host->state = READY;
+			}
 			goto change_state;
 		}
 		break;
@@ -340,7 +355,9 @@ static unsigned int tifm_sd_signal_irq(struct tifm_dev *sock,
 			if (host->req->stop) {
 				if (host->state == SCMD) {
 					host->req->stop->error = error_code;
-				} else if(host->state == BRS) {
+				} else if (host->state == BRS
+					   || host->state == CARD
+					   || host->state == FIFO) {
 					host->req->cmd->error = error_code;
 					tifm_sd_exec(host, host->req->stop);
 					queue_delayed_work(sock->wq,
