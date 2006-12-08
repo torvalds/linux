@@ -277,7 +277,7 @@ osf_fstatfs(unsigned long fd, struct osf_statfs __user *buffer, unsigned long bu
 	retval = -EBADF;
 	file = fget(fd);
 	if (file) {
-		retval = do_osf_statfs(file->f_dentry, buffer, bufsiz);
+		retval = do_osf_statfs(file->f_path.dentry, buffer, bufsiz);
 		fput(file);
 	}
 	return retval;
