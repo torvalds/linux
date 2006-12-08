@@ -2421,9 +2421,6 @@ static int __devinit stl_pciprobe(struct pci_dev *pdev,
 	struct stlbrd *brdp;
 	unsigned int brdtype = ent->driver_data;
 
-	pr_debug("stl_initpcibrd(brdtype=%d,busnr=%x,devnr=%x)\n", brdtype,
-		pdev->bus->number, pdev->devfn);
-
 	if ((pdev->class >> 8) == PCI_CLASS_STORAGE_IDE)
 		return -ENODEV;
 
@@ -2435,19 +2432,11 @@ static int __devinit stl_pciprobe(struct pci_dev *pdev,
 	if ((brdp = stl_allocbrd()) == NULL)
 		return(-ENOMEM);
 	if ((brdp->brdnr = stl_getbrdnr()) < 0) {
-		printk("STALLION: too many boards found, "
+		dev_err(&pdev->dev, "too many boards found, "
 			"maximum supported %d\n", STL_MAXBRDS);
 		return(0);
 	}
 	brdp->brdtype = brdtype;
-
-/*
- *	Different Stallion boards use the BAR registers in different ways,
- *	so set up io addresses based on board type.
- */
-	pr_debug("%s(%d): BAR[]=%Lx,%Lx,%Lx,%Lx IRQ=%x\n", __FILE__, __LINE__,
-		pci_resource_start(pdev, 0), pci_resource_start(pdev, 1),
-		pci_resource_start(pdev, 2), pci_resource_start(pdev, 3), pdev->irq);
 
 /*
  *	We have all resources from the board, so let's setup the actual
@@ -2467,7 +2456,7 @@ static int __devinit stl_pciprobe(struct pci_dev *pdev,
 		brdp->ioaddr2 = pci_resource_start(pdev, 1);
 		break;
 	default:
-		printk("STALLION: unknown PCI board type=%d\n", brdtype);
+		dev_err(&pdev->dev, "unknown PCI board type=%u\n", brdtype);
 		break;
 	}
 
