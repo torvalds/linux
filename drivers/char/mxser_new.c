@@ -244,7 +244,6 @@ MODULE_DEVICE_TABLE(pci, mxser_pcibrds);
 static int ioaddr[MXSER_BOARDS] = { 0, 0, 0, 0 };
 static int ttymajor = MXSERMAJOR;
 static int calloutmajor = MXSERCUMAJOR;
-static int verbose = 0;
 
 /* Variables for insmod */
 
@@ -252,7 +251,6 @@ MODULE_AUTHOR("Casper Yang");
 MODULE_DESCRIPTION("MOXA Smartio/Industio Family Multiport Board Device Driver");
 module_param_array(ioaddr, int, NULL, 0);
 module_param(ttymajor, int, 0);
-module_param(verbose, bool, 0);
 MODULE_LICENSE("GPL");
 
 struct mxser_log {
@@ -493,11 +491,9 @@ static int __init mxser_module_init(void)
 {
 	int ret;
 
-	if (verbose)
-		printk(KERN_DEBUG "Loading module mxser ...\n");
+	pr_debug("Loading module mxser ...\n");
 	ret = mxser_init();
-	if (verbose)
-		printk(KERN_DEBUG "Done.\n");
+	pr_debug("Done.\n");
 	return ret;
 }
 
@@ -505,8 +501,7 @@ static void __exit mxser_module_exit(void)
 {
 	int i, err;
 
-	if (verbose)
-		printk(KERN_DEBUG "Unloading module mxser ...\n");
+	pr_debug("Unloading module mxser ...\n");
 
 	err = tty_unregister_driver(mxvar_sdriver);
 	if (!err)
@@ -532,8 +527,7 @@ static void __exit mxser_module_exit(void)
 			}
 		}
 	}
-	if (verbose)
-		printk(KERN_DEBUG "Done.\n");
+	pr_debug("Done.\n");
 }
 
 static void process_txrx_fifo(struct mxser_port *info)
@@ -562,10 +556,7 @@ static int __devinit mxser_initbrd(struct mxser_board *brd)
 	unsigned int i;
 	int retval;
 
-	/*if (verbose) */  {
-		printk(" max. baud rate = %d bps.\n",
-			brd->ports[0].max_baud);
-	}
+	printk(KERN_INFO "max. baud rate = %d bps.\n", brd->ports[0].max_baud);
 
 	for (i = 0; i < brd->nports; i++) {
 		info = &brd->ports[i];
