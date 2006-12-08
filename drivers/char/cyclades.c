@@ -1644,7 +1644,8 @@ cyz_handle_rx(struct cyclades_port *info,
 				char_count = rx_put - rx_get;
 			else
 				char_count = rx_put - rx_get + rx_bufsize;
-			if (char_count >= cy_readl(&buf_ctrl->rx_threshold)) {
+			if (char_count >= (int)cy_readl(&buf_ctrl->
+					rx_threshold)) {
 				cy_sched_event(info, Cy_EVENT_Z_RX_FULL);
 			}
 #endif
@@ -2941,7 +2942,7 @@ static void cy_put_char(struct tty_struct *tty, unsigned char ch)
 		return;
 
 	CY_LOCK(info, flags);
-	if (info->xmit_cnt >= SERIAL_XMIT_SIZE - 1) {
+	if (info->xmit_cnt >= (int)(SERIAL_XMIT_SIZE - 1)) {
 		CY_UNLOCK(info, flags);
 		return;
 	}
