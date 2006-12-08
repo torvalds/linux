@@ -1520,37 +1520,6 @@ static void isicom_flush_buffer(struct tty_struct *tty)
  * Driver init and deinit functions
  */
 
-static int __devinit isicom_register_ioregion(struct pci_dev *pdev,
-	const unsigned int index)
-{
-	struct isi_board *board = pci_get_drvdata(pdev);
-
-	if (!board->base)
-		return -EINVAL;
-
-	if (!request_region(board->base, 16, ISICOM_NAME)) {
-		dev_dbg(&pdev->dev, "I/O Region 0x%lx-0x%lx is busy. Card%d "
-			"will be disabled.\n", board->base, board->base + 15,
-			index + 1);
-		return -EBUSY;
- 	}
-
-	return 0;
-}
-
-static void isicom_unregister_ioregion(struct pci_dev *pdev)
-{
-	struct isi_board *board = pci_get_drvdata(pdev);
-
-	if (!board->base)
-		return;
-
-	release_region(board->base, 16);
-	dev_dbg(&pdev->dev, "I/O Region 0x%lx-0x%lx released.\n",
-		board->base, board->base + 15);
-	board->base = 0;
-}
-
 static const struct tty_operations isicom_ops = {
 	.open			= isicom_open,
 	.close			= isicom_close,
@@ -1570,70 +1539,6 @@ static const struct tty_operations isicom_ops = {
 	.tiocmget		= isicom_tiocmget,
 	.tiocmset		= isicom_tiocmset,
 };
-
-static int __devinit isicom_register_tty_driver(void)
-{
-	int error = -ENOMEM;
-
-	/* tty driver structure initialization */
-	isicom_normal = alloc_tty_driver(PORT_COUNT);
-	if (!isicom_normal)
-		goto end;
-
-	isicom_normal->owner			= THIS_MODULE;
-	isicom_normal->name 			= "ttyM";
-	isicom_normal->major			= ISICOM_NMAJOR;
-	isicom_normal->minor_start		= 0;
-	isicom_normal->type			= TTY_DRIVER_TYPE_SERIAL;
-	isicom_normal->subtype			= SERIAL_TYPE_NORMAL;
-	isicom_normal->init_termios		= tty_std_termios;
-	isicom_normal->init_termios.c_cflag	= B9600 | CS8 | CREAD | HUPCL |
-		CLOCAL;
-	isicom_normal->flags			= TTY_DRIVER_REAL_RAW;
-	tty_set_operations(isicom_normal, &isicom_ops);
-
-	if ((error = tty_register_driver(isicom_normal))) {
-		pr_dbg("Couldn't register the dialin driver, error=%d\n",
-			error);
-		put_tty_driver(isicom_normal);
-	}
-end:
-	return error;
-}
-
-static void isicom_unregister_tty_driver(void)
-{
-	int error;
-
-	if ((error = tty_unregister_driver(isicom_normal)))
-		pr_dbg("couldn't unregister normal driver, error=%d.\n", error);
-
-	put_tty_driver(isicom_normal);
-}
-
-static int __devinit isicom_register_isr(struct pci_dev *pdev,
-	const unsigned int index)
-{
-	struct isi_board *board = pci_get_drvdata(pdev);
-	unsigned long irqflags = IRQF_DISABLED;
-	int retval = -EINVAL;
-
-	if (!board->base)
-		goto end;
-
-	if (board->isa == NO)
-		irqflags |= IRQF_SHARED;
-
-	retval = request_irq(board->irq, isicom_interrupt, irqflags,
-		ISICOM_NAME, board);
-	if (retval < 0)
-		dev_warn(&pdev->dev, "Could not install handler at Irq %d. "
-			"Card%d will be disabled.\n", board->irq, index + 1);
- 	else
-		retval = 0;
-end:
-	return retval;
-}
 
 static int __devinit reset_card(struct pci_dev *pdev,
 	const unsigned int card, unsigned int *signature)
@@ -1913,13 +1818,21 @@ static int __devinit isicom_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, board);
 
-	retval = isicom_register_ioregion(pdev, index);
-	if (retval < 0)
+	if (!request_region(board->base, 16, ISICOM_NAME)) {
+		dev_err(&pdev->dev, "I/O Region 0x%lx-0x%lx is busy. Card%d "
+			"will be disabled.\n", board->base, board->base + 15,
+			index + 1);
+		retval = -EBUSY;
 		goto err;
+ 	}
 
-	retval = isicom_register_isr(pdev, index);
-	if (retval < 0)
+	retval = request_irq(board->irq, isicom_interrupt,
+			IRQF_SHARED | IRQF_DISABLED, ISICOM_NAME, board);
+	if (retval < 0) {
+		dev_err(&pdev->dev, "Could not install handler at Irq %d. "
+			"Card%d will be disabled.\n", board->irq, index + 1);
 		goto errunrr;
+	}
 
 	retval = reset_card(pdev, index, &signature);
 	if (retval < 0)
@@ -1934,7 +1847,7 @@ static int __devinit isicom_probe(struct pci_dev *pdev,
 errunri:
 	free_irq(board->irq, board);
 errunrr:
-	isicom_unregister_ioregion(pdev);
+	release_region(board->base, 16);
 err:
 	board->base = 0;
 	return retval;
@@ -1945,7 +1858,7 @@ static void __devexit isicom_remove(struct pci_dev *pdev)
 	struct isi_board *board = pci_get_drvdata(pdev);
 
 	free_irq(board->irq, board);
-	isicom_unregister_ioregion(pdev);
+	release_region(board->base, 16);
 }
 
 static int __devinit isicom_setup(void)
@@ -1991,14 +1904,35 @@ static int __devinit isicom_setup(void)
 				"Disabling Card%d...\n", irq[idx], idx + 1);
 	}
 
-	retval = isicom_register_tty_driver();
-	if (retval < 0)
+	/* tty driver structure initialization */
+	isicom_normal = alloc_tty_driver(PORT_COUNT);
+	if (!isicom_normal) {
+		retval = -ENOMEM;
 		goto error;
+	}
+
+	isicom_normal->owner			= THIS_MODULE;
+	isicom_normal->name 			= "ttyM";
+	isicom_normal->major			= ISICOM_NMAJOR;
+	isicom_normal->minor_start		= 0;
+	isicom_normal->type			= TTY_DRIVER_TYPE_SERIAL;
+	isicom_normal->subtype			= SERIAL_TYPE_NORMAL;
+	isicom_normal->init_termios		= tty_std_termios;
+	isicom_normal->init_termios.c_cflag	= B9600 | CS8 | CREAD | HUPCL |
+		CLOCAL;
+	isicom_normal->flags			= TTY_DRIVER_REAL_RAW;
+	tty_set_operations(isicom_normal, &isicom_ops);
+
+	retval = tty_register_driver(isicom_normal);
+	if (retval) {
+		pr_dbg("Couldn't register the dialin driver\n");
+		goto err_puttty;
+	}
 
 	retval = pci_register_driver(&isicom_driver);
 	if (retval < 0) {
 		printk(KERN_ERR "ISICOM: Unable to register pci driver.\n");
-		goto errtty;
+		goto err_unrtty;
 	}
 
 	init_timer(&tx);
@@ -2009,8 +1943,10 @@ static int __devinit isicom_setup(void)
 	add_timer(&tx);
 
 	return 0;
-errtty:
-	isicom_unregister_tty_driver();
+err_unrtty:
+	tty_unregister_driver(isicom_normal);
+err_puttty:
+	put_tty_driver(isicom_normal);
 error:
 	return retval;
 }
@@ -2025,7 +1961,8 @@ static void __exit isicom_exit(void)
 		msleep(10);
 
 	pci_unregister_driver(&isicom_driver);
-	isicom_unregister_tty_driver();
+	tty_unregister_driver(isicom_normal);
+	put_tty_driver(isicom_normal);
 }
 
 module_init(isicom_setup);
