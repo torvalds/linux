@@ -79,3 +79,5 @@ int hid_ff_init(struct hid_device* hid)
 
 	return init->init(hid);
 }
+EXPORT_SYMBOL_GPL(hid_ff_init);
+

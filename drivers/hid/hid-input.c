@@ -727,8 +727,9 @@ void hidinput_report_event(struct hid_device *hid, struct hid_report *report)
 	list_for_each_entry(hidinput, &hid->inputs, list)
 		input_sync(hidinput->input);
 }
+EXPORT_SYMBOL_GPL(hidinput_report_event);
 
-static int hidinput_find_field(struct hid_device *hid, unsigned int type, unsigned int code, struct hid_field **field)
+int hidinput_find_field(struct hid_device *hid, unsigned int type, unsigned int code, struct hid_field **field)
 {
 	struct hid_report *report;
 	int i, j;
@@ -743,6 +744,7 @@ static int hidinput_find_field(struct hid_device *hid, unsigned int type, unsign
 	}
 	return -1;
 }
+EXPORT_SYMBOL_GPL(hidinput_find_field);
 
 /*
  * Register the input device; print a message.
@@ -752,7 +754,6 @@ static int hidinput_find_field(struct hid_device *hid, unsigned int type, unsign
 
 int hidinput_connect(struct hid_device *hid)
 {
-	struct usb_device *dev = hid->dev;
 	struct hid_report *report;
 	struct hid_input *hidinput = NULL;
 	struct input_dev *input_dev;
@@ -786,14 +787,17 @@ int hidinput_connect(struct hid_device *hid)
 				}
 
 				input_dev->private = hid;
-				input_dev->event = hidinput_input_event;
-				input_dev->open = hidinput_open;
-				input_dev->close = hidinput_close;
+				input_dev->event = hid->hidinput_input_event;
+				input_dev->open = hid->hidinput_open;
+				input_dev->close = hid->hidinput_close;
 
 				input_dev->name = hid->name;
 				input_dev->phys = hid->phys;
 				input_dev->uniq = hid->uniq;
-				usb_to_input_id(dev, &input_dev->id);
+				input_dev->id.bustype = hid->bus;
+				input_dev->id.vendor  = hid->vendor;
+				input_dev->id.product = hid->product;
+				input_dev->id.version = hid->version;
 				input_dev->cdev.dev = &hid->intf->dev;
 
 				hidinput->input = input_dev;
@@ -827,6 +831,7 @@ int hidinput_connect(struct hid_device *hid)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hidinput_connect);
 
 void hidinput_disconnect(struct hid_device *hid)
 {
@@ -838,3 +843,5 @@ void hidinput_disconnect(struct hid_device *hid)
 		kfree(hidinput);
 	}
 }
+EXPORT_SYMBOL_GPL(hidinput_disconnect);
+

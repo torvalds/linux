@@ -197,7 +197,7 @@ void hiddev_hid_event(struct hid_device *hid, struct hid_field *field,
 
 	hiddev_send_event(hid, &uref);
 }
-
+EXPORT_SYMBOL_GPL(hiddev_hid_event);
 
 void hiddev_report_event(struct hid_device *hid, struct hid_report *report)
 {

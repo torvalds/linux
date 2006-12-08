@@ -1,5 +1,5 @@
 /*
- *  USB HID support for Linux
+ *  HID support for Linux
  *
  *  Copyright (c) 1999 Andreas Gal
  *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>
@@ -30,8 +30,6 @@
 
 #undef DEBUG
 #undef DEBUG_DATA
-
-#include <linux/usb.h>
 
 #include <linux/hid.h>
 #include <linux/hiddev.h>
@@ -538,7 +536,7 @@ static void hid_free_report(struct hid_report *report)
  * Free a device structure, all reports, and all fields.
  */
 
-static void hid_free_device(struct hid_device *device)
+void hid_free_device(struct hid_device *device)
 {
 	unsigned i,j;
 
@@ -555,6 +553,7 @@ static void hid_free_device(struct hid_device *device)
 	kfree(device->rdesc);
 	kfree(device);
 }
+EXPORT_SYMBOL_GPL(hid_free_device);
 
 /*
  * Fetch a report description item from the data stream. We support long
@@ -629,7 +628,7 @@ static u8 *fetch_item(__u8 *start, __u8 *end, struct hid_item *item)
  * enumerated, fields are attached to these reports.
  */
 
-static struct hid_device *hid_parse_report(__u8 *start, unsigned size)
+struct hid_device *hid_parse_report(__u8 *start, unsigned size)
 {
 	struct hid_device *device;
 	struct hid_parser *parser;
@@ -719,6 +718,7 @@ static struct hid_device *hid_parse_report(__u8 *start, unsigned size)
 	kfree(parser);
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(hid_parse_report);
 
 /*
  * Convert a signed n-bit integer to signed 32-bit integer. Common
@@ -767,10 +767,10 @@ static __inline__ __u32 extract(__u8 *report, unsigned offset, unsigned n)
 	WARN_ON(n > 32);
 
 	report += offset >> 3;  /* adjust byte index */
-	offset &= 7;		/* now only need bit offset into one byte */
+	offset &= 7;            /* now only need bit offset into one byte */
 	x = get_unaligned((u64 *) report);
 	x = le64_to_cpu(x);
-	x = (x >> offset) & ((1ULL << n) - 1);	/* extract bit field */
+	x = (x >> offset) & ((1ULL << n) - 1);  /* extract bit field */
 	return (u32) x;
 }
 
@@ -829,7 +829,7 @@ static void hid_process_event(struct hid_device *hid, struct hid_field *field, s
  * reporting to the layer).
  */
 
-static void hid_input_field(struct hid_device *hid, struct hid_field *field, __u8 *data, int interrupt)
+void hid_input_field(struct hid_device *hid, struct hid_field *field, __u8 *data, int interrupt)
 {
 	unsigned n;
 	unsigned count = field->report_count;
@@ -875,7 +875,7 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field, __u
 exit:
 	kfree(value);
 }
-
+EXPORT_SYMBOL_GPL(hid_input_field);
 
 /*
  * Output the field into the report.
@@ -900,7 +900,7 @@ static void hid_output_field(struct hid_field *field, __u8 *data)
  * Create a report.
  */
 
-static void hid_output_report(struct hid_report *report, __u8 *data)
+void hid_output_report(struct hid_report *report, __u8 *data)
 {
 	unsigned n;
 
@@ -910,6 +910,7 @@ static void hid_output_report(struct hid_report *report, __u8 *data)
 	for (n = 0; n < report->maxfield; n++)
 		hid_output_field(report->field[n], data);
 }
+EXPORT_SYMBOL_GPL(hid_output_report);
 
 /*
  * Set a field value. The report this field belongs to has to be
@@ -937,4 +938,5 @@ int hid_set_field(struct hid_field *field, unsigned offset, __s32 value)
 	field->value[offset] = value;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hid_set_field);
 

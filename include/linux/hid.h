@@ -403,11 +403,17 @@ struct hid_device {							/* device report descriptor */
 	unsigned collection_size;					/* Number of allocated hid_collections */
 	unsigned maxcollection;						/* Number of parsed collections */
 	unsigned maxapplication;					/* Number of applications */
+	unsigned short bus;                                             /* BUS ID */
+	unsigned short vendor;                                          /* Vendor ID */
+	unsigned short product;                                         /* Product ID */
 	unsigned version;						/* HID version */
 	unsigned country;						/* HID country */
 	struct hid_report_enum report_enum[HID_REPORT_TYPES];
 
-	struct usb_device *dev;						/* USB device */
+	struct usb_device *dev;						/* device */
+
+	/* USB specific fields */
+
 	struct usb_interface *intf;					/* USB interface */
 	int ifnum;							/* USB interface number */
 
@@ -453,6 +459,13 @@ struct hid_device {							/* device report descriptor */
 	char name[128];							/* Device name */
 	char phys[64];							/* Device physical location */
 	char uniq[64];							/* Device unique identifier (serial #) */
+
+	void *driver_data;
+
+	/* device-specific function pointers */
+	int (*hidinput_input_event) (struct input_dev *, unsigned int, unsigned int, int);
+	int (*hidinput_open) (struct input_dev *);
+	void (*hidinput_close) (struct input_dev *);
 
 #ifdef CONFIG_USB_HIDINPUT_POWERBOOK
 	unsigned long pb_pressed_fn[NBITS(KEY_MAX)];
@@ -502,17 +515,15 @@ struct hid_descriptor {
 /* Applications from HID Usage Tables 4/8/99 Version 1.1 */
 /* We ignore a few input applications that are not widely used */
 #define IS_INPUT_APPLICATION(a) (((a >= 0x00010000) && (a <= 0x00010008)) || (a == 0x00010080) || (a == 0x000c0001))
+#else
+#define IS_INPUT_APPLICATION(a) (0)
+#endif
+
+/* HID core API */
 extern void hidinput_hid_event(struct hid_device *, struct hid_field *, struct hid_usage *, __s32);
 extern void hidinput_report_event(struct hid_device *hid, struct hid_report *report);
 extern int hidinput_connect(struct hid_device *);
 extern void hidinput_disconnect(struct hid_device *);
-#else
-#define IS_INPUT_APPLICATION(a) (0)
-static inline void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct hid_usage *usage, __s32 value) { }
-static inline void hidinput_report_event(struct hid_device *hid, struct hid_report *report) { }
-static inline int hidinput_connect(struct hid_device *hid) { return -ENODEV; }
-static inline void hidinput_disconnect(struct hid_device *hid) { }
-#endif
 
 int hid_set_field(struct hid_field *, unsigned, __s32);
 int hidinput_find_field(struct hid_device *hid, unsigned int type, unsigned int code, struct hid_field **field);
@@ -536,5 +547,14 @@ static inline int hid_pidff_init(struct hid_device *hid) { return -ENODEV; }
 #else
 static inline int hid_ff_init(struct hid_device *hid) { return -1; }
 #endif
+#ifdef DEBUG
+#define dbg(format, arg...) printk(KERN_DEBUG "%s: " format "\n" , \
+		__FILE__ , ## arg)
+#else
+#define dbg(format, arg...) do {} while (0)
+#endif
+
+#define err(format, arg...) printk(KERN_ERR "%s: " format "\n" , \
+		__FILE__ , ## arg)
 #endif
 

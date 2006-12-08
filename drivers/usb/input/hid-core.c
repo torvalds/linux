@@ -497,7 +497,7 @@ void hid_submit_report(struct hid_device *hid, struct hid_report *report, unsign
 	spin_unlock_irqrestore(&hid->ctrllock, flags);
 }
 
-static int hidinput_input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
+static int usb_hidinput_input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
 {
 	struct hid_device *hid = dev->private;
 	struct hid_field *field;
@@ -1231,6 +1231,10 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 			 le16_to_cpu(dev->descriptor.idVendor),
 			 le16_to_cpu(dev->descriptor.idProduct));
 
+	hid->bus = BUS_USB;
+	hid->vendor = dev->descriptor.idVendor;
+	hid->product = dev->descriptor.idProduct;
+
 	usb_make_path(dev, hid->phys, sizeof(hid->phys));
 	strlcat(hid->phys, "/input", sizeof(hid->phys));
 	len = strlen(hid->phys);
@@ -1250,6 +1254,9 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	hid->urbctrl->setup_dma = hid->cr_dma;
 	hid->urbctrl->transfer_dma = hid->ctrlbuf_dma;
 	hid->urbctrl->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP);
+	hid->hidinput_input_event = usb_hidinput_input_event;
+	hid->hidinput_open = hidinput_open;
+	hid->hidinput_close = hidinput_close;
 
 	return hid;
 
