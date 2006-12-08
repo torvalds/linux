@@ -286,11 +286,11 @@ int proc_lasat_eeprom_value(ctl_table *table, int write, struct file *filp,
 		mutex_unlock(&lasat_info_mutex);
 		return r;
 	}
-	if (filp && filp->f_dentry)
+	if (filp && filp->f_path.dentry)
 	{
-		if (!strcmp(filp->f_dentry->d_name.name, "prid"))
+		if (!strcmp(filp->f_path.dentry->d_name.name, "prid"))
 			lasat_board_info.li_eeprom_info.prid = lasat_board_info.li_prid;
-		if (!strcmp(filp->f_dentry->d_name.name, "debugaccess"))
+		if (!strcmp(filp->f_path.dentry->d_name.name, "debugaccess"))
 			lasat_board_info.li_eeprom_info.debugaccess = lasat_board_info.li_debugaccess;
 	}
 	lasat_write_eeprom_info();
