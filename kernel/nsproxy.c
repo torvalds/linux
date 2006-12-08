@@ -19,6 +19,7 @@
 #include <linux/init_task.h>
 #include <linux/mnt_namespace.h>
 #include <linux/utsname.h>
+#include <linux/pid_namespace.h>
 
 struct nsproxy init_nsproxy = INIT_NSPROXY(init_nsproxy);
 
@@ -68,6 +69,8 @@ struct nsproxy *dup_namespaces(struct nsproxy *orig)
 			get_uts_ns(ns->uts_ns);
 		if (ns->ipc_ns)
 			get_ipc_ns(ns->ipc_ns);
+		if (ns->pid_ns)
+			get_pid_ns(ns->pid_ns);
 	}
 
 	return ns;
@@ -111,10 +114,17 @@ int copy_namespaces(int flags, struct task_struct *tsk)
 	if (err)
 		goto out_ipc;
 
+	err = copy_pid_ns(flags, tsk);
+	if (err)
+		goto out_pid;
+
 out:
 	put_nsproxy(old_ns);
 	return err;
 
+out_pid:
+	if (new_ns->ipc_ns)
+		put_ipc_ns(new_ns->ipc_ns);
 out_ipc:
 	if (new_ns->uts_ns)
 		put_uts_ns(new_ns->uts_ns);
@@ -129,11 +139,13 @@ out_ns:
 
 void free_nsproxy(struct nsproxy *ns)
 {
-		if (ns->mnt_ns)
-			put_mnt_ns(ns->mnt_ns);
-		if (ns->uts_ns)
-			put_uts_ns(ns->uts_ns);
-		if (ns->ipc_ns)
-			put_ipc_ns(ns->ipc_ns);
-		kfree(ns);
+	if (ns->mnt_ns)
+		put_mnt_ns(ns->mnt_ns);
+	if (ns->uts_ns)
+		put_uts_ns(ns->uts_ns);
+	if (ns->ipc_ns)
+		put_ipc_ns(ns->ipc_ns);
+	if (ns->pid_ns)
+		put_pid_ns(ns->pid_ns);
+	kfree(ns);
 }

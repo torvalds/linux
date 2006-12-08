@@ -59,6 +59,9 @@ static inline int mk_pid(struct pid_namespace *pid_ns,
  * the scheme scales to up to 4 million PIDs, runtime.
  */
 struct pid_namespace init_pid_ns = {
+	.kref = {
+		.refcount       = ATOMIC_INIT(2),
+	},
 	.pidmap = {
 		[ 0 ... PIDMAP_ENTRIES-1] = { ATOMIC_INIT(BITS_PER_PAGE), NULL }
 	},
@@ -355,6 +358,26 @@ struct pid *find_ge_pid(int nr)
 	return pid;
 }
 EXPORT_SYMBOL_GPL(find_get_pid);
+
+int copy_pid_ns(int flags, struct task_struct *tsk)
+{
+	struct pid_namespace *old_ns = tsk->nsproxy->pid_ns;
+	int err = 0;
+
+	if (!old_ns)
+		return 0;
+
+	get_pid_ns(old_ns);
+	return err;
+}
+
+void free_pid_ns(struct kref *kref)
+{
+	struct pid_namespace *ns;
+
+	ns = container_of(kref, struct pid_namespace, kref);
+	kfree(ns);
+}
 
 /*
  * The pid hash table is scaled according to the amount of memory in the

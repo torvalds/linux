@@ -7,6 +7,7 @@
 #include <linux/utsname.h>
 #include <linux/lockdep.h>
 #include <linux/ipc.h>
+#include <linux/pid_namespace.h>
 
 #define INIT_FDTABLE \
 {							\
@@ -73,6 +74,7 @@
 
 extern struct nsproxy init_nsproxy;
 #define INIT_NSPROXY(nsproxy) {						\
+	.pid_ns		= &init_pid_ns,					\
 	.count		= ATOMIC_INIT(1),				\
 	.nslock		= __SPIN_LOCK_UNLOCKED(nsproxy.nslock),		\
 	.id		= 0,						\
