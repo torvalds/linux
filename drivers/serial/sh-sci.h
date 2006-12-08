@@ -495,6 +495,7 @@ static inline int sci_rxd_in(struct uart_port *port)
 		return ctrl_inw(SCSPTR1) & 0x0001 ? 1 : 0; /* SCIF */
 	if (port->mapbase == 0xfe620000)
 		return ctrl_inw(SCSPTR2) & 0x0001 ? 1 : 0; /* SCIF */
+	return 1;
 }
 #elif defined(CONFIG_CPU_SUBTYPE_SH7300)
 static inline int sci_rxd_in(struct uart_port *port)
@@ -550,6 +551,7 @@ static inline int sci_rxd_in(struct uart_port *port)
 		return ctrl_inw(SCSPTR1) & 0x0001 ? 1 : 0; /* SCIF */
 	if (port->mapbase == 0xff925000)
 		return ctrl_inw(SCSPTR2) & 0x0001 ? 1 : 0; /* SCIF */
+	return 1;
 }
 #elif defined(CONFIG_CPU_SUBTYPE_SH7780)
 static inline int sci_rxd_in(struct uart_port *port)
@@ -558,6 +560,7 @@ static inline int sci_rxd_in(struct uart_port *port)
 		return ctrl_inw(SCSPTR0) & 0x0001 ? 1 : 0; /* SCIF */
 	if (port->mapbase == 0xffe10000)
 		return ctrl_inw(SCSPTR1) & 0x0001 ? 1 : 0; /* SCIF */
+	return 1;
 }
 #elif defined(CONFIG_CPU_SUBTYPE_SH7206)
 static inline int sci_rxd_in(struct uart_port *port)
@@ -570,6 +573,7 @@ static inline int sci_rxd_in(struct uart_port *port)
 		return ctrl_inw(SCSPTR2) & 0x0001 ? 1 : 0; /* SCIF */
 	if (port->mapbase == 0xfffe9800)
 		return ctrl_inw(SCSPTR3) & 0x0001 ? 1 : 0; /* SCIF */
+	return 1;
 }
 #elif defined(CONFIG_CPU_SUBTYPE_SH7619)
 static inline int sci_rxd_in(struct uart_port *port)
@@ -580,6 +584,7 @@ static inline int sci_rxd_in(struct uart_port *port)
 		return ctrl_inw(SCSPTR1) & 0x0001 ? 1 : 0; /* SCIF */
 	if (port->mapbase == 0xf8420000)
 		return ctrl_inw(SCSPTR2) & 0x0001 ? 1 : 0; /* SCIF */
+	return 1;
 }
 #endif
 
