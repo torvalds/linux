@@ -50,6 +50,8 @@
 #include <linux/buffer_head.h>
 #include <linux/debug_locks.h>
 #include <linux/lockdep.h>
+#include <linux/utsrelease.h>
+#include <linux/compile.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -506,7 +508,7 @@ asmlinkage void __init start_kernel(void)
 	boot_cpu_init();
 	page_address_init();
 	printk(KERN_NOTICE);
-	printk(linux_banner);
+	printk(linux_banner, UTS_RELEASE, UTS_VERSION);
 	setup_arch(&command_line);
 	unwind_setup();
 	setup_per_cpu_areas();

@@ -252,8 +252,8 @@ static int version_read_proc(char *page, char **start, off_t off,
 {
 	int len;
 
-	strcpy(page, linux_banner);
-	len = strlen(page);
+	len = sprintf(page, linux_banner,
+		utsname()->release, utsname()->version);
 	return proc_calc_metrics(page, start, off, count, eof, len);
 }
 
