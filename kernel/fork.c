@@ -1544,15 +1544,13 @@ static int unshare_namespace(unsigned long unshare_flags, struct namespace **new
 }
 
 /*
- * Unsharing of sighand for tasks created with CLONE_SIGHAND is not
- * supported yet
+ * Unsharing of sighand is not supported yet
  */
 static int unshare_sighand(unsigned long unshare_flags, struct sighand_struct **new_sighp)
 {
 	struct sighand_struct *sigh = current->sighand;
 
-	if ((unshare_flags & CLONE_SIGHAND) &&
-	    (sigh && atomic_read(&sigh->count) > 1))
+	if ((unshare_flags & CLONE_SIGHAND) && atomic_read(&sigh->count) > 1)
 		return -EINVAL;
 	else
 		return 0;
@@ -1626,7 +1624,7 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 	int err = 0;
 	struct fs_struct *fs, *new_fs = NULL;
 	struct namespace *ns, *new_ns = NULL;
-	struct sighand_struct *sigh, *new_sigh = NULL;
+	struct sighand_struct *new_sigh = NULL;
 	struct mm_struct *mm, *new_mm = NULL, *active_mm = NULL;
 	struct files_struct *fd, *new_fd = NULL;
 	struct sem_undo_list *new_ulist = NULL;
@@ -1671,7 +1669,7 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 		}
 	}
 
-	if (new_fs || new_ns || new_sigh || new_mm || new_fd || new_ulist ||
+	if (new_fs || new_ns || new_mm || new_fd || new_ulist ||
 				new_uts || new_ipc) {
 
 		task_lock(current);
@@ -1691,12 +1689,6 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 			ns = current->nsproxy->namespace;
 			current->nsproxy->namespace = new_ns;
 			new_ns = ns;
-		}
-
-		if (new_sigh) {
-			sigh = current->sighand;
-			rcu_assign_pointer(current->sighand, new_sigh);
-			new_sigh = sigh;
 		}
 
 		if (new_mm) {
