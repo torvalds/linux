@@ -9,6 +9,7 @@
  *  Split from:
  *  linux/drivers/ide/pdc202xx.c	Version 0.35	Mar. 30, 2002
  *  Copyright (C) 1998-2002		Andre Hedrick <andre@linux-ide.org>
+ *  Copyright (C) 2005-2006		MontaVista Software, Inc.
  *  Portions Copyright (C) 1999 Promise Technology, Inc.
  *  Author: Frank Tiernan (frankt@promise.com)
  *  Released under terms of General Public License
@@ -168,12 +169,8 @@ static int pdcnew_new_tune_chipset (ide_drive_t *drive, u8 xferspeed)
  */
 static void pdcnew_tune_drive(ide_drive_t *drive, u8 pio)
 {
-	u8 speed;
-
-	if (pio == 5) pio = 4;
-	speed = XFER_PIO_0 + ide_get_best_pio_mode(drive, 255, pio, NULL);
-
-	(void)pdcnew_new_tune_chipset(drive, speed);
+	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
+	(void)pdcnew_new_tune_chipset(drive, XFER_PIO_0 + pio);
 }
 
 static u8 pdcnew_new_cable_detect (ide_hwif_t *hwif)
@@ -207,10 +204,8 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 
 	speed = ide_dma_speed(drive, pdcnew_ratemask(drive));
 
-	if (!(speed)) {
-		hwif->tuneproc(drive, 5);
+	if (!speed)
 		return 0;
-	}
 
 	(void) hwif->speedproc(drive, speed);
 	return ide_dma_enable(drive);
@@ -234,7 +229,7 @@ static int pdcnew_config_drive_xfer_rate (ide_drive_t *drive)
 
 	} else if ((id->capability & 8) || (id->field_valid & 2)) {
 fast_ata_pio:
-		hwif->tuneproc(drive, 5);
+		hwif->tuneproc(drive, 255);
 		return hwif->ide_dma_off_quietly(drive);
 	}
 	/* IORDY not supported */
