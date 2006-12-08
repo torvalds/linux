@@ -362,20 +362,20 @@ static int sock_attach_fd(struct socket *sock, struct file *file)
 	this.name = name;
 	this.hash = 0;
 
-	file->f_dentry = d_alloc(sock_mnt->mnt_sb->s_root, &this);
-	if (unlikely(!file->f_dentry))
+	file->f_path.dentry = d_alloc(sock_mnt->mnt_sb->s_root, &this);
+	if (unlikely(!file->f_path.dentry))
 		return -ENOMEM;
 
-	file->f_dentry->d_op = &sockfs_dentry_operations;
+	file->f_path.dentry->d_op = &sockfs_dentry_operations;
 	/*
 	 * We dont want to push this dentry into global dentry hash table.
 	 * We pretend dentry is already hashed, by unsetting DCACHE_UNHASHED
 	 * This permits a working /proc/$pid/fd/XXX on sockets
 	 */
-	file->f_dentry->d_flags &= ~DCACHE_UNHASHED;
-	d_instantiate(file->f_dentry, SOCK_INODE(sock));
-	file->f_vfsmnt = mntget(sock_mnt);
-	file->f_mapping = file->f_dentry->d_inode->i_mapping;
+	file->f_path.dentry->d_flags &= ~DCACHE_UNHASHED;
+	d_instantiate(file->f_path.dentry, SOCK_INODE(sock));
+	file->f_path.mnt = mntget(sock_mnt);
+	file->f_mapping = file->f_path.dentry->d_inode->i_mapping;
 
 	sock->file = file;
 	file->f_op = SOCK_INODE(sock)->i_fop = &socket_file_ops;
@@ -413,7 +413,7 @@ static struct socket *sock_from_file(struct file *file, int *err)
 	if (file->f_op == &socket_file_ops)
 		return file->private_data;	/* set in sock_map_fd */
 
-	inode = file->f_dentry->d_inode;
+	inode = file->f_path.dentry->d_inode;
 	if (!S_ISSOCK(inode->i_mode)) {
 		*err = -ENOTSOCK;
 		return NULL;
