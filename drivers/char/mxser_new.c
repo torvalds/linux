@@ -461,7 +461,8 @@ static int mxser_block_til_ready(struct tty_struct *tty, struct file *filp,
 	 * If non-blocking mode is set, or the port is not enabled,
 	 * then make the check up front and then exit.
 	 */
-	if ((filp->f_flags & O_NONBLOCK) || (tty->flags & (1 << TTY_IO_ERROR))) {
+	if ((filp->f_flags & O_NONBLOCK) ||
+			test_bit(TTY_IO_ERROR, &tty->flags)) {
 		port->flags |= ASYNC_NORMAL_ACTIVE;
 		return 0;
 	}
@@ -1437,7 +1438,7 @@ static int mxser_tiocmget(struct tty_struct *tty, struct file *file)
 
 	if (tty->index == MXSER_PORTS)
 		return -ENOIOCTLCMD;
-	if (tty->flags & (1 << TTY_IO_ERROR))
+	if (test_bit(TTY_IO_ERROR, &tty->flags))
 		return -EIO;
 
 	control = info->MCR;
@@ -1464,7 +1465,7 @@ static int mxser_tiocmset(struct tty_struct *tty, struct file *file,
 
 	if (tty->index == MXSER_PORTS)
 		return -ENOIOCTLCMD;
-	if (tty->flags & (1 << TTY_IO_ERROR))
+	if (test_bit(TTY_IO_ERROR, &tty->flags))
 		return -EIO;
 
 	spin_lock_irqsave(&info->slock, flags);
@@ -1798,10 +1799,10 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 	}
 	/* above add by Victor Yu. 01-05-2004 */
 
-	if ((cmd != TIOCGSERIAL) && (cmd != TIOCMIWAIT) && (cmd != TIOCGICOUNT)) {
-		if (tty->flags & (1 << TTY_IO_ERROR))
-			return -EIO;
-	}
+	if (cmd != TIOCGSERIAL && cmd != TIOCMIWAIT && cmd != TIOCGICOUNT &&
+			test_bit(TTY_IO_ERROR, &tty->flags))
+		return -EIO;
+
 	switch (cmd) {
 	case TCSBRK:		/* SVID version: non-zero arg --> no break */
 		retval = tty_check_change(tty);
