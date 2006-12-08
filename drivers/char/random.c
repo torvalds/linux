@@ -1048,7 +1048,7 @@ random_write(struct file * file, const char __user * buffer,
 	if (p == buffer) {
 		return (ssize_t)ret;
 	} else {
-		struct inode *inode = file->f_dentry->d_inode;
+		struct inode *inode = file->f_path.dentry->d_inode;
 	        inode->i_mtime = current_fs_time(inode->i_sb);
 		mark_inode_dirty(inode);
 		return (ssize_t)(p - buffer);

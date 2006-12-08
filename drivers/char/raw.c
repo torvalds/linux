@@ -75,7 +75,7 @@ static int raw_open(struct inode *inode, struct file *filp)
 	filp->f_flags |= O_DIRECT;
 	filp->f_mapping = bdev->bd_inode->i_mapping;
 	if (++raw_devices[minor].inuse == 1)
-		filp->f_dentry->d_inode->i_mapping =
+		filp->f_path.dentry->d_inode->i_mapping =
 			bdev->bd_inode->i_mapping;
 	filp->private_data = bdev;
 	mutex_unlock(&raw_mutex);

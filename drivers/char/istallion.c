@@ -4194,7 +4194,7 @@ static ssize_t stli_memread(struct file *fp, char __user *buf, size_t count, lof
 	void *p;
 	loff_t off = *offp;
 
-	brdnr = iminor(fp->f_dentry->d_inode);
+	brdnr = iminor(fp->f_path.dentry->d_inode);
 	if (brdnr >= stli_nrbrds)
 		return -ENODEV;
 	brdp = stli_brds[brdnr];
@@ -4258,7 +4258,7 @@ static ssize_t stli_memwrite(struct file *fp, const char __user *buf, size_t cou
 	void *p;
 	loff_t off = *offp;
 
-	brdnr = iminor(fp->f_dentry->d_inode);
+	brdnr = iminor(fp->f_path.dentry->d_inode);
 
 	if (brdnr >= stli_nrbrds)
 		return -ENODEV;

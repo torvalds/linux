@@ -72,7 +72,7 @@ static loff_t vcs_lseek(struct file *file, loff_t offset, int orig)
 	int size;
 
 	down(&con_buf_sem);
-	size = vcs_size(file->f_dentry->d_inode);
+	size = vcs_size(file->f_path.dentry->d_inode);
 	switch (orig) {
 		default:
 			up(&con_buf_sem);
@@ -98,7 +98,7 @@ static loff_t vcs_lseek(struct file *file, loff_t offset, int orig)
 static ssize_t
 vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	unsigned int currcons = iminor(inode);
 	struct vc_data *vc;
 	long pos;
@@ -271,7 +271,7 @@ unlock_out:
 static ssize_t
 vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	unsigned int currcons = iminor(inode);
 	struct vc_data *vc;
 	long pos;

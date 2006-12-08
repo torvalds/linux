@@ -979,7 +979,7 @@ static ssize_t sonypi_misc_read(struct file *file, char __user *buf,
 	}
 
 	if (ret > 0) {
-		struct inode *inode = file->f_dentry->d_inode;
+		struct inode *inode = file->f_path.dentry->d_inode;
 		inode->i_atime = current_fs_time(inode->i_sb);
 	}
 

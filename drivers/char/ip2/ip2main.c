@@ -2700,7 +2700,7 @@ static
 ssize_t
 ip2_ipl_read(struct file *pFile, char __user *pData, size_t count, loff_t *off )
 {
-	unsigned int minor = iminor(pFile->f_dentry->d_inode);
+	unsigned int minor = iminor(pFile->f_path.dentry->d_inode);
 	int rc = 0;
 
 #ifdef IP2DEBUG_IPL
