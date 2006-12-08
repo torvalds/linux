@@ -51,6 +51,8 @@ SECTIONS
 
   RODATA
 
+  BUG_TABLE
+
   . = ALIGN(PAGE_SIZE);        /* Align data segment to page size boundary */
 				/* Data */
   .data : AT(ADDR(.data) - LOAD_OFFSET) {

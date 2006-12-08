@@ -96,6 +96,11 @@ config AUDIT_ARCH
 	bool
 	default y
 
+config GENERIC_BUG
+	bool
+	default y
+	depends on BUG
+
 source "init/Kconfig"
 
 

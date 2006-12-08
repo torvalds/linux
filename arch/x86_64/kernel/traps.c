@@ -31,6 +31,7 @@
 #include <linux/kexec.h>
 #include <linux/unwind.h>
 #include <linux/uaccess.h>
+#include <linux/bug.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -524,30 +525,15 @@ bad:
 	printk("\n");
 }	
 
-void handle_BUG(struct pt_regs *regs)
-{ 
-	struct bug_frame f;
-	long len;
-	const char *prefix = "";
+int is_valid_bugaddr(unsigned long rip)
+{
+	unsigned short ud2;
 
-	if (user_mode(regs))
-		return; 
-	if (__copy_from_user(&f, (const void __user *) regs->rip,
-			     sizeof(struct bug_frame)))
-		return; 
-	if (f.filename >= 0 ||
-	    f.ud2[0] != 0x0f || f.ud2[1] != 0x0b) 
-		return;
-	len = __strnlen_user((char *)(long)f.filename, PATH_MAX) - 1;
-	if (len < 0 || len >= PATH_MAX)
-		f.filename = (int)(long)"unmapped filename";
-	else if (len > 50) {
-		f.filename += len - 50;
-		prefix = "...";
-	}
-	printk("----------- [cut here ] --------- [please bite here ] ---------\n");
-	printk(KERN_ALERT "Kernel BUG at %s%.50s:%d\n", prefix, (char *)(long)f.filename, f.line);
-} 
+	if (__copy_from_user(&ud2, (const void __user *) rip, sizeof(ud2)))
+		return 0;
+
+	return ud2 == 0x0b0f;
+}
 
 #ifdef CONFIG_BUG
 void out_of_line_bug(void)
@@ -627,7 +613,9 @@ void die(const char * str, struct pt_regs * regs, long err)
 {
 	unsigned long flags = oops_begin();
 
-	handle_BUG(regs);
+	if (!user_mode(regs))
+		report_bug(regs->rip);
+
 	__die(str, regs, err);
 	oops_end(flags);
 	do_exit(SIGSEGV); 
