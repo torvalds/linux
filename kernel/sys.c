@@ -1381,7 +1381,7 @@ asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 
 	if (p->real_parent == group_leader) {
 		err = -EPERM;
-		if (p->signal->session != group_leader->signal->session)
+		if (process_session(p) != process_session(group_leader))
 			goto out;
 		err = -EACCES;
 		if (p->did_exec)
@@ -1400,7 +1400,7 @@ asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 		struct task_struct *p;
 
 		do_each_task_pid(pgid, PIDTYPE_PGID, p) {
-			if (p->signal->session == group_leader->signal->session)
+			if (process_session(p) == process_session(group_leader))
 				goto ok_pgid;
 		} while_each_task_pid(pgid, PIDTYPE_PGID, p);
 		goto out;
@@ -1459,7 +1459,7 @@ asmlinkage long sys_getpgrp(void)
 asmlinkage long sys_getsid(pid_t pid)
 {
 	if (!pid)
-		return current->signal->session;
+		return process_session(current);
 	else {
 		int retval;
 		struct task_struct *p;
@@ -1471,7 +1471,7 @@ asmlinkage long sys_getsid(pid_t pid)
 		if (p) {
 			retval = security_task_getsid(p);
 			if (!retval)
-				retval = p->signal->session;
+				retval = process_session(p);
 		}
 		read_unlock(&tasklist_lock);
 		return retval;

@@ -1047,6 +1047,11 @@ static inline pid_t process_group(struct task_struct *tsk)
 	return tsk->signal->pgrp;
 }
 
+static inline pid_t process_session(struct task_struct *tsk)
+{
+	return tsk->signal->session;
+}
+
 static inline struct pid *task_pid(struct task_struct *task)
 {
 	return task->pids[PIDTYPE_PID].pid;

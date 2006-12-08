@@ -1511,7 +1511,7 @@ void disassociate_ctty(int on_exit)
 
 	spin_lock_irq(&current->sighand->siglock);
 	current->signal->tty_old_pgrp = 0;
-	session = current->signal->session;
+	session = process_session(current);
 	spin_unlock_irq(&current->sighand->siglock);
 
 	mutex_lock(&tty_mutex);
@@ -2897,7 +2897,7 @@ static int tiocsctty(struct tty_struct *tty, int arg)
 {
 	int ret = 0;
 	if (current->signal->leader &&
-	    (current->signal->session == tty->session))
+			(process_session(current) == tty->session))
 		return ret;
 
 	mutex_lock(&tty_mutex);
@@ -2979,13 +2979,13 @@ static int tiocspgrp(struct tty_struct *tty, struct tty_struct *real_tty, pid_t 
 		return retval;
 	if (!current->signal->tty ||
 	    (current->signal->tty != real_tty) ||
-	    (real_tty->session != current->signal->session))
+	    (real_tty->session != process_session(current)))
 		return -ENOTTY;
 	if (get_user(pgrp, p))
 		return -EFAULT;
 	if (pgrp < 0)
 		return -EINVAL;
-	if (session_of_pgrp(pgrp) != current->signal->session)
+	if (session_of_pgrp(pgrp) != process_session(current))
 		return -EPERM;
 	real_tty->pgrp = pgrp;
 	return 0;
@@ -3338,7 +3338,7 @@ static void __do_SAK(struct work_struct *work)
 	/* Kill the entire session */
 	do_each_task_pid(session, PIDTYPE_SID, p) {
 		printk(KERN_NOTICE "SAK: killed process %d"
-			" (%s): p->signal->session==tty->session\n",
+			" (%s): process_session(p)==tty->session\n",
 			p->pid, p->comm);
 		send_sig(SIGKILL, p, 1);
 	} while_each_task_pid(session, PIDTYPE_SID, p);
@@ -3348,7 +3348,7 @@ static void __do_SAK(struct work_struct *work)
 	do_each_thread(g, p) {
 		if (p->signal->tty == tty) {
 			printk(KERN_NOTICE "SAK: killed process %d"
-			    " (%s): p->signal->session==tty->session\n",
+			    " (%s): process_session(p)==tty->session\n",
 			    p->pid, p->comm);
 			send_sig(SIGKILL, p, 1);
 			continue;
