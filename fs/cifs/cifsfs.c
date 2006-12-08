@@ -498,7 +498,7 @@ cifs_get_sb(struct file_system_type *fs_type,
 static ssize_t cifs_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 				   unsigned long nr_segs, loff_t pos)
 {
-	struct inode *inode = iocb->ki_filp->f_dentry->d_inode;
+	struct inode *inode = iocb->ki_filp->f_path.dentry->d_inode;
 	ssize_t written;
 
 	written = generic_file_aio_write(iocb, iov, nr_segs, pos);
@@ -511,7 +511,7 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 {
 	/* origin == SEEK_END => we must revalidate the cached file length */
 	if (origin == SEEK_END) {
-		int retval = cifs_revalidate(file->f_dentry);
+		int retval = cifs_revalidate(file->f_path.dentry);
 		if (retval < 0)
 			return (loff_t)retval;
 	}
