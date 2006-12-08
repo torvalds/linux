@@ -355,7 +355,7 @@ static int pxamci_get_ro(struct mmc_host *mmc)
 	struct pxamci_host *host = mmc_priv(mmc);
 
 	if (host->pdata && host->pdata->get_ro)
-		return host->pdata->get_ro(mmc->dev);
+		return host->pdata->get_ro(mmc_dev(mmc));
 	/* Host doesn't support read only detection so assume writeable */
 	return 0;
 }
@@ -383,7 +383,7 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		host->power_mode = ios->power_mode;
 
 		if (host->pdata && host->pdata->setpower)
-			host->pdata->setpower(mmc->dev, ios->vdd);
+			host->pdata->setpower(mmc_dev(mmc), ios->vdd);
 
 		if (ios->power_mode == MMC_POWER_ON)
 			host->cmdat |= CMDAT_INIT;

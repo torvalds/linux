@@ -875,7 +875,7 @@ static void au1xmmc_init_dma(struct au1xmmc_host *host)
 	host->rx_chan = rxchan;
 }
 
-struct const mmc_host_ops au1xmmc_ops = {
+static const struct mmc_host_ops au1xmmc_ops = {
 	.request	= au1xmmc_request,
 	.set_ios	= au1xmmc_set_ios,
 };
