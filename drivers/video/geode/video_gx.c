@@ -178,7 +178,21 @@ static void gx_set_dclk_frequency(struct fb_info *info)
 static void gx_configure_display(struct fb_info *info)
 {
 	struct geodefb_par *par = info->par;
-	u32 dcfg, fp_pm;
+	u32 dcfg, fp_pm, misc;
+
+	/* Set up the MISC register */
+
+	misc = readl(par->vid_regs + GX_MISC);
+
+	/* Power up the DAC */
+	misc &= ~(GX_MISC_A_PWRDN | GX_MISC_DAC_PWRDN);
+
+	/* Disable gamma correction */
+	misc |= GX_MISC_GAM_EN;
+
+	writel(misc, par->vid_regs + GX_MISC);
+
+	/* Write the display configuration */
 
 	dcfg = readl(par->vid_regs + GX_DCFG);
 
@@ -199,9 +213,17 @@ static void gx_configure_display(struct fb_info *info)
 	if (info->var.sync & FB_SYNC_VERT_HIGH_ACT)
 		dcfg |= GX_DCFG_CRT_VSYNC_POL;
 
+	/* Enable the display logic */
+	/* Set up the DACS to blank normally */
+
+	dcfg |= GX_DCFG_CRT_EN | GX_DCFG_DAC_BL_EN;
+
+	/* Enable the external DAC VREF? */
+
 	writel(dcfg, par->vid_regs + GX_DCFG);
 
 	/* Power on flat panel. */
+
 	fp_pm = readl(par->vid_regs + GX_FP_PM);
 	fp_pm |= GX_FP_PM_P;
 	writel(fp_pm, par->vid_regs + GX_FP_PM);
