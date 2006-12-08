@@ -2545,8 +2545,7 @@ static void stli_poll(unsigned long arg)
 	struct stlibrd *brdp;
 	unsigned int brdnr;
 
-	stli_timerlist.expires = STLI_TIMEOUT;
-	add_timer(&stli_timerlist);
+	mod_timer(&stli_timerlist, STLI_TIMEOUT);
 
 /*
  *	Check each board and do any servicing required.
@@ -3610,8 +3609,7 @@ stli_donestartup:
 
 	if (! stli_timeron) {
 		stli_timeron++;
-		stli_timerlist.expires = STLI_TIMEOUT;
-		add_timer(&stli_timerlist);
+		mod_timer(&stli_timerlist, STLI_TIMEOUT);
 	}
 
 	return rc;
