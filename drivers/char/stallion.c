@@ -41,13 +41,12 @@
 #include <linux/smp_lock.h>
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/ctype.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
 
-#ifdef CONFIG_PCI
 #include <linux/pci.h>
-#endif
 
 /*****************************************************************************/
 
@@ -63,43 +62,16 @@
 #define	BRD_ECH64PCI	27
 #define	BRD_EASYIOPCI	28
 
-/*
- *	Define a configuration structure to hold the board configuration.
- *	Need to set this up in the code (for now) with the boards that are
- *	to be configured into the system. This is what needs to be modified
- *	when adding/removing/modifying boards. Each line entry in the
- *	stl_brdconf[] array is a board. Each line contains io/irq/memory
- *	ranges for that board (as well as what type of board it is).
- *	Some examples:
- *		{ BRD_EASYIO, 0x2a0, 0, 0, 10, 0 },
- *	This line would configure an EasyIO board (4 or 8, no difference),
- *	at io address 2a0 and irq 10.
- *	Another example:
- *		{ BRD_ECH, 0x2a8, 0x280, 0, 12, 0 },
- *	This line will configure an EasyConnection 8/32 board at primary io
- *	address 2a8, secondary io address 280 and irq 12.
- *	Enter as many lines into this array as you want (only the first 4
- *	will actually be used!). Any combination of EasyIO and EasyConnection
- *	boards can be specified. EasyConnection 8/32 boards can share their
- *	secondary io addresses between each other.
- *
- *	NOTE: there is no need to put any entries in this table for PCI
- *	boards. They will be found automatically by the driver - provided
- *	PCI BIOS32 support is compiled into the kernel.
- */
-
-static struct stlconf {
+struct stlconf {
 	int		brdtype;
 	int		ioaddr1;
 	int		ioaddr2;
 	unsigned long	memaddr;
 	int		irq;
 	int		irqtype;
-} stl_brdconf[] = {
-	/*{ BRD_EASYIO, 0x2a0, 0, 0, 10, 0 },*/
 };
 
-static int	stl_nrbrds = ARRAY_SIZE(stl_brdconf);
+static unsigned int stl_nrbrds;
 
 /*****************************************************************************/
 
@@ -432,15 +404,6 @@ static unsigned int	stl_baudrates[] = {
 	9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600
 };
 
-/*
- *	Define some handy local macros...
- */
-#undef	MIN
-#define	MIN(a,b)	(((a) <= (b)) ? (a) : (b))
-
-#undef	TOLOWER
-#define	TOLOWER(x)	((((x) >= 'A') && ((x) <= 'Z')) ? ((x) + 0x20) : (x))
-
 /*****************************************************************************/
 
 /*
@@ -660,42 +623,6 @@ static struct class *stallion_class;
 /*****************************************************************************/
 
 /*
- *	Convert an ascii string number into an unsigned long.
- */
-
-static unsigned long stl_atol(char *str)
-{
-	unsigned long	val;
-	int		base, c;
-	char		*sp;
-
-	val = 0;
-	sp = str;
-	if ((*sp == '0') && (*(sp+1) == 'x')) {
-		base = 16;
-		sp += 2;
-	} else if (*sp == '0') {
-		base = 8;
-		sp++;
-	} else {
-		base = 10;
-	}
-
-	for (; (*sp != 0); sp++) {
-		c = (*sp > '9') ? (TOLOWER(*sp) - 'a' + 10) : (*sp - '0');
-		if ((c < 0) || (c >= base)) {
-			printk("STALLION: invalid argument %s\n", str);
-			val = 0;
-			break;
-		}
-		val = (val * base) + c;
-	}
-	return val;
-}
-
-/*****************************************************************************/
-
-/*
  *	Parse the supplied argument string, into the board conf struct.
  */
 
@@ -710,7 +637,7 @@ static int __init stl_parsebrd(struct stlconf *confp, char **argp)
 		return 0;
 
 	for (sp = argp[0], i = 0; ((*sp != 0) && (i < 25)); sp++, i++)
-		*sp = TOLOWER(*sp);
+		*sp = tolower(*sp);
 
 	for (i = 0; i < ARRAY_SIZE(stl_brdstr); i++) {
 		if (strcmp(stl_brdstr[i].name, argp[0]) == 0)
@@ -725,15 +652,15 @@ static int __init stl_parsebrd(struct stlconf *confp, char **argp)
 
 	i = 1;
 	if ((argp[i] != NULL) && (*argp[i] != 0))
-		confp->ioaddr1 = stl_atol(argp[i]);
+		confp->ioaddr1 = simple_strtoul(argp[i], NULL, 0);
 	i++;
 	if (confp->brdtype == BRD_ECH) {
 		if ((argp[i] != NULL) && (*argp[i] != 0))
-			confp->ioaddr2 = stl_atol(argp[i]);
+			confp->ioaddr2 = simple_strtoul(argp[i], NULL, 0);
 		i++;
 	}
 	if ((argp[i] != NULL) && (*argp[i] != 0))
-		confp->irq = stl_atol(argp[i]);
+		confp->irq = simple_strtoul(argp[i], NULL, 0);
 	return 1;
 }
 
@@ -756,32 +683,6 @@ static struct stlbrd *stl_allocbrd(void)
 
 	brdp->magic = STL_BOARDMAGIC;
 	return brdp;
-}
-
-static void __init stl_argbrds(void)
-{
-	struct stlconf	conf;
-	struct stlbrd	*brdp;
-	int		i;
-
-	pr_debug("stl_argbrds()\n");
-
-	for (i = stl_nrbrds; (i < stl_nargs); i++) {
-		memset(&conf, 0, sizeof(conf));
-		if (stl_parsebrd(&conf, stl_brdsp[i]) == 0)
-			continue;
-		if ((brdp = stl_allocbrd()) == NULL)
-			continue;
-		stl_nrbrds = i + 1;
-		brdp->brdnr = i;
-		brdp->brdtype = conf.brdtype;
-		brdp->ioaddr1 = conf.ioaddr1;
-		brdp->ioaddr2 = conf.ioaddr2;
-		brdp->irq = conf.irq;
-		brdp->irqtype = conf.irqtype;
-		if (stl_brdinit(brdp))
-			kfree(brdp);
-	}
 }
 
 /*****************************************************************************/
@@ -1089,10 +990,10 @@ static int stl_write(struct tty_struct *tty, const unsigned char *buf, int count
 		stlen = len;
 	}
 
-	len = MIN(len, count);
+	len = min(len, (unsigned int)count);
 	count = 0;
 	while (len > 0) {
-		stlen = MIN(len, stlen);
+		stlen = min(len, stlen);
 		memcpy(head, chbuf, stlen);
 		len -= stlen;
 		chbuf += stlen;
@@ -2550,56 +2451,6 @@ static struct pci_driver stl_pcidriver = {
 /*****************************************************************************/
 
 /*
- *	Scan through all the boards in the configuration and see what we
- *	can find. Handle EIO and the ECH boards a little differently here
- *	since the initial search and setup is too different.
- */
-
-static int __init stl_initbrds(void)
-{
-	struct stlbrd	*brdp;
-	struct stlconf	*confp;
-	int		i;
-
-	pr_debug("stl_initbrds()\n");
-
-	if (stl_nrbrds > STL_MAXBRDS) {
-		printk("STALLION: too many boards in configuration table, "
-			"truncating to %d\n", STL_MAXBRDS);
-		stl_nrbrds = STL_MAXBRDS;
-	}
-
-/*
- *	Firstly scan the list of static boards configured. Allocate
- *	resources and initialize the boards as found.
- */
-	for (i = 0; (i < stl_nrbrds); i++) {
-		confp = &stl_brdconf[i];
-		stl_parsebrd(confp, stl_brdsp[i]);
-		if ((brdp = stl_allocbrd()) == NULL)
-			return(-ENOMEM);
-		brdp->brdnr = i;
-		brdp->brdtype = confp->brdtype;
-		brdp->ioaddr1 = confp->ioaddr1;
-		brdp->ioaddr2 = confp->ioaddr2;
-		brdp->irq = confp->irq;
-		brdp->irqtype = confp->irqtype;
-		if (stl_brdinit(brdp))
-			kfree(brdp);
-	}
-
-/*
- *	Find any dynamically supported boards. That is via module load
- *	line options or auto-detected on the PCI bus.
- */
-	stl_argbrds();
-
-	return(0);
-}
-
-/*****************************************************************************/
-
-/*
  *	Return the board stats structure to user app.
  */
 
@@ -3691,9 +3542,9 @@ static void stl_cd1400txisr(struct stlpanel *panelp, int ioaddr)
 		}
 		outb(srer, (ioaddr + EREG_DATA));
 	} else {
-		len = MIN(len, CD1400_TXFIFOSIZE);
+		len = min(len, CD1400_TXFIFOSIZE);
 		portp->stats.txtotal += len;
-		stlen = MIN(len, ((portp->tx.buf + STL_TXBUFSIZE) - tail));
+		stlen = min(len, ((portp->tx.buf + STL_TXBUFSIZE) - tail));
 		outb((TDR + portp->uartaddr), ioaddr);
 		outsb((ioaddr + EREG_DATA), tail, stlen);
 		len -= stlen;
@@ -3746,13 +3597,13 @@ static void stl_cd1400rxisr(struct stlpanel *panelp, int ioaddr)
 		outb((RDCR + portp->uartaddr), ioaddr);
 		len = inb(ioaddr + EREG_DATA);
 		if (tty == NULL || (buflen = tty_buffer_request_room(tty, len)) == 0) {
-			len = MIN(len, sizeof(stl_unwanted));
+			len = min(len, sizeof(stl_unwanted));
 			outb((RDSR + portp->uartaddr), ioaddr);
 			insb((ioaddr + EREG_DATA), &stl_unwanted[0], len);
 			portp->stats.rxlost += len;
 			portp->stats.rxtotal += len;
 		} else {
-			len = MIN(len, buflen);
+			len = min(len, buflen);
 			if (len > 0) {
 				unsigned char *ptr;
 				outb((RDSR + portp->uartaddr), ioaddr);
@@ -4615,9 +4466,9 @@ static void stl_sc26198txisr(struct stlport *portp)
 			outb(mr0, (ioaddr + XP_DATA));
 		}
 	} else {
-		len = MIN(len, SC26198_TXFIFOSIZE);
+		len = min(len, SC26198_TXFIFOSIZE);
 		portp->stats.txtotal += len;
-		stlen = MIN(len, ((portp->tx.buf + STL_TXBUFSIZE) - tail));
+		stlen = min(len, ((portp->tx.buf + STL_TXBUFSIZE) - tail));
 		outb(GTXFIFO, (ioaddr + XP_ADDR));
 		outsb((ioaddr + XP_DATA), tail, stlen);
 		len -= stlen;
@@ -4658,13 +4509,13 @@ static void stl_sc26198rxisr(struct stlport *portp, unsigned int iack)
 
 	if ((iack & IVR_TYPEMASK) == IVR_RXDATA) {
 		if (tty == NULL || (buflen = tty_buffer_request_room(tty, len)) == 0) {
-			len = MIN(len, sizeof(stl_unwanted));
+			len = min(len, sizeof(stl_unwanted));
 			outb(GRXFIFO, (ioaddr + XP_ADDR));
 			insb((ioaddr + XP_DATA), &stl_unwanted[0], len);
 			portp->stats.rxlost += len;
 			portp->stats.rxtotal += len;
 		} else {
-			len = MIN(len, buflen);
+			len = min(len, buflen);
 			if (len > 0) {
 				unsigned char *ptr;
 				outb(GRXFIFO, (ioaddr + XP_ADDR));
@@ -4831,6 +4682,8 @@ static void stl_sc26198otherisr(struct stlport *portp, unsigned int iack)
  */
 static int __init stallion_module_init(void)
 {
+	struct stlbrd	*brdp;
+	struct stlconf	conf;
 	unsigned int i, retval;
 
 	printk(KERN_INFO "%s: version %s\n", stl_drvtitle, stl_drvversion);
@@ -4838,7 +4691,27 @@ static int __init stallion_module_init(void)
 	spin_lock_init(&stallion_lock);
 	spin_lock_init(&brd_lock);
 
-	stl_initbrds();
+/*
+ *	Find any dynamically supported boards. That is via module load
+ *	line options.
+ */
+	for (i = stl_nrbrds; i < stl_nargs; i++) {
+		memset(&conf, 0, sizeof(conf));
+		if (stl_parsebrd(&conf, stl_brdsp[i]) == 0)
+			continue;
+		if ((brdp = stl_allocbrd()) == NULL)
+			continue;
+		brdp->brdnr = i;
+		brdp->brdtype = conf.brdtype;
+		brdp->ioaddr1 = conf.ioaddr1;
+		brdp->ioaddr2 = conf.ioaddr2;
+		brdp->irq = conf.irq;
+		brdp->irqtype = conf.irqtype;
+		if (stl_brdinit(brdp))
+			kfree(brdp);
+		else
+			stl_nrbrds = i + 1;
+	}
 
 	retval = pci_register_driver(&stl_pcidriver);
 	if (retval)
