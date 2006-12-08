@@ -23,19 +23,10 @@ struct sigcontext {
 	unsigned long sc_r12;
 
 	/* Saved main processor status and miscellaneous context registers. */
-#if defined(CONFIG_ISA_M32R2) && defined(CONFIG_ISA_DSP_LEVEL2)
 	unsigned long sc_acc0h;
 	unsigned long sc_acc0l;
-	unsigned long sc_acc1h;
-	unsigned long sc_acc1l;
-#elif defined(CONFIG_ISA_M32R2) || defined(CONFIG_ISA_M32R)
-	unsigned long sc_acch;
-	unsigned long sc_accl;
-	unsigned long sc_dummy_acc1h;
-	unsigned long sc_dummy_acc1l;
-#else
-#error unknown isa configuration
-#endif
+	unsigned long sc_acc1h;	/* ISA_DSP_LEVEL2 only */
+	unsigned long sc_acc1l;	/* ISA_DSP_LEVEL2 only */
 	unsigned long sc_psw;
 	unsigned long sc_bpc;		/* saved PC for TRAP syscalls */
 	unsigned long sc_bbpsw;
