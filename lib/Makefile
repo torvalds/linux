@@ -55,6 +55,8 @@ obj-$(CONFIG_AUDIT_GENERIC) += audit.o
 
 obj-$(CONFIG_SWIOTLB) += swiotlb.o
 
+lib-$(CONFIG_GENERIC_BUG) += bug.o
+
 hostprogs-y	:= gen_crc32table
 clean-files	:= crc32table.h
 

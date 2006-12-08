@@ -218,6 +218,14 @@
 		.stab.indexstr 0 : { *(.stab.indexstr) }		\
 		.comment 0 : { *(.comment) }
 
+#define BUG_TABLE							\
+	. = ALIGN(8);							\
+	__bug_table : AT(ADDR(__bug_table) - LOAD_OFFSET) {		\
+		__start___bug_table = .;				\
+		*(__bug_table)						\
+		__stop___bug_table = .;					\
+	}
+
 #define NOTES								\
 		.notes : { *(.note.*) } :note
 
