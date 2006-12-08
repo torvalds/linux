@@ -57,6 +57,12 @@ static int ecryptfs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 	rc = lower_dentry->d_op->d_revalidate(lower_dentry, nd);
 	nd->dentry = dentry_save;
 	nd->mnt = vfsmount_save;
+	if (dentry->d_inode) {
+		struct inode *lower_inode =
+			ecryptfs_inode_to_lower(dentry->d_inode);
+
+		ecryptfs_copy_attr_all(dentry->d_inode, lower_inode);
+	}
 out:
 	return rc;
 }

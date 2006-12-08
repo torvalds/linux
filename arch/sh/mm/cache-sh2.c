@@ -5,6 +5,7 @@
  *
  * Released under the terms of the GNU GPL v2.0.
  */
+
 #include <linux/init.h>
 #include <linux/mm.h>
 
@@ -14,37 +15,43 @@
 #include <asm/cacheflush.h>
 #include <asm/io.h>
 
-/*
- * Calculate the OC address and set the way bit on the SH-2.
- *
- * We must have already jump_to_P2()'ed prior to calling this
- * function, since we rely on CCR manipulation to do the
- * Right Thing(tm).
- */
-unsigned long __get_oc_addr(unsigned long set, unsigned long way)
+void __flush_wback_region(void *start, int size)
 {
-	unsigned long ccr;
+	unsigned long v;
+	unsigned long begin, end;
 
-	/*
-	 * On SH-2 the way bit isn't tracked in the address field
-	 * if we're doing address array access .. instead, we need
-	 * to manually switch out the way in the CCR.
-	 */
-	ccr = ctrl_inl(CCR);
-	ccr &= ~0x00c0;
-	ccr |= way << cpu_data->dcache.way_shift;
+	begin = (unsigned long)start & ~(L1_CACHE_BYTES-1);
+	end = ((unsigned long)start + size + L1_CACHE_BYTES-1)
+		& ~(L1_CACHE_BYTES-1);
+	for (v = begin; v < end; v+=L1_CACHE_BYTES) {
+		/* FIXME cache purge */
+		ctrl_outl((v & 0x1ffffc00), (v & 0x00000ff0) | 0x00000008);
+	}
+}
 
-	/*
-	 * Despite the number of sets being halved, we end up losing
-	 * the first 2 ways to OCRAM instead of the last 2 (if we're
-	 * 4-way). As a result, forcibly setting the W1 bit handily
-	 * bumps us up 2 ways.
-	 */
-	if (ccr & CCR_CACHE_ORA)
-		ccr |= 1 << (cpu_data->dcache.way_shift + 1);
+void __flush_purge_region(void *start, int size)
+{
+	unsigned long v;
+	unsigned long begin, end;
 
-	ctrl_outl(ccr, CCR);
+	begin = (unsigned long)start & ~(L1_CACHE_BYTES-1);
+	end = ((unsigned long)start + size + L1_CACHE_BYTES-1)
+		& ~(L1_CACHE_BYTES-1);
+	for (v = begin; v < end; v+=L1_CACHE_BYTES) {
+		ctrl_outl((v & 0x1ffffc00), (v & 0x00000ff0) | 0x00000008);
+	}
+}
 
-	return CACHE_OC_ADDRESS_ARRAY | (set << cpu_data->dcache.entry_shift);
+void __flush_invalidate_region(void *start, int size)
+{
+	unsigned long v;
+	unsigned long begin, end;
+
+	begin = (unsigned long)start & ~(L1_CACHE_BYTES-1);
+	end = ((unsigned long)start + size + L1_CACHE_BYTES-1)
+		& ~(L1_CACHE_BYTES-1);
+	for (v = begin; v < end; v+=L1_CACHE_BYTES) {
+		ctrl_outl((v & 0x1ffffc00), (v & 0x00000ff0) | 0x00000008);
+	}
 }
 

@@ -31,10 +31,7 @@ static int verbose; /* set this to 1 to see debugging messages and whatnot */
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <asm/io.h>
-
-#if defined(CONFIG_PARPORT_MODULE)||defined(CONFIG_PARPORT)
 #include <linux/parport.h>
-#endif
 
 #include "ppc6lnx.c"
 #include "paride.h"
@@ -139,11 +136,6 @@ static int bpck6_test_port ( PIA *pi )   /* check for 8-bit port */
 	PPCSTRUCT(pi)->ppc_id=pi->unit;
 	PPCSTRUCT(pi)->lpt_addr=pi->port;
 
-#ifdef CONFIG_PARPORT_PC_MODULE
-#define CONFIG_PARPORT_PC
-#endif
-
-#ifdef CONFIG_PARPORT_PC
 	/* look at the parport device to see if what modes we can use */
 	if(((struct pardevice *)(pi->pardev))->port->modes & 
 		(PARPORT_MODE_EPP)
@@ -161,11 +153,6 @@ static int bpck6_test_port ( PIA *pi )   /* check for 8-bit port */
 	{
 		return 1;
 	}
-#else
-	/* there is no way of knowing what kind of port we have
-	   default to the highest mode possible */
-	return 5;
-#endif
 }
 
 static int bpck6_probe_unit ( PIA *pi )
@@ -265,12 +252,12 @@ static int __init bpck6_init(void)
 	printk(KERN_INFO "bpck6: Copyright 2001 by Micro Solutions, Inc., DeKalb IL. USA\n");
 	if(verbose)
 		printk(KERN_DEBUG "bpck6: verbose debug enabled.\n");
-	return pi_register(&bpck6) - 1;  
+	return paride_register(&bpck6);
 }
 
 static void __exit bpck6_exit(void)
 {
-	pi_unregister(&bpck6);
+	paride_unregister(&bpck6);
 }
 
 MODULE_LICENSE("GPL");

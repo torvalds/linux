@@ -376,16 +376,20 @@ int smp_call_function_single (int cpu, void (*func) (void *info), void *info,
 	/* prevent preemption and reschedule on another processor */
 	int me = get_cpu();
 	if (cpu == me) {
-		WARN_ON(1);
 		put_cpu();
-		return -EBUSY;
+		return 0;
 	}
+
+	/* Can deadlock when called with interrupts disabled */
+	WARN_ON(irqs_disabled());
+
 	spin_lock_bh(&call_lock);
 	__smp_call_function_single(cpu, func, info, nonatomic, wait);
 	spin_unlock_bh(&call_lock);
 	put_cpu();
 	return 0;
 }
+EXPORT_SYMBOL(smp_call_function_single);
 
 /*
  * this function sends a 'generic call function' IPI to all other CPUs

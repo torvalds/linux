@@ -38,8 +38,8 @@ struct metapath {
 };
 
 typedef int (*block_call_t) (struct gfs2_inode *ip, struct buffer_head *dibh,
-			     struct buffer_head *bh, u64 *top,
-			     u64 *bottom, unsigned int height,
+			     struct buffer_head *bh, __be64 *top,
+			     __be64 *bottom, unsigned int height,
 			     void *data);
 
 struct strip_mine {
@@ -163,6 +163,7 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page)
 	if (ip->i_di.di_size) {
 		*(__be64 *)(di + 1) = cpu_to_be64(block);
 		ip->i_di.di_blocks++;
+		gfs2_set_inode_blocks(&ip->i_inode);
 		di->di_blocks = cpu_to_be64(ip->i_di.di_blocks);
 	}
 
@@ -230,7 +231,7 @@ static int build_height(struct inode *inode, unsigned height)
 	struct buffer_head *blocks[GFS2_MAX_META_HEIGHT];
 	struct gfs2_dinode *di;
 	int error;
-	u64 *bp;
+	__be64 *bp;
 	u64 bn;
 	unsigned n;
 
@@ -255,7 +256,7 @@ static int build_height(struct inode *inode, unsigned height)
 					  GFS2_FORMAT_IN);
 			gfs2_buffer_clear_tail(blocks[n],
 					       sizeof(struct gfs2_meta_header));
-			bp = (u64 *)(blocks[n]->b_data +
+			bp = (__be64 *)(blocks[n]->b_data +
 				     sizeof(struct gfs2_meta_header));
 			*bp = cpu_to_be64(blocks[n+1]->b_blocknr);
 			brelse(blocks[n]);
@@ -272,6 +273,7 @@ static int build_height(struct inode *inode, unsigned height)
 	*(__be64 *)(di + 1) = cpu_to_be64(bn);
 	ip->i_di.di_height += new_height;
 	ip->i_di.di_blocks += new_height;
+	gfs2_set_inode_blocks(&ip->i_inode);
 	di->di_height = cpu_to_be16(ip->i_di.di_height);
 	di->di_blocks = cpu_to_be64(ip->i_di.di_blocks);
 	brelse(dibh);
@@ -360,15 +362,15 @@ static void find_metapath(struct gfs2_inode *ip, u64 block,
  * metadata tree.
  */
 
-static inline u64 *metapointer(struct buffer_head *bh, int *boundary,
+static inline __be64 *metapointer(struct buffer_head *bh, int *boundary,
 			       unsigned int height, const struct metapath *mp)
 {
 	unsigned int head_size = (height > 0) ?
 		sizeof(struct gfs2_meta_header) : sizeof(struct gfs2_dinode);
-	u64 *ptr;
+	__be64 *ptr;
 	*boundary = 0;
-	ptr = ((u64 *)(bh->b_data + head_size)) + mp->mp_list[height];
-	if (ptr + 1 == (u64 *)(bh->b_data + bh->b_size))
+	ptr = ((__be64 *)(bh->b_data + head_size)) + mp->mp_list[height];
+	if (ptr + 1 == (__be64 *)(bh->b_data + bh->b_size))
 		*boundary = 1;
 	return ptr;
 }
@@ -394,7 +396,7 @@ static int lookup_block(struct gfs2_inode *ip, struct buffer_head *bh,
 			int *new, u64 *block)
 {
 	int boundary;
-	u64 *ptr = metapointer(bh, &boundary, height, mp);
+	__be64 *ptr = metapointer(bh, &boundary, height, mp);
 
 	if (*ptr) {
 		*block = be64_to_cpu(*ptr);
@@ -415,112 +417,11 @@ static int lookup_block(struct gfs2_inode *ip, struct buffer_head *bh,
 
 	*ptr = cpu_to_be64(*block);
 	ip->i_di.di_blocks++;
+	gfs2_set_inode_blocks(&ip->i_inode);
 
 	*new = 1;
 	return 0;
 }
-
-/**
- * gfs2_block_pointers - Map a block from an inode to a disk block
- * @inode: The inode
- * @lblock: The logical block number
- * @map_bh: The bh to be mapped
- * @mp: metapath to use
- *
- * Find the block number on the current device which corresponds to an
- * inode's block. If the block had to be created, "new" will be set.
- *
- * Returns: errno
- */
-
-static int gfs2_block_pointers(struct inode *inode, u64 lblock, int create,
-			       struct buffer_head *bh_map, struct metapath *mp)
-{
-	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	struct buffer_head *bh;
-	unsigned int bsize;
-	unsigned int height;
-	unsigned int end_of_metadata;
-	unsigned int x;
-	int error = 0;
-	int new = 0;
-	u64 dblock = 0;
-	int boundary;
-	unsigned int maxlen = bh_map->b_size >> inode->i_blkbits;
-
-	BUG_ON(maxlen == 0);
-
-	if (gfs2_assert_warn(sdp, !gfs2_is_stuffed(ip)))
-		return 0;
-
-	bsize = gfs2_is_dir(ip) ? sdp->sd_jbsize : sdp->sd_sb.sb_bsize;
-
-	height = calc_tree_height(ip, (lblock + 1) * bsize);
-	if (ip->i_di.di_height < height) {
-		if (!create)
-			return 0;
-
-		error = build_height(inode, height);
-		if (error)
-			return error;
-	}
-
-	find_metapath(ip, lblock, mp);
-	end_of_metadata = ip->i_di.di_height - 1;
-
-	error = gfs2_meta_inode_buffer(ip, &bh);
-	if (error)
-		return error;
-
-	for (x = 0; x < end_of_metadata; x++) {
-		lookup_block(ip, bh, x, mp, create, &new, &dblock);
-		brelse(bh);
-		if (!dblock)
-			return 0;
-
-		error = gfs2_meta_indirect_buffer(ip, x+1, dblock, new, &bh);
-		if (error)
-			return error;
-	}
-
-	boundary = lookup_block(ip, bh, end_of_metadata, mp, create, &new, &dblock);
-	clear_buffer_mapped(bh_map);
-	clear_buffer_new(bh_map);
-	clear_buffer_boundary(bh_map);
-
-	if (dblock) {
-		map_bh(bh_map, inode->i_sb, dblock);
-		if (boundary)
-			set_buffer_boundary(bh);
-		if (new) {
-			struct buffer_head *dibh;
-			error = gfs2_meta_inode_buffer(ip, &dibh);
-			if (!error) {
-				gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-				gfs2_dinode_out(&ip->i_di, dibh->b_data);
-				brelse(dibh);
-			}
-			set_buffer_new(bh_map);
-			goto out_brelse;
-		}
-		while(--maxlen && !buffer_boundary(bh_map)) {
-			u64 eblock;
-
-			mp->mp_list[end_of_metadata]++;
-			boundary = lookup_block(ip, bh, end_of_metadata, mp, 0, &new, &eblock);
-			if (eblock != ++dblock)
-				break;
-			bh_map->b_size += (1 << inode->i_blkbits);
-			if (boundary)
-				set_buffer_boundary(bh_map);
-		}
-	}
-out_brelse:
-	brelse(bh);
-	return 0;
-}
-
 
 static inline void bmap_lock(struct inode *inode, int create)
 {
@@ -540,21 +441,116 @@ static inline void bmap_unlock(struct inode *inode, int create)
 		up_read(&ip->i_rw_mutex);
 }
 
+/**
+ * gfs2_block_map - Map a block from an inode to a disk block
+ * @inode: The inode
+ * @lblock: The logical block number
+ * @bh_map: The bh to be mapped
+ *
+ * Find the block number on the current device which corresponds to an
+ * inode's block. If the block had to be created, "new" will be set.
+ *
+ * Returns: errno
+ */
+
 int gfs2_block_map(struct inode *inode, u64 lblock, int create,
-		   struct buffer_head *bh)
+		   struct buffer_head *bh_map)
 {
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	struct buffer_head *bh;
+	unsigned int bsize;
+	unsigned int height;
+	unsigned int end_of_metadata;
+	unsigned int x;
+	int error = 0;
+	int new = 0;
+	u64 dblock = 0;
+	int boundary;
+	unsigned int maxlen = bh_map->b_size >> inode->i_blkbits;
 	struct metapath mp;
-	int ret;
+	u64 size;
+
+	BUG_ON(maxlen == 0);
+
+	if (gfs2_assert_warn(sdp, !gfs2_is_stuffed(ip)))
+		return 0;
 
 	bmap_lock(inode, create);
-	ret = gfs2_block_pointers(inode, lblock, create, bh, &mp);
+	clear_buffer_mapped(bh_map);
+	clear_buffer_new(bh_map);
+	clear_buffer_boundary(bh_map);
+	bsize = gfs2_is_dir(ip) ? sdp->sd_jbsize : sdp->sd_sb.sb_bsize;
+	size = (lblock + 1) * bsize;
+
+	if (size > ip->i_di.di_size) {
+		height = calc_tree_height(ip, size);
+		if (ip->i_di.di_height < height) {
+			if (!create)
+				goto out_ok;
+	
+			error = build_height(inode, height);
+			if (error)
+				goto out_fail;
+		}
+	}
+
+	find_metapath(ip, lblock, &mp);
+	end_of_metadata = ip->i_di.di_height - 1;
+	error = gfs2_meta_inode_buffer(ip, &bh);
+	if (error)
+		goto out_fail;
+
+	for (x = 0; x < end_of_metadata; x++) {
+		lookup_block(ip, bh, x, &mp, create, &new, &dblock);
+		brelse(bh);
+		if (!dblock)
+			goto out_ok;
+
+		error = gfs2_meta_indirect_buffer(ip, x+1, dblock, new, &bh);
+		if (error)
+			goto out_fail;
+	}
+
+	boundary = lookup_block(ip, bh, end_of_metadata, &mp, create, &new, &dblock);
+	if (dblock) {
+		map_bh(bh_map, inode->i_sb, dblock);
+		if (boundary)
+			set_buffer_boundary(bh_map);
+		if (new) {
+			struct buffer_head *dibh;
+			error = gfs2_meta_inode_buffer(ip, &dibh);
+			if (!error) {
+				gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+				gfs2_dinode_out(ip, dibh->b_data);
+				brelse(dibh);
+			}
+			set_buffer_new(bh_map);
+			goto out_brelse;
+		}
+		while(--maxlen && !buffer_boundary(bh_map)) {
+			u64 eblock;
+
+			mp.mp_list[end_of_metadata]++;
+			boundary = lookup_block(ip, bh, end_of_metadata, &mp, 0, &new, &eblock);
+			if (eblock != ++dblock)
+				break;
+			bh_map->b_size += (1 << inode->i_blkbits);
+			if (boundary)
+				set_buffer_boundary(bh_map);
+		}
+	}
+out_brelse:
+	brelse(bh);
+out_ok:
+	error = 0;
+out_fail:
 	bmap_unlock(inode, create);
-	return ret;
+	return error;
 }
 
 int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsigned *extlen)
 {
-	struct metapath mp;
 	struct buffer_head bh = { .b_state = 0, .b_blocknr = 0 };
 	int ret;
 	int create = *new;
@@ -564,9 +560,7 @@ int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsi
 	BUG_ON(!new);
 
 	bh.b_size = 1 << (inode->i_blkbits + 5);
-	bmap_lock(inode, create);
-	ret = gfs2_block_pointers(inode, lblock, create, &bh, &mp);
-	bmap_unlock(inode, create);
+	ret = gfs2_block_map(inode, lblock, create, &bh);
 	*extlen = bh.b_size >> inode->i_blkbits;
 	*dblock = bh.b_blocknr;
 	if (buffer_new(&bh))
@@ -600,7 +594,7 @@ static int recursive_scan(struct gfs2_inode *ip, struct buffer_head *dibh,
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *bh = NULL;
-	u64 *top, *bottom;
+	__be64 *top, *bottom;
 	u64 bn;
 	int error;
 	int mh_size = sizeof(struct gfs2_meta_header);
@@ -611,17 +605,17 @@ static int recursive_scan(struct gfs2_inode *ip, struct buffer_head *dibh,
 			return error;
 		dibh = bh;
 
-		top = (u64 *)(bh->b_data + sizeof(struct gfs2_dinode)) + mp->mp_list[0];
-		bottom = (u64 *)(bh->b_data + sizeof(struct gfs2_dinode)) + sdp->sd_diptrs;
+		top = (__be64 *)(bh->b_data + sizeof(struct gfs2_dinode)) + mp->mp_list[0];
+		bottom = (__be64 *)(bh->b_data + sizeof(struct gfs2_dinode)) + sdp->sd_diptrs;
 	} else {
 		error = gfs2_meta_indirect_buffer(ip, height, block, 0, &bh);
 		if (error)
 			return error;
 
-		top = (u64 *)(bh->b_data + mh_size) +
+		top = (__be64 *)(bh->b_data + mh_size) +
 				  (first ? mp->mp_list[height] : 0);
 
-		bottom = (u64 *)(bh->b_data + mh_size) + sdp->sd_inptrs;
+		bottom = (__be64 *)(bh->b_data + mh_size) + sdp->sd_inptrs;
 	}
 
 	error = bc(ip, dibh, bh, top, bottom, height, data);
@@ -660,7 +654,7 @@ out:
  */
 
 static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
-		    struct buffer_head *bh, u64 *top, u64 *bottom,
+		    struct buffer_head *bh, __be64 *top, __be64 *bottom,
 		    unsigned int height, void *data)
 {
 	struct strip_mine *sm = data;
@@ -668,7 +662,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 	struct gfs2_rgrp_list rlist;
 	u64 bn, bstart;
 	u32 blen;
-	u64 *p;
+	__be64 *p;
 	unsigned int rg_blocks = 0;
 	int metadata;
 	unsigned int revokes = 0;
@@ -770,6 +764,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 		if (!ip->i_di.di_blocks)
 			gfs2_consist_inode(ip);
 		ip->i_di.di_blocks--;
+		gfs2_set_inode_blocks(&ip->i_inode);
 	}
 	if (bstart) {
 		if (metadata)
@@ -778,9 +773,9 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 			gfs2_free_data(ip, bstart, blen);
 	}
 
-	ip->i_di.di_mtime = ip->i_di.di_ctime = get_seconds();
+	ip->i_inode.i_mtime.tv_sec = ip->i_inode.i_ctime.tv_sec = get_seconds();
 
-	gfs2_dinode_out(&ip->i_di, dibh->b_data);
+	gfs2_dinode_out(ip, dibh->b_data);
 
 	up_write(&ip->i_rw_mutex);
 
@@ -819,7 +814,7 @@ static int do_grow(struct gfs2_inode *ip, u64 size)
 	if (error)
 		goto out;
 
-	error = gfs2_quota_check(ip, ip->i_di.di_uid, ip->i_di.di_gid);
+	error = gfs2_quota_check(ip, ip->i_inode.i_uid, ip->i_inode.i_gid);
 	if (error)
 		goto out_gunlock_q;
 
@@ -853,14 +848,14 @@ static int do_grow(struct gfs2_inode *ip, u64 size)
 	}
 
 	ip->i_di.di_size = size;
-	ip->i_di.di_mtime = ip->i_di.di_ctime = get_seconds();
+	ip->i_inode.i_mtime.tv_sec = ip->i_inode.i_ctime.tv_sec = get_seconds();
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (error)
 		goto out_end_trans;
 
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-	gfs2_dinode_out(&ip->i_di, dibh->b_data);
+	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);
 
 out_end_trans:
@@ -968,9 +963,9 @@ static int trunc_start(struct gfs2_inode *ip, u64 size)
 
 	if (gfs2_is_stuffed(ip)) {
 		ip->i_di.di_size = size;
-		ip->i_di.di_mtime = ip->i_di.di_ctime = get_seconds();
+		ip->i_inode.i_mtime.tv_sec = ip->i_inode.i_ctime.tv_sec = get_seconds();
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-		gfs2_dinode_out(&ip->i_di, dibh->b_data);
+		gfs2_dinode_out(ip, dibh->b_data);
 		gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode) + size);
 		error = 1;
 
@@ -980,10 +975,10 @@ static int trunc_start(struct gfs2_inode *ip, u64 size)
 
 		if (!error) {
 			ip->i_di.di_size = size;
-			ip->i_di.di_mtime = ip->i_di.di_ctime = get_seconds();
+			ip->i_inode.i_mtime.tv_sec = ip->i_inode.i_ctime.tv_sec = get_seconds();
 			ip->i_di.di_flags |= GFS2_DIF_TRUNC_IN_PROG;
 			gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-			gfs2_dinode_out(&ip->i_di, dibh->b_data);
+			gfs2_dinode_out(ip, dibh->b_data);
 		}
 	}
 
@@ -1053,11 +1048,11 @@ static int trunc_end(struct gfs2_inode *ip)
 			ip->i_num.no_addr;
 		gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 	}
-	ip->i_di.di_mtime = ip->i_di.di_ctime = get_seconds();
+	ip->i_inode.i_mtime.tv_sec = ip->i_inode.i_ctime.tv_sec = get_seconds();
 	ip->i_di.di_flags &= ~GFS2_DIF_TRUNC_IN_PROG;
 
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-	gfs2_dinode_out(&ip->i_di, dibh->b_data);
+	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);
 
 out:
@@ -1109,7 +1104,7 @@ int gfs2_truncatei(struct gfs2_inode *ip, u64 size)
 {
 	int error;
 
-	if (gfs2_assert_warn(GFS2_SB(&ip->i_inode), S_ISREG(ip->i_di.di_mode)))
+	if (gfs2_assert_warn(GFS2_SB(&ip->i_inode), S_ISREG(ip->i_inode.i_mode)))
 		return -EINVAL;
 
 	if (size > ip->i_di.di_size)

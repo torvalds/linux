@@ -468,7 +468,7 @@ static int common_destroy(void *key, void *datum, void *p)
 	return 0;
 }
 
-static int class_destroy(void *key, void *datum, void *p)
+static int cls_destroy(void *key, void *datum, void *p)
 {
 	struct class_datum *cladatum;
 	struct constraint_node *constraint, *ctemp;
@@ -566,7 +566,7 @@ static int cat_destroy(void *key, void *datum, void *p)
 static int (*destroy_f[SYM_NUM]) (void *key, void *datum, void *datap) =
 {
 	common_destroy,
-	class_destroy,
+	cls_destroy,
 	role_destroy,
 	type_destroy,
 	user_destroy,
@@ -1124,7 +1124,7 @@ static int class_read(struct policydb *p, struct hashtab *h, void *fp)
 out:
 	return rc;
 bad:
-	class_destroy(key, cladatum, NULL);
+	cls_destroy(key, cladatum, NULL);
 	goto out;
 }
 

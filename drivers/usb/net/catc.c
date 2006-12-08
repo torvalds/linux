@@ -345,7 +345,7 @@ static void catc_irq_done(struct urb *urb)
 		} 
 	}
 resubmit:
-	status = usb_submit_urb (urb, SLAB_ATOMIC);
+	status = usb_submit_urb (urb, GFP_ATOMIC);
 	if (status)
 		err ("can't resubmit intr, %s-%s, status %d",
 				catc->usbdev->bus->bus_name,
@@ -786,14 +786,10 @@ static int catc_probe(struct usb_interface *intf, const struct usb_device_id *id
 	if ((!catc->ctrl_urb) || (!catc->tx_urb) || 
 	    (!catc->rx_urb) || (!catc->irq_urb)) {
 		err("No free urbs available.");
-		if (catc->ctrl_urb)
-			usb_free_urb(catc->ctrl_urb);
-		if (catc->tx_urb)
-			usb_free_urb(catc->tx_urb);
-		if (catc->rx_urb)
-			usb_free_urb(catc->rx_urb);
-		if (catc->irq_urb)
-			usb_free_urb(catc->irq_urb);
+		usb_free_urb(catc->ctrl_urb);
+		usb_free_urb(catc->tx_urb);
+		usb_free_urb(catc->rx_urb);
+		usb_free_urb(catc->irq_urb);
 		free_netdev(netdev);
 		return -ENOMEM;
 	}

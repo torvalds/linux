@@ -233,6 +233,8 @@ void irq_chip_set_defaults(struct irq_chip *chip)
 		chip->shutdown = chip->disable;
 	if (!chip->name)
 		chip->name = chip->typename;
+	if (!chip->end)
+		chip->end = dummy_irq_chip.end;
 }
 
 static inline void mask_ack_irq(struct irq_desc *desc, int irq)

@@ -11,12 +11,12 @@
 extern int ic_proto_enabled;	/* Protocols enabled (see IC_xxx) */
 extern int ic_set_manually;	/* IPconfig parameters set manually */
 
-extern u32 ic_myaddr;		/* My IP address */
-extern u32 ic_gateway;		/* Gateway IP address */
+extern __be32 ic_myaddr;		/* My IP address */
+extern __be32 ic_gateway;		/* Gateway IP address */
 
-extern u32 ic_servaddr;		/* Boot server IP address */
+extern __be32 ic_servaddr;		/* Boot server IP address */
 
-extern u32 root_server_addr;	/* Address of NFS server */
+extern __be32 root_server_addr;	/* Address of NFS server */
 extern u8 root_server_path[];	/* Path to mount as root */
 
 

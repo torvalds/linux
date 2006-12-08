@@ -27,6 +27,7 @@
 #include <linux/proc_fs.h>
 #include <linux/init.h>
 #include <net/xfrm.h>
+#include <linux/audit.h>
 
 #include <net/sock.h>
 
@@ -1420,6 +1421,9 @@ static int pfkey_add(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr,
 	else
 		err = xfrm_state_update(x);
 
+	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
+		       AUDIT_MAC_IPSEC_ADDSA, err ? 0 : 1, NULL, x);
+
 	if (err < 0) {
 		x->km.state = XFRM_STATE_DEAD;
 		__xfrm_state_put(x);
@@ -1460,8 +1464,12 @@ static int pfkey_delete(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 		err = -EPERM;
 		goto out;
 	}
-	
+
 	err = xfrm_state_delete(x);
+
+	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
+		       AUDIT_MAC_IPSEC_DELSA, err ? 0 : 1, NULL, x);
+
 	if (err < 0)
 		goto out;
 
@@ -1637,12 +1645,15 @@ static int pfkey_flush(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hd
 {
 	unsigned proto;
 	struct km_event c;
+	struct xfrm_audit audit_info;
 
 	proto = pfkey_satype2proto(hdr->sadb_msg_satype);
 	if (proto == 0)
 		return -EINVAL;
 
-	xfrm_state_flush(proto);
+	audit_info.loginuid = audit_get_loginuid(current->audit_context);
+	audit_info.secid = 0;
+	xfrm_state_flush(proto, &audit_info);
 	c.data.proto = proto;
 	c.seq = hdr->sadb_msg_seq;
 	c.pid = hdr->sadb_msg_pid;
@@ -1767,11 +1778,11 @@ parse_ipsecrequest(struct xfrm_policy *xp, struct sadb_x_ipsecrequest *rq)
 
 	/* addresses present only in tunnel mode */
 	if (t->mode == XFRM_MODE_TUNNEL) {
-		switch (xp->family) {
+		struct sockaddr *sa;
+		sa = (struct sockaddr *)(rq+1);
+		switch(sa->sa_family) {
 		case AF_INET:
-			sin = (void*)(rq+1);
-			if (sin->sin_family != AF_INET)
-				return -EINVAL;
+			sin = (struct sockaddr_in*)sa;
 			t->saddr.a4 = sin->sin_addr.s_addr;
 			sin++;
 			if (sin->sin_family != AF_INET)
@@ -1780,9 +1791,7 @@ parse_ipsecrequest(struct xfrm_policy *xp, struct sadb_x_ipsecrequest *rq)
 			break;
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 		case AF_INET6:
-			sin6 = (void *)(rq+1);
-			if (sin6->sin6_family != AF_INET6)
-				return -EINVAL;
+			sin6 = (struct sockaddr_in6*)sa;
 			memcpy(t->saddr.a6, &sin6->sin6_addr, sizeof(struct in6_addr));
 			sin6++;
 			if (sin6->sin6_family != AF_INET6)
@@ -1793,7 +1802,10 @@ parse_ipsecrequest(struct xfrm_policy *xp, struct sadb_x_ipsecrequest *rq)
 		default:
 			return -EINVAL;
 		}
-	}
+		t->encap_family = sa->sa_family;
+	} else
+		t->encap_family = xp->family;
+
 	/* No way to set this via kame pfkey */
 	t->aalgos = t->ealgos = t->calgos = ~0;
 	xp->xfrm_nr++;
@@ -1830,18 +1842,25 @@ static inline int pfkey_xfrm_policy2sec_ctx_size(struct xfrm_policy *xp)
 
 static int pfkey_xfrm_policy2msg_size(struct xfrm_policy *xp)
 {
+	struct xfrm_tmpl *t;
 	int sockaddr_size = pfkey_sockaddr_size(xp->family);
-	int socklen = (xp->family == AF_INET ?
-		       sizeof(struct sockaddr_in) :
-		       sizeof(struct sockaddr_in6));
+	int socklen = 0;
+	int i;
+
+	for (i=0; i<xp->xfrm_nr; i++) {
+		t = xp->xfrm_vec + i;
+		socklen += (t->encap_family == AF_INET ?
+			    sizeof(struct sockaddr_in) :
+			    sizeof(struct sockaddr_in6));
+	}
 
 	return sizeof(struct sadb_msg) +
 		(sizeof(struct sadb_lifetime) * 3) +
 		(sizeof(struct sadb_address) * 2) + 
 		(sockaddr_size * 2) +
 		sizeof(struct sadb_x_policy) +
-		(xp->xfrm_nr * (sizeof(struct sadb_x_ipsecrequest) +
-				(socklen * 2))) +
+		(xp->xfrm_nr * sizeof(struct sadb_x_ipsecrequest)) +
+		(socklen * 2) +
 		pfkey_xfrm_policy2sec_ctx_size(xp);
 }
 
@@ -1999,7 +2018,9 @@ static void pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, i
 
 		req_size = sizeof(struct sadb_x_ipsecrequest);
 		if (t->mode == XFRM_MODE_TUNNEL)
-			req_size += 2*socklen;
+			req_size += ((t->encap_family == AF_INET ?
+		       		     sizeof(struct sockaddr_in) :
+		       		     sizeof(struct sockaddr_in6)) * 2);
 		else
 			size -= 2*socklen;
 		rq = (void*)skb_put(skb, req_size);
@@ -2015,7 +2036,7 @@ static void pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, i
 			rq->sadb_x_ipsecrequest_level = IPSEC_LEVEL_USE;
 		rq->sadb_x_ipsecrequest_reqid = t->reqid;
 		if (t->mode == XFRM_MODE_TUNNEL) {
-			switch (xp->family) {
+			switch (t->encap_family) {
 			case AF_INET:
 				sin = (void*)(rq+1);
 				sin->sin_family = AF_INET;
@@ -2195,6 +2216,9 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	err = xfrm_policy_insert(pol->sadb_x_policy_dir-1, xp,
 				 hdr->sadb_msg_type != SADB_X_SPDUPDATE);
 
+	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
+		       AUDIT_MAC_IPSEC_ADDSPD, err ? 0 : 1, xp, NULL);
+
 	if (err)
 		goto out;
 
@@ -2272,6 +2296,10 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 	xp = xfrm_policy_bysel_ctx(XFRM_POLICY_TYPE_MAIN, pol->sadb_x_policy_dir-1,
 				   &sel, tmp.security, 1);
 	security_xfrm_policy_free(&tmp);
+
+	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
+		       AUDIT_MAC_IPSEC_DELSPD, (xp) ? 1 : 0, xp, NULL);
+
 	if (xp == NULL)
 		return -ENOENT;
 
@@ -2406,8 +2434,11 @@ static int key_notify_policy_flush(struct km_event *c)
 static int pfkey_spdflush(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr, void **ext_hdrs)
 {
 	struct km_event c;
+	struct xfrm_audit audit_info;
 
-	xfrm_policy_flush(XFRM_POLICY_TYPE_MAIN);
+	audit_info.loginuid = audit_get_loginuid(current->audit_context);
+	audit_info.secid = 0;
+	xfrm_policy_flush(XFRM_POLICY_TYPE_MAIN, &audit_info);
 	c.data.type = XFRM_POLICY_TYPE_MAIN;
 	c.event = XFRM_MSG_FLUSHPOLICY;
 	c.pid = hdr->sadb_msg_pid;
@@ -2938,7 +2969,7 @@ out:
 	return NULL;
 }
 
-static int pfkey_send_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, u16 sport)
+static int pfkey_send_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, __be16 sport)
 {
 	struct sk_buff *skb;
 	struct sadb_msg *hdr;

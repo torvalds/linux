@@ -92,7 +92,7 @@ static struct net_device_stats *ehea_get_stats(struct net_device *dev)
 
 	memset(stats, 0, sizeof(*stats));
 
-	cb2 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb2 = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb2) {
 		ehea_error("no mem for cb2");
 		goto out;
@@ -586,8 +586,8 @@ int ehea_sense_port_attr(struct ehea_port *port)
 	u64 hret;
 	struct hcp_ehea_port_cb0 *cb0;
 
-	cb0 = kzalloc(H_CB_ALIGNMENT, GFP_ATOMIC);   /* May be called via */
-	if (!cb0) {                                  /* ehea_neq_tasklet() */
+	cb0 = kzalloc(PAGE_SIZE, GFP_ATOMIC);   /* May be called via */
+	if (!cb0) {                             /* ehea_neq_tasklet() */
 		ehea_error("no mem for cb0");
 		ret = -ENOMEM;
 		goto out;
@@ -670,7 +670,7 @@ int ehea_set_portspeed(struct ehea_port *port, u32 port_speed)
 	u64 hret;
 	int ret = 0;
 
-	cb4 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb4 = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb4) {
 		ehea_error("no mem for cb4");
 		ret = -ENOMEM;
@@ -985,7 +985,7 @@ static int ehea_configure_port(struct ehea_port *port)
 	struct hcp_ehea_port_cb0 *cb0;
 
 	ret = -ENOMEM;
-	cb0 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb0 = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb0)
 		goto out;
 
@@ -1443,7 +1443,7 @@ static int ehea_set_mac_addr(struct net_device *dev, void *sa)
 		goto out;
 	}
 
-	cb0 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb0 = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb0) {
 		ehea_error("no mem for cb0");
 		ret = -ENOMEM;
@@ -1501,7 +1501,7 @@ static void ehea_promiscuous(struct net_device *dev, int enable)
 	if ((enable && port->promisc) || (!enable && !port->promisc))
 		return;
 
-	cb7 = kzalloc(H_CB_ALIGNMENT, GFP_ATOMIC);
+	cb7 = kzalloc(PAGE_SIZE, GFP_ATOMIC);
 	if (!cb7) {
 		ehea_error("no mem for cb7");
 		goto out;
@@ -1870,7 +1870,7 @@ static void ehea_vlan_rx_register(struct net_device *dev,
 
 	port->vgrp = grp;
 
-	cb1 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb1 = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb1) {
 		ehea_error("no mem for cb1");
 		goto out;
@@ -1899,7 +1899,7 @@ static void ehea_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	int index;
 	u64 hret;
 
-	cb1 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb1 = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb1) {
 		ehea_error("no mem for cb1");
 		goto out;
@@ -1935,7 +1935,7 @@ static void ehea_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	if (port->vgrp)
 		port->vgrp->vlan_devices[vid] = NULL;
 
-	cb1 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb1 = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb1) {
 		ehea_error("no mem for cb1");
 		goto out;
@@ -1968,7 +1968,7 @@ int ehea_activate_qp(struct ehea_adapter *adapter, struct ehea_qp *qp)
 	u64 dummy64 = 0;
 	struct hcp_modify_qp_cb0* cb0;
 
-	cb0 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb0 = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb0) {
 		ret = -ENOMEM;
 		goto out;
@@ -2224,11 +2224,12 @@ static int ehea_stop(struct net_device *dev)
 	return ret;
 }
 
-static void ehea_reset_port(void *data)
+static void ehea_reset_port(struct work_struct *work)
 {
 	int ret;
-	struct net_device *dev = data;
-	struct ehea_port *port = netdev_priv(dev);
+	struct ehea_port *port =
+		container_of(work, struct ehea_port, reset_task);
+	struct net_device *dev = port->netdev;
 
 	port->resets++;
 	down(&port->port_lock);
@@ -2269,7 +2270,7 @@ int ehea_sense_adapter_attr(struct ehea_adapter *adapter)
 	u64 hret;
 	int ret;
 
-	cb = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb) {
 		ret = -ENOMEM;
 		goto out;
@@ -2340,7 +2341,7 @@ static int ehea_setup_single_port(struct ehea_port *port,
 		goto out;
 
 	/* Enable Jumbo frames */
-	cb4 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb4 = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb4) {
 		ehea_error("no mem for cb4");
 	} else {
@@ -2379,7 +2380,7 @@ static int ehea_setup_single_port(struct ehea_port *port,
 	dev->tx_timeout = &ehea_tx_watchdog;
 	dev->watchdog_timeo = EHEA_WATCH_DOG_TIMEOUT;
 
-	INIT_WORK(&port->reset_task, ehea_reset_port, dev);
+	INIT_WORK(&port->reset_task, ehea_reset_port);
 
 	ehea_set_ethtool_ops(dev);
 

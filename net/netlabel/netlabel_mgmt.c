@@ -188,12 +188,9 @@ static int netlbl_mgmt_listall_cb(struct netlbl_dom_map *entry, void *arg)
 	struct netlbl_domhsh_walk_arg *cb_arg = arg;
 	void *data;
 
-	data = netlbl_netlink_hdr_put(cb_arg->skb,
-				      NETLINK_CB(cb_arg->nl_cb->skb).pid,
-				      cb_arg->seq,
-				      netlbl_mgmt_gnl_family.id,
-				      NLM_F_MULTI,
-				      NLBL_MGMT_C_LISTALL);
+	data = genlmsg_put(cb_arg->skb, NETLINK_CB(cb_arg->nl_cb->skb).pid,
+			   cb_arg->seq, &netlbl_mgmt_gnl_family,
+			   NLM_F_MULTI, NLBL_MGMT_C_LISTALL);
 	if (data == NULL)
 		goto listall_cb_failure;
 
@@ -356,15 +353,11 @@ static int netlbl_mgmt_listdef(struct sk_buff *skb, struct genl_info *info)
 	void *data;
 	struct netlbl_dom_map *entry;
 
-	ans_skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	ans_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (ans_skb == NULL)
 		return -ENOMEM;
-	data = netlbl_netlink_hdr_put(ans_skb,
-				      info->snd_pid,
-				      info->snd_seq,
-				      netlbl_mgmt_gnl_family.id,
-				      0,
-				      NLBL_MGMT_C_LISTDEF);
+	data = genlmsg_put_reply(ans_skb, info, &netlbl_mgmt_gnl_family,
+				 0, NLBL_MGMT_C_LISTDEF);
 	if (data == NULL)
 		goto listdef_failure;
 
@@ -390,7 +383,7 @@ static int netlbl_mgmt_listdef(struct sk_buff *skb, struct genl_info *info)
 
 	genlmsg_end(ans_skb, data);
 
-	ret_val = genlmsg_unicast(ans_skb, info->snd_pid);
+	ret_val = genlmsg_reply(ans_skb, info);
 	if (ret_val != 0)
 		goto listdef_failure;
 	return 0;
@@ -422,12 +415,9 @@ static int netlbl_mgmt_protocols_cb(struct sk_buff *skb,
 	int ret_val = -ENOMEM;
 	void *data;
 
-	data = netlbl_netlink_hdr_put(skb,
-				      NETLINK_CB(cb->skb).pid,
-				      cb->nlh->nlmsg_seq,
-				      netlbl_mgmt_gnl_family.id,
-				      NLM_F_MULTI,
-				      NLBL_MGMT_C_PROTOCOLS);
+	data = genlmsg_put(skb, NETLINK_CB(cb->skb).pid, cb->nlh->nlmsg_seq,
+			   &netlbl_mgmt_gnl_family, NLM_F_MULTI,
+			   NLBL_MGMT_C_PROTOCOLS);
 	if (data == NULL)
 		goto protocols_cb_failure;
 
@@ -492,15 +482,11 @@ static int netlbl_mgmt_version(struct sk_buff *skb, struct genl_info *info)
 	struct sk_buff *ans_skb = NULL;
 	void *data;
 
-	ans_skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	ans_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (ans_skb == NULL)
 		return -ENOMEM;
-	data = netlbl_netlink_hdr_put(ans_skb,
-				      info->snd_pid,
-				      info->snd_seq,
-				      netlbl_mgmt_gnl_family.id,
-				      0,
-				      NLBL_MGMT_C_VERSION);
+	data = genlmsg_put_reply(ans_skb, info, &netlbl_mgmt_gnl_family,
+				 0, NLBL_MGMT_C_VERSION);
 	if (data == NULL)
 		goto version_failure;
 
@@ -512,7 +498,7 @@ static int netlbl_mgmt_version(struct sk_buff *skb, struct genl_info *info)
 
 	genlmsg_end(ans_skb, data);
 
-	ret_val = genlmsg_unicast(ans_skb, info->snd_pid);
+	ret_val = genlmsg_reply(ans_skb, info);
 	if (ret_val != 0)
 		goto version_failure;
 	return 0;

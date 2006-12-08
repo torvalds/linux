@@ -450,13 +450,15 @@ errout:
 	return ERR_PTR(-err);
 }
 
-struct Qdisc * qdisc_create_dflt(struct net_device *dev, struct Qdisc_ops *ops)
+struct Qdisc * qdisc_create_dflt(struct net_device *dev, struct Qdisc_ops *ops,
+				 unsigned int parentid)
 {
 	struct Qdisc *sch;
 	
 	sch = qdisc_alloc(dev, ops);
 	if (IS_ERR(sch))
 		goto errout;
+	sch->parent = parentid;
 
 	if (!ops->init || ops->init(sch, NULL) == 0)
 		return sch;
@@ -520,7 +522,8 @@ void dev_activate(struct net_device *dev)
 	if (dev->qdisc_sleeping == &noop_qdisc) {
 		struct Qdisc *qdisc;
 		if (dev->tx_queue_len) {
-			qdisc = qdisc_create_dflt(dev, &pfifo_fast_ops);
+			qdisc = qdisc_create_dflt(dev, &pfifo_fast_ops,
+						  TC_H_ROOT);
 			if (qdisc == NULL) {
 				printk(KERN_INFO "%s: activation failed\n", dev->name);
 				return;
@@ -606,13 +609,10 @@ void dev_shutdown(struct net_device *dev)
 	qdisc_unlock_tree(dev);
 }
 
-EXPORT_SYMBOL(__netdev_watchdog_up);
 EXPORT_SYMBOL(netif_carrier_on);
 EXPORT_SYMBOL(netif_carrier_off);
 EXPORT_SYMBOL(noop_qdisc);
-EXPORT_SYMBOL(noop_qdisc_ops);
 EXPORT_SYMBOL(qdisc_create_dflt);
-EXPORT_SYMBOL(qdisc_alloc);
 EXPORT_SYMBOL(qdisc_destroy);
 EXPORT_SYMBOL(qdisc_reset);
 EXPORT_SYMBOL(qdisc_lock_tree);

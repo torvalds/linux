@@ -216,11 +216,12 @@ static int file_capable(struct inode *inode, long block)
 	BUG_ON(!th->t_trans_id);
 	BUG_ON(!th->t_refcount);
 
+	pathrelse(path);
+
 	/* we cannot restart while nested */
 	if (th->t_refcount > 1) {
 		return 0;
 	}
-	pathrelse(path);
 	reiserfs_update_sd(th, inode);
 	err = journal_end(th, s, len);
 	if (!err) {
@@ -928,15 +929,12 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 			if (blocks_needed == 1) {
 				un = &unf_single;
 			} else {
-				un = kmalloc(min(blocks_needed, max_to_insert) * UNFM_P_SIZE, GFP_ATOMIC);	// We need to avoid scheduling.
+				un = kzalloc(min(blocks_needed, max_to_insert) * UNFM_P_SIZE, GFP_ATOMIC);	// We need to avoid scheduling.
 				if (!un) {
 					un = &unf_single;
 					blocks_needed = 1;
 					max_to_insert = 0;
-				} else
-					memset(un, 0,
-					       UNFM_P_SIZE * min(blocks_needed,
-								 max_to_insert));
+				}
 			}
 			if (blocks_needed <= max_to_insert) {
 				/* we are going to add target block to the file. Use allocated

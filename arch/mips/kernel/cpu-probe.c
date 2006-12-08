@@ -110,9 +110,8 @@ static inline void check_wait(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 
-	printk("Checking for 'wait' instruction... ");
 	if (nowait) {
-		printk (" disabled.\n");
+		printk("Wait instruction disabled.\n");
 		return;
 	}
 
@@ -120,11 +119,9 @@ static inline void check_wait(void)
 	case CPU_R3081:
 	case CPU_R3081E:
 		cpu_wait = r3081_wait;
-		printk(" available.\n");
 		break;
 	case CPU_TX3927:
 		cpu_wait = r39xx_wait;
-		printk(" available.\n");
 		break;
 	case CPU_R4200:
 /*	case CPU_R4300: */
@@ -146,33 +143,23 @@ static inline void check_wait(void)
 	case CPU_74K:
  	case CPU_PR4450:
 		cpu_wait = r4k_wait;
-		printk(" available.\n");
 		break;
 	case CPU_TX49XX:
 		cpu_wait = r4k_wait_irqoff;
-		printk(" available.\n");
 		break;
 	case CPU_AU1000:
 	case CPU_AU1100:
 	case CPU_AU1500:
 	case CPU_AU1550:
 	case CPU_AU1200:
-		if (allow_au1k_wait) {
+		if (allow_au1k_wait)
 			cpu_wait = au1k_wait;
-			printk(" available.\n");
-		} else
-			printk(" unavailable.\n");
 		break;
 	case CPU_RM9000:
-		if ((c->processor_id & 0x00ff) >= 0x40) {
+		if ((c->processor_id & 0x00ff) >= 0x40)
 			cpu_wait = r4k_wait;
-			printk(" available.\n");
-		} else {
-			printk(" unavailable.\n");
-		}
 		break;
 	default:
-		printk(" unavailable.\n");
 		break;
 	}
 }

@@ -560,9 +560,9 @@ static inline int mcs_find_endpoints(struct mcs_cb *mcs,
 	return ret;
 }
 
-static void mcs_speed_work(void *arg)
+static void mcs_speed_work(struct work_struct *work)
 {
-	struct mcs_cb *mcs = arg;
+	struct mcs_cb *mcs = container_of(work, struct mcs_cb, work);
 	struct net_device *netdev = mcs->netdev;
 
 	mcs_speed_change(mcs);
@@ -927,7 +927,7 @@ static int mcs_probe(struct usb_interface *intf,
 	irda_qos_bits_to_value(&mcs->qos);
 
 	/* Speed change work initialisation*/
-	INIT_WORK(&mcs->work, mcs_speed_work, mcs);
+	INIT_WORK(&mcs->work, mcs_speed_work);
 
 	/* Override the network functions we need to use */
 	ndev->hard_start_xmit = mcs_hard_xmit;

@@ -71,11 +71,10 @@ static int tcf_simp_release(struct tcf_defact *d, int bind)
 
 static int alloc_defdata(struct tcf_defact *d, u32 datalen, void *defdata)
 {
-	d->tcfd_defdata = kmalloc(datalen, GFP_KERNEL);
+	d->tcfd_defdata = kmemdup(defdata, datalen, GFP_KERNEL);
 	if (unlikely(!d->tcfd_defdata))
 		return -ENOMEM;
 	d->tcfd_datalen = datalen;
-	memcpy(d->tcfd_defdata, defdata, datalen);
 	return 0;
 }
 

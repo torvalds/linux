@@ -24,6 +24,7 @@
 
 static struct workqueue_struct *_kmirrord_wq;
 static struct work_struct _kmirrord_work;
+static DECLARE_WAIT_QUEUE_HEAD(_kmirrord_recovery_stopped);
 
 static inline void wake(void)
 {
@@ -83,6 +84,7 @@ struct region_hash {
 	struct list_head *buckets;
 
 	spinlock_t region_lock;
+	atomic_t recovery_in_flight;
 	struct semaphore recovery_count;
 	struct list_head clean_regions;
 	struct list_head quiesced_regions;
@@ -191,6 +193,7 @@ static int rh_init(struct region_hash *rh, struct mirror_set *ms,
 
 	spin_lock_init(&rh->region_lock);
 	sema_init(&rh->recovery_count, 0);
+	atomic_set(&rh->recovery_in_flight, 0);
 	INIT_LIST_HEAD(&rh->clean_regions);
 	INIT_LIST_HEAD(&rh->quiesced_regions);
 	INIT_LIST_HEAD(&rh->recovered_regions);
@@ -382,6 +385,8 @@ static void rh_update_states(struct region_hash *rh)
 		rh->log->type->clear_region(rh->log, reg->key);
 		rh->log->type->complete_resync_work(rh->log, reg->key, 1);
 		dispatch_bios(rh->ms, &reg->delayed_bios);
+		if (atomic_dec_and_test(&rh->recovery_in_flight))
+			wake_up_all(&_kmirrord_recovery_stopped);
 		up(&rh->recovery_count);
 		mempool_free(reg, rh->region_pool);
 	}
@@ -502,11 +507,21 @@ static int __rh_recovery_prepare(struct region_hash *rh)
 
 static void rh_recovery_prepare(struct region_hash *rh)
 {
-	while (!down_trylock(&rh->recovery_count))
+	/* Extra reference to avoid race with rh_stop_recovery */
+	atomic_inc(&rh->recovery_in_flight);
+
+	while (!down_trylock(&rh->recovery_count)) {
+		atomic_inc(&rh->recovery_in_flight);
 		if (__rh_recovery_prepare(rh) <= 0) {
+			atomic_dec(&rh->recovery_in_flight);
 			up(&rh->recovery_count);
 			break;
 		}
+	}
+
+	/* Drop the extra reference */
+	if (atomic_dec_and_test(&rh->recovery_in_flight))
+		wake_up_all(&_kmirrord_recovery_stopped);
 }
 
 /*
@@ -868,7 +883,7 @@ static void do_mirror(struct mirror_set *ms)
 	do_writes(ms, &writes);
 }
 
-static void do_work(void *ignored)
+static void do_work(struct work_struct *ignored)
 {
 	struct mirror_set *ms;
 
@@ -1177,6 +1192,11 @@ static void mirror_postsuspend(struct dm_target *ti)
 	struct dirty_log *log = ms->rh.log;
 
 	rh_stop_recovery(&ms->rh);
+
+	/* Wait for all I/O we generated to complete */
+	wait_event(_kmirrord_recovery_stopped,
+		   !atomic_read(&ms->rh.recovery_in_flight));
+
 	if (log->type->suspend && log->type->suspend(log))
 		/* FIXME: need better error handling */
 		DMWARN("log suspend failed");
@@ -1249,7 +1269,7 @@ static int __init dm_mirror_init(void)
 		dm_dirty_log_exit();
 		return r;
 	}
-	INIT_WORK(&_kmirrord_work, do_work, NULL);
+	INIT_WORK(&_kmirrord_work, do_work);
 
 	r = dm_register_target(&mirror_target);
 	if (r < 0) {

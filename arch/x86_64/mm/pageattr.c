@@ -61,34 +61,40 @@ static struct page *split_large_page(unsigned long address, pgprot_t prot,
 	return base;
 } 
 
-
-static void flush_kernel_map(void *address) 
+static void cache_flush_page(void *adr)
 {
-	if (0 && address && cpu_has_clflush) {
-		/* is this worth it? */ 
-		int i;
-		for (i = 0; i < PAGE_SIZE; i += boot_cpu_data.x86_clflush_size) 
-			asm volatile("clflush (%0)" :: "r" (address + i)); 
-	} else
-		asm volatile("wbinvd":::"memory"); 
-	if (address)
-		__flush_tlb_one(address);
-	else
-		__flush_tlb_all();
+	int i;
+	for (i = 0; i < PAGE_SIZE; i += boot_cpu_data.x86_clflush_size)
+		asm volatile("clflush (%0)" :: "r" (adr + i));
 }
 
+static void flush_kernel_map(void *arg)
+{
+	struct list_head *l = (struct list_head *)arg;
+	struct page *pg;
 
-static inline void flush_map(unsigned long address)
+	/* When clflush is available always use it because it is
+	   much cheaper than WBINVD */
+	if (!cpu_has_clflush)
+		asm volatile("wbinvd" ::: "memory");
+	list_for_each_entry(pg, l, lru) {
+		void *adr = page_address(pg);
+		if (cpu_has_clflush)
+			cache_flush_page(adr);
+		__flush_tlb_one(adr);
+	}
+}
+
+static inline void flush_map(struct list_head *l)
 {	
-	on_each_cpu(flush_kernel_map, (void *)address, 1, 1);
+	on_each_cpu(flush_kernel_map, l, 1, 1);
 }
 
-static struct page *deferred_pages; /* protected by init_mm.mmap_sem */
+static LIST_HEAD(deferred_pages); /* protected by init_mm.mmap_sem */
 
 static inline void save_page(struct page *fpage)
 {
-	fpage->lru.next = (struct list_head *)deferred_pages;
-	deferred_pages = fpage;
+	list_add(&fpage->lru, &deferred_pages);
 }
 
 /* 
@@ -207,18 +213,18 @@ int change_page_attr(struct page *page, int numpages, pgprot_t prot)
 
 void global_flush_tlb(void)
 { 
-	struct page *dpage;
+	struct page *pg, *next;
+	struct list_head l;
 
 	down_read(&init_mm.mmap_sem);
-	dpage = xchg(&deferred_pages, NULL);
+	list_replace_init(&deferred_pages, &l);
 	up_read(&init_mm.mmap_sem);
 
-	flush_map((dpage && !dpage->lru.next) ? (unsigned long)page_address(dpage) : 0);
-	while (dpage) {
-		struct page *tmp = dpage;
-		dpage = (struct page *)dpage->lru.next;
-		ClearPagePrivate(tmp);
-		__free_page(tmp);
+	flush_map(&l);
+
+	list_for_each_entry_safe(pg, next, &l, lru) {
+		ClearPagePrivate(pg);
+		__free_page(pg);
 	} 
 } 
 

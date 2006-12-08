@@ -249,6 +249,26 @@ config CPUSETS
 
 	  Say N if unsure.
 
+config SYSFS_DEPRECATED
+	bool "Create deprecated sysfs files"
+	default y
+	help
+	  This option creates deprecated symlinks such as the
+	  "device"-link, the <subsystem>:<name>-link, and the
+	  "bus"-link. It may also add deprecated key in the
+	  uevent environment.
+	  None of these features or values should be used today, as
+	  they export driver core implementation details to userspace
+	  or export properties which can't be kept stable across kernel
+	  releases.
+
+	  If enabled, this option will also move any device structures
+	  that belong to a class, back into the /sys/class heirachy, in
+	  order to support older versions of udev.
+
+	  If you are using a distro that was released in 2006 or later,
+	  it should be safe to say N here.
+
 config RELAY
 	bool "Kernel->user space relay support (formerly relayfs)"
 	help
@@ -304,20 +324,19 @@ config UID16
 
 config SYSCTL_SYSCALL
 	bool "Sysctl syscall support" if EMBEDDED
-	default n
+	default y
 	select SYSCTL
 	---help---
-	  Enable the deprecated sysctl system call.  sys_sysctl uses
-	  binary paths that have been found to be a major pain to maintain
-	  and use.  The interface in /proc/sys is now the primary and what
-	  everyone uses.
+	  sys_sysctl uses binary paths that have been found challenging
+	  to properly maintain and use.  The interface in /proc/sys
+	  using paths with ascii names is now the primary path to this
+	  information.
 
-	  Nothing has been using the binary sysctl interface for some
-	  time now so nothing should break if you disable sysctl syscall
-	  support, and your kernel will get marginally smaller.
+	  Almost nothing using the binary sysctl interface so if you are
+	  trying to save some space it is probably safe to disable this,
+	  making your kernel marginally smaller.
 
-	  Unless you have an application that uses the sys_sysctl interface
- 	  you should probably say N here.
+	  If unsure say Y here.
 
 config KALLSYMS
 	 bool "Load all symbols for debugging/kksymoops" if EMBEDDED

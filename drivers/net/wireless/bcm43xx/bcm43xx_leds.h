@@ -46,6 +46,12 @@ enum { /* LED behaviour values */
 	BCM43xx_LED_TEST_BLINKSLOW,
 	BCM43xx_LED_TEST_BLINKMEDIUM,
 	BCM43xx_LED_TEST_BLINKFAST,
+
+	/* Misc values for BCM4303 */
+	BCM43xx_LED_BCM4303_0 = 0x2B,
+	BCM43xx_LED_BCM4303_1 = 0x78,
+	BCM43xx_LED_BCM4303_2 = 0x2E,
+	BCM43xx_LED_BCM4303_3 = 0x19,
 };
 
 int bcm43xx_leds_init(struct bcm43xx_private *bcm);

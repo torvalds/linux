@@ -61,7 +61,7 @@
 #include <net/sctp/sm.h>
 
 /* Forward declarations for internal functions. */
-static void sctp_assoc_bh_rcv(struct sctp_association *asoc);
+static void sctp_assoc_bh_rcv(struct work_struct *work);
 
 
 /* 1st Level Abstractions. */
@@ -269,9 +269,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 
 	/* Create an input queue.  */
 	sctp_inq_init(&asoc->base.inqueue);
-	sctp_inq_set_th_handler(&asoc->base.inqueue,
-				    (void (*)(void *))sctp_assoc_bh_rcv,
-				    asoc);
+	sctp_inq_set_th_handler(&asoc->base.inqueue, sctp_assoc_bh_rcv);
 
 	/* Create an output queue.  */
 	sctp_outq_init(asoc, &asoc->outqueue);
@@ -488,7 +486,7 @@ void sctp_assoc_rm_peer(struct sctp_association *asoc,
 				 " port: %d\n",
 				 asoc,
 				 (&peer->ipaddr),
-				 peer->ipaddr.v4.sin_port);
+				 ntohs(peer->ipaddr.v4.sin_port));
 
 	/* If we are to remove the current retran_path, update it
 	 * to the next peer before removing this peer from the list.
@@ -537,13 +535,13 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 	sp = sctp_sk(asoc->base.sk);
 
 	/* AF_INET and AF_INET6 share common port field. */
-	port = addr->v4.sin_port;
+	port = ntohs(addr->v4.sin_port);
 
 	SCTP_DEBUG_PRINTK_IPADDR("sctp_assoc_add_peer:association %p addr: ",
 				 " port: %d state:%d\n",
 				 asoc,
 				 addr,
-				 addr->v4.sin_port,
+				 port,
 				 peer_state);
 
 	/* Set the port if it has not been set yet.  */
@@ -709,6 +707,7 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 	struct sctp_transport *first;
 	struct sctp_transport *second;
 	struct sctp_ulpevent *event;
+	struct sockaddr_storage addr;
 	struct list_head *pos;
 	int spc_state = 0;
 
@@ -731,8 +730,9 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 	/* Generate and send a SCTP_PEER_ADDR_CHANGE notification to the
 	 * user.
 	 */
-	event = sctp_ulpevent_make_peer_addr_change(asoc,
-				(struct sockaddr_storage *) &transport->ipaddr,
+	memset(&addr, 0, sizeof(struct sockaddr_storage));
+	memcpy(&addr, &transport->ipaddr, transport->af_specific->sockaddr_len);
+	event = sctp_ulpevent_make_peer_addr_change(asoc, &addr,
 				0, spc_state, error, GFP_ATOMIC);
 	if (event)
 		sctp_ulpq_tail_event(&asoc->ulpq, event);
@@ -868,7 +868,7 @@ struct sctp_transport *sctp_assoc_lookup_tsn(struct sctp_association *asoc,
 	struct list_head *entry, *pos;
 	struct sctp_transport *transport;
 	struct sctp_chunk *chunk;
-	__u32 key = htonl(tsn);
+	__be32 key = htonl(tsn);
 
 	match = NULL;
 
@@ -926,8 +926,8 @@ struct sctp_transport *sctp_assoc_is_match(struct sctp_association *asoc,
 
 	sctp_read_lock(&asoc->base.addr_lock);
 
-	if ((asoc->base.bind_addr.port == laddr->v4.sin_port) &&
-	    (asoc->peer.port == paddr->v4.sin_port)) {
+	if ((htons(asoc->base.bind_addr.port) == laddr->v4.sin_port) &&
+	    (htons(asoc->peer.port) == paddr->v4.sin_port)) {
 		transport = sctp_assoc_lookup_paddr(asoc, paddr);
 		if (!transport)
 			goto out;
@@ -944,8 +944,11 @@ out:
 }
 
 /* Do delayed input processing.  This is scheduled by sctp_rcv(). */
-static void sctp_assoc_bh_rcv(struct sctp_association *asoc)
+static void sctp_assoc_bh_rcv(struct work_struct *work)
 {
+	struct sctp_association *asoc =
+		container_of(work, struct sctp_association,
+			     base.inqueue.immediate);
 	struct sctp_endpoint *ep;
 	struct sctp_chunk *chunk;
 	struct sock *sk;
@@ -1135,7 +1138,7 @@ void sctp_assoc_update_retran_path(struct sctp_association *asoc)
 				 " port: %d\n",
 				 asoc,
 				 (&t->ipaddr),
-				 t->ipaddr.v4.sin_port);
+				 ntohs(t->ipaddr.v4.sin_port));
 }
 
 /* Choose the transport for sending a INIT packet.  */
@@ -1160,7 +1163,7 @@ struct sctp_transport *sctp_assoc_choose_init_transport(
 				 " port: %d\n",
 				 asoc,
 				 (&t->ipaddr),
-				 t->ipaddr.v4.sin_port);
+				 ntohs(t->ipaddr.v4.sin_port));
 
 	return t;
 }

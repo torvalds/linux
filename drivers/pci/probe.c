@@ -679,6 +679,33 @@ static int pci_setup_device(struct pci_dev * dev)
 		pci_read_bases(dev, 6, PCI_ROM_ADDRESS);
 		pci_read_config_word(dev, PCI_SUBSYSTEM_VENDOR_ID, &dev->subsystem_vendor);
 		pci_read_config_word(dev, PCI_SUBSYSTEM_ID, &dev->subsystem_device);
+
+		/*
+		 *	Do the ugly legacy mode stuff here rather than broken chip
+		 *	quirk code. Legacy mode ATA controllers have fixed
+		 *	addresses. These are not always echoed in BAR0-3, and
+		 *	BAR0-3 in a few cases contain junk!
+		 */
+		if (class == PCI_CLASS_STORAGE_IDE) {
+			u8 progif;
+			pci_read_config_byte(dev, PCI_CLASS_PROG, &progif);
+			if ((progif & 1) == 0) {
+				dev->resource[0].start = 0x1F0;
+				dev->resource[0].end = 0x1F7;
+				dev->resource[0].flags = IORESOURCE_IO;
+				dev->resource[1].start = 0x3F6;
+				dev->resource[1].end = 0x3F6;
+				dev->resource[1].flags = IORESOURCE_IO;
+			}
+			if ((progif & 4) == 0) {
+				dev->resource[2].start = 0x170;
+				dev->resource[2].end = 0x177;
+				dev->resource[2].flags = IORESOURCE_IO;
+				dev->resource[3].start = 0x376;
+				dev->resource[3].end = 0x376;
+				dev->resource[3].flags = IORESOURCE_IO;
+			}
+		}
 		break;
 
 	case PCI_HEADER_TYPE_BRIDGE:		    /* bridge header */
@@ -846,6 +873,7 @@ void __devinit pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 	dev->dev.release = pci_release_dev;
 	pci_dev_get(dev);
 
+	set_dev_node(&dev->dev, pcibus_to_node(bus));
 	dev->dev.dma_mask = &dev->dma_mask;
 	dev->dev.coherent_dma_mask = 0xffffffffull;
 

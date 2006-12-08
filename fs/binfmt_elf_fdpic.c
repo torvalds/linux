@@ -40,9 +40,6 @@
 #include <asm/pgalloc.h>
 
 typedef char *elf_caddr_t;
-#ifndef elf_addr_t
-#define elf_addr_t unsigned long
-#endif
 
 #if 0
 #define kdebug(fmt, ...) printk("FDPIC "fmt"\n" ,##__VA_ARGS__ )

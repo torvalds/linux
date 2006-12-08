@@ -356,14 +356,13 @@ hashbin_t *hashbin_new(int type)
 	/*
 	 * Allocate new hashbin
 	 */
-	hashbin = kmalloc( sizeof(hashbin_t), GFP_ATOMIC);
+	hashbin = kzalloc(sizeof(*hashbin), GFP_ATOMIC);
 	if (!hashbin)
 		return NULL;
 
 	/*
 	 * Initialize structure
 	 */
-	memset(hashbin, 0, sizeof(hashbin_t));
 	hashbin->hb_type = type;
 	hashbin->magic = HB_MAGIC;
 	//hashbin->hb_current = NULL;

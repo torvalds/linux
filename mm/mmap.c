@@ -1379,7 +1379,7 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
 		 * Check if the given range is hugepage aligned, and
 		 * can be made suitable for hugepages.
 		 */
-		ret = prepare_hugepage_range(addr, len);
+		ret = prepare_hugepage_range(addr, len, pgoff);
 	} else {
 		/*
 		 * Ensure that a normal request is not falling in a
@@ -1736,7 +1736,7 @@ int split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
 	if (mm->map_count >= sysctl_max_map_count)
 		return -ENOMEM;
 
-	new = kmem_cache_alloc(vm_area_cachep, SLAB_KERNEL);
+	new = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
 
@@ -1878,6 +1878,9 @@ unsigned long do_brk(unsigned long addr, unsigned long len)
 		return addr;
 
 	if ((addr + len) > TASK_SIZE || (addr + len) < addr)
+		return -EINVAL;
+
+	if (is_hugepage_only_range(mm, addr, len))
 		return -EINVAL;
 
 	flags = VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags;
@@ -2054,7 +2057,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 		    vma_start < new_vma->vm_end)
 			*vmap = new_vma;
 	} else {
-		new_vma = kmem_cache_alloc(vm_area_cachep, SLAB_KERNEL);
+		new_vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
 		if (new_vma) {
 			*new_vma = *vma;
 			pol = mpol_copy(vma_policy(vma));

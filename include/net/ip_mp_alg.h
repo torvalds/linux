@@ -88,9 +88,7 @@ static inline int multipath_comparekeys(const struct flowi *flp1,
 	return flp1->fl4_dst == flp2->fl4_dst &&
 		flp1->fl4_src == flp2->fl4_src &&
 		flp1->oif == flp2->oif &&
-#ifdef CONFIG_IP_ROUTE_FWMARK
-		flp1->fl4_fwmark == flp2->fl4_fwmark &&
-#endif
+		flp1->mark == flp2->mark &&
 		!((flp1->fl4_tos ^ flp2->fl4_tos) &
 		  (IPTOS_RT_MASK | RTO_ONLINK));
 }

@@ -24,6 +24,8 @@
 #define PPC_FEATURE_ICACHE_SNOOP	0x00002000
 #define PPC_FEATURE_ARCH_2_05		0x00001000
 #define PPC_FEATURE_PA6T		0x00000800
+#define PPC_FEATURE_HAS_DFP		0x00000400
+#define PPC_FEATURE_POWER6_EXT		0x00000200
 
 #define PPC_FEATURE_TRUE_LE		0x00000002
 #define PPC_FEATURE_PPC_LE		0x00000001
@@ -45,6 +47,7 @@ enum powerpc_oprofile_type {
 	PPC_OPROFILE_POWER4 = 2,
 	PPC_OPROFILE_G4 = 3,
 	PPC_OPROFILE_BOOKE = 4,
+	PPC_OPROFILE_CELL = 5,
 };
 
 struct cpu_spec {
@@ -91,7 +94,7 @@ extern struct cpu_spec		*cur_cpu_spec;
 
 extern unsigned int __start___ftr_fixup, __stop___ftr_fixup;
 
-extern struct cpu_spec *identify_cpu(unsigned long offset);
+extern struct cpu_spec *identify_cpu(unsigned long offset, unsigned int pvr);
 extern void do_feature_fixups(unsigned long value, void *fixup_start,
 			      void *fixup_end);
 
@@ -148,19 +151,13 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 #define CPU_FTR_PAUSE_ZERO		LONG_ASM_CONST(0x0000200000000000)
 #define CPU_FTR_PURR			LONG_ASM_CONST(0x0000400000000000)
 #define CPU_FTR_CELL_TB_BUG		LONG_ASM_CONST(0x0000800000000000)
+#define CPU_FTR_SPURR			LONG_ASM_CONST(0x0001000000000000)
 
 #ifndef __ASSEMBLY__
 
-#define CPU_FTR_PPCAS_ARCH_V2_BASE (CPU_FTR_SLB | \
-					CPU_FTR_TLBIEL | CPU_FTR_NOEXECUTE | \
-					CPU_FTR_NODSISRALIGN)
-
-/* iSeries doesn't support large pages */
-#ifdef CONFIG_PPC_ISERIES
-#define CPU_FTR_PPCAS_ARCH_V2	(CPU_FTR_PPCAS_ARCH_V2_BASE)
-#else
-#define CPU_FTR_PPCAS_ARCH_V2	(CPU_FTR_PPCAS_ARCH_V2_BASE | CPU_FTR_16M_PAGE)
-#endif /* CONFIG_PPC_ISERIES */
+#define CPU_FTR_PPCAS_ARCH_V2	(CPU_FTR_SLB | \
+				 CPU_FTR_TLBIEL | CPU_FTR_NOEXECUTE | \
+				 CPU_FTR_NODSISRALIGN | CPU_FTR_16M_PAGE)
 
 /* We only set the altivec features if the kernel was compiled with altivec
  * support
@@ -311,7 +308,8 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 #define CPU_FTRS_E500_2	(CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | \
 	    CPU_FTR_BIG_PHYS | CPU_FTR_NODSISRALIGN)
 #define CPU_FTRS_GENERIC_32	(CPU_FTR_COMMON | CPU_FTR_NODSISRALIGN)
-#ifdef __powerpc64__
+
+/* 64-bit CPUs */
 #define CPU_FTRS_POWER3	(CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | \
 	    CPU_FTR_HPTE_TABLE | CPU_FTR_IABR | CPU_FTR_PPC_LE)
 #define CPU_FTRS_RS64	(CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | \
@@ -332,7 +330,13 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 	    CPU_FTR_HPTE_TABLE | CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_CTRL | \
 	    CPU_FTR_MMCRA | CPU_FTR_SMT | \
 	    CPU_FTR_COHERENT_ICACHE | CPU_FTR_LOCKLESS_TLBIE | \
-	    CPU_FTR_PURR | CPU_FTR_CI_LARGE_PAGE | CPU_FTR_REAL_LE)
+	    CPU_FTR_PURR | CPU_FTR_SPURR | CPU_FTR_REAL_LE)
+#define CPU_FTRS_POWER6X (CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | \
+	    CPU_FTR_HPTE_TABLE | CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_CTRL | \
+	    CPU_FTR_MMCRA | CPU_FTR_SMT | \
+	    CPU_FTR_COHERENT_ICACHE | CPU_FTR_LOCKLESS_TLBIE | \
+	    CPU_FTR_PURR | CPU_FTR_CI_LARGE_PAGE | \
+	    CPU_FTR_SPURR | CPU_FTR_REAL_LE)
 #define CPU_FTRS_CELL	(CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | \
 	    CPU_FTR_HPTE_TABLE | CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_CTRL | \
 	    CPU_FTR_ALTIVEC_COMP | CPU_FTR_MMCRA | CPU_FTR_SMT | \
@@ -343,7 +347,6 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 	    CPU_FTR_PURR | CPU_FTR_REAL_LE)
 #define CPU_FTRS_COMPATIBLE	(CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | \
 	    CPU_FTR_HPTE_TABLE | CPU_FTR_PPCAS_ARCH_V2)
-#endif
 
 #ifdef __powerpc64__
 #define CPU_FTRS_POSSIBLE	\

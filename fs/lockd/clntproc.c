@@ -13,6 +13,7 @@
 #include <linux/nfs_fs.h>
 #include <linux/utsname.h>
 #include <linux/smp_lock.h>
+#include <linux/freezer.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/lockd/lockd.h>
@@ -729,7 +730,7 @@ static void nlmclnt_cancel_callback(struct rpc_task *task, void *data)
 		goto retry_cancel;
 	}
 
-	dprintk("lockd: cancel status %d (task %d)\n",
+	dprintk("lockd: cancel status %u (task %u)\n",
 			req->a_res.status, task->tk_pid);
 
 	switch (req->a_res.status) {

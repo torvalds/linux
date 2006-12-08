@@ -49,6 +49,7 @@
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/udp.h>
+#include <net/udplite.h>
 #include <net/tcp.h>
 #include <net/ipip.h>
 #include <net/protocol.h>
@@ -221,7 +222,7 @@ lookup_protocol:
 		 * the user to assign a number at socket
 		 * creation time automatically shares.
 		 */
-		inet->sport = ntohs(inet->num);
+		inet->sport = htons(inet->num);
 		sk->sk_prot->hash(sk);
 	}
 	if (sk->sk_prot->init) {
@@ -341,7 +342,7 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		sk->sk_userlocks |= SOCK_BINDADDR_LOCK;
 	if (snum)
 		sk->sk_userlocks |= SOCK_BINDPORT_LOCK;
-	inet->sport = ntohs(inet->num);
+	inet->sport = htons(inet->num);
 	inet->dport = 0;
 	inet->daddr = 0;
 out:
@@ -678,7 +679,7 @@ int ipv6_opt_accepted(struct sock *sk, struct sk_buff *skb)
 	if (np->rxopt.all) {
 		if ((opt->hop && (np->rxopt.bits.hopopts ||
 				  np->rxopt.bits.ohopopts)) ||
-		    ((IPV6_FLOWINFO_MASK & *(u32*)skb->nh.raw) &&
+		    ((IPV6_FLOWINFO_MASK & *(__be32*)skb->nh.raw) &&
 		     np->rxopt.bits.rxflow) ||
 		    (opt->srcrt && (np->rxopt.bits.srcrt ||
 		     np->rxopt.bits.osrcrt)) ||
@@ -719,10 +720,8 @@ snmp6_mib_free(void *ptr[2])
 {
 	if (ptr == NULL)
 		return;
-	if (ptr[0])
-		free_percpu(ptr[0]);
-	if (ptr[1])
-		free_percpu(ptr[1]);
+	free_percpu(ptr[0]);
+	free_percpu(ptr[1]);
 	ptr[0] = ptr[1] = NULL;
 }
 
@@ -737,8 +736,13 @@ static int __init init_ipv6_mibs(void)
 	if (snmp6_mib_init((void **)udp_stats_in6, sizeof (struct udp_mib),
 			   __alignof__(struct udp_mib)) < 0)
 		goto err_udp_mib;
+	if (snmp6_mib_init((void **)udplite_stats_in6, sizeof (struct udp_mib),
+			   __alignof__(struct udp_mib)) < 0)
+		goto err_udplite_mib;
 	return 0;
 
+err_udplite_mib:
+	snmp6_mib_free((void **)udp_stats_in6);
 err_udp_mib:
 	snmp6_mib_free((void **)icmpv6_statistics);
 err_icmp_mib:
@@ -753,6 +757,7 @@ static void cleanup_ipv6_mibs(void)
 	snmp6_mib_free((void **)ipv6_statistics);
 	snmp6_mib_free((void **)icmpv6_statistics);
 	snmp6_mib_free((void **)udp_stats_in6);
+	snmp6_mib_free((void **)udplite_stats_in6);
 }
 
 static int __init inet6_init(void)
@@ -780,9 +785,13 @@ static int __init inet6_init(void)
 	if (err)
 		goto out_unregister_tcp_proto;
 
-	err = proto_register(&rawv6_prot, 1);
+	err = proto_register(&udplitev6_prot, 1);
 	if (err)
 		goto out_unregister_udp_proto;
+
+	err = proto_register(&rawv6_prot, 1);
+	if (err)
+		goto out_unregister_udplite_proto;
 
 
 	/* Register the socket-side information for inet6_create.  */
@@ -837,6 +846,8 @@ static int __init inet6_init(void)
 		goto proc_tcp6_fail;
 	if (udp6_proc_init())
 		goto proc_udp6_fail;
+	if (udplite6_proc_init())
+		goto proc_udplite6_fail;
 	if (ipv6_misc_proc_init())
 		goto proc_misc6_fail;
 
@@ -862,6 +873,7 @@ static int __init inet6_init(void)
 
 	/* Init v6 transport protocols. */
 	udpv6_init();
+	udplitev6_init();
 	tcpv6_init();
 
 	ipv6_packet_init();
@@ -879,6 +891,8 @@ proc_if6_fail:
 proc_anycast6_fail:
 	ipv6_misc_proc_exit();
 proc_misc6_fail:
+	udplite6_proc_exit();
+proc_udplite6_fail:
 	udp6_proc_exit();
 proc_udp6_fail:
 	tcp6_proc_exit();
@@ -902,6 +916,8 @@ out_unregister_sock:
 	sock_unregister(PF_INET6);
 out_unregister_raw_proto:
 	proto_unregister(&rawv6_prot);
+out_unregister_udplite_proto:
+	proto_unregister(&udplitev6_prot);
 out_unregister_udp_proto:
 	proto_unregister(&udpv6_prot);
 out_unregister_tcp_proto:
@@ -919,6 +935,7 @@ static void __exit inet6_exit(void)
 	ac6_proc_exit();
  	ipv6_misc_proc_exit();
  	udp6_proc_exit();
+ 	udplite6_proc_exit();
  	tcp6_proc_exit();
  	raw6_proc_exit();
 #endif

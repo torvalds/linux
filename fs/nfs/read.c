@@ -30,6 +30,7 @@
 
 #include <asm/system.h>
 
+#include "internal.h"
 #include "iostat.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
@@ -38,7 +39,7 @@ static int nfs_pagein_one(struct list_head *, struct inode *);
 static const struct rpc_call_ops nfs_read_partial_ops;
 static const struct rpc_call_ops nfs_read_full_ops;
 
-static kmem_cache_t *nfs_rdata_cachep;
+static struct kmem_cache *nfs_rdata_cachep;
 static mempool_t *nfs_rdata_mempool;
 
 #define MIN_POOL_READ	(32)
@@ -46,7 +47,7 @@ static mempool_t *nfs_rdata_mempool;
 struct nfs_read_data *nfs_readdata_alloc(size_t len)
 {
 	unsigned int pagecount = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	struct nfs_read_data *p = mempool_alloc(nfs_rdata_mempool, SLAB_NOFS);
+	struct nfs_read_data *p = mempool_alloc(nfs_rdata_mempool, GFP_NOFS);
 
 	if (p) {
 		memset(p, 0, sizeof(*p));
@@ -65,32 +66,22 @@ struct nfs_read_data *nfs_readdata_alloc(size_t len)
 	return p;
 }
 
-static void nfs_readdata_free(struct nfs_read_data *p)
+static void nfs_readdata_rcu_free(struct rcu_head *head)
 {
+	struct nfs_read_data *p = container_of(head, struct nfs_read_data, task.u.tk_rcu);
 	if (p && (p->pagevec != &p->page_array[0]))
 		kfree(p->pagevec);
 	mempool_free(p, nfs_rdata_mempool);
 }
 
+static void nfs_readdata_free(struct nfs_read_data *rdata)
+{
+	call_rcu_bh(&rdata->task.u.tk_rcu, nfs_readdata_rcu_free);
+}
+
 void nfs_readdata_release(void *data)
 {
         nfs_readdata_free(data);
-}
-
-static
-unsigned int nfs_page_length(struct inode *inode, struct page *page)
-{
-	loff_t i_size = i_size_read(inode);
-	unsigned long idx;
-
-	if (i_size <= 0)
-		return 0;
-	idx = (i_size - 1) >> PAGE_CACHE_SHIFT;
-	if (page->index > idx)
-		return 0;
-	if (page->index != idx)
-		return PAGE_CACHE_SIZE;
-	return 1 + ((i_size - 1) & (PAGE_CACHE_SIZE - 1));
 }
 
 static
@@ -139,12 +130,12 @@ static int nfs_readpage_sync(struct nfs_open_context *ctx, struct inode *inode,
 {
 	unsigned int	rsize = NFS_SERVER(inode)->rsize;
 	unsigned int	count = PAGE_CACHE_SIZE;
-	int		result;
+	int result = -ENOMEM;
 	struct nfs_read_data *rdata;
 
 	rdata = nfs_readdata_alloc(count);
 	if (!rdata)
-		return -ENOMEM;
+		goto out_unlock;
 
 	memset(rdata, 0, sizeof(*rdata));
 	rdata->flags = (IS_SWAPFILE(inode)? NFS_RPC_SWAPFLAGS : 0);
@@ -212,8 +203,9 @@ static int nfs_readpage_sync(struct nfs_open_context *ctx, struct inode *inode,
 	result = 0;
 
 io_error:
-	unlock_page(page);
 	nfs_readdata_free(rdata);
+out_unlock:
+	unlock_page(page);
 	return result;
 }
 
@@ -224,7 +216,7 @@ static int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 	struct nfs_page	*new;
 	unsigned int len;
 
-	len = nfs_page_length(inode, page);
+	len = nfs_page_length(page);
 	if (len == 0)
 		return nfs_return_empty_page(page);
 	new = nfs_create_request(ctx, inode, page, 0, len);
@@ -316,9 +308,7 @@ static void nfs_execute_read(struct nfs_read_data *data)
 	sigset_t oldset;
 
 	rpc_clnt_sigmask(clnt, &oldset);
-	lock_kernel();
 	rpc_execute(&data->task);
-	unlock_kernel();
 	rpc_clnt_sigunmask(clnt, &oldset);
 }
 
@@ -455,6 +445,55 @@ nfs_pagein_list(struct list_head *head, int rpages)
 }
 
 /*
+ * This is the callback from RPC telling us whether a reply was
+ * received or some error occurred (timeout or socket shutdown).
+ */
+int nfs_readpage_result(struct rpc_task *task, struct nfs_read_data *data)
+{
+	int status;
+
+	dprintk("%s: %4d, (status %d)\n", __FUNCTION__, task->tk_pid,
+			task->tk_status);
+
+	status = NFS_PROTO(data->inode)->read_done(task, data);
+	if (status != 0)
+		return status;
+
+	nfs_add_stats(data->inode, NFSIOS_SERVERREADBYTES, data->res.count);
+
+	if (task->tk_status == -ESTALE) {
+		set_bit(NFS_INO_STALE, &NFS_FLAGS(data->inode));
+		nfs_mark_for_revalidate(data->inode);
+	}
+	spin_lock(&data->inode->i_lock);
+	NFS_I(data->inode)->cache_validity |= NFS_INO_INVALID_ATIME;
+	spin_unlock(&data->inode->i_lock);
+	return 0;
+}
+
+static int nfs_readpage_retry(struct rpc_task *task, struct nfs_read_data *data)
+{
+	struct nfs_readargs *argp = &data->args;
+	struct nfs_readres *resp = &data->res;
+
+	if (resp->eof || resp->count == argp->count)
+		return 0;
+
+	/* This is a short read! */
+	nfs_inc_stats(data->inode, NFSIOS_SHORTREAD);
+	/* Has the server at least made some progress? */
+	if (resp->count == 0)
+		return 0;
+
+	/* Yes, so retry the read at the end of the data */
+	argp->offset += resp->count;
+	argp->pgbase += resp->count;
+	argp->count -= resp->count;
+	rpc_restart_call(task);
+	return -EAGAIN;
+}
+
+/*
  * Handle a read reply that fills part of a page.
  */
 static void nfs_readpage_result_partial(struct rpc_task *task, void *calldata)
@@ -463,12 +502,16 @@ static void nfs_readpage_result_partial(struct rpc_task *task, void *calldata)
 	struct nfs_page *req = data->req;
 	struct page *page = req->wb_page;
  
-	if (likely(task->tk_status >= 0))
-		nfs_readpage_truncate_uninitialised_page(data);
-	else
-		SetPageError(page);
 	if (nfs_readpage_result(task, data) != 0)
 		return;
+
+	if (likely(task->tk_status >= 0)) {
+		nfs_readpage_truncate_uninitialised_page(data);
+		if (nfs_readpage_retry(task, data) != 0)
+			return;
+	}
+	if (unlikely(task->tk_status < 0))
+		SetPageError(page);
 	if (atomic_dec_and_test(&req->wb_complete)) {
 		if (!PageError(page))
 			SetPageUptodate(page);
@@ -496,23 +539,11 @@ static void nfs_readpage_set_pages_uptodate(struct nfs_read_data *data)
 	count += base;
 	for (;count >= PAGE_CACHE_SIZE; count -= PAGE_CACHE_SIZE, pages++)
 		SetPageUptodate(*pages);
-	if (count != 0)
+	if (count == 0)
+		return;
+	/* Was this a short read? */
+	if (data->res.eof || data->res.count == data->args.count)
 		SetPageUptodate(*pages);
-}
-
-static void nfs_readpage_set_pages_error(struct nfs_read_data *data)
-{
-	unsigned int count = data->args.count;
-	unsigned int base = data->args.pgbase;
-	struct page **pages;
-
-	pages = &data->args.pages[base >> PAGE_CACHE_SHIFT];
-	base &= ~PAGE_CACHE_MASK;
-	count += base;
-	for (;count >= PAGE_CACHE_SIZE; count -= PAGE_CACHE_SIZE, pages++)
-		SetPageError(*pages);
-	if (count != 0)
-		SetPageError(*pages);
 }
 
 /*
@@ -523,19 +554,20 @@ static void nfs_readpage_result_full(struct rpc_task *task, void *calldata)
 {
 	struct nfs_read_data *data = calldata;
 
+	if (nfs_readpage_result(task, data) != 0)
+		return;
 	/*
-	 * Note: nfs_readpage_result may change the values of
+	 * Note: nfs_readpage_retry may change the values of
 	 * data->args. In the multi-page case, we therefore need
-	 * to ensure that we call the next nfs_readpage_set_page_uptodate()
-	 * first in the multi-page case.
+	 * to ensure that we call nfs_readpage_set_pages_uptodate()
+	 * first.
 	 */
 	if (likely(task->tk_status >= 0)) {
 		nfs_readpage_truncate_uninitialised_page(data);
 		nfs_readpage_set_pages_uptodate(data);
-	} else
-		nfs_readpage_set_pages_error(data);
-	if (nfs_readpage_result(task, data) != 0)
-		return;
+		if (nfs_readpage_retry(task, data) != 0)
+			return;
+	}
 	while (!list_empty(&data->pages)) {
 		struct nfs_page *req = nfs_list_entry(data->pages.next);
 
@@ -548,50 +580,6 @@ static const struct rpc_call_ops nfs_read_full_ops = {
 	.rpc_call_done = nfs_readpage_result_full,
 	.rpc_release = nfs_readdata_release,
 };
-
-/*
- * This is the callback from RPC telling us whether a reply was
- * received or some error occurred (timeout or socket shutdown).
- */
-int nfs_readpage_result(struct rpc_task *task, struct nfs_read_data *data)
-{
-	struct nfs_readargs *argp = &data->args;
-	struct nfs_readres *resp = &data->res;
-	int status;
-
-	dprintk("NFS: %4d nfs_readpage_result, (status %d)\n",
-		task->tk_pid, task->tk_status);
-
-	status = NFS_PROTO(data->inode)->read_done(task, data);
-	if (status != 0)
-		return status;
-
-	nfs_add_stats(data->inode, NFSIOS_SERVERREADBYTES, resp->count);
-
-	if (task->tk_status < 0) {
-		if (task->tk_status == -ESTALE) {
-			set_bit(NFS_INO_STALE, &NFS_FLAGS(data->inode));
-			nfs_mark_for_revalidate(data->inode);
-		}
-	} else if (resp->count < argp->count && !resp->eof) {
-		/* This is a short read! */
-		nfs_inc_stats(data->inode, NFSIOS_SHORTREAD);
-		/* Has the server at least made some progress? */
-		if (resp->count != 0) {
-			/* Yes, so retry the read at the end of the data */
-			argp->offset += resp->count;
-			argp->pgbase += resp->count;
-			argp->count -= resp->count;
-			rpc_restart_call(task);
-			return -EAGAIN;
-		}
-		task->tk_status = -EIO;
-	}
-	spin_lock(&data->inode->i_lock);
-	NFS_I(data->inode)->cache_validity |= NFS_INO_INVALID_ATIME;
-	spin_unlock(&data->inode->i_lock);
-	return 0;
-}
 
 /*
  * Read a page over NFS.
@@ -626,9 +614,10 @@ int nfs_readpage(struct file *file, struct page *page)
 		goto out_error;
 
 	if (file == NULL) {
+		error = -EBADF;
 		ctx = nfs_find_open_context(inode, NULL, FMODE_READ);
 		if (ctx == NULL)
-			return -EBADF;
+			goto out_error;
 	} else
 		ctx = get_nfs_open_context((struct nfs_open_context *)
 				file->private_data);
@@ -663,7 +652,7 @@ readpage_async_filler(void *data, struct page *page)
 	unsigned int len;
 
 	nfs_wb_page(inode, page);
-	len = nfs_page_length(inode, page);
+	len = nfs_page_length(page);
 	if (len == 0)
 		return nfs_return_empty_page(page);
 	new = nfs_create_request(desc->ctx, inode, page, 0, len);

@@ -47,10 +47,6 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs);
 static int load_elf_library(struct file *);
 static unsigned long elf_map (struct file *, unsigned long, struct elf_phdr *, int, int);
 
-#ifndef elf_addr_t
-#define elf_addr_t unsigned long
-#endif
-
 /*
  * If we don't support core dumping, then supply a NULL so we
  * don't even try.
@@ -243,8 +239,9 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	if (interp_aout) {
 		argv = sp + 2;
 		envp = argv + argc + 1;
-		__put_user((elf_addr_t)(unsigned long)argv, sp++);
-		__put_user((elf_addr_t)(unsigned long)envp, sp++);
+		if (__put_user((elf_addr_t)(unsigned long)argv, sp++) ||
+		    __put_user((elf_addr_t)(unsigned long)envp, sp++))
+			return -EFAULT;
 	} else {
 		argv = sp;
 		envp = argv + argc + 1;
@@ -254,7 +251,8 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	p = current->mm->arg_end = current->mm->arg_start;
 	while (argc-- > 0) {
 		size_t len;
-		__put_user((elf_addr_t)p, argv++);
+		if (__put_user((elf_addr_t)p, argv++))
+			return -EFAULT;
 		len = strnlen_user((void __user *)p, PAGE_SIZE*MAX_ARG_PAGES);
 		if (!len || len > PAGE_SIZE*MAX_ARG_PAGES)
 			return 0;
@@ -265,7 +263,8 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	current->mm->arg_end = current->mm->env_start = p;
 	while (envc-- > 0) {
 		size_t len;
-		__put_user((elf_addr_t)p, envp++);
+		if (__put_user((elf_addr_t)p, envp++))
+			return -EFAULT;
 		len = strnlen_user((void __user *)p, PAGE_SIZE*MAX_ARG_PAGES);
 		if (!len || len > PAGE_SIZE*MAX_ARG_PAGES)
 			return 0;
@@ -545,7 +544,7 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	unsigned long reloc_func_desc = 0;
 	char passed_fileno[6];
 	struct files_struct *files;
-	int have_pt_gnu_stack, executable_stack = EXSTACK_DEFAULT;
+	int executable_stack = EXSTACK_DEFAULT;
 	unsigned long def_flags = 0;
 	struct {
 		struct elfhdr elf_ex;
@@ -708,7 +707,6 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 				executable_stack = EXSTACK_DISABLE_X;
 			break;
 		}
-	have_pt_gnu_stack = (i < loc->elf_ex.e_phnum);
 
 	/* Some simple consistency checks for the interpreter */
 	if (elf_interpreter) {
@@ -856,7 +854,13 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 			 * default mmap base, as well as whatever program they
 			 * might try to exec.  This is because the brk will
 			 * follow the loader, and is not movable.  */
-			load_bias = ELF_PAGESTART(ELF_ET_DYN_BASE - vaddr);
+			if (current->flags & PF_RANDOMIZE)
+				load_bias = randomize_range(0x10000,
+							    ELF_ET_DYN_BASE,
+							    0);
+			else
+				load_bias = ELF_ET_DYN_BASE;
+			load_bias = ELF_PAGESTART(load_bias - vaddr);
 		}
 
 		error = elf_map(bprm->file, load_bias + vaddr, elf_ppnt,
@@ -1582,6 +1586,10 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file)
 		
 		sz += thread_status_size;
 
+#ifdef ELF_CORE_WRITE_EXTRA_NOTES
+		sz += ELF_CORE_EXTRA_NOTES_SIZE;
+#endif
+
 		fill_elf_note_phdr(&phdr, sz, offset);
 		offset += sz;
 		DUMP_WRITE(&phdr, sizeof(phdr));
@@ -1621,6 +1629,10 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file)
 	for (i = 0; i < numnote; i++)
 		if (!writenote(notes + i, file, &foffset))
 			goto end_coredump;
+
+#ifdef ELF_CORE_WRITE_EXTRA_NOTES
+	ELF_CORE_WRITE_EXTRA_NOTES;
+#endif
 
 	/* write out the thread status notes section */
 	list_for_each(t, &thread_list) {

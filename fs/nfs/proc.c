@@ -215,32 +215,6 @@ static int nfs_proc_read(struct nfs_read_data *rdata)
 	return status;
 }
 
-static int nfs_proc_write(struct nfs_write_data *wdata)
-{
-	int			flags = wdata->flags;
-	struct inode *		inode = wdata->inode;
-	struct nfs_fattr *	fattr = wdata->res.fattr;
-	struct rpc_message	msg = {
-		.rpc_proc	= &nfs_procedures[NFSPROC_WRITE],
-		.rpc_argp	= &wdata->args,
-		.rpc_resp	= &wdata->res,
-		.rpc_cred	= wdata->cred,
-	};
-	int			status;
-
-	dprintk("NFS call  write %d @ %Ld\n", wdata->args.count,
-			(long long) wdata->args.offset);
-	nfs_fattr_init(fattr);
-	status = rpc_call_sync(NFS_CLIENT(inode), &msg, flags);
-	if (status >= 0) {
-		nfs_post_op_update_inode(inode, fattr);
-		wdata->res.count = wdata->args.count;
-		wdata->verf.committed = NFS_FILE_SYNC;
-	}
-	dprintk("NFS reply write: %d\n", status);
-	return status < 0? status : wdata->res.count;
-}
-
 static int
 nfs_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		int flags, struct nameidata *nd)
@@ -545,13 +519,10 @@ nfs_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 	};
 	int			status;
 
-	lock_kernel();
-
 	dprintk("NFS call  readdir %d\n", (unsigned int)cookie);
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 
 	dprintk("NFS reply readdir: %d\n", status);
-	unlock_kernel();
 	return status;
 }
 
@@ -696,8 +667,6 @@ const struct nfs_rpc_ops nfs_v2_clientops = {
 	.access		= NULL,		       /* access */
 	.readlink	= nfs_proc_readlink,
 	.read		= nfs_proc_read,
-	.write		= nfs_proc_write,
-	.commit		= NULL,		       /* commit */
 	.create		= nfs_proc_create,
 	.remove		= nfs_proc_remove,
 	.unlink_setup	= nfs_proc_unlink_setup,

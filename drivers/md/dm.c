@@ -121,8 +121,8 @@ struct mapped_device {
 };
 
 #define MIN_IOS 256
-static kmem_cache_t *_io_cache;
-static kmem_cache_t *_tio_cache;
+static struct kmem_cache *_io_cache;
+static struct kmem_cache *_tio_cache;
 
 static int __init local_init(void)
 {
@@ -1285,7 +1285,7 @@ int dm_suspend(struct mapped_device *md, int do_lockfs)
 	down(&md->suspend_lock);
 
 	if (dm_suspended(md))
-		goto out;
+		goto out_unlock;
 
 	map = dm_get_table(md);
 
@@ -1361,6 +1361,8 @@ out:
 	}
 
 	dm_table_put(map);
+
+out_unlock:
 	up(&md->suspend_lock);
 	return r;
 }

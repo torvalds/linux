@@ -20,6 +20,6 @@ void mmc_remove_host_sysfs(struct mmc_host *host);
 void mmc_free_host_sysfs(struct mmc_host *host);
 
 int mmc_schedule_work(struct work_struct *work);
-int mmc_schedule_delayed_work(struct work_struct *work, unsigned long delay);
+int mmc_schedule_delayed_work(struct delayed_work *work, unsigned long delay);
 void mmc_flush_scheduled_work(void);
 #endif

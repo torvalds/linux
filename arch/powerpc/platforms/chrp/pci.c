@@ -156,15 +156,6 @@ hydra_init(void)
 	return 1;
 }
 
-void __init
-chrp_pcibios_fixup(void)
-{
-	struct pci_dev *dev = NULL;
-
-	for_each_pci_dev(dev)
-		pci_read_irq_line(dev);
-}
-
 #define PRG_CL_RESET_VALID 0x00010000
 
 static void __init

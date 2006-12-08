@@ -533,9 +533,10 @@ void usb_serial_port_softint(struct usb_serial_port *port)
 	schedule_work(&port->work);
 }
 
-static void usb_serial_port_work(void *private)
+static void usb_serial_port_work(struct work_struct *work)
 {
-	struct usb_serial_port *port = private;
+	struct usb_serial_port *port =
+		container_of(work, struct usb_serial_port, work);
 	struct tty_struct *tty;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
@@ -799,7 +800,7 @@ int usb_serial_probe(struct usb_interface *interface,
 		port->serial = serial;
 		spin_lock_init(&port->lock);
 		mutex_init(&port->mutex);
-		INIT_WORK(&port->work, usb_serial_port_work, port);
+		INIT_WORK(&port->work, usb_serial_port_work);
 		serial->port[i] = port;
 	}
 
@@ -952,32 +953,28 @@ probe_error:
 		port = serial->port[i];
 		if (!port)
 			continue;
-		if (port->read_urb)
-			usb_free_urb (port->read_urb);
+		usb_free_urb(port->read_urb);
 		kfree(port->bulk_in_buffer);
 	}
 	for (i = 0; i < num_bulk_out; ++i) {
 		port = serial->port[i];
 		if (!port)
 			continue;
-		if (port->write_urb)
-			usb_free_urb (port->write_urb);
+		usb_free_urb(port->write_urb);
 		kfree(port->bulk_out_buffer);
 	}
 	for (i = 0; i < num_interrupt_in; ++i) {
 		port = serial->port[i];
 		if (!port)
 			continue;
-		if (port->interrupt_in_urb)
-			usb_free_urb (port->interrupt_in_urb);
+		usb_free_urb(port->interrupt_in_urb);
 		kfree(port->interrupt_in_buffer);
 	}
 	for (i = 0; i < num_interrupt_out; ++i) {
 		port = serial->port[i];
 		if (!port)
 			continue;
-		if (port->interrupt_out_urb)
-			usb_free_urb (port->interrupt_out_urb);
+		usb_free_urb(port->interrupt_out_urb);
 		kfree(port->interrupt_out_buffer);
 	}
 

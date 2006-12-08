@@ -54,7 +54,7 @@ struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned = {
 		.chip = &no_irq_chip,
 		.handle_irq = handle_bad_irq,
 		.depth = 1,
-		.lock = SPIN_LOCK_UNLOCKED,
+		.lock = __SPIN_LOCK_UNLOCKED(irq_desc->lock),
 #ifdef CONFIG_SMP
 		.affinity = CPU_MASK_ALL
 #endif
@@ -231,10 +231,10 @@ fastcall unsigned int __do_IRQ(unsigned int irq)
 		spin_unlock(&desc->lock);
 
 		action_ret = handle_IRQ_event(irq, action);
-
-		spin_lock(&desc->lock);
 		if (!noirqdebug)
 			note_interrupt(irq, desc, action_ret);
+
+		spin_lock(&desc->lock);
 		if (likely(!(desc->status & IRQ_PENDING)))
 			break;
 		desc->status &= ~IRQ_PENDING;

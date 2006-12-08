@@ -64,6 +64,26 @@
 	negl	%d0			/* negate bits */
 .endm
 
+#elif defined(CONFIG_M520x)
+.macro GET_MEM_SIZE
+	clrl	%d0
+	movel	MCF_MBAR+MCFSIM_SDCS0, %d2 /* Get SDRAM chip select 0 config */
+	andl	#0x1f, %d2		/* Get only the chip select size */
+	beq	3f			/* Check if it is enabled */
+	addql	#1, %d2			/* Form exponent */
+	moveql	#1, %d0
+	lsll	%d2, %d0		/* 2 ^ exponent */
+3:
+	movel	MCF_MBAR+MCFSIM_SDCS1, %d2 /* Get SDRAM chip select 1 config */
+	andl	#0x1f, %d2		/* Get only the chip select size */
+	beq	4f			/* Check if it is enabled */
+	addql	#1, %d2			/* Form exponent */
+	moveql	#1, %d1
+	lsll	%d2, %d1		/* 2 ^ exponent */
+	addl	%d1, %d0		/* Total size of SDRAM in d0 */
+4:
+.endm
+
 #else
 #error "ERROR: I don't know how to probe your boards memory size?"
 #endif

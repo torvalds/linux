@@ -1009,6 +1009,7 @@ void setup_cross_vpe_interrupts(void)
 	setup_irq_smtc(cpu_ipi_irq, &irq_ipi, (0x100 << MIPS_CPU_IPI_IRQ));
 
 	irq_desc[cpu_ipi_irq].status |= IRQ_PER_CPU;
+	set_irq_handler(cpu_ipi_irq, handle_percpu_irq);
 }
 
 /*

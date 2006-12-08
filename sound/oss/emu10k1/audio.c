@@ -36,6 +36,7 @@
 #include <linux/bitops.h>
 #include <asm/io.h>
 #include <linux/sched.h>
+#include <linux/mm.h>
 #include <linux/smp_lock.h>
 
 #include "hwaccess.h"
@@ -110,9 +111,15 @@ static ssize_t emu10k1_audio_read(struct file *file, char __user *buffer, size_t
 
 		if ((bytestocopy >= wiinst->buffer.fragment_size)
 		    || (bytestocopy >= count)) {
+			int rc;
+
 			bytestocopy = min_t(u32, bytestocopy, count);
 
-			emu10k1_wavein_xferdata(wiinst, (u8 __user *)buffer, &bytestocopy);
+			rc = emu10k1_wavein_xferdata(wiinst,
+						     (u8 __user *)buffer,
+						     &bytestocopy);
+			if (rc)
+				return rc;
 
 			count -= bytestocopy;
 			buffer += bytestocopy;

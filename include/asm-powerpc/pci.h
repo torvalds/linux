@@ -62,29 +62,23 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 }
 
 #ifdef CONFIG_PPC64
-#define HAVE_ARCH_PCI_MWI 1
-static inline int pcibios_prep_mwi(struct pci_dev *dev)
-{
-	/*
-	 * We would like to avoid touching the cacheline size or MWI bit
-	 * but we cant do that with the current pcibios_prep_mwi 
-	 * interface. pSeries firmware sets the cacheline size (which is not
-	 * the cpu cacheline size in all cases) and hardware treats MWI 
-	 * the same as memory write. So we dont touch the cacheline size
-	 * here and allow the generic code to set the MWI bit.
-	 */
-	return 0;
-}
 
-extern struct dma_mapping_ops pci_dma_ops;
+/*
+ * We want to avoid touching the cacheline size or MWI bit.
+ * pSeries firmware sets the cacheline size (which is not the cpu cacheline
+ * size in all cases) and hardware treats MWI the same as memory write.
+ */
+#define PCI_DISABLE_MWI
+
+extern struct dma_mapping_ops *pci_dma_ops;
 
 /* For DAC DMA, we currently don't support it by default, but
  * we let 64-bit platforms override this.
  */
 static inline int pci_dac_dma_supported(struct pci_dev *hwdev,u64 mask)
 {
-	if (pci_dma_ops.dac_dma_supported)
-		return pci_dma_ops.dac_dma_supported(&hwdev->dev, mask);
+	if (pci_dma_ops && pci_dma_ops->dac_dma_supported)
+		return pci_dma_ops->dac_dma_supported(&hwdev->dev, mask);
 	return 0;
 }
 
@@ -216,6 +210,8 @@ extern int remap_bus_range(struct pci_bus *bus);
 extern void pcibios_fixup_device_resources(struct pci_dev *dev,
 			struct pci_bus *bus);
 
+extern void pcibios_setup_new_device(struct pci_dev *dev);
+
 extern void pcibios_claim_one_bus(struct pci_bus *b);
 
 extern struct pci_controller *init_phb_dynamic(struct device_node *dn);
@@ -238,12 +234,10 @@ extern pgprot_t	pci_phys_mem_access_prot(struct file *file,
 					 unsigned long size,
 					 pgprot_t prot);
 
-#if defined(CONFIG_PPC_MULTIPLATFORM) || defined(CONFIG_PPC32)
 #define HAVE_ARCH_PCI_RESOURCE_TO_USER
 extern void pci_resource_to_user(const struct pci_dev *dev, int bar,
 				 const struct resource *rsrc,
 				 resource_size_t *start, resource_size_t *end);
-#endif /* CONFIG_PPC_MULTIPLATFORM || CONFIG_PPC32 */
 
 #endif	/* __KERNEL__ */
 #endif /* __ASM_POWERPC_PCI_H */

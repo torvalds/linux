@@ -251,7 +251,7 @@ static struct neighbour *neigh_alloc(struct neigh_table *tbl)
 			goto out_entries;
 	}
 
-	n = kmem_cache_alloc(tbl->kmem_cachep, SLAB_ATOMIC);
+	n = kmem_cache_alloc(tbl->kmem_cachep, GFP_ATOMIC);
 	if (!n)
 		goto out_entries;
 
@@ -1266,10 +1266,9 @@ void pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
 struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
 				      struct neigh_table *tbl)
 {
-	struct neigh_parms *p = kmalloc(sizeof(*p), GFP_KERNEL);
+	struct neigh_parms *p = kmemdup(&tbl->parms, sizeof(*p), GFP_KERNEL);
 
 	if (p) {
-		memcpy(p, &tbl->parms, sizeof(*p));
 		p->tbl		  = tbl;
 		atomic_set(&p->refcnt, 1);
 		INIT_RCU_HEAD(&p->rcu_head);
@@ -2410,20 +2409,27 @@ static struct file_operations neigh_stat_seq_fops = {
 #endif /* CONFIG_PROC_FS */
 
 #ifdef CONFIG_ARPD
+static inline size_t neigh_nlmsg_size(void)
+{
+	return NLMSG_ALIGN(sizeof(struct ndmsg))
+	       + nla_total_size(MAX_ADDR_LEN) /* NDA_DST */
+	       + nla_total_size(MAX_ADDR_LEN) /* NDA_LLADDR */
+	       + nla_total_size(sizeof(struct nda_cacheinfo))
+	       + nla_total_size(4); /* NDA_PROBES */
+}
+
 static void __neigh_notify(struct neighbour *n, int type, int flags)
 {
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
 
-	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_ATOMIC);
+	skb = nlmsg_new(neigh_nlmsg_size(), GFP_ATOMIC);
 	if (skb == NULL)
 		goto errout;
 
 	err = neigh_fill_info(skb, n, 0, 0, type, flags);
-	if (err < 0) {
-		kfree_skb(skb);
-		goto errout;
-	}
+	/* failure implies BUG in neigh_nlmsg_size() */
+	BUG_ON(err < 0);
 
 	err = rtnl_notify(skb, 0, RTNLGRP_NEIGH, NULL, GFP_ATOMIC);
 errout:
@@ -2618,14 +2624,14 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 			  int p_id, int pdev_id, char *p_name, 
 			  proc_handler *handler, ctl_handler *strategy)
 {
-	struct neigh_sysctl_table *t = kmalloc(sizeof(*t), GFP_KERNEL);
+	struct neigh_sysctl_table *t = kmemdup(&neigh_sysctl_template,
+					       sizeof(*t), GFP_KERNEL);
 	const char *dev_name_source = NULL;
 	char *dev_name = NULL;
 	int err = 0;
 
 	if (!t)
 		return -ENOBUFS;
-	memcpy(t, &neigh_sysctl_template, sizeof(*t));
 	t->neigh_vars[0].data  = &p->mcast_probes;
 	t->neigh_vars[1].data  = &p->ucast_probes;
 	t->neigh_vars[2].data  = &p->app_probes;

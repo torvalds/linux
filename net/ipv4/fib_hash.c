@@ -45,8 +45,8 @@
 
 #include "fib_lookup.h"
 
-static kmem_cache_t *fn_hash_kmem __read_mostly;
-static kmem_cache_t *fn_alias_kmem __read_mostly;
+static struct kmem_cache *fn_hash_kmem __read_mostly;
+static struct kmem_cache *fn_alias_kmem __read_mostly;
 
 struct fib_node {
 	struct hlist_node	fn_hash;
@@ -485,13 +485,13 @@ static int fn_hash_insert(struct fib_table *tb, struct fib_config *cfg)
 		goto out;
 
 	err = -ENOBUFS;
-	new_fa = kmem_cache_alloc(fn_alias_kmem, SLAB_KERNEL);
+	new_fa = kmem_cache_alloc(fn_alias_kmem, GFP_KERNEL);
 	if (new_fa == NULL)
 		goto out;
 
 	new_f = NULL;
 	if (!f) {
-		new_f = kmem_cache_alloc(fn_hash_kmem, SLAB_KERNEL);
+		new_f = kmem_cache_alloc(fn_hash_kmem, GFP_KERNEL);
 		if (new_f == NULL)
 			goto out_free_new_fa;
 

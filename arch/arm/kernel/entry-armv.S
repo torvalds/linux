@@ -589,10 +589,6 @@ ENTRY(__switch_to)
 	strex	r5, r4, [ip]			@ Clear exclusive monitor
 #endif
 #endif
-#if defined(CONFIG_CPU_XSCALE) && !defined(CONFIG_IWMMXT)
-	mra	r4, r5, acc0
-	stmia   ip, {r4, r5}
-#endif
 #if defined(CONFIG_HAS_TLS_REG)
 	mcr	p15, 0, r3, c13, c0, 3		@ set TLS register
 #elif !defined(CONFIG_TLS_REG_EMUL)
@@ -601,11 +597,6 @@ ENTRY(__switch_to)
 #endif
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r6, c3, c0, 0		@ Set domain register
-#endif
-#if defined(CONFIG_CPU_XSCALE) && !defined(CONFIG_IWMMXT)
-	add	r4, r2, #TI_CPU_DOMAIN + 40	@ cpu_context_save->extra
-	ldmib	r4, {r4, r5}
-	mar	acc0, r4, r5
 #endif
 	mov	r5, r0
 	add	r4, r2, #TI_CPU_SAVE

@@ -135,40 +135,39 @@ static int cn_call_callback(struct cn_msg *msg, void (*destruct_data)(void *), v
 	spin_lock_bh(&dev->cbdev->queue_lock);
 	list_for_each_entry(__cbq, &dev->cbdev->queue_list, callback_entry) {
 		if (cn_cb_equal(&__cbq->id.id, &msg->id)) {
-			if (likely(!test_bit(0, &__cbq->work.pending) &&
+			if (likely(!test_bit(WORK_STRUCT_PENDING,
+					     &__cbq->work.work.management) &&
 					__cbq->data.ddata == NULL)) {
 				__cbq->data.callback_priv = msg;
 
 				__cbq->data.ddata = data;
 				__cbq->data.destruct_data = destruct_data;
 
-				if (queue_work(dev->cbdev->cn_queue,
-						&__cbq->work))
+				if (queue_delayed_work(
+					    dev->cbdev->cn_queue,
+					    &__cbq->work, 0))
 					err = 0;
 			} else {
-				struct work_struct *w;
 				struct cn_callback_data *d;
 				
-				w = kzalloc(sizeof(*w) + sizeof(*d), GFP_ATOMIC);
-				if (w) {
-					d = (struct cn_callback_data *)(w+1);
-
+				__cbq = kzalloc(sizeof(*__cbq), GFP_ATOMIC);
+				if (__cbq) {
+					d = &__cbq->data;
 					d->callback_priv = msg;
 					d->callback = __cbq->data.callback;
 					d->ddata = data;
 					d->destruct_data = destruct_data;
-					d->free = w;
+					d->free = __cbq;
 
-					INIT_LIST_HEAD(&w->entry);
-					w->pending = 0;
-					w->func = &cn_queue_wrapper;
-					w->data = d;
-					init_timer(&w->timer);
+					INIT_DELAYED_WORK(&__cbq->work,
+							  &cn_queue_wrapper);
 					
-					if (queue_work(dev->cbdev->cn_queue, w))
+					if (queue_delayed_work(
+						    dev->cbdev->cn_queue,
+						    &__cbq->work, 0))
 						err = 0;
 					else {
-						kfree(w);
+						kfree(__cbq);
 						err = -EINVAL;
 					}
 				} else

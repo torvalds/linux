@@ -27,8 +27,6 @@ unsigned long max_low_pfn;
 unsigned long min_low_pfn;
 unsigned long max_pfn;
 
-EXPORT_UNUSED_SYMBOL(max_pfn);  /*  June 2006  */
-
 static LIST_HEAD(bdata_list);
 #ifdef CONFIG_CRASH_DUMP
 /*
@@ -194,6 +192,10 @@ __alloc_bootmem_core(struct bootmem_data *bdata, unsigned long size,
 	BUG_ON(align & (align-1));
 
 	if (limit && bdata->node_boot_start >= limit)
+		return NULL;
+
+	/* on nodes without memory - bootmem_map is NULL */
+	if (!bdata->node_bootmem_map)
 		return NULL;
 
 	end_pfn = bdata->node_low_pfn;

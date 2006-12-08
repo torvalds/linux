@@ -101,11 +101,11 @@ typedef int (*action_fn) (struct pgpath *pgpath);
 
 #define MIN_IOS 256	/* Mempool size */
 
-static kmem_cache_t *_mpio_cache;
+static struct kmem_cache *_mpio_cache;
 
 struct workqueue_struct *kmultipathd;
-static void process_queued_ios(void *data);
-static void trigger_event(void *data);
+static void process_queued_ios(struct work_struct *work);
+static void trigger_event(struct work_struct *work);
 
 
 /*-----------------------------------------------
@@ -173,8 +173,8 @@ static struct multipath *alloc_multipath(struct dm_target *ti)
 		INIT_LIST_HEAD(&m->priority_groups);
 		spin_lock_init(&m->lock);
 		m->queue_io = 1;
-		INIT_WORK(&m->process_queued_ios, process_queued_ios, m);
-		INIT_WORK(&m->trigger_event, trigger_event, m);
+		INIT_WORK(&m->process_queued_ios, process_queued_ios);
+		INIT_WORK(&m->trigger_event, trigger_event);
 		m->mpio_pool = mempool_create_slab_pool(MIN_IOS, _mpio_cache);
 		if (!m->mpio_pool) {
 			kfree(m);
@@ -379,9 +379,10 @@ static void dispatch_queued_ios(struct multipath *m)
 	}
 }
 
-static void process_queued_ios(void *data)
+static void process_queued_ios(struct work_struct *work)
 {
-	struct multipath *m = (struct multipath *) data;
+	struct multipath *m =
+		container_of(work, struct multipath, process_queued_ios);
 	struct hw_handler *hwh = &m->hw_handler;
 	struct pgpath *pgpath = NULL;
 	unsigned init_required = 0, must_queue = 1;
@@ -421,9 +422,10 @@ out:
  * An event is triggered whenever a path is taken out of use.
  * Includes path failure and PG bypass.
  */
-static void trigger_event(void *data)
+static void trigger_event(struct work_struct *work)
 {
-	struct multipath *m = (struct multipath *) data;
+	struct multipath *m =
+		container_of(work, struct multipath, trigger_event);
 
 	dm_table_event(m->ti->table);
 }

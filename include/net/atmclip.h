@@ -36,7 +36,7 @@ struct clip_vcc {
 
 
 struct atmarp_entry {
-	u32		ip;		/* IP address */
+	__be32		ip;		/* IP address */
 	struct clip_vcc	*vccs;		/* active VCCs; NULL if resolution is
 					   pending */
 	unsigned long	expires;	/* entry expiration time */

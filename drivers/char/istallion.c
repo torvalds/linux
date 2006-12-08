@@ -663,7 +663,7 @@ static int	stli_initopen(stlibrd_t *brdp, stliport_t *portp);
 static int	stli_rawopen(stlibrd_t *brdp, stliport_t *portp, unsigned long arg, int wait);
 static int	stli_rawclose(stlibrd_t *brdp, stliport_t *portp, unsigned long arg, int wait);
 static int	stli_waitcarrier(stlibrd_t *brdp, stliport_t *portp, struct file *filp);
-static void	stli_dohangup(void *arg);
+static void	stli_dohangup(struct work_struct *);
 static int	stli_setport(stliport_t *portp);
 static int	stli_cmdwait(stlibrd_t *brdp, stliport_t *portp, unsigned long cmd, void *arg, int size, int copyback);
 static void	stli_sendcmd(stlibrd_t *brdp, stliport_t *portp, unsigned long cmd, void *arg, int size, int copyback);
@@ -1990,9 +1990,9 @@ static void stli_start(struct tty_struct *tty)
  *	aren't that time critical).
  */
 
-static void stli_dohangup(void *arg)
+static void stli_dohangup(struct work_struct *ugly_api)
 {
-	stliport_t *portp = (stliport_t *) arg;
+	stliport_t *portp = container_of(ugly_api, stliport_t, tqhangup);
 	if (portp->tty != NULL) {
 		tty_hangup(portp->tty);
 	}
@@ -2898,7 +2898,7 @@ static int stli_initports(stlibrd_t *brdp)
 		portp->baud_base = STL_BAUDBASE;
 		portp->close_delay = STL_CLOSEDELAY;
 		portp->closing_wait = 30 * HZ;
-		INIT_WORK(&portp->tqhangup, stli_dohangup, portp);
+		INIT_WORK(&portp->tqhangup, stli_dohangup);
 		init_waitqueue_head(&portp->open_wait);
 		init_waitqueue_head(&portp->close_wait);
 		init_waitqueue_head(&portp->raw_wait);
@@ -3476,6 +3476,8 @@ static int stli_initecp(stlibrd_t *brdp)
 	if (sig.magic != cpu_to_le32(ECP_MAGIC))
 	{
 		release_region(brdp->iobase, brdp->iosize);
+		iounmap(brdp->membase);
+		brdp->membase = NULL;
 		return -ENODEV;
 	}
 
@@ -3632,6 +3634,8 @@ static int stli_initonb(stlibrd_t *brdp)
 	    sig.magic3 != cpu_to_le16(ONB_MAGIC3))
 	{
 		release_region(brdp->iobase, brdp->iosize);
+		iounmap(brdp->membase);
+		brdp->membase = NULL;
 		return -ENODEV;
 	}
 

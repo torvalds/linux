@@ -34,7 +34,7 @@
 
 static DEFINE_PER_CPU(__u32, taskstats_seqnum) = { 0 };
 static int family_registered;
-kmem_cache_t *taskstats_cache;
+struct kmem_cache *taskstats_cache;
 
 static struct genl_family family = {
 	.id		= GENL_ID_GENERATE,
@@ -69,7 +69,7 @@ enum actions {
 };
 
 static int prepare_reply(struct genl_info *info, u8 cmd, struct sk_buff **skbp,
-			void **replyp, size_t size)
+				size_t size)
 {
 	struct sk_buff *skb;
 	void *reply;
@@ -77,8 +77,7 @@ static int prepare_reply(struct genl_info *info, u8 cmd, struct sk_buff **skbp,
 	/*
 	 * If new attributes are added, please revisit this allocation
 	 */
-	size = nlmsg_total_size(genlmsg_total_size(size));
-	skb = nlmsg_new(size, GFP_KERNEL);
+	skb = genlmsg_new(size, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 
@@ -86,20 +85,15 @@ static int prepare_reply(struct genl_info *info, u8 cmd, struct sk_buff **skbp,
 		int seq = get_cpu_var(taskstats_seqnum)++;
 		put_cpu_var(taskstats_seqnum);
 
-		reply = genlmsg_put(skb, 0, seq,
-				family.id, 0, 0,
-				cmd, family.version);
+		reply = genlmsg_put(skb, 0, seq, &family, 0, cmd);
 	} else
-		reply = genlmsg_put(skb, info->snd_pid, info->snd_seq,
-				family.id, 0, 0,
-				cmd, family.version);
+		reply = genlmsg_put_reply(skb, info, &family, 0, cmd);
 	if (reply == NULL) {
 		nlmsg_free(skb);
 		return -EINVAL;
 	}
 
 	*skbp = skb;
-	*replyp = reply;
 	return 0;
 }
 
@@ -124,10 +118,10 @@ static int send_reply(struct sk_buff *skb, pid_t pid)
 /*
  * Send taskstats data in @skb to listeners registered for @cpu's exit data
  */
-static void send_cpu_listeners(struct sk_buff *skb, unsigned int cpu)
+static void send_cpu_listeners(struct sk_buff *skb,
+					struct listener_list *listeners)
 {
 	struct genlmsghdr *genlhdr = nlmsg_data((struct nlmsghdr *)skb->data);
-	struct listener_list *listeners;
 	struct listener *s, *tmp;
 	struct sk_buff *skb_next, *skb_cur = skb;
 	void *reply = genlmsg_data(genlhdr);
@@ -140,7 +134,6 @@ static void send_cpu_listeners(struct sk_buff *skb, unsigned int cpu)
 	}
 
 	rc = 0;
-	listeners = &per_cpu(listener_array, cpu);
 	down_read(&listeners->sem);
 	list_for_each_entry(s, &listeners->list, list) {
 		skb_next = NULL;
@@ -191,6 +184,7 @@ static int fill_pid(pid_t pid, struct task_struct *tsk,
 	} else
 		get_task_struct(tsk);
 
+	memset(stats, 0, sizeof(*stats));
 	/*
 	 * Each accounting subsystem adds calls to its functions to
 	 * fill in relevant parts of struct taskstsats as follows
@@ -233,6 +227,8 @@ static int fill_tgid(pid_t tgid, struct task_struct *first,
 
 	if (first->signal->stats)
 		memcpy(stats, first->signal->stats, sizeof(*stats));
+	else
+		memset(stats, 0, sizeof(*stats));
 
 	tsk = first;
 	do {
@@ -349,14 +345,36 @@ static int parse(struct nlattr *na, cpumask_t *mask)
 	return ret;
 }
 
+static struct taskstats *mk_reply(struct sk_buff *skb, int type, u32 pid)
+{
+	struct nlattr *na, *ret;
+	int aggr;
+
+	aggr = (type == TASKSTATS_TYPE_PID)
+			? TASKSTATS_TYPE_AGGR_PID
+			: TASKSTATS_TYPE_AGGR_TGID;
+
+	na = nla_nest_start(skb, aggr);
+	if (!na)
+		goto err;
+	if (nla_put(skb, type, sizeof(pid), &pid) < 0)
+		goto err;
+	ret = nla_reserve(skb, TASKSTATS_TYPE_STATS, sizeof(struct taskstats));
+	if (!ret)
+		goto err;
+	nla_nest_end(skb, na);
+
+	return nla_data(ret);
+err:
+	return NULL;
+}
+
 static int taskstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
 {
 	int rc = 0;
 	struct sk_buff *rep_skb;
-	struct taskstats stats;
-	void *reply;
+	struct taskstats *stats;
 	size_t size;
-	struct nlattr *na;
 	cpumask_t mask;
 
 	rc = parse(info->attrs[TASKSTATS_CMD_ATTR_REGISTER_CPUMASK], &mask);
@@ -377,83 +395,71 @@ static int taskstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
 	size = nla_total_size(sizeof(u32)) +
 		nla_total_size(sizeof(struct taskstats)) + nla_total_size(0);
 
-	memset(&stats, 0, sizeof(stats));
-	rc = prepare_reply(info, TASKSTATS_CMD_NEW, &rep_skb, &reply, size);
+	rc = prepare_reply(info, TASKSTATS_CMD_NEW, &rep_skb, size);
 	if (rc < 0)
 		return rc;
 
+	rc = -EINVAL;
 	if (info->attrs[TASKSTATS_CMD_ATTR_PID]) {
 		u32 pid = nla_get_u32(info->attrs[TASKSTATS_CMD_ATTR_PID]);
-		rc = fill_pid(pid, NULL, &stats);
-		if (rc < 0)
+		stats = mk_reply(rep_skb, TASKSTATS_TYPE_PID, pid);
+		if (!stats)
 			goto err;
 
-		na = nla_nest_start(rep_skb, TASKSTATS_TYPE_AGGR_PID);
-		NLA_PUT_U32(rep_skb, TASKSTATS_TYPE_PID, pid);
-		NLA_PUT_TYPE(rep_skb, struct taskstats, TASKSTATS_TYPE_STATS,
-				stats);
+		rc = fill_pid(pid, NULL, stats);
+		if (rc < 0)
+			goto err;
 	} else if (info->attrs[TASKSTATS_CMD_ATTR_TGID]) {
 		u32 tgid = nla_get_u32(info->attrs[TASKSTATS_CMD_ATTR_TGID]);
-		rc = fill_tgid(tgid, NULL, &stats);
-		if (rc < 0)
+		stats = mk_reply(rep_skb, TASKSTATS_TYPE_TGID, tgid);
+		if (!stats)
 			goto err;
 
-		na = nla_nest_start(rep_skb, TASKSTATS_TYPE_AGGR_TGID);
-		NLA_PUT_U32(rep_skb, TASKSTATS_TYPE_TGID, tgid);
-		NLA_PUT_TYPE(rep_skb, struct taskstats, TASKSTATS_TYPE_STATS,
-				stats);
-	} else {
-		rc = -EINVAL;
+		rc = fill_tgid(tgid, NULL, stats);
+		if (rc < 0)
+			goto err;
+	} else
 		goto err;
-	}
-
-	nla_nest_end(rep_skb, na);
 
 	return send_reply(rep_skb, info->snd_pid);
-
-nla_put_failure:
-	rc = genlmsg_cancel(rep_skb, reply);
 err:
 	nlmsg_free(rep_skb);
 	return rc;
 }
 
-void taskstats_exit_alloc(struct taskstats **ptidstats, unsigned int *mycpu)
+static struct taskstats *taskstats_tgid_alloc(struct task_struct *tsk)
 {
-	struct listener_list *listeners;
-	struct taskstats *tmp;
-	/*
-	 * This is the cpu on which the task is exiting currently and will
-	 * be the one for which the exit event is sent, even if the cpu
-	 * on which this function is running changes later.
-	 */
-	*mycpu = raw_smp_processor_id();
+	struct signal_struct *sig = tsk->signal;
+	struct taskstats *stats;
 
-	*ptidstats = NULL;
-	tmp = kmem_cache_zalloc(taskstats_cache, SLAB_KERNEL);
-	if (!tmp)
-		return;
+	if (sig->stats || thread_group_empty(tsk))
+		goto ret;
 
-	listeners = &per_cpu(listener_array, *mycpu);
-	down_read(&listeners->sem);
-	if (!list_empty(&listeners->list)) {
-		*ptidstats = tmp;
-		tmp = NULL;
+	/* No problem if kmem_cache_zalloc() fails */
+	stats = kmem_cache_zalloc(taskstats_cache, GFP_KERNEL);
+
+	spin_lock_irq(&tsk->sighand->siglock);
+	if (!sig->stats) {
+		sig->stats = stats;
+		stats = NULL;
 	}
-	up_read(&listeners->sem);
-	kfree(tmp);
+	spin_unlock_irq(&tsk->sighand->siglock);
+
+	if (stats)
+		kmem_cache_free(taskstats_cache, stats);
+ret:
+	return sig->stats;
 }
 
 /* Send pid data out on exit */
-void taskstats_exit_send(struct task_struct *tsk, struct taskstats *tidstats,
-			int group_dead, unsigned int mycpu)
+void taskstats_exit(struct task_struct *tsk, int group_dead)
 {
 	int rc;
+	struct listener_list *listeners;
+	struct taskstats *stats;
 	struct sk_buff *rep_skb;
-	void *reply;
 	size_t size;
 	int is_thread_group;
-	struct nlattr *na;
 
 	if (!family_registered)
 		return;
@@ -464,7 +470,7 @@ void taskstats_exit_send(struct task_struct *tsk, struct taskstats *tidstats,
 	size = nla_total_size(sizeof(u32)) +
 		nla_total_size(sizeof(struct taskstats)) + nla_total_size(0);
 
-	is_thread_group = (tsk->signal->stats != NULL);
+	is_thread_group = !!taskstats_tgid_alloc(tsk);
 	if (is_thread_group) {
 		/* PID + STATS + TGID + STATS */
 		size = 2 * size;
@@ -472,49 +478,39 @@ void taskstats_exit_send(struct task_struct *tsk, struct taskstats *tidstats,
 		fill_tgid_exit(tsk);
 	}
 
-	if (!tidstats)
+	listeners = &__raw_get_cpu_var(listener_array);
+	if (list_empty(&listeners->list))
 		return;
 
-	rc = prepare_reply(NULL, TASKSTATS_CMD_NEW, &rep_skb, &reply, size);
+	rc = prepare_reply(NULL, TASKSTATS_CMD_NEW, &rep_skb, size);
 	if (rc < 0)
-		goto ret;
+		return;
 
-	rc = fill_pid(tsk->pid, tsk, tidstats);
+	stats = mk_reply(rep_skb, TASKSTATS_TYPE_PID, tsk->pid);
+	if (!stats)
+		goto err;
+
+	rc = fill_pid(tsk->pid, tsk, stats);
 	if (rc < 0)
-		goto err_skb;
-
-	na = nla_nest_start(rep_skb, TASKSTATS_TYPE_AGGR_PID);
-	NLA_PUT_U32(rep_skb, TASKSTATS_TYPE_PID, (u32)tsk->pid);
-	NLA_PUT_TYPE(rep_skb, struct taskstats, TASKSTATS_TYPE_STATS,
-			*tidstats);
-	nla_nest_end(rep_skb, na);
-
-	if (!is_thread_group)
-		goto send;
+		goto err;
 
 	/*
 	 * Doesn't matter if tsk is the leader or the last group member leaving
 	 */
-	if (!group_dead)
+	if (!is_thread_group || !group_dead)
 		goto send;
 
-	na = nla_nest_start(rep_skb, TASKSTATS_TYPE_AGGR_TGID);
-	NLA_PUT_U32(rep_skb, TASKSTATS_TYPE_TGID, (u32)tsk->tgid);
-	/* No locking needed for tsk->signal->stats since group is dead */
-	NLA_PUT_TYPE(rep_skb, struct taskstats, TASKSTATS_TYPE_STATS,
-			*tsk->signal->stats);
-	nla_nest_end(rep_skb, na);
+	stats = mk_reply(rep_skb, TASKSTATS_TYPE_TGID, tsk->tgid);
+	if (!stats)
+		goto err;
+
+	memcpy(stats, tsk->signal->stats, sizeof(*stats));
 
 send:
-	send_cpu_listeners(rep_skb, mycpu);
+	send_cpu_listeners(rep_skb, listeners);
 	return;
-
-nla_put_failure:
-	genlmsg_cancel(rep_skb, reply);
-err_skb:
+err:
 	nlmsg_free(rep_skb);
-ret:
-	return;
 }
 
 static struct genl_ops taskstats_ops = {

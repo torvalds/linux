@@ -21,6 +21,11 @@ SECTIONS
     __got2_end = .;
   }
 
+  . = ALIGN(8);
+  _dtb_start = .;
+  .kernel:dtb : { *(.kernel:dtb) }
+  _dtb_end = .;
+
   . = ALIGN(4096);
   _vmlinux_start =  .;
   .kernel:vmlinux.strip : { *(.kernel:vmlinux.strip) }

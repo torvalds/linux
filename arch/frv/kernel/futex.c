@@ -10,9 +10,9 @@
  */
 
 #include <linux/futex.h>
+#include <linux/uaccess.h>
 #include <asm/futex.h>
 #include <asm/errno.h>
-#include <asm/uaccess.h>
 
 /*
  * the various futex operations; MMU fault checking is ignored under no-MMU
@@ -200,7 +200,7 @@ int futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
 
-	inc_preempt_count();
+	pagefault_disable();
 
 	switch (op) {
 	case FUTEX_OP_SET:
@@ -223,7 +223,7 @@ int futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
 		break;
 	}
 
-	dec_preempt_count();
+	pagefault_enable();
 
 	if (!ret) {
 		switch (cmp) {

@@ -105,7 +105,7 @@ struct sctp_tsnmap {
 	 * every SACK.  Store up to SCTP_MAX_DUP_TSNS worth of
 	 * information.
 	 */
-	__u32 dup_tsns[SCTP_MAX_DUP_TSNS];
+	__be32 dup_tsns[SCTP_MAX_DUP_TSNS];
 	__u16 num_dup_tsns;
 
 	/* Record gap ack block information here.  */
@@ -162,7 +162,7 @@ static inline __u16 sctp_tsnmap_num_dups(struct sctp_tsnmap *map)
 }
 
 /* Return pointer to duplicate tsn array as needed by SACK. */
-static inline __u32 *sctp_tsnmap_get_dups(struct sctp_tsnmap *map)
+static inline __be32 *sctp_tsnmap_get_dups(struct sctp_tsnmap *map)
 {
 	map->num_dup_tsns = 0;
 	return map->dup_tsns;

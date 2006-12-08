@@ -232,7 +232,7 @@ do_page_fault(unsigned long address, struct pt_regs *regs,
 	 * context, we must not take the fault..
 	 */
 
-	if (in_interrupt() || !mm)
+	if (in_atomic() || !mm)
 		goto no_context;
 
 	down_read(&mm->mmap_sem);

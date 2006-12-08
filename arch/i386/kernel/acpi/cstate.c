@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/acpi.h>
 #include <linux/cpu.h>
+#include <linux/sched.h>
 
 #include <acpi/processor.h>
 #include <asm/acpi.h>
@@ -155,10 +156,8 @@ static int __init ffh_cstate_init(void)
 
 static void __exit ffh_cstate_exit(void)
 {
-	if (cpu_cstate_entry) {
-		free_percpu(cpu_cstate_entry);
-		cpu_cstate_entry = NULL;
-	}
+	free_percpu(cpu_cstate_entry);
+	cpu_cstate_entry = NULL;
 }
 
 arch_initcall(ffh_cstate_init);

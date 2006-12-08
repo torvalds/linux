@@ -72,7 +72,6 @@ static int __add_zone(struct zone *zone, unsigned long phys_start_pfn)
 			return ret;
 	}
 	memmap_init_zone(nr_pages, nid, zone_type, phys_start_pfn);
-	zonetable_add(zone, nid, zone_type, phys_start_pfn, nr_pages);
 	return 0;
 }
 

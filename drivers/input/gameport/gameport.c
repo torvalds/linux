@@ -23,6 +23,7 @@
 #include <linux/kthread.h>
 #include <linux/sched.h>	/* HZ */
 #include <linux/mutex.h>
+#include <linux/freezer.h>
 
 /*#include <asm/io.h>*/
 

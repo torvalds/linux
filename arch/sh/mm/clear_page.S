@@ -1,12 +1,12 @@
-/* $Id: clear_page.S,v 1.13 2003/08/25 17:03:10 lethal Exp $
- *
+/*
  * __clear_user_page, __clear_user, clear_page implementation of SuperH
  *
  * Copyright (C) 2001  Kaz Kojima
  * Copyright (C) 2001, 2002  Niibe Yutaka
- *
+ * Copyright (C) 2006  Paul Mundt
  */
 #include <linux/linkage.h>
+#include <asm/page.h>
 
 /*
  * clear_page_slow
@@ -18,11 +18,11 @@
 /*
  * r0 --- scratch
  * r4 --- to
- * r5 --- to + 4096
+ * r5 --- to + PAGE_SIZE
  */
 ENTRY(clear_page_slow)
 	mov	r4,r5
-	mov.w	.Llimit,r0
+	mov.l	.Llimit,r0
 	add	r0,r5
 	mov	#0,r0
 	!
@@ -50,7 +50,7 @@ ENTRY(clear_page_slow)
 	!
 	rts
 	 nop
-.Llimit:	.word	(4096-28)
+.Llimit:	.long	(PAGE_SIZE-28)
 
 ENTRY(__clear_user)
 	!
@@ -164,10 +164,10 @@ ENTRY(__clear_user)
  * r0 --- scratch 
  * r4 --- to
  * r5 --- orig_to
- * r6 --- to + 4096
+ * r6 --- to + PAGE_SIZE
  */
 ENTRY(__clear_user_page)
-	mov.w	.L4096,r0
+	mov.l	.Lpsz,r0
 	mov	r4,r6
 	add	r0,r6
 	mov	#0,r0
@@ -191,7 +191,7 @@ ENTRY(__clear_user_page)
 	!
 	rts
 	 nop
-.L4096:	.word	4096
+.Lpsz:	.long	PAGE_SIZE
 
 #endif
 

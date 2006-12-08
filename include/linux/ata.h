@@ -200,8 +200,9 @@ enum {
 	ATA_CBL_NONE		= 0,
 	ATA_CBL_PATA40		= 1,
 	ATA_CBL_PATA80		= 2,
-	ATA_CBL_PATA_UNK	= 3,
-	ATA_CBL_SATA		= 4,
+	ATA_CBL_PATA40_SHORT	= 3,		/* 40 wire cable to high UDMA spec */
+	ATA_CBL_PATA_UNK	= 4,
+	ATA_CBL_SATA		= 5,
 
 	/* SATA Status and Control Registers */
 	SCR_STATUS		= 0,
@@ -340,6 +341,15 @@ static inline int ata_id_is_cfa(const u16 *id)
 			(id[82] & ( 1 << 2)))
 		return 1;
 	return 0;
+}
+
+static inline int ata_drive_40wire(const u16 *dev_id)
+{
+	if (ata_id_major_version(dev_id) >= 5 && ata_id_is_sata(dev_id))
+		return 0;	/* SATA */
+	if (dev_id[93] & 0x4000)
+		return 0;	/* 80 wire */
+	return 1;
 }
 
 static inline int atapi_cdb_len(const u16 *dev_id)

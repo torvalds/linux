@@ -34,7 +34,7 @@
  */
 #include <scsi/scsi_cmnd.h>
 
-static void blk_unplug_work(void *data);
+static void blk_unplug_work(struct work_struct *work);
 static void blk_unplug_timeout(unsigned long data);
 static void drive_stat_acct(struct request *rq, int nr_sectors, int new_io);
 static void init_request_from_bio(struct request *req, struct bio *bio);
@@ -44,17 +44,17 @@ static struct io_context *current_io_context(gfp_t gfp_flags, int node);
 /*
  * For the allocated request tables
  */
-static kmem_cache_t *request_cachep;
+static struct kmem_cache *request_cachep;
 
 /*
  * For queue allocation
  */
-static kmem_cache_t *requestq_cachep;
+static struct kmem_cache *requestq_cachep;
 
 /*
  * For io context allocations
  */
-static kmem_cache_t *iocontext_cachep;
+static struct kmem_cache *iocontext_cachep;
 
 /*
  * Controlling structure to kblockd
@@ -227,7 +227,7 @@ void blk_queue_make_request(request_queue_t * q, make_request_fn * mfn)
 	if (q->unplug_delay == 0)
 		q->unplug_delay = 1;
 
-	INIT_WORK(&q->unplug_work, blk_unplug_work, q);
+	INIT_WORK(&q->unplug_work, blk_unplug_work);
 
 	q->unplug_timer.function = blk_unplug_timeout;
 	q->unplug_timer.data = (unsigned long)q;
@@ -1631,9 +1631,9 @@ static void blk_backing_dev_unplug(struct backing_dev_info *bdi,
 	}
 }
 
-static void blk_unplug_work(void *data)
+static void blk_unplug_work(struct work_struct *work)
 {
-	request_queue_t *q = data;
+	request_queue_t *q = container_of(work, request_queue_t, unplug_work);
 
 	blk_add_trace_pdu_int(q, BLK_TA_UNPLUG_IO, NULL,
 				q->rq.count[READ] + q->rq.count[WRITE]);
@@ -2322,6 +2322,84 @@ void blk_insert_request(request_queue_t *q, struct request *rq,
 
 EXPORT_SYMBOL(blk_insert_request);
 
+static int __blk_rq_unmap_user(struct bio *bio)
+{
+	int ret = 0;
+
+	if (bio) {
+		if (bio_flagged(bio, BIO_USER_MAPPED))
+			bio_unmap_user(bio);
+		else
+			ret = bio_uncopy_user(bio);
+	}
+
+	return ret;
+}
+
+static int __blk_rq_map_user(request_queue_t *q, struct request *rq,
+			     void __user *ubuf, unsigned int len)
+{
+	unsigned long uaddr;
+	struct bio *bio, *orig_bio;
+	int reading, ret;
+
+	reading = rq_data_dir(rq) == READ;
+
+	/*
+	 * if alignment requirement is satisfied, map in user pages for
+	 * direct dma. else, set up kernel bounce buffers
+	 */
+	uaddr = (unsigned long) ubuf;
+	if (!(uaddr & queue_dma_alignment(q)) && !(len & queue_dma_alignment(q)))
+		bio = bio_map_user(q, NULL, uaddr, len, reading);
+	else
+		bio = bio_copy_user(q, uaddr, len, reading);
+
+	if (IS_ERR(bio)) {
+		return PTR_ERR(bio);
+	}
+
+	orig_bio = bio;
+	blk_queue_bounce(q, &bio);
+	/*
+	 * We link the bounce buffer in and could have to traverse it
+	 * later so we have to get a ref to prevent it from being freed
+	 */
+	bio_get(bio);
+
+	/*
+	 * for most (all? don't know of any) queues we could
+	 * skip grabbing the queue lock here. only drivers with
+	 * funky private ->back_merge_fn() function could be
+	 * problematic.
+	 */
+	spin_lock_irq(q->queue_lock);
+	if (!rq->bio)
+		blk_rq_bio_prep(q, rq, bio);
+	else if (!q->back_merge_fn(q, rq, bio)) {
+		ret = -EINVAL;
+		spin_unlock_irq(q->queue_lock);
+		goto unmap_bio;
+	} else {
+		rq->biotail->bi_next = bio;
+		rq->biotail = bio;
+
+		rq->nr_sectors += bio_sectors(bio);
+		rq->hard_nr_sectors = rq->nr_sectors;
+		rq->data_len += bio->bi_size;
+	}
+	spin_unlock_irq(q->queue_lock);
+
+	return bio->bi_size;
+
+unmap_bio:
+	/* if it was boucned we must call the end io function */
+	bio_endio(bio, bio->bi_size, 0);
+	__blk_rq_unmap_user(orig_bio);
+	bio_put(bio);
+	return ret;
+}
+
 /**
  * blk_rq_map_user - map user data to a request, for REQ_BLOCK_PC usage
  * @q:		request queue where request should be inserted
@@ -2343,42 +2421,44 @@ EXPORT_SYMBOL(blk_insert_request);
  *    unmapping.
  */
 int blk_rq_map_user(request_queue_t *q, struct request *rq, void __user *ubuf,
-		    unsigned int len)
+		    unsigned long len)
 {
-	unsigned long uaddr;
-	struct bio *bio;
-	int reading;
+	unsigned long bytes_read = 0;
+	int ret;
 
 	if (len > (q->max_hw_sectors << 9))
 		return -EINVAL;
 	if (!len || !ubuf)
 		return -EINVAL;
 
-	reading = rq_data_dir(rq) == READ;
+	while (bytes_read != len) {
+		unsigned long map_len, end, start;
 
-	/*
-	 * if alignment requirement is satisfied, map in user pages for
-	 * direct dma. else, set up kernel bounce buffers
-	 */
-	uaddr = (unsigned long) ubuf;
-	if (!(uaddr & queue_dma_alignment(q)) && !(len & queue_dma_alignment(q)))
-		bio = bio_map_user(q, NULL, uaddr, len, reading);
-	else
-		bio = bio_copy_user(q, uaddr, len, reading);
+		map_len = min_t(unsigned long, len - bytes_read, BIO_MAX_SIZE);
+		end = ((unsigned long)ubuf + map_len + PAGE_SIZE - 1)
+								>> PAGE_SHIFT;
+		start = (unsigned long)ubuf >> PAGE_SHIFT;
 
-	if (!IS_ERR(bio)) {
-		rq->bio = rq->biotail = bio;
-		blk_rq_bio_prep(q, rq, bio);
+		/*
+		 * A bad offset could cause us to require BIO_MAX_PAGES + 1
+		 * pages. If this happens we just lower the requested
+		 * mapping len by a page so that we can fit
+		 */
+		if (end - start > BIO_MAX_PAGES)
+			map_len -= PAGE_SIZE;
 
-		rq->buffer = rq->data = NULL;
-		rq->data_len = len;
-		return 0;
+		ret = __blk_rq_map_user(q, rq, ubuf, map_len);
+		if (ret < 0)
+			goto unmap_rq;
+		bytes_read += ret;
+		ubuf += ret;
 	}
 
-	/*
-	 * bio is the err-ptr
-	 */
-	return PTR_ERR(bio);
+	rq->buffer = rq->data = NULL;
+	return 0;
+unmap_rq:
+	blk_rq_unmap_user(rq);
+	return ret;
 }
 
 EXPORT_SYMBOL(blk_rq_map_user);
@@ -2404,7 +2484,7 @@ EXPORT_SYMBOL(blk_rq_map_user);
  *    unmapping.
  */
 int blk_rq_map_user_iov(request_queue_t *q, struct request *rq,
-			struct sg_iovec *iov, int iov_count)
+			struct sg_iovec *iov, int iov_count, unsigned int len)
 {
 	struct bio *bio;
 
@@ -2418,10 +2498,15 @@ int blk_rq_map_user_iov(request_queue_t *q, struct request *rq,
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
-	rq->bio = rq->biotail = bio;
+	if (bio->bi_size != len) {
+		bio_endio(bio, bio->bi_size, 0);
+		bio_unmap_user(bio);
+		return -EINVAL;
+	}
+
+	bio_get(bio);
 	blk_rq_bio_prep(q, rq, bio);
 	rq->buffer = rq->data = NULL;
-	rq->data_len = bio->bi_size;
 	return 0;
 }
 
@@ -2429,23 +2514,26 @@ EXPORT_SYMBOL(blk_rq_map_user_iov);
 
 /**
  * blk_rq_unmap_user - unmap a request with user data
- * @bio:	bio to be unmapped
- * @ulen:	length of user buffer
+ * @rq:		rq to be unmapped
  *
  * Description:
- *    Unmap a bio previously mapped by blk_rq_map_user().
+ *    Unmap a rq previously mapped by blk_rq_map_user().
+ *    rq->bio must be set to the original head of the request.
  */
-int blk_rq_unmap_user(struct bio *bio, unsigned int ulen)
+int blk_rq_unmap_user(struct request *rq)
 {
-	int ret = 0;
+	struct bio *bio, *mapped_bio;
 
-	if (bio) {
-		if (bio_flagged(bio, BIO_USER_MAPPED))
-			bio_unmap_user(bio);
+	while ((bio = rq->bio)) {
+		if (bio_flagged(bio, BIO_BOUNCED))
+			mapped_bio = bio->bi_private;
 		else
-			ret = bio_uncopy_user(bio);
-	}
+			mapped_bio = bio;
 
+		__blk_rq_unmap_user(mapped_bio);
+		rq->bio = bio->bi_next;
+		bio_put(bio);
+	}
 	return 0;
 }
 
@@ -2476,11 +2564,8 @@ int blk_rq_map_kern(request_queue_t *q, struct request *rq, void *kbuf,
 	if (rq_data_dir(rq) == WRITE)
 		bio->bi_rw |= (1 << BIO_RW);
 
-	rq->bio = rq->biotail = bio;
 	blk_rq_bio_prep(q, rq, bio);
-
 	rq->buffer = rq->data = NULL;
-	rq->data_len = len;
 	return 0;
 }
 
@@ -3374,8 +3459,6 @@ static void blk_done_softirq(struct softirq_action *h)
 	}
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-
 static int blk_cpu_notify(struct notifier_block *self, unsigned long action,
 			  void *hcpu)
 {
@@ -3400,8 +3483,6 @@ static int blk_cpu_notify(struct notifier_block *self, unsigned long action,
 static struct notifier_block __devinitdata blk_cpu_notifier = {
 	.notifier_call	= blk_cpu_notify,
 };
-
-#endif /* CONFIG_HOTPLUG_CPU */
 
 /**
  * blk_complete_request - end I/O on a request
@@ -3495,6 +3576,7 @@ void blk_rq_bio_prep(request_queue_t *q, struct request *rq, struct bio *bio)
 	rq->hard_cur_sectors = rq->current_nr_sectors;
 	rq->hard_nr_sectors = rq->nr_sectors = bio_sectors(bio);
 	rq->buffer = bio_data(bio);
+	rq->data_len = bio->bi_size;
 
 	rq->bio = rq->biotail = bio;
 }

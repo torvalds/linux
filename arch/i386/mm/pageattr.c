@@ -67,11 +67,17 @@ static struct page *split_large_page(unsigned long address, pgprot_t prot,
 	return base;
 } 
 
-static void flush_kernel_map(void *dummy) 
+static void flush_kernel_map(void *arg)
 { 
-	/* Could use CLFLUSH here if the CPU supports it (Hammer,P4) */
-	if (boot_cpu_data.x86_model >= 4) 
+	unsigned long adr = (unsigned long)arg;
+
+	if (adr && cpu_has_clflush) {
+		int i;
+		for (i = 0; i < PAGE_SIZE; i += boot_cpu_data.x86_clflush_size)
+			asm volatile("clflush (%0)" :: "r" (adr + i));
+	} else if (boot_cpu_data.x86_model >= 4)
 		wbinvd();
+
 	/* Flush all to work around Errata in early athlons regarding 
 	 * large page flushing. 
 	 */
@@ -173,9 +179,9 @@ __change_page_attr(struct page *page, pgprot_t prot)
 	return 0;
 } 
 
-static inline void flush_map(void)
+static inline void flush_map(void *adr)
 {
-	on_each_cpu(flush_kernel_map, NULL, 1, 1);
+	on_each_cpu(flush_kernel_map, adr, 1, 1);
 }
 
 /*
@@ -217,9 +223,13 @@ void global_flush_tlb(void)
 	spin_lock_irq(&cpa_lock);
 	list_replace_init(&df_list, &l);
 	spin_unlock_irq(&cpa_lock);
-	flush_map();
-	list_for_each_entry_safe(pg, next, &l, lru)
+	if (!cpu_has_clflush)
+		flush_map(0);
+	list_for_each_entry_safe(pg, next, &l, lru) {
+		if (cpu_has_clflush)
+			flush_map(page_address(pg));
 		__free_page(pg);
+	}
 }
 
 #ifdef CONFIG_DEBUG_PAGEALLOC

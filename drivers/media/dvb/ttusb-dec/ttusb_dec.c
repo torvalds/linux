@@ -1135,8 +1135,7 @@ static void ttusb_dec_free_iso_urbs(struct ttusb_dec *dec)
 	dprintk("%s\n", __FUNCTION__);
 
 	for (i = 0; i < ISO_BUF_COUNT; i++)
-		if (dec->iso_urb[i])
-			usb_free_urb(dec->iso_urb[i]);
+		usb_free_urb(dec->iso_urb[i]);
 
 	pci_free_consistent(NULL,
 			    ISO_FRAME_SIZE * (FRAMES_PER_ISO_BUF *
@@ -1245,7 +1244,7 @@ static int ttusb_dec_init_usb(struct ttusb_dec *dec)
 			return -ENOMEM;
 		}
 		dec->irq_buffer = usb_buffer_alloc(dec->udev,IRQ_PACKET_SIZE,
-					SLAB_ATOMIC, &dec->irq_dma_handle);
+					GFP_ATOMIC, &dec->irq_dma_handle);
 		if(!dec->irq_buffer) {
 			return -ENOMEM;
 		}

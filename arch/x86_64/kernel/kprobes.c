@@ -224,7 +224,7 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
 	mutex_lock(&kprobe_mutex);
-	free_insn_slot(p->ainsn.insn);
+	free_insn_slot(p->ainsn.insn, 0);
 	mutex_unlock(&kprobe_mutex);
 }
 

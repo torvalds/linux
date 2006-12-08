@@ -35,7 +35,7 @@
 #include <linux/sched.h>
 #include <linux/workqueue.h>
 
-static void ps_tq_int( void *data);
+static void ps_tq_int(struct work_struct *work);
 
 static void (* ps_continuation)(void);
 static int (* ps_ready)(void);
@@ -45,7 +45,7 @@ static int ps_nice = 0;
 
 static DEFINE_SPINLOCK(ps_spinlock __attribute__((unused)));
 
-static DECLARE_WORK(ps_tq, ps_tq_int, NULL);
+static DECLARE_DELAYED_WORK(ps_tq, ps_tq_int);
 
 static void ps_set_intr(void (*continuation)(void), 
 			int (*ready)(void),
@@ -63,14 +63,14 @@ static void ps_set_intr(void (*continuation)(void),
 	if (!ps_tq_active) {
 		ps_tq_active = 1;
 		if (!ps_nice)
-			schedule_work(&ps_tq);
+			schedule_delayed_work(&ps_tq, 0);
 		else
 			schedule_delayed_work(&ps_tq, ps_nice-1);
 	}
 	spin_unlock_irqrestore(&ps_spinlock,flags);
 }
 
-static void ps_tq_int(void *data)
+static void ps_tq_int(struct work_struct *work)
 {
 	void (*con)(void);
 	unsigned long flags;
@@ -92,7 +92,7 @@ static void ps_tq_int(void *data)
 	}
 	ps_tq_active = 1;
 	if (!ps_nice)
-		schedule_work(&ps_tq);
+		schedule_delayed_work(&ps_tq, 0);
 	else
 		schedule_delayed_work(&ps_tq, ps_nice-1);
 	spin_unlock_irqrestore(&ps_spinlock,flags);

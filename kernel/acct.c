@@ -89,7 +89,8 @@ struct acct_glbs {
 	struct timer_list	timer;
 };
 
-static struct acct_glbs acct_globals __cacheline_aligned = {SPIN_LOCK_UNLOCKED};
+static struct acct_glbs acct_globals __cacheline_aligned =
+	{__SPIN_LOCK_UNLOCKED(acct_globals.lock)};
 
 /*
  * Called whenever the timer says to check the free space.

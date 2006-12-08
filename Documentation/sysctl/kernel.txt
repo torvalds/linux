@@ -27,6 +27,7 @@ show up in /proc/sys/kernel:
 - hotplug
 - java-appletviewer           [ binfmt_java, obsolete ]
 - java-interpreter            [ binfmt_java, obsolete ]
+- kstack_depth_to_print       [ X86 only ]
 - l2cr                        [ PPC only ]
 - modprobe                    ==> Documentation/kmod.txt
 - msgmax
@@ -167,6 +168,13 @@ l2cr: (PPC only)
 
 This flag controls the L2 cache of G3 processor boards. If
 0, the cache is disabled. Enabled if nonzero.
+
+==============================================================
+
+kstack_depth_to_print: (X86 only)
+
+Controls the number of words to print when dumping the raw
+kernel stack.
 
 ==============================================================
 

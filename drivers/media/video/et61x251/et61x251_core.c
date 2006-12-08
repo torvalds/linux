@@ -1182,8 +1182,6 @@ static void et61x251_release_resources(struct et61x251_device* cam)
 	video_set_drvdata(cam->v4ldev, NULL);
 	video_unregister_device(cam->v4ldev);
 
-	usb_put_dev(cam->usbdev);
-
 	mutex_unlock(&et61x251_sysfs_lock);
 
 	kfree(cam->control_buffer);
@@ -1275,6 +1273,7 @@ static int et61x251_release(struct inode* inode, struct file* filp)
 
 	if (cam->state & DEV_DISCONNECTED) {
 		et61x251_release_resources(cam);
+		usb_put_dev(cam->usbdev);
 		mutex_unlock(&cam->dev_mutex);
 		kfree(cam);
 		return 0;

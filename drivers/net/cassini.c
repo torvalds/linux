@@ -2825,7 +2825,7 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 		u64 csum_start_off, csum_stuff_off;
 
 		csum_start_off = (u64) (skb->h.raw - skb->data);
-		csum_stuff_off = (u64) ((skb->h.raw + skb->csum) - skb->data);
+		csum_stuff_off = csum_start_off + skb->csum_offset;
 
 		ctrl =  TX_DESC_CSUM_EN |
 			CAS_BASE(TX_DESC_CSUM_START, csum_start_off) |
@@ -4066,9 +4066,9 @@ static int cas_alloc_rxds(struct cas *cp)
 	return 0;
 }
 
-static void cas_reset_task(void *data)
+static void cas_reset_task(struct work_struct *work)
 {
-	struct cas *cp = (struct cas *) data;
+	struct cas *cp = container_of(work, struct cas, reset_task);
 #if 0
 	int pending = atomic_read(&cp->reset_task_pending);
 #else
@@ -5006,7 +5006,7 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 	atomic_set(&cp->reset_task_pending_spare, 0);
 	atomic_set(&cp->reset_task_pending_mtu, 0);
 #endif
-	INIT_WORK(&cp->reset_task, cas_reset_task, cp);
+	INIT_WORK(&cp->reset_task, cas_reset_task);
 
 	/* Default link parameters */
 	if (link_mode >= 0 && link_mode <= 6)

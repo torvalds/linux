@@ -120,7 +120,7 @@ static int system_eo_set(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 
 	if (GFS2_ACL_IS_ACCESS(er->er_name, er->er_name_len)) {
 		if (!(er->er_flags & GFS2_ERF_MODE)) {
-			er->er_mode = ip->i_di.di_mode;
+			er->er_mode = ip->i_inode.i_mode;
 			er->er_flags |= GFS2_ERF_MODE;
 		}
 		error = gfs2_acl_validate_set(ip, 1, er,

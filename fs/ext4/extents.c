@@ -48,7 +48,7 @@
  * ext_pblock:
  * combine low and high parts of physical block number into ext4_fsblk_t
  */
-static inline ext4_fsblk_t ext_pblock(struct ext4_extent *ex)
+static ext4_fsblk_t ext_pblock(struct ext4_extent *ex)
 {
 	ext4_fsblk_t block;
 
@@ -61,7 +61,7 @@ static inline ext4_fsblk_t ext_pblock(struct ext4_extent *ex)
  * idx_pblock:
  * combine low and high parts of a leaf physical block number into ext4_fsblk_t
  */
-static inline ext4_fsblk_t idx_pblock(struct ext4_extent_idx *ix)
+static ext4_fsblk_t idx_pblock(struct ext4_extent_idx *ix)
 {
 	ext4_fsblk_t block;
 
@@ -75,7 +75,7 @@ static inline ext4_fsblk_t idx_pblock(struct ext4_extent_idx *ix)
  * stores a large physical block number into an extent struct,
  * breaking it into parts
  */
-static inline void ext4_ext_store_pblock(struct ext4_extent *ex, ext4_fsblk_t pb)
+static void ext4_ext_store_pblock(struct ext4_extent *ex, ext4_fsblk_t pb)
 {
 	ex->ee_start = cpu_to_le32((unsigned long) (pb & 0xffffffff));
 	ex->ee_start_hi = cpu_to_le16((unsigned long) ((pb >> 31) >> 1) & 0xffff);
@@ -86,7 +86,7 @@ static inline void ext4_ext_store_pblock(struct ext4_extent *ex, ext4_fsblk_t pb
  * stores a large physical block number into an index struct,
  * breaking it into parts
  */
-static inline void ext4_idx_store_pblock(struct ext4_extent_idx *ix, ext4_fsblk_t pb)
+static void ext4_idx_store_pblock(struct ext4_extent_idx *ix, ext4_fsblk_t pb)
 {
 	ix->ei_leaf = cpu_to_le32((unsigned long) (pb & 0xffffffff));
 	ix->ei_leaf_hi = cpu_to_le16((unsigned long) ((pb >> 31) >> 1) & 0xffff);
@@ -186,7 +186,8 @@ static ext4_fsblk_t ext4_ext_find_goal(struct inode *inode,
 		depth = path->p_depth;
 
 		/* try to predict block placement */
-		if ((ex = path[depth].p_ext))
+		ex = path[depth].p_ext;
+		if (ex)
 			return ext_pblock(ex)+(block-le32_to_cpu(ex->ee_block));
 
 		/* it looks like index is empty;
@@ -215,7 +216,7 @@ ext4_ext_new_block(handle_t *handle, struct inode *inode,
 	return newblock;
 }
 
-static inline int ext4_ext_space_block(struct inode *inode)
+static int ext4_ext_space_block(struct inode *inode)
 {
 	int size;
 
@@ -228,7 +229,7 @@ static inline int ext4_ext_space_block(struct inode *inode)
 	return size;
 }
 
-static inline int ext4_ext_space_block_idx(struct inode *inode)
+static int ext4_ext_space_block_idx(struct inode *inode)
 {
 	int size;
 
@@ -241,7 +242,7 @@ static inline int ext4_ext_space_block_idx(struct inode *inode)
 	return size;
 }
 
-static inline int ext4_ext_space_root(struct inode *inode)
+static int ext4_ext_space_root(struct inode *inode)
 {
 	int size;
 
@@ -255,7 +256,7 @@ static inline int ext4_ext_space_root(struct inode *inode)
 	return size;
 }
 
-static inline int ext4_ext_space_root_idx(struct inode *inode)
+static int ext4_ext_space_root_idx(struct inode *inode)
 {
 	int size;
 
@@ -476,13 +477,12 @@ ext4_ext_find_extent(struct inode *inode, int block, struct ext4_ext_path *path)
 
 	/* account possible depth increase */
 	if (!path) {
-		path = kmalloc(sizeof(struct ext4_ext_path) * (depth + 2),
+		path = kzalloc(sizeof(struct ext4_ext_path) * (depth + 2),
 				GFP_NOFS);
 		if (!path)
 			return ERR_PTR(-ENOMEM);
 		alloc = 1;
 	}
-	memset(path, 0, sizeof(struct ext4_ext_path) * (depth + 1));
 	path[0].p_hdr = eh;
 
 	/* walk through the tree */
@@ -543,7 +543,8 @@ static int ext4_ext_insert_index(handle_t *handle, struct inode *inode,
 	struct ext4_extent_idx *ix;
 	int len, err;
 
-	if ((err = ext4_ext_get_access(handle, inode, curp)))
+	err = ext4_ext_get_access(handle, inode, curp);
+	if (err)
 		return err;
 
 	BUG_ON(logical == le32_to_cpu(curp->p_idx->ei_block));
@@ -641,10 +642,9 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 	 * We need this to handle errors and free blocks
 	 * upon them.
 	 */
-	ablocks = kmalloc(sizeof(ext4_fsblk_t) * depth, GFP_NOFS);
+	ablocks = kzalloc(sizeof(ext4_fsblk_t) * depth, GFP_NOFS);
 	if (!ablocks)
 		return -ENOMEM;
-	memset(ablocks, 0, sizeof(ext4_fsblk_t) * depth);
 
 	/* allocate all needed blocks */
 	ext_debug("allocate %d blocks for indexes/leaf\n", depth - at);
@@ -665,7 +665,8 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 	}
 	lock_buffer(bh);
 
-	if ((err = ext4_journal_get_create_access(handle, bh)))
+	err = ext4_journal_get_create_access(handle, bh);
+	if (err)
 		goto cleanup;
 
 	neh = ext_block_hdr(bh);
@@ -702,18 +703,21 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 	set_buffer_uptodate(bh);
 	unlock_buffer(bh);
 
-	if ((err = ext4_journal_dirty_metadata(handle, bh)))
+	err = ext4_journal_dirty_metadata(handle, bh);
+	if (err)
 		goto cleanup;
 	brelse(bh);
 	bh = NULL;
 
 	/* correct old leaf */
 	if (m) {
-		if ((err = ext4_ext_get_access(handle, inode, path + depth)))
+		err = ext4_ext_get_access(handle, inode, path + depth);
+		if (err)
 			goto cleanup;
 		path[depth].p_hdr->eh_entries =
 		     cpu_to_le16(le16_to_cpu(path[depth].p_hdr->eh_entries)-m);
-		if ((err = ext4_ext_dirty(handle, inode, path + depth)))
+		err = ext4_ext_dirty(handle, inode, path + depth);
+		if (err)
 			goto cleanup;
 
 	}
@@ -736,7 +740,8 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 		}
 		lock_buffer(bh);
 
-		if ((err = ext4_journal_get_create_access(handle, bh)))
+		err = ext4_journal_get_create_access(handle, bh);
+		if (err)
 			goto cleanup;
 
 		neh = ext_block_hdr(bh);
@@ -780,7 +785,8 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 		set_buffer_uptodate(bh);
 		unlock_buffer(bh);
 
-		if ((err = ext4_journal_dirty_metadata(handle, bh)))
+		err = ext4_journal_dirty_metadata(handle, bh);
+		if (err)
 			goto cleanup;
 		brelse(bh);
 		bh = NULL;
@@ -800,9 +806,6 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 	}
 
 	/* insert new index */
-	if (err)
-		goto cleanup;
-
 	err = ext4_ext_insert_index(handle, inode, path + at,
 				    le32_to_cpu(border), newblock);
 
@@ -857,7 +860,8 @@ static int ext4_ext_grow_indepth(handle_t *handle, struct inode *inode,
 	}
 	lock_buffer(bh);
 
-	if ((err = ext4_journal_get_create_access(handle, bh))) {
+	err = ext4_journal_get_create_access(handle, bh);
+	if (err) {
 		unlock_buffer(bh);
 		goto out;
 	}
@@ -877,11 +881,13 @@ static int ext4_ext_grow_indepth(handle_t *handle, struct inode *inode,
 	set_buffer_uptodate(bh);
 	unlock_buffer(bh);
 
-	if ((err = ext4_journal_dirty_metadata(handle, bh)))
+	err = ext4_journal_dirty_metadata(handle, bh);
+	if (err)
 		goto out;
 
 	/* create index in new top-level index: num,max,pointer */
-	if ((err = ext4_ext_get_access(handle, inode, curp)))
+	err = ext4_ext_get_access(handle, inode, curp);
+	if (err)
 		goto out;
 
 	curp->p_hdr->eh_magic = EXT4_EXT_MAGIC;
@@ -1073,27 +1079,31 @@ int ext4_ext_correct_indexes(handle_t *handle, struct inode *inode,
 	 */
 	k = depth - 1;
 	border = path[depth].p_ext->ee_block;
-	if ((err = ext4_ext_get_access(handle, inode, path + k)))
+	err = ext4_ext_get_access(handle, inode, path + k);
+	if (err)
 		return err;
 	path[k].p_idx->ei_block = border;
-	if ((err = ext4_ext_dirty(handle, inode, path + k)))
+	err = ext4_ext_dirty(handle, inode, path + k);
+	if (err)
 		return err;
 
 	while (k--) {
 		/* change all left-side indexes */
 		if (path[k+1].p_idx != EXT_FIRST_INDEX(path[k+1].p_hdr))
 			break;
-		if ((err = ext4_ext_get_access(handle, inode, path + k)))
+		err = ext4_ext_get_access(handle, inode, path + k);
+		if (err)
 			break;
 		path[k].p_idx->ei_block = border;
-		if ((err = ext4_ext_dirty(handle, inode, path + k)))
+		err = ext4_ext_dirty(handle, inode, path + k);
+		if (err)
 			break;
 	}
 
 	return err;
 }
 
-static int inline
+static int
 ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
 				struct ext4_extent *ex2)
 {
@@ -1145,7 +1155,8 @@ int ext4_ext_insert_extent(handle_t *handle, struct inode *inode,
 				le16_to_cpu(newext->ee_len),
 				le32_to_cpu(ex->ee_block),
 				le16_to_cpu(ex->ee_len), ext_pblock(ex));
-		if ((err = ext4_ext_get_access(handle, inode, path + depth)))
+		err = ext4_ext_get_access(handle, inode, path + depth);
+		if (err)
 			return err;
 		ex->ee_len = cpu_to_le16(le16_to_cpu(ex->ee_len)
 					 + le16_to_cpu(newext->ee_len));
@@ -1195,7 +1206,8 @@ repeat:
 has_space:
 	nearex = path[depth].p_ext;
 
-	if ((err = ext4_ext_get_access(handle, inode, path + depth)))
+	err = ext4_ext_get_access(handle, inode, path + depth);
+	if (err)
 		goto cleanup;
 
 	if (!nearex) {
@@ -1383,7 +1395,7 @@ int ext4_ext_walk_space(struct inode *inode, unsigned long block,
 	return err;
 }
 
-static inline void
+static void
 ext4_ext_put_in_cache(struct inode *inode, __u32 block,
 			__u32 len, __u32 start, int type)
 {
@@ -1401,7 +1413,7 @@ ext4_ext_put_in_cache(struct inode *inode, __u32 block,
  * calculate boundaries of the gap that the requested block fits into
  * and cache this gap
  */
-static inline void
+static void
 ext4_ext_put_gap_in_cache(struct inode *inode, struct ext4_ext_path *path,
 				unsigned long block)
 {
@@ -1442,7 +1454,7 @@ ext4_ext_put_gap_in_cache(struct inode *inode, struct ext4_ext_path *path,
 	ext4_ext_put_in_cache(inode, lblock, len, 0, EXT4_EXT_CACHE_GAP);
 }
 
-static inline int
+static int
 ext4_ext_in_cache(struct inode *inode, unsigned long block,
 			struct ext4_extent *ex)
 {
@@ -1489,10 +1501,12 @@ int ext4_ext_rm_idx(handle_t *handle, struct inode *inode,
 	path--;
 	leaf = idx_pblock(path->p_idx);
 	BUG_ON(path->p_hdr->eh_entries == 0);
-	if ((err = ext4_ext_get_access(handle, inode, path)))
+	err = ext4_ext_get_access(handle, inode, path);
+	if (err)
 		return err;
 	path->p_hdr->eh_entries = cpu_to_le16(le16_to_cpu(path->p_hdr->eh_entries)-1);
-	if ((err = ext4_ext_dirty(handle, inode, path)))
+	err = ext4_ext_dirty(handle, inode, path);
+	if (err)
 		return err;
 	ext_debug("index is empty, remove it, free block %llu\n", leaf);
 	bh = sb_find_get_block(inode->i_sb, leaf);
@@ -1509,7 +1523,7 @@ int ext4_ext_rm_idx(handle_t *handle, struct inode *inode,
  * the caller should calculate credits under truncate_mutex and
  * pass the actual path.
  */
-int inline ext4_ext_calc_credits_for_insert(struct inode *inode,
+int ext4_ext_calc_credits_for_insert(struct inode *inode,
 						struct ext4_ext_path *path)
 {
 	int depth, needed;
@@ -1534,16 +1548,17 @@ int inline ext4_ext_calc_credits_for_insert(struct inode *inode,
 
 	/*
 	 * tree can be full, so it would need to grow in depth:
-	 * allocation + old root + new root
+	 * we need one credit to modify old root, credits for
+	 * new root will be added in split accounting
 	 */
-	needed += 2 + 1 + 1;
+	needed += 1;
 
 	/*
 	 * Index split can happen, we would need:
 	 *    allocate intermediate indexes (bitmap + group)
 	 *  + change two blocks at each level, but root (already included)
 	 */
-	needed = (depth * 2) + (depth * 2);
+	needed += (depth * 2) + (depth * 2);
 
 	/* any allocation modifies superblock */
 	needed += 1;
@@ -1718,7 +1733,7 @@ out:
  * ext4_ext_more_to_rm:
  * returns 1 if current index has to be freed (even partial)
  */
-static int inline
+static int
 ext4_ext_more_to_rm(struct ext4_ext_path *path)
 {
 	BUG_ON(path->p_idx == NULL);
@@ -1756,12 +1771,11 @@ int ext4_ext_remove_space(struct inode *inode, unsigned long start)
 	 * We start scanning from right side, freeing all the blocks
 	 * after i_size and walking into the tree depth-wise.
 	 */
-	path = kmalloc(sizeof(struct ext4_ext_path) * (depth + 1), GFP_KERNEL);
+	path = kzalloc(sizeof(struct ext4_ext_path) * (depth + 1), GFP_KERNEL);
 	if (path == NULL) {
 		ext4_journal_stop(handle);
 		return -ENOMEM;
 	}
-	memset(path, 0, sizeof(struct ext4_ext_path) * (depth + 1));
 	path[0].p_hdr = ext_inode_hdr(inode);
 	if (ext4_ext_check_header(__FUNCTION__, inode, path[0].p_hdr)) {
 		err = -EIO;
@@ -1932,7 +1946,8 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	mutex_lock(&EXT4_I(inode)->truncate_mutex);
 
 	/* check in cache */
-	if ((goal = ext4_ext_in_cache(inode, iblock, &newex))) {
+	goal = ext4_ext_in_cache(inode, iblock, &newex);
+	if (goal) {
 		if (goal == EXT4_EXT_CACHE_GAP) {
 			if (!create) {
 				/* block isn't allocated yet and
@@ -1971,7 +1986,8 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	 */
 	BUG_ON(path[depth].p_ext == NULL && depth != 0);
 
-	if ((ex = path[depth].p_ext)) {
+	ex = path[depth].p_ext;
+	if (ex) {
 	        unsigned long ee_block = le32_to_cpu(ex->ee_block);
 		ext4_fsblk_t ee_start = ext_pblock(ex);
 		unsigned short ee_len  = le16_to_cpu(ex->ee_len);

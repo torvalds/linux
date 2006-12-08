@@ -125,6 +125,7 @@ config I2C_I801
 	    ICH7
 	    ESB2
 	    ICH8
+	    ICH9
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -195,11 +196,11 @@ config I2C_IBM_IIC
 	  will be called i2c-ibm_iic.
 
 config I2C_IOP3XX
-	tristate "Intel IOP3xx and IXP4xx on-chip I2C interface"
-	depends on (ARCH_IOP32X || ARCH_IOP33X || ARCH_IXP4XX) && I2C
+	tristate "Intel IOPx3xx and IXP4xx on-chip I2C interface"
+	depends on (ARCH_IOP32X || ARCH_IOP33X || ARCH_IXP4XX || ARCH_IOP13XX) && I2C
 	help
 	  Say Y here if you want to use the IIC bus controller on
-	  the Intel IOP3xx I/O Processors or IXP4xx Network Processors.
+	  the Intel IOPx3xx I/O Processors or IXP4xx Network Processors.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-iop3xx.

@@ -594,7 +594,12 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 
     err = ret = 0;
 
-    if (cmd & IOC_IN) __copy_from_user((char *)buf, uarg, size);
+    if (cmd & IOC_IN) {
+	if (__copy_from_user((char *)buf, uarg, size)) {
+	    err = -EFAULT;
+	    goto free_out;
+	}
+    }
 
     switch (cmd) {
     case DS_ADJUST_RESOURCE_INFO:

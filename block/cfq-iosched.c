@@ -43,8 +43,8 @@ static int cfq_slice_idle = HZ / 125;
 #define RQ_CIC(rq)		((struct cfq_io_context*)(rq)->elevator_private)
 #define RQ_CFQQ(rq)		((rq)->elevator_private2)
 
-static kmem_cache_t *cfq_pool;
-static kmem_cache_t *cfq_ioc_pool;
+static struct kmem_cache *cfq_pool;
+static struct kmem_cache *cfq_ioc_pool;
 
 static DEFINE_PER_CPU(unsigned long, ioc_count);
 static struct completion *ioc_gone;
@@ -1464,8 +1464,7 @@ cfq_update_io_thinktime(struct cfq_data *cfqd, struct cfq_io_context *cic)
 }
 
 static void
-cfq_update_io_seektime(struct cfq_data *cfqd, struct cfq_io_context *cic,
-		       struct request *rq)
+cfq_update_io_seektime(struct cfq_io_context *cic, struct request *rq)
 {
 	sector_t sdist;
 	u64 total;
@@ -1617,7 +1616,7 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	}
 
 	cfq_update_io_thinktime(cfqd, cic);
-	cfq_update_io_seektime(cfqd, cic, rq);
+	cfq_update_io_seektime(cic, rq);
 	cfq_update_idle_window(cfqd, cfqq, cic);
 
 	cic->last_queue = jiffies;
@@ -1770,7 +1769,7 @@ static int cfq_may_queue(request_queue_t *q, int rw)
 /*
  * queue lock held here
  */
-static void cfq_put_request(request_queue_t *q, struct request *rq)
+static void cfq_put_request(struct request *rq)
 {
 	struct cfq_queue *cfqq = RQ_CFQQ(rq);
 
@@ -1841,9 +1840,11 @@ queue_fail:
 	return 1;
 }
 
-static void cfq_kick_queue(void *data)
+static void cfq_kick_queue(struct work_struct *work)
 {
-	request_queue_t *q = data;
+	struct cfq_data *cfqd =
+		container_of(work, struct cfq_data, unplug_work);
+	request_queue_t *q = cfqd->queue;
 	unsigned long flags;
 
 	spin_lock_irqsave(q->queue_lock, flags);
@@ -1951,7 +1952,7 @@ static void cfq_exit_queue(elevator_t *e)
 	kfree(cfqd);
 }
 
-static void *cfq_init_queue(request_queue_t *q, elevator_t *e)
+static void *cfq_init_queue(request_queue_t *q)
 {
 	struct cfq_data *cfqd;
 	int i;
@@ -1987,7 +1988,7 @@ static void *cfq_init_queue(request_queue_t *q, elevator_t *e)
 	cfqd->idle_class_timer.function = cfq_idle_class_timer;
 	cfqd->idle_class_timer.data = (unsigned long) cfqd;
 
-	INIT_WORK(&cfqd->unplug_work, cfq_kick_queue, q);
+	INIT_WORK(&cfqd->unplug_work, cfq_kick_queue);
 
 	cfqd->cfq_quantum = cfq_quantum;
 	cfqd->cfq_fifo_expire[0] = cfq_fifo_expire[0];

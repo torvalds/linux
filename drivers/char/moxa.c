@@ -222,7 +222,7 @@ static struct semaphore moxaBuffSem;
 /*
  * static functions:
  */
-static void do_moxa_softint(void *);
+static void do_moxa_softint(struct work_struct *);
 static int moxa_open(struct tty_struct *, struct file *);
 static void moxa_close(struct tty_struct *, struct file *);
 static int moxa_write(struct tty_struct *, const unsigned char *, int);
@@ -363,7 +363,7 @@ static int __init moxa_init(void)
 	for (i = 0, ch = moxaChannels; i < MAX_PORTS; i++, ch++) {
 		ch->type = PORT_16550A;
 		ch->port = i;
-		INIT_WORK(&ch->tqueue, do_moxa_softint, ch);
+		INIT_WORK(&ch->tqueue, do_moxa_softint);
 		ch->tty = NULL;
 		ch->close_delay = 5 * HZ / 10;
 		ch->closing_wait = 30 * HZ;
@@ -498,9 +498,12 @@ static void __exit moxa_exit(void)
 		printk("Couldn't unregister MOXA Intellio family serial driver\n");
 	put_tty_driver(moxaDriver);
 
-	for (i = 0; i < MAX_BOARDS; i++)
+	for (i = 0; i < MAX_BOARDS; i++) {
+		if (moxaBaseAddr[i])
+			iounmap(moxaBaseAddr[i]);
 		if (moxa_boards[i].busType == MOXA_BUS_TYPE_PCI)
 			pci_dev_put(moxa_boards[i].pciInfo.pdev);
+	}
 
 	if (verbose)
 		printk("Done\n");
@@ -509,9 +512,9 @@ static void __exit moxa_exit(void)
 module_init(moxa_init);
 module_exit(moxa_exit);
 
-static void do_moxa_softint(void *private_)
+static void do_moxa_softint(struct work_struct *work)
 {
-	struct moxa_str *ch = (struct moxa_str *) private_;
+	struct moxa_str *ch = container_of(work, struct moxa_str, tqueue);
 	struct tty_struct *tty;
 
 	if (ch && (tty = ch->tty)) {

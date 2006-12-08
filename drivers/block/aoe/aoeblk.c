@@ -12,7 +12,7 @@
 #include <linux/netdevice.h>
 #include "aoe.h"
 
-static kmem_cache_t *buf_pool_cache;
+static struct kmem_cache *buf_pool_cache;
 
 static ssize_t aoedisk_show_state(struct gendisk * disk, char *page)
 {
@@ -68,6 +68,7 @@ static struct attribute *aoe_attrs[] = {
 	&disk_attr_mac.attr,
 	&disk_attr_netif.attr,
 	&disk_attr_fwver.attr,
+	NULL
 };
 
 static const struct attribute_group attr_group = {

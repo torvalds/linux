@@ -255,13 +255,13 @@ static int pirq_via_set(struct pci_dev *router, struct pci_dev *dev, int pirq, i
  */
 static int pirq_via586_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 {
-	static const unsigned int pirqmap[4] = { 3, 2, 5, 1 };
+	static const unsigned int pirqmap[5] = { 3, 2, 5, 1, 1 };
 	return read_config_nybble(router, 0x55, pirqmap[pirq-1]);
 }
 
 static int pirq_via586_set(struct pci_dev *router, struct pci_dev *dev, int pirq, int irq)
 {
-	static const unsigned int pirqmap[4] = { 3, 2, 5, 1 };
+	static const unsigned int pirqmap[5] = { 3, 2, 5, 1, 1 };
 	write_config_nybble(router, 0x55, pirqmap[pirq-1], irq);
 	return 1;
 }
@@ -543,6 +543,12 @@ static __init int intel_router_probe(struct irq_router *r, struct pci_dev *route
 		case PCI_DEVICE_ID_INTEL_ICH8_2:
 		case PCI_DEVICE_ID_INTEL_ICH8_3:
 		case PCI_DEVICE_ID_INTEL_ICH8_4:
+		case PCI_DEVICE_ID_INTEL_ICH9_0:
+		case PCI_DEVICE_ID_INTEL_ICH9_1:
+		case PCI_DEVICE_ID_INTEL_ICH9_2:
+		case PCI_DEVICE_ID_INTEL_ICH9_3:
+		case PCI_DEVICE_ID_INTEL_ICH9_4:
+		case PCI_DEVICE_ID_INTEL_ICH9_5:
 			r->name = "PIIX/ICH";
 			r->get = pirq_piix_get;
 			r->set = pirq_piix_set;
@@ -758,7 +764,7 @@ static void __init pirq_find_router(struct irq_router *r)
 	DBG(KERN_DEBUG "PCI: Attempting to find IRQ router for %04x:%04x\n",
 	    rt->rtr_vendor, rt->rtr_device);
 
-	pirq_router_dev = pci_find_slot(rt->rtr_bus, rt->rtr_devfn);
+	pirq_router_dev = pci_get_bus_and_slot(rt->rtr_bus, rt->rtr_devfn);
 	if (!pirq_router_dev) {
 		DBG(KERN_DEBUG "PCI: Interrupt router not found at "
 			"%02x:%02x\n", rt->rtr_bus, rt->rtr_devfn);
@@ -778,6 +784,8 @@ static void __init pirq_find_router(struct irq_router *r)
 		pirq_router_dev->vendor,
 		pirq_router_dev->device,
 		pci_name(pirq_router_dev));
+
+	/* The device remains referenced for the kernel lifetime */
 }
 
 static struct irq_info *pirq_get_info(struct pci_dev *dev)

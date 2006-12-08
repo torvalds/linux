@@ -204,9 +204,9 @@ static unsigned char *get_tr_dst(unsigned char *packet, unsigned char *rdesc)
 	memset(rdesc, 0, ETH_ALEN);
 	/* offset 4 comes from LAN destination field in LE control frames */
 	if (trh->rcf & htons((uint16_t) TR_RCF_DIR_BIT))
-		memcpy(&rdesc[4], &trh->rseg[num_rdsc - 2], sizeof(uint16_t));
+		memcpy(&rdesc[4], &trh->rseg[num_rdsc - 2], sizeof(__be16));
 	else {
-		memcpy(&rdesc[4], &trh->rseg[1], sizeof(uint16_t));
+		memcpy(&rdesc[4], &trh->rseg[1], sizeof(__be16));
 		rdesc[5] = ((ntohs(trh->rseg[0]) & 0x000f) | (rdesc[5] & 0xf0));
 	}
 
@@ -775,7 +775,7 @@ static void lec_push(struct atm_vcc *vcc, struct sk_buff *skb)
 		unsigned char *src, *dst;
 
 		atm_return(vcc, skb->truesize);
-		if (*(uint16_t *) skb->data == htons(priv->lecid) ||
+		if (*(__be16 *) skb->data == htons(priv->lecid) ||
 		    !priv->lecd || !(dev->flags & IFF_UP)) {
 			/*
 			 * Probably looping back, or if lecd is missing,
@@ -1321,11 +1321,10 @@ static int lane2_resolve(struct net_device *dev, u8 *dst_mac, int force,
 		if (table == NULL)
 			return -1;
 
-		*tlvs = kmalloc(table->sizeoftlvs, GFP_ATOMIC);
+		*tlvs = kmemdup(table->tlvs, table->sizeoftlvs, GFP_ATOMIC);
 		if (*tlvs == NULL)
 			return -1;
 
-		memcpy(*tlvs, table->tlvs, table->sizeoftlvs);
 		*sizeoftlvs = table->sizeoftlvs;
 
 		return 0;
@@ -1364,11 +1363,10 @@ static int lane2_associate_req(struct net_device *dev, u8 *lan_dst,
 
 	kfree(priv->tlvs);	/* NULL if there was no previous association */
 
-	priv->tlvs = kmalloc(sizeoftlvs, GFP_KERNEL);
+	priv->tlvs = kmemdup(tlvs, sizeoftlvs, GFP_KERNEL);
 	if (priv->tlvs == NULL)
 		return (0);
 	priv->sizeoftlvs = sizeoftlvs;
-	memcpy(priv->tlvs, tlvs, sizeoftlvs);
 
 	skb = alloc_skb(sizeoftlvs, GFP_ATOMIC);
 	if (skb == NULL)
@@ -1409,12 +1407,10 @@ static void lane2_associate_ind(struct net_device *dev, u8 *mac_addr,
 
 	kfree(entry->tlvs);
 
-	entry->tlvs = kmalloc(sizeoftlvs, GFP_KERNEL);
+	entry->tlvs = kmemdup(tlvs, sizeoftlvs, GFP_KERNEL);
 	if (entry->tlvs == NULL)
 		return;
-
 	entry->sizeoftlvs = sizeoftlvs;
-	memcpy(entry->tlvs, tlvs, sizeoftlvs);
 #endif
 #if 0
 	printk("lec.c: lane2_associate_ind()\n");
@@ -1458,7 +1454,7 @@ static void lane2_associate_ind(struct net_device *dev, u8 *mac_addr,
 
 #define LEC_ARP_REFRESH_INTERVAL (3*HZ)
 
-static void lec_arp_check_expire(void *data);
+static void lec_arp_check_expire(struct work_struct *work);
 static void lec_arp_expire_arp(unsigned long data);
 
 /* 
@@ -1481,7 +1477,7 @@ static void lec_arp_init(struct lec_priv *priv)
         INIT_HLIST_HEAD(&priv->lec_no_forward);
         INIT_HLIST_HEAD(&priv->mcast_fwds);
 	spin_lock_init(&priv->lec_arp_lock);
-	INIT_WORK(&priv->lec_arp_work, lec_arp_check_expire, priv);
+	INIT_DELAYED_WORK(&priv->lec_arp_work, lec_arp_check_expire);
 	schedule_delayed_work(&priv->lec_arp_work, LEC_ARP_REFRESH_INTERVAL);
 }
 
@@ -1879,10 +1875,11 @@ static void lec_arp_expire_vcc(unsigned long data)
  *       to ESI_FORWARD_DIRECT. This causes the flush period to end
  *       regardless of the progress of the flush protocol.
  */
-static void lec_arp_check_expire(void *data)
+static void lec_arp_check_expire(struct work_struct *work)
 {
 	unsigned long flags;
-	struct lec_priv *priv = data;
+	struct lec_priv *priv =
+		container_of(work, struct lec_priv, lec_arp_work.work);
 	struct hlist_node *node, *next;
 	struct lec_arp_table *entry;
 	unsigned long now;

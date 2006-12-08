@@ -38,7 +38,7 @@
 #include <linux/personality.h>
 #include <linux/tty.h>
 #include <linux/binfmts.h>
-#include <linux/suspend.h>
+#include <linux/freezer.h>
 
 #include <asm/setup.h>
 #include <asm/uaccess.h>

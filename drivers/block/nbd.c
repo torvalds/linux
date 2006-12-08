@@ -355,14 +355,30 @@ harderror:
 	return NULL;
 }
 
+static ssize_t pid_show(struct gendisk *disk, char *page)
+{
+	return sprintf(page, "%ld\n",
+		(long) ((struct nbd_device *)disk->private_data)->pid);
+}
+
+static struct disk_attribute pid_attr = {
+	.attr = { .name = "pid", .mode = S_IRUGO },
+	.show = pid_show,
+};
+
 static void nbd_do_it(struct nbd_device *lo)
 {
 	struct request *req;
 
 	BUG_ON(lo->magic != LO_MAGIC);
 
+	lo->pid = current->pid;
+	sysfs_create_file(&lo->disk->kobj, &pid_attr.attr);
+
 	while ((req = nbd_read_stat(lo)) != NULL)
 		nbd_end_request(req);
+
+	sysfs_remove_file(&lo->disk->kobj, &pid_attr.attr);
 	return;
 }
 

@@ -122,7 +122,7 @@ ieee80211softmac_wx_set_essid(struct net_device *net_dev,
 
 	sm->associnfo.associating = 1;
 	/* queue lower level code to do work (if necessary) */
-	schedule_work(&sm->associnfo.work);
+	schedule_delayed_work(&sm->associnfo.work, 0);
 out:
 	mutex_unlock(&sm->associnfo.mutex);
 
@@ -356,7 +356,7 @@ ieee80211softmac_wx_set_wap(struct net_device *net_dev,
 		/* force reassociation */
 		mac->associnfo.bssvalid = 0;
 		if (mac->associnfo.associated)
-			schedule_work(&mac->associnfo.work);
+			schedule_delayed_work(&mac->associnfo.work, 0);
 	} else if (is_zero_ether_addr(data->ap_addr.sa_data)) {
 		/* the bssid we have is no longer fixed */
 		mac->associnfo.bssfixed = 0;
@@ -373,7 +373,7 @@ ieee80211softmac_wx_set_wap(struct net_device *net_dev,
 		/* tell the other code that this bssid should be used no matter what */
 		mac->associnfo.bssfixed = 1;
 		/* queue associate if new bssid or (old one again and not associated) */
-		schedule_work(&mac->associnfo.work);
+		schedule_delayed_work(&mac->associnfo.work, 0);
         }
 
  out:
@@ -495,7 +495,8 @@ ieee80211softmac_wx_set_mlme(struct net_device *dev,
 			printk(KERN_DEBUG PFX "wx_set_mlme: we should know the net here...\n");
 			goto out;
 		}
-		return ieee80211softmac_deauth_req(mac, net, reason);
+		err =  ieee80211softmac_deauth_req(mac, net, reason);
+		goto out;
 	case IW_MLME_DISASSOC:
 		ieee80211softmac_send_disassoc_req(mac, reason);
 		mac->associnfo.associated = 0;

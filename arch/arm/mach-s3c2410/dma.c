@@ -40,7 +40,7 @@
 
 /* io map for dma */
 static void __iomem *dma_base;
-static kmem_cache_t *dma_kmem;
+static struct kmem_cache *dma_kmem;
 
 struct s3c24xx_dma_selection dma_sel;
 
@@ -1271,7 +1271,7 @@ struct sysdev_class dma_sysclass = {
 
 /* kmem cache implementation */
 
-static void s3c2410_dma_cache_ctor(void *p, kmem_cache_t *c, unsigned long f)
+static void s3c2410_dma_cache_ctor(void *p, struct kmem_cache *c, unsigned long f)
 {
 	memset(p, 0, sizeof(struct s3c2410_dma_buf));
 }

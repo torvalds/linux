@@ -77,8 +77,10 @@ icc_new_ph(struct IsdnCardState *cs)
 }
 
 static void
-icc_bh(struct IsdnCardState *cs)
+icc_bh(struct work_struct *work)
 {
+	struct IsdnCardState *cs =
+		container_of(work, struct IsdnCardState, tqueue);
 	struct PStack *stptr;
 	
 	if (!cs)
@@ -674,7 +676,7 @@ clear_pending_icc_ints(struct IsdnCardState *cs)
 void __devinit
 setup_icc(struct IsdnCardState *cs)
 {
-	INIT_WORK(&cs->tqueue, (void *)(void *) icc_bh, cs);
+	INIT_WORK(&cs->tqueue, icc_bh);
 	cs->dbusytimer.function = (void *) dbusy_timer_handler;
 	cs->dbusytimer.data = (long) cs;
 	init_timer(&cs->dbusytimer);

@@ -56,7 +56,7 @@
 #include <media/tvaudio.h>
 #include <media/msp3400.h>
 #include <linux/kthread.h>
-#include <linux/suspend.h>
+#include <linux/freezer.h>
 #include "msp3400-driver.h"
 
 /* ---------------------------------------------------------------------- */

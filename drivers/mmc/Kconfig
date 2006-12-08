@@ -40,7 +40,7 @@ config MMC_ARMMMCI
 	  If unsure, say N.
 
 config MMC_PXA
-	tristate "Intel PXA255 Multimedia Card Interface support"
+	tristate "Intel PXA25x/26x/27x Multimedia Card Interface support"
 	depends on ARCH_PXA && MMC
 	help
 	  This selects the Intel(R) PXA(R) Multimedia card Interface.
@@ -91,11 +91,11 @@ config MMC_AU1X
 
 	  If unsure, say N.
 
-config MMC_AT91RM9200
-	tristate "AT91RM9200 SD/MMC Card Interface support"
-	depends on ARCH_AT91RM9200 && MMC
+config MMC_AT91
+	tristate "AT91 SD/MMC Card Interface support"
+	depends on ARCH_AT91 && MMC
 	help
-	  This selects the AT91RM9200 MCI controller.
+	  This selects the AT91 MCI controller.
 
 	  If unsure, say N.
 

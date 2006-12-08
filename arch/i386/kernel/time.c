@@ -56,6 +56,7 @@
 #include <asm/uaccess.h>
 #include <asm/processor.h>
 #include <asm/timer.h>
+#include <asm/time.h>
 
 #include "mach_time.h"
 
@@ -116,10 +117,7 @@ static int set_rtc_mmss(unsigned long nowtime)
 	/* gets recalled with irq locally disabled */
 	/* XXX - does irqsave resolve this? -johnstul */
 	spin_lock_irqsave(&rtc_lock, flags);
-	if (efi_enabled)
-		retval = efi_set_rtc_mmss(nowtime);
-	else
-		retval = mach_set_rtc_mmss(nowtime);
+	retval = set_wallclock(nowtime);
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	return retval;
@@ -223,10 +221,7 @@ unsigned long get_cmos_time(void)
 
 	spin_lock_irqsave(&rtc_lock, flags);
 
-	if (efi_enabled)
-		retval = efi_get_time();
-	else
-		retval = mach_get_cmos_time();
+	retval = get_wallclock();
 
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
@@ -370,7 +365,7 @@ static void __init hpet_time_init(void)
 		printk("Using HPET for base-timer\n");
 	}
 
-	time_init_hook();
+	do_time_init();
 }
 #endif
 
@@ -392,5 +387,5 @@ void __init time_init(void)
 
 	do_settimeofday(&ts);
 
-	time_init_hook();
+	do_time_init();
 }

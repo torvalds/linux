@@ -4,7 +4,7 @@
 
 extra-y	:= head.o init_task.o vmlinux.lds
 
-obj-y	:= process.o signal.o entry.o traps.o irq.o \
+obj-y	:= process.o signal.o traps.o irq.o \
 	ptrace.o setup.o time.o sys_sh.o semaphore.o \
 	io.o io_generic.o sh_ksyms.o syscalls.o
 
@@ -21,3 +21,4 @@ obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
 obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o
 obj-$(CONFIG_APM)		+= apm.o
 obj-$(CONFIG_PM)		+= pm.o
+obj-$(CONFIG_STACKTRACE)	+= stacktrace.o

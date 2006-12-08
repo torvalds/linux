@@ -427,7 +427,7 @@ static int usb_stor_bulk_transfer_sglist(struct us_data *us, unsigned int pipe,
 	US_DEBUGP("%s: xfer %u bytes, %d entries\n", __FUNCTION__,
 			length, num_sg);
 	result = usb_sg_init(&us->current_sg, us->pusb_dev, pipe, 0,
-			sg, num_sg, length, SLAB_NOIO);
+			sg, num_sg, length, GFP_NOIO);
 	if (result) {
 		US_DEBUGP("usb_sg_init returned %d\n", result);
 		return USB_STOR_XFER_ERROR;

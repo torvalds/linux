@@ -305,7 +305,7 @@ static void clear_lockup (struct atm_vcc *vcc, IADEV *dev) {
 **  |  R | NZ |  5-bit exponent  |        9-bit mantissa         |
 **  +----+----+------------------+-------------------------------+
 ** 
-**    R = reserverd (written as 0)
+**    R = reserved (written as 0)
 **    NZ = 0 if 0 cells/sec; 1 otherwise
 **
 **    if NZ = 1, rate = 1.mmmmmmmmm x 2^(eeeee) cells/sec

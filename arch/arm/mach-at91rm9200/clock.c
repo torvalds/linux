@@ -28,6 +28,8 @@
 #include <asm/mach-types.h>
 
 #include <asm/hardware.h>
+#include <asm/arch/at91_pmc.h>
+#include <asm/arch/cpu.h>
 
 #include "clock.h"
 
@@ -41,6 +43,7 @@
 #define clk_is_primary(x)	((x)->type & CLK_TYPE_PRIMARY)
 #define clk_is_programmable(x)	((x)->type & CLK_TYPE_PROGRAMMABLE)
 #define clk_is_peripheral(x)	((x)->type & CLK_TYPE_PERIPHERAL)
+#define clk_is_sys(x)		((x)->type & CLK_TYPE_SYSTEM)
 
 
 static LIST_HEAD(clocks);
@@ -114,13 +117,11 @@ static void pmc_sys_mode(struct clk *clk, int is_on)
 static struct clk udpck = {
 	.name		= "udpck",
 	.parent		= &pllb,
-	.pmc_mask	= AT91_PMC_UDP,
 	.mode		= pmc_sys_mode,
 };
 static struct clk uhpck = {
 	.name		= "uhpck",
 	.parent		= &pllb,
-	.pmc_mask	= AT91_PMC_UHP,
 	.mode		= pmc_sys_mode,
 };
 
@@ -434,6 +435,12 @@ int __init clk_register(struct clk *clk)
 		clk->mode = pmc_periph_mode;
 		list_add_tail(&clk->node, &clocks);
 	}
+	else if (clk_is_sys(clk)) {
+		clk->parent = &mck;
+		clk->mode = pmc_sys_mode;
+
+		list_add_tail(&clk->node, &clocks);
+	}
 #ifdef CONFIG_AT91_PROGRAMMABLE_CLOCKS
 	else if (clk_is_programmable(clk)) {
 		clk->mode = pmc_sys_mode;
@@ -586,9 +593,21 @@ int __init at91_clock_init(unsigned long main_clock)
 	 */
 	at91_pllb_usb_init = at91_pll_calc(main_clock, 48000000 * 2) | AT91_PMC_USB96M;
 	pllb.rate_hz = at91_pll_rate(&pllb, main_clock, at91_pllb_usb_init);
-	at91_sys_write(AT91_PMC_SCDR, AT91_PMC_UHP | AT91_PMC_UDP);
+	if (cpu_is_at91rm9200()) {
+		uhpck.pmc_mask = AT91RM9200_PMC_UHP;
+		udpck.pmc_mask = AT91RM9200_PMC_UDP;
+		at91_sys_write(AT91_PMC_SCDR, AT91RM9200_PMC_UHP | AT91RM9200_PMC_UDP);
+		at91_sys_write(AT91_PMC_SCER, AT91RM9200_PMC_MCKUDP);
+	} else if (cpu_is_at91sam9260()) {
+		uhpck.pmc_mask = AT91SAM926x_PMC_UHP;
+		udpck.pmc_mask = AT91SAM926x_PMC_UDP;
+		at91_sys_write(AT91_PMC_SCDR, AT91SAM926x_PMC_UHP | AT91SAM926x_PMC_UDP);
+	} else if (cpu_is_at91sam9261()) {
+		uhpck.pmc_mask = (AT91SAM926x_PMC_UHP | AT91_PMC_HCK0);
+		udpck.pmc_mask = AT91SAM926x_PMC_UDP;
+		at91_sys_write(AT91_PMC_SCDR, AT91SAM926x_PMC_UHP | AT91_PMC_HCK0 | AT91SAM926x_PMC_UDP);
+	}
 	at91_sys_write(AT91_CKGR_PLLBR, 0);
-	at91_sys_write(AT91_PMC_SCER, AT91_PMC_MCKUDP);
 
 	udpck.rate_hz = at91_usb_rate(&pllb, pllb.rate_hz, at91_pllb_usb_init);
 	uhpck.rate_hz = at91_usb_rate(&pllb, pllb.rate_hz, at91_pllb_usb_init);

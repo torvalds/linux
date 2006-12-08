@@ -88,7 +88,7 @@ extern struct uart_cpm_port cpm_uart_ports[UART_NR];
 
 /* these are located in their respective files */
 void cpm_line_cr_cmd(int line, int cmd);
-int cpm_uart_init_portdesc(void);
+int __init cpm_uart_init_portdesc(void);
 int cpm_uart_allocbuf(struct uart_cpm_port *pinfo, unsigned int is_con);
 void cpm_uart_freebuf(struct uart_cpm_port *pinfo);
 

@@ -73,7 +73,7 @@
 extern struct nsproxy init_nsproxy;
 #define INIT_NSPROXY(nsproxy) {						\
 	.count		= ATOMIC_INIT(1),				\
-	.nslock		= SPIN_LOCK_UNLOCKED,				\
+	.nslock		= __SPIN_LOCK_UNLOCKED(nsproxy.nslock),		\
 	.uts_ns		= &init_uts_ns,					\
 	.namespace	= NULL,						\
 	INIT_IPC_NS(ipc_ns)						\

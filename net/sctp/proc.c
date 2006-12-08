@@ -160,7 +160,7 @@ static void sctp_seq_dump_local_addrs(struct seq_file *seq, struct sctp_ep_commo
 
 	list_for_each(pos, &epb->bind_addr.address_list) {
 		laddr = list_entry(pos, struct sctp_sockaddr_entry, list);
-		addr = (union sctp_addr *)&laddr->a;
+		addr = &laddr->a;
 		af = sctp_get_af_specific(addr->sa.sa_family);
 		if (primary && af->cmp_addr(addr, primary)) {
 			seq_printf(seq, "*");
@@ -177,10 +177,10 @@ static void sctp_seq_dump_remote_addrs(struct seq_file *seq, struct sctp_associa
 	union sctp_addr *addr, *primary;
 	struct sctp_af *af;
 
-	primary = &(assoc->peer.primary_addr);
+	primary = &assoc->peer.primary_addr;
 	list_for_each(pos, &assoc->peer.transport_addr_list) {
 		transport = list_entry(pos, struct sctp_transport, transports);
-		addr = (union sctp_addr *)&transport->ipaddr;
+		addr = &transport->ipaddr;
 		af = sctp_get_af_specific(addr->sa.sa_family);
 		if (af->cmp_addr(addr, primary)) {
 			seq_printf(seq, "*");

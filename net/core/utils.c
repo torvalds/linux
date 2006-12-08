@@ -88,7 +88,7 @@ EXPORT_SYMBOL(in_aton);
 #define IN6PTON_NULL		0x20000000	/* first/tail */
 #define IN6PTON_UNKNOWN		0x40000000
 
-static inline int digit2bin(char c, char delim)
+static inline int digit2bin(char c, int delim)
 {
 	if (c == delim || c == '\0')
 		return IN6PTON_DELIM;
@@ -99,7 +99,7 @@ static inline int digit2bin(char c, char delim)
 	return IN6PTON_UNKNOWN;
 }
 
-static inline int xdigit2bin(char c, char delim)
+static inline int xdigit2bin(char c, int delim)
 {
 	if (c == delim || c == '\0')
 		return IN6PTON_DELIM;
@@ -113,12 +113,14 @@ static inline int xdigit2bin(char c, char delim)
 		return (IN6PTON_XDIGIT | (c - 'a' + 10));
 	if (c >= 'A' && c <= 'F')
 		return (IN6PTON_XDIGIT | (c - 'A' + 10));
+	if (delim == -1)
+		return IN6PTON_DELIM;
 	return IN6PTON_UNKNOWN;
 }
 
 int in4_pton(const char *src, int srclen,
 	     u8 *dst,
-	     char delim, const char **end)
+	     int delim, const char **end)
 {
 	const char *s;
 	u8 *d;
@@ -173,7 +175,7 @@ EXPORT_SYMBOL(in4_pton);
 
 int in6_pton(const char *src, int srclen,
 	     u8 *dst,
-	     char delim, const char **end)
+	     int delim, const char **end)
 {
 	const char *s, *tok = NULL;
 	u8 *d, *dc = NULL;

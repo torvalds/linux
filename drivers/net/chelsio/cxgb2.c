@@ -45,7 +45,6 @@
 #include <linux/if_vlan.h>
 #include <linux/mii.h>
 #include <linux/sockios.h>
-#include <linux/proc_fs.h>
 #include <linux/dma-mapping.h>
 #include <asm/uaccess.h>
 
@@ -54,36 +53,10 @@
 #include "gmac.h"
 #include "cphy.h"
 #include "sge.h"
+#include "tp.h"
 #include "espi.h"
+#include "elmer0.h"
 
-#ifdef work_struct
-#include <linux/tqueue.h>
-#define INIT_WORK INIT_TQUEUE
-#define schedule_work schedule_task
-#define flush_scheduled_work flush_scheduled_tasks
-
-static inline void schedule_mac_stats_update(struct adapter *ap, int secs)
-{
-	mod_timer(&ap->stats_update_timer, jiffies + secs * HZ);
-}
-
-static inline void cancel_mac_stats_update(struct adapter *ap)
-{
-	del_timer_sync(&ap->stats_update_timer);
-	flush_scheduled_tasks();
-}
-
-/*
- * Stats update timer for 2.4.  It schedules a task to do the actual update as
- * we need to access MAC statistics in process context.
- */
-static void mac_stats_timer(unsigned long data)
-{
-	struct adapter *ap = (struct adapter *)data;
-
-	schedule_task(&ap->stats_update_task);
-}
-#else
 #include <linux/workqueue.h>
 
 static inline void schedule_mac_stats_update(struct adapter *ap, int secs)
@@ -95,7 +68,6 @@ static inline void cancel_mac_stats_update(struct adapter *ap)
 {
 	cancel_delayed_work(&ap->stats_update_task);
 }
-#endif
 
 #define MAX_CMDQ_ENTRIES 16384
 #define MAX_CMDQ1_ENTRIES 1024
@@ -103,9 +75,8 @@ static inline void cancel_mac_stats_update(struct adapter *ap)
 #define MAX_RX_JUMBO_BUFFERS 16384
 #define MAX_TX_BUFFERS_HIGH	16384U
 #define MAX_TX_BUFFERS_LOW	1536U
+#define MAX_TX_BUFFERS		1460U
 #define MIN_FL_ENTRIES 32
-
-#define PORT_MASK ((1 << MAX_NPORTS) - 1)
 
 #define DFLT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK | \
 			 NETIF_MSG_TIMER | NETIF_MSG_IFDOWN | NETIF_MSG_IFUP |\
@@ -124,8 +95,21 @@ MODULE_LICENSE("GPL");
 static int dflt_msg_enable = DFLT_MSG_ENABLE;
 
 module_param(dflt_msg_enable, int, 0);
-MODULE_PARM_DESC(dflt_msg_enable, "Chelsio T1 message enable bitmap");
+MODULE_PARM_DESC(dflt_msg_enable, "Chelsio T1 default message enable bitmap");
 
+#define HCLOCK 0x0
+#define LCLOCK 0x1
+
+/* T1 cards powersave mode */
+static int t1_clock(struct adapter *adapter, int mode);
+static int t1powersave = 1;	/* HW default is powersave mode. */
+
+module_param(t1powersave, int, 0);
+MODULE_PARM_DESC(t1powersave, "Enable/Disable T1 powersaving mode");
+
+static int disable_msi = 0;
+module_param(disable_msi, int, 0);
+MODULE_PARM_DESC(disable_msi, "Disable Message Signaled Interrupt (MSI)");
 
 static const char pci_speed[][4] = {
 	"33", "66", "100", "133"
@@ -149,7 +133,7 @@ static void t1_set_rxmode(struct net_device *dev)
 static void link_report(struct port_info *p)
 {
 	if (!netif_carrier_ok(p->dev))
-        	printk(KERN_INFO "%s: link down\n", p->dev->name);
+		printk(KERN_INFO "%s: link down\n", p->dev->name);
 	else {
 		const char *s = "10Mbps";
 
@@ -159,13 +143,13 @@ static void link_report(struct port_info *p)
 			case SPEED_100:   s = "100Mbps"; break;
 		}
 
-        printk(KERN_INFO "%s: link up, %s, %s-duplex\n",
+	printk(KERN_INFO "%s: link up, %s, %s-duplex\n",
 		       p->dev->name, s,
 		       p->link_config.duplex == DUPLEX_FULL ? "full" : "half");
 	}
 }
 
-void t1_link_changed(struct adapter *adapter, int port_id, int link_stat,
+void t1_link_negotiated(struct adapter *adapter, int port_id, int link_stat,
 			int speed, int duplex, int pause)
 {
 	struct port_info *p = &adapter->port[port_id];
@@ -177,6 +161,22 @@ void t1_link_changed(struct adapter *adapter, int port_id, int link_stat,
 			netif_carrier_off(p->dev);
 		link_report(p);
 
+		/* multi-ports: inform toe */
+		if ((speed > 0) && (adapter->params.nports > 1)) {
+			unsigned int sched_speed = 10;
+			switch (speed) {
+			case SPEED_1000:
+				sched_speed = 1000;
+				break;
+			case SPEED_100:
+				sched_speed = 100;
+				break;
+			case SPEED_10:
+				sched_speed = 10;
+				break;
+			}
+			t1_sched_update_parms(adapter->sge, port_id, 0, sched_speed);
+		}
 	}
 }
 
@@ -195,8 +195,10 @@ static void link_start(struct port_info *p)
 static void enable_hw_csum(struct adapter *adapter)
 {
 	if (adapter->flags & TSO_CAPABLE)
-		t1_tp_set_ip_checksum_offload(adapter, 1); /* for TSO only */
-	t1_tp_set_tcp_checksum_offload(adapter, 1);
+		t1_tp_set_ip_checksum_offload(adapter->tp, 1);	/* for TSO only */
+	if (adapter->flags & UDP_CSUM_CAPABLE)
+		t1_tp_set_udp_checksum_offload(adapter->tp, 1);
+	t1_tp_set_tcp_checksum_offload(adapter->tp, 1);
 }
 
 /*
@@ -217,11 +219,19 @@ static int cxgb_up(struct adapter *adapter)
 	}
 
 	t1_interrupts_clear(adapter);
-	if ((err = request_irq(adapter->pdev->irq,
-			       t1_select_intr_handler(adapter), IRQF_SHARED,
-			       adapter->name, adapter))) {
+
+	adapter->params.has_msi = !disable_msi && pci_enable_msi(adapter->pdev) == 0;
+	err = request_irq(adapter->pdev->irq,
+			  t1_select_intr_handler(adapter),
+			  adapter->params.has_msi ? 0 : IRQF_SHARED,
+			  adapter->name, adapter);
+	if (err) {
+		if (adapter->params.has_msi)
+			pci_disable_msi(adapter->pdev);
+
 		goto out_err;
 	}
+
 	t1_sge_start(adapter->sge);
 	t1_interrupts_enable(adapter);
  out_err:
@@ -236,6 +246,8 @@ static void cxgb_down(struct adapter *adapter)
 	t1_sge_stop(adapter->sge);
 	t1_interrupts_disable(adapter);
 	free_irq(adapter->pdev->irq, adapter);
+	if (adapter->params.has_msi)
+		pci_disable_msi(adapter->pdev);
 }
 
 static int cxgb_open(struct net_device *dev)
@@ -290,7 +302,7 @@ static struct net_device_stats *t1_get_stats(struct net_device *dev)
 
 	/* Do a full update of the MAC stats */
 	pstats = p->mac->ops->statistics_update(p->mac,
-						      MAC_STATS_UPDATE_FULL);
+						MAC_STATS_UPDATE_FULL);
 
 	ns->tx_packets = pstats->TxUnicastFramesOK +
 		pstats->TxMulticastFramesOK + pstats->TxBroadcastFramesOK;
@@ -344,47 +356,53 @@ static void set_msglevel(struct net_device *dev, u32 val)
 }
 
 static char stats_strings[][ETH_GSTRING_LEN] = {
-        "TxOctetsOK",
-        "TxOctetsBad",
-        "TxUnicastFramesOK",
-        "TxMulticastFramesOK",
-        "TxBroadcastFramesOK",
-        "TxPauseFrames",
-        "TxFramesWithDeferredXmissions",
-        "TxLateCollisions",
-        "TxTotalCollisions",
-        "TxFramesAbortedDueToXSCollisions",
-        "TxUnderrun",
-        "TxLengthErrors",
-        "TxInternalMACXmitError",
-        "TxFramesWithExcessiveDeferral",
-        "TxFCSErrors",
+	"TxOctetsOK",
+	"TxOctetsBad",
+	"TxUnicastFramesOK",
+	"TxMulticastFramesOK",
+	"TxBroadcastFramesOK",
+	"TxPauseFrames",
+	"TxFramesWithDeferredXmissions",
+	"TxLateCollisions",
+	"TxTotalCollisions",
+	"TxFramesAbortedDueToXSCollisions",
+	"TxUnderrun",
+	"TxLengthErrors",
+	"TxInternalMACXmitError",
+	"TxFramesWithExcessiveDeferral",
+	"TxFCSErrors",
 
-        "RxOctetsOK",
-        "RxOctetsBad",
-        "RxUnicastFramesOK",
-        "RxMulticastFramesOK",
-        "RxBroadcastFramesOK",
-        "RxPauseFrames",
-        "RxFCSErrors",
-        "RxAlignErrors",
-        "RxSymbolErrors",
-        "RxDataErrors",
-        "RxSequenceErrors",
-        "RxRuntErrors",
-        "RxJabberErrors",
-        "RxInternalMACRcvError",
-        "RxInRangeLengthErrors",
-        "RxOutOfRangeLengthField",
-        "RxFrameTooLongErrors",
+	"RxOctetsOK",
+	"RxOctetsBad",
+	"RxUnicastFramesOK",
+	"RxMulticastFramesOK",
+	"RxBroadcastFramesOK",
+	"RxPauseFrames",
+	"RxFCSErrors",
+	"RxAlignErrors",
+	"RxSymbolErrors",
+	"RxDataErrors",
+	"RxSequenceErrors",
+	"RxRuntErrors",
+	"RxJabberErrors",
+	"RxInternalMACRcvError",
+	"RxInRangeLengthErrors",
+	"RxOutOfRangeLengthField",
+	"RxFrameTooLongErrors",
 
-	"TSO",
-	"VLANextractions",
-	"VLANinsertions",
+	/* Port stats */
+	"RxPackets",
 	"RxCsumGood",
+	"TxPackets",
 	"TxCsumOffload",
-	"RxDrops"
+	"TxTso",
+	"RxVlan",
+	"TxVlan",
 
+	/* Interrupt stats */
+	"rx drops",
+	"pure_rsps",
+	"unhandled irqs",
 	"respQ_empty",
 	"respQ_overflow",
 	"freelistQ_empty",
@@ -392,11 +410,7 @@ static char stats_strings[][ETH_GSTRING_LEN] = {
 	"pkt_mismatch",
 	"cmdQ_full0",
 	"cmdQ_full1",
-	"tx_ipfrags",
-	"tx_reg_pkts",
-	"tx_lso_pkts",
-	"tx_do_cksum",
-	
+
 	"espi_DIP2ParityErr",
 	"espi_DIP4Err",
 	"espi_RxDrops",
@@ -404,7 +418,7 @@ static char stats_strings[][ETH_GSTRING_LEN] = {
 	"espi_RxOvfl",
 	"espi_ParityErr"
 };
- 
+
 #define T2_REGMAP_SIZE (3 * 1024)
 
 static int get_regs_len(struct net_device *dev)
@@ -439,65 +453,77 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 	struct adapter *adapter = dev->priv;
 	struct cmac *mac = adapter->port[dev->if_port].mac;
 	const struct cmac_statistics *s;
-	const struct sge_port_stats *ss;
 	const struct sge_intr_counts *t;
+	struct sge_port_stats ss;
 
 	s = mac->ops->statistics_update(mac, MAC_STATS_UPDATE_FULL);
-	ss = t1_sge_get_port_stats(adapter->sge, dev->if_port);
+
+	*data++ = s->TxOctetsOK;
+	*data++ = s->TxOctetsBad;
+	*data++ = s->TxUnicastFramesOK;
+	*data++ = s->TxMulticastFramesOK;
+	*data++ = s->TxBroadcastFramesOK;
+	*data++ = s->TxPauseFrames;
+	*data++ = s->TxFramesWithDeferredXmissions;
+	*data++ = s->TxLateCollisions;
+	*data++ = s->TxTotalCollisions;
+	*data++ = s->TxFramesAbortedDueToXSCollisions;
+	*data++ = s->TxUnderrun;
+	*data++ = s->TxLengthErrors;
+	*data++ = s->TxInternalMACXmitError;
+	*data++ = s->TxFramesWithExcessiveDeferral;
+	*data++ = s->TxFCSErrors;
+
+	*data++ = s->RxOctetsOK;
+	*data++ = s->RxOctetsBad;
+	*data++ = s->RxUnicastFramesOK;
+	*data++ = s->RxMulticastFramesOK;
+	*data++ = s->RxBroadcastFramesOK;
+	*data++ = s->RxPauseFrames;
+	*data++ = s->RxFCSErrors;
+	*data++ = s->RxAlignErrors;
+	*data++ = s->RxSymbolErrors;
+	*data++ = s->RxDataErrors;
+	*data++ = s->RxSequenceErrors;
+	*data++ = s->RxRuntErrors;
+	*data++ = s->RxJabberErrors;
+	*data++ = s->RxInternalMACRcvError;
+	*data++ = s->RxInRangeLengthErrors;
+	*data++ = s->RxOutOfRangeLengthField;
+	*data++ = s->RxFrameTooLongErrors;
+
+	t1_sge_get_port_stats(adapter->sge, dev->if_port, &ss);
+	*data++ = ss.rx_packets;
+	*data++ = ss.rx_cso_good;
+	*data++ = ss.tx_packets;
+	*data++ = ss.tx_cso;
+	*data++ = ss.tx_tso;
+	*data++ = ss.vlan_xtract;
+	*data++ = ss.vlan_insert;
+
 	t = t1_sge_get_intr_counts(adapter->sge);
+	*data++ = t->rx_drops;
+	*data++ = t->pure_rsps;
+	*data++ = t->unhandled_irqs;
+	*data++ = t->respQ_empty;
+	*data++ = t->respQ_overflow;
+	*data++ = t->freelistQ_empty;
+	*data++ = t->pkt_too_big;
+	*data++ = t->pkt_mismatch;
+	*data++ = t->cmdQ_full[0];
+	*data++ = t->cmdQ_full[1];
 
-        *data++ = s->TxOctetsOK;
-        *data++ = s->TxOctetsBad;
-        *data++ = s->TxUnicastFramesOK;
-        *data++ = s->TxMulticastFramesOK;
-        *data++ = s->TxBroadcastFramesOK;
-        *data++ = s->TxPauseFrames;
-        *data++ = s->TxFramesWithDeferredXmissions;
-        *data++ = s->TxLateCollisions;
-        *data++ = s->TxTotalCollisions;
-        *data++ = s->TxFramesAbortedDueToXSCollisions;
-        *data++ = s->TxUnderrun;
-        *data++ = s->TxLengthErrors;
-        *data++ = s->TxInternalMACXmitError;
-        *data++ = s->TxFramesWithExcessiveDeferral;
-        *data++ = s->TxFCSErrors;
+	if (adapter->espi) {
+		const struct espi_intr_counts *e;
 
-        *data++ = s->RxOctetsOK;
-        *data++ = s->RxOctetsBad;
-        *data++ = s->RxUnicastFramesOK;
-        *data++ = s->RxMulticastFramesOK;
-        *data++ = s->RxBroadcastFramesOK;
-        *data++ = s->RxPauseFrames;
-        *data++ = s->RxFCSErrors;
-        *data++ = s->RxAlignErrors;
-        *data++ = s->RxSymbolErrors;
-        *data++ = s->RxDataErrors;
-        *data++ = s->RxSequenceErrors;
-        *data++ = s->RxRuntErrors;
-        *data++ = s->RxJabberErrors;
-        *data++ = s->RxInternalMACRcvError;
-        *data++ = s->RxInRangeLengthErrors;
-        *data++ = s->RxOutOfRangeLengthField;
-        *data++ = s->RxFrameTooLongErrors;
-
-	*data++ = ss->tso;
-	*data++ = ss->vlan_xtract;
-	*data++ = ss->vlan_insert;
-	*data++ = ss->rx_cso_good;
-	*data++ = ss->tx_cso;
-	*data++ = ss->rx_drops;
-
-	*data++ = (u64)t->respQ_empty;
-	*data++ = (u64)t->respQ_overflow;
-	*data++ = (u64)t->freelistQ_empty;
-	*data++ = (u64)t->pkt_too_big;
-	*data++ = (u64)t->pkt_mismatch;
-	*data++ = (u64)t->cmdQ_full[0];
-	*data++ = (u64)t->cmdQ_full[1];
-	*data++ = (u64)t->tx_ipfrags;
-	*data++ = (u64)t->tx_reg_pkts;
-	*data++ = (u64)t->tx_lso_pkts;
-	*data++ = (u64)t->tx_do_cksum;
+		e = t1_espi_get_intr_counts(adapter->espi);
+		*data++ = e->DIP2_parity_err;
+		*data++ = e->DIP4_err;
+		*data++ = e->rx_drops;
+		*data++ = e->tx_drops;
+		*data++ = e->rx_ovflw;
+		*data++ = e->parity_err;
+	}
 }
 
 static inline void reg_block_dump(struct adapter *ap, void *buf,
@@ -521,6 +547,15 @@ static void get_regs(struct net_device *dev, struct ethtool_regs *regs,
 
 	memset(buf, 0, T2_REGMAP_SIZE);
 	reg_block_dump(ap, buf, 0, A_SG_RESPACCUTIMER);
+	reg_block_dump(ap, buf, A_MC3_CFG, A_MC4_INT_CAUSE);
+	reg_block_dump(ap, buf, A_TPI_ADDR, A_TPI_PAR);
+	reg_block_dump(ap, buf, A_TP_IN_CONFIG, A_TP_TX_DROP_COUNT);
+	reg_block_dump(ap, buf, A_RAT_ROUTE_CONTROL, A_RAT_INTR_CAUSE);
+	reg_block_dump(ap, buf, A_CSPI_RX_AE_WM, A_CSPI_INTR_ENABLE);
+	reg_block_dump(ap, buf, A_ESPI_SCH_TOKEN0, A_ESPI_GOSTAT);
+	reg_block_dump(ap, buf, A_ULP_ULIMIT, A_ULP_PIO_CTRL);
+	reg_block_dump(ap, buf, A_PL_ENABLE, A_PL_CAUSE);
+	reg_block_dump(ap, buf, A_MC5_CONFIG, A_MC5_MASK_WRITE_CMD);
 }
 
 static int get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -539,12 +574,12 @@ static int get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		cmd->duplex = -1;
 	}
 
-        cmd->port = (cmd->supported & SUPPORTED_TP) ? PORT_TP : PORT_FIBRE;
-        cmd->phy_address = p->phy->addr;
-        cmd->transceiver = XCVR_EXTERNAL;
-        cmd->autoneg = p->link_config.autoneg;
-        cmd->maxtxpkt = 0;
-        cmd->maxrxpkt = 0;
+	cmd->port = (cmd->supported & SUPPORTED_TP) ? PORT_TP : PORT_FIBRE;
+	cmd->phy_address = p->phy->addr;
+	cmd->transceiver = XCVR_EXTERNAL;
+	cmd->autoneg = p->link_config.autoneg;
+	cmd->maxtxpkt = 0;
+	cmd->maxrxpkt = 0;
 	return 0;
 }
 
@@ -715,7 +750,7 @@ static int set_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
 		return -EINVAL;
 
 	if (adapter->flags & FULL_INIT_DONE)
-        return -EBUSY;
+	return -EBUSY;
 
 	adapter->params.sge.freelQ_size[!jumbo_fl] = e->rx_pending;
 	adapter->params.sge.freelQ_size[jumbo_fl] = e->rx_jumbo_pending;
@@ -759,7 +794,9 @@ static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 
 static int get_eeprom_len(struct net_device *dev)
 {
-    return EEPROM_SIZE;
+ 	struct adapter *adapter = dev->priv;
+
+ 	return t1_is_asic(adapter) ? EEPROM_SIZE : 0;
 }
 
 #define EEPROM_MAGIC(ap) \
@@ -809,47 +846,36 @@ static const struct ethtool_ops t1_ethtool_ops = {
 	.set_tso           = set_tso,
 };
 
-static void cxgb_proc_cleanup(struct adapter *adapter,
-					struct proc_dir_entry *dir)
-{
-	const char *name;
-	name = adapter->name;
-	remove_proc_entry(name, dir);
-}
-//#define chtoe_setup_toedev(adapter) NULL
-#define update_mtu_tab(adapter)
-#define write_smt_entry(adapter, idx)
-
 static int t1_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 {
-        struct adapter *adapter = dev->priv;
-        struct mii_ioctl_data *data = if_mii(req);
+	struct adapter *adapter = dev->priv;
+	struct mii_ioctl_data *data = if_mii(req);
 
 	switch (cmd) {
-        case SIOCGMIIPHY:
-                data->phy_id = adapter->port[dev->if_port].phy->addr;
-                /* FALLTHRU */
-        case SIOCGMIIREG: {
+	case SIOCGMIIPHY:
+		data->phy_id = adapter->port[dev->if_port].phy->addr;
+		/* FALLTHRU */
+	case SIOCGMIIREG: {
 		struct cphy *phy = adapter->port[dev->if_port].phy;
 		u32 val;
 
 		if (!phy->mdio_read)
-            return -EOPNOTSUPP;
+	    return -EOPNOTSUPP;
 		phy->mdio_read(adapter, data->phy_id, 0, data->reg_num & 0x1f,
 			       &val);
-                data->val_out = val;
-                break;
+		data->val_out = val;
+		break;
 	}
-        case SIOCSMIIREG: {
+	case SIOCSMIIREG: {
 		struct cphy *phy = adapter->port[dev->if_port].phy;
 
-                if (!capable(CAP_NET_ADMIN))
-                    return -EPERM;
+		if (!capable(CAP_NET_ADMIN))
+		    return -EPERM;
 		if (!phy->mdio_write)
-            return -EOPNOTSUPP;
+	    return -EOPNOTSUPP;
 		phy->mdio_write(adapter, data->phy_id, 0, data->reg_num & 0x1f,
 			        data->val_in);
-                break;
+		break;
 	}
 
 	default:
@@ -865,9 +891,9 @@ static int t1_change_mtu(struct net_device *dev, int new_mtu)
 	struct cmac *mac = adapter->port[dev->if_port].mac;
 
 	if (!mac->ops->set_mtu)
-        return -EOPNOTSUPP;
+	return -EOPNOTSUPP;
 	if (new_mtu < 68)
-        return -EINVAL;
+	return -EINVAL;
 	if ((ret = mac->ops->set_mtu(mac, new_mtu)))
 		return ret;
 	dev->mtu = new_mtu;
@@ -918,7 +944,7 @@ static void t1_netpoll(struct net_device *dev)
 	struct adapter *adapter = dev->priv;
 
 	local_irq_save(flags);
-        t1_select_intr_handler(adapter)(adapter->pdev->irq, adapter);
+	t1_select_intr_handler(adapter)(adapter->pdev->irq, adapter);
 	local_irq_restore(flags);
 }
 #endif
@@ -927,10 +953,11 @@ static void t1_netpoll(struct net_device *dev)
  * Periodic accumulation of MAC statistics.  This is used only if the MAC
  * does not have any other way to prevent stats counter overflow.
  */
-static void mac_stats_task(void *data)
+static void mac_stats_task(struct work_struct *work)
 {
 	int i;
-	struct adapter *adapter = data;
+	struct adapter *adapter =
+		container_of(work, struct adapter, stats_update_task.work);
 
 	for_each_port(adapter, i) {
 		struct port_info *p = &adapter->port[i];
@@ -951,18 +978,19 @@ static void mac_stats_task(void *data)
 /*
  * Processes elmer0 external interrupts in process context.
  */
-static void ext_intr_task(void *data)
+static void ext_intr_task(struct work_struct *work)
 {
-	struct adapter *adapter = data;
+	struct adapter *adapter =
+		container_of(work, struct adapter, ext_intr_handler_task);
 
-	elmer0_ext_intr_handler(adapter);
+	t1_elmer0_ext_intr_handler(adapter);
 
 	/* Now reenable external interrupts */
 	spin_lock_irq(&adapter->async_lock);
 	adapter->slow_intr_mask |= F_PL_INTR_EXT;
 	writel(F_PL_INTR_EXT, adapter->regs + A_PL_CAUSE);
 	writel(adapter->slow_intr_mask | F_PL_INTR_SGE_DATA,
-                   adapter->regs + A_PL_ENABLE);
+		   adapter->regs + A_PL_ENABLE);
 	spin_unlock_irq(&adapter->async_lock);
 }
 
@@ -978,7 +1006,7 @@ void t1_elmer0_ext_intr(struct adapter *adapter)
 	 */
 	adapter->slow_intr_mask &= ~F_PL_INTR_EXT;
 	writel(adapter->slow_intr_mask | F_PL_INTR_SGE_DATA,
-                   adapter->regs + A_PL_ENABLE);
+		   adapter->regs + A_PL_ENABLE);
 	schedule_work(&adapter->ext_intr_handler_task);
 }
 
@@ -1011,7 +1039,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err)
-        return err;
+		return err;
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
 		CH_ERR("%s: cannot find PCI device memory base address\n",
@@ -1043,7 +1071,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-    mmio_start = pci_resource_start(pdev, 0);
+	mmio_start = pci_resource_start(pdev, 0);
 	mmio_len = pci_resource_len(pdev, 0);
 	bi = t1_get_board_info(ent->driver_data);
 
@@ -1081,21 +1109,15 @@ static int __devinit init_one(struct pci_dev *pdev,
 			adapter->msg_enable = dflt_msg_enable;
 			adapter->mmio_len = mmio_len;
 
-			init_MUTEX(&adapter->mib_mutex);
 			spin_lock_init(&adapter->tpi_lock);
 			spin_lock_init(&adapter->work_lock);
 			spin_lock_init(&adapter->async_lock);
+			spin_lock_init(&adapter->mac_lock);
 
 			INIT_WORK(&adapter->ext_intr_handler_task,
-				  ext_intr_task, adapter);
-			INIT_WORK(&adapter->stats_update_task, mac_stats_task,
-				  adapter);
-#ifdef work_struct
-			init_timer(&adapter->stats_update_timer);
-			adapter->stats_update_timer.function = mac_stats_timer;
-			adapter->stats_update_timer.data =
-				(unsigned long)adapter;
-#endif
+				  ext_intr_task);
+			INIT_DELAYED_WORK(&adapter->stats_update_task,
+					  mac_stats_task);
 
 			pci_set_drvdata(pdev, netdev);
 		}
@@ -1122,16 +1144,19 @@ static int __devinit init_one(struct pci_dev *pdev,
 			netdev->vlan_rx_register = vlan_rx_register;
 			netdev->vlan_rx_kill_vid = vlan_rx_kill_vid;
 #endif
-			adapter->flags |= TSO_CAPABLE;
-			netdev->features |= NETIF_F_TSO;
+
+			/* T204: disable TSO */
+			if (!(is_T2(adapter)) || bi->port_number != 4) {
+				adapter->flags |= TSO_CAPABLE;
+				netdev->features |= NETIF_F_TSO;
+			}
 		}
 
 		netdev->open = cxgb_open;
 		netdev->stop = cxgb_close;
 		netdev->hard_start_xmit = t1_start_xmit;
 		netdev->hard_header_len += (adapter->flags & TSO_CAPABLE) ?
-			sizeof(struct cpl_tx_pkt_lso) :
-			sizeof(struct cpl_tx_pkt);
+			sizeof(struct cpl_tx_pkt_lso) : sizeof(struct cpl_tx_pkt);
 		netdev->get_stats = t1_get_stats;
 		netdev->set_multicast_list = t1_set_rxmode;
 		netdev->do_ioctl = t1_ioctl;
@@ -1142,7 +1167,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 #endif
 		netdev->weight = 64;
 
-        SET_ETHTOOL_OPS(netdev, &t1_ethtool_ops);
+		SET_ETHTOOL_OPS(netdev, &t1_ethtool_ops);
 	}
 
 	if (t1_init_sw_modules(adapter, bi) < 0) {
@@ -1169,7 +1194,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 			if (!adapter->registered_device_map)
 				adapter->name = adapter->port[i].dev->name;
 
-                __set_bit(i, &adapter->registered_device_map);
+			__set_bit(i, &adapter->registered_device_map);
 		}
 	}
 	if (!adapter->registered_device_map) {
@@ -1182,24 +1207,183 @@ static int __devinit init_one(struct pci_dev *pdev,
 	       bi->desc, adapter->params.chip_revision,
 	       adapter->params.pci.is_pcix ? "PCIX" : "PCI",
 	       adapter->params.pci.speed, adapter->params.pci.width);
+
+	/*
+	 * Set the T1B ASIC and memory clocks.
+	 */
+	if (t1powersave)
+		adapter->t1powersave = LCLOCK;	/* HW default is powersave mode. */
+	else
+		adapter->t1powersave = HCLOCK;
+	if (t1_is_T1B(adapter))
+		t1_clock(adapter, t1powersave);
+
 	return 0;
 
  out_release_adapter_res:
 	t1_free_sw_modules(adapter);
  out_free_dev:
 	if (adapter) {
-		if (adapter->regs) iounmap(adapter->regs);
+		if (adapter->regs)
+			iounmap(adapter->regs);
 		for (i = bi->port_number - 1; i >= 0; --i)
-			if (adapter->port[i].dev) {
-				cxgb_proc_cleanup(adapter, proc_root_driver);
-				kfree(adapter->port[i].dev);
-			}
+			if (adapter->port[i].dev)
+				free_netdev(adapter->port[i].dev);
 	}
 	pci_release_regions(pdev);
  out_disable_pdev:
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 	return err;
+}
+
+static void bit_bang(struct adapter *adapter, int bitdata, int nbits)
+{
+	int data;
+	int i;
+	u32 val;
+
+	enum {
+		S_CLOCK = 1 << 3,
+		S_DATA = 1 << 4
+	};
+
+	for (i = (nbits - 1); i > -1; i--) {
+
+		udelay(50);
+
+		data = ((bitdata >> i) & 0x1);
+		__t1_tpi_read(adapter, A_ELMER0_GPO, &val);
+
+		if (data)
+			val |= S_DATA;
+		else
+			val &= ~S_DATA;
+
+		udelay(50);
+
+		/* Set SCLOCK low */
+		val &= ~S_CLOCK;
+		__t1_tpi_write(adapter, A_ELMER0_GPO, val);
+
+		udelay(50);
+
+		/* Write SCLOCK high */
+		val |= S_CLOCK;
+		__t1_tpi_write(adapter, A_ELMER0_GPO, val);
+
+	}
+}
+
+static int t1_clock(struct adapter *adapter, int mode)
+{
+	u32 val;
+	int M_CORE_VAL;
+	int M_MEM_VAL;
+
+	enum {
+		M_CORE_BITS = 9,
+		T_CORE_VAL = 0,
+		T_CORE_BITS = 2,
+		N_CORE_VAL = 0,
+		N_CORE_BITS = 2,
+		M_MEM_BITS = 9,
+		T_MEM_VAL = 0,
+		T_MEM_BITS = 2,
+		N_MEM_VAL = 0,
+		N_MEM_BITS = 2,
+		NP_LOAD = 1 << 17,
+		S_LOAD_MEM = 1 << 5,
+		S_LOAD_CORE = 1 << 6,
+		S_CLOCK = 1 << 3
+	};
+
+	if (!t1_is_T1B(adapter))
+		return -ENODEV;	/* Can't re-clock this chip. */
+
+	if (mode & 2) {
+		return 0;	/* show current mode. */
+	}
+
+	if ((adapter->t1powersave & 1) == (mode & 1))
+		return -EALREADY;	/* ASIC already running in mode. */
+
+	if ((mode & 1) == HCLOCK) {
+		M_CORE_VAL = 0x14;
+		M_MEM_VAL = 0x18;
+		adapter->t1powersave = HCLOCK;	/* overclock */
+	} else {
+		M_CORE_VAL = 0xe;
+		M_MEM_VAL = 0x10;
+		adapter->t1powersave = LCLOCK;	/* underclock */
+	}
+
+	/* Don't interrupt this serial stream! */
+	spin_lock(&adapter->tpi_lock);
+
+	/* Initialize for ASIC core */
+	__t1_tpi_read(adapter, A_ELMER0_GPO, &val);
+	val |= NP_LOAD;
+	udelay(50);
+	__t1_tpi_write(adapter, A_ELMER0_GPO, val);
+	udelay(50);
+	__t1_tpi_read(adapter, A_ELMER0_GPO, &val);
+	val &= ~S_LOAD_CORE;
+	val &= ~S_CLOCK;
+	__t1_tpi_write(adapter, A_ELMER0_GPO, val);
+	udelay(50);
+
+	/* Serial program the ASIC clock synthesizer */
+	bit_bang(adapter, T_CORE_VAL, T_CORE_BITS);
+	bit_bang(adapter, N_CORE_VAL, N_CORE_BITS);
+	bit_bang(adapter, M_CORE_VAL, M_CORE_BITS);
+	udelay(50);
+
+	/* Finish ASIC core */
+	__t1_tpi_read(adapter, A_ELMER0_GPO, &val);
+	val |= S_LOAD_CORE;
+	udelay(50);
+	__t1_tpi_write(adapter, A_ELMER0_GPO, val);
+	udelay(50);
+	__t1_tpi_read(adapter, A_ELMER0_GPO, &val);
+	val &= ~S_LOAD_CORE;
+	udelay(50);
+	__t1_tpi_write(adapter, A_ELMER0_GPO, val);
+	udelay(50);
+
+	/* Initialize for memory */
+	__t1_tpi_read(adapter, A_ELMER0_GPO, &val);
+	val |= NP_LOAD;
+	udelay(50);
+	__t1_tpi_write(adapter, A_ELMER0_GPO, val);
+	udelay(50);
+	__t1_tpi_read(adapter, A_ELMER0_GPO, &val);
+	val &= ~S_LOAD_MEM;
+	val &= ~S_CLOCK;
+	udelay(50);
+	__t1_tpi_write(adapter, A_ELMER0_GPO, val);
+	udelay(50);
+
+	/* Serial program the memory clock synthesizer */
+	bit_bang(adapter, T_MEM_VAL, T_MEM_BITS);
+	bit_bang(adapter, N_MEM_VAL, N_MEM_BITS);
+	bit_bang(adapter, M_MEM_VAL, M_MEM_BITS);
+	udelay(50);
+
+	/* Finish memory */
+	__t1_tpi_read(adapter, A_ELMER0_GPO, &val);
+	val |= S_LOAD_MEM;
+	udelay(50);
+	__t1_tpi_write(adapter, A_ELMER0_GPO, val);
+	udelay(50);
+	__t1_tpi_read(adapter, A_ELMER0_GPO, &val);
+	val &= ~S_LOAD_MEM;
+	udelay(50);
+	__t1_tpi_write(adapter, A_ELMER0_GPO, val);
+
+	spin_unlock(&adapter->tpi_lock);
+
+	return 0;
 }
 
 static inline void t1_sw_reset(struct pci_dev *pdev)
@@ -1223,10 +1407,9 @@ static void __devexit remove_one(struct pci_dev *pdev)
 		t1_free_sw_modules(adapter);
 		iounmap(adapter->regs);
 		while (--i >= 0)
-			if (adapter->port[i].dev) {
-				cxgb_proc_cleanup(adapter, proc_root_driver);
-				kfree(adapter->port[i].dev);
-			}
+			if (adapter->port[i].dev)
+				free_netdev(adapter->port[i].dev);
+
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
 		pci_set_drvdata(pdev, NULL);

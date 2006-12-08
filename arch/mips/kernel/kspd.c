@@ -319,7 +319,7 @@ static void sp_cleanup(void)
 static int channel_open = 0;
 
 /* the work handler */
-static void sp_work(void *data)
+static void sp_work(struct work_struct *unused)
 {
 	if (!channel_open) {
 		if( rtlx_open(RTLX_CHANNEL_SYSIO, 1) != 0) {
@@ -354,7 +354,7 @@ static void startwork(int vpe)
 			return;
 		}
 
-		INIT_WORK(&work, sp_work, NULL);
+		INIT_WORK(&work, sp_work);
 		queue_work(workqueue, &work);
 	} else
 		queue_work(workqueue, &work);

@@ -35,7 +35,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_mpiix"
-#define DRV_VERSION "0.7.2"
+#define DRV_VERSION "0.7.3"
 
 enum {
 	IDETIM = 0x6C,		/* IDE control register */
@@ -159,14 +159,16 @@ static struct scsi_host_template mpiix_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+	.resume			= ata_scsi_device_resume,
+	.suspend		= ata_scsi_device_suspend,
 };
 
 static struct ata_port_operations mpiix_port_ops = {
@@ -284,7 +286,9 @@ static struct pci_driver mpiix_pci_driver = {
 	.name 		= DRV_NAME,
 	.id_table	= mpiix,
 	.probe 		= mpiix_init_one,
-	.remove		= mpiix_remove_one
+	.remove		= mpiix_remove_one,
+	.suspend	= ata_pci_device_suspend,
+	.resume		= ata_pci_device_resume,
 };
 
 static int __init mpiix_init(void)

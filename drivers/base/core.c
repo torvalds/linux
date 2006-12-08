@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/kdev_t.h>
+#include <linux/notifier.h>
 
 #include <asm/semaphore.h>
 
@@ -153,20 +154,24 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj, char **envp,
 			       "MINOR=%u", MINOR(dev->devt));
 	}
 
+#ifdef CONFIG_SYSFS_DEPRECATED
 	/* add bus name (same as SUBSYSTEM, deprecated) */
 	if (dev->bus)
 		add_uevent_var(envp, num_envp, &i,
 			       buffer, buffer_size, &length,
 			       "PHYSDEVBUS=%s", dev->bus->name);
+#endif
 
 	/* add driver name (PHYSDEV* values are deprecated)*/
 	if (dev->driver) {
 		add_uevent_var(envp, num_envp, &i,
 			       buffer, buffer_size, &length,
 			       "DRIVER=%s", dev->driver->name);
+#ifdef CONFIG_SYSFS_DEPRECATED
 		add_uevent_var(envp, num_envp, &i,
 			       buffer, buffer_size, &length,
 			       "PHYSDEVDRIVER=%s", dev->driver->name);
+#endif
 	}
 
 	/* terminate, set to next free slot, shrink available space */
@@ -381,7 +386,54 @@ void device_initialize(struct device *dev)
 	INIT_LIST_HEAD(&dev->node);
 	init_MUTEX(&dev->sem);
 	device_init_wakeup(dev, 0);
+	set_dev_node(dev, -1);
 }
+
+#ifdef CONFIG_SYSFS_DEPRECATED
+static int setup_parent(struct device *dev, struct device *parent)
+{
+	/* Set the parent to the class, not the parent device */
+	/* this keeps sysfs from having a symlink to make old udevs happy */
+	if (dev->class)
+		dev->kobj.parent = &dev->class->subsys.kset.kobj;
+	else if (parent)
+		dev->kobj.parent = &parent->kobj;
+
+	return 0;
+}
+#else
+static int virtual_device_parent(struct device *dev)
+{
+	if (!dev->class)
+		return -ENODEV;
+
+	if (!dev->class->virtual_dir) {
+		static struct kobject *virtual_dir = NULL;
+
+		if (!virtual_dir)
+			virtual_dir = kobject_add_dir(&devices_subsys.kset.kobj, "virtual");
+		dev->class->virtual_dir = kobject_add_dir(virtual_dir, dev->class->name);
+	}
+
+	dev->kobj.parent = dev->class->virtual_dir;
+	return 0;
+}
+
+static int setup_parent(struct device *dev, struct device *parent)
+{
+	int error;
+
+	/* if this is a class device, and has no parent, create one */
+	if ((dev->class) && (parent == NULL)) {
+		error = virtual_device_parent(dev);
+		if (error)
+			return error;
+	} else if (parent)
+		dev->kobj.parent = &parent->kobj;
+
+	return 0;
+}
+#endif
 
 /**
  *	device_add - add device to device hierarchy.
@@ -405,28 +457,28 @@ int device_add(struct device *dev)
 	if (!dev || !strlen(dev->bus_id))
 		goto Error;
 
-	/* if this is a class device, and has no parent, create one */
-	if ((dev->class) && (dev->parent == NULL)) {
-		error = virtual_device_parent(dev);
-		if (error)
-			goto Error;
-	}
+	pr_debug("DEV: registering device: ID = '%s'\n", dev->bus_id);
 
 	parent = get_device(dev->parent);
 
-	pr_debug("DEV: registering device: ID = '%s'\n", dev->bus_id);
+	error = setup_parent(dev, parent);
+	if (error)
+		goto Error;
 
 	/* first, register with generic layer. */
 	kobject_set_name(&dev->kobj, "%s", dev->bus_id);
-	if (parent)
-		dev->kobj.parent = &parent->kobj;
-
-	if ((error = kobject_add(&dev->kobj)))
+	error = kobject_add(&dev->kobj);
+	if (error)
 		goto Error;
 
 	/* notify platform of device entry */
 	if (platform_notify)
 		platform_notify(dev);
+
+	/* notify clients of device entry (new way) */
+	if (dev->bus)
+		blocking_notifier_call_chain(&dev->bus->bus_notifier,
+					     BUS_NOTIFY_ADD_DEVICE, dev);
 
 	dev->uevent_attr.attr.name = "uevent";
 	dev->uevent_attr.attr.mode = S_IWUSR;
@@ -461,13 +513,18 @@ int device_add(struct device *dev)
 	if (dev->class) {
 		sysfs_create_link(&dev->kobj, &dev->class->subsys.kset.kobj,
 				  "subsystem");
-		sysfs_create_link(&dev->class->subsys.kset.kobj, &dev->kobj,
-				  dev->bus_id);
+		/* If this is not a "fake" compatible device, then create the
+		 * symlink from the class to the device. */
+		if (dev->kobj.parent != &dev->class->subsys.kset.kobj)
+			sysfs_create_link(&dev->class->subsys.kset.kobj,
+					  &dev->kobj, dev->bus_id);
+#ifdef CONFIG_SYSFS_DEPRECATED
 		if (parent) {
 			sysfs_create_link(&dev->kobj, &dev->parent->kobj, "device");
 			class_name = make_class_name(dev->class->name, &dev->kobj);
 			sysfs_create_link(&dev->parent->kobj, &dev->kobj, class_name);
 		}
+#endif
 	}
 
 	if ((error = device_add_attrs(dev)))
@@ -504,6 +561,9 @@ int device_add(struct device *dev)
  BusError:
 	device_pm_remove(dev);
  PMError:
+	if (dev->bus)
+		blocking_notifier_call_chain(&dev->bus->bus_notifier,
+					     BUS_NOTIFY_DEL_DEVICE, dev);
 	device_remove_groups(dev);
  GroupError:
  	device_remove_attrs(dev);
@@ -586,22 +646,31 @@ void put_device(struct device * dev)
 void device_del(struct device * dev)
 {
 	struct device * parent = dev->parent;
-	char *class_name = NULL;
 	struct class_interface *class_intf;
 
 	if (parent)
 		klist_del(&dev->knode_parent);
-	if (dev->devt_attr)
+	if (dev->devt_attr) {
 		device_remove_file(dev, dev->devt_attr);
+		kfree(dev->devt_attr);
+	}
 	if (dev->class) {
 		sysfs_remove_link(&dev->kobj, "subsystem");
-		sysfs_remove_link(&dev->class->subsys.kset.kobj, dev->bus_id);
-		class_name = make_class_name(dev->class->name, &dev->kobj);
+		/* If this is not a "fake" compatible device, remove the
+		 * symlink from the class to the device. */
+		if (dev->kobj.parent != &dev->class->subsys.kset.kobj)
+			sysfs_remove_link(&dev->class->subsys.kset.kobj,
+					  dev->bus_id);
+#ifdef CONFIG_SYSFS_DEPRECATED
 		if (parent) {
-			sysfs_remove_link(&dev->kobj, "device");
+			char *class_name = make_class_name(dev->class->name,
+							   &dev->kobj);
 			sysfs_remove_link(&dev->parent->kobj, class_name);
+			kfree(class_name);
+			sysfs_remove_link(&dev->kobj, "device");
 		}
-		kfree(class_name);
+#endif
+
 		down(&dev->class->sem);
 		/* notify any interfaces that the device is now gone */
 		list_for_each_entry(class_intf, &dev->class->interfaces, node)
@@ -614,13 +683,16 @@ void device_del(struct device * dev)
 	device_remove_file(dev, &dev->uevent_attr);
 	device_remove_groups(dev);
 	device_remove_attrs(dev);
+	bus_remove_device(dev);
 
 	/* Notify the platform of the removal, in case they
 	 * need to do anything...
 	 */
 	if (platform_notify_remove)
 		platform_notify_remove(dev);
-	bus_remove_device(dev);
+	if (dev->bus)
+		blocking_notifier_call_chain(&dev->bus->bus_notifier,
+					     BUS_NOTIFY_DEL_DEVICE, dev);
 	device_pm_remove(dev);
 	kobject_uevent(&dev->kobj, KOBJ_REMOVE);
 	kobject_del(&dev->kobj);
@@ -679,12 +751,45 @@ int device_for_each_child(struct device * parent, void * data,
 	return error;
 }
 
+/**
+ * device_find_child - device iterator for locating a particular device.
+ * @parent: parent struct device
+ * @data: Data to pass to match function
+ * @match: Callback function to check device
+ *
+ * This is similar to the device_for_each_child() function above, but it
+ * returns a reference to a device that is 'found' for later use, as
+ * determined by the @match callback.
+ *
+ * The callback should return 0 if the device doesn't match and non-zero
+ * if it does.  If the callback returns non-zero and a reference to the
+ * current device can be obtained, this function will return to the caller
+ * and not iterate over any more devices.
+ */
+struct device * device_find_child(struct device *parent, void *data,
+				  int (*match)(struct device *, void *))
+{
+	struct klist_iter i;
+	struct device *child;
+
+	if (!parent)
+		return NULL;
+
+	klist_iter_init(&parent->klist_children, &i);
+	while ((child = next_device(&i)))
+		if (match(child, data) && get_device(child))
+			break;
+	klist_iter_exit(&i);
+	return child;
+}
+
 int __init devices_init(void)
 {
 	return subsystem_register(&devices_subsys);
 }
 
 EXPORT_SYMBOL_GPL(device_for_each_child);
+EXPORT_SYMBOL_GPL(device_find_child);
 
 EXPORT_SYMBOL_GPL(device_initialize);
 EXPORT_SYMBOL_GPL(device_add);
@@ -807,8 +912,10 @@ int device_rename(struct device *dev, char *new_name)
 
 	pr_debug("DEVICE: renaming '%s' to '%s'\n", dev->bus_id, new_name);
 
+#ifdef CONFIG_SYSFS_DEPRECATED
 	if ((dev->class) && (dev->parent))
 		old_class_name = make_class_name(dev->class->name, &dev->kobj);
+#endif
 
 	if (dev->class) {
 		old_symlink_name = kmalloc(BUS_ID_SIZE, GFP_KERNEL);
@@ -823,6 +930,7 @@ int device_rename(struct device *dev, char *new_name)
 
 	error = kobject_rename(&dev->kobj, new_name);
 
+#ifdef CONFIG_SYSFS_DEPRECATED
 	if (old_class_name) {
 		new_class_name = make_class_name(dev->class->name, &dev->kobj);
 		if (new_class_name) {
@@ -831,6 +939,8 @@ int device_rename(struct device *dev, char *new_name)
 			sysfs_remove_link(&dev->parent->kobj, old_class_name);
 		}
 	}
+#endif
+
 	if (dev->class) {
 		sysfs_remove_link(&dev->class->subsys.kset.kobj,
 				  old_symlink_name);
@@ -846,3 +956,95 @@ int device_rename(struct device *dev, char *new_name)
 
 	return error;
 }
+
+
+static int device_move_class_links(struct device *dev,
+				   struct device *old_parent,
+				   struct device *new_parent)
+{
+#ifdef CONFIG_SYSFS_DEPRECATED
+	int error;
+	char *class_name;
+
+	class_name = make_class_name(dev->class->name, &dev->kobj);
+	if (!class_name) {
+		error = PTR_ERR(class_name);
+		class_name = NULL;
+		goto out;
+	}
+	if (old_parent) {
+		sysfs_remove_link(&dev->kobj, "device");
+		sysfs_remove_link(&old_parent->kobj, class_name);
+	}
+	error = sysfs_create_link(&dev->kobj, &new_parent->kobj, "device");
+	if (error)
+		goto out;
+	error = sysfs_create_link(&new_parent->kobj, &dev->kobj, class_name);
+	if (error)
+		sysfs_remove_link(&dev->kobj, "device");
+out:
+	kfree(class_name);
+	return error;
+#else
+	return 0;
+#endif
+}
+
+/**
+ * device_move - moves a device to a new parent
+ * @dev: the pointer to the struct device to be moved
+ * @new_parent: the new parent of the device
+ */
+int device_move(struct device *dev, struct device *new_parent)
+{
+	int error;
+	struct device *old_parent;
+
+	dev = get_device(dev);
+	if (!dev)
+		return -EINVAL;
+
+	if (!device_is_registered(dev)) {
+		error = -EINVAL;
+		goto out;
+	}
+	new_parent = get_device(new_parent);
+	if (!new_parent) {
+		error = -EINVAL;
+		goto out;
+	}
+	pr_debug("DEVICE: moving '%s' to '%s'\n", dev->bus_id,
+		new_parent->bus_id);
+	error = kobject_move(&dev->kobj, &new_parent->kobj);
+	if (error) {
+		put_device(new_parent);
+		goto out;
+	}
+	old_parent = dev->parent;
+	dev->parent = new_parent;
+	if (old_parent)
+		klist_remove(&dev->knode_parent);
+	klist_add_tail(&dev->knode_parent, &new_parent->klist_children);
+	if (!dev->class)
+		goto out_put;
+	error = device_move_class_links(dev, old_parent, new_parent);
+	if (error) {
+		/* We ignore errors on cleanup since we're hosed anyway... */
+		device_move_class_links(dev, new_parent, old_parent);
+		if (!kobject_move(&dev->kobj, &old_parent->kobj)) {
+			klist_remove(&dev->knode_parent);
+			if (old_parent)
+				klist_add_tail(&dev->knode_parent,
+					       &old_parent->klist_children);
+		}
+		put_device(new_parent);
+		goto out;
+	}
+out_put:
+	put_device(old_parent);
+out:
+	put_device(dev);
+	return error;
+}
+
+EXPORT_SYMBOL_GPL(device_move);

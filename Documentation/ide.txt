@@ -390,5 +390,5 @@ mlord@pobox.com
 Wed Apr 17 22:52:44 CEST 2002 edited by Marcin Dalecki, the current
 maintainer.
 
-Wed Aug 20 22:31:29 CEST 2003 updated ide boot uptions to current ide.c
+Wed Aug 20 22:31:29 CEST 2003 updated ide boot options to current ide.c
 comments at 2.6.0-test4 time. Maciej Soltysiak <solt@dns.toxicfilms.tv>

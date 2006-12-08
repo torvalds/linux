@@ -82,11 +82,8 @@ int save_i387(struct _fpstate __user *buf)
 	struct task_struct *tsk = current;
 	int err = 0;
 
-	{ 
-		extern void bad_user_i387_struct(void); 
-		if (sizeof(struct user_i387_struct) != sizeof(tsk->thread.i387.fxsave))
-			bad_user_i387_struct();
-	} 
+	BUILD_BUG_ON(sizeof(struct user_i387_struct) !=
+			sizeof(tsk->thread.i387.fxsave));
 
 	if ((unsigned long)buf % 16) 
 		printk("save_i387: bad fpstate %p\n",buf); 

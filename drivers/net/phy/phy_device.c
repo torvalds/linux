@@ -59,6 +59,7 @@ struct phy_device* phy_device_create(struct mii_bus *bus, int addr, int phy_id)
 	dev->duplex = -1;
 	dev->pause = dev->asym_pause = 0;
 	dev->link = 1;
+	dev->interface = PHY_INTERFACE_MODE_GMII;
 
 	dev->autoneg = AUTONEG_ENABLE;
 
@@ -137,11 +138,12 @@ void phy_prepare_link(struct phy_device *phydev,
  *   the desired functionality.
  */
 struct phy_device * phy_connect(struct net_device *dev, const char *phy_id,
-		void (*handler)(struct net_device *), u32 flags)
+		void (*handler)(struct net_device *), u32 flags,
+		u32 interface)
 {
 	struct phy_device *phydev;
 
-	phydev = phy_attach(dev, phy_id, flags);
+	phydev = phy_attach(dev, phy_id, flags, interface);
 
 	if (IS_ERR(phydev))
 		return phydev;
@@ -186,7 +188,7 @@ static int phy_compare_id(struct device *dev, void *data)
 }
 
 struct phy_device *phy_attach(struct net_device *dev,
-		const char *phy_id, u32 flags)
+		const char *phy_id, u32 flags, u32 interface)
 {
 	struct bus_type *bus = &mdio_bus_type;
 	struct phy_device *phydev;
@@ -230,6 +232,20 @@ struct phy_device *phy_attach(struct net_device *dev,
 	phydev->attached_dev = dev;
 
 	phydev->dev_flags = flags;
+
+	phydev->interface = interface;
+
+	/* Do initial configuration here, now that
+	 * we have certain key parameters
+	 * (dev_flags and interface) */
+	if (phydev->drv->config_init) {
+		int err;
+
+		err = phydev->drv->config_init(phydev);
+
+		if (err < 0)
+			return ERR_PTR(err);
+	}
 
 	return phydev;
 }
@@ -427,6 +443,7 @@ int genphy_update_link(struct phy_device *phydev)
 
 	return 0;
 }
+EXPORT_SYMBOL(genphy_update_link);
 
 /* genphy_read_status
  *
@@ -611,13 +628,8 @@ static int phy_probe(struct device *dev)
 
 	spin_unlock(&phydev->lock);
 
-	if (err < 0)
-		return err;
-
-	if (phydev->drv->config_init)
-		err = phydev->drv->config_init(phydev);
-
 	return err;
+
 }
 
 static int phy_remove(struct device *dev)

@@ -62,24 +62,19 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	loff_t len, vma_len;
 	int ret;
 
-	if (vma->vm_pgoff & (HPAGE_SIZE / PAGE_SIZE - 1))
-		return -EINVAL;
-
-	if (vma->vm_start & ~HPAGE_MASK)
-		return -EINVAL;
-
-	if (vma->vm_end & ~HPAGE_MASK)
-		return -EINVAL;
-
-	if (vma->vm_end - vma->vm_start < HPAGE_SIZE)
-		return -EINVAL;
+	/*
+	 * vma alignment has already been checked by prepare_hugepage_range.
+	 * If you add any error returns here, do so after setting VM_HUGETLB,
+	 * so is_vm_hugetlb_page tests below unmap_region go the right way
+	 * when do_mmap_pgoff unwinds (may be important on powerpc and ia64).
+	 */
+	vma->vm_flags |= VM_HUGETLB | VM_RESERVED;
+	vma->vm_ops = &hugetlb_vm_ops;
 
 	vma_len = (loff_t)(vma->vm_end - vma->vm_start);
 
 	mutex_lock(&inode->i_mutex);
 	file_accessed(file);
-	vma->vm_flags |= VM_HUGETLB | VM_RESERVED;
-	vma->vm_ops = &hugetlb_vm_ops;
 
 	ret = -ENOMEM;
 	len = vma_len + ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
@@ -518,7 +513,7 @@ static void hugetlbfs_inc_free_inodes(struct hugetlbfs_sb_info *sbinfo)
 }
 
 
-static kmem_cache_t *hugetlbfs_inode_cachep;
+static struct kmem_cache *hugetlbfs_inode_cachep;
 
 static struct inode *hugetlbfs_alloc_inode(struct super_block *sb)
 {
@@ -527,7 +522,7 @@ static struct inode *hugetlbfs_alloc_inode(struct super_block *sb)
 
 	if (unlikely(!hugetlbfs_dec_free_inodes(sbinfo)))
 		return NULL;
-	p = kmem_cache_alloc(hugetlbfs_inode_cachep, SLAB_KERNEL);
+	p = kmem_cache_alloc(hugetlbfs_inode_cachep, GFP_KERNEL);
 	if (unlikely(!p)) {
 		hugetlbfs_inc_free_inodes(sbinfo);
 		return NULL;
@@ -550,7 +545,7 @@ static const struct address_space_operations hugetlbfs_aops = {
 };
 
 
-static void init_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
+static void init_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct hugetlbfs_inode_info *ei = (struct hugetlbfs_inode_info *)foo;
 

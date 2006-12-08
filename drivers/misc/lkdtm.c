@@ -157,8 +157,8 @@ void jp_ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
 
 struct scan_control;
 
-unsigned long jp_shrink_page_list(struct list_head *page_list,
-                                        struct scan_control *sc)
+unsigned long jp_shrink_inactive_list(unsigned long max_scan,
+				struct zone *zone, struct scan_control *sc)
 {
 	lkdtm_handler();
 	jprobe_return();
@@ -297,8 +297,8 @@ int lkdtm_module_init(void)
 		lkdtm.entry = (kprobe_opcode_t*) jp_ll_rw_block;
 		break;
 	case MEM_SWAPOUT:
-		lkdtm.kp.symbol_name = "shrink_page_list";
-		lkdtm.entry = (kprobe_opcode_t*) jp_shrink_page_list;
+		lkdtm.kp.symbol_name = "shrink_inactive_list";
+		lkdtm.entry = (kprobe_opcode_t*) jp_shrink_inactive_list;
 		break;
 	case TIMERADD:
 		lkdtm.kp.symbol_name = "hrtimer_start";

@@ -101,7 +101,7 @@ do {						\
 
 #ifdef CONFIG_VIRTUAL_MEM_MAP
 extern int ia64_pfn_valid (unsigned long pfn);
-#elif defined(CONFIG_FLATMEM)
+#else
 # define ia64_pfn_valid(pfn) 1
 #endif
 
@@ -110,12 +110,11 @@ extern struct page *vmem_map;
 #ifdef CONFIG_DISCONTIGMEM
 # define page_to_pfn(page)	((unsigned long) (page - vmem_map))
 # define pfn_to_page(pfn)	(vmem_map + (pfn))
+#else
+# include <asm-generic/memory_model.h>
 #endif
-#endif
-
-#if defined(CONFIG_FLATMEM) || defined(CONFIG_SPARSEMEM)
-/* FLATMEM always configures mem_map (mem_map = vmem_map if necessary) */
-#include <asm-generic/memory_model.h>
+#else
+# include <asm-generic/memory_model.h>
 #endif
 
 #ifdef CONFIG_FLATMEM

@@ -7,8 +7,14 @@
 #include <asm/processor.h>
 #include <linux/compiler.h>
 
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#else
 #define CLI_STRING	"cli"
 #define STI_STRING	"sti"
+#define CLI_STI_CLOBBERS
+#define CLI_STI_INPUT_ARGS
+#endif /* CONFIG_PARAVIRT */
 
 /*
  * Your basic SMP spinlocks, allowing only a single CPU anywhere
@@ -53,25 +59,28 @@ static inline void __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long fla
 {
 	asm volatile(
 		"\n1:\t"
-		LOCK_PREFIX " ; decb %0\n\t"
+		LOCK_PREFIX " ; decb %[slock]\n\t"
 		"jns 5f\n"
 		"2:\t"
-		"testl $0x200, %1\n\t"
+		"testl $0x200, %[flags]\n\t"
 		"jz 4f\n\t"
 		STI_STRING "\n"
 		"3:\t"
 		"rep;nop\n\t"
-		"cmpb $0, %0\n\t"
+		"cmpb $0, %[slock]\n\t"
 		"jle 3b\n\t"
 		CLI_STRING "\n\t"
 		"jmp 1b\n"
 		"4:\t"
 		"rep;nop\n\t"
-		"cmpb $0, %0\n\t"
+		"cmpb $0, %[slock]\n\t"
 		"jg 1b\n\t"
 		"jmp 4b\n"
 		"5:\n\t"
-		: "+m" (lock->slock) : "r" (flags) : "memory");
+		: [slock] "+m" (lock->slock)
+		: [flags] "r" (flags)
+	 	  CLI_STI_INPUT_ARGS
+		: "memory" CLI_STI_CLOBBERS);
 }
 #endif
 

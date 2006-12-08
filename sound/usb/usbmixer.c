@@ -1620,8 +1620,7 @@ static void snd_usb_mixer_free(struct usb_mixer_interface *mixer)
 		kfree(mixer->urb->transfer_buffer);
 		usb_free_urb(mixer->urb);
 	}
-	if (mixer->rc_urb)
-		usb_free_urb(mixer->rc_urb);
+	usb_free_urb(mixer->rc_urb);
 	kfree(mixer->rc_setup_packet);
 	kfree(mixer);
 }
@@ -2056,8 +2055,6 @@ void snd_usb_mixer_disconnect(struct list_head *p)
 	struct usb_mixer_interface *mixer;
 	
 	mixer = list_entry(p, struct usb_mixer_interface, list);
-	if (mixer->urb)
-		usb_kill_urb(mixer->urb);
-	if (mixer->rc_urb)
-		usb_kill_urb(mixer->rc_urb);
+	usb_kill_urb(mixer->urb);
+	usb_kill_urb(mixer->rc_urb);
 }

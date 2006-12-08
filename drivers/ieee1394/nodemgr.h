@@ -144,7 +144,12 @@ struct hpsb_protocol_driver {
 	struct device_driver driver;
 };
 
-int hpsb_register_protocol(struct hpsb_protocol_driver *driver);
+int __hpsb_register_protocol(struct hpsb_protocol_driver *, struct module *);
+static inline int hpsb_register_protocol(struct hpsb_protocol_driver *driver)
+{
+	return __hpsb_register_protocol(driver, THIS_MODULE);
+}
+
 void hpsb_unregister_protocol(struct hpsb_protocol_driver *driver);
 
 static inline int hpsb_node_entry_valid(struct node_entry *ne)

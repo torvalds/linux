@@ -107,7 +107,7 @@ int tipc_cfg_append_tlv(struct sk_buff *buf, int tlv_type,
 struct sk_buff *tipc_cfg_reply_unsigned_type(u16 tlv_type, u32 value)
 {
 	struct sk_buff *buf;
-	u32 value_net;
+	__be32 value_net;
 
 	buf = tipc_cfg_reply_alloc(TLV_SPACE(sizeof(value)));
 	if (buf) {
@@ -284,8 +284,7 @@ static struct sk_buff *cfg_set_own_addr(void)
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_NET_ADDR))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
-	addr = *(u32 *)TLV_DATA(req_tlv_area);
-	addr = ntohl(addr);
+	addr = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
 	if (addr == tipc_own_addr)
 		return tipc_cfg_reply_none();
 	if (!tipc_addr_node_valid(addr))
@@ -319,8 +318,7 @@ static struct sk_buff *cfg_set_remote_mng(void)
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
-	value = *(u32 *)TLV_DATA(req_tlv_area);
-	value = ntohl(value);
+	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
 	tipc_remote_management = (value != 0);
 	return tipc_cfg_reply_none();
 }
@@ -332,8 +330,7 @@ static struct sk_buff *cfg_set_max_publications(void)
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
-	value = *(u32 *)TLV_DATA(req_tlv_area);
-	value = ntohl(value);
+	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
 	if (value != delimit(value, 1, 65535))
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (max publications must be 1-65535)");
@@ -348,8 +345,7 @@ static struct sk_buff *cfg_set_max_subscriptions(void)
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
-	value = *(u32 *)TLV_DATA(req_tlv_area);
-	value = ntohl(value);
+	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
 	if (value != delimit(value, 1, 65535))
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (max subscriptions must be 1-65535");
@@ -363,8 +359,7 @@ static struct sk_buff *cfg_set_max_ports(void)
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-	value = *(u32 *)TLV_DATA(req_tlv_area);
-	value = ntohl(value);
+	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
 	if (value == tipc_max_ports)
 		return tipc_cfg_reply_none();
 	if (value != delimit(value, 127, 65535))
@@ -383,8 +378,7 @@ static struct sk_buff *cfg_set_max_zones(void)
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-	value = *(u32 *)TLV_DATA(req_tlv_area);
-	value = ntohl(value);
+	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
 	if (value == tipc_max_zones)
 		return tipc_cfg_reply_none();
 	if (value != delimit(value, 1, 255))
@@ -403,8 +397,7 @@ static struct sk_buff *cfg_set_max_clusters(void)
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-	value = *(u32 *)TLV_DATA(req_tlv_area);
-	value = ntohl(value);
+	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
 	if (value != delimit(value, 1, 1))
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (max clusters fixed at 1)");
@@ -417,8 +410,7 @@ static struct sk_buff *cfg_set_max_nodes(void)
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-	value = *(u32 *)TLV_DATA(req_tlv_area);
-	value = ntohl(value);
+	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
 	if (value == tipc_max_nodes)
 		return tipc_cfg_reply_none();
 	if (value != delimit(value, 8, 2047))
@@ -437,8 +429,7 @@ static struct sk_buff *cfg_set_max_slaves(void)
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-	value = *(u32 *)TLV_DATA(req_tlv_area);
-	value = ntohl(value);
+	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
 	if (value != 0)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 						   " (max secondary nodes fixed at 0)");
@@ -451,8 +442,7 @@ static struct sk_buff *cfg_set_netid(void)
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-	value = *(u32 *)TLV_DATA(req_tlv_area);
-	value = ntohl(value);
+	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
 	if (value == tipc_net_id)
 		return tipc_cfg_reply_none();
 	if (value != delimit(value, 1, 9999))

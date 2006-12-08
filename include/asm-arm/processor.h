@@ -20,7 +20,6 @@
 #ifdef __KERNEL__
 
 #include <asm/ptrace.h>
-#include <asm/procinfo.h>
 #include <asm/types.h>
 
 union debug_insn {

@@ -108,8 +108,8 @@ struct ieee80211softmac_assoc_info {
 	/* Scan retries remaining */
 	int scan_retry;
 
-	struct work_struct work;
-	struct work_struct timeout;
+	struct delayed_work work;
+	struct delayed_work timeout;
 };
 
 struct ieee80211softmac_bss_info {

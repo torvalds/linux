@@ -18,7 +18,6 @@
 #include <asm/delay.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
-#include <asm/checksum.h>
 
 extern int dump_fpu(struct pt_regs *, elf_fpregset_t *);
 extern struct hw_interrupt_type no_irq_type;
@@ -74,8 +73,6 @@ DECLARE_EXPORT(__lshrdi3);
 DECLARE_EXPORT(__movstr);
 DECLARE_EXPORT(__movstrSI16);
 
-EXPORT_SYMBOL(strcpy);
-
 #ifdef CONFIG_CPU_SH4
 DECLARE_EXPORT(__movstr_i4_even);
 DECLARE_EXPORT(__movstr_i4_odd);
@@ -100,10 +97,6 @@ EXPORT_SYMBOL(__down_trylock);
 
 #ifdef CONFIG_SMP
 EXPORT_SYMBOL(synchronize_irq);
-#endif
-
-#ifdef CONFIG_PM
-EXPORT_SYMBOL(pm_suspend);
 #endif
 
 EXPORT_SYMBOL(csum_partial);

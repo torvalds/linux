@@ -31,12 +31,11 @@ int ezusb_writememory (struct usb_serial *serial, int address, unsigned char *da
 		return -ENODEV;
 	}
 
-	transfer_buffer =  kmalloc (length, GFP_KERNEL);
+	transfer_buffer = kmemdup(data, length, GFP_KERNEL);
 	if (!transfer_buffer) {
 		dev_err(&serial->dev->dev, "%s - kmalloc(%d) failed.\n", __FUNCTION__, length);
 		return -ENOMEM;
 	}
-	memcpy (transfer_buffer, data, length);
 	result = usb_control_msg (serial->dev, usb_sndctrlpipe(serial->dev, 0), bRequest, 0x40, address, 0, transfer_buffer, length, 3000);
 	kfree (transfer_buffer);
 	return result;

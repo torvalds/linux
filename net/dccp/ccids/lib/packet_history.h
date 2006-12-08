@@ -68,14 +68,14 @@ struct dccp_rx_hist_entry {
 };
 
 struct dccp_tx_hist {
-	kmem_cache_t *dccptxh_slab;
+	struct kmem_cache *dccptxh_slab;
 };
 
 extern struct dccp_tx_hist *dccp_tx_hist_new(const char *name);
 extern void dccp_tx_hist_delete(struct dccp_tx_hist *hist);
 
 struct dccp_rx_hist {
-	kmem_cache_t *dccprxh_slab;
+	struct kmem_cache *dccprxh_slab;
 };
 
 extern struct dccp_rx_hist *dccp_rx_hist_new(const char *name);

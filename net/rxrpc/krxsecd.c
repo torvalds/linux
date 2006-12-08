@@ -27,6 +27,7 @@
 #include <rxrpc/call.h>
 #include <linux/udp.h>
 #include <linux/ip.h>
+#include <linux/freezer.h>
 #include <net/sock.h>
 #include "internal.h"
 

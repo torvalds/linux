@@ -30,8 +30,10 @@ extern const char linux_banner[];
 
 #define STACK_MAGIC	0xdeadbeef
 
+#define ALIGN(x,a)		__ALIGN_MASK(x,(typeof(x))(a)-1)
+#define __ALIGN_MASK(x,mask)	(((x)+(mask))&~(mask))
+
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#define ALIGN(x,a) (((x)+(a)-1UL)&~((a)-1UL))
 #define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
 #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
 #define roundup(x, y) ((((x) + ((y) - 1)) / (y)) * (y))
@@ -63,7 +65,7 @@ struct user;
  * context (spinlock, irq-handler, ...).
  *
  * This is a useful debugging help to be able to catch problems early and not
- * be biten later when the calling function happens to sleep when it is not
+ * be bitten later when the calling function happens to sleep when it is not
  * supposed to.
  */
 #ifdef CONFIG_PREEMPT_VOLUNTARY

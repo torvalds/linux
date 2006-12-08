@@ -69,7 +69,7 @@
 #define __ALIGNED__	__attribute__((__aligned__(sizeof(long))))
 
 struct hvsi_struct {
-	struct work_struct writer;
+	struct delayed_work writer;
 	struct work_struct handshaker;
 	wait_queue_head_t emptyq; /* woken when outbuf is emptied */
 	wait_queue_head_t stateq; /* woken when HVSI state changes */
@@ -744,9 +744,10 @@ static int hvsi_handshake(struct hvsi_struct *hp)
 	return 0;
 }
 
-static void hvsi_handshaker(void *arg)
+static void hvsi_handshaker(struct work_struct *work)
 {
-	struct hvsi_struct *hp = (struct hvsi_struct *)arg;
+	struct hvsi_struct *hp =
+		container_of(work, struct hvsi_struct, handshaker);
 
 	if (hvsi_handshake(hp) >= 0)
 		return;
@@ -951,9 +952,10 @@ static void hvsi_push(struct hvsi_struct *hp)
 }
 
 /* hvsi_write_worker will keep rescheduling itself until outbuf is empty */
-static void hvsi_write_worker(void *arg)
+static void hvsi_write_worker(struct work_struct *work)
 {
-	struct hvsi_struct *hp = (struct hvsi_struct *)arg;
+	struct hvsi_struct *hp =
+		container_of(work, struct hvsi_struct, writer.work);
 	unsigned long flags;
 #ifdef DEBUG
 	static long start_j = 0;
@@ -1287,8 +1289,8 @@ static int __init hvsi_console_init(void)
 		}
 
 		hp = &hvsi_ports[hvsi_count];
-		INIT_WORK(&hp->writer, hvsi_write_worker, hp);
-		INIT_WORK(&hp->handshaker, hvsi_handshaker, hp);
+		INIT_DELAYED_WORK(&hp->writer, hvsi_write_worker);
+		INIT_WORK(&hp->handshaker, hvsi_handshaker);
 		init_waitqueue_head(&hp->emptyq);
 		init_waitqueue_head(&hp->stateq);
 		spin_lock_init(&hp->lock);

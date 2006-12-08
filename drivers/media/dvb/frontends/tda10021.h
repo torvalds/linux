@@ -32,7 +32,7 @@ struct tda10021_config
 	u8 demod_address;
 };
 
-#if defined(CONFIG_DVB_TDA10021) || defined(CONFIG_DVB_TDA10021_MODULE)
+#if defined(CONFIG_DVB_TDA10021) || (defined(CONFIG_DVB_TDA10021_MODULE) && defined(MODULE))
 extern struct dvb_frontend* tda10021_attach(const struct tda10021_config* config,
 					    struct i2c_adapter* i2c, u8 pwm);
 #else

@@ -62,9 +62,6 @@ consider the following facts about the Linux kernel:
       - different structures can contain different fields
       - Some functions may not be implemented at all, (i.e. some locks
 	compile away to nothing for non-SMP builds.)
-      - Parameter passing of variables from function to function can be
-	done in different ways (the CONFIG_REGPARM option controls
-	this.)
       - Memory within the kernel can be aligned in different ways,
 	depending on the build options.
   - Linux runs on a wide range of different processor architectures.

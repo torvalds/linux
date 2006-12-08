@@ -20,6 +20,7 @@
 #include <linux/pm.h>
 #include <linux/console.h>
 #include <linux/cpu.h>
+#include <linux/freezer.h>
 
 #include "power.h"
 
@@ -27,6 +28,23 @@
 static int noresume = 0;
 char resume_file[256] = CONFIG_PM_STD_PARTITION;
 dev_t swsusp_resume_device;
+sector_t swsusp_resume_block;
+
+/**
+ *	platform_prepare - prepare the machine for hibernation using the
+ *	platform driver if so configured and return an error code if it fails
+ */
+
+static inline int platform_prepare(void)
+{
+	int error = 0;
+
+	if (pm_disk_mode == PM_DISK_PLATFORM) {
+		if (pm_ops && pm_ops->prepare)
+			error = pm_ops->prepare(PM_SUSPEND_DISK);
+	}
+	return error;
+}
 
 /**
  *	power_down - Shut machine down for hibernate.
@@ -40,12 +58,10 @@ dev_t swsusp_resume_device;
 
 static void power_down(suspend_disk_method_t mode)
 {
-	int error = 0;
-
 	switch(mode) {
 	case PM_DISK_PLATFORM:
 		kernel_shutdown_prepare(SYSTEM_SUSPEND_DISK);
-		error = pm_ops->enter(PM_SUSPEND_DISK);
+		pm_ops->enter(PM_SUSPEND_DISK);
 		break;
 	case PM_DISK_SHUTDOWN:
 		kernel_power_off();
@@ -90,12 +106,18 @@ static int prepare_processes(void)
 		goto thaw;
 	}
 
+	error = platform_prepare();
+	if (error)
+		goto thaw;
+
 	/* Free memory before shutting down devices. */
 	if (!(error = swsusp_shrink_memory()))
 		return 0;
-thaw:
+
+	platform_finish();
+ thaw:
 	thaw_processes();
-enable_cpus:
+ enable_cpus:
 	enable_nonboot_cpus();
 	pm_restore_console();
 	return error;
@@ -127,7 +149,7 @@ int pm_suspend_disk(void)
 		return error;
 
 	if (pm_disk_mode == PM_DISK_TESTPROC)
-		goto Thaw;
+		return 0;
 
 	suspend_console();
 	error = device_suspend(PMSG_FREEZE);
@@ -189,10 +211,10 @@ static int software_resume(void)
 {
 	int error;
 
-	down(&pm_sem);
+	mutex_lock(&pm_mutex);
 	if (!swsusp_resume_device) {
 		if (!strlen(resume_file)) {
-			up(&pm_sem);
+			mutex_unlock(&pm_mutex);
 			return -ENOENT;
 		}
 		swsusp_resume_device = name_to_dev_t(resume_file);
@@ -207,7 +229,7 @@ static int software_resume(void)
 		 * FIXME: If noresume is specified, we need to find the partition
 		 * and reset it back to normal swap space.
 		 */
-		up(&pm_sem);
+		mutex_unlock(&pm_mutex);
 		return 0;
 	}
 
@@ -251,7 +273,7 @@ static int software_resume(void)
 	unprepare_processes();
  Done:
 	/* For success case, the suspend path will release the lock */
-	up(&pm_sem);
+	mutex_unlock(&pm_mutex);
 	pr_debug("PM: Resume from disk failed.\n");
 	return 0;
 }
@@ -312,7 +334,7 @@ static ssize_t disk_store(struct subsystem * s, const char * buf, size_t n)
 	p = memchr(buf, '\n', n);
 	len = p ? p - buf : n;
 
-	down(&pm_sem);
+	mutex_lock(&pm_mutex);
 	for (i = PM_DISK_FIRMWARE; i < PM_DISK_MAX; i++) {
 		if (!strncmp(buf, pm_disk_modes[i], len)) {
 			mode = i;
@@ -336,7 +358,7 @@ static ssize_t disk_store(struct subsystem * s, const char * buf, size_t n)
 
 	pr_debug("PM: suspend-to-disk mode set to '%s'\n",
 		 pm_disk_modes[mode]);
-	up(&pm_sem);
+	mutex_unlock(&pm_mutex);
 	return error ? error : n;
 }
 
@@ -361,14 +383,14 @@ static ssize_t resume_store(struct subsystem *subsys, const char *buf, size_t n)
 	if (maj != MAJOR(res) || min != MINOR(res))
 		goto out;
 
-	down(&pm_sem);
+	mutex_lock(&pm_mutex);
 	swsusp_resume_device = res;
-	up(&pm_sem);
+	mutex_unlock(&pm_mutex);
 	printk("Attempting manual resume\n");
 	noresume = 0;
 	software_resume();
 	ret = n;
-out:
+ out:
 	return ret;
 }
 
@@ -423,6 +445,19 @@ static int __init resume_setup(char *str)
 	return 1;
 }
 
+static int __init resume_offset_setup(char *str)
+{
+	unsigned long long offset;
+
+	if (noresume)
+		return 1;
+
+	if (sscanf(str, "%llu", &offset) == 1)
+		swsusp_resume_block = offset;
+
+	return 1;
+}
+
 static int __init noresume_setup(char *str)
 {
 	noresume = 1;
@@ -430,4 +465,5 @@ static int __init noresume_setup(char *str)
 }
 
 __setup("noresume", noresume_setup);
+__setup("resume_offset=", resume_offset_setup);
 __setup("resume=", resume_setup);

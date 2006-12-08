@@ -616,7 +616,7 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 	} else if ((bcs->skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN)) != NULL)
 		skb_reserve(bcs->skb, HW_HDR_LEN);
 	else {
-		gig_dbg(DEBUG_INIT, "could not allocate skb\n");
+		warn("could not allocate skb\n");
 		bcs->inputstate |= INS_skip_frame;
 	}
 
@@ -702,7 +702,7 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	cs->open_count = 0;
 	cs->dev = NULL;
 	cs->tty = NULL;
-	cs->class = NULL;
+	cs->tty_dev = NULL;
 	cs->cidmode = cidmode != 0;
 
 	//if(onechannel) { //FIXME

@@ -34,6 +34,7 @@
 #include <linux/pci.h>
 #include <linux/msi.h>
 #include <linux/htirq.h>
+#include <linux/freezer.h>
 
 #include <asm/io.h>
 #include <asm/smp.h>
@@ -153,14 +154,20 @@ static struct IO_APIC_route_entry ioapic_read_entry(int apic, int pin)
  * the interrupt, and we need to make sure the entry is fully populated
  * before that happens.
  */
+static void
+__ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
+{
+	union entry_union eu;
+	eu.entry = e;
+	io_apic_write(apic, 0x11 + 2*pin, eu.w2);
+	io_apic_write(apic, 0x10 + 2*pin, eu.w1);
+}
+
 static void ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
 {
 	unsigned long flags;
-	union entry_union eu;
-	eu.entry = e;
 	spin_lock_irqsave(&ioapic_lock, flags);
-	io_apic_write(apic, 0x11 + 2*pin, eu.w2);
-	io_apic_write(apic, 0x10 + 2*pin, eu.w1);
+	__ioapic_write_entry(apic, pin, e);
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 }
 
@@ -836,8 +843,7 @@ static int __init find_isa_irq_pin(int irq, int type)
 
 		if ((mp_bus_id_to_type[lbus] == MP_BUS_ISA ||
 		     mp_bus_id_to_type[lbus] == MP_BUS_EISA ||
-		     mp_bus_id_to_type[lbus] == MP_BUS_MCA ||
-		     mp_bus_id_to_type[lbus] == MP_BUS_NEC98
+		     mp_bus_id_to_type[lbus] == MP_BUS_MCA
 		    ) &&
 		    (mp_irqs[i].mpc_irqtype == type) &&
 		    (mp_irqs[i].mpc_srcbusirq == irq))
@@ -856,8 +862,7 @@ static int __init find_isa_irq_apic(int irq, int type)
 
 		if ((mp_bus_id_to_type[lbus] == MP_BUS_ISA ||
 		     mp_bus_id_to_type[lbus] == MP_BUS_EISA ||
-		     mp_bus_id_to_type[lbus] == MP_BUS_MCA ||
-		     mp_bus_id_to_type[lbus] == MP_BUS_NEC98
+		     mp_bus_id_to_type[lbus] == MP_BUS_MCA
 		    ) &&
 		    (mp_irqs[i].mpc_irqtype == type) &&
 		    (mp_irqs[i].mpc_srcbusirq == irq))
@@ -987,12 +992,6 @@ static int EISA_ELCR(unsigned int irq)
 #define default_MCA_trigger(idx)	(1)
 #define default_MCA_polarity(idx)	(0)
 
-/* NEC98 interrupts are always polarity zero edge triggered,
- * when listed as conforming in the MP table. */
-
-#define default_NEC98_trigger(idx)     (0)
-#define default_NEC98_polarity(idx)    (0)
-
 static int __init MPBIOS_polarity(int idx)
 {
 	int bus = mp_irqs[idx].mpc_srcbus;
@@ -1025,11 +1024,6 @@ static int __init MPBIOS_polarity(int idx)
 				case MP_BUS_MCA: /* MCA pin */
 				{
 					polarity = default_MCA_polarity(idx);
-					break;
-				}
-				case MP_BUS_NEC98: /* NEC 98 pin */
-				{
-					polarity = default_NEC98_polarity(idx);
 					break;
 				}
 				default:
@@ -1101,11 +1095,6 @@ static int MPBIOS_trigger(int idx)
 					trigger = default_MCA_trigger(idx);
 					break;
 				}
-				case MP_BUS_NEC98: /* NEC 98 pin */
-				{
-					trigger = default_NEC98_trigger(idx);
-					break;
-				}
 				default:
 				{
 					printk(KERN_WARNING "broken BIOS!!\n");
@@ -1167,7 +1156,6 @@ static int pin_2_irq(int idx, int apic, int pin)
 		case MP_BUS_ISA: /* ISA pin */
 		case MP_BUS_EISA:
 		case MP_BUS_MCA:
-		case MP_BUS_NEC98:
 		{
 			irq = mp_irqs[idx].mpc_srcbusirq;
 			break;
@@ -1235,7 +1223,7 @@ static inline int IO_APIC_irq_trigger(int irq)
 }
 
 /* irq_vectors is indexed by the sum of all RTEs in all I/O APICs. */
-u8 irq_vector[NR_IRQ_VECTORS] __read_mostly = { FIRST_DEVICE_VECTOR , 0 };
+static u8 irq_vector[NR_IRQ_VECTORS] __read_mostly = { FIRST_DEVICE_VECTOR , 0 };
 
 static int __assign_irq_vector(int irq)
 {
@@ -1287,9 +1275,11 @@ static void ioapic_register_intr(int irq, int vector, unsigned long trigger)
 			trigger == IOAPIC_LEVEL)
 		set_irq_chip_and_handler_name(irq, &ioapic_chip,
 					 handle_fasteoi_irq, "fasteoi");
-	else
+	else {
+		irq_desc[irq].status |= IRQ_DELAYED_DISABLE;
 		set_irq_chip_and_handler_name(irq, &ioapic_chip,
 					 handle_edge_irq, "edge");
+	}
 	set_intr_gate(vector, interrupt[irq]);
 }
 
@@ -1358,8 +1348,8 @@ static void __init setup_IO_APIC_irqs(void)
 			if (!apic && (irq < 16))
 				disable_8259A_irq(irq);
 		}
-		ioapic_write_entry(apic, pin, entry);
 		spin_lock_irqsave(&ioapic_lock, flags);
+		__ioapic_write_entry(apic, pin, entry);
 		set_native_irq_info(irq, TARGET_CPUS);
 		spin_unlock_irqrestore(&ioapic_lock, flags);
 	}
@@ -1924,6 +1914,15 @@ static void __init setup_ioapic_ids_from_mpc(void)
 static void __init setup_ioapic_ids_from_mpc(void) { }
 #endif
 
+static int no_timer_check __initdata;
+
+static int __init notimercheck(char *s)
+{
+	no_timer_check = 1;
+	return 1;
+}
+__setup("no_timer_check", notimercheck);
+
 /*
  * There is a nasty bug in some older SMP boards, their mptable lies
  * about the timer IRQ. We do the following to work around the situation:
@@ -1932,9 +1931,12 @@ static void __init setup_ioapic_ids_from_mpc(void) { }
  *	- if this function detects that timer IRQs are defunct, then we fall
  *	  back to ISA timer IRQs
  */
-static int __init timer_irq_works(void)
+int __init timer_irq_works(void)
 {
 	unsigned long t1 = jiffies;
+
+	if (no_timer_check)
+		return 1;
 
 	local_irq_enable();
 	/* Let ten ticks pass... */
@@ -2159,9 +2161,15 @@ static inline void unlock_ExtINT_logic(void)
 	unsigned char save_control, save_freq_select;
 
 	pin  = find_isa_irq_pin(8, mp_INT);
-	apic = find_isa_irq_apic(8, mp_INT);
-	if (pin == -1)
+	if (pin == -1) {
+		WARN_ON_ONCE(1);
 		return;
+	}
+	apic = find_isa_irq_apic(8, mp_INT);
+	if (apic == -1) {
+		WARN_ON_ONCE(1);
+		return;
+	}
 
 	entry0 = ioapic_read_entry(apic, pin);
 	clear_IO_APIC_pin(apic, pin);
@@ -2206,7 +2214,7 @@ int timer_uses_ioapic_pin_0;
  * is so screwy.  Thanks to Brian Perkins for testing/hacking this beast
  * fanatically on his truly buggy board.
  */
-static inline void check_timer(void)
+static inline void __init check_timer(void)
 {
 	int apic1, pin1, apic2, pin2;
 	int vector;
@@ -2624,18 +2632,16 @@ void arch_teardown_msi_irq(unsigned int irq)
 
 static void target_ht_irq(unsigned int irq, unsigned int dest)
 {
-	u32 low, high;
-	low  = read_ht_irq_low(irq);
-	high = read_ht_irq_high(irq);
+	struct ht_irq_msg msg;
+	fetch_ht_irq_msg(irq, &msg);
 
-	low  &= ~(HT_IRQ_LOW_DEST_ID_MASK);
-	high &= ~(HT_IRQ_HIGH_DEST_ID_MASK);
+	msg.address_lo &= ~(HT_IRQ_LOW_DEST_ID_MASK);
+	msg.address_hi &= ~(HT_IRQ_HIGH_DEST_ID_MASK);
 
-	low  |= HT_IRQ_LOW_DEST_ID(dest);
-	high |= HT_IRQ_HIGH_DEST_ID(dest);
+	msg.address_lo |= HT_IRQ_LOW_DEST_ID(dest);
+	msg.address_hi |= HT_IRQ_HIGH_DEST_ID(dest);
 
-	write_ht_irq_low(irq, low);
-	write_ht_irq_high(irq, high);
+	write_ht_irq_msg(irq, &msg);
 }
 
 static void set_ht_irq_affinity(unsigned int irq, cpumask_t mask)
@@ -2673,7 +2679,7 @@ int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 
 	vector = assign_irq_vector(irq);
 	if (vector >= 0) {
-		u32 low, high;
+		struct ht_irq_msg msg;
 		unsigned dest;
 		cpumask_t tmp;
 
@@ -2681,9 +2687,10 @@ int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 		cpu_set(vector >> 8, tmp);
 		dest = cpu_mask_to_apicid(tmp);
 
-		high = 	HT_IRQ_HIGH_DEST_ID(dest);
+		msg.address_hi = HT_IRQ_HIGH_DEST_ID(dest);
 
-		low =	HT_IRQ_LOW_BASE |
+		msg.address_lo =
+			HT_IRQ_LOW_BASE |
 			HT_IRQ_LOW_DEST_ID(dest) |
 			HT_IRQ_LOW_VECTOR(vector) |
 			((INT_DEST_MODE == 0) ?
@@ -2695,8 +2702,7 @@ int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 				HT_IRQ_LOW_MT_ARBITRATED) |
 			HT_IRQ_LOW_IRQ_MASKED;
 
-		write_ht_irq_low(irq, low);
-		write_ht_irq_high(irq, high);
+		write_ht_irq_msg(irq, &msg);
 
 		set_irq_chip_and_handler_name(irq, &ht_irq_chip,
 					      handle_edge_irq, "edge");
@@ -2856,8 +2862,8 @@ int io_apic_set_pci_routing (int ioapic, int pin, int irq, int edge_level, int a
 	if (!ioapic && (irq < 16))
 		disable_8259A_irq(irq);
 
-	ioapic_write_entry(ioapic, pin, entry);
 	spin_lock_irqsave(&ioapic_lock, flags);
+	__ioapic_write_entry(ioapic, pin, entry);
 	set_native_irq_info(irq, TARGET_CPUS);
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 

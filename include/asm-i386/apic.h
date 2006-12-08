@@ -37,18 +37,27 @@ extern void generic_apic_probe(void);
 /*
  * Basic functions accessing APICs.
  */
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#else
+#define apic_write native_apic_write
+#define apic_write_atomic native_apic_write_atomic
+#define apic_read native_apic_read
+#endif
 
-static __inline void apic_write(unsigned long reg, unsigned long v)
+static __inline fastcall void native_apic_write(unsigned long reg,
+						unsigned long v)
 {
 	*((volatile unsigned long *)(APIC_BASE+reg)) = v;
 }
 
-static __inline void apic_write_atomic(unsigned long reg, unsigned long v)
+static __inline fastcall void native_apic_write_atomic(unsigned long reg,
+						       unsigned long v)
 {
 	xchg((volatile unsigned long *)(APIC_BASE+reg), v);
 }
 
-static __inline unsigned long apic_read(unsigned long reg)
+static __inline fastcall unsigned long native_apic_read(unsigned long reg)
 {
 	return *((volatile unsigned long *)(APIC_BASE+reg));
 }

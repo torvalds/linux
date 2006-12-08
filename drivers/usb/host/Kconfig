@@ -153,7 +153,7 @@ config USB_U132_HCD
 	  adapter will *NOT* work with PC cards that do not contain an OHCI
 	  controller.
 
-	  For those PC cards that contain multiple OHCI controllers only ther
+	  For those PC cards that contain multiple OHCI controllers only the
 	  first one is used.
 
 	  The driver consists of two modules, the "ftdi-elan" module is a

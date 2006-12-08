@@ -70,7 +70,6 @@ extern void momenco_ocelot_restart(char *command);
 extern void momenco_ocelot_halt(void);
 extern void momenco_ocelot_power_off(void);
 
-extern void gt64120_time_init(void);
 extern void momenco_ocelot_irq_setup(void);
 
 static char reset_reason;
@@ -155,8 +154,6 @@ void __init plat_mem_setup(void)
 {
 	void (*l3func)(unsigned long)=KSEG1ADDR(&setup_l3cache);
 	unsigned int tmpword;
-
-	board_time_init = gt64120_time_init;
 
 	_machine_restart = momenco_ocelot_restart;
 	_machine_halt = momenco_ocelot_halt;

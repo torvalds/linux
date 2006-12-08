@@ -21,14 +21,15 @@ static DEFINE_SPINLOCK(cpcmd_lock);
 static char cpcmd_buf[241];
 
 /*
- * the caller of __cpcmd has to ensure that the response buffer is below 2 GB
+ * __cpcmd has some restrictions over cpcmd
+ *  - the response buffer must reside below 2GB (if any)
+ *  - __cpcmd is unlocked and therefore not SMP-safe
  */
 int  __cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 {
-	unsigned long flags, cmdlen;
+	unsigned cmdlen;
 	int return_code, return_len;
 
-	spin_lock_irqsave(&cpcmd_lock, flags);
 	cmdlen = strlen(cmd);
 	BUG_ON(cmdlen > 240);
 	memcpy(cpcmd_buf, cmd, cmdlen);
@@ -74,7 +75,6 @@ int  __cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 			: "+d" (reg3) : "d" (reg2) : "cc");
 		return_code = (int) reg3;
         }
-	spin_unlock_irqrestore(&cpcmd_lock, flags);
 	if (response_code != NULL)
 		*response_code = return_code;
 	return return_len;
@@ -82,15 +82,18 @@ int  __cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 
 EXPORT_SYMBOL(__cpcmd);
 
-#ifdef CONFIG_64BIT
 int cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 {
 	char *lowbuf;
 	int len;
+	unsigned long flags;
 
 	if ((rlen == 0) || (response == NULL)
-	    || !((unsigned long)response >> 31))
+	    || !((unsigned long)response >> 31)) {
+		spin_lock_irqsave(&cpcmd_lock, flags);
 		len = __cpcmd(cmd, response, rlen, response_code);
+		spin_unlock_irqrestore(&cpcmd_lock, flags);
+	}
 	else {
 		lowbuf = kmalloc(rlen, GFP_KERNEL | GFP_DMA);
 		if (!lowbuf) {
@@ -98,7 +101,9 @@ int cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 				"cpcmd: could not allocate response buffer\n");
 			return -ENOMEM;
 		}
+		spin_lock_irqsave(&cpcmd_lock, flags);
 		len = __cpcmd(cmd, lowbuf, rlen, response_code);
+		spin_unlock_irqrestore(&cpcmd_lock, flags);
 		memcpy(response, lowbuf, rlen);
 		kfree(lowbuf);
 	}
@@ -106,4 +111,3 @@ int cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 }
 
 EXPORT_SYMBOL(cpcmd);
-#endif		/* CONFIG_64BIT */

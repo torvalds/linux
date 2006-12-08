@@ -126,7 +126,7 @@ dma_pool_create (const char *name, struct device *dev,
 	} else if (allocation < size)
 		return NULL;
 
-	if (!(retval = kmalloc (sizeof *retval, SLAB_KERNEL)))
+	if (!(retval = kmalloc (sizeof *retval, GFP_KERNEL)))
 		return retval;
 
 	strlcpy (retval->name, name, sizeof retval->name);
@@ -297,7 +297,7 @@ restart:
 			}
 		}
 	}
-	if (!(page = pool_alloc_page (pool, SLAB_ATOMIC))) {
+	if (!(page = pool_alloc_page (pool, GFP_ATOMIC))) {
 		if (mem_flags & __GFP_WAIT) {
 			DECLARE_WAITQUEUE (wait, current);
 

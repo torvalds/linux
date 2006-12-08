@@ -481,7 +481,7 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
 	mutex_lock(&kprobe_mutex);
-	free_insn_slot(p->ainsn.insn);
+	free_insn_slot(p->ainsn.insn, 0);
 	mutex_unlock(&kprobe_mutex);
 }
 /*
@@ -851,7 +851,7 @@ static void ia64_get_bsp_cfm(struct unw_frame_info *info, void *arg)
 			return;
 		}
 	} while (unw_unwind(info) >= 0);
-	lp->bsp = 0;
+	lp->bsp = NULL;
 	lp->cfm = 0;
 	return;
 }

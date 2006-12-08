@@ -64,14 +64,14 @@ static irqreturn_t gt64120_irq(int irq, void *dev_id)
  * as *irq (=irq0 in ../kernel/time.c).  We will do our own timer interrupt
  * handling.
  */
-void gt64120_time_init(void)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	static struct irqaction timer;
 
 	/* Disable timer first */
 	GT_WRITE(GT_TC_CONTROL_OFS, 0);
 	/* Load timer value for 100 Hz */
-	GT_WRITE(GT_TC3_OFS, Sys_clock / 100);
+	GT_WRITE(GT_TC3_OFS, Sys_clock / HZ);
 
 	/*
 	 * Create the IRQ structure entry for the timer.  Since we're too early

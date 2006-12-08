@@ -10,6 +10,7 @@ enum vsyscall_num {
 #define VSYSCALL_START (-10UL << 20)
 #define VSYSCALL_SIZE 1024
 #define VSYSCALL_END (-2UL << 20)
+#define VSYSCALL_MAPPED_PAGES 1
 #define VSYSCALL_ADDR(vsyscall_nr) (VSYSCALL_START+VSYSCALL_SIZE*(vsyscall_nr))
 
 #ifdef __KERNEL__
@@ -58,8 +59,6 @@ extern int sysctl_vsyscall;
 extern seqlock_t xtime_lock;
 
 extern int sysctl_vsyscall;
-
-extern void vsyscall_set_cpu(int cpu);
 
 #define ARCH_HAVE_XTIME_LOCK 1
 

@@ -68,7 +68,7 @@ static struct rpc_credops gss_credops;
 #define GSS_CRED_SLACK		1024		/* XXX: unused */
 /* length of a krb5 verifier (48), plus data added before arguments when
  * using integrity (two 4-byte integers): */
-#define GSS_VERF_SLACK		56
+#define GSS_VERF_SLACK		100
 
 /* XXX this define must match the gssd define
 * as it is passed to gssd to signal the use of
@@ -93,46 +93,6 @@ struct gss_auth {
 
 static void gss_destroy_ctx(struct gss_cl_ctx *);
 static struct rpc_pipe_ops gss_upcall_ops;
-
-void
-print_hexl(u32 *p, u_int length, u_int offset)
-{
-	u_int i, j, jm;
-	u8 c, *cp;
-	
-	dprintk("RPC: print_hexl: length %d\n",length);
-	dprintk("\n");
-	cp = (u8 *) p;
-	
-	for (i = 0; i < length; i += 0x10) {
-		dprintk("  %04x: ", (u_int)(i + offset));
-		jm = length - i;
-		jm = jm > 16 ? 16 : jm;
-		
-		for (j = 0; j < jm; j++) {
-			if ((j % 2) == 1)
-				dprintk("%02x ", (u_int)cp[i+j]);
-			else
-				dprintk("%02x", (u_int)cp[i+j]);
-		}
-		for (; j < 16; j++) {
-			if ((j % 2) == 1)
-				dprintk("   ");
-			else
-				dprintk("  ");
-		}
-		dprintk(" ");
-		
-		for (j = 0; j < jm; j++) {
-			c = cp[i+j];
-			c = isprint(c) ? c : '.';
-			dprintk("%c", c);
-		}
-		dprintk("\n");
-	}
-}
-
-EXPORT_SYMBOL(print_hexl);
 
 static inline struct gss_cl_ctx *
 gss_get_ctx(struct gss_cl_ctx *ctx)
@@ -198,11 +158,10 @@ simple_get_netobj(const void *p, const void *end, struct xdr_netobj *dest)
 	q = (const void *)((const char *)p + len);
 	if (unlikely(q > end || q < p))
 		return ERR_PTR(-EFAULT);
-	dest->data = kmalloc(len, GFP_KERNEL);
+	dest->data = kmemdup(p, len, GFP_KERNEL);
 	if (unlikely(dest->data == NULL))
 		return ERR_PTR(-ENOMEM);
 	dest->len = len;
-	memcpy(dest->data, p, len);
 	return q;
 }
 

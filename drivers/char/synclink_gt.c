@@ -83,8 +83,10 @@
 
 #include "linux/synclink.h"
 
-#ifdef CONFIG_HDLC_MODULE
-#define CONFIG_HDLC 1
+#if defined(CONFIG_HDLC) || (defined(CONFIG_HDLC_MODULE) && defined(CONFIG_SYNCLINK_GT_MODULE))
+#define SYNCLINK_GENERIC_HDLC 1
+#else
+#define SYNCLINK_GENERIC_HDLC 0
 #endif
 
 /*
@@ -171,7 +173,7 @@ static void set_break(struct tty_struct *tty, int break_state);
 /*
  * generic HDLC support and callbacks
  */
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 #define dev_to_port(D) (dev_to_hdlc(D)->priv)
 static void hdlcdev_tx_done(struct slgt_info *info);
 static void hdlcdev_rx(struct slgt_info *info, char *buf, int size);
@@ -359,7 +361,7 @@ struct slgt_info {
 	int netcount;
 	int dosyncppp;
 	spinlock_t netlock;
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 	struct net_device *netdev;
 #endif
 
@@ -485,7 +487,7 @@ static void enable_loopback(struct slgt_info *info);
 static void set_rate(struct slgt_info *info, u32 data_rate);
 
 static int  bh_action(struct slgt_info *info);
-static void bh_handler(void* context);
+static void bh_handler(struct work_struct *work);
 static void bh_transmit(struct slgt_info *info);
 static void isr_serial(struct slgt_info *info);
 static void isr_rdma(struct slgt_info *info);
@@ -1354,7 +1356,7 @@ static void set_break(struct tty_struct *tty, int break_state)
 	spin_unlock_irqrestore(&info->lock,flags);
 }
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 
 /**
  * called by generic HDLC layer when protocol selected (PPP, frame relay, etc.)
@@ -1878,9 +1880,9 @@ static int bh_action(struct slgt_info *info)
 /*
  * perform bottom half processing
  */
-static void bh_handler(void* context)
+static void bh_handler(struct work_struct *work)
 {
-	struct slgt_info *info = context;
+	struct slgt_info *info = container_of(work, struct slgt_info, task);
 	int action;
 
 	if (!info)
@@ -2002,7 +2004,7 @@ static void dcd_change(struct slgt_info *info)
 	} else {
 		info->input_signal_events.dcd_down++;
 	}
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 	if (info->netcount) {
 		if (info->signals & SerialSignal_DCD)
 			netif_carrier_on(info->netdev);
@@ -2180,7 +2182,7 @@ static void isr_txeom(struct slgt_info *info, unsigned short status)
 			set_signals(info);
 		}
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 		if (info->netcount)
 			hdlcdev_tx_done(info);
 		else
@@ -3306,7 +3308,7 @@ static void add_device(struct slgt_info *info)
 		devstr, info->device_name, info->phys_reg_addr,
 		info->irq_level, info->max_frame_size);
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 	hdlcdev_init(info);
 #endif
 }
@@ -3326,7 +3328,7 @@ static struct slgt_info *alloc_dev(int adapter_num, int port_num, struct pci_dev
 	} else {
 		memset(info, 0, sizeof(struct slgt_info));
 		info->magic = MGSL_MAGIC;
-		INIT_WORK(&info->task, bh_handler, info);
+		INIT_WORK(&info->task, bh_handler);
 		info->max_frame_size = 4096;
 		info->raw_rx_size = DMABUFSIZE;
 		info->close_delay = 5*HZ/10;
@@ -3488,7 +3490,7 @@ static void slgt_cleanup(void)
 	/* release devices */
 	info = slgt_device_list;
 	while(info) {
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 		hdlcdev_exit(info);
 #endif
 		free_dma_bufs(info);
@@ -3522,6 +3524,7 @@ static int __init slgt_init(void)
 
 	if (!slgt_device_list) {
 		printk("%s no devices found\n",driver_name);
+		pci_unregister_driver(&pci_driver);
 		return -ENODEV;
 	}
 
@@ -4433,7 +4436,7 @@ check_again:
 			framesize = 0;
 	}
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 	if (framesize == 0) {
 		struct net_device_stats *stats = hdlc_stats(info->netdev);
 		stats->rx_errors++;
@@ -4476,7 +4479,7 @@ check_again:
 				framesize++;
 			}
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 			if (info->netcount)
 				hdlcdev_rx(info,info->tmp_rbuf, framesize);
 			else
@@ -4779,7 +4782,7 @@ static void tx_timeout(unsigned long context)
 	info->tx_count = 0;
 	spin_unlock_irqrestore(&info->lock,flags);
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 	if (info->netcount)
 		hdlcdev_tx_done(info);
 	else
@@ -4799,6 +4802,6 @@ static void rx_timeout(unsigned long context)
 	spin_lock_irqsave(&info->lock, flags);
 	info->pending_bh |= BH_RECEIVE;
 	spin_unlock_irqrestore(&info->lock, flags);
-	bh_handler(info);
+	bh_handler(&info->task);
 }
 

@@ -29,7 +29,7 @@
 
 struct oprofile_cpu_buffer cpu_buffer[NR_CPUS] __cacheline_aligned;
 
-static void wq_sync_buffer(void *);
+static void wq_sync_buffer(struct work_struct *work);
 
 #define DEFAULT_TIMER_EXPIRE (HZ / 10)
 static int work_enabled;
@@ -65,7 +65,7 @@ int alloc_cpu_buffers(void)
 		b->sample_received = 0;
 		b->sample_lost_overflow = 0;
 		b->cpu = i;
-		INIT_WORK(&b->work, wq_sync_buffer, b);
+		INIT_DELAYED_WORK(&b->work, wq_sync_buffer);
 	}
 	return 0;
 
@@ -282,9 +282,10 @@ void oprofile_add_trace(unsigned long pc)
  * By using schedule_delayed_work_on and then schedule_delayed_work
  * we guarantee this will stay on the correct cpu
  */
-static void wq_sync_buffer(void * data)
+static void wq_sync_buffer(struct work_struct *work)
 {
-	struct oprofile_cpu_buffer * b = data;
+	struct oprofile_cpu_buffer * b =
+		container_of(work, struct oprofile_cpu_buffer, work.work);
 	if (b->cpu != smp_processor_id()) {
 		printk("WQ on CPU%d, prefer CPU%d\n",
 		       smp_processor_id(), b->cpu);

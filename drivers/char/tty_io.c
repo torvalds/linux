@@ -1254,7 +1254,7 @@ EXPORT_SYMBOL_GPL(tty_ldisc_flush);
 	
 /**
  *	do_tty_hangup		-	actual handler for hangup events
- *	@data: tty device
+ *	@work: tty device
  *
  *	This can be called by the "eventd" kernel thread.  That is process
  *	synchronous but doesn't hold any locks, so we need to make sure we
@@ -1274,9 +1274,10 @@ EXPORT_SYMBOL_GPL(tty_ldisc_flush);
  *		tasklist_lock to walk task list for hangup event
  *
  */
-static void do_tty_hangup(void *data)
+static void do_tty_hangup(struct work_struct *work)
 {
-	struct tty_struct *tty = (struct tty_struct *) data;
+	struct tty_struct *tty =
+		container_of(work, struct tty_struct, hangup_work);
 	struct file * cons_filp = NULL;
 	struct file *filp, *f = NULL;
 	struct task_struct *p;
@@ -1433,7 +1434,7 @@ void tty_vhangup(struct tty_struct * tty)
 
 	printk(KERN_DEBUG "%s vhangup...\n", tty_name(tty, buf));
 #endif
-	do_tty_hangup((void *) tty);
+	do_tty_hangup(&tty->hangup_work);
 }
 EXPORT_SYMBOL(tty_vhangup);
 
@@ -3304,12 +3305,13 @@ int tty_ioctl(struct inode * inode, struct file * file,
  * Nasty bug: do_SAK is being called in interrupt context.  This can
  * deadlock.  We punt it up to process context.  AKPM - 16Mar2001
  */
-static void __do_SAK(void *arg)
+static void __do_SAK(struct work_struct *work)
 {
+	struct tty_struct *tty =
+		container_of(work, struct tty_struct, SAK_work);
 #ifdef TTY_SOFT_SAK
 	tty_hangup(tty);
 #else
-	struct tty_struct *tty = arg;
 	struct task_struct *g, *p;
 	int session;
 	int		i;
@@ -3388,7 +3390,7 @@ void do_SAK(struct tty_struct *tty)
 {
 	if (!tty)
 		return;
-	PREPARE_WORK(&tty->SAK_work, __do_SAK, tty);
+	PREPARE_WORK(&tty->SAK_work, __do_SAK);
 	schedule_work(&tty->SAK_work);
 }
 
@@ -3396,7 +3398,7 @@ EXPORT_SYMBOL(do_SAK);
 
 /**
  *	flush_to_ldisc
- *	@private_: tty structure passed from work queue.
+ *	@work: tty structure passed from work queue.
  *
  *	This routine is called out of the software interrupt to flush data
  *	from the buffer chain to the line discipline.
@@ -3406,9 +3408,10 @@ EXPORT_SYMBOL(do_SAK);
  *	receive_buf method is single threaded for each tty instance.
  */
  
-static void flush_to_ldisc(void *private_)
+static void flush_to_ldisc(struct work_struct *work)
 {
-	struct tty_struct *tty = (struct tty_struct *) private_;
+	struct tty_struct *tty =
+		container_of(work, struct tty_struct, buf.work.work);
 	unsigned long 	flags;
 	struct tty_ldisc *disc;
 	struct tty_buffer *tbuf, *head;
@@ -3553,7 +3556,7 @@ void tty_flip_buffer_push(struct tty_struct *tty)
 	spin_unlock_irqrestore(&tty->buf.lock, flags);
 
 	if (tty->low_latency)
-		flush_to_ldisc((void *) tty);
+		flush_to_ldisc(&tty->buf.work.work);
 	else
 		schedule_delayed_work(&tty->buf.work, 1);
 }
@@ -3580,17 +3583,17 @@ static void initialize_tty_struct(struct tty_struct *tty)
 	tty->overrun_time = jiffies;
 	tty->buf.head = tty->buf.tail = NULL;
 	tty_buffer_init(tty);
-	INIT_WORK(&tty->buf.work, flush_to_ldisc, tty);
+	INIT_DELAYED_WORK(&tty->buf.work, flush_to_ldisc);
 	init_MUTEX(&tty->buf.pty_sem);
 	mutex_init(&tty->termios_mutex);
 	init_waitqueue_head(&tty->write_wait);
 	init_waitqueue_head(&tty->read_wait);
-	INIT_WORK(&tty->hangup_work, do_tty_hangup, tty);
+	INIT_WORK(&tty->hangup_work, do_tty_hangup);
 	mutex_init(&tty->atomic_read_lock);
 	mutex_init(&tty->atomic_write_lock);
 	spin_lock_init(&tty->read_lock);
 	INIT_LIST_HEAD(&tty->tty_files);
-	INIT_WORK(&tty->SAK_work, NULL, NULL);
+	INIT_WORK(&tty->SAK_work, NULL);
 }
 
 /*
@@ -3612,7 +3615,8 @@ static struct class *tty_class;
  *		This field is optional, if there is no known struct device
  *		for this tty device it can be set to NULL safely.
  *
- *	Returns a pointer to the class device (or ERR_PTR(-EFOO) on error).
+ *	Returns a pointer to the struct device for this tty device
+ *	(or ERR_PTR(-EFOO) on error).
  *
  *	This call is required to be made to register an individual tty device
  *	if the tty driver's flags have the TTY_DRIVER_DYNAMIC_DEV bit set.  If
@@ -3622,8 +3626,8 @@ static struct class *tty_class;
  *	Locking: ??
  */
 
-struct class_device *tty_register_device(struct tty_driver *driver,
-					 unsigned index, struct device *device)
+struct device *tty_register_device(struct tty_driver *driver, unsigned index,
+				   struct device *device)
 {
 	char name[64];
 	dev_t dev = MKDEV(driver->major, driver->minor_start) + index;
@@ -3639,7 +3643,7 @@ struct class_device *tty_register_device(struct tty_driver *driver,
 	else
 		tty_line_name(driver, index, name);
 
-	return class_device_create(tty_class, NULL, dev, device, "%s", name);
+	return device_create(tty_class, device, dev, name);
 }
 
 /**
@@ -3655,7 +3659,7 @@ struct class_device *tty_register_device(struct tty_driver *driver,
 
 void tty_unregister_device(struct tty_driver *driver, unsigned index)
 {
-	class_device_destroy(tty_class, MKDEV(driver->major, driver->minor_start) + index);
+	device_destroy(tty_class, MKDEV(driver->major, driver->minor_start) + index);
 }
 
 EXPORT_SYMBOL(tty_register_device);
@@ -3895,20 +3899,20 @@ static int __init tty_init(void)
 	if (cdev_add(&tty_cdev, MKDEV(TTYAUX_MAJOR, 0), 1) ||
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 0), 1, "/dev/tty") < 0)
 		panic("Couldn't register /dev/tty driver\n");
-	class_device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 0), NULL, "tty");
+	device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 0), "tty");
 
 	cdev_init(&console_cdev, &console_fops);
 	if (cdev_add(&console_cdev, MKDEV(TTYAUX_MAJOR, 1), 1) ||
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 1), 1, "/dev/console") < 0)
 		panic("Couldn't register /dev/console driver\n");
-	class_device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 1), NULL, "console");
+	device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 1), "console");
 
 #ifdef CONFIG_UNIX98_PTYS
 	cdev_init(&ptmx_cdev, &ptmx_fops);
 	if (cdev_add(&ptmx_cdev, MKDEV(TTYAUX_MAJOR, 2), 1) ||
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 2), 1, "/dev/ptmx") < 0)
 		panic("Couldn't register /dev/ptmx driver\n");
-	class_device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 2), NULL, "ptmx");
+	device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 2), "ptmx");
 #endif
 
 #ifdef CONFIG_VT
@@ -3916,7 +3920,7 @@ static int __init tty_init(void)
 	if (cdev_add(&vc0_cdev, MKDEV(TTY_MAJOR, 0), 1) ||
 	    register_chrdev_region(MKDEV(TTY_MAJOR, 0), 1, "/dev/vc/0") < 0)
 		panic("Couldn't register /dev/tty0 driver\n");
-	class_device_create(tty_class, NULL, MKDEV(TTY_MAJOR, 0), NULL, "tty0");
+	device_create(tty_class, NULL, MKDEV(TTY_MAJOR, 0), "tty0");
 
 	vty_init();
 #endif

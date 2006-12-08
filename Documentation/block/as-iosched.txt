@@ -24,8 +24,10 @@ very similar behavior to the deadline IO scheduler.
 Selecting IO schedulers
 -----------------------
 To choose IO schedulers at boot time, use the argument 'elevator=deadline'.
-'noop' and 'as' (the default) are also available. IO schedulers are assigned
-globally at boot time only presently.
+'noop', 'as' and 'cfq' (the default) are also available. IO schedulers are
+assigned globally at boot time only presently. It's also possible to change
+the IO scheduler for a determined device on the fly, as described in
+Documentation/block/switching-sched.txt.
 
 
 Anticipatory IO scheduler Policies

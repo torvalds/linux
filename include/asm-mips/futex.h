@@ -1,18 +1,20 @@
+/*
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
+ *
+ * Copyright (c) 2006  Ralf Baechle (ralf@linux-mips.org)
+ */
 #ifndef _ASM_FUTEX_H
 #define _ASM_FUTEX_H
 
 #ifdef __KERNEL__
 
 #include <linux/futex.h>
+#include <asm/barrier.h>
 #include <asm/errno.h>
 #include <asm/uaccess.h>
 #include <asm/war.h>
-
-#ifdef CONFIG_SMP
-#define __FUTEX_SMP_SYNC "	sync					\n"
-#else
-#define __FUTEX_SMP_SYNC
-#endif
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)		\
 {									\
@@ -27,7 +29,7 @@
 		"	.set	mips3				\n"	\
 		"2:	sc	$1, %2				\n"	\
 		"	beqzl	$1, 1b				\n"	\
-		__FUTEX_SMP_SYNC					\
+		__WEAK_ORDERING_MB					\
 		"3:						\n"	\
 		"	.set	pop				\n"	\
 		"	.set	mips0				\n"	\
@@ -53,7 +55,7 @@
 		"	.set	mips3				\n"	\
 		"2:	sc	$1, %2				\n"	\
 		"	beqz	$1, 1b				\n"	\
-		__FUTEX_SMP_SYNC					\
+		__WEAK_ORDERING_MB					\
 		"3:						\n"	\
 		"	.set	pop				\n"	\
 		"	.set	mips0				\n"	\
@@ -86,7 +88,7 @@ futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 	if (! access_ok (VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
 
-	inc_preempt_count();
+	pagefault_disable();
 
 	switch (op) {
 	case FUTEX_OP_SET:
@@ -113,7 +115,7 @@ futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 		ret = -ENOSYS;
 	}
 
-	dec_preempt_count();
+	pagefault_enable();
 
 	if (!ret) {
 		switch (cmp) {
@@ -150,7 +152,7 @@ futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 		"	.set	mips3					\n"
 		"2:	sc	$1, %1					\n"
 		"	beqzl	$1, 1b					\n"
-		__FUTEX_SMP_SYNC
+		__WEAK_ORDERING_MB
 		"3:							\n"
 		"	.set	pop					\n"
 		"	.section .fixup,\"ax\"				\n"
@@ -177,7 +179,7 @@ futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 		"	.set	mips3					\n"
 		"2:	sc	$1, %1					\n"
 		"	beqz	$1, 1b					\n"
-		__FUTEX_SMP_SYNC
+		__WEAK_ORDERING_MB
 		"3:							\n"
 		"	.set	pop					\n"
 		"	.section .fixup,\"ax\"				\n"

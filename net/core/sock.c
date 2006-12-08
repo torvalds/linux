@@ -111,6 +111,7 @@
 #include <linux/poll.h>
 #include <linux/tcp.h>
 #include <linux/init.h>
+#include <linux/highmem.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -270,7 +271,7 @@ out:
 }
 EXPORT_SYMBOL(sock_queue_rcv_skb);
 
-int sk_receive_skb(struct sock *sk, struct sk_buff *skb)
+int sk_receive_skb(struct sock *sk, struct sk_buff *skb, const int nested)
 {
 	int rc = NET_RX_SUCCESS;
 
@@ -279,7 +280,10 @@ int sk_receive_skb(struct sock *sk, struct sk_buff *skb)
 
 	skb->dev = NULL;
 
-	bh_lock_sock(sk);
+	if (nested)
+		bh_lock_sock_nested(sk);
+	else
+		bh_lock_sock(sk);
 	if (!sock_owned_by_user(sk)) {
 		/*
 		 * trylock + unlock semantics:
@@ -806,24 +810,11 @@ lenout:
  */
 static void inline sock_lock_init(struct sock *sk)
 {
-	spin_lock_init(&sk->sk_lock.slock);
-	sk->sk_lock.owner = NULL;
-	init_waitqueue_head(&sk->sk_lock.wq);
-	/*
-	 * Make sure we are not reinitializing a held lock:
-	 */
-	debug_check_no_locks_freed((void *)&sk->sk_lock, sizeof(sk->sk_lock));
-
-	/*
-	 * Mark both the sk_lock and the sk_lock.slock as a
-	 * per-address-family lock class:
-	 */
-	lockdep_set_class_and_name(&sk->sk_lock.slock,
-				   af_family_slock_keys + sk->sk_family,
-				   af_family_slock_key_strings[sk->sk_family]);
-	lockdep_init_map(&sk->sk_lock.dep_map,
-			 af_family_key_strings[sk->sk_family],
-			 af_family_keys + sk->sk_family, 0);
+	sock_lock_init_class_and_name(sk,
+			af_family_slock_key_strings[sk->sk_family],
+			af_family_slock_keys + sk->sk_family,
+			af_family_key_strings[sk->sk_family],
+			af_family_keys + sk->sk_family);
 }
 
 /**
@@ -837,7 +828,7 @@ struct sock *sk_alloc(int family, gfp_t priority,
 		      struct proto *prot, int zero_it)
 {
 	struct sock *sk = NULL;
-	kmem_cache_t *slab = prot->slab;
+	struct kmem_cache *slab = prot->slab;
 
 	if (slab != NULL)
 		sk = kmem_cache_alloc(slab, priority);
@@ -1160,7 +1151,7 @@ static struct sk_buff *sock_alloc_send_pskb(struct sock *sk,
 			goto failure;
 
 		if (atomic_read(&sk->sk_wmem_alloc) < sk->sk_sndbuf) {
-			skb = alloc_skb(header_len, sk->sk_allocation);
+			skb = alloc_skb(header_len, gfp_mask);
 			if (skb) {
 				int npages;
 				int i;
@@ -1527,7 +1518,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	atomic_set(&sk->sk_refcnt, 1);
 }
 
-void fastcall lock_sock(struct sock *sk)
+void fastcall lock_sock_nested(struct sock *sk, int subclass)
 {
 	might_sleep();
 	spin_lock_bh(&sk->sk_lock.slock);
@@ -1538,11 +1529,11 @@ void fastcall lock_sock(struct sock *sk)
 	/*
 	 * The sk_lock has mutex_lock() semantics here:
 	 */
-	mutex_acquire(&sk->sk_lock.dep_map, 0, 0, _RET_IP_);
+	mutex_acquire(&sk->sk_lock.dep_map, subclass, 0, _RET_IP_);
 	local_bh_enable();
 }
 
-EXPORT_SYMBOL(lock_sock);
+EXPORT_SYMBOL(lock_sock_nested);
 
 void fastcall release_sock(struct sock *sk)
 {

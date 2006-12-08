@@ -313,7 +313,7 @@ early_init(int r3, int r4, int r5)
 	 * Identify the CPU type and fix up code sections
 	 * that depend on which cpu we have.
 	 */
-	spec = identify_cpu(offset);
+	spec = identify_cpu(offset, mfspr(SPRN_PVR));
 	do_feature_fixups(spec->cpu_features,
 			  PTRRELOC(&__start___ftr_fixup),
 			  PTRRELOC(&__stop___ftr_fixup));

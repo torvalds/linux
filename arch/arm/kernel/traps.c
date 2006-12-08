@@ -631,12 +631,9 @@ baddataabort(int code, unsigned long instr, struct pt_regs *regs)
 	notify_die("unknown data abort code", regs, &info, instr, 0);
 }
 
-void __attribute__((noreturn)) __bug(const char *file, int line, void *data)
+void __attribute__((noreturn)) __bug(const char *file, int line)
 {
-	printk(KERN_CRIT"kernel BUG at %s:%d!", file, line);
-	if (data)
-		printk(" - extra data = %p", data);
-	printk("\n");
+	printk(KERN_CRIT"kernel BUG at %s:%d!\n", file, line);
 	*(int *)0 = 0;
 
 	/* Avoid "noreturn function does return" */

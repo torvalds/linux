@@ -19,9 +19,30 @@
 
 #include <asm/io.h>
 
+/* i8259A PIC registers */
+#define PIC_MASTER_CMD		0x20
+#define PIC_MASTER_IMR		0x21
+#define PIC_MASTER_ISR		PIC_MASTER_CMD
+#define PIC_MASTER_POLL		PIC_MASTER_ISR
+#define PIC_MASTER_OCW3		PIC_MASTER_ISR
+#define PIC_SLAVE_CMD		0xa0
+#define PIC_SLAVE_IMR		0xa1
+
+/* i8259A PIC related value */
+#define PIC_CASCADE_IR		2
+#define MASTER_ICW4_DEFAULT	0x01
+#define SLAVE_ICW4_DEFAULT	0x01
+#define PIC_ICW4_AEOI		2
+
 extern spinlock_t i8259A_lock;
 
+extern void init_8259A(int auto_eoi);
+extern void enable_8259A_irq(unsigned int irq);
+extern void disable_8259A_irq(unsigned int irq);
+
 extern void init_i8259_irqs(void);
+
+#define I8259A_IRQ_BASE	0
 
 /*
  * Do the traditional i8259 interrupt polling thing.  This is for the few
@@ -35,15 +56,15 @@ static inline int i8259_irq(void)
 	spin_lock(&i8259A_lock);
 
 	/* Perform an interrupt acknowledge cycle on controller 1. */
-	outb(0x0C, 0x20);		/* prepare for poll */
-	irq = inb(0x20) & 7;
-	if (irq == 2) {
+	outb(0x0C, PIC_MASTER_CMD);		/* prepare for poll */
+	irq = inb(PIC_MASTER_CMD) & 7;
+	if (irq == PIC_CASCADE_IR) {
 		/*
 		 * Interrupt is cascaded so perform interrupt
 		 * acknowledge on controller 2.
 		 */
-		outb(0x0C, 0xA0);		/* prepare for poll */
-		irq = (inb(0xA0) & 7) + 8;
+		outb(0x0C, PIC_SLAVE_CMD);		/* prepare for poll */
+		irq = (inb(PIC_SLAVE_CMD) & 7) + 8;
 	}
 
 	if (unlikely(irq == 7)) {
@@ -54,14 +75,14 @@ static inline int i8259_irq(void)
 		 * significant bit is not set then there is no valid
 		 * interrupt.
 		 */
-		outb(0x0B, 0x20);		/* ISR register */
-		if(~inb(0x20) & 0x80)
+		outb(0x0B, PIC_MASTER_ISR);		/* ISR register */
+		if(~inb(PIC_MASTER_ISR) & 0x80)
 			irq = -1;
 	}
 
 	spin_unlock(&i8259A_lock);
 
-	return irq;
+	return likely(irq >= 0) ? irq + I8259A_IRQ_BASE : irq;
 }
 
 #endif /* _ASM_I8259_H */

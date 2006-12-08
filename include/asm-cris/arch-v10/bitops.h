@@ -10,7 +10,7 @@
  * number.  They differ in that the first function also inverts all bits
  * in the input.
  */
-extern inline unsigned long cris_swapnwbrlz(unsigned long w)
+static inline unsigned long cris_swapnwbrlz(unsigned long w)
 {
 	/* Let's just say we return the result in the same register as the
 	   input.  Saying we clobber the input but can return the result
@@ -26,7 +26,7 @@ extern inline unsigned long cris_swapnwbrlz(unsigned long w)
 	return res;
 }
 
-extern inline unsigned long cris_swapwbrlz(unsigned long w)
+static inline unsigned long cris_swapwbrlz(unsigned long w)
 {
 	unsigned res;
 	__asm__ ("swapwbr %0 \n\t"
@@ -40,7 +40,7 @@ extern inline unsigned long cris_swapwbrlz(unsigned long w)
  * ffz = Find First Zero in word. Undefined if no zero exists,
  * so code should check against ~0UL first..
  */
-extern inline unsigned long ffz(unsigned long w)
+static inline unsigned long ffz(unsigned long w)
 {
 	return cris_swapnwbrlz(w);
 }
@@ -51,7 +51,7 @@ extern inline unsigned long ffz(unsigned long w)
  *
  * Undefined if no bit exists, so code should check against 0 first.
  */
-extern inline unsigned long __ffs(unsigned long word)
+static inline unsigned long __ffs(unsigned long word)
 {
 	return cris_swapnwbrlz(~word);
 }
@@ -65,7 +65,7 @@ extern inline unsigned long __ffs(unsigned long word)
  * differs in spirit from the above ffz (man ffs).
  */
 
-extern inline unsigned long kernel_ffs(unsigned long w)
+static inline unsigned long kernel_ffs(unsigned long w)
 {
 	return w ? cris_swapwbrlz (w) + 1 : 0;
 }

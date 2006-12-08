@@ -241,7 +241,7 @@ ipq_build_packet_message(struct ipq_queue_entry *entry, int *errp)
 	pmsg->data_len        = data_len;
 	pmsg->timestamp_sec   = entry->skb->tstamp.off_sec;
 	pmsg->timestamp_usec  = entry->skb->tstamp.off_usec;
-	pmsg->mark            = entry->skb->nfmark;
+	pmsg->mark            = entry->skb->mark;
 	pmsg->hook            = entry->info->hook;
 	pmsg->hw_protocol     = entry->skb->protocol;
 	
@@ -349,9 +349,10 @@ ipq_mangle_ipv6(ipq_verdict_msg_t *v, struct ipq_queue_entry *e)
 	if (v->data_len < sizeof(*user_iph))
 		return 0;
 	diff = v->data_len - e->skb->len;
-	if (diff < 0)
-		skb_trim(e->skb, v->data_len);
-	else if (diff > 0) {
+	if (diff < 0) {
+		if (pskb_trim(e->skb, v->data_len))
+			return -ENOMEM;
+	} else if (diff > 0) {
 		if (v->data_len > 0xFFFF)
 			return -EINVAL;
 		if (diff > skb_tailroom(e->skb)) {
@@ -619,6 +620,7 @@ static ctl_table ipq_root_table[] = {
 	{ .ctl_name = 0 }
 };
 
+#ifdef CONFIG_PROC_FS
 static int
 ipq_get_info(char *buffer, char **start, off_t offset, int length)
 {
@@ -652,6 +654,7 @@ ipq_get_info(char *buffer, char **start, off_t offset, int length)
 		len = 0;
 	return len;
 }
+#endif /* CONFIG_PROC_FS */
 
 static struct nf_queue_handler nfqh = {
 	.name	= "ip6_queue",

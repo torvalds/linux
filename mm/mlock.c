@@ -65,7 +65,7 @@ success:
 			ret = make_pages_present(start, end);
 	}
 
-	vma->vm_mm->locked_vm -= pages;
+	mm->locked_vm -= pages;
 out:
 	if (ret == -ENOMEM)
 		ret = -EAGAIN;

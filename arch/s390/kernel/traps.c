@@ -58,12 +58,6 @@ int sysctl_userprocess_debug = 0;
 
 extern pgm_check_handler_t do_protection_exception;
 extern pgm_check_handler_t do_dat_exception;
-#ifdef CONFIG_PFAULT
-extern int pfault_init(void);
-extern void pfault_fini(void);
-extern void pfault_interrupt(__u16 error_code);
-static ext_int_info_t ext_int_pfault;
-#endif
 extern pgm_check_handler_t do_monitor_call;
 
 #define stack_pointer ({ void **sp; asm("la %0,0(15)" : "=&d" (sp)); sp; })
@@ -135,7 +129,7 @@ __show_trace(unsigned long sp, unsigned long low, unsigned long high)
 	}
 }
 
-void show_trace(struct task_struct *task, unsigned long * stack)
+void show_trace(struct task_struct *task, unsigned long *stack)
 {
 	register unsigned long __r15 asm ("15");
 	unsigned long sp;
@@ -157,6 +151,9 @@ void show_trace(struct task_struct *task, unsigned long * stack)
 		__show_trace(sp, S390_lowcore.thread_info,
 			     S390_lowcore.thread_info + THREAD_SIZE);
 	printk("\n");
+	if (!task)
+		task = current;
+	debug_show_held_locks(task);
 }
 
 void show_stack(struct task_struct *task, unsigned long *sp)
@@ -739,22 +736,5 @@ void __init trap_init(void)
         pgm_check_table[0x1C] = &space_switch_exception;
         pgm_check_table[0x1D] = &hfp_sqrt_exception;
 	pgm_check_table[0x40] = &do_monitor_call;
-
-	if (MACHINE_IS_VM) {
-#ifdef CONFIG_PFAULT
-		/*
-		 * Try to get pfault pseudo page faults going.
-		 */
-		if (register_early_external_interrupt(0x2603, pfault_interrupt,
-						      &ext_int_pfault) != 0)
-			panic("Couldn't request external interrupt 0x2603");
-
-		if (pfault_init() == 0) 
-			return;
-		
-		/* Tough luck, no pfault. */
-		unregister_early_external_interrupt(0x2603, pfault_interrupt,
-						    &ext_int_pfault);
-#endif
-	}
+	pfault_irq_init();
 }

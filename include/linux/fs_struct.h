@@ -18,6 +18,8 @@ struct fs_struct {
 	.umask		= 0022, \
 }
 
+extern struct kmem_cache *fs_cachep;
+
 extern void exit_fs(struct task_struct *);
 extern void set_fs_altroot(void);
 extern void set_fs_root(struct fs_struct *, struct vfsmount *, struct dentry *);

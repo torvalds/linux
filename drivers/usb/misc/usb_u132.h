@@ -52,7 +52,7 @@
 * the kernel to load the "u132-hcd" module.
 *
 * The "ftdi-u132" module provides the interface to the inserted
-* PC card and the "u132-hcd" module uses the API to send and recieve
+* PC card and the "u132-hcd" module uses the API to send and receive
 * data. The API features call-backs, so that part of the "u132-hcd"
 * module code will run in the context of one of the kernel threads
 * of the "ftdi-u132" module.
@@ -95,3 +95,7 @@ int usb_ftdi_elan_edset_setup(struct platform_device *pdev, u8 ed_number,
          int halted, int skipped, int actual, int non_null));
 int usb_ftdi_elan_edset_flush(struct platform_device *pdev, u8 ed_number,
         void *endp);
+int usb_ftdi_elan_read_pcimem(struct platform_device *pdev, int mem_offset,
+			      u8 width, u32 *data);
+int usb_ftdi_elan_write_pcimem(struct platform_device *pdev, int mem_offset,
+			       u8 width, u32 data);

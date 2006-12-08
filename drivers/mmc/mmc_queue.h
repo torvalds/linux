@@ -6,8 +6,7 @@ struct task_struct;
 
 struct mmc_queue {
 	struct mmc_card		*card;
-	struct completion	thread_complete;
-	wait_queue_head_t	thread_wq;
+	struct task_struct	*thread;
 	struct semaphore	thread_sem;
 	unsigned int		flags;
 	struct request		*req;

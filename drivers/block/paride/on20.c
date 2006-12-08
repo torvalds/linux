@@ -140,12 +140,12 @@ static struct pi_protocol on20 = {
 
 static int __init on20_init(void)
 {
-	return pi_register(&on20)-1;
+	return paride_register(&on20);
 }
 
 static void __exit on20_exit(void)
 {
-	pi_unregister(&on20);
+	paride_unregister(&on20);
 }
 
 MODULE_LICENSE("GPL");

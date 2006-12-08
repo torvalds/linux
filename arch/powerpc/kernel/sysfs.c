@@ -200,10 +200,9 @@ static void register_cpu_online(unsigned int cpu)
 	struct cpu *c = &per_cpu(cpu_devices, cpu);
 	struct sys_device *s = &c->sysdev;
 
-#ifndef CONFIG_PPC_ISERIES
-	if (cpu_has_feature(CPU_FTR_SMT))
+	if (!firmware_has_feature(FW_FEATURE_ISERIES) &&
+			cpu_has_feature(CPU_FTR_SMT))
 		sysdev_create_file(s, &attr_smt_snooze_delay);
-#endif
 
 	/* PMC stuff */
 
@@ -240,12 +239,11 @@ static void unregister_cpu_online(unsigned int cpu)
 	struct cpu *c = &per_cpu(cpu_devices, cpu);
 	struct sys_device *s = &c->sysdev;
 
-	BUG_ON(c->no_control);
+	BUG_ON(!c->hotpluggable);
 
-#ifndef CONFIG_PPC_ISERIES
-	if (cpu_has_feature(CPU_FTR_SMT))
+	if (!firmware_has_feature(FW_FEATURE_ISERIES) &&
+			cpu_has_feature(CPU_FTR_SMT))
 		sysdev_remove_file(s, &attr_smt_snooze_delay);
-#endif
 
 	/* PMC stuff */
 
@@ -298,6 +296,72 @@ static int __cpuinit sysfs_cpu_notify(struct notifier_block *self,
 static struct notifier_block __cpuinitdata sysfs_cpu_nb = {
 	.notifier_call	= sysfs_cpu_notify,
 };
+
+static DEFINE_MUTEX(cpu_mutex);
+
+int cpu_add_sysdev_attr(struct sysdev_attribute *attr)
+{
+	int cpu;
+
+	mutex_lock(&cpu_mutex);
+
+	for_each_possible_cpu(cpu) {
+		sysdev_create_file(get_cpu_sysdev(cpu), attr);
+	}
+
+	mutex_unlock(&cpu_mutex);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cpu_add_sysdev_attr);
+
+int cpu_add_sysdev_attr_group(struct attribute_group *attrs)
+{
+	int cpu;
+	struct sys_device *sysdev;
+
+	mutex_lock(&cpu_mutex);
+
+	for_each_possible_cpu(cpu) {
+		sysdev = get_cpu_sysdev(cpu);
+		sysfs_create_group(&sysdev->kobj, attrs);
+	}
+
+	mutex_unlock(&cpu_mutex);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cpu_add_sysdev_attr_group);
+
+
+void cpu_remove_sysdev_attr(struct sysdev_attribute *attr)
+{
+	int cpu;
+
+	mutex_lock(&cpu_mutex);
+
+	for_each_possible_cpu(cpu) {
+		sysdev_remove_file(get_cpu_sysdev(cpu), attr);
+	}
+
+	mutex_unlock(&cpu_mutex);
+}
+EXPORT_SYMBOL_GPL(cpu_remove_sysdev_attr);
+
+void cpu_remove_sysdev_attr_group(struct attribute_group *attrs)
+{
+	int cpu;
+	struct sys_device *sysdev;
+
+	mutex_lock(&cpu_mutex);
+
+	for_each_possible_cpu(cpu) {
+		sysdev = get_cpu_sysdev(cpu);
+		sysfs_remove_group(&sysdev->kobj, attrs);
+	}
+
+	mutex_unlock(&cpu_mutex);
+}
+EXPORT_SYMBOL_GPL(cpu_remove_sysdev_attr_group);
+
 
 /* NUMA stuff */
 
@@ -360,10 +424,10 @@ static int __init topology_init(void)
 		 * CPU.  For instance, the boot cpu might never be valid
 		 * for hotplugging.
 		 */
-		if (!ppc_md.cpu_die)
-			c->no_control = 1;
+		if (ppc_md.cpu_die)
+			c->hotpluggable = 1;
 
-		if (cpu_online(cpu) || (c->no_control == 0)) {
+		if (cpu_online(cpu) || c->hotpluggable) {
 			register_cpu(c, cpu);
 
 			sysdev_create_file(&c->sysdev, &attr_physical_id);

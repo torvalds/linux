@@ -21,6 +21,7 @@
 #include <linux/writeback.h>	// Prototypes pdflush_operation()
 #include <linux/kthread.h>
 #include <linux/cpuset.h>
+#include <linux/freezer.h>
 
 
 /*

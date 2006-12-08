@@ -100,3 +100,12 @@ __sys_splice:
 	rcall	sys_splice
 	sub	sp, -4
 	popm	pc
+
+	.global	__sys_epoll_pwait
+	.type	__sys_epoll_pwait,@function
+__sys_epoll_pwait:
+	pushm	lr
+	st.w	--sp, ARG6
+	rcall	sys_epoll_pwait
+	sub	sp, -4
+	popm	pc

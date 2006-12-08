@@ -21,7 +21,6 @@
 struct fdtable_defer {
 	spinlock_t lock;
 	struct work_struct wq;
-	struct timer_list timer;
 	struct fdtable *next;
 };
 
@@ -75,24 +74,10 @@ static void __free_fdtable(struct fdtable *fdt)
 	kfree(fdt);
 }
 
-static void fdtable_timer(unsigned long data)
+static void free_fdtable_work(struct work_struct *work)
 {
-	struct fdtable_defer *fddef = (struct fdtable_defer *)data;
-
-	spin_lock(&fddef->lock);
-	/*
-	 * If someone already emptied the queue return.
-	 */
-	if (!fddef->next)
-		goto out;
-	if (!schedule_work(&fddef->wq))
-		mod_timer(&fddef->timer, 5);
-out:
-	spin_unlock(&fddef->lock);
-}
-
-static void free_fdtable_work(struct fdtable_defer *f)
-{
+	struct fdtable_defer *f =
+		container_of(work, struct fdtable_defer, wq);
 	struct fdtable *fdt;
 
 	spin_lock_bh(&f->lock);
@@ -142,13 +127,8 @@ static void free_fdtable_rcu(struct rcu_head *rcu)
 		spin_lock(&fddef->lock);
 		fdt->next = fddef->next;
 		fddef->next = fdt;
-		/*
-		 * vmallocs are handled from the workqueue context.
-		 * If the per-cpu workqueue is running, then we
-		 * defer work scheduling through a timer.
-		 */
-		if (!schedule_work(&fddef->wq))
-			mod_timer(&fddef->timer, 5);
+		/* vmallocs are handled from the workqueue context */
+		schedule_work(&fddef->wq);
 		spin_unlock(&fddef->lock);
 		put_cpu_var(fdtable_defer_list);
 	}
@@ -351,10 +331,7 @@ static void __devinit fdtable_defer_list_init(int cpu)
 {
 	struct fdtable_defer *fddef = &per_cpu(fdtable_defer_list, cpu);
 	spin_lock_init(&fddef->lock);
-	INIT_WORK(&fddef->wq, (void (*)(void *))free_fdtable_work, fddef);
-	init_timer(&fddef->timer);
-	fddef->timer.data = (unsigned long)fddef;
-	fddef->timer.function = fdtable_timer;
+	INIT_WORK(&fddef->wq, free_fdtable_work);
 	fddef->next = NULL;
 }
 

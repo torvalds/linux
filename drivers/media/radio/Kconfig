@@ -173,38 +173,6 @@ config RADIO_MAESTRO
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-maestro.
 
-config RADIO_MIROPCM20
-	tristate "miroSOUND PCM20 radio"
-	depends on ISA && VIDEO_V4L1 && SOUND_ACI_MIXER
-	---help---
-	  Choose Y here if you have this FM radio card. You also need to say Y
-	  to "ACI mixer (miroSOUND PCM1-pro/PCM12/PCM20 radio)" (in "Sound")
-	  for this to work.
-
-	  In order to control your radio card, you will need to use programs
-	  that are compatible with the Video For Linux API.  Information on
-	  this API and pointers to "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called miropcm20.
-
-config RADIO_MIROPCM20_RDS
-	tristate "miroSOUND PCM20 radio RDS user interface (EXPERIMENTAL)"
-	depends on RADIO_MIROPCM20 && EXPERIMENTAL
-	---help---
-	  Choose Y here if you want to see RDS/RBDS information like
-	  RadioText, Programme Service name, Clock Time and date, Programme
-	  Type and Traffic Announcement/Programme identification.
-
-	  It's not possible to read the raw RDS packets from the device, so
-	  the driver cant provide an V4L interface for this.  But the
-	  availability of RDS is reported over V4L by the basic driver
-	  already.  Here RDS can be read from files in /dev/v4l/rds.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called miropcm20-rds.
-
 config RADIO_SF16FMI
 	tristate "SF16FMI Radio"
 	depends on ISA && VIDEO_V4L2

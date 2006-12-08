@@ -45,3 +45,5 @@ __raw_readsb:
 	sub	r10, 1
 	st.b	r11++, r8
 	brne	3b
+
+	retal	r12

@@ -293,15 +293,12 @@ static int sandisk_enable_wireless(struct net_device *dev)
 		goto done;
 	}
 
-	tuple.DesiredTuple = CISTPL_MANFID;
 	tuple.Attributes = TUPLE_RETURN_COMMON;
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
-	if (pcmcia_get_first_tuple(hw_priv->link, &tuple) ||
-	    pcmcia_get_tuple_data(hw_priv->link, &tuple) ||
-	    pcmcia_parse_tuple(hw_priv->link, &tuple, parse) ||
-	    parse->manfid.manf != 0xd601 || parse->manfid.card != 0x0101) {
+
+	if (hw_priv->link->manf_id != 0xd601 || hw_priv->link->card_id != 0x0101) {
 		/* No SanDisk manfid found */
 		ret = -ENODEV;
 		goto done;
@@ -566,23 +563,16 @@ static int prism2_config(struct pcmcia_device *link)
 	PDEBUG(DEBUG_FLOW, "prism2_config()\n");
 
 	parse = kmalloc(sizeof(cisparse_t), GFP_KERNEL);
-	hw_priv = kmalloc(sizeof(*hw_priv), GFP_KERNEL);
+	hw_priv = kzalloc(sizeof(*hw_priv), GFP_KERNEL);
 	if (parse == NULL || hw_priv == NULL) {
 		ret = -ENOMEM;
 		goto failed;
 	}
-	memset(hw_priv, 0, sizeof(*hw_priv));
 
-	tuple.DesiredTuple = CISTPL_CONFIG;
 	tuple.Attributes = 0;
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, parse));
-	link->conf.ConfigBase = parse->config.base;
-	link->conf.Present = parse->config.rmask[0];
 
 	CS_CHECK(GetConfigurationInfo,
 		 pcmcia_get_configuration_info(link, &conf));

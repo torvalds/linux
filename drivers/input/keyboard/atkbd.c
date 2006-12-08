@@ -567,9 +567,9 @@ static int atkbd_set_leds(struct atkbd *atkbd)
  * interrupt context.
  */
 
-static void atkbd_event_work(void *data)
+static void atkbd_event_work(struct work_struct *work)
 {
-	struct atkbd *atkbd = data;
+	struct atkbd *atkbd = container_of(work, struct atkbd, event_work);
 
 	mutex_lock(&atkbd->event_mutex);
 
@@ -943,7 +943,7 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 
 	atkbd->dev = dev;
 	ps2_init(&atkbd->ps2dev, serio);
-	INIT_WORK(&atkbd->event_work, atkbd_event_work, atkbd);
+	INIT_WORK(&atkbd->event_work, atkbd_event_work);
 	mutex_init(&atkbd->event_mutex);
 
 	switch (serio->id.type) {

@@ -248,7 +248,7 @@ static int touchkit_alloc_buffers(struct usb_device *udev,
 				  struct touchkit_usb *touchkit)
 {
 	touchkit->data = usb_buffer_alloc(udev, TOUCHKIT_REPORT_DATA_SIZE,
-	                                  SLAB_ATOMIC, &touchkit->data_dma);
+	                                  GFP_ATOMIC, &touchkit->data_dma);
 
 	if (!touchkit->data)
 		return -1;

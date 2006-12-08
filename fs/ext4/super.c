@@ -486,7 +486,7 @@ static void ext4_put_super (struct super_block * sb)
 	return;
 }
 
-static kmem_cache_t *ext4_inode_cachep;
+static struct kmem_cache *ext4_inode_cachep;
 
 /*
  * Called inside transaction, so use GFP_NOFS
@@ -495,7 +495,7 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 {
 	struct ext4_inode_info *ei;
 
-	ei = kmem_cache_alloc(ext4_inode_cachep, SLAB_NOFS);
+	ei = kmem_cache_alloc(ext4_inode_cachep, GFP_NOFS);
 	if (!ei)
 		return NULL;
 #ifdef CONFIG_EXT4DEV_FS_POSIX_ACL
@@ -513,7 +513,7 @@ static void ext4_destroy_inode(struct inode *inode)
 	kmem_cache_free(ext4_inode_cachep, EXT4_I(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct ext4_inode_info *ei = (struct ext4_inode_info *) foo;
 
@@ -1318,6 +1318,12 @@ static void ext4_orphan_cleanup (struct super_block * sb,
 #endif
 	if (!es->s_last_orphan) {
 		jbd_debug(4, "no orphan inodes to clean up\n");
+		return;
+	}
+
+	if (bdev_read_only(sb->s_bdev)) {
+		printk(KERN_ERR "EXT4-fs: write access "
+			"unavailable, skipping orphan cleanup.\n");
 		return;
 	}
 
@@ -2460,6 +2466,7 @@ static int ext4_statfs (struct dentry * dentry, struct kstatfs * buf)
 	struct ext4_super_block *es = sbi->s_es;
 	ext4_fsblk_t overhead;
 	int i;
+	u64 fsid;
 
 	if (test_opt (sb, MINIX_DF))
 		overhead = 0;
@@ -2506,6 +2513,10 @@ static int ext4_statfs (struct dentry * dentry, struct kstatfs * buf)
 	buf->f_files = le32_to_cpu(es->s_inodes_count);
 	buf->f_ffree = percpu_counter_sum(&sbi->s_freeinodes_counter);
 	buf->f_namelen = EXT4_NAME_LEN;
+	fsid = le64_to_cpup((void *)es->s_uuid) ^
+	       le64_to_cpup((void *)es->s_uuid + sizeof(u64));
+	buf->f_fsid.val[0] = fsid & 0xFFFFFFFFUL;
+	buf->f_fsid.val[1] = (fsid >> 32) & 0xFFFFFFFFUL;
 	return 0;
 }
 

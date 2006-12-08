@@ -596,6 +596,31 @@ static int ipmi_ioctl(struct inode  *inode,
 		rv = 0;
 		break;
 	}
+
+	case IPMICTL_GET_MAINTENANCE_MODE_CMD:
+	{
+		int mode;
+
+		mode = ipmi_get_maintenance_mode(priv->user);
+		if (copy_to_user(arg, &mode, sizeof(mode))) {
+			rv = -EFAULT;
+			break;
+		}
+		rv = 0;
+		break;
+	}
+
+	case IPMICTL_SET_MAINTENANCE_MODE_CMD:
+	{
+		int mode;
+
+		if (copy_from_user(&mode, arg, sizeof(mode))) {
+			rv = -EFAULT;
+			break;
+		}
+		rv = ipmi_set_maintenance_mode(priv->user, mode);
+		break;
+	}
 	}
   
 	return rv;

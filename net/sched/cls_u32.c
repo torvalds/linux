@@ -143,7 +143,7 @@ next_knode:
 #endif
 
 #ifdef CONFIG_CLS_U32_MARK
-		if ((skb->nfmark & n->mark.mask) != n->mark.val) {
+		if ((skb->mark & n->mark.mask) != n->mark.val) {
 			n = n->next;
 			goto next_knode;
 		} else {

@@ -268,11 +268,10 @@ static char * parse_next_property(char *buf, char *end, char **name, int *length
 static struct property *new_property(const char *name, const int length,
 				     const unsigned char *value, struct property *last)
 {
-	struct property *new = kmalloc(sizeof(*new), GFP_KERNEL);
+	struct property *new = kzalloc(sizeof(*new), GFP_KERNEL);
 
 	if (!new)
 		return NULL;
-	memset(new, 0, sizeof(*new));
 
 	if (!(new->name = kmalloc(strlen(name) + 1, GFP_KERNEL)))
 		goto cleanup;

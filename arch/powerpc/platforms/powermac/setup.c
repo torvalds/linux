@@ -70,6 +70,7 @@
 #include <asm/pmac_feature.h>
 #include <asm/time.h>
 #include <asm/of_device.h>
+#include <asm/of_platform.h>
 #include <asm/mmu_context.h>
 #include <asm/iommu.h>
 #include <asm/smu.h>
@@ -361,7 +362,7 @@ char *bootdevice;
 void *boot_host;
 int boot_target;
 int boot_part;
-extern dev_t boot_dev;
+static dev_t boot_dev;
 
 #ifdef CONFIG_SCSI
 void __init note_scsi_host(struct device_node *node, void *host)
@@ -676,8 +677,6 @@ static int __init pmac_probe(void)
 
 #ifdef CONFIG_PPC32
 	/* isa_io_base gets set in pmac_pci_init */
-	isa_mem_base = PMAC_ISA_MEM_BASE;
-	pci_dram_offset = PMAC_PCI_DRAM_OFFSET;
 	ISA_DMA_THRESHOLD = ~0L;
 	DMA_MODE_READ = 1;
 	DMA_MODE_WRITE = 2;
@@ -727,7 +726,7 @@ define_machine(powermac) {
 	.show_cpuinfo		= pmac_show_cpuinfo,
 	.init_IRQ		= pmac_pic_init,
 	.get_irq		= NULL,	/* changed later */
-	.pcibios_fixup		= pmac_pcibios_fixup,
+	.pci_irq_fixup		= pmac_pci_irq_fixup,
 	.restart		= pmac_restart,
 	.power_off		= pmac_power_off,
 	.halt			= pmac_halt,

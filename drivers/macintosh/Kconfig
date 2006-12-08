@@ -227,4 +227,11 @@ config ANSLCD
 	tristate "Support for ANS LCD display"
 	depends on ADB_CUDA && PPC_PMAC
 
+config PMAC_RACKMETER
+	tristate "Support for Apple XServe front panel LEDs"
+	depends on PPC_PMAC
+	help
+	  This driver procides some support to control the front panel
+          blue LEDs "vu-meter" of the XServer macs.
+
 endmenu

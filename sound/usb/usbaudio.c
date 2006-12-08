@@ -1469,7 +1469,8 @@ static int snd_usb_hw_free(struct snd_pcm_substream *substream)
 	subs->cur_audiofmt = NULL;
 	subs->cur_rate = 0;
 	subs->period_bytes = 0;
-	release_substream_urbs(subs, 0);
+	if (!subs->stream->chip->shutdown)
+		release_substream_urbs(subs, 0);
 	return snd_pcm_free_vmalloc_buffer(substream);
 }
 

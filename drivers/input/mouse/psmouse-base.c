@@ -888,9 +888,10 @@ static int psmouse_poll(struct psmouse *psmouse)
  * psmouse_resync() attempts to re-validate current protocol.
  */
 
-static void psmouse_resync(void *p)
+static void psmouse_resync(struct work_struct *work)
 {
-	struct psmouse *psmouse = p, *parent = NULL;
+	struct psmouse *parent = NULL, *psmouse =
+		container_of(work, struct psmouse, resync_work);
 	struct serio *serio = psmouse->ps2dev.serio;
 	psmouse_ret_t rc = PSMOUSE_GOOD_DATA;
 	int failed = 0, enabled = 0;
@@ -1121,7 +1122,7 @@ static int psmouse_connect(struct serio *serio, struct serio_driver *drv)
 		goto err_free;
 
 	ps2_init(&psmouse->ps2dev, serio);
-	INIT_WORK(&psmouse->resync_work, psmouse_resync, psmouse);
+	INIT_WORK(&psmouse->resync_work, psmouse_resync);
 	psmouse->dev = input_dev;
 	snprintf(psmouse->phys, sizeof(psmouse->phys), "%s/input0", serio->phys);
 

@@ -125,7 +125,7 @@ struct audio_stream {
 #else
 	dma_regs_t *dma_regs;	/* points to our DMA registers */
 #endif
-	int active:1;		/* we are using this stream for transfer now */
+	unsigned int active:1;	/* we are using this stream for transfer now */
 	int period;		/* current transfer period */
 	int periods;		/* current count of periods registerd in the DMA engine */
 	int tx_spin;		/* are we recoding - flag used to do DMA trans. for sync */

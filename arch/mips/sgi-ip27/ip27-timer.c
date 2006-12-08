@@ -172,15 +172,6 @@ static __init unsigned long get_m48t35_time(void)
         return mktime(year, month, date, hour, min, sec);
 }
 
-static unsigned int startup_rt_irq(unsigned int irq)
-{
-	return 0;
-}
-
-static void shutdown_rt_irq(unsigned int irq)
-{
-}
-
 static void enable_rt_irq(unsigned int irq)
 {
 }
@@ -189,22 +180,13 @@ static void disable_rt_irq(unsigned int irq)
 {
 }
 
-static void mask_and_ack_rt(unsigned int irq)
-{
-}
-
-static void end_rt_irq(unsigned int irq)
-{
-}
-
 static struct irq_chip rt_irq_type = {
 	.typename	= "SN HUB RT timer",
-	.startup	= startup_rt_irq,
-	.shutdown	= shutdown_rt_irq,
-	.enable		= enable_rt_irq,
-	.disable	= disable_rt_irq,
-	.ack		= mask_and_ack_rt,
-	.end		= end_rt_irq,
+	.ack		= disable_rt_irq,
+	.mask		= disable_rt_irq,
+	.mask_ack	= disable_rt_irq,
+	.unmask		= enable_rt_irq,
+	.eoi		= enable_rt_irq,
 };
 
 static struct irqaction rt_irqaction = {
@@ -214,8 +196,6 @@ static struct irqaction rt_irqaction = {
 	.name		= "timer"
 };
 
-extern int allocate_irqno(void);
-
 void __init plat_timer_setup(struct irqaction *irq)
 {
 	int irqno  = allocate_irqno();
@@ -223,10 +203,7 @@ void __init plat_timer_setup(struct irqaction *irq)
 	if (irqno < 0)
 		panic("Can't allocate interrupt number for timer interrupt");
 
-	irq_desc[irqno].status	= IRQ_DISABLED;
-	irq_desc[irqno].action	= NULL;
-	irq_desc[irqno].depth	= 1;
-	irq_desc[irqno].chip	= &rt_irq_type;
+	set_irq_chip_and_handler(irqno, &rt_irq_type, handle_percpu_irq);
 
 	/* over-write the handler, we use our own way */
 	irq->handler = no_action;
@@ -241,14 +218,14 @@ void __init plat_timer_setup(struct irqaction *irq)
 	setup_irq(irqno, &rt_irqaction);
 }
 
-static unsigned int ip27_hpt_read(void)
+static cycle_t ip27_hpt_read(void)
 {
 	return REMOTE_HUB_L(cputonasid(0), PI_RT_COUNT);
 }
 
 void __init ip27_time_init(void)
 {
-	mips_hpt_read = ip27_hpt_read;
+	clocksource_mips.read = ip27_hpt_read;
 	mips_hpt_frequency = CYCLES_PER_SEC;
 	xtime.tv_sec = get_m48t35_time();
 	xtime.tv_nsec = 0;

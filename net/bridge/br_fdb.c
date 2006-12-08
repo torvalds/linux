@@ -23,7 +23,7 @@
 #include <asm/atomic.h>
 #include "br_private.h"
 
-static kmem_cache_t *br_fdb_cache __read_mostly;
+static struct kmem_cache *br_fdb_cache __read_mostly;
 static int fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 		      const unsigned char *addr);
 

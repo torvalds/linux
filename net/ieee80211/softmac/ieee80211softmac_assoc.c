@@ -58,9 +58,11 @@ ieee80211softmac_assoc(struct ieee80211softmac_device *mac, struct ieee80211soft
 }
 
 void
-ieee80211softmac_assoc_timeout(void *d)
+ieee80211softmac_assoc_timeout(struct work_struct *work)
 {
-	struct ieee80211softmac_device *mac = (struct ieee80211softmac_device *)d;
+	struct ieee80211softmac_device *mac =
+		container_of(work, struct ieee80211softmac_device,
+			     associnfo.timeout.work);
 	struct ieee80211softmac_network *n;
 
 	mutex_lock(&mac->associnfo.mutex);
@@ -186,9 +188,11 @@ ieee80211softmac_assoc_notify_auth(struct net_device *dev, int event_type, void 
 
 /* This function is called to handle userspace requests (asynchronously) */
 void
-ieee80211softmac_assoc_work(void *d)
+ieee80211softmac_assoc_work(struct work_struct *work)
 {
-	struct ieee80211softmac_device *mac = (struct ieee80211softmac_device *)d;
+	struct ieee80211softmac_device *mac =
+		container_of(work, struct ieee80211softmac_device,
+			     associnfo.work.work);
 	struct ieee80211softmac_network *found = NULL;
 	struct ieee80211_network *net = NULL, *best = NULL;
 	int bssvalid;
@@ -412,7 +416,7 @@ ieee80211softmac_handle_assoc_response(struct net_device * dev,
 				network->authenticated = 0;
 				/* we don't want to do this more than once ... */
 				network->auth_desynced_once = 1;
-				schedule_work(&mac->associnfo.work);
+				schedule_delayed_work(&mac->associnfo.work, 0);
 				break;
 			}
 		default:
@@ -425,6 +429,17 @@ ieee80211softmac_handle_assoc_response(struct net_device * dev,
 	
 	spin_unlock_irqrestore(&mac->lock, flags);
 	return 0;
+}
+
+void
+ieee80211softmac_try_reassoc(struct ieee80211softmac_device *mac)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&mac->lock, flags);
+	mac->associnfo.associating = 1;
+	schedule_work(&mac->associnfo.work);
+	spin_unlock_irqrestore(&mac->lock, flags);
 }
 
 int
@@ -445,8 +460,7 @@ ieee80211softmac_handle_disassoc(struct net_device * dev,
 	dprintk(KERN_INFO PFX "got disassoc frame\n");
 	ieee80211softmac_disassoc(mac);
 
-	/* try to reassociate */
-	schedule_work(&mac->associnfo.work);
+	ieee80211softmac_try_reassoc(mac);
 
 	return 0;
 }
@@ -466,7 +480,7 @@ ieee80211softmac_handle_reassoc_req(struct net_device * dev,
 		dprintkl(KERN_INFO PFX "reassoc request from unknown network\n");
 		return 0;
 	}
-	schedule_work(&mac->associnfo.work);
+	schedule_delayed_work(&mac->associnfo.work, 0);
 
 	return 0;
 }

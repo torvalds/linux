@@ -51,7 +51,7 @@ struct nfs_client {
 
 	unsigned long		cl_lease_time;
 	unsigned long		cl_last_renewal;
-	struct work_struct	cl_renewd;
+	struct delayed_work	cl_renewd;
 
 	struct rpc_wait_queue	cl_rpcwaitq;
 

@@ -515,12 +515,12 @@ static void qnx4_read_inode(struct inode *inode)
 	brelse(bh);
 }
 
-static kmem_cache_t *qnx4_inode_cachep;
+static struct kmem_cache *qnx4_inode_cachep;
 
 static struct inode *qnx4_alloc_inode(struct super_block *sb)
 {
 	struct qnx4_inode_info *ei;
-	ei = kmem_cache_alloc(qnx4_inode_cachep, SLAB_KERNEL);
+	ei = kmem_cache_alloc(qnx4_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	return &ei->vfs_inode;
@@ -531,7 +531,7 @@ static void qnx4_destroy_inode(struct inode *inode)
 	kmem_cache_free(qnx4_inode_cachep, qnx4_i(inode));
 }
 
-static void init_once(void *foo, kmem_cache_t * cachep,
+static void init_once(void *foo, struct kmem_cache * cachep,
 		      unsigned long flags)
 {
 	struct qnx4_inode_info *ei = (struct qnx4_inode_info *) foo;

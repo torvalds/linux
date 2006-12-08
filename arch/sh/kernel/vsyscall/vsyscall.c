@@ -97,7 +97,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 		goto up_fail;
 	}
 
-	vma = kmem_cache_zalloc(vm_area_cachep, SLAB_KERNEL);
+	vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
 	if (!vma) {
 		ret = -ENOMEM;
 		goto up_fail;

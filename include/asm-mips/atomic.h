@@ -9,20 +9,13 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1996, 97, 99, 2000, 03, 04 by Ralf Baechle
+ * Copyright (C) 1996, 97, 99, 2000, 03, 04, 06 by Ralf Baechle
  */
-
-/*
- * As workaround for the ATOMIC_DEC_AND_LOCK / atomic_dec_and_lock mess in
- * <linux/spinlock.h> we have to include <linux/spinlock.h> outside the
- * main big wrapper ...
- */
-#include <linux/spinlock.h>
-
 #ifndef _ASM_ATOMIC_H
 #define _ASM_ATOMIC_H
 
 #include <linux/irqflags.h>
+#include <asm/barrier.h>
 #include <asm/cpu-features.h>
 #include <asm/war.h>
 
@@ -138,6 +131,8 @@ static __inline__ int atomic_add_return(int i, atomic_t * v)
 {
 	unsigned long result;
 
+	smp_mb();
+
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		unsigned long temp;
 
@@ -148,7 +143,6 @@ static __inline__ int atomic_add_return(int i, atomic_t * v)
 		"	sc	%0, %2					\n"
 		"	beqzl	%0, 1b					\n"
 		"	addu	%0, %1, %3				\n"
-		"	sync						\n"
 		"	.set	mips0					\n"
 		: "=&r" (result), "=&r" (temp), "=m" (v->counter)
 		: "Ir" (i), "m" (v->counter)
@@ -163,7 +157,6 @@ static __inline__ int atomic_add_return(int i, atomic_t * v)
 		"	sc	%0, %2					\n"
 		"	beqz	%0, 1b					\n"
 		"	addu	%0, %1, %3				\n"
-		"	sync						\n"
 		"	.set	mips0					\n"
 		: "=&r" (result), "=&r" (temp), "=m" (v->counter)
 		: "Ir" (i), "m" (v->counter)
@@ -178,12 +171,16 @@ static __inline__ int atomic_add_return(int i, atomic_t * v)
 		local_irq_restore(flags);
 	}
 
+	smp_mb();
+
 	return result;
 }
 
 static __inline__ int atomic_sub_return(int i, atomic_t * v)
 {
 	unsigned long result;
+
+	smp_mb();
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		unsigned long temp;
@@ -195,7 +192,6 @@ static __inline__ int atomic_sub_return(int i, atomic_t * v)
 		"	sc	%0, %2					\n"
 		"	beqzl	%0, 1b					\n"
 		"	subu	%0, %1, %3				\n"
-		"	sync						\n"
 		"	.set	mips0					\n"
 		: "=&r" (result), "=&r" (temp), "=m" (v->counter)
 		: "Ir" (i), "m" (v->counter)
@@ -210,7 +206,6 @@ static __inline__ int atomic_sub_return(int i, atomic_t * v)
 		"	sc	%0, %2					\n"
 		"	beqz	%0, 1b					\n"
 		"	subu	%0, %1, %3				\n"
-		"	sync						\n"
 		"	.set	mips0					\n"
 		: "=&r" (result), "=&r" (temp), "=m" (v->counter)
 		: "Ir" (i), "m" (v->counter)
@@ -224,6 +219,8 @@ static __inline__ int atomic_sub_return(int i, atomic_t * v)
 		v->counter = result;
 		local_irq_restore(flags);
 	}
+
+	smp_mb();
 
 	return result;
 }
@@ -240,6 +237,8 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 {
 	unsigned long result;
 
+	smp_mb();
+
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		unsigned long temp;
 
@@ -253,7 +252,6 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 		"	beqzl	%0, 1b					\n"
 		"	 subu	%0, %1, %3				\n"
 		"	.set	reorder					\n"
-		"	sync						\n"
 		"1:							\n"
 		"	.set	mips0					\n"
 		: "=&r" (result), "=&r" (temp), "=m" (v->counter)
@@ -272,7 +270,6 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 		"	beqz	%0, 1b					\n"
 		"	 subu	%0, %1, %3				\n"
 		"	.set	reorder					\n"
-		"	sync						\n"
 		"1:							\n"
 		"	.set	mips0					\n"
 		: "=&r" (result), "=&r" (temp), "=m" (v->counter)
@@ -288,6 +285,8 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 			v->counter = result;
 		local_irq_restore(flags);
 	}
+
+	smp_mb();
 
 	return result;
 }
@@ -383,7 +382,7 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 
 #ifdef CONFIG_64BIT
 
-typedef struct { volatile __s64 counter; } atomic64_t;
+typedef struct { volatile long counter; } atomic64_t;
 
 #define ATOMIC64_INIT(i)    { (i) }
 
@@ -492,6 +491,8 @@ static __inline__ long atomic64_add_return(long i, atomic64_t * v)
 {
 	unsigned long result;
 
+	smp_mb();
+
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		unsigned long temp;
 
@@ -502,7 +503,6 @@ static __inline__ long atomic64_add_return(long i, atomic64_t * v)
 		"	scd	%0, %2					\n"
 		"	beqzl	%0, 1b					\n"
 		"	addu	%0, %1, %3				\n"
-		"	sync						\n"
 		"	.set	mips0					\n"
 		: "=&r" (result), "=&r" (temp), "=m" (v->counter)
 		: "Ir" (i), "m" (v->counter)
@@ -517,7 +517,6 @@ static __inline__ long atomic64_add_return(long i, atomic64_t * v)
 		"	scd	%0, %2					\n"
 		"	beqz	%0, 1b					\n"
 		"	addu	%0, %1, %3				\n"
-		"	sync						\n"
 		"	.set	mips0					\n"
 		: "=&r" (result), "=&r" (temp), "=m" (v->counter)
 		: "Ir" (i), "m" (v->counter)
@@ -532,12 +531,16 @@ static __inline__ long atomic64_add_return(long i, atomic64_t * v)
 		local_irq_restore(flags);
 	}
 
+	smp_mb();
+
 	return result;
 }
 
 static __inline__ long atomic64_sub_return(long i, atomic64_t * v)
 {
 	unsigned long result;
+
+	smp_mb();
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		unsigned long temp;
@@ -549,7 +552,6 @@ static __inline__ long atomic64_sub_return(long i, atomic64_t * v)
 		"	scd	%0, %2					\n"
 		"	beqzl	%0, 1b					\n"
 		"	subu	%0, %1, %3				\n"
-		"	sync						\n"
 		"	.set	mips0					\n"
 		: "=&r" (result), "=&r" (temp), "=m" (v->counter)
 		: "Ir" (i), "m" (v->counter)
@@ -564,7 +566,6 @@ static __inline__ long atomic64_sub_return(long i, atomic64_t * v)
 		"	scd	%0, %2					\n"
 		"	beqz	%0, 1b					\n"
 		"	subu	%0, %1, %3				\n"
-		"	sync						\n"
 		"	.set	mips0					\n"
 		: "=&r" (result), "=&r" (temp), "=m" (v->counter)
 		: "Ir" (i), "m" (v->counter)
@@ -578,6 +579,8 @@ static __inline__ long atomic64_sub_return(long i, atomic64_t * v)
 		v->counter = result;
 		local_irq_restore(flags);
 	}
+
+	smp_mb();
 
 	return result;
 }
@@ -594,6 +597,8 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 {
 	unsigned long result;
 
+	smp_mb();
+
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		unsigned long temp;
 
@@ -607,7 +612,6 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 		"	beqzl	%0, 1b					\n"
 		"	 dsubu	%0, %1, %3				\n"
 		"	.set	reorder					\n"
-		"	sync						\n"
 		"1:							\n"
 		"	.set	mips0					\n"
 		: "=&r" (result), "=&r" (temp), "=m" (v->counter)
@@ -626,7 +630,6 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 		"	beqz	%0, 1b					\n"
 		"	 dsubu	%0, %1, %3				\n"
 		"	.set	reorder					\n"
-		"	sync						\n"
 		"1:							\n"
 		"	.set	mips0					\n"
 		: "=&r" (result), "=&r" (temp), "=m" (v->counter)
@@ -642,6 +645,8 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 			v->counter = result;
 		local_irq_restore(flags);
 	}
+
+	smp_mb();
 
 	return result;
 }

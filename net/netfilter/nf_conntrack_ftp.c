@@ -26,12 +26,15 @@
 #include <net/tcp.h>
 
 #include <net/netfilter/nf_conntrack.h>
+#include <net/netfilter/nf_conntrack_expect.h>
+#include <net/netfilter/nf_conntrack_ecache.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <linux/netfilter/nf_conntrack_ftp.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Rusty Russell <rusty@rustcorp.com.au>");
 MODULE_DESCRIPTION("ftp connection tracking helper");
+MODULE_ALIAS("ip_conntrack_ftp");
 
 /* This is slow, but it's simple. --RR */
 static char *ftp_buffer;
@@ -48,7 +51,7 @@ module_param(loose, bool, 0600);
 
 unsigned int (*nf_nat_ftp_hook)(struct sk_buff **pskb,
 				enum ip_conntrack_info ctinfo,
-				enum ip_ct_ftp_type type,
+				enum nf_ct_ftp_type type,
 				unsigned int matchoff,
 				unsigned int matchlen,
 				struct nf_conntrack_expect *exp,
@@ -71,7 +74,7 @@ static struct ftp_search {
 	size_t plen;
 	char skip;
 	char term;
-	enum ip_ct_ftp_type ftptype;
+	enum nf_ct_ftp_type ftptype;
 	int (*getnum)(const char *, size_t, struct nf_conntrack_man *, char);
 } search[IP_CT_DIR_MAX][2] = {
 	[IP_CT_DIR_ORIGINAL] = {
@@ -80,7 +83,7 @@ static struct ftp_search {
 			.plen		= sizeof("PORT") - 1,
 			.skip		= ' ',
 			.term		= '\r',
-			.ftptype	= IP_CT_FTP_PORT,
+			.ftptype	= NF_CT_FTP_PORT,
 			.getnum		= try_rfc959,
 		},
 		{
@@ -88,7 +91,7 @@ static struct ftp_search {
 			.plen		= sizeof("EPRT") - 1,
 			.skip		= ' ',
 			.term		= '\r',
-			.ftptype	= IP_CT_FTP_EPRT,
+			.ftptype	= NF_CT_FTP_EPRT,
 			.getnum		= try_eprt,
 		},
 	},
@@ -98,7 +101,7 @@ static struct ftp_search {
 			.plen		= sizeof("227 ") - 1,
 			.skip		= '(',
 			.term		= ')',
-			.ftptype	= IP_CT_FTP_PASV,
+			.ftptype	= NF_CT_FTP_PASV,
 			.getnum		= try_rfc959,
 		},
 		{
@@ -106,7 +109,7 @@ static struct ftp_search {
 			.plen		= sizeof("229 ") - 1,
 			.skip		= '(',
 			.term		= ')',
-			.ftptype	= IP_CT_FTP_EPSV,
+			.ftptype	= NF_CT_FTP_EPSV,
 			.getnum		= try_epsv_response,
 		},
 	},
@@ -171,7 +174,7 @@ static int try_rfc959(const char *data, size_t dlen,
 
 /* Grab port: number up to delimiter */
 static int get_port(const char *data, int start, size_t dlen, char delim,
-		    u_int16_t *port)
+		    __be16 *port)
 {
 	u_int16_t tmp_port = 0;
 	int i;
@@ -317,7 +320,7 @@ static int find_pattern(const char *data, size_t dlen,
 }
 
 /* Look up to see if we're just after a \n. */
-static int find_nl_seq(u32 seq, const struct ip_ct_ftp_master *info, int dir)
+static int find_nl_seq(u32 seq, const struct nf_ct_ftp_master *info, int dir)
 {
 	unsigned int i;
 
@@ -328,7 +331,7 @@ static int find_nl_seq(u32 seq, const struct ip_ct_ftp_master *info, int dir)
 }
 
 /* We don't update if it's older than what we have. */
-static void update_nl_seq(u32 nl_seq, struct ip_ct_ftp_master *info, int dir,
+static void update_nl_seq(u32 nl_seq, struct nf_ct_ftp_master *info, int dir,
 			  struct sk_buff *skb)
 {
 	unsigned int i, oldest = NUM_SEQ_TO_REMEMBER;
@@ -364,12 +367,12 @@ static int help(struct sk_buff **pskb,
 	u32 seq;
 	int dir = CTINFO2DIR(ctinfo);
 	unsigned int matchlen, matchoff;
-	struct ip_ct_ftp_master *ct_ftp_info = &nfct_help(ct)->help.ct_ftp_info;
+	struct nf_ct_ftp_master *ct_ftp_info = &nfct_help(ct)->help.ct_ftp_info;
 	struct nf_conntrack_expect *exp;
 	struct nf_conntrack_man cmd = {};
-
 	unsigned int i;
 	int found = 0, ends_in_nl;
+	typeof(nf_nat_ftp_hook) nf_nat_ftp;
 
 	/* Until there's been traffic both ways, don't look in packets. */
 	if (ctinfo != IP_CT_ESTABLISHED
@@ -500,12 +503,12 @@ static int help(struct sk_buff **pskb,
 			       .u = { .tcp = { 0 }},
 			     },
 		      .dst = { .protonum = 0xFF,
-			       .u = { .tcp = { 0xFFFF }},
+			       .u = { .tcp = { __constant_htons(0xFFFF) }},
 			     },
 		    };
 	if (cmd.l3num == PF_INET) {
-		exp->mask.src.u3.ip = 0xFFFFFFFF;
-		exp->mask.dst.u3.ip = 0xFFFFFFFF;
+		exp->mask.src.u3.ip = htonl(0xFFFFFFFF);
+		exp->mask.dst.u3.ip = htonl(0xFFFFFFFF);
 	} else {
 		memset(exp->mask.src.u3.ip6, 0xFF,
 		       sizeof(exp->mask.src.u3.ip6));
@@ -514,13 +517,15 @@ static int help(struct sk_buff **pskb,
 	}
 
 	exp->expectfn = NULL;
+	exp->helper = NULL;
 	exp->flags = 0;
 
 	/* Now, NAT might want to mangle the packet, and register the
 	 * (possibly changed) expectation itself. */
-	if (nf_nat_ftp_hook)
-		ret = nf_nat_ftp_hook(pskb, ctinfo, search[dir][i].ftptype,
-				      matchoff, matchlen, exp, &seq);
+	nf_nat_ftp = rcu_dereference(nf_nat_ftp_hook);
+	if (nf_nat_ftp && ct->status & IPS_NAT_MASK)
+		ret = nf_nat_ftp(pskb, ctinfo, search[dir][i].ftptype,
+				 matchoff, matchlen, exp, &seq);
 	else {
 		/* Can't expect this?  Best to drop packet now. */
 		if (nf_conntrack_expect_related(exp) != 0)
@@ -584,7 +589,8 @@ static int __init nf_conntrack_ftp_init(void)
 		for (j = 0; j < 2; j++) {
 			ftp[i][j].tuple.src.u.tcp.port = htons(ports[i]);
 			ftp[i][j].tuple.dst.protonum = IPPROTO_TCP;
-			ftp[i][j].mask.src.u.tcp.port = 0xFFFF;
+			ftp[i][j].mask.src.l3num = 0xFFFF;
+			ftp[i][j].mask.src.u.tcp.port = htons(0xFFFF);
 			ftp[i][j].mask.dst.protonum = 0xFF;
 			ftp[i][j].max_expected = 1;
 			ftp[i][j].timeout = 5 * 60;	/* 5 Minutes */

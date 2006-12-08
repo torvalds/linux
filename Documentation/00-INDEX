@@ -104,8 +104,6 @@ firmware_class/
 	- request_firmware() hotplug interface info.
 floppy.txt
 	- notes and driver options for the floppy disk driver.
-ftape.txt
-	- notes about the floppy tape device driver.
 hayes-esp.txt
 	- info on using the Hayes ESP serial driver.
 highuid.txt

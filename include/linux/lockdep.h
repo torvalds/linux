@@ -193,7 +193,6 @@ extern void lockdep_free_key_range(void *start, unsigned long size);
 
 extern void lockdep_off(void);
 extern void lockdep_on(void);
-extern int lockdep_internal(void);
 
 /*
  * These methods are used by specific locking variants (spinlocks,
@@ -243,6 +242,8 @@ extern void lock_release(struct lockdep_map *lock, int nested,
 
 # define INIT_LOCKDEP				.lockdep_recursion = 0,
 
+#define lockdep_depth(tsk)	((tsk)->lockdep_depth)
+
 #else /* !LOCKDEP */
 
 static inline void lockdep_off(void)
@@ -251,11 +252,6 @@ static inline void lockdep_off(void)
 
 static inline void lockdep_on(void)
 {
-}
-
-static inline int lockdep_internal(void)
-{
-	return 0;
 }
 
 # define lock_acquire(l, s, t, r, c, i)		do { } while (0)
@@ -277,6 +273,9 @@ static inline int lockdep_internal(void)
  * The class key takes no space if lockdep is disabled:
  */
 struct lock_class_key { };
+
+#define lockdep_depth(tsk)	(0)
+
 #endif /* !LOCKDEP */
 
 #if defined(CONFIG_TRACE_IRQFLAGS) && defined(CONFIG_GENERIC_HARDIRQS)

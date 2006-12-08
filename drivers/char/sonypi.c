@@ -765,7 +765,7 @@ static void sonypi_setbluetoothpower(u8 state)
 	sonypi_device.bluetooth_power = state;
 }
 
-static void input_keyrelease(void *data)
+static void input_keyrelease(struct work_struct *work)
 {
 	struct sonypi_keypress kp;
 
@@ -1412,7 +1412,7 @@ static int __devinit sonypi_probe(struct platform_device *dev)
 			goto err_inpdev_unregister;
 		}
 
-		INIT_WORK(&sonypi_device.input_work, input_keyrelease, NULL);
+		INIT_WORK(&sonypi_device.input_work, input_keyrelease);
 	}
 
 	sonypi_enable(0);

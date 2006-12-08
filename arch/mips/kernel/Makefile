@@ -6,7 +6,7 @@ extra-y		:= head.o init_task.o vmlinux.lds
 
 obj-y		+= cpu-probe.o branch.o entry.o genex.o irq.o process.o \
 		   ptrace.o reset.o semaphore.o setup.o signal.o syscall.o \
-		   time.o traps.o unaligned.o
+		   time.o topology.o traps.o unaligned.o
 
 binfmt_irix-objs	:= irixelf.o irixinv.o irixioctl.o irixsig.o	\
 			   irix5sys.o sysirix.o
@@ -45,7 +45,6 @@ obj-$(CONFIG_MIPS_APSP_KSPD)	+= kspd.o
 obj-$(CONFIG_MIPS_VPE_LOADER)	+= vpe.o
 obj-$(CONFIG_MIPS_VPE_APSP_API)	+= rtlx.o
 
-obj-$(CONFIG_NO_ISA)		+= dma-no-isa.o
 obj-$(CONFIG_I8259)		+= i8259.o
 obj-$(CONFIG_IRQ_CPU)		+= irq_cpu.o
 obj-$(CONFIG_IRQ_CPU_RM7K)	+= irq-rm7000.o
@@ -66,6 +65,8 @@ obj-$(CONFIG_PROC_FS)		+= proc.o
 obj-$(CONFIG_64BIT)		+= cpu-bugs64.o
 
 obj-$(CONFIG_I8253)		+= i8253.o
+
+obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o
 
 CFLAGS_cpu-bugs64.o	= $(shell if $(CC) $(CFLAGS) -Wa,-mdaddi -c -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-DHAVE_AS_SET_DADDI"; fi)
 

@@ -396,3 +396,19 @@ void __init iic_init_IRQ(void)
 	/* Enable on current CPU */
 	iic_setup_cpu();
 }
+
+void iic_set_interrupt_routing(int cpu, int thread, int priority)
+{
+	struct cbe_iic_regs __iomem *iic_regs = cbe_get_cpu_iic_regs(cpu);
+	u64 iic_ir = 0;
+	int node = cpu >> 1;
+
+	/* Set which node and thread will handle the next interrupt */
+	iic_ir |= CBE_IIC_IR_PRIO(priority) |
+		  CBE_IIC_IR_DEST_NODE(node);
+	if (thread == 0)
+		iic_ir |= CBE_IIC_IR_DEST_UNIT(CBE_IIC_IR_PT_0);
+	else
+		iic_ir |= CBE_IIC_IR_DEST_UNIT(CBE_IIC_IR_PT_1);
+	out_be64(&iic_regs->iic_ir, iic_ir);
+}

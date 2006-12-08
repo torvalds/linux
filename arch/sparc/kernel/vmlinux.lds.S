@@ -11,6 +11,7 @@ SECTIONS
   . = 0x10000 + SIZEOF_HEADERS;
   .text 0xf0004000 :
   {
+    _text = .;
     *(.text)
     SCHED_TEXT
     LOCK_TEXT

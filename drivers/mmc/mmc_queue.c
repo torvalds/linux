@@ -10,13 +10,13 @@
  */
 #include <linux/module.h>
 #include <linux/blkdev.h>
+#include <linux/kthread.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
 #include "mmc_queue.h"
 
-#define MMC_QUEUE_EXIT		(1 << 0)
-#define MMC_QUEUE_SUSPENDED	(1 << 1)
+#define MMC_QUEUE_SUSPENDED	(1 << 0)
 
 /*
  * Prepare a MMC request.  Essentially, this means passing the
@@ -59,7 +59,6 @@ static int mmc_queue_thread(void *d)
 {
 	struct mmc_queue *mq = d;
 	struct request_queue *q = mq->queue;
-	DECLARE_WAITQUEUE(wait, current);
 
 	/*
 	 * Set iothread to ensure that we aren't put to sleep by
@@ -67,12 +66,7 @@ static int mmc_queue_thread(void *d)
 	 */
 	current->flags |= PF_MEMALLOC|PF_NOFREEZE;
 
-	daemonize("mmcqd");
-
-	complete(&mq->thread_complete);
-
 	down(&mq->thread_sem);
-	add_wait_queue(&mq->thread_wq, &wait);
 	do {
 		struct request *req = NULL;
 
@@ -84,7 +78,7 @@ static int mmc_queue_thread(void *d)
 		spin_unlock_irq(q->queue_lock);
 
 		if (!req) {
-			if (mq->flags & MMC_QUEUE_EXIT)
+			if (kthread_should_stop())
 				break;
 			up(&mq->thread_sem);
 			schedule();
@@ -95,10 +89,8 @@ static int mmc_queue_thread(void *d)
 
 		mq->issue_fn(mq, req);
 	} while (1);
-	remove_wait_queue(&mq->thread_wq, &wait);
 	up(&mq->thread_sem);
 
-	complete_and_exit(&mq->thread_complete, 0);
 	return 0;
 }
 
@@ -111,9 +103,22 @@ static int mmc_queue_thread(void *d)
 static void mmc_request(request_queue_t *q)
 {
 	struct mmc_queue *mq = q->queuedata;
+	struct request *req;
+	int ret;
+
+	if (!mq) {
+		printk(KERN_ERR "MMC: killing requests for dead queue\n");
+		while ((req = elv_next_request(q)) != NULL) {
+			do {
+				ret = end_that_request_chunk(req, 0,
+					req->current_nr_sectors << 9);
+			} while (ret);
+		}
+		return;
+	}
 
 	if (!mq->req)
-		wake_up(&mq->thread_wq);
+		wake_up_process(mq->thread);
 }
 
 /**
@@ -130,8 +135,8 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 	u64 limit = BLK_BOUNCE_HIGH;
 	int ret;
 
-	if (host->dev->dma_mask && *host->dev->dma_mask)
-		limit = *host->dev->dma_mask;
+	if (mmc_dev(host)->dma_mask && *mmc_dev(host)->dma_mask)
+		limit = *mmc_dev(host)->dma_mask;
 
 	mq->card = card;
 	mq->queue = blk_init_queue(mmc_request, lock);
@@ -152,36 +157,40 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 			 GFP_KERNEL);
 	if (!mq->sg) {
 		ret = -ENOMEM;
-		goto cleanup;
+		goto cleanup_queue;
 	}
 
-	init_completion(&mq->thread_complete);
-	init_waitqueue_head(&mq->thread_wq);
 	init_MUTEX(&mq->thread_sem);
 
-	ret = kernel_thread(mmc_queue_thread, mq, CLONE_KERNEL);
-	if (ret >= 0) {
-		wait_for_completion(&mq->thread_complete);
-		init_completion(&mq->thread_complete);
-		ret = 0;
-		goto out;
+	mq->thread = kthread_run(mmc_queue_thread, mq, "mmcqd");
+	if (IS_ERR(mq->thread)) {
+		ret = PTR_ERR(mq->thread);
+		goto free_sg;
 	}
 
- cleanup:
+	return 0;
+
+ free_sg:
 	kfree(mq->sg);
 	mq->sg = NULL;
-
+ cleanup_queue:
 	blk_cleanup_queue(mq->queue);
- out:
 	return ret;
 }
 EXPORT_SYMBOL(mmc_init_queue);
 
 void mmc_cleanup_queue(struct mmc_queue *mq)
 {
-	mq->flags |= MMC_QUEUE_EXIT;
-	wake_up(&mq->thread_wq);
-	wait_for_completion(&mq->thread_complete);
+	request_queue_t *q = mq->queue;
+	unsigned long flags;
+
+	/* Mark that we should start throwing out stragglers */
+	spin_lock_irqsave(q->queue_lock, flags);
+	q->queuedata = NULL;
+	spin_unlock_irqrestore(q->queue_lock, flags);
+
+	/* Then terminate our worker thread */
+	kthread_stop(mq->thread);
 
 	kfree(mq->sg);
 	mq->sg = NULL;

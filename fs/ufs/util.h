@@ -299,7 +299,7 @@ static inline void *get_usb_offset(struct ufs_sb_private_info *uspi,
 
 #define ubh_get_addr16(ubh,begin) \
 	(((__fs16*)((ubh)->bh[(begin) >> (uspi->s_fshift-1)]->b_data)) + \
-	((begin) & (uspi->fsize>>1) - 1)))
+	((begin) & ((uspi->fsize>>1) - 1)))
 
 #define ubh_get_addr32(ubh,begin) \
 	(((__fs32*)((ubh)->bh[(begin) >> (uspi->s_fshift-2)]->b_data)) + \

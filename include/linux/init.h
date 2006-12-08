@@ -93,6 +93,14 @@ extern void setup_arch(char **);
 	static initcall_t __initcall_##fn##id __attribute_used__ \
 	__attribute__((__section__(".initcall" level ".init"))) = fn
 
+/*
+ * A "pure" initcall has no dependencies on anything else, and purely
+ * initializes variables that couldn't be statically initialized.
+ *
+ * This only exists for built-in code, not for modules.
+ */
+#define pure_initcall(fn)		__define_initcall("0",fn,1)
+
 #define core_initcall(fn)		__define_initcall("1",fn,1)
 #define core_initcall_sync(fn)		__define_initcall("1s",fn,1s)
 #define postcore_initcall(fn)		__define_initcall("2",fn,2)

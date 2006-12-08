@@ -27,6 +27,9 @@
 #include <linux/jiffies.h>
 #include <linux/sysctl.h>
 #include <linux/getcpu.h>
+#include <linux/cpu.h>
+#include <linux/smp.h>
+#include <linux/notifier.h>
 
 #include <asm/vsyscall.h>
 #include <asm/pgtable.h>
@@ -39,6 +42,7 @@
 #include <asm/topology.h>
 
 #define __vsyscall(nr) __attribute__ ((unused,__section__(".vsyscall_" #nr)))
+#define __syscall_clobber "r11","rcx","memory"
 
 int __sysctl_vsyscall __section_sysctl_vsyscall = 1;
 seqlock_t __xtime_lock __section_xtime_lock = SEQLOCK_UNLOCKED;
@@ -243,32 +247,17 @@ static ctl_table kernel_root_table2[] = {
 
 #endif
 
-static void __cpuinit write_rdtscp_cb(void *info)
-{
-	write_rdtscp_aux((unsigned long)info);
-}
-
-void __cpuinit vsyscall_set_cpu(int cpu)
+/* Assume __initcall executes before all user space. Hopefully kmod
+   doesn't violate that. We'll find out if it does. */
+static void __cpuinit vsyscall_set_cpu(int cpu)
 {
 	unsigned long *d;
 	unsigned long node = 0;
 #ifdef CONFIG_NUMA
 	node = cpu_to_node[cpu];
 #endif
-	if (cpu_has(&cpu_data[cpu], X86_FEATURE_RDTSCP)) {
-		void *info = (void *)((node << 12) | cpu);
-		/* Can happen on preemptive kernel */
-		if (get_cpu() == cpu)
-			write_rdtscp_cb(info);
-#ifdef CONFIG_SMP
-		else {
-			/* the notifier is unfortunately not executed on the
-			   target CPU */
-			smp_call_function_single(cpu,write_rdtscp_cb,info,0,1);
-		}
-#endif
-		put_cpu();
-	}
+	if (cpu_has(&cpu_data[cpu], X86_FEATURE_RDTSCP))
+		write_rdtscp_aux((node << 12) | cpu);
 
 	/* Store cpu number in limit so that it can be loaded quickly
 	   in user space in vgetcpu.
@@ -280,11 +269,27 @@ void __cpuinit vsyscall_set_cpu(int cpu)
 	*d |= (node >> 4) << 48;
 }
 
+static void __cpuinit cpu_vsyscall_init(void *arg)
+{
+	/* preemption should be already off */
+	vsyscall_set_cpu(raw_smp_processor_id());
+}
+
+static int __cpuinit
+cpu_vsyscall_notifier(struct notifier_block *n, unsigned long action, void *arg)
+{
+	long cpu = (long)arg;
+	if (action == CPU_ONLINE)
+		smp_call_function_single(cpu, cpu_vsyscall_init, NULL, 0, 1);
+	return NOTIFY_DONE;
+}
+
 static void __init map_vsyscall(void)
 {
 	extern char __vsyscall_0;
 	unsigned long physaddr_page0 = __pa_symbol(&__vsyscall_0);
 
+	/* Note that VSYSCALL_MAPPED_PAGES must agree with the code below. */
 	__set_fixmap(VSYSCALL_FIRST_PAGE, physaddr_page0, PAGE_KERNEL_VSYSCALL);
 }
 
@@ -299,6 +304,8 @@ static int __init vsyscall_init(void)
 #ifdef CONFIG_SYSCTL
 	register_sysctl_table(kernel_root_table2, 0);
 #endif
+	on_each_cpu(cpu_vsyscall_init, NULL, 0, 1);
+	hotcpu_notifier(cpu_vsyscall_notifier, 0);
 	return 0;
 }
 

@@ -13,7 +13,6 @@
 
 #include <asm/delay.h>
 #include <asm/tsc.h>
-#include <asm/delay.h>
 #include <asm/io.h>
 
 #include "mach_timer.h"
@@ -217,7 +216,7 @@ static unsigned int cpufreq_delayed_issched = 0;
 static unsigned int cpufreq_init = 0;
 static struct work_struct cpufreq_delayed_get_work;
 
-static void handle_cpufreq_delayed_get(void *v)
+static void handle_cpufreq_delayed_get(struct work_struct *work)
 {
 	unsigned int cpu;
 
@@ -306,7 +305,7 @@ static int __init cpufreq_tsc(void)
 {
 	int ret;
 
-	INIT_WORK(&cpufreq_delayed_get_work, handle_cpufreq_delayed_get, NULL);
+	INIT_WORK(&cpufreq_delayed_get_work, handle_cpufreq_delayed_get);
 	ret = cpufreq_register_notifier(&time_cpufreq_notifier_block,
 					CPUFREQ_TRANSITION_NOTIFIER);
 	if (!ret)

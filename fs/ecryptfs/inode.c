@@ -369,7 +369,7 @@ static struct dentry *ecryptfs_lookup(struct inode *dir, struct dentry *dentry,
 	BUG_ON(!atomic_read(&lower_dentry->d_count));
 	ecryptfs_set_dentry_private(dentry,
 				    kmem_cache_alloc(ecryptfs_dentry_info_cache,
-						     SLAB_KERNEL));
+						     GFP_KERNEL));
 	if (!ecryptfs_dentry_to_private(dentry)) {
 		rc = -ENOMEM;
 		ecryptfs_printk(KERN_ERR, "Out of memory whilst attempting "
@@ -404,7 +404,7 @@ static struct dentry *ecryptfs_lookup(struct inode *dir, struct dentry *dentry,
 	/* Released in this function */
 	page_virt =
 	    (char *)kmem_cache_alloc(ecryptfs_header_cache_2,
-				     SLAB_USER);
+				     GFP_USER);
 	if (!page_virt) {
 		rc = -ENOMEM;
 		ecryptfs_printk(KERN_ERR,
@@ -470,6 +470,7 @@ out_lock:
 	unlock_dir(lower_dir_dentry);
 	dput(lower_new_dentry);
 	dput(lower_old_dentry);
+	d_drop(lower_old_dentry);
 	d_drop(new_dentry);
 	d_drop(old_dentry);
 	return rc;
@@ -484,7 +485,7 @@ static int ecryptfs_unlink(struct inode *dir, struct dentry *dentry)
 	lock_parent(lower_dentry);
 	rc = vfs_unlink(lower_dir_inode, lower_dentry);
 	if (rc) {
-		ecryptfs_printk(KERN_ERR, "Error in vfs_unlink\n");
+		printk(KERN_ERR "Error in vfs_unlink; rc = [%d]\n", rc);
 		goto out_unlock;
 	}
 	ecryptfs_copy_attr_times(dir, lower_dir_inode);
@@ -630,6 +631,8 @@ ecryptfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		ecryptfs_copy_attr_all(old_dir, lower_old_dir_dentry->d_inode);
 out_lock:
 	unlock_rename(lower_old_dir_dentry, lower_new_dir_dentry);
+	dput(lower_new_dentry->d_parent);
+	dput(lower_old_dentry->d_parent);
 	dput(lower_new_dentry);
 	dput(lower_old_dentry);
 	return rc;
@@ -792,7 +795,7 @@ int ecryptfs_truncate(struct dentry *dentry, loff_t new_length)
 	/* Released at out_free: label */
 	ecryptfs_set_file_private(&fake_ecryptfs_file,
 				  kmem_cache_alloc(ecryptfs_file_info_cache,
-						   SLAB_KERNEL));
+						   GFP_KERNEL));
 	if (unlikely(!ecryptfs_file_to_private(&fake_ecryptfs_file))) {
 		rc = -ENOMEM;
 		goto out;

@@ -421,9 +421,9 @@ static void acm_write_bulk(struct urb *urb)
 		schedule_work(&acm->work);
 }
 
-static void acm_softint(void *private)
+static void acm_softint(struct work_struct *work)
 {
-	struct acm *acm = private;
+	struct acm *acm = container_of(work, struct acm, work);
 	dbg("Entering acm_softint.");
 	
 	if (!ACM_READY(acm))
@@ -892,7 +892,7 @@ skip_normal_probe:
 
 
 	/* workaround for switched endpoints */
-	if ((epread->bEndpointAddress & USB_DIR_IN) != USB_DIR_IN) {
+	if (!usb_endpoint_dir_in(epread)) {
 		/* descriptors are swapped */
 		struct usb_endpoint_descriptor *t;
 		dev_dbg(&intf->dev,"The data interface has switched endpoints");
@@ -927,7 +927,7 @@ skip_normal_probe:
 	acm->rx_buflimit = num_rx_buf;
 	acm->urb_task.func = acm_rx_tasklet;
 	acm->urb_task.data = (unsigned long) acm;
-	INIT_WORK(&acm->work, acm_softint, acm);
+	INIT_WORK(&acm->work, acm_softint);
 	spin_lock_init(&acm->throttle_lock);
 	spin_lock_init(&acm->write_lock);
 	spin_lock_init(&acm->read_lock);

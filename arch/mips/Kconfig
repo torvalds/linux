@@ -16,6 +16,7 @@ config MIPS_MTX1
 	bool "4G Systems MTX-1 board"
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
+	select RESOURCES_64BIT if PCI
 	select SOC_AU1500
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_LITTLE_ENDIAN
@@ -32,6 +33,7 @@ config MIPS_PB1000
 	select SOC_AU1000
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
+	select RESOURCES_64BIT if PCI
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_LITTLE_ENDIAN
@@ -41,6 +43,7 @@ config MIPS_PB1100
 	select SOC_AU1100
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
+	select RESOURCES_64BIT if PCI
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_LITTLE_ENDIAN
@@ -50,6 +53,7 @@ config MIPS_PB1500
 	select SOC_AU1500
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
+	select RESOURCES_64BIT if PCI
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
@@ -59,6 +63,7 @@ config MIPS_PB1550
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select MIPS_DISABLE_OBSOLETE_IDE
+	select RESOURCES_64BIT if PCI
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
@@ -67,6 +72,7 @@ config MIPS_PB1200
 	select SOC_AU1200
 	select DMA_NONCOHERENT
 	select MIPS_DISABLE_OBSOLETE_IDE
+	select RESOURCES_64BIT if PCI
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
@@ -75,6 +81,7 @@ config MIPS_DB1000
 	select SOC_AU1000
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
+	select RESOURCES_64BIT if PCI
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
@@ -91,6 +98,7 @@ config MIPS_DB1500
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select MIPS_DISABLE_OBSOLETE_IDE
+	select RESOURCES_64BIT if PCI
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
@@ -101,6 +109,7 @@ config MIPS_DB1550
 	select HW_HAS_PCI
 	select DMA_NONCOHERENT
 	select MIPS_DISABLE_OBSOLETE_IDE
+	select RESOURCES_64BIT if PCI
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
@@ -233,6 +242,7 @@ config LASAT
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select GENERIC_HARDIRQS_NO__DO_IRQ
 
 config MIPS_ATLAS
 	bool "MIPS Atlas board"
@@ -256,6 +266,7 @@ config MIPS_ATLAS
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_MULTITHREADING if EXPERIMENTAL
+	select GENERIC_HARDIRQS_NO__DO_IRQ
 	help
 	  This enables support for the MIPS Technologies Atlas evaluation
 	  board.
@@ -266,8 +277,8 @@ config MIPS_MALTA
 	select BOOT_ELF32
 	select HAVE_STD_PC_SERIAL_PORT
 	select DMA_NONCOHERENT
-	select IRQ_CPU
 	select GENERIC_ISA_DMA
+	select IRQ_CPU
 	select HW_HAS_PCI
 	select I8259
 	select MIPS_BOARDS_GEN
@@ -410,6 +421,7 @@ config MOMENCO_OCELOT_C
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
+	select GENERIC_HARDIRQS_NO__DO_IRQ
 	help
 	  The Ocelot is a MIPS-based Single Board Computer (SBC) made by
 	  Momentum Computer <http://www.momenco.com/>.
@@ -534,7 +546,7 @@ config SGI_IP22
 	select HW_HAS_EISA
 	select IP22_CPU_SCACHE
 	select IRQ_CPU
-	select NO_ISA if ISA
+	select GENERIC_ISA_DMA_SUPPORT_BROKEN
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_R4X00
 	select SYS_HAS_CPU_R5000
@@ -560,6 +572,7 @@ config SGI_IP27
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_NUMA
 	select SYS_SUPPORTS_SMP
+	select GENERIC_HARDIRQS_NO__DO_IRQ
 	help
 	  This are the SGI Origin 200, Origin 2000 and Onyx 2 Graphics
 	  workstations.  To compile a Linux kernel that runs on these, say Y
@@ -766,6 +779,23 @@ config TOSHIBA_RBTX4938
 
 endchoice
 
+config KEXEC
+ 	bool "Kexec system call (EXPERIMENTAL)"
+ 	depends on EXPERIMENTAL
+ 	help
+ 	  kexec is a system call that implements the ability to shutdown your
+ 	  current kernel, and to start another kernel.  It is like a reboot
+ 	  but it is indepedent of the system firmware.   And like a reboot
+ 	  you can start any kernel with it, not just Linux.
+
+ 	  The name comes from the similiarity to the exec system call.
+
+ 	  It is an ongoing process to be certain the hardware in a machine
+ 	  is properly shutdown, so do not be surprised if this code does not
+ 	  initially work for you.  It may help to enable device hotplugging
+ 	  support.  As of this writing the exact hardware interface is
+ 	  strongly in flux, so no good recommendation can be made.
+
 source "arch/mips/ddb5xxx/Kconfig"
 source "arch/mips/gt64120/ev64120/Kconfig"
 source "arch/mips/jazz/Kconfig"
@@ -808,6 +838,10 @@ config GENERIC_TIME
 config SCHED_NO_NO_OMIT_FRAME_POINTER
 	bool
 	default y
+
+config GENERIC_HARDIRQS_NO__DO_IRQ
+	bool
+	default n
 
 #
 # Select some configuration options automatically based on user selections.
@@ -864,8 +898,11 @@ config MIPS_NILE4
 config MIPS_DISABLE_OBSOLETE_IDE
 	bool
 
+config GENERIC_ISA_DMA_SUPPORT_BROKEN
+	bool
+
 #
-# Endianess selection.  Suffiently obscure so many users don't know what to
+# Endianess selection.  Sufficiently obscure so many users don't know what to
 # answer,so we try hard to limit the available choices.  Also the use of a
 # choice statement should be more obvious to the user.
 #
@@ -874,7 +911,7 @@ choice
 	help
 	  Some MIPS machines can be configured for either little or big endian
 	  byte order. These modes require different kernels and a different
-	  Linux distribution.  In general there is one prefered byteorder for a
+	  Linux distribution.  In general there is one preferred byteorder for a
 	  particular system but some systems are just as commonly used in the
 	  one or the other endianess.
 
@@ -967,6 +1004,7 @@ config SOC_PNX8550
 	select HW_HAS_PCI
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
+	select GENERIC_HARDIRQS_NO__DO_IRQ
 
 config SWAP_IO_SPACE
 	bool
@@ -1248,6 +1286,7 @@ config CPU_RM9000
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
+	select WEAK_ORDERING
 
 config CPU_SB1
 	bool "SB1"
@@ -1256,6 +1295,7 @@ config CPU_SB1
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
+	select WEAK_ORDERING
 
 endchoice
 
@@ -1316,6 +1356,8 @@ config SYS_HAS_CPU_RM9000
 config SYS_HAS_CPU_SB1
 	bool
 
+config WEAK_ORDERING
+	bool
 endmenu
 
 #
@@ -1835,13 +1877,11 @@ source "drivers/pci/Kconfig"
 config ISA
 	bool
 
-config NO_ISA
-	bool
-
 config EISA
 	bool "EISA support"
 	depends on HW_HAS_EISA
 	select ISA
+	select GENERIC_ISA_DMA
 	---help---
 	  The Extended Industry Standard Architecture (EISA) bus was
 	  developed as an open alternative to the IBM MicroChannel bus.
@@ -1920,6 +1960,11 @@ config MIPS32_COMPAT
 config COMPAT
 	bool
 	depends on MIPS32_COMPAT
+	default y
+
+config SYSVIPC_COMPAT
+	bool
+	depends on COMPAT && SYSVIPC
 	default y
 
 config MIPS32_O32

@@ -245,7 +245,7 @@ EXPORT_SYMBOL(gpio_line_set);
  * EP93xx IRQ handling
  *************************************************************************/
 static void ep93xx_gpio_ab_irq_handler(unsigned int irq,
-		struct irqdesc *desc)
+		struct irq_desc *desc)
 {
 	unsigned char status;
 	int i;
@@ -335,7 +335,7 @@ static int ep93xx_gpio_ab_irq_type(unsigned int irq, unsigned int type)
 	return 0;
 }
 
-static struct irqchip ep93xx_gpio_ab_irq_chip = {
+static struct irq_chip ep93xx_gpio_ab_irq_chip = {
 	.ack		= ep93xx_gpio_ab_irq_mask_ack,
 	.mask		= ep93xx_gpio_ab_irq_mask,
 	.unmask		= ep93xx_gpio_ab_irq_unmask,
@@ -352,7 +352,7 @@ void __init ep93xx_init_irq(void)
 
 	for (irq = IRQ_EP93XX_GPIO(0) ; irq <= IRQ_EP93XX_GPIO(15); irq++) {
 		set_irq_chip(irq, &ep93xx_gpio_ab_irq_chip);
-		set_irq_handler(irq, do_level_IRQ);
+		set_irq_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 	set_irq_chained_handler(IRQ_EP93XX_GPIO_AB, ep93xx_gpio_ab_irq_handler);

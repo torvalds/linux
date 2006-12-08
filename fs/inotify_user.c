@@ -34,8 +34,8 @@
 
 #include <asm/ioctls.h>
 
-static kmem_cache_t *watch_cachep __read_mostly;
-static kmem_cache_t *event_cachep __read_mostly;
+static struct kmem_cache *watch_cachep __read_mostly;
+static struct kmem_cache *event_cachep __read_mostly;
 
 static struct vfsmount *inotify_mnt __read_mostly;
 

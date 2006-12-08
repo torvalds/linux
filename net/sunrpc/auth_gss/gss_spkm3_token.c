@@ -172,10 +172,10 @@ spkm3_mic_header(unsigned char **hdrbuf, unsigned int *hdrlen, unsigned char *ct
 	*(u8 *)hptr++ = zbit;
 	memcpy(hptr, ctxdata, elen);
 	hptr += elen;
-	*hdrlen = hptr - top; 
+	*hdrlen = hptr - top;
 }
-		
-/* 
+
+/*
  * spkm3_mic_innercontext_token()
  *
  * *tokp points to the beginning of the SPKM_MIC token  described 

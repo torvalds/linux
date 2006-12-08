@@ -328,6 +328,15 @@ config PATA_TRIFLEX
 
 	  If unsure, say N.
 
+config PATA_MARVELL
+	tristate "Marvell PATA support via legacy mode"
+	depends on PCI
+	help
+	  This option enables limited support for the Marvell 88SE6145 ATA
+	  controller.
+
+	  If unsure, say N.
+
 config PATA_MPIIX
 	tristate "Intel PATA MPIIX support"
 	depends on PCI
@@ -480,6 +489,32 @@ config PATA_WINBOND
 	help
 	  This option enables support for SL82C105 PATA devices found in the
 	  Netwinder and some other systems
+
+	  If unsure, say N.
+
+config PATA_WINBOND_VLB
+	tristate "Winbond W83759A VLB PATA support (Experimental)"
+	depends on ISA && EXPERIMENTAL
+	help
+	  Support for the Winbond W83759A controller on Vesa Local Bus
+	  systems.
+
+config PATA_PLATFORM
+	tristate "Generic platform device PATA support"
+	depends on EMBEDDED
+	help
+	  This option enables support for generic directly connected ATA
+	  devices commonly found on embedded systems.
+
+	  If unsure, say N.
+
+config PATA_IXP4XX_CF
+	tristate "IXP4XX Compact Flash support"
+	depends on ARCH_IXP4XX
+	help
+	  This option enables support for a Compact Flash connected on
+	  the ixp4xx expansion bus. This driver had been written for
+	  Loft/Avila boards in mind but can work with others.
 
 	  If unsure, say N.
 

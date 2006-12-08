@@ -67,8 +67,10 @@ extern ia64_mv_dma_sync_sg_for_device	sn_dma_sync_sg_for_device;
 extern ia64_mv_dma_mapping_error	sn_dma_mapping_error;
 extern ia64_mv_dma_supported		sn_dma_supported;
 extern ia64_mv_migrate_t		sn_migrate;
+extern ia64_mv_kernel_launch_event_t	sn_kernel_launch_event;
 extern ia64_mv_setup_msi_irq_t		sn_setup_msi_irq;
 extern ia64_mv_teardown_msi_irq_t	sn_teardown_msi_irq;
+extern ia64_mv_pci_fixup_bus_t		sn_pci_fixup_bus;
 
 
 /*
@@ -120,6 +122,7 @@ extern ia64_mv_teardown_msi_irq_t	sn_teardown_msi_irq;
 #define platform_dma_mapping_error		sn_dma_mapping_error
 #define platform_dma_supported		sn_dma_supported
 #define platform_migrate		sn_migrate
+#define platform_kernel_launch_event    sn_kernel_launch_event
 #ifdef CONFIG_PCI_MSI
 #define platform_setup_msi_irq		sn_setup_msi_irq
 #define platform_teardown_msi_irq	sn_teardown_msi_irq
@@ -127,6 +130,7 @@ extern ia64_mv_teardown_msi_irq_t	sn_teardown_msi_irq;
 #define platform_setup_msi_irq		((ia64_mv_setup_msi_irq_t*)NULL)
 #define platform_teardown_msi_irq	((ia64_mv_teardown_msi_irq_t*)NULL)
 #endif
+#define platform_pci_fixup_bus		sn_pci_fixup_bus
 
 #include <asm/sn/io.h>
 

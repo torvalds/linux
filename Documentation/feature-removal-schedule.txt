@@ -30,11 +30,39 @@ Who:	Adrian Bunk <bunk@stusta.de>
 ---------------------------
 
 What:	raw1394: requests of type RAW1394_REQ_ISO_SEND, RAW1394_REQ_ISO_LISTEN
-When:	November 2006
-Why:	Deprecated in favour of the new ioctl-based rawiso interface, which is
-	more efficient.  You should really be using libraw1394 for raw1394
-	access anyway.
-Who:	Jody McIntyre <scjody@modernduck.com>
+When:	June 2007
+Why:	Deprecated in favour of the more efficient and robust rawiso interface.
+	Affected are applications which use the deprecated part of libraw1394
+	(raw1394_iso_write, raw1394_start_iso_write, raw1394_start_iso_rcv,
+	raw1394_stop_iso_rcv) or bypass	libraw1394.
+Who:	Dan Dennedy <dan@dennedy.org>, Stefan Richter <stefanr@s5r6.in-berlin.de>
+
+---------------------------
+
+What:	dv1394 driver (CONFIG_IEEE1394_DV1394)
+When:	June 2007
+Why:	Replaced by raw1394 + userspace libraries, notably libiec61883.  This
+	shift of application support has been indicated on www.linux1394.org
+	and developers' mailinglists for quite some time.  Major applications
+	have been converted, with the exception of ffmpeg and hence xine.
+	Piped output of dvgrab2 is a partial equivalent to dv1394.
+Who:	Dan Dennedy <dan@dennedy.org>, Stefan Richter <stefanr@s5r6.in-berlin.de>
+
+---------------------------
+
+What:	ieee1394 core's unused exports (CONFIG_IEEE1394_EXPORT_FULL_API)
+When:	January 2007
+Why:	There are no projects known to use these exported symbols, except
+	dfg1394 (uses one symbol whose functionality is core-internal now).
+Who:	Stefan Richter <stefanr@s5r6.in-berlin.de>
+
+---------------------------
+
+What:	ieee1394's *_oui sysfs attributes (CONFIG_IEEE1394_OUI_DB)
+When:	January 2007
+Files:	drivers/ieee1394/: oui.db, oui2c.sh
+Why:	big size, little value
+Who:	Stefan Richter <stefanr@s5r6.in-berlin.de>
 
 ---------------------------
 
@@ -53,18 +81,6 @@ Who:	Mauro Carvalho Chehab <mchehab@brturbo.com.br>
 
 ---------------------------
 
-What:	sys_sysctl
-When:	January 2007
-Why:	The same information is available through /proc/sys and that is the
-	interface user space prefers to use. And there do not appear to be
-	any existing user in user space of sys_sysctl.  The additional
-	maintenance overhead of keeping a set of binary names gets
-	in the way of doing a good job of maintaining this interface.
-
-Who:	Eric Biederman <ebiederm@xmission.com>
-
----------------------------
-
 What:	PCMCIA control ioctl (needed for pcmcia-cs [cardmgr, cardctl])
 When:	November 2005
 Files:	drivers/pcmcia/: pcmcia_ioctl.c
@@ -79,18 +95,6 @@ Why:	With the 16-bit PCMCIA subsystem now behaving (almost) like a
 	pcmciautils package available at
 	http://kernel.org/pub/linux/utils/kernel/pcmcia/
 Who:	Dominik Brodowski <linux@brodo.de>
-
----------------------------
-
-What:	ip_queue and ip6_queue (old ipv4-only and ipv6-only netfilter queue)
-When:	December 2005
-Why:	This interface has been obsoleted by the new layer3-independent
-	"nfnetlink_queue".  The Kernel interface is compatible, so the old
-	ip[6]tables "QUEUE" targets still work and will transparently handle
-	all packets into nfnetlink queue number 0.  Userspace users will have
-	to link against API-compatible library on top of libnfnetlink_queue 
-	instead of the current 'libipq'.
-Who:	Harald Welte <laforge@netfilter.org>
 
 ---------------------------
 
@@ -239,21 +243,6 @@ Who:	Patrick McHardy <kaber@trash.net>
 
 ---------------------------
 
-What:	frame diverter
-When:	November 2006
-Why:	The frame diverter is included in most distribution kernels, but is
-	broken. It does not correctly handle many things:
-	- IPV6
-	- non-linear skb's
-	- network device RCU on removal
-	- input frames not correctly checked for protocol errors
-	It also adds allocation overhead even if not enabled.
-	It is not clear if anyone is still using it.
-Who:	Stephen Hemminger <shemminger@osdl.org>
-
----------------------------
-
-
 What:	PHYSDEVPATH, PHYSDEVBUS, PHYSDEVDRIVER in the uevent environment
 When:	October 2008
 Why:	The stacking of class devices makes these values misleading and
@@ -273,10 +262,11 @@ Who:	Jean Delvare <khali@linux-fr.org>
 
 ---------------------------
 
-What:	ftape
-When:	2.6.20
-Why:	Orphaned for ages.  SMP bugs long unfixed.  Few users left
-	in the world.
-Who:	Jeff Garzik <jeff@garzik.org>
+What:	IPv4 only connection tracking/NAT/helpers
+When:	2.6.22
+Why:	The new layer 3 independant connection tracking replaces the old
+	IPv4 only version. After some stabilization of the new code the
+	old one will be removed.
+Who:	Patrick McHardy <kaber@trash.net>
 
 ---------------------------

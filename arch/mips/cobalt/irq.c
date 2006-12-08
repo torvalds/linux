@@ -45,25 +45,22 @@ static inline void galileo_irq(void)
 {
 	unsigned int mask, pending, devfn;
 
-	mask = GALILEO_INL(GT_INTRMASK_OFS);
-	pending = GALILEO_INL(GT_INTRCAUSE_OFS) & mask;
+	mask = GT_READ(GT_INTRMASK_OFS);
+	pending = GT_READ(GT_INTRCAUSE_OFS) & mask;
 
-	if (pending & GALILEO_INTR_T0EXP) {
-
-		GALILEO_OUTL(~GALILEO_INTR_T0EXP, GT_INTRCAUSE_OFS);
+	if (pending & GT_INTR_T0EXP_MSK) {
+		GT_WRITE(GT_INTRCAUSE_OFS, ~GT_INTR_T0EXP_MSK);
 		do_IRQ(COBALT_GALILEO_IRQ);
-
-	} else if (pending & GALILEO_INTR_RETRY_CTR) {
-
-		devfn = GALILEO_INL(GT_PCI0_CFGADDR_OFS) >> 8;
-		GALILEO_OUTL(~GALILEO_INTR_RETRY_CTR, GT_INTRCAUSE_OFS);
-		printk(KERN_WARNING "Galileo: PCI retry count exceeded (%02x.%u)\n",
-			PCI_SLOT(devfn), PCI_FUNC(devfn));
-
+	} else if (pending & GT_INTR_RETRYCTR0_MSK) {
+		devfn = GT_READ(GT_PCI0_CFGADDR_OFS) >> 8;
+		GT_WRITE(GT_INTRCAUSE_OFS, ~GT_INTR_RETRYCTR0_MSK);
+		printk(KERN_WARNING
+		       "Galileo: PCI retry count exceeded (%02x.%u)\n",
+		       PCI_SLOT(devfn), PCI_FUNC(devfn));
 	} else {
-
-		GALILEO_OUTL(mask & ~pending, GT_INTRMASK_OFS);
-		printk(KERN_WARNING "Galileo: masking unexpected interrupt %08x\n", pending);
+		GT_WRITE(GT_INTRMASK_OFS, mask & ~pending);
+		printk(KERN_WARNING
+		       "Galileo: masking unexpected interrupt %08x\n", pending);
 	}
 }
 
@@ -104,7 +101,7 @@ void __init arch_init_irq(void)
 	 * Mask all Galileo interrupts. The Galileo
 	 * handler is set in cobalt_timer_setup()
 	 */
-	GALILEO_OUTL(0, GT_INTRMASK_OFS);
+	GT_WRITE(GT_INTRMASK_OFS, 0);
 
 	init_i8259_irqs();				/*  0 ... 15 */
 	mips_cpu_irq_init(COBALT_CPU_IRQ);		/* 16 ... 23 */

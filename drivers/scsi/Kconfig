@@ -29,6 +29,13 @@ config SCSI
 	  However, do not compile this as a module if your root file system
 	  (the one containing the directory /) is located on a SCSI device.
 
+config SCSI_TGT
+	tristate "SCSI target support"
+	depends on SCSI && EXPERIMENTAL
+	---help---
+	  If you want to use SCSI target mode drivers enable this option.
+	  If you choose M, the module will be called scsi_tgt.
+
 config SCSI_NETLINK
 	bool
 	default	n
@@ -215,6 +222,23 @@ config SCSI_LOGGING
 	  problems. If you say Y here your kernel will be somewhat larger, but
 	  there should be no noticeable performance impact as long as you have
 	  logging turned off.
+
+config SCSI_SCAN_ASYNC
+	bool "Asynchronous SCSI scanning"
+	depends on SCSI
+	help
+	  The SCSI subsystem can probe for devices while the rest of the
+	  system continues booting, and even probe devices on different
+	  busses in parallel, leading to a significant speed-up.
+	  If you have built SCSI as modules, enabling this option can
+	  be a problem as the devices may not have been found by the
+	  time your system expects them to have been.  You can load the
+	  scsi_wait_scan module to ensure that all scans have completed.
+	  If you build your SCSI drivers into the kernel, then everything
+	  will work fine if you say Y here.
+
+	  You can override this choice by specifying scsi_mod.scan="sync"
+	  or "async" on the kernel's command line.
 
 menu "SCSI Transports"
 	depends on SCSI
@@ -797,6 +821,20 @@ config SCSI_IBMVSCSI
 	  To compile this driver as a module, choose M here: the
 	  module will be called ibmvscsic.
 
+config SCSI_IBMVSCSIS
+	tristate "IBM Virtual SCSI Server support"
+	depends on PPC_PSERIES && SCSI_TGT && SCSI_SRP
+	help
+	  This is the SRP target driver for IBM pSeries virtual environments.
+
+	  The userspace component needed to initialize the driver and
+	  documentation can be found:
+
+	  http://stgt.berlios.de/
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ibmvstgt.
+
 config SCSI_INITIO
 	tristate "Initio 9100U(W) support"
 	depends on PCI && SCSI
@@ -944,8 +982,13 @@ config SCSI_STEX
 	tristate "Promise SuperTrak EX Series support"
 	depends on PCI && SCSI
 	---help---
-	  This driver supports Promise SuperTrak EX8350/8300/16350/16300
-	  Storage controllers.
+	  This driver supports Promise SuperTrak EX series storage controllers.
+
+	  Promise provides Linux RAID configuration utility for these
+	  controllers. Please visit <http://www.promise.com> to download.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stex.
 
 config SCSI_SYM53C8XX_2
 	tristate "SYM53C8XX Version 2 SCSI support"
@@ -1026,6 +1069,7 @@ config SCSI_IPR
 config SCSI_IPR_TRACE
 	bool "enable driver internal trace"
 	depends on SCSI_IPR
+	default y
 	help
 	  If you say Y here, the driver will trace all commands issued
 	  to the adapter. Performance impact is minimal. Trace can be
@@ -1034,6 +1078,7 @@ config SCSI_IPR_TRACE
 config SCSI_IPR_DUMP
 	bool "enable adapter dump support"
 	depends on SCSI_IPR
+	default y
 	help
 	  If you say Y here, the driver will support adapter crash dump.
 	  If you enable this support, the iprdump daemon can be used
@@ -1733,6 +1778,16 @@ config ZFCP
           This driver is also available as a module. This module will be
           called zfcp. If you want to compile it as a module, say M here
           and read <file:Documentation/modules.txt>.
+
+config SCSI_SRP
+	tristate "SCSI RDMA Protocol helper library"
+	depends on SCSI && PCI
+	select SCSI_TGT
+	help
+	  If you wish to use SRP target drivers, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called libsrp.
 
 endmenu
 

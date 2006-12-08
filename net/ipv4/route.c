@@ -566,11 +566,9 @@ static inline u32 rt_score(struct rtable *rt)
 
 static inline int compare_keys(struct flowi *fl1, struct flowi *fl2)
 {
-	return ((fl1->nl_u.ip4_u.daddr ^ fl2->nl_u.ip4_u.daddr) |
-		(fl1->nl_u.ip4_u.saddr ^ fl2->nl_u.ip4_u.saddr) |
-#ifdef CONFIG_IP_ROUTE_FWMARK
-		(fl1->nl_u.ip4_u.fwmark ^ fl2->nl_u.ip4_u.fwmark) |
-#endif
+	return ((__force u32)((fl1->nl_u.ip4_u.daddr ^ fl2->nl_u.ip4_u.daddr) |
+		(fl1->nl_u.ip4_u.saddr ^ fl2->nl_u.ip4_u.saddr)) |
+		(fl1->mark ^ fl2->mark) |
 		(*(u16 *)&fl1->nl_u.ip4_u.tos ^
 		 *(u16 *)&fl2->nl_u.ip4_u.tos) |
 		(fl1->oif ^ fl2->oif) |
@@ -1643,9 +1641,7 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	rth->fl.fl4_dst	= daddr;
 	rth->rt_dst	= daddr;
 	rth->fl.fl4_tos	= tos;
-#ifdef CONFIG_IP_ROUTE_FWMARK
-	rth->fl.fl4_fwmark= skb->nfmark;
-#endif
+	rth->fl.mark    = skb->mark;
 	rth->fl.fl4_src	= saddr;
 	rth->rt_src	= saddr;
 #ifdef CONFIG_NET_CLS_ROUTE
@@ -1784,14 +1780,12 @@ static inline int __mkroute_input(struct sk_buff *skb,
 #endif
 	if (in_dev->cnf.no_policy)
 		rth->u.dst.flags |= DST_NOPOLICY;
-	if (in_dev->cnf.no_xfrm)
+	if (out_dev->cnf.no_xfrm)
 		rth->u.dst.flags |= DST_NOXFRM;
 	rth->fl.fl4_dst	= daddr;
 	rth->rt_dst	= daddr;
 	rth->fl.fl4_tos	= tos;
-#ifdef CONFIG_IP_ROUTE_FWMARK
-	rth->fl.fl4_fwmark= skb->nfmark;
-#endif
+	rth->fl.mark    = skb->mark;
 	rth->fl.fl4_src	= saddr;
 	rth->rt_src	= saddr;
 	rth->rt_gateway	= daddr;
@@ -1920,10 +1914,8 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 					.saddr = saddr,
 					.tos = tos,
 					.scope = RT_SCOPE_UNIVERSE,
-#ifdef CONFIG_IP_ROUTE_FWMARK
-					.fwmark = skb->nfmark
-#endif
 				      } },
+			    .mark = skb->mark,
 			    .iif = dev->ifindex };
 	unsigned	flags = 0;
 	u32		itag = 0;
@@ -2034,9 +2026,7 @@ local_input:
 	rth->fl.fl4_dst	= daddr;
 	rth->rt_dst	= daddr;
 	rth->fl.fl4_tos	= tos;
-#ifdef CONFIG_IP_ROUTE_FWMARK
-	rth->fl.fl4_fwmark= skb->nfmark;
-#endif
+	rth->fl.mark    = skb->mark;
 	rth->fl.fl4_src	= saddr;
 	rth->rt_src	= saddr;
 #ifdef CONFIG_NET_CLS_ROUTE
@@ -2113,9 +2103,7 @@ int ip_route_input(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		    rth->fl.fl4_src == saddr &&
 		    rth->fl.iif == iif &&
 		    rth->fl.oif == 0 &&
-#ifdef CONFIG_IP_ROUTE_FWMARK
-		    rth->fl.fl4_fwmark == skb->nfmark &&
-#endif
+		    rth->fl.mark == skb->mark &&
 		    rth->fl.fl4_tos == tos) {
 			rth->u.dst.lastuse = jiffies;
 			dst_hold(&rth->u.dst);
@@ -2239,9 +2227,7 @@ static inline int __mkroute_output(struct rtable **result,
 	rth->fl.fl4_tos	= tos;
 	rth->fl.fl4_src	= oldflp->fl4_src;
 	rth->fl.oif	= oldflp->oif;
-#ifdef CONFIG_IP_ROUTE_FWMARK
-	rth->fl.fl4_fwmark= oldflp->fl4_fwmark;
-#endif
+	rth->fl.mark    = oldflp->mark;
 	rth->rt_dst	= fl->fl4_dst;
 	rth->rt_src	= fl->fl4_src;
 	rth->rt_iif	= oldflp->oif ? : dev_out->ifindex;
@@ -2385,10 +2371,8 @@ static int ip_route_output_slow(struct rtable **rp, const struct flowi *oldflp)
 					.scope = ((tos & RTO_ONLINK) ?
 						  RT_SCOPE_LINK :
 						  RT_SCOPE_UNIVERSE),
-#ifdef CONFIG_IP_ROUTE_FWMARK
-					.fwmark = oldflp->fl4_fwmark
-#endif
 				      } },
+			    .mark = oldflp->mark,
 			    .iif = loopback_dev.ifindex,
 			    .oif = oldflp->oif };
 	struct fib_result res;
@@ -2583,9 +2567,7 @@ int __ip_route_output_key(struct rtable **rp, const struct flowi *flp)
 		    rth->fl.fl4_src == flp->fl4_src &&
 		    rth->fl.iif == 0 &&
 		    rth->fl.oif == flp->oif &&
-#ifdef CONFIG_IP_ROUTE_FWMARK
-		    rth->fl.fl4_fwmark == flp->fl4_fwmark &&
-#endif
+		    rth->fl.mark == flp->mark &&
 		    !((rth->fl.fl4_tos ^ flp->fl4_tos) &
 			    (IPTOS_RT_MASK | RTO_ONLINK))) {
 
@@ -2647,7 +2629,8 @@ static int rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 	struct rtable *rt = (struct rtable*)skb->dst;
 	struct rtmsg *r;
 	struct nlmsghdr *nlh;
-	struct rta_cacheinfo ci;
+	long expires;
+	u32 id = 0, ts = 0, tsage = 0, error;
 
 	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*r), flags);
 	if (nlh == NULL)
@@ -2694,20 +2677,13 @@ static int rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 	if (rtnetlink_put_metrics(skb, rt->u.dst.metrics) < 0)
 		goto nla_put_failure;
 
-	ci.rta_lastuse	= jiffies_to_clock_t(jiffies - rt->u.dst.lastuse);
-	ci.rta_used	= rt->u.dst.__use;
-	ci.rta_clntref	= atomic_read(&rt->u.dst.__refcnt);
-	if (rt->u.dst.expires)
-		ci.rta_expires = jiffies_to_clock_t(rt->u.dst.expires - jiffies);
-	else
-		ci.rta_expires = 0;
-	ci.rta_error	= rt->u.dst.error;
-	ci.rta_id	= ci.rta_ts = ci.rta_tsage = 0;
+	error = rt->u.dst.error;
+	expires = rt->u.dst.expires ? rt->u.dst.expires - jiffies : 0;
 	if (rt->peer) {
-		ci.rta_id = rt->peer->ip_id_count;
+		id = rt->peer->ip_id_count;
 		if (rt->peer->tcp_ts_stamp) {
-			ci.rta_ts = rt->peer->tcp_ts;
-			ci.rta_tsage = xtime.tv_sec - rt->peer->tcp_ts_stamp;
+			ts = rt->peer->tcp_ts;
+			tsage = xtime.tv_sec - rt->peer->tcp_ts_stamp;
 		}
 	}
 
@@ -2726,7 +2702,7 @@ static int rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 				} else {
 					if (err == -EMSGSIZE)
 						goto nla_put_failure;
-					ci.rta_error = err;
+					error = err;
 				}
 			}
 		} else
@@ -2734,7 +2710,9 @@ static int rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 			NLA_PUT_U32(skb, RTA_IIF, rt->fl.iif);
 	}
 
-	NLA_PUT(skb, RTA_CACHEINFO, sizeof(ci), &ci);
+	if (rtnl_put_cacheinfo(skb, &rt->u.dst, id, ts, tsage,
+			       expires, error) < 0)
+		goto nla_put_failure;
 
 	return nlmsg_end(skb, nlh);
 

@@ -768,8 +768,8 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb )
 {
 	
 	struct fib_result       res;
-	struct flowi            fl = { .nl_u = { .ip4_u = { .daddr = frn->fl_addr, 
-							    .fwmark = frn->fl_fwmark,
+	struct flowi            fl = { .mark = frn->fl_mark,
+				       .nl_u = { .ip4_u = { .daddr = frn->fl_addr,
 							    .tos = frn->fl_tos,
 							    .scope = frn->fl_scope } } };
 	if (tb) {
@@ -811,7 +811,6 @@ static void nl_fib_input(struct sock *sk, int len)
 	
 	pid = nlh->nlmsg_pid;           /*pid of sending process */
 	NETLINK_CB(skb).pid = 0;         /* from kernel */
-	NETLINK_CB(skb).dst_pid = pid;
 	NETLINK_CB(skb).dst_group = 0;  /* unicast */
 	netlink_unicast(sk, skb, pid, MSG_DONTWAIT);
 }    

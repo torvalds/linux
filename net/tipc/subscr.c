@@ -350,7 +350,7 @@ static void subscr_subscribe(struct tipc_subscr *s,
 
 	/* Allocate subscription object */
 
-	sub = kmalloc(sizeof(*sub), GFP_ATOMIC);
+	sub = kzalloc(sizeof(*sub), GFP_ATOMIC);
 	if (!sub) {
 		warn("Subscription rejected, no memory\n");
 		subscr_terminate(subscriber);
@@ -359,7 +359,6 @@ static void subscr_subscribe(struct tipc_subscr *s,
 
 	/* Initialize subscription object */
 
-	memset(sub, 0, sizeof(*sub));
 	sub->seq.type = htohl(s->seq.type, subscriber->swap);
 	sub->seq.lower = htohl(s->seq.lower, subscriber->swap);
 	sub->seq.upper = htohl(s->seq.upper, subscriber->swap);

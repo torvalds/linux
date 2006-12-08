@@ -75,8 +75,10 @@
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
 
-#ifdef CONFIG_HDLC_MODULE
-#define CONFIG_HDLC 1
+#if defined(CONFIG_HDLC) || (defined(CONFIG_HDLC_MODULE) && defined(CONFIG_SYNCLINK_CS_MODULE))
+#define SYNCLINK_GENERIC_HDLC 1
+#else
+#define SYNCLINK_GENERIC_HDLC 0
 #endif
 
 #define GET_USER(error,value,addr) error = get_user(value,addr)
@@ -235,7 +237,7 @@ typedef struct _mgslpc_info {
 	int dosyncppp;
 	spinlock_t netlock;
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 	struct net_device *netdev;
 #endif
 
@@ -392,7 +394,7 @@ static void tx_timeout(unsigned long context);
 
 static int ioctl_common(MGSLPC_INFO *info, unsigned int cmd, unsigned long arg);
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 #define dev_to_port(D) (dev_to_hdlc(D)->priv)
 static void hdlcdev_tx_done(MGSLPC_INFO *info);
 static void hdlcdev_rx(MGSLPC_INFO *info, char *buf, int size);
@@ -421,7 +423,7 @@ static irqreturn_t mgslpc_isr(int irq, void *dev_id);
 /*
  * Bottom half interrupt handlers
  */
-static void bh_handler(void* Context);
+static void bh_handler(struct work_struct *work);
 static void bh_transmit(MGSLPC_INFO *info);
 static void bh_status(MGSLPC_INFO *info);
 
@@ -547,7 +549,7 @@ static int mgslpc_probe(struct pcmcia_device *link)
 
     memset(info, 0, sizeof(MGSLPC_INFO));
     info->magic = MGSLPC_MAGIC;
-    INIT_WORK(&info->task, bh_handler, info);
+    INIT_WORK(&info->task, bh_handler);
     info->max_frame_size = 4096;
     info->close_delay = 5*HZ/10;
     info->closing_wait = 30*HZ;
@@ -604,17 +606,10 @@ static int mgslpc_config(struct pcmcia_device *link)
     if (debug_level >= DEBUG_LEVEL_INFO)
 	    printk("mgslpc_config(0x%p)\n", link);
 
-    /* read CONFIG tuple to find its configuration registers */
-    tuple.DesiredTuple = CISTPL_CONFIG;
     tuple.Attributes = 0;
     tuple.TupleData = buf;
     tuple.TupleDataMax = sizeof(buf);
     tuple.TupleOffset = 0;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
-    link->conf.ConfigBase = parse.config.base;
-    link->conf.Present = parse.config.rmask[0];
 
     /* get CIS configuration entry */
 
@@ -842,9 +837,9 @@ static int bh_action(MGSLPC_INFO *info)
 	return rc;
 }
 
-static void bh_handler(void* Context)
+static void bh_handler(struct work_struct *work)
 {
-	MGSLPC_INFO *info = (MGSLPC_INFO*)Context;
+	MGSLPC_INFO *info = container_of(work, MGSLPC_INFO, task);
 	int action;
 
 	if (!info)
@@ -1060,7 +1055,7 @@ static void tx_done(MGSLPC_INFO *info)
 		info->drop_rts_on_tx_done = 0;
 	}
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 	if (info->netcount)
 		hdlcdev_tx_done(info);
 	else 
@@ -1171,7 +1166,7 @@ static void dcd_change(MGSLPC_INFO *info)
 	}
 	else
 		info->input_signal_events.dcd_down++;
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 	if (info->netcount) {
 		if (info->serial_signals & SerialSignal_DCD)
 			netif_carrier_on(info->netdev);
@@ -2960,7 +2955,7 @@ static void mgslpc_add_device(MGSLPC_INFO *info)
 	printk( "SyncLink PC Card %s:IO=%04X IRQ=%d\n",
 		info->device_name, info->io_base, info->irq_level);
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 	hdlcdev_init(info);
 #endif
 }
@@ -2976,7 +2971,7 @@ static void mgslpc_remove_device(MGSLPC_INFO *remove_info)
 				last->next_device = info->next_device;
 			else
 				mgslpc_device_list = info->next_device;
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 			hdlcdev_exit(info);
 #endif
 			release_resources(info);
@@ -3908,7 +3903,7 @@ static int rx_get_frame(MGSLPC_INFO *info)
 				return_frame = 1;
 		}
 		framesize = 0;
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 		{
 			struct net_device_stats *stats = hdlc_stats(info->netdev);
 			stats->rx_errors++;
@@ -3942,7 +3937,7 @@ static int rx_get_frame(MGSLPC_INFO *info)
 				++framesize;
 			}
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 			if (info->netcount)
 				hdlcdev_rx(info, buf->data, framesize);
 			else
@@ -4098,7 +4093,7 @@ static void tx_timeout(unsigned long context)
 
 	spin_unlock_irqrestore(&info->lock,flags);
 	
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 	if (info->netcount)
 		hdlcdev_tx_done(info);
 	else
@@ -4106,7 +4101,7 @@ static void tx_timeout(unsigned long context)
 		bh_transmit(info);
 }
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 
 /**
  * called by generic HDLC layer when protocol selected (PPP, frame relay, etc.)

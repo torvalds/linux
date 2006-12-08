@@ -415,17 +415,16 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	    ieee->host_mc_decrypt : ieee->host_decrypt;
 
 	if (can_be_decrypted) {
-		int idx = 0;
 		if (skb->len >= hdrlen + 3) {
 			/* Top two-bits of byte 3 are the key index */
-			idx = skb->data[hdrlen + 3] >> 6;
+			keyidx = skb->data[hdrlen + 3] >> 6;
 		}
 
-		/* ieee->crypt[] is WEP_KEY (4) in length.  Given that idx
-		 * is only allowed 2-bits of storage, no value of idx can
-		 * be provided via above code that would result in idx
+		/* ieee->crypt[] is WEP_KEY (4) in length.  Given that keyidx
+		 * is only allowed 2-bits of storage, no value of keyidx can
+		 * be provided via above code that would result in keyidx
 		 * being out of range */
-		crypt = ieee->crypt[idx];
+		crypt = ieee->crypt[keyidx];
 
 #ifdef NOT_YET
 		sta = NULL;
@@ -479,6 +478,11 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			goto rx_exit;
 	}
 #endif
+	/* drop duplicate 802.11 retransmissions (IEEE 802.11 Chap. 9.29) */
+	if (sc == ieee->prev_seq_ctl)
+		goto rx_dropped;
+	else
+		ieee->prev_seq_ctl = sc;
 
 	/* Data frame - extract src/dst addresses */
 	if (skb->len < IEEE80211_3ADDR_LEN)
@@ -653,6 +657,51 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 				     " (drop_unencrypted=1)\n",
 				     MAC_ARG(hdr->addr2));
 		goto rx_dropped;
+	}
+
+	/* If the frame was decrypted in hardware, we may need to strip off
+	 * any security data (IV, ICV, etc) that was left behind */
+	if (!can_be_decrypted && (fc & IEEE80211_FCTL_PROTECTED) &&
+	    ieee->host_strip_iv_icv) {
+	    	int trimlen = 0;
+
+		/* Top two-bits of byte 3 are the key index */
+		if (skb->len >= hdrlen + 3)
+			keyidx = skb->data[hdrlen + 3] >> 6;
+
+		/* To strip off any security data which appears before the
+		 * payload, we simply increase hdrlen (as the header gets
+		 * chopped off immediately below). For the security data which
+		 * appears after the payload, we use skb_trim. */
+
+		switch (ieee->sec.encode_alg[keyidx]) {
+		case SEC_ALG_WEP:
+			/* 4 byte IV */
+			hdrlen += 4;
+			/* 4 byte ICV */
+			trimlen = 4;
+			break;
+		case SEC_ALG_TKIP:
+			/* 4 byte IV, 4 byte ExtIV */
+			hdrlen += 8;
+			/* 8 byte MIC, 4 byte ICV */
+			trimlen = 12;
+			break;
+		case SEC_ALG_CCMP:
+			/* 8 byte CCMP header */
+			hdrlen += 8;
+			/* 8 byte MIC */
+			trimlen = 8;
+			break;
+		}
+
+		if (skb->len < trimlen)
+			goto rx_dropped;
+
+		__skb_trim(skb, skb->len - trimlen);
+
+		if (skb->len < hdrlen)
+			goto rx_dropped;
 	}
 
 	/* skb: hdr + (possible reassembled) full plaintext payload */
@@ -1078,12 +1127,12 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element
 
 	while (length >= sizeof(*info_element)) {
 		if (sizeof(*info_element) + info_element->len > length) {
-			IEEE80211_ERROR("Info elem: parse failed: "
-					"info_element->len + 2 > left : "
-					"info_element->len+2=%zd left=%d, id=%d.\n",
-					info_element->len +
-					sizeof(*info_element),
-					length, info_element->id);
+			IEEE80211_DEBUG_MGMT("Info elem: parse failed: "
+					     "info_element->len + 2 > left : "
+					     "info_element->len+2=%zd left=%d, id=%d.\n",
+					     info_element->len +
+					     sizeof(*info_element),
+					     length, info_element->id);
 			/* We stop processing but don't return an error here
 			 * because some misbehaviour APs break this rule. ie.
 			 * Orinoco AP1000. */
@@ -1255,12 +1304,11 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element
 		case MFIE_TYPE_IBSS_DFS:
 			if (network->ibss_dfs)
 				break;
-			network->ibss_dfs =
-			    kmalloc(info_element->len, GFP_ATOMIC);
+			network->ibss_dfs = kmemdup(info_element->data,
+						    info_element->len,
+						    GFP_ATOMIC);
 			if (!network->ibss_dfs)
 				return 1;
-			memcpy(network->ibss_dfs, info_element->data,
-			       info_element->len);
 			network->flags |= NETWORK_HAS_IBSS_DFS;
 			break;
 

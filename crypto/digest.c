@@ -21,54 +21,6 @@
 #include "internal.h"
 #include "scatterwalk.h"
 
-void crypto_digest_init(struct crypto_tfm *tfm)
-{
-	struct crypto_hash *hash = crypto_hash_cast(tfm);
-	struct hash_desc desc = { .tfm = hash, .flags = tfm->crt_flags };
-
-	crypto_hash_init(&desc);
-}
-EXPORT_SYMBOL_GPL(crypto_digest_init);
-
-void crypto_digest_update(struct crypto_tfm *tfm,
-			  struct scatterlist *sg, unsigned int nsg)
-{
-	struct crypto_hash *hash = crypto_hash_cast(tfm);
-	struct hash_desc desc = { .tfm = hash, .flags = tfm->crt_flags };
-	unsigned int nbytes = 0;
-	unsigned int i;
-
-	for (i = 0; i < nsg; i++)
-		nbytes += sg[i].length;
-
-	crypto_hash_update(&desc, sg, nbytes);
-}
-EXPORT_SYMBOL_GPL(crypto_digest_update);
-
-void crypto_digest_final(struct crypto_tfm *tfm, u8 *out)
-{
-	struct crypto_hash *hash = crypto_hash_cast(tfm);
-	struct hash_desc desc = { .tfm = hash, .flags = tfm->crt_flags };
-
-	crypto_hash_final(&desc, out);
-}
-EXPORT_SYMBOL_GPL(crypto_digest_final);
-
-void crypto_digest_digest(struct crypto_tfm *tfm,
-			  struct scatterlist *sg, unsigned int nsg, u8 *out)
-{
-	struct crypto_hash *hash = crypto_hash_cast(tfm);
-	struct hash_desc desc = { .tfm = hash, .flags = tfm->crt_flags };
-	unsigned int nbytes = 0;
-	unsigned int i;
-
-	for (i = 0; i < nsg; i++)
-		nbytes += sg[i].length;
-
-	crypto_hash_digest(&desc, sg, nbytes, out);
-}
-EXPORT_SYMBOL_GPL(crypto_digest_digest);
-
 static int init(struct hash_desc *desc)
 {
 	struct crypto_tfm *tfm = crypto_hash_tfm(desc->tfm);

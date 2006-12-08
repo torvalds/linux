@@ -34,7 +34,7 @@
 #include <linux/security.h>
 #include <linux/notifier.h>
 #include <linux/profile.h>
-#include <linux/suspend.h>
+#include <linux/freezer.h>
 #include <linux/vmalloc.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
@@ -505,7 +505,7 @@ static int schedstat_open(struct inode *inode, struct file *file)
 	return res;
 }
 
-struct file_operations proc_schedstat_operations = {
+const struct file_operations proc_schedstat_operations = {
 	.open    = schedstat_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
@@ -947,6 +947,17 @@ static void activate_task(struct task_struct *p, struct rq *rq, int local)
 			+ rq->timestamp_last_tick;
 	}
 #endif
+
+	/*
+	 * Sleep time is in units of nanosecs, so shift by 20 to get a
+	 * milliseconds-range estimation of the amount of time that the task
+	 * spent sleeping:
+	 */
+	if (unlikely(prof_on == SLEEP_PROFILING)) {
+		if (p->state == TASK_UNINTERRUPTIBLE)
+			profile_hits(SLEEP_PROFILING, (void *)get_wchan(p),
+				     (now - p->timestamp) >> 20);
+	}
 
 	if (!rt_task(p))
 		p->prio = recalc_task_prio(p, now);
@@ -3333,6 +3344,7 @@ asmlinkage void __sched schedule(void)
 		printk(KERN_ERR "BUG: scheduling while atomic: "
 			"%s/0x%08x/%d\n",
 			current->comm, preempt_count(), current->pid);
+		debug_show_held_locks(current);
 		dump_stack();
 	}
 	profile_hit(SCHED_PROFILING, __builtin_return_address(0));
@@ -4804,18 +4816,18 @@ static void show_task(struct task_struct *p)
 		show_stack(p, NULL);
 }
 
-void show_state(void)
+void show_state_filter(unsigned long state_filter)
 {
 	struct task_struct *g, *p;
 
 #if (BITS_PER_LONG == 32)
 	printk("\n"
-	       "                                               sibling\n");
-	printk("  task             PC      pid father child younger older\n");
+	       "                         free                        sibling\n");
+	printk("  task             PC    stack   pid father child younger older\n");
 #else
 	printk("\n"
-	       "                                                       sibling\n");
-	printk("  task                 PC          pid father child younger older\n");
+	       "                                 free                        sibling\n");
+	printk("  task                 PC        stack   pid father child younger older\n");
 #endif
 	read_lock(&tasklist_lock);
 	do_each_thread(g, p) {
@@ -4824,11 +4836,16 @@ void show_state(void)
 		 * console might take alot of time:
 		 */
 		touch_nmi_watchdog();
-		show_task(p);
+		if (p->state & state_filter)
+			show_task(p);
 	} while_each_thread(g, p);
 
 	read_unlock(&tasklist_lock);
-	debug_show_all_locks();
+	/*
+	 * Only show locks if all tasks are dumped:
+	 */
+	if (state_filter == -1)
+		debug_show_all_locks();
 }
 
 /**
@@ -6723,8 +6740,6 @@ SYSDEV_ATTR(sched_smt_power_savings, 0644, sched_smt_power_savings_show,
 	    sched_smt_power_savings_store);
 #endif
 
-
-#ifdef CONFIG_HOTPLUG_CPU
 /*
  * Force a reinitialization of the sched domains hierarchy.  The domains
  * and groups cannot be updated in place without racing with the balancing
@@ -6757,7 +6772,6 @@ static int update_sched_domains(struct notifier_block *nfb,
 
 	return NOTIFY_OK;
 }
-#endif
 
 void __init sched_init_smp(void)
 {
@@ -6867,6 +6881,7 @@ void __might_sleep(char *file, int line)
 				" context at %s:%d\n", file, line);
 		printk("in_atomic():%d, irqs_disabled():%d\n",
 			in_atomic(), irqs_disabled());
+		debug_show_held_locks(current);
 		dump_stack();
 	}
 #endif

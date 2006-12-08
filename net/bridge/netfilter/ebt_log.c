@@ -38,8 +38,8 @@ static int ebt_log_check(const char *tablename, unsigned int hookmask,
 
 struct tcpudphdr
 {
-	uint16_t src;
-	uint16_t dst;
+	__be16 src;
+	__be16 dst;
 };
 
 struct arppayload
@@ -130,7 +130,7 @@ ebt_log_packet(unsigned int pf, unsigned int hooknum,
 		 * then log the ARP payload */
 		if (ah->ar_hrd == htons(1) &&
 		    ah->ar_hln == ETH_ALEN &&
-		    ah->ar_pln == sizeof(uint32_t)) {
+		    ah->ar_pln == sizeof(__be32)) {
 			struct arppayload _arpp, *ap;
 
 			ap = skb_header_pointer(skb, sizeof(_arph),

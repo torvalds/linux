@@ -116,7 +116,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 #else
 	if ((memory_end < CONFIG_BLKDEV_RESERVE_ADDRESS) && 
-	    (memory_end > CONFIG_BLKDEV_RESERVE_ADDRESS)
+	    (memory_end > CONFIG_BLKDEV_RESERVE_ADDRESS))
 	    /* overlap userarea */
 	    memory_end = CONFIG_BLKDEV_RESERVE_ADDRESS; 
 #endif

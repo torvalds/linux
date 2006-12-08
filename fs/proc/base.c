@@ -442,7 +442,8 @@ static int mountstats_open(struct inode *inode, struct file *file)
 
 		if (task) {
 			task_lock(task);
-			namespace = task->nsproxy->namespace;
+			if (task->nsproxy)
+				namespace = task->nsproxy->namespace;
 			if (namespace)
 				get_namespace(namespace);
 			task_unlock(task);
@@ -682,8 +683,6 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
 	char buffer[PROC_NUMBUF], *end;
 	int oom_adjust;
 
-	if (!capable(CAP_SYS_RESOURCE))
-		return -EPERM;
 	memset(buffer, 0, sizeof(buffer));
 	if (count > sizeof(buffer) - 1)
 		count = sizeof(buffer) - 1;
@@ -698,6 +697,10 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
 	task = get_proc_task(file->f_dentry->d_inode);
 	if (!task)
 		return -ESRCH;
+	if (oom_adjust < task->oomkilladj && !capable(CAP_SYS_RESOURCE)) {
+		put_task_struct(task);
+		return -EACCES;
+	}
 	task->oomkilladj = oom_adjust;
 	put_task_struct(task);
 	if (end - buffer == 0)
@@ -1882,8 +1885,9 @@ out:
 	return;
 }
 
-struct dentry *proc_pid_instantiate(struct inode *dir,
-	struct dentry * dentry, struct task_struct *task, void *ptr)
+static struct dentry *proc_pid_instantiate(struct inode *dir,
+					   struct dentry * dentry,
+					   struct task_struct *task, void *ptr)
 {
 	struct dentry *error = ERR_PTR(-ENOENT);
 	struct inode *inode;

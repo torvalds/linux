@@ -157,8 +157,8 @@ static int c2_rnic_query(struct c2_dev *c2dev, struct ib_device_attr *props)
 
 	props->fw_ver =
 		((u64)be32_to_cpu(reply->fw_ver_major) << 32) |
-		((be32_to_cpu(reply->fw_ver_minor) && 0xFFFF) << 16) |
-		(be32_to_cpu(reply->fw_ver_patch) && 0xFFFF);
+		((be32_to_cpu(reply->fw_ver_minor) & 0xFFFF) << 16) |
+		(be32_to_cpu(reply->fw_ver_patch) & 0xFFFF);
 	memcpy(&props->sys_image_guid, c2dev->netdev->dev_addr, 6);
 	props->max_mr_size         = 0xFFFFFFFF;
 	props->page_size_cap       = ~(C2_MIN_PAGESIZE-1);
@@ -441,7 +441,7 @@ static int c2_rnic_close(struct c2_dev *c2dev)
  * involves initalizing the various limits and resouce pools that
  * comprise the RNIC instance.
  */
-int c2_rnic_init(struct c2_dev *c2dev)
+int __devinit c2_rnic_init(struct c2_dev *c2dev)
 {
 	int err;
 	u32 qsize, msgsize;
@@ -611,7 +611,7 @@ int c2_rnic_init(struct c2_dev *c2dev)
 /*
  * Called by c2_remove to cleanup the RNIC resources.
  */
-void c2_rnic_term(struct c2_dev *c2dev)
+void __devexit c2_rnic_term(struct c2_dev *c2dev)
 {
 
 	/* Close the open adapter instance */

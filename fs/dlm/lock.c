@@ -2372,6 +2372,7 @@ static int send_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms_in,
 static void receive_flags(struct dlm_lkb *lkb, struct dlm_message *ms)
 {
 	lkb->lkb_exflags = ms->m_exflags;
+	lkb->lkb_sbflags = ms->m_sbflags;
 	lkb->lkb_flags = (lkb->lkb_flags & 0xFFFF0000) |
 		         (ms->m_flags & 0x0000FFFF);
 }
@@ -3028,10 +3029,17 @@ int dlm_receive_message(struct dlm_header *hd, int nodeid, int recovery)
 
 	while (1) {
 		if (dlm_locking_stopped(ls)) {
-			if (!recovery)
-				dlm_add_requestqueue(ls, nodeid, hd);
-			error = -EINTR;
-			goto out;
+			if (recovery) {
+				error = -EINTR;
+				goto out;
+			}
+			error = dlm_add_requestqueue(ls, nodeid, hd);
+			if (error == -EAGAIN)
+				continue;
+			else {
+				error = -EINTR;
+				goto out;
+			}
 		}
 
 		if (lock_recovery_try(ls))

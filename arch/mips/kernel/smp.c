@@ -172,7 +172,7 @@ int smp_call_function (void (*func) (void *info), void *info, int retry,
 
 	spin_lock(&smp_call_lock);
 	call_data = &data;
-	mb();
+	smp_mb();
 
 	/* Send a message to all other CPUs and wait for them to respond */
 	for_each_online_cpu(i)
@@ -204,7 +204,7 @@ void smp_call_function_interrupt(void)
 	 * Notify initiating CPU that I've grabbed the data and am
 	 * about to execute the function.
 	 */
-	mb();
+	smp_mb();
 	atomic_inc(&call_data->started);
 
 	/*
@@ -215,7 +215,7 @@ void smp_call_function_interrupt(void)
 	irq_exit();
 
 	if (wait) {
-		mb();
+		smp_mb();
 		atomic_inc(&call_data->finished);
 	}
 }
@@ -462,29 +462,6 @@ void flush_tlb_one(unsigned long vaddr)
 {
 	smp_on_each_tlb(flush_tlb_one_ipi, (void *) vaddr);
 }
-
-static DEFINE_PER_CPU(struct cpu, cpu_devices);
-
-static int __init topology_init(void)
-{
-	int i, ret;
-
-#ifdef CONFIG_NUMA
-	for_each_online_node(i)
-		register_one_node(i);
-#endif /* CONFIG_NUMA */
-
-	for_each_present_cpu(i) {
-		ret = register_cpu(&per_cpu(cpu_devices, i), i);
-		if (ret)
-			printk(KERN_WARNING "topology_init: register_cpu %d "
-			       "failed (%d)\n", i, ret);
-	}
-
-	return 0;
-}
-
-subsys_initcall(topology_init);
 
 EXPORT_SYMBOL(flush_tlb_page);
 EXPORT_SYMBOL(flush_tlb_one);

@@ -12,14 +12,15 @@
  *  Mikael Pettersson	: PM converted to driver model. Disable/enable API.
  */
 
+#include <linux/nmi.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/sysdev.h>
-#include <linux/nmi.h>
 #include <linux/sysctl.h>
 #include <linux/kprobes.h>
+#include <linux/cpumask.h>
 
 #include <asm/smp.h>
 #include <asm/nmi.h>
@@ -40,6 +41,8 @@ int panic_on_unrecovered_nmi;
  */
 static DEFINE_PER_CPU(unsigned, perfctr_nmi_owner);
 static DEFINE_PER_CPU(unsigned, evntsel_nmi_owner[2]);
+
+static cpumask_t backtrace_mask = CPU_MASK_NONE;
 
 /* this number is calculated from Intel's MSR_P4_CRU_ESCR5 register and it's
  * offset from MSR_P4_BSU_ESCR0.  It will be the max for all platforms (for now)
@@ -782,6 +785,7 @@ int __kprobes nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 {
 	int sum;
 	int touched = 0;
+	int cpu = smp_processor_id();
 	struct nmi_watchdog_ctlblk *wd = &__get_cpu_var(nmi_watchdog_ctlblk);
 	u64 dummy;
 	int rc=0;
@@ -797,6 +801,16 @@ int __kprobes nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 	if (__get_cpu_var(nmi_touch)) {
 		__get_cpu_var(nmi_touch) = 0;
 		touched = 1;
+	}
+
+	if (cpu_isset(cpu, backtrace_mask)) {
+		static DEFINE_SPINLOCK(lock);	/* Serialise the printks */
+
+		spin_lock(&lock);
+		printk("NMI backtrace for cpu %d\n", cpu);
+		dump_stack();
+		spin_unlock(&lock);
+		cpu_clear(cpu, backtrace_mask);
 	}
 
 #ifdef CONFIG_X86_MCE
@@ -930,6 +944,19 @@ int proc_nmi_enabled(struct ctl_table *table, int write, struct file *file,
 }
 
 #endif
+
+void __trigger_all_cpu_backtrace(void)
+{
+	int i;
+
+	backtrace_mask = cpu_online_map;
+	/* Wait for up to 10 seconds for all CPUs to do the backtrace */
+	for (i = 0; i < 10 * 1000; i++) {
+		if (cpus_empty(backtrace_mask))
+			break;
+		mdelay(1);
+	}
+}
 
 EXPORT_SYMBOL(nmi_active);
 EXPORT_SYMBOL(nmi_watchdog);

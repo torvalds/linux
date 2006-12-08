@@ -115,6 +115,16 @@ extern void account_system_vtime(struct task_struct *);
 #define account_vtime(x) do { /* empty */ } while (0)
 #endif
 
+#ifdef CONFIG_PFAULT
+extern void pfault_irq_init(void);
+extern int pfault_init(void);
+extern void pfault_fini(void);
+#else /* CONFIG_PFAULT */
+#define pfault_irq_init()	do { } while (0)
+#define pfault_init()		({-1;})
+#define pfault_fini()		do { } while (0)
+#endif /* CONFIG_PFAULT */
+
 #define finish_arch_switch(prev) do {					     \
 	set_fs(current->thread.mm_segment);				     \
 	account_vtime(prev);						     \

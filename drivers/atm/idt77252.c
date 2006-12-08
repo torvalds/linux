@@ -135,7 +135,7 @@ static int idt77252_change_qos(struct atm_vcc *vcc, struct atm_qos *qos,
 			       int flags);
 static int idt77252_proc_read(struct atm_dev *dev, loff_t * pos,
 			      char *page);
-static void idt77252_softint(void *dev_id);
+static void idt77252_softint(struct work_struct *work);
 
 
 static struct atmdev_ops idt77252_ops =
@@ -2866,9 +2866,10 @@ out:
 }
 
 static void
-idt77252_softint(void *dev_id)
+idt77252_softint(struct work_struct *work)
 {
-	struct idt77252_dev *card = dev_id;
+	struct idt77252_dev *card =
+		container_of(work, struct idt77252_dev, tqueue);
 	u32 stat;
 	int done;
 
@@ -3697,7 +3698,7 @@ idt77252_init_one(struct pci_dev *pcidev, const struct pci_device_id *id)
 	card->pcidev = pcidev;
 	sprintf(card->name, "idt77252-%d", card->index);
 
-	INIT_WORK(&card->tqueue, idt77252_softint, (void *)card);
+	INIT_WORK(&card->tqueue, idt77252_softint);
 
 	membase = pci_resource_start(pcidev, 1);
 	srambase = pci_resource_start(pcidev, 2);

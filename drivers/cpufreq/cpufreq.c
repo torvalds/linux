@@ -42,7 +42,7 @@ static DEFINE_SPINLOCK(cpufreq_driver_lock);
 
 /* internal prototypes */
 static int __cpufreq_governor(struct cpufreq_policy *policy, unsigned int event);
-static void handle_update(void *data);
+static void handle_update(struct work_struct *work);
 
 /**
  * Two notifier lists: the "policy" list is involved in the
@@ -59,7 +59,7 @@ static int __init init_cpufreq_transition_notifier_list(void)
 	srcu_init_notifier_head(&cpufreq_transition_notifier_list);
 	return 0;
 }
-core_initcall(init_cpufreq_transition_notifier_list);
+pure_initcall(init_cpufreq_transition_notifier_list);
 
 static LIST_HEAD(cpufreq_governor_list);
 static DEFINE_MUTEX (cpufreq_governor_mutex);
@@ -665,7 +665,7 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	mutex_init(&policy->lock);
 	mutex_lock(&policy->lock);
 	init_completion(&policy->kobj_unregister);
-	INIT_WORK(&policy->update, handle_update, (void *)(long)cpu);
+	INIT_WORK(&policy->update, handle_update);
 
 	/* call driver. From then on the cpufreq must be able
 	 * to accept all calls to ->verify and ->setpolicy for this CPU
@@ -895,9 +895,11 @@ static int cpufreq_remove_dev (struct sys_device * sys_dev)
 }
 
 
-static void handle_update(void *data)
+static void handle_update(struct work_struct *work)
 {
-	unsigned int cpu = (unsigned int)(long)data;
+	struct cpufreq_policy *policy =
+		container_of(work, struct cpufreq_policy, update);
+	unsigned int cpu = policy->cpu;
 	dprintk("handle_update for cpu %u called\n", cpu);
 	cpufreq_update_policy(cpu);
 }
@@ -1535,7 +1537,6 @@ int cpufreq_update_policy(unsigned int cpu)
 }
 EXPORT_SYMBOL(cpufreq_update_policy);
 
-#ifdef CONFIG_HOTPLUG_CPU
 static int cpufreq_cpu_callback(struct notifier_block *nfb,
 					unsigned long action, void *hcpu)
 {
@@ -1575,7 +1576,6 @@ static struct notifier_block __cpuinitdata cpufreq_cpu_notifier =
 {
     .notifier_call = cpufreq_cpu_callback,
 };
-#endif /* CONFIG_HOTPLUG_CPU */
 
 /*********************************************************************
  *               REGISTER / UNREGISTER CPUFREQ DRIVER                *

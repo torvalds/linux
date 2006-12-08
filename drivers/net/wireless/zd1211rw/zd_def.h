@@ -39,6 +39,7 @@ do { \
 	if (!(x)) { \
 		pr_debug("%s:%d ASSERT %s VIOLATED!\n", \
 			__FILE__, __LINE__, __stringify(x)); \
+		dump_stack(); \
 	} \
 } while (0)
 #else

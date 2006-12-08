@@ -8,7 +8,7 @@
  * interrupt source (if it supports chaining).
  */
 typedef struct irq_node {
-	irqreturn_t	(*handler)(int, void *, struct pt_regs *);
+	irq_handler_t	handler;
 	unsigned long	flags;
 	void		*dev_id;
 	const char	*devname;
@@ -18,12 +18,12 @@ typedef struct irq_node {
 /*
  * This structure has only 4 elements for speed reasons
  */
-typedef struct irq_handler {
-	irqreturn_t	(*handler)(int, void *, struct pt_regs *);
+struct irq_entry {
+	irq_handler_t	handler;
 	unsigned long	flags;
 	void		*dev_id;
 	const char	*devname;
-} irq_handler_t;
+};
 
 /* count of spurious interrupts */
 extern volatile unsigned int num_spurious;

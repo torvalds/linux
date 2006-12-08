@@ -14,7 +14,7 @@
  * into IP header for icv calculation. Options are already checked
  * for validity, so paranoia is not required. */
 
-static int ip_clear_mutable_options(struct iphdr *iph, u32 *daddr)
+static int ip_clear_mutable_options(struct iphdr *iph, __be32 *daddr)
 {
 	unsigned char * optptr = (unsigned char*)(iph+1);
 	int  l = iph->ihl*4 - sizeof(struct iphdr);
@@ -162,7 +162,7 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 	iph->frag_off = 0;
 	iph->check = 0;
 	if (ihl > sizeof(*iph)) {
-		u32 dummy;
+		__be32 dummy;
 		if (ip_clear_mutable_options(iph, &dummy))
 			goto out;
 	}

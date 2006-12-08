@@ -6,6 +6,7 @@ menu "QoS and/or fair queueing"
 
 config NET_SCHED
 	bool "QoS and/or fair queueing"
+	select NET_SCH_FIFO
 	---help---
 	  When the kernel has several packets to send out over a network
 	  device, it has to decide which ones to send first, which ones to
@@ -39,6 +40,9 @@ config NET_SCHED
 
 	  The available schedulers are listed in the following questions; you
 	  can say Y to as many as you like. If unsure, say N now.
+
+config NET_SCH_FIFO
+	bool
 
 if NET_SCHED
 
@@ -320,7 +324,7 @@ config CLS_U32_PERF
 
 config CLS_U32_MARK
 	bool "Netfilter marks support"
-	depends on NET_CLS_U32 && NETFILTER
+	depends on NET_CLS_U32
 	---help---
 	  Say Y here to be able to use netfilter marks as u32 key.
 

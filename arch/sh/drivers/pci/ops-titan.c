@@ -15,25 +15,21 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/pci.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/titan.h>
 #include "pci-sh4.h"
 
+static char titan_irq_tab[] __initdata = {
+	TITAN_IRQ_WAN,
+	TITAN_IRQ_LAN,
+	TITAN_IRQ_MPCIA,
+	TITAN_IRQ_MPCIB,
+	TITAN_IRQ_USB,
+};
+
 int __init pcibios_map_platform_irq(struct pci_dev *pdev, u8 slot, u8 pin)
 {
-	int irq = -1;
-
-	switch (slot) {
-	case 0: irq = TITAN_IRQ_WAN;   break;	/* eth0 (WAN) */
-	case 1: irq = TITAN_IRQ_LAN;   break;	/* eth1 (LAN) */
-	case 2: irq = TITAN_IRQ_MPCIA; break;	/* mPCI A */
-	case 3: irq = TITAN_IRQ_MPCIB; break;	/* mPCI B */
-	case 4: irq = TITAN_IRQ_USB;   break;	/* USB */
-	default:
-		printk(KERN_INFO "PCI: Bad IRQ mapping "
-				 "request for slot %d\n", slot);
-		return -1;
-	}
+	int irq = titan_irq_tab[slot];
 
 	printk("PCI: Mapping TITAN IRQ for slot %d, pin %c to irq %d\n",
 		slot, pin - 1 + 'A', irq);

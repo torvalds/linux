@@ -442,7 +442,7 @@ static void sctp_do_8_2_transport_strike(struct sctp_association *asoc,
 					 " transport IP: port:%d failed.\n",
 					 asoc,
 					 (&transport->ipaddr),
-					 transport->ipaddr.v4.sin_port);
+					 ntohs(transport->ipaddr.v4.sin_port));
 		sctp_assoc_control_transport(asoc, transport,
 					     SCTP_TRANSPORT_DOWN,
 					     SCTP_FAILED_THRESHOLD);
@@ -1360,12 +1360,12 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			break;
 
 		case SCTP_CMD_INIT_FAILED:
-			sctp_cmd_init_failed(commands, asoc, cmd->obj.u32);
+			sctp_cmd_init_failed(commands, asoc, cmd->obj.err);
 			break;
 
 		case SCTP_CMD_ASSOC_FAILED:
 			sctp_cmd_assoc_failed(commands, asoc, event_type,
-					      subtype, chunk, cmd->obj.u32);
+					      subtype, chunk, cmd->obj.err);
 			break;
 
 		case SCTP_CMD_INIT_COUNTER_INC:
@@ -1420,7 +1420,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 
 		case SCTP_CMD_PROCESS_CTSN:
 			/* Dummy up a SACK for processing. */
-			sackh.cum_tsn_ack = cmd->obj.u32;
+			sackh.cum_tsn_ack = cmd->obj.be32;
 			sackh.a_rwnd = 0;
 			sackh.num_gap_ack_blocks = 0;
 			sackh.num_dup_tsns = 0;

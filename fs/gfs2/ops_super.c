@@ -138,16 +138,28 @@ static void gfs2_put_super(struct super_block *sb)
 }
 
 /**
- * gfs2_write_super - disk commit all incore transactions
- * @sb: the filesystem
+ * gfs2_write_super
+ * @sb: the superblock
  *
- * This function is called every time sync(2) is called.
- * After this exits, all dirty buffers are synced.
  */
 
 static void gfs2_write_super(struct super_block *sb)
 {
-	gfs2_log_flush(sb->s_fs_info, NULL);
+	sb->s_dirt = 0;
+}
+
+/**
+ * gfs2_sync_fs - sync the filesystem
+ * @sb: the superblock
+ *
+ * Flushes the log to disk.
+ */
+static int gfs2_sync_fs(struct super_block *sb, int wait)
+{
+	sb->s_dirt = 0;
+	if (wait)
+		gfs2_log_flush(sb->s_fs_info, NULL);
+	return 0;
 }
 
 /**
@@ -204,7 +216,7 @@ static int gfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_inode->i_sb;
 	struct gfs2_sbd *sdp = sb->s_fs_info;
-	struct gfs2_statfs_change sc;
+	struct gfs2_statfs_change_host sc;
 	int error;
 
 	if (gfs2_tune_get(sdp, gt_statfs_slow))
@@ -282,8 +294,6 @@ static void gfs2_clear_inode(struct inode *inode)
 	 */
 	if (inode->i_private) {
 		struct gfs2_inode *ip = GFS2_I(inode);
-		gfs2_glock_inode_squish(inode);
-		gfs2_assert(inode->i_sb->s_fs_info, ip->i_gl->gl_state == LM_ST_UNLOCKED);
 		ip->i_gl->gl_object = NULL;
 		gfs2_glock_schedule_for_reclaim(ip->i_gl);
 		gfs2_glock_put(ip->i_gl);
@@ -384,7 +394,7 @@ static void gfs2_delete_inode(struct inode *inode)
 	if (!inode->i_private)
 		goto out;
 
-	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, LM_FLAG_TRY_1CB | GL_NOCACHE, &gh);
+	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, LM_FLAG_TRY_1CB, &gh);
 	if (unlikely(error)) {
 		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
 		goto out;
@@ -396,7 +406,7 @@ static void gfs2_delete_inode(struct inode *inode)
 	if (error)
 		goto out_uninit;
 
-	if (S_ISDIR(ip->i_di.di_mode) &&
+	if (S_ISDIR(inode->i_mode) &&
 	    (ip->i_di.di_flags & GFS2_DIF_EXHASH)) {
 		error = gfs2_dir_exhash_dealloc(ip);
 		if (error)
@@ -452,17 +462,18 @@ static void gfs2_destroy_inode(struct inode *inode)
 }
 
 struct super_operations gfs2_super_ops = {
-	.alloc_inode = gfs2_alloc_inode,
-	.destroy_inode = gfs2_destroy_inode,
-	.write_inode = gfs2_write_inode,
-	.delete_inode = gfs2_delete_inode,
-	.put_super = gfs2_put_super,
-	.write_super = gfs2_write_super,
-	.write_super_lockfs = gfs2_write_super_lockfs,
-	.unlockfs = gfs2_unlockfs,
-	.statfs = gfs2_statfs,
-	.remount_fs = gfs2_remount_fs,
-	.clear_inode = gfs2_clear_inode,
-	.show_options = gfs2_show_options,
+	.alloc_inode		= gfs2_alloc_inode,
+	.destroy_inode		= gfs2_destroy_inode,
+	.write_inode		= gfs2_write_inode,
+	.delete_inode		= gfs2_delete_inode,
+	.put_super		= gfs2_put_super,
+	.write_super		= gfs2_write_super,
+	.sync_fs		= gfs2_sync_fs,
+	.write_super_lockfs 	= gfs2_write_super_lockfs,
+	.unlockfs		= gfs2_unlockfs,
+	.statfs			= gfs2_statfs,
+	.remount_fs		= gfs2_remount_fs,
+	.clear_inode		= gfs2_clear_inode,
+	.show_options		= gfs2_show_options,
 };
 

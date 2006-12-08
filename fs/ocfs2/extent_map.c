@@ -61,7 +61,7 @@ struct ocfs2_em_insert_context {
 	struct ocfs2_extent_map_entry *right_ent;
 };
 
-static kmem_cache_t *ocfs2_em_ent_cachep = NULL;
+static struct kmem_cache *ocfs2_em_ent_cachep = NULL;
 
 
 static struct ocfs2_extent_map_entry *

@@ -156,19 +156,6 @@ out_ignore:
 	return 0;
 }
 
-static int zero_readpage(struct page *page)
-{
-	void *kaddr;
-
-	kaddr = kmap_atomic(page, KM_USER0);
-	memset(kaddr, 0, PAGE_CACHE_SIZE);
-	kunmap_atomic(kaddr, KM_USER0);
-
-	SetPageUptodate(page);
-
-	return 0;
-}
-
 /**
  * stuffed_readpage - Fill in a Linux page with stuffed file data
  * @ip: the inode
@@ -183,9 +170,7 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 	void *kaddr;
 	int error;
 
-	/* Only the first page of a stuffed file might contain data */
-	if (unlikely(page->index))
-		return zero_readpage(page);
+	BUG_ON(page->index);
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (error)
@@ -230,9 +215,9 @@ static int gfs2_readpage(struct file *file, struct page *page)
 				/* gfs2_sharewrite_nopage has grabbed the ip->i_gl already */
 				goto skip_lock;
 		}
-		gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME|GL_AOP, &gh);
+		gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME|LM_FLAG_TRY_1CB, &gh);
 		do_unlock = 1;
-		error = gfs2_glock_nq_m_atime(1, &gh);
+		error = gfs2_glock_nq_atime(&gh);
 		if (unlikely(error))
 			goto out_unlock;
 	}
@@ -254,6 +239,8 @@ skip_lock:
 out:
 	return error;
 out_unlock:
+	if (error == GLR_TRYFAILED)
+		error = AOP_TRUNCATED_PAGE;
 	unlock_page(page);
 	if (do_unlock)
 		gfs2_holder_uninit(&gh);
@@ -293,9 +280,9 @@ static int gfs2_readpages(struct file *file, struct address_space *mapping,
 				goto skip_lock;
 		}
 		gfs2_holder_init(ip->i_gl, LM_ST_SHARED,
-				 LM_FLAG_TRY_1CB|GL_ATIME|GL_AOP, &gh);
+				 LM_FLAG_TRY_1CB|GL_ATIME, &gh);
 		do_unlock = 1;
-		ret = gfs2_glock_nq_m_atime(1, &gh);
+		ret = gfs2_glock_nq_atime(&gh);
 		if (ret == GLR_TRYFAILED)
 			goto out_noerror;
 		if (unlikely(ret))
@@ -366,10 +353,13 @@ static int gfs2_prepare_write(struct file *file, struct page *page,
 	unsigned int write_len = to - from;
 
 
-	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_ATIME|GL_AOP, &ip->i_gh);
-	error = gfs2_glock_nq_m_atime(1, &ip->i_gh);
-	if (error)
+	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_ATIME|LM_FLAG_TRY_1CB, &ip->i_gh);
+	error = gfs2_glock_nq_atime(&ip->i_gh);
+	if (unlikely(error)) {
+		if (error == GLR_TRYFAILED)
+			error = AOP_TRUNCATED_PAGE;
 		goto out_uninit;
+	}
 
 	gfs2_write_calc_reserv(ip, write_len, &data_blocks, &ind_blocks);
 
@@ -386,7 +376,7 @@ static int gfs2_prepare_write(struct file *file, struct page *page,
 		if (error)
 			goto out_alloc_put;
 
-		error = gfs2_quota_check(ip, ip->i_di.di_uid, ip->i_di.di_gid);
+		error = gfs2_quota_check(ip, ip->i_inode.i_uid, ip->i_inode.i_gid);
 		if (error)
 			goto out_qunlock;
 
@@ -482,8 +472,10 @@ static int gfs2_commit_write(struct file *file, struct page *page,
 
 		SetPageUptodate(page);
 
-		if (inode->i_size < file_size)
+		if (inode->i_size < file_size) {
 			i_size_write(inode, file_size);
+			mark_inode_dirty(inode);
+		}
 	} else {
 		if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED ||
 		    gfs2_is_jdata(ip))
@@ -497,11 +489,6 @@ static int gfs2_commit_write(struct file *file, struct page *page,
 		ip->i_di.di_size = inode->i_size;
 		di->di_size = cpu_to_be64(inode->i_size);
 	}
-
-	di->di_mode = cpu_to_be32(inode->i_mode);
-	di->di_atime = cpu_to_be64(inode->i_atime.tv_sec);
-	di->di_mtime = cpu_to_be64(inode->i_mtime.tv_sec);
-	di->di_ctime = cpu_to_be64(inode->i_ctime.tv_sec);
 
 	brelse(dibh);
 	gfs2_trans_end(sdp);
@@ -624,7 +611,7 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 	 * on this path. All we need change is atime.
 	 */
 	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &gh);
-	rv = gfs2_glock_nq_m_atime(1, &gh);
+	rv = gfs2_glock_nq_atime(&gh);
 	if (rv)
 		goto out;
 
@@ -735,6 +722,9 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 	do {
 		while (atomic_read(&bh->b_count)) {
 			if (!atomic_read(&aspace->i_writecount))
+				return 0;
+
+			if (!(gfp_mask & __GFP_WAIT))
 				return 0;
 
 			if (time_after_eq(jiffies, t)) {

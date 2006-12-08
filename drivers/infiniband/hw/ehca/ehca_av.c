@@ -57,7 +57,7 @@ struct ib_ah *ehca_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 	struct ehca_shca *shca = container_of(pd->device, struct ehca_shca,
 					      ib_device);
 
-	av = kmem_cache_alloc(av_cache, SLAB_KERNEL);
+	av = kmem_cache_alloc(av_cache, GFP_KERNEL);
 	if (!av) {
 		ehca_err(pd->device, "Out of memory pd=%p ah_attr=%p",
 			 pd, ah_attr);
@@ -118,8 +118,7 @@ struct ib_ah *ehca_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 		}
 		memcpy(&av->av.grh.word_1, &gid, sizeof(gid));
 	}
-	/* for the time being we use a hard coded PMTU of 2048 Bytes */
-	av->av.pmtu = 4;
+	av->av.pmtu = EHCA_MAX_MTU;
 
 	/* dgid comes in grh.word_3 */
 	memcpy(&av->av.grh.word_3, &ah_attr->grh.dgid,
@@ -193,7 +192,7 @@ int ehca_modify_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr)
 		memcpy(&new_ehca_av.grh.word_1, &gid, sizeof(gid));
 	}
 
-	new_ehca_av.pmtu = 4; /* see also comment in create_ah() */
+	new_ehca_av.pmtu = EHCA_MAX_MTU;
 
 	memcpy(&new_ehca_av.grh.word_3, &ah_attr->grh.dgid,
 	       sizeof(ah_attr->grh.dgid));

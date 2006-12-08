@@ -20,26 +20,26 @@
 static unsigned char *fb_do_probe_ddc_edid(struct i2c_adapter *adapter)
 {
 	unsigned char start = 0x0;
+	unsigned char *buf = kmalloc(EDID_LENGTH, GFP_KERNEL);
 	struct i2c_msg msgs[] = {
 		{
 			.addr	= DDC_ADDR,
+			.flags	= 0,
 			.len	= 1,
 			.buf	= &start,
 		}, {
 			.addr	= DDC_ADDR,
 			.flags	= I2C_M_RD,
 			.len	= EDID_LENGTH,
+			.buf	= buf,
 		}
 	};
-	unsigned char *buf;
 
-	buf = kmalloc(EDID_LENGTH, GFP_KERNEL);
 	if (!buf) {
 		dev_warn(&adapter->dev, "unable to allocate memory for EDID "
 			 "block.\n");
 		return NULL;
 	}
-	msgs[1].buf = buf;
 
 	if (i2c_transfer(adapter, msgs, 2) == 2)
 		return buf;

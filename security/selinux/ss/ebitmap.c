@@ -6,7 +6,7 @@
 /*
  * Updated: Hewlett-Packard <paul.moore@hp.com>
  *
- *      Added ebitmap_export() and ebitmap_import()
+ *      Added support to import/export the NetLabel category bitmap
  *
  * (c) Copyright Hewlett-Packard Development Company, L.P., 2006
  */
@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
+#include <net/netlabel.h>
 #include "ebitmap.h"
 #include "policydb.h"
 
@@ -67,141 +68,120 @@ int ebitmap_cpy(struct ebitmap *dst, struct ebitmap *src)
 	return 0;
 }
 
+#ifdef CONFIG_NETLABEL
 /**
- * ebitmap_export - Export an ebitmap to a unsigned char bitmap string
- * @src: the ebitmap to export
- * @dst: the resulting bitmap string
- * @dst_len: length of dst in bytes
+ * ebitmap_netlbl_export - Export an ebitmap into a NetLabel category bitmap
+ * @ebmap: the ebitmap to export
+ * @catmap: the NetLabel category bitmap
  *
  * Description:
- * Allocate a buffer at least src->highbit bits long and export the extensible
- * bitmap into the buffer.  The bitmap string will be in little endian format,
- * i.e. LSB first.  The value returned in dst_len may not the true size of the
- * buffer as the length of the buffer is rounded up to a multiple of MAPTYPE.
- * The caller must free the buffer when finished. Returns zero on success,
- * negative values on failure.
+ * Export a SELinux extensibile bitmap into a NetLabel category bitmap.
+ * Returns zero on success, negative values on error.
  *
  */
-int ebitmap_export(const struct ebitmap *src,
-		   unsigned char **dst,
-		   size_t *dst_len)
+int ebitmap_netlbl_export(struct ebitmap *ebmap,
+			  struct netlbl_lsm_secattr_catmap **catmap)
 {
-	size_t bitmap_len;
-	unsigned char *bitmap;
-	struct ebitmap_node *iter_node;
-	MAPTYPE node_val;
-	size_t bitmap_byte;
-	unsigned char bitmask;
+	struct ebitmap_node *e_iter = ebmap->node;
+	struct netlbl_lsm_secattr_catmap *c_iter;
+	u32 cmap_idx;
 
-	if (src->highbit == 0) {
-		*dst = NULL;
-		*dst_len = 0;
+	/* This function is a much simpler because SELinux's MAPTYPE happens
+	 * to be the same as NetLabel's NETLBL_CATMAP_MAPTYPE, if MAPTYPE is
+	 * changed from a u64 this function will most likely need to be changed
+	 * as well.  It's not ideal but I think the tradeoff in terms of
+	 * neatness and speed is worth it. */
+
+	if (e_iter == NULL) {
+		*catmap = NULL;
 		return 0;
 	}
 
-	bitmap_len = src->highbit / 8;
-	if (src->highbit % 7)
-		bitmap_len += 1;
-
-	bitmap = kzalloc((bitmap_len & ~(sizeof(MAPTYPE) - 1)) +
-			 sizeof(MAPTYPE),
-			 GFP_ATOMIC);
-	if (bitmap == NULL)
+	c_iter = netlbl_secattr_catmap_alloc(GFP_ATOMIC);
+	if (c_iter == NULL)
 		return -ENOMEM;
+	*catmap = c_iter;
+	c_iter->startbit = e_iter->startbit & ~(NETLBL_CATMAP_SIZE - 1);
 
-	iter_node = src->node;
-	do {
-		bitmap_byte = iter_node->startbit / 8;
-		bitmask = 0x80;
-		node_val = iter_node->map;
-		do {
-			if (bitmask == 0) {
-				bitmap_byte++;
-				bitmask = 0x80;
-			}
-			if (node_val & (MAPTYPE)0x01)
-				bitmap[bitmap_byte] |= bitmask;
-			node_val >>= 1;
-			bitmask >>= 1;
-		} while (node_val > 0);
-		iter_node = iter_node->next;
-	} while (iter_node);
+	while (e_iter != NULL) {
+		if (e_iter->startbit >=
+		    (c_iter->startbit + NETLBL_CATMAP_SIZE)) {
+			c_iter->next = netlbl_secattr_catmap_alloc(GFP_ATOMIC);
+			if (c_iter->next == NULL)
+				goto netlbl_export_failure;
+			c_iter = c_iter->next;
+			c_iter->startbit = e_iter->startbit &
+				           ~(NETLBL_CATMAP_SIZE - 1);
+		}
+		cmap_idx = (e_iter->startbit - c_iter->startbit) /
+			   NETLBL_CATMAP_MAPSIZE;
+		c_iter->bitmap[cmap_idx] = e_iter->map;
+		e_iter = e_iter->next;
+	}
 
-	*dst = bitmap;
-	*dst_len = bitmap_len;
 	return 0;
+
+netlbl_export_failure:
+	netlbl_secattr_catmap_free(*catmap);
+	return -ENOMEM;
 }
 
 /**
- * ebitmap_import - Import an unsigned char bitmap string into an ebitmap
- * @src: the bitmap string
- * @src_len: the bitmap length in bytes
- * @dst: the empty ebitmap
+ * ebitmap_netlbl_import - Import a NetLabel category bitmap into an ebitmap
+ * @ebmap: the ebitmap to export
+ * @catmap: the NetLabel category bitmap
  *
  * Description:
- * This function takes a little endian bitmap string in src and imports it into
- * the ebitmap pointed to by dst.  Returns zero on success, negative values on
- * failure.
+ * Import a NetLabel category bitmap into a SELinux extensibile bitmap.
+ * Returns zero on success, negative values on error.
  *
  */
-int ebitmap_import(const unsigned char *src,
-		   size_t src_len,
-		   struct ebitmap *dst)
+int ebitmap_netlbl_import(struct ebitmap *ebmap,
+			  struct netlbl_lsm_secattr_catmap *catmap)
 {
-	size_t src_off = 0;
-	size_t node_limit;
-	struct ebitmap_node *node_new;
-	struct ebitmap_node *node_last = NULL;
-	u32 i_byte;
-	u32 i_bit;
-	unsigned char src_byte;
+	struct ebitmap_node *e_iter = NULL;
+	struct ebitmap_node *emap_prev = NULL;
+	struct netlbl_lsm_secattr_catmap *c_iter = catmap;
+	u32 c_idx;
 
-	while (src_off < src_len) {
-		if (src_len - src_off >= sizeof(MAPTYPE)) {
-			if (*(MAPTYPE *)&src[src_off] == 0) {
-				src_off += sizeof(MAPTYPE);
+	/* This function is a much simpler because SELinux's MAPTYPE happens
+	 * to be the same as NetLabel's NETLBL_CATMAP_MAPTYPE, if MAPTYPE is
+	 * changed from a u64 this function will most likely need to be changed
+	 * as well.  It's not ideal but I think the tradeoff in terms of
+	 * neatness and speed is worth it. */
+
+	do {
+		for (c_idx = 0; c_idx < NETLBL_CATMAP_MAPCNT; c_idx++) {
+			if (c_iter->bitmap[c_idx] == 0)
 				continue;
-			}
-			node_limit = sizeof(MAPTYPE);
-		} else {
-			for (src_byte = 0, i_byte = src_off;
-			     i_byte < src_len && src_byte == 0;
-			     i_byte++)
-				src_byte |= src[i_byte];
-			if (src_byte == 0)
-				break;
-			node_limit = src_len - src_off;
-		}
 
-		node_new = kzalloc(sizeof(*node_new), GFP_ATOMIC);
-		if (unlikely(node_new == NULL)) {
-			ebitmap_destroy(dst);
-			return -ENOMEM;
-		}
-		node_new->startbit = src_off * 8;
-		for (i_byte = 0; i_byte < node_limit; i_byte++) {
-			src_byte = src[src_off++];
-			for (i_bit = i_byte * 8; src_byte != 0; i_bit++) {
-				if (src_byte & 0x80)
-					node_new->map |= MAPBIT << i_bit;
-				src_byte <<= 1;
-			}
-		}
+			e_iter = kzalloc(sizeof(*e_iter), GFP_ATOMIC);
+			if (e_iter == NULL)
+				goto netlbl_import_failure;
+			if (emap_prev == NULL)
+				ebmap->node = e_iter;
+			else
+				emap_prev->next = e_iter;
+			emap_prev = e_iter;
 
-		if (node_last != NULL)
-			node_last->next = node_new;
-		else
-			dst->node = node_new;
-		node_last = node_new;
-	}
-
-	if (likely(node_last != NULL))
-		dst->highbit = node_last->startbit + MAPSIZE;
+			e_iter->startbit = c_iter->startbit +
+				           NETLBL_CATMAP_MAPSIZE * c_idx;
+			e_iter->map = c_iter->bitmap[c_idx];
+		}
+		c_iter = c_iter->next;
+	} while (c_iter != NULL);
+	if (e_iter != NULL)
+		ebmap->highbit = e_iter->startbit + MAPSIZE;
 	else
-		ebitmap_init(dst);
+		ebitmap_destroy(ebmap);
 
 	return 0;
+
+netlbl_import_failure:
+	ebitmap_destroy(ebmap);
+	return -ENOMEM;
 }
+#endif /* CONFIG_NETLABEL */
 
 int ebitmap_contains(struct ebitmap *e1, struct ebitmap *e2)
 {

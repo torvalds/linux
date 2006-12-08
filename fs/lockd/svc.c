@@ -353,9 +353,6 @@ EXPORT_SYMBOL(lockd_down);
  * Sysctl parameters (same as module parameters, different interface).
  */
 
-/* Something that isn't CTL_ANY, CTL_NONE or a value that may clash. */
-#define CTL_UNNUMBERED		-2
-
 static ctl_table nlm_sysctls[] = {
 	{
 		.ctl_name	= CTL_UNNUMBERED,

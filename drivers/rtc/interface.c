@@ -145,6 +145,13 @@ int rtc_set_alarm(struct class_device *class_dev, struct rtc_wkalrm *alarm)
 }
 EXPORT_SYMBOL_GPL(rtc_set_alarm);
 
+/**
+ * rtc_update_irq - report RTC periodic, alarm, and/or update irqs
+ * @class_dev: the rtc's class device
+ * @num: how many irqs are being reported (usually one)
+ * @events: mask of RTC_IRQF with one or more of RTC_PF, RTC_AF, RTC_UF
+ * Context: in_interrupt(), irqs blocked
+ */
 void rtc_update_irq(struct class_device *class_dev,
 		unsigned long num, unsigned long events)
 {
@@ -201,12 +208,12 @@ int rtc_irq_register(struct class_device *class_dev, struct rtc_task *task)
 	if (task == NULL || task->func == NULL)
 		return -EINVAL;
 
-	spin_lock(&rtc->irq_task_lock);
+	spin_lock_irq(&rtc->irq_task_lock);
 	if (rtc->irq_task == NULL) {
 		rtc->irq_task = task;
 		retval = 0;
 	}
-	spin_unlock(&rtc->irq_task_lock);
+	spin_unlock_irq(&rtc->irq_task_lock);
 
 	return retval;
 }
@@ -216,10 +223,10 @@ void rtc_irq_unregister(struct class_device *class_dev, struct rtc_task *task)
 {
 	struct rtc_device *rtc = to_rtc_device(class_dev);
 
-	spin_lock(&rtc->irq_task_lock);
+	spin_lock_irq(&rtc->irq_task_lock);
 	if (rtc->irq_task == task)
 		rtc->irq_task = NULL;
-	spin_unlock(&rtc->irq_task_lock);
+	spin_unlock_irq(&rtc->irq_task_lock);
 }
 EXPORT_SYMBOL_GPL(rtc_irq_unregister);
 
@@ -265,3 +272,4 @@ int rtc_irq_set_freq(struct class_device *class_dev, struct rtc_task *task, int 
 	}
 	return err;
 }
+EXPORT_SYMBOL_GPL(rtc_irq_set_freq);

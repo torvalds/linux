@@ -29,8 +29,8 @@ static int jffs_mark_obsolete(struct jffs_fmcontrol *fmc, __u32 fm_offset);
 static struct jffs_fm *jffs_alloc_fm(void);
 static void jffs_free_fm(struct jffs_fm *n);
 
-extern kmem_cache_t     *fm_cache;
-extern kmem_cache_t     *node_cache;
+extern struct kmem_cache     *fm_cache;
+extern struct kmem_cache     *node_cache;
 
 #if CONFIG_JFFS_FS_VERBOSE > 0
 void

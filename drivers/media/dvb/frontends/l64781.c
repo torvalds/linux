@@ -36,7 +36,7 @@ struct l64781_state {
 	struct dvb_frontend frontend;
 
 	/* private demodulator data */
-	int first:1;
+	unsigned int first:1;
 };
 
 #define dprintk(args...) \

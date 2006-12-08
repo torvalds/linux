@@ -70,6 +70,19 @@ void *ipz_qeit_eq_get_inc(struct ipz_queue *queue)
 	return ret;
 }
 
+int ipz_queue_abs_to_offset(struct ipz_queue *queue, u64 addr, u64 *q_offset)
+{
+	int i;
+	for (i = 0; i < queue->queue_length / queue->pagesize; i++) {
+		u64 page = (u64)virt_to_abs(queue->queue_pages[i]);
+		if (addr >= page && addr < page + queue->pagesize) {
+			*q_offset = addr - page + i * queue->pagesize;
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
 int ipz_queue_ctor(struct ipz_queue *queue,
 		   const u32 nr_of_pages,
 		   const u32 pagesize, const u32 qe_size, const u32 nr_of_sg)

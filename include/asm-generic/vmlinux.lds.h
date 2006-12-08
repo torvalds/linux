@@ -11,8 +11,8 @@
 
 #define RODATA								\
 	. = ALIGN(4096);						\
-	__start_rodata = .;						\
 	.rodata           : AT(ADDR(.rodata) - LOAD_OFFSET) {		\
+		VMLINUX_SYMBOL(__start_rodata) = .;			\
 		*(.rodata) *(.rodata.*)					\
 		*(__vermagic)		/* Kernel version magic */	\
 	}								\
@@ -119,17 +119,16 @@
 		*(__ksymtab_strings)					\
 	}								\
 									\
+	EH_FRAME							\
+									\
 	/* Built-in module parameters. */				\
 	__param : AT(ADDR(__param) - LOAD_OFFSET) {			\
 		VMLINUX_SYMBOL(__start___param) = .;			\
 		*(__param)						\
 		VMLINUX_SYMBOL(__stop___param) = .;			\
+		VMLINUX_SYMBOL(__end_rodata) = .;			\
 	}								\
 									\
-	/* Unwind data binary search table */				\
-	EH_FRAME_HDR							\
-									\
-	__end_rodata = .;						\
 	. = ALIGN(4096);
 
 #define SECURITY_INIT							\
@@ -162,15 +161,23 @@
 		VMLINUX_SYMBOL(__kprobes_text_end) = .;
 
 #ifdef CONFIG_STACK_UNWIND
-		/* Unwind data binary search table */
-#define EH_FRAME_HDR							\
+#define EH_FRAME							\
+		/* Unwind data binary search table */			\
+		. = ALIGN(8);						\
         	.eh_frame_hdr : AT(ADDR(.eh_frame_hdr) - LOAD_OFFSET) {	\
 			VMLINUX_SYMBOL(__start_unwind_hdr) = .;		\
 			*(.eh_frame_hdr)				\
 			VMLINUX_SYMBOL(__end_unwind_hdr) = .;		\
+		}							\
+		/* Unwind data */					\
+		. = ALIGN(8);						\
+		.eh_frame : AT(ADDR(.eh_frame) - LOAD_OFFSET) {		\
+			VMLINUX_SYMBOL(__start_unwind) = .;		\
+		  	*(.eh_frame)					\
+			VMLINUX_SYMBOL(__end_unwind) = .;		\
 		}
 #else
-#define EH_FRAME_HDR
+#define EH_FRAME
 #endif
 
 		/* DWARF debug sections.
@@ -215,6 +222,8 @@
 		.notes : { *(.note.*) } :note
 
 #define INITCALLS							\
+  	*(.initcall0.init)						\
+  	*(.initcall0s.init)						\
   	*(.initcall1.init)						\
   	*(.initcall1s.init)						\
   	*(.initcall2.init)						\

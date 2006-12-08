@@ -160,7 +160,7 @@ struct neigh_table
 	atomic_t		entries;
 	rwlock_t		lock;
 	unsigned long		last_rand;
-	kmem_cache_t		*kmem_cachep;
+	struct kmem_cache		*kmem_cachep;
 	struct neigh_statistics	*stats;
 	struct neighbour	**hash_buckets;
 	unsigned int		hash_mask;

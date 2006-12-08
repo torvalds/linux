@@ -1,5 +1,4 @@
 /*
- *  
  *  Copyright (C) 2002 Intersil Americas Inc.
  *  Copyright (C) 2003 Herbert Valerio Riedel <hvr@gnu.org>
  *  Copyright (C) 2003 Luis R. Rodriguez <mcgrof@ruslug.rutgers.edu>
@@ -413,7 +412,7 @@ prism54_bring_down(islpci_private *priv)
 	islpci_set_state(priv, PRV_STATE_PREBOOT);
 
 	/* disable all device interrupts in case they weren't */
-	isl38xx_disable_interrupts(priv->device_base);  
+	isl38xx_disable_interrupts(priv->device_base);
 
 	/* For safety reasons, we may want to ensure that no DMA transfer is
 	 * currently in progress by emptying the TX and RX queues. */
@@ -480,7 +479,7 @@ islpci_reset_if(islpci_private *priv)
 
 	DEFINE_WAIT(wait);
 	prepare_to_wait(&priv->reset_done, &wait, TASK_UNINTERRUPTIBLE);
-	
+
 	/* now the last step is to reset the interface */
 	isl38xx_interface_reset(priv->device_base, priv->device_host_address);
 	islpci_set_state(priv, PRV_STATE_PREINIT);
@@ -488,7 +487,7 @@ islpci_reset_if(islpci_private *priv)
         for(count = 0; count < 2 && result; count++) {
 		/* The software reset acknowledge needs about 220 msec here.
 		 * Be conservative and wait for up to one second. */
-	
+
 		remaining = schedule_timeout_uninterruptible(HZ);
 
 		if(remaining > 0) {
@@ -496,7 +495,7 @@ islpci_reset_if(islpci_private *priv)
 			break;
 		}
 
-		/* If we're here it's because our IRQ hasn't yet gone through. 
+		/* If we're here it's because our IRQ hasn't yet gone through.
 		 * Retry a bit more...
 		 */
 		printk(KERN_ERR "%s: no 'reset complete' IRQ seen - retrying\n",
@@ -514,7 +513,7 @@ islpci_reset_if(islpci_private *priv)
 
 	/* Now that the device is 100% up, let's allow
 	 * for the other interrupts --
-	 * NOTE: this is not *yet* true since we've only allowed the 
+	 * NOTE: this is not *yet* true since we've only allowed the
 	 * INIT interrupt on the IRQ line. We can perhaps poll
 	 * the IRQ line until we know for sure the reset went through */
 	isl38xx_enable_common_interrupts(priv->device_base);
@@ -716,7 +715,7 @@ islpci_alloc_memory(islpci_private *priv)
 
 	prism54_acl_init(&priv->acl);
 	prism54_wpa_bss_ie_init(priv);
-	if (mgt_init(priv)) 
+	if (mgt_init(priv))
 		goto out_free;
 
 	return 0;
@@ -861,11 +860,10 @@ islpci_setup(struct pci_dev *pdev)
 	priv->state_off = 1;
 
 	/* initialize workqueue's */
-	INIT_WORK(&priv->stats_work,
-		  (void (*)(void *)) prism54_update_stats, priv);
+	INIT_WORK(&priv->stats_work, prism54_update_stats);
 	priv->stats_timestamp = 0;
 
-	INIT_WORK(&priv->reset_task, islpci_do_reset_and_wake, priv);
+	INIT_WORK(&priv->reset_task, islpci_do_reset_and_wake);
 	priv->reset_task_pending = 0;
 
 	/* allocate various memory areas */

@@ -124,7 +124,7 @@ sync_fs:		no	no	read
 write_super_lockfs:	?
 unlockfs:		?
 statfs:			no	no	no
-remount_fs:		no	yes	maybe		(see below)
+remount_fs:		yes	yes	maybe		(see below)
 clear_inode:		no
 umount_begin:		yes	no	no
 show_options:		no				(vfsmount->sem)

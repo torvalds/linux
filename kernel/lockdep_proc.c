@@ -113,7 +113,7 @@ static int l_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations lockdep_ops = {
+static const struct seq_operations lockdep_ops = {
 	.start	= l_start,
 	.next	= l_next,
 	.stop	= l_stop,
@@ -135,7 +135,7 @@ static int lockdep_open(struct inode *inode, struct file *file)
 	return res;
 }
 
-static struct file_operations proc_lockdep_operations = {
+static const struct file_operations proc_lockdep_operations = {
 	.open		= lockdep_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -319,7 +319,7 @@ static int lockdep_stats_open(struct inode *inode, struct file *file)
 	return single_open(file, lockdep_stats_show, NULL);
 }
 
-static struct file_operations proc_lockdep_stats_operations = {
+static const struct file_operations proc_lockdep_stats_operations = {
 	.open		= lockdep_stats_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

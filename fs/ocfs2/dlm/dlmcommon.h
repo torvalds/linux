@@ -153,7 +153,7 @@ static inline struct hlist_head *dlm_lockres_hash(struct dlm_ctxt *dlm, unsigned
  * called functions that cannot be directly called from the
  * net message handlers for some reason, usually because
  * they need to send net messages of their own. */
-void dlm_dispatch_work(void *data);
+void dlm_dispatch_work(struct work_struct *work);
 
 struct dlm_lock_resource;
 struct dlm_work_item;

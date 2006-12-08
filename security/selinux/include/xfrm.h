@@ -8,20 +8,17 @@
 #define _SELINUX_XFRM_H_
 
 int selinux_xfrm_policy_alloc(struct xfrm_policy *xp,
-		struct xfrm_user_sec_ctx *sec_ctx, struct sock *sk);
+		struct xfrm_user_sec_ctx *sec_ctx);
 int selinux_xfrm_policy_clone(struct xfrm_policy *old, struct xfrm_policy *new);
 void selinux_xfrm_policy_free(struct xfrm_policy *xp);
 int selinux_xfrm_policy_delete(struct xfrm_policy *xp);
 int selinux_xfrm_state_alloc(struct xfrm_state *x,
-	struct xfrm_user_sec_ctx *sec_ctx, struct xfrm_sec_ctx *pol, u32 secid);
+	struct xfrm_user_sec_ctx *sec_ctx, u32 secid);
 void selinux_xfrm_state_free(struct xfrm_state *x);
 int selinux_xfrm_state_delete(struct xfrm_state *x);
 int selinux_xfrm_policy_lookup(struct xfrm_policy *xp, u32 fl_secid, u8 dir);
 int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x,
 			struct xfrm_policy *xp, struct flowi *fl);
-int selinux_xfrm_flow_state_match(struct flowi *fl, struct xfrm_state *xfrm,
-			struct xfrm_policy *xp);
-
 
 /*
  * Extract the security blob from the sock (it's actually on the socket)
@@ -38,9 +35,7 @@ static inline struct inode_security_struct *get_sock_isec(struct sock *sk)
 int selinux_xfrm_sock_rcv_skb(u32 sid, struct sk_buff *skb,
 			struct avc_audit_data *ad);
 int selinux_xfrm_postroute_last(u32 isec_sid, struct sk_buff *skb,
-			struct avc_audit_data *ad);
-u32 selinux_socket_getpeer_stream(struct sock *sk);
-u32 selinux_socket_getpeer_dgram(struct sk_buff *skb);
+			struct avc_audit_data *ad, u8 proto);
 int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall);
 #else
 static inline int selinux_xfrm_sock_rcv_skb(u32 isec_sid, struct sk_buff *skb,
@@ -50,25 +45,22 @@ static inline int selinux_xfrm_sock_rcv_skb(u32 isec_sid, struct sk_buff *skb,
 }
 
 static inline int selinux_xfrm_postroute_last(u32 isec_sid, struct sk_buff *skb,
-			struct avc_audit_data *ad)
+			struct avc_audit_data *ad, u8 proto)
 {
 	return 0;
 }
 
-static inline int selinux_socket_getpeer_stream(struct sock *sk)
-{
-	return SECSID_NULL;
-}
-
-static inline int selinux_socket_getpeer_dgram(struct sk_buff *skb)
-{
-	return SECSID_NULL;
-}
 static inline int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall)
 {
 	*sid = SECSID_NULL;
 	return 0;
 }
 #endif
+
+static inline void selinux_skb_xfrm_sid(struct sk_buff *skb, u32 *sid)
+{
+	int err = selinux_xfrm_decode_session(skb, sid, 0);
+	BUG_ON(err);
+}
 
 #endif /* _SELINUX_XFRM_H_ */

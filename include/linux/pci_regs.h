@@ -292,6 +292,12 @@
 #define PCI_MSI_DATA_64		12	/* 16 bits of data for 64-bit devices */
 #define PCI_MSI_MASK_BIT	16	/* Mask bits register */
 
+/* MSI-X registers (these are at offset PCI_MSI_FLAGS) */
+#define PCI_MSIX_FLAGS_QSIZE	0x7FF
+#define PCI_MSIX_FLAGS_ENABLE	(1 << 15)
+#define PCI_MSIX_FLAGS_BIRMASK	(7 << 0)
+#define PCI_MSIX_FLAGS_BITMASK	(1 << 0)
+
 /* CompactPCI Hotswap Register */
 
 #define PCI_CHSWP_CSR		2	/* Control and Status Register */
@@ -371,6 +377,7 @@
 #define  PCI_EXP_DEVSTA_TRPND	0x20	/* Transactions Pending */
 #define PCI_EXP_LNKCAP		12	/* Link Capabilities */
 #define PCI_EXP_LNKCTL		16	/* Link Control */
+#define  PCI_EXP_LNKCTL_CLKREQ_EN 0x100	/* Enable clkreq */
 #define PCI_EXP_LNKSTA		18	/* Link Status */
 #define PCI_EXP_SLTCAP		20	/* Slot Capabilities */
 #define PCI_EXP_SLTCTL		24	/* Slot Control */

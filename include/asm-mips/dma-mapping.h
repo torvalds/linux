@@ -63,9 +63,9 @@ dma_get_cache_alignment(void)
 	return 128;
 }
 
-extern int dma_is_consistent(dma_addr_t dma_addr);
+extern int dma_is_consistent(struct device *dev, dma_addr_t dma_addr);
 
-extern void dma_cache_sync(void *vaddr, size_t size,
+extern void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	       enum dma_data_direction direction);
 
 #define ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY

@@ -22,7 +22,7 @@
  * as we go.
  */
 int
-uio_read(caddr_t src, size_t len, struct uio *uio)
+xfs_uio_read(caddr_t src, size_t len, struct uio *uio)
 {
 	size_t	count;
 

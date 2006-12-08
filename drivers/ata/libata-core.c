@@ -199,7 +199,8 @@ static const u8 ata_rw_cmds[] = {
 
 /**
  *	ata_rwcmd_protocol - set taskfile r/w commands and protocol
- *	@qc: command to examine and configure
+ *	@tf: command to examine and configure
+ *	@dev: device tf belongs to
  *
  *	Examine the device configuration and tf->flags to calculate
  *	the proper read/write commands and protocol to use.
@@ -207,10 +208,8 @@ static const u8 ata_rw_cmds[] = {
  *	LOCKING:
  *	caller.
  */
-int ata_rwcmd_protocol(struct ata_queued_cmd *qc)
+static int ata_rwcmd_protocol(struct ata_taskfile *tf, struct ata_device *dev)
 {
-	struct ata_taskfile *tf = &qc->tf;
-	struct ata_device *dev = qc->dev;
 	u8 cmd;
 
 	int index, fua, lba48, write;
@@ -222,7 +221,7 @@ int ata_rwcmd_protocol(struct ata_queued_cmd *qc)
 	if (dev->flags & ATA_DFLAG_PIO) {
 		tf->protocol = ATA_PROT_PIO;
 		index = dev->multi_count ? 0 : 8;
-	} else if (lba48 && (qc->ap->flags & ATA_FLAG_PIO_LBA48)) {
+	} else if (lba48 && (dev->ap->flags & ATA_FLAG_PIO_LBA48)) {
 		/* Unable to use DMA due to host limitation */
 		tf->protocol = ATA_PROT_PIO;
 		index = dev->multi_count ? 0 : 8;
@@ -237,6 +236,174 @@ int ata_rwcmd_protocol(struct ata_queued_cmd *qc)
 		return 0;
 	}
 	return -1;
+}
+
+/**
+ *	ata_tf_read_block - Read block address from ATA taskfile
+ *	@tf: ATA taskfile of interest
+ *	@dev: ATA device @tf belongs to
+ *
+ *	LOCKING:
+ *	None.
+ *
+ *	Read block address from @tf.  This function can handle all
+ *	three address formats - LBA, LBA48 and CHS.  tf->protocol and
+ *	flags select the address format to use.
+ *
+ *	RETURNS:
+ *	Block address read from @tf.
+ */
+u64 ata_tf_read_block(struct ata_taskfile *tf, struct ata_device *dev)
+{
+	u64 block = 0;
+
+	if (tf->flags & ATA_TFLAG_LBA) {
+		if (tf->flags & ATA_TFLAG_LBA48) {
+			block |= (u64)tf->hob_lbah << 40;
+			block |= (u64)tf->hob_lbam << 32;
+			block |= tf->hob_lbal << 24;
+		} else
+			block |= (tf->device & 0xf) << 24;
+
+		block |= tf->lbah << 16;
+		block |= tf->lbam << 8;
+		block |= tf->lbal;
+	} else {
+		u32 cyl, head, sect;
+
+		cyl = tf->lbam | (tf->lbah << 8);
+		head = tf->device & 0xf;
+		sect = tf->lbal;
+
+		block = (cyl * dev->heads + head) * dev->sectors + sect;
+	}
+
+	return block;
+}
+
+/**
+ *	ata_build_rw_tf - Build ATA taskfile for given read/write request
+ *	@tf: Target ATA taskfile
+ *	@dev: ATA device @tf belongs to
+ *	@block: Block address
+ *	@n_block: Number of blocks
+ *	@tf_flags: RW/FUA etc...
+ *	@tag: tag
+ *
+ *	LOCKING:
+ *	None.
+ *
+ *	Build ATA taskfile @tf for read/write request described by
+ *	@block, @n_block, @tf_flags and @tag on @dev.
+ *
+ *	RETURNS:
+ *
+ *	0 on success, -ERANGE if the request is too large for @dev,
+ *	-EINVAL if the request is invalid.
+ */
+int ata_build_rw_tf(struct ata_taskfile *tf, struct ata_device *dev,
+		    u64 block, u32 n_block, unsigned int tf_flags,
+		    unsigned int tag)
+{
+	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
+	tf->flags |= tf_flags;
+
+	if ((dev->flags & (ATA_DFLAG_PIO | ATA_DFLAG_NCQ_OFF |
+			   ATA_DFLAG_NCQ)) == ATA_DFLAG_NCQ &&
+	    likely(tag != ATA_TAG_INTERNAL)) {
+		/* yay, NCQ */
+		if (!lba_48_ok(block, n_block))
+			return -ERANGE;
+
+		tf->protocol = ATA_PROT_NCQ;
+		tf->flags |= ATA_TFLAG_LBA | ATA_TFLAG_LBA48;
+
+		if (tf->flags & ATA_TFLAG_WRITE)
+			tf->command = ATA_CMD_FPDMA_WRITE;
+		else
+			tf->command = ATA_CMD_FPDMA_READ;
+
+		tf->nsect = tag << 3;
+		tf->hob_feature = (n_block >> 8) & 0xff;
+		tf->feature = n_block & 0xff;
+
+		tf->hob_lbah = (block >> 40) & 0xff;
+		tf->hob_lbam = (block >> 32) & 0xff;
+		tf->hob_lbal = (block >> 24) & 0xff;
+		tf->lbah = (block >> 16) & 0xff;
+		tf->lbam = (block >> 8) & 0xff;
+		tf->lbal = block & 0xff;
+
+		tf->device = 1 << 6;
+		if (tf->flags & ATA_TFLAG_FUA)
+			tf->device |= 1 << 7;
+	} else if (dev->flags & ATA_DFLAG_LBA) {
+		tf->flags |= ATA_TFLAG_LBA;
+
+		if (lba_28_ok(block, n_block)) {
+			/* use LBA28 */
+			tf->device |= (block >> 24) & 0xf;
+		} else if (lba_48_ok(block, n_block)) {
+			if (!(dev->flags & ATA_DFLAG_LBA48))
+				return -ERANGE;
+
+			/* use LBA48 */
+			tf->flags |= ATA_TFLAG_LBA48;
+
+			tf->hob_nsect = (n_block >> 8) & 0xff;
+
+			tf->hob_lbah = (block >> 40) & 0xff;
+			tf->hob_lbam = (block >> 32) & 0xff;
+			tf->hob_lbal = (block >> 24) & 0xff;
+		} else
+			/* request too large even for LBA48 */
+			return -ERANGE;
+
+		if (unlikely(ata_rwcmd_protocol(tf, dev) < 0))
+			return -EINVAL;
+
+		tf->nsect = n_block & 0xff;
+
+		tf->lbah = (block >> 16) & 0xff;
+		tf->lbam = (block >> 8) & 0xff;
+		tf->lbal = block & 0xff;
+
+		tf->device |= ATA_LBA;
+	} else {
+		/* CHS */
+		u32 sect, head, cyl, track;
+
+		/* The request -may- be too large for CHS addressing. */
+		if (!lba_28_ok(block, n_block))
+			return -ERANGE;
+
+		if (unlikely(ata_rwcmd_protocol(tf, dev) < 0))
+			return -EINVAL;
+
+		/* Convert LBA to CHS */
+		track = (u32)block / dev->sectors;
+		cyl   = track / dev->heads;
+		head  = track % dev->heads;
+		sect  = (u32)block % dev->sectors + 1;
+
+		DPRINTK("block %u track %u cyl %u head %u sect %u\n",
+			(u32)block, track, cyl, head, sect);
+
+		/* Check whether the converted CHS can fit.
+		   Cylinder: 0-65535
+		   Head: 0-15
+		   Sector: 1-255*/
+		if ((cyl >> 16) || (head >> 4) || (sect >> 8) || (!sect))
+			return -ERANGE;
+
+		tf->nsect = n_block & 0xff; /* Sector count 0 means 256 sectors */
+		tf->lbal = sect;
+		tf->lbam = cyl;
+		tf->lbah = cyl >> 8;
+		tf->device |= head;
+	}
+
+	return 0;
 }
 
 /**
@@ -914,7 +1081,7 @@ static unsigned int ata_id_xfermask(const u16 *id)
  *	ata_port_queue_task - Queue port_task
  *	@ap: The ata_port to queue port_task for
  *	@fn: workqueue function to be scheduled
- *	@data: data value to pass to workqueue function
+ *	@data: data for @fn to use
  *	@delay: delay time for workqueue function
  *
  *	Schedule @fn(@data) for execution after @delay jiffies using
@@ -929,7 +1096,7 @@ static unsigned int ata_id_xfermask(const u16 *id)
  *	LOCKING:
  *	Inherited from caller.
  */
-void ata_port_queue_task(struct ata_port *ap, void (*fn)(void *), void *data,
+void ata_port_queue_task(struct ata_port *ap, work_func_t fn, void *data,
 			 unsigned long delay)
 {
 	int rc;
@@ -937,12 +1104,10 @@ void ata_port_queue_task(struct ata_port *ap, void (*fn)(void *), void *data,
 	if (ap->pflags & ATA_PFLAG_FLUSH_PORT_TASK)
 		return;
 
-	PREPARE_WORK(&ap->port_task, fn, data);
+	PREPARE_DELAYED_WORK(&ap->port_task, fn);
+	ap->port_task_data = data;
 
-	if (!delay)
-		rc = queue_work(ata_wq, &ap->port_task);
-	else
-		rc = queue_delayed_work(ata_wq, &ap->port_task, delay);
+	rc = queue_delayed_work(ata_wq, &ap->port_task, delay);
 
 	/* rc == 0 means that another user is using port task */
 	WARN_ON(rc == 0);
@@ -999,13 +1164,13 @@ void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 }
 
 /**
- *	ata_exec_internal - execute libata internal command
+ *	ata_exec_internal_sg - execute libata internal command
  *	@dev: Device to which the command is sent
  *	@tf: Taskfile registers for the command and the result
  *	@cdb: CDB for packet command
  *	@dma_dir: Data tranfer direction of the command
- *	@buf: Data buffer of the command
- *	@buflen: Length of data buffer
+ *	@sg: sg list for the data buffer of the command
+ *	@n_elem: Number of sg entries
  *
  *	Executes libata internal command with timeout.  @tf contains
  *	command on entry and result on return.  Timeout and error
@@ -1019,9 +1184,10 @@ void ata_qc_complete_internal(struct ata_queued_cmd *qc)
  *	RETURNS:
  *	Zero on success, AC_ERR_* mask on failure
  */
-unsigned ata_exec_internal(struct ata_device *dev,
-			   struct ata_taskfile *tf, const u8 *cdb,
-			   int dma_dir, void *buf, unsigned int buflen)
+unsigned ata_exec_internal_sg(struct ata_device *dev,
+			      struct ata_taskfile *tf, const u8 *cdb,
+			      int dma_dir, struct scatterlist *sg,
+			      unsigned int n_elem)
 {
 	struct ata_port *ap = dev->ap;
 	u8 command = tf->command;
@@ -1077,7 +1243,12 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	qc->flags |= ATA_QCFLAG_RESULT_TF;
 	qc->dma_dir = dma_dir;
 	if (dma_dir != DMA_NONE) {
-		ata_sg_init_one(qc, buf, buflen);
+		unsigned int i, buflen = 0;
+
+		for (i = 0; i < n_elem; i++)
+			buflen += sg[i].length;
+
+		ata_sg_init(qc, sg, n_elem);
 		qc->nsect = buflen / ATA_SECT_SIZE;
 	}
 
@@ -1161,6 +1332,35 @@ unsigned ata_exec_internal(struct ata_device *dev,
 }
 
 /**
+ *	ata_exec_internal_sg - execute libata internal command
+ *	@dev: Device to which the command is sent
+ *	@tf: Taskfile registers for the command and the result
+ *	@cdb: CDB for packet command
+ *	@dma_dir: Data tranfer direction of the command
+ *	@buf: Data buffer of the command
+ *	@buflen: Length of data buffer
+ *
+ *	Wrapper around ata_exec_internal_sg() which takes simple
+ *	buffer instead of sg list.
+ *
+ *	LOCKING:
+ *	None.  Should be called with kernel context, might sleep.
+ *
+ *	RETURNS:
+ *	Zero on success, AC_ERR_* mask on failure
+ */
+unsigned ata_exec_internal(struct ata_device *dev,
+			   struct ata_taskfile *tf, const u8 *cdb,
+			   int dma_dir, void *buf, unsigned int buflen)
+{
+	struct scatterlist sg;
+
+	sg_init_one(&sg, buf, buflen);
+
+	return ata_exec_internal_sg(dev, tf, cdb, dma_dir, &sg, 1);
+}
+
+/**
  *	ata_do_simple_cmd - execute simple internal command
  *	@dev: Device to which the command is sent
  *	@cmd: Opcode to execute
@@ -1224,7 +1424,7 @@ unsigned int ata_pio_need_iordy(const struct ata_device *adev)
  *	ata_dev_read_id - Read ID data from the specified device
  *	@dev: target device
  *	@p_class: pointer to class of the target device (may be changed)
- *	@post_reset: is this read ID post-reset?
+ *	@flags: ATA_READID_* flags
  *	@id: buffer to read IDENTIFY data into
  *
  *	Read ID data from the specified device.  ATA_CMD_ID_ATA is
@@ -1239,7 +1439,7 @@ unsigned int ata_pio_need_iordy(const struct ata_device *adev)
  *	0 on success, -errno otherwise.
  */
 int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
-		    int post_reset, u16 *id)
+		    unsigned int flags, u16 *id)
 {
 	struct ata_port *ap = dev->ap;
 	unsigned int class = *p_class;
@@ -1271,10 +1471,17 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	}
 
 	tf.protocol = ATA_PROT_PIO;
+	tf.flags |= ATA_TFLAG_POLLING; /* for polling presence detection */
 
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_FROM_DEVICE,
 				     id, sizeof(id[0]) * ATA_ID_WORDS);
 	if (err_mask) {
+		if (err_mask & AC_ERR_NODEV_HINT) {
+			DPRINTK("ata%u.%d: NODEV after polling detection\n",
+				ap->id, dev->devno);
+			return -ENOENT;
+		}
+
 		rc = -EIO;
 		reason = "I/O error";
 		goto err_out;
@@ -1294,7 +1501,7 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 			goto err_out;
 	}
 
-	if (post_reset && class == ATA_DEV_ATA) {
+	if ((flags & ATA_READID_POSTRESET) && class == ATA_DEV_ATA) {
 		/*
 		 * The exact sequence expected by certain pre-ATA4 drives is:
 		 * SRST RESET
@@ -1314,7 +1521,7 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 			/* current CHS translation info (id[53-58]) might be
 			 * changed. reread the identify device info.
 			 */
-			post_reset = 0;
+			flags &= ~ATA_READID_POSTRESET;
 			goto retry;
 		}
 	}
@@ -1345,7 +1552,10 @@ static void ata_dev_config_ncq(struct ata_device *dev,
 		desc[0] = '\0';
 		return;
 	}
-
+	if (ata_device_blacklisted(dev) & ATA_HORKAGE_NONCQ) {
+		snprintf(desc, desc_sz, "NCQ (not used)");
+		return;
+	}
 	if (ap->flags & ATA_FLAG_NCQ) {
 		hdepth = min(ap->scsi_host->can_queue, ATA_MAX_QUEUE - 1);
 		dev->flags |= ATA_DFLAG_NCQ;
@@ -1374,7 +1584,6 @@ static void ata_set_port_max_cmd_len(struct ata_port *ap)
 /**
  *	ata_dev_configure - Configure the specified ATA/ATAPI device
  *	@dev: Target device to configure
- *	@print_info: Enable device info printout
  *
  *	Configure @dev according to @dev->id.  Generic and low-level
  *	driver specific fixups are also applied.
@@ -1385,9 +1594,10 @@ static void ata_set_port_max_cmd_len(struct ata_port *ap)
  *	RETURNS:
  *	0 on success, -errno otherwise
  */
-int ata_dev_configure(struct ata_device *dev, int print_info)
+int ata_dev_configure(struct ata_device *dev)
 {
 	struct ata_port *ap = dev->ap;
+	int print_info = ap->eh_context.i.flags & ATA_EHI_PRINTINFO;
 	const u16 *id = dev->id;
 	unsigned int xfer_mask;
 	char revbuf[7];		/* XYZ-99\0 */
@@ -1454,6 +1664,10 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 			if (ata_id_has_lba48(id)) {
 				dev->flags |= ATA_DFLAG_LBA48;
 				lba_desc = "LBA48";
+
+				if (dev->n_sectors >= (1UL << 28) &&
+				    ata_id_has_flush_ext(id))
+					dev->flags |= ATA_DFLAG_FLUSH_EXT;
 			}
 
 			/* config NCQ */
@@ -1529,6 +1743,11 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 				       ata_mode_string(xfer_mask),
 				       cdb_intr_string);
 	}
+
+	/* determine max_sectors */
+	dev->max_sectors = ATA_MAX_SECTORS;
+	if (dev->flags & ATA_DFLAG_LBA48)
+		dev->max_sectors = ATA_MAX_SECTORS_LBA48;
 
 	if (dev->horkage & ATA_HORKAGE_DIAGNOSTIC) {
 		/* Let the user know. We don't want to disallow opens for
@@ -1631,11 +1850,14 @@ int ata_bus_probe(struct ata_port *ap)
 		if (!ata_dev_enabled(dev))
 			continue;
 
-		rc = ata_dev_read_id(dev, &dev->class, 1, dev->id);
+		rc = ata_dev_read_id(dev, &dev->class, ATA_READID_POSTRESET,
+				     dev->id);
 		if (rc)
 			goto fail;
 
-		rc = ata_dev_configure(dev, 1);
+		ap->eh_context.i.flags |= ATA_EHI_PRINTINFO;
+		rc = ata_dev_configure(dev);
+		ap->eh_context.i.flags &= ~ATA_EHI_PRINTINFO;
 		if (rc)
 			goto fail;
 	}
@@ -2081,7 +2303,7 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 	 * DMA cycle timing is slower/equal than the fastest PIO timing.
 	 */
 
-	if (speed > XFER_PIO_4) {
+	if (speed > XFER_PIO_6) {
 		ata_timing_compute(adev, adev->pio_mode, &p, T, UT);
 		ata_timing_merge(&p, t, t, ATA_TIMING_ALL);
 	}
@@ -2153,6 +2375,7 @@ int ata_down_xfermask_limit(struct ata_device *dev, int force_pio0)
 
 static int ata_dev_set_mode(struct ata_device *dev)
 {
+	struct ata_eh_context *ehc = &dev->ap->eh_context;
 	unsigned int err_mask;
 	int rc;
 
@@ -2167,7 +2390,9 @@ static int ata_dev_set_mode(struct ata_device *dev)
 		return -EIO;
 	}
 
+	ehc->i.flags |= ATA_EHI_POST_SETMODE;
 	rc = ata_dev_revalidate(dev, 0);
+	ehc->i.flags &= ~ATA_EHI_POST_SETMODE;
 	if (rc)
 		return rc;
 
@@ -2325,11 +2550,14 @@ static inline void ata_tf_to_host(struct ata_port *ap,
  *	Sleep until ATA Status register bit BSY clears,
  *	or a timeout occurs.
  *
- *	LOCKING: None.
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ *
+ *	RETURNS:
+ *	0 on success, -errno otherwise.
  */
-
-unsigned int ata_busy_sleep (struct ata_port *ap,
-			     unsigned long tmout_pat, unsigned long tmout)
+int ata_busy_sleep(struct ata_port *ap,
+		   unsigned long tmout_pat, unsigned long tmout)
 {
 	unsigned long timer_start, timeout;
 	u8 status;
@@ -2337,27 +2565,32 @@ unsigned int ata_busy_sleep (struct ata_port *ap,
 	status = ata_busy_wait(ap, ATA_BUSY, 300);
 	timer_start = jiffies;
 	timeout = timer_start + tmout_pat;
-	while ((status & ATA_BUSY) && (time_before(jiffies, timeout))) {
+	while (status != 0xff && (status & ATA_BUSY) &&
+	       time_before(jiffies, timeout)) {
 		msleep(50);
 		status = ata_busy_wait(ap, ATA_BUSY, 3);
 	}
 
-	if (status & ATA_BUSY)
+	if (status != 0xff && (status & ATA_BUSY))
 		ata_port_printk(ap, KERN_WARNING,
 				"port is slow to respond, please be patient "
 				"(Status 0x%x)\n", status);
 
 	timeout = timer_start + tmout;
-	while ((status & ATA_BUSY) && (time_before(jiffies, timeout))) {
+	while (status != 0xff && (status & ATA_BUSY) &&
+	       time_before(jiffies, timeout)) {
 		msleep(50);
 		status = ata_chk_status(ap);
 	}
+
+	if (status == 0xff)
+		return -ENODEV;
 
 	if (status & ATA_BUSY) {
 		ata_port_printk(ap, KERN_ERR, "port failed to respond "
 				"(%lu secs, Status 0x%x)\n",
 				tmout / HZ, status);
-		return 1;
+		return -EBUSY;
 	}
 
 	return 0;
@@ -2448,10 +2681,8 @@ static unsigned int ata_bus_softreset(struct ata_port *ap,
 	 * the bus shows 0xFF because the odd clown forgets the D7
 	 * pulldown resistor.
 	 */
-	if (ata_check_status(ap) == 0xFF) {
-		ata_port_printk(ap, KERN_ERR, "SRST failed (status 0xFF)\n");
-		return AC_ERR_OTHER;
-	}
+	if (ata_check_status(ap) == 0xFF)
+		return 0;
 
 	ata_bus_post_reset(ap, devmask);
 
@@ -2777,9 +3008,9 @@ int ata_std_softreset(struct ata_port *ap, unsigned int *classes)
 }
 
 /**
- *	sata_std_hardreset - reset host port via SATA phy reset
+ *	sata_port_hardreset - reset port via SATA phy reset
  *	@ap: port to reset
- *	@class: resulting class of attached device
+ *	@timing: timing parameters { interval, duratinon, timeout } in msec
  *
  *	SATA phy-reset host port using DET bits of SControl register.
  *
@@ -2789,10 +3020,8 @@ int ata_std_softreset(struct ata_port *ap, unsigned int *classes)
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
+int sata_port_hardreset(struct ata_port *ap, const unsigned long *timing)
 {
-	struct ata_eh_context *ehc = &ap->eh_context;
-	const unsigned long *timing = sata_ehc_deb_timing(ehc);
 	u32 scontrol;
 	int rc;
 
@@ -2805,24 +3034,24 @@ int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
 		 * and Sil3124.
 		 */
 		if ((rc = sata_scr_read(ap, SCR_CONTROL, &scontrol)))
-			return rc;
+			goto out;
 
 		scontrol = (scontrol & 0x0f0) | 0x304;
 
 		if ((rc = sata_scr_write(ap, SCR_CONTROL, scontrol)))
-			return rc;
+			goto out;
 
 		sata_set_spd(ap);
 	}
 
 	/* issue phy wake/reset */
 	if ((rc = sata_scr_read(ap, SCR_CONTROL, &scontrol)))
-		return rc;
+		goto out;
 
 	scontrol = (scontrol & 0x0f0) | 0x301;
 
 	if ((rc = sata_scr_write_flush(ap, SCR_CONTROL, scontrol)))
-		return rc;
+		goto out;
 
 	/* Couldn't find anything in SATA I/II specs, but AHCI-1.1
 	 * 10.4.2 says at least 1 ms.
@@ -2830,7 +3059,40 @@ int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
 	msleep(1);
 
 	/* bring phy back */
-	sata_phy_resume(ap, timing);
+	rc = sata_phy_resume(ap, timing);
+ out:
+	DPRINTK("EXIT, rc=%d\n", rc);
+	return rc;
+}
+
+/**
+ *	sata_std_hardreset - reset host port via SATA phy reset
+ *	@ap: port to reset
+ *	@class: resulting class of attached device
+ *
+ *	SATA phy-reset host port using DET bits of SControl register,
+ *	wait for !BSY and classify the attached device.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	0 on success, -errno otherwise.
+ */
+int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
+{
+	const unsigned long *timing = sata_ehc_deb_timing(&ap->eh_context);
+	int rc;
+
+	DPRINTK("ENTER\n");
+
+	/* do hardreset */
+	rc = sata_port_hardreset(ap, timing);
+	if (rc) {
+		ata_port_printk(ap, KERN_ERR,
+				"COMRESET failed (errno=%d)\n", rc);
+		return rc;
+	}
 
 	/* TODO: phy layer with polling, timeouts, etc. */
 	if (ata_port_offline(ap)) {
@@ -2969,7 +3231,7 @@ static int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
 /**
  *	ata_dev_revalidate - Revalidate ATA device
  *	@dev: device to revalidate
- *	@post_reset: is this revalidation after reset?
+ *	@readid_flags: read ID flags
  *
  *	Re-read IDENTIFY page and make sure @dev is still attached to
  *	the port.
@@ -2980,7 +3242,7 @@ static int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
  *	RETURNS:
  *	0 on success, negative errno otherwise
  */
-int ata_dev_revalidate(struct ata_device *dev, int post_reset)
+int ata_dev_revalidate(struct ata_device *dev, unsigned int readid_flags)
 {
 	unsigned int class = dev->class;
 	u16 *id = (void *)dev->ap->sector_buf;
@@ -2992,7 +3254,7 @@ int ata_dev_revalidate(struct ata_device *dev, int post_reset)
 	}
 
 	/* read ID data */
-	rc = ata_dev_read_id(dev, &class, post_reset, id);
+	rc = ata_dev_read_id(dev, &class, readid_flags, id);
 	if (rc)
 		goto fail;
 
@@ -3005,7 +3267,7 @@ int ata_dev_revalidate(struct ata_device *dev, int post_reset)
 	memcpy(dev->id, id, sizeof(id[0]) * ATA_ID_WORDS);
 
 	/* configure device according to the new ID */
-	rc = ata_dev_configure(dev, 0);
+	rc = ata_dev_configure(dev);
 	if (rc == 0)
 		return 0;
 
@@ -3014,37 +3276,55 @@ int ata_dev_revalidate(struct ata_device *dev, int post_reset)
 	return rc;
 }
 
-static const char * const ata_dma_blacklist [] = {
-	"WDC AC11000H", NULL,
-	"WDC AC22100H", NULL,
-	"WDC AC32500H", NULL,
-	"WDC AC33100H", NULL,
-	"WDC AC31600H", NULL,
-	"WDC AC32100H", "24.09P07",
-	"WDC AC23200L", "21.10N21",
-	"Compaq CRD-8241B",  NULL,
-	"CRD-8400B", NULL,
-	"CRD-8480B", NULL,
-	"CRD-8482B", NULL,
- 	"CRD-84", NULL,
-	"SanDisk SDP3B", NULL,
-	"SanDisk SDP3B-64", NULL,
-	"SANYO CD-ROM CRD", NULL,
-	"HITACHI CDR-8", NULL,
-	"HITACHI CDR-8335", NULL,
-	"HITACHI CDR-8435", NULL,
-	"Toshiba CD-ROM XM-6202B", NULL,
-	"TOSHIBA CD-ROM XM-1702BC", NULL,
-	"CD-532E-A", NULL,
-	"E-IDE CD-ROM CR-840", NULL,
-	"CD-ROM Drive/F5A", NULL,
-	"WPI CDD-820", NULL,
-	"SAMSUNG CD-ROM SC-148C", NULL,
-	"SAMSUNG CD-ROM SC", NULL,
-	"SanDisk SDP3B-64", NULL,
-	"ATAPI CD-ROM DRIVE 40X MAXIMUM",NULL,
-	"_NEC DV5800A", NULL,
-	"SAMSUNG CD-ROM SN-124", "N001"
+struct ata_blacklist_entry {
+	const char *model_num;
+	const char *model_rev;
+	unsigned long horkage;
+};
+
+static const struct ata_blacklist_entry ata_device_blacklist [] = {
+	/* Devices with DMA related problems under Linux */
+	{ "WDC AC11000H",	NULL,		ATA_HORKAGE_NODMA },
+	{ "WDC AC22100H",	NULL,		ATA_HORKAGE_NODMA },
+	{ "WDC AC32500H",	NULL,		ATA_HORKAGE_NODMA },
+	{ "WDC AC33100H",	NULL,		ATA_HORKAGE_NODMA },
+	{ "WDC AC31600H",	NULL,		ATA_HORKAGE_NODMA },
+	{ "WDC AC32100H",	"24.09P07",	ATA_HORKAGE_NODMA },
+	{ "WDC AC23200L",	"21.10N21",	ATA_HORKAGE_NODMA },
+	{ "Compaq CRD-8241B", 	NULL,		ATA_HORKAGE_NODMA },
+	{ "CRD-8400B",		NULL, 		ATA_HORKAGE_NODMA },
+	{ "CRD-8480B",		NULL,		ATA_HORKAGE_NODMA },
+	{ "CRD-8482B",		NULL,		ATA_HORKAGE_NODMA },
+	{ "CRD-84",		NULL,		ATA_HORKAGE_NODMA },
+	{ "SanDisk SDP3B",	NULL,		ATA_HORKAGE_NODMA },
+	{ "SanDisk SDP3B-64",	NULL,		ATA_HORKAGE_NODMA },
+	{ "SANYO CD-ROM CRD",	NULL,		ATA_HORKAGE_NODMA },
+	{ "HITACHI CDR-8",	NULL,		ATA_HORKAGE_NODMA },
+	{ "HITACHI CDR-8335",	NULL,		ATA_HORKAGE_NODMA },
+	{ "HITACHI CDR-8435",	NULL,		ATA_HORKAGE_NODMA },
+	{ "Toshiba CD-ROM XM-6202B", NULL,	ATA_HORKAGE_NODMA },
+	{ "TOSHIBA CD-ROM XM-1702BC", NULL,	ATA_HORKAGE_NODMA },
+	{ "CD-532E-A", 		NULL,		ATA_HORKAGE_NODMA },
+	{ "E-IDE CD-ROM CR-840",NULL,		ATA_HORKAGE_NODMA },
+	{ "CD-ROM Drive/F5A",	NULL,		ATA_HORKAGE_NODMA },
+	{ "WPI CDD-820", 	NULL,		ATA_HORKAGE_NODMA },
+	{ "SAMSUNG CD-ROM SC-148C", NULL,	ATA_HORKAGE_NODMA },
+	{ "SAMSUNG CD-ROM SC",	NULL,		ATA_HORKAGE_NODMA },
+	{ "SanDisk SDP3B-64", 	NULL,		ATA_HORKAGE_NODMA },
+	{ "ATAPI CD-ROM DRIVE 40X MAXIMUM",NULL,ATA_HORKAGE_NODMA },
+	{ "_NEC DV5800A", 	NULL,		ATA_HORKAGE_NODMA },
+	{ "SAMSUNG CD-ROM SN-124","N001",	ATA_HORKAGE_NODMA },
+
+	/* Devices we expect to fail diagnostics */
+
+	/* Devices where NCQ should be avoided */
+	/* NCQ is slow */
+        { "WDC WD740ADFD-00",   NULL,		ATA_HORKAGE_NONCQ },
+
+	/* Devices with NCQ limits */
+
+	/* End Marker */
+	{ }
 };
 
 static int ata_strim(char *s, size_t len)
@@ -3059,20 +3339,12 @@ static int ata_strim(char *s, size_t len)
 	return len;
 }
 
-static int ata_dma_blacklisted(const struct ata_device *dev)
+unsigned long ata_device_blacklisted(const struct ata_device *dev)
 {
 	unsigned char model_num[40];
 	unsigned char model_rev[16];
 	unsigned int nlen, rlen;
-	int i;
-
-	/* We don't support polling DMA.
-	 * DMA blacklist those ATAPI devices with CDB-intr (and use PIO)
-	 * if the LLDD handles only interrupts in the HSM_ST_LAST state.
-	 */
-	if ((dev->ap->flags & ATA_FLAG_PIO_POLLING) &&
-	    (dev->flags & ATA_DFLAG_CDB_INTR))
-		return 1;
+	const struct ata_blacklist_entry *ad = ata_device_blacklist;
 
 	ata_id_string(dev->id, model_num, ATA_ID_PROD_OFS,
 			  sizeof(model_num));
@@ -3081,15 +3353,28 @@ static int ata_dma_blacklisted(const struct ata_device *dev)
 	nlen = ata_strim(model_num, sizeof(model_num));
 	rlen = ata_strim(model_rev, sizeof(model_rev));
 
-	for (i = 0; i < ARRAY_SIZE(ata_dma_blacklist); i += 2) {
-		if (!strncmp(ata_dma_blacklist[i], model_num, nlen)) {
-			if (ata_dma_blacklist[i+1] == NULL)
-				return 1;
-			if (!strncmp(ata_dma_blacklist[i], model_rev, rlen))
-				return 1;
+	while (ad->model_num) {
+		if (!strncmp(ad->model_num, model_num, nlen)) {
+			if (ad->model_rev == NULL)
+				return ad->horkage;
+			if (!strncmp(ad->model_rev, model_rev, rlen))
+				return ad->horkage;
 		}
+		ad++;
 	}
 	return 0;
+}
+
+static int ata_dma_blacklisted(const struct ata_device *dev)
+{
+	/* We don't support polling DMA.
+	 * DMA blacklist those ATAPI devices with CDB-intr (and use PIO)
+	 * if the LLDD handles only interrupts in the HSM_ST_LAST state.
+	 */
+	if ((dev->ap->flags & ATA_FLAG_PIO_POLLING) &&
+	    (dev->flags & ATA_DFLAG_CDB_INTR))
+		return 1;
+	return (ata_device_blacklisted(dev) & ATA_HORKAGE_NODMA) ? 1 : 0;
 }
 
 /**
@@ -3119,6 +3404,13 @@ static void ata_dev_xfermask(struct ata_device *dev)
 	 */
 	if (ap->cbl == ATA_CBL_PATA40)
 		xfer_mask &= ~(0xF8 << ATA_SHIFT_UDMA);
+	/* Apply drive side cable rule. Unknown or 80 pin cables reported
+	 * host side are checked drive side as well. Cases where we know a
+	 * 40wire cable is used safely for 80 are not checked here.
+	 */
+        if (ata_drive_40wire(dev->id) && (ap->cbl == ATA_CBL_PATA_UNK || ap->cbl == ATA_CBL_PATA80))
+		xfer_mask &= ~(0xF8 << ATA_SHIFT_UDMA);
+
 
 	xfer_mask &= ata_pack_xfermask(dev->pio_mask,
 				       dev->mwdma_mask, dev->udma_mask);
@@ -3236,8 +3528,7 @@ static unsigned int ata_dev_init_params(struct ata_device *dev,
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-
-static void ata_sg_clean(struct ata_queued_cmd *qc)
+void ata_sg_clean(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct scatterlist *sg = qc->__sg;
@@ -3395,19 +3686,15 @@ void ata_noop_qc_prep(struct ata_queued_cmd *qc) { }
 
 void ata_sg_init_one(struct ata_queued_cmd *qc, void *buf, unsigned int buflen)
 {
-	struct scatterlist *sg;
-
 	qc->flags |= ATA_QCFLAG_SINGLE;
 
-	memset(&qc->sgent, 0, sizeof(qc->sgent));
 	qc->__sg = &qc->sgent;
 	qc->n_elem = 1;
 	qc->orig_n_elem = 1;
 	qc->buf_virt = buf;
 	qc->nbytes = buflen;
 
-	sg = qc->__sg;
-	sg_init_one(sg, buf, buflen);
+	sg_init_one(&qc->sgent, buf, buflen);
 }
 
 /**
@@ -4200,8 +4487,12 @@ fsm_start:
 					/* device stops HSM for abort/error */
 					qc->err_mask |= AC_ERR_DEV;
 				else
-					/* HSM violation. Let EH handle this */
-					qc->err_mask |= AC_ERR_HSM;
+					/* HSM violation. Let EH handle this.
+					 * Phantom devices also trigger this
+					 * condition.  Mark hint.
+					 */
+					qc->err_mask |= AC_ERR_HSM |
+							AC_ERR_NODEV_HINT;
 
 				ap->hsm_task_state = HSM_ST_ERR;
 				goto fsm_start;
@@ -4295,10 +4586,11 @@ fsm_start:
 	return poll_next;
 }
 
-static void ata_pio_task(void *_data)
+static void ata_pio_task(struct work_struct *work)
 {
-	struct ata_queued_cmd *qc = _data;
-	struct ata_port *ap = qc->ap;
+	struct ata_port *ap =
+		container_of(work, struct ata_port, port_task.work);
+	struct ata_queued_cmd *qc = ap->port_task_data;
 	u8 status;
 	int poll_next;
 
@@ -4440,6 +4732,14 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 	qc->complete_fn(qc);
 }
 
+static void fill_result_tf(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+
+	ap->ops->tf_read(ap, &qc->result_tf);
+	qc->result_tf.flags = qc->tf.flags;
+}
+
 /**
  *	ata_qc_complete - Complete an active ATA command
  *	@qc: Command to complete
@@ -4477,7 +4777,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 		if (unlikely(qc->flags & ATA_QCFLAG_FAILED)) {
 			if (!ata_tag_internal(qc->tag)) {
 				/* always fill result TF for failed qc */
-				ap->ops->tf_read(ap, &qc->result_tf);
+				fill_result_tf(qc);
 				ata_qc_schedule_eh(qc);
 				return;
 			}
@@ -4485,7 +4785,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 
 		/* read result TF if requested */
 		if (qc->flags & ATA_QCFLAG_RESULT_TF)
-			ap->ops->tf_read(ap, &qc->result_tf);
+			fill_result_tf(qc);
 
 		__ata_qc_complete(qc);
 	} else {
@@ -4494,7 +4794,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 
 		/* read result TF if failed or requested */
 		if (qc->err_mask || qc->flags & ATA_QCFLAG_RESULT_TF)
-			ap->ops->tf_read(ap, &qc->result_tf);
+			fill_result_tf(qc);
 
 		__ata_qc_complete(qc);
 	}
@@ -4660,6 +4960,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 	if (ap->flags & ATA_FLAG_PIO_POLLING) {
 		switch (qc->tf.protocol) {
 		case ATA_PROT_PIO:
+		case ATA_PROT_NODATA:
 		case ATA_PROT_ATAPI:
 		case ATA_PROT_ATAPI_NODATA:
 			qc->tf.flags |= ATA_TFLAG_POLLING;
@@ -4673,6 +4974,14 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 			break;
 		}
 	}
+
+	/* Some controllers show flaky interrupt behavior after
+	 * setting xfer mode.  Use polling instead.
+	 */
+	if (unlikely(qc->tf.command == ATA_CMD_SET_FEATURES &&
+		     qc->tf.feature == SETFEATURES_XFER) &&
+	    (ap->flags & ATA_FLAG_SETXFER_POLLING))
+		qc->tf.flags |= ATA_TFLAG_POLLING;
 
 	/* select the device */
 	ata_dev_select(ap, qc->dev->devno, 1, 0);
@@ -4782,6 +5091,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 inline unsigned int ata_host_intr (struct ata_port *ap,
 				   struct ata_queued_cmd *qc)
 {
+	struct ata_eh_info *ehi = &ap->eh_info;
 	u8 status, host_stat = 0;
 
 	VPRINTK("ata%u: protocol %d task_state %d\n",
@@ -4842,6 +5152,11 @@ inline unsigned int ata_host_intr (struct ata_port *ap,
 	ap->ops->irq_clear(ap);
 
 	ata_hsm_move(ap, qc, status, 0);
+
+	if (unlikely(qc->err_mask) && (qc->tf.protocol == ATA_PROT_DMA ||
+				       qc->tf.protocol == ATA_PROT_ATAPI_DMA))
+		ata_ehi_push_desc(ehi, "BMDMA stat 0x%x", host_stat);
+
 	return 1;	/* irq handled */
 
 idle_irq:
@@ -5048,7 +5363,7 @@ int ata_flush_cache(struct ata_device *dev)
 	if (!ata_try_flush_cache(dev))
 		return 0;
 
-	if (ata_id_has_flush_ext(dev->id))
+	if (dev->flags & ATA_DFLAG_FLUSH_EXT)
 		cmd = ATA_CMD_FLUSH_EXT;
 	else
 		cmd = ATA_CMD_FLUSH;
@@ -5320,9 +5635,9 @@ void ata_port_init(struct ata_port *ap, struct ata_host *host,
 	ap->msg_enable = ATA_MSG_DRV | ATA_MSG_ERR | ATA_MSG_WARN;
 #endif
 
-	INIT_WORK(&ap->port_task, NULL, NULL);
-	INIT_WORK(&ap->hotplug_task, ata_scsi_hotplug, ap);
-	INIT_WORK(&ap->scsi_rescan_task, ata_scsi_dev_rescan, ap);
+	INIT_DELAYED_WORK(&ap->port_task, NULL);
+	INIT_DELAYED_WORK(&ap->hotplug_task, ata_scsi_hotplug);
+	INIT_WORK(&ap->scsi_rescan_task, ata_scsi_dev_rescan);
 	INIT_LIST_HEAD(&ap->eh_done_q);
 	init_waitqueue_head(&ap->eh_wait_q);
 
@@ -5520,9 +5835,8 @@ int ata_device_add(const struct ata_probe_ent *ent)
 				ap->ioaddr.bmdma_addr,
 				irq_line);
 
-		ata_chk_status(ap);
-		host->ops->irq_clear(ap);
-		ata_eh_freeze_port(ap);	/* freeze port before requesting IRQ */
+		/* freeze port before requesting IRQ */
+		ata_eh_freeze_port(ap);
 	}
 
 	/* obtain irq, that may be shared between channels */
@@ -5957,7 +6271,7 @@ static void __exit ata_exit(void)
 	destroy_workqueue(ata_aux_wq);
 }
 
-module_init(ata_init);
+subsys_initcall(ata_init);
 module_exit(ata_exit);
 
 static unsigned long ratelimit_time;
@@ -6120,6 +6434,7 @@ EXPORT_SYMBOL_GPL(__sata_phy_reset);
 EXPORT_SYMBOL_GPL(ata_bus_reset);
 EXPORT_SYMBOL_GPL(ata_std_prereset);
 EXPORT_SYMBOL_GPL(ata_std_softreset);
+EXPORT_SYMBOL_GPL(sata_port_hardreset);
 EXPORT_SYMBOL_GPL(sata_std_hardreset);
 EXPORT_SYMBOL_GPL(ata_std_postreset);
 EXPORT_SYMBOL_GPL(ata_dev_classify);
@@ -6146,6 +6461,7 @@ EXPORT_SYMBOL_GPL(ata_host_suspend);
 EXPORT_SYMBOL_GPL(ata_host_resume);
 EXPORT_SYMBOL_GPL(ata_id_string);
 EXPORT_SYMBOL_GPL(ata_id_c_string);
+EXPORT_SYMBOL_GPL(ata_device_blacklisted);
 EXPORT_SYMBOL_GPL(ata_scsi_simulate);
 
 EXPORT_SYMBOL_GPL(ata_pio_need_iordy);

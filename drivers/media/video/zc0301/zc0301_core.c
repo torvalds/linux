@@ -489,7 +489,7 @@ static int zc0301_start_transfer(struct zc0301_device* cam)
 	return 0;
 
 free_urbs:
-	for (i = 0; (i < ZC0301_URBS) &&  cam->urb[i]; i++)
+	for (i = 0; i < ZC0301_URBS; i++)
 		usb_free_urb(cam->urb[i]);
 
 free_buffers:

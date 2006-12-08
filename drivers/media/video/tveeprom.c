@@ -468,7 +468,7 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 				(eeprom_data[i+6] << 8) +
 				(eeprom_data[i+7] << 16);
 
-				if ( (eeprom_data[i + 8] && 0xf0) &&
+				if ( (eeprom_data[i + 8] & 0xf0) &&
 					(tvee->serial_number < 0xffffff) ) {
 					tvee->MAC_address[0] = 0x00;
 					tvee->MAC_address[1] = 0x0D;

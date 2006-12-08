@@ -20,6 +20,8 @@ struct mod_arch_specific
 #define MODULE_PROC_FAMILY "586TSC "
 #elif defined CONFIG_M586MMX
 #define MODULE_PROC_FAMILY "586MMX "
+#elif defined CONFIG_MCORE2
+#define MODULE_PROC_FAMILY "CORE2 "
 #elif defined CONFIG_M686
 #define MODULE_PROC_FAMILY "686 "
 #elif defined CONFIG_MPENTIUMII
@@ -60,18 +62,12 @@ struct mod_arch_specific
 #error unknown processor family
 #endif
 
-#ifdef CONFIG_REGPARM
-#define MODULE_REGPARM "REGPARM "
-#else
-#define MODULE_REGPARM ""
-#endif
-
 #ifdef CONFIG_4KSTACKS
 #define MODULE_STACKSIZE "4KSTACKS "
 #else
 #define MODULE_STACKSIZE ""
 #endif
 
-#define MODULE_ARCH_VERMAGIC MODULE_PROC_FAMILY MODULE_REGPARM MODULE_STACKSIZE
+#define MODULE_ARCH_VERMAGIC MODULE_PROC_FAMILY MODULE_STACKSIZE
 
 #endif /* _ASM_I386_MODULE_H */

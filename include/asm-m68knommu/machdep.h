@@ -18,7 +18,7 @@ extern int (*mach_kbdrate) (struct kbd_repeat *);
 extern void (*mach_kbd_leds) (unsigned int);
 /* machine dependent irq functions */
 extern void (*mach_init_IRQ) (void);
-extern irqreturn_t (*(*mach_default_handler)[]) (int, void *, struct pt_regs *);
+extern irq_handler_t mach_default_handler;
 extern int (*mach_request_irq) (unsigned int irq, void (*handler)(int, void *, struct pt_regs *),
                                 unsigned long flags, const char *devname, void *dev_id);
 extern void (*mach_free_irq) (unsigned int irq, void *dev_id);

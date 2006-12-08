@@ -250,7 +250,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
-#include <linux/suspend.h>
+#include <linux/freezer.h>
 #include <linux/utsname.h>
 
 #include <linux/usb_ch9.h>

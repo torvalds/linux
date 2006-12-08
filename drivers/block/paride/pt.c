@@ -946,12 +946,12 @@ static int __init pt_init(void)
 	int err;
 
 	if (disable) {
-		err = -1;
+		err = -EINVAL;
 		goto out;
 	}
 
 	if (pt_detect()) {
-		err = -1;
+		err = -ENODEV;
 		goto out;
 	}
 

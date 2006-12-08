@@ -34,6 +34,7 @@ static int __init init_hpet_clocksource(void)
 	unsigned long hpet_period;
 	void __iomem* hpet_base;
 	u64 tmp;
+	int err;
 
 	if (!is_hpet_enabled())
 		return -ENODEV;
@@ -61,7 +62,11 @@ static int __init init_hpet_clocksource(void)
 	do_div(tmp, FSEC_PER_NSEC);
 	clocksource_hpet.mult = (u32)tmp;
 
-	return clocksource_register(&clocksource_hpet);
+	err = clocksource_register(&clocksource_hpet);
+	if (err)
+		iounmap(hpet_base);
+
+	return err;
 }
 
 module_init(init_hpet_clocksource);

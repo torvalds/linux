@@ -10,10 +10,10 @@
 #include <asm/lowcore.h>
 		.globl	do_reipl_asm
 do_reipl_asm:	basr	%r13,0
+.Lpg0:		lpswe	.Lnewpsw-.Lpg0(%r13)
+.Lpg1:		# do store status of all registers
 
-		# do store status of all registers
-
-.Lpg0:		stg	%r1,.Lregsave-.Lpg0(%r13)
+		stg	%r1,.Lregsave-.Lpg0(%r13)
 		lghi	%r1,0x1000
 		stmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-0x1000(%r1)
 		lg	%r0,.Lregsave-.Lpg0(%r13)
@@ -27,11 +27,7 @@ do_reipl_asm:	basr	%r13,0
 		stpt	__LC_CPU_TIMER_SAVE_AREA-0x1000(%r1)
 		stg	%r13, __LC_PSW_SAVE_AREA-0x1000+8(%r1)
 
-		lpswe	.Lnewpsw-.Lpg0(%r13)
-.Lpg1:		lctlg	%c6,%c6,.Lall-.Lpg0(%r13)
-		stctg	%c0,%c0,.Lregsave-.Lpg0(%r13)
-		ni	.Lregsave+4-.Lpg0(%r13),0xef
-		lctlg	%c0,%c0,.Lregsave-.Lpg0(%r13)
+		lctlg	%c6,%c6,.Lall-.Lpg0(%r13)
 		lgr	%r1,%r2
 		mvc	__LC_PGM_NEW_PSW(16),.Lpcnew-.Lpg0(%r13)
 		stsch	.Lschib-.Lpg0(%r13)
@@ -56,8 +52,7 @@ do_reipl_asm:	basr	%r13,0
 .L002:		tm	.Liplirb+8-.Lpg0(%r13),0xf3
 		jz	.L003
 		bas	%r14,.Ldisab-.Lpg0(%r13)
-.L003:		spx	.Lnull-.Lpg0(%r13)
-		st	%r1,__LC_SUBCHANNEL_ID
+.L003:		st	%r1,__LC_SUBCHANNEL_ID
 		lhi	%r1,0		 # mode 0 = esa
 		slr	%r0,%r0 	 # set cpuid to zero
 		sigp	%r1,%r0,0x12	 # switch to esa mode
@@ -70,7 +65,6 @@ do_reipl_asm:	basr	%r13,0
 .Lclkcmp:	.quad	0x0000000000000000
 .Lall:		.quad	0x00000000ff000000
 .Lregsave:	.quad	0x0000000000000000
-.Lnull:		.long	0x0000000000000000
 		.align	16
 /*
  * These addresses have to be 31 bit otherwise

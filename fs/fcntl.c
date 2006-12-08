@@ -553,7 +553,7 @@ int send_sigurg(struct fown_struct *fown)
 }
 
 static DEFINE_RWLOCK(fasync_lock);
-static kmem_cache_t *fasync_cache __read_mostly;
+static struct kmem_cache *fasync_cache __read_mostly;
 
 /*
  * fasync_helper() is used by some character device drivers (mainly mice)
@@ -567,7 +567,7 @@ int fasync_helper(int fd, struct file * filp, int on, struct fasync_struct **fap
 	int result = 0;
 
 	if (on) {
-		new = kmem_cache_alloc(fasync_cache, SLAB_KERNEL);
+		new = kmem_cache_alloc(fasync_cache, GFP_KERNEL);
 		if (!new)
 			return -ENOMEM;
 	}

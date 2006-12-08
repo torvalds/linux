@@ -89,7 +89,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 #define MYRI10GE_EEPROM_STRINGS_SIZE 256
 #define MYRI10GE_MAX_SEND_DESC_TSO ((65536 / 2048) * 2)
 
-#define MYRI10GE_NO_CONFIRM_DATA 0xffffffff
+#define MYRI10GE_NO_CONFIRM_DATA htonl(0xffffffff)
 #define MYRI10GE_NO_RESPONSE_RESULT 0xffffffff
 
 struct myri10ge_rx_buffer_state {
@@ -156,8 +156,8 @@ struct myri10ge_priv {
 	int sram_size;
 	unsigned long board_span;
 	unsigned long iomem_base;
-	u32 __iomem *irq_claim;
-	u32 __iomem *irq_deassert;
+	__be32 __iomem *irq_claim;
+	__be32 __iomem *irq_deassert;
 	char *mac_addr_string;
 	struct mcp_cmd_response *cmd;
 	dma_addr_t cmd_bus;
@@ -165,10 +165,10 @@ struct myri10ge_priv {
 	dma_addr_t fw_stats_bus;
 	struct pci_dev *pdev;
 	int msi_enabled;
-	unsigned int link_state;
+	__be32 link_state;
 	unsigned int rdma_tags_available;
 	int intr_coal_delay;
-	u32 __iomem *intr_coal_delay_ptr;
+	__be32 __iomem *intr_coal_delay_ptr;
 	int mtrr;
 	int wake_queue;
 	int stop_queue;
@@ -273,6 +273,11 @@ MODULE_PARM_DESC(myri10ge_debug, "Debug level (0=none,...,16=all)");
 
 #define myri10ge_pio_copy(to,from,size) __iowrite64_copy(to,from,size/8)
 
+static inline void put_be32(__be32 val, __be32 __iomem *p)
+{
+	__raw_writel((__force __u32)val, (__force void __iomem *)p);
+}
+
 static int
 myri10ge_send_cmd(struct myri10ge_priv *mgp, u32 cmd,
 		  struct myri10ge_cmd *data, int atomic)
@@ -296,7 +301,7 @@ myri10ge_send_cmd(struct myri10ge_priv *mgp, u32 cmd,
 
 	buf->response_addr.low = htonl(dma_low);
 	buf->response_addr.high = htonl(dma_high);
-	response->result = MYRI10GE_NO_RESPONSE_RESULT;
+	response->result = htonl(MYRI10GE_NO_RESPONSE_RESULT);
 	mb();
 	myri10ge_pio_copy(cmd_addr, buf, sizeof(*buf));
 
@@ -311,14 +316,14 @@ myri10ge_send_cmd(struct myri10ge_priv *mgp, u32 cmd,
 		 * (1ms will be enough for those commands) */
 		for (sleep_total = 0;
 		     sleep_total < 1000
-		     && response->result == MYRI10GE_NO_RESPONSE_RESULT;
+		     && response->result == htonl(MYRI10GE_NO_RESPONSE_RESULT);
 		     sleep_total += 10)
 			udelay(10);
 	} else {
 		/* use msleep for most command */
 		for (sleep_total = 0;
 		     sleep_total < 15
-		     && response->result == MYRI10GE_NO_RESPONSE_RESULT;
+		     && response->result == htonl(MYRI10GE_NO_RESPONSE_RESULT);
 		     sleep_total++)
 			msleep(1);
 	}
@@ -393,7 +398,7 @@ abort:
 static void myri10ge_dummy_rdma(struct myri10ge_priv *mgp, int enable)
 {
 	char __iomem *submit;
-	u32 buf[16];
+	__be32 buf[16];
 	u32 dma_low, dma_high;
 	int i;
 
@@ -410,7 +415,7 @@ static void myri10ge_dummy_rdma(struct myri10ge_priv *mgp, int enable)
 
 	buf[0] = htonl(dma_high);	/* confirm addr MSW */
 	buf[1] = htonl(dma_low);	/* confirm addr LSW */
-	buf[2] = htonl(MYRI10GE_NO_CONFIRM_DATA);	/* confirm data */
+	buf[2] = MYRI10GE_NO_CONFIRM_DATA;	/* confirm data */
 	buf[3] = htonl(dma_high);	/* dummy addr MSW */
 	buf[4] = htonl(dma_low);	/* dummy addr LSW */
 	buf[5] = htonl(enable);	/* enable? */
@@ -479,7 +484,7 @@ static int myri10ge_load_hotplug_firmware(struct myri10ge_priv *mgp, u32 * size)
 	}
 
 	/* check id */
-	hdr_offset = ntohl(*(u32 *) (fw->data + MCP_HEADER_PTR_OFFSET));
+	hdr_offset = ntohl(*(__be32 *) (fw->data + MCP_HEADER_PTR_OFFSET));
 	if ((hdr_offset & 3) || hdr_offset + sizeof(*hdr) > fw->size) {
 		dev_err(dev, "Bad firmware file\n");
 		status = -EINVAL;
@@ -550,7 +555,7 @@ static int myri10ge_adopt_running_firmware(struct myri10ge_priv *mgp)
 static int myri10ge_load_firmware(struct myri10ge_priv *mgp)
 {
 	char __iomem *submit;
-	u32 buf[16];
+	__be32 buf[16];
 	u32 dma_low, dma_high, size;
 	int status, i;
 
@@ -600,7 +605,7 @@ static int myri10ge_load_firmware(struct myri10ge_priv *mgp)
 
 	buf[0] = htonl(dma_high);	/* confirm addr MSW */
 	buf[1] = htonl(dma_low);	/* confirm addr LSW */
-	buf[2] = htonl(MYRI10GE_NO_CONFIRM_DATA);	/* confirm data */
+	buf[2] = MYRI10GE_NO_CONFIRM_DATA;	/* confirm data */
 
 	/* FIX: All newest firmware should un-protect the bottom of
 	 * the sram before handoff. However, the very first interfaces
@@ -705,21 +710,21 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 
 	status |=
 	    myri10ge_send_cmd(mgp, MXGEFW_CMD_GET_IRQ_ACK_OFFSET, &cmd, 0);
-	mgp->irq_claim = (__iomem u32 *) (mgp->sram + cmd.data0);
+	mgp->irq_claim = (__iomem __be32 *) (mgp->sram + cmd.data0);
 	if (!mgp->msi_enabled) {
 		status |= myri10ge_send_cmd
 		    (mgp, MXGEFW_CMD_GET_IRQ_DEASSERT_OFFSET, &cmd, 0);
-		mgp->irq_deassert = (__iomem u32 *) (mgp->sram + cmd.data0);
+		mgp->irq_deassert = (__iomem __be32 *) (mgp->sram + cmd.data0);
 
 	}
 	status |= myri10ge_send_cmd
 	    (mgp, MXGEFW_CMD_GET_INTR_COAL_DELAY_OFFSET, &cmd, 0);
-	mgp->intr_coal_delay_ptr = (__iomem u32 *) (mgp->sram + cmd.data0);
+	mgp->intr_coal_delay_ptr = (__iomem __be32 *) (mgp->sram + cmd.data0);
 	if (status != 0) {
 		dev_err(&mgp->pdev->dev, "failed set interrupt parameters\n");
 		return status;
 	}
-	__raw_writel(htonl(mgp->intr_coal_delay), mgp->intr_coal_delay_ptr);
+	put_be32(htonl(mgp->intr_coal_delay), mgp->intr_coal_delay_ptr);
 
 	/* Run a small DMA test.
 	 * The magic multipliers to the length tell the firmware
@@ -786,14 +791,16 @@ static inline void
 myri10ge_submit_8rx(struct mcp_kreq_ether_recv __iomem * dst,
 		    struct mcp_kreq_ether_recv *src)
 {
-	u32 low;
+	__be32 low;
 
 	low = src->addr_low;
-	src->addr_low = DMA_32BIT_MASK;
-	myri10ge_pio_copy(dst, src, 8 * sizeof(*src));
+	src->addr_low = htonl(DMA_32BIT_MASK);
+	myri10ge_pio_copy(dst, src, 4 * sizeof(*src));
+	mb();
+	myri10ge_pio_copy(dst + 4, src + 4, 4 * sizeof(*src));
 	mb();
 	src->addr_low = low;
-	__raw_writel(low, &dst->addr_low);
+	put_be32(low, &dst->addr_low);
 	mb();
 }
 
@@ -939,11 +946,11 @@ done:
 	return retval;
 }
 
-static inline void myri10ge_vlan_ip_csum(struct sk_buff *skb, u16 hw_csum)
+static inline void myri10ge_vlan_ip_csum(struct sk_buff *skb, __wsum hw_csum)
 {
 	struct vlan_hdr *vh = (struct vlan_hdr *)(skb->data);
 
-	if ((skb->protocol == ntohs(ETH_P_8021Q)) &&
+	if ((skb->protocol == htons(ETH_P_8021Q)) &&
 	    (vh->h_vlan_encapsulated_proto == htons(ETH_P_IP) ||
 	     vh->h_vlan_encapsulated_proto == htons(ETH_P_IPV6))) {
 		skb->csum = hw_csum;
@@ -953,7 +960,7 @@ static inline void myri10ge_vlan_ip_csum(struct sk_buff *skb, u16 hw_csum)
 
 static inline unsigned long
 myri10ge_rx_done(struct myri10ge_priv *mgp, struct myri10ge_rx_buf *rx,
-		 int bytes, int len, int csum)
+		 int bytes, int len, __wsum csum)
 {
 	dma_addr_t bus;
 	struct sk_buff *skb;
@@ -986,12 +993,12 @@ myri10ge_rx_done(struct myri10ge_priv *mgp, struct myri10ge_rx_buf *rx,
 
 	skb->protocol = eth_type_trans(skb, mgp->dev);
 	if (mgp->csum_flag) {
-		if ((skb->protocol == ntohs(ETH_P_IP)) ||
-		    (skb->protocol == ntohs(ETH_P_IPV6))) {
-			skb->csum = ntohs((u16) csum);
+		if ((skb->protocol == htons(ETH_P_IP)) ||
+		    (skb->protocol == htons(ETH_P_IPV6))) {
+			skb->csum = csum;
 			skb->ip_summed = CHECKSUM_COMPLETE;
 		} else
-			myri10ge_vlan_ip_csum(skb, ntohs((u16) csum));
+			myri10ge_vlan_ip_csum(skb, csum);
 	}
 
 	netif_receive_skb(skb);
@@ -1060,12 +1067,12 @@ static inline void myri10ge_clean_rx_done(struct myri10ge_priv *mgp, int *limit)
 	int idx = rx_done->idx;
 	int cnt = rx_done->cnt;
 	u16 length;
-	u16 checksum;
+	__wsum checksum;
 
 	while (rx_done->entry[idx].length != 0 && *limit != 0) {
 		length = ntohs(rx_done->entry[idx].length);
 		rx_done->entry[idx].length = 0;
-		checksum = ntohs(rx_done->entry[idx].checksum);
+		checksum = csum_unfold(rx_done->entry[idx].checksum);
 		if (length <= mgp->small_bytes)
 			rx_ok = myri10ge_rx_done(mgp, &mgp->rx_small,
 						 mgp->small_bytes,
@@ -1142,7 +1149,7 @@ static int myri10ge_poll(struct net_device *netdev, int *budget)
 
 	if (rx_done->entry[rx_done->idx].length == 0 || !netif_running(netdev)) {
 		netif_rx_complete(netdev);
-		__raw_writel(htonl(3), mgp->irq_claim);
+		put_be32(htonl(3), mgp->irq_claim);
 		return 0;
 	}
 	return 1;
@@ -1166,7 +1173,7 @@ static irqreturn_t myri10ge_intr(int irq, void *arg)
 		netif_rx_schedule(mgp->dev);
 
 	if (!mgp->msi_enabled) {
-		__raw_writel(0, mgp->irq_deassert);
+		put_be32(0, mgp->irq_deassert);
 		if (!myri10ge_deassert_wait)
 			stats->valid = 0;
 		mb();
@@ -1195,7 +1202,7 @@ static irqreturn_t myri10ge_intr(int irq, void *arg)
 
 	myri10ge_check_statblock(mgp);
 
-	__raw_writel(htonl(3), mgp->irq_claim + 1);
+	put_be32(htonl(3), mgp->irq_claim + 1);
 	return (IRQ_HANDLED);
 }
 
@@ -1233,7 +1240,7 @@ myri10ge_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coal)
 	struct myri10ge_priv *mgp = netdev_priv(netdev);
 
 	mgp->intr_coal_delay = coal->rx_coalesce_usecs;
-	__raw_writel(htonl(mgp->intr_coal_delay), mgp->intr_coal_delay_ptr);
+	put_be32(htonl(mgp->intr_coal_delay), mgp->intr_coal_delay_ptr);
 	return 0;
 }
 
@@ -1748,7 +1755,7 @@ static int myri10ge_open(struct net_device *dev)
 		goto abort_with_rings;
 	}
 
-	mgp->link_state = -1;
+	mgp->link_state = htonl(~0U);
 	mgp->rdma_tags_available = 15;
 
 	netif_poll_enable(mgp->dev);	/* must happen prior to any irq */
@@ -1876,7 +1883,7 @@ myri10ge_submit_req(struct myri10ge_tx_buf *tx, struct mcp_kreq_ether_send *src,
 
 	/* re-write the last 32-bits with the valid flags */
 	src->flags = last_flags;
-	__raw_writel(*((u32 *) src + 3), (u32 __iomem *) dst + 3);
+	put_be32(*((__be32 *) src + 3), (__be32 __iomem *) dst + 3);
 	tx->req += cnt;
 	mb();
 }
@@ -1919,7 +1926,8 @@ static int myri10ge_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct myri10ge_tx_buf *tx = &mgp->tx;
 	struct skb_frag_struct *frag;
 	dma_addr_t bus;
-	u32 low, high_swapped;
+	u32 low;
+	__be32 high_swapped;
 	unsigned int len;
 	int idx, last_idx, avail, frag_cnt, frag_idx, count, mss, max_segments;
 	u16 pseudo_hdr_offset, cksum_offset;
@@ -1955,7 +1963,7 @@ again:
 	flags = (MXGEFW_FLAGS_NO_TSO | MXGEFW_FLAGS_FIRST);
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		cksum_offset = (skb->h.raw - skb->data);
-		pseudo_hdr_offset = (skb->h.raw + skb->csum) - skb->data;
+		pseudo_hdr_offset = cksum_offset + skb->csum_offset;
 		/* If the headers are excessively large, then we must
 		 * fall back to a software checksum */
 		if (unlikely(cksum_offset > 255 || pseudo_hdr_offset > 127)) {
@@ -1964,7 +1972,6 @@ again:
 			cksum_offset = 0;
 			pseudo_hdr_offset = 0;
 		} else {
-			pseudo_hdr_offset = htons(pseudo_hdr_offset);
 			odd_flag = MXGEFW_FLAGS_ALIGN_ODD;
 			flags |= MXGEFW_FLAGS_CKSUM;
 		}
@@ -1986,7 +1993,7 @@ again:
 		/* for TSO, pseudo_hdr_offset holds mss.
 		 * The firmware figures out where to put
 		 * the checksum by parsing the header. */
-		pseudo_hdr_offset = htons(mss);
+		pseudo_hdr_offset = mss;
 	} else
 #endif				/*NETIF_F_TSO */
 		/* Mark small packets, and pad out tiny packets */
@@ -2086,7 +2093,7 @@ again:
 #endif				/* NETIF_F_TSO */
 			req->addr_high = high_swapped;
 			req->addr_low = htonl(low);
-			req->pseudo_hdr_offset = pseudo_hdr_offset;
+			req->pseudo_hdr_offset = htons(pseudo_hdr_offset);
 			req->pad = 0;	/* complete solid 16-byte block; does this matter? */
 			req->rdma_count = 1;
 			req->length = htons(seglen);
@@ -2199,6 +2206,7 @@ static void myri10ge_set_multicast_list(struct net_device *dev)
 	struct myri10ge_cmd cmd;
 	struct myri10ge_priv *mgp;
 	struct dev_mc_list *mc_list;
+	__be32 data[2] = {0, 0};
 	int err;
 
 	mgp = netdev_priv(dev);
@@ -2237,10 +2245,9 @@ static void myri10ge_set_multicast_list(struct net_device *dev)
 
 	/* Walk the multicast list, and add each address */
 	for (mc_list = dev->mc_list; mc_list != NULL; mc_list = mc_list->next) {
-		memcpy(&cmd.data0, &mc_list->dmi_addr, 4);
-		memcpy(&cmd.data1, ((char *)&mc_list->dmi_addr) + 4, 2);
-		cmd.data0 = htonl(cmd.data0);
-		cmd.data1 = htonl(cmd.data1);
+		memcpy(data, &mc_list->dmi_addr, 6);
+		cmd.data0 = ntohl(data[0]);
+		cmd.data1 = ntohl(data[1]);
 		err = myri10ge_send_cmd(mgp, MXGEFW_JOIN_MULTICAST_GROUP,
 					&cmd, 1);
 
@@ -2615,9 +2622,10 @@ static u32 myri10ge_read_reboot(struct myri10ge_priv *mgp)
  * This watchdog is used to check whether the board has suffered
  * from a parity error and needs to be recovered.
  */
-static void myri10ge_watchdog(void *arg)
+static void myri10ge_watchdog(struct work_struct *work)
 {
-	struct myri10ge_priv *mgp = arg;
+	struct myri10ge_priv *mgp =
+		container_of(work, struct myri10ge_priv, watchdog_work);
 	u32 reboot;
 	int status;
 	u16 cmd, vendor;
@@ -2887,7 +2895,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		    (unsigned long)mgp);
 
 	SET_ETHTOOL_OPS(netdev, &myri10ge_ethtool_ops);
-	INIT_WORK(&mgp->watchdog_work, myri10ge_watchdog, mgp);
+	INIT_WORK(&mgp->watchdog_work, myri10ge_watchdog);
 	status = register_netdev(netdev);
 	if (status != 0) {
 		dev_err(&pdev->dev, "register_netdev failed: %d\n", status);

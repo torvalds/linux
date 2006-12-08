@@ -20,6 +20,7 @@
 #include <asm/atomic.h>
 #include <linux/scatterlist.h>
 #include <asm/page.h>
+#include <asm/unaligned.h>
 
 #include "dm.h"
 
@@ -85,7 +86,10 @@ struct crypt_config {
 	 */
 	struct crypt_iv_operations *iv_gen_ops;
 	char *iv_mode;
-	struct crypto_cipher *iv_gen_private;
+	union {
+		struct crypto_cipher *essiv_tfm;
+		int benbi_shift;
+	} iv_gen_private;
 	sector_t iv_offset;
 	unsigned int iv_size;
 
@@ -101,7 +105,7 @@ struct crypt_config {
 #define MIN_POOL_PAGES 32
 #define MIN_BIO_PAGES  8
 
-static kmem_cache_t *_crypt_io_pool;
+static struct kmem_cache *_crypt_io_pool;
 
 /*
  * Different IV generation algorithms:
@@ -112,6 +116,9 @@ static kmem_cache_t *_crypt_io_pool;
  * essiv: "encrypted sector|salt initial vector", the sector number is
  *        encrypted with the bulk cipher using a salt as key. The salt
  *        should be derived from the bulk cipher's key via hashing.
+ *
+ * benbi: the 64-bit "big-endian 'narrow block'-count", starting at 1
+ *        (needed for LRW-32-AES and possible other narrow block modes)
  *
  * plumb: unimplemented, see:
  * http://article.gmane.org/gmane.linux.kernel.device-mapper.dm-crypt/454
@@ -191,21 +198,61 @@ static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
 	}
 	kfree(salt);
 
-	cc->iv_gen_private = essiv_tfm;
+	cc->iv_gen_private.essiv_tfm = essiv_tfm;
 	return 0;
 }
 
 static void crypt_iv_essiv_dtr(struct crypt_config *cc)
 {
-	crypto_free_cipher(cc->iv_gen_private);
-	cc->iv_gen_private = NULL;
+	crypto_free_cipher(cc->iv_gen_private.essiv_tfm);
+	cc->iv_gen_private.essiv_tfm = NULL;
 }
 
 static int crypt_iv_essiv_gen(struct crypt_config *cc, u8 *iv, sector_t sector)
 {
 	memset(iv, 0, cc->iv_size);
 	*(u64 *)iv = cpu_to_le64(sector);
-	crypto_cipher_encrypt_one(cc->iv_gen_private, iv, iv);
+	crypto_cipher_encrypt_one(cc->iv_gen_private.essiv_tfm, iv, iv);
+	return 0;
+}
+
+static int crypt_iv_benbi_ctr(struct crypt_config *cc, struct dm_target *ti,
+			      const char *opts)
+{
+	unsigned int bs = crypto_blkcipher_blocksize(cc->tfm);
+	int log = long_log2(bs);
+
+	/* we need to calculate how far we must shift the sector count
+	 * to get the cipher block count, we use this shift in _gen */
+
+	if (1 << log != bs) {
+		ti->error = "cypher blocksize is not a power of 2";
+		return -EINVAL;
+	}
+
+	if (log > 9) {
+		ti->error = "cypher blocksize is > 512";
+		return -EINVAL;
+	}
+
+	cc->iv_gen_private.benbi_shift = 9 - log;
+
+	return 0;
+}
+
+static void crypt_iv_benbi_dtr(struct crypt_config *cc)
+{
+}
+
+static int crypt_iv_benbi_gen(struct crypt_config *cc, u8 *iv, sector_t sector)
+{
+	__be64 val;
+
+	memset(iv, 0, cc->iv_size - sizeof(u64)); /* rest is cleared below */
+
+	val = cpu_to_be64(((u64)sector << cc->iv_gen_private.benbi_shift) + 1);
+	put_unaligned(val, (__be64 *)(iv + cc->iv_size - sizeof(u64)));
+
 	return 0;
 }
 
@@ -219,13 +266,18 @@ static struct crypt_iv_operations crypt_iv_essiv_ops = {
 	.generator = crypt_iv_essiv_gen
 };
 
+static struct crypt_iv_operations crypt_iv_benbi_ops = {
+	.ctr	   = crypt_iv_benbi_ctr,
+	.dtr	   = crypt_iv_benbi_dtr,
+	.generator = crypt_iv_benbi_gen
+};
 
 static int
 crypt_convert_scatterlist(struct crypt_config *cc, struct scatterlist *out,
                           struct scatterlist *in, unsigned int length,
                           int write, sector_t sector)
 {
-	u8 iv[cc->iv_size];
+	u8 iv[cc->iv_size] __attribute__ ((aligned(__alignof__(u64))));
 	struct blkcipher_desc desc = {
 		.tfm = cc->tfm,
 		.info = iv,
@@ -458,11 +510,11 @@ static void dec_pending(struct crypt_io *io, int error)
  * interrupt context.
  */
 static struct workqueue_struct *_kcryptd_workqueue;
-static void kcryptd_do_work(void *data);
+static void kcryptd_do_work(struct work_struct *work);
 
 static void kcryptd_queue_io(struct crypt_io *io)
 {
-	INIT_WORK(&io->work, kcryptd_do_work, io);
+	INIT_WORK(&io->work, kcryptd_do_work);
 	queue_work(_kcryptd_workqueue, &io->work);
 }
 
@@ -618,9 +670,9 @@ static void process_read_endio(struct crypt_io *io)
 	dec_pending(io, crypt_convert(cc, &ctx));
 }
 
-static void kcryptd_do_work(void *data)
+static void kcryptd_do_work(struct work_struct *work)
 {
-	struct crypt_io *io = data;
+	struct crypt_io *io = container_of(work, struct crypt_io, work);
 
 	if (io->post_process)
 		process_read_endio(io);
@@ -768,7 +820,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	cc->tfm = tfm;
 
 	/*
-	 * Choose ivmode. Valid modes: "plain", "essiv:<esshash>".
+	 * Choose ivmode. Valid modes: "plain", "essiv:<esshash>", "benbi".
 	 * See comments at iv code
 	 */
 
@@ -778,6 +830,8 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		cc->iv_gen_ops = &crypt_iv_plain_ops;
 	else if (strcmp(ivmode, "essiv") == 0)
 		cc->iv_gen_ops = &crypt_iv_essiv_ops;
+	else if (strcmp(ivmode, "benbi") == 0)
+		cc->iv_gen_ops = &crypt_iv_benbi_ops;
 	else {
 		ti->error = "Invalid IV mode";
 		goto bad2;

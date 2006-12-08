@@ -3,7 +3,7 @@
 
 #ifdef __KERNEL__
 
-#include <linux/netfilter_ipv4/ip_conntrack_helper_h323_asn1.h>
+#include <linux/netfilter/nf_conntrack_h323_asn1.h>
 
 #define RAS_PORT 1719
 #define Q931_PORT 1720

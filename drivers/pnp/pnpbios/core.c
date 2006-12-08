@@ -61,6 +61,7 @@
 #include <linux/dmi.h>
 #include <linux/delay.h>
 #include <linux/acpi.h>
+#include <linux/freezer.h>
 
 #include <asm/page.h>
 #include <asm/desc.h>
@@ -530,7 +531,8 @@ static int __init pnpbios_init(void)
 	if (check_legacy_ioport(PNPBIOS_BASE))
 		return -ENODEV;
 #endif
-	if (pnpbios_disabled || dmi_check_system(pnpbios_dmi_table)) {
+	if (pnpbios_disabled || dmi_check_system(pnpbios_dmi_table) ||
+	    paravirt_enabled()) {
 		printk(KERN_INFO "PnPBIOS: Disabled\n");
 		return -ENODEV;
 	}

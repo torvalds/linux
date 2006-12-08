@@ -59,7 +59,7 @@ static unsigned int 				def_sampling_rate;
 #define MAX_SAMPLING_DOWN_FACTOR		(10)
 #define TRANSITION_LATENCY_LIMIT		(10 * 1000)
 
-static void do_dbs_timer(void *data);
+static void do_dbs_timer(struct work_struct *work);
 
 struct cpu_dbs_info_s {
 	struct cpufreq_policy 	*cur_policy;
@@ -82,7 +82,7 @@ static unsigned int dbs_enable;	/* number of CPUs using this policy */
  * is recursive for the same process. -Venki
  */
 static DEFINE_MUTEX 	(dbs_mutex);
-static DECLARE_WORK	(dbs_work, do_dbs_timer, NULL);
+static DECLARE_DELAYED_WORK(dbs_work, do_dbs_timer);
 
 struct dbs_tuners {
 	unsigned int 		sampling_rate;
@@ -420,7 +420,7 @@ static void dbs_check_cpu(int cpu)
 	}
 }
 
-static void do_dbs_timer(void *data)
+static void do_dbs_timer(struct work_struct *work)
 { 
 	int i;
 	lock_cpu_hotplug();
@@ -435,7 +435,6 @@ static void do_dbs_timer(void *data)
 
 static inline void dbs_timer_init(void)
 {
-	INIT_WORK(&dbs_work, do_dbs_timer, NULL);
 	schedule_delayed_work(&dbs_work,
 			usecs_to_jiffies(dbs_tuners_ins.sampling_rate));
 	return;

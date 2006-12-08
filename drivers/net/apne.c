@@ -568,7 +568,7 @@ static irqreturn_t apne_interrupt(int irq, void *dev_id)
 #ifdef MODULE
 static struct net_device *apne_dev;
 
-int init_module(void)
+int __init init_module(void)
 {
 	apne_dev = apne_probe(-1);
 	if (IS_ERR(apne_dev))
@@ -576,7 +576,7 @@ int init_module(void)
 	return 0;
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
 	unregister_netdev(apne_dev);
 

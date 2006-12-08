@@ -1004,6 +1004,7 @@ static struct inode_operations vfat_dir_inode_operations = {
 	.rmdir		= vfat_rmdir,
 	.rename		= vfat_rename,
 	.setattr	= fat_notify_change,
+	.getattr	= fat_getattr,
 };
 
 static int vfat_fill_super(struct super_block *sb, void *data, int silent)

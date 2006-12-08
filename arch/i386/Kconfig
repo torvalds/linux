@@ -182,6 +182,17 @@ config X86_ES7000
 
 endchoice
 
+config PARAVIRT
+	bool "Paravirtualization support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  Paravirtualization is a way of running multiple instances of
+	  Linux on the same machine, under a hypervisor.  This option
+	  changes the kernel so it can modify itself when it is run
+	  under a hypervisor, improving performance significantly.
+	  However, when run without a hypervisor the kernel is
+	  theoretically slower.  If in doubt, say N.
+
 config ACPI_SRAT
 	bool
 	default y
@@ -443,7 +454,8 @@ source "drivers/firmware/Kconfig"
 
 choice
 	prompt "High Memory Support"
-	default NOHIGHMEM
+	default HIGHMEM4G if !X86_NUMAQ
+	default HIGHMEM64G if X86_NUMAQ
 
 config NOHIGHMEM
 	bool "off"
@@ -710,20 +722,6 @@ config BOOT_IOREMAP
 	depends on (((X86_SUMMIT || X86_GENERICARCH) && NUMA) || (X86 && EFI))
 	default y
 
-config REGPARM
-	bool "Use register arguments"
-	default y
-	help
-	Compile the kernel with -mregparm=3. This instructs gcc to use
-	a more efficient function call ABI which passes the first three
-	arguments of a function call via registers, which results in denser
-	and faster code.
-
-	If this option is disabled, then the default ABI of passing
-	arguments via the stack is used.
-
-	If unsure, say Y.
-
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
 	depends on PROC_FS
@@ -773,23 +771,39 @@ config CRASH_DUMP
           PHYSICAL_START.
 	  For more details see Documentation/kdump/kdump.txt
 
-config PHYSICAL_START
-	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP)
-
-	default "0x1000000" if CRASH_DUMP
-	default "0x100000"
+config RELOCATABLE
+	bool "Build a relocatable kernel(EXPERIMENTAL)"
+	depends on EXPERIMENTAL
 	help
-	  This gives the physical address where the kernel is loaded. Normally
-	  for regular kernels this value is 0x100000 (1MB). But in the case
-	  of kexec on panic the fail safe kernel needs to run at a different
-	  address than the panic-ed kernel. This option is used to set the load
-	  address for kernels used to capture crash dump on being kexec'ed
-	  after panic. The default value for crash dump kernels is
-	  0x1000000 (16MB). This can also be set based on the "X" value as
-	  specified in the "crashkernel=YM@XM" command line boot parameter
-	  passed to the panic-ed kernel. Typically this parameter is set as
-	  crashkernel=64M@16M. Please take a look at
-	  Documentation/kdump/kdump.txt for more details about crash dumps.
+	  This build a kernel image that retains relocation information
+          so it can be loaded someplace besides the default 1MB.
+	  The relocations tend to the kernel binary about 10% larger,
+          but are discarded at runtime.
+
+	  One use is for the kexec on panic case where the recovery kernel
+          must live at a different physical address than the primary
+          kernel.
+
+config PHYSICAL_ALIGN
+	hex "Alignment value to which kernel should be aligned"
+	default "0x100000"
+	range 0x2000 0x400000
+	help
+	  This value puts the alignment restrictions on physical address
+ 	  where kernel is loaded and run from. Kernel is compiled for an
+ 	  address which meets above alignment restriction.
+
+ 	  If bootloader loads the kernel at a non-aligned address and
+ 	  CONFIG_RELOCATABLE is set, kernel will move itself to nearest
+ 	  address aligned to above value and run from there.
+
+ 	  If bootloader loads the kernel at a non-aligned address and
+ 	  CONFIG_RELOCATABLE is not set, kernel will ignore the run time
+ 	  load address and decompress itself to the address it has been
+ 	  compiled for and run from there. The address for which kernel is
+ 	  compiled already meets above alignment restrictions. Hence the
+ 	  end result is that kernel runs from a physical address meeting
+	  above alignment restrictions.
 
 	  Don't change this unless you know what you are doing.
 

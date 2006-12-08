@@ -31,7 +31,7 @@
 #define pid_hashfn(nr) hash_long((unsigned long)nr, pidhash_shift)
 static struct hlist_head *pid_hash;
 static int pidhash_shift;
-static kmem_cache_t *pid_cachep;
+static struct kmem_cache *pid_cachep;
 
 int pid_max = PID_MAX_DEFAULT;
 

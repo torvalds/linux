@@ -44,8 +44,37 @@ static struct platform_device m66596_usb_host_device = {
 	.resource	= m66596_usb_host_resources,
 };
 
+static struct resource cf_ide_resources[] = {
+	[0] = {
+		.start	= 0x1f0,
+		.end	= 0x1f0 + 8,
+		.flags	= IORESOURCE_IO,
+	},
+	[1] = {
+		.start	= 0x1f0 + 0x206,
+		.end	= 0x1f0 + 8 + 0x206 + 8,
+		.flags	= IORESOURCE_IO,
+	},
+	[2] = {
+#ifdef CONFIG_SH_R7780MP
+		.start	= 1,
+#else
+		.start	= 4,
+#endif
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device cf_ide_device  = {
+	.name		= "pata_platform",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(cf_ide_resources),
+	.resource	= cf_ide_resources,
+};
+
 static struct platform_device *r7780rp_devices[] __initdata = {
 	&m66596_usb_host_device,
+	&cf_ide_device,
 };
 
 static int __init r7780rp_devices_setup(void)

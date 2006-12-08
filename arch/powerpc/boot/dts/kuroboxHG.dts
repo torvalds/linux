@@ -1,0 +1,148 @@
+/*
+ * Device Tree Souce for Buffalo KuroboxHG
+ *
+ * Choose CONFIG_LINKSTATION to build a kernel for KuroboxHG, or use
+ * the default configuration linkstation_defconfig.
+ *
+ * Based on sandpoint.dts
+ *
+ * 2006 (c) G. Liakhovetski <g.liakhovetski@gmx.de>
+ *
+ * This file is licensed under
+ * the terms of the GNU General Public License version 2.  This program
+ * is licensed "as is" without any warranty of any kind, whether express
+ * or implied.
+
+XXXX add flash parts, rtc, ??
+
+build with: "dtc -f -I dts -O dtb -o kuroboxHG.dtb -V 16 kuroboxHG.dts"
+
+
+ */
+
+/ {
+	linux,phandle = <1000>;
+	model = "KuroboxHG";
+	compatible = "linkstation";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	cpus {
+		linux,phandle = <2000>;
+		#cpus = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		PowerPC,603e { /* Really 8241 */
+			linux,phandle = <2100>;
+			linux,boot-cpu;
+			device_type = "cpu";
+			reg = <0>;
+			clock-frequency = <fdad680>;	/* Fixed by bootwrapper */
+			timebase-frequency = <1F04000>; /* Fixed by bootwrapper */
+			bus-frequency = <0>;		/* From bootloader */
+			/* Following required by dtc but not used */
+			i-cache-line-size = <0>;
+			d-cache-line-size = <0>;
+			i-cache-size = <4000>;
+			d-cache-size = <4000>;
+		};
+	};
+
+	memory {
+		linux,phandle = <3000>;
+		device_type = "memory";
+		reg = <00000000 08000000>;
+	};
+
+	soc10x { /* AFAICT need to make soc for 8245's uarts to be defined */
+		linux,phandle = <4000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		#interrupt-cells = <2>;
+		device_type = "soc";
+		compatible = "mpc10x";
+		store-gathering = <0>; /* 0 == off, !0 == on */
+		reg = <80000000 00100000>;
+		ranges = <80000000 80000000 70000000	/* pci mem space */
+			  fc000000 fc000000 00100000	/* EUMB */
+			  fe000000 fe000000 00c00000	/* pci i/o space */
+			  fec00000 fec00000 00300000	/* pci cfg regs */
+			  fef00000 fef00000 00100000>;	/* pci iack */
+
+		i2c@80003000 {
+			linux,phandle = <4300>;
+			device_type = "i2c";
+			compatible = "fsl-i2c";
+			reg = <80003000 1000>;
+			interrupts = <5 2>;
+			interrupt-parent = <4400>;
+		};
+
+		serial@80004500 {
+			linux,phandle = <4511>;
+			device_type = "serial";
+			compatible = "ns16550";
+			reg = <80004500 8>;
+			clock-frequency = <7c044a8>;
+			current-speed = <2580>;
+			interrupts = <9 2>;
+			interrupt-parent = <4400>;
+		};
+
+		serial@80004600 {
+			linux,phandle = <4512>;
+			device_type = "serial";
+			compatible = "ns16550";
+			reg = <80004600 8>;
+			clock-frequency = <7c044a8>;
+			current-speed = <e100>;
+			interrupts = <a 0>;
+			interrupt-parent = <4400>;
+		};
+
+		pic@80040000 {
+			linux,phandle = <4400>;
+			#interrupt-cells = <2>;
+			#address-cells = <0>;
+			device_type = "open-pic";
+			compatible = "chrp,open-pic";
+			interrupt-controller;
+			reg = <80040000 40000>;
+			built-in;
+		};
+
+		pci@fec00000 {
+			linux,phandle = <4500>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			#interrupt-cells = <1>;
+			device_type = "pci";
+			compatible = "mpc10x-pci";
+			reg = <fec00000 400000>;
+			ranges = <01000000 0        0 fe000000 0 00c00000
+				  02000000 0 80000000 80000000 0 70000000>;
+			bus-range = <0 ff>;
+			clock-frequency = <7f28155>;
+			interrupt-parent = <4400>;
+			interrupt-map-mask = <f800 0 0 7>;
+			interrupt-map = <
+				/* IDSEL 0x11 - IRQ0 ETH */
+				5800 0 0 1 4400 0 1
+				5800 0 0 2 4400 1 1
+				5800 0 0 3 4400 2 1
+				5800 0 0 4 4400 3 1
+				/* IDSEL 0x12 - IRQ1 IDE0 */
+				6000 0 0 1 4400 1 1
+				6000 0 0 2 4400 2 1
+				6000 0 0 3 4400 3 1
+				6000 0 0 4 4400 0 1
+				/* IDSEL 0x14 - IRQ3 USB2.0 */
+				7000 0 0 1 4400 3 1
+				7000 0 0 2 4400 3 1
+				7000 0 0 3 4400 3 1
+				7000 0 0 4 4400 3 1
+			>;
+		};
+	};
+};

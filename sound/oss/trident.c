@@ -216,6 +216,7 @@
 #include <linux/gameport.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
+#include <linux/mm.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>

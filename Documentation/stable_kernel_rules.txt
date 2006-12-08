@@ -50,7 +50,7 @@ Review cycle:
    Contact the kernel security team for more details on this procedure.
 
 
-Review committe:
+Review committee:
 
  - This is made up of a number of kernel developers who have volunteered for
    this task, and a few that haven't.

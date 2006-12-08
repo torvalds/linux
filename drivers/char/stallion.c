@@ -500,7 +500,7 @@ static int	stl_echatintr(stlbrd_t *brdp);
 static int	stl_echmcaintr(stlbrd_t *brdp);
 static int	stl_echpciintr(stlbrd_t *brdp);
 static int	stl_echpci64intr(stlbrd_t *brdp);
-static void	stl_offintr(void *private);
+static void	stl_offintr(struct work_struct *);
 static stlbrd_t *stl_allocbrd(void);
 static stlport_t *stl_getport(int brdnr, int panelnr, int portnr);
 
@@ -2081,13 +2081,11 @@ static int stl_echpci64intr(stlbrd_t *brdp)
 /*
  *	Service an off-level request for some channel.
  */
-static void stl_offintr(void *private)
+static void stl_offintr(struct work_struct *work)
 {
-	stlport_t		*portp;
+	stlport_t		*portp = container_of(work, stlport_t, tqueue);
 	struct tty_struct	*tty;
 	unsigned int		oldsigs;
-
-	portp = private;
 
 #ifdef DEBUG
 	printk("stl_offintr(portp=%x)\n", (int) portp);
@@ -2156,7 +2154,7 @@ static int __init stl_initports(stlbrd_t *brdp, stlpanel_t *panelp)
 		portp->baud_base = STL_BAUDBASE;
 		portp->close_delay = STL_CLOSEDELAY;
 		portp->closing_wait = 30 * HZ;
-		INIT_WORK(&portp->tqueue, stl_offintr, portp);
+		INIT_WORK(&portp->tqueue, stl_offintr);
 		init_waitqueue_head(&portp->open_wait);
 		init_waitqueue_head(&portp->close_wait);
 		portp->stats.brd = portp->brdnr;

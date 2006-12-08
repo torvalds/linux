@@ -445,7 +445,7 @@ affs_error(struct super_block *sb, const char *function, const char *fmt, ...)
 	va_list	 args;
 
 	va_start(args,fmt);
-	vsprintf(ErrorBuffer,fmt,args);
+	vsnprintf(ErrorBuffer,sizeof(ErrorBuffer),fmt,args);
 	va_end(args);
 
 	printk(KERN_CRIT "AFFS error (device %s): %s(): %s\n", sb->s_id,
@@ -461,7 +461,7 @@ affs_warning(struct super_block *sb, const char *function, const char *fmt, ...)
 	va_list	 args;
 
 	va_start(args,fmt);
-	vsprintf(ErrorBuffer,fmt,args);
+	vsnprintf(ErrorBuffer,sizeof(ErrorBuffer),fmt,args);
 	va_end(args);
 
 	printk(KERN_WARNING "AFFS warning (device %s): %s(): %s\n", sb->s_id,

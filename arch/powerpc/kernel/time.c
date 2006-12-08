@@ -631,7 +631,8 @@ void timer_interrupt(struct pt_regs * regs)
 	calculate_steal_time();
 
 #ifdef CONFIG_PPC_ISERIES
-	get_lppaca()->int_dword.fields.decr_int = 0;
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		get_lppaca()->int_dword.fields.decr_int = 0;
 #endif
 
 	while ((ticks = tb_ticks_since(per_cpu(last_jiffy, cpu)))
@@ -674,7 +675,7 @@ void timer_interrupt(struct pt_regs * regs)
 	set_dec(next_dec);
 
 #ifdef CONFIG_PPC_ISERIES
-	if (hvlpevent_is_pending())
+	if (firmware_has_feature(FW_FEATURE_ISERIES) && hvlpevent_is_pending())
 		process_hvlpevents();
 #endif
 
@@ -774,7 +775,7 @@ int do_settimeofday(struct timespec *tv)
 	 * settimeofday to perform this operation.
 	 */
 #ifdef CONFIG_PPC_ISERIES
-	if (first_settimeofday) {
+	if (firmware_has_feature(FW_FEATURE_ISERIES) && first_settimeofday) {
 		iSeries_tb_recal();
 		first_settimeofday = 0;
 	}
@@ -1013,48 +1014,6 @@ void __init time_init(void)
 	/* Not exact, but the timer interrupt takes care of this */
 	set_dec(tb_ticks_per_jiffy);
 }
-
-#ifdef CONFIG_RTC_CLASS
-static int set_rtc_class_time(struct rtc_time *tm)
-{
-	int err;
-	struct class_device *class_dev =
-		rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
-
-	if (class_dev == NULL)
-		return -ENODEV;
-
-	err = rtc_set_time(class_dev, tm);
-
-	rtc_class_close(class_dev);
-
-	return 0;
-}
-
-static void get_rtc_class_time(struct rtc_time *tm)
-{
-	int err;
-	struct class_device *class_dev =
-		rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
-
-	if (class_dev == NULL)
-		return;
-
-	err = rtc_read_time(class_dev, tm);
-
-	rtc_class_close(class_dev);
-
-	return;
-}
-
-int __init rtc_class_hookup(void)
-{
-	ppc_md.get_rtc_time = get_rtc_class_time;
-	ppc_md.set_rtc_time = set_rtc_class_time;
-
-	return 0;
-}
-#endif /* CONFIG_RTC_CLASS */
 
 
 #define FEBRUARY	2

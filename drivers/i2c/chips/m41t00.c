@@ -215,8 +215,15 @@ m41t00_set(void *arg)
 }
 
 static ulong new_time;
+/* well, isn't this API just _lovely_? */
+static void
+m41t00_barf(struct work_struct *unusable)
+{
+	m41t00_set(&new_time);
+}
+
 static struct workqueue_struct *m41t00_wq;
-static DECLARE_WORK(m41t00_work, m41t00_set, &new_time);
+static DECLARE_WORK(m41t00_work, m41t00_barf);
 
 int
 m41t00_set_rtc_time(ulong nowtime)

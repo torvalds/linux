@@ -62,14 +62,11 @@ EXPORT_SYMBOL_GPL(uaccess);
 unsigned int console_mode = 0;
 unsigned int console_devno = -1;
 unsigned int console_irq = -1;
-unsigned long memory_size = 0;
 unsigned long machine_flags = 0;
-struct {
-	unsigned long addr, size, type;
-} memory_chunk[MEMORY_CHUNKS] = { { 0 } };
-#define CHUNK_READ_WRITE 0
-#define CHUNK_READ_ONLY 1
+
+struct mem_chunk memory_chunk[MEMORY_CHUNKS];
 volatile int __cpu_logical_map[NR_CPUS]; /* logical cpu to cpu address */
+unsigned long __initdata zholes_size[MAX_NR_ZONES];
 static unsigned long __initdata memory_end;
 
 /*
@@ -228,11 +225,11 @@ static void __init conmode_default(void)
 	char *ptr;
 
         if (MACHINE_IS_VM) {
-		__cpcmd("QUERY CONSOLE", query_buffer, 1024, NULL);
+		cpcmd("QUERY CONSOLE", query_buffer, 1024, NULL);
 		console_devno = simple_strtoul(query_buffer + 5, NULL, 16);
 		ptr = strstr(query_buffer, "SUBCHANNEL =");
 		console_irq = simple_strtoul(ptr + 13, NULL, 16);
-		__cpcmd("QUERY TERM", query_buffer, 1024, NULL);
+		cpcmd("QUERY TERM", query_buffer, 1024, NULL);
 		ptr = strstr(query_buffer, "CONMODE");
 		/*
 		 * Set the conmode to 3215 so that the device recognition 
@@ -241,7 +238,7 @@ static void __init conmode_default(void)
 		 * 3215 and the 3270 driver will try to access the console
 		 * device (3215 as console and 3270 as normal tty).
 		 */
-		__cpcmd("TERM CONMODE 3215", NULL, 0, NULL);
+		cpcmd("TERM CONMODE 3215", NULL, 0, NULL);
 		if (ptr == NULL) {
 #if defined(CONFIG_SCLP_CONSOLE)
 			SET_CONSOLE_SCLP;
@@ -298,14 +295,14 @@ static void do_machine_restart_nonsmp(char * __unused)
 static void do_machine_halt_nonsmp(void)
 {
         if (MACHINE_IS_VM && strlen(vmhalt_cmd) > 0)
-                cpcmd(vmhalt_cmd, NULL, 0, NULL);
+		__cpcmd(vmhalt_cmd, NULL, 0, NULL);
         signal_processor(smp_processor_id(), sigp_stop_and_store_status);
 }
 
 static void do_machine_power_off_nonsmp(void)
 {
         if (MACHINE_IS_VM && strlen(vmpoff_cmd) > 0)
-                cpcmd(vmpoff_cmd, NULL, 0, NULL);
+		__cpcmd(vmpoff_cmd, NULL, 0, NULL);
         signal_processor(smp_processor_id(), sigp_stop_and_store_status);
 }
 
@@ -356,6 +353,21 @@ void machine_power_off(void)
  * Dummy power off function.
  */
 void (*pm_power_off)(void) = machine_power_off;
+
+static void __init
+add_memory_hole(unsigned long start, unsigned long end)
+{
+	unsigned long dma_pfn = MAX_DMA_ADDRESS >> PAGE_SHIFT;
+
+	if (end <= dma_pfn)
+		zholes_size[ZONE_DMA] += end - start + 1;
+	else if (start > dma_pfn)
+		zholes_size[ZONE_NORMAL] += end - start + 1;
+	else {
+		zholes_size[ZONE_DMA] += dma_pfn - start + 1;
+		zholes_size[ZONE_NORMAL] += end - dma_pfn;
+	}
+}
 
 static int __init early_parse_mem(char *p)
 {
@@ -434,7 +446,7 @@ setup_lowcore(void)
 		lc->extended_save_area_addr = (__u32)
 			__alloc_bootmem(PAGE_SIZE, PAGE_SIZE, 0);
 		/* enable extended save area */
-		ctl_set_bit(14, 29);
+		__ctl_set_bit(14, 29);
 	}
 #endif
 	set_prefix((u32)(unsigned long) lc);
@@ -473,11 +485,43 @@ setup_resources(void)
 	}
 }
 
+static void __init setup_memory_end(void)
+{
+	unsigned long real_size, memory_size;
+	unsigned long max_mem, max_phys;
+	int i;
+
+	memory_size = real_size = 0;
+	max_phys = VMALLOC_END - VMALLOC_MIN_SIZE;
+	memory_end &= PAGE_MASK;
+
+	max_mem = memory_end ? min(max_phys, memory_end) : max_phys;
+
+	for (i = 0; i < MEMORY_CHUNKS; i++) {
+		struct mem_chunk *chunk = &memory_chunk[i];
+
+		real_size = max(real_size, chunk->addr + chunk->size);
+		if (chunk->addr >= max_mem) {
+			memset(chunk, 0, sizeof(*chunk));
+			continue;
+		}
+		if (chunk->addr + chunk->size > max_mem)
+			chunk->size = max_mem - chunk->addr;
+		memory_size = max(memory_size, chunk->addr + chunk->size);
+	}
+	if (!memory_end)
+		memory_end = memory_size;
+	if (real_size > memory_end)
+		printk("More memory detected than supported. Unused: %luk\n",
+		       (real_size - memory_end) >> 10);
+}
+
 static void __init
 setup_memory(void)
 {
         unsigned long bootmap_size;
 	unsigned long start_pfn, end_pfn, init_pfn;
+	unsigned long last_rw_end;
 	int i;
 
 	/*
@@ -533,27 +577,39 @@ setup_memory(void)
 	/*
 	 * Register RAM areas with the bootmem allocator.
 	 */
+	last_rw_end = start_pfn;
 
 	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
-		unsigned long start_chunk, end_chunk, pfn;
+		unsigned long start_chunk, end_chunk;
 
 		if (memory_chunk[i].type != CHUNK_READ_WRITE)
 			continue;
-		start_chunk = PFN_DOWN(memory_chunk[i].addr);
-		end_chunk = start_chunk + PFN_DOWN(memory_chunk[i].size) - 1;
-		end_chunk = min(end_chunk, end_pfn);
-		if (start_chunk >= end_chunk)
-			continue;
-		add_active_range(0, start_chunk, end_chunk);
-		pfn = max(start_chunk, start_pfn);
-		for (; pfn <= end_chunk; pfn++)
-			page_set_storage_key(PFN_PHYS(pfn), PAGE_DEFAULT_KEY);
+		start_chunk = (memory_chunk[i].addr + PAGE_SIZE - 1);
+		start_chunk >>= PAGE_SHIFT;
+		end_chunk = (memory_chunk[i].addr + memory_chunk[i].size);
+		end_chunk >>= PAGE_SHIFT;
+		if (start_chunk < start_pfn)
+			start_chunk = start_pfn;
+		if (end_chunk > end_pfn)
+			end_chunk = end_pfn;
+		if (start_chunk < end_chunk) {
+			/* Initialize storage key for RAM pages */
+			for (init_pfn = start_chunk ; init_pfn < end_chunk;
+			     init_pfn++)
+				page_set_storage_key(init_pfn << PAGE_SHIFT,
+						     PAGE_DEFAULT_KEY);
+			free_bootmem(start_chunk << PAGE_SHIFT,
+				     (end_chunk - start_chunk) << PAGE_SHIFT);
+			if (last_rw_end < start_chunk)
+				add_memory_hole(last_rw_end, start_chunk - 1);
+			last_rw_end = end_chunk;
+		}
 	}
 
 	psw_set_key(PAGE_DEFAULT_KEY);
 
-	free_bootmem_with_active_regions(0, max_pfn);
-	reserve_bootmem(0, PFN_PHYS(start_pfn));
+	if (last_rw_end < end_pfn - 1)
+		add_memory_hole(last_rw_end, end_pfn - 1);
 
 	/*
 	 * Reserve the bootmem bitmap itself as well. We do this in two
@@ -616,8 +672,6 @@ setup_arch(char **cmdline_p)
 	init_mm.end_data = (unsigned long) &_edata;
 	init_mm.brk = (unsigned long) &_end;
 
-	memory_end = memory_size;
-
 	if (MACHINE_HAS_MVCOS)
 		memcpy(&uaccess, &uaccess_mvcos, sizeof(uaccess));
 	else
@@ -625,20 +679,7 @@ setup_arch(char **cmdline_p)
 
 	parse_early_param();
 
-#ifndef CONFIG_64BIT
-	memory_end &= ~0x400000UL;
-
-        /*
-         * We need some free virtual space to be able to do vmalloc.
-         * On a machine with 2GB memory we make sure that we have at
-         * least 128 MB free space for vmalloc.
-         */
-        if (memory_end > 1920*1024*1024)
-                memory_end = 1920*1024*1024;
-#else /* CONFIG_64BIT */
-	memory_end &= ~0x200000UL;
-#endif /* CONFIG_64BIT */
-
+	setup_memory_end();
 	setup_memory();
 	setup_resources();
 	setup_lowcore();

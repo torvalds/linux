@@ -28,11 +28,11 @@ static inline void atomic_add(int i, atomic_t *v)
 	unsigned long tmp;
 
 	__asm__ __volatile__ (
-"1:	movli.l @%3, %0		! atomic_add	\n"
-"	add	%2, %0				\n"
-"	movco.l	%0, @%3				\n"
+"1:	movli.l @%2, %0		! atomic_add	\n"
+"	add	%1, %0				\n"
+"	movco.l	%0, @%2				\n"
 "	bf	1b				\n"
-	: "=&z" (tmp), "=r" (&v->counter)
+	: "=&z" (tmp)
 	: "r" (i), "r" (&v->counter)
 	: "t");
 #else
@@ -50,11 +50,11 @@ static inline void atomic_sub(int i, atomic_t *v)
 	unsigned long tmp;
 
 	__asm__ __volatile__ (
-"1:	movli.l @%3, %0		! atomic_sub	\n"
-"	sub	%2, %0				\n"
-"	movco.l	%0, @%3				\n"
+"1:	movli.l @%2, %0		! atomic_sub	\n"
+"	sub	%1, %0				\n"
+"	movco.l	%0, @%2				\n"
 "	bf	1b				\n"
-	: "=&z" (tmp), "=r" (&v->counter)
+	: "=&z" (tmp)
 	: "r" (i), "r" (&v->counter)
 	: "t");
 #else
@@ -80,12 +80,12 @@ static inline int atomic_add_return(int i, atomic_t *v)
 
 #ifdef CONFIG_CPU_SH4A
 	__asm__ __volatile__ (
-"1:	movli.l @%3, %0		! atomic_add_return	\n"
-"	add	%2, %0					\n"
-"	movco.l	%0, @%3					\n"
+"1:	movli.l @%2, %0		! atomic_add_return	\n"
+"	add	%1, %0					\n"
+"	movco.l	%0, @%2					\n"
 "	bf	1b					\n"
 "	synco						\n"
-	: "=&z" (temp), "=r" (&v->counter)
+	: "=&z" (temp)
 	: "r" (i), "r" (&v->counter)
 	: "t");
 #else
@@ -109,12 +109,12 @@ static inline int atomic_sub_return(int i, atomic_t *v)
 
 #ifdef CONFIG_CPU_SH4A
 	__asm__ __volatile__ (
-"1:	movli.l @%3, %0		! atomic_sub_return	\n"
-"	sub	%2, %0					\n"
-"	movco.l	%0, @%3					\n"
+"1:	movli.l @%2, %0		! atomic_sub_return	\n"
+"	sub	%1, %0					\n"
+"	movco.l	%0, @%2					\n"
 "	bf	1b					\n"
 "	synco						\n"
-	: "=&z" (temp), "=r" (&v->counter)
+	: "=&z" (temp)
 	: "r" (i), "r" (&v->counter)
 	: "t");
 #else
@@ -186,11 +186,11 @@ static inline void atomic_clear_mask(unsigned int mask, atomic_t *v)
 	unsigned long tmp;
 
 	__asm__ __volatile__ (
-"1:	movli.l @%3, %0		! atomic_clear_mask	\n"
-"	and	%2, %0					\n"
-"	movco.l	%0, @%3					\n"
+"1:	movli.l @%2, %0		! atomic_clear_mask	\n"
+"	and	%1, %0					\n"
+"	movco.l	%0, @%2					\n"
 "	bf	1b					\n"
-	: "=&z" (tmp), "=r" (&v->counter)
+	: "=&z" (tmp)
 	: "r" (~mask), "r" (&v->counter)
 	: "t");
 #else
@@ -208,11 +208,11 @@ static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
 	unsigned long tmp;
 
 	__asm__ __volatile__ (
-"1:	movli.l @%3, %0		! atomic_set_mask	\n"
-"	or	%2, %0					\n"
-"	movco.l	%0, @%3					\n"
+"1:	movli.l @%2, %0		! atomic_set_mask	\n"
+"	or	%1, %0					\n"
+"	movco.l	%0, @%2					\n"
 "	bf	1b					\n"
-	: "=&z" (tmp), "=r" (&v->counter)
+	: "=&z" (tmp)
 	: "r" (mask), "r" (&v->counter)
 	: "t");
 #else

@@ -105,4 +105,4 @@ static int register_ethertap(void)
 	return 0;
 }
 
-__initcall(register_ethertap);
+late_initcall(register_ethertap);

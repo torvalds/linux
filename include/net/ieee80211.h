@@ -1037,6 +1037,10 @@ struct ieee80211_device {
 	/* host performs multicast decryption */
 	int host_mc_decrypt;
 
+	/* host should strip IV and ICV from protected frames */
+	/* meaningful only when hardware decryption is being used */
+	int host_strip_iv_icv;
+
 	int host_open_frag;
 	int host_build_iv;
 	int ieee802_1x;		/* is IEEE 802.1X used */
@@ -1075,6 +1079,8 @@ struct ieee80211_device {
 
 	int perfect_rssi;
 	int worst_rssi;
+
+	u16 prev_seq_ctl;	/* used to drop duplicate frames */
 
 	/* Callback functions */
 	void (*set_security) (struct net_device * dev,

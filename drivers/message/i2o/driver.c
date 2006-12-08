@@ -34,9 +34,7 @@ static spinlock_t i2o_drivers_lock;
 static struct i2o_driver **i2o_drivers;
 
 /**
- *	i2o_bus_match - Tell if a I2O device class id match the class ids of
- *			the I2O driver (OSM)
- *
+ *	i2o_bus_match - Tell if I2O device class id matches the class ids of the I2O driver (OSM)
  *	@dev: device which should be verified
  *	@drv: the driver to match against
  *
@@ -232,7 +230,7 @@ int i2o_driver_dispatch(struct i2o_controller *c, u32 m)
 			break;
 		}
 
-		INIT_WORK(&evt->work, (void (*)(void *))drv->event, evt);
+		INIT_WORK(&evt->work, drv->event);
 		queue_work(drv->event_queue, &evt->work);
 		return 1;
 	}
@@ -248,7 +246,7 @@ int i2o_driver_dispatch(struct i2o_controller *c, u32 m)
 
 /**
  *	i2o_driver_notify_controller_add_all - Send notify of added controller
- *					       to all I2O drivers
+ *	@c: newly added controller
  *
  *	Send notifications to all registered drivers that a new controller was
  *	added.
@@ -267,8 +265,8 @@ void i2o_driver_notify_controller_add_all(struct i2o_controller *c)
 }
 
 /**
- *	i2o_driver_notify_controller_remove_all - Send notify of removed
- *						  controller to all I2O drivers
+ *	i2o_driver_notify_controller_remove_all - Send notify of removed controller
+ *	@c: controller that is being removed
  *
  *	Send notifications to all registered drivers that a controller was
  *	removed.
@@ -287,8 +285,8 @@ void i2o_driver_notify_controller_remove_all(struct i2o_controller *c)
 }
 
 /**
- *	i2o_driver_notify_device_add_all - Send notify of added device to all
- *					   I2O drivers
+ *	i2o_driver_notify_device_add_all - Send notify of added device
+ *	@i2o_dev: newly added I2O device
  *
  *	Send notifications to all registered drivers that a device was added.
  */
@@ -306,8 +304,8 @@ void i2o_driver_notify_device_add_all(struct i2o_device *i2o_dev)
 }
 
 /**
- *	i2o_driver_notify_device_remove_all - Send notify of removed device to
- *					      all I2O drivers
+ *	i2o_driver_notify_device_remove_all - Send notify of removed device
+ *	@i2o_dev: device that is being removed
  *
  *	Send notifications to all registered drivers that a device was removed.
  */
@@ -362,7 +360,7 @@ int __init i2o_driver_init(void)
 /**
  *	i2o_driver_exit - clean up I2O drivers (OSMs)
  *
- *	Unregisters the I2O bus and free driver array.
+ *	Unregisters the I2O bus and frees driver array.
  */
 void __exit i2o_driver_exit(void)
 {

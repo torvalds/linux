@@ -191,13 +191,13 @@ dma_get_cache_alignment(void)
 }
 
 static inline int
-dma_is_consistent(dma_addr_t dma_addr)
+dma_is_consistent(struct device *dev, dma_addr_t dma_addr)
 {
 	return (hppa_dma_ops->dma_sync_single_for_cpu == NULL);
 }
 
 static inline void
-dma_cache_sync(void *vaddr, size_t size,
+dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	       enum dma_data_direction direction)
 {
 	if(hppa_dma_ops->dma_sync_single_for_cpu)

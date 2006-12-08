@@ -51,7 +51,7 @@
 
 extern int sb1250_steal_irq(int irq);
 
-static unsigned int sb1250_hpt_read(void);
+static cycle_t sb1250_hpt_read(void);
 
 void __init sb1250_hpt_setup(void)
 {
@@ -66,8 +66,8 @@ void __init sb1250_hpt_setup(void)
 			     IOADDR(A_SCD_TIMER_REGISTER(SB1250_HPT_NUM, R_SCD_TIMER_CFG)));
 
 		mips_hpt_frequency = V_SCD_TIMER_FREQ;
-		mips_hpt_read = sb1250_hpt_read;
-		mips_hpt_mask = M_SCD_TIMER_INIT;
+		clocksource_mips.read = sb1250_hpt_read;
+		clocksource_mips.mask = M_SCD_TIMER_INIT;
 	}
 }
 
@@ -143,7 +143,7 @@ void sb1250_timer_interrupt(void)
  * The HPT is free running from SB1250_HPT_VALUE down to 0 then starts over
  * again.
  */
-static unsigned int sb1250_hpt_read(void)
+static cycle_t sb1250_hpt_read(void)
 {
 	unsigned int count;
 

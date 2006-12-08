@@ -12,6 +12,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/list.h>

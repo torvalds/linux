@@ -1,7 +1,7 @@
 
-The cpufreq-nforce2 driver changes the FSB on nVidia nForce2 plattforms.
+The cpufreq-nforce2 driver changes the FSB on nVidia nForce2 platforms.
 
-This works better than on other plattforms, because the FSB of the CPU
+This works better than on other platforms, because the FSB of the CPU
 can be controlled independently from the PCI/AGP clock.
 
 The module has two options:

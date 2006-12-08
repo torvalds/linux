@@ -297,7 +297,7 @@ static int serio_raw_connect(struct serio *serio, struct serio_driver *drv)
 
 	serio_raw->dev.minor = PSMOUSE_MINOR;
 	serio_raw->dev.name = serio_raw->name;
-	serio_raw->dev.dev = &serio->dev;
+	serio_raw->dev.parent = &serio->dev;
 	serio_raw->dev.fops = &serio_raw_fops;
 
 	err = misc_register(&serio_raw->dev);

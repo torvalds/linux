@@ -1,6 +1,11 @@
 /*
  * This is set up by the setup-routine at boot-time
  */
+
+#define COMMAND_LINE_SIZE       512
+
+#ifdef __KERNEL__
+
 #define PARAM			((unsigned char *)empty_zero_page)
 
 #define MOUNT_ROOT_RDONLY	(*(unsigned long *) (PARAM+0x000))
@@ -18,12 +23,12 @@
 
 #define SCREEN_INFO		(*(struct screen_info *) (PARAM+0x200))
 
-#define COMMAND_LINE_SIZE	(512)
-
 #define RAMDISK_IMAGE_START_MASK	(0x07FF)
 #define RAMDISK_PROMPT_FLAG		(0x8000)
 #define RAMDISK_LOAD_FLAG		(0x4000)
 
 extern unsigned long memory_start;
 extern unsigned long memory_end;
+
+#endif  /*  __KERNEL__  */
 

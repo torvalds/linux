@@ -22,10 +22,9 @@
 #include <asm/auxio.h>
 #include <asm/sfafsr.h>
 #include <asm/pil.h>
+#include <asm/unistd.h>
 
 #define curptr      g6
-
-#define NR_SYSCALLS 300      /* Each OS is different... */
 
 	.text
 	.align		32

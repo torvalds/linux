@@ -51,6 +51,14 @@ config GENERIC_TIME
 config ARCH_MAY_HAVE_PC_FDC
 	bool
 
+config STACKTRACE_SUPPORT
+	bool
+	default y
+
+config LOCKDEP_SUPPORT
+	bool
+	default y
+
 source "init/Kconfig"
 
 menu "System type"
@@ -217,7 +225,21 @@ config SH_SHMIN
 	bool "SHMIN"
 	select CPU_SUBTYPE_SH7706
 	help
-	  Select SHMIN if configureing for the SHMIN board
+	  Select SHMIN if configuring for the SHMIN board.
+
+config SH_7206_SOLUTION_ENGINE
+	bool "SolutionEngine7206"
+	select CPU_SUBTYPE_SH7206
+	help
+	  Select 7206 SolutionEngine if configuring for a Hitachi SH7206
+	  evaluation board.
+
+config SH_7619_SOLUTION_ENGINE
+	bool "SolutionEngine7619"
+	select CPU_SUBTYPE_SH7619
+	help
+	  Select 7619 SolutionEngine if configuring for a Hitachi SH7619
+	  evaluation board.
 
 config SH_UNKNOWN
 	bool "BareCPU"
@@ -280,12 +302,20 @@ config CF_BASE_ADDR
 
 menu "Processor features"
 
-config CPU_LITTLE_ENDIAN
-	bool "Little Endian"
+choice
+	prompt "Endianess selection" 
+	default CPU_LITTLE_ENDIAN
 	help
 	  Some SuperH machines can be configured for either little or big
-	  endian byte order. These modes require different kernels. Say Y if
-	  your machine is little endian, N if it's a big endian machine.
+	  endian byte order. These modes require different kernels.
+
+config CPU_LITTLE_ENDIAN
+	bool "Little Endian"
+
+config CPU_BIG_ENDIAN
+	bool "Big Endian"
+
+endchoice
 
 config SH_FPU
 	bool "FPU support"
@@ -345,6 +375,9 @@ config CPU_HAS_MASKREG_IRQ
 config CPU_HAS_INTC2_IRQ
 	bool
 
+config CPU_HAS_IPR_IRQ
+	bool
+
 config CPU_HAS_SR_RB
 	bool "CPU has SR.RB"
 	depends on CPU_SH3 || CPU_SH4
@@ -357,6 +390,9 @@ config CPU_HAS_SR_RB
 	  See <file:Documentation/sh/register-banks.txt> for further
 	  information on SR.RB and register banking in the kernel in general.
 
+config CPU_HAS_PTEA
+	bool
+
 endmenu
 
 menu "Timer support"
@@ -364,9 +400,24 @@ depends on !GENERIC_TIME
 
 config SH_TMU
 	bool "TMU timer support"
+	depends on CPU_SH3 || CPU_SH4
 	default y
 	help
 	  This enables the use of the TMU as the system timer.
+
+config SH_CMT
+	bool "CMT timer support"
+	depends on CPU_SH2
+	default y
+	help
+	  This enables the use of the CMT as the system timer.
+
+config SH_MTU2
+	bool "MTU2 timer support"
+	depends on CPU_SH2A
+	default n
+	help
+	  This enables the use of the MTU2 as the system timer.
 
 endmenu
 
@@ -376,18 +427,51 @@ source "arch/sh/boards/renesas/rts7751r2d/Kconfig"
 
 source "arch/sh/boards/renesas/r7780rp/Kconfig"
 
+config SH_TIMER_IRQ
+	int
+	default "28" if CPU_SUBTYPE_SH7780
+	default "86" if CPU_SUBTYPE_SH7619
+	default "140" if CPU_SUBTYPE_SH7206
+	default "16"
+
+config NO_IDLE_HZ
+	bool "Dynamic tick timer"
+	help
+	  Select this option if you want to disable continuous timer ticks
+	  and have them programmed to occur as required. This option saves
+	  power as the system can remain in idle state for longer.
+
+	  By default dynamic tick is disabled during the boot, and can be
+	  manually enabled with:
+
+	    echo 1 > /sys/devices/system/timer/timer0/dyn_tick
+
+	  Alternatively, if you want dynamic tick automatically enabled
+	  during boot, pass "dyntick=enable" via the kernel command string.
+
+	  Please note that dynamic tick may affect the accuracy of
+	  timekeeping on some platforms depending on the implementation.
+
 config SH_PCLK_FREQ
 	int "Peripheral clock frequency (in Hz)"
+	default "27000000" if CPU_SUBTYPE_SH73180 || CPU_SUBTYPE_SH7343
+	default "31250000" if CPU_SUBTYPE_SH7619
+	default "33333333" if CPU_SUBTYPE_SH7300 || CPU_SUBTYPE_SH7770 || \
+			      CPU_SUBTYPE_SH7760 || CPU_SUBTYPE_SH7705 || \
+			      CPU_SUBTYPE_SH7206
 	default "50000000" if CPU_SUBTYPE_SH7750 || CPU_SUBTYPE_SH7780
 	default "60000000" if CPU_SUBTYPE_SH7751
-	default "33333333" if CPU_SUBTYPE_SH7300 || CPU_SUBTYPE_SH7770 || \
-			      CPU_SUBTYPE_SH7760 || CPU_SUBTYPE_SH7705
-	default "27000000" if CPU_SUBTYPE_SH73180 || CPU_SUBTYPE_SH7343
 	default "66000000" if CPU_SUBTYPE_SH4_202
 	help
 	  This option is used to specify the peripheral clock frequency.
 	  This is necessary for determining the reference clock value on
 	  platforms lacking an RTC.
+
+config SH_CLK_MD
+	int "CPU Mode Pin Setting"
+	depends on CPU_SUBTYPE_SH7619 || CPU_SUBTYPE_SH7206
+	help
+	  MD2 - MD0 Setting.
 
 menu "CPU Frequency scaling"
 
@@ -420,6 +504,8 @@ config HEARTBEAT
 	  Use the power-on LED on your machine as a load meter.  The exact
 	  behavior is platform-dependent, but normally the flash frequency is
 	  a hyperbolic function of the 5-minute load average.
+
+source "arch/sh/drivers/Kconfig"
 
 endmenu
 

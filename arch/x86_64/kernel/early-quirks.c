@@ -45,7 +45,13 @@ static void nvidia_bugs(void)
 	/*
 	 * All timer overrides on Nvidia are
 	 * wrong unless HPET is enabled.
+	 * Unfortunately that's not true on many Asus boards.
+	 * We don't know yet how to detect this automatically, but
+	 * at least allow a command line override.
 	 */
+	if (acpi_use_timer_override)
+		return;
+
 	nvidia_hpet_detected = 0;
 	acpi_table_parse(ACPI_HPET, nvidia_hpet_check);
 	if (nvidia_hpet_detected == 0) {
@@ -53,6 +59,8 @@ static void nvidia_bugs(void)
 		printk(KERN_INFO "Nvidia board "
 		       "detected. Ignoring ACPI "
 		       "timer override.\n");
+		printk(KERN_INFO "If you got timer trouble "
+			"try acpi_use_timer_override\n");
 	}
 #endif
 	/* RED-PEN skip them on mptables too? */
@@ -61,11 +69,18 @@ static void nvidia_bugs(void)
 
 static void ati_bugs(void)
 {
-	if (timer_over_8254 == 1) {
-		timer_over_8254 = 0;
-		printk(KERN_INFO
-	 	"ATI board detected. Disabling timer routing over 8254.\n");
-	}
+}
+
+static void intel_bugs(void)
+{
+	u16 device = read_pci_config_16(0, 0, 0, PCI_DEVICE_ID);
+
+#ifdef CONFIG_SMP
+	if (device == PCI_DEVICE_ID_INTEL_E7320_MCH ||
+	    device == PCI_DEVICE_ID_INTEL_E7520_MCH ||
+	    device == PCI_DEVICE_ID_INTEL_E7525_MCH)
+		quirk_intel_irqbalance();
+#endif
 }
 
 struct chipset {
@@ -77,6 +92,7 @@ static struct chipset early_qrk[] = {
 	{ PCI_VENDOR_ID_NVIDIA, nvidia_bugs },
 	{ PCI_VENDOR_ID_VIA, via_bugs },
 	{ PCI_VENDOR_ID_ATI, ati_bugs },
+	{ PCI_VENDOR_ID_INTEL, intel_bugs},
 	{}
 };
 

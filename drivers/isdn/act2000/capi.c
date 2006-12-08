@@ -627,8 +627,10 @@ handle_ack(act2000_card *card, act2000_chan *chan, __u8 blocknr) {
 }
 
 void
-actcapi_dispatch(act2000_card *card)
+actcapi_dispatch(struct work_struct *work)
 {
+	struct act2000_card *card =
+		container_of(work, struct act2000_card, rcv_tq);
 	struct sk_buff *skb;
 	actcapi_msg *msg;
 	__u16 ccmd;

@@ -45,6 +45,8 @@
 
 #include "ehca_tools.h"
 
+#define EHCA_MAX_MTU 4
+
 /* QP Table Entry Memory Map */
 struct hipz_qptemm {
 	u64 qpx_hcr;

@@ -108,10 +108,6 @@ static int __init mpc834x_itx_probe(void)
 	return 1;
 }
 
-#ifdef CONFIG_RTC_CLASS
-late_initcall(rtc_class_hookup);
-#endif
-
 define_machine(mpc834x_itx) {
 	.name			= "MPC834x ITX",
 	.probe			= mpc834x_itx_probe,
@@ -122,7 +118,4 @@ define_machine(mpc834x_itx) {
 	.time_init		= mpc83xx_time_init,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
-#ifdef CONFIG_PCI
-	.pcibios_fixup		= mpc83xx_pcibios_fixup,
-#endif
 };

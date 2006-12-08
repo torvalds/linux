@@ -15,6 +15,7 @@
  * along with this program; if not, write the Free Software Foundation,
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
+#include "xfs.h"
 #include <linux/stddef.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
@@ -31,7 +32,7 @@
 #include <linux/kthread.h>
 #include <linux/migrate.h>
 #include <linux/backing-dev.h>
-#include "xfs_linux.h"
+#include <linux/freezer.h>
 
 STATIC kmem_zone_t *xfs_buf_zone;
 STATIC kmem_shaker_t xfs_buf_shake;
@@ -994,9 +995,10 @@ xfs_buf_wait_unpin(
 
 STATIC void
 xfs_buf_iodone_work(
-	void			*v)
+	struct work_struct	*work)
 {
-	xfs_buf_t		*bp = (xfs_buf_t *)v;
+	xfs_buf_t		*bp =
+		container_of(work, xfs_buf_t, b_iodone_work);
 
 	if (bp->b_iodone)
 		(*(bp->b_iodone))(bp);
@@ -1017,10 +1019,10 @@ xfs_buf_ioend(
 
 	if ((bp->b_iodone) || (bp->b_flags & XBF_ASYNC)) {
 		if (schedule) {
-			INIT_WORK(&bp->b_iodone_work, xfs_buf_iodone_work, bp);
+			INIT_WORK(&bp->b_iodone_work, xfs_buf_iodone_work);
 			queue_work(xfslogd_workqueue, &bp->b_iodone_work);
 		} else {
-			xfs_buf_iodone_work(bp);
+			xfs_buf_iodone_work(&bp->b_iodone_work);
 		}
 	} else {
 		up(&bp->b_iodonesema);
@@ -1406,7 +1408,7 @@ xfs_alloc_bufhash(
 	btp->bt_hashshift = external ? 3 : 8;	/* 8 or 256 buckets */
 	btp->bt_hashmask = (1 << btp->bt_hashshift) - 1;
 	btp->bt_hash = kmem_zalloc((1 << btp->bt_hashshift) *
-					sizeof(xfs_bufhash_t), KM_SLEEP);
+					sizeof(xfs_bufhash_t), KM_SLEEP | KM_LARGE);
 	for (i = 0; i < (1 << btp->bt_hashshift); i++) {
 		spin_lock_init(&btp->bt_hash[i].bh_lock);
 		INIT_LIST_HEAD(&btp->bt_hash[i].bh_list);
@@ -1825,11 +1827,11 @@ xfs_buf_init(void)
 	if (!xfs_buf_zone)
 		goto out_free_trace_buf;
 
-	xfslogd_workqueue = create_workqueue("xfslogd");
+	xfslogd_workqueue = create_freezeable_workqueue("xfslogd");
 	if (!xfslogd_workqueue)
 		goto out_free_buf_zone;
 
-	xfsdatad_workqueue = create_workqueue("xfsdatad");
+	xfsdatad_workqueue = create_freezeable_workqueue("xfsdatad");
 	if (!xfsdatad_workqueue)
 		goto out_destroy_xfslogd_workqueue;
 

@@ -4,7 +4,15 @@
 #include <linux/mm.h>
 #include <asm/processor.h>
 
-#define __flush_tlb()							\
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#else
+#define __flush_tlb() __native_flush_tlb()
+#define __flush_tlb_global() __native_flush_tlb_global()
+#define __flush_tlb_single(addr) __native_flush_tlb_single(addr)
+#endif
+
+#define __native_flush_tlb()						\
 	do {								\
 		unsigned int tmpreg;					\
 									\
@@ -19,7 +27,7 @@
  * Global pages have to be flushed a bit differently. Not a real
  * performance problem because this does not happen often.
  */
-#define __flush_tlb_global()						\
+#define __native_flush_tlb_global()					\
 	do {								\
 		unsigned int tmpreg, cr4, cr4_orig;			\
 									\
@@ -36,6 +44,9 @@
 			: "memory");					\
 	} while (0)
 
+#define __native_flush_tlb_single(addr) 				\
+	__asm__ __volatile__("invlpg (%0)" ::"r" (addr) : "memory")
+
 # define __flush_tlb_all()						\
 	do {								\
 		if (cpu_has_pge)					\
@@ -45,9 +56,6 @@
 	} while (0)
 
 #define cpu_has_invlpg	(boot_cpu_data.x86 > 3)
-
-#define __flush_tlb_single(addr) \
-	__asm__ __volatile__("invlpg (%0)" ::"r" (addr) : "memory")
 
 #ifdef CONFIG_X86_INVLPG
 # define __flush_tlb_one(addr) __flush_tlb_single(addr)

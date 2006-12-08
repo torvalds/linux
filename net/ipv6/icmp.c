@@ -177,7 +177,8 @@ static inline int icmpv6_xrlim_allow(struct sock *sk, int type,
 	 */
 	dst = ip6_route_output(sk, fl);
 	if (dst->error) {
-		IP6_INC_STATS(IPSTATS_MIB_OUTNOROUTES);
+		IP6_INC_STATS(ip6_dst_idev(dst),
+			      IPSTATS_MIB_OUTNOROUTES);
 	} else if (dst->dev && (dst->dev->flags&IFF_LOOPBACK)) {
 		res = 1;
 	} else {
@@ -233,7 +234,7 @@ static int icmpv6_push_pending_frames(struct sock *sk, struct flowi *fl, struct 
 						      len, fl->proto,
 						      skb->csum);
 	} else {
-		u32 tmp_csum = 0;
+		__wsum tmp_csum = 0;
 
 		skb_queue_walk(&sk->sk_write_queue, skb) {
 			tmp_csum = csum_add(tmp_csum, skb->csum);
@@ -241,13 +242,11 @@ static int icmpv6_push_pending_frames(struct sock *sk, struct flowi *fl, struct 
 
 		tmp_csum = csum_partial((char *)icmp6h,
 					sizeof(struct icmp6hdr), tmp_csum);
-		tmp_csum = csum_ipv6_magic(&fl->fl6_src,
-					   &fl->fl6_dst,
-					   len, fl->proto, tmp_csum);
-		icmp6h->icmp6_cksum = tmp_csum;
+		icmp6h->icmp6_cksum = csum_ipv6_magic(&fl->fl6_src,
+						      &fl->fl6_dst,
+						      len, fl->proto,
+						      tmp_csum);
 	}
-	if (icmp6h->icmp6_cksum == 0)
-		icmp6h->icmp6_cksum = -1;
 	ip6_push_pending_frames(sk);
 out:
 	return err;
@@ -263,7 +262,7 @@ static int icmpv6_getfrag(void *from, char *to, int offset, int len, int odd, st
 {
 	struct icmpv6_msg *msg = (struct icmpv6_msg *) from;
 	struct sk_buff *org_skb = msg->skb;
-	__u32 csum = 0;
+	__wsum csum = 0;
 
 	csum = skb_copy_and_csum_bits(org_skb, msg->offset + offset,
 				      to, len, csum);
@@ -555,7 +554,7 @@ out:
 	icmpv6_xmit_unlock();
 }
 
-static void icmpv6_notify(struct sk_buff *skb, int type, int code, u32 info)
+static void icmpv6_notify(struct sk_buff *skb, int type, int code, __be32 info)
 {
 	struct in6_addr *saddr, *daddr;
 	struct inet6_protocol *ipprot;
@@ -637,8 +636,8 @@ static int icmpv6_rcv(struct sk_buff **pskb)
 			break;
 		/* fall through */
 	case CHECKSUM_NONE:
-		skb->csum = ~csum_ipv6_magic(saddr, daddr, skb->len,
-					     IPPROTO_ICMPV6, 0);
+		skb->csum = ~csum_unfold(csum_ipv6_magic(saddr, daddr, skb->len,
+					     IPPROTO_ICMPV6, 0));
 		if (__skb_checksum_complete(skb)) {
 			LIMIT_NETDEBUG(KERN_DEBUG "ICMPv6 checksum failed [" NIP6_FMT " > " NIP6_FMT "]\n",
 				       NIP6(*saddr), NIP6(*daddr));

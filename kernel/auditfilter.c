@@ -636,10 +636,9 @@ static struct audit_rule *audit_krule_to_rule(struct audit_krule *krule)
 	struct audit_rule *rule;
 	int i;
 
-	rule = kmalloc(sizeof(*rule), GFP_KERNEL);
+	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
 	if (unlikely(!rule))
 		return NULL;
-	memset(rule, 0, sizeof(*rule));
 
 	rule->flags = krule->flags | krule->listnr;
 	rule->action = krule->action;

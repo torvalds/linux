@@ -226,7 +226,6 @@ static int sg_io(struct file *file, request_queue_t *q,
 	unsigned long start_time;
 	int writing = 0, ret = 0;
 	struct request *rq;
-	struct bio *bio;
 	char sense[SCSI_SENSE_BUFFERSIZE];
 	unsigned char cmd[BLK_MAX_CDB];
 
@@ -246,10 +245,10 @@ static int sg_io(struct file *file, request_queue_t *q,
 		switch (hdr->dxfer_direction) {
 		default:
 			return -EINVAL;
-		case SG_DXFER_TO_FROM_DEV:
 		case SG_DXFER_TO_DEV:
 			writing = 1;
 			break;
+		case SG_DXFER_TO_FROM_DEV:
 		case SG_DXFER_FROM_DEV:
 			break;
 		}
@@ -257,6 +256,32 @@ static int sg_io(struct file *file, request_queue_t *q,
 	rq = blk_get_request(q, writing ? WRITE : READ, GFP_KERNEL);
 	if (!rq)
 		return -ENOMEM;
+
+	/*
+	 * fill in request structure
+	 */
+	rq->cmd_len = hdr->cmd_len;
+	memset(rq->cmd, 0, BLK_MAX_CDB); /* ATAPI hates garbage after CDB */
+	memcpy(rq->cmd, cmd, hdr->cmd_len);
+
+	memset(sense, 0, sizeof(sense));
+	rq->sense = sense;
+	rq->sense_len = 0;
+
+	rq->cmd_type = REQ_TYPE_BLOCK_PC;
+
+	/*
+	 * bounce this after holding a reference to the original bio, it's
+	 * needed for proper unmapping
+	 */
+	if (rq->bio)
+		blk_queue_bounce(q, &rq->bio);
+
+	rq->timeout = jiffies_to_msecs(hdr->timeout);
+	if (!rq->timeout)
+		rq->timeout = q->sg_timeout;
+	if (!rq->timeout)
+		rq->timeout = BLK_DEFAULT_TIMEOUT;
 
 	if (hdr->iovec_count) {
 		const int size = sizeof(struct sg_iovec) * hdr->iovec_count;
@@ -274,41 +299,14 @@ static int sg_io(struct file *file, request_queue_t *q,
 			goto out;
 		}
 
-		ret = blk_rq_map_user_iov(q, rq, iov, hdr->iovec_count);
+		ret = blk_rq_map_user_iov(q, rq, iov, hdr->iovec_count,
+					  hdr->dxfer_len);
 		kfree(iov);
 	} else if (hdr->dxfer_len)
 		ret = blk_rq_map_user(q, rq, hdr->dxferp, hdr->dxfer_len);
 
 	if (ret)
 		goto out;
-
-	/*
-	 * fill in request structure
-	 */
-	rq->cmd_len = hdr->cmd_len;
-	memcpy(rq->cmd, cmd, hdr->cmd_len);
-	if (sizeof(rq->cmd) != hdr->cmd_len)
-		memset(rq->cmd + hdr->cmd_len, 0, sizeof(rq->cmd) - hdr->cmd_len);
-
-	memset(sense, 0, sizeof(sense));
-	rq->sense = sense;
-	rq->sense_len = 0;
-
-	rq->cmd_type = REQ_TYPE_BLOCK_PC;
-	bio = rq->bio;
-
-	/*
-	 * bounce this after holding a reference to the original bio, it's
-	 * needed for proper unmapping
-	 */
-	if (rq->bio)
-		blk_queue_bounce(q, &rq->bio);
-
-	rq->timeout = (hdr->timeout * HZ) / 1000;
-	if (!rq->timeout)
-		rq->timeout = q->sg_timeout;
-	if (!rq->timeout)
-		rq->timeout = BLK_DEFAULT_TIMEOUT;
 
 	rq->retries = 0;
 
@@ -340,7 +338,7 @@ static int sg_io(struct file *file, request_queue_t *q,
 			hdr->sb_len_wr = len;
 	}
 
-	if (blk_rq_unmap_user(bio, hdr->dxfer_len))
+	if (blk_rq_unmap_user(rq))
 		ret = -EFAULT;
 
 	/* may not have succeeded, but output values written to control
