@@ -20,6 +20,7 @@
 #include <linux/moduleloader.h>
 #include <linux/err.h>
 #include <linux/vmalloc.h>
+#include <linux/bug.h>
 #include <asm/module.h>
 #include <asm/uaccess.h>
 #include <asm/firmware.h>
@@ -439,23 +440,11 @@ int module_finalize(const Elf_Ehdr *hdr,
 		const Elf_Shdr *sechdrs, struct module *me)
 {
 	const Elf_Shdr *sect;
+	int err;
 
-	me->arch.bug_table = NULL;
-	me->arch.num_bugs = 0;
-
-	/* Find the __bug_table section, if present */
-	sect = find_section(hdr, sechdrs, "__bug_table");
-	if (sect != NULL) {
-		me->arch.bug_table = (void *) sect->sh_addr;
-		me->arch.num_bugs = sect->sh_size / sizeof(struct bug_entry);
-	}
-
-	/*
-	 * Strictly speaking this should have a spinlock to protect against
-	 * traversals, but since we only traverse on BUG()s, a spinlock
-	 * could potentially lead to deadlock and thus be counter-productive.
-	 */
-	list_add(&me->arch.bug_list, &module_bug_list);
+	err = module_bug_finalize(hdr, sechdrs, me);
+	if (err)
+		return err;
 
 	/* Apply feature fixups */
 	sect = find_section(hdr, sechdrs, "__ftr_fixup");
@@ -475,7 +464,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 
 void module_arch_cleanup(struct module *mod)
 {
-	list_del(&mod->arch.bug_list);
+	module_bug_cleanup(mod);
 }
 
 struct bug_entry *module_find_bug(unsigned long bugaddr)

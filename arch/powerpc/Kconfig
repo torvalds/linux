@@ -99,6 +99,11 @@ config AUDIT_ARCH
 	bool
 	default y
 
+config GENERIC_BUG
+	bool
+	default y
+	depends on BUG
+
 config DEFAULT_UIMAGE
 	bool
 	help

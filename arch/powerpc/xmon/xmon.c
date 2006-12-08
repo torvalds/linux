@@ -22,6 +22,7 @@
 #include <linux/sysrq.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/bug.h>
 
 #include <asm/ptrace.h>
 #include <asm/string.h>
@@ -35,7 +36,6 @@
 #include <asm/cputable.h>
 #include <asm/rtas.h>
 #include <asm/sstep.h>
-#include <asm/bug.h>
 #include <asm/irq_regs.h>
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>
@@ -1346,7 +1346,7 @@ static void backtrace(struct pt_regs *excp)
 
 static void print_bug_trap(struct pt_regs *regs)
 {
-	struct bug_entry *bug;
+	const struct bug_entry *bug;
 	unsigned long addr;
 
 	if (regs->msr & MSR_PR)
@@ -1357,11 +1357,11 @@ static void print_bug_trap(struct pt_regs *regs)
 	bug = find_bug(regs->nip);
 	if (bug == NULL)
 		return;
-	if (bug->line & BUG_WARNING_TRAP)
+	if (is_warning_bug(bug))
 		return;
 
-	printf("kernel BUG in %s at %s:%d!\n",
-	       bug->function, bug->file, (unsigned int)bug->line);
+	printf("kernel BUG at %s:%u!\n",
+	       bug->file, bug->line);
 }
 
 void excprint(struct pt_regs *fp)
