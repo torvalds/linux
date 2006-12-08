@@ -6,7 +6,7 @@ comment "USB Input Devices"
 
 config USB_HID
 	tristate "USB Human Interface Device (full HID) support"
-	depends on USB
+	depends on USB && BROKEN
 	---help---
 	  Say Y here if you want full HID support to connect keyboards,
 	  mice, joysticks, graphic tablets, or any other HID based devices
