@@ -267,9 +267,9 @@ static void macb_update_stats(struct macb *bp)
 		*p += readl(reg);
 }
 
-static void macb_periodic_task(void *arg)
+static void macb_periodic_task(struct work_struct *work)
 {
-	struct macb *bp = arg;
+	struct macb *bp = container_of(work, struct macb, periodic_task.work);
 
 	macb_update_stats(bp);
 	macb_check_media(bp, 1, 0);
@@ -1088,7 +1088,7 @@ static int __devinit macb_probe(struct platform_device *pdev)
 
 	dev->base_addr = regs->start;
 
-	INIT_WORK(&bp->periodic_task, macb_periodic_task, bp);
+	INIT_DELAYED_WORK(&bp->periodic_task, macb_periodic_task);
 	mutex_init(&bp->mdio_mutex);
 	init_completion(&bp->mdio_complete);
 

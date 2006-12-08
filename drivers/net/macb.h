@@ -377,7 +377,7 @@ struct macb {
 
 	unsigned int		rx_pending, tx_pending;
 
-	struct work_struct	periodic_task;
+	struct delayed_work	periodic_task;
 
 	struct mutex		mdio_mutex;
 	struct completion	mdio_complete;
