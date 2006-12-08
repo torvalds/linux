@@ -244,7 +244,7 @@ static const struct reiserfs_key MAX_KEY = {
    of the path, and going upwards.  We must check the path's validity at each step.  If the key is not in
    the path, there is no delimiting key in the tree (buffer is first or last buffer in tree), and in this
    case we return a special key, either MIN_KEY or MAX_KEY. */
-static inline const struct reiserfs_key *get_lkey(const struct path
+static inline const struct reiserfs_key *get_lkey(const struct treepath
 						  *p_s_chk_path,
 						  const struct super_block
 						  *p_s_sb)
@@ -290,7 +290,7 @@ static inline const struct reiserfs_key *get_lkey(const struct path
 }
 
 /* Get delimiting key of the buffer at the path and its right neighbor. */
-inline const struct reiserfs_key *get_rkey(const struct path *p_s_chk_path,
+inline const struct reiserfs_key *get_rkey(const struct treepath *p_s_chk_path,
 					   const struct super_block *p_s_sb)
 {
 	int n_position, n_path_offset = p_s_chk_path->path_length;
@@ -337,7 +337,7 @@ inline const struct reiserfs_key *get_rkey(const struct path *p_s_chk_path,
    the path.  These delimiting keys are stored at least one level above that buffer in the tree. If the
    buffer is the first or last node in the tree order then one of the delimiting keys may be absent, and in
    this case get_lkey and get_rkey return a special key which is MIN_KEY or MAX_KEY. */
-static inline int key_in_buffer(struct path *p_s_chk_path,	/* Path which should be checked.  */
+static inline int key_in_buffer(struct treepath *p_s_chk_path,	/* Path which should be checked.  */
 				const struct cpu_key *p_s_key,	/* Key which should be checked.   */
 				struct super_block *p_s_sb	/* Super block pointer.           */
     )
@@ -374,7 +374,7 @@ inline void decrement_bcount(struct buffer_head *p_s_bh)
 }
 
 /* Decrement b_count field of the all buffers in the path. */
-void decrement_counters_in_path(struct path *p_s_search_path)
+void decrement_counters_in_path(struct treepath *p_s_search_path)
 {
 	int n_path_offset = p_s_search_path->path_length;
 
@@ -391,7 +391,7 @@ void decrement_counters_in_path(struct path *p_s_search_path)
 	p_s_search_path->path_length = ILLEGAL_PATH_ELEMENT_OFFSET;
 }
 
-int reiserfs_check_path(struct path *p)
+int reiserfs_check_path(struct treepath *p)
 {
 	RFALSE(p->path_length != ILLEGAL_PATH_ELEMENT_OFFSET,
 	       "path not properly relsed");
@@ -403,7 +403,7 @@ int reiserfs_check_path(struct path *p)
 **
 ** only called from fix_nodes()
 */
-void pathrelse_and_restore(struct super_block *s, struct path *p_s_search_path)
+void pathrelse_and_restore(struct super_block *s, struct treepath *p_s_search_path)
 {
 	int n_path_offset = p_s_search_path->path_length;
 
@@ -421,7 +421,7 @@ void pathrelse_and_restore(struct super_block *s, struct path *p_s_search_path)
 }
 
 /* Release all buffers in the path. */
-void pathrelse(struct path *p_s_search_path)
+void pathrelse(struct treepath *p_s_search_path)
 {
 	int n_path_offset = p_s_search_path->path_length;
 
@@ -602,7 +602,7 @@ static void search_by_key_reada(struct super_block *s,
    correctness of the bottom of the path */
 /* The function is NOT SCHEDULE-SAFE! */
 int search_by_key(struct super_block *p_s_sb, const struct cpu_key *p_s_key,	/* Key to search. */
-		  struct path *p_s_search_path,	/* This structure was
+		  struct treepath *p_s_search_path,/* This structure was
 						   allocated and initialized
 						   by the calling
 						   function. It is filled up
@@ -813,7 +813,7 @@ int search_by_key(struct super_block *p_s_sb, const struct cpu_key *p_s_key,	/* 
 /* The function is NOT SCHEDULE-SAFE! */
 int search_for_position_by_key(struct super_block *p_s_sb,	/* Pointer to the super block.          */
 			       const struct cpu_key *p_cpu_key,	/* Key to search (cpu variable)         */
-			       struct path *p_s_search_path	/* Filled up by this function.          */
+			       struct treepath *p_s_search_path	/* Filled up by this function.          */
     )
 {
 	struct item_head *p_le_ih;	/* pointer to on-disk structure */
@@ -884,7 +884,7 @@ int search_for_position_by_key(struct super_block *p_s_sb,	/* Pointer to the sup
 }
 
 /* Compare given item and item pointed to by the path. */
-int comp_items(const struct item_head *stored_ih, const struct path *p_s_path)
+int comp_items(const struct item_head *stored_ih, const struct treepath *p_s_path)
 {
 	struct buffer_head *p_s_bh;
 	struct item_head *ih;
@@ -911,7 +911,7 @@ int comp_items(const struct item_head *stored_ih, const struct path *p_s_path)
 #define block_in_use(bh) (buffer_locked(bh) || (held_by_others(bh)))
 
 // prepare for delete or cut of direct item
-static inline int prepare_for_direct_item(struct path *path,
+static inline int prepare_for_direct_item(struct treepath *path,
 					  struct item_head *le_ih,
 					  struct inode *inode,
 					  loff_t new_file_length, int *cut_size)
@@ -952,7 +952,7 @@ static inline int prepare_for_direct_item(struct path *path,
 	return M_CUT;		/* Cut from this item. */
 }
 
-static inline int prepare_for_direntry_item(struct path *path,
+static inline int prepare_for_direntry_item(struct treepath *path,
 					    struct item_head *le_ih,
 					    struct inode *inode,
 					    loff_t new_file_length,
@@ -987,7 +987,7 @@ static inline int prepare_for_direntry_item(struct path *path,
     In case of file truncate calculate whether this item must be deleted/truncated or last
     unformatted node of this item will be converted to a direct item.
     This function returns a determination of what balance mode the calling function should employ. */
-static char prepare_for_delete_or_cut(struct reiserfs_transaction_handle *th, struct inode *inode, struct path *p_s_path, const struct cpu_key *p_s_item_key, int *p_n_removed,	/* Number of unformatted nodes which were removed
+static char prepare_for_delete_or_cut(struct reiserfs_transaction_handle *th, struct inode *inode, struct treepath *p_s_path, const struct cpu_key *p_s_item_key, int *p_n_removed,	/* Number of unformatted nodes which were removed
 																						   from end of the file. */
 				      int *p_n_cut_size, unsigned long long n_new_file_length	/* MAX_KEY_OFFSET in case of delete. */
     )
@@ -1125,7 +1125,7 @@ static int calc_deleted_bytes_number(struct tree_balance *p_s_tb, char c_mode)
 static void init_tb_struct(struct reiserfs_transaction_handle *th,
 			   struct tree_balance *p_s_tb,
 			   struct super_block *p_s_sb,
-			   struct path *p_s_path, int n_size)
+			   struct treepath *p_s_path, int n_size)
 {
 
 	BUG_ON(!th->t_trans_id);
@@ -1176,7 +1176,7 @@ char head2type(struct item_head *ih)
 #endif
 
 /* Delete object item. */
-int reiserfs_delete_item(struct reiserfs_transaction_handle *th, struct path *p_s_path,	/* Path to the deleted item. */
+int reiserfs_delete_item(struct reiserfs_transaction_handle *th, struct treepath *p_s_path,	/* Path to the deleted item. */
 			 const struct cpu_key *p_s_item_key,	/* Key to search for the deleted item.  */
 			 struct inode *p_s_inode,	/* inode is here just to update i_blocks and quotas */
 			 struct buffer_head *p_s_un_bh)
@@ -1468,7 +1468,7 @@ static void unmap_buffers(struct page *page, loff_t pos)
 static int maybe_indirect_to_direct(struct reiserfs_transaction_handle *th,
 				    struct inode *p_s_inode,
 				    struct page *page,
-				    struct path *p_s_path,
+				    struct treepath *p_s_path,
 				    const struct cpu_key *p_s_item_key,
 				    loff_t n_new_file_size, char *p_c_mode)
 {
@@ -1503,7 +1503,7 @@ static int maybe_indirect_to_direct(struct reiserfs_transaction_handle *th,
    pointer being converted. Therefore we have to delete inserted
    direct item(s) */
 static void indirect_to_direct_roll_back(struct reiserfs_transaction_handle *th,
-					 struct inode *inode, struct path *path)
+					 struct inode *inode, struct treepath *path)
 {
 	struct cpu_key tail_key;
 	int tail_len;
@@ -1545,7 +1545,7 @@ static void indirect_to_direct_roll_back(struct reiserfs_transaction_handle *th,
 
 /* (Truncate or cut entry) or delete object item. Returns < 0 on failure */
 int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
-			   struct path *p_s_path,
+			   struct treepath *p_s_path,
 			   struct cpu_key *p_s_item_key,
 			   struct inode *p_s_inode,
 			   struct page *page, loff_t n_new_file_size)
@@ -1920,7 +1920,7 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th, struct inode *p
 
 #ifdef CONFIG_REISERFS_CHECK
 // this makes sure, that we __append__, not overwrite or add holes
-static void check_research_for_paste(struct path *path,
+static void check_research_for_paste(struct treepath *path,
 				     const struct cpu_key *p_s_key)
 {
 	struct item_head *found_ih = get_ih(path);
@@ -1954,7 +1954,7 @@ static void check_research_for_paste(struct path *path,
 #endif				/* config reiserfs check */
 
 /* Paste bytes to the existing item. Returns bytes number pasted into the item. */
-int reiserfs_paste_into_item(struct reiserfs_transaction_handle *th, struct path *p_s_search_path,	/* Path to the pasted item.          */
+int reiserfs_paste_into_item(struct reiserfs_transaction_handle *th, struct treepath *p_s_search_path,	/* Path to the pasted item.          */
 			     const struct cpu_key *p_s_key,	/* Key to search for the needed item. */
 			     struct inode *inode,	/* Inode item belongs to */
 			     const char *p_c_body,	/* Pointer to the bytes to paste.    */
@@ -2036,7 +2036,7 @@ int reiserfs_paste_into_item(struct reiserfs_transaction_handle *th, struct path
 }
 
 /* Insert new item into the buffer at the path. */
-int reiserfs_insert_item(struct reiserfs_transaction_handle *th, struct path *p_s_path,	/* Path to the inserteded item.         */
+int reiserfs_insert_item(struct reiserfs_transaction_handle *th, struct treepath *p_s_path,	/* Path to the inserteded item.         */
 			 const struct cpu_key *key, struct item_head *p_s_ih,	/* Pointer to the item header to insert. */
 			 struct inode *inode, const char *p_c_body)
 {				/* Pointer to the bytes to insert.      */
