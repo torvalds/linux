@@ -168,7 +168,7 @@ static inline void shm_inc(struct ipc_namespace *ns, int id)
 static void shm_open(struct vm_area_struct *shmd)
 {
 	shm_inc(shm_file_ns(shmd->vm_file),
-			shmd->vm_file->f_dentry->d_inode->i_ino);
+			shmd->vm_file->f_path.dentry->d_inode->i_ino);
 }
 
 /*
@@ -187,7 +187,7 @@ static void shm_destroy(struct ipc_namespace *ns, struct shmid_kernel *shp)
 	if (!is_file_hugepages(shp->shm_file))
 		shmem_lock(shp->shm_file, 0, shp->mlock_user);
 	else
-		user_shm_unlock(shp->shm_file->f_dentry->d_inode->i_size,
+		user_shm_unlock(shp->shm_file->f_path.dentry->d_inode->i_size,
 						shp->mlock_user);
 	fput (shp->shm_file);
 	security_shm_free(shp);
@@ -203,7 +203,7 @@ static void shm_destroy(struct ipc_namespace *ns, struct shmid_kernel *shp)
 static void shm_close (struct vm_area_struct *shmd)
 {
 	struct file * file = shmd->vm_file;
-	int id = file->f_dentry->d_inode->i_ino;
+	int id = file->f_path.dentry->d_inode->i_ino;
 	struct shmid_kernel *shp;
 	struct ipc_namespace *ns;
 
@@ -233,7 +233,7 @@ static int shm_mmap(struct file * file, struct vm_area_struct * vma)
 		vma->vm_ops = &shm_vm_ops;
 		if (!(vma->vm_flags & VM_WRITE))
 			vma->vm_flags &= ~VM_MAYWRITE;
-		shm_inc(shm_file_ns(file), file->f_dentry->d_inode->i_ino);
+		shm_inc(shm_file_ns(file), file->f_path.dentry->d_inode->i_ino);
 	}
 
 	return ret;
@@ -330,7 +330,7 @@ static int newseg (struct ipc_namespace *ns, key_t key, int shmflg, size_t size)
 	shp->shm_nattch = 0;
 	shp->id = shm_buildid(ns, id, shp->shm_perm.seq);
 	shp->shm_file = file;
-	file->f_dentry->d_inode->i_ino = shp->id;
+	file->f_path.dentry->d_inode->i_ino = shp->id;
 
 	shm_file_ns(file) = get_ipc_ns(ns);
 
@@ -495,7 +495,7 @@ static void shm_get_stat(struct ipc_namespace *ns, unsigned long *rss,
 		if(!shp)
 			continue;
 
-		inode = shp->shm_file->f_dentry->d_inode;
+		inode = shp->shm_file->f_path.dentry->d_inode;
 
 		if (is_file_hugepages(shp->shm_file)) {
 			struct address_space *mapping = inode->i_mapping;
@@ -843,7 +843,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr)
 	}
 		
 	file = shp->shm_file;
-	size = i_size_read(file->f_dentry->d_inode);
+	size = i_size_read(file->f_path.dentry->d_inode);
 	shp->shm_nattch++;
 	shm_unlock(shp);
 
@@ -948,7 +948,7 @@ asmlinkage long sys_shmdt(char __user *shmaddr)
 			(vma->vm_start - addr)/PAGE_SIZE == vma->vm_pgoff) {
 
 
-			size = vma->vm_file->f_dentry->d_inode->i_size;
+			size = vma->vm_file->f_path.dentry->d_inode->i_size;
 			do_munmap(mm, vma->vm_start, vma->vm_end - vma->vm_start);
 			/*
 			 * We discovered the size of the shm segment, so
