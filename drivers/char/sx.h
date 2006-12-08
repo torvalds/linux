@@ -35,6 +35,7 @@ struct sx_board {
   void __iomem *base;
   void __iomem *base2;
   unsigned long hw_base;
+  resource_size_t hw_len;
   int eisa_base;
   int port_base; /* Number of the first port */
   struct sx_port *ports;

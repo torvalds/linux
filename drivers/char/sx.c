@@ -2497,10 +2497,13 @@ static void __devexit sx_remove_card(struct sx_board *board,
 
 		/* It is safe/allowed to del_timer a non-active timer */
 		del_timer(&board->timer);
-		if (pdev)
+		if (pdev) {
 			pci_iounmap(pdev, board->base);
-		else
+			pci_release_region(pdev, IS_CF_BOARD(board) ? 3 : 2);
+		} else {
 			iounmap(board->base);
+			release_region(board->hw_base, board->hw_len);
+		}
 
 		board->flags &= ~(SX_BOARD_INITIALIZED | SX_BOARD_PRESENT);
 	}
@@ -2538,8 +2541,17 @@ static int __devinit sx_eisa_probe(struct device *dev)
 
 	board->hw_base = ((inb(eisa_slot + 0xc01) << 8) +
 			  inb(eisa_slot + 0xc00)) << 16;
+	board->hw_len = SI2_EISA_WINDOW_LEN;
+	if (!request_region(board->hw_base, board->hw_len, "sx")) {
+		dev_err(dev, "can't request region\n");
+		goto err_flag;
+	}
 	board->base2 =
 	board->base = ioremap(board->hw_base, SI2_EISA_WINDOW_LEN);
+	if (!board->base) {
+		dev_err(dev, "can't remap memory\n");
+		goto err_reg;
+	}
 
 	sx_dprintk(SX_DEBUG_PROBE, "IO hw_base address: %lx\n", board->hw_base);
 	sx_dprintk(SX_DEBUG_PROBE, "base: %p\n", board->base);
@@ -2554,6 +2566,9 @@ static int __devinit sx_eisa_probe(struct device *dev)
 	return 0;
 err_unmap:
 	iounmap(board->base);
+err_reg:
+	release_region(board->hw_base, board->hw_len);
+err_flag:
 	board->flags &= ~SX_BOARD_PRESENT;
 err:
 	return retval;
@@ -2645,12 +2660,17 @@ static int __devinit sx_pci_probe(struct pci_dev *pdev,
 
 	/* CF boards use base address 3.... */
 	reg = IS_CF_BOARD(board) ? 3 : 2;
+	retval = pci_request_region(pdev, reg, "sx");
+	if (retval) {
+		dev_err(&pdev->dev, "can't request region\n");
+		goto err_flag;
+	}
 	board->hw_base = pci_resource_start(pdev, reg);
 	board->base2 =
 	board->base = pci_iomap(pdev, reg, WINDOW_LEN(board));
 	if (!board->base) {
 		dev_err(&pdev->dev, "ioremap failed\n");
-		goto err_flag;
+		goto err_reg;
 	}
 
 	/* Most of the stuff on the CF board is offset by 0x18000 ....  */
@@ -2674,6 +2694,8 @@ static int __devinit sx_pci_probe(struct pci_dev *pdev,
 	return 0;
 err_unmap:
 	pci_iounmap(pdev, board->base);
+err_reg:
+	pci_release_region(pdev, reg);
 err_flag:
 	board->flags &= ~SX_BOARD_PRESENT;
 err:
@@ -2736,8 +2758,13 @@ static int __init sx_init(void)
 	for (i = 0; i < NR_SX_ADDRS; i++) {
 		board = &boards[found];
 		board->hw_base = sx_probe_addrs[i];
+		board->hw_len = SX_WINDOW_LEN;
+		if (!request_region(board->hw_base, board->hw_len, "sx"))
+			continue;
 		board->base2 =
-		board->base = ioremap(board->hw_base, SX_WINDOW_LEN);
+		board->base = ioremap(board->hw_base, board->hw_len);
+		if (!board->base)
+			goto err_sx_reg;
 		board->flags &= ~SX_BOARD_TYPE;
 		board->flags |= SX_ISA_BOARD;
 		board->irq = sx_irqmask ? -1 : 0;
@@ -2747,14 +2774,21 @@ static int __init sx_init(void)
 			found++;
 		} else {
 			iounmap(board->base);
+err_sx_reg:
+			release_region(board->hw_base, board->hw_len);
 		}
 	}
 
 	for (i = 0; i < NR_SI_ADDRS; i++) {
 		board = &boards[found];
 		board->hw_base = si_probe_addrs[i];
+		board->hw_len = SI2_ISA_WINDOW_LEN;
+		if (!request_region(board->hw_base, board->hw_len, "sx"))
+			continue;
 		board->base2 =
-		board->base = ioremap(board->hw_base, SI2_ISA_WINDOW_LEN);
+		board->base = ioremap(board->hw_base, board->hw_len);
+		if (!board->base)
+			goto err_si_reg;
 		board->flags &= ~SX_BOARD_TYPE;
 		board->flags |= SI_ISA_BOARD;
 		board->irq = sx_irqmask ? -1 : 0;
@@ -2764,13 +2798,20 @@ static int __init sx_init(void)
 			found++;
 		} else {
 			iounmap(board->base);
+err_si_reg:
+			release_region(board->hw_base, board->hw_len);
 		}
 	}
 	for (i = 0; i < NR_SI1_ADDRS; i++) {
 		board = &boards[found];
 		board->hw_base = si1_probe_addrs[i];
+		board->hw_len = SI1_ISA_WINDOW_LEN;
+		if (!request_region(board->hw_base, board->hw_len, "sx"))
+			continue;
 		board->base2 =
-		board->base = ioremap(board->hw_base, SI1_ISA_WINDOW_LEN);
+		board->base = ioremap(board->hw_base, board->hw_len);
+		if (!board->base)
+			goto err_si1_reg;
 		board->flags &= ~SX_BOARD_TYPE;
 		board->flags |= SI1_ISA_BOARD;
 		board->irq = sx_irqmask ? -1 : 0;
@@ -2780,6 +2821,8 @@ static int __init sx_init(void)
 			found++;
 		} else {
 			iounmap(board->base);
+err_si1_reg:
+			release_region(board->hw_base, board->hw_len);
 		}
 	}
 #endif
