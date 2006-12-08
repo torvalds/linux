@@ -482,9 +482,13 @@ static int clone_endio(struct bio *bio, unsigned int done, int error)
 		r = endio(tio->ti, bio, error, &tio->info);
 		if (r < 0)
 			error = r;
-		else if (r > 0)
-			/* the target wants another shot at the io */
+		else if (r == DM_ENDIO_INCOMPLETE)
+			/* The target will handle the io */
 			return 1;
+		else if (r) {
+			DMWARN("unimplemented target endio return value: %d", r);
+			BUG();
+		}
 	}
 
 	dec_pending(tio->io, error);
@@ -542,7 +546,7 @@ static void __map_bio(struct dm_target *ti, struct bio *clone,
 	atomic_inc(&tio->io->io_count);
 	sector = clone->bi_sector;
 	r = ti->type->map(ti, clone, &tio->info);
-	if (r > 0) {
+	if (r == DM_MAPIO_REMAPPED) {
 		/* the bio has been remapped so dispatch it */
 
 		blk_add_trace_remap(bdev_get_queue(clone->bi_bdev), clone,
@@ -560,6 +564,9 @@ static void __map_bio(struct dm_target *ti, struct bio *clone,
 		clone->bi_private = md->bs;
 		bio_put(clone);
 		free_tio(md, tio);
+	} else if (r) {
+		DMWARN("unimplemented target map return value: %d", r);
+		BUG();
 	}
 }
 
