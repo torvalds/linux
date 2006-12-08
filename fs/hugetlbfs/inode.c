@@ -58,7 +58,7 @@ static void huge_pagevec_release(struct pagevec *pvec)
 
 static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	loff_t len, vma_len;
 	int ret;
 
@@ -774,8 +774,8 @@ struct file *hugetlb_zero_setup(size_t size)
 	d_instantiate(dentry, inode);
 	inode->i_size = size;
 	inode->i_nlink = 0;
-	file->f_vfsmnt = mntget(hugetlbfs_vfsmount);
-	file->f_dentry = dentry;
+	file->f_path.mnt = mntget(hugetlbfs_vfsmount);
+	file->f_path.dentry = dentry;
 	file->f_mapping = inode->i_mapping;
 	file->f_op = &hugetlbfs_file_operations;
 	file->f_mode = FMODE_WRITE | FMODE_READ;
