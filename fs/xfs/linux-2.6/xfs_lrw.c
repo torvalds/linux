@@ -805,7 +805,7 @@ start:
 	     !capable(CAP_FSETID)) {
 		error = xfs_write_clear_setuid(xip);
 		if (likely(!error))
-			error = -remove_suid(file->f_dentry);
+			error = -remove_suid(file->f_path.dentry);
 		if (unlikely(error)) {
 			xfs_iunlock(xip, iolock);
 			goto out_unlock_mutex;
