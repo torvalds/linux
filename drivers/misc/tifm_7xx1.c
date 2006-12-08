@@ -201,11 +201,12 @@ static void tifm_7xx1_insert_media(struct work_struct *work)
 						       fm->max_sockets == 2);
 		if (media_id) {
 			ok_to_register = 0;
-			new_sock = tifm_alloc_device(fm, cnt);
+			new_sock = tifm_alloc_device(fm);
 			if (new_sock) {
 				new_sock->addr = tifm_7xx1_sock_addr(fm->addr,
 									cnt);
 				new_sock->media_id = media_id;
+				new_sock->socket_id = cnt;
 				switch (media_id) {
 				case 1:
 					card_name = "xd";

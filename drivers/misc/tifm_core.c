@@ -141,24 +141,17 @@ EXPORT_SYMBOL(tifm_remove_adapter);
 void tifm_free_device(struct device *dev)
 {
 	struct tifm_dev *fm_dev = container_of(dev, struct tifm_dev, dev);
-	if (fm_dev->wq)
-		destroy_workqueue(fm_dev->wq);
 	kfree(fm_dev);
 }
 EXPORT_SYMBOL(tifm_free_device);
 
-struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm, unsigned int id)
+struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm)
 {
 	struct tifm_dev *dev = kzalloc(sizeof(struct tifm_dev), GFP_KERNEL);
 
 	if (dev) {
 		spin_lock_init(&dev->lock);
-		snprintf(dev->wq_name, KOBJ_NAME_LEN, "tifm%u:%u", fm->id, id);
-		dev->wq = create_singlethread_workqueue(dev->wq_name);
-		if (!dev->wq) {
-			kfree(dev);
-			return NULL;
-		}
+
 		dev->dev.parent = fm->dev;
 		dev->dev.bus = &tifm_bus_type;
 		dev->dev.release = tifm_free_device;

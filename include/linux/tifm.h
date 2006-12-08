@@ -89,8 +89,7 @@ struct tifm_dev {
 	char __iomem            *addr;
 	spinlock_t              lock;
 	tifm_media_id           media_id;
-	char                    wq_name[KOBJ_NAME_LEN];
-	struct workqueue_struct *wq;
+	unsigned int            socket_id;
 
 	unsigned int            (*signal_irq)(struct tifm_dev *sock,
 					      unsigned int sock_irq_status);
@@ -132,7 +131,7 @@ void tifm_free_device(struct device *dev);
 void tifm_free_adapter(struct tifm_adapter *fm);
 int tifm_add_adapter(struct tifm_adapter *fm);
 void tifm_remove_adapter(struct tifm_adapter *fm);
-struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm, unsigned int id);
+struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm);
 int tifm_register_driver(struct tifm_driver *drv);
 void tifm_unregister_driver(struct tifm_driver *drv);
 void tifm_eject(struct tifm_dev *sock);
