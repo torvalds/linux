@@ -133,12 +133,10 @@ struct async_scan_data {
 /**
  * scsi_complete_async_scans - Wait for asynchronous scans to complete
  *
- * Asynchronous scans add themselves to the scanning_hosts list.  Once
- * that list is empty, we know that the scans are complete.  Rather than
- * waking up periodically to check the state of the list, we pretend to be
- * a scanning task by adding ourselves at the end of the list and going to
- * sleep.  When the task before us wakes us up, we take ourselves off the
- * list and return.
+ * When this function returns, any host which started scanning before
+ * this function was called will have finished its scan.  Hosts which
+ * started scanning after this function was called may or may not have
+ * finished.
  */
 int scsi_complete_async_scans(void)
 {
@@ -171,6 +169,11 @@ int scsi_complete_async_scans(void)
 
 	spin_lock(&async_scan_lock);
 	list_del(&data->list);
+	if (!list_empty(&scanning_hosts)) {
+		struct async_scan_data *next = list_entry(scanning_hosts.next,
+				struct async_scan_data, list);
+		complete(&next->prev_finished);
+	}
  done:
 	spin_unlock(&async_scan_lock);
 
