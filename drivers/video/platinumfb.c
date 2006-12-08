@@ -627,6 +627,9 @@ static int __devinit platinumfb_probe(struct of_device* odev,
 	
 	rc = platinum_init_fb(info);
 	if (rc != 0) {
+		iounmap(pinfo->frame_buffer);
+		iounmap(pinfo->platinum_regs);
+		iounmap(pinfo->cmap_regs);
 		dev_set_drvdata(&odev->dev, NULL);
 		framebuffer_release(info);
 	}
