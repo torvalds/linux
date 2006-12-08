@@ -413,3 +413,15 @@ config LKDTM
 
 	Documentation on how to use the module can be found in
 	drivers/misc/lkdtm.c
+
+config FAULT_INJECTION
+	bool
+
+config FAULT_INJECTION_DEBUG_FS
+	bool "Debugfs entries for fault-injection capabilities"
+	depends on FAULT_INJECTION && SYSFS
+	select DEBUG_FS
+	help
+	  This option enable configuration of fault-injection capabilities via
+	  debugfs.
+
