@@ -2803,7 +2803,8 @@ static int __init mxser_module_init(void)
 {
 	struct pci_dev *pdev = NULL;
 	struct mxser_board *brd;
-	unsigned int i, m;
+	unsigned long cap;
+	unsigned int i, m, isaloop;
 	int retval, b, n;
 
 	pr_debug("Loading module mxser ...\n");
@@ -2839,83 +2840,53 @@ static int __init mxser_module_init(void)
 
 	m = 0;
 	/* Start finding ISA boards here */
-	for (b = 0; b < MXSER_BOARDS && m < MXSER_BOARDS; b++) {
-		int cap;
+	for (isaloop = 0; isaloop < 2; isaloop++)
+		for (b = 0; b < MXSER_BOARDS && m < MXSER_BOARDS; b++) {
+			if (!isaloop)
+				cap = mxserBoardCAP[b]; /* predefined */
+			else
+				cap = ioaddr[b]; /* module param */
 
-		if (!(cap = mxserBoardCAP[b]))
-			continue;
+			if (!cap)
+				continue;
 
-		brd = &mxser_boards[m];
-		retval = mxser_get_ISA_conf(cap, brd);
+			brd = &mxser_boards[m];
+			retval = mxser_get_ISA_conf(cap, brd);
 
-		if (retval != 0)
-			printk(KERN_INFO "Found MOXA %s board (CAP=0x%x)\n",
-				mxser_brdname[brd->board_type - 1], ioaddr[b]);
+			if (retval != 0)
+				printk(KERN_INFO "Found MOXA %s board "
+					"(CAP=0x%x)\n",
+					mxser_brdname[brd->board_type - 1],
+					ioaddr[b]);
 
-		if (retval <= 0) {
-			if (retval == MXSER_ERR_IRQ)
-				printk(KERN_ERR "Invalid interrupt number, "
-					"board not configured\n");
-			else if (retval == MXSER_ERR_IRQ_CONFLIT)
-				printk(KERN_ERR "Invalid interrupt number, "
-					"board not configured\n");
-			else if (retval == MXSER_ERR_VECTOR)
-				printk(KERN_ERR "Invalid interrupt vector, "
-					"board not configured\n");
-			else if (retval == MXSER_ERR_IOADDR)
-				printk(KERN_ERR "Invalid I/O address, "
-					"board not configured\n");
+			if (retval <= 0) {
+				if (retval == MXSER_ERR_IRQ)
+					printk(KERN_ERR "Invalid interrupt "
+						"number, board not "
+						"configured\n");
+				else if (retval == MXSER_ERR_IRQ_CONFLIT)
+					printk(KERN_ERR "Invalid interrupt "
+						"number, board not "
+						"configured\n");
+				else if (retval == MXSER_ERR_VECTOR)
+					printk(KERN_ERR "Invalid interrupt "
+						"vector, board not "
+						"configured\n");
+				else if (retval == MXSER_ERR_IOADDR)
+					printk(KERN_ERR "Invalid I/O address, "
+						"board not configured\n");
 
-			continue;
+				continue;
+			}
+
+			brd->pdev = NULL;
+
+			/* mxser_initbrd will hook ISR. */
+			if (mxser_initbrd(brd) < 0)
+				continue;
+
+			m++;
 		}
-
-		brd->pdev = NULL;
-
-		/* mxser_initbrd will hook ISR. */
-		if (mxser_initbrd(brd) < 0)
-			continue;
-
-		m++;
-	}
-
-	/* Start finding ISA boards from module arg */
-	for (b = 0; b < MXSER_BOARDS && m < MXSER_BOARDS; b++) {
-		unsigned long cap;
-
-		if (!(cap = ioaddr[b]))
-			continue;
-
-		brd = &mxser_boards[m];
-		retval = mxser_get_ISA_conf(cap, &mxser_boards[m]);
-
-		if (retval != 0)
-			printk(KERN_INFO "Found MOXA %s board (CAP=0x%x)\n",
-				mxser_brdname[brd->board_type - 1], ioaddr[b]);
-
-		if (retval <= 0) {
-			if (retval == MXSER_ERR_IRQ)
-				printk(KERN_ERR "Invalid interrupt number, "
-					"board not configured\n");
-			else if (retval == MXSER_ERR_IRQ_CONFLIT)
-				printk(KERN_ERR "Invalid interrupt number, "
-					"board not configured\n");
-			else if (retval == MXSER_ERR_VECTOR)
-				printk(KERN_ERR "Invalid interrupt vector, "
-					"board not configured\n");
-			else if (retval == MXSER_ERR_IOADDR)
-				printk(KERN_ERR "Invalid I/O address, "
-					"board not configured\n");
-
-			continue;
-		}
-
-		brd->pdev = NULL;
-		/* mxser_initbrd will hook ISR. */
-		if (mxser_initbrd(brd) < 0)
-			continue;
-
-		m++;
-	}
 
 	/* start finding PCI board here */
 	n = ARRAY_SIZE(mxser_pcibrds) - 1;
