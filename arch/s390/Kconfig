@@ -258,14 +258,6 @@ config QDIO
 
 	  If unsure, say Y.
 
-config QDIO_PERF_STATS
-	bool "Performance statistics in /proc"
-	depends on QDIO
-	help
-	  Say Y here to get performance statistics in /proc/qdio_perf
-
-	  If unsure, say N.
-
 config QDIO_DEBUG
 	bool "Extended debugging information"
 	depends on QDIO
