@@ -2680,28 +2680,16 @@ static int __init sx_init(void)
 static void __exit sx_exit (void)
 {
 	int i; 
-	struct sx_board *board;
 
 	func_enter();
 #ifdef CONFIG_EISA
 	eisa_driver_unregister(&sx_eisadriver);
 #endif
 	pci_unregister_driver(&sx_pcidriver);
-	for (i = 0; i < SX_NBOARDS; i++) {
-		board = &boards[i];
-		if (board->flags & SX_BOARD_INITIALIZED) {
-			sx_dprintk (SX_DEBUG_CLEANUP, "Cleaning up board at %p\n", board->base);
-			/* The board should stop messing with us.
-			   (actually I mean the interrupt) */
-			sx_reset (board);
-			if ((board->irq) && (board->flags & SX_IRQ_ALLOCATED))
-				free_irq (board->irq, board);
 
-			/* It is safe/allowed to del_timer a non-active timer */
-			del_timer (& board->timer);
-			iounmap(board->base);
-		}
-	}
+	for (i = 0; i < SX_NBOARDS; i++)
+		sx_remove_card(&boards[i]);
+
 	if (misc_deregister(&sx_fw_device) < 0) {
 		printk (KERN_INFO "sx: couldn't deregister firmware loader device\n");
 	}
