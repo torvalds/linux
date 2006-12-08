@@ -196,7 +196,7 @@ fastcall void free_pid(struct pid *pid)
 	hlist_del_rcu(&pid->pid_chain);
 	spin_unlock_irqrestore(&pidmap_lock, flags);
 
-	free_pidmap(&init_pid_ns, pid->nr);
+	free_pidmap(current->nsproxy->pid_ns, pid->nr);
 	call_rcu(&pid->rcu, delayed_put_pid);
 }
 
@@ -210,7 +210,7 @@ struct pid *alloc_pid(void)
 	if (!pid)
 		goto out;
 
-	nr = alloc_pidmap(&init_pid_ns);
+	nr = alloc_pidmap(current->nsproxy->pid_ns);
 	if (nr < 0)
 		goto out_free;
 
@@ -352,7 +352,7 @@ struct pid *find_ge_pid(int nr)
 		pid = find_pid(nr);
 		if (pid)
 			break;
-		nr = next_pidmap(&init_pid_ns, nr);
+		nr = next_pidmap(current->nsproxy->pid_ns, nr);
 	} while (nr > 0);
 
 	return pid;
