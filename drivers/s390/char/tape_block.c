@@ -15,6 +15,7 @@
 #include <linux/blkdev.h>
 #include <linux/interrupt.h>
 #include <linux/buffer_head.h>
+#include <linux/kernel.h>
 
 #include <asm/debug.h>
 
@@ -143,7 +144,8 @@ tapeblock_start_request(struct tape_device *device, struct request *req)
  * queue.
  */
 static void
-tapeblock_requeue(void *data) {
+tapeblock_requeue(struct work_struct *work) {
+	struct tape_blk_data *	blkdat;
 	struct tape_device *	device;
 	request_queue_t *	queue;
 	int			nr_queued;
@@ -151,7 +153,8 @@ tapeblock_requeue(void *data) {
 	struct list_head *	l;
 	int			rc;
 
-	device = (struct tape_device *) data;
+	blkdat = container_of(work, struct tape_blk_data, requeue_task);
+	device = blkdat->device;
 	if (!device)
 		return;
 
@@ -212,6 +215,7 @@ tapeblock_setup_device(struct tape_device * device)
 	int			rc;
 
 	blkdat = &device->blk_data;
+	blkdat->device = device;
 	spin_lock_init(&blkdat->request_queue_lock);
 	atomic_set(&blkdat->requeue_scheduled, 0);
 
@@ -255,8 +259,8 @@ tapeblock_setup_device(struct tape_device * device)
 
 	add_disk(disk);
 
-	INIT_WORK(&blkdat->requeue_task, tapeblock_requeue,
-		tape_get_device_reference(device));
+	tape_get_device_reference(device);
+	INIT_WORK(&blkdat->requeue_task, tapeblock_requeue);
 
 	return 0;
 
@@ -271,7 +275,7 @@ void
 tapeblock_cleanup_device(struct tape_device *device)
 {
 	flush_scheduled_work();
-	device->blk_data.requeue_task.data = tape_put_device(device);
+	tape_put_device(device);
 
 	if (!device->blk_data.disk) {
 		PRINT_ERR("(%s): No gendisk to clean up!\n",

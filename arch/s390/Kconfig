@@ -241,7 +241,13 @@ config WARN_STACK_SIZE
 	  This allows you to specify the maximum frame size a function may
 	  have without the compiler complaining about it.
 
+config ARCH_POPULATES_NODE_MAP
+	def_bool y
+
 source "mm/Kconfig"
+
+config HOLES_IN_ZONE
+	def_bool y
 
 comment "I/O subsystem configuration"
 
@@ -265,14 +271,6 @@ config QDIO
 	  module will be called qdio.
 
 	  If unsure, say Y.
-
-config QDIO_PERF_STATS
-	bool "Performance statistics in /proc"
-	depends on QDIO
-	help
-	  Say Y here to get performance statistics in /proc/qdio_perf
-
-	  If unsure, say N.
 
 config QDIO_DEBUG
 	bool "Extended debugging information"

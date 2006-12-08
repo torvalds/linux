@@ -13,10 +13,6 @@
 
 #ifdef __KERNEL__
 
-/* erp debugging in dasd.c and dasd_3990_erp.c */
-#define ERP_DEBUG
-
-
 /* we keep old device allocation scheme; IOW, minors are still in 0..255 */
 #define DASD_PER_MAJOR (1U << (MINORBITS - DASD_PARTN_BITS))
 #define DASD_PARTN_MASK ((1 << DASD_PARTN_BITS) - 1)

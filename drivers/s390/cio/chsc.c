@@ -183,7 +183,7 @@ css_get_ssd_info(struct subchannel *sch)
 	page = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!page)
 		return -ENOMEM;
-	spin_lock_irq(&sch->lock);
+	spin_lock_irq(sch->lock);
 	ret = chsc_get_sch_desc_irq(sch, page);
 	if (ret) {
 		static int cio_chsc_err_msg;
@@ -197,7 +197,7 @@ css_get_ssd_info(struct subchannel *sch)
 			cio_chsc_err_msg = 1;
 		}
 	}
-	spin_unlock_irq(&sch->lock);
+	spin_unlock_irq(sch->lock);
 	free_page((unsigned long)page);
 	if (!ret) {
 		int j, chpid, mask;
@@ -233,7 +233,7 @@ s390_subchannel_remove_chpid(struct device *dev, void *data)
 	if (j >= 8)
 		return 0;
 
-	spin_lock_irq(&sch->lock);
+	spin_lock_irq(sch->lock);
 
 	stsch(sch->schid, &schib);
 	if (!schib.pmcw.dnv)
@@ -265,10 +265,10 @@ s390_subchannel_remove_chpid(struct device *dev, void *data)
 	else if (sch->lpm == mask)
 		goto out_unreg;
 out_unlock:
-	spin_unlock_irq(&sch->lock);
+	spin_unlock_irq(sch->lock);
 	return 0;
 out_unreg:
-	spin_unlock_irq(&sch->lock);
+	spin_unlock_irq(sch->lock);
 	sch->lpm = 0;
 	if (css_enqueue_subchannel_slow(sch->schid)) {
 		css_clear_subchannel_slow_list();
@@ -378,12 +378,12 @@ __s390_process_res_acc(struct subchannel_id schid, void *data)
 		/* Check if a subchannel is newly available. */
 		return s390_process_res_acc_new_sch(schid);
 
-	spin_lock_irq(&sch->lock);
+	spin_lock_irq(sch->lock);
 
 	chp_mask = s390_process_res_acc_sch(res_data, sch);
 
 	if (chp_mask == 0) {
-		spin_unlock_irq(&sch->lock);
+		spin_unlock_irq(sch->lock);
 		put_device(&sch->dev);
 		return 0;
 	}
@@ -397,7 +397,7 @@ __s390_process_res_acc(struct subchannel_id schid, void *data)
 	else if (sch->driver && sch->driver->verify)
 		sch->driver->verify(&sch->dev);
 
-	spin_unlock_irq(&sch->lock);
+	spin_unlock_irq(sch->lock);
 	put_device(&sch->dev);
 	return 0;
 }
@@ -635,21 +635,21 @@ __chp_add(struct subchannel_id schid, void *data)
 	if (!sch)
 		/* Check if the subchannel is now available. */
 		return __chp_add_new_sch(schid);
-	spin_lock_irq(&sch->lock);
+	spin_lock_irq(sch->lock);
 	for (i=0; i<8; i++) {
 		mask = 0x80 >> i;
 		if ((sch->schib.pmcw.pim & mask) &&
 		    (sch->schib.pmcw.chpid[i] == chp->id)) {
 			if (stsch(sch->schid, &sch->schib) != 0) {
 				/* Endgame. */
-				spin_unlock_irq(&sch->lock);
+				spin_unlock_irq(sch->lock);
 				return -ENXIO;
 			}
 			break;
 		}
 	}
 	if (i==8) {
-		spin_unlock_irq(&sch->lock);
+		spin_unlock_irq(sch->lock);
 		return 0;
 	}
 	sch->lpm = ((sch->schib.pmcw.pim &
@@ -660,7 +660,7 @@ __chp_add(struct subchannel_id schid, void *data)
 	if (sch->driver && sch->driver->verify)
 		sch->driver->verify(&sch->dev);
 
-	spin_unlock_irq(&sch->lock);
+	spin_unlock_irq(sch->lock);
 	put_device(&sch->dev);
 	return 0;
 }
@@ -750,7 +750,7 @@ __s390_subchannel_vary_chpid(struct subchannel *sch, __u8 chpid, int on)
 	if (!sch->ssd_info.valid)
 		return;
 	
-	spin_lock_irqsave(&sch->lock, flags);
+	spin_lock_irqsave(sch->lock, flags);
 	old_lpm = sch->lpm;
 	for (chp = 0; chp < 8; chp++) {
 		if (sch->ssd_info.chpid[chp] != chpid)
@@ -785,7 +785,7 @@ __s390_subchannel_vary_chpid(struct subchannel *sch, __u8 chpid, int on)
 			sch->driver->verify(&sch->dev);
 		break;
 	}
-	spin_unlock_irqrestore(&sch->lock, flags);
+	spin_unlock_irqrestore(sch->lock, flags);
 }
 
 static int

@@ -8,8 +8,8 @@
  */
 
 #include <linux/errno.h>
-#include <asm/uaccess.h>
 #include <linux/mm.h>
+#include <asm/uaccess.h>
 #include <asm/futex.h>
 
 static inline int __handle_fault(struct mm_struct *mm, unsigned long address,
@@ -60,8 +60,9 @@ out:
 
 out_of_memory:
 	up_read(&mm->mmap_sem);
-	if (current->pid == 1) {
+	if (is_init(current)) {
 		yield();
+		down_read(&mm->mmap_sem);
 		goto survive;
 	}
 	printk("VM: killing process %s\n", current->comm);

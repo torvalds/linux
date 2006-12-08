@@ -236,9 +236,10 @@ struct work_handler_data {
 };
 
 static void
-tape_3590_work_handler(void *data)
+tape_3590_work_handler(struct work_struct *work)
 {
-	struct work_handler_data *p = data;
+	struct work_handler_data *p =
+		container_of(work, struct work_handler_data, work);
 
 	switch (p->op) {
 	case TO_MSEN:
@@ -263,7 +264,7 @@ tape_3590_schedule_work(struct tape_device *device, enum tape_op op)
 	if ((p = kzalloc(sizeof(*p), GFP_ATOMIC)) == NULL)
 		return -ENOMEM;
 
-	INIT_WORK(&p->work, tape_3590_work_handler, p);
+	INIT_WORK(&p->work, tape_3590_work_handler);
 
 	p->device = tape_get_device_reference(device);
 	p->op = op;

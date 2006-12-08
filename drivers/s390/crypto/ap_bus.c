@@ -33,6 +33,7 @@
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <asm/s390_rdev.h>
+#include <asm/reset.h>
 
 #include "ap_bus.h"
 
@@ -1128,6 +1129,19 @@ static void ap_poll_thread_stop(void)
 	mutex_unlock(&ap_poll_thread_mutex);
 }
 
+static void ap_reset(void)
+{
+	int i, j;
+
+	for (i = 0; i < AP_DOMAINS; i++)
+		for (j = 0; j < AP_DEVICES; j++)
+			ap_reset_queue(AP_MKQID(j, i));
+}
+
+static struct reset_call ap_reset_call = {
+	.fn = ap_reset,
+};
+
 /**
  * The module initialization code.
  */
@@ -1144,6 +1158,7 @@ int __init ap_module_init(void)
 		printk(KERN_WARNING "AP instructions not installed.\n");
 		return -ENODEV;
 	}
+	register_reset_call(&ap_reset_call);
 
 	/* Create /sys/bus/ap. */
 	rc = bus_register(&ap_bus_type);
@@ -1197,6 +1212,7 @@ out_bus:
 		bus_remove_file(&ap_bus_type, ap_bus_attrs[i]);
 	bus_unregister(&ap_bus_type);
 out:
+	unregister_reset_call(&ap_reset_call);
 	return rc;
 }
 
@@ -1227,6 +1243,7 @@ void ap_module_exit(void)
 	for (i = 0; ap_bus_attrs[i]; i++)
 		bus_remove_file(&ap_bus_type, ap_bus_attrs[i]);
 	bus_unregister(&ap_bus_type);
+	unregister_reset_call(&ap_reset_call);
 }
 
 #ifndef CONFIG_ZCRYPT_MONOLITHIC

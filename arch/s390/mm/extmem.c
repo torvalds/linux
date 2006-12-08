@@ -16,6 +16,7 @@
 #include <linux/bootmem.h>
 #include <linux/ctype.h>
 #include <asm/page.h>
+#include <asm/pgtable.h>
 #include <asm/ebcdic.h>
 #include <asm/errno.h>
 #include <asm/extmem.h>
@@ -238,65 +239,6 @@ query_segment_type (struct dcss_segment *seg)
 }
 
 /*
- * check if the given segment collides with guest storage.
- * returns 1 if this is the case, 0 if no collision was found
- */
-static int
-segment_overlaps_storage(struct dcss_segment *seg)
-{
-	int i;
-
-	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
-		if (memory_chunk[i].type != CHUNK_READ_WRITE)
-			continue;
-		if ((memory_chunk[i].addr >> 20) > (seg->end >> 20))
-			continue;
-		if (((memory_chunk[i].addr + memory_chunk[i].size - 1) >> 20)
-				< (seg->start_addr >> 20))
-			continue;
-		return 1;
-	}
-	return 0;
-}
-
-/*
- * check if segment collides with other segments that are currently loaded
- * returns 1 if this is the case, 0 if no collision was found
- */
-static int
-segment_overlaps_others (struct dcss_segment *seg)
-{
-	struct list_head *l;
-	struct dcss_segment *tmp;
-
-	BUG_ON(!mutex_is_locked(&dcss_lock));
-	list_for_each(l, &dcss_list) {
-		tmp = list_entry(l, struct dcss_segment, list);
-		if ((tmp->start_addr >> 20) > (seg->end >> 20))
-			continue;
-		if ((tmp->end >> 20) < (seg->start_addr >> 20))
-			continue;
-		if (seg == tmp)
-			continue;
-		return 1;
-	}
-	return 0;
-}
-
-/*
- * check if segment exceeds the kernel mapping range (detected or set via mem=)
- * returns 1 if this is the case, 0 if segment fits into the range
- */
-static inline int
-segment_exceeds_range (struct dcss_segment *seg)
-{
-	int seg_last_pfn = (seg->end) >> PAGE_SHIFT;
-	if (seg_last_pfn > max_pfn)
-		return 1;
-	return 0;
-}
-
-/*
  * get info about a segment
  * possible return values:
  * -ENOSYS  : we are not running on VM
@@ -341,24 +283,26 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 	rc = query_segment_type (seg);
 	if (rc < 0)
 		goto out_free;
-	if (segment_exceeds_range(seg)) {
-		PRINT_WARN ("segment_load: not loading segment %s - exceeds"
-				" kernel mapping range\n",name);
-		rc = -ERANGE;
+
+	rc = add_shared_memory(seg->start_addr, seg->end - seg->start_addr + 1);
+
+	switch (rc) {
+	case 0:
+		break;
+	case -ENOSPC:
+		PRINT_WARN("segment_load: not loading segment %s - overlaps "
+			   "storage/segment\n", name);
+		goto out_free;
+	case -ERANGE:
+		PRINT_WARN("segment_load: not loading segment %s - exceeds "
+			   "kernel mapping range\n", name);
+		goto out_free;
+	default:
+		PRINT_WARN("segment_load: not loading segment %s (rc: %d)\n",
+			   name, rc);
 		goto out_free;
 	}
-	if (segment_overlaps_storage(seg)) {
-		PRINT_WARN ("segment_load: not loading segment %s - overlaps"
-				" storage\n",name);
-		rc = -ENOSPC;
-		goto out_free;
-	}
-	if (segment_overlaps_others(seg)) {
-		PRINT_WARN ("segment_load: not loading segment %s - overlaps"
-				" other segments\n",name);
-		rc = -EBUSY;
-		goto out_free;
-	}
+
 	if (do_nonshared)
 		dcss_command = DCSS_LOADNSR;
 	else
@@ -372,7 +316,7 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 		rc = dcss_diag_translate_rc (seg->end);
 		dcss_diag(DCSS_PURGESEG, seg->dcss_name,
 				&seg->start_addr, &seg->end);
-		goto out_free;
+		goto out_shared;
 	}
 	seg->do_nonshared = do_nonshared;
 	atomic_set(&seg->ref_count, 1);
@@ -391,6 +335,8 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 				(void*)seg->start_addr, (void*)seg->end,
 				segtype_string[seg->vm_segtype]);
 	goto out;
+ out_shared:
+	remove_shared_memory(seg->start_addr, seg->end - seg->start_addr + 1);
  out_free:
 	kfree(seg);
  out:
@@ -530,12 +476,12 @@ segment_unload(char *name)
 				"please report to linux390@de.ibm.com\n",name);
 		goto out_unlock;
 	}
-	if (atomic_dec_return(&seg->ref_count) == 0) {
-		list_del(&seg->list);
-		dcss_diag(DCSS_PURGESEG, seg->dcss_name,
-			  &dummy, &dummy);
-		kfree(seg);
-	}
+	if (atomic_dec_return(&seg->ref_count) != 0)
+		goto out_unlock;
+	remove_shared_memory(seg->start_addr, seg->end - seg->start_addr + 1);
+	list_del(&seg->list);
+	dcss_diag(DCSS_PURGESEG, seg->dcss_name, &dummy, &dummy);
+	kfree(seg);
 out_unlock:
 	mutex_unlock(&dcss_lock);
 }
