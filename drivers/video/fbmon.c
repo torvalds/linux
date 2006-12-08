@@ -58,7 +58,7 @@ struct broken_edid {
 	u32 fix;
 };
 
-static struct broken_edid brokendb[] = {
+static const struct broken_edid brokendb[] = {
 	/* DEC FR-PCXAV-YZ */
 	{
 		.manufacturer = "DEC",

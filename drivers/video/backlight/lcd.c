@@ -121,7 +121,7 @@ static struct class lcd_class = {
 	.store	= _store,					\
 }
 
-static struct class_device_attribute lcd_class_device_attributes[] = {
+static const struct class_device_attribute lcd_class_device_attributes[] = {
 	DECLARE_ATTR(power, 0644, lcd_show_power, lcd_store_power),
 	DECLARE_ATTR(contrast, 0644, lcd_show_contrast, lcd_store_contrast),
 	DECLARE_ATTR(max_contrast, 0444, lcd_show_max_contrast, NULL),
