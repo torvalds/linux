@@ -1885,28 +1885,27 @@ nfsd_racache_init(int cache_size)
 		return 0;
 	if (cache_size < 2*RAPARM_HASH_SIZE)
 		cache_size = 2*RAPARM_HASH_SIZE;
-	raparml = kmalloc(sizeof(struct raparms) * cache_size, GFP_KERNEL);
+	raparml = kcalloc(cache_size, sizeof(struct raparms), GFP_KERNEL);
 
-	if (raparml != NULL) {
-		dprintk("nfsd: allocating %d readahead buffers.\n",
-			cache_size);
-		for (i = 0 ; i < RAPARM_HASH_SIZE ; i++) {
-			raparm_hash[i].pb_head = NULL;
-			spin_lock_init(&raparm_hash[i].pb_lock);
-		}
-		nperbucket = cache_size >> RAPARM_HASH_BITS;
-		memset(raparml, 0, sizeof(struct raparms) * cache_size);
-		for (i = 0; i < cache_size - 1; i++) {
-			if (i % nperbucket == 0)
-				raparm_hash[j++].pb_head = raparml + i;
-			if (i % nperbucket < nperbucket-1)
-				raparml[i].p_next = raparml + i + 1;
-		}
-	} else {
+	if (!raparml) {
 		printk(KERN_WARNING
-		       "nfsd: Could not allocate memory read-ahead cache.\n");
+			"nfsd: Could not allocate memory read-ahead cache.\n");
 		return -ENOMEM;
 	}
+
+	dprintk("nfsd: allocating %d readahead buffers.\n", cache_size);
+	for (i = 0 ; i < RAPARM_HASH_SIZE ; i++) {
+		raparm_hash[i].pb_head = NULL;
+		spin_lock_init(&raparm_hash[i].pb_lock);
+	}
+	nperbucket = cache_size >> RAPARM_HASH_BITS;
+	for (i = 0; i < cache_size - 1; i++) {
+		if (i % nperbucket == 0)
+			raparm_hash[j++].pb_head = raparml + i;
+		if (i % nperbucket < nperbucket-1)
+			raparml[i].p_next = raparml + i + 1;
+	}
+
 	nfsdstats.ra_size = cache_size;
 	return 0;
 }
