@@ -205,7 +205,7 @@ static int spufs_dir_close(struct inode *inode, struct file *file)
 	struct dentry *dir;
 	int ret;
 
-	dir = file->f_dentry;
+	dir = file->f_path.dentry;
 	parent = dir->d_parent->d_inode;
 	ctx = SPUFS_I(dir->d_inode)->i_ctx;
 
@@ -363,7 +363,7 @@ static int spufs_gang_close(struct inode *inode, struct file *file)
 	struct dentry *dir;
 	int ret;
 
-	dir = file->f_dentry;
+	dir = file->f_path.dentry;
 	parent = dir->d_parent->d_inode;
 
 	ret = spufs_rmgang(parent, dir);
