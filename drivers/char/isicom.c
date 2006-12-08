@@ -946,8 +946,8 @@ static int isicom_open(struct tty_struct *tty, struct file *filp)
 {
 	struct isi_port *port;
 	struct isi_board *card;
-	unsigned int line, board;
-	int error;
+	unsigned int board;
+	int error, line;
 
 	line = tty->index;
 	if (line < 0 || line > PORT_COUNT-1)
