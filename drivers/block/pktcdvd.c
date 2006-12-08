@@ -84,6 +84,8 @@
 static struct pktcdvd_device *pkt_devs[MAX_WRITERS];
 static struct proc_dir_entry *pkt_proc;
 static int pktdev_major;
+static int write_congestion_on  = PKT_WRITE_CONGESTION_ON;
+static int write_congestion_off = PKT_WRITE_CONGESTION_OFF;
 static struct mutex ctl_mutex;	/* Serialize open/close/setup/teardown */
 static mempool_t *psd_pool;
 
@@ -894,6 +896,7 @@ static int pkt_handle_queue(struct pktcdvd_device *pd)
 	sector_t zone = 0; /* Suppress gcc warning */
 	struct pkt_rb_node *node, *first_node;
 	struct rb_node *n;
+	int wakeup;
 
 	VPRINTK("handle_queue\n");
 
@@ -966,7 +969,13 @@ try_next_bio:
 		pkt->write_size += bio->bi_size / CD_FRAMESIZE;
 		spin_unlock(&pkt->lock);
 	}
+	/* check write congestion marks, and if bio_queue_size is
+	   below, wake up any waiters */
+	wakeup = (pd->write_congestion_on > 0
+	 		&& pd->bio_queue_size <= pd->write_congestion_off);
 	spin_unlock(&pd->lock);
+	if (wakeup)
+		blk_clear_queue_congested(pd->disk->queue, WRITE);
 
 	pkt->sleep_time = max(PACKET_WAIT_TIME, 1);
 	pkt_set_state(pkt, PACKET_WAITING_STATE);
@@ -2179,6 +2188,23 @@ static int pkt_make_request(request_queue_t *q, struct bio *bio)
 	}
 	spin_unlock(&pd->cdrw.active_list_lock);
 
+ 	/*
+	 * Test if there is enough room left in the bio work queue
+	 * (queue size >= congestion on mark).
+	 * If not, wait till the work queue size is below the congestion off mark.
+	 */
+	spin_lock(&pd->lock);
+	if (pd->write_congestion_on > 0
+	    && pd->bio_queue_size >= pd->write_congestion_on) {
+		blk_set_queue_congested(q, WRITE);
+		do {
+			spin_unlock(&pd->lock);
+			congestion_wait(WRITE, HZ);
+			spin_lock(&pd->lock);
+		} while(pd->bio_queue_size > pd->write_congestion_off);
+	}
+	spin_unlock(&pd->lock);
+
 	/*
 	 * No matching packet found. Store the bio in the work queue.
 	 */
@@ -2298,6 +2324,9 @@ static int pkt_seq_show(struct seq_file *m, void *p)
 	seq_printf(m, "\tstate:\t\t\ti:%d ow:%d rw:%d ww:%d rec:%d fin:%d\n",
 		   states[0], states[1], states[2], states[3], states[4], states[5]);
 
+	seq_printf(m, "\twrite congestion marks:\toff=%d on=%d\n",
+			pd->write_congestion_off,
+			pd->write_congestion_on);
 	return 0;
 }
 
@@ -2473,6 +2502,9 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 	sprintf(pd->name, DRIVER_NAME"%d", idx);
 	init_waitqueue_head(&pd->wqueue);
 	pd->bio_queue = RB_ROOT;
+
+	pd->write_congestion_on  = write_congestion_on;
+	pd->write_congestion_off = write_congestion_off;
 
 	disk = alloc_disk(1);
 	if (!disk)

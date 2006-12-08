@@ -112,6 +112,12 @@ struct pkt_ctrl_command {
 #include <linux/completion.h>
 #include <linux/cdrom.h>
 
+
+/* default bio write queue congestion marks */
+#define PKT_WRITE_CONGESTION_ON    10000
+#define PKT_WRITE_CONGESTION_OFF   9000
+
+
 struct packet_settings
 {
 	__u32			size;		/* packet size in (512 byte) sectors */
@@ -271,6 +277,9 @@ struct pktcdvd_device
 
 	struct packet_iosched   iosched;
 	struct gendisk		*disk;
+
+	int			write_congestion_off;
+	int			write_congestion_on;
 };
 
 #endif /* __KERNEL__ */
