@@ -2485,7 +2485,8 @@ static void __exit sx_release_drivers(void)
 	func_exit();
 }
 
-static void __devexit sx_remove_card(struct sx_board *board)
+static void __devexit sx_remove_card(struct sx_board *board,
+		struct pci_dev *pdev)
 {
 	if (board->flags & SX_BOARD_INITIALIZED) {
 		/* The board should stop messing with us. (actually I mean the
@@ -2496,7 +2497,10 @@ static void __devexit sx_remove_card(struct sx_board *board)
 
 		/* It is safe/allowed to del_timer a non-active timer */
 		del_timer(&board->timer);
-		iounmap(board->base);
+		if (pdev)
+			pci_iounmap(pdev, board->base);
+		else
+			iounmap(board->base);
 
 		board->flags &= ~(SX_BOARD_INITIALIZED | SX_BOARD_PRESENT);
 	}
@@ -2559,7 +2563,7 @@ static int __devexit sx_eisa_remove(struct device *dev)
 {
 	struct sx_board *board = dev_get_drvdata(dev);
 
-	sx_remove_card(board);
+	sx_remove_card(board, NULL);
 
 	return 0;
 }
@@ -2618,7 +2622,7 @@ static int __devinit sx_pci_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *ent)
 {
 	struct sx_board *board;
-	unsigned int i;
+	unsigned int i, reg;
 	int retval = -EIO;
 
 	mutex_lock(&sx_boards_lock);
@@ -2640,12 +2644,10 @@ static int __devinit sx_pci_probe(struct pci_dev *pdev,
 		SX_CFPCI_BOARD;
 
 	/* CF boards use base address 3.... */
-	if (IS_CF_BOARD(board))
-		board->hw_base = pci_resource_start(pdev, 3);
-	else
-		board->hw_base = pci_resource_start(pdev, 2);
+	reg = IS_CF_BOARD(board) ? 3 : 2;
+	board->hw_base = pci_resource_start(pdev, reg);
 	board->base2 =
-	board->base = ioremap(board->hw_base, WINDOW_LEN(board));
+	board->base = pci_iomap(pdev, reg, WINDOW_LEN(board));
 	if (!board->base) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		goto err_flag;
@@ -2671,7 +2673,7 @@ static int __devinit sx_pci_probe(struct pci_dev *pdev,
 
 	return 0;
 err_unmap:
-	iounmap(board->base2);
+	pci_iounmap(pdev, board->base);
 err_flag:
 	board->flags &= ~SX_BOARD_PRESENT;
 err:
@@ -2682,7 +2684,7 @@ static void __devexit sx_pci_remove(struct pci_dev *pdev)
 {
 	struct sx_board *board = pci_get_drvdata(pdev);
 
-	sx_remove_card(board);
+	sx_remove_card(board, pdev);
 }
 
 /* Specialix has a whole bunch of cards with 0x2000 as the device ID. They say
@@ -2812,7 +2814,7 @@ static void __exit sx_exit(void)
 	pci_unregister_driver(&sx_pcidriver);
 
 	for (i = 0; i < SX_NBOARDS; i++)
-		sx_remove_card(&boards[i]);
+		sx_remove_card(&boards[i], NULL);
 
 	if (misc_deregister(&sx_fw_device) < 0) {
 		printk(KERN_INFO "sx: couldn't deregister firmware loader "
