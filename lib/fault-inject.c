@@ -142,9 +142,6 @@ bool should_fail(struct fault_attr *attr, ssize_t size)
 	if (attr->task_filter && !fail_task(attr, current))
 		return false;
 
-	if (!fail_stacktrace(attr))
-		return false;
-
 	if (atomic_read(&attr->times) == 0)
 		return false;
 
@@ -159,12 +156,12 @@ bool should_fail(struct fault_attr *attr, ssize_t size)
 			return false;
 	}
 
-	if (attr->probability > random32() % 100)
-		goto fail;
+	if (attr->probability <= random32() % 100)
+		return false;
 
-	return false;
+	if (!fail_stacktrace(attr))
+		return false;
 
-fail:
 	fail_dump(attr);
 
 	if (atomic_read(&attr->times) != -1)
