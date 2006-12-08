@@ -704,7 +704,6 @@ static int __init mxser_init(void)
 		MXSER_VERSION);
 
 	/* Initialize the tty_driver structure */
-	memset(mxvar_sdriver, 0, sizeof(struct tty_driver));
 	mxvar_sdriver->magic = TTY_DRIVER_MAGIC;
 	mxvar_sdriver->name = "ttyM";
 	mxvar_sdriver->major = ttymajor;
@@ -721,12 +720,6 @@ static int __init mxser_init(void)
 	mxvar_sdriver->termios_locked = mxvar_termios_locked;
 
 	mxvar_diagflag = 0;
-	memset(mxser_boards, 0, sizeof(mxser_boards));
-	memset(&mxvar_log, 0, sizeof(struct mxser_log));
-
-	memset(&mxser_msr, 0, sizeof(unsigned char) * (MXSER_PORTS + 1));
-	memset(&mon_data_ext, 0, sizeof(struct mxser_mon_ext));
-	memset(&mxser_set_baud_method, 0, sizeof(int) * (MXSER_PORTS + 1));
 
 	m = 0;
 	/* Start finding ISA boards here */
