@@ -2,6 +2,7 @@
  * SuperH On-Chip RTC Support
  *
  * Copyright (C) 2006  Paul Mundt
+ * Copyright (C) 2006  Jamie Lenehan
  *
  * Based on the old arch/sh/kernel/cpu/rtc.c by:
  *
@@ -23,6 +24,9 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 
+#define DRV_NAME	"sh-rtc"
+#define DRV_VERSION	"0.1.2"
+
 #ifdef CONFIG_CPU_SH3
 #define rtc_reg_size		sizeof(u16)
 #define RTC_BIT_INVERTED	0	/* No bug on SH7708, SH7709A */
@@ -34,21 +38,25 @@
 #define RTC_REG(r)	((r) * rtc_reg_size)
 
 #define R64CNT		RTC_REG(0)
-#define RSECCNT		RTC_REG(1)
-#define RMINCNT		RTC_REG(2)
-#define RHRCNT		RTC_REG(3)
-#define RWKCNT		RTC_REG(4)
-#define RDAYCNT		RTC_REG(5)
-#define RMONCNT		RTC_REG(6)
-#define RYRCNT		RTC_REG(7)
-#define RSECAR		RTC_REG(8)
-#define RMINAR		RTC_REG(9)
-#define RHRAR		RTC_REG(10)
-#define RWKAR		RTC_REG(11)
-#define RDAYAR		RTC_REG(12)
-#define RMONAR		RTC_REG(13)
-#define RCR1		RTC_REG(14)
-#define RCR2		RTC_REG(15)
+
+#define RSECCNT		RTC_REG(1)	/* RTC sec */
+#define RMINCNT		RTC_REG(2)	/* RTC min */
+#define RHRCNT		RTC_REG(3)	/* RTC hour */
+#define RWKCNT		RTC_REG(4)	/* RTC week */
+#define RDAYCNT		RTC_REG(5)	/* RTC day */
+#define RMONCNT		RTC_REG(6)	/* RTC month */
+#define RYRCNT		RTC_REG(7)	/* RTC year */
+#define RSECAR		RTC_REG(8)	/* ALARM sec */
+#define RMINAR		RTC_REG(9)	/* ALARM min */
+#define RHRAR		RTC_REG(10)	/* ALARM hour */
+#define RWKAR		RTC_REG(11)	/* ALARM week */
+#define RDAYAR		RTC_REG(12)	/* ALARM day */
+#define RMONAR		RTC_REG(13)	/* ALARM month */
+#define RCR1		RTC_REG(14)	/* Control */
+#define RCR2		RTC_REG(15)	/* Control */
+
+/* ALARM Bits - or with BCD encoded value */
+#define AR_ENB		0x80	/* Enable for alarm cmp   */
 
 /* RCR1 Bits */
 #define RCR1_CF		0x80	/* Carry Flag             */
@@ -71,6 +79,7 @@ struct sh_rtc {
 	unsigned int alarm_irq, periodic_irq, carry_irq;
 	struct rtc_device *rtc_dev;
 	spinlock_t lock;
+	int rearm_aie;
 };
 
 static irqreturn_t sh_rtc_interrupt(int irq, void *dev_id)
@@ -82,11 +91,16 @@ static irqreturn_t sh_rtc_interrupt(int irq, void *dev_id)
 	spin_lock(&rtc->lock);
 
 	tmp = readb(rtc->regbase + RCR1);
+	tmp &= ~RCR1_CF;
 
-	if (tmp & RCR1_AF)
-		events |= RTC_AF | RTC_IRQF;
-
-	tmp &= ~(RCR1_CF | RCR1_AF);
+	if (rtc->rearm_aie) {
+		if (tmp & RCR1_AF)
+			tmp &= ~RCR1_AF;	/* try to clear AF again */
+		else {
+			tmp |= RCR1_AIE;	/* AF has cleared, rearm IRQ */
+			rtc->rearm_aie = 0;
+		}
+	}
 
 	writeb(tmp, rtc->regbase + RCR1);
 
@@ -94,6 +108,41 @@ static irqreturn_t sh_rtc_interrupt(int irq, void *dev_id)
 
 	spin_unlock(&rtc->lock);
 
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t sh_rtc_alarm(int irq, void *dev_id)
+{
+	struct platform_device *pdev = to_platform_device(dev_id);
+	struct sh_rtc *rtc = platform_get_drvdata(pdev);
+	unsigned int tmp, events = 0;
+
+	spin_lock(&rtc->lock);
+
+	tmp = readb(rtc->regbase + RCR1);
+
+	/*
+	 * If AF is set then the alarm has triggered. If we clear AF while
+	 * the alarm time still matches the RTC time then AF will
+	 * immediately be set again, and if AIE is enabled then the alarm
+	 * interrupt will immediately be retrigger. So we clear AIE here
+	 * and use rtc->rearm_aie so that the carry interrupt will keep
+	 * trying to clear AF and once it stays cleared it'll re-enable
+	 * AIE.
+	 */
+	if (tmp & RCR1_AF) {
+		events |= RTC_AF | RTC_IRQF;
+
+		tmp &= ~(RCR1_AF|RCR1_AIE);
+
+		writeb(tmp, rtc->regbase + RCR1);
+
+		rtc->rearm_aie = 1;
+
+		rtc_update_irq(&rtc->rtc_dev->class_dev, 1, events);
+	}
+
+	spin_unlock(&rtc->lock);
 	return IRQ_HANDLED;
 }
 
@@ -140,10 +189,11 @@ static inline void sh_rtc_setaie(struct device *dev, unsigned int enable)
 
 	tmp = readb(rtc->regbase + RCR1);
 
-	if (enable)
-		tmp |= RCR1_AIE;
-	else
+	if (!enable) {
 		tmp &= ~RCR1_AIE;
+		rtc->rearm_aie = 0;
+	} else if (rtc->rearm_aie == 0)
+		tmp |= RCR1_AIE;
 
 	writeb(tmp, rtc->regbase + RCR1);
 
@@ -178,7 +228,7 @@ static int sh_rtc_open(struct device *dev)
 		goto err_bad_carry;
 	}
 
-	ret = request_irq(rtc->alarm_irq, sh_rtc_interrupt, IRQF_DISABLED,
+	ret = request_irq(rtc->alarm_irq, sh_rtc_alarm, IRQF_DISABLED,
 			  "sh-rtc alarm", dev);
 	if (unlikely(ret)) {
 		dev_err(dev, "request alarm IRQ failed with %d, IRQ %d\n",
@@ -201,6 +251,7 @@ static void sh_rtc_release(struct device *dev)
 	struct sh_rtc *rtc = dev_get_drvdata(dev);
 
 	sh_rtc_setpie(dev, 0);
+	sh_rtc_setaie(dev, 0);
 
 	free_irq(rtc->periodic_irq, dev);
 	free_irq(rtc->carry_irq, dev);
@@ -345,12 +396,136 @@ static int sh_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
+static inline int sh_rtc_read_alarm_value(struct sh_rtc *rtc, int reg_off)
+{
+	unsigned int byte;
+	int value = 0xff;	/* return 0xff for ignored values */
+
+	byte = readb(rtc->regbase + reg_off);
+	if (byte & AR_ENB) {
+		byte &= ~AR_ENB;	/* strip the enable bit */
+		value = BCD2BIN(byte);
+	}
+
+	return value;
+}
+
+static int sh_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct sh_rtc *rtc = platform_get_drvdata(pdev);
+	struct rtc_time* tm = &wkalrm->time;
+
+	spin_lock_irq(&rtc->lock);
+
+	tm->tm_sec	= sh_rtc_read_alarm_value(rtc, RSECAR);
+	tm->tm_min	= sh_rtc_read_alarm_value(rtc, RMINAR);
+	tm->tm_hour	= sh_rtc_read_alarm_value(rtc, RHRAR);
+	tm->tm_wday	= sh_rtc_read_alarm_value(rtc, RWKAR);
+	tm->tm_mday	= sh_rtc_read_alarm_value(rtc, RDAYAR);
+	tm->tm_mon	= sh_rtc_read_alarm_value(rtc, RMONAR);
+	if (tm->tm_mon > 0)
+		tm->tm_mon -= 1; /* RTC is 1-12, tm_mon is 0-11 */
+	tm->tm_year     = 0xffff;
+
+	spin_unlock_irq(&rtc->lock);
+
+	return 0;
+}
+
+static inline void sh_rtc_write_alarm_value(struct sh_rtc *rtc,
+					    int value, int reg_off)
+{
+	/* < 0 for a value that is ignored */
+	if (value < 0)
+		writeb(0, rtc->regbase + reg_off);
+	else
+		writeb(BIN2BCD(value) | AR_ENB,  rtc->regbase + reg_off);
+}
+
+static int sh_rtc_check_alarm(struct rtc_time* tm)
+{
+	/*
+	 * The original rtc says anything > 0xc0 is "don't care" or "match
+	 * all" - most users use 0xff but rtc-dev uses -1 for the same thing.
+	 * The original rtc doesn't support years - some things use -1 and
+	 * some 0xffff. We use -1 to make out tests easier.
+	 */
+	if (tm->tm_year == 0xffff)
+		tm->tm_year = -1;
+	if (tm->tm_mon >= 0xff)
+		tm->tm_mon = -1;
+	if (tm->tm_mday >= 0xff)
+		tm->tm_mday = -1;
+	if (tm->tm_wday >= 0xff)
+		tm->tm_wday = -1;
+	if (tm->tm_hour >= 0xff)
+		tm->tm_hour = -1;
+	if (tm->tm_min >= 0xff)
+		tm->tm_min = -1;
+	if (tm->tm_sec >= 0xff)
+		tm->tm_sec = -1;
+
+	if (tm->tm_year > 9999 ||
+		tm->tm_mon >= 12 ||
+		tm->tm_mday == 0 || tm->tm_mday >= 32 ||
+		tm->tm_wday >= 7 ||
+		tm->tm_hour >= 24 ||
+		tm->tm_min >= 60 ||
+		tm->tm_sec >= 60)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int sh_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct sh_rtc *rtc = platform_get_drvdata(pdev);
+	unsigned int rcr1;
+	struct rtc_time *tm = &wkalrm->time;
+	int mon, err;
+
+	err = sh_rtc_check_alarm(tm);
+	if (unlikely(err < 0))
+		return err;
+
+	spin_lock_irq(&rtc->lock);
+
+	/* disable alarm interrupt and clear flag */
+	rcr1 = readb(rtc->regbase + RCR1);
+	rcr1 &= ~RCR1_AF;
+	writeb(rcr1 & ~RCR1_AIE, rtc->regbase + RCR1);
+
+	rtc->rearm_aie = 0;
+
+	/* set alarm time */
+	sh_rtc_write_alarm_value(rtc, tm->tm_sec,  RSECAR);
+	sh_rtc_write_alarm_value(rtc, tm->tm_min,  RMINAR);
+	sh_rtc_write_alarm_value(rtc, tm->tm_hour, RHRAR);
+	sh_rtc_write_alarm_value(rtc, tm->tm_wday, RWKAR);
+	sh_rtc_write_alarm_value(rtc, tm->tm_mday, RDAYAR);
+	mon = tm->tm_mon;
+	if (mon >= 0)
+		mon += 1;
+	sh_rtc_write_alarm_value(rtc, mon, RMONAR);
+
+	/* Restore interrupt activation status */
+	writeb(rcr1, rtc->regbase + RCR1);
+
+	spin_unlock_irq(&rtc->lock);
+
+	return 0;
+}
+
 static struct rtc_class_ops sh_rtc_ops = {
 	.open		= sh_rtc_open,
 	.release	= sh_rtc_release,
 	.ioctl		= sh_rtc_ioctl,
 	.read_time	= sh_rtc_read_time,
 	.set_time	= sh_rtc_set_time,
+	.read_alarm	= sh_rtc_read_alarm,
+	.set_alarm	= sh_rtc_set_alarm,
 	.proc		= sh_rtc_proc,
 };
 
@@ -443,7 +618,7 @@ static int __devexit sh_rtc_remove(struct platform_device *pdev)
 }
 static struct platform_driver sh_rtc_platform_driver = {
 	.driver		= {
-		.name	= "sh-rtc",
+		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
 	},
 	.probe		= sh_rtc_probe,
@@ -464,5 +639,6 @@ module_init(sh_rtc_init);
 module_exit(sh_rtc_exit);
 
 MODULE_DESCRIPTION("SuperH on-chip RTC driver");
-MODULE_AUTHOR("Paul Mundt <lethal@linux-sh.org>");
+MODULE_VERSION(DRV_VERSION);
+MODULE_AUTHOR("Paul Mundt <lethal@linux-sh.org>, Jamie Lenehan <lenehan@twibble.org>");
 MODULE_LICENSE("GPL");
