@@ -1861,7 +1861,7 @@ static void __devexit isicom_remove(struct pci_dev *pdev)
 	release_region(board->base, 16);
 }
 
-static int __devinit isicom_setup(void)
+static int __init isicom_init(void)
 {
 	int retval, idx, channel;
 	struct isi_port *port;
@@ -1965,7 +1965,7 @@ static void __exit isicom_exit(void)
 	put_tty_driver(isicom_normal);
 }
 
-module_init(isicom_setup);
+module_init(isicom_init);
 module_exit(isicom_exit);
 
 MODULE_AUTHOR("MultiTech");
