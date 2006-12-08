@@ -496,16 +496,6 @@ static void	stl_offintr(struct work_struct *);
 static struct stlbrd *stl_allocbrd(void);
 static struct stlport *stl_getport(int brdnr, int panelnr, int portnr);
 
-static inline int	stl_initbrds(void);
-static inline int	stl_initeio(struct stlbrd *brdp);
-static inline int	stl_initech(struct stlbrd *brdp);
-static inline int	stl_getbrdnr(void);
-
-#ifdef	CONFIG_PCI
-static inline int	stl_findpcibrds(void);
-static inline int	stl_initpcibrd(int brdtype, struct pci_dev *devp);
-#endif
-
 /*
  *	CD1400 uart specific handling functions.
  */
@@ -2024,7 +2014,7 @@ static int __init stl_initports(struct stlbrd *brdp, struct stlpanel *panelp)
  *	Try to find and initialize an EasyIO board.
  */
 
-static inline int stl_initeio(struct stlbrd *brdp)
+static int stl_initeio(struct stlbrd *brdp)
 {
 	struct stlpanel	*panelp;
 	unsigned int	status;
@@ -2165,7 +2155,7 @@ static inline int stl_initeio(struct stlbrd *brdp)
  *	dealing with all types of ECH board.
  */
 
-static inline int stl_initech(struct stlbrd *brdp)
+static int stl_initech(struct stlbrd *brdp)
 {
 	struct stlpanel	*panelp;
 	unsigned int	status, nxtid, ioaddr, conflict;
@@ -2424,7 +2414,7 @@ static int __init stl_brdinit(struct stlbrd *brdp)
  *	Find the next available board number that is free.
  */
 
-static inline int stl_getbrdnr(void)
+static int stl_getbrdnr(void)
 {
 	int	i;
 
@@ -2448,7 +2438,7 @@ static inline int stl_getbrdnr(void)
  *	configuration space.
  */
 
-static inline int stl_initpcibrd(int brdtype, struct pci_dev *devp)
+static int stl_initpcibrd(int brdtype, struct pci_dev *devp)
 {
 	struct stlbrd	*brdp;
 
@@ -2510,7 +2500,7 @@ static inline int stl_initpcibrd(int brdtype, struct pci_dev *devp)
  */
 
 
-static inline int stl_findpcibrds(void)
+static int stl_findpcibrds(void)
 {
 	struct pci_dev	*dev = NULL;
 	int		i, rc;
@@ -2546,7 +2536,7 @@ static inline int stl_findpcibrds(void)
  *	since the initial search and setup is too different.
  */
 
-static inline int stl_initbrds(void)
+static int stl_initbrds(void)
 {
 	struct stlbrd	*brdp;
 	struct stlconf	*confp;
@@ -3596,7 +3586,7 @@ static void stl_cd1400echintr(struct stlpanel *panelp, unsigned int iobase)
  *	this is the only way to generate them on the cd1400.
  */
 
-static inline int stl_cd1400breakisr(struct stlport *portp, int ioaddr)
+static int stl_cd1400breakisr(struct stlport *portp, int ioaddr)
 {
 	if (portp->brklen == 1) {
 		outb((COR2 + portp->uartaddr), ioaddr);
@@ -4520,7 +4510,7 @@ static void stl_sc26198wait(struct stlport *portp)
  *	automatic flow control modes of the sc26198.
  */
 
-static inline void stl_sc26198txunflow(struct stlport *portp, struct tty_struct *tty)
+static void stl_sc26198txunflow(struct stlport *portp, struct tty_struct *tty)
 {
 	unsigned char	mr0;
 
@@ -4691,7 +4681,7 @@ static void stl_sc26198rxisr(struct stlport *portp, unsigned int iack)
  *	Process an RX bad character.
  */
 
-static inline void stl_sc26198rxbadch(struct stlport *portp, unsigned char status, char ch)
+static void stl_sc26198rxbadch(struct stlport *portp, unsigned char status, char ch)
 {
 	struct tty_struct	*tty;
 	unsigned int		ioaddr;
