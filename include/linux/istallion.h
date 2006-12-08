@@ -51,11 +51,11 @@
  */
 struct stliport {
 	unsigned long		magic;
-	int			portnr;
-	int			panelnr;
-	int			brdnr;
+	unsigned int		portnr;
+	unsigned int		panelnr;
+	unsigned int		brdnr;
 	unsigned long		state;
-	int			devnr;
+	unsigned int		devnr;
 	int			flags;
 	int			baud_base;
 	int			custom_divisor;
@@ -91,23 +91,23 @@ struct stliport {
  */
 struct stlibrd {
 	unsigned long	magic;
-	int		brdnr;
-	int		brdtype;
-	int		state;
-	int		nrpanels;
-	int		nrports;
-	int		nrdevs;
+	unsigned int	brdnr;
+	unsigned int	brdtype;
+	unsigned int	state;
+	unsigned int	nrpanels;
+	unsigned int	nrports;
+	unsigned int	nrdevs;
 	unsigned int	iobase;
 	int		iosize;
 	unsigned long	memaddr;
 	void		__iomem *membase;
-	int		memsize;
+	unsigned long	memsize;
 	int		pagesize;
 	int		hostoffset;
 	int		slaveoffset;
 	int		bitsize;
 	int		enabval;
-	int		panels[STL_MAXPANELS];
+	unsigned int	panels[STL_MAXPANELS];
 	int		panelids[STL_MAXPANELS];
 	void		(*init)(struct stlibrd *brdp);
 	void		(*enable)(struct stlibrd *brdp);
