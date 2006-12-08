@@ -298,6 +298,7 @@ static int sx_init_drivers(void);
 
 static struct tty_driver *sx_driver;
 
+static DEFINE_MUTEX(sx_boards_lock);
 static struct sx_board boards[SX_NBOARDS];
 static struct sx_port *sx_ports;
 static int sx_initialized;
@@ -1980,7 +1981,6 @@ static int sx_init_board (struct sx_board *board)
 	}
 
 	if (chans) {
-		/* board->flags |= SX_BOARD_PRESENT; */
 		if(board->irq > 0) {
 			/* fixed irq, probably PCI */
 			if(sx_irqmask & (1 << board->irq)) { /* may we use this irq? */
@@ -2115,8 +2115,6 @@ static int __devinit probe_sx (struct sx_board *board)
 		return 0;
 	sx_dprintk (SX_DEBUG_INIT, "reset the board...\n");
 
-	board->flags |= SX_BOARD_PRESENT;
-
 	func_exit();
 	return 1;
 }
@@ -2210,8 +2208,6 @@ static int __devinit probe_si (struct sx_board *board)
 	if (!sx_reset (board)) 
 		return 0;
 	sx_dprintk (SX_DEBUG_INIT, "reset the board...\n");
-
-	board->flags |= SX_BOARD_PRESENT;
 
 	func_exit();
 	return 1;
@@ -2396,10 +2392,15 @@ static int __devinit sx_eisa_probe(struct device *dev)
 	unsigned int i;
 	int retval = -EIO;
 
+	mutex_lock(&sx_boards_lock);
 	i = sx_find_free_board();
-
-	if (i == SX_NBOARDS)
+	if (i == SX_NBOARDS) {
+		mutex_unlock(&sx_boards_lock);
 		goto err;
+	}
+	board = &boards[i];
+	board->flags |= SX_BOARD_PRESENT;
+	mutex_unlock(&sx_boards_lock);
 
 	dev_info(dev, "XIO : Signature found in EISA slot %lu, "
 			"Product %d Rev %d (REPORT THIS TO LKLM)\n",
@@ -2407,7 +2408,6 @@ static int __devinit sx_eisa_probe(struct device *dev)
 			inb(eisa_slot + EISA_VENDOR_ID_OFFSET + 2),
 			inb(eisa_slot + EISA_VENDOR_ID_OFFSET + 3));
 
-	board = &boards[i];
 	board->eisa_base = eisa_slot;
 	board->flags &= ~SX_BOARD_TYPE;
 	board->flags |= SI_EISA_BOARD;
@@ -2430,6 +2430,7 @@ static int __devinit sx_eisa_probe(struct device *dev)
 	return 0;
 err_unmap:
 	iounmap(board->base);
+	board->flags &= ~SX_BOARD_PRESENT;
 err:
 	return retval;
 }
@@ -2498,16 +2499,19 @@ static int __devinit sx_pci_probe(struct pci_dev *pdev,
 	unsigned int i;
 	int retval = -EIO;
 
+	mutex_lock(&sx_boards_lock);
 	i = sx_find_free_board();
-
-	if (i == SX_NBOARDS)
+	if (i == SX_NBOARDS) {
+		mutex_unlock(&sx_boards_lock);
 		goto err;
+	}
+	board = &boards[i];
+	board->flags |= SX_BOARD_PRESENT;
+	mutex_unlock(&sx_boards_lock);
 
 	retval = pci_enable_device(pdev);
 	if (retval)
-		goto err;
-
-	board = &boards[i];
+		goto err_flag;
 
 	board->flags &= ~SX_BOARD_TYPE;
 	board->flags |= (pdev->subsystem_vendor == 0x200) ? SX_PCI_BOARD :
@@ -2522,7 +2526,7 @@ static int __devinit sx_pci_probe(struct pci_dev *pdev,
 	board->base = ioremap(board->hw_base, WINDOW_LEN (board));
 	if (!board->base) {
 		dev_err(&pdev->dev, "ioremap failed\n");
-		goto err;
+		goto err_flag;
 	}
 
 	/* Most of the stuff on the CF board is offset by 0x18000 ....  */
@@ -2546,6 +2550,8 @@ static int __devinit sx_pci_probe(struct pci_dev *pdev,
 	return 0;
 err_unmap:
 	iounmap(board->base2);
+err_flag:
+	board->flags &= ~SX_BOARD_PRESENT;
 err:
 	return retval;
 }
@@ -2611,6 +2617,7 @@ static int __init sx_init(void)
 		board->irq = sx_irqmask?-1:0;
 
 		if (probe_sx (board)) {
+			board->flags |= SX_BOARD_PRESENT;
 			found++;
 		} else {
 			iounmap(board->base);
@@ -2627,6 +2634,7 @@ static int __init sx_init(void)
 		board->irq = sx_irqmask ?-1:0;
 
 		if (probe_si (board)) {
+			board->flags |= SX_BOARD_PRESENT;
 			found++;
 		} else {
 			iounmap (board->base);
@@ -2642,6 +2650,7 @@ static int __init sx_init(void)
 		board->irq = sx_irqmask ?-1:0;
 
 		if (probe_si (board)) {
+			board->flags |= SX_BOARD_PRESENT;
 			found++;
 		} else {
 			iounmap (board->base);
