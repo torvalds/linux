@@ -1789,7 +1789,8 @@ static int __devinit isicom_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, board);
 
-	if (!request_region(board->base, 16, ISICOM_NAME)) {
+	retval = pci_request_region(pdev, 3, ISICOM_NAME);
+	if (retval) {
 		dev_err(&pdev->dev, "I/O Region 0x%lx-0x%lx is busy. Card%d "
 			"will be disabled.\n", board->base, board->base + 15,
 			index + 1);
@@ -1822,7 +1823,7 @@ static int __devinit isicom_probe(struct pci_dev *pdev,
 errunri:
 	free_irq(board->irq, board);
 errunrr:
-	release_region(board->base, 16);
+	pci_release_region(pdev, 3);
 err:
 	board->base = 0;
 	return retval;
@@ -1837,7 +1838,7 @@ static void __devexit isicom_remove(struct pci_dev *pdev)
 		tty_unregister_device(isicom_normal, board->index * 16 + i);
 
 	free_irq(board->irq, board);
-	release_region(board->base, 16);
+	pci_release_region(pdev, 3);
 }
 
 static int __init isicom_init(void)
