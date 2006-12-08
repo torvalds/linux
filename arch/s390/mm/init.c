@@ -24,6 +24,7 @@
 #include <linux/pagemap.h>
 #include <linux/bootmem.h>
 #include <linux/pfn.h>
+#include <linux/poison.h>
 
 #include <asm/processor.h>
 #include <asm/system.h>
@@ -187,6 +188,7 @@ void free_initmem(void)
         for (; addr < (unsigned long)(&__init_end); addr += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(addr));
 		init_page_count(virt_to_page(addr));
+		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
 		free_page(addr);
 		totalram_pages++;
         }
