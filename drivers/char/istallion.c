@@ -189,6 +189,7 @@ static struct asystats	stli_cdkstats;
 
 /*****************************************************************************/
 
+static DEFINE_MUTEX(stli_brdslock);
 static struct stlibrd	*stli_brds[STL_MAXBRDS];
 
 static int		stli_shared;
@@ -3677,8 +3678,6 @@ stli_donestartup:
 
 static int __devinit stli_brdinit(struct stlibrd *brdp)
 {
-	stli_brds[brdp->brdnr] = brdp;
-
 	switch (brdp->brdtype) {
 	case BRD_ECP:
 	case BRD_ECPE:
@@ -3896,6 +3895,7 @@ static int stli_findeisabrds(void)
 		outb(0x1, (iobase + 0xc84));
 		if (stli_eisamemprobe(brdp))
 			outb(0, (iobase + 0xc84));
+		stli_brds[brdp->brdnr] = brdp;
 		stli_brdinit(brdp);
 	}
 
@@ -3933,14 +3933,18 @@ static int __devinit stli_pciprobe(struct pci_dev *pdev,
 		retval = -ENOMEM;
 		goto err;
 	}
+	mutex_lock(&stli_brdslock);
 	brdnr = stli_getbrdnr();
-	if (brdnr < 0) { /* TODO: locking */
+	if (brdnr < 0) {
 		printk(KERN_INFO "STALLION: too many boards found, "
 			"maximum supported %d\n", STL_MAXBRDS);
+		mutex_unlock(&stli_brdslock);
 		retval = -EIO;
 		goto err_fr;
 	}
 	brdp->brdnr = (unsigned int)brdnr;
+	stli_brds[brdp->brdnr] = brdp;
+	mutex_unlock(&stli_brdslock);
 	brdp->brdtype = BRD_ECPPCI;
 /*
  *	We have all resources from the board, so lets setup the actual
@@ -3950,11 +3954,13 @@ static int __devinit stli_pciprobe(struct pci_dev *pdev,
 	brdp->memaddr = pci_resource_start(pdev, 2);
 	retval = stli_brdinit(brdp);
 	if (retval)
-		goto err_fr;
+		goto err_null;
 
 	pci_set_drvdata(pdev, brdp);
 
 	return 0;
+err_null:
+	stli_brds[brdp->brdnr] = NULL;
 err_fr:
 	kfree(brdp);
 err:
@@ -4026,6 +4032,7 @@ static int stli_initbrds(void)
 		brdp->brdtype = conf.brdtype;
 		brdp->iobase = conf.ioaddr1;
 		brdp->memaddr = conf.memaddr;
+		stli_brds[brdp->brdnr] = brdp;
 		stli_brdinit(brdp);
 	}
 
