@@ -456,6 +456,8 @@ static int __init vesafb_probe(struct platform_device *dev)
 	       info->node, info->fix.id);
 	return 0;
 err:
+	if (info->screen_base)
+		iounmap(info->screen_base);
 	framebuffer_release(info);
 	release_mem_region(vesafb_fix.smem_start, size_total);
 	return err;
