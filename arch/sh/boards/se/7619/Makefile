@@ -2,4 +2,4 @@
 # Makefile for the 7619 SolutionEngine specific parts of the kernel
 #
 
-obj-y	 := setup.o io.o
+obj-y	 := setup.o
