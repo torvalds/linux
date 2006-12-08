@@ -109,7 +109,7 @@ static inline dma_addr_t
 dma_map_single(struct device *dev, void *cpu_addr, size_t size,
 	       enum dma_data_direction direction)
 {
-	dma_cache_sync(cpu_addr, size, direction);
+	dma_cache_sync(dev, cpu_addr, size, direction);
 	return virt_to_bus(cpu_addr);
 }
 
@@ -211,7 +211,7 @@ dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 
 		sg[i].dma_address = page_to_bus(sg[i].page) + sg[i].offset;
 		virt = page_address(sg[i].page) + sg[i].offset;
-		dma_cache_sync(virt, sg[i].length, direction);
+		dma_cache_sync(dev, virt, sg[i].length, direction);
 	}
 
 	return nents;
@@ -256,14 +256,14 @@ static inline void
 dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle,
 			size_t size, enum dma_data_direction direction)
 {
-	dma_cache_sync(bus_to_virt(dma_handle), size, direction);
+	dma_cache_sync(dev, bus_to_virt(dma_handle), size, direction);
 }
 
 static inline void
 dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle,
 			   size_t size, enum dma_data_direction direction)
 {
-	dma_cache_sync(bus_to_virt(dma_handle), size, direction);
+	dma_cache_sync(dev, bus_to_virt(dma_handle), size, direction);
 }
 
 /**
@@ -286,7 +286,7 @@ dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 	int i;
 
 	for (i = 0; i < nents; i++) {
-		dma_cache_sync(page_address(sg[i].page) + sg[i].offset,
+		dma_cache_sync(dev, page_address(sg[i].page) + sg[i].offset,
 			       sg[i].length, direction);
 	}
 }
@@ -298,7 +298,7 @@ dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 	int i;
 
 	for (i = 0; i < nents; i++) {
-		dma_cache_sync(page_address(sg[i].page) + sg[i].offset,
+		dma_cache_sync(dev, page_address(sg[i].page) + sg[i].offset,
 			       sg[i].length, direction);
 	}
 }
