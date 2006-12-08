@@ -185,6 +185,7 @@ struct atyfb_par {
 	int mtrr_aper;
 	int mtrr_reg;
 #endif
+	u32 mem_cntl;
 };
 
     /*
@@ -314,6 +315,7 @@ struct aty_pll_ops {
 	void (*set_pll)   (const struct fb_info * info, const union aty_pll * pll);
 	void (*get_pll)   (const struct fb_info *info, union aty_pll * pll);
 	int (*init_pll)   (const struct fb_info * info, union aty_pll * pll);
+	void (*resume_pll)(const struct fb_info *info, union aty_pll *pll);
 };
 
 extern const struct aty_pll_ops aty_pll_ati18818_1; /* ATI 18818 */

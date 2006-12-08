@@ -242,6 +242,7 @@ static int atyfb_sync(struct fb_info *info);
      */
 
 static int aty_init(struct fb_info *info);
+static void aty_resume_chip(struct fb_info *info);
 #ifdef CONFIG_ATARI
 static int store_video_par(char *videopar, unsigned char m64_num);
 #endif
@@ -1971,6 +1972,7 @@ static void atyfb_palette(int enter)
 
 #if defined(CONFIG_PM) && defined(CONFIG_PCI)
 
+#ifdef CONFIG_PPC_PMAC
 /* Power management routines. Those are used for PowerBook sleep.
  */
 static int aty_power_mgmt(int sleep, struct atyfb_par *par)
@@ -2027,20 +2029,12 @@ static int aty_power_mgmt(int sleep, struct atyfb_par *par)
 
 	return timeout ? 0 : -EIO;
 }
+#endif
 
 static int atyfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct fb_info *info = pci_get_drvdata(pdev);
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
-
-#ifndef CONFIG_PPC_PMAC
-	/* HACK ALERT ! Once I find a proper way to say to each driver
-	 * individually what will happen with it's PCI slot, I'll change
-	 * that. On laptops, the AGP slot is just unclocked, so D2 is
-	 * expected, while on desktops, the card is powered off
-	 */
-	return 0;
-#endif /* CONFIG_PPC_PMAC */
 
 	if (state.event == pdev->dev.power.power_state.event)
 		return 0;
@@ -2059,6 +2053,7 @@ static int atyfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	par->asleep = 1;
 	par->lock_blank = 1;
 
+#ifdef CONFIG_PPC_PMAC
 	/* Set chip to "suspend" mode */
 	if (aty_power_mgmt(1, par)) {
 		par->asleep = 0;
@@ -2068,6 +2063,9 @@ static int atyfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 		release_console_sem();
 		return -EIO;
 	}
+#else
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+#endif
 
 	release_console_sem();
 
@@ -2086,8 +2084,15 @@ static int atyfb_pci_resume(struct pci_dev *pdev)
 
 	acquire_console_sem();
 
+#ifdef CONFIG_PPC_PMAC
 	if (pdev->dev.power.power_state.event == 2)
 		aty_power_mgmt(0, par);
+#else
+	pci_set_power_state(pdev, PCI_D0);
+#endif
+
+	aty_resume_chip(info);
+
 	par->asleep = 0;
 
 	/* Restore display */
@@ -2339,7 +2344,6 @@ static int __devinit aty_init(struct fb_info *info)
 	const char *ramname = NULL, *xtal;
 	int gtb_memsize, has_var = 0;
 	struct fb_var_screeninfo var;
-	u32 i;
 
 	init_waitqueue_head(&par->vblank.wait);
 	spin_lock_init(&par->int_lock);
@@ -2470,10 +2474,10 @@ static int __devinit aty_init(struct fb_info *info)
 	if(par->pll_ops->get_pll)
 		par->pll_ops->get_pll(info, &saved_pll);
 
-	i = aty_ld_le32(MEM_CNTL, par);
+	par->mem_cntl = aty_ld_le32(MEM_CNTL, par);
 	gtb_memsize = M64_HAS(GTB_DSP);
 	if (gtb_memsize)
-		switch (i & 0xF) {	/* 0xF used instead of MEM_SIZE_ALIAS */
+		switch (par->mem_cntl & 0xF) {	/* 0xF used instead of MEM_SIZE_ALIAS */
 		case MEM_SIZE_512K:
 			info->fix.smem_len = 0x80000;
 			break;
@@ -2495,7 +2499,7 @@ static int __devinit aty_init(struct fb_info *info)
 		default:
 			info->fix.smem_len = 0x80000;
 	} else
-		switch (i & MEM_SIZE_ALIAS) {
+		switch (par->mem_cntl & MEM_SIZE_ALIAS) {
 		case MEM_SIZE_512K:
 			info->fix.smem_len = 0x80000;
 			break;
@@ -2525,20 +2529,20 @@ static int __devinit aty_init(struct fb_info *info)
 
 	if (vram) {
 		info->fix.smem_len = vram * 1024;
-		i = i & ~(gtb_memsize ? 0xF : MEM_SIZE_ALIAS);
+		par->mem_cntl &= ~(gtb_memsize ? 0xF : MEM_SIZE_ALIAS);
 		if (info->fix.smem_len <= 0x80000)
-			i |= MEM_SIZE_512K;
+			par->mem_cntl |= MEM_SIZE_512K;
 		else if (info->fix.smem_len <= 0x100000)
-			i |= MEM_SIZE_1M;
+			par->mem_cntl |= MEM_SIZE_1M;
 		else if (info->fix.smem_len <= 0x200000)
-			i |= gtb_memsize ? MEM_SIZE_2M_GTB : MEM_SIZE_2M;
+			par->mem_cntl |= gtb_memsize ? MEM_SIZE_2M_GTB : MEM_SIZE_2M;
 		else if (info->fix.smem_len <= 0x400000)
-			i |= gtb_memsize ? MEM_SIZE_4M_GTB : MEM_SIZE_4M;
+			par->mem_cntl |= gtb_memsize ? MEM_SIZE_4M_GTB : MEM_SIZE_4M;
 		else if (info->fix.smem_len <= 0x600000)
-			i |= gtb_memsize ? MEM_SIZE_6M_GTB : MEM_SIZE_6M;
+			par->mem_cntl |= gtb_memsize ? MEM_SIZE_6M_GTB : MEM_SIZE_6M;
 		else
-			i |= gtb_memsize ? MEM_SIZE_8M_GTB : MEM_SIZE_8M;
-		aty_st_le32(MEM_CNTL, i, par);
+			par->mem_cntl |= gtb_memsize ? MEM_SIZE_8M_GTB : MEM_SIZE_8M;
+		aty_st_le32(MEM_CNTL, par->mem_cntl, par);
 	}
 
 	/*
@@ -2584,6 +2588,8 @@ static int __devinit aty_init(struct fb_info *info)
 #endif
 	if(par->pll_ops->init_pll)
 		par->pll_ops->init_pll(info, &par->pll);
+	if (par->pll_ops->resume_pll)
+		par->pll_ops->resume_pll(info, &par->pll);
 
 	/*
 	 *  Last page of 8 MB (4 MB on ISA) aperture is MMIO,
@@ -2753,6 +2759,19 @@ aty_init_exit:
 	}
 #endif
 	return -1;
+}
+
+static void aty_resume_chip(struct fb_info *info)
+{
+	struct atyfb_par *par = info->par;
+
+	aty_st_le32(MEM_CNTL, par->mem_cntl, par);
+
+	if (par->pll_ops->resume_pll)
+		par->pll_ops->resume_pll(info, &par->pll);
+
+	if (par->aux_start)
+		aty_st_le32(BUS_CNTL, aty_ld_le32(BUS_CNTL, par) | BUS_APER_REG_DIS, par);
 }
 
 #ifdef CONFIG_ATARI

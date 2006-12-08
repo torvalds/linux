@@ -398,8 +398,8 @@ static int __devinit aty_init_pll_ct(const struct fb_info *info,
 				     union aty_pll *pll)
 {
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
-	u8 mpost_div, xpost_div, sclk_post_div_real, sclk_fb_div, spll_cntl2;
-	u32 q, i, memcntl, trp;
+	u8 mpost_div, xpost_div, sclk_post_div_real;
+	u32 q, memcntl, trp;
 	u32 dsp_config, dsp_on_off, vga_dsp_config, vga_dsp_on_off;
 #ifdef DEBUG
 	int pllmclk, pllsclk;
@@ -575,14 +575,30 @@ static int __devinit aty_init_pll_ct(const struct fb_info *info,
 			mpost_div += (q <  32*8);
 		}
 		sclk_post_div_real = postdividers[mpost_div];
-		sclk_fb_div = q * sclk_post_div_real / 8;
-		spll_cntl2 = mpost_div << 4;
+		pll->ct.sclk_fb_div = q * sclk_post_div_real / 8;
+		pll->ct.spll_cntl2 = mpost_div << 4;
 #ifdef DEBUG
-		pllsclk = (1000000 * 2 * sclk_fb_div) /
+		pllsclk = (1000000 * 2 * pll->ct.sclk_fb_div) /
 			(par->ref_clk_per * pll->ct.pll_ref_div);
 		printk("atyfb(%s): use sclk, pllsclk=%d MHz, sclk=mclk=%d MHz\n",
 			__FUNCTION__, pllsclk, pllsclk / sclk_post_div_real);
 #endif
+	}
+
+	/* Disable the extra precision pixel clock controls since we do not use them. */
+	pll->ct.ext_vpll_cntl = aty_ld_pll_ct(EXT_VPLL_CNTL, par);
+	pll->ct.ext_vpll_cntl &= ~(EXT_VPLL_EN | EXT_VPLL_VGA_EN | EXT_VPLL_INSYNC);
+
+	return 0;
+}
+
+static void aty_resume_pll_ct(const struct fb_info *info,
+			      union aty_pll *pll)
+{
+	struct atyfb_par *par = info->par;
+
+	if (par->mclk_per != par->xclk_per) {
+		int i;
 		/*
 		* This disables the sclk, crashes the computer as reported:
 		* aty_st_pll_ct(SPLL_CNTL2, 3, info);
@@ -590,8 +606,8 @@ static int __devinit aty_init_pll_ct(const struct fb_info *info,
 		* So it seems the sclk must be enabled before it is used;
 		* so PLL_GEN_CNTL must be programmed *after* the sclk.
 		*/
-		aty_st_pll_ct(SCLK_FB_DIV, sclk_fb_div, par);
-		aty_st_pll_ct(SPLL_CNTL2, spll_cntl2, par);
+		aty_st_pll_ct(SCLK_FB_DIV, pll->ct.sclk_fb_div, par);
+		aty_st_pll_ct(SPLL_CNTL2, pll->ct.spll_cntl2, par);
 		/*
 		 * The sclk has been started. However, I believe the first clock
 		 * ticks it generates are not very stable. Hope this primitive loop
@@ -605,11 +621,7 @@ static int __devinit aty_init_pll_ct(const struct fb_info *info,
 	aty_st_pll_ct(PLL_GEN_CNTL, pll->ct.pll_gen_cntl, par);
 	aty_st_pll_ct(MCLK_FB_DIV, pll->ct.mclk_fb_div, par);
 	aty_st_pll_ct(PLL_EXT_CNTL, pll->ct.pll_ext_cntl, par);
-	/* Disable the extra precision pixel clock controls since we do not use them. */
-	aty_st_pll_ct(EXT_VPLL_CNTL, aty_ld_pll_ct(EXT_VPLL_CNTL, par) &
-		~(EXT_VPLL_EN | EXT_VPLL_VGA_EN | EXT_VPLL_INSYNC), par);
-
-	return 0;
+	aty_st_pll_ct(EXT_VPLL_CNTL, pll->ct.ext_vpll_cntl, par);
 }
 
 static int dummy(void)
@@ -626,5 +638,6 @@ const struct aty_pll_ops aty_pll_ct = {
 	.pll_to_var	= aty_pll_to_var_ct,
 	.set_pll	= aty_set_pll_ct,
 	.get_pll	= aty_get_pll_ct,
-	.init_pll       = aty_init_pll_ct
+	.init_pll	= aty_init_pll_ct,
+	.resume_pll	= aty_resume_pll_ct,
 };
