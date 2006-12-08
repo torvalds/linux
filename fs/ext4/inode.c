@@ -1232,7 +1232,7 @@ retry:
 				from, to, NULL, do_journal_get_write_access);
 		if (ret)
 			/* fatal error, just put the handle and return */
-			journal_stop(handle);
+			ext4_journal_stop(handle);
 	}
 	return ret;
 
