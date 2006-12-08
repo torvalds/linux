@@ -895,7 +895,6 @@ SYM53C500_probe(struct pcmcia_device *link)
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
-	link->conf.Present = PRESENT_OPTION;
 
 	return SYM53C500_config(link);
 } /* SYM53C500_attach */

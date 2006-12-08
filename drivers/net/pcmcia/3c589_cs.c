@@ -195,7 +195,6 @@ static int tc589_probe(struct pcmcia_device *link)
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.ConfigIndex = 1;
-    link->conf.Present = PRESENT_OPTION;
 
     /* The EL3-specific entries in the device structure. */
     SET_MODULE_OWNER(dev);
