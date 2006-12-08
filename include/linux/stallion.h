@@ -69,12 +69,12 @@ struct stlrq {
  */
 struct stlport {
 	unsigned long		magic;
-	int			portnr;
-	int			panelnr;
-	int			brdnr;
+	unsigned int		portnr;
+	unsigned int		panelnr;
+	unsigned int		brdnr;
 	int			ioaddr;
 	int			uartaddr;
-	int			pagenr;
+	unsigned int		pagenr;
 	long			istate;
 	int			flags;
 	int			baud_base;
@@ -102,10 +102,10 @@ struct stlport {
 
 struct stlpanel {
 	unsigned long	magic;
-	int		panelnr;
-	int		brdnr;
-	int		pagenr;
-	int		nrports;
+	unsigned int	panelnr;
+	unsigned int	brdnr;
+	unsigned int	pagenr;
+	unsigned int	nrports;
 	int		iobase;
 	void		*uartp;
 	void		(*isr)(struct stlpanel *panelp, unsigned int iobase);
@@ -116,12 +116,12 @@ struct stlpanel {
 
 struct stlbrd {
 	unsigned long	magic;
-	int		brdnr;
-	int		brdtype;
-	int		state;
-	int		nrpanels;
-	int		nrports;
-	int		nrbnks;
+	unsigned int	brdnr;
+	unsigned int	brdtype;
+	unsigned int	state;
+	unsigned int	nrpanels;
+	unsigned int	nrports;
+	unsigned int	nrbnks;
 	int		irq;
 	int		irqtype;
 	int		(*isr)(struct stlbrd *brdp);

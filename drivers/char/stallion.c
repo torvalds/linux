@@ -63,7 +63,7 @@
 #define	BRD_EASYIOPCI	28
 
 struct stlconf {
-	int		brdtype;
+	unsigned int	brdtype;
 	int		ioaddr1;
 	int		ioaddr2;
 	unsigned long	memaddr;
@@ -119,15 +119,6 @@ static struct ktermios		stl_deftermios = {
 	.c_ispeed	= 9600,
 	.c_ospeed	= 9600,
 };
-
-/*
- *	Define global stats structures. Not used often, and can be
- *	re-used for each stats call.
- */
-static comstats_t	stl_comstats;
-static combrd_t		stl_brdstats;
-static struct stlbrd		stl_dummybrd;
-static struct stlport	stl_dummyport;
 
 /*
  *	Define global place to put buffer overflow characters.
@@ -200,7 +191,7 @@ static char	*stl_brdnames[] = {
  *	load line. These allow for easy board definitions, and easy
  *	modification of the io, memory and irq resoucres.
  */
-static int	stl_nargs = 0;
+static unsigned int stl_nargs;
 static char	*board0[4];
 static char	*board1[4];
 static char	*board2[4];
@@ -632,7 +623,7 @@ static struct class *stallion_class;
 static int __init stl_parsebrd(struct stlconf *confp, char **argp)
 {
 	char	*sp;
-	int	i;
+	unsigned int i;
 
 	pr_debug("stl_parsebrd(confp=%p,argp=%p)\n", confp, argp);
 
@@ -694,8 +685,8 @@ static int stl_open(struct tty_struct *tty, struct file *filp)
 {
 	struct stlport	*portp;
 	struct stlbrd	*brdp;
-	unsigned int	minordev;
-	int		brdnr, panelnr, portnr, rc;
+	unsigned int	minordev, brdnr, panelnr;
+	int		portnr, rc;
 
 	pr_debug("stl_open(tty=%p,filp=%p): device=%s\n", tty, filp, tty->name);
 
@@ -1556,8 +1547,8 @@ static int stl_readproc(char *page, char **start, off_t off, int count, int *eof
 	struct stlbrd	*brdp;
 	struct stlpanel	*panelp;
 	struct stlport	*portp;
-	int		brdnr, panelnr, portnr, totalport;
-	int		curoff, maxoff;
+	unsigned int	brdnr, panelnr, portnr;
+	int		totalport, curoff, maxoff;
 	char		*pos;
 
 	pr_debug("stl_readproc(page=%p,start=%p,off=%lx,count=%d,eof=%p,"
@@ -1675,8 +1666,7 @@ static int stl_eiointr(struct stlbrd *brdp)
 static int stl_echatintr(struct stlbrd *brdp)
 {
 	struct stlpanel	*panelp;
-	unsigned int	ioaddr;
-	int		bnknr;
+	unsigned int	ioaddr, bnknr;
 	int		handled = 0;
 
 	outb((brdp->ioctrlval | ECH_BRDENABLE), brdp->ioctrl);
@@ -1706,8 +1696,7 @@ static int stl_echatintr(struct stlbrd *brdp)
 static int stl_echmcaintr(struct stlbrd *brdp)
 {
 	struct stlpanel	*panelp;
-	unsigned int	ioaddr;
-	int		bnknr;
+	unsigned int	ioaddr, bnknr;
 	int		handled = 0;
 
 	while (inb(brdp->iostatus) & ECH_INTRPEND) {
@@ -1732,8 +1721,7 @@ static int stl_echmcaintr(struct stlbrd *brdp)
 static int stl_echpciintr(struct stlbrd *brdp)
 {
 	struct stlpanel	*panelp;
-	unsigned int	ioaddr;
-	int		bnknr, recheck;
+	unsigned int	ioaddr, bnknr, recheck;
 	int		handled = 0;
 
 	while (1) {
@@ -1763,8 +1751,7 @@ static int stl_echpciintr(struct stlbrd *brdp)
 static int stl_echpci64intr(struct stlbrd *brdp)
 {
 	struct stlpanel	*panelp;
-	unsigned int	ioaddr;
-	int		bnknr;
+	unsigned int	ioaddr, bnknr;
 	int		handled = 0;
 
 	while (inb(brdp->ioctrl) & 0x1) {
@@ -1826,8 +1813,9 @@ static void stl_offintr(struct work_struct *work)
 
 static int __devinit stl_initports(struct stlbrd *brdp, struct stlpanel *panelp)
 {
-	struct stlport	*portp;
-	int		chipmask, i;
+	struct stlport *portp;
+	unsigned int i;
+	int chipmask;
 
 	pr_debug("stl_initports(brdp=%p,panelp=%p)\n", brdp, panelp);
 
@@ -2052,8 +2040,8 @@ err:
 static int __devinit stl_initech(struct stlbrd *brdp)
 {
 	struct stlpanel	*panelp;
-	unsigned int	status, nxtid, ioaddr, conflict;
-	int		panelnr, banknr, i, retval;
+	unsigned int	status, nxtid, ioaddr, conflict, panelnr, banknr, i;
+	int		retval;
 	char		*name;
 
 	pr_debug("stl_initech(brdp=%p)\n", brdp);
@@ -2337,7 +2325,7 @@ err:
 
 static int __devinit stl_getbrdnr(void)
 {
-	int	i;
+	unsigned int i;
 
 	for (i = 0; i < STL_MAXBRDS; i++)
 		if (stl_brds[i] == NULL) {
@@ -2361,7 +2349,7 @@ static int __devinit stl_pciprobe(struct pci_dev *pdev,
 {
 	struct stlbrd *brdp;
 	unsigned int brdtype = ent->driver_data;
-	int retval = -ENODEV;
+	int brdnr, retval = -ENODEV;
 
 	if ((pdev->class >> 8) == PCI_CLASS_STORAGE_IDE)
 		goto err;
@@ -2378,13 +2366,14 @@ static int __devinit stl_pciprobe(struct pci_dev *pdev,
 		goto err;
 	}
 	mutex_lock(&stl_brdslock);
-	brdp->brdnr = stl_getbrdnr();
-	if (brdp->brdnr < 0) {
+	brdnr = stl_getbrdnr();
+	if (brdnr < 0) {
 		dev_err(&pdev->dev, "too many boards found, "
 			"maximum supported %d\n", STL_MAXBRDS);
 		mutex_unlock(&stl_brdslock);
 		goto err_fr;
 	}
+	brdp->brdnr = (unsigned int)brdnr;
 	stl_brds[brdp->brdnr] = brdp;
 	mutex_unlock(&stl_brdslock);
 
@@ -2460,9 +2449,10 @@ static struct pci_driver stl_pcidriver = {
 
 static int stl_getbrdstats(combrd_t __user *bp)
 {
+	combrd_t	stl_brdstats;
 	struct stlbrd	*brdp;
 	struct stlpanel	*panelp;
-	int		i;
+	unsigned int i;
 
 	if (copy_from_user(&stl_brdstats, bp, sizeof(combrd_t)))
 		return -EFAULT;
@@ -2508,12 +2498,12 @@ static struct stlport *stl_getport(int brdnr, int panelnr, int portnr)
 	brdp = stl_brds[brdnr];
 	if (brdp == NULL)
 		return NULL;
-	if (panelnr < 0 || panelnr >= brdp->nrpanels)
+	if (panelnr < 0 || (unsigned int)panelnr >= brdp->nrpanels)
 		return NULL;
 	panelp = brdp->panels[panelnr];
 	if (panelp == NULL)
 		return NULL;
-	if (portnr < 0 || portnr >= panelp->nrports)
+	if (portnr < 0 || (unsigned int)portnr >= panelp->nrports)
 		return NULL;
 	return panelp->ports[portnr];
 }
@@ -2528,6 +2518,7 @@ static struct stlport *stl_getport(int brdnr, int panelnr, int portnr)
 
 static int stl_getportstats(struct stlport *portp, comstats_t __user *cp)
 {
+	comstats_t	stl_comstats;
 	unsigned char	*head, *tail;
 	unsigned long	flags;
 
@@ -2585,6 +2576,8 @@ static int stl_getportstats(struct stlport *portp, comstats_t __user *cp)
 
 static int stl_clrportstats(struct stlport *portp, comstats_t __user *cp)
 {
+	comstats_t	stl_comstats;
+
 	if (!portp) {
 		if (copy_from_user(&stl_comstats, cp, sizeof(comstats_t)))
 			return -EFAULT;
@@ -2610,6 +2603,7 @@ static int stl_clrportstats(struct stlport *portp, comstats_t __user *cp)
 
 static int stl_getportstruct(struct stlport __user *arg)
 {
+	struct stlport	stl_dummyport;
 	struct stlport	*portp;
 
 	if (copy_from_user(&stl_dummyport, arg, sizeof(struct stlport)))
@@ -2629,11 +2623,12 @@ static int stl_getportstruct(struct stlport __user *arg)
 
 static int stl_getbrdstruct(struct stlbrd __user *arg)
 {
+	struct stlbrd	stl_dummybrd;
 	struct stlbrd	*brdp;
 
 	if (copy_from_user(&stl_dummybrd, arg, sizeof(struct stlbrd)))
 		return -EFAULT;
-	if ((stl_dummybrd.brdnr < 0) || (stl_dummybrd.brdnr >= STL_MAXBRDS))
+	if (stl_dummybrd.brdnr >= STL_MAXBRDS)
 		return -ENODEV;
 	brdp = stl_brds[stl_dummybrd.brdnr];
 	if (!brdp)
