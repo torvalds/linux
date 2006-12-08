@@ -595,7 +595,6 @@ static struct pci_driver stli_pcidriver;
  */
 
 static int	stli_parsebrd(struct stlconf *confp, char **argp);
-static int	stli_init(void);
 static int	stli_open(struct tty_struct *tty, struct file *filp);
 static void	stli_close(struct tty_struct *tty, struct file *filp);
 static int	stli_write(struct tty_struct *tty, const unsigned char *buf, int count);
@@ -743,65 +742,6 @@ static void stli_cleanup_ports(struct stlibrd *brdp)
 		}
 	}
 }
-
-/*
- *	Loadable module initialization stuff.
- */
-
-static int __init istallion_module_init(void)
-{
-	stli_init();
-	return 0;
-}
-
-/*****************************************************************************/
-
-static void __exit istallion_module_exit(void)
-{
-	struct stlibrd	*brdp;
-	unsigned int j;
-	int		i;
-
-	printk(KERN_INFO "Unloading %s: version %s\n", stli_drvtitle,
-		stli_drvversion);
-
-	pci_unregister_driver(&stli_pcidriver);
-	/*
-	 *	Free up all allocated resources used by the ports. This includes
-	 *	memory and interrupts.
-	 */
-	if (stli_timeron) {
-		stli_timeron = 0;
-		del_timer_sync(&stli_timerlist);
-	}
-
-	i = tty_unregister_driver(stli_serial);
-	put_tty_driver(stli_serial);
-	for (j = 0; j < 4; j++)
-		class_device_destroy(istallion_class, MKDEV(STL_SIOMEMMAJOR, j));
-	class_destroy(istallion_class);
-	if ((i = unregister_chrdev(STL_SIOMEMMAJOR, "staliomem")))
-		printk("STALLION: failed to un-register serial memory device, "
-			"errno=%d\n", -i);
-
-	kfree(stli_txcookbuf);
-
-	for (j = 0; (j < stli_nrbrds); j++) {
-		if ((brdp = stli_brds[j]) == NULL || (brdp->state & BST_PROBED))
-			continue;
-
-		stli_cleanup_ports(brdp);
-
-		iounmap(brdp->membase);
-		if (brdp->iosize > 0)
-			release_region(brdp->iobase, brdp->iosize);
-		kfree(brdp);
-		stli_brds[j] = NULL;
-	}
-}
-
-module_init(istallion_module_init);
-module_exit(istallion_module_exit);
 
 /*****************************************************************************/
 
@@ -4601,10 +4541,14 @@ static const struct tty_operations stli_ops = {
 };
 
 /*****************************************************************************/
+/*
+ *	Loadable module initialization stuff.
+ */
 
-static int __init stli_init(void)
+static int __init istallion_module_init(void)
 {
 	int i;
+
 	printk(KERN_INFO "%s: version %s\n", stli_drvtitle, stli_drvversion);
 
 	spin_lock_init(&stli_lock);
@@ -4661,3 +4605,50 @@ static int __init stli_init(void)
 }
 
 /*****************************************************************************/
+
+static void __exit istallion_module_exit(void)
+{
+	struct stlibrd	*brdp;
+	unsigned int j;
+	int		i;
+
+	printk(KERN_INFO "Unloading %s: version %s\n", stli_drvtitle,
+		stli_drvversion);
+
+	pci_unregister_driver(&stli_pcidriver);
+	/*
+	 *	Free up all allocated resources used by the ports. This includes
+	 *	memory and interrupts.
+	 */
+	if (stli_timeron) {
+		stli_timeron = 0;
+		del_timer_sync(&stli_timerlist);
+	}
+
+	i = tty_unregister_driver(stli_serial);
+	put_tty_driver(stli_serial);
+	for (j = 0; j < 4; j++)
+		class_device_destroy(istallion_class, MKDEV(STL_SIOMEMMAJOR, j));
+	class_destroy(istallion_class);
+	if ((i = unregister_chrdev(STL_SIOMEMMAJOR, "staliomem")))
+		printk("STALLION: failed to un-register serial memory device, "
+			"errno=%d\n", -i);
+
+	kfree(stli_txcookbuf);
+
+	for (j = 0; (j < stli_nrbrds); j++) {
+		if ((brdp = stli_brds[j]) == NULL || (brdp->state & BST_PROBED))
+			continue;
+
+		stli_cleanup_ports(brdp);
+
+		iounmap(brdp->membase);
+		if (brdp->iosize > 0)
+			release_region(brdp->iobase, brdp->iosize);
+		kfree(brdp);
+		stli_brds[j] = NULL;
+	}
+}
+
+module_init(istallion_module_init);
+module_exit(istallion_module_exit);
