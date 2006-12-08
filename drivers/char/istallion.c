@@ -3846,6 +3846,10 @@ static int stli_findeisabrds(void)
 
 		stli_brds[brdp->brdnr] = brdp;
 		found++;
+
+		for (i = 0; i < brdp->nrports; i++)
+			tty_register_device(stli_serial,
+					brdp->brdnr * STL_MAXPORTS + i, NULL);
 	}
 
 	return found;
@@ -3872,6 +3876,7 @@ static int __devinit stli_pciprobe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
 	struct stlibrd *brdp;
+	unsigned int i;
 	int brdnr, retval = -EIO;
 
 	retval = pci_enable_device(pdev);
@@ -3911,6 +3916,10 @@ static int __devinit stli_pciprobe(struct pci_dev *pdev,
 	EBRDENABLE(brdp);
 	brdp->enable = NULL;
 	brdp->disable = NULL;
+
+	for (i = 0; i < brdp->nrports; i++)
+		tty_register_device(stli_serial, brdp->brdnr * STL_MAXPORTS + i,
+				&pdev->dev);
 
 	return 0;
 err_null:
@@ -3992,6 +4001,10 @@ static int stli_initbrds(void)
 		}
 		stli_brds[brdp->brdnr] = brdp;
 		found++;
+
+		for (i = 0; i < brdp->nrports; i++)
+			tty_register_device(stli_serial,
+					brdp->brdnr * STL_MAXPORTS + i, NULL);
 	}
 
 	retval = stli_findeisabrds();
@@ -4596,7 +4609,7 @@ static int __init istallion_module_init(void)
 	stli_serial->type = TTY_DRIVER_TYPE_SERIAL;
 	stli_serial->subtype = SERIAL_TYPE_NORMAL;
 	stli_serial->init_termios = stli_deftermios;
-	stli_serial->flags = TTY_DRIVER_REAL_RAW;
+	stli_serial->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	tty_set_operations(stli_serial, &stli_ops);
 
 	retval = tty_register_driver(stli_serial);
