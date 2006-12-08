@@ -104,7 +104,8 @@
 #define M32R_MFT5RLD_PORTL     (0x0C+M32R_MFT5_OFFSET)  /* MFT4 reload */
 #define M32R_MFT5CMPRLD_PORTL  (0x10+M32R_MFT5_OFFSET)  /* MFT4 compare reload */
 
-#if defined(CONFIG_CHIP_M32700) || defined(CONFIG_CHIP_M32104)
+#if (defined(CONFIG_CHIP_M32700) && !defined(CONFIG_PLAT_MAPPI2)) \
+	|| defined(CONFIG_CHIP_M32104)
 #define M32R_MFTCR_MFT0MSK  (1UL<<31)  /* b0 */
 #define M32R_MFTCR_MFT1MSK  (1UL<<30)  /* b1 */
 #define M32R_MFTCR_MFT2MSK  (1UL<<29)  /* b2 */
@@ -117,7 +118,7 @@
 #define M32R_MFTCR_MFT3EN   (1UL<<20)  /* b11 */
 #define M32R_MFTCR_MFT4EN   (1UL<<19)  /* b12 */
 #define M32R_MFTCR_MFT5EN   (1UL<<18)  /* b13 */
-#else	/* not CONFIG_CHIP_M32700 && not CONFIG_CHIP_M32104 */
+#else
 #define M32R_MFTCR_MFT0MSK  (1UL<<15)  /* b16 */
 #define M32R_MFTCR_MFT1MSK  (1UL<<14)  /* b17 */
 #define M32R_MFTCR_MFT2MSK  (1UL<<13)  /* b18 */
@@ -130,7 +131,7 @@
 #define M32R_MFTCR_MFT3EN   (1UL<<4)   /* b27 */
 #define M32R_MFTCR_MFT4EN   (1UL<<3)   /* b28 */
 #define M32R_MFTCR_MFT5EN   (1UL<<2)   /* b29 */
-#endif	/* not CONFIG_CHIP_M32700 && not CONFIG_CHIP_M32104 */
+#endif
 
 #define M32R_MFTMOD_CC_MASK    (1UL<<15)  /* b16 */
 #define M32R_MFTMOD_TCCR       (1UL<<13)  /* b18 */
