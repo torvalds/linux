@@ -73,13 +73,17 @@ configuration of fault-injection capabilities.
 	Any positive value limits failures to only processes indicated by
 	/proc/<pid>/make-it-fail==1.
 
-- /debug/*/address-start:
-- /debug/*/address-end:
+- /debug/*/require-start:
+- /debug/*/require-end:
+- /debug/*/reject-start:
+- /debug/*/reject-end:
 
 	specifies the range of virtual addresses tested during
 	stacktrace walking.  Failure is injected only if some caller
-	in the walked stacktrace lies within this range.
-	Default is [0,ULONG_MAX) (whole of virtual address space).
+	in the walked stacktrace lies within the required range, and
+	none lies within the rejected range.
+	Default required range is [0,ULONG_MAX) (whole of virtual address space).
+	Default rejected range is [0,0).
 
 - /debug/*/stacktrace-depth:
 

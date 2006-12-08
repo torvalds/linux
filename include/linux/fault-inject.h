@@ -18,6 +18,11 @@ struct fault_attr {
 	atomic_t space;
 	unsigned long verbose;
 	u32 task_filter;
+	unsigned long stacktrace_depth;
+	unsigned long require_start;
+	unsigned long require_end;
+	unsigned long reject_start;
+	unsigned long reject_end;
 
 	unsigned long count;
 
@@ -32,6 +37,11 @@ struct fault_attr {
 		struct dentry *space_file;
 		struct dentry *verbose_file;
 		struct dentry *task_filter_file;
+		struct dentry *stacktrace_depth_file;
+		struct dentry *require_start_file;
+		struct dentry *require_end_file;
+		struct dentry *reject_start_file;
+		struct dentry *reject_end_file;
 	} dentries;
 
 #endif
@@ -40,6 +50,8 @@ struct fault_attr {
 #define FAULT_ATTR_INITIALIZER {				\
 		.interval = 1,					\
 		.times = ATOMIC_INIT(1),			\
+		.require_end = ULONG_MAX,			\
+		.stacktrace_depth = 32,				\
 	}
 
 #define DECLARE_FAULT_ATTR(name) struct fault_attr name = FAULT_ATTR_INITIALIZER

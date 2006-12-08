@@ -6,6 +6,9 @@
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/unwind.h>
+#include <linux/stacktrace.h>
+#include <linux/kallsyms.h>
 #include <linux/fault-inject.h>
 
 /*
@@ -50,6 +53,86 @@ static int fail_task(struct fault_attr *attr, struct task_struct *task)
 	return !in_interrupt() && task->make_it_fail;
 }
 
+#ifdef CONFIG_STACK_UNWIND
+
+static asmlinkage int fail_stacktrace_callback(struct unwind_frame_info *info,
+						void *arg)
+{
+	int depth;
+	struct fault_attr *attr = arg;
+	bool found = (attr->require_start == 0 && attr->require_end == ULONG_MAX);
+
+	for (depth = 0; depth < attr->stacktrace_depth
+			&& unwind(info) == 0 && UNW_PC(info); depth++) {
+		if (arch_unw_user_mode(info))
+			break;
+		if (attr->reject_start <= UNW_PC(info) &&
+			       UNW_PC(info) < attr->reject_end)
+			return 0;
+		if (attr->require_start <= UNW_PC(info) &&
+			       UNW_PC(info) < attr->require_end)
+			found = 1;
+	}
+	return found;
+}
+
+static int fail_stacktrace(struct fault_attr *attr)
+{
+	struct unwind_frame_info info;
+
+	return unwind_init_running(&info, fail_stacktrace_callback, attr);
+}
+
+#elif defined(CONFIG_STACKTRACE)
+
+#define MAX_STACK_TRACE_DEPTH 32
+
+static int fail_stacktrace(struct fault_attr *attr)
+{
+	struct stack_trace trace;
+	int depth = attr->stacktrace_depth;
+	unsigned long entries[MAX_STACK_TRACE_DEPTH];
+	int n;
+	bool found = (attr->require_start == 0 && attr->require_end == ULONG_MAX);
+
+	if (depth == 0)
+		return found;
+
+	trace.nr_entries = 0;
+	trace.entries = entries;
+	trace.max_entries = (depth < MAX_STACK_TRACE_DEPTH) ?
+				depth : MAX_STACK_TRACE_DEPTH;
+	trace.skip = 1;
+	trace.all_contexts = 0;
+
+	save_stack_trace(&trace, NULL);
+	for (n = 0; n < trace.nr_entries; n++) {
+		if (attr->reject_start <= entries[n] &&
+			       entries[n] < attr->reject_end)
+			return 0;
+		if (attr->require_start <= entries[n] &&
+			       entries[n] < attr->require_end)
+			found = 1;
+	}
+	return found;
+}
+
+#else
+
+static inline int fail_stacktrace(struct fault_attr *attr)
+{
+	static int firsttime = 1;
+
+	if (firsttime) {
+		printk(KERN_WARNING
+		"This architecture does not implement save_stack_trace()\n");
+		firsttime = 0;
+	}
+	return 0;
+}
+
+#endif
+
 /*
  * This code is stolen from failmalloc-1.0
  * http://www.nongnu.org/failmalloc/
@@ -58,6 +141,9 @@ static int fail_task(struct fault_attr *attr, struct task_struct *task)
 int should_fail(struct fault_attr *attr, ssize_t size)
 {
 	if (attr->task_filter && !fail_task(attr, current))
+		return 0;
+
+	if (!fail_stacktrace(attr))
 		return 0;
 
 	if (atomic_read(&attr->times) == 0)
@@ -147,6 +233,21 @@ void cleanup_fault_attr_dentries(struct fault_attr *attr)
 	debugfs_remove(attr->dentries.task_filter_file);
 	attr->dentries.task_filter_file = NULL;
 
+	debugfs_remove(attr->dentries.stacktrace_depth_file);
+	attr->dentries.stacktrace_depth_file = NULL;
+
+	debugfs_remove(attr->dentries.require_start_file);
+	attr->dentries.require_start_file = NULL;
+
+	debugfs_remove(attr->dentries.require_end_file);
+	attr->dentries.require_end_file = NULL;
+
+	debugfs_remove(attr->dentries.reject_start_file);
+	attr->dentries.reject_start_file = NULL;
+
+	debugfs_remove(attr->dentries.reject_end_file);
+	attr->dentries.reject_end_file = NULL;
+
 	if (attr->dentries.dir)
 		WARN_ON(!simple_empty(attr->dentries.dir));
 
@@ -184,9 +285,32 @@ int init_fault_attr_dentries(struct fault_attr *attr, const char *name)
 	attr->dentries.task_filter_file = debugfs_create_bool("task-filter",
 						mode, dir, &attr->task_filter);
 
+	attr->dentries.stacktrace_depth_file =
+		debugfs_create_ul("stacktrace-depth", mode, dir,
+				  &attr->stacktrace_depth);
+
+	attr->dentries.require_start_file =
+		debugfs_create_ul("require-start", mode, dir, &attr->require_start);
+
+	attr->dentries.require_end_file =
+		debugfs_create_ul("require-end", mode, dir, &attr->require_end);
+
+	attr->dentries.reject_start_file =
+		debugfs_create_ul("reject-start", mode, dir, &attr->reject_start);
+
+	attr->dentries.reject_end_file =
+		debugfs_create_ul("reject-end", mode, dir, &attr->reject_end);
+
+
 	if (!attr->dentries.probability_file || !attr->dentries.interval_file
 	    || !attr->dentries.times_file || !attr->dentries.space_file
-	    || !attr->dentries.verbose_file || !attr->dentries.task_filter_file)
+	    || !attr->dentries.verbose_file || !attr->dentries.task_filter_file
+	    || !attr->dentries.stacktrace_depth_file
+	    || !attr->dentries.require_start_file
+	    || !attr->dentries.require_end_file
+	    || !attr->dentries.reject_start_file
+	    || !attr->dentries.reject_end_file
+	    )
 		goto fail;
 
 	return 0;

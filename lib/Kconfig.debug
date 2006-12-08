@@ -416,6 +416,11 @@ config LKDTM
 
 config FAULT_INJECTION
 	bool
+	select STACKTRACE
+	select FRAME_POINTER
+	help
+	  Provide fault-injection framework.
+	  For more details, see Documentation/fault-injection/.
 
 config FAILSLAB
 	bool "Fault-injection capabilitiy for kmalloc"
