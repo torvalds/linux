@@ -21,6 +21,7 @@
 
 #include <linux/crypto.h>
 #include <linux/err.h>
+#include <linux/hardirq.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/rtnetlink.h>
@@ -108,9 +109,9 @@ static int crypto_xcbc_digest_init(struct hash_desc *pdesc)
 	return 0;
 }
 
-static int crypto_xcbc_digest_update(struct hash_desc *pdesc,
-				     struct scatterlist *sg,
-				     unsigned int nbytes)
+static int crypto_xcbc_digest_update2(struct hash_desc *pdesc,
+				      struct scatterlist *sg,
+				      unsigned int nbytes)
 {
 	struct crypto_hash *parent = pdesc->tfm;
 	struct crypto_xcbc_ctx *ctx = crypto_hash_ctx_aligned(parent);
@@ -183,6 +184,15 @@ static int crypto_xcbc_digest_update(struct hash_desc *pdesc,
 	return 0;
 }
 
+static int crypto_xcbc_digest_update(struct hash_desc *pdesc,
+				     struct scatterlist *sg,
+				     unsigned int nbytes)
+{
+	if (WARN_ON_ONCE(in_irq()))
+		return -EDEADLK;
+	return crypto_xcbc_digest_update2(pdesc, sg, nbytes);
+}
+
 static int crypto_xcbc_digest_final(struct hash_desc *pdesc, u8 *out)
 {
 	struct crypto_hash *parent = pdesc->tfm;
@@ -234,8 +244,11 @@ static int crypto_xcbc_digest_final(struct hash_desc *pdesc, u8 *out)
 static int crypto_xcbc_digest(struct hash_desc *pdesc,
 		  struct scatterlist *sg, unsigned int nbytes, u8 *out)
 {
+	if (WARN_ON_ONCE(in_irq()))
+		return -EDEADLK;
+
 	crypto_xcbc_digest_init(pdesc);
-	crypto_xcbc_digest_update(pdesc, sg, nbytes);
+	crypto_xcbc_digest_update2(pdesc, sg, nbytes);
 	return crypto_xcbc_digest_final(pdesc, out);
 }
 

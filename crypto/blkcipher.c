@@ -16,6 +16,7 @@
 
 #include <linux/crypto.h>
 #include <linux/errno.h>
+#include <linux/hardirq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/scatterlist.h>
@@ -312,6 +313,9 @@ static int blkcipher_walk_first(struct blkcipher_desc *desc,
 {
 	struct crypto_blkcipher *tfm = desc->tfm;
 	unsigned int alignmask = crypto_blkcipher_alignmask(tfm);
+
+	if (WARN_ON_ONCE(in_irq()))
+		return -EDEADLK;
 
 	walk->nbytes = walk->total;
 	if (unlikely(!walk->total))
