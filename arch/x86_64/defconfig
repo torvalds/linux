@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.19-git7
-# Wed Dec  6 23:50:47 2006
+# Linux kernel version: 2.6.19-git14
+# Sat Dec  9 21:23:09 2006
 #
 CONFIG_X86_64=y
 CONFIG_64BIT=y
@@ -22,6 +22,9 @@ CONFIG_ARCH_MAY_HAVE_PC_FDC=y
 CONFIG_ARCH_POPULATES_NODE_MAP=y
 CONFIG_DMI=y
 CONFIG_AUDIT_ARCH=y
+CONFIG_GENERIC_BUG=y
+# CONFIG_ARCH_HAS_ILOG2_U32 is not set
+# CONFIG_ARCH_HAS_ILOG2_U64 is not set
 CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
 
 #
@@ -170,6 +173,7 @@ CONFIG_SECCOMP=y
 # CONFIG_CC_STACKPROTECTOR is not set
 # CONFIG_HZ_100 is not set
 CONFIG_HZ_250=y
+# CONFIG_HZ_300 is not set
 # CONFIG_HZ_1000 is not set
 CONFIG_HZ=250
 # CONFIG_REORDER is not set
@@ -514,6 +518,7 @@ CONFIG_IDEDMA_AUTO=y
 #
 # CONFIG_RAID_ATTRS is not set
 CONFIG_SCSI=y
+# CONFIG_SCSI_TGT is not set
 CONFIG_SCSI_NETLINK=y
 # CONFIG_SCSI_PROC_FS is not set
 
@@ -534,6 +539,7 @@ CONFIG_CHR_DEV_SG=y
 # CONFIG_SCSI_MULTI_LUN is not set
 CONFIG_SCSI_CONSTANTS=y
 # CONFIG_SCSI_LOGGING is not set
+# CONFIG_SCSI_SCAN_ASYNC is not set
 
 #
 # SCSI Transports
@@ -587,6 +593,7 @@ CONFIG_MEGARAID_SAS=y
 # CONFIG_SCSI_DC395x is not set
 # CONFIG_SCSI_DC390T is not set
 # CONFIG_SCSI_DEBUG is not set
+# CONFIG_SCSI_SRP is not set
 
 #
 # Serial ATA (prod) and Parallel ATA (experimental) drivers
@@ -1106,10 +1113,7 @@ CONFIG_SOUND=y
 # Open Sound System
 #
 CONFIG_SOUND_PRIME=y
-CONFIG_OSS_OBSOLETE_DRIVER=y
 # CONFIG_SOUND_BT878 is not set
-# CONFIG_SOUND_EMU10K1 is not set
-# CONFIG_SOUND_FUSION is not set
 # CONFIG_SOUND_ES1371 is not set
 CONFIG_SOUND_ICH=y
 # CONFIG_SOUND_TRIDENT is not set
@@ -1117,6 +1121,11 @@ CONFIG_SOUND_ICH=y
 # CONFIG_SOUND_MSNDPIN is not set
 # CONFIG_SOUND_VIA82CXXX is not set
 # CONFIG_SOUND_OSS is not set
+
+#
+# HID Devices
+#
+CONFIG_HID=y
 
 #
 # USB support
@@ -1182,8 +1191,7 @@ CONFIG_USB_STORAGE=y
 # USB Input Devices
 #
 CONFIG_USB_HID=y
-CONFIG_USB_HIDINPUT=y
-# CONFIG_USB_HIDINPUT_POWERBOOK is not set
+# CONFIG_USB_HID_POWERBOOK is not set
 # CONFIG_HID_FF is not set
 # CONFIG_USB_HIDDEV is not set
 # CONFIG_USB_AIPTEK is not set
@@ -1475,6 +1483,11 @@ CONFIG_NLS_ISO8859_15=y
 CONFIG_NLS_UTF8=y
 
 #
+# Distributed Lock Manager
+#
+# CONFIG_DLM is not set
+
+#
 # Instrumentation Support
 #
 CONFIG_PROFILING=y
@@ -1504,6 +1517,7 @@ CONFIG_DETECT_SOFTLOCKUP=y
 # CONFIG_DEBUG_SPINLOCK_SLEEP is not set
 # CONFIG_DEBUG_LOCKING_API_SELFTESTS is not set
 # CONFIG_DEBUG_KOBJECT is not set
+CONFIG_DEBUG_BUGVERBOSE=y
 # CONFIG_DEBUG_INFO is not set
 CONFIG_DEBUG_FS=y
 # CONFIG_DEBUG_VM is not set
@@ -1534,6 +1548,7 @@ CONFIG_DEBUG_STACKOVERFLOW=y
 #
 # Library routines
 #
+CONFIG_BITREVERSE=y
 # CONFIG_CRC_CCITT is not set
 # CONFIG_CRC16 is not set
 CONFIG_CRC32=y
