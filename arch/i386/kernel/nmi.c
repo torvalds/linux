@@ -195,6 +195,8 @@ static __cpuinit inline int nmi_known_cpu(void)
 	return 0;
 }
 
+static int endflag __initdata = 0;
+
 #ifdef CONFIG_SMP
 /* The performance counters used by NMI_LOCAL_APIC don't trigger when
  * the CPU is idle. To make sure the NMI watchdog really ticks on all
@@ -202,7 +204,6 @@ static __cpuinit inline int nmi_known_cpu(void)
  */
 static __init void nmi_cpu_busy(void *data)
 {
-	volatile int *endflag = data;
 	local_irq_enable_in_hardirq();
 	/* Intentionally don't use cpu_relax here. This is
 	   to make sure that the performance counter really ticks,
@@ -210,14 +211,13 @@ static __init void nmi_cpu_busy(void *data)
 	   pause instruction. On a real HT machine this is fine because
 	   all other CPUs are busy with "useless" delay loops and don't
 	   care if they get somewhat less cycles. */
-	while (*endflag == 0)
-		barrier();
+	while (endflag == 0)
+		mb();
 }
 #endif
 
 static int __init check_nmi_watchdog(void)
 {
-	volatile int endflag = 0;
 	unsigned int *prev_nmi_count;
 	int cpu;
 
