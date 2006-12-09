@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.19-git7
-# Wed Dec  6 23:50:49 2006
+# Linux kernel version: 2.6.19-git14
+# Sat Dec  9 21:23:14 2006
 #
 CONFIG_X86_32=y
 CONFIG_GENERIC_TIME=y
@@ -12,6 +12,7 @@ CONFIG_X86=y
 CONFIG_MMU=y
 CONFIG_GENERIC_ISA_DMA=y
 CONFIG_GENERIC_IOMAP=y
+CONFIG_GENERIC_BUG=y
 CONFIG_GENERIC_HWEIGHT=y
 CONFIG_ARCH_MAY_HAVE_PC_FDC=y
 CONFIG_DMI=y
@@ -141,6 +142,8 @@ CONFIG_X86_CMPXCHG=y
 CONFIG_X86_XADD=y
 CONFIG_X86_L1_CACHE_SHIFT=7
 CONFIG_RWSEM_XCHGADD_ALGORITHM=y
+# CONFIG_ARCH_HAS_ILOG2_U32 is not set
+# CONFIG_ARCH_HAS_ILOG2_U64 is not set
 CONFIG_GENERIC_CALIBRATE_DELAY=y
 CONFIG_X86_WP_WORKS_OK=y
 CONFIG_X86_INVLPG=y
@@ -203,6 +206,7 @@ CONFIG_MTRR=y
 CONFIG_SECCOMP=y
 # CONFIG_HZ_100 is not set
 CONFIG_HZ_250=y
+# CONFIG_HZ_300 is not set
 # CONFIG_HZ_1000 is not set
 CONFIG_HZ=250
 # CONFIG_KEXEC is not set
@@ -563,6 +567,7 @@ CONFIG_IDEDMA_AUTO=y
 #
 # CONFIG_RAID_ATTRS is not set
 CONFIG_SCSI=y
+# CONFIG_SCSI_TGT is not set
 CONFIG_SCSI_NETLINK=y
 # CONFIG_SCSI_PROC_FS is not set
 
@@ -583,6 +588,7 @@ CONFIG_CHR_DEV_SG=y
 # CONFIG_SCSI_MULTI_LUN is not set
 # CONFIG_SCSI_CONSTANTS is not set
 # CONFIG_SCSI_LOGGING is not set
+# CONFIG_SCSI_SCAN_ASYNC is not set
 
 #
 # SCSI Transports
@@ -642,6 +648,7 @@ CONFIG_AIC79XX_DEBUG_MASK=0
 # CONFIG_SCSI_DC390T is not set
 # CONFIG_SCSI_NSP32 is not set
 # CONFIG_SCSI_DEBUG is not set
+# CONFIG_SCSI_SRP is not set
 
 #
 # Serial ATA (prod) and Parallel ATA (experimental) drivers
@@ -1082,10 +1089,7 @@ CONFIG_SOUND=y
 # Open Sound System
 #
 CONFIG_SOUND_PRIME=y
-CONFIG_OSS_OBSOLETE_DRIVER=y
 # CONFIG_SOUND_BT878 is not set
-# CONFIG_SOUND_EMU10K1 is not set
-# CONFIG_SOUND_FUSION is not set
 # CONFIG_SOUND_ES1371 is not set
 CONFIG_SOUND_ICH=y
 # CONFIG_SOUND_TRIDENT is not set
@@ -1093,6 +1097,11 @@ CONFIG_SOUND_ICH=y
 # CONFIG_SOUND_MSNDPIN is not set
 # CONFIG_SOUND_VIA82CXXX is not set
 # CONFIG_SOUND_OSS is not set
+
+#
+# HID Devices
+#
+CONFIG_HID=y
 
 #
 # USB support
@@ -1158,8 +1167,7 @@ CONFIG_USB_STORAGE=y
 # USB Input Devices
 #
 CONFIG_USB_HID=y
-CONFIG_USB_HIDINPUT=y
-# CONFIG_USB_HIDINPUT_POWERBOOK is not set
+# CONFIG_USB_HID_POWERBOOK is not set
 # CONFIG_HID_FF is not set
 # CONFIG_USB_HIDDEV is not set
 # CONFIG_USB_AIPTEK is not set
@@ -1444,6 +1452,11 @@ CONFIG_NLS_ISO8859_15=y
 CONFIG_NLS_UTF8=y
 
 #
+# Distributed Lock Manager
+#
+# CONFIG_DLM is not set
+
+#
 # Instrumentation Support
 #
 CONFIG_PROFILING=y
@@ -1509,6 +1522,7 @@ CONFIG_DOUBLEFAULT=y
 #
 # Library routines
 #
+CONFIG_BITREVERSE=y
 # CONFIG_CRC_CCITT is not set
 # CONFIG_CRC16 is not set
 CONFIG_CRC32=y
