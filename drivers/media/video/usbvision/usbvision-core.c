@@ -47,8 +47,8 @@
 #include <media/tuner.h>
 #include <media/audiochip.h>
 
-	#include <linux/moduleparam.h>
-	#include <linux/workqueue.h>
+#include <linux/moduleparam.h>
+#include <linux/workqueue.h>
 
 #ifdef CONFIG_KMOD
 #include <linux/kmod.h>
@@ -1397,7 +1397,7 @@ static int usbvision_compress_isochronous(struct usb_usbvision *usbvision,
  return totlen;
 }
 
-static void usbvision_isocIrq(struct urb *urb, struct pt_regs *regs)
+static void usbvision_isocIrq(struct urb *urb)
 {
 	int errCode = 0;
 	int len;
@@ -1529,7 +1529,7 @@ int usbvision_write_reg(struct usb_usbvision *usbvision, unsigned char reg,
 }
 
 
-static void usbvision_ctrlUrb_complete(struct urb *urb, struct pt_regs *regs)
+static void usbvision_ctrlUrb_complete(struct urb *urb)
 {
 	struct usb_usbvision *usbvision = (struct usb_usbvision *)urb->context;
 
@@ -2416,11 +2416,7 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 		int j, k;
 		struct urb *urb;
 
-		#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-			urb = usb_alloc_urb(USBVISION_URB_FRAMES);
-		#else
-			urb = usb_alloc_urb(USBVISION_URB_FRAMES, GFP_KERNEL);
-		#endif
+		urb = usb_alloc_urb(USBVISION_URB_FRAMES, GFP_KERNEL);
 		if (urb == NULL) {
 			err("%s: usb_alloc_urb() failed", __FUNCTION__);
 			return -ENOMEM;
@@ -2429,12 +2425,8 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 		urb->dev = dev;
 		urb->context = usbvision;
 		urb->pipe = usb_rcvisocpipe(dev, usbvision->video_endp);
-	#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-		urb->transfer_flags = USB_ISO_ASAP;
-	#else
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->interval = 1;
-	#endif
 		urb->transfer_buffer = usbvision->sbuf[bufIdx].data;
 		urb->complete = usbvision_isocIrq;
 		urb->number_of_packets = USBVISION_URB_FRAMES;
@@ -2450,11 +2442,7 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 
 	/* Submit all URBs */
 	for (bufIdx = 0; bufIdx < USBVISION_NUMSBUF; bufIdx++) {
-		#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-			errCode = usb_submit_urb(usbvision->sbuf[bufIdx].urb);
-		#else
 			errCode = usb_submit_urb(usbvision->sbuf[bufIdx].urb, GFP_KERNEL);
-		#endif
 		if (errCode) {
 			err("%s: usb_submit_urb(%d) failed: error %d", __FUNCTION__, bufIdx, errCode);
 		}

@@ -68,8 +68,8 @@
 #include <media/tuner.h>
 #include <media/audiochip.h>
 
-	#include <linux/moduleparam.h>
-	#include <linux/workqueue.h>
+#include <linux/moduleparam.h>
+#include <linux/workqueue.h>
 
 #ifdef CONFIG_KMOD
 #include <linux/kmod.h>
@@ -189,8 +189,8 @@ MODULE_PARM_DESC(CustomDevice, " Define the fine tuning parameters for the devic
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE(DRIVER_LICENSE);
-	MODULE_VERSION(USBVISION_VERSION_STRING);
-	MODULE_ALIAS(DRIVER_ALIAS);
+MODULE_VERSION(USBVISION_VERSION_STRING);
+MODULE_ALIAS(DRIVER_ALIAS);
 
 
 /****************************************************************************************/
@@ -1430,9 +1430,7 @@ static int usbvision_vbi_ioctl(struct inode *inode, struct file *file,
 
 // Video template
 static struct file_operations usbvision_fops = {
-  #if LINUX_VERSION_CODE > KERNEL_VERSION(2,4,31)
 	.owner             = THIS_MODULE,
-  #endif
 	.open		= usbvision_v4l2_open,
 	.release	= usbvision_v4l2_close,
 	.read		= usbvision_v4l2_read,
@@ -1441,25 +1439,19 @@ static struct file_operations usbvision_fops = {
 	.llseek		= no_llseek,
 };
 static struct video_device usbvision_video_template = {
-  #if LINUX_VERSION_CODE > KERNEL_VERSION(2,4,31)
 	.owner             = THIS_MODULE,
-  #endif
 	.type		= VID_TYPE_TUNER | VID_TYPE_CAPTURE,
 	.hardware	= VID_HARDWARE_USBVISION,
 	.fops		= &usbvision_fops,
-  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 	.name           = "usbvision-video",
 	.release	= video_device_release,
-  #endif
 	.minor		= -1,
 };
 
 
 // Radio template
 static struct file_operations usbvision_radio_fops = {
-  #if LINUX_VERSION_CODE > KERNEL_VERSION(2,4,31)
 	.owner             = THIS_MODULE,
-  #endif
 	.open		= usbvision_radio_open,
 	.release	= usbvision_radio_close,
 	.ioctl		= usbvision_radio_ioctl,
@@ -1468,25 +1460,19 @@ static struct file_operations usbvision_radio_fops = {
 
 static struct video_device usbvision_radio_template=
 {
-  #if LINUX_VERSION_CODE > KERNEL_VERSION(2,4,31)
 	.owner             = THIS_MODULE,
-  #endif
 	.type		= VID_TYPE_TUNER,
 	.hardware	= VID_HARDWARE_USBVISION,
 	.fops		= &usbvision_radio_fops,
-  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 	.release	= video_device_release,
 	.name           = "usbvision-radio",
-  #endif
 	.minor		= -1,
 };
 
 
 // vbi template
 static struct file_operations usbvision_vbi_fops = {
-  #if LINUX_VERSION_CODE > KERNEL_VERSION(2,4,31)
 	.owner             = THIS_MODULE,
-  #endif
 	.open		= usbvision_vbi_open,
 	.release	= usbvision_vbi_close,
 	.ioctl		= usbvision_vbi_ioctl,
@@ -1495,16 +1481,12 @@ static struct file_operations usbvision_vbi_fops = {
 
 static struct video_device usbvision_vbi_template=
 {
-  #if LINUX_VERSION_CODE > KERNEL_VERSION(2,4,31)
 	.owner             = THIS_MODULE,
-  #endif
 	.type		= VID_TYPE_TUNER,
 	.hardware	= VID_HARDWARE_USBVISION,
 	.fops		= &usbvision_vbi_fops,
-  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 	.release	= video_device_release,
 	.name           = "usbvision-vbi",
-  #endif
 	.minor		= -1,
 };
 

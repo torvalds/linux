@@ -29,7 +29,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/version.h>
-	#include <linux/utsname.h>
+#include <linux/utsname.h>
 #include <linux/init.h>
 #include <asm/uaccess.h>
 #include <linux/ioport.h>
@@ -350,13 +350,9 @@ static int detach_inform(struct i2c_client *client)
 {
 	struct usb_usbvision *usbvision;
 
-	#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-		usbvision = (struct usb_usbvision *)client->adapter->data;
-	#else
-		usbvision = (struct usb_usbvision *)i2c_get_adapdata(client->adapter);
-	#endif
+	usbvision = (struct usb_usbvision *)i2c_get_adapdata(client->adapter);
 
-		PDEBUG(DBG_I2C,"usbvision[%d] detaches %s", usbvision->nr, client->name);
+	PDEBUG(DBG_I2C,"usbvision[%d] detaches %s", usbvision->nr, client->name);
 	return 0;
 }
 
@@ -548,9 +544,9 @@ static struct i2c_adapter i2c_adap_template = {
 	.algo_data         = NULL,
 	.client_register   = attach_inform,
 	.client_unregister = detach_inform,
-#if defined (I2C_ADAP_CLASS_TV_ANALOG)
+#ifdef I2C_ADAP_CLASS_TV_ANALOG
 	.class             = I2C_ADAP_CLASS_TV_ANALOG,
-#elif defined (I2C_CLASS_TV_ANALOG)
+#else
 	.class		   = I2C_CLASS_TV_ANALOG,
 #endif
 };
