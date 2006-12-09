@@ -1,5 +1,5 @@
 /*
- * USB USBVISION Video device driver 0.9.9 
+ * USB USBVISION Video device driver 0.9.9
  *
  *
  *

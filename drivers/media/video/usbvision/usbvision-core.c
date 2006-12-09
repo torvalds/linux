@@ -1,6 +1,6 @@
 /*
  * usbvision-core.c - driver for NT100x USB video capture devices
- * 
+ *
  *
  * Copyright (c) 1999-2005 Joerg Heckenbach <joerg@heckenbach-aw.de>
  *                         Dwaine Garden <dwainegarden@rogers.com>
