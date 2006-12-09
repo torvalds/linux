@@ -577,9 +577,10 @@ void neigh_destroy(struct neighbour *neigh)
 	while ((hh = neigh->hh) != NULL) {
 		neigh->hh = hh->hh_next;
 		hh->hh_next = NULL;
-		write_lock_bh(&hh->hh_lock);
+
+		write_seqlock_bh(&hh->hh_lock);
 		hh->hh_output = neigh_blackhole;
-		write_unlock_bh(&hh->hh_lock);
+		write_sequnlock_bh(&hh->hh_lock);
 		if (atomic_dec_and_test(&hh->hh_refcnt))
 			kfree(hh);
 	}
@@ -897,9 +898,9 @@ static void neigh_update_hhs(struct neighbour *neigh)
 
 	if (update) {
 		for (hh = neigh->hh; hh; hh = hh->hh_next) {
-			write_lock_bh(&hh->hh_lock);
+			write_seqlock_bh(&hh->hh_lock);
 			update(hh, neigh->dev, neigh->ha);
-			write_unlock_bh(&hh->hh_lock);
+			write_sequnlock_bh(&hh->hh_lock);
 		}
 	}
 }
@@ -1089,7 +1090,7 @@ static void neigh_hh_init(struct neighbour *n, struct dst_entry *dst,
 			break;
 
 	if (!hh && (hh = kzalloc(sizeof(*hh), GFP_ATOMIC)) != NULL) {
-		rwlock_init(&hh->hh_lock);
+		seqlock_init(&hh->hh_lock);
 		hh->hh_type = protocol;
 		atomic_set(&hh->hh_refcnt, 0);
 		hh->hh_next = NULL;

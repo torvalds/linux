@@ -325,11 +325,6 @@ static int sp_rebuild_header(struct sk_buff *skb)
 
 static void sp_setup(struct net_device *dev)
 {
-	static char ax25_bcast[AX25_ADDR_LEN] =
-		{'Q'<<1,'S'<<1,'T'<<1,' '<<1,' '<<1,' '<<1,'0'<<1};
-	static char ax25_test[AX25_ADDR_LEN] =
-		{'L'<<1,'I'<<1,'N'<<1,'U'<<1,'X'<<1,' '<<1,'1'<<1};
-
 	/* Finish setting up the DEVICE info. */
 	dev->mtu		= SIXP_MTU;
 	dev->hard_start_xmit	= sp_xmit;
@@ -347,8 +342,8 @@ static void sp_setup(struct net_device *dev)
 	dev->tx_timeout		= NULL;
 
 	/* Only activated in AX.25 mode */
-	memcpy(dev->broadcast, ax25_bcast, AX25_ADDR_LEN);
-	memcpy(dev->dev_addr, ax25_test, AX25_ADDR_LEN);
+	memcpy(dev->broadcast, &ax25_bcast, AX25_ADDR_LEN);
+	memcpy(dev->dev_addr, &ax25_defaddr, AX25_ADDR_LEN);
 
 	SET_MODULE_OWNER(dev);
 
