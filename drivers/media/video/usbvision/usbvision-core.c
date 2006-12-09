@@ -87,6 +87,7 @@ MODULE_PARM_DESC(SwitchSVideoInput, " Set the S-Video input.  Some cables and in
 #define DBG_ISOC	1<<2
 #define DBG_PARSE	1<<3
 #define DBG_SCRATCH	1<<4
+#define DBG_FUNC	1<<5
 
 static const int max_imgwidth = MAX_FRAME_WIDTH;
 static const int max_imgheight = MAX_FRAME_HEIGHT;

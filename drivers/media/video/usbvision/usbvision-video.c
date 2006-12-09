@@ -92,8 +92,6 @@
 #define	ENABLE_HEXDUMP	0	/* Enable if you need it */
 
 
-#define USBVISION_DEBUG		/* Turn on debug messages */
-
 #ifdef USBVISION_DEBUG
 	#define PDEBUG(level, fmt, args...) \
 		if (video_debug & (level)) info("[%s:%d] " fmt, __PRETTY_FUNCTION__, __LINE__ , ## args)
@@ -104,7 +102,7 @@
 #define DBG_IOCTL	1<<0
 #define DBG_IO		1<<1
 #define DBG_PROBE	1<<2
-#define DBG_FUNC	1<<3
+#define DBG_MMAP	1<<3
 
 //String operations
 #define rmspace(str)	while(*str==' ') str++;
@@ -821,7 +819,7 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 
 			vb->memory = V4L2_MEMORY_MMAP;
 			vb->field = V4L2_FIELD_NONE;
-			vb->length = usbvision->max_frame_size;
+			vb->length = usbvision->curwidth*usbvision->curheight*usbvision->palette.bytes_per_pixel;
 			vb->timestamp = usbvision->frame[vb->index].timestamp;
 			vb->sequence = usbvision->frame[vb->index].sequence;
 			return 0;
@@ -959,13 +957,14 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 					vf->fmt.pix.sizeimage = vf->fmt.pix.bytesperline*usbvision->curheight;
 					vf->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 					vf->fmt.pix.field = V4L2_FIELD_NONE; /* Always progressive image */
+					PDEBUG(DBG_IOCTL, "VIDIOC_G_FMT w=%d, h=%d, format=%s",
+					       vf->fmt.pix.width, vf->fmt.pix.height,usbvision->palette.desc);
+					return 0;
 				}
-				return 0;
 				default:
 					PDEBUG(DBG_IOCTL, "VIDIOC_G_FMT invalid type %d",vf->type);
 					return -EINVAL;
 			}
-			PDEBUG(DBG_IOCTL, "VIDIOC_G_FMT w=%d, h=%d",vf->fmt.win.w.width, vf->fmt.win.w.height);
 			return 0;
 		}
 		case VIDIOC_TRY_FMT:
@@ -990,6 +989,15 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 					}
 					RESTRICT_TO_RANGE(vf->fmt.pix.width, MIN_FRAME_WIDTH, MAX_FRAME_WIDTH);
 					RESTRICT_TO_RANGE(vf->fmt.pix.height, MIN_FRAME_HEIGHT, MAX_FRAME_HEIGHT);
+
+					vf->fmt.pix.bytesperline = vf->fmt.pix.width*usbvision->palette.bytes_per_pixel;
+					vf->fmt.pix.sizeimage = vf->fmt.pix.bytesperline*vf->fmt.pix.height;
+
+					if(cmd == VIDIOC_TRY_FMT) {
+						PDEBUG(DBG_IOCTL, "VIDIOC_TRY_FMT grabdisplay w=%d, h=%d, format=%s",
+					       vf->fmt.pix.width, vf->fmt.pix.height,usbvision->palette.desc);
+						return 0;
+					}
 
 					/* stop io in case it is already in progress */
 					if(usbvision->streaming == Stream_On) {
@@ -1133,7 +1141,7 @@ static int usbvision_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	if (!(vma->vm_flags & VM_WRITE) ||
-	    size != PAGE_ALIGN(usbvision->max_frame_size)) {
+	    size != PAGE_ALIGN(usbvision->curwidth*usbvision->curheight*usbvision->palette.bytes_per_pixel)) {
 		up(&usbvision->lock);
 		return -EINVAL;
 	}
@@ -1143,7 +1151,7 @@ static int usbvision_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 			break;
 	}
 	if (i == USBVISION_NUMFRAMES) {
-		PDEBUG(DBG_FUNC, "mmap: user supplied mapping address is out of range");
+		PDEBUG(DBG_MMAP, "mmap: user supplied mapping address is out of range");
 		up(&usbvision->lock);
 		return -EINVAL;
 	}
@@ -1156,7 +1164,7 @@ static int usbvision_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 	while (size > 0) {
 
 		if (vm_insert_page(vma, start, vmalloc_to_page(pos))) {
-			PDEBUG(DBG_FUNC, "mmap: vm_insert_page failed");
+			PDEBUG(DBG_MMAP, "mmap: vm_insert_page failed");
 			up(&usbvision->lock);
 			return -EAGAIN;
 		}
@@ -2003,7 +2011,7 @@ static int __init usbvision_init(void)
 	PDEBUG(DBG_IOCTL, "IOCTL   debugging is enabled [video]");
 	PDEBUG(DBG_IO,  "IO      debugging is enabled [video]");
 	PDEBUG(DBG_PROBE, "PROBE   debugging is enabled [video]");
-	PDEBUG(DBG_FUNC, "FUNC    debugging is enabled [video]");
+	PDEBUG(DBG_MMAP, "MMAP    debugging is enabled [video]");
 
 	/* disable planar mode support unless compression enabled */
 	if (isocMode != ISOC_MODE_COMPRESS ) {

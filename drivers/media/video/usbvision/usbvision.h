@@ -3,9 +3,14 @@
  *  usbvision header file
  *
  * Copyright (c) 1999-2005 Joerg Heckenbach <joerg@heckenbach-aw.de>
+ *                         Dwaine Garden <dwainegarden@rogers.com>
+ *
+ *
+ * Report problems to v4l MailingList : http://www.redhat.com/mailman/listinfo/video4linux-list
  *
  * This module is part of usbvision driver project.
  * Updates to driver completed by Dwaine P. Garden
+ * v4l2 conversion by Thierry Merle <thierry.merle@free.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,6 +36,8 @@
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 #include <linux/videodev2.h>
+
+#define USBVISION_DEBUG		/* Turn on debug messages */
 
 #ifndef VID_HARDWARE_USBVISION
 	#define VID_HARDWARE_USBVISION 34   /* USBVision Video Grabber */
