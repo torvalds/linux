@@ -158,7 +158,6 @@ JP7 is not bus master -- do NOT use -- only 4 pci bus master's allowed -- SouthB
 #define TOSHIBA_RBTX4927_IRQ_ISA_ENABLE    ( 1 << 23 )
 #define TOSHIBA_RBTX4927_IRQ_ISA_DISABLE   ( 1 << 24 )
 #define TOSHIBA_RBTX4927_IRQ_ISA_MASK      ( 1 << 25 )
-#define TOSHIBA_RBTX4927_IRQ_ISA_ENDIRQ    ( 1 << 26 )
 
 #define TOSHIBA_RBTX4927_SETUP_ALL         0xffffffff
 #endif
@@ -175,7 +174,6 @@ static const u32 toshiba_rbtx4927_irq_debug_flag =
 //                                                 | TOSHIBA_RBTX4927_IRQ_ISA_ENABLE
 //                                                 | TOSHIBA_RBTX4927_IRQ_ISA_DISABLE
 //                                                 | TOSHIBA_RBTX4927_IRQ_ISA_MASK
-//                                                 | TOSHIBA_RBTX4927_IRQ_ISA_ENDIRQ
     );
 #endif
 
@@ -226,7 +224,6 @@ static void toshiba_rbtx4927_irq_ioc_disable(unsigned int irq);
 static void toshiba_rbtx4927_irq_isa_enable(unsigned int irq);
 static void toshiba_rbtx4927_irq_isa_disable(unsigned int irq);
 static void toshiba_rbtx4927_irq_isa_mask_and_ack(unsigned int irq);
-static void toshiba_rbtx4927_irq_isa_end(unsigned int irq);
 #endif
 
 #define TOSHIBA_RBTX4927_IOC_NAME "RBTX4927-IOC"
@@ -249,7 +246,6 @@ static struct irq_chip toshiba_rbtx4927_irq_isa_type = {
 	.mask = toshiba_rbtx4927_irq_isa_disable,
 	.mask_ack = toshiba_rbtx4927_irq_isa_mask_and_ack,
 	.unmask = toshiba_rbtx4927_irq_isa_enable,
-	.end = toshiba_rbtx4927_irq_isa_end,
 };
 #endif
 
@@ -402,7 +398,8 @@ static void __init toshiba_rbtx4927_irq_isa_init(void)
 
 	for (i = TOSHIBA_RBTX4927_IRQ_ISA_BEG;
 	     i <= TOSHIBA_RBTX4927_IRQ_ISA_END; i++)
-		set_irq_chip(i, &toshiba_rbtx4927_irq_isa_type);
+		set_irq_chip_and_handler(i, &toshiba_rbtx4927_irq_isa_type,
+					 handle_level_irq);
 
 	setup_irq(TOSHIBA_RBTX4927_IRQ_NEST_ISA_ON_IOC,
 		  &toshiba_rbtx4927_irq_isa_master);
@@ -466,26 +463,6 @@ static void toshiba_rbtx4927_irq_isa_mask_and_ack(unsigned int irq)
 	}
 
 	mask_and_ack_8259A(irq);
-}
-#endif
-
-
-#ifdef CONFIG_TOSHIBA_FPCIB0
-static void toshiba_rbtx4927_irq_isa_end(unsigned int irq)
-{
-	TOSHIBA_RBTX4927_IRQ_DPRINTK(TOSHIBA_RBTX4927_IRQ_ISA_ENDIRQ,
-				     "irq=%d\n", irq);
-
-	if (irq < TOSHIBA_RBTX4927_IRQ_ISA_BEG
-	    || irq > TOSHIBA_RBTX4927_IRQ_ISA_END) {
-		TOSHIBA_RBTX4927_IRQ_DPRINTK(TOSHIBA_RBTX4927_IRQ_EROR,
-					     "bad irq=%d\n", irq);
-		panic("\n");
-	}
-
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS))) {
-		toshiba_rbtx4927_irq_isa_enable(irq);
-	}
 }
 #endif
 

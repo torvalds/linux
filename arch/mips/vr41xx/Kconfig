@@ -6,7 +6,6 @@ config CASIO_E55
 	select ISA
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select GENERIC_HARDIRQS_NO__DO_IRQ
 
 config IBM_WORKPAD
 	bool "Support for IBM WorkPad z50"
@@ -16,7 +15,6 @@ config IBM_WORKPAD
 	select ISA
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select GENERIC_HARDIRQS_NO__DO_IRQ
 
 config NEC_CMBVR4133
 	bool "Support for NEC CMB-VR4133"
@@ -41,7 +39,6 @@ config TANBAC_TB022X
 	select IRQ_CPU
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select GENERIC_HARDIRQS_NO__DO_IRQ
 	help
 	  The TANBAC VR4131 multichip module(TB0225) and
 	  the TANBAC VR4131DIMM(TB0229) are MIPS-based platforms
@@ -74,7 +71,6 @@ config VICTOR_MPC30X
 	select IRQ_CPU
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select GENERIC_HARDIRQS_NO__DO_IRQ
 
 config ZAO_CAPCELLA
 	bool "Support for ZAO Networks Capcella"
@@ -84,7 +80,6 @@ config ZAO_CAPCELLA
 	select IRQ_CPU
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select GENERIC_HARDIRQS_NO__DO_IRQ
 
 config PCI_VR41XX
 	bool "Add PCI control unit support of NEC VR4100 series"

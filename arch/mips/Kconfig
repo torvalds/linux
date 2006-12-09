@@ -165,6 +165,7 @@ config MIPS_COBALT
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select GENERIC_HARDIRQS_NO__DO_IRQ
 
 config MACH_DECSTATION
 	bool "DECstations"
@@ -225,6 +226,7 @@ config MACH_JAZZ
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
 	select SYS_SUPPORTS_100HZ
+	select GENERIC_HARDIRQS_NO__DO_IRQ
 	help
 	 This a family of machines based on the MIPS R4030 chipset which was
 	 used by several vendors to build RISC/os and Windows NT workstations.
@@ -459,6 +461,11 @@ config PNX8550_JBS
 	select PNX8550
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
+config PNX8550_STB810
+	bool "Support for Philips PNX8550 based STB810 board"
+	select PNX8550
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+
 config DDB5477
 	bool "NEC DDB Vrc-5477"
 	select DDB5XXX_COMMON
@@ -482,6 +489,7 @@ config MACH_VR41XX
 	select SYS_HAS_CPU_VR41XX
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
+	select GENERIC_HARDIRQS_NO__DO_IRQ
 
 config PMC_YOSEMITE
 	bool "PMC-Sierra Yosemite eval board"
@@ -515,6 +523,7 @@ config QEMU
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select ARCH_SPARSEMEM_ENABLE
+	select GENERIC_HARDIRQS_NO__DO_IRQ
 	help
 	  Qemu is a software emulator which among other architectures also
 	  can simulate a MIPS32 4Kc system.  This patch adds support for the
@@ -701,8 +710,8 @@ config SIBYTE_CRHONE
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
-config SNI_RM200_PCI
-	bool "SNI RM200 PCI"
+config SNI_RM
+	bool "SNI RM200/300/400"
 	select ARC if CPU_LITTLE_ENDIAN
 	select ARC32 if CPU_LITTLE_ENDIAN
 	select ARCH_MAY_HAVE_PC_FDC
@@ -725,8 +734,8 @@ config SNI_RM200_PCI
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	help
-	  The SNI RM200 PCI was a MIPS-based platform manufactured by Siemens
-	  Nixdorf Informationssysteme (SNI), parent company of Pyramid
+	  The SNI RM200/300/400 are MIPS-based machines manufactured by
+	  Siemens Nixdorf Informationssysteme (SNI), parent company of Pyramid
 	  Technology and now in turn merged with Fujitsu.  Say Y here to
 	  support this machine type.
 
@@ -754,6 +763,7 @@ config TOSHIBA_RBTX4927
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select TOSHIBA_BOARDS
+	select GENERIC_HARDIRQS_NO__DO_IRQ
 	help
 	  This Toshiba board is based on the TX4927 processor. Say Y here to
 	  support this machine type
@@ -773,6 +783,7 @@ config TOSHIBA_RBTX4938
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select TOSHIBA_BOARDS
+	select GENERIC_HARDIRQS_NO__DO_IRQ
 	help
 	  This Toshiba board is based on the TX4938 processor. Say Y here to
 	  support this machine type
@@ -1070,16 +1081,16 @@ config HAVE_STD_PC_SERIAL_PORT
 
 config ARC_CONSOLE
 	bool "ARC console support"
-	depends on SGI_IP22 || SNI_RM200_PCI
+	depends on SGI_IP22 || SNI_RM
 
 config ARC_MEMORY
 	bool
-	depends on MACH_JAZZ || SNI_RM200_PCI || SGI_IP32
+	depends on MACH_JAZZ || SNI_RM || SGI_IP32
 	default y
 
 config ARC_PROMLIB
 	bool
-	depends on MACH_JAZZ || SNI_RM200_PCI || SGI_IP22 || SGI_IP32
+	depends on MACH_JAZZ || SNI_RM || SGI_IP22 || SGI_IP32
 	default y
 
 config ARC64
