@@ -382,7 +382,7 @@ config SDLA
 
 # Wan router core.
 config WAN_ROUTER_DRIVERS
-	bool "WAN router drivers"
+	tristate "WAN router drivers"
 	depends on WAN && WAN_ROUTER
 	---help---
 	  Connect LAN to WAN via Linux box.
@@ -393,7 +393,8 @@ config WAN_ROUTER_DRIVERS
 	  <file:Documentation/networking/wan-router.txt>.
 
 	  Note that the answer to this question won't directly affect the
-	  kernel: saying N will just cause the configurator to skip all
+	  kernel except for how subordinate drivers may be built:
+	  saying N will just cause the configurator to skip all
 	  the questions about WAN router drivers.
 
 	  If unsure, say N.
