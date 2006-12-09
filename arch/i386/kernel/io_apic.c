@@ -2485,7 +2485,7 @@ device_initcall(ioapic_init_sysfs);
 int create_irq(void)
 {
 	/* Allocate an unused irq */
-	int irq, new, vector;
+	int irq, new, vector = 0;
 	unsigned long flags;
 
 	irq = -ENOSPC;
