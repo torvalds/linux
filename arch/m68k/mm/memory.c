@@ -299,7 +299,7 @@ void cache_clear (unsigned long paddr, int len)
 	mach_l2_flush(0);
 #endif
 }
-EXPORT_SYMBOL(cache_clear);	/* probably can be unexported */
+EXPORT_SYMBOL(cache_clear);
 
 
 /*
@@ -352,7 +352,7 @@ void cache_push (unsigned long paddr, int len)
 	mach_l2_flush(1);
 #endif
 }
-EXPORT_SYMBOL(cache_push);	/* probably can be unexported */
+EXPORT_SYMBOL(cache_push);
 
 #ifndef CONFIG_SINGLE_MEMORY_CHUNK
 int mm_end_of_chunk (unsigned long addr, int len)
