@@ -69,7 +69,7 @@ static int __devinitdata smp_b_stepping;
 
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
-#ifdef CONFIG_X86_HT
+#ifdef CONFIG_SMP
 EXPORT_SYMBOL(smp_num_siblings);
 #endif
 
