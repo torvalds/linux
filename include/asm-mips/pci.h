@@ -187,4 +187,10 @@ static inline void pcibios_add_platform_entries(struct pci_dev *dev)
 /* Do platform specific device initialization at pci_enable_device() time */
 extern int pcibios_plat_dev_init(struct pci_dev *dev);
 
+/* Chances are this interrupt is wired PC-style ...  */
+static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
+{
+	return channel ? 15 : 14;
+}
+
 #endif /* _ASM_PCI_H */
