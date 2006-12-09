@@ -40,4 +40,15 @@ config PS3_USE_LPAR_ADDR
 
 	  If you have any doubt, choose the default y.
 
+config PS3_VUART
+	depends on PPC_PS3
+	bool "PS3 Virtual UART support"
+	default y
+	help
+	  Include support for the PS3 Virtual UART.
+
+	  This support is required for several system services
+	  including the System Manager and AV Settings.  In
+	  general, all users will say Y.
+
 endmenu
