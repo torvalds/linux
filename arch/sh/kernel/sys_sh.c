@@ -314,6 +314,12 @@ asmlinkage int sys_fadvise64_64_wrapper(int fd, u32 offset0, u32 offset1,
 #endif
 }
 
+#if defined(CONFIG_CPU_SH2) || defined(CONFIG_CPU_SH2A)
+#define SYSCALL_ARG3	"trapa #0x23"
+#else
+#define SYSCALL_ARG3	"trapa #0x13"
+#endif
+
 /*
  * Do a system call from kernel instead of calling sys_execve so we
  * end up with proper pt_regs.
