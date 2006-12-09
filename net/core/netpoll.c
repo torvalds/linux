@@ -242,22 +242,26 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 
 	/* don't get messages out of order, and no recursion */
 	if (skb_queue_len(&npinfo->txq) == 0 &&
-	    npinfo->poll_owner != smp_processor_id() &&
-	    netif_tx_trylock(dev)) {
-		/* try until next clock tick */
-		for (tries = jiffies_to_usecs(1)/USEC_PER_POLL; tries > 0; --tries) {
-			if (!netif_queue_stopped(dev))
-				status = dev->hard_start_xmit(skb, dev);
+		    npinfo->poll_owner != smp_processor_id()) {
+		local_bh_disable();	/* Where's netif_tx_trylock_bh()? */
+		if (netif_tx_trylock(dev)) {
+			/* try until next clock tick */
+			for (tries = jiffies_to_usecs(1)/USEC_PER_POLL;
+					tries > 0; --tries) {
+				if (!netif_queue_stopped(dev))
+					status = dev->hard_start_xmit(skb, dev);
 
-			if (status == NETDEV_TX_OK)
-				break;
+				if (status == NETDEV_TX_OK)
+					break;
 
-			/* tickle device maybe there is some cleanup */
-			netpoll_poll(np);
+				/* tickle device maybe there is some cleanup */
+				netpoll_poll(np);
 
-			udelay(USEC_PER_POLL);
+				udelay(USEC_PER_POLL);
+			}
+			netif_tx_unlock(dev);
 		}
-		netif_tx_unlock(dev);
+		local_bh_enable();
 	}
 
 	if (status != NETDEV_TX_OK) {
