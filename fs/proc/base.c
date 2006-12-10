@@ -1804,6 +1804,27 @@ static int proc_base_fill_cache(struct file *filp, void *dirent, filldir_t filld
 				proc_base_instantiate, task, p);
 }
 
+#ifdef CONFIG_TASK_IO_ACCOUNTING
+static int proc_pid_io_accounting(struct task_struct *task, char *buffer)
+{
+	return sprintf(buffer,
+			"rchar: %llu\n"
+			"wchar: %llu\n"
+			"syscr: %llu\n"
+			"syscw: %llu\n"
+			"read_bytes: %llu\n"
+			"write_bytes: %llu\n"
+			"cancelled_write_bytes: %llu\n",
+			(unsigned long long)task->rchar,
+			(unsigned long long)task->wchar,
+			(unsigned long long)task->syscr,
+			(unsigned long long)task->syscw,
+			(unsigned long long)task->ioac.read_bytes,
+			(unsigned long long)task->ioac.write_bytes,
+			(unsigned long long)task->ioac.cancelled_write_bytes);
+}
+#endif
+
 /*
  * Thread groups
  */
@@ -1854,6 +1875,9 @@ static struct pid_entry tgid_base_stuff[] = {
 #endif
 #ifdef CONFIG_FAULT_INJECTION
 	REG("make-it-fail", S_IRUGO|S_IWUSR, fault_inject),
+#endif
+#ifdef CONFIG_TASK_IO_ACCOUNTING
+	INF("io",	S_IRUGO, pid_io_accounting),
 #endif
 };
 
