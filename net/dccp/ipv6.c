@@ -77,7 +77,7 @@ static inline void dccp_v6_send_check(struct sock *sk, int unused_value,
 }
 
 static inline __u32 secure_dccpv6_sequence_number(__be32 *saddr, __be32 *daddr,
-				   		  __be16 sport, __be16 dport   )
+						  __be16 sport, __be16 dport   )
 {
 	return secure_tcpv6_sequence_number(saddr, daddr, sport, dport);
 }
@@ -329,7 +329,7 @@ static void dccp_v6_ctl_send_reset(struct sock *sk, struct sk_buff *rxskb)
 	skb = alloc_skb(dccp_v6_ctl_socket->sk->sk_prot->max_header,
 			GFP_ATOMIC);
 	if (skb == NULL)
-	  	return;
+		return;
 
 	skb_reserve(skb, dccp_v6_ctl_socket->sk->sk_prot->max_header);
 
@@ -353,7 +353,7 @@ static void dccp_v6_ctl_send_reset(struct sock *sk, struct sk_buff *rxskb)
 
 	dccp_csum_outgoing(skb);
 	dh->dccph_checksum = dccp_v6_csum_finish(skb, &rxskb->nh.ipv6h->saddr,
-				   		      &rxskb->nh.ipv6h->daddr);
+						      &rxskb->nh.ipv6h->daddr);
 
 	memset(&fl, 0, sizeof(fl));
 	ipv6_addr_copy(&fl.fl6_dst, &rxskb->nh.ipv6h->saddr);
@@ -424,7 +424,7 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	struct dccp_request_sock *dreq;
 	struct inet6_request_sock *ireq6;
 	struct ipv6_pinfo *np = inet6_sk(sk);
- 	const __be32 service = dccp_hdr_request(skb)->dccph_req_service;
+	const __be32 service = dccp_hdr_request(skb)->dccph_req_service;
 	struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
 	__u8 reset_code = DCCP_RESET_CODE_TOO_BUSY;
 
@@ -437,7 +437,7 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (dccp_bad_service_code(sk, service)) {
 		reset_code = DCCP_RESET_CODE_BAD_SERVICE_CODE;
 		goto drop;
- 	}
+	}
 	/*
 	 * There are no SYN attacks on IPv6, yet...
 	 */
@@ -787,7 +787,7 @@ static int dccp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 		 * otherwise we just shortcircuit this and continue with
 		 * the new socket..
 		 */
- 		if (nsk != sk) {
+		if (nsk != sk) {
 			if (dccp_child_process(sk, nsk, skb))
 				goto reset;
 			if (opt_skb != NULL)
@@ -843,14 +843,14 @@ static int dccp_v6_rcv(struct sk_buff **pskb)
 		DCCP_SKB_CB(skb)->dccpd_ack_seq = dccp_hdr_ack_seq(skb);
 
 	/* Step 2:
-	 * 	Look up flow ID in table and get corresponding socket */
+	 *	Look up flow ID in table and get corresponding socket */
 	sk = __inet6_lookup(&dccp_hashinfo, &skb->nh.ipv6h->saddr,
 			    dh->dccph_sport,
 			    &skb->nh.ipv6h->daddr, ntohs(dh->dccph_dport),
 			    inet6_iif(skb));
 	/*
 	 * Step 2:
-	 * 	If no socket ...
+	 *	If no socket ...
 	 */
 	if (sk == NULL) {
 		dccp_pr_debug("failed to look up flow ID in table and "
@@ -860,7 +860,7 @@ static int dccp_v6_rcv(struct sk_buff **pskb)
 
 	/*
 	 * Step 2:
-	 * 	... or S.state == TIMEWAIT,
+	 *	... or S.state == TIMEWAIT,
 	 *		Generate Reset(No Connection) unless P.type == Reset
 	 *		Drop packet and return
 	 */
@@ -872,8 +872,8 @@ static int dccp_v6_rcv(struct sk_buff **pskb)
 
 	/*
 	 * RFC 4340, sec. 9.2.1: Minimum Checksum Coverage
-	 * 	o if MinCsCov = 0, only packets with CsCov = 0 are accepted
-	 * 	o if MinCsCov > 0, also accept packets with CsCov >= MinCsCov
+	 *	o if MinCsCov = 0, only packets with CsCov = 0 are accepted
+	 *	o if MinCsCov > 0, also accept packets with CsCov >= MinCsCov
 	 */
 	min_cov = dccp_sk(sk)->dccps_pcrlen;
 	if (dh->dccph_cscov  &&  (min_cov == 0 || dh->dccph_cscov < min_cov))  {
@@ -893,7 +893,7 @@ no_dccp_socket:
 		goto discard_it;
 	/*
 	 * Step 2:
-	 * 	If no socket ...
+	 *	If no socket ...
 	 *		Generate Reset(No Connection) unless P.type == Reset
 	 *		Drop packet and return
 	 */

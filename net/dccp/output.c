@@ -1,6 +1,6 @@
 /*
  *  net/dccp/output.c
- * 
+ *
  *  An implementation of the DCCP protocol
  *  Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
@@ -338,7 +338,6 @@ EXPORT_SYMBOL_GPL(dccp_make_response);
 
 static struct sk_buff *dccp_make_reset(struct sock *sk, struct dst_entry *dst,
 				       const enum dccp_reset_codes code)
-				   
 {
 	struct dccp_hdr *dh;
 	struct dccp_sock *dp = dccp_sk(sk);
@@ -419,14 +418,14 @@ static inline void dccp_connect_init(struct sock *sk)
 	
 	dccp_sync_mss(sk, dst_mtu(dst));
 
- 	/*
+	/*
 	 * SWL and AWL are initially adjusted so that they are not less than
 	 * the initial Sequence Numbers received and sent, respectively:
 	 *	SWL := max(GSR + 1 - floor(W/4), ISR),
 	 *	AWL := max(GSS - W' + 1, ISS).
 	 * These adjustments MUST be applied only at the beginning of the
 	 * connection.
- 	 */
+	 */
 	dccp_update_gss(sk, dp->dccps_iss);
 	dccp_set_seqno(&dp->dccps_awl, max48(dp->dccps_awl, dp->dccps_iss));
 

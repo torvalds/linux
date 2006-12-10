@@ -196,7 +196,7 @@ int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 						      sk, GFP_KERNEL);
 		dp->dccps_hc_tx_ccid = ccid_hc_tx_new(dmsk->dccpms_tx_ccid,
 						      sk, GFP_KERNEL);
-	    	if (unlikely(dp->dccps_hc_rx_ccid == NULL ||
+		if (unlikely(dp->dccps_hc_rx_ccid == NULL ||
 			     dp->dccps_hc_tx_ccid == NULL)) {
 			ccid_hc_rx_delete(dp->dccps_hc_rx_ccid, sk);
 			ccid_hc_tx_delete(dp->dccps_hc_tx_ccid, sk);
@@ -390,7 +390,7 @@ static int dccp_setsockopt_service(struct sock *sk, const __be32 service,
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct dccp_service_list *sl = NULL;
 
-	if (service == DCCP_SERVICE_INVALID_VALUE || 
+	if (service == DCCP_SERVICE_INVALID_VALUE ||
 	    optlen > DCCP_SERVICE_LIST_MAX_LEN * sizeof(u32))
 		return -EINVAL;
 
@@ -830,7 +830,7 @@ EXPORT_SYMBOL_GPL(inet_dccp_listen);
 static const unsigned char dccp_new_state[] = {
 	/* current state:   new state:      action:	*/
 	[0]		  = DCCP_CLOSED,
-	[DCCP_OPEN] 	  = DCCP_CLOSING | DCCP_ACTION_FIN,
+	[DCCP_OPEN]	  = DCCP_CLOSING | DCCP_ACTION_FIN,
 	[DCCP_REQUESTING] = DCCP_CLOSED,
 	[DCCP_PARTOPEN]	  = DCCP_CLOSING | DCCP_ACTION_FIN,
 	[DCCP_LISTEN]	  = DCCP_CLOSED,

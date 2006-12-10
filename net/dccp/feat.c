@@ -329,7 +329,7 @@ static void dccp_feat_empty_confirm(struct dccp_minisock *dmsk,
 	switch (type) {
 	case DCCPO_CHANGE_L: opt->dccpop_type = DCCPO_CONFIRM_R; break;
 	case DCCPO_CHANGE_R: opt->dccpop_type = DCCPO_CONFIRM_L; break;
-	default: 	     DCCP_WARN("invalid type %d\n", type); return;
+	default:	     DCCP_WARN("invalid type %d\n", type); return;
 
 	}
 	opt->dccpop_feat = feature;
@@ -427,7 +427,7 @@ int dccp_feat_confirm_recv(struct sock *sk, u8 type, u8 feature,
 	switch (type) {
 	case DCCPO_CONFIRM_L: t = DCCPO_CHANGE_R; break;
 	case DCCPO_CONFIRM_R: t = DCCPO_CHANGE_L; break;
-	default: 	      DCCP_WARN("invalid type %d\n", type);
+	default:	      DCCP_WARN("invalid type %d\n", type);
 			      return 1;
 
 	}
@@ -610,7 +610,7 @@ const char *dccp_feat_typename(const u8 type)
 	case DCCPO_CHANGE_R:  return("ChangeR");
 	case DCCPO_CONFIRM_R: return("ConfirmR");
 	/* the following case must not appear in feature negotation  */
-	default: 	      dccp_pr_debug("unknown type %d [BUG!]\n", type);
+	default:	      dccp_pr_debug("unknown type %d [BUG!]\n", type);
 	}
 	return NULL;
 }

@@ -77,7 +77,7 @@ struct ccid3_options_received {
 
 /* TFRC sender states */
 enum ccid3_hc_tx_states {
-       	TFRC_SSTATE_NO_SENT = 1,
+	TFRC_SSTATE_NO_SENT = 1,
 	TFRC_SSTATE_NO_FBACK,
 	TFRC_SSTATE_FBACK,
 	TFRC_SSTATE_TERM,
@@ -96,7 +96,7 @@ enum ccid3_hc_tx_states {
  * @ccid3hctx_state - Sender state, one of %ccid3_hc_tx_states
  * @ccid3hctx_last_win_count - Last window counter sent
  * @ccid3hctx_t_last_win_count - Timestamp of earliest packet
- * 				 with last_win_count value sent
+ *				 with last_win_count value sent
  * @ccid3hctx_no_feedback_timer - Handle to no feedback timer
  * @ccid3hctx_idle - Flag indicating that sender is idling
  * @ccid3hctx_t_ld - Time last doubled during slow start
@@ -115,7 +115,7 @@ struct ccid3_hc_tx_sock {
 #define ccid3hctx_t_rto			ccid3hctx_tfrc.tfrctx_rto
 #define ccid3hctx_t_ipi			ccid3hctx_tfrc.tfrctx_ipi
 	u16				ccid3hctx_s;
-  	enum ccid3_hc_tx_states 	ccid3hctx_state:8;
+	enum ccid3_hc_tx_states		ccid3hctx_state:8;
 	u8				ccid3hctx_last_win_count;
 	u8				ccid3hctx_idle;
 	struct timeval			ccid3hctx_t_last_win_count;
@@ -129,7 +129,7 @@ struct ccid3_hc_tx_sock {
 
 /* TFRC receiver states */
 enum ccid3_hc_rx_states {
-       	TFRC_RSTATE_NO_DATA = 1,
+	TFRC_RSTATE_NO_DATA = 1,
 	TFRC_RSTATE_DATA,
 	TFRC_RSTATE_TERM    = 127,
 };
@@ -157,18 +157,18 @@ struct ccid3_hc_rx_sock {
 #define ccid3hcrx_x_recv		ccid3hcrx_tfrc.tfrcrx_x_recv
 #define ccid3hcrx_rtt			ccid3hcrx_tfrc.tfrcrx_rtt
 #define ccid3hcrx_p			ccid3hcrx_tfrc.tfrcrx_p
-  	u64				ccid3hcrx_seqno_nonloss:48,
+	u64				ccid3hcrx_seqno_nonloss:48,
 					ccid3hcrx_ccval_nonloss:4,
 					ccid3hcrx_ccval_last_counter:4;
 	enum ccid3_hc_rx_states		ccid3hcrx_state:8;
-  	u32				ccid3hcrx_bytes_recv;
-  	struct timeval			ccid3hcrx_tstamp_last_feedback;
-  	struct timeval			ccid3hcrx_tstamp_last_ack;
+	u32				ccid3hcrx_bytes_recv;
+	struct timeval			ccid3hcrx_tstamp_last_feedback;
+	struct timeval			ccid3hcrx_tstamp_last_ack;
 	struct list_head		ccid3hcrx_hist;
 	struct list_head		ccid3hcrx_li_hist;
-  	u16				ccid3hcrx_s;
-  	u32				ccid3hcrx_pinv;
-  	u32				ccid3hcrx_elapsed_time;
+	u16				ccid3hcrx_s;
+	u32				ccid3hcrx_pinv;
+	u32				ccid3hcrx_elapsed_time;
 };
 
 static inline struct ccid3_hc_tx_sock *ccid3_hc_tx_sk(const struct sock *sk)
