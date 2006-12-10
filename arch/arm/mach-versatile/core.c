@@ -325,6 +325,19 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
+static struct resource versatile_i2c_resource = {
+	.start			= VERSATILE_I2C_BASE,
+	.end			= VERSATILE_I2C_BASE + SZ_4K - 1,
+	.flags			= IORESOURCE_MEM,
+};
+
+static struct platform_device versatile_i2c_device = {
+	.name			= "versatile-i2c",
+	.id			= -1,
+	.num_resources		= 1,
+	.resource		= &versatile_i2c_resource,
+};
+
 #define VERSATILE_SYSMCI	(__io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_MCI_OFFSET)
 
 unsigned int mmc_status(struct device *dev)
@@ -775,6 +788,7 @@ void __init versatile_init(void)
 	clk_register(&versatile_clcd_clk);
 
 	platform_device_register(&versatile_flash_device);
+	platform_device_register(&versatile_i2c_device);
 	platform_device_register(&smc91x_device);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {

@@ -476,6 +476,17 @@ config I2C_STUB
 
 	  If you don't know what to do here, definitely say N.
 
+config I2C_VERSATILE
+	tristate "ARM Versatile/Realview I2C bus support"
+	depends on I2C && (ARCH_VERSATILE || ARCH_REALVIEW)
+	select I2C_ALGOBIT
+	help
+	  Say yes if you want to support the I2C serial bus on ARMs Versatile
+	  range of platforms.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-versatile.
+
 config I2C_VIA
 	tristate "VIA 82C586B"
 	depends on I2C && PCI && EXPERIMENTAL

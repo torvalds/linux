@@ -108,6 +108,7 @@ static struct amba_device name##_device = {			\
 
 extern struct platform_device realview_flash_device;
 extern struct platform_device realview_smc91x_device;
+extern struct platform_device realview_i2c_device;
 extern struct mmc_platform_data realview_mmc0_plat_data;
 extern struct mmc_platform_data realview_mmc1_plat_data;
 extern struct clk realview_clcd_clk;
