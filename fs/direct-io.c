@@ -257,7 +257,6 @@ static int dio_complete(struct dio *dio, loff_t offset, int ret)
  */
 static void dio_complete_aio(struct dio *dio)
 {
-	unsigned long flags;
 	int ret;
 
 	ret = dio_complete(dio, dio->iocb->ki_pos, 0);
@@ -267,14 +266,6 @@ static void dio_complete_aio(struct dio *dio)
 		((dio->rw == READ) && dio->result)) {
 		aio_complete(dio->iocb, ret, 0);
 		kfree(dio);
-	} else {
-		/*
-		 * Falling back to buffered
-		 */
-		spin_lock_irqsave(&dio->bio_lock, flags);
-		if (dio->waiter)
-			wake_up_process(dio->waiter);
-		spin_unlock_irqrestore(&dio->bio_lock, flags);
 	}
 }
 
@@ -285,6 +276,8 @@ static int dio_bio_complete(struct dio *dio, struct bio *bio);
 static int dio_bio_end_aio(struct bio *bio, unsigned int bytes_done, int error)
 {
 	struct dio *dio = bio->bi_private;
+	int waiter_holds_ref = 0;
+	int remaining;
 
 	if (bio->bi_size)
 		return 1;
@@ -292,7 +285,12 @@ static int dio_bio_end_aio(struct bio *bio, unsigned int bytes_done, int error)
 	/* cleanup the bio */
 	dio_bio_complete(dio, bio);
 
-	if (atomic_dec_and_test(&dio->refcount))
+	waiter_holds_ref = !!dio->waiter;
+	remaining = atomic_sub_return(1, (&dio->refcount));
+	if (remaining == 1 && waiter_holds_ref)
+		wake_up_process(dio->waiter);
+
+	if (remaining == 0)
 		dio_complete_aio(dio);
 
 	return 0;
@@ -1097,30 +1095,15 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
 		if (ret == 0)
 			ret = dio->result;
 
+		if (should_wait)
+			dio_await_completion(dio);
+
 		/* this can free the dio */
 		if (atomic_dec_and_test(&dio->refcount))
 			dio_complete_aio(dio);
 
-		if (should_wait) {
-			unsigned long flags;
-			/*
-			 * Wait for already issued I/O to drain out and
-			 * release its references to user-space pages
-			 * before returning to fallback on buffered I/O
-			 */
-
-			spin_lock_irqsave(&dio->bio_lock, flags);
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			while (atomic_read(&dio->refcount)) {
-				spin_unlock_irqrestore(&dio->bio_lock, flags);
-				io_schedule();
-				spin_lock_irqsave(&dio->bio_lock, flags);
-				set_current_state(TASK_UNINTERRUPTIBLE);
-			}
-			spin_unlock_irqrestore(&dio->bio_lock, flags);
-			set_current_state(TASK_RUNNING);
+		if (should_wait)
 			kfree(dio);
-		}
 	} else {
 		dio_await_completion(dio);
 
