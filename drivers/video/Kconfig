@@ -1615,6 +1615,16 @@ config FB_PNX4008_DUM_RGB
 	---help---
 	  Say Y here to enable support for PNX4008 RGB Framebuffer
 
+config FB_IBM_GXT4500
+	tristate "Framebuffer support for IBM GXT4500P adaptor"
+	depends on PPC
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  Say Y here to enable support for the IBM GXT4500P display
+	  adaptor, found on some IBM System P (pSeries) machines.
+
 config FB_VIRTUAL
 	tristate "Virtual Frame Buffer support (ONLY FOR TESTING!)"
 	depends on FB
