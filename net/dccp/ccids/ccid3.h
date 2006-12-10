@@ -75,14 +75,14 @@ enum ccid3_hc_tx_states {
 
 /** struct ccid3_hc_tx_sock - CCID3 sender half-connection socket
  *
- * @ccid3hctx_x - Current sending rate
- * @ccid3hctx_x_recv - Receive rate
- * @ccid3hctx_x_calc - Calculated send rate (RFC 3448, 3.1)
+ * @ccid3hctx_x - Current sending rate in 64 * bytes per second
+ * @ccid3hctx_x_recv - Receive rate    in 64 * bytes per second
+ * @ccid3hctx_x_calc - Calculated rate in bytes per second
  * @ccid3hctx_rtt - Estimate of current round trip time in usecs
  * @ccid3hctx_p - Current loss event rate (0-1) scaled by 1000000
- * @ccid3hctx_s - Packet size
- * @ccid3hctx_t_rto - Retransmission Timeout (RFC 3448, 3.1)
- * @ccid3hctx_t_ipi - Interpacket (send) interval (RFC 3448, 4.6)
+ * @ccid3hctx_s - Packet size in bytes
+ * @ccid3hctx_t_rto - Nofeedback Timer setting in usecs
+ * @ccid3hctx_t_ipi - Interpacket (send) interval (RFC 3448, 4.6) in usecs
  * @ccid3hctx_state - Sender state, one of %ccid3_hc_tx_states
  * @ccid3hctx_last_win_count - Last window counter sent
  * @ccid3hctx_t_last_win_count - Timestamp of earliest packet
@@ -91,7 +91,7 @@ enum ccid3_hc_tx_states {
  * @ccid3hctx_idle - Flag indicating that sender is idling
  * @ccid3hctx_t_ld - Time last doubled during slow start
  * @ccid3hctx_t_nom - Nominal send time of next packet
- * @ccid3hctx_delta - Send timer delta
+ * @ccid3hctx_delta - Send timer delta (RFC 3448, 4.6) in usecs
  * @ccid3hctx_hist - Packet history
  * @ccid3hctx_options_received - Parsed set of retrieved options
  */
@@ -171,4 +171,23 @@ static inline struct ccid3_hc_rx_sock *ccid3_hc_rx_sk(const struct sock *sk)
     return ccid_priv(dccp_sk(sk)->dccps_hc_rx_ccid);
 }
 
+static inline u64 scaled_div(u64 a, u32 b)
+{
+	BUG_ON(b==0);
+	a *= 1000000;
+	do_div(a, b);
+	return a;
+}
+
+static inline u32 scaled_div32(u64 a, u32 b)
+{
+	u64 result = scaled_div(a, b);
+
+	if (result > UINT_MAX) {
+		DCCP_CRIT("Overflow: a(%llu)/b(%u) > ~0U",
+			  (unsigned long long)a, b);
+		return UINT_MAX;
+	}
+	return result;
+}
 #endif /* _DCCP_CCID3_H_ */
