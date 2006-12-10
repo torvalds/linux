@@ -115,31 +115,31 @@ struct taskstats {
 	__u64	ac_majflt;		/* Major Page Fault Count */
 	/* Basic Accounting Fields end */
 
- 	/* Extended accounting fields start */
+	/* Extended accounting fields start */
 	/* Accumulated RSS usage in duration of a task, in MBytes-usecs.
 	 * The current rss usage is added to this counter every time
 	 * a tick is charged to a task's system time. So, at the end we
 	 * will have memory usage multiplied by system time. Thus an
 	 * average usage per system time unit can be calculated.
 	 */
- 	__u64	coremem;		/* accumulated RSS usage in MB-usec */
+	__u64	coremem;		/* accumulated RSS usage in MB-usec */
 	/* Accumulated virtual memory usage in duration of a task.
 	 * Same as acct_rss_mem1 above except that we keep track of VM usage.
 	 */
- 	__u64	virtmem;		/* accumulated VM  usage in MB-usec */
+	__u64	virtmem;		/* accumulated VM  usage in MB-usec */
 
 	/* High watermark of RSS and virtual memory usage in duration of
 	 * a task, in KBytes.
 	 */
- 	__u64	hiwater_rss;		/* High-watermark of RSS usage, in KB */
- 	__u64	hiwater_vm;		/* High-water VM usage, in KB */
+	__u64	hiwater_rss;		/* High-watermark of RSS usage, in KB */
+	__u64	hiwater_vm;		/* High-water VM usage, in KB */
 
 	/* The following four fields are I/O statistics of a task. */
- 	__u64	read_char;		/* bytes read */
- 	__u64	write_char;		/* bytes written */
- 	__u64	read_syscalls;		/* read syscalls */
- 	__u64	write_syscalls;		/* write syscalls */
- 	/* Extended accounting fields end */
+	__u64	read_char;		/* bytes read */
+	__u64	write_char;		/* bytes written */
+	__u64	read_syscalls;		/* read syscalls */
+	__u64	write_syscalls;		/* write syscalls */
+	/* Extended accounting fields end */
 };
 
 
