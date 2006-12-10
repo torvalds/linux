@@ -40,12 +40,12 @@ static DEFINE_MUTEX(lasat_info_mutex);
 /* Strategy function to write EEPROM after changing string entry */
 int sysctl_lasatstring(ctl_table *table, int *name, int nlen,
 		void *oldval, size_t *oldlenp,
-		void *newval, size_t newlen, void **context)
+		void *newval, size_t newlen)
 {
 	int r;
 	mutex_lock(&lasat_info_mutex);
 	r = sysctl_string(table, name,
-			  nlen, oldval, oldlenp, newval, newlen, context);
+			  nlen, oldval, oldlenp, newval, newlen);
 	if (r < 0) {
 		mutex_unlock(&lasat_info_mutex);
 		return r;
@@ -119,11 +119,11 @@ int proc_dolasatrtc(ctl_table *table, int write, struct file *filp,
 /* Sysctl for setting the IP addresses */
 int sysctl_lasat_intvec(ctl_table *table, int *name, int nlen,
 		    void *oldval, size_t *oldlenp,
-		    void *newval, size_t newlen, void **context)
+		    void *newval, size_t newlen)
 {
 	int r;
 	mutex_lock(&lasat_info_mutex);
-	r = sysctl_intvec(table, name, nlen, oldval, oldlenp, newval, newlen, context);
+	r = sysctl_intvec(table, name, nlen, oldval, oldlenp, newval, newlen);
 	if (r < 0) {
 		mutex_unlock(&lasat_info_mutex);
 		return r;
@@ -139,14 +139,14 @@ int sysctl_lasat_intvec(ctl_table *table, int *name, int nlen,
 /* Same for RTC */
 int sysctl_lasat_rtc(ctl_table *table, int *name, int nlen,
 		    void *oldval, size_t *oldlenp,
-		    void *newval, size_t newlen, void **context)
+		    void *newval, size_t newlen)
 {
 	int r;
 	mutex_lock(&lasat_info_mutex);
 	rtctmp = ds1603_read();
 	if (rtctmp < 0)
 		rtctmp = 0;
-	r = sysctl_intvec(table, name, nlen, oldval, oldlenp, newval, newlen, context);
+	r = sysctl_intvec(table, name, nlen, oldval, oldlenp, newval, newlen);
 	if (r < 0) {
 		mutex_unlock(&lasat_info_mutex);
 		return r;
@@ -251,13 +251,12 @@ int proc_lasat_ip(ctl_table *table, int write, struct file *filp,
 
 static int sysctl_lasat_eeprom_value(ctl_table *table, int *name, int nlen,
 				     void *oldval, size_t *oldlenp,
-				     void *newval, size_t newlen,
-				     void **context)
+				     void *newval, size_t newlen)
 {
 	int r;
 
 	mutex_lock(&lasat_info_mutex);
-	r = sysctl_intvec(table, name, nlen, oldval, oldlenp, newval, newlen, context);
+	r = sysctl_intvec(table, name, nlen, oldval, oldlenp, newval, newlen);
 	if (r < 0) {
 		mutex_unlock(&lasat_info_mutex);
 		return r;

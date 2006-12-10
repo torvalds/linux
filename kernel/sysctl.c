@@ -133,7 +133,7 @@ extern int max_lock_depth;
 
 #ifdef CONFIG_SYSCTL_SYSCALL
 static int parse_table(int __user *, int, void __user *, size_t __user *,
-		void __user *, size_t, ctl_table *, void **);
+		void __user *, size_t, ctl_table *);
 #endif
 
 static int proc_do_uts_string(ctl_table *table, int write, struct file *filp,
@@ -141,12 +141,12 @@ static int proc_do_uts_string(ctl_table *table, int write, struct file *filp,
 
 static int sysctl_uts_string(ctl_table *table, int __user *name, int nlen,
 		  void __user *oldval, size_t __user *oldlenp,
-		  void __user *newval, size_t newlen, void **context);
+		  void __user *newval, size_t newlen);
 
 #ifdef CONFIG_SYSVIPC
 static int sysctl_ipc_data(ctl_table *table, int __user *name, int nlen,
 		  void __user *oldval, size_t __user *oldlenp,
-		  void __user *newval, size_t newlen, void **context);
+		  void __user *newval, size_t newlen);
 #endif
 
 #ifdef CONFIG_PROC_SYSCTL
@@ -1243,7 +1243,6 @@ int do_sysctl(int __user *name, int nlen, void __user *oldval, size_t __user *ol
 	do {
 		struct ctl_table_header *head =
 			list_entry(tmp, struct ctl_table_header, ctl_entry);
-		void *context = NULL;
 
 		if (!use_table(head))
 			continue;
@@ -1251,9 +1250,7 @@ int do_sysctl(int __user *name, int nlen, void __user *oldval, size_t __user *ol
 		spin_unlock(&sysctl_lock);
 
 		error = parse_table(name, nlen, oldval, oldlenp, 
-					newval, newlen, head->ctl_table,
-					&context);
-		kfree(context);
+					newval, newlen, head->ctl_table);
 
 		spin_lock(&sysctl_lock);
 		unuse_table(head);
@@ -1309,7 +1306,7 @@ static inline int ctl_perm(ctl_table *table, int op)
 static int parse_table(int __user *name, int nlen,
 		       void __user *oldval, size_t __user *oldlenp,
 		       void __user *newval, size_t newlen,
-		       ctl_table *table, void **context)
+		       ctl_table *table)
 {
 	int n;
 repeat:
@@ -1329,7 +1326,7 @@ repeat:
 					error = table->strategy(
 						table, name, nlen,
 						oldval, oldlenp,
-						newval, newlen, context);
+						newval, newlen);
 					if (error)
 						return error;
 				}
@@ -1340,7 +1337,7 @@ repeat:
 			}
 			error = do_sysctl_strategy(table, name, nlen,
 						   oldval, oldlenp,
-						   newval, newlen, context);
+						   newval, newlen);
 			return error;
 		}
 	}
@@ -1351,7 +1348,7 @@ repeat:
 int do_sysctl_strategy (ctl_table *table, 
 			int __user *name, int nlen,
 			void __user *oldval, size_t __user *oldlenp,
-			void __user *newval, size_t newlen, void **context)
+			void __user *newval, size_t newlen)
 {
 	int op = 0, rc;
 	size_t len;
@@ -1365,7 +1362,7 @@ int do_sysctl_strategy (ctl_table *table,
 
 	if (table->strategy) {
 		rc = table->strategy(table, name, nlen, oldval, oldlenp,
-				     newval, newlen, context);
+				     newval, newlen);
 		if (rc < 0)
 			return rc;
 		if (rc > 0)
@@ -2473,7 +2470,7 @@ int proc_doulongvec_ms_jiffies_minmax(ctl_table *table, int write,
 /* The generic string strategy routine: */
 int sysctl_string(ctl_table *table, int __user *name, int nlen,
 		  void __user *oldval, size_t __user *oldlenp,
-		  void __user *newval, size_t newlen, void **context)
+		  void __user *newval, size_t newlen)
 {
 	if (!table->data || !table->maxlen) 
 		return -ENOTDIR;
@@ -2519,7 +2516,7 @@ int sysctl_string(ctl_table *table, int __user *name, int nlen,
  */
 int sysctl_intvec(ctl_table *table, int __user *name, int nlen,
 		void __user *oldval, size_t __user *oldlenp,
-		void __user *newval, size_t newlen, void **context)
+		void __user *newval, size_t newlen)
 {
 
 	if (newval && newlen) {
@@ -2555,7 +2552,7 @@ int sysctl_intvec(ctl_table *table, int __user *name, int nlen,
 /* Strategy function to convert jiffies to seconds */ 
 int sysctl_jiffies(ctl_table *table, int __user *name, int nlen,
 		void __user *oldval, size_t __user *oldlenp,
-		void __user *newval, size_t newlen, void **context)
+		void __user *newval, size_t newlen)
 {
 	if (oldval) {
 		size_t olen;
@@ -2583,7 +2580,7 @@ int sysctl_jiffies(ctl_table *table, int __user *name, int nlen,
 /* Strategy function to convert jiffies to seconds */ 
 int sysctl_ms_jiffies(ctl_table *table, int __user *name, int nlen,
 		void __user *oldval, size_t __user *oldlenp,
-		void __user *newval, size_t newlen, void **context)
+		void __user *newval, size_t newlen)
 {
 	if (oldval) {
 		size_t olen;
@@ -2612,7 +2609,7 @@ int sysctl_ms_jiffies(ctl_table *table, int __user *name, int nlen,
 /* The generic string strategy routine: */
 static int sysctl_uts_string(ctl_table *table, int __user *name, int nlen,
 		  void __user *oldval, size_t __user *oldlenp,
-		  void __user *newval, size_t newlen, void **context)
+		  void __user *newval, size_t newlen)
 {
 	struct ctl_table uts_table;
 	int r, write;
@@ -2620,7 +2617,7 @@ static int sysctl_uts_string(ctl_table *table, int __user *name, int nlen,
 	memcpy(&uts_table, table, sizeof(uts_table));
 	uts_table.data = get_uts(table, write);
 	r = sysctl_string(&uts_table, name, nlen,
-		oldval, oldlenp, newval, newlen, context);
+		oldval, oldlenp, newval, newlen);
 	put_uts(table, write, uts_table.data);
 	return r;
 }
@@ -2629,7 +2626,7 @@ static int sysctl_uts_string(ctl_table *table, int __user *name, int nlen,
 /* The generic sysctl ipc data routine. */
 static int sysctl_ipc_data(ctl_table *table, int __user *name, int nlen,
 		void __user *oldval, size_t __user *oldlenp,
-		void __user *newval, size_t newlen, void **context)
+		void __user *newval, size_t newlen)
 {
 	size_t len;
 	void *data;
@@ -2704,41 +2701,41 @@ out:
 
 int sysctl_string(ctl_table *table, int __user *name, int nlen,
 		  void __user *oldval, size_t __user *oldlenp,
-		  void __user *newval, size_t newlen, void **context)
+		  void __user *newval, size_t newlen)
 {
 	return -ENOSYS;
 }
 
 int sysctl_intvec(ctl_table *table, int __user *name, int nlen,
 		void __user *oldval, size_t __user *oldlenp,
-		void __user *newval, size_t newlen, void **context)
+		void __user *newval, size_t newlen)
 {
 	return -ENOSYS;
 }
 
 int sysctl_jiffies(ctl_table *table, int __user *name, int nlen,
 		void __user *oldval, size_t __user *oldlenp,
-		void __user *newval, size_t newlen, void **context)
+		void __user *newval, size_t newlen)
 {
 	return -ENOSYS;
 }
 
 int sysctl_ms_jiffies(ctl_table *table, int __user *name, int nlen,
 		void __user *oldval, size_t __user *oldlenp,
-		void __user *newval, size_t newlen, void **context)
+		void __user *newval, size_t newlen)
 {
 	return -ENOSYS;
 }
 
 static int sysctl_uts_string(ctl_table *table, int __user *name, int nlen,
 		  void __user *oldval, size_t __user *oldlenp,
-		  void __user *newval, size_t newlen, void **context)
+		  void __user *newval, size_t newlen)
 {
 	return -ENOSYS;
 }
 static int sysctl_ipc_data(ctl_table *table, int __user *name, int nlen,
 		void __user *oldval, size_t __user *oldlenp,
-		void __user *newval, size_t newlen, void **context)
+		void __user *newval, size_t newlen)
 {
 	return -ENOSYS;
 }

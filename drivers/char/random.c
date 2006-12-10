@@ -1203,7 +1203,7 @@ static int proc_do_uuid(ctl_table *table, int write, struct file *filp,
 
 static int uuid_strategy(ctl_table *table, int __user *name, int nlen,
 			 void __user *oldval, size_t __user *oldlenp,
-			 void __user *newval, size_t newlen, void **context)
+			 void __user *newval, size_t newlen)
 {
 	unsigned char tmp_uuid[16], *uuid;
 	unsigned int len;

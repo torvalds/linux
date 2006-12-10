@@ -51,8 +51,7 @@ int ipv4_sysctl_forward(ctl_table *ctl, int write, struct file * filp,
 static int ipv4_sysctl_forward_strategy(ctl_table *table,
 			 int __user *name, int nlen,
 			 void __user *oldval, size_t __user *oldlenp,
-			 void __user *newval, size_t newlen, 
-			 void **context)
+			 void __user *newval, size_t newlen)
 {
 	int *valp = table->data;
 	int new;
@@ -111,8 +110,7 @@ static int proc_tcp_congestion_control(ctl_table *ctl, int write, struct file * 
 static int sysctl_tcp_congestion_control(ctl_table *table, int __user *name,
 					 int nlen, void __user *oldval,
 					 size_t __user *oldlenp,
-					 void __user *newval, size_t newlen,
-					 void **context)
+					 void __user *newval, size_t newlen)
 {
 	char val[TCP_CA_NAME_MAX];
 	ctl_table tbl = {
@@ -122,8 +120,7 @@ static int sysctl_tcp_congestion_control(ctl_table *table, int __user *name,
 	int ret;
 
 	tcp_get_default_congestion_control(val);
-	ret = sysctl_string(&tbl, name, nlen, oldval, oldlenp, newval, newlen,
-			    context);
+	ret = sysctl_string(&tbl, name, nlen, oldval, oldlenp, newval, newlen);
 	if (ret == 0 && newval && newlen)
 		ret = tcp_set_default_congestion_control(val);
 	return ret;
@@ -169,8 +166,8 @@ static int proc_allowed_congestion_control(ctl_table *ctl,
 static int strategy_allowed_congestion_control(ctl_table *table, int __user *name,
 					       int nlen, void __user *oldval,
 					       size_t __user *oldlenp,
-					       void __user *newval, size_t newlen,
-					       void **context)
+					       void __user *newval,
+					       size_t newlen)
 {
 	ctl_table tbl = { .maxlen = TCP_CA_BUF_MAX };
 	int ret;
@@ -180,8 +177,7 @@ static int strategy_allowed_congestion_control(ctl_table *table, int __user *nam
 		return -ENOMEM;
 
 	tcp_get_available_congestion_control(tbl.data, tbl.maxlen);
-	ret = sysctl_string(&tbl, name, nlen, oldval, oldlenp, newval, newlen,
-			    context);
+	ret = sysctl_string(&tbl, name, nlen, oldval, oldlenp, newval, newlen);
 	if (ret == 0 && newval && newlen)
 		ret = tcp_set_allowed_congestion_control(tbl.data);
 	kfree(tbl.data);

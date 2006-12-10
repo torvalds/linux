@@ -225,8 +225,7 @@ out:
 
 static int vsyscall_sysctl_nostrat(ctl_table *t, int __user *name, int nlen,
 				void __user *oldval, size_t __user *oldlenp,
-				void __user *newval, size_t newlen,
-				void **context)
+				void __user *newval, size_t newlen)
 {
 	return -ENOSYS;
 }

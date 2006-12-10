@@ -2872,8 +2872,7 @@ static int ipv4_sysctl_rtcache_flush_strategy(ctl_table *table,
 						void __user *oldval,
 						size_t __user *oldlenp,
 						void __user *newval,
-						size_t newlen,
-						void **context)
+						size_t newlen)
 {
 	int delay;
 	if (newlen != sizeof(int))
