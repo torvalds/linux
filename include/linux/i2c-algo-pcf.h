@@ -31,7 +31,7 @@ struct i2c_algo_pcf_data {
 	int  (*getpcf) (void *data, int ctl);
 	int  (*getown) (void *data);
 	int  (*getclock) (void *data);
-	void (*waitforpin) (void);     
+	void (*waitforpin) (void);
 
 	/* local settings */
 	int udelay;

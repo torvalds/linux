@@ -1,7 +1,7 @@
 /* ------------------------------------------------------------------------- */
-/* 									     */
+/*									     */
 /* i2c.h - definitions for the i2c-bus interface			     */
-/* 									     */
+/*									     */
 /* ------------------------------------------------------------------------- */
 /*   Copyright (C) 1995-2000 Simon G. Vogl
 
@@ -27,7 +27,7 @@
 #define _LINUX_I2C_H
 
 #include <linux/types.h>
-#ifdef __KERNEL__ 
+#ifdef __KERNEL__
 #include <linux/module.h>
 #include <linux/i2c-id.h>
 #include <linux/mod_devicetable.h>
@@ -53,8 +53,8 @@ union i2c_smbus_data;
 
 /*
  * The master routines are the ones normally used to transmit data to devices
- * on a bus (or read from them). Apart from two basic transfer functions to 
- * transmit one message at a time, a more complex version can be used to 
+ * on a bus (or read from them). Apart from two basic transfer functions to
+ * transmit one message at a time, a more complex version can be used to
  * transmit an arbitrary number of messages without interruption.
  */
 extern int i2c_master_send(struct i2c_client *,const char* ,int);
@@ -67,10 +67,10 @@ extern int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 
 /* This is the very generalized SMBus access routine. You probably do not
    want to use this, though; one of the functions below may be much easier,
-   and probably just as fast. 
+   and probably just as fast.
    Note that we use i2c_adapter here, because you do not need a specific
    smbus adapter to call this function. */
-extern s32 i2c_smbus_xfer (struct i2c_adapter * adapter, u16 addr, 
+extern s32 i2c_smbus_xfer (struct i2c_adapter * adapter, u16 addr,
                            unsigned short flags,
                            char read_write, u8 command, int size,
                            union i2c_smbus_data * data);
@@ -112,14 +112,14 @@ struct i2c_driver {
 
 	/* Notifies the driver that a new bus has appeared. This routine
 	 * can be used by the driver to test if the bus meets its conditions
-	 * & seek for the presence of the chip(s) it supports. If found, it 
+	 * & seek for the presence of the chip(s) it supports. If found, it
 	 * registers the client(s) that are on the bus to the i2c admin. via
 	 * i2c_attach_client.
 	 */
 	int (*attach_adapter)(struct i2c_adapter *);
 	int (*detach_adapter)(struct i2c_adapter *);
 
-	/* tells the driver that a client is about to be deleted & gives it 
+	/* tells the driver that a client is about to be deleted & gives it
 	 * the chance to remove its private data. Also, if the client struct
 	 * has been dynamically allocated by the driver in the function above,
 	 * it must be freed here.
@@ -139,13 +139,13 @@ struct i2c_driver {
 #define I2C_NAME_SIZE	50
 
 /*
- * i2c_client identifies a single device (i.e. chip) that is connected to an 
+ * i2c_client identifies a single device (i.e. chip) that is connected to an
  * i2c bus. The behaviour is defined by the routines of the driver. This
  * function is mainly used for lookup & other admin. functions.
  */
 struct i2c_client {
 	unsigned int flags;		/* div., see below		*/
-	unsigned short addr;		/* chip address - NOTE: 7bit 	*/
+	unsigned short addr;		/* chip address - NOTE: 7bit	*/
 					/* addresses are stored in the	*/
 					/* _LOWER_ 7 bits		*/
 	struct i2c_adapter *adapter;	/* the adapter we sit on	*/
@@ -182,14 +182,14 @@ static inline void i2c_set_clientdata (struct i2c_client *dev, void *data)
  */
 struct i2c_algorithm {
 	/* If an adapter algorithm can't do I2C-level access, set master_xfer
-	   to NULL. If an adapter algorithm can do SMBus access, set 
+	   to NULL. If an adapter algorithm can do SMBus access, set
 	   smbus_xfer. If set to NULL, the SMBus protocol is simulated
 	   using common I2C messages */
 	/* master_xfer should return the number of messages successfully
 	   processed, or a negative value on error */
-	int (*master_xfer)(struct i2c_adapter *adap,struct i2c_msg *msgs, 
+	int (*master_xfer)(struct i2c_adapter *adap,struct i2c_msg *msgs,
 	                   int num);
-	int (*smbus_xfer) (struct i2c_adapter *adap, u16 addr, 
+	int (*smbus_xfer) (struct i2c_adapter *adap, u16 addr,
 	                   unsigned short flags, char read_write,
 	                   u8 command, int size, union i2c_smbus_data * data);
 
@@ -317,7 +317,7 @@ extern int i2c_check_addr (struct i2c_adapter *adapter, int addr);
  * It will only call found_proc if some client is connected at the
  * specific address (unless a 'force' matched);
  */
-extern int i2c_probe(struct i2c_adapter *adapter, 
+extern int i2c_probe(struct i2c_adapter *adapter,
 		struct i2c_client_address_data *address_data,
 		int (*found_proc) (struct i2c_adapter *, int, int));
 
@@ -353,15 +353,15 @@ static inline int i2c_adapter_id(struct i2c_adapter *adap)
  */
 struct i2c_msg {
 	__u16 addr;	/* slave address			*/
- 	__u16 flags;		
+	__u16 flags;
 #define I2C_M_TEN	0x10	/* we have a ten bit chip address	*/
 #define I2C_M_RD	0x01
 #define I2C_M_NOSTART	0x4000
 #define I2C_M_REV_DIR_ADDR	0x2000
 #define I2C_M_IGNORE_NAK	0x1000
 #define I2C_M_NO_RD_ACK		0x0800
- 	__u16 len;		/* msg length				*/
- 	__u8 *buf;		/* pointer to msg data			*/
+	__u16 len;		/* msg length				*/
+	__u8 *buf;		/* pointer to msg data			*/
 };
 
 /* To determine what functionality is present */
@@ -371,16 +371,16 @@ struct i2c_msg {
 #define I2C_FUNC_PROTOCOL_MANGLING	0x00000004 /* I2C_M_{REV_DIR_ADDR,NOSTART,..} */
 #define I2C_FUNC_SMBUS_HWPEC_CALC	0x00000008 /* SMBus 2.0 */
 #define I2C_FUNC_SMBUS_BLOCK_PROC_CALL	0x00008000 /* SMBus 2.0 */
-#define I2C_FUNC_SMBUS_QUICK		0x00010000 
-#define I2C_FUNC_SMBUS_READ_BYTE	0x00020000 
-#define I2C_FUNC_SMBUS_WRITE_BYTE	0x00040000 
-#define I2C_FUNC_SMBUS_READ_BYTE_DATA	0x00080000 
-#define I2C_FUNC_SMBUS_WRITE_BYTE_DATA	0x00100000 
-#define I2C_FUNC_SMBUS_READ_WORD_DATA	0x00200000 
-#define I2C_FUNC_SMBUS_WRITE_WORD_DATA	0x00400000 
-#define I2C_FUNC_SMBUS_PROC_CALL	0x00800000 
-#define I2C_FUNC_SMBUS_READ_BLOCK_DATA	0x01000000 
-#define I2C_FUNC_SMBUS_WRITE_BLOCK_DATA 0x02000000 
+#define I2C_FUNC_SMBUS_QUICK		0x00010000
+#define I2C_FUNC_SMBUS_READ_BYTE	0x00020000
+#define I2C_FUNC_SMBUS_WRITE_BYTE	0x00040000
+#define I2C_FUNC_SMBUS_READ_BYTE_DATA	0x00080000
+#define I2C_FUNC_SMBUS_WRITE_BYTE_DATA	0x00100000
+#define I2C_FUNC_SMBUS_READ_WORD_DATA	0x00200000
+#define I2C_FUNC_SMBUS_WRITE_WORD_DATA	0x00400000
+#define I2C_FUNC_SMBUS_PROC_CALL	0x00800000
+#define I2C_FUNC_SMBUS_READ_BLOCK_DATA	0x01000000
+#define I2C_FUNC_SMBUS_WRITE_BLOCK_DATA 0x02000000
 #define I2C_FUNC_SMBUS_READ_I2C_BLOCK	0x04000000 /* I2C-like block xfer  */
 #define I2C_FUNC_SMBUS_WRITE_I2C_BLOCK	0x08000000 /* w/ 1-byte reg. addr. */
 #define I2C_FUNC_SMBUS_READ_I2C_BLOCK_2	 0x10000000 /* I2C-like block xfer  */
@@ -407,10 +407,10 @@ struct i2c_msg {
                              I2C_FUNC_SMBUS_WRITE_BLOCK_DATA | \
                              I2C_FUNC_SMBUS_I2C_BLOCK)
 
-/* 
- * Data for SMBus Messages 
+/*
+ * Data for SMBus Messages
  */
-#define I2C_SMBUS_BLOCK_MAX	32	/* As specified in SMBus standard */	
+#define I2C_SMBUS_BLOCK_MAX	32	/* As specified in SMBus standard */
 union i2c_smbus_data {
 	__u8 byte;
 	__u16 word;
@@ -422,11 +422,11 @@ union i2c_smbus_data {
 #define I2C_SMBUS_READ	1
 #define I2C_SMBUS_WRITE	0
 
-/* SMBus transaction types (size parameter in the above functions) 
+/* SMBus transaction types (size parameter in the above functions)
    Note: these no longer correspond to the (arbitrary) PIIX4 internal codes! */
 #define I2C_SMBUS_QUICK		    0
 #define I2C_SMBUS_BYTE		    1
-#define I2C_SMBUS_BYTE_DATA	    2 
+#define I2C_SMBUS_BYTE_DATA	    2
 #define I2C_SMBUS_WORD_DATA	    3
 #define I2C_SMBUS_PROC_CALL	    4
 #define I2C_SMBUS_BLOCK_DATA	    5
@@ -435,15 +435,15 @@ union i2c_smbus_data {
 
 
 /* ----- commands for the ioctl like i2c_command call:
- * note that additional calls are defined in the algorithm and hw 
- *	dependent layers - these can be listed here, or see the 
+ * note that additional calls are defined in the algorithm and hw
+ *	dependent layers - these can be listed here, or see the
  *	corresponding header files.
  */
 				/* -> bit-adapter specific ioctls	*/
 #define I2C_RETRIES	0x0701	/* number of times a device address      */
 				/* should be polled when not            */
-                                /* acknowledging 			*/
-#define I2C_TIMEOUT	0x0702	/* set timeout - call with int 		*/
+                                /* acknowledging			*/
+#define I2C_TIMEOUT	0x0702	/* set timeout - call with int		*/
 
 
 /* this is for i2c-dev.c	*/

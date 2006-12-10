@@ -1,5 +1,5 @@
 /*
-    i2c-dev.c - i2c-bus driver, char device interface  
+    i2c-dev.c - i2c-bus driver, char device interface
 
     Copyright (C) 1995-97 Simon G. Vogl
     Copyright (C) 1998-99 Frodo Looijaard <frodol@dds.nl>
@@ -172,7 +172,7 @@ static int i2cdev_ioctl(struct inode *inode, struct file *file,
 	switch ( cmd ) {
 	case I2C_SLAVE:
 	case I2C_SLAVE_FORCE:
-		if ((arg > 0x3ff) || 
+		if ((arg > 0x3ff) ||
 		    (((client->flags & I2C_M_TEN) == 0) && arg > 0x7f))
 			return -EINVAL;
 		if ((cmd == I2C_SLAVE) && i2c_check_addr(client->adapter,arg))
@@ -196,8 +196,8 @@ static int i2cdev_ioctl(struct inode *inode, struct file *file,
 		return put_user(funcs, (unsigned long __user *)arg);
 
 	case I2C_RDWR:
-		if (copy_from_user(&rdwr_arg, 
-				   (struct i2c_rdwr_ioctl_data __user *)arg, 
+		if (copy_from_user(&rdwr_arg,
+				   (struct i2c_rdwr_ioctl_data __user *)arg,
 				   sizeof(rdwr_arg)))
 			return -EFAULT;
 
@@ -205,9 +205,9 @@ static int i2cdev_ioctl(struct inode *inode, struct file *file,
 		 * be sent at once */
 		if (rdwr_arg.nmsgs > I2C_RDRW_IOCTL_MAX_MSGS)
 			return -EINVAL;
-		
+
 		rdwr_pa = (struct i2c_msg *)
-			kmalloc(rdwr_arg.nmsgs * sizeof(struct i2c_msg), 
+			kmalloc(rdwr_arg.nmsgs * sizeof(struct i2c_msg),
 			GFP_KERNEL);
 
 		if (rdwr_pa == NULL) return -ENOMEM;
@@ -277,9 +277,9 @@ static int i2cdev_ioctl(struct inode *inode, struct file *file,
 		                   (struct i2c_smbus_ioctl_data __user *) arg,
 		                   sizeof(struct i2c_smbus_ioctl_data)))
 			return -EFAULT;
-		if ((data_arg.size != I2C_SMBUS_BYTE) && 
+		if ((data_arg.size != I2C_SMBUS_BYTE) &&
 		    (data_arg.size != I2C_SMBUS_QUICK) &&
-		    (data_arg.size != I2C_SMBUS_BYTE_DATA) && 
+		    (data_arg.size != I2C_SMBUS_BYTE_DATA) &&
 		    (data_arg.size != I2C_SMBUS_WORD_DATA) &&
 		    (data_arg.size != I2C_SMBUS_PROC_CALL) &&
 		    (data_arg.size != I2C_SMBUS_BLOCK_DATA) &&
@@ -290,11 +290,11 @@ static int i2cdev_ioctl(struct inode *inode, struct file *file,
 				data_arg.size);
 			return -EINVAL;
 		}
-		/* Note that I2C_SMBUS_READ and I2C_SMBUS_WRITE are 0 and 1, 
+		/* Note that I2C_SMBUS_READ and I2C_SMBUS_WRITE are 0 and 1,
 		   so the check is valid if size==I2C_SMBUS_QUICK too. */
-		if ((data_arg.read_write != I2C_SMBUS_READ) && 
+		if ((data_arg.read_write != I2C_SMBUS_READ) &&
 		    (data_arg.read_write != I2C_SMBUS_WRITE)) {
-			dev_dbg(&client->adapter->dev, 
+			dev_dbg(&client->adapter->dev,
 				"read_write out of range (%x) in ioctl I2C_SMBUS.\n",
 				data_arg.read_write);
 			return -EINVAL;
@@ -303,7 +303,7 @@ static int i2cdev_ioctl(struct inode *inode, struct file *file,
 		/* Note that command values are always valid! */
 
 		if ((data_arg.size == I2C_SMBUS_QUICK) ||
-		    ((data_arg.size == I2C_SMBUS_BYTE) && 
+		    ((data_arg.size == I2C_SMBUS_BYTE) &&
 		    (data_arg.read_write == I2C_SMBUS_WRITE)))
 			/* These are special: we do not use data */
 			return i2c_smbus_xfer(client->adapter, client->addr,
@@ -321,14 +321,14 @@ static int i2cdev_ioctl(struct inode *inode, struct file *file,
 		if ((data_arg.size == I2C_SMBUS_BYTE_DATA) ||
 		    (data_arg.size == I2C_SMBUS_BYTE))
 			datasize = sizeof(data_arg.data->byte);
-		else if ((data_arg.size == I2C_SMBUS_WORD_DATA) || 
+		else if ((data_arg.size == I2C_SMBUS_WORD_DATA) ||
 		         (data_arg.size == I2C_SMBUS_PROC_CALL))
 			datasize = sizeof(data_arg.data->word);
 		else /* size == smbus block, i2c block, or block proc. call */
 			datasize = sizeof(data_arg.data->block);
 
-		if ((data_arg.size == I2C_SMBUS_PROC_CALL) || 
-		    (data_arg.size == I2C_SMBUS_BLOCK_PROC_CALL) || 
+		if ((data_arg.size == I2C_SMBUS_PROC_CALL) ||
+		    (data_arg.size == I2C_SMBUS_BLOCK_PROC_CALL) ||
 		    (data_arg.read_write == I2C_SMBUS_WRITE)) {
 			if (copy_from_user(&temp, data_arg.data, datasize))
 				return -EFAULT;
@@ -336,8 +336,8 @@ static int i2cdev_ioctl(struct inode *inode, struct file *file,
 		res = i2c_smbus_xfer(client->adapter,client->addr,client->flags,
 		      data_arg.read_write,
 		      data_arg.command,data_arg.size,&temp);
-		if (! res && ((data_arg.size == I2C_SMBUS_PROC_CALL) || 
-		              (data_arg.size == I2C_SMBUS_BLOCK_PROC_CALL) || 
+		if (! res && ((data_arg.size == I2C_SMBUS_PROC_CALL) ||
+		              (data_arg.size == I2C_SMBUS_BLOCK_PROC_CALL) ||
 			      (data_arg.read_write == I2C_SMBUS_READ))) {
 			if (copy_to_user(data_arg.data, &temp, datasize))
 				return -EFAULT;

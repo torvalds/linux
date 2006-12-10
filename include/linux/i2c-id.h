@@ -1,7 +1,7 @@
 /* ------------------------------------------------------------------------- */
-/* 									     */
+/*									     */
 /* i2c-id.h - identifier values for i2c drivers and adapters		     */
-/* 									     */
+/*									     */
 /* ------------------------------------------------------------------------- */
 /*   Copyright (C) 1995-1999 Simon G. Vogl
 
@@ -40,10 +40,10 @@
 #define I2C_DRIVERID_SAA7120	11	/* video encoder		*/
 #define I2C_DRIVERID_SAA7121	12	/* video encoder		*/
 #define I2C_DRIVERID_SAA7185B	13	/* video encoder		*/
-#define I2C_DRIVERID_CH7003	14	/* digital pc to tv encoder 	*/
+#define I2C_DRIVERID_CH7003	14	/* digital pc to tv encoder	*/
 #define I2C_DRIVERID_PCF8574A	15	/* i2c expander - 8 bit in/out	*/
 #define I2C_DRIVERID_PCF8582C	16	/* eeprom			*/
-#define I2C_DRIVERID_AT24Cxx	17	/* eeprom 1/2/4/8/16 K 		*/
+#define I2C_DRIVERID_AT24Cxx	17	/* eeprom 1/2/4/8/16 K		*/
 #define I2C_DRIVERID_TEA6300	18	/* audio mixer			*/
 #define I2C_DRIVERID_BT829	19	/* pc to tv encoder		*/
 #define I2C_DRIVERID_TDA9850	20	/* audio mixer			*/
@@ -162,7 +162,7 @@
  * ---- Adapter types ----------------------------------------------------
  */
 
-/* --- Bit algorithm adapters 						*/
+/* --- Bit algorithm adapters						*/
 #define I2C_HW_B_LP		0x010000 /* Parallel port Philips style */
 #define I2C_HW_B_SER		0x010002 /* Serial line interface */
 #define I2C_HW_B_BT848		0x010005 /* BT848 video boards */
