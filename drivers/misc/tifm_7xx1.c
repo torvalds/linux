@@ -350,7 +350,8 @@ static int tifm_7xx1_probe(struct pci_dev *dev,
 	}
 
 	fm->dev = &dev->dev;
-	fm->num_sockets = (dev->device == 0x803B) ? 2 : 4;
+	fm->num_sockets = (dev->device == PCI_DEVICE_ID_TI_XX21_XX11_FM)
+			  ? 4 : 2;
 	fm->sockets = kzalloc(sizeof(struct tifm_dev*) * fm->num_sockets,
 				GFP_KERNEL);
 	if (!fm->sockets)
@@ -423,10 +424,12 @@ static void tifm_7xx1_remove(struct pci_dev *dev)
 }
 
 static struct pci_device_id tifm_7xx1_pci_tbl [] = {
-	{ PCI_VENDOR_ID_TI, 0x8033, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  0 }, /* xx21 - the one I have */
-        { PCI_VENDOR_ID_TI, 0x803B, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  0 }, /* xx12 - should be also supported */
+	{ PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_XX21_XX11_FM, PCI_ANY_ID,
+	  PCI_ANY_ID, 0, 0, 0 }, /* xx21 - the one I have */
+        { PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_XX12_FM, PCI_ANY_ID,
+	  PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_XX20_FM, PCI_ANY_ID,
+	  PCI_ANY_ID, 0, 0, 0 },
 	{ }
 };
 
