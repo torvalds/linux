@@ -428,7 +428,7 @@ static inline void task_rq_unlock(struct rq *rq, unsigned long *flags)
  * bump this up when changing the output format or the meaning of an existing
  * format, so that tools can adapt (or abort)
  */
-#define SCHEDSTAT_VERSION 12
+#define SCHEDSTAT_VERSION 13
 
 static int show_schedstat(struct seq_file *seq, void *v)
 {
@@ -466,7 +466,7 @@ static int show_schedstat(struct seq_file *seq, void *v)
 			seq_printf(seq, "domain%d %s", dcnt++, mask_str);
 			for (itype = SCHED_IDLE; itype < MAX_IDLE_TYPES;
 					itype++) {
-				seq_printf(seq, " %lu %lu %lu %lu %lu %lu %lu %lu",
+				seq_printf(seq, " %lu %lu %lu %lu %lu %lu %lu %lu %lu",
 				    sd->lb_cnt[itype],
 				    sd->lb_balanced[itype],
 				    sd->lb_failed[itype],
@@ -474,7 +474,8 @@ static int show_schedstat(struct seq_file *seq, void *v)
 				    sd->lb_gained[itype],
 				    sd->lb_hot_gained[itype],
 				    sd->lb_nobusyq[itype],
-				    sd->lb_nobusyg[itype]);
+				    sd->lb_nobusyg[itype],
+				    sd->lb_stopbalance[itype]);
 			}
 			seq_printf(seq, " %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu\n",
 			    sd->alb_cnt, sd->alb_failed, sd->alb_pushed,
@@ -2249,7 +2250,7 @@ out:
 static struct sched_group *
 find_busiest_group(struct sched_domain *sd, int this_cpu,
 		   unsigned long *imbalance, enum idle_type idle, int *sd_idle,
-		   cpumask_t *cpus)
+		   cpumask_t *cpus, int *balance)
 {
 	struct sched_group *busiest = NULL, *this = NULL, *group = sd->groups;
 	unsigned long max_load, avg_load, total_load, this_load, total_pwr;
@@ -2278,9 +2279,13 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		unsigned long load, group_capacity;
 		int local_group;
 		int i;
+		unsigned int balance_cpu = -1, first_idle_cpu = 0;
 		unsigned long sum_nr_running, sum_weighted_load;
 
 		local_group = cpu_isset(this_cpu, group->cpumask);
+
+		if (local_group)
+			balance_cpu = first_cpu(group->cpumask);
 
 		/* Tally up the load of all CPUs in the group */
 		sum_weighted_load = sum_nr_running = avg_load = 0;
@@ -2297,14 +2302,29 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 				*sd_idle = 0;
 
 			/* Bias balancing toward cpus of our domain */
-			if (local_group)
+			if (local_group) {
+				if (idle_cpu(i) && !first_idle_cpu) {
+					first_idle_cpu = 1;
+					balance_cpu = i;
+				}
+
 				load = target_load(i, load_idx);
-			else
+			} else
 				load = source_load(i, load_idx);
 
 			avg_load += load;
 			sum_nr_running += rq->nr_running;
 			sum_weighted_load += rq->raw_weighted_load;
+		}
+
+		/*
+		 * First idle cpu or the first cpu(busiest) in this sched group
+		 * is eligible for doing load balancing at this and above
+		 * domains.
+		 */
+		if (local_group && balance_cpu != this_cpu && balance) {
+			*balance = 0;
+			goto ret;
 		}
 
 		total_load += avg_load;
@@ -2498,8 +2518,8 @@ out_balanced:
 		*imbalance = min_load_per_task;
 		return group_min;
 	}
-ret:
 #endif
+ret:
 	*imbalance = 0;
 	return NULL;
 }
@@ -2550,7 +2570,8 @@ static inline unsigned long minus_1_or_zero(unsigned long n)
  * tasks if there is an imbalance.
  */
 static int load_balance(int this_cpu, struct rq *this_rq,
-			struct sched_domain *sd, enum idle_type idle)
+			struct sched_domain *sd, enum idle_type idle,
+			int *balance)
 {
 	int nr_moved, all_pinned = 0, active_balance = 0, sd_idle = 0;
 	struct sched_group *group;
@@ -2573,7 +2594,13 @@ static int load_balance(int this_cpu, struct rq *this_rq,
 
 redo:
 	group = find_busiest_group(sd, this_cpu, &imbalance, idle, &sd_idle,
-							&cpus);
+				   &cpus, balance);
+
+	if (*balance == 0) {
+		schedstat_inc(sd, lb_stopbalance[idle]);
+		goto out_balanced;
+	}
+
 	if (!group) {
 		schedstat_inc(sd, lb_nobusyg[idle]);
 		goto out_balanced;
@@ -2715,7 +2742,7 @@ load_balance_newidle(int this_cpu, struct rq *this_rq, struct sched_domain *sd)
 	schedstat_inc(sd, lb_cnt[NEWLY_IDLE]);
 redo:
 	group = find_busiest_group(sd, this_cpu, &imbalance, NEWLY_IDLE,
-				&sd_idle, &cpus);
+				   &sd_idle, &cpus, NULL);
 	if (!group) {
 		schedstat_inc(sd, lb_nobusyg[NEWLY_IDLE]);
 		goto out_balanced;
@@ -2885,7 +2912,7 @@ static DEFINE_SPINLOCK(balancing);
 
 static void run_rebalance_domains(struct softirq_action *h)
 {
-	int this_cpu = smp_processor_id();
+	int this_cpu = smp_processor_id(), balance = 1;
 	struct rq *this_rq = cpu_rq(this_cpu);
 	unsigned long interval;
 	struct sched_domain *sd;
@@ -2917,7 +2944,7 @@ static void run_rebalance_domains(struct softirq_action *h)
 		}
 
 		if (time_after_eq(jiffies, sd->last_balance + interval)) {
-			if (load_balance(this_cpu, this_rq, sd, idle)) {
+			if (load_balance(this_cpu, this_rq, sd, idle, &balance)) {
 				/*
 				 * We've pulled tasks over so either we're no
 				 * longer idle, or one of our SMT siblings is
@@ -2932,6 +2959,14 @@ static void run_rebalance_domains(struct softirq_action *h)
 out:
 		if (time_after(next_balance, sd->last_balance + interval))
 			next_balance = sd->last_balance + interval;
+
+		/*
+		 * Stop the load balance at this level. There is another
+		 * CPU in our sched group which is doing load balancing more
+		 * actively.
+		 */
+		if (!balance)
+			break;
 	}
 	this_rq->next_balance = next_balance;
 }
