@@ -41,27 +41,6 @@
 #include "lib/tfrc.h"
 #include "ccid3.h"
 
-/*
- * Reason for maths here is to avoid 32 bit overflow when a is big.
- * With this we get close to the limit.
- */
-static u32 usecs_div(const u32 a, const u32 b)
-{
-	const u32 div = a < (UINT_MAX / (USEC_PER_SEC /    10)) ?    10 :
-			a < (UINT_MAX / (USEC_PER_SEC /    50)) ?    50 :
-			a < (UINT_MAX / (USEC_PER_SEC /   100)) ?   100 :
-			a < (UINT_MAX / (USEC_PER_SEC /   500)) ?   500 :
-			a < (UINT_MAX / (USEC_PER_SEC /  1000)) ?  1000 :
-			a < (UINT_MAX / (USEC_PER_SEC /  5000)) ?  5000 :
-			a < (UINT_MAX / (USEC_PER_SEC / 10000)) ? 10000 :
-			a < (UINT_MAX / (USEC_PER_SEC / 50000)) ? 50000 :
-								 100000;
-	const u32 tmp = a * (USEC_PER_SEC / div);
-	return (b >= 2 * div) ? tmp / (b / div) : tmp;
-}
-
-
-
 #ifdef CONFIG_IP_DCCP_CCID3_DEBUG
 static int ccid3_debug;
 #define ccid3_pr_debug(format, a...)	DCCP_PR_DEBUG(ccid3_debug, format, ##a)
@@ -731,8 +710,8 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 	case TFRC_RSTATE_DATA: {
 		const u32 delta = timeval_delta(&now,
 					&hcrx->ccid3hcrx_tstamp_last_feedback);
-		hcrx->ccid3hcrx_x_recv = usecs_div(hcrx->ccid3hcrx_bytes_recv,
-						   delta);
+		hcrx->ccid3hcrx_x_recv =
+			scaled_div32(hcrx->ccid3hcrx_bytes_recv, delta);
 	}
 		break;
 	case TFRC_RSTATE_TERM:
@@ -862,7 +841,7 @@ found:
 
 	dccp_timestamp(sk, &tstamp);
 	delta = timeval_delta(&tstamp, &hcrx->ccid3hcrx_tstamp_last_feedback);
-	x_recv = usecs_div(hcrx->ccid3hcrx_bytes_recv, delta);
+	x_recv = scaled_div32(hcrx->ccid3hcrx_bytes_recv, delta);
 
 	if (x_recv == 0)
 		x_recv = hcrx->ccid3hcrx_x_recv;
