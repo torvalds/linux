@@ -193,7 +193,7 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 	switch (hctx->ccid3hctx_state) {
 	case TFRC_SSTATE_NO_FBACK:
 		/* RFC 3448, 4.4: Halve send rate directly */
-		hctx->ccid3hctx_x = min_t(u32, hctx->ccid3hctx_x / 2,
+		hctx->ccid3hctx_x = max_t(u32, hctx->ccid3hctx_x / 2,
 					       hctx->ccid3hctx_s / TFRC_T_MBI);
 
 		ccid3_pr_debug("%s, sk=%p, state=%s, updated tx rate to %d "
@@ -477,7 +477,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		if (hctx->ccid3hctx_state == TFRC_SSTATE_NO_FBACK) {
 			/* Use Larger Initial Windows [RFC 4342, sec. 5]
 			 * We deviate in that we use `s' instead of `MSS'. */
-			u16 w_init = max(    4 * hctx->ccid3hctx_s,
+			u16 w_init = min(    4 * hctx->ccid3hctx_s,
 					 max(2 * hctx->ccid3hctx_s, 4380));
 			hctx->ccid3hctx_rtt  = r_sample;
 			hctx->ccid3hctx_x    = usecs_div(w_init, r_sample);
