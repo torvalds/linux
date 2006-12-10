@@ -128,14 +128,11 @@ static ssize_t show_client_name(struct device *dev, struct device_attribute *att
 }
 
 /*
- * We can't use the DEVICE_ATTR() macro here as we want the same filename for a
- * different type of a device.  So beware if the DEVICE_ATTR() macro ever
- * changes, this definition will also have to change.
+ * We can't use the DEVICE_ATTR() macro here, as we used the same name for
+ * an i2c adapter attribute (above).
  */
-static struct device_attribute dev_attr_client_name = {
-	.attr	= {.name = "name", .mode = S_IRUGO, .owner = THIS_MODULE },
-	.show	= &show_client_name,
-};
+static struct device_attribute dev_attr_client_name =
+	__ATTR(name, S_IRUGO, &show_client_name, NULL);
 
 
 /* ---------------------------------------------------
