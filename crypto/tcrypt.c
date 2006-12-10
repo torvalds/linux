@@ -12,6 +12,7 @@
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
  *
+ * 2006-12-07 Added SHA384 HMAC and SHA512 HMAC tests
  * 2004-08-09 Added cipher speed tests (Reyk Floeter <reyk@vantronix.net>)
  * 2003-09-14 Rewritten by Kartikey Mahendra Bhatt
  *
@@ -980,6 +981,10 @@ static void do_test(void)
 			  HMAC_SHA1_TEST_VECTORS);
 		test_hash("hmac(sha256)", hmac_sha256_tv_template,
 			  HMAC_SHA256_TEST_VECTORS);
+		test_hash("hmac(sha384)", hmac_sha384_tv_template,
+			  HMAC_SHA384_TEST_VECTORS);
+		test_hash("hmac(sha512)", hmac_sha512_tv_template,
+			  HMAC_SHA512_TEST_VECTORS);
 
 		test_hash("xcbc(aes)", aes_xcbc128_tv_template,
 			  XCBC_AES_TEST_VECTORS);
@@ -1190,6 +1195,16 @@ static void do_test(void)
 	case 102:
 		test_hash("hmac(sha256)", hmac_sha256_tv_template,
 			  HMAC_SHA256_TEST_VECTORS);
+		break;
+
+	case 103:
+		test_hash("hmac(sha384)", hmac_sha384_tv_template,
+			  HMAC_SHA384_TEST_VECTORS);
+		break;
+
+	case 104:
+		test_hash("hmac(sha512)", hmac_sha512_tv_template,
+			  HMAC_SHA512_TEST_VECTORS);
 		break;
 
 
