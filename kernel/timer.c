@@ -846,7 +846,7 @@ static int change_clocksource(void)
 		clock = new;
 		clock->cycle_last = now;
 		printk(KERN_INFO "Time: %s clocksource has been installed.\n",
-					clock->name);
+		       clock->name);
 		return 1;
 	} else if (clock->update_callback) {
 		return clock->update_callback();
@@ -854,7 +854,10 @@ static int change_clocksource(void)
 	return 0;
 }
 #else
-#define change_clocksource() (0)
+static inline int change_clocksource(void)
+{
+	return 0;
+}
 #endif
 
 /**
@@ -952,7 +955,8 @@ device_initcall(timekeeping_init_device);
  * If the error is already larger, we look ahead even further
  * to compensate for late or lost adjustments.
  */
-static __always_inline int clocksource_bigadjust(s64 error, s64 *interval, s64 *offset)
+static __always_inline int clocksource_bigadjust(s64 error, s64 *interval,
+						 s64 *offset)
 {
 	s64 tick_error, i;
 	u32 look_ahead, adj;
@@ -976,7 +980,8 @@ static __always_inline int clocksource_bigadjust(s64 error, s64 *interval, s64 *
 	 * Now calculate the error in (1 << look_ahead) ticks, but first
 	 * remove the single look ahead already included in the error.
 	 */
-	tick_error = current_tick_length() >> (TICK_LENGTH_SHIFT - clock->shift + 1);
+	tick_error = current_tick_length() >>
+		(TICK_LENGTH_SHIFT - clock->shift + 1);
 	tick_error -= clock->xtime_interval >> 1;
 	error = ((error - tick_error) >> look_ahead) + tick_error;
 
@@ -1028,7 +1033,8 @@ static void clocksource_adjust(struct clocksource *clock, s64 offset)
 	clock->mult += adj;
 	clock->xtime_interval += interval;
 	clock->xtime_nsec -= offset;
-	clock->error -= (interval - offset) << (TICK_LENGTH_SHIFT - clock->shift);
+	clock->error -= (interval - offset) <<
+			(TICK_LENGTH_SHIFT - clock->shift);
 }
 
 /**
