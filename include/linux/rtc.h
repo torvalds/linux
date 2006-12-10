@@ -106,6 +106,7 @@ extern int rtc_year_days(unsigned int day, unsigned int month, unsigned int year
 extern int rtc_valid_tm(struct rtc_time *tm);
 extern int rtc_tm_to_time(struct rtc_time *tm, unsigned long *time);
 extern void rtc_time_to_tm(unsigned long time, struct rtc_time *tm);
+extern void rtc_merge_alarm(struct rtc_time *now, struct rtc_time *alarm);
 
 #include <linux/device.h>
 #include <linux/seq_file.h>
