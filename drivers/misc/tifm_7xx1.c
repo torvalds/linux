@@ -17,18 +17,12 @@
 
 static void tifm_7xx1_eject(struct tifm_adapter *fm, struct tifm_dev *sock)
 {
-	int cnt;
 	unsigned long flags;
 
 	spin_lock_irqsave(&fm->lock, flags);
 	if (!fm->inhibit_new_cards) {
-		for (cnt = 0; cnt < fm->max_sockets; cnt++) {
-			if (fm->sockets[cnt] == sock) {
-				fm->remove_mask |= (1 << cnt);
-				queue_work(fm->wq, &fm->media_remover);
-				break;
-			}
-		}
+		fm->remove_mask |= 1 << sock->socket_id;
+		queue_work(fm->wq, &fm->media_remover);
 	}
 	spin_unlock_irqrestore(&fm->lock, flags);
 }
