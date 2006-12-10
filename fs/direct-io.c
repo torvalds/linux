@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
+#include <linux/task_io_accounting_ops.h>
 #include <linux/bio.h>
 #include <linux/wait.h>
 #include <linux/err.h>
@@ -674,6 +675,13 @@ submit_page_section(struct dio *dio, struct page *page,
 		unsigned offset, unsigned len, sector_t blocknr)
 {
 	int ret = 0;
+
+	if (dio->rw & WRITE) {
+		/*
+		 * Read accounting is performed in submit_bio()
+		 */
+		task_io_account_write(len);
+	}
 
 	/*
 	 * Can we just grow the current page's presence in the dio?
