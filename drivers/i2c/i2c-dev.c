@@ -90,6 +90,7 @@ static void return_i2c_dev(struct i2c_dev *i2c_dev)
 	spin_lock(&i2c_dev_list_lock);
 	list_del(&i2c_dev->list);
 	spin_unlock(&i2c_dev_list_lock);
+	kfree(i2c_dev);
 }
 
 static ssize_t show_adapter_name(struct device *dev,
@@ -431,7 +432,6 @@ error_destroy:
 	device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, adap->nr));
 error:
 	return_i2c_dev(i2c_dev);
-	kfree(i2c_dev);
 	return res;
 }
 
@@ -446,7 +446,6 @@ static int i2cdev_detach_adapter(struct i2c_adapter *adap)
 	device_remove_file(i2c_dev->dev, &dev_attr_name);
 	return_i2c_dev(i2c_dev);
 	device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, adap->nr));
-	kfree(i2c_dev);
 
 	pr_debug("i2c-dev: adapter [%s] unregistered\n", adap->name);
 	return 0;
