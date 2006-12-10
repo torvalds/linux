@@ -2408,6 +2408,17 @@ static int proc_do_ipc_string(ctl_table *table, int write, struct file *filp,
 {
 	return -ENOSYS;
 }
+static int proc_ipc_dointvec(ctl_table *table, int write, struct file *filp,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
+static int proc_ipc_doulongvec_minmax(ctl_table *table, int write,
+		struct file *filp, void __user *buffer,
+		size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
 #endif
 
 int proc_dointvec(ctl_table *table, int write, struct file *filp,
