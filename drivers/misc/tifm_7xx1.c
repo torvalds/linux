@@ -71,6 +71,7 @@ static void tifm_7xx1_remove_media(struct work_struct *work)
 static irqreturn_t tifm_7xx1_isr(int irq, void *dev_id)
 {
 	struct tifm_adapter *fm = dev_id;
+	struct tifm_dev *sock;
 	unsigned int irq_status;
 	unsigned int sock_irq_status, cnt;
 
@@ -85,15 +86,13 @@ static irqreturn_t tifm_7xx1_isr(int irq, void *dev_id)
 		writel(TIFM_IRQ_ENABLE, fm->addr + FM_CLEAR_INTERRUPT_ENABLE);
 
 		for (cnt = 0; cnt <  fm->max_sockets; cnt++) {
+			sock = fm->sockets[cnt];
 			sock_irq_status = (irq_status >> cnt) &
 					(TIFM_IRQ_FIFOMASK | TIFM_IRQ_CARDMASK);
 
-			if (fm->sockets[cnt]) {
-				if (sock_irq_status &&
-						fm->sockets[cnt]->signal_irq)
-					fm->sockets[cnt]->
-						signal_irq(fm->sockets[cnt],
-							sock_irq_status);
+			if (sock) {
+				if (sock_irq_status)
+					sock->signal_irq(sock, sock_irq_status);
 
 				if (irq_status & (1 << cnt))
 					fm->remove_mask |= 1 << cnt;

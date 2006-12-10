@@ -145,6 +145,12 @@ void tifm_free_device(struct device *dev)
 }
 EXPORT_SYMBOL(tifm_free_device);
 
+static void tifm_dummy_signal_irq(struct tifm_dev *sock,
+				  unsigned int sock_irq_status)
+{
+	return;
+}
+
 struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm)
 {
 	struct tifm_dev *dev = kzalloc(sizeof(struct tifm_dev), GFP_KERNEL);
@@ -155,6 +161,7 @@ struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm)
 		dev->dev.parent = fm->dev;
 		dev->dev.bus = &tifm_bus_type;
 		dev->dev.release = tifm_free_device;
+		dev->signal_irq = tifm_dummy_signal_irq;
 	}
 	return dev;
 }
@@ -212,6 +219,7 @@ static int tifm_device_remove(struct device *dev)
 	struct tifm_driver *drv = fm_dev->drv;
 
 	if (drv) {
+		fm_dev->signal_irq = tifm_dummy_signal_irq;
 		if (drv->remove)
 			drv->remove(fm_dev);
 		fm_dev->drv = NULL;
