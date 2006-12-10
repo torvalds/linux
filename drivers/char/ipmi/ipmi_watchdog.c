@@ -134,14 +134,14 @@
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 
-static ipmi_user_t watchdog_user = NULL;
+static ipmi_user_t watchdog_user;
 static int watchdog_ifnum;
 
 /* Default the timeout to 10 seconds. */
 static int timeout = 10;
 
 /* The pre-timeout is disabled by default. */
-static int pretimeout = 0;
+static int pretimeout;
 
 /* Default action is to reset the board on a timeout. */
 static unsigned char action_val = WDOG_TIMEOUT_RESET;
@@ -156,10 +156,10 @@ static unsigned char preop_val = WDOG_PREOP_NONE;
 
 static char preop[16] = "preop_none";
 static DEFINE_SPINLOCK(ipmi_read_lock);
-static char data_to_read = 0;
+static char data_to_read;
 static DECLARE_WAIT_QUEUE_HEAD(read_q);
-static struct fasync_struct *fasync_q = NULL;
-static char pretimeout_since_last_heartbeat = 0;
+static struct fasync_struct *fasync_q;
+static char pretimeout_since_last_heartbeat;
 static char expect_close;
 
 static int ifnum_to_use = -1;
@@ -177,7 +177,7 @@ static void ipmi_unregister_watchdog(int ipmi_intf);
 
 /* If true, the driver will start running as soon as it is configured
    and ready. */
-static int start_now = 0;
+static int start_now;
 
 static int set_param_int(const char *val, struct kernel_param *kp)
 {
@@ -300,16 +300,16 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
 static unsigned char ipmi_watchdog_state = WDOG_TIMEOUT_NONE;
 
 /* If shutting down via IPMI, we ignore the heartbeat. */
-static int ipmi_ignore_heartbeat = 0;
+static int ipmi_ignore_heartbeat;
 
 /* Is someone using the watchdog?  Only one user is allowed. */
-static unsigned long ipmi_wdog_open = 0;
+static unsigned long ipmi_wdog_open;
 
 /* If set to 1, the heartbeat command will set the state to reset and
    start the timer.  The timer doesn't normally run when the driver is
    first opened until the heartbeat is set the first time, this
    variable is used to accomplish this. */
-static int ipmi_start_timer_on_heartbeat = 0;
+static int ipmi_start_timer_on_heartbeat;
 
 /* IPMI version of the BMC. */
 static unsigned char ipmi_version_major;

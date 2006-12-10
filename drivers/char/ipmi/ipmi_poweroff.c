@@ -58,10 +58,10 @@ static int poweroff_powercycle;
 static int ifnum_to_use = -1;
 
 /* Our local state. */
-static int ready = 0;
+static int ready;
 static ipmi_user_t ipmi_user;
 static int ipmi_ifnum;
-static void (*specific_poweroff_func)(ipmi_user_t user) = NULL;
+static void (*specific_poweroff_func)(ipmi_user_t user);
 
 /* Holds the old poweroff function so we can restore it on removal. */
 static void (*old_poweroff_func)(void);
@@ -182,7 +182,7 @@ static int ipmi_request_in_rc_mode(ipmi_user_t            user,
 #define IPMI_MOTOROLA_MANUFACTURER_ID		0x0000A1
 #define IPMI_MOTOROLA_PPS_IPMC_PRODUCT_ID	0x0051
 
-static void (*atca_oem_poweroff_hook)(ipmi_user_t user) = NULL;
+static void (*atca_oem_poweroff_hook)(ipmi_user_t user);
 
 static void pps_poweroff_atca (ipmi_user_t user)
 {

@@ -834,7 +834,7 @@ static const struct file_operations ipmi_fops = {
 
 #define DEVICE_NAME     "ipmidev"
 
-static int ipmi_major = 0;
+static int ipmi_major;
 module_param(ipmi_major, int, 0);
 MODULE_PARM_DESC(ipmi_major, "Sets the major number of the IPMI device.  By"
 		 " default, or if you set it to zero, it will choose the next"

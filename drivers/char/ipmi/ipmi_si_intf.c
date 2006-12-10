@@ -845,7 +845,7 @@ static void request_events(void *send_info)
 	atomic_set(&smi_info->req_events, 1);
 }
 
-static int initialized = 0;
+static int initialized;
 
 static void smi_timeout(unsigned long data)
 {
@@ -1018,13 +1018,13 @@ static int num_ports;
 static int           irqs[SI_MAX_PARMS];
 static int num_irqs;
 static int           regspacings[SI_MAX_PARMS];
-static int num_regspacings = 0;
+static int num_regspacings;
 static int           regsizes[SI_MAX_PARMS];
-static int num_regsizes = 0;
+static int num_regsizes;
 static int           regshifts[SI_MAX_PARMS];
-static int num_regshifts = 0;
+static int num_regshifts;
 static int slave_addrs[SI_MAX_PARMS];
-static int num_slave_addrs = 0;
+static int num_slave_addrs;
 
 #define IPMI_IO_ADDR_SPACE  0
 #define IPMI_MEM_ADDR_SPACE 1
@@ -1668,7 +1668,7 @@ static __devinit void hardcode_find_bmc(void)
 /* Once we get an ACPI failure, we don't try any more, because we go
    through the tables sequentially.  Once we don't find a table, there
    are no more. */
-static int acpi_failure = 0;
+static int acpi_failure;
 
 /* For GPE-type interrupts. */
 static u32 ipmi_acpi_gpe(void *context)
