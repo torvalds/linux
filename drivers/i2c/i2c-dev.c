@@ -193,8 +193,7 @@ static int i2cdev_ioctl(struct inode *inode, struct file *file,
 		return 0;
 	case I2C_FUNCS:
 		funcs = i2c_get_functionality(client->adapter);
-		return (copy_to_user((unsigned long __user *)arg, &funcs,
-		                     sizeof(unsigned long)))?-EFAULT:0;
+		return put_user(funcs, (unsigned long __user *)arg);
 
 	case I2C_RDWR:
 		if (copy_from_user(&rdwr_arg, 
