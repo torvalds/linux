@@ -80,4 +80,6 @@ source "drivers/rtc/Kconfig"
 
 source "drivers/dma/Kconfig"
 
+source "drivers/kvm/Kconfig"
+
 endmenu
