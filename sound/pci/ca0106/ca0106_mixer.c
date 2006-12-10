@@ -482,19 +482,6 @@ static int snd_ca0106_i2c_volume_put(struct snd_kcontrol *kcontrol,
 	.private_value = ((chid) << 8) | (reg)			\
 }
 
-#define I2C_VOLUME(xname,chid) \
-{								\
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,	\
-	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |		\
-	          SNDRV_CTL_ELEM_ACCESS_TLV_READ,		\
-	.info =  snd_ca0106_i2c_volume_info,			\
-	.get =   snd_ca0106_i2c_volume_get,			\
-	.put =   snd_ca0106_i2c_volume_put,			\
-	.tlv = { .p = snd_ca0106_db_scale2 },			\
-	.private_value = chid					\
-}
-
-
 static struct snd_kcontrol_new snd_ca0106_volume_ctls[] __devinitdata = {
 	CA_VOLUME("Analog Front Playback Volume",
 		  CONTROL_FRONT_CHANNEL, PLAYBACK_VOLUME2),
@@ -516,11 +503,6 @@ static struct snd_kcontrol_new snd_ca0106_volume_ctls[] __devinitdata = {
 
         CA_VOLUME("CAPTURE feedback Playback Volume",
 		  1, CAPTURE_CONTROL),
-
-        I2C_VOLUME("Phone Capture Volume", 0),
-        I2C_VOLUME("Mic Capture Volume", 1),
-        I2C_VOLUME("Line in Capture Volume", 2),
-        I2C_VOLUME("Aux Capture Volume", 3),
 
 	{
 		.access =	SNDRV_CTL_ELEM_ACCESS_READ,
@@ -559,6 +541,25 @@ static struct snd_kcontrol_new snd_ca0106_volume_ctls[] __devinitdata = {
 		.get =          snd_ca0106_spdif_get,
 		.put =          snd_ca0106_spdif_put
 	},
+};
+
+#define I2C_VOLUME(xname,chid) \
+{								\
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,	\
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |		\
+	          SNDRV_CTL_ELEM_ACCESS_TLV_READ,		\
+	.info =  snd_ca0106_i2c_volume_info,			\
+	.get =   snd_ca0106_i2c_volume_get,			\
+	.put =   snd_ca0106_i2c_volume_put,			\
+	.tlv = { .p = snd_ca0106_db_scale2 },			\
+	.private_value = chid					\
+}
+
+static struct snd_kcontrol_new snd_ca0106_volume_i2c_adc_ctls[] __devinitdata = {
+        I2C_VOLUME("Phone Capture Volume", 0),
+        I2C_VOLUME("Mic Capture Volume", 1),
+        I2C_VOLUME("Line in Capture Volume", 2),
+        I2C_VOLUME("Aux Capture Volume", 3),
 };
 
 static int __devinit remove_ctl(struct snd_card *card, const char *name)
@@ -645,6 +646,11 @@ int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 			return err;
 	}
 	if (emu->details->i2c_adc == 1) {
+		for (i = 0; i < ARRAY_SIZE(snd_ca0106_volume_i2c_adc_ctls); i++) {
+			err = snd_ctl_add(card, snd_ctl_new1(&snd_ca0106_volume_i2c_adc_ctls[i], emu));
+			if (err < 0)
+				return err;
+		}
 		if (emu->details->gpio_type == 1)
 			err = snd_ctl_add(card, snd_ctl_new1(&snd_ca0106_capture_mic_line_in, emu));
 		else  /* gpio_type == 2 */
