@@ -2880,6 +2880,7 @@ static void update_load(struct rq *this_rq)
  *
  * Balancing parameters are set up in arch_init_sched_domains.
  */
+static DEFINE_SPINLOCK(balancing);
 
 static void run_rebalance_domains(struct softirq_action *h)
 {
@@ -2909,6 +2910,11 @@ static void run_rebalance_domains(struct softirq_action *h)
 		if (unlikely(!interval))
 			interval = 1;
 
+		if (sd->flags & SD_SERIALIZE) {
+			if (!spin_trylock(&balancing))
+				goto out;
+		}
+
 		if (time_after_eq(jiffies, sd->last_balance + interval)) {
 			if (load_balance(this_cpu, this_rq, sd, idle)) {
 				/*
@@ -2920,6 +2926,9 @@ static void run_rebalance_domains(struct softirq_action *h)
 			}
 			sd->last_balance = jiffies;
 		}
+		if (sd->flags & SD_SERIALIZE)
+			spin_unlock(&balancing);
+out:
 		if (time_after(next_balance, sd->last_balance + interval))
 			next_balance = sd->last_balance + interval;
 	}
