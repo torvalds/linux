@@ -231,7 +231,8 @@ enum
 	NET_TX_SOFTIRQ,
 	NET_RX_SOFTIRQ,
 	BLOCK_SOFTIRQ,
-	TASKLET_SOFTIRQ
+	TASKLET_SOFTIRQ,
+	SCHED_SOFTIRQ,
 };
 
 /* softirq mask and active fields moved to irq_cpustat_t in

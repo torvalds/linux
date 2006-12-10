@@ -227,6 +227,7 @@ struct rq {
 	unsigned long expired_timestamp;
 	unsigned long long timestamp_last_tick;
 	struct task_struct *curr, *idle;
+	unsigned long next_balance;
 	struct mm_struct *prev_mm;
 	struct prio_array *active, *expired, arrays[2];
 	int best_expired_prio;
@@ -2858,7 +2859,7 @@ static void update_load(struct rq *this_rq)
 }
 
 /*
- * rebalance_tick will get called every timer tick, on every CPU.
+ * run_rebalance_domains is triggered when needed from the scheduler tick.
  *
  * It checks each scheduling domain to see if it is due to be balanced,
  * and initiates a balancing operation if so.
@@ -2866,9 +2867,10 @@ static void update_load(struct rq *this_rq)
  * Balancing parameters are set up in arch_init_sched_domains.
  */
 
-static void
-rebalance_tick(int this_cpu, struct rq *this_rq)
+static void run_rebalance_domains(struct softirq_action *h)
 {
+	int this_cpu = smp_processor_id();
+	struct rq *this_rq = cpu_rq(this_cpu);
 	unsigned long interval;
 	struct sched_domain *sd;
 	/*
@@ -2877,6 +2879,8 @@ rebalance_tick(int this_cpu, struct rq *this_rq)
 	 */
 	enum idle_type idle = !this_rq->nr_running ?
 				SCHED_IDLE : NOT_IDLE;
+	/* Earliest time when we have to call run_rebalance_domains again */
+	unsigned long next_balance = jiffies + 60*HZ;
 
 	for_each_domain(this_cpu, sd) {
 		if (!(sd->flags & SD_LOAD_BALANCE))
@@ -2891,7 +2895,7 @@ rebalance_tick(int this_cpu, struct rq *this_rq)
 		if (unlikely(!interval))
 			interval = 1;
 
-		if (jiffies - sd->last_balance >= interval) {
+		if (time_after_eq(jiffies, sd->last_balance + interval)) {
 			if (load_balance(this_cpu, this_rq, sd, idle)) {
 				/*
 				 * We've pulled tasks over so either we're no
@@ -2902,7 +2906,10 @@ rebalance_tick(int this_cpu, struct rq *this_rq)
 			}
 			sd->last_balance += interval;
 		}
+		if (time_after(next_balance, sd->last_balance + interval))
+			next_balance = sd->last_balance + interval;
 	}
+	this_rq->next_balance = next_balance;
 }
 #else
 /*
@@ -3155,7 +3162,8 @@ void scheduler_tick(void)
 		task_running_tick(rq, p);
 #ifdef CONFIG_SMP
 	update_load(rq);
-	rebalance_tick(cpu, rq);
+	if (time_after_eq(jiffies, rq->next_balance))
+		raise_softirq(SCHED_SOFTIRQ);
 #endif
 }
 
@@ -6858,6 +6866,10 @@ void __init sched_init(void)
 	}
 
 	set_load_weight(&init_task);
+
+#ifdef CONFIG_SMP
+	open_softirq(SCHED_SOFTIRQ, run_rebalance_domains, NULL);
+#endif
 
 #ifdef CONFIG_RT_MUTEXES
 	plist_head_init(&init_task.pi_waiters, &init_task.pi_lock);
