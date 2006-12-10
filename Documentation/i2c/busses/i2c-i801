@@ -9,7 +9,10 @@ Supported adapters:
   * Intel 82801EB/ER (ICH5) (HW PEC supported, 32 byte buffer not supported)
   * Intel 6300ESB
   * Intel 82801FB/FR/FW/FRW (ICH6)
-  * Intel ICH7
+  * Intel 82801G (ICH7)
+  * Intel 631xESB/632xESB (ESB2)
+  * Intel 82801H (ICH8)
+  * Intel ICH9
     Datasheets: Publicly available at the Intel website
 
 Authors: 
