@@ -2774,14 +2774,28 @@ out_balanced:
 static void idle_balance(int this_cpu, struct rq *this_rq)
 {
 	struct sched_domain *sd;
+	int pulled_task = 0;
+	unsigned long next_balance = jiffies + 60 *  HZ;
 
 	for_each_domain(this_cpu, sd) {
 		if (sd->flags & SD_BALANCE_NEWIDLE) {
 			/* If we've pulled tasks over stop searching: */
-			if (load_balance_newidle(this_cpu, this_rq, sd))
+			pulled_task = load_balance_newidle(this_cpu,
+							this_rq, sd);
+			if (time_after(next_balance,
+				  sd->last_balance + sd->balance_interval))
+				next_balance = sd->last_balance
+						+ sd->balance_interval;
+			if (pulled_task)
 				break;
 		}
 	}
+	if (!pulled_task)
+		/*
+		 * We are going idle. next_balance may be set based on
+		 * a busy processor. So reset next_balance.
+		 */
+		this_rq->next_balance = next_balance;
 }
 
 /*
@@ -2904,7 +2918,7 @@ static void run_rebalance_domains(struct softirq_action *h)
 				 */
 				idle = NOT_IDLE;
 			}
-			sd->last_balance += interval;
+			sd->last_balance = jiffies;
 		}
 		if (time_after(next_balance, sd->last_balance + interval))
 			next_balance = sd->last_balance + interval;
