@@ -332,12 +332,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 void do_syscall_trace(void)
 {
-	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return;
-
-	if (!(current->ptrace & PT_PTRACED))
-		return;
-
 	/*
 	 * The 0x80 provides a way for the tracing parent to distinguish
 	 * between a syscall stop and SIGTRAP delivery
@@ -354,3 +348,23 @@ void do_syscall_trace(void)
 		current->exit_code = 0;
 	}
 }
+
+void do_syscall_trace_enter(struct pt_regs *regs)
+{
+	if (test_thread_flag(TIF_SYSCALL_TRACE)
+			&& (current->ptrace & PT_PTRACED))
+		do_syscall_trace();
+
+#if 0
+	if (unlikely(current->audit_context))
+		audit_syscall_entry(current, AUDIT_ARCH_XTENSA..);
+#endif
+}
+
+void do_syscall_trace_leave(struct pt_regs *regs)
+{
+	if ((test_thread_flag(TIF_SYSCALL_TRACE))
+			&& (current->ptrace & PT_PTRACED))
+		do_syscall_trace();
+}
+

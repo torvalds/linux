@@ -161,36 +161,6 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 
 
 /*
- * Create a kernel thread
- */
-
-int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
-{
-	long retval;
-	__asm__ __volatile__
-		("mov           a5, %4\n\t" /* preserve fn in a5 */
-		 "mov           a6, %3\n\t" /* preserve and setup arg in a6 */
-		 "movi		a2, %1\n\t" /* load __NR_clone for syscall*/
-		 "mov		a3, sp\n\t" /* sp check and sys_clone */
-		 "mov		a4, %5\n\t" /* load flags for syscall */
-		 "syscall\n\t"
-		 "beq		a3, sp, 1f\n\t" /* branch if parent */
-		 "callx4	a5\n\t"     /* call fn */
-		 "movi		a2, %2\n\t" /* load __NR_exit for syscall */
-		 "mov		a3, a6\n\t" /* load fn return value */
-		 "syscall\n"
-		 "1:\n\t"
-		 "mov		%0, a2\n\t" /* parent returns zero */
-		 :"=r" (retval)
-		 :"i" (__NR_clone), "i" (__NR_exit),
-		 "r" (arg), "r" (fn),
-		 "r" (flags | CLONE_VM)
-		 : "a2", "a3", "a4", "a5", "a6" );
-	return retval;
-}
-
-
-/*
  * These bracket the sleeping functions..
  */
 
@@ -452,3 +422,44 @@ int  dump_fpu(struct pt_regs *regs, elf_fpregset_t *r)
 {
 	return dump_task_fpu(regs, current, r);
 }
+
+asmlinkage
+long xtensa_clone(unsigned long clone_flags, unsigned long newsp,
+                  void __user *parent_tid, void *child_tls,
+                  void __user *child_tid, long a5,
+                  struct pt_regs *regs)
+{
+        if (!newsp)
+                newsp = regs->areg[1];
+        return do_fork(clone_flags, newsp, regs, 0, parent_tid, child_tid);
+}
+
+/*
+ *  * xtensa_execve() executes a new program.
+ *   */
+
+asmlinkage
+long xtensa_execve(char __user *name, char __user * __user *argv,
+                   char __user * __user *envp,
+                   long a3, long a4, long a5,
+                   struct pt_regs *regs)
+{
+	long error;
+	char * filename;
+
+	filename = getname(name);
+	error = PTR_ERR(filename);
+	if (IS_ERR(filename))
+		goto out;
+	// FIXME: release coprocessor??
+	error = do_execve(filename, argv, envp, regs);
+	if (error == 0) {
+		task_lock(current);
+		current->ptrace &= ~PT_DTRACE;
+		task_unlock(current);
+	}
+	putname(filename);
+out:
+	return error;
+}
+

@@ -46,7 +46,7 @@ extern struct task_struct *coproc_owners[];
  * Atomically swap in the new signal mask, and wait for a signal.
  */
 
-int sys_sigsuspend(struct pt_regs *regs)
+int xtensa_sigsuspend(struct pt_regs *regs)
 {
 	old_sigset_t mask = (old_sigset_t) regs->areg[3];
 	sigset_t saveset;
@@ -68,7 +68,7 @@ int sys_sigsuspend(struct pt_regs *regs)
 }
 
 asmlinkage int
-sys_rt_sigsuspend(struct pt_regs *regs)
+xtensa_rt_sigsuspend(struct pt_regs *regs)
 {
 	sigset_t *unewset = (sigset_t *) regs->areg[4];
 	size_t sigsetsize = (size_t) regs->areg[3];
@@ -96,7 +96,7 @@ sys_rt_sigsuspend(struct pt_regs *regs)
 }
 
 asmlinkage int
-sys_sigaction(int sig, const struct old_sigaction *act,
+xtensa_sigaction(int sig, const struct old_sigaction *act,
 	      struct old_sigaction *oact)
 {
 	struct k_sigaction new_ka, old_ka;
@@ -128,7 +128,7 @@ sys_sigaction(int sig, const struct old_sigaction *act,
 }
 
 asmlinkage int
-sys_sigaltstack(struct pt_regs *regs)
+xtensa_sigaltstack(struct pt_regs *regs)
 {
 	const stack_t *uss = (stack_t *) regs->areg[4];
 	stack_t *uoss = (stack_t *) regs->areg[3];
@@ -350,7 +350,7 @@ setup_sigcontext(struct sigcontext *sc, struct _cpstate *cpstate,
 	return err;
 }
 
-asmlinkage int sys_sigreturn(struct pt_regs *regs)
+asmlinkage int xtensa_sigreturn(struct pt_regs *regs)
 {
 	struct sigframe *frame = (struct sigframe *)regs->areg[1];
 	sigset_t set;
@@ -382,7 +382,7 @@ badframe:
 	return 0;
 }
 
-asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
+asmlinkage int xtensa_rt_sigreturn(struct pt_regs *regs)
 {
 	struct rt_sigframe *frame = (struct rt_sigframe *)regs->areg[1];
 	sigset_t set;
