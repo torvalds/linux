@@ -48,6 +48,7 @@ int rcvbufsz;
 char name[100];
 int dbg;
 int print_delays;
+int print_io_accounting;
 __u64 stime, utime;
 
 #define PRINTF(fmt, arg...) {			\
@@ -195,6 +196,15 @@ void print_delayacct(struct taskstats *t)
 	       "count", "delay total", t->swapin_count, t->swapin_delay_total);
 }
 
+void print_ioacct(struct taskstats *t)
+{
+	printf("%s: read=%llu, write=%llu, cancelled_write=%llu\n",
+		t->ac_comm,
+		(unsigned long long)t->read_bytes,
+		(unsigned long long)t->write_bytes,
+		(unsigned long long)t->cancelled_write_bytes);
+}
+
 int main(int argc, char *argv[])
 {
 	int c, rc, rep_len, aggr_len, len2, cmd_type;
@@ -217,7 +227,7 @@ int main(int argc, char *argv[])
 	struct msgtemplate msg;
 
 	while (1) {
-		c = getopt(argc, argv, "dw:r:m:t:p:v:l");
+		c = getopt(argc, argv, "diw:r:m:t:p:v:l");
 		if (c < 0)
 			break;
 
@@ -225,6 +235,10 @@ int main(int argc, char *argv[])
 		case 'd':
 			printf("print delayacct stats ON\n");
 			print_delays = 1;
+			break;
+		case 'i':
+			printf("printing IO accounting\n");
+			print_io_accounting = 1;
 			break;
 		case 'w':
 			strncpy(logfile, optarg, MAX_FILENAME);
@@ -247,14 +261,12 @@ int main(int argc, char *argv[])
 			if (!tid)
 				err(1, "Invalid tgid\n");
 			cmd_type = TASKSTATS_CMD_ATTR_TGID;
-			print_delays = 1;
 			break;
 		case 'p':
 			tid = atoi(optarg);
 			if (!tid)
 				err(1, "Invalid pid\n");
 			cmd_type = TASKSTATS_CMD_ATTR_PID;
-			print_delays = 1;
 			break;
 		case 'v':
 			printf("debug on\n");
@@ -367,6 +379,8 @@ int main(int argc, char *argv[])
 						count++;
 						if (print_delays)
 							print_delayacct((struct taskstats *) NLA_DATA(na));
+						if (print_io_accounting)
+							print_ioacct((struct taskstats *) NLA_DATA(na));
 						if (fd) {
 							if (write(fd, NLA_DATA(na), na->nla_len) < 0) {
 								err(1,"write error\n");
