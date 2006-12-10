@@ -10,7 +10,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/sched.h>  /* for jiffies */
+#include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/kallsyms.h>
 #include <linux/signal.h>
@@ -1873,6 +1873,16 @@ void sun4v_resum_error(struct pt_regs *regs, unsigned long offset)
 
 	put_cpu();
 
+	if (ent->err_type == SUN4V_ERR_TYPE_WARNING_RES) {
+		/* If err_type is 0x4, it's a powerdown request.  Do
+		 * not do the usual resumable error log because that
+		 * makes it look like some abnormal error.
+		 */
+		printk(KERN_INFO "Power down request...\n");
+		kill_cad_pid(SIGINT, 1);
+		return;
+	}
+
 	sun4v_log_error(regs, &local_copy, cpu,
 			KERN_ERR "RESUMABLE ERROR",
 			&sun4v_resum_oflow_cnt);
@@ -2261,8 +2271,12 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 	do_exit(SIGSEGV);
 }
 
+#define VIS_OPCODE_MASK	((0x3 << 30) | (0x3f << 19))
+#define VIS_OPCODE_VAL	((0x2 << 30) | (0x36 << 19))
+
 extern int handle_popc(u32 insn, struct pt_regs *regs);
 extern int handle_ldf_stq(u32 insn, struct pt_regs *regs);
+extern int vis_emul(struct pt_regs *, unsigned int);
 
 void do_illegal_instruction(struct pt_regs *regs)
 {
@@ -2287,10 +2301,18 @@ void do_illegal_instruction(struct pt_regs *regs)
 			if (handle_ldf_stq(insn, regs))
 				return;
 		} else if (tlb_type == hypervisor) {
-			extern int vis_emul(struct pt_regs *, unsigned int);
+			if ((insn & VIS_OPCODE_MASK) == VIS_OPCODE_VAL) {
+				if (!vis_emul(regs, insn))
+					return;
+			} else {
+				struct fpustate *f = FPUSTATE;
 
-			if (!vis_emul(regs, insn))
-				return;
+				/* XXX maybe verify XFSR bits like
+				 * XXX do_fpother() does?
+				 */
+				if (do_mathemu(regs, f))
+					return;
+			}
 		}
 	}
 	info.si_signo = SIGILL;
