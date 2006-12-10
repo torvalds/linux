@@ -10,7 +10,7 @@ Supported adapters:
   * nForce4 MCP51              10de:0264
   * nForce4 MCP55              10de:0368
 
-Datasheet: not publically available, but seems to be similar to the
+Datasheet: not publicly available, but seems to be similar to the
            AMD-8111 SMBus 2.0 adapter.
 
 Authors:
@@ -38,7 +38,7 @@ Notes
 -----
 
 The SMBus adapter in the nForce2 chipset seems to be very similar to the
-SMBus 2.0 adapter in the AMD-8111 southbridge. However, I could only get
+SMBus 2.0 adapter in the AMD-8111 south bridge. However, I could only get
 the driver to work with direct I/O access, which is different to the EC
 interface of the AMD-8111. Tested on Asus A7N8X. The ACPI DSDT table of the
 Asus A7N8X lists two SMBuses, both of which are supported by this driver.
