@@ -296,7 +296,6 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
-	struct dccp_tx_hist_entry *new_packet;
 	struct timeval now;
 	suseconds_t delay;
 
@@ -309,21 +308,6 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 	 */
 	if (unlikely(skb->len == 0))
 		return -EBADMSG;
-
-	/* See if last packet allocated was not sent */
-	new_packet = dccp_tx_hist_head(&hctx->ccid3hctx_hist);
-	if (new_packet == NULL || new_packet->dccphtx_sent) {
-		new_packet = dccp_tx_hist_entry_new(ccid3_tx_hist,
-						    GFP_ATOMIC);
-
-		if (unlikely(new_packet == NULL)) {
-			DCCP_WARN("%s, sk=%p, not enough mem to add to history,"
-				  "send refused\n", dccp_role(sk), sk);
-			return -ENOBUFS;
-		}
-
-		dccp_tx_hist_add_entry(&hctx->ccid3hctx_hist, new_packet);
-	}
 
 	dccp_timestamp(sk, &now);
 
@@ -380,31 +364,27 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 
 static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 {
-	const struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct timeval now;
 	struct dccp_tx_hist_entry *packet;
 
 	BUG_ON(hctx == NULL);
 
-	dccp_timestamp(sk, &now);
-
 	ccid3_hc_tx_update_s(hctx, len);
 
-	packet = dccp_tx_hist_head(&hctx->ccid3hctx_hist);
+	packet = dccp_tx_hist_entry_new(ccid3_tx_hist, GFP_ATOMIC);
 	if (unlikely(packet == NULL)) {
-		DCCP_WARN("packet doesn't exist in history!\n");
+		DCCP_CRIT("packet history - out of memory!");
 		return;
 	}
-	if (unlikely(packet->dccphtx_sent)) {
-		DCCP_WARN("no unsent packet in history!\n");
-		return;
-	}
+	dccp_tx_hist_add_entry(&hctx->ccid3hctx_hist, packet);
+
+	dccp_timestamp(sk, &now);
 	packet->dccphtx_tstamp = now;
-	packet->dccphtx_seqno  = dp->dccps_gss;
-	hctx->ccid3hctx_idle = 0;
-	packet->dccphtx_rtt  = hctx->ccid3hctx_rtt;
-	packet->dccphtx_sent = 1;
+	packet->dccphtx_seqno  = dccp_sk(sk)->dccps_gss;
+	packet->dccphtx_rtt    = hctx->ccid3hctx_rtt;
+	packet->dccphtx_sent   = 1;
+	hctx->ccid3hctx_idle   = 0;
 }
 
 static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
