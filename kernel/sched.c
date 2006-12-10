@@ -428,7 +428,7 @@ static inline void task_rq_unlock(struct rq *rq, unsigned long *flags)
  * bump this up when changing the output format or the meaning of an existing
  * format, so that tools can adapt (or abort)
  */
-#define SCHEDSTAT_VERSION 13
+#define SCHEDSTAT_VERSION 14
 
 static int show_schedstat(struct seq_file *seq, void *v)
 {
@@ -466,7 +466,7 @@ static int show_schedstat(struct seq_file *seq, void *v)
 			seq_printf(seq, "domain%d %s", dcnt++, mask_str);
 			for (itype = SCHED_IDLE; itype < MAX_IDLE_TYPES;
 					itype++) {
-				seq_printf(seq, " %lu %lu %lu %lu %lu %lu %lu %lu %lu",
+				seq_printf(seq, " %lu %lu %lu %lu %lu %lu %lu %lu",
 				    sd->lb_cnt[itype],
 				    sd->lb_balanced[itype],
 				    sd->lb_failed[itype],
@@ -474,8 +474,7 @@ static int show_schedstat(struct seq_file *seq, void *v)
 				    sd->lb_gained[itype],
 				    sd->lb_hot_gained[itype],
 				    sd->lb_nobusyq[itype],
-				    sd->lb_nobusyg[itype],
-				    sd->lb_stopbalance[itype]);
+				    sd->lb_nobusyg[itype]);
 			}
 			seq_printf(seq, " %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu\n",
 			    sd->alb_cnt, sd->alb_failed, sd->alb_pushed,
@@ -2596,10 +2595,8 @@ redo:
 	group = find_busiest_group(sd, this_cpu, &imbalance, idle, &sd_idle,
 				   &cpus, balance);
 
-	if (*balance == 0) {
-		schedstat_inc(sd, lb_stopbalance[idle]);
+	if (*balance == 0)
 		goto out_balanced;
-	}
 
 	if (!group) {
 		schedstat_inc(sd, lb_nobusyg[idle]);
