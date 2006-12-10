@@ -2867,10 +2867,16 @@ static void update_load(struct rq *this_rq)
  */
 
 static void
-rebalance_tick(int this_cpu, struct rq *this_rq, enum idle_type idle)
+rebalance_tick(int this_cpu, struct rq *this_rq)
 {
 	unsigned long interval;
 	struct sched_domain *sd;
+	/*
+	 * We are idle if there are no processes running. This
+	 * is valid even if we are the idle process (SMT).
+	 */
+	enum idle_type idle = !this_rq->nr_running ?
+				SCHED_IDLE : NOT_IDLE;
 
 	for_each_domain(this_cpu, sd) {
 		if (!(sd->flags & SD_LOAD_BALANCE))
@@ -2902,37 +2908,26 @@ rebalance_tick(int this_cpu, struct rq *this_rq, enum idle_type idle)
 /*
  * on UP we do not need to balance between CPUs:
  */
-static inline void rebalance_tick(int cpu, struct rq *rq)
-{
-}
 static inline void idle_balance(int cpu, struct rq *rq)
-{
-}
-static inline void update_load(struct rq *this_rq)
 {
 }
 #endif
 
-static inline int wake_priority_sleeper(struct rq *rq)
+static inline void wake_priority_sleeper(struct rq *rq)
 {
-	int ret = 0;
-
 #ifdef CONFIG_SCHED_SMT
 	if (!rq->nr_running)
-		return 0;
+		return;
 
 	spin_lock(&rq->lock);
 	/*
 	 * If an SMT sibling task has been put to sleep for priority
 	 * reasons reschedule the idle task to see if it can now run.
 	 */
-	if (rq->nr_running) {
+	if (rq->nr_running)
 		resched_task(rq->idle);
-		ret = 1;
-	}
 	spin_unlock(&rq->lock);
 #endif
-	return ret;
 }
 
 DEFINE_PER_CPU(struct kernel_stat, kstat);
@@ -3148,20 +3143,20 @@ void scheduler_tick(void)
 	struct task_struct *p = current;
 	int cpu = smp_processor_id();
 	struct rq *rq = cpu_rq(cpu);
-	enum idle_type idle = NOT_IDLE;
 
 	update_cpu_clock(p, rq, now);
 
 	rq->timestamp_last_tick = now;
 
-	if (p == rq->idle) {
+	if (p == rq->idle)
 		/* Task on the idle queue */
-		if (!wake_priority_sleeper(rq))
-			idle = SCHED_IDLE;
-	} else
+		wake_priority_sleeper(rq);
+	else
 		task_running_tick(rq, p);
+#ifdef CONFIG_SMP
 	update_load(rq);
-	rebalance_tick(cpu, rq, idle);
+	rebalance_tick(cpu, rq);
+#endif
 }
 
 #ifdef CONFIG_SCHED_SMT
