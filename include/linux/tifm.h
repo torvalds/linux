@@ -62,11 +62,10 @@ enum {
 
 
 #define TIFM_IRQ_ENABLE           0x80000000
-#define TIFM_IRQ_SOCKMASK         0x00000001
-#define TIFM_IRQ_CARDMASK         0x00000100
-#define TIFM_IRQ_FIFOMASK         0x00010000
+#define TIFM_IRQ_SOCKMASK(x)      (x)
+#define TIFM_IRQ_CARDMASK(x)      ((x) << 8)
+#define TIFM_IRQ_FIFOMASK(x)      ((x) << 16)
 #define TIFM_IRQ_SETALL           0xffffffff
-#define TIFM_IRQ_SETALLSOCK       0x0000000f
 
 #define TIFM_CTRL_LED             0x00000040
 #define TIFM_CTRL_FAST_CLK        0x00000100
@@ -108,18 +107,16 @@ struct tifm_driver {
 
 struct tifm_adapter {
 	char __iomem            *addr;
-	unsigned int            irq_status;
-	unsigned int            insert_mask;
-	unsigned int            remove_mask;
 	spinlock_t              lock;
+	unsigned int            irq_status;
+	unsigned int            socket_change_set;
 	unsigned int            id;
-	unsigned int            max_sockets;
+	unsigned int            num_sockets;
+	struct tifm_dev         **sockets;
 	char                    wq_name[KOBJ_NAME_LEN];
 	unsigned int            inhibit_new_cards;
 	struct workqueue_struct *wq;
-	struct work_struct      media_inserter;
-	struct work_struct      media_remover;
-	struct tifm_dev         **sockets;
+	struct work_struct      media_switcher;
 	struct class_device     cdev;
 	struct device           *dev;
 
