@@ -456,8 +456,9 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 				  r_sample, t_elapsed);
 		else
 			r_sample -= t_elapsed;
+		CCID3_RTT_SANITY_CHECK(r_sample);
 
-		/* Update RTT estimate by 
+		/* Update RTT estimate by
 		 * If (No feedback recv)
 		 *    R = R_sample;
 		 * Else
@@ -1000,6 +1001,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 				  r_sample, t_elapsed);
 		else
 			r_sample -= t_elapsed;
+		CCID3_RTT_SANITY_CHECK(r_sample);
 
 		if (hcrx->ccid3hcrx_state == TFRC_RSTATE_NO_DATA)
 			hcrx->ccid3hcrx_rtt = r_sample;
