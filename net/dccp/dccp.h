@@ -432,6 +432,7 @@ static inline void timeval_sub_usecs(struct timeval *tv,
 		tv->tv_sec--;
 		tv->tv_usec += USEC_PER_SEC;
 	}
+	DCCP_BUG_ON(tv->tv_sec < 0);
 }
 
 #ifdef CONFIG_SYSCTL
