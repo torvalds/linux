@@ -547,7 +547,7 @@ rq_sched_info_depart(struct rq *rq, unsigned long delta_jiffies)
 #endif
 
 /*
- * rq_lock - lock a given runqueue and disable interrupts.
+ * this_rq_lock - lock this runqueue and disable interrupts.
  */
 static inline struct rq *this_rq_lock(void)
 	__acquires(rq->lock)
