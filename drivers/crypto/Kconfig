@@ -53,7 +53,7 @@ config CRYPTO_DEV_PADLOCK_SHA
 
 config CRYPTO_DEV_GEODE
 	tristate "Support for the Geode LX AES engine"
-	depends on CRYPTO && X86_32
+	depends on CRYPTO && X86_32 && PCI
 	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
 	default m
