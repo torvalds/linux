@@ -404,7 +404,6 @@ static struct bio *dio_await_one(struct dio *dio)
 		if (dio->bio_list == NULL) {
 			dio->waiter = current;
 			spin_unlock_irqrestore(&dio->bio_lock, flags);
-			blk_run_address_space(dio->inode->i_mapping);
 			io_schedule();
 			spin_lock_irqsave(&dio->bio_lock, flags);
 			dio->waiter = NULL;
@@ -450,9 +449,6 @@ static int dio_bio_complete(struct dio *dio, struct bio *bio)
  */
 static void dio_await_completion(struct dio *dio)
 {
-	if (dio->bio)
-		dio_bio_submit(dio);
-
 	/*
 	 * The bio_lock is not held for the read of bio_count.
 	 * This is ok since it is the dio_bio_complete() that changes
@@ -1085,6 +1081,9 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
 	if (dio->bio)
 		dio_bio_submit(dio);
 
+	/* All IO is now issued, send it on its way */
+	blk_run_address_space(inode->i_mapping);
+
 	/*
 	 * It is possible that, we return short IO due to end of file.
 	 * In that case, we need to release all the pages we got hold on.
@@ -1113,7 +1112,6 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
 		if (ret == 0)
 			ret = dio->result;
 		finished_one_bio(dio);		/* This can free the dio */
-		blk_run_address_space(inode->i_mapping);
 		if (should_wait) {
 			unsigned long flags;
 			/*
