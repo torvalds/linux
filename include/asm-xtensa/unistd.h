@@ -218,6 +218,8 @@
 
 #define SYSXTENSA_COUNT		   5	/* count of syscall0 functions*/
 
+#ifdef __KERNEL__
+
 /*
  * "Conditional" syscalls
  *
@@ -230,6 +232,7 @@
 #define __ARCH_WANT_SYS_UTIME
 #define __ARCH_WANT_SYS_LLSEEK
 #define __ARCH_WANT_SYS_RT_SIGACTION
+
 #endif /* __KERNEL__ */
 
 #endif	/* _XTENSA_UNISTD_H */

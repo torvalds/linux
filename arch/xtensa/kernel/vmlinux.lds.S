@@ -17,6 +17,7 @@
 #include <asm-generic/vmlinux.lds.h>
 
 #define _NOCLANGUAGE
+#undef __ASSEMBLER__
 #include <xtensa/config/core.h>
 #include <xtensa/config/system.h>
 OUTPUT_ARCH(xtensa)

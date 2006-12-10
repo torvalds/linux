@@ -115,7 +115,7 @@
 /* ... */
 
 
-#ifdef _ASMLANGUAGE
+#ifdef __ASSEMBLER__
 /*
  *  Assembly-language specific definitions (assembly macros, etc.).
  */
