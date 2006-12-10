@@ -11,7 +11,7 @@
 #ifndef _XTENSA_PTRACE_H
 #define _XTENSA_PTRACE_H
 
-#include <xtensa/config/core.h>
+#include <asm/variant/core.h>
 
 /*
  * Kernel stack

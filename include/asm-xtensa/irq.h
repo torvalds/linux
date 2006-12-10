@@ -12,8 +12,7 @@
 #define _XTENSA_IRQ_H
 
 #include <asm/platform/hardware.h>
-
-#include <xtensa/config/core.h>
+#include <asm/variant/core.h>
 
 #ifndef PLATFORM_NR_IRQS
 # define PLATFORM_NR_IRQS 0
@@ -27,10 +26,5 @@ static __inline__ int irq_canonicalize(int irq)
 }
 
 struct irqaction;
-#if 0 // FIXME
-extern void disable_irq_nosync(unsigned int);
-extern void disable_irq(unsigned int);
-extern void enable_irq(unsigned int);
-#endif
 
 #endif	/* _XTENSA_IRQ_H */

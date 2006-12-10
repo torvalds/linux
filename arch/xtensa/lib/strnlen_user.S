@@ -11,7 +11,7 @@
  *  Copyright (C) 2002 Tensilica Inc.
  */
 
-#include <xtensa/coreasm.h>
+#include <asm/variant/core.h>
 
 /* Load or store instructions that may cause exceptions use the EX macro. */
 

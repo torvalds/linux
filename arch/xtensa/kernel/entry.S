@@ -24,7 +24,7 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/signal.h>
-#include <xtensa/coreasm.h>
+#include <asm/tlbflush.h>
 
 /* Unimplemented features. */
 
@@ -364,7 +364,7 @@ common_exception:
 	movi	a2, 1
 	extui	a3, a3, 0, 1		# a3 = PS.INTLEVEL[0]
 	moveqz	a3, a2, a0		# a3 = 1 iff interrupt exception
-	movi	a2, PS_WOE_MASK
+	movi	a2, 1 << PS_WOE_BIT
 	or	a3, a3, a2
 	rsr	a0, EXCCAUSE
 	xsr	a3, PS
@@ -399,7 +399,7 @@ common_exception_return:
 	/* Jump if we are returning from kernel exceptions. */
 
 1:	l32i	a3, a1, PT_PS
-	_bbsi.l	a3, PS_UM_SHIFT, 2f
+	_bbsi.l	a3, PS_UM_BIT, 2f
 	j	kernel_exception_exit
 
 	/* Specific to a user exception exit:
@@ -422,7 +422,7 @@ common_exception_return:
 	 *       (Hint: There is only one user exception frame on stack)
 	 */
 
-	movi	a3, PS_WOE_MASK
+	movi	a3, 1 << PS_WOE_BIT
 
 	_bbsi.l	a4, TIF_NEED_RESCHED, 3f
 	_bbci.l	a4, TIF_SIGPENDING, 4f
@@ -694,7 +694,7 @@ common_exception_exit:
 ENTRY(debug_exception)
 
 	rsr	a0, EPS + XCHAL_DEBUGLEVEL
-	bbsi.l	a0, PS_EXCM_SHIFT, 1f	# exception mode
+	bbsi.l	a0, PS_EXCM_BIT, 1f	# exception mode
 
 	/* Set EPC_1 and EXCCAUSE */
 
@@ -707,7 +707,7 @@ ENTRY(debug_exception)
 
 	/* Restore PS to the value before the debug exc but with PS.EXCM set.*/
 
-	movi	a2, 1 << PS_EXCM_SHIFT
+	movi	a2, 1 << PS_EXCM_BIT
 	or	a2, a0, a2
 	movi	a0, debug_exception	# restore a3, debug jump vector
 	wsr	a2, PS
@@ -715,7 +715,7 @@ ENTRY(debug_exception)
 
 	/* Switch to kernel/user stack, restore jump vector, and save a0 */
 
-	bbsi.l	a2, PS_UM_SHIFT, 2f	# jump if user mode
+	bbsi.l	a2, PS_UM_BIT, 2f	# jump if user mode
 
 	addi	a2, a1, -16-PT_SIZE	# assume kernel stack
 	s32i	a0, a2, PT_AREG0
@@ -778,7 +778,7 @@ ENTRY(unrecoverable_exception)
 	wsr	a1, WINDOWBASE
 	rsync
 
-	movi	a1, PS_WOE_MASK | 1
+	movi	a1, (1 << PS_WOE_BIT) | 1
 	wsr	a1, PS
 	rsync
 
@@ -1491,7 +1491,7 @@ ENTRY(_spill_registers)
 	 */
 
 	rsr	a0, PS
-	_bbci.l	a0, PS_UM_SHIFT, 1f
+	_bbci.l	a0, PS_UM_BIT, 1f
 
  	/* User space: Setup a dummy frame and kill application.
 	 * Note: We assume EXC_TABLE_KSTK contains a valid stack pointer.
@@ -1510,7 +1510,7 @@ ENTRY(_spill_registers)
 	l32i	a1, a3, EXC_TABLE_KSTK
 	wsr	a3, EXCSAVE_1
 
-	movi	a4, PS_WOE_MASK | 1
+	movi	a4, (1 << PS_WOE_BIT) | 1
 	wsr	a4, PS
 	rsync
 
@@ -1612,7 +1612,7 @@ ENTRY(fast_second_level_miss)
 	rsr	a1, PTEVADDR
 	srli	a1, a1, PAGE_SHIFT
 	slli	a1, a1, PAGE_SHIFT	# ptevaddr & PAGE_MASK
-	addi	a1, a1, DTLB_WAY_PGTABLE	# ... + way_number
+	addi	a1, a1, DTLB_WAY_PGD	# ... + way_number
 
 	wdtlb	a0, a1
 	dsync
@@ -1654,7 +1654,7 @@ ENTRY(fast_second_level_miss)
 	mov	a1, a2
 
 	rsr	a2, PS
-	bbsi.l	a2, PS_UM_SHIFT, 1f
+	bbsi.l	a2, PS_UM_BIT, 1f
 	j	_kernel_exception
 1:	j	_user_exception
 
@@ -1753,7 +1753,7 @@ ENTRY(fast_store_prohibited)
 	mov	a1, a2
 
 	rsr	a2, PS
-	bbsi.l	a2, PS_UM_SHIFT, 1f
+	bbsi.l	a2, PS_UM_BIT, 1f
 	j	_kernel_exception
 1:	j	_user_exception
 
@@ -1924,7 +1924,7 @@ ENTRY(_switch_to)
 
 	/* Disable ints while we manipulate the stack pointer; spill regs. */
 
-	movi	a5, PS_EXCM_MASK | LOCKLEVEL
+	movi	a5, (1 << PS_EXCM_BIT) | LOCKLEVEL
 	xsr	a5, PS
 	rsr	a3, EXCSAVE_1
 	rsync

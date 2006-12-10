@@ -12,8 +12,8 @@
  *
  */
 
-#include <xtensa/config/core.h>
-#include <xtensa/hal.h>
+#include <asm/variant/core.h>
+#include <asm/coprocessor.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
@@ -216,8 +216,8 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext *sc)
 	 * handler, or the user mode value doesn't matter (e.g. PS.OWB).
 	 */
 	err |= __get_user(ps, &sc->sc_ps);
-	regs->ps = (regs->ps & ~XCHAL_PS_CALLINC_MASK)
-		| (ps & XCHAL_PS_CALLINC_MASK);
+	regs->ps = (regs->ps & ~PS_CALLINC_MASK)
+		| (ps & PS_CALLINC_MASK);
 
 	/* Additional corruption checks */
 
@@ -280,7 +280,7 @@ flush_my_cpstate(struct task_struct *tsk)
 static int
 save_cpextra (struct _cpstate *buf)
 {
-#if (XCHAL_EXTRA_SA_SIZE == 0) && (XCHAL_CP_NUM == 0)
+#if XCHAL_CP_NUM == 0
 	return 0;
 #else
 
@@ -497,8 +497,10 @@ gen_return_code(unsigned char *codemem, unsigned int use_rt_sigreturn)
 
 	/* Flush generated code out of the data cache */
 
-	if (err == 0)
-		__flush_invalidate_cache_range((unsigned long)codemem, 6UL);
+	if (err == 0) {
+		__invalidate_icache_range((unsigned long)codemem, 6UL);
+		__flush_invalidate_dcache_range((unsigned long)codemem, 6UL);
+	}
 
 	return err;
 }

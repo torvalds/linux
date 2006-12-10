@@ -1,4 +1,3 @@
-// TODO	verify coprocessor handling
 /*
  * arch/xtensa/kernel/process.c
  *
@@ -43,7 +42,7 @@
 #include <asm/irq.h>
 #include <asm/atomic.h>
 #include <asm/asm-offsets.h>
-#include <asm/coprocessor.h>
+#include <asm/regs.h>
 
 extern void ret_from_fork(void);
 
@@ -66,25 +65,6 @@ struct task_struct *current_set[NR_CPUS] = {&init_task, };
 void (*pm_power_off)(void) = NULL;
 EXPORT_SYMBOL(pm_power_off);
 
-
-#if XCHAL_CP_NUM > 0
-
-/*
- * Coprocessor ownership.
- */
-
-coprocessor_info_t coprocessor_info[] = {
-	{ 0, XTENSA_CPE_CP0_OFFSET },
-	{ 0, XTENSA_CPE_CP1_OFFSET },
-	{ 0, XTENSA_CPE_CP2_OFFSET },
-	{ 0, XTENSA_CPE_CP3_OFFSET },
-	{ 0, XTENSA_CPE_CP4_OFFSET },
-	{ 0, XTENSA_CPE_CP5_OFFSET },
-	{ 0, XTENSA_CPE_CP6_OFFSET },
-	{ 0, XTENSA_CPE_CP7_OFFSET },
-};
-
-#endif
 
 /*
  * Powermanagement idle function, if any is provided by the platform.
@@ -110,12 +90,10 @@ void cpu_idle(void)
 
 void exit_thread(void)
 {
-	release_coprocessors(current);	/* Empty macro if no CPs are defined */
 }
 
 void flush_thread(void)
 {
-	release_coprocessors(current);	/* Empty macro if no CPs are defined */
 }
 
 /*
@@ -275,7 +253,7 @@ void do_copy_regs (xtensa_gregset_t *elfregs, struct pt_regs *regs,
 	 */
 
 	elfregs->pc		= regs->pc;
-	elfregs->ps		= (regs->ps & ~XCHAL_PS_EXCM_MASK);
+	elfregs->ps		= (regs->ps & ~(1 << PS_EXCM_BIT));
 	elfregs->exccause	= regs->exccause;
 	elfregs->excvaddr	= regs->excvaddr;
 	elfregs->windowbase	= regs->windowbase;
@@ -325,7 +303,7 @@ void do_restore_regs (xtensa_gregset_t *elfregs, struct pt_regs *regs,
 	 */
 
 	regs->pc		= elfregs->pc;
-	regs->ps		= (elfregs->ps | XCHAL_PS_EXCM_MASK);
+	regs->ps		= (elfregs->ps | (1 << PS_EXCM_BIT));
 	regs->exccause		= elfregs->exccause;
 	regs->excvaddr		= elfregs->excvaddr;
 	regs->windowbase	= elfregs->windowbase;
@@ -459,16 +437,7 @@ int  do_restore_fpregs (elf_fpregset_t *fpregs, struct pt_regs *regs,
 int
 dump_task_fpu(struct pt_regs *regs, struct task_struct *task, elf_fpregset_t *r)
 {
-/* see asm/coprocessor.h for this magic number 16 */
-#if XTENSA_CP_EXTRA_SIZE > 16
-	do_save_fpregs (r, regs, task);
-
-	/*  For now, bit 16 means some extra state may be present:  */
-// FIXME!! need to track to return more accurate mask
-	return 0x10000 | XCHAL_CP_MASK;
-#else
 	return 0;	/* no coprocessors active on this processor */
-#endif
 }
 
 /*

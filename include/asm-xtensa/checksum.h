@@ -12,7 +12,7 @@
 #define _XTENSA_CHECKSUM_H
 
 #include <linux/in6.h>
-#include <xtensa/config/core.h>
+#include <asm/variant/core.h>
 
 /*
  * computes the checksum of a memory block at buff, length len,

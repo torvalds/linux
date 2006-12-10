@@ -16,14 +16,9 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/ptrace.h>
-#include <asm/ptrace.h>
 #include <asm/current.h>
 #include <asm/asm-offsets.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
-#include <asm/page.h>
-#include <asm/thread_info.h>
 
 #if XCHAL_UNALIGNED_LOAD_EXCEPTION || XCHAL_UNALIGNED_STORE_EXCEPTION
 
@@ -216,7 +211,7 @@ ENTRY(fast_unaligned)
 
 	extui	a5, a4, INSN_OP0, 4	# get insn.op0 nibble
 
-#if XCHAL_HAVE_NARROW
+#if XCHAL_HAVE_DENSITY
 	_beqi	a5, OP0_L32I_N, .Lload	# L32I.N, jump
 	addi	a6, a5, -OP0_S32I_N
 	_beqz	a6, .Lstore		# S32I.N, do a store
@@ -251,7 +246,7 @@ ENTRY(fast_unaligned)
 #endif
 	__src_b	a3, a5, a6		# a3 has the data word
 
-#if XCHAL_HAVE_NARROW
+#if XCHAL_HAVE_DENSITY
 	addi	a7, a7, 2		# increment PC (assume 16-bit insn)
 
 	extui	a5, a4, INSN_OP0, 4
@@ -279,14 +274,14 @@ ENTRY(fast_unaligned)
 
 1:
 
-#if XCHAL_HAVE_LOOP
-	rsr	a3, LEND		# check if we reached LEND
-	bne	a7, a3, 1f
-	rsr	a3, LCOUNT		# and LCOUNT != 0
-	beqz	a3, 1f
-	addi	a3, a3, -1		# decrement LCOUNT and set
+#if XCHAL_HAVE_LOOPS
+	rsr	a5, LEND		# check if we reached LEND
+	bne	a7, a5, 1f
+	rsr	a5, LCOUNT		# and LCOUNT != 0
+	beqz	a5, 1f
+	addi	a5, a5, -1		# decrement LCOUNT and set
 	rsr	a7, LBEG		# set PC to LBEGIN
-	wsr	a3, LCOUNT
+	wsr	a5, LCOUNT
 #endif
 
 1:	wsr	a7, EPC_1		# skip load instruction
@@ -336,7 +331,7 @@ ENTRY(fast_unaligned)
 
 	movi	a6, 0			# mask: ffffffff:00000000
 
-#if XCHAL_HAVE_NARROW
+#if XCHAL_HAVE_DENSITY
 	addi	a7, a7, 2		# incr. PC,assume 16-bit instruction
 
 	extui	a5, a4, INSN_OP0, 4	# extract OP0
@@ -359,14 +354,14 @@ ENTRY(fast_unaligned)
 	/* Get memory address */
 
 1:
-#if XCHAL_HAVE_LOOP
-	rsr	a3, LEND		# check if we reached LEND
-	bne	a7, a3, 1f
-	rsr	a3, LCOUNT		# and LCOUNT != 0
-	beqz	a3, 1f
-	addi	a3, a3, -1		# decrement LCOUNT and set
+#if XCHAL_HAVE_LOOPS
+	rsr	a4, LEND		# check if we reached LEND
+	bne	a7, a4, 1f
+	rsr	a4, LCOUNT		# and LCOUNT != 0
+	beqz	a4, 1f
+	addi	a4, a4, -1		# decrement LCOUNT and set
 	rsr	a7, LBEG		# set PC to LBEGIN
-	wsr	a3, LCOUNT
+	wsr	a4, LCOUNT
 #endif
 
 1:	wsr	a7, EPC_1		# skip store instruction
@@ -416,6 +411,7 @@ ENTRY(fast_unaligned)
 
 	/* Restore working register */
 
+	l32i	a8, a2, PT_AREG8
 	l32i	a7, a2, PT_AREG7
 	l32i	a6, a2, PT_AREG6
 	l32i	a5, a2, PT_AREG5
@@ -446,7 +442,7 @@ ENTRY(fast_unaligned)
 	mov	a1, a2
 
 	rsr	a0, PS
-        bbsi.l  a2, PS_UM_SHIFT, 1f     # jump if user mode
+        bbsi.l  a2, PS_UM_BIT, 1f     # jump if user mode
 
 	movi	a0, _kernel_exception
 	jx	a0

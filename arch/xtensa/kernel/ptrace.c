@@ -96,7 +96,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			/* Note:  PS.EXCM is not set while user task is running;
 			 * its being set in regs is for exception handling
 			 * convenience.  */
-			tmp = (regs->ps & ~XCHAL_PS_EXCM_MASK);
+			tmp = (regs->ps & ~(1 << PS_EXCM_BIT));
 			break;
 		case REG_WB:
 			tmp = regs->windowbase;

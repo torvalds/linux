@@ -1,9 +1,7 @@
-
-#define _ASMLANGUAGE
-#include <xtensa/config/specreg.h>
-#include <xtensa/config/core.h>
-#include <xtensa/cacheasm.h>
-
+#include <asm/variant/core.h>
+#include <asm/regs.h>
+#include <asm/asmmacro.h>
+#include <asm/cacheasm.h>
 	/*
 	 * RB-Data: RedBoot data/bss
 	 * P:	    Boot-Parameters
@@ -77,8 +75,14 @@ _start:
 	/* Note: The assembler cannot relax "addi a0, a0, ..." to an
 	   l32r, so we load to a4 first. */
 
-	addi	a4, a0, __start - __start_a0
-	mov	a0, a4
+	# addi	a4, a0, __start - __start_a0
+	# mov	a0, a4
+
+	movi	a4, __start
+	movi	a5, __start_a0
+	add	a4, a0, a4
+	sub	a0, a4, a5
+
 	movi	a4, __start
 	movi	a5, __reloc_end
 
@@ -106,9 +110,13 @@ _start:
 	/* We have to flush and invalidate the caches here before we jump. */
 
 #if XCHAL_DCACHE_IS_WRITEBACK
-	dcache_writeback_all  a5, a6
+
+	___flush_dcache_all a5 a6
+
 #endif
-	icache_invalidate_all a5, a6
+
+	___invalidate_icache_all a5 a6
+	isync
 
 	movi	a11, _reloc
 	jx	a11
@@ -209,9 +217,14 @@ _reloc:
 	/* jump to the kernel */
 2:
 #if XCHAL_DCACHE_IS_WRITEBACK
-	dcache_writeback_all a5, a6
+
+	___flush_dcache_all a5 a6
+
 #endif
-	icache_invalidate_all a5, a6
+
+	___invalidate_icache_all a5 a6
+
+	isync
 
 	movi	a5, __start
 	movi	a3, boot_initrd_start

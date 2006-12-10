@@ -175,8 +175,8 @@ void system_call (struct pt_regs *regs)
 	 * interrupts in the first place:
 	 */
 	local_save_flags (ps);
-	local_irq_restore((ps & ~XCHAL_PS_INTLEVEL_MASK) |
-			  (regs->ps & XCHAL_PS_INTLEVEL_MASK) );
+	local_irq_restore((ps & ~PS_INTLEVEL_MASK) |
+			  (regs->ps & PS_INTLEVEL_MASK) );
 
 	if (syscallnr > __NR_Linux_syscalls) {
 		regs->areg[2] = -ENOSYS;

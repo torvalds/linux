@@ -11,7 +11,6 @@
 #ifndef _XTENSA_BYTEORDER_H
 #define _XTENSA_BYTEORDER_H
 
-#include <asm/processor.h>
 #include <asm/types.h>
 
 static __inline__ __attribute_const__ __u32 ___arch__swab32(__u32 x)
