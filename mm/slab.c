@@ -946,7 +946,8 @@ static void __devinit start_cpu_timer(int cpu)
 	if (keventd_up() && reap_work->work.func == NULL) {
 		init_reap_node(cpu);
 		INIT_DELAYED_WORK(reap_work, cache_reap);
-		schedule_delayed_work_on(cpu, reap_work, HZ + 3 * cpu);
+		schedule_delayed_work_on(cpu, reap_work,
+					__round_jiffies_relative(HZ, cpu));
 	}
 }
 
@@ -4006,7 +4007,7 @@ static void cache_reap(struct work_struct *unused)
 	if (!mutex_trylock(&cache_chain_mutex)) {
 		/* Give up. Setup the next iteration. */
 		schedule_delayed_work(&__get_cpu_var(reap_work),
-				      REAPTIMEOUT_CPUC);
+				      round_jiffies_relative(REAPTIMEOUT_CPUC));
 		return;
 	}
 
@@ -4052,7 +4053,8 @@ next:
 	next_reap_node();
 	refresh_cpu_vm_stats(smp_processor_id());
 	/* Set up the next iteration */
-	schedule_delayed_work(&__get_cpu_var(reap_work), REAPTIMEOUT_CPUC);
+	schedule_delayed_work(&__get_cpu_var(reap_work),
+		round_jiffies_relative(REAPTIMEOUT_CPUC));
 }
 
 #ifdef CONFIG_PROC_FS
