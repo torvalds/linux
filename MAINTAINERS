@@ -2554,7 +2554,7 @@ S:	Maintained
 REAL TIME CLOCK (RTC) SUBSYSTEM
 P:	Alessandro Zummo
 M:	a.zummo@towertech.it
-L:	linux-kernel@vger.kernel.org
+L:	rtc-linux@googlegroups.com
 S:	Maintained
 
 REISERFS FILE SYSTEM
