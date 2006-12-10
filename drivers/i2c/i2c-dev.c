@@ -416,8 +416,8 @@ static int i2cdev_attach_adapter(struct i2c_adapter *adap)
 	i2c_dev->dev = device_create(i2c_dev_class, &adap->dev,
 				     MKDEV(I2C_MAJOR, adap->nr),
 				     "i2c-%d", adap->nr);
-	if (!i2c_dev->dev) {
-		res = -ENODEV;
+	if (IS_ERR(i2c_dev->dev)) {
+		res = PTR_ERR(i2c_dev->dev);
 		goto error;
 	}
 	res = device_create_file(i2c_dev->dev, &dev_attr_name);
