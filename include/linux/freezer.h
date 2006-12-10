@@ -1,5 +1,7 @@
 /* Freezer declarations */
 
+#include <linux/sched.h>
+
 #ifdef CONFIG_PM
 /*
  * Check if a process has been frozen
