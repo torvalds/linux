@@ -7,6 +7,7 @@
  * Copyright (C) 1998, 1999 Ralf Baechle
  */
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/types.h>
 #include <asm/byteorder.h>
 #include <asm/string.h>
@@ -28,6 +29,8 @@ __wsum csum_partial_copy_nocheck(const void *src,
 
 	return sum;
 }
+
+EXPORT_SYMBOL(csum_partial_copy_nocheck);
 
 /*
  * Copy from userspace and compute checksum.  If we catch an exception
