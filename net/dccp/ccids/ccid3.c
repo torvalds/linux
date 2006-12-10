@@ -444,9 +444,9 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 		/* Update loss event rate */
 		pinv = opt_recv->ccid3or_loss_event_rate;
-		if (pinv == ~0U || pinv == 0)
+		if (pinv == ~0U || pinv == 0)	       /* see RFC 4342, 8.5   */
 			hctx->ccid3hctx_p = 0;
-		else
+		else				       /* can not exceed 100% */
  			hctx->ccid3hctx_p = 1000000 / pinv;
 
 		dccp_timestamp(sk, &now);
@@ -733,10 +733,15 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 	/* Convert to multiples of 10us */
 	hcrx->ccid3hcrx_elapsed_time =
 			timeval_delta(&now, &packet->dccphrx_tstamp) / 10;
+
 	if (hcrx->ccid3hcrx_p == 0)
-		hcrx->ccid3hcrx_pinv = ~0;
-	else
+		hcrx->ccid3hcrx_pinv = ~0U;	/* see RFC 4342, 8.5 */
+	else if (hcrx->ccid3hcrx_p > 1000000) {
+		DCCP_WARN("p (%u) > 100%%\n", hcrx->ccid3hcrx_p);
+		hcrx->ccid3hcrx_pinv = 1;	/* use 100% in this case */
+	} else
 		hcrx->ccid3hcrx_pinv = 1000000 / hcrx->ccid3hcrx_p;
+
 	dp->dccps_hc_rx_insert_options = 1;
 	dccp_send_ack(sk);
 }
