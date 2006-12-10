@@ -304,6 +304,15 @@ config TASK_XACCT
 
 	  Say N if unsure.
 
+config TASK_IO_ACCOUNTING
+	bool "Enable per-task storage I/O accounting (EXPERIMENTAL)"
+	depends on TASK_XACCT
+	help
+	  Collect information on the number of bytes of storage I/O which this
+	  task has caused.
+
+	  Say N if unsure.
+
 config SYSCTL
 	bool
 
