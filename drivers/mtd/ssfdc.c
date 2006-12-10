@@ -311,7 +311,6 @@ static void ssfdcr_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 	ssfdc->mbd.mtd = mtd;
 	ssfdc->mbd.devnum = -1;
-	ssfdc->mbd.blksize = SECTOR_SIZE;
 	ssfdc->mbd.tr = tr;
 	ssfdc->mbd.readonly = 1;
 
@@ -446,6 +445,7 @@ static struct mtd_blktrans_ops ssfdcr_tr = {
 	.name		= "ssfdc",
 	.major		= SSFDCR_MAJOR,
 	.part_bits	= SSFDCR_PARTN_BITS,
+	.blksize	= SECTOR_SIZE;
 	.getgeo		= ssfdcr_getgeo,
 	.readsect	= ssfdcr_readsect,
 	.add_mtd	= ssfdcr_add_mtd,
