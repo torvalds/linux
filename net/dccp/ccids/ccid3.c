@@ -161,6 +161,33 @@ static inline void ccid3_hc_tx_update_s(struct ccid3_hc_tx_sock *hctx, int len)
 	 */
 }
 
+/*
+ * 	Update Window Counter using the algorithm from [RFC 4342, 8.1].
+ * 	The algorithm is not applicable if RTT < 4 microseconds.
+ */
+static inline void ccid3_hc_tx_update_win_count(struct ccid3_hc_tx_sock *hctx,
+						struct timeval *now)
+{
+	suseconds_t delta;
+	u32 quarter_rtts;
+
+	if (unlikely(hctx->ccid3hctx_rtt < 4))	/* avoid divide-by-zero */
+		return;
+
+	delta = timeval_delta(now, &hctx->ccid3hctx_t_last_win_count);
+	DCCP_BUG_ON(delta < 0);
+
+	quarter_rtts = (u32)delta / (hctx->ccid3hctx_rtt / 4);
+
+	if (quarter_rtts > 0) {
+		hctx->ccid3hctx_t_last_win_count = *now;
+		hctx->ccid3hctx_last_win_count	+= min_t(u32, quarter_rtts, 5);
+		hctx->ccid3hctx_last_win_count	&= 0xF;		/* mod 16 */
+
+		ccid3_pr_debug("now at %#X\n", hctx->ccid3hctx_last_win_count);
+	}
+}
+
 static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 {
 	struct sock *sk = (struct sock *)data;
@@ -333,6 +360,8 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 		 */
 		if (delay - (suseconds_t)hctx->ccid3hctx_delta >= 0)
 			return delay / 1000L;
+
+		ccid3_hc_tx_update_win_count(hctx, &now);
 		break;
 	case TFRC_SSTATE_TERM:
 		DCCP_BUG("Illegal %s state TERM, sk=%p", dccp_role(sk), sk);
@@ -353,7 +382,6 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 	const struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct timeval now;
-	suseconds_t quarter_rtt;
 	struct dccp_tx_hist_entry *packet;
 
 	BUG_ON(hctx == NULL);
@@ -373,25 +401,6 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 	}
 	packet->dccphtx_tstamp = now;
 	packet->dccphtx_seqno  = dp->dccps_gss;
-	/*
-	 * Check if win_count have changed
-	 * Algorithm in "8.1. Window Counter Value" in RFC 4342.
-	 */
-	quarter_rtt = timeval_delta(&now, &hctx->ccid3hctx_t_last_win_count);
-	if (likely(hctx->ccid3hctx_rtt > 8))
-		quarter_rtt /= hctx->ccid3hctx_rtt / 4;
-
-	if (quarter_rtt > 0) {
-		hctx->ccid3hctx_t_last_win_count = now;
-		hctx->ccid3hctx_last_win_count	 = (hctx->ccid3hctx_last_win_count +
-						    min_t(unsigned long, quarter_rtt, 5)) % 16;
-		ccid3_pr_debug("%s, sk=%p, window changed from "
-			       "%u to %u!\n",
-			       dccp_role(sk), sk,
-			       packet->dccphtx_ccval,
-			       hctx->ccid3hctx_last_win_count);
-	}
-
 	hctx->ccid3hctx_idle = 0;
 	packet->dccphtx_rtt  = hctx->ccid3hctx_rtt;
 	packet->dccphtx_sent = 1;
