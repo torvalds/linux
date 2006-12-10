@@ -1734,7 +1734,7 @@ static inline void flush_unauthorized_files(struct files_struct * files)
 		j++;
 		i = j * __NFDBITS;
 		fdt = files_fdtable(files);
-		if (i >= fdt->max_fds || i >= fdt->max_fdset)
+		if (i >= fdt->max_fds)
 			break;
 		set = fdt->open_fds->fds_bits[j];
 		if (!set)

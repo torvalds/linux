@@ -1679,19 +1679,19 @@ int compat_core_sys_select(int n, compat_ulong_t __user *inp,
 {
 	fd_set_bits fds;
 	char *bits;
-	int size, max_fdset, ret = -EINVAL;
+	int size, max_fds, ret = -EINVAL;
 	struct fdtable *fdt;
 
 	if (n < 0)
 		goto out_nofds;
 
-	/* max_fdset can increase, so grab it once to avoid race */
+	/* max_fds can increase, so grab it once to avoid race */
 	rcu_read_lock();
 	fdt = files_fdtable(current->files);
-	max_fdset = fdt->max_fdset;
+	max_fds = fdt->max_fds;
 	rcu_read_unlock();
-	if (n > max_fdset)
-		n = max_fdset;
+	if (n > max_fds)
+		n = max_fds;
 
 	/*
 	 * We need 6 bitmaps (in/out/ex for both incoming and outgoing),

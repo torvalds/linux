@@ -68,8 +68,8 @@ void free_fd_array(struct file **array, int num)
 
 static void __free_fdtable(struct fdtable *fdt)
 {
-	free_fdset(fdt->open_fds, fdt->max_fdset);
-	free_fdset(fdt->close_on_exec, fdt->max_fdset);
+	free_fdset(fdt->open_fds, fdt->max_fds);
+	free_fdset(fdt->close_on_exec, fdt->max_fds);
 	free_fd_array(fdt->fd, fdt->max_fds);
 	kfree(fdt);
 }
@@ -98,7 +98,7 @@ static void free_fdtable_rcu(struct rcu_head *rcu)
 	struct fdtable_defer *fddef;
 
 	BUG_ON(!fdt);
-	fdset_size = fdt->max_fdset / 8;
+	fdset_size = fdt->max_fds / 8;
 	fdarray_size = fdt->max_fds * sizeof(struct file *);
 
 	if (fdt->free_files) {
@@ -110,13 +110,11 @@ static void free_fdtable_rcu(struct rcu_head *rcu)
 		kmem_cache_free(files_cachep, fdt->free_files);
 		return;
 	}
-	if (fdt->max_fdset <= EMBEDDED_FD_SET_SIZE &&
-		fdt->max_fds <= NR_OPEN_DEFAULT) {
+	if (fdt->max_fds <= NR_OPEN_DEFAULT)
 		/*
 		 * The fdtable was embedded
 		 */
 		return;
-	}
 	if (fdset_size <= PAGE_SIZE && fdarray_size <= PAGE_SIZE) {
 		kfree(fdt->open_fds);
 		kfree(fdt->close_on_exec);
@@ -136,9 +134,7 @@ static void free_fdtable_rcu(struct rcu_head *rcu)
 
 void free_fdtable(struct fdtable *fdt)
 {
-	if (fdt->free_files ||
-		fdt->max_fdset > EMBEDDED_FD_SET_SIZE ||
-		fdt->max_fds > NR_OPEN_DEFAULT)
+	if (fdt->free_files || fdt->max_fds > NR_OPEN_DEFAULT)
 		call_rcu(&fdt->rcu, free_fdtable_rcu);
 }
 
@@ -151,12 +147,11 @@ static void copy_fdtable(struct fdtable *nfdt, struct fdtable *fdt)
 	int i;
 	int count;
 
-	BUG_ON(nfdt->max_fdset < fdt->max_fdset);
 	BUG_ON(nfdt->max_fds < fdt->max_fds);
 	/* Copy the existing tables and install the new pointers */
 
-	i = fdt->max_fdset / (sizeof(unsigned long) * 8);
-	count = (nfdt->max_fdset - fdt->max_fdset) / 8;
+	i = fdt->max_fds / (sizeof(unsigned long) * 8);
+	count = (nfdt->max_fds - fdt->max_fds) / 8;
 
 	/*
 	 * Don't copy the entire array if the current fdset is
@@ -164,9 +159,9 @@ static void copy_fdtable(struct fdtable *nfdt, struct fdtable *fdt)
 	 */
 	if (i) {
 		memcpy (nfdt->open_fds, fdt->open_fds,
-						fdt->max_fdset/8);
+						fdt->max_fds/8);
 		memcpy (nfdt->close_on_exec, fdt->close_on_exec,
-						fdt->max_fdset/8);
+						fdt->max_fds/8);
 		memset (&nfdt->open_fds->fds_bits[i], 0, count);
 		memset (&nfdt->close_on_exec->fds_bits[i], 0, count);
 	}
@@ -201,7 +196,7 @@ fd_set * alloc_fdset(int num)
 
 void free_fdset(fd_set *array, int num)
 {
-	if (num <= EMBEDDED_FD_SET_SIZE) /* Don't free an embedded fdset */
+	if (num <= NR_OPEN_DEFAULT) /* Don't free an embedded fdset */
 		return;
 	else if (num <= 8 * PAGE_SIZE)
 		kfree(array);
@@ -219,18 +214,6 @@ static struct fdtable *alloc_fdtable(int nr)
 	fdt = kzalloc(sizeof(*fdt), GFP_KERNEL);
 	if (!fdt)
   		goto out;
-
-	nfds = max_t(int, 8 * L1_CACHE_BYTES, roundup_pow_of_two(nr + 1));
-	if (nfds > NR_OPEN)
-		nfds = NR_OPEN;
-
-  	new_openset = alloc_fdset(nfds);
-  	new_execset = alloc_fdset(nfds);
-  	if (!new_openset || !new_execset)
-  		goto out;
-	fdt->open_fds = new_openset;
-	fdt->close_on_exec = new_execset;
-	fdt->max_fdset = nfds;
 
 	nfds = NR_OPEN_DEFAULT;
 	/*
@@ -251,15 +234,21 @@ static struct fdtable *alloc_fdtable(int nr)
 				nfds = NR_OPEN;
   		}
 	} while (nfds <= nr);
+
+  	new_openset = alloc_fdset(nfds);
+  	new_execset = alloc_fdset(nfds);
+  	if (!new_openset || !new_execset)
+  		goto out;
+	fdt->open_fds = new_openset;
+	fdt->close_on_exec = new_execset;
+
 	new_fds = alloc_fd_array(nfds);
 	if (!new_fds)
-		goto out2;
+		goto out;
 	fdt->fd = new_fds;
 	fdt->max_fds = nfds;
 	fdt->free_files = NULL;
 	return fdt;
-out2:
-	nfds = fdt->max_fdset;
 out:
 	free_fdset(new_openset, nfds);
 	free_fdset(new_execset, nfds);
@@ -290,7 +279,7 @@ static int expand_fdtable(struct files_struct *files, int nr)
 	 * we dropped the lock
 	 */
 	cur_fdt = files_fdtable(files);
-	if (nr >= cur_fdt->max_fds || nr >= cur_fdt->max_fdset) {
+	if (nr >= cur_fdt->max_fds) {
 		/* Continue as planned */
 		copy_fdtable(new_fdt, cur_fdt);
 		rcu_assign_pointer(files->fdt, new_fdt);
@@ -316,11 +305,10 @@ int expand_files(struct files_struct *files, int nr)
 
 	fdt = files_fdtable(files);
 	/* Do we need to expand? */
-	if (nr < fdt->max_fdset && nr < fdt->max_fds)
+	if (nr < fdt->max_fds)
 		return 0;
 	/* Can we expand? */
-	if (fdt->max_fdset >= NR_OPEN || fdt->max_fds >= NR_OPEN ||
-	    nr >= NR_OPEN)
+	if (nr >= NR_OPEN)
 		return -EMFILE;
 
 	/* All good, so we try */

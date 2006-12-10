@@ -864,8 +864,7 @@ int get_unused_fd(void)
 
 repeat:
 	fdt = files_fdtable(files);
- 	fd = find_next_zero_bit(fdt->open_fds->fds_bits,
-				fdt->max_fdset,
+	fd = find_next_zero_bit(fdt->open_fds->fds_bits, fdt->max_fds,
 				files->next_fd);
 
 	/*

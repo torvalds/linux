@@ -614,7 +614,7 @@ static inline int copy_fs(unsigned long clone_flags, struct task_struct * tsk)
 
 static int count_open_files(struct fdtable *fdt)
 {
-	int size = fdt->max_fdset;
+	int size = fdt->max_fds;
 	int i;
 
 	/* Find the last open fd */
@@ -641,7 +641,6 @@ static struct files_struct *alloc_files(void)
 	newf->next_fd = 0;
 	fdt = &newf->fdtab;
 	fdt->max_fds = NR_OPEN_DEFAULT;
-	fdt->max_fdset = EMBEDDED_FD_SET_SIZE;
 	fdt->close_on_exec = (fd_set *)&newf->close_on_exec_init;
 	fdt->open_fds = (fd_set *)&newf->open_fds_init;
 	fdt->fd = &newf->fd_array[0];
@@ -662,7 +661,7 @@ static struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 {
 	struct files_struct *newf;
 	struct file **old_fds, **new_fds;
-	int open_files, size, i, expand;
+	int open_files, size, i;
 	struct fdtable *old_fdt, *new_fdt;
 
 	*errorp = -ENOMEM;
@@ -673,25 +672,14 @@ static struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 	spin_lock(&oldf->file_lock);
 	old_fdt = files_fdtable(oldf);
 	new_fdt = files_fdtable(newf);
-	size = old_fdt->max_fdset;
 	open_files = count_open_files(old_fdt);
-	expand = 0;
 
 	/*
-	 * Check whether we need to allocate a larger fd array or fd set.
-	 * Note: we're not a clone task, so the open count won't  change.
+	 * Check whether we need to allocate a larger fd array and fd set.
+	 * Note: we're not a clone task, so the open count won't change.
 	 */
-	if (open_files > new_fdt->max_fdset) {
-		new_fdt->max_fdset = 0;
-		expand = 1;
-	}
 	if (open_files > new_fdt->max_fds) {
 		new_fdt->max_fds = 0;
-		expand = 1;
-	}
-
-	/* if the old fdset gets grown now, we'll only copy up to "size" fds */
-	if (expand) {
 		spin_unlock(&oldf->file_lock);
 		spin_lock(&newf->file_lock);
 		*errorp = expand_files(newf, open_files-1);
@@ -739,8 +727,8 @@ static struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 	/* This is long word aligned thus could use a optimized version */ 
 	memset(new_fds, 0, size); 
 
-	if (new_fdt->max_fdset > open_files) {
-		int left = (new_fdt->max_fdset-open_files)/8;
+	if (new_fdt->max_fds > open_files) {
+		int left = (new_fdt->max_fds-open_files)/8;
 		int start = open_files / (8 * sizeof(unsigned long));
 
 		memset(&new_fdt->open_fds->fds_bits[start], 0, left);

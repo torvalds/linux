@@ -26,14 +26,8 @@ struct embedded_fd_set {
 	unsigned long fds_bits[1];
 };
 
-/*
- * More than this number of fds: we use a separately allocated fd_set
- */
-#define EMBEDDED_FD_SET_SIZE (BITS_PER_BYTE * sizeof(struct embedded_fd_set))
-
 struct fdtable {
 	unsigned int max_fds;
-	int max_fdset;
 	struct file ** fd;      /* current fd array */
 	fd_set *close_on_exec;
 	fd_set *open_fds;

@@ -425,7 +425,7 @@ static void close_files(struct files_struct * files)
 	for (;;) {
 		unsigned long set;
 		i = j * __NFDBITS;
-		if (i >= fdt->max_fdset || i >= fdt->max_fds)
+		if (i >= fdt->max_fds)
 			break;
 		set = fdt->open_fds->fds_bits[j++];
 		while (set) {
