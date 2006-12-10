@@ -823,7 +823,8 @@ static sector_t raid5_compute_sector(sector_t r_sector, unsigned int raid_disks,
 static sector_t compute_blocknr(struct stripe_head *sh, int i)
 {
 	raid5_conf_t *conf = sh->raid_conf;
-	int raid_disks = sh->disks, data_disks = raid_disks - 1;
+	int raid_disks = sh->disks;
+	int data_disks = raid_disks - conf->max_degraded;
 	sector_t new_sector = sh->sector, check;
 	int sectors_per_chunk = conf->chunk_size >> 9;
 	sector_t stripe;
@@ -859,7 +860,6 @@ static sector_t compute_blocknr(struct stripe_head *sh, int i)
 		}
 		break;
 	case 6:
-		data_disks = raid_disks - 2;
 		if (i == raid6_next_disk(sh->pd_idx, raid_disks))
 			return 0; /* It is the Q disk */
 		switch (conf->algorithm) {
@@ -1355,8 +1355,10 @@ static int stripe_to_pdidx(sector_t stripe, raid5_conf_t *conf, int disks)
 	int pd_idx, dd_idx;
 	int chunk_offset = sector_div(stripe, sectors_per_chunk);
 
-	raid5_compute_sector(stripe*(disks-1)*sectors_per_chunk
-			     + chunk_offset, disks, disks-1, &dd_idx, &pd_idx, conf);
+	raid5_compute_sector(stripe * (disks - conf->max_degraded)
+			     *sectors_per_chunk + chunk_offset,
+			     disks, disks - conf->max_degraded,
+			     &dd_idx, &pd_idx, conf);
 	return pd_idx;
 }
 
