@@ -399,7 +399,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	struct timeval now;
 	unsigned long t_nfb;
 	u32 pinv;
-	long r_sample, t_elapsed;
+	suseconds_t r_sample, t_elapsed;
 
 	BUG_ON(hctx == NULL);
 
@@ -446,8 +446,8 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 		DCCP_BUG_ON(r_sample < 0);
 		if (unlikely(r_sample <= t_elapsed))
-			DCCP_WARN("WARNING: r_sample=%ldus <= t_elapsed=%ldus\n",
-				  r_sample, t_elapsed);
+			DCCP_WARN("WARNING: r_sample=%dus <= t_elapsed=%dus\n",
+				  (int)r_sample, (int)t_elapsed);
 		else
 			r_sample -= t_elapsed;
 		CCID3_RTT_SANITY_CHECK(r_sample);
@@ -474,8 +474,8 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			ccid3_update_send_time(hctx);
 
 			ccid3_pr_debug("%s(%p), s=%u, w_init=%llu, "
-				       "R_sample=%ldus, X=%u\n", dccp_role(sk),
-				       sk, hctx->ccid3hctx_s, w_init, r_sample,
+				       "R_sample=%dus, X=%u\n", dccp_role(sk),
+				       sk, hctx->ccid3hctx_s, w_init, (int)r_sample,
 				       (unsigned)(hctx->ccid3hctx_x >> 6));
 
 			ccid3_hc_tx_set_state(sk, TFRC_SSTATE_FBACK);
@@ -491,9 +491,9 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 						    hctx->ccid3hctx_p);
 			ccid3_hc_tx_update_x(sk, &now);
 
-			ccid3_pr_debug("%s(%p), RTT=%uus (sample=%ldus), s=%u, "
+			ccid3_pr_debug("%s(%p), RTT=%uus (sample=%dus), s=%u, "
 				       "p=%u, X_calc=%u, X_recv=%u, X=%u\n", dccp_role(sk),
-				       sk, hctx->ccid3hctx_rtt, r_sample,
+				       sk, hctx->ccid3hctx_rtt, (int)r_sample,
 				       hctx->ccid3hctx_s, hctx->ccid3hctx_p,
 				       hctx->ccid3hctx_x_calc,
 				       (unsigned)(hctx->ccid3hctx_x_recv >> 6),
@@ -821,8 +821,8 @@ found:
 	DCCP_BUG_ON(delta < 0);
 
 	rtt = delta * 4 / interval;
-	ccid3_pr_debug("%s(%p), approximated RTT to %ldus\n",
-		       dccp_role(sk), sk, rtt);
+	ccid3_pr_debug("%s(%p), approximated RTT to %dus\n",
+		       dccp_role(sk), sk, (int)rtt);
 
 	/*
 	 * Determine the length of the first loss interval via inverse lookup.
