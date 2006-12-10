@@ -454,6 +454,14 @@ static int video_mux(struct cx88_core *core, unsigned int input)
 		cx_clear(MO_FILTER_ODD,   0x00002020);
 		break;
 	}
+
+	if (cx88_boards[core->board].mpeg & CX88_MPEG_BLACKBIRD) {
+		/* sets sound input from external adc */
+		if (INPUT(input)->extadc)
+			cx_set(AUD_CTL, EN_I2SIN_ENABLE);
+		else
+			cx_clear(AUD_CTL, EN_I2SIN_ENABLE);
+	}
 	return 0;
 }
 
@@ -1490,6 +1498,30 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 		mutex_unlock(&core->lock);
 		return 0;
 	}
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	/* ioctls to allow direct acces to the cx2388x registers */
+	case VIDIOC_INT_G_REGISTER:
+	{
+		struct v4l2_register *reg = arg;
+
+		if (reg->i2c_id != 0)
+			return -EINVAL;
+		/* cx2388x has a 24-bit register space */
+		reg->val = cx_read(reg->reg&0xffffff);
+		return 0;
+	}
+	case VIDIOC_INT_S_REGISTER:
+	{
+		struct v4l2_register *reg = arg;
+
+		if (reg->i2c_id != 0)
+			return -EINVAL;
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+		cx_write(reg->reg&0xffffff, reg->val);
+		return 0;
+	}
+#endif
 
 	default:
 		return v4l_compat_translate_ioctl(inode,file,cmd,arg,

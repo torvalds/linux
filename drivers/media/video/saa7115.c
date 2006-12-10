@@ -851,7 +851,7 @@ static int saa711x_set_size(struct i2c_client *client, int width, int height)
 
 	/* On 60Hz, it is using a higher Vertical Output Size */
 	if (!is_50hz)
-		res+=(VRES_60HZ-480)>>1;
+		res += (VRES_60HZ - 480) >> 1;
 
 		/* height */
 	saa711x_write(client, R_CE_B_VERT_OUTPUT_WINDOW_LENGTH,
@@ -907,7 +907,7 @@ static int saa711x_set_size(struct i2c_client *client, int width, int height)
 
 	/* Activates task "B" */
 	saa711x_write(client, R_80_GLOBAL_CNTL_1,
-				saa711x_read(client,R_80_GLOBAL_CNTL_1)|0x20);
+				saa711x_read(client,R_80_GLOBAL_CNTL_1) | 0x20);
 
 	return 0;
 }
@@ -932,11 +932,11 @@ static void saa711x_set_v4lstd(struct i2c_client *client, v4l2_std_id std)
 	if (std & V4L2_STD_525_60) {
 		v4l_dbg(1, debug, client, "decoder set standard 60 Hz\n");
 		saa711x_writeregs(client, saa7115_cfg_60hz_video);
-		saa711x_set_size(client,720,480);
+		saa711x_set_size(client, 720, 480);
 	} else {
 		v4l_dbg(1, debug, client, "decoder set standard 50 Hz\n");
 		saa711x_writeregs(client, saa7115_cfg_50hz_video);
-		saa711x_set_size(client,720,576);
+		saa711x_set_size(client, 720, 576);
 	}
 
 	/* Register 0E - Bits D6-D4 on NO-AUTO mode
@@ -1464,13 +1464,13 @@ static int saa711x_attach(struct i2c_adapter *adapter, int address, int kind)
 	client->driver = &i2c_driver_saa711x;
 	snprintf(client->name, sizeof(client->name) - 1, "saa7115");
 
-	for (i=0;i<0x0f;i++) {
+	for (i = 0; i < 0x0f; i++) {
 		saa711x_write(client, 0, i);
-		name[i] = (saa711x_read(client, 0) &0x0f) +'0';
-		if (name[i]>'9')
-			name[i]+='a'-'9'-1;
+		name[i] = (saa711x_read(client, 0) & 0x0f) + '0';
+		if (name[i] > '9')
+			name[i] += 'a' - '9' - 1;
 	}
-	name[i]='\0';
+	name[i] = '\0';
 
 	saa711x_write(client, 0, 5);
 	chip_id = saa711x_read(client, 0) & 0x0f;

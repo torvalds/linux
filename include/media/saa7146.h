@@ -42,10 +42,6 @@ extern unsigned int saa7146_debug;
 #define DEB_INT(x)  if (0!=(DEBUG_VARIABLE&0x20)) { DEBUG_PROLOG; printk x; } /* interrupt debug messages */
 #define DEB_CAP(x)  if (0!=(DEBUG_VARIABLE&0x40)) { DEBUG_PROLOG; printk x; } /* capture debug messages */
 
-#define SAA7146_IER_DISABLE(x,y) \
-	saa7146_write(x, IER, saa7146_read(x, IER) & ~(y));
-#define SAA7146_IER_ENABLE(x,y) \
-	saa7146_write(x, IER, saa7146_read(x, IER) | (y));
 #define SAA7146_ISR_CLEAR(x,y) \
 	saa7146_write(x, ISR, (y));
 
@@ -440,5 +436,21 @@ int saa7146_wait_for_debi_done(struct saa7146_dev *dev, int nobusyloop);
 #define SAA7146_I2C_BUS_BIT_RATE_120	(0x000)
 #define SAA7146_I2C_BUS_BIT_RATE_80	(0x200)
 #define SAA7146_I2C_BUS_BIT_RATE_60	(0x300)
+
+static inline void SAA7146_IER_DISABLE(struct saa7146_dev *x, unsigned y)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&x->int_slock, flags);
+	saa7146_write(x, IER, saa7146_read(x, IER) & ~y);
+	spin_unlock_irqrestore(&x->int_slock, flags);
+}
+
+static inline void SAA7146_IER_ENABLE(struct saa7146_dev *x, unsigned y)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&x->int_slock, flags);
+	saa7146_write(x, IER, saa7146_read(x, IER) | y);
+	spin_unlock_irqrestore(&x->int_slock, flags);
+}
 
 #endif

@@ -184,6 +184,14 @@ config VIDEO_KS0127
 	  To compile this driver as a module, choose M here: the
 	  module will be called ks0127.
 
+config VIDEO_OV7670
+	tristate "OmniVision OV7670 sensor support"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the OmniVision
+	  OV7670 VGA camera.  It currently only works with the M88ALP01
+	  controller.
+
 config VIDEO_SAA7110
 	tristate "Philips SAA7110 video decoder"
 	depends on VIDEO_V4L1 && I2C
@@ -567,18 +575,6 @@ config VIDEO_ZORAN_AVS6EYES
 	help
 	  Support for the AverMedia 6 Eyes video surveillance card.
 
-config VIDEO_ZR36120
-	tristate "Zoran ZR36120/36125 Video For Linux"
-	depends on PCI && I2C && VIDEO_V4L1 && BROKEN
-	help
-	  Support for ZR36120/ZR36125 based frame grabber/overlay boards.
-	  This includes the Victor II, WaveWatcher, Video Wonder, Maxi-TV,
-	  and Buster boards. Please read the material in
-	  <file:Documentation/video4linux/zr36120.txt> for more information.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called zr36120.
-
 config VIDEO_MEYE
 	tristate "Sony Vaio Picturebook Motion Eye Video For Linux"
 	depends on PCI && SONYPI && VIDEO_V4L1
@@ -670,6 +666,15 @@ config VIDEO_M32R_AR_M64278
 	  To compile this driver as a module, choose M here: the
 	  module will be called arv.
 
+config VIDEO_CAFE_CCIC
+	tristate "Marvell 88ALP01 (Cafe) CMOS Camera Controller support"
+	depends on I2C && VIDEO_V4L2
+	select VIDEO_OV7670
+	---help---
+	  This is a video4linux2 driver for the Marvell 88ALP01 integrated
+	  CMOS camera controller.  This is the controller found on first-
+	  generation OLPC systems.
+
 #
 # USB Multimedia device configuration
 #
@@ -680,6 +685,8 @@ menu "V4L USB devices"
 source "drivers/media/video/pvrusb2/Kconfig"
 
 source "drivers/media/video/em28xx/Kconfig"
+
+source "drivers/media/video/usbvision/Kconfig"
 
 source "drivers/media/video/usbvideo/Kconfig"
 

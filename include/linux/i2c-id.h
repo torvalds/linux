@@ -159,6 +159,7 @@
 #define I2C_DRIVERID_ASB100 1043
 #define I2C_DRIVERID_FSCHER 1046
 #define I2C_DRIVERID_W83L785TS 1047
+#define I2C_DRIVERID_OV7670 1048	/* Omnivision 7670 camera */
 
 /*
  * ---- Adapter types ----------------------------------------------------
@@ -250,6 +251,7 @@
 #define I2C_HW_SMBUS_OV518	0x04000f /* OV518(+) USB 1.1 webcam ICs */
 #define I2C_HW_SMBUS_OV519	0x040010 /* OV519 USB 1.1 webcam IC */
 #define I2C_HW_SMBUS_OVFX2	0x040011 /* Cypress/OmniVision FX2 webcam */
+#define I2C_HW_SMBUS_CAFE	0x040012 /* Marvell 88ALP01 "CAFE" cam  */
 
 /* --- ISA pseudo-adapter						*/
 #define I2C_HW_ISA		0x050000

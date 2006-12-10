@@ -48,7 +48,8 @@ static void av7110_emit_keyup(unsigned long data)
 	if (!data || !test_bit(data, input_dev->key))
 		return;
 
-	input_event(input_dev, EV_KEY, data, !!0);
+	input_report_key(input_dev, data, 0);
+	input_sync(input_dev);
 }
 
 
@@ -115,14 +116,17 @@ static void av7110_emit_key(unsigned long parm)
 		del_timer(&keyup_timer);
 		if (keyup_timer.data != keycode || new_toggle != old_toggle) {
 			delay_timer_finished = 0;
-			input_event(input_dev, EV_KEY, keyup_timer.data, !!0);
-			input_event(input_dev, EV_KEY, keycode, !0);
-		} else
-			if (delay_timer_finished)
-				input_event(input_dev, EV_KEY, keycode, 2);
+			input_event(input_dev, EV_KEY, keyup_timer.data, 0);
+			input_event(input_dev, EV_KEY, keycode, 1);
+			input_sync(input_dev);
+		} else if (delay_timer_finished) {
+			input_event(input_dev, EV_KEY, keycode, 2);
+			input_sync(input_dev);
+		}
 	} else {
 		delay_timer_finished = 0;
-		input_event(input_dev, EV_KEY, keycode, !0);
+		input_event(input_dev, EV_KEY, keycode, 1);
+		input_sync(input_dev);
 	}
 
 	keyup_timer.expires = jiffies + UP_TIMEOUT;
@@ -211,6 +215,7 @@ static void ir_handler(struct av7110 *av7110, u32 ircom)
 int __devinit av7110_ir_init(struct av7110 *av7110)
 {
 	static struct proc_dir_entry *e;
+	int err;
 
 	if (av_cnt >= sizeof av_list/sizeof av_list[0])
 		return -ENOSPC;
@@ -231,7 +236,11 @@ int __devinit av7110_ir_init(struct av7110 *av7110)
 		set_bit(EV_KEY, input_dev->evbit);
 		set_bit(EV_REP, input_dev->evbit);
 		input_register_keys();
-		input_register_device(input_dev);
+		err = input_register_device(input_dev);
+		if (err) {
+			input_free_device(input_dev);
+			return err;
+		}
 		input_dev->timer.function = input_repeat_key;
 
 		e = create_proc_entry("av7110_ir", S_IFREG | S_IRUGO | S_IWUSR, NULL);

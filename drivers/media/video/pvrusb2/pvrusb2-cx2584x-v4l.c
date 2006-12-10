@@ -260,6 +260,22 @@ int pvr2_i2c_cx2584x_v4l_setup(struct pvr2_hdw *hdw,
 				  sizeof(decoder_ops[0]))) - 1;
 	hdw->decoder_ctrl = &ctxt->ctrl;
 	cp->handler = &ctxt->handler;
+	{
+		/*
+		  Mike Isely <isely@pobox.com> 19-Nov-2006 - This bit
+		  of nuttiness for cx25840 causes that module to
+		  correctly set up its video scaling.  This is really
+		  a problem in the cx25840 module itself, but we work
+		  around it here.  The problem has not been seen in
+		  ivtv because there VBI is supported and set up.  We
+		  don't do VBI here (at least not yet) and thus we
+		  never attempted to even set it up.
+		 */
+		struct v4l2_format fmt;
+		memset(&fmt,0,sizeof(fmt));
+		fmt.type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
+		pvr2_i2c_client_cmd(ctxt->client,VIDIOC_S_FMT,&fmt);
+	}
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c 0x%x cx2584x V4L2 handler set up",
 		   cp->client->addr);
 	return !0;

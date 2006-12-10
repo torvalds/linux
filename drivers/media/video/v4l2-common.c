@@ -87,6 +87,78 @@ MODULE_LICENSE("GPL");
  */
 
 
+char *v4l2_norm_to_name(v4l2_std_id id)
+{
+	char *name;
+
+	switch (id) {
+	case V4L2_STD_PAL:
+		name="PAL";		break;
+	case V4L2_STD_PAL_BG:
+		name="PAL-BG";		break;
+	case V4L2_STD_PAL_DK:
+		name="PAL-DK";		break;
+	case V4L2_STD_PAL_B:
+		name="PAL-B";		break;
+	case V4L2_STD_PAL_B1:
+		name="PAL-B1";		break;
+	case V4L2_STD_PAL_G:
+		name="PAL-G";		break;
+	case V4L2_STD_PAL_H:
+		name="PAL-H";		break;
+	case V4L2_STD_PAL_I:
+		name="PAL-I";		break;
+	case V4L2_STD_PAL_D:
+		name="PAL-D";		break;
+	case V4L2_STD_PAL_D1:
+		name="PAL-D1";		break;
+	case V4L2_STD_PAL_K:
+		name="PAL-K";		break;
+	case V4L2_STD_PAL_M:
+		name="PAL-M";		break;
+	case V4L2_STD_PAL_N:
+		name="PAL-N";		break;
+	case V4L2_STD_PAL_Nc:
+		name="PAL-Nc";		break;
+	case V4L2_STD_PAL_60:
+		name="PAL-60";		break;
+	case V4L2_STD_NTSC:
+		name="NTSC";		break;
+	case V4L2_STD_NTSC_M:
+		name="NTSC-M";		break;
+	case V4L2_STD_NTSC_M_JP:
+		name="NTSC-M-JP";	break;
+	case V4L2_STD_NTSC_443:
+		name="NTSC-443";	break;
+	case V4L2_STD_NTSC_M_KR:
+		name="NTSC-M-KR";	break;
+	case V4L2_STD_SECAM:
+		name="SECAM";		break;
+	case V4L2_STD_SECAM_DK:
+		name="SECAM-DK";	break;
+	case V4L2_STD_SECAM_B:
+		name="SECAM-B";		break;
+	case V4L2_STD_SECAM_D:
+		name="SECAM-D";		break;
+	case V4L2_STD_SECAM_G:
+		name="SECAM-G";		break;
+	case V4L2_STD_SECAM_H:
+		name="SECAM-H";		break;
+	case V4L2_STD_SECAM_K:
+		name="SECAM-K";		break;
+	case V4L2_STD_SECAM_K1:
+		name="SECAM-K1";	break;
+	case V4L2_STD_SECAM_L:
+		name="SECAM-L";		break;
+	case V4L2_STD_SECAM_LC:
+		name="SECAM-LC";	break;
+	default:
+		name="Unknown";		break;
+	}
+
+	return name;
+}
+
 /* Fill in the fields of a v4l2_standard structure according to the
    'id' and 'transmission' parameters.  Returns negative on error.  */
 int v4l2_video_std_construct(struct v4l2_standard *vs,
@@ -184,11 +256,13 @@ char *v4l2_field_names[] = {
 };
 
 char *v4l2_type_names[] = {
-	[V4L2_BUF_TYPE_VIDEO_CAPTURE] = "video-cap",
-	[V4L2_BUF_TYPE_VIDEO_OVERLAY] = "video-over",
-	[V4L2_BUF_TYPE_VIDEO_OUTPUT]  = "video-out",
-	[V4L2_BUF_TYPE_VBI_CAPTURE]   = "vbi-cap",
-	[V4L2_BUF_TYPE_VBI_OUTPUT]    = "vbi-out",
+	[V4L2_BUF_TYPE_VIDEO_CAPTURE]      = "video-cap",
+	[V4L2_BUF_TYPE_VIDEO_OVERLAY]      = "video-over",
+	[V4L2_BUF_TYPE_VIDEO_OUTPUT]       = "video-out",
+	[V4L2_BUF_TYPE_VBI_CAPTURE]        = "vbi-cap",
+	[V4L2_BUF_TYPE_VBI_OUTPUT]         = "vbi-out",
+	[V4L2_BUF_TYPE_SLICED_VBI_CAPTURE] = "sliced-vbi-cap",
+	[V4L2_BUF_TYPE_SLICED_VBI_OUTPUT]  = "slicec-vbi-out",
 };
 
 static char *v4l2_memory_names[] = {
@@ -1451,6 +1525,7 @@ u32 v4l2_ctrl_next(const u32 * const * ctrl_classes, u32 id)
 
 /* ----------------------------------------------------------------- */
 
+EXPORT_SYMBOL(v4l2_norm_to_name);
 EXPORT_SYMBOL(v4l2_video_std_construct);
 
 EXPORT_SYMBOL(v4l2_prio_init);

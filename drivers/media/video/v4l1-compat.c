@@ -350,6 +350,7 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 		struct video_buffer	*buffer = arg;
 
 		memset(buffer, 0, sizeof(*buffer));
+		memset(&fbuf2, 0, sizeof(fbuf2));
 
 		err = drv(inode, file, VIDIOC_G_FBUF, &fbuf2);
 		if (err < 0) {
@@ -616,6 +617,7 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 	case VIDIOCSPICT: /*  set tone controls & partial capture format  */
 	{
 		struct video_picture	*pict = arg;
+		memset(&fbuf2, 0, sizeof(fbuf2));
 
 		set_v4l_control(inode, file,
 				V4L2_CID_BRIGHTNESS, pict->brightness, drv);
@@ -708,12 +710,22 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 	}
 	case VIDIOCSTUNER: /*  select a tuner input  */
 	{
-		err = 0;
+		struct video_tuner	*tun = arg;
+		struct v4l2_tuner	t;
+		memset(&t,0,sizeof(t));
+
+		t.index=tun->tuner;
+
+		err = drv(inode, file, VIDIOC_S_INPUT, &t);
+		if (err < 0)
+			dprintk("VIDIOCSTUNER / VIDIOC_S_INPUT: %d\n",err);
+
 		break;
 	}
 	case VIDIOCGFREQ: /*  get frequency  */
 	{
 		unsigned long *freq = arg;
+		memset(&freq2,0,sizeof(freq2));
 
 		freq2.tuner = 0;
 		err = drv(inode, file, VIDIOC_G_FREQUENCY, &freq2);
@@ -726,8 +738,8 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 	case VIDIOCSFREQ: /*  set frequency  */
 	{
 		unsigned long *freq = arg;
+		memset(&freq2,0,sizeof(freq2));
 
-		freq2.tuner = 0;
 		drv(inode, file, VIDIOC_G_FREQUENCY, &freq2);
 		freq2.frequency = *freq;
 		err = drv(inode, file, VIDIOC_S_FREQUENCY, &freq2);
@@ -738,6 +750,7 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 	case VIDIOCGAUDIO: /*  get audio properties/controls  */
 	{
 		struct video_audio	*aud = arg;
+		memset(&aud2,0,sizeof(aud2));
 
 		err = drv(inode, file, VIDIOC_G_AUDIO, &aud2);
 		if (err < 0) {
@@ -898,6 +911,7 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 	{
 		int			*i = arg;
 
+		memset(&buf2,0,sizeof(buf2));
 		buf2.index = *i;
 		buf2.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		err = drv(inode, file, VIDIOC_QUERYBUF, &buf2);

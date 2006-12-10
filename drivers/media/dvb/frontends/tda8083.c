@@ -262,8 +262,25 @@ static int tda8083_read_status(struct dvb_frontend* fe, fe_status_t* status)
 	if (sync & 0x10)
 		*status |= FE_HAS_SYNC;
 
+	if (sync & 0x20) /* frontend can not lock */
+		*status |= FE_TIMEDOUT;
+
 	if ((sync & 0x1f) == 0x1f)
 		*status |= FE_HAS_LOCK;
+
+	return 0;
+}
+
+static int tda8083_read_ber(struct dvb_frontend* fe, u32* ber)
+{
+	struct tda8083_state* state = fe->demodulator_priv;
+	int ret;
+	u8 buf[3];
+
+	if ((ret = tda8083_readregs(state, 0x0b, buf, sizeof(buf))))
+		return ret;
+
+	*ber = ((buf[0] & 0x1f) << 16) | (buf[1] << 8) | buf[2];
 
 	return 0;
 }
@@ -284,6 +301,17 @@ static int tda8083_read_snr(struct dvb_frontend* fe, u16* snr)
 
 	u8 _snr = tda8083_readreg (state, 0x08);
 	*snr = (_snr << 8) | _snr;
+
+	return 0;
+}
+
+static int tda8083_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
+{
+	struct tda8083_state* state = fe->demodulator_priv;
+
+	*ucblocks = tda8083_readreg(state, 0x0f);
+	if (*ucblocks == 0xff)
+		*ucblocks = 0xffffffff;
 
 	return 0;
 }
@@ -440,6 +468,8 @@ static struct dvb_frontend_ops tda8083_ops = {
 	.read_status = tda8083_read_status,
 	.read_signal_strength = tda8083_read_signal_strength,
 	.read_snr = tda8083_read_snr,
+	.read_ber = tda8083_read_ber,
+	.read_ucblocks = tda8083_read_ucblocks,
 
 	.diseqc_send_master_cmd = tda8083_send_diseqc_msg,
 	.diseqc_send_burst = tda8083_diseqc_send_burst,

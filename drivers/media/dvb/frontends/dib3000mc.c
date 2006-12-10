@@ -511,16 +511,11 @@ static int dib3000mc_autosearch_start(struct dvb_frontend *demod, struct dibx000
 
 
 	/* a channel for autosearch */
-	reg = 0;
-	if (chan->nfft == -1 && chan->guard == -1) reg = 7;
-	if (chan->nfft == -1 && chan->guard != -1) reg = 2;
-	if (chan->nfft != -1 && chan->guard == -1) reg = 3;
-
 	fchan.nfft = 1; fchan.guard = 0; fchan.nqam = 2;
 	fchan.vit_alpha = 1; fchan.vit_code_rate_hp = 2; fchan.vit_code_rate_lp = 2;
 	fchan.vit_hrch = 0; fchan.vit_select_hp = 1;
 
-	dib3000mc_set_channel_cfg(state, &fchan, reg);
+	dib3000mc_set_channel_cfg(state, &fchan, 7);
 
 	reg = dib3000mc_read_word(state, 0);
 	dib3000mc_write_word(state, 0, reg | (1 << 8));
