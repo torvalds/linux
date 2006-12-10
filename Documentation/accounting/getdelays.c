@@ -7,6 +7,8 @@
  * Copyright (C) Balbir Singh, IBM Corp. 2006
  * Copyright (c) Jay Lan, SGI. 2006
  *
+ * Compile with
+ *	gcc -I/usr/src/linux/include getdelays.c -o getdelays
  */
 
 #include <stdio.h>
@@ -35,13 +37,19 @@
 #define NLA_DATA(na)		((void *)((char*)(na) + NLA_HDRLEN))
 #define NLA_PAYLOAD(len)	(len - NLA_HDRLEN)
 
-#define err(code, fmt, arg...) do { printf(fmt, ##arg); exit(code); } while (0)
-int done = 0;
-int rcvbufsz=0;
+#define err(code, fmt, arg...)			\
+	do {					\
+		fprintf(stderr, fmt, ##arg);	\
+		exit(code);			\
+	} while (0)
 
-    char name[100];
-int dbg=0, print_delays=0;
+int done;
+int rcvbufsz;
+char name[100];
+int dbg;
+int print_delays;
 __u64 stime, utime;
+
 #define PRINTF(fmt, arg...) {			\
 	    if (dbg) {				\
 		printf(fmt, ##arg);		\
@@ -78,8 +86,9 @@ static int create_nl_socket(int protocol)
 	if (rcvbufsz)
 		if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF,
 				&rcvbufsz, sizeof(rcvbufsz)) < 0) {
-			printf("Unable to set socket rcv buf size to %d\n",
-			       rcvbufsz);
+			fprintf(stderr, "Unable to set socket rcv buf size "
+					"to %d\n",
+				rcvbufsz);
 			return -1;
 		}
 
@@ -277,7 +286,7 @@ int main(int argc, char *argv[])
 	mypid = getpid();
 	id = get_family_id(nl_sd);
 	if (!id) {
-		printf("Error getting family id, errno %d", errno);
+		fprintf(stderr, "Error getting family id, errno %d\n", errno);
 		goto err;
 	}
 	PRINTF("family id %d\n", id);
@@ -288,7 +297,7 @@ int main(int argc, char *argv[])
 			      &cpumask, strlen(cpumask) + 1);
 		PRINTF("Sent register cpumask, retval %d\n", rc);
 		if (rc < 0) {
-			printf("error sending register cpumask\n");
+			fprintf(stderr, "error sending register cpumask\n");
 			goto err;
 		}
 	}
@@ -298,7 +307,7 @@ int main(int argc, char *argv[])
 			      cmd_type, &tid, sizeof(__u32));
 		PRINTF("Sent pid/tgid, retval %d\n", rc);
 		if (rc < 0) {
-			printf("error sending tid/tgid cmd\n");
+			fprintf(stderr, "error sending tid/tgid cmd\n");
 			goto done;
 		}
 	}
@@ -310,13 +319,15 @@ int main(int argc, char *argv[])
 		PRINTF("received %d bytes\n", rep_len);
 
 		if (rep_len < 0) {
-			printf("nonfatal reply error: errno %d\n", errno);
+			fprintf(stderr, "nonfatal reply error: errno %d\n",
+				errno);
 			continue;
 		}
 		if (msg.n.nlmsg_type == NLMSG_ERROR ||
 		    !NLMSG_OK((&msg.n), rep_len)) {
 			struct nlmsgerr *err = NLMSG_DATA(&msg);
-			printf("fatal reply error,  errno %d\n", err->error);
+			fprintf(stderr, "fatal reply error,  errno %d\n",
+				err->error);
 			goto done;
 		}
 
@@ -365,7 +376,9 @@ int main(int argc, char *argv[])
 							goto done;
 						break;
 					default:
-						printf("Unknown nested nla_type %d\n", na->nla_type);
+						fprintf(stderr, "Unknown nested"
+							" nla_type %d\n",
+							na->nla_type);
 						break;
 					}
 					len2 += NLA_ALIGN(na->nla_len);
@@ -374,7 +387,8 @@ int main(int argc, char *argv[])
 				break;
 
 			default:
-				printf("Unknown nla_type %d\n", na->nla_type);
+				fprintf(stderr, "Unknown nla_type %d\n",
+					na->nla_type);
 				break;
 			}
 			na = (struct nlattr *) (GENLMSG_DATA(&msg) + len);
