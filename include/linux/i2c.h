@@ -216,6 +216,7 @@ struct i2c_adapter {
 	int (*client_unregister)(struct i2c_client *);
 
 	/* data fields that are valid for all devices	*/
+	u8 level; 			/* nesting level for lockdep */
 	struct mutex bus_lock;
 	struct mutex clist_lock;
 

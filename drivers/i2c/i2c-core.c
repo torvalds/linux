@@ -603,7 +603,7 @@ int i2c_transfer(struct i2c_adapter * adap, struct i2c_msg *msgs, int num)
 		}
 #endif
 
-		mutex_lock(&adap->bus_lock);
+		mutex_lock_nested(&adap->bus_lock, adap->level);
 		ret = adap->algo->master_xfer(adap,msgs,num);
 		mutex_unlock(&adap->bus_lock);
 
