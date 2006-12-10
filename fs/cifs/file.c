@@ -29,6 +29,7 @@
 #include <linux/pagevec.h>
 #include <linux/smp_lock.h>
 #include <linux/writeback.h>
+#include <linux/task_io_accounting_ops.h>
 #include <linux/delay.h>
 #include <asm/div64.h>
 #include "cifsfs.h"
@@ -1812,6 +1813,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 			cFYI(1, ("Read error in readpages: %d", rc));
 			break;
 		} else if (bytes_read > 0) {
+			task_io_account_read(bytes_read);
 			pSMBr = (struct smb_com_read_rsp *)smb_read_data;
 			cifs_copy_cache_pages(mapping, page_list, bytes_read,
 				smb_read_data + 4 /* RFC1001 hdr */ +
