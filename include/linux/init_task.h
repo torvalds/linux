@@ -16,7 +16,6 @@
 	.close_on_exec	= (fd_set *)&init_files.close_on_exec_init, \
 	.open_fds	= (fd_set *)&init_files.open_fds_init, 	\
 	.rcu		= RCU_HEAD_INIT, 		\
-	.free_files	= NULL,		 		\
 	.next		= NULL,		 		\
 }
 

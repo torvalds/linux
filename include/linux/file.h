@@ -32,7 +32,6 @@ struct fdtable {
 	fd_set *close_on_exec;
 	fd_set *open_fds;
 	struct rcu_head rcu;
-	struct files_struct *free_files;
 	struct fdtable *next;
 };
 
@@ -84,7 +83,7 @@ extern fd_set *alloc_fdset(int);
 extern void free_fdset(fd_set *, int);
 
 extern int expand_files(struct files_struct *, int nr);
-extern void free_fdtable(struct fdtable *fdt);
+extern void free_fdtable_rcu(struct rcu_head *rcu);
 extern void __init files_defer_init(void);
 
 static inline struct file * fcheck_files(struct files_struct *files, unsigned int fd)

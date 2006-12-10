@@ -466,11 +466,9 @@ void fastcall put_files_struct(struct files_struct *files)
 		 * you can free files immediately.
 		 */
 		fdt = files_fdtable(files);
-		if (fdt == &files->fdtab)
-			fdt->free_files = files;
-		else
+		if (fdt != &files->fdtab)
 			kmem_cache_free(files_cachep, files);
-		free_fdtable(fdt);
+		call_rcu(&fdt->rcu, free_fdtable_rcu);
 	}
 }
 

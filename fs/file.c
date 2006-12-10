@@ -91,7 +91,7 @@ static void free_fdtable_work(struct work_struct *work)
 	}
 }
 
-static void free_fdtable_rcu(struct rcu_head *rcu)
+void free_fdtable_rcu(struct rcu_head *rcu)
 {
 	struct fdtable *fdt = container_of(rcu, struct fdtable, rcu);
 	int fdset_size, fdarray_size;
@@ -101,20 +101,15 @@ static void free_fdtable_rcu(struct rcu_head *rcu)
 	fdset_size = fdt->max_fds / 8;
 	fdarray_size = fdt->max_fds * sizeof(struct file *);
 
-	if (fdt->free_files) {
+	if (fdt->max_fds <= NR_OPEN_DEFAULT) {
 		/*
-		 * The this fdtable was embedded in the files structure
-		 * and the files structure itself was getting destroyed.
-		 * It is now safe to free the files structure.
+		 * This fdtable is embedded in the files structure and that
+		 * structure itself is getting destroyed.
 		 */
-		kmem_cache_free(files_cachep, fdt->free_files);
+		kmem_cache_free(files_cachep,
+				container_of(fdt, struct files_struct, fdtab));
 		return;
 	}
-	if (fdt->max_fds <= NR_OPEN_DEFAULT)
-		/*
-		 * The fdtable was embedded
-		 */
-		return;
 	if (fdset_size <= PAGE_SIZE && fdarray_size <= PAGE_SIZE) {
 		kfree(fdt->open_fds);
 		kfree(fdt->close_on_exec);
@@ -130,12 +125,6 @@ static void free_fdtable_rcu(struct rcu_head *rcu)
 		spin_unlock(&fddef->lock);
 		put_cpu_var(fdtable_defer_list);
 	}
-}
-
-void free_fdtable(struct fdtable *fdt)
-{
-	if (fdt->free_files || fdt->max_fds > NR_OPEN_DEFAULT)
-		call_rcu(&fdt->rcu, free_fdtable_rcu);
 }
 
 /*
@@ -247,7 +236,6 @@ static struct fdtable *alloc_fdtable(int nr)
 		goto out;
 	fdt->fd = new_fds;
 	fdt->max_fds = nfds;
-	fdt->free_files = NULL;
 	return fdt;
 out:
 	free_fdset(new_openset, nfds);
@@ -283,7 +271,8 @@ static int expand_fdtable(struct files_struct *files, int nr)
 		/* Continue as planned */
 		copy_fdtable(new_fdt, cur_fdt);
 		rcu_assign_pointer(files->fdt, new_fdt);
-		free_fdtable(cur_fdt);
+		if (cur_fdt->max_fds > NR_OPEN_DEFAULT)
+			call_rcu(&cur_fdt->rcu, free_fdtable_rcu);
 	} else {
 		/* Somebody else expanded, so undo our attempt */
 		__free_fdtable(new_fdt);
