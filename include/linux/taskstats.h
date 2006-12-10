@@ -31,7 +31,7 @@
  */
 
 
-#define TASKSTATS_VERSION	2
+#define TASKSTATS_VERSION	3
 #define TS_COMM_LEN		32	/* should be >= TASK_COMM_LEN
 					 * in linux/sched.h */
 
@@ -140,6 +140,12 @@ struct taskstats {
 	__u64	read_syscalls;		/* read syscalls */
 	__u64	write_syscalls;		/* write syscalls */
 	/* Extended accounting fields end */
+
+#define TASKSTATS_HAS_IO_ACCOUNTING
+	/* Per-task storage I/O accounting starts */
+	__u64	read_bytes;		/* bytes of read I/O */
+	__u64	write_bytes;		/* bytes of write I/O */
+	__u64	cancelled_write_bytes;	/* bytes of cancelled write I/O */
 };
 
 
