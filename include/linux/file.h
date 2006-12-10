@@ -76,12 +76,6 @@ extern int get_unused_fd(void);
 extern void FASTCALL(put_unused_fd(unsigned int fd));
 struct kmem_cache;
 
-extern struct file ** alloc_fd_array(int);
-extern void free_fd_array(struct file **, int);
-
-extern fd_set *alloc_fdset(int);
-extern void free_fdset(fd_set *, int);
-
 extern int expand_files(struct files_struct *, int nr);
 extern void free_fdtable_rcu(struct rcu_head *rcu);
 extern void __init files_defer_init(void);
