@@ -14,7 +14,7 @@
 #include <linux/idr.h>
 
 #define DRIVER_NAME "tifm_core"
-#define DRIVER_VERSION "0.6"
+#define DRIVER_VERSION "0.7"
 
 static DEFINE_IDR(tifm_adapter_idr);
 static DEFINE_SPINLOCK(tifm_adapter_lock);
@@ -60,10 +60,41 @@ static int tifm_uevent(struct device *dev, char **envp, int num_envp,
 	return 0;
 }
 
+#ifdef CONFIG_PM
+
+static int tifm_device_suspend(struct device *dev, pm_message_t state)
+{
+	struct tifm_dev *fm_dev = container_of(dev, struct tifm_dev, dev);
+	struct tifm_driver *drv = fm_dev->drv;
+
+	if (drv && drv->suspend)
+		return drv->suspend(fm_dev, state);
+	return 0;
+}
+
+static int tifm_device_resume(struct device *dev)
+{
+	struct tifm_dev *fm_dev = container_of(dev, struct tifm_dev, dev);
+	struct tifm_driver *drv = fm_dev->drv;
+
+	if (drv && drv->resume)
+		return drv->resume(fm_dev);
+	return 0;
+}
+
+#else
+
+#define tifm_device_suspend NULL
+#define tifm_device_resume NULL
+
+#endif /* CONFIG_PM */
+
 static struct bus_type tifm_bus_type = {
 	.name    = "tifm",
 	.match   = tifm_match,
 	.uevent  = tifm_uevent,
+	.suspend = tifm_device_suspend,
+	.resume  = tifm_device_resume
 };
 
 static void tifm_free(struct class_device *cdev)
@@ -233,6 +264,8 @@ int tifm_register_driver(struct tifm_driver *drv)
 	drv->driver.bus = &tifm_bus_type;
 	drv->driver.probe = tifm_device_probe;
 	drv->driver.remove = tifm_device_remove;
+	drv->driver.suspend = tifm_device_suspend;
+	drv->driver.resume = tifm_device_resume;
 
 	return driver_register(&drv->driver);
 }

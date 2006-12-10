@@ -101,6 +101,9 @@ struct tifm_driver {
 	tifm_media_id        *id_table;
 	int                  (*probe)(struct tifm_dev *dev);
 	void                 (*remove)(struct tifm_dev *dev);
+	int                  (*suspend)(struct tifm_dev *dev,
+                                        pm_message_t state);
+	int                  (*resume)(struct tifm_dev *dev);
 
 	struct device_driver driver;
 };
