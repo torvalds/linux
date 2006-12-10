@@ -536,4 +536,23 @@ config I2C_MV64XXX
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-mv64xxx.
 
+config I2C_PNX
+	tristate "I2C bus support for Philips PNX targets"
+	depends on ARCH_PNX4008 && I2C
+	help
+	  This driver supports the Philips IP3204 I2C IP block master and/or
+	  slave controller
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-pnx.
+
+config I2C_PNX_EARLY
+	bool "Early initialization for I2C on PNXxxxx"
+	depends on I2C_PNX=y
+	help
+	  Under certain circumstances one may need to make sure I2C on PNXxxxx
+	  is initialized earlier than some other driver that depends on it
+	  (for instance, that might be USB in case of PNX4008). With this
+	  option turned on you can guarantee that.
+
 endmenu
