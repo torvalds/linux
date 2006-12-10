@@ -52,7 +52,6 @@
 struct dccp_tx_hist_entry {
 	struct list_head dccphtx_node;
 	u64		 dccphtx_seqno:48,
-			 dccphtx_ccval:4,
 			 dccphtx_sent:1;
 	u32		 dccphtx_rtt;
 	struct timeval	 dccphtx_tstamp;
