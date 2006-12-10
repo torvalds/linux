@@ -2142,8 +2142,7 @@ cleanup_bmc_device(struct kref *ref)
 	bmc = container_of(ref, struct bmc_device, refcount);
 
 	remove_files(bmc);
-	if (bmc->dev)
-		platform_device_unregister(bmc->dev);
+	platform_device_unregister(bmc->dev);
 	kfree(bmc);
 }
 
@@ -2341,8 +2340,7 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum,
 
 		while (ipmi_find_bmc_prod_dev_id(&ipmidriver,
 						 bmc->id.product_id,
-						 bmc->id.device_id))
-		{
+						 bmc->id.device_id)) {
 			if (!warn_printed) {
 				printk(KERN_WARNING PFX
 				       "This machine has two different BMCs"
