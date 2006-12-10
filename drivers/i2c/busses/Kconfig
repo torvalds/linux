@@ -209,18 +209,6 @@ config I2C_ISA
 	tristate
 	depends on I2C
 
-config I2C_ITE
-	tristate "ITE I2C Adapter"
-	depends on I2C && MIPS_ITE8172
-	select I2C_ALGOITE
-	help
-	  This supports the ITE8172 I2C peripheral found on some MIPS
-	  systems. Say Y if you have one of these. You should also say Y for
-	  the ITE I2C driver algorithm support above.
-
-	  This support is also available as a module.  If so, the module 
-	  will be called i2c-ite.
-
 config I2C_IXP4XX
 	tristate "IXP4xx GPIO-Based I2C Interface"
 	depends on I2C && ARCH_IXP4XX

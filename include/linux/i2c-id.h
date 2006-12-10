@@ -210,9 +210,6 @@
 /* --- MPC8xx PowerPC adapters						*/
 #define I2C_HW_MPC8XX_EPON	0x110000 /* Eponymous MPC8xx I2C adapter */
 
-/* --- ITE based algorithms						*/
-#define I2C_HW_I_IIC		0x080000 /* controller on the ITE */
-
 /* --- PowerPC on-chip adapters						*/
 #define I2C_HW_OCP		0x120000 /* IBM on-chip I2C adapter */
 
