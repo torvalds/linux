@@ -10,6 +10,5 @@ struct i2c_algo_pca_data {
 };
 
 int i2c_pca_add_bus(struct i2c_adapter *);
-int i2c_pca_del_bus(struct i2c_adapter *);
 
 #endif /* _LINUX_I2C_ALGO_PCA_H */

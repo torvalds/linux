@@ -1153,7 +1153,7 @@ void cx88_core_put(struct cx88_core *core, struct pci_dev *pci)
 	mutex_lock(&devlist);
 	cx88_ir_fini(core);
 	if (0 == core->i2c_rc)
-		i2c_bit_del_bus(&core->i2c_adap);
+		i2c_del_adapter(&core->i2c_adap);
 	list_del(&core->devlist);
 	iounmap(core->lmmio);
 	cx88_devcount--;

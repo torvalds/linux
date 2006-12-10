@@ -137,15 +137,15 @@ void i810_create_i2c_busses(struct i810fb_par *par)
 void i810_delete_i2c_busses(struct i810fb_par *par)
 {
         if (par->chan[0].par)
-                i2c_bit_del_bus(&par->chan[0].adapter);
+		i2c_del_adapter(&par->chan[0].adapter);
         par->chan[0].par = NULL;
 
 	if (par->chan[1].par)
-		i2c_bit_del_bus(&par->chan[1].adapter);
+		i2c_del_adapter(&par->chan[1].adapter);
 	par->chan[1].par = NULL;
 
 	if (par->chan[2].par)
-		i2c_bit_del_bus(&par->chan[2].adapter);
+		i2c_del_adapter(&par->chan[2].adapter);
 	par->chan[2].par = NULL;
 }
 

@@ -208,7 +208,7 @@ void savagefb_delete_i2c_busses(struct fb_info *info)
 	struct savagefb_par *par = info->par;
 
 	if (par->chan.par)
-		i2c_bit_del_bus(&par->chan.adapter);
+		i2c_del_adapter(&par->chan.adapter);
 
 	par->chan.par = NULL;
 }
