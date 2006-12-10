@@ -2853,8 +2853,13 @@ int try_to_free_buffers(struct page *page)
 		 * could encounter a non-uptodate page, which is unresolvable.
 		 * This only applies in the rare case where try_to_free_buffers
 		 * succeeds but the page is not freed.
+		 *
+		 * Also, during truncate, discard_buffer will have marked all
+		 * the page's buffers clean.  We discover that here and clean
+		 * the page also.
 		 */
-		clear_page_dirty(page);
+		if (test_clear_page_dirty(page))
+			task_io_account_cancelled_write(PAGE_CACHE_SIZE);
 	}
 out:
 	if (buffers_to_free) {
