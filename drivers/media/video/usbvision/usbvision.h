@@ -381,8 +381,6 @@ struct usb_usbvision {
 	struct video_device *rdev;               			/* Radio Device */
 	struct video_device *vbi; 					/* VBI Device   */
 
-	struct work_struct work;
-
 	/* i2c Declaration Section*/
 	struct i2c_adapter i2c_adap;
 	struct i2c_algo_usb_data i2c_algo;

@@ -2218,7 +2218,7 @@ int usbvision_power_on(struct usb_usbvision *usbvision)
 // to call usbvision_power_off from task queue
 static void call_usbvision_power_off(struct work_struct *work)
 {
-	struct usb_usbvision *usbvision = container_of(work, struct usb_usbvision, work);
+	struct usb_usbvision *usbvision = container_of(work, struct usb_usbvision, powerOffWork);
 
 	PDEBUG(DBG_FUNC, "");
 	down_interruptible(&usbvision->lock);
