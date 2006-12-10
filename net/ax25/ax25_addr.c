@@ -83,7 +83,7 @@ EXPORT_SYMBOL(ax2asc);
  */
 void asc2ax(ax25_address *addr, const char *callsign)
 {
-	char *s;
+	const char *s;
 	int n;
 
 	for (s = callsign, n = 0; n < 6; n++) {
