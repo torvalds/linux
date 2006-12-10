@@ -1931,9 +1931,6 @@ int proc_dointvec(ctl_table *table, int write, struct file *filp,
 
 #define OP_SET	0
 #define OP_AND	1
-#define OP_OR	2
-#define OP_MAX	3
-#define OP_MIN	4
 
 static int do_proc_dointvec_bset_conv(int *negp, unsigned long *lvalp,
 				      int *valp,
@@ -1945,13 +1942,6 @@ static int do_proc_dointvec_bset_conv(int *negp, unsigned long *lvalp,
 		switch(op) {
 		case OP_SET:	*valp = val; break;
 		case OP_AND:	*valp &= val; break;
-		case OP_OR:	*valp |= val; break;
-		case OP_MAX:	if(*valp < val)
-					*valp = val;
-				break;
-		case OP_MIN:	if(*valp > val)
-				*valp = val;
-				break;
 		}
 	} else {
 		int val = *valp;
