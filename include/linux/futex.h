@@ -93,6 +93,7 @@ struct robust_list_head {
  */
 #define ROBUST_LIST_LIMIT	2048
 
+#ifdef __KERNEL__
 long do_futex(u32 __user *uaddr, int op, u32 val, unsigned long timeout,
 	      u32 __user *uaddr2, u32 val2, u32 val3);
 
@@ -110,6 +111,7 @@ static inline void exit_pi_state_list(struct task_struct *curr)
 {
 }
 #endif
+#endif /* __KERNEL__ */
 
 #define FUTEX_OP_SET		0	/* *(int *)UADDR2 = OPARG; */
 #define FUTEX_OP_ADD		1	/* *(int *)UADDR2 += OPARG; */
