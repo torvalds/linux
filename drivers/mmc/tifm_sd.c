@@ -323,8 +323,8 @@ change_state:
 }
 
 /* Called from interrupt handler */
-static unsigned int tifm_sd_signal_irq(struct tifm_dev *sock,
-				       unsigned int sock_irq_status)
+static void tifm_sd_signal_irq(struct tifm_dev *sock,
+			       unsigned int sock_irq_status)
 {
 	struct tifm_sd *host;
 	unsigned int host_status = 0, fifo_status = 0;
@@ -395,7 +395,6 @@ done:
 	dev_dbg(&sock->dev, "host_status %x, fifo_status %x\n",
 		host_status, fifo_status);
 	spin_unlock(&sock->lock);
-	return sock_irq_status;
 }
 
 static void tifm_sd_prepare_data(struct tifm_sd *host, struct mmc_command *cmd)

@@ -91,7 +91,7 @@ struct tifm_dev {
 	tifm_media_id           media_id;
 	unsigned int            socket_id;
 
-	unsigned int            (*signal_irq)(struct tifm_dev *sock,
+	void                    (*signal_irq)(struct tifm_dev *sock,
 					      unsigned int sock_irq_status);
 
 	struct tifm_driver      *drv;

@@ -13,7 +13,7 @@
 #include <linux/dma-mapping.h>
 
 #define DRIVER_NAME "tifm_7xx1"
-#define DRIVER_VERSION "0.6"
+#define DRIVER_VERSION "0.7"
 
 static void tifm_7xx1_eject(struct tifm_adapter *fm, struct tifm_dev *sock)
 {
@@ -91,7 +91,7 @@ static irqreturn_t tifm_7xx1_isr(int irq, void *dev_id)
 			if (fm->sockets[cnt]) {
 				if (sock_irq_status &&
 						fm->sockets[cnt]->signal_irq)
-					sock_irq_status = fm->sockets[cnt]->
+					fm->sockets[cnt]->
 						signal_irq(fm->sockets[cnt],
 							sock_irq_status);
 
