@@ -940,6 +940,9 @@ static void activate_task(struct task_struct *p, struct rq *rq, int local)
 {
 	unsigned long long now;
 
+	if (rt_task(p))
+		goto out;
+
 	now = sched_clock();
 #ifdef CONFIG_SMP
 	if (!local) {
@@ -961,8 +964,7 @@ static void activate_task(struct task_struct *p, struct rq *rq, int local)
 				     (now - p->timestamp) >> 20);
 	}
 
-	if (!rt_task(p))
-		p->prio = recalc_task_prio(p, now);
+	p->prio = recalc_task_prio(p, now);
 
 	/*
 	 * This checks to make sure it's not an uninterruptible task
@@ -987,7 +989,7 @@ static void activate_task(struct task_struct *p, struct rq *rq, int local)
 		}
 	}
 	p->timestamp = now;
-
+out:
 	__activate_task(p, rq);
 }
 
