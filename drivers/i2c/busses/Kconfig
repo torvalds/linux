@@ -74,6 +74,13 @@ config I2C_AMD8111
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-amd8111.
 
+config I2C_AT91
+	tristate "Atmel AT91 I2C Two-Wire interface (TWI)"
+	depends on I2C && ARCH_AT91 && EXPERIMENTAL
+	help
+	  This supports the use of the I2C interface on Atmel AT91
+	  processors.
+
 config I2C_AU1550
 	tristate "Au1550/Au1200 SMBus interface"
 	depends on I2C && (SOC_AU1550 || SOC_AU1200)
