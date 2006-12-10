@@ -200,7 +200,7 @@ static int rs5c372_probe(struct i2c_adapter *adapter, int address, int kind)
 	struct i2c_client *client;
 	struct rs5c372 *rs5c372;
 
-	dev_dbg(&adapter->dev, "%s\n", __FUNCTION__);
+	dev_dbg(adapter->class_dev.dev, "%s\n", __FUNCTION__);
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C)) {
 		err = -ENODEV;

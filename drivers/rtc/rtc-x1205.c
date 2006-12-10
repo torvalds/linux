@@ -372,7 +372,7 @@ static int x1205_validate_client(struct i2c_client *client)
 		};
 
 		if ((xfer = i2c_transfer(client->adapter, msgs, 2)) != 2) {
-			dev_err(&client->adapter->dev,
+			dev_err(&client->dev,
 				"%s: could not read register %x\n",
 				__FUNCTION__, probe_zero_pattern[i]);
 
@@ -380,7 +380,7 @@ static int x1205_validate_client(struct i2c_client *client)
 		}
 
 		if ((buf & probe_zero_pattern[i+1]) != 0) {
-			dev_err(&client->adapter->dev,
+			dev_err(&client->dev,
 				"%s: register=%02x, zero pattern=%d, value=%x\n",
 				__FUNCTION__, probe_zero_pattern[i], i, buf);
 
@@ -400,7 +400,7 @@ static int x1205_validate_client(struct i2c_client *client)
 		};
 
 		if ((xfer = i2c_transfer(client->adapter, msgs, 2)) != 2) {
-			dev_err(&client->adapter->dev,
+			dev_err(&client->dev,
 				"%s: could not read register %x\n",
 				__FUNCTION__, probe_limits_pattern[i].reg);
 
@@ -411,7 +411,7 @@ static int x1205_validate_client(struct i2c_client *client)
 
 		if (value > probe_limits_pattern[i].max ||
 			value < probe_limits_pattern[i].min) {
-			dev_dbg(&client->adapter->dev,
+			dev_dbg(&client->dev,
 				"%s: register=%x, lim pattern=%d, value=%d\n",
 				__FUNCTION__, probe_limits_pattern[i].reg,
 				i, value);
@@ -506,7 +506,7 @@ static int x1205_probe(struct i2c_adapter *adapter, int address, int kind)
 	struct i2c_client *client;
 	struct rtc_device *rtc;
 
-	dev_dbg(&adapter->dev, "%s\n", __FUNCTION__);
+	dev_dbg(adapter->class_dev.dev, "%s\n", __FUNCTION__);
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C)) {
 		err = -ENODEV;
