@@ -646,7 +646,8 @@ static inline size_t read_zero_pagealigned(char __user * buf, size_t size)
 			count = size;
 
 		zap_page_range(vma, addr, count, NULL);
-        	zeromap_page_range(vma, addr, count, PAGE_COPY);
+        	if (zeromap_page_range(vma, addr, count, PAGE_COPY))
+			break;
 
 		size -= count;
 		buf += count;
@@ -713,11 +714,14 @@ out:
 
 static int mmap_zero(struct file * file, struct vm_area_struct * vma)
 {
+	int err;
+
 	if (vma->vm_flags & VM_SHARED)
 		return shmem_zero_setup(vma);
-	if (zeromap_page_range(vma, vma->vm_start, vma->vm_end - vma->vm_start, vma->vm_page_prot))
-		return -EAGAIN;
-	return 0;
+	err = zeromap_page_range(vma, vma->vm_start,
+			vma->vm_end - vma->vm_start, vma->vm_page_prot);
+	BUG_ON(err == -EEXIST);
+	return err;
 }
 #else /* CONFIG_MMU */
 static ssize_t read_zero(struct file * file, char * buf, 
