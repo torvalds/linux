@@ -93,7 +93,7 @@
 	.groups			= NULL,			\
 	.min_interval		= 1,			\
 	.max_interval		= 2,			\
-	.busy_factor		= 8,			\
+	.busy_factor		= 64,			\
 	.imbalance_pct		= 110,			\
 	.cache_nice_tries	= 0,			\
 	.per_cpu_gain		= 25,			\
