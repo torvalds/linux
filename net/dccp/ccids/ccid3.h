@@ -171,23 +171,4 @@ static inline struct ccid3_hc_rx_sock *ccid3_hc_rx_sk(const struct sock *sk)
     return ccid_priv(dccp_sk(sk)->dccps_hc_rx_ccid);
 }
 
-static inline u64 scaled_div(u64 a, u32 b)
-{
-	BUG_ON(b==0);
-	a *= 1000000;
-	do_div(a, b);
-	return a;
-}
-
-static inline u32 scaled_div32(u64 a, u32 b)
-{
-	u64 result = scaled_div(a, b);
-
-	if (result > UINT_MAX) {
-		DCCP_CRIT("Overflow: a(%llu)/b(%u) > ~0U",
-			  (unsigned long long)a, b);
-		return UINT_MAX;
-	}
-	return result;
-}
 #endif /* _DCCP_CCID3_H_ */
