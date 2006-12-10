@@ -2841,16 +2841,10 @@ static void active_load_balance(struct rq *busiest_rq, int busiest_cpu)
  * Balancing parameters are set up in arch_init_sched_domains.
  */
 
-/* Don't have all balancing operations going off at once: */
-static inline unsigned long cpu_offset(int cpu)
-{
-	return jiffies + cpu * HZ / NR_CPUS;
-}
-
 static void
 rebalance_tick(int this_cpu, struct rq *this_rq, enum idle_type idle)
 {
-	unsigned long this_load, interval, j = cpu_offset(this_cpu);
+	unsigned long this_load, interval;
 	struct sched_domain *sd;
 	int i, scale;
 
@@ -2885,7 +2879,7 @@ rebalance_tick(int this_cpu, struct rq *this_rq, enum idle_type idle)
 		if (unlikely(!interval))
 			interval = 1;
 
-		if (j - sd->last_balance >= interval) {
+		if (jiffies - sd->last_balance >= interval) {
 			if (load_balance(this_cpu, this_rq, sd, idle)) {
 				/*
 				 * We've pulled tasks over so either we're no
