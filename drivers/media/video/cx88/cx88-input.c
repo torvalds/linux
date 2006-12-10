@@ -158,7 +158,7 @@ static void cx88_ir_work(struct work_struct *work)
 static void cx88_ir_start(struct cx88_core *core, struct cx88_IR *ir)
 {
 	if (ir->polling) {
-		INIT_WORK(&ir->work, cx88_ir_work, ir);
+		INIT_WORK(&ir->work, cx88_ir_work);
 		init_timer(&ir->timer);
 		ir->timer.function = ir_timer;
 		ir->timer.data = (unsigned long)ir;

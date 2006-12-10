@@ -1708,7 +1708,6 @@ int usbvision_power_off(struct usb_usbvision *usbvision)
 	return errCode;
 }
 
-
 /*
  * usbvision_set_video_format()
  *
@@ -2217,14 +2216,15 @@ int usbvision_power_on(struct usb_usbvision *usbvision)
  */
 
 // to call usbvision_power_off from task queue
-static void call_usbvision_power_off(void *_usbvision)
+static void call_usbvision_power_off(struct work_struct *work)
 {
-	struct usb_usbvision *usbvision = _usbvision;
+	struct usb_usbvision *usbvision = container_of(work, struct usb_usbvision, work);
 
 	PDEBUG(DBG_FUNC, "");
 	down_interruptible(&usbvision->lock);
 	if(usbvision->user == 0) {
 		usbvision_i2c_usb_del_bus(&usbvision->i2c_adap);
+
 		usbvision_power_off(usbvision);
 		usbvision->initialized = 0;
 	}
@@ -2237,7 +2237,7 @@ static void usbvision_powerOffTimer(unsigned long data)
 
 	PDEBUG(DBG_FUNC, "");
 	del_timer(&usbvision->powerOffTimer);
-	INIT_WORK(&usbvision->powerOffWork, call_usbvision_power_off, usbvision);
+	INIT_WORK(&usbvision->powerOffWork, call_usbvision_power_off);
 	(void) schedule_work(&usbvision->powerOffWork);
 
 }
