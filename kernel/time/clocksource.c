@@ -186,6 +186,7 @@ void clocksource_reselect(void)
 }
 EXPORT_SYMBOL(clocksource_reselect);
 
+#ifdef CONFIG_SYSFS
 /**
  * sysfs_show_current_clocksources - sysfs interface for current clocksource
  * @dev:	unused
@@ -307,6 +308,7 @@ static int __init init_clocksource_sysfs(void)
 }
 
 device_initcall(init_clocksource_sysfs);
+#endif /* CONFIG_SYSFS */
 
 /**
  * boot_override_clocksource - boot clock override
