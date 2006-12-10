@@ -921,6 +921,41 @@ static void tifm_sd_remove(struct tifm_dev *sock)
 	mmc_free_host(mmc);
 }
 
+#ifdef CONFIG_PM
+
+static int tifm_sd_suspend(struct tifm_dev *sock, pm_message_t state)
+{
+	struct mmc_host *mmc = tifm_get_drvdata(sock);
+	int rc;
+
+	rc = mmc_suspend_host(mmc, state);
+	/* The meaning of the bit majority in this constant is unknown. */
+	writel(0xfff8 & readl(sock->addr + SOCK_CONTROL),
+	       sock->addr + SOCK_CONTROL);
+	return rc;
+}
+
+static int tifm_sd_resume(struct tifm_dev *sock)
+{
+	struct mmc_host *mmc = tifm_get_drvdata(sock);
+	struct tifm_sd *host = mmc_priv(mmc);
+
+	if (sock->media_id != FM_SD
+	    || tifm_sd_initialize_host(host)) {
+		tifm_eject(sock);
+		return 0;
+	} else {
+		return mmc_resume_host(mmc);
+	}
+}
+
+#else
+
+#define tifm_sd_suspend NULL
+#define tifm_sd_resume NULL
+
+#endif /* CONFIG_PM */
+
 static tifm_media_id tifm_sd_id_tbl[] = {
 	FM_SD, 0
 };
@@ -932,7 +967,9 @@ static struct tifm_driver tifm_sd_driver = {
 	},
 	.id_table = tifm_sd_id_tbl,
 	.probe    = tifm_sd_probe,
-	.remove   = tifm_sd_remove
+	.remove   = tifm_sd_remove,
+	.suspend  = tifm_sd_suspend,
+	.resume   = tifm_sd_resume
 };
 
 static int __init tifm_sd_init(void)
