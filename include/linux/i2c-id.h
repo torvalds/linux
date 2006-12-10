@@ -82,9 +82,8 @@
 #define I2C_DRIVERID_STM41T00	52	/* real time clock		*/
 #define I2C_DRIVERID_UDA1342	53	/* UDA1342 audio codec		*/
 #define I2C_DRIVERID_ADV7170	54	/* video encoder		*/
-#define I2C_DRIVERID_RADEON	55	/* I2C bus on Radeon boards	*/
 #define I2C_DRIVERID_MAX1617	56	/* temp sensor			*/
-#define I2C_DRIVERID_SAA7191	57	/* video encoder		*/
+#define I2C_DRIVERID_SAA7191	57	/* video decoder		*/
 #define I2C_DRIVERID_INDYCAM	58	/* SGI IndyCam			*/
 #define I2C_DRIVERID_BT832	59	/* CMOS camera video processor	*/
 #define I2C_DRIVERID_TDA9887	60	/* TDA988x IF-PLL demodulator	*/
@@ -132,7 +131,6 @@
 #define I2C_DRIVERID_ADM1021 1008
 #define I2C_DRIVERID_ADM9240 1009
 #define I2C_DRIVERID_LTC1710 1010
-#define I2C_DRIVERID_ICSPLL 1012
 #define I2C_DRIVERID_BT869 1013
 #define I2C_DRIVERID_MAXILIFE 1014
 #define I2C_DRIVERID_MATORB 1015
