@@ -5,6 +5,7 @@
  */
 #include <linux/types.h>
 #include <asm/page.h>
+#include <asm/ptrace.h>
 
 #define COMPAT_USER_HZ	100
 
