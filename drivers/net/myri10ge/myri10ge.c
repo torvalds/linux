@@ -273,9 +273,9 @@ MODULE_PARM_DESC(myri10ge_debug, "Debug level (0=none,...,16=all)");
 
 #define myri10ge_pio_copy(to,from,size) __iowrite64_copy(to,from,size/8)
 
-static inline void put_be32(__be32 val, __be32 __iomem *p)
+static inline void put_be32(__be32 val, __be32 __iomem * p)
 {
-	__raw_writel((__force __u32)val, (__force void __iomem *)p);
+	__raw_writel((__force __u32) val, (__force void __iomem *)p);
 }
 
 static int
@@ -2206,7 +2206,7 @@ static void myri10ge_set_multicast_list(struct net_device *dev)
 	struct myri10ge_cmd cmd;
 	struct myri10ge_priv *mgp;
 	struct dev_mc_list *mc_list;
-	__be32 data[2] = {0, 0};
+	__be32 data[2] = { 0, 0 };
 	int err;
 
 	mgp = netdev_priv(dev);
@@ -2625,7 +2625,7 @@ static u32 myri10ge_read_reboot(struct myri10ge_priv *mgp)
 static void myri10ge_watchdog(struct work_struct *work)
 {
 	struct myri10ge_priv *mgp =
-		container_of(work, struct myri10ge_priv, watchdog_work);
+	    container_of(work, struct myri10ge_priv, watchdog_work);
 	u32 reboot;
 	int status;
 	u16 cmd, vendor;
