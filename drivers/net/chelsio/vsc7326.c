@@ -256,7 +256,7 @@ static int bist_rd(adapter_t *adapter, int moduleid, int address)
 	else if((result & (1<<8)) != 0x0)
 		CH_ERR("bist read error: 0x%x\n", result);
 
-	return(result & 0xff);
+	return (result & 0xff);
 }
 
 static int bist_wr(adapter_t *adapter, int moduleid, int address, int value)
@@ -286,7 +286,7 @@ static int bist_wr(adapter_t *adapter, int moduleid, int address, int value)
 	else if((result & (1<<26)) != 0x0)
 		CH_ERR("bist write error: 0x%x\n", result);
 
-	return(0);
+	return 0;
 }
 
 static int run_bist(adapter_t *adapter, int moduleid)
@@ -295,7 +295,7 @@ static int run_bist(adapter_t *adapter, int moduleid)
 	(void) bist_wr(adapter,moduleid, 0x00, 0x02);
 	(void) bist_wr(adapter,moduleid, 0x01, 0x01);
 
-	return(0);
+	return 0;
 }
 
 static int check_bist(adapter_t *adapter, int moduleid)
@@ -309,14 +309,14 @@ static int check_bist(adapter_t *adapter, int moduleid)
 	if ((result & 3) != 0x3)
 		CH_ERR("Result: 0x%x  BIST error in ram %d, column: 0x%04x\n",
 			result, moduleid, column);
-	return(0);
+	return 0;
 }
 
 static int enable_mem(adapter_t *adapter, int moduleid)
 {
 	/*enable mem*/
 	(void) bist_wr(adapter,moduleid, 0x00, 0x00);
-	return(0);
+	return 0;
 }
 
 static int run_bist_all(adapter_t *adapter)
@@ -358,7 +358,7 @@ static int run_bist_all(adapter_t *adapter)
 	udelay(300);
 	vsc_write(adapter, REG_MEM_BIST, 0x0);
 	mdelay(10);
-	return(0);
+	return 0;
 }
 
 static int mac_intr_handler(struct cmac *mac)
