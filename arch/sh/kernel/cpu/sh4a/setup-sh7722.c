@@ -46,6 +46,10 @@ static struct ipr_data sh7722_ipr_map[] = {
 	/* IRQ, IPR-idx, shift, prio */
 	{ 16, 0, 12, 2 }, /* TMU0 */
 	{ 17, 0,  8, 2 }, /* TMU1 */
+	{ 80, 6, 12, 3 }, /* SCIF ERI */
+	{ 81, 6, 12, 3 }, /* SCIF RXI */
+	{ 82, 6, 12, 3 }, /* SCIF BRI */
+	{ 83, 6, 12, 3 }, /* SCIF TXI */
 };
 
 static unsigned long ipr_offsets[] = {
