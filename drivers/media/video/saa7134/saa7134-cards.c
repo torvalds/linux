@@ -2469,6 +2469,11 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = LINE2,
 			.gpio = 0x0200000,
 		},{
+			.name = name_comp2,
+			.vmux = 0,
+			.amux = LINE2,
+			.gpio = 0x0200000,
+		},{
 			.name = name_svideo,
 			.vmux = 8,
 			.amux = LINE2,
