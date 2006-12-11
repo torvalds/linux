@@ -580,7 +580,7 @@ void __cpuinit sn_cpu_init(void)
 	int slice;
 	int cnode;
 	int i;
-	static int wars_have_been_checked;
+	static int wars_have_been_checked, set_cpu0_number;
 
 	cpuid = smp_processor_id();
 	if (cpuid == 0 && IS_MEDUSA()) {
@@ -605,8 +605,16 @@ void __cpuinit sn_cpu_init(void)
 	/*
 	 * Don't check status. The SAL call is not supported on all PROMs
 	 * but a failure is harmless.
+	 * Architechtuallly, cpu_init is always called twice on cpu 0. We
+	 * should set cpu_number on cpu 0 once.
 	 */
-	(void) ia64_sn_set_cpu_number(cpuid);
+	if (cpuid == 0) {
+		if (!set_cpu0_number) {
+			(void) ia64_sn_set_cpu_number(cpuid);
+			set_cpu0_number = 1;
+		}
+	} else
+		(void) ia64_sn_set_cpu_number(cpuid);
 
 	/*
 	 * The boot cpu makes this call again after platform initialization is
