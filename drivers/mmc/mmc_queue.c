@@ -78,8 +78,10 @@ static int mmc_queue_thread(void *d)
 		spin_unlock_irq(q->queue_lock);
 
 		if (!req) {
-			if (kthread_should_stop())
+			if (kthread_should_stop()) {
+				set_current_state(TASK_RUNNING);
 				break;
+			}
 			up(&mq->thread_sem);
 			schedule();
 			down(&mq->thread_sem);
