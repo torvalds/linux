@@ -782,6 +782,8 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 	unsigned int reason = get_reason(regs);
 	extern int do_mathemu(struct pt_regs *regs);
 
+	/* We can now get here via a FP Unavailable exception if the core
+	 * has no FPU, in that case no reason flags will be set */
 #ifdef CONFIG_MATH_EMULATION
 	/* (reason & REASON_ILLEGAL) would be the obvious thing here,
 	 * but there seems to be a hardware bug on the 405GP (RevD)
