@@ -871,8 +871,8 @@ static int onenand_read_oob(struct mtd_info *mtd, loff_t from,
 {
 	BUG_ON(ops->mode != MTD_OOB_PLACE);
 
-	return onenand_do_read_oob(mtd, from + ops->ooboffs, ops->len,
-				   &ops->retlen, ops->oobbuf);
+	return onenand_do_read_oob(mtd, from + ops->ooboffs, ops->ooblen,
+				   &ops->oobretlen, ops->oobbuf);
 }
 
 #ifdef CONFIG_MTD_ONENAND_VERIFY_WRITE
@@ -1114,8 +1114,8 @@ static int onenand_write_oob(struct mtd_info *mtd, loff_t to,
 {
 	BUG_ON(ops->mode != MTD_OOB_PLACE);
 
-	return onenand_do_write_oob(mtd, to + ops->ooboffs, ops->len,
-				    &ops->retlen, ops->oobbuf);
+	return onenand_do_write_oob(mtd, to + ops->ooboffs, ops->ooblen,
+				    &ops->oobretlen, ops->oobbuf);
 }
 
 /**
