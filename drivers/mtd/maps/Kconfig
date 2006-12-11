@@ -382,50 +382,6 @@ config MTD_TQM834x
 	  TQ Components TQM834x boards. If you have one of these boards
 	  and would like to use the flash chips on it, say 'Y'.
 
-config MTD_CSTM_MIPS_IXX
-	tristate "Flash chip mapping on ITE QED-4N-S01B, Globespan IVR or custom board"
-	depends on MIPS && MTD_CFI && MTD_JEDECPROBE && MTD_PARTITIONS
-	help
-	  This provides a mapping driver for the Integrated Technology
-	  Express, Inc (ITE) QED-4N-S01B eval board and the Globespan IVR
-	  Reference Board. It provides the necessary addressing, length,
-	  buswidth, vpp code and addition setup of the flash device for
-	  these boards. In addition, this mapping driver can be used for
-	  other boards via setting of the CONFIG_MTD_CSTM_MIPS_IXX_START/
-	  LEN/BUSWIDTH parameters. This mapping will provide one mtd device
-	  using one partition. The start address can be offset from the
-	  beginning of flash and the len can be less than the total flash
-	  device size to allow a window into the flash. Both CFI and JEDEC
-	  probes are called.
-
-config MTD_CSTM_MIPS_IXX_START
-	hex "Physical start address of flash mapping"
-	depends on MTD_CSTM_MIPS_IXX
-	default "0x8000000"
-	help
-	  This is the physical memory location that the MTD driver will
-	  use for the flash chips on your particular target board.
-	  Refer to the memory map which should hopefully be in the
-	  documentation for your board.
-
-config MTD_CSTM_MIPS_IXX_LEN
-	hex "Physical length of flash mapping"
-	depends on MTD_CSTM_MIPS_IXX
-	default "0x4000000"
-	help
-	  This is the total length that the MTD driver will use for the
-	  flash chips on your particular board.  Refer to the memory
-	  map which should hopefully be in the documentation for your
-	  board.
-
-config MTD_CSTM_MIPS_IXX_BUSWIDTH
-	int "Bus width in octets"
-	depends on MTD_CSTM_MIPS_IXX
-	default "2"
-	help
-	  This is the total bus width of the mapping of the flash chips
-	  on your particular board.
-
 config MTD_OCELOT
 	tristate "Momenco Ocelot boot flash device"
 	depends on MIPS && MOMENCO_OCELOT
