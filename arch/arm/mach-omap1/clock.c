@@ -691,7 +691,7 @@ int __init omap1_clk_init(void)
 
 	info = omap_get_config(OMAP_TAG_CLOCK, struct omap_clock_config);
 	if (info != NULL) {
-		if (!cpu_is_omap1510())
+		if (!cpu_is_omap15xx())
 			crystal_type = info->system_clock_type;
 	}
 
