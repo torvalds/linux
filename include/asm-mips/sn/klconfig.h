@@ -61,6 +61,8 @@
 #endif /* CONFIG_SGI_IP35 */
 #endif /* CONFIG_SGI_IP27 || CONFIG_SGI_IP35 */
 
+typedef u64  nic_t;
+
 #define KLCFGINFO_MAGIC	0xbeedbabe
 
 typedef s32 klconf_off_t;
