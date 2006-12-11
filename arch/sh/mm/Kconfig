@@ -35,6 +35,9 @@ config CPU_SUBTYPE_ST40
 	select CPU_SH4
 	select CPU_HAS_INTC2_IRQ
 
+config CPU_SHX2
+	bool
+
 #
 # Processor subtypes
 #
@@ -180,6 +183,7 @@ config CPU_SUBTYPE_SH7780
 config CPU_SUBTYPE_SH7785
 	bool "Support SH7785 processor"
 	select CPU_SH4A
+	select CPU_SHX2
 	select CPU_HAS_INTC2_IRQ
 
 comment "SH4AL-DSP Processor Support"
@@ -191,6 +195,12 @@ config CPU_SUBTYPE_SH73180
 config CPU_SUBTYPE_SH7343
 	bool "Support SH7343 processor"
 	select CPU_SH4AL_DSP
+
+config CPU_SUBTYPE_SH7722
+	bool "Support SH7722 processor"
+	select CPU_SH4AL_DSP
+	select CPU_SHX2
+	select CPU_HAS_IPR_IRQ
 
 endmenu
 
@@ -250,7 +260,7 @@ config 32BIT
 
 config X2TLB
 	bool "Enable extended TLB mode"
-	depends on CPU_SUBTYPE_SH7785 && MMU && EXPERIMENTAL
+	depends on CPU_SHX2 && MMU && EXPERIMENTAL
 	help
 	  Selecting this option will enable the extended mode of the SH-X2
 	  TLB. For legacy SH-X behaviour and interoperability, say N. For

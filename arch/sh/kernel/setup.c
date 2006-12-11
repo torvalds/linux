@@ -325,14 +325,18 @@ void __init setup_arch(char **cmdline_p)
 	ROOT_DEV = MKDEV(RAMDISK_MAJOR, 0);
 	if (&__rd_start != &__rd_end) {
 		LOADER_TYPE = 1;
-		INITRD_START = PHYSADDR((unsigned long)&__rd_start) - __MEMORY_START;
-		INITRD_SIZE = (unsigned long)&__rd_end - (unsigned long)&__rd_start;
+		INITRD_START = PHYSADDR((unsigned long)&__rd_start) -
+					__MEMORY_START;
+		INITRD_SIZE = (unsigned long)&__rd_end -
+			      (unsigned long)&__rd_start;
 	}
 
 	if (LOADER_TYPE && INITRD_START) {
 		if (INITRD_START + INITRD_SIZE <= (max_low_pfn << PAGE_SHIFT)) {
-			reserve_bootmem_node(NODE_DATA(0), INITRD_START+__MEMORY_START, INITRD_SIZE);
-			initrd_start = INITRD_START + PAGE_OFFSET + __MEMORY_START;
+			reserve_bootmem_node(NODE_DATA(0), INITRD_START +
+						__MEMORY_START, INITRD_SIZE);
+			initrd_start = INITRD_START + PAGE_OFFSET +
+					__MEMORY_START;
 			initrd_end = initrd_start + INITRD_SIZE;
 		} else {
 			printk("initrd extends beyond end of memory "
@@ -404,7 +408,7 @@ static const char *cpu_name[] = {
 	[CPU_SH4_202]	= "SH4-202",	[CPU_SH4_501]	= "SH4-501",
 	[CPU_SH7770]	= "SH7770",	[CPU_SH7780]	= "SH7780",
 	[CPU_SH7781]	= "SH7781",	[CPU_SH7343]	= "SH7343",
-	[CPU_SH7785]	= "SH7785",
+	[CPU_SH7785]	= "SH7785",	[CPU_SH7722]	= "SH7722",
 	[CPU_SH_NONE]	= "Unknown"
 };
 
