@@ -1884,7 +1884,7 @@ static struct usb_driver usbvision_driver = {
  * This procedure preprocesses CustomDevice parameter if any
  *
  */
-void customdevice_process(void)
+static void customdevice_process(void)
 {
 	usbvision_device_data[0]=usbvision_device_data[1];
 	usbvision_table[0]=usbvision_table[1];

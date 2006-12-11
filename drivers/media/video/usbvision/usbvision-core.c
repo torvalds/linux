@@ -118,7 +118,7 @@ static int usbvision_measure_bandwidth (struct usb_usbvision *usbvision);
  * This is used when initializing the contents of the area.
  */
 
-void *usbvision_rvmalloc(unsigned long size)
+static void *usbvision_rvmalloc(unsigned long size)
 {
 	void *mem;
 	unsigned long adr;
@@ -181,7 +181,7 @@ static void usbvision_hexdump(const unsigned char *data, int len)
 /********************************
  * scratch ring buffer handling
  ********************************/
-int scratch_len(struct usb_usbvision *usbvision)    /*This returns the amount of data actually in the buffer */
+static int scratch_len(struct usb_usbvision *usbvision)    /*This returns the amount of data actually in the buffer */
 {
 	int len = usbvision->scratch_write_ptr - usbvision->scratch_read_ptr;
 	if (len < 0) {
@@ -194,7 +194,7 @@ int scratch_len(struct usb_usbvision *usbvision)    /*This returns the amount of
 
 
 /* This returns the free space left in the buffer */
-int scratch_free(struct usb_usbvision *usbvision)
+static int scratch_free(struct usb_usbvision *usbvision)
 {
 	int free = usbvision->scratch_read_ptr - usbvision->scratch_write_ptr;
 	if (free <= 0) {
@@ -211,7 +211,8 @@ int scratch_free(struct usb_usbvision *usbvision)
 
 
 /* This puts data into the buffer */
-int scratch_put(struct usb_usbvision *usbvision, unsigned char *data, int len)
+static int scratch_put(struct usb_usbvision *usbvision, unsigned char *data,
+		       int len)
 {
 	int len_part;
 
@@ -237,7 +238,7 @@ int scratch_put(struct usb_usbvision *usbvision, unsigned char *data, int len)
 }
 
 /* This marks the write_ptr as position of new frame header */
-void scratch_mark_header(struct usb_usbvision *usbvision)
+static void scratch_mark_header(struct usb_usbvision *usbvision)
 {
 	PDEBUG(DBG_SCRATCH, "header at write_ptr=%d\n", usbvision->scratch_headermarker_write_ptr);
 
@@ -248,7 +249,8 @@ void scratch_mark_header(struct usb_usbvision *usbvision)
 }
 
 /* This gets data from the buffer at the given "ptr" position */
-int scratch_get_extra(struct usb_usbvision *usbvision, unsigned char *data, int *ptr, int len)
+static int scratch_get_extra(struct usb_usbvision *usbvision,
+			     unsigned char *data, int *ptr, int len)
 {
 	int len_part;
 	if (*ptr + len < scratch_buf_size) {
@@ -274,7 +276,8 @@ int scratch_get_extra(struct usb_usbvision *usbvision, unsigned char *data, int 
 
 
 /* This sets the scratch extra read pointer */
-void scratch_set_extra_ptr(struct usb_usbvision *usbvision, int *ptr, int len)
+static void scratch_set_extra_ptr(struct usb_usbvision *usbvision, int *ptr,
+				  int len)
 {
 	*ptr = (usbvision->scratch_read_ptr + len)%scratch_buf_size;
 
@@ -283,7 +286,7 @@ void scratch_set_extra_ptr(struct usb_usbvision *usbvision, int *ptr, int len)
 
 
 /*This increments the scratch extra read pointer */
-void scratch_inc_extra_ptr(int *ptr, int len)
+static void scratch_inc_extra_ptr(int *ptr, int len)
 {
 	*ptr = (*ptr + len) % scratch_buf_size;
 
@@ -292,7 +295,8 @@ void scratch_inc_extra_ptr(int *ptr, int len)
 
 
 /* This gets data from the buffer */
-int scratch_get(struct usb_usbvision *usbvision, unsigned char *data, int len)
+static int scratch_get(struct usb_usbvision *usbvision, unsigned char *data,
+		       int len)
 {
 	int len_part;
 	if (usbvision->scratch_read_ptr + len < scratch_buf_size) {
@@ -318,7 +322,8 @@ int scratch_get(struct usb_usbvision *usbvision, unsigned char *data, int len)
 
 
 /* This sets read pointer to next header and returns it */
-int scratch_get_header(struct usb_usbvision *usbvision,struct usbvision_frame_header *header)
+static int scratch_get_header(struct usb_usbvision *usbvision,
+			      struct usbvision_frame_header *header)
 {
 	int errCode = 0;
 
@@ -346,7 +351,7 @@ int scratch_get_header(struct usb_usbvision *usbvision,struct usbvision_frame_he
 
 
 /*This removes len bytes of old data from the buffer */
-void scratch_rm_old(struct usb_usbvision *usbvision, int len)
+static void scratch_rm_old(struct usb_usbvision *usbvision, int len)
 {
 
 	usbvision->scratch_read_ptr += len;
@@ -356,7 +361,7 @@ void scratch_rm_old(struct usb_usbvision *usbvision, int len)
 
 
 /*This resets the buffer - kills all data in it too */
-void scratch_reset(struct usb_usbvision *usbvision)
+static void scratch_reset(struct usb_usbvision *usbvision)
 {
 	PDEBUG(DBG_SCRATCH, "\n");
 
@@ -399,8 +404,8 @@ void usbvision_scratch_free(struct usb_usbvision *usbvision)
  *		1: Draw a colored grid
  *
  */
-void usbvision_testpattern(struct usb_usbvision *usbvision, int fullframe,
-			int pmode)
+static void usbvision_testpattern(struct usb_usbvision *usbvision,
+				  int fullframe, int pmode)
 {
 	static const char proc[] = "usbvision_testpattern";
 	struct usbvision_frame *frame;

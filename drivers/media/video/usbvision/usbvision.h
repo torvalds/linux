@@ -489,7 +489,6 @@ struct usb_usbvision {
 /* i2c-algo-usb declaration                                        */
 /* --------------------------------------------------------------- */
 
-int usbvision_i2c_usb_add_bus(struct i2c_adapter *);
 int usbvision_i2c_usb_del_bus(struct i2c_adapter *);
 
 static inline void *i2c_get_algo_usb_data (struct i2c_algo_usb_data *dev)
@@ -510,7 +509,6 @@ int usbvision_init_i2c(struct usb_usbvision *usbvision);
 void call_i2c_clients(struct usb_usbvision *usbvision, unsigned int cmd,void *arg);
 
 /* defined in usbvision-core.c                                      */
-void *usbvision_rvmalloc(unsigned long size);
 void usbvision_rvfree(void *mem, unsigned long size);
 int usbvision_read_reg(struct usb_usbvision *usbvision, unsigned char reg);
 int usbvision_write_reg(struct usb_usbvision *usbvision, unsigned char reg,

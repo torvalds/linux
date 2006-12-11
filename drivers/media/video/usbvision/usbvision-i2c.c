@@ -213,7 +213,7 @@ static struct i2c_algorithm i2c_usb_algo = {
 /*
  * registering functions to load algorithms at runtime
  */
-int usbvision_i2c_usb_add_bus(struct i2c_adapter *adap)
+static int usbvision_i2c_usb_add_bus(struct i2c_adapter *adap)
 {
 	PDEBUG(DBG_I2C, "I2C   debugging is enabled [i2c]");
 	PDEBUG(DBG_ALGO, "ALGO   debugging is enabled [i2c]");
@@ -558,9 +558,6 @@ static struct i2c_adapter i2c_adap_template = {
 static struct i2c_client i2c_client_template = {
 	.name		= "usbvision internal",
 };
-
-EXPORT_SYMBOL(usbvision_i2c_usb_add_bus);
-EXPORT_SYMBOL(usbvision_i2c_usb_del_bus);
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.
