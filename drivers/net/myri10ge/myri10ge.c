@@ -1696,11 +1696,11 @@ static int myri10ge_open(struct net_device *dev)
 	 * tell him the buffer is larger, because we only use 1
 	 * buffer/pkt, and the mtu will prevent overruns.
 	 */
-	big_pow2 = dev->mtu + ETH_HLEN + MXGEFW_PAD;
+	big_pow2 = dev->mtu + ETH_HLEN + VLAN_HLEN + MXGEFW_PAD;
 	if (big_pow2 < MYRI10GE_ALLOC_SIZE / 2) {
 		while ((big_pow2 & (big_pow2 - 1)) != 0)
 			big_pow2++;
-		mgp->big_bytes = dev->mtu + ETH_HLEN + MXGEFW_PAD;
+		mgp->big_bytes = dev->mtu + ETH_HLEN + VLAN_HLEN + MXGEFW_PAD;
 	} else {
 		big_pow2 = MYRI10GE_ALLOC_SIZE;
 		mgp->big_bytes = big_pow2;
