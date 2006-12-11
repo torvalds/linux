@@ -8,6 +8,7 @@
 .text
 
 #include <linux/linkage.h>
+#include <asm/page.h>
 
 	.global	startup
 startup:
@@ -97,7 +98,7 @@ init_stack_addr:
 decompress_kernel_addr:
 	.long	decompress_kernel
 kernel_start_addr:
-	.long	_text+0x1000
+	.long	_text+PAGE_SIZE
 
 	.align	9
 fake_headers_as_bzImage:
