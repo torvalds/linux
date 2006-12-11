@@ -270,7 +270,7 @@ static struct ata_port_operations sil680_port_ops = {
  *	is powered up on boot and when we resume in case we resumed from RAM.
  *	Returns the final clock settings.
  */
- 
+
 static u8 sil680_init_chip(struct pci_dev *pdev)
 {
 	u32 class_rev	= 0;

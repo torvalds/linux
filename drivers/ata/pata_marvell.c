@@ -45,10 +45,10 @@ static int marvell_pre_reset(struct ata_port *ap)
 	for(i = 0; i <= 0x0F; i++)
 		printk("%02X:%02X ", i, readb(barp + i));
 	printk("\n");
-	
+
 	devices = readl(barp + 0x0C);
 	pci_iounmap(pdev, barp);
-	
+
 	if ((pdev->device == 0x6145) && (ap->port_no == 0) &&
 	    (!(devices & 0x10)))	/* PATA enable ? */
 		return -ENOENT;

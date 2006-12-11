@@ -5,7 +5,7 @@
  *    Support for the Winbond 83759A when operating in advanced mode.
  *    Multichip mode is not currently supported.
  */
- 
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -69,7 +69,7 @@ static void winbond_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	int timing = 0x88 + (ap->port_no * 4) + (adev->devno * 2);
 
 	reg = winbond_readcfg(winbond->config, 0x81);
-	
+
 	/* Get the timing data in cycles */
 	if (reg & 0x40)		/* Fast VLB bus, assume 50MHz */
 		ata_timing_compute(adev, adev->pio_mode, &t, 20000, 1000);
@@ -80,9 +80,9 @@ static void winbond_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	recovery = (FIT(t.recover, 1, 15) + 1) & 0x0F;
 	timing = (active << 4) | recovery;
 	winbond_writecfg(winbond->config, timing, reg);
-	
+
 	/* Load the setup timing */
-	
+
 	reg = 0x35;
 	if (adev->class != ATA_DEV_ATA)
 		reg |= 0x08;	/* FIFO off */
@@ -194,13 +194,13 @@ static __init int winbond_init_one(unsigned long port)
 	winbond_writecfg(port, 0x85, reg);
 
 	reg = winbond_readcfg(port, 0x81);
-	
+
 	if (!(reg & 0x03))		/* Disabled */
 		return 0;
 
 	for (i = 0; i < 2 ; i ++) {
 
-		if (reg & (1 << i)) {		
+		if (reg & (1 << i)) {
 			/*
 			 *	Fill in a probe structure first of all
 			 */
@@ -217,7 +217,7 @@ static __init int winbond_init_one(unsigned long port)
 			ae.pio_mask = 0x1F;
 
 			ae.sht = &winbond_sht;
-	
+
 			ae.n_ports = 1;
 			ae.irq = 14 + i;
 			ae.irq_flags = 0;
@@ -257,7 +257,7 @@ static __init int winbond_init(void)
 
 	int ct = 0;
 	int i;
-	
+
 	if (probe_winbond == 0)
 		return -ENODEV;
 

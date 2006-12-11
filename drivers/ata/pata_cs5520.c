@@ -305,7 +305,7 @@ static void __devexit cs5520_remove_one(struct pci_dev *pdev)
  *	Do any reconfiguration work needed by a resume from RAM. We need
  *	to restore DMA mode support on BIOSen which disabled it
  */
- 
+
 static int cs5520_reinit_one(struct pci_dev *pdev)
 {
 	u8 pcicfg;

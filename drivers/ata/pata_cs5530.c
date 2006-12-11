@@ -247,7 +247,7 @@ static int cs5530_is_palmax(void)
  *	Perform the chip initialisation work that is shared between both
  *	setup and resume paths
  */
- 
+
 static int cs5530_init_chip(void)
 {
 	struct pci_dev *master_0 = NULL, *cs5530_0 = NULL, *dev = NULL;
@@ -357,11 +357,11 @@ static int cs5530_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops = &cs5530_port_ops
 	};
 	static struct ata_port_info *port_info[2] = { &info, &info };
-	
+
 	/* Chip initialisation */
 	if (cs5530_init_chip())
 		return -ENODEV;
-		
+
 	if (cs5530_is_palmax())
 		port_info[1] = &info_palmax_secondary;
 
@@ -376,7 +376,7 @@ static int cs5530_reinit_one(struct pci_dev *pdev)
 		BUG();
 	return ata_pci_device_resume(pdev);
 }
-	
+
 static const struct pci_device_id cs5530[] = {
 	{ PCI_VDEVICE(CYRIX, PCI_DEVICE_ID_CYRIX_5530_IDE), },
 

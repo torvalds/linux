@@ -847,7 +847,7 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct sis_chipset *chipset = NULL;
 
 	static struct sis_chipset sis_chipsets[] = {
-	
+
 		{ 0x0968, &sis_info133 },
 		{ 0x0966, &sis_info133 },
 		{ 0x0965, &sis_info133 },

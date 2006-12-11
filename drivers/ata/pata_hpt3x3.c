@@ -164,7 +164,7 @@ static struct ata_port_operations hpt3x3_port_ops = {
  *
  *	Perform the setup required at boot and on resume.
  */
- 
+
 static void hpt3x3_init_chipset(struct pci_dev *dev)
 {
 	u16 cmd;

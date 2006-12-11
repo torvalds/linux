@@ -459,7 +459,7 @@ static int hpt37x_pre_reset(struct ata_port *ap)
 	};
 	if (!pci_test_config_bits(pdev, &hpt37x_enable_bits[ap->port_no]))
 		return -ENOENT;
-		
+
 	pci_read_config_byte(pdev, 0x5B, &scr2);
 	pci_write_config_byte(pdev, 0x5B, scr2 & ~0x01);
 	/* Cable register now active */
@@ -504,7 +504,7 @@ static int hpt374_pre_reset(struct ata_port *ap)
 
 	if (!pci_test_config_bits(pdev, &hpt37x_enable_bits[ap->port_no]))
 		return -ENOENT;
-		
+
 	/* Do the extra channel work */
 	pci_read_config_word(pdev, 0x52, &mcr3);
 	pci_read_config_word(pdev, 0x56, &mcr6);

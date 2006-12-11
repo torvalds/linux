@@ -311,7 +311,7 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 			pi.flags |= ATA_FLAG_SLAVE_POSS;
 		}
 		break;
-	
+
 	case 0x0182:
 	case 0x0183:
 		pci_read_config_dword ( pdev, 0x6C, &val);

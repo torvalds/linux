@@ -232,7 +232,7 @@ static int hpt36x_pre_reset(struct ata_port *ap)
 
 	if (!pci_test_config_bits(pdev, &hpt36x_enable_bits[ap->port_no]))
 		return -ENOENT;
-		
+
 	pci_read_config_byte(pdev, 0x5A, &ata66);
 	if (ata66 & (1 << ap->port_no))
 		ap->cbl = ATA_CBL_PATA40;

@@ -632,7 +632,7 @@ static int piix_pata_prereset(struct ata_port *ap)
 
 	if (!pci_test_config_bits(pdev, &piix_enable_bits[ap->port_no]))
 		return -ENOENT;
-		
+
 	ap->cbl = ATA_CBL_PATA40;
 	return ata_std_prereset(ap);
 }

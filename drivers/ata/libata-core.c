@@ -5770,7 +5770,7 @@ int ata_device_add(const struct ata_probe_ent *ent)
 	int rc;
 
 	DPRINTK("ENTER\n");
-	
+
 	if (ent->irq == 0) {
 		dev_printk(KERN_ERR, dev, "is not available: No interrupt assigned.\n");
 		return 0;

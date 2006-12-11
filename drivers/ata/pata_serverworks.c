@@ -559,7 +559,7 @@ static int serverworks_reinit_one(struct pci_dev *pdev)
 {
 	/* Force master latency timer to 64 PCI clocks */
 	pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 0x40);
-	
+
 	switch (pdev->device)
 	{
 		case PCI_DEVICE_ID_SERVERWORKS_OSB4IDE:

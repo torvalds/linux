@@ -528,7 +528,7 @@ static void nv_adma_mode(struct ata_port *ap)
 
 	if (!(pp->flags & NV_ADMA_PORT_REGISTER_MODE))
 		return;
-		
+
 	WARN_ON(pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE);
 
 	tmp = readw(mmio + NV_ADMA_CTL);
@@ -568,7 +568,7 @@ static int nv_adma_slave_config(struct scsi_device *sdev)
 		/* Subtract 1 since an extra entry may be needed for padding, see
 		   libata-scsi.c */
 		sg_tablesize = LIBATA_MAX_PRD - 1;
-		
+
 		/* Since the legacy DMA engine is in use, we need to disable ADMA
 		   on the port. */
 		adma_enable = 0;
@@ -580,7 +580,7 @@ static int nv_adma_slave_config(struct scsi_device *sdev)
 		sg_tablesize = NV_ADMA_SGTBL_TOTAL_LEN;
 		adma_enable = 1;
 	}
-	
+
 	pci_read_config_dword(pdev, NV_MCP_SATA_CFG_20, &current_reg);
 
 	if(ap->port_no == 1)
@@ -589,7 +589,7 @@ static int nv_adma_slave_config(struct scsi_device *sdev)
 	else
 		config_mask = NV_MCP_SATA_CFG_20_PORT0_EN |
 			      NV_MCP_SATA_CFG_20_PORT0_PWB_EN;
-	
+
 	if(adma_enable) {
 		new_reg = current_reg | config_mask;
 		pp->flags &= ~NV_ADMA_ATAPI_SETUP_COMPLETE;
@@ -598,10 +598,10 @@ static int nv_adma_slave_config(struct scsi_device *sdev)
 		new_reg = current_reg & ~config_mask;
 		pp->flags |= NV_ADMA_ATAPI_SETUP_COMPLETE;
 	}
-	
+
 	if(current_reg != new_reg)
 		pci_write_config_dword(pdev, NV_MCP_SATA_CFG_20, new_reg);
-	
+
 	blk_queue_bounce_limit(sdev->request_queue, bounce_limit);
 	blk_queue_segment_boundary(sdev->request_queue, segment_boundary);
 	blk_queue_max_hw_segments(sdev->request_queue, sg_tablesize);
@@ -812,13 +812,13 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 			handled++; /* irq handled if we got here */
 		}
 	}
-	
+
 	if(notifier_clears[0] || notifier_clears[1]) {
 		/* Note: Both notifier clear registers must be written
 		   if either is set, even if one is zero, according to NVIDIA. */
-		writel(notifier_clears[0], 
+		writel(notifier_clears[0],
 			nv_adma_notifier_clear_block(host->ports[0]));
-		writel(notifier_clears[1], 
+		writel(notifier_clears[1],
 			nv_adma_notifier_clear_block(host->ports[1]));
 	}
 

@@ -504,7 +504,7 @@ static struct ata_port_operations ali_c5_port_ops = {
  *	Perform the setup on the device that must be done both at boot
  *	and at resume time.
  */
- 
+
 static void ali_init_chipset(struct pci_dev *pdev)
 {
 	u8 rev, tmp;
@@ -655,7 +655,7 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
         	port_info[0] = port_info[1] = &info_c5;
 
 	ali_init_chipset(pdev);
-	
+
 	isa_bridge = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, NULL);
 	if (isa_bridge && rev >= 0x20 && rev < 0xC2) {
 		/* Are we paired with a UDMA capable chip */

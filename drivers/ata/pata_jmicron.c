@@ -221,7 +221,7 @@ static int jmicron_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 static int jmicron_reinit_one(struct pci_dev *pdev)
 {
 	u32 reg;
-	
+
 	switch(pdev->device) {
 		case PCI_DEVICE_ID_JMICRON_JMB368:
 			break;
