@@ -19,5 +19,5 @@
 # under Linux.
 #
 
-obj-y := malta_int.o malta_setup.o
+obj-y := malta_int.o malta_mtd.o malta_setup.o
 obj-$(CONFIG_SMP) += malta_smp.o
