@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/at91_mci.c - ATMEL AT91RM9200 MCI Driver
+ *  linux/drivers/mmc/at91_mci.c - ATMEL AT91 MCI Driver
  *
  *  Copyright (C) 2005 Cougar Creek Computing Devices Ltd, All Rights Reserved
  *
@@ -11,7 +11,7 @@
  */
 
 /*
-   This is the AT91RM9200 MCI driver that has been tested with both MMC cards
+   This is the AT91 MCI driver that has been tested with both MMC cards
    and SD-cards.  Boards that support write protect are now supported.
    The CCAT91SBC001 board does not support SD cards.
 
@@ -38,8 +38,8 @@
      controller to manage the transfers.
 
      A read is done from the controller directly to the scatterlist passed in from the request.
-     Due to a bug in the controller, when a read is completed, all the words are byte
-     swapped in the scatterlist buffers.
+     Due to a bug in the AT91RM9200 controller, when a read is completed, all the words are byte
+     swapped in the scatterlist buffers.  AT91SAM926x are not affected by this bug.
 
      The sequence of read interrupts is: ENDRX, RXBUFF, CMDRDY
 
@@ -72,6 +72,7 @@
 #include <asm/irq.h>
 #include <asm/mach/mmc.h>
 #include <asm/arch/board.h>
+#include <asm/arch/cpu.h>
 #include <asm/arch/gpio.h>
 #include <asm/arch/at91_mci.h>
 #include <asm/arch/at91_pdc.h>
@@ -147,7 +148,6 @@ static inline void at91mci_sg_to_dma(struct at91mci_host *host, struct mmc_data 
 	for (i = 0; i < len; i++) {
 		struct scatterlist *sg;
 		int amount;
-		int index;
 		unsigned int *sgbuffer;
 
 		sg = &data->sg[i];
@@ -155,10 +155,15 @@ static inline void at91mci_sg_to_dma(struct at91mci_host *host, struct mmc_data 
 		sgbuffer = kmap_atomic(sg->page, KM_BIO_SRC_IRQ) + sg->offset;
 		amount = min(size, sg->length);
 		size -= amount;
-		amount /= 4;
 
-		for (index = 0; index < amount; index++)
-			*dmabuf++ = swab32(sgbuffer[index]);
+		if (cpu_is_at91rm9200()) {	/* AT91RM9200 errata */
+			int index;
+
+			for (index = 0; index < (amount / 4); index++)
+				*dmabuf++ = swab32(sgbuffer[index]);
+		}
+		else
+			memcpy(dmabuf, sgbuffer, amount);
 
 		kunmap_atomic(sgbuffer, KM_BIO_SRC_IRQ);
 
@@ -265,8 +270,6 @@ static void at91mci_post_dma_read(struct at91mci_host *host)
 
 	while (host->in_use_index < host->transfer_index) {
 		unsigned int *buffer;
-		int index;
-		int len;
 
 		struct scatterlist *sg;
 
@@ -284,11 +287,13 @@ static void at91mci_post_dma_read(struct at91mci_host *host)
 
 		data->bytes_xfered += sg->length;
 
-		len = sg->length / 4;
+		if (cpu_is_at91rm9200()) {	/* AT91RM9200 errata */
+			int index;
 
-		for (index = 0; index < len; index++) {
-			buffer[index] = swab32(buffer[index]);
+			for (index = 0; index < (sg->length / 4); index++)
+				buffer[index] = swab32(buffer[index]);
 		}
+
 		kunmap_atomic(buffer, KM_BIO_SRC_IRQ);
 		flush_dcache_page(sg->page);
 	}
@@ -339,7 +344,9 @@ static void at91_mci_enable(struct at91mci_host *host)
 	at91_mci_write(host, AT91_MCI_IDR, 0xffffffff);
 	at91_mci_write(host, AT91_MCI_DTOR, AT91_MCI_DTOMUL_1M | AT91_MCI_DTOCYC);
 	at91_mci_write(host, AT91_MCI_MR, AT91_MCI_PDCMODE | 0x34a);
-	at91_mci_write(host, AT91_MCI_SDCR, 0);
+
+	/* use Slot A or B (only one at same time) */
+	at91_mci_write(host, AT91_MCI_SDCR, host->board->slot_b);
 }
 
 /*
@@ -637,11 +644,11 @@ static void at91_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (host->board->vcc_pin) {
 		switch (ios->power_mode) {
 			case MMC_POWER_OFF:
-				at91_set_gpio_output(host->board->vcc_pin, 0);
+				at91_set_gpio_value(host->board->vcc_pin, 0);
 				break;
 			case MMC_POWER_UP:
 			case MMC_POWER_ON:
-				at91_set_gpio_output(host->board->vcc_pin, 1);
+				at91_set_gpio_value(host->board->vcc_pin, 1);
 				break;
 		}
 	}
@@ -754,7 +761,7 @@ static irqreturn_t at91_mmc_det_irq(int irq, void *_host)
 			present ? "insert" : "remove");
 		if (!present) {
 			pr_debug("****** Resetting SD-card bus width ******\n");
-			at91_mci_write(host, AT91_MCI_SDCR, 0);
+			at91_mci_write(host, AT91_MCI_SDCR, at91_mci_read(host, AT91_MCI_SDCR) & ~AT91_MCI_SDCBUS);
 		}
 		mmc_detect_change(host->mmc, msecs_to_jiffies(100));
 	}
