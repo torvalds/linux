@@ -209,7 +209,7 @@ int __ilog2_u32(u32 n)
 
 #ifdef __powerpc64__
 static inline __attribute__((const))
-int __ilog2_u64(u32 n)
+int __ilog2_u64(u64 n)
 {
 	int bit;
 	asm ("cntlzd %0,%1" : "=r" (bit) : "r" (n));
