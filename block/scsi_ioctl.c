@@ -228,6 +228,7 @@ static int sg_io(struct file *file, request_queue_t *q,
 	struct request *rq;
 	char sense[SCSI_SENSE_BUFFERSIZE];
 	unsigned char cmd[BLK_MAX_CDB];
+	struct bio *bio;
 
 	if (hdr->interface_id != 'S')
 		return -EINVAL;
@@ -308,6 +309,7 @@ static int sg_io(struct file *file, request_queue_t *q,
 	if (ret)
 		goto out;
 
+	bio = rq->bio;
 	rq->retries = 0;
 
 	start_time = jiffies;
@@ -338,6 +340,7 @@ static int sg_io(struct file *file, request_queue_t *q,
 			hdr->sb_len_wr = len;
 	}
 
+	rq->bio = bio;
 	if (blk_rq_unmap_user(rq))
 		ret = -EFAULT;
 
