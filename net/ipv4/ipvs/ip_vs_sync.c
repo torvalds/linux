@@ -849,10 +849,12 @@ int start_sync_thread(int state, char *mcast_ifn, __u8 syncid)
 
 	ip_vs_sync_state |= state;
 	if (state == IP_VS_STATE_MASTER) {
-		strlcpy(ip_vs_master_mcast_ifn, mcast_ifn, sizeof(ip_vs_master_mcast_ifn));
+		strlcpy(ip_vs_master_mcast_ifn, mcast_ifn,
+			sizeof(ip_vs_master_mcast_ifn));
 		ip_vs_master_syncid = syncid;
 	} else {
-		strlcpy(ip_vs_backup_mcast_ifn, mcast_ifn, sizeof(ip_vs_backup_mcast_ifn));
+		strlcpy(ip_vs_backup_mcast_ifn, mcast_ifn,
+			sizeof(ip_vs_backup_mcast_ifn));
 		ip_vs_backup_syncid = syncid;
 	}
 
@@ -880,7 +882,8 @@ int stop_sync_thread(int state)
 
 	IP_VS_DBG(7, "%s: pid %d\n", __FUNCTION__, current->pid);
 	IP_VS_INFO("stopping sync thread %d ...\n",
-		   (state == IP_VS_STATE_MASTER) ? sync_master_pid : sync_backup_pid);
+		   (state == IP_VS_STATE_MASTER) ?
+		   sync_master_pid : sync_backup_pid);
 
 	__set_current_state(TASK_UNINTERRUPTIBLE);
 	add_wait_queue(&stop_sync_wait, &wait);
