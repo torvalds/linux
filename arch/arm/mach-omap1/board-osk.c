@@ -342,6 +342,38 @@ static void __init osk_mistral_init(void)
 	 * can't talk to the ads or even the i2c eeprom.
 	 */
 
+	/* parallel camera interface */
+	omap_cfg_reg(J15_1610_CAM_LCLK);
+	omap_cfg_reg(J18_1610_CAM_D7);
+	omap_cfg_reg(J19_1610_CAM_D6);
+	omap_cfg_reg(J14_1610_CAM_D5);
+	omap_cfg_reg(K18_1610_CAM_D4);
+	omap_cfg_reg(K19_1610_CAM_D3);
+	omap_cfg_reg(K15_1610_CAM_D2);
+	omap_cfg_reg(K14_1610_CAM_D1);
+	omap_cfg_reg(L19_1610_CAM_D0);
+	omap_cfg_reg(L18_1610_CAM_VS);
+	omap_cfg_reg(L15_1610_CAM_HS);
+	omap_cfg_reg(M19_1610_CAM_RSTZ);
+	omap_cfg_reg(Y15_1610_CAM_OUTCLK);
+
+	/* serial camera interface */
+	omap_cfg_reg(H19_1610_CAM_EXCLK);
+	omap_cfg_reg(W13_1610_CCP_CLKM);
+	omap_cfg_reg(Y12_1610_CCP_CLKP);
+	/* CCP_DATAM CONFLICTS WITH UART1.TX (and serial console) */
+	// omap_cfg_reg(Y14_1610_CCP_DATAM);
+	omap_cfg_reg(W14_1610_CCP_DATAP);
+
+	/* CAM_PWDN */
+	if (omap_request_gpio(11) == 0) {
+		omap_cfg_reg(N20_1610_GPIO11);
+		omap_set_gpio_direction(11, 0 /* out */);
+		omap_set_gpio_dataout(11, 0 /* off */);
+	} else
+		pr_debug("OSK+Mistral: CAM_PWDN is awol\n");
+
+
 	// omap_cfg_reg(P19_1610_GPIO6);	// BUSY
 	omap_cfg_reg(P20_1610_GPIO4);	// PENIRQ
 	set_irq_type(OMAP_GPIO_IRQ(4), IRQT_FALLING);
