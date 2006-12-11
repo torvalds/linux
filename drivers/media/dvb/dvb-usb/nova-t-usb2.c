@@ -90,9 +90,11 @@ static int nova_t_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 			deb_rc("raw key code 0x%02x, 0x%02x, 0x%02x to c: %02x d: %02x toggle: %d\n",key[1],key[2],key[3],custom,data,toggle);
 
 			for (i = 0; i < ARRAY_SIZE(haupp_rc_keys); i++) {
-				deb_rc("c: %x, d: %x\n",haupp_rc_keys[i].data,haupp_rc_keys[i].custom);
 				if (haupp_rc_keys[i].data == data &&
 					haupp_rc_keys[i].custom == custom) {
+
+					deb_rc("c: %x, d: %x\n",haupp_rc_keys[i].data,haupp_rc_keys[i].custom);
+
 					*event = haupp_rc_keys[i].event;
 					*state = REMOTE_KEY_PRESSED;
 					if (st->old_toggle == toggle) {
