@@ -47,6 +47,7 @@
 #include <linux/vmalloc.h>
 #include <linux/crash_dump.h>
 #include <linux/pid_namespace.h>
+#include <linux/compile.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
@@ -253,8 +254,15 @@ static int version_read_proc(char *page, char **start, off_t off,
 {
 	int len;
 
-	len = sprintf(page, linux_banner,
-		utsname()->release, utsname()->version);
+	/* FIXED STRING! Don't touch! */
+	len = snprintf(page, PAGE_SIZE,
+		"%s version %s"
+		" (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ")"
+		" (" LINUX_COMPILER ")"
+		" %s\n",
+		utsname()->sysname,
+		utsname()->release,
+		utsname()->version);
 	return proc_calc_metrics(page, start, off, count, eof, len);
 }
 

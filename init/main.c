@@ -483,6 +483,12 @@ void __init __attribute__((weak)) smp_setup_processor_id(void)
 {
 }
 
+static const char linux_banner[] =
+	"Linux version " UTS_RELEASE
+	" (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ")"
+	" (" LINUX_COMPILER ")"
+	" " UTS_VERSION "\n";
+
 asmlinkage void __init start_kernel(void)
 {
 	char * command_line;
@@ -509,7 +515,7 @@ asmlinkage void __init start_kernel(void)
 	boot_cpu_init();
 	page_address_init();
 	printk(KERN_NOTICE);
-	printk(linux_banner, UTS_RELEASE, UTS_VERSION);
+	printk(linux_banner);
 	setup_arch(&command_line);
 	unwind_setup();
 	setup_per_cpu_areas();
