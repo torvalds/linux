@@ -1650,8 +1650,8 @@ static int myri10ge_open(struct net_device *dev)
 		    ? (128 - MXGEFW_PAD)
 		    : (SMP_CACHE_BYTES - MXGEFW_PAD);
 	else
-		/* enough for an ETH_DATA_LEN frame */
-		mgp->small_bytes = ETH_FRAME_LEN;
+		/* enough for a vlan encapsulated ETH_DATA_LEN frame */
+		mgp->small_bytes = VLAN_ETH_FRAME_LEN;
 
 	/* Override the small buffer size? */
 	if (myri10ge_small_bytes > 0)
