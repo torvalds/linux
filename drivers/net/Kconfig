@@ -2384,6 +2384,14 @@ config CHELSIO_T1_1G
           Enables support for Chelsio's gigabit Ethernet PCI cards.  If you
           are using only 10G cards say 'N' here.
 
+config CHELSIO_T1_NAPI
+	bool "Use Rx Polling (NAPI)"
+	depends on CHELSIO_T1
+	default y
+	help
+	  NAPI is a driver API designed to reduce CPU and interrupt load
+	  when the driver is receiving lots of packets from the card.
+
 config EHEA
 	tristate "eHEA Ethernet support"
 	depends on IBMEBUS

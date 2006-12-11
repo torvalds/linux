@@ -194,9 +194,9 @@ static void enqueue(struct list_head *node, struct list_head *lh)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(ugeth_lock, flags);
+	spin_lock_irqsave(&ugeth_lock, flags);
 	list_add_tail(node, lh);
-	spin_unlock_irqrestore(ugeth_lock, flags);
+	spin_unlock_irqrestore(&ugeth_lock, flags);
 }
 #endif /* CONFIG_UGETH_FILTERING */
 
@@ -204,14 +204,14 @@ static struct list_head *dequeue(struct list_head *lh)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(ugeth_lock, flags);
+	spin_lock_irqsave(&ugeth_lock, flags);
 	if (!list_empty(lh)) {
 		struct list_head *node = lh->next;
 		list_del(node);
-		spin_unlock_irqrestore(ugeth_lock, flags);
+		spin_unlock_irqrestore(&ugeth_lock, flags);
 		return node;
 	} else {
-		spin_unlock_irqrestore(ugeth_lock, flags);
+		spin_unlock_irqrestore(&ugeth_lock, flags);
 		return NULL;
 	}
 }
@@ -1851,6 +1851,8 @@ static int init_phy(struct net_device *dev)
 
 	mii_info->mdio_read = &read_phy_reg;
 	mii_info->mdio_write = &write_phy_reg;
+
+	spin_lock_init(&mii_info->mdio_lock);
 
 	ugeth->mii_info = mii_info;
 
