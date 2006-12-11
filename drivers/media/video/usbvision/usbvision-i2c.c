@@ -50,6 +50,11 @@ MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 #define PDEBUG(level, fmt, args...) \
 		if (i2c_debug & (level)) info("[%s:%d] " fmt, __PRETTY_FUNCTION__, __LINE__ , ## args)
 
+static int usbvision_i2c_write(void *data, unsigned char addr, char *buf,
+			    short len);
+static int usbvision_i2c_read(void *data, unsigned char addr, char *buf,
+			   short len);
+
 static inline int try_write_address(struct i2c_adapter *i2c_adap,
 				    unsigned char addr, int retries)
 {
@@ -61,7 +66,7 @@ static inline int try_write_address(struct i2c_adapter *i2c_adap,
 	data = i2c_get_adapdata(i2c_adap);
 	buf[0] = 0x00;
 	for (i = 0; i <= retries; i++) {
-		ret = (adap->outb(data, addr, buf, 1));
+		ret = (usbvision_i2c_write(data, addr, buf, 1));
 		if (ret == 1)
 			break;	/* success! */
 		udelay(5 /*adap->udelay */ );
@@ -86,7 +91,7 @@ static inline int try_read_address(struct i2c_adapter *i2c_adap,
 
 	data = i2c_get_adapdata(i2c_adap);
 	for (i = 0; i <= retries; i++) {
-		ret = (adap->inb(data, addr, buf, 1));
+		ret = (usbvision_i2c_read(data, addr, buf, 1));
 		if (ret == 1)
 			break;	/* success! */
 		udelay(5 /*adap->udelay */ );
@@ -153,7 +158,6 @@ static int
 usb_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[], int num)
 {
 	struct i2c_msg *pmsg;
-	struct i2c_algo_usb_data *adap = i2c_adap->algo_data;
 	void *data;
 	int i, ret;
 	unsigned char addr;
@@ -170,13 +174,13 @@ usb_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[], int num)
 
 		if (pmsg->flags & I2C_M_RD) {
 			/* read bytes into buffer */
-			ret = (adap->inb(data, addr, pmsg->buf, pmsg->len));
+			ret = (usbvision_i2c_read(data, addr, pmsg->buf, pmsg->len));
 			if (ret < pmsg->len) {
 				return (ret < 0) ? ret : -EREMOTEIO;
 			}
 		} else {
 			/* write bytes from buffer */
-			ret = (adap->outb(data, addr, pmsg->buf, pmsg->len));
+			ret = (usbvision_i2c_write(data, addr, pmsg->buf, pmsg->len));
 			if (ret < pmsg->len) {
 				return (ret < 0) ? ret : -EREMOTEIO;
 			}
