@@ -226,9 +226,8 @@ static void run_table(adapter_t *adapter, struct init_table *ib, int len)
 		if (ib[i].addr == INITBLOCK_SLEEP) {
 			udelay( ib[i].data );
 			CH_ERR("sleep %d us\n",ib[i].data);
-		} else {
+		} else
 			vsc_write( adapter, ib[i].addr, ib[i].data );
-		}
 	}
 }
 

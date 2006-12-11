@@ -2195,9 +2195,8 @@ struct sge * __devinit t1_sge_create(struct adapter *adapter,
 		if (adapter->params.nports > 1) {
 			tx_sched_init(sge);
 			sge->espibug_timer.function = espibug_workaround_t204;
-		} else {
+		} else
 			sge->espibug_timer.function = espibug_workaround;
-		}
 		sge->espibug_timer.data = (unsigned long)sge->adapter;
 
 		sge->espibug_timeout = 1;

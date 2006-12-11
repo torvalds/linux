@@ -1292,9 +1292,8 @@ static int t1_clock(struct adapter *adapter, int mode)
 	if (!t1_is_T1B(adapter))
 		return -ENODEV;	/* Can't re-clock this chip. */
 
-	if (mode & 2) {
+	if (mode & 2)
 		return 0;	/* show current mode. */
-	}
 
 	if ((adapter->t1powersave & 1) == (mode & 1))
 		return -EALREADY;	/* ASIC already running in mode. */

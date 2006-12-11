@@ -312,9 +312,9 @@ static int mv88e1xxx_interrupt_handler(struct cphy *cphy)
 			(void) simple_mdio_read(cphy,
 				MV88E1XXX_SPECIFIC_STATUS_REGISTER, &status);
 
-			if (status & MV88E1XXX_INTR_LINK_CHNG) {
+			if (status & MV88E1XXX_INTR_LINK_CHNG)
 				cphy->state |= PHY_LINK_UP;
-			} else {
+			else {
 				cphy->state &= ~PHY_LINK_UP;
 				if (cphy->state & PHY_AUTONEG_EN)
 					cphy->state &= ~PHY_AUTONEG_RDY;
