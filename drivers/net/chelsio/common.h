@@ -324,7 +324,7 @@ struct board_info {
 	unsigned char           mdio_phybaseaddr;
 	struct gmac            *gmac;
 	struct gphy            *gphy;
-	struct mdio_ops	       *mdio_ops;
+	struct mdio_ops        *mdio_ops;
 	const char             *desc;
 };
 

@@ -195,7 +195,7 @@ struct cmdQ {
 	struct cmdQ_e  *entries;        /* HW command descriptor Q */
 	struct cmdQ_ce *centries;       /* SW command context descriptor Q */
 	dma_addr_t	dma_addr;       /* DMA addr HW command descriptor Q */
- 	spinlock_t	lock;           /* Lock to protect cmdQ enqueuing */
+	spinlock_t	lock;           /* Lock to protect cmdQ enqueuing */
 };
 
 struct freelQ {
@@ -241,9 +241,9 @@ struct sched_port {
 /* Per T204 device */
 struct sched {
 	ktime_t         last_updated;   /* last time quotas were computed */
-	unsigned int 	max_avail;	/* max bits to be sent to any port */
-	unsigned int 	port;		/* port index (round robin ports) */
-	unsigned int 	num;		/* num skbs in per port queues */
+	unsigned int	max_avail;	/* max bits to be sent to any port */
+	unsigned int	port;		/* port index (round robin ports) */
+	unsigned int	num;		/* num skbs in per port queues */
 	struct sched_port p[MAX_NPORTS];
 	struct tasklet_struct sched_tsk;/* tasklet used to run scheduler */
 };
@@ -259,10 +259,10 @@ static void restart_sched(unsigned long);
  * contention.
  */
 struct sge {
-	struct adapter *adapter; 	/* adapter backpointer */
+	struct adapter *adapter;	/* adapter backpointer */
 	struct net_device *netdev;      /* netdevice backpointer */
-	struct freelQ 	freelQ[SGE_FREELQ_N]; /* buffer free lists */
-	struct respQ 	respQ;		/* response Q */
+	struct freelQ	freelQ[SGE_FREELQ_N]; /* buffer free lists */
+	struct respQ	respQ;		/* response Q */
 	unsigned long   stopped_tx_queues; /* bitmap of suspended Tx queues */
 	unsigned int	rx_pkt_pad;     /* RX padding for L2 packets */
 	unsigned int	jumbo_fl;       /* jumbo freelist Q index */
@@ -460,7 +460,7 @@ static struct sk_buff *sched_skb(struct sge *sge, struct sk_buff *skb,
 	if (credits < MAX_SKB_FRAGS + 1)
 		goto out;
 
- again:
+again:
 	for (i = 0; i < MAX_NPORTS; i++) {
 		s->port = ++s->port & (MAX_NPORTS - 1);
 		skbq = &s->p[s->port].skbq;
@@ -483,8 +483,8 @@ static struct sk_buff *sched_skb(struct sge *sge, struct sk_buff *skb,
 	if (update-- && sched_update_avail(sge))
 		goto again;
 
- out:
- 	/* If there are more pending skbs, we use the hardware to schedule us
+out:
+	/* If there are more pending skbs, we use the hardware to schedule us
 	 * again.
 	 */
 	if (s->num && !skb) {
@@ -641,14 +641,14 @@ static void free_cmdQ_buffers(struct sge *sge, struct cmdQ *q, unsigned int n)
 			if (likely(pci_unmap_len(ce, dma_len))) {
 				pci_unmap_single(pdev,
 						 pci_unmap_addr(ce, dma_addr),
-			 			 pci_unmap_len(ce, dma_len),
+						 pci_unmap_len(ce, dma_len),
 						 PCI_DMA_TODEVICE);
 				q->sop = 0;
 			}
 		} else {
 			if (likely(pci_unmap_len(ce, dma_len))) {
 				pci_unmap_page(pdev, pci_unmap_addr(ce, dma_addr),
-			 		       pci_unmap_len(ce, dma_len),
+					       pci_unmap_len(ce, dma_len),
 					       PCI_DMA_TODEVICE);
 			}
 		}
@@ -770,7 +770,7 @@ void t1_set_vlan_accel(struct adapter *adapter, int on_off)
 static void configure_sge(struct sge *sge, struct sge_params *p)
 {
 	struct adapter *ap = sge->adapter;
-	
+
 	writel(0, ap->regs + A_SG_CONTROL);
 	setup_ring_params(ap, sge->cmdQ[0].dma_addr, sge->cmdQ[0].size,
 			  A_SG_CMD0BASELWR, A_SG_CMD0BASEUPR, A_SG_CMD0SIZE);
@@ -850,7 +850,6 @@ static void refill_free_list(struct sge *sge, struct freelQ *q)
 	struct freelQ_e *e = &q->entries[q->pidx];
 	unsigned int dma_len = q->rx_buffer_size - q->dma_offset;
 
-
 	while (q->credits < q->size) {
 		struct sk_buff *skb;
 		dma_addr_t mapping;
@@ -881,7 +880,6 @@ static void refill_free_list(struct sge *sge, struct freelQ *q)
 		}
 		q->credits++;
 	}
-
 }
 
 /*
@@ -1075,12 +1073,12 @@ static inline struct sk_buff *get_packet(struct pci_dev *pdev,
 			skb_put(skb, len);
 			pci_dma_sync_single_for_cpu(pdev,
 					    pci_unmap_addr(ce, dma_addr),
- 					    pci_unmap_len(ce, dma_len),
+					    pci_unmap_len(ce, dma_len),
 					    PCI_DMA_FROMDEVICE);
 			memcpy(skb->data, ce->skb->data + dma_pad, len);
 			pci_dma_sync_single_for_device(pdev,
 					    pci_unmap_addr(ce, dma_addr),
- 					    pci_unmap_len(ce, dma_len),
+					    pci_unmap_len(ce, dma_len),
 					    PCI_DMA_FROMDEVICE);
 		} else if (!drop_thres)
 			goto use_orig_buf;
@@ -1137,6 +1135,7 @@ static void unexpected_offload(struct adapter *adapter, struct freelQ *fl)
 static inline unsigned int compute_large_page_tx_descs(struct sk_buff *skb)
 {
 	unsigned int count = 0;
+
 	if (PAGE_SIZE > SGE_TX_DESC_MAX_PLEN) {
 		unsigned int nfrags = skb_shinfo(skb)->nr_frags;
 		unsigned int i, len = skb->len - skb->data_len;
@@ -1343,7 +1342,7 @@ static void restart_sched(unsigned long arg)
 	while ((skb = sched_skb(sge, NULL, credits)) != NULL) {
 		unsigned int genbit, pidx, count;
 	        count = 1 + skb_shinfo(skb)->nr_frags;
-       		count += compute_large_page_tx_descs(skb);
+		count += compute_large_page_tx_descs(skb);
 		q->in_use += count;
 		genbit = q->genbit;
 		pidx = q->pidx;
@@ -1466,11 +1465,11 @@ static void restart_tx_queues(struct sge *sge)
 }
 
 /*
- * update_tx_info is called from the interrupt handler/NAPI to return cmdQ0 
+ * update_tx_info is called from the interrupt handler/NAPI to return cmdQ0
  * information.
  */
-static unsigned int update_tx_info(struct adapter *adapter, 
-					  unsigned int flags, 
+static unsigned int update_tx_info(struct adapter *adapter,
+					  unsigned int flags,
 					  unsigned int pr0)
 {
 	struct sge *sge = adapter->sge;
@@ -1513,14 +1512,14 @@ static int process_responses(struct adapter *adapter, int budget)
 	int budget_left = budget;
 	unsigned int flags = 0;
 	unsigned int cmdq_processed[SGE_CMDQ_N] = {0, 0};
-	
+
 
 	while (likely(budget_left && e->GenerationBit == q->genbit)) {
 		flags |= e->Qsleeping;
-		
+
 		cmdq_processed[0] += e->Cmdq0CreditReturn;
 		cmdq_processed[1] += e->Cmdq1CreditReturn;
-		
+
 		/* We batch updates to the TX side to avoid cacheline
 		 * ping-pong of TX state information on MP where the sender
 		 * might run on a different CPU than this function...
@@ -1569,7 +1568,7 @@ static int process_responses(struct adapter *adapter, int budget)
 		--budget_left;
 	}
 
-	flags = update_tx_info(adapter, flags, cmdq_processed[0]); 
+	flags = update_tx_info(adapter, flags, cmdq_processed[0]);
 	sge->cmdQ[1].processed += cmdq_processed[1];
 
 	budget -= budget_left;
@@ -1597,7 +1596,7 @@ static int process_pure_responses(struct adapter *adapter, struct respQ_e *e)
 
 		cmdq_processed[0] += e->Cmdq0CreditReturn;
 		cmdq_processed[1] += e->Cmdq1CreditReturn;
-		
+
 		e++;
 		if (unlikely(++q->cidx == q->size)) {
 			q->cidx = 0;
@@ -1613,7 +1612,7 @@ static int process_pure_responses(struct adapter *adapter, struct respQ_e *e)
 		sge->stats.pure_rsps++;
 	} while (e->GenerationBit == q->genbit && !e->DataValid);
 
-	flags = update_tx_info(adapter, flags, cmdq_processed[0]); 
+	flags = update_tx_info(adapter, flags, cmdq_processed[0]);
 	sge->cmdQ[1].processed += cmdq_processed[1];
 
 	return e->GenerationBit == q->genbit;
@@ -1636,12 +1635,12 @@ int t1_poll(struct net_device *dev, int *budget)
 	if (work_done >= effective_budget)
 		return 1;
 
- 	spin_lock_irq(&adapter->async_lock);
+	spin_lock_irq(&adapter->async_lock);
 	__netif_rx_complete(dev);
 	writel(adapter->sge->respQ.cidx, adapter->regs + A_SG_SLEEPING);
 	writel(adapter->slow_intr_mask | F_PL_INTR_SGE_DATA,
 	       adapter->regs + A_PL_ENABLE);
- 	spin_unlock_irq(&adapter->async_lock);
+	spin_unlock_irq(&adapter->async_lock);
 
 	return 0;
 }
@@ -1652,9 +1651,9 @@ int t1_poll(struct net_device *dev, int *budget)
 irqreturn_t t1_interrupt(int irq, void *data)
 {
 	struct adapter *adapter = data;
- 	struct net_device *dev = adapter->sge->netdev;
+	struct net_device *dev = adapter->sge->netdev;
 	struct sge *sge = adapter->sge;
- 	u32 cause;
+	u32 cause;
 	int handled = 0;
 
 	cause = readl(adapter->regs + A_PL_CAUSE);
@@ -1662,12 +1661,12 @@ irqreturn_t t1_interrupt(int irq, void *data)
 		return IRQ_NONE;
 
 	spin_lock(&adapter->async_lock);
- 	if (cause & F_PL_INTR_SGE_DATA) {
+	if (cause & F_PL_INTR_SGE_DATA) {
 		struct respQ *q = &adapter->sge->respQ;
 		struct respQ_e *e = &q->entries[q->cidx];
 
- 		handled = 1;
- 		writel(F_PL_INTR_SGE_DATA, adapter->regs + A_PL_CAUSE);
+		handled = 1;
+		writel(F_PL_INTR_SGE_DATA, adapter->regs + A_PL_CAUSE);
 
 		if (e->GenerationBit == q->genbit &&
 		    __netif_rx_schedule_prep(dev)) {
@@ -1796,7 +1795,7 @@ static int t1_sge_tx(struct sk_buff *skb, struct adapter *adapter,
 	 * through the scheduler.
 	 */
 	if (sge->tx_sched && !qid && skb->dev) {
-	use_sched:
+use_sched:
 		use_sched_skb = 1;
 		/* Note that the scheduler might return a different skb than
 		 * the one passed in.
@@ -1900,7 +1899,7 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		cpl = (struct cpl_tx_pkt *)hdr;
 	} else {
 		/*
-	 	 * Packets shorter than ETH_HLEN can break the MAC, drop them
+		 * Packets shorter than ETH_HLEN can break the MAC, drop them
 		 * early.  Also, we may get oversized packets because some
 		 * parts of the kernel don't handle our unusual hard_header_len
 		 * right, drop those too.
@@ -1984,9 +1983,9 @@ send:
 	 * then silently discard to avoid leak.
 	 */
 	if (unlikely(ret != NETDEV_TX_OK && skb != orig_skb)) {
- 		dev_kfree_skb_any(skb);
+		dev_kfree_skb_any(skb);
 		ret = NETDEV_TX_OK;
- 	}
+	}
 	return ret;
 }
 
@@ -2099,31 +2098,35 @@ static void espibug_workaround_t204(unsigned long data)
 
 	if (adapter->open_device_map & PORT_MASK) {
 		int i;
-		if (t1_espi_get_mon_t204(adapter, &(seop[0]), 0) < 0) {
-			return;
-		}
-		for (i = 0; i < nports; i++) {
-	        	struct sk_buff *skb = sge->espibug_skb[i];
-			if ( (netif_running(adapter->port[i].dev)) &&
-			     !(netif_queue_stopped(adapter->port[i].dev)) &&
-			     (seop[i] && ((seop[i] & 0xfff) == 0)) &&
-			     skb ) {
-	                	if (!skb->cb[0]) {
-	                        	u8 ch_mac_addr[ETH_ALEN] =
-	                            	{0x0, 0x7, 0x43, 0x0, 0x0, 0x0};
-	                        	memcpy(skb->data + sizeof(struct cpl_tx_pkt),
-	                               	ch_mac_addr, ETH_ALEN);
-	                        	memcpy(skb->data + skb->len - 10,
-						ch_mac_addr, ETH_ALEN);
-	                        	skb->cb[0] = 0xff;
-	                	}
 
-	                	/* bump the reference count to avoid freeing of
-	                 	 * the skb once the DMA has completed.
-	                 	 */
-	                	skb = skb_get(skb);
-	                	t1_sge_tx(skb, adapter, 0, adapter->port[i].dev);
+		if (t1_espi_get_mon_t204(adapter, &(seop[0]), 0) < 0)
+			return;
+
+		for (i = 0; i < nports; i++) {
+			struct sk_buff *skb = sge->espibug_skb[i];
+
+			if (!netif_running(adapter->port[i].dev) ||
+			    netif_queue_stopped(adapter->port[i].dev) ||
+			    !seop[i] || ((seop[i] & 0xfff) != 0) || !skb)
+				continue;
+
+			if (!skb->cb[0]) {
+				u8 ch_mac_addr[ETH_ALEN] = {
+					0x0, 0x7, 0x43, 0x0, 0x0, 0x0
+				};
+
+				memcpy(skb->data + sizeof(struct cpl_tx_pkt),
+					ch_mac_addr, ETH_ALEN);
+				memcpy(skb->data + skb->len - 10,
+					ch_mac_addr, ETH_ALEN);
+				skb->cb[0] = 0xff;
 			}
+
+			/* bump the reference count to avoid freeing of
+			 * the skb once the DMA has completed.
+			 */
+			skb = skb_get(skb);
+			t1_sge_tx(skb, adapter, 0, adapter->port[i].dev);
 		}
 	}
 	mod_timer(&sge->espibug_timer, jiffies + sge->espibug_timeout);
@@ -2202,7 +2205,7 @@ struct sge * __devinit t1_sge_create(struct adapter *adapter,
 		if (adapter->params.nports > 1)
 			sge->espibug_timeout = HZ/100;
 	}
-	 
+
 
 	p->cmdQ_size[0] = SGE_CMDQ0_E_N;
 	p->cmdQ_size[1] = SGE_CMDQ1_E_N;

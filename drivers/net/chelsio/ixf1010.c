@@ -358,8 +358,8 @@ static void enable_port(struct cmac *mac)
 	val |= (1 << index);
 	t1_tpi_write(adapter, REG_PORT_ENABLE, val);
 
-       	index <<= 2;
-        if (is_T2(adapter)) {
+	index <<= 2;
+	if (is_T2(adapter)) {
 		/* T204: set the Fifo water level & threshold */
 		t1_tpi_write(adapter, RX_FIFO_HIGH_WATERMARK_BASE + index, 0x740);
 		t1_tpi_write(adapter, RX_FIFO_LOW_WATERMARK_BASE + index, 0x730);

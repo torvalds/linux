@@ -234,14 +234,14 @@ static void run_table(adapter_t *adapter, struct init_table *ib, int len)
 
 static int bist_rd(adapter_t *adapter, int moduleid, int address)
 {
-	int data=0;
-	u32 result=0;
+	int data = 0;
+	u32 result = 0;
 
-	if(	(address != 0x0) &&
-		(address != 0x1) &&
-		(address != 0x2) &&
-		(address != 0xd) &&
-		(address != 0xe))
+	if ((address != 0x0) &&
+	    (address != 0x1) &&
+	    (address != 0x2) &&
+	    (address != 0xd) &&
+	    (address != 0xe))
 			CH_ERR("No bist address: 0x%x\n", address);
 
 	data = ((0x00 << 24) | ((address & 0xff) << 16) | (0x00 << 8) |
@@ -251,9 +251,9 @@ static int bist_rd(adapter_t *adapter, int moduleid, int address)
 	udelay(10);
 
 	vsc_read(adapter, REG_RAM_BIST_RESULT, &result);
-	if((result & (1<<9)) != 0x0)
+	if ((result & (1 << 9)) != 0x0)
 		CH_ERR("Still in bist read: 0x%x\n", result);
-	else if((result & (1<<8)) != 0x0)
+	else if ((result & (1 << 8)) != 0x0)
 		CH_ERR("bist read error: 0x%x\n", result);
 
 	return (result & 0xff);
@@ -261,17 +261,17 @@ static int bist_rd(adapter_t *adapter, int moduleid, int address)
 
 static int bist_wr(adapter_t *adapter, int moduleid, int address, int value)
 {
-	int data=0;
-	u32 result=0;
+	int data = 0;
+	u32 result = 0;
 
-	if(	(address != 0x0) &&
-		(address != 0x1) &&
-		(address != 0x2) &&
-		(address != 0xd) &&
-		(address != 0xe))
+	if ((address != 0x0) &&
+	    (address != 0x1) &&
+	    (address != 0x2) &&
+	    (address != 0xd) &&
+	    (address != 0xe))
 			CH_ERR("No bist address: 0x%x\n", address);
 
-	if( value>255 )
+	if (value > 255)
 		CH_ERR("Suspicious write out of range value: 0x%x\n", value);
 
 	data = ((0x01 << 24) | ((address & 0xff) << 16) | (value << 8) |
@@ -281,9 +281,9 @@ static int bist_wr(adapter_t *adapter, int moduleid, int address, int value)
 	udelay(5);
 
 	vsc_read(adapter, REG_RAM_BIST_CMD, &result);
-	if((result & (1<<27)) != 0x0)
+	if ((result & (1 << 27)) != 0x0)
 		CH_ERR("Still in bist write: 0x%x\n", result);
-	else if((result & (1<<26)) != 0x0)
+	else if ((result & (1 << 26)) != 0x0)
 		CH_ERR("bist write error: 0x%x\n", result);
 
 	return 0;
@@ -321,15 +321,14 @@ static int enable_mem(adapter_t *adapter, int moduleid)
 
 static int run_bist_all(adapter_t *adapter)
 {
-	int port=0;
-	u32 val=0;
+	int port = 0;
+	u32 val = 0;
 
 	vsc_write(adapter, REG_MEM_BIST, 0x5);
 	vsc_read(adapter, REG_MEM_BIST, &val);
 
-	for(port=0; port<12; port++){
+	for (port = 0; port < 12; port++)
 		vsc_write(adapter, REG_DEV_SETUP(port), 0x0);
-	}
 
 	udelay(300);
 	vsc_write(adapter, REG_SPI4_MISC, 0x00040409);
@@ -352,9 +351,9 @@ static int run_bist_all(adapter_t *adapter)
 	udelay(300);
 	vsc_write(adapter, REG_SPI4_MISC, 0x60040400);
 	udelay(300);
-	for(port=0; port<12; port++){
+	for (port = 0; port < 12; port++)
 		vsc_write(adapter, REG_DEV_SETUP(port), 0x1);
-	}
+
 	udelay(300);
 	vsc_write(adapter, REG_MEM_BIST, 0x0);
 	mdelay(10);
@@ -612,7 +611,7 @@ static void port_stats_update(struct cmac *mac)
 	rmon_update(mac, REG_RX_SYMBOL_CARRIER(port),
 		    &mac->stats.RxSymbolErrors);
 	rmon_update(mac, REG_RX_SIZE_1519_TO_MAX(port),
-            &mac->stats.RxJumboFramesOK);
+		    &mac->stats.RxJumboFramesOK);
 
 	/* Tx stats (skip collision stats as we are full-duplex only) */
 	rmon_update(mac, REG_TX_OK_BYTES(port), &mac->stats.TxOctetsOK);
@@ -624,7 +623,7 @@ static void port_stats_update(struct cmac *mac)
 	rmon_update(mac, REG_TX_PAUSE(port), &mac->stats.TxPauseFrames);
 	rmon_update(mac, REG_TX_UNDERRUN(port), &mac->stats.TxUnderrun);
 	rmon_update(mac, REG_TX_SIZE_1519_TO_MAX(port),
-            &mac->stats.TxJumboFramesOK);
+		    &mac->stats.TxJumboFramesOK);
 }
 
 /*

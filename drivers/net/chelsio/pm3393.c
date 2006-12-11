@@ -455,8 +455,8 @@ static void pm3393_rmon_update(struct adapter *adapter, u32 offs, u64 *val,
 static const struct cmac_statistics *pm3393_update_statistics(struct cmac *mac,
 							      int flag)
 {
-	u64	ro;
-	u32	val0, val1, val2, val3;
+	u64 ro;
+	u32 val0, val1, val2, val3;
 
 	/* Snap the counters */
 	pmwrite(mac, SUNI1x10GEXP_REG_MSTAT_CONTROL,
@@ -534,9 +534,9 @@ static int pm3393_macaddress_set(struct cmac *cmac, u8 ma[6])
 	/* Store local copy */
 	memcpy(cmac->instance->mac_addr, ma, 6);
 
-	lo = ((u32) ma[1] << 8) | (u32) ma[0];
+	lo  = ((u32) ma[1] << 8) | (u32) ma[0];
 	mid = ((u32) ma[3] << 8) | (u32) ma[2];
-	hi = ((u32) ma[5] << 8) | (u32) ma[4];
+	hi  = ((u32) ma[5] << 8) | (u32) ma[4];
 
 	/* Disable Rx/Tx MAC before configuring it. */
 	if (enabled)
