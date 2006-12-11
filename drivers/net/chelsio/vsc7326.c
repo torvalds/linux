@@ -589,40 +589,46 @@ static void rmon_update(struct cmac *mac, unsigned int addr, u64 *stat)
 
 static void port_stats_update(struct cmac *mac)
 {
-	int port = mac->instance->index;
+	struct {
+		unsigned int reg;
+		unsigned int offset;
+	} hw_stats[] = {
 
-	/* Rx stats */
+#define HW_STAT(reg, stat_name) \
+	{ reg, (&((struct cmac_statistics *)NULL)->stat_name) - (u64 *)NULL }
+
+		/* Rx stats */
+		HW_STAT(RxUnicast, RxUnicastFramesOK),
+		HW_STAT(RxMulticast, RxMulticastFramesOK),
+		HW_STAT(RxBroadcast, RxBroadcastFramesOK),
+		HW_STAT(Crc, RxFCSErrors),
+		HW_STAT(RxAlignment, RxAlignErrors),
+		HW_STAT(RxOversize, RxFrameTooLongErrors),
+		HW_STAT(RxPause, RxPauseFrames),
+		HW_STAT(RxJabbers, RxJabberErrors),
+		HW_STAT(RxFragments, RxRuntErrors),
+		HW_STAT(RxUndersize, RxRuntErrors),
+		HW_STAT(RxSymbolCarrier, RxSymbolErrors),
+		HW_STAT(RxSize1519ToMax, RxJumboFramesOK),
+
+		/* Tx stats (skip collision stats as we are full-duplex only) */
+		HW_STAT(TxUnicast, TxUnicastFramesOK),
+		HW_STAT(TxMulticast, TxMulticastFramesOK),
+		HW_STAT(TxBroadcast, TxBroadcastFramesOK),
+		HW_STAT(TxPause, TxPauseFrames),
+		HW_STAT(TxUnderrun, TxUnderrun),
+		HW_STAT(TxSize1519ToMax, TxJumboFramesOK),
+	}, *p = hw_stats;
+	unsigned int port = mac->instance->index;
+	u64 *stats = (u64 *)&mac->stats;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(hw_stats); i++)
+		rmon_update(mac, CRA(0x4, port, p->reg), stats + p->offset);
+
+	rmon_update(mac, REG_TX_OK_BYTES(port), &mac->stats.TxOctetsOK);
 	rmon_update(mac, REG_RX_OK_BYTES(port), &mac->stats.RxOctetsOK);
 	rmon_update(mac, REG_RX_BAD_BYTES(port), &mac->stats.RxOctetsBad);
-	rmon_update(mac, REG_RX_UNICAST(port), &mac->stats.RxUnicastFramesOK);
-	rmon_update(mac, REG_RX_MULTICAST(port),
-		    &mac->stats.RxMulticastFramesOK);
-	rmon_update(mac, REG_RX_BROADCAST(port),
-		    &mac->stats.RxBroadcastFramesOK);
-	rmon_update(mac, REG_CRC(port), &mac->stats.RxFCSErrors);
-	rmon_update(mac, REG_RX_ALIGNMENT(port), &mac->stats.RxAlignErrors);
-	rmon_update(mac, REG_RX_OVERSIZE(port),
-		    &mac->stats.RxFrameTooLongErrors);
-	rmon_update(mac, REG_RX_PAUSE(port), &mac->stats.RxPauseFrames);
-	rmon_update(mac, REG_RX_JABBERS(port), &mac->stats.RxJabberErrors);
-	rmon_update(mac, REG_RX_FRAGMENTS(port), &mac->stats.RxRuntErrors);
-	rmon_update(mac, REG_RX_UNDERSIZE(port), &mac->stats.RxRuntErrors);
-	rmon_update(mac, REG_RX_SYMBOL_CARRIER(port),
-		    &mac->stats.RxSymbolErrors);
-	rmon_update(mac, REG_RX_SIZE_1519_TO_MAX(port),
-		    &mac->stats.RxJumboFramesOK);
-
-	/* Tx stats (skip collision stats as we are full-duplex only) */
-	rmon_update(mac, REG_TX_OK_BYTES(port), &mac->stats.TxOctetsOK);
-	rmon_update(mac, REG_TX_UNICAST(port), &mac->stats.TxUnicastFramesOK);
-	rmon_update(mac, REG_TX_MULTICAST(port),
-		    &mac->stats.TxMulticastFramesOK);
-	rmon_update(mac, REG_TX_BROADCAST(port),
-		    &mac->stats.TxBroadcastFramesOK);
-	rmon_update(mac, REG_TX_PAUSE(port), &mac->stats.TxPauseFrames);
-	rmon_update(mac, REG_TX_UNDERRUN(port), &mac->stats.TxUnderrun);
-	rmon_update(mac, REG_TX_SIZE_1519_TO_MAX(port),
-		    &mac->stats.TxJumboFramesOK);
 }
 
 /*
