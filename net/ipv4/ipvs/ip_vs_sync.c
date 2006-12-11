@@ -657,7 +657,7 @@ static void sync_master_loop(void)
 		if (stop_master_sync)
 			break;
 
-		ssleep(1);
+		msleep_interruptible(1000);
 	}
 
 	/* clean up the sync_buff queue */
@@ -714,7 +714,7 @@ static void sync_backup_loop(void)
 		if (stop_backup_sync)
 			break;
 
-		ssleep(1);
+		msleep_interruptible(1000);
 	}
 
 	/* release the sending multicast socket */
@@ -826,7 +826,7 @@ static int fork_sync_thread(void *startup)
 	if ((pid = kernel_thread(sync_thread, startup, 0)) < 0) {
 		IP_VS_ERR("could not create sync_thread due to %d... "
 			  "retrying.\n", pid);
-		ssleep(1);
+		msleep_interruptible(1000);
 		goto repeat;
 	}
 
@@ -860,7 +860,7 @@ int start_sync_thread(int state, char *mcast_ifn, __u8 syncid)
 	if ((pid = kernel_thread(fork_sync_thread, &startup, 0)) < 0) {
 		IP_VS_ERR("could not create fork_sync_thread due to %d... "
 			  "retrying.\n", pid);
-		ssleep(1);
+		msleep_interruptible(1000);
 		goto repeat;
 	}
 
