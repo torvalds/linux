@@ -1,7 +1,6 @@
 #ifndef _ASM_MACH_TOPOLOGY_H
 #define _ASM_MACH_TOPOLOGY_H	1
 
-#include <asm/sn/arch.h>
 #include <asm/sn/hub.h>
 #include <asm/mmzone.h>
 
