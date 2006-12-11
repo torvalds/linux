@@ -219,18 +219,6 @@ enum {
 	((udevice)->last_error == 0) && \
 	(!(udevice)->remove_pending))
 
-/* I2C structures */
-struct i2c_algo_usb_data {
-	void *data;		/* private data for lowlevel routines */
-	int (*inb) (void *data, unsigned char addr, char *buf, short len);
-	int (*outb) (void *data, unsigned char addr, char *buf, short len);
-
-	/* local settings */
-	int udelay;
-	int mdelay;
-	int timeout;
-};
-
 #define I2C_USB_ADAP_MAX	16
 
 /* ----------------------------------------------------------------- */
@@ -383,7 +371,6 @@ struct usb_usbvision {
 
 	/* i2c Declaration Section*/
 	struct i2c_adapter i2c_adap;
-	struct i2c_algo_usb_data i2c_algo;
 	struct i2c_client i2c_client;
 
 	struct urb *ctrlUrb;
@@ -490,16 +477,6 @@ struct usb_usbvision {
 /* --------------------------------------------------------------- */
 
 int usbvision_i2c_usb_del_bus(struct i2c_adapter *);
-
-static inline void *i2c_get_algo_usb_data (struct i2c_algo_usb_data *dev)
-{
-	return dev->data;
-}
-
-static inline void i2c_set_algo_usb_data (struct i2c_algo_usb_data *dev, void *data)
-{
-	dev->data = data;
-}
 
 
 /* ----------------------------------------------------------------------- */
