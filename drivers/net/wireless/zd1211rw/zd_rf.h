@@ -18,8 +18,6 @@
 #ifndef _ZD_RF_H
 #define _ZD_RF_H
 
-#include "zd_types.h"
-
 #define UW2451_RF			0x2
 #define UCHIP_RF			0x3
 #define AL2230_RF			0x4

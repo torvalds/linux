@@ -23,6 +23,8 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 
+typedef u16 __nocast zd_addr_t;
+
 #define dev_printk_f(level, dev, fmt, args...) \
 	dev_printk(level, dev, "%s() " fmt, __func__, ##args)
 

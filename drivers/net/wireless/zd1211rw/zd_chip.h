@@ -18,7 +18,6 @@
 #ifndef _ZD_CHIP_H
 #define _ZD_CHIP_H
 
-#include "zd_types.h"
 #include "zd_rf.h"
 #include "zd_usb.h"
 
@@ -26,6 +25,37 @@
  * (BBP). It appears that the ZD1211 wraps the old ZD1205 with USB glue and
  * adds a processor for handling the USB protocol.
  */
+
+/* Address space */
+enum {
+	/* CONTROL REGISTERS */
+	CR_START			= 0x9000,
+
+
+	/* FIRMWARE */
+	FW_START			= 0xee00,
+
+
+	/* EEPROM */
+	E2P_START			= 0xf800,
+	E2P_LEN				= 0x800,
+
+	/* EEPROM layout */
+	E2P_LOAD_CODE_LEN		= 0xe,		/* base 0xf800 */
+	E2P_LOAD_VECT_LEN		= 0x9,		/* base 0xf80e */
+	/* E2P_DATA indexes into this */
+	E2P_DATA_LEN			= 0x7e,		/* base 0xf817 */
+	E2P_BOOT_CODE_LEN		= 0x760,	/* base 0xf895 */
+	E2P_INTR_VECT_LEN		= 0xb,		/* base 0xfff5 */
+
+	/* Some precomputed offsets into the EEPROM */
+	E2P_DATA_OFFSET			= E2P_LOAD_CODE_LEN + E2P_LOAD_VECT_LEN,
+	E2P_BOOT_CODE_OFFSET		= E2P_DATA_OFFSET + E2P_DATA_LEN,
+};
+
+#define CTL_REG(offset) ((zd_addr_t)(CR_START + (offset)))
+#define E2P_DATA(offset) ((zd_addr_t)(E2P_START + E2P_DATA_OFFSET + (offset)))
+#define FWRAW_DATA(offset) ((zd_addr_t)(FW_START + (offset)))
 
 /* 8-bit hardware registers */
 #define CR0   CTL_REG(0x0000)
@@ -302,7 +332,7 @@
 
 #define CR_MAX_PHY_REG 255
 
-/* Taken from the ZYDAS driver, not all of them are relevant for the ZSD1211
+/* Taken from the ZYDAS driver, not all of them are relevant for the ZD1211
  * driver.
  */
 
@@ -638,48 +668,25 @@
 #define E2P_54M_INT_VALUE3	E2P_DATA(0x54)
 #define E2P_54M_INT_VALUE4	E2P_DATA(0x56)
 
-/* All 16 bit values */
-#define FW_FIRMWARE_VER         FW_REG(0)
-/* non-zero if USB high speed connection */
-#define FW_USB_SPEED            FW_REG(1)
-#define FW_FIX_TX_RATE          FW_REG(2)
-/* Seems to be able to control LEDs over the firmware */
-#define FW_LINK_STATUS          FW_REG(3)
-#define FW_SOFT_RESET           FW_REG(4)
-#define FW_FLASH_CHK            FW_REG(5)
+/* This word contains the base address of the FW_REG_ registers below */
+#define FWRAW_REGS_ADDR		FWRAW_DATA(0x1d)
 
+/* All 16 bit values, offset from the address in FWRAW_REGS_ADDR */
+enum {
+	FW_REG_FIRMWARE_VER	= 0,
+	/* non-zero if USB high speed connection */
+	FW_REG_USB_SPEED	= 1,
+	FW_REG_FIX_TX_RATE	= 2,
+	/* Seems to be able to control LEDs over the firmware */
+	FW_REG_LED_LINK_STATUS	= 3,
+	FW_REG_SOFT_RESET	= 4,
+	FW_REG_FLASH_CHK	= 5,
+};
+
+/* Values for FW_LINK_STATUS */
 #define FW_LINK_OFF		0x0
 #define FW_LINK_TX		0x1
 /* 0x2 - link led on? */
-
-enum {
-	/* CONTROL REGISTERS */
-	CR_START			= 0x9000,
-
-	/* FIRMWARE */
-	FW_START			= 0xee00,
-
-	/* The word at this offset contains the base address of the FW_REG
-	 * registers */
-	FW_REGS_ADDR_OFFSET		= 0x1d,
-
-
-	/* EEPROM */
-	E2P_START			= 0xf800,
-	E2P_LEN				= 0x800,
-
-	/* EEPROM layout */
-	E2P_LOAD_CODE_LEN		= 0xe,		/* base 0xf800 */
-	E2P_LOAD_VECT_LEN		= 0x9,		/* base 0xf80e */
-	/* E2P_DATA indexes into this */
-	E2P_DATA_LEN			= 0x7e,		/* base 0xf817 */
-	E2P_BOOT_CODE_LEN		= 0x760,	/* base 0xf895 */
-	E2P_INTR_VECT_LEN		= 0xb,		/* base 0xfff5 */
-
-	/* Some precomputed offsets into the EEPROM */
-	E2P_DATA_OFFSET			= E2P_LOAD_CODE_LEN + E2P_LOAD_VECT_LEN,
-	E2P_BOOT_CODE_OFFSET		= E2P_DATA_OFFSET + E2P_DATA_LEN,
-};
 
 enum {
 	/* indices for ofdm_cal_values */
@@ -692,6 +699,8 @@ struct zd_chip {
 	struct zd_usb usb;
 	struct zd_rf rf;
 	struct mutex mutex;
+	/* Base address of FW_REG_ registers */
+	zd_addr_t fw_regs_base;
 	u8 e2p_mac[ETH_ALEN];
 	/* EepSetPoint in the vendor driver */
 	u8 pwr_cal_values[E2P_CHANNEL_COUNT];

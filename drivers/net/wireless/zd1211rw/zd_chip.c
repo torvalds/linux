@@ -84,6 +84,18 @@ static void print_id(struct zd_chip *chip)
 	dev_info(zd_chip_dev(chip), "%s\n", buffer);
 }
 
+static zd_addr_t inc_addr(zd_addr_t addr)
+{
+	u16 a = (u16)addr;
+	/* Control registers use byte addressing, but everything else uses word
+	 * addressing. */
+	if ((a & 0xf000) == CR_START)
+		a += 2;
+	else
+		a += 1;
+	return (zd_addr_t)a;
+}
+
 /* Read a variable number of 32-bit values. Parameter count is not allowed to
  * exceed USB_MAX_IOREAD32_COUNT.
  */
@@ -114,7 +126,7 @@ int zd_ioread32v_locked(struct zd_chip *chip, u32 *values, const zd_addr_t *addr
 	for (i = 0; i < count; i++) {
 		int j = 2*i;
 		/* We read the high word always first. */
-		a16[j] = zd_inc_word(addr[i]);
+		a16[j] = inc_addr(addr[i]);
 		a16[j+1] = addr[i];
 	}
 
@@ -163,7 +175,7 @@ int _zd_iowrite32v_locked(struct zd_chip *chip, const struct zd_ioreq32 *ioreqs,
 		j = 2*i;
 		/* We write the high word always first. */
 		ioreqs16[j].value   = ioreqs[i].value >> 16;
-		ioreqs16[j].addr    = zd_inc_word(ioreqs[i].addr);
+		ioreqs16[j].addr    = inc_addr(ioreqs[i].addr);
 		ioreqs16[j+1].value = ioreqs[i].value;
 		ioreqs16[j+1].addr  = ioreqs[i].addr;
 	}
@@ -466,7 +478,8 @@ static int read_values(struct zd_chip *chip, u8 *values, size_t count,
 
 	ZD_ASSERT(mutex_is_locked(&chip->mutex));
 	for (i = 0;;) {
-		r = zd_ioread32_locked(chip, &v, e2p_addr+i/2);
+		r = zd_ioread32_locked(chip, &v,
+			               (zd_addr_t)((u16)e2p_addr+i/2));
 		if (r)
 			return r;
 		v -= guard;
@@ -953,6 +966,11 @@ static int hw_init(struct zd_chip *chip)
 	return set_beacon_interval(chip, 100);
 }
 
+static zd_addr_t fw_reg_addr(struct zd_chip *chip, u16 offset)
+{
+	return (zd_addr_t)((u16)chip->fw_regs_base + offset);
+}
+
 #ifdef DEBUG
 static int dump_cr(struct zd_chip *chip, const zd_addr_t addr,
 	           const char *addr_string)
@@ -987,9 +1005,11 @@ static int test_init(struct zd_chip *chip)
 
 static void dump_fw_registers(struct zd_chip *chip)
 {
-	static const zd_addr_t addr[4] = {
-		FW_FIRMWARE_VER, FW_USB_SPEED, FW_FIX_TX_RATE,
-		FW_LINK_STATUS
+	const zd_addr_t addr[4] = {
+		fw_reg_addr(chip, FW_REG_FIRMWARE_VER),
+		fw_reg_addr(chip, FW_REG_USB_SPEED),
+		fw_reg_addr(chip, FW_REG_FIX_TX_RATE),
+		fw_reg_addr(chip, FW_REG_LED_LINK_STATUS),
 	};
 
 	int r;
@@ -1015,7 +1035,8 @@ static int print_fw_version(struct zd_chip *chip)
 	int r;
 	u16 version;
 
-	r = zd_ioread16_locked(chip, &version, FW_FIRMWARE_VER);
+	r = zd_ioread16_locked(chip, &version,
+		fw_reg_addr(chip, FW_REG_FIRMWARE_VER));
 	if (r)
 		return r;
 
@@ -1095,6 +1116,22 @@ int zd_chip_disable_hwint(struct zd_chip *chip)
 	return r;
 }
 
+static int read_fw_regs_offset(struct zd_chip *chip)
+{
+	int r;
+
+	ZD_ASSERT(mutex_is_locked(&chip->mutex));
+	r = zd_ioread16_locked(chip, (u16*)&chip->fw_regs_base,
+		               FWRAW_REGS_ADDR);
+	if (r)
+		return r;
+	dev_dbg_f(zd_chip_dev(chip), "fw_regs_base: %#06hx\n",
+		  (u16)chip->fw_regs_base);
+
+	return 0;
+}
+
+
 int zd_chip_init_hw(struct zd_chip *chip, u8 device_type)
 {
 	int r;
@@ -1114,7 +1151,7 @@ int zd_chip_init_hw(struct zd_chip *chip, u8 device_type)
 	if (r)
 		goto out;
 
-	r = zd_usb_init_hw(&chip->usb);
+	r = read_fw_regs_offset(chip);
 	if (r)
 		goto out;
 
@@ -1294,15 +1331,15 @@ u8 zd_chip_get_channel(struct zd_chip *chip)
 
 int zd_chip_control_leds(struct zd_chip *chip, enum led_status status)
 {
-	static const zd_addr_t a[] = {
-		FW_LINK_STATUS,
+	const zd_addr_t a[] = {
+		fw_reg_addr(chip, FW_REG_LED_LINK_STATUS),
 		CR_LED,
 	};
 
 	int r;
 	u16 v[ARRAY_SIZE(a)];
 	struct zd_ioreq16 ioreqs[ARRAY_SIZE(a)] = {
-		[0] = { FW_LINK_STATUS },
+		[0] = { fw_reg_addr(chip, FW_REG_LED_LINK_STATUS) },
 		[1] = { CR_LED },
 	};
 	u16 other_led;

@@ -2,7 +2,6 @@
 #define _ZD_IEEE80211_H
 
 #include <net/ieee80211.h>
-#include "zd_types.h"
 
 /* Additional definitions from the standards.
  */

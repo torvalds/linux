@@ -75,96 +75,6 @@ MODULE_DEVICE_TABLE(usb, usb_ids);
 #define FW_ZD1211_PREFIX	"zd1211/zd1211_"
 #define FW_ZD1211B_PREFIX	"zd1211/zd1211b_"
 
-/* register address handling */
-
-#ifdef DEBUG
-static int check_addr(struct zd_usb *usb, zd_addr_t addr)
-{
-	u32 base = ZD_ADDR_BASE(addr);
-	u32 offset = ZD_OFFSET(addr);
-
-	if ((u32)addr & ADDR_ZERO_MASK)
-		goto invalid_address;
-	switch (base) {
-	case USB_BASE:
-		break;
-	case CR_BASE:
-		if (offset > CR_MAX_OFFSET) {
-			dev_dbg(zd_usb_dev(usb),
-				"CR offset %#010x larger than"
-				" CR_MAX_OFFSET %#10x\n",
-				offset, CR_MAX_OFFSET);
-			goto invalid_address;
-		}
-		if (offset & 1) {
-			dev_dbg(zd_usb_dev(usb),
-				"CR offset %#010x is not a multiple of 2\n",
-				offset);
-			goto invalid_address;
-		}
-		break;
-	case E2P_BASE:
-		if (offset > E2P_MAX_OFFSET) {
-			dev_dbg(zd_usb_dev(usb),
-				"E2P offset %#010x larger than"
-				" E2P_MAX_OFFSET %#010x\n",
-				offset, E2P_MAX_OFFSET);
-			goto invalid_address;
-		}
-		break;
-	case FW_BASE:
-		if (!usb->fw_base_offset) {
-			dev_dbg(zd_usb_dev(usb),
-			       "ERROR: fw base offset has not been set\n");
-			return -EAGAIN;
-		}
-		if (offset > FW_MAX_OFFSET) {
-			dev_dbg(zd_usb_dev(usb),
-				"FW offset %#10x is larger than"
-				" FW_MAX_OFFSET %#010x\n",
-				offset, FW_MAX_OFFSET);
-			goto invalid_address;
-		}
-		break;
-	default:
-		dev_dbg(zd_usb_dev(usb),
-			"address has unsupported base %#010x\n", addr);
-		goto invalid_address;
-	}
-
-	return 0;
-invalid_address:
-	dev_dbg(zd_usb_dev(usb),
-		"ERROR: invalid address: %#010x\n", addr);
-	return -EINVAL;
-}
-#endif /* DEBUG */
-
-static u16 usb_addr(struct zd_usb *usb, zd_addr_t addr)
-{
-	u32 base;
-	u16 offset;
-
-	base = ZD_ADDR_BASE(addr);
-	offset = ZD_OFFSET(addr);
-
-	ZD_ASSERT(check_addr(usb, addr) == 0);
-
-	switch (base) {
-	case CR_BASE:
-		offset += CR_START;
-		break;
-	case E2P_BASE:
-		offset += E2P_START + E2P_DATA_OFFSET;
-		break;
-	case FW_BASE:
-		offset += usb->fw_base_offset;
-		break;
-	}
-
-	return offset;
-}
-
 /* USB device initialization */
 
 static int request_fw_file(
@@ -858,7 +768,7 @@ static inline void init_usb_interrupt(struct zd_usb *usb)
 	spin_lock_init(&intr->lock);
 	intr->interval = int_urb_interval(zd_usb_to_usbdev(usb));
 	init_completion(&intr->read_regs.completion);
-	intr->read_regs.cr_int_addr = cpu_to_le16(usb_addr(usb, CR_INTERRUPT));
+	intr->read_regs.cr_int_addr = cpu_to_le16((u16)CR_INTERRUPT);
 }
 
 static inline void init_usb_rx(struct zd_usb *usb)
@@ -888,22 +798,6 @@ void zd_usb_init(struct zd_usb *usb, struct net_device *netdev,
 	init_usb_interrupt(usb);
 	init_usb_tx(usb);
 	init_usb_rx(usb);
-}
-
-int zd_usb_init_hw(struct zd_usb *usb)
-{
-	int r;
-	struct zd_chip *chip = zd_usb_to_chip(usb);
-
-	ZD_ASSERT(mutex_is_locked(&chip->mutex));
-	r = zd_ioread16_locked(chip, &usb->fw_base_offset,
-		        USB_REG(FW_START + FW_REGS_ADDR_OFFSET));
-	if (r)
-		return r;
-	dev_dbg_f(zd_usb_dev(usb), "fw_base_offset: %#06hx\n",
-		 usb->fw_base_offset);
-
-	return 0;
 }
 
 void zd_usb_clear(struct zd_usb *usb)
@@ -1253,7 +1147,7 @@ int zd_usb_ioread16v(struct zd_usb *usb, u16 *values,
 		return -ENOMEM;
 	req->id = cpu_to_le16(USB_REQ_READ_REGS);
 	for (i = 0; i < count; i++)
-		req->addr[i] = cpu_to_le16(usb_addr(usb, addresses[i]));
+		req->addr[i] = cpu_to_le16((u16)addresses[i]);
 
 	udev = zd_usb_to_usbdev(usb);
 	prepare_read_regs_int(usb);
@@ -1318,7 +1212,7 @@ int zd_usb_iowrite16v(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
 	req->id = cpu_to_le16(USB_REQ_WRITE_REGS);
 	for (i = 0; i < count; i++) {
 		struct reg_data *rw  = &req->reg_writes[i];
-		rw->addr = cpu_to_le16(usb_addr(usb, ioreqs[i].addr));
+		rw->addr = cpu_to_le16((u16)ioreqs[i].addr);
 		rw->value = cpu_to_le16(ioreqs[i].value);
 	}
 
