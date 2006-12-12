@@ -132,7 +132,6 @@ superio_exit(int base)
 #define F71805F_REG_STATUS(nr)		(0x36 + (nr))
 
 /* individual register bits */
-#define FAN_CTRL_SKIP			0x80
 #define FAN_CTRL_DC_MODE		0x10
 #define FAN_CTRL_LATCH_FULL		0x08
 #define FAN_CTRL_MODE_MASK		0x03
@@ -337,8 +336,6 @@ static struct f71805f_data *f71805f_update_device(struct device *dev)
 					   F71805F_REG_IN_LOW(nr));
 		}
 		for (nr = 0; nr < 3; nr++) {
-			if (data->fan_ctrl[nr] & FAN_CTRL_SKIP)
-				continue;
 			data->fan_low[nr] = f71805f_read16(data,
 					    F71805F_REG_FAN_LOW(nr));
 			data->fan_target[nr] = f71805f_read16(data,
@@ -367,8 +364,6 @@ static struct f71805f_data *f71805f_update_device(struct device *dev)
 				       F71805F_REG_IN(nr));
 		}
 		for (nr = 0; nr < 3; nr++) {
-			if (data->fan_ctrl[nr] & FAN_CTRL_SKIP)
-				continue;
 			data->fan[nr] = f71805f_read16(data,
 					F71805F_REG_FAN(nr));
 			data->fan_ctrl[nr] = f71805f_read8(data,
@@ -991,6 +986,29 @@ static struct attribute *f71805f_attributes[] = {
 	&sensor_dev_attr_in7_max.dev_attr.attr,
 	&sensor_dev_attr_in7_min.dev_attr.attr,
 
+	&sensor_dev_attr_fan1_input.dev_attr.attr,
+	&sensor_dev_attr_fan1_min.dev_attr.attr,
+	&sensor_dev_attr_fan1_alarm.dev_attr.attr,
+	&sensor_dev_attr_fan1_target.dev_attr.attr,
+	&sensor_dev_attr_fan2_input.dev_attr.attr,
+	&sensor_dev_attr_fan2_min.dev_attr.attr,
+	&sensor_dev_attr_fan2_alarm.dev_attr.attr,
+	&sensor_dev_attr_fan2_target.dev_attr.attr,
+	&sensor_dev_attr_fan3_input.dev_attr.attr,
+	&sensor_dev_attr_fan3_min.dev_attr.attr,
+	&sensor_dev_attr_fan3_alarm.dev_attr.attr,
+	&sensor_dev_attr_fan3_target.dev_attr.attr,
+
+	&sensor_dev_attr_pwm1.dev_attr.attr,
+	&sensor_dev_attr_pwm1_enable.dev_attr.attr,
+	&sensor_dev_attr_pwm1_mode.dev_attr.attr,
+	&sensor_dev_attr_pwm2.dev_attr.attr,
+	&sensor_dev_attr_pwm2_enable.dev_attr.attr,
+	&sensor_dev_attr_pwm2_mode.dev_attr.attr,
+	&sensor_dev_attr_pwm3.dev_attr.attr,
+	&sensor_dev_attr_pwm3_enable.dev_attr.attr,
+	&sensor_dev_attr_pwm3_mode.dev_attr.attr,
+
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
 	&sensor_dev_attr_temp1_max_hyst.dev_attr.attr,
@@ -1059,43 +1077,6 @@ static const struct attribute_group f71805f_group_optin[4] = {
 	{ .attrs = f71805f_attributes_optin[1] },
 	{ .attrs = f71805f_attributes_optin[2] },
 	{ .attrs = f71805f_attributes_optin[3] },
-};
-
-static struct attribute *f71805f_attributes_fan[3][8] = {
-	{
-		&sensor_dev_attr_fan1_input.dev_attr.attr,
-		&sensor_dev_attr_fan1_min.dev_attr.attr,
-		&sensor_dev_attr_fan1_alarm.dev_attr.attr,
-		&sensor_dev_attr_fan1_target.dev_attr.attr,
-		&sensor_dev_attr_pwm1.dev_attr.attr,
-		&sensor_dev_attr_pwm1_enable.dev_attr.attr,
-		&sensor_dev_attr_pwm1_mode.dev_attr.attr,
-		NULL
-	}, {
-		&sensor_dev_attr_fan2_input.dev_attr.attr,
-		&sensor_dev_attr_fan2_min.dev_attr.attr,
-		&sensor_dev_attr_fan2_alarm.dev_attr.attr,
-		&sensor_dev_attr_fan2_target.dev_attr.attr,
-		&sensor_dev_attr_pwm2.dev_attr.attr,
-		&sensor_dev_attr_pwm2_enable.dev_attr.attr,
-		&sensor_dev_attr_pwm2_mode.dev_attr.attr,
-		NULL
-	}, {
-		&sensor_dev_attr_fan3_input.dev_attr.attr,
-		&sensor_dev_attr_fan3_min.dev_attr.attr,
-		&sensor_dev_attr_fan3_alarm.dev_attr.attr,
-		&sensor_dev_attr_fan3_target.dev_attr.attr,
-		&sensor_dev_attr_pwm3.dev_attr.attr,
-		&sensor_dev_attr_pwm3_enable.dev_attr.attr,
-		&sensor_dev_attr_pwm3_mode.dev_attr.attr,
-		NULL
-	}
-};
-
-static const struct attribute_group f71805f_group_fan[3] = {
-	{ .attrs = f71805f_attributes_fan[0] },
-	{ .attrs = f71805f_attributes_fan[1] },
-	{ .attrs = f71805f_attributes_fan[2] },
 };
 
 /* We don't include pwm_freq files in the arrays above, because they must be
@@ -1216,11 +1197,6 @@ static int __devinit f71805f_probe(struct platform_device *pdev)
 			goto exit_remove_files;
 	}
 	for (i = 0; i < 3; i++) {
-		if (data->fan_ctrl[i] & FAN_CTRL_SKIP)
-			continue;
-		if ((err = sysfs_create_group(&pdev->dev.kobj,
-					      &f71805f_group_fan[i])))
-			goto exit_remove_files;
 		/* If control mode is PWM, create pwm_freq file */
 		if (!(data->fan_ctrl[i] & FAN_CTRL_DC_MODE)) {
 			if ((err = sysfs_create_file(&pdev->dev.kobj,
@@ -1252,8 +1228,6 @@ exit_remove_files:
 	sysfs_remove_group(&pdev->dev.kobj, &f71805f_group);
 	for (i = 0; i < 4; i++)
 		sysfs_remove_group(&pdev->dev.kobj, &f71805f_group_optin[i]);
-	for (i = 0; i < 3; i++)
-		sysfs_remove_group(&pdev->dev.kobj, &f71805f_group_fan[i]);
 	sysfs_remove_group(&pdev->dev.kobj, &f71805f_group_pwm_freq);
 exit_free:
 	platform_set_drvdata(pdev, NULL);
@@ -1272,8 +1246,6 @@ static int __devexit f71805f_remove(struct platform_device *pdev)
 	sysfs_remove_group(&pdev->dev.kobj, &f71805f_group);
 	for (i = 0; i < 4; i++)
 		sysfs_remove_group(&pdev->dev.kobj, &f71805f_group_optin[i]);
-	for (i = 0; i < 3; i++)
-		sysfs_remove_group(&pdev->dev.kobj, &f71805f_group_fan[i]);
 	sysfs_remove_group(&pdev->dev.kobj, &f71805f_group_pwm_freq);
 	kfree(data);
 
