@@ -256,7 +256,7 @@ reserve_memory (void)
 
 #ifdef CONFIG_KEXEC
 	/* crashkernel=size@offset specifies the size to reserve for a crash
-	 * kernel.(offset is ingored for keep compatibility with other archs)
+	 * kernel. If offset is 0, then it is determined automatically.
 	 * By reserving this memory we guarantee that linux never set's it
 	 * up as a DMA target.Useful for holding code to do something
 	 * appropriate after a kernel panic.
@@ -266,10 +266,16 @@ reserve_memory (void)
 		unsigned long base, size;
 		if (from) {
 			size = memparse(from + 12, &from);
+			if (*from == '@')
+				base = memparse(from+1, &from);
+			else
+				base = 0;
 			if (size) {
-				sort_regions(rsvd_region, n);
-				base = kdump_find_rsvd_region(size,
-				rsvd_region, n);
+				if (!base) {
+					sort_regions(rsvd_region, n);
+					base = kdump_find_rsvd_region(size,
+							      	rsvd_region, n);
+					}
 				if (base != ~0UL) {
 					rsvd_region[n].start =
 						(unsigned long)__va(base);
