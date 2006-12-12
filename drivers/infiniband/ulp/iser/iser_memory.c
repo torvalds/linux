@@ -235,7 +235,7 @@ static int iser_sg_to_page_vec(struct iser_data_buf *data,
 {
 	struct scatterlist *sg = (struct scatterlist *)data->buf;
 	dma_addr_t first_addr, last_addr, page;
-	int start_aligned, end_aligned;
+	int end_aligned;
 	unsigned int cur_page = 0;
 	unsigned long total_sz = 0;
 	int i;
@@ -249,7 +249,6 @@ static int iser_sg_to_page_vec(struct iser_data_buf *data,
 		first_addr = sg_dma_address(&sg[i]);
 		last_addr  = first_addr + sg_dma_len(&sg[i]);
 
-		start_aligned = !(first_addr & ~MASK_4K);
 		end_aligned   = !(last_addr  & ~MASK_4K);
 
 		/* continue to collect page fragments till aligned or SG ends */

@@ -487,10 +487,8 @@ int iser_send_control(struct iscsi_conn *conn,
 	struct iscsi_iser_conn *iser_conn = conn->dd_data;
 	struct iser_desc *mdesc = mtask->dd_data;
 	struct iser_dto *send_dto = NULL;
-	unsigned int itt;
 	unsigned long data_seg_len;
 	int err = 0;
-	unsigned char opcode;
 	struct iser_regd_buf *regd_buf;
 	struct iser_device *device;
 
@@ -512,8 +510,6 @@ int iser_send_control(struct iscsi_conn *conn,
 
 	iser_reg_single(device, send_dto->regd[0], DMA_TO_DEVICE);
 
-	itt = ntohl(mtask->hdr->itt);
-	opcode = mtask->hdr->opcode & ISCSI_OPCODE_MASK;
 	data_seg_len = ntoh24(mtask->hdr->dlength);
 
 	if (data_seg_len > 0) {
