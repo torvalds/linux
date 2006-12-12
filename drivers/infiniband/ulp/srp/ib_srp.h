@@ -161,7 +161,7 @@ struct srp_target_port {
 };
 
 struct srp_iu {
-	dma_addr_t		dma;
+	u64			dma;
 	void		       *buf;
 	size_t			size;
 	enum dma_data_direction	direction;
