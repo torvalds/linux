@@ -674,6 +674,7 @@ get_model_name(__u8 family, __u8 model)
 {
 	char brand[128];
 
+	memcpy(brand, "Unknown", 8);
 	if (ia64_pal_get_brand_info(brand)) {
 		if (family == 0x7)
 			memcpy(brand, "Merced", 7);
@@ -681,8 +682,7 @@ get_model_name(__u8 family, __u8 model)
 			case 0: memcpy(brand, "McKinley", 9); break;
 			case 1: memcpy(brand, "Madison", 8); break;
 			case 2: memcpy(brand, "Madison up to 9M cache", 23); break;
-		} else
-			memcpy(brand, "Unknown", 8);
+		}
 	}
 	if (brandname[0] == '\0')
 		return strcpy(brandname, brand);
