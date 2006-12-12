@@ -587,9 +587,11 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 	}
 
 	ocfs2_inode_set_new(osb, inode);
-	status = ocfs2_create_new_inode_locks(inode);
-	if (status < 0)
-		mlog_errno(status);
+	if (!ocfs2_mount_local(osb)) {
+		status = ocfs2_create_new_inode_locks(inode);
+		if (status < 0)
+			mlog_errno(status);
+	}
 
 	status = 0; /* error in ocfs2_create_new_inode_locks is not
 		     * critical */

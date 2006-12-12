@@ -27,22 +27,19 @@
 #define O2NET_MSG_KEEP_REQ_MAGIC  ((u16)0xfa57)
 #define O2NET_MSG_KEEP_RESP_MAGIC ((u16)0xfa58)
 
-/* same as hb delay, we're waiting for another node to recognize our hb */
-#define O2NET_RECONNECT_DELAY_MS	O2HB_REGION_TIMEOUT_MS
-
 /* we're delaying our quorum decision so that heartbeat will have timed
  * out truly dead nodes by the time we come around to making decisions
  * on their number */
 #define O2NET_QUORUM_DELAY_MS	((o2hb_dead_threshold + 2) * O2HB_REGION_TIMEOUT_MS)
-
-#define O2NET_KEEPALIVE_DELAY_SECS	5
-#define O2NET_IDLE_TIMEOUT_SECS		10
 
 /* 
  * This version number represents quite a lot, unfortunately.  It not
  * only represents the raw network message protocol on the wire but also
  * locking semantics of the file system using the protocol.  It should 
  * be somewhere else, I'm sure, but right now it isn't.
+ *
+ * New in version 5:
+ * 	- Network timeout checking protocol
  *
  * New in version 4:
  * 	- Remove i_generation from lock names for better stat performance.
@@ -54,10 +51,14 @@
  * 	- full 64 bit i_size in the metadata lock lvbs
  * 	- introduction of "rw" lock and pushing meta/data locking down
  */
-#define O2NET_PROTOCOL_VERSION 4ULL
+#define O2NET_PROTOCOL_VERSION 5ULL
 struct o2net_handshake {
 	__be64	protocol_version;
 	__be64	connector_id;
+	__be32  o2hb_heartbeat_timeout_ms;
+	__be32  o2net_idle_timeout_ms;
+	__be32  o2net_keepalive_delay_ms;
+	__be32  o2net_reconnect_delay_ms;
 };
 
 struct o2net_node {

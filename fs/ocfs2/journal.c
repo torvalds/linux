@@ -144,8 +144,10 @@ handle_t *ocfs2_start_trans(struct ocfs2_super *osb, int max_buffs)
 			ocfs2_abort(osb->sb, "Detected aborted journal");
 			handle = ERR_PTR(-EROFS);
 		}
-	} else
-		atomic_inc(&(osb->journal->j_num_trans));
+	} else {
+		if (!ocfs2_mount_local(osb))
+			atomic_inc(&(osb->journal->j_num_trans));
+	}
 
 	return handle;
 }
@@ -507,9 +509,23 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 
 	BUG_ON(atomic_read(&(osb->journal->j_num_trans)) != 0);
 
-	status = ocfs2_journal_toggle_dirty(osb, 0);
-	if (status < 0)
-		mlog_errno(status);
+	if (ocfs2_mount_local(osb)) {
+		journal_lock_updates(journal->j_journal);
+		status = journal_flush(journal->j_journal);
+		journal_unlock_updates(journal->j_journal);
+		if (status < 0)
+			mlog_errno(status);
+	}
+
+	if (status == 0) {
+		/*
+		 * Do not toggle if flush was unsuccessful otherwise
+		 * will leave dirty metadata in a "clean" journal
+		 */
+		status = ocfs2_journal_toggle_dirty(osb, 0);
+		if (status < 0)
+			mlog_errno(status);
+	}
 
 	/* Shutdown the kernel journal system */
 	journal_destroy(journal->j_journal);
@@ -549,7 +565,7 @@ static void ocfs2_clear_journal_error(struct super_block *sb,
 	}
 }
 
-int ocfs2_journal_load(struct ocfs2_journal *journal)
+int ocfs2_journal_load(struct ocfs2_journal *journal, int local)
 {
 	int status = 0;
 	struct ocfs2_super *osb;
@@ -576,14 +592,18 @@ int ocfs2_journal_load(struct ocfs2_journal *journal)
 	}
 
 	/* Launch the commit thread */
-	osb->commit_task = kthread_run(ocfs2_commit_thread, osb, "ocfs2cmt");
-	if (IS_ERR(osb->commit_task)) {
-		status = PTR_ERR(osb->commit_task);
+	if (!local) {
+		osb->commit_task = kthread_run(ocfs2_commit_thread, osb,
+					       "ocfs2cmt");
+		if (IS_ERR(osb->commit_task)) {
+			status = PTR_ERR(osb->commit_task);
+			osb->commit_task = NULL;
+			mlog(ML_ERROR, "unable to launch ocfs2commit thread, "
+			     "error=%d", status);
+			goto done;
+		}
+	} else
 		osb->commit_task = NULL;
-		mlog(ML_ERROR, "unable to launch ocfs2commit thread, error=%d",
-		     status);
-		goto done;
-	}
 
 done:
 	mlog_exit(status);
