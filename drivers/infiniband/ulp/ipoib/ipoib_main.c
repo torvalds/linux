@@ -497,8 +497,6 @@ static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
 		return;
 	}
 
-	skb_queue_head_init(&neigh->queue);
-
 	/*
 	 * We can only be called from ipoib_start_xmit, so we're
 	 * inside tx_lock -- no need to save/restore flags.
@@ -806,6 +804,7 @@ struct ipoib_neigh *ipoib_neigh_alloc(struct neighbour *neighbour)
 
 	neigh->neighbour = neighbour;
 	*to_ipoib_neigh(neighbour) = neigh;
+	skb_queue_head_init(&neigh->queue);
 
 	return neigh;
 }
