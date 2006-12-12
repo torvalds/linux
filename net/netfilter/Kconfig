@@ -1,5 +1,5 @@
 menu "Core Netfilter Configuration"
-	depends on NET && NETFILTER
+	depends on NET && INET && NETFILTER
 
 config NETFILTER_NETLINK
        tristate "Netfilter netlink interface"
