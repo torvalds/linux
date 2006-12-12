@@ -437,7 +437,7 @@ config FAIL_PAGE_ALLOC
 	  Provide fault-injection capability for alloc_pages().
 
 config FAIL_MAKE_REQUEST
-	bool "Fault-injection capabilitiy for disk IO"
+	bool "Fault-injection capability for disk IO"
 	depends on FAULT_INJECTION
 	help
 	  Provide fault-injection capability for disk IO.
