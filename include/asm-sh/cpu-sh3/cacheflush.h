@@ -15,6 +15,7 @@
  *
  *  - flush_cache_all() flushes entire cache
  *  - flush_cache_mm(mm) flushes the specified mm context's cache lines
+ *  - flush_cache_dup mm(mm) handles cache flushing when forking
  *  - flush_cache_page(mm, vmaddr, pfn) flushes a single page
  *  - flush_cache_range(vma, start, end) flushes a range of pages
  *
@@ -39,6 +40,7 @@
 
 void flush_cache_all(void);
 void flush_cache_mm(struct mm_struct *mm);
+#define flush_cache_dup_mm(mm) flush_cache_mm(mm)
 void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
                               unsigned long end);
 void flush_cache_page(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn);
@@ -48,6 +50,7 @@ void flush_icache_page(struct vm_area_struct *vma, struct page *page);
 #else
 #define flush_cache_all()			do { } while (0)
 #define flush_cache_mm(mm)			do { } while (0)
+#define flush_cache_dup_mm(mm)			do { } while (0)
 #define flush_cache_range(vma, start, end)	do { } while (0)
 #define flush_cache_page(vma, vmaddr, pfn)	do { } while (0)
 #define flush_dcache_page(page)			do { } while (0)

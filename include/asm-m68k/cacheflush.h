@@ -89,6 +89,8 @@ static inline void flush_cache_mm(struct mm_struct *mm)
 		__flush_cache_030();
 }
 
+#define flush_cache_dup_mm(mm)			flush_cache_mm(mm)
+
 /* flush_cache_range/flush_cache_page must be macros to avoid
    a dependency on linux/mm.h, which includes this file... */
 static inline void flush_cache_range(struct vm_area_struct *vma,

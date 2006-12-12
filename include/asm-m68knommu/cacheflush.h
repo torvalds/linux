@@ -8,6 +8,7 @@
 
 #define flush_cache_all()			__flush_cache_all()
 #define flush_cache_mm(mm)			do { } while (0)
+#define flush_cache_dup_mm(mm)			do { } while (0)
 #define flush_cache_range(vma, start, end)	__flush_cache_all()
 #define flush_cache_page(vma, vmaddr)		do { } while (0)
 #define flush_dcache_range(start,len)		__flush_cache_all()

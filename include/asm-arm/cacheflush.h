@@ -319,6 +319,8 @@ extern void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 				unsigned long len, int write);
 #endif
 
+#define flush_cache_dup_mm(mm) flush_cache_mm(mm)
+
 /*
  * flush_cache_user_range is used when we want to ensure that the
  * Harvard caches are synchronised for the user space address range.

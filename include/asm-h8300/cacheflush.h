@@ -12,6 +12,7 @@
 
 #define flush_cache_all()
 #define	flush_cache_mm(mm)
+#define	flush_cache_dup_mm(mm)		do { } while (0)
 #define	flush_cache_range(vma,a,b)
 #define	flush_cache_page(vma,p,pfn)
 #define	flush_dcache_page(page)

@@ -179,10 +179,21 @@ Here are the routines, one by one:
 	lines associated with 'mm'.
 
 	This interface is used to handle whole address space
-	page table operations such as what happens during
-	fork, exit, and exec.
+	page table operations such as what happens during exit and exec.
 
-2) void flush_cache_range(struct vm_area_struct *vma,
+2) void flush_cache_dup_mm(struct mm_struct *mm)
+
+	This interface flushes an entire user address space from
+	the caches.  That is, after running, there will be no cache
+	lines associated with 'mm'.
+
+	This interface is used to handle whole address space
+	page table operations such as what happens during fork.
+
+	This option is separate from flush_cache_mm to allow some
+	optimizations for VIPT caches.
+
+3) void flush_cache_range(struct vm_area_struct *vma,
 			  unsigned long start, unsigned long end)
 
 	Here we are flushing a specific range of (user) virtual
@@ -199,7 +210,7 @@ Here are the routines, one by one:
 	call flush_cache_page (see below) for each entry which may be
 	modified.
 
-3) void flush_cache_page(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn)
+4) void flush_cache_page(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn)
 
 	This time we need to remove a PAGE_SIZE sized range
 	from the cache.  The 'vma' is the backing structure used by
@@ -220,7 +231,7 @@ Here are the routines, one by one:
 
 	This is used primarily during fault processing.
 
-4) void flush_cache_kmaps(void)
+5) void flush_cache_kmaps(void)
 
 	This routine need only be implemented if the platform utilizes
 	highmem.  It will be called right before all of the kmaps
@@ -232,7 +243,7 @@ Here are the routines, one by one:
 
 	This routing should be implemented in asm/highmem.h
 
-5) void flush_cache_vmap(unsigned long start, unsigned long end)
+6) void flush_cache_vmap(unsigned long start, unsigned long end)
    void flush_cache_vunmap(unsigned long start, unsigned long end)
 
 	Here in these two interfaces we are flushing a specific range

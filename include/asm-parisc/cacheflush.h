@@ -15,6 +15,8 @@
 #define flush_cache_mm(mm) flush_cache_all_local()
 #endif
 
+#define flush_cache_dup_mm(mm) flush_cache_mm(mm)
+
 #define flush_kernel_dcache_range(start,size) \
 	flush_kernel_dcache_range_asm((start), (start)+(size));
 

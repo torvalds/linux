@@ -203,7 +203,7 @@ static inline int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 	struct mempolicy *pol;
 
 	down_write(&oldmm->mmap_sem);
-	flush_cache_mm(oldmm);
+	flush_cache_dup_mm(oldmm);
 	/*
 	 * Not linked in yet - no deadlock potential:
 	 */

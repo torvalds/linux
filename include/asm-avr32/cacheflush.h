@@ -87,6 +87,7 @@ void invalidate_icache_region(void *start, size_t len);
  */
 #define flush_cache_all()			do { } while (0)
 #define flush_cache_mm(mm)			do { } while (0)
+#define flush_cache_dup_mm(mm)			do { } while (0)
 #define flush_cache_range(vma, start, end)	do { } while (0)
 #define flush_cache_page(vma, vmaddr, pfn)	do { } while (0)
 #define flush_cache_vmap(start, end)		do { } while (0)

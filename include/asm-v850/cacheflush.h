@@ -24,6 +24,7 @@
    systems with MMUs, so we don't need them.  */
 #define flush_cache_all()			((void)0)
 #define flush_cache_mm(mm)			((void)0)
+#define flush_cache_dup_mm(mm)			((void)0)
 #define flush_cache_range(vma, start, end)	((void)0)
 #define flush_cache_page(vma, vmaddr, pfn)	((void)0)
 #define flush_dcache_page(page)			((void)0)
