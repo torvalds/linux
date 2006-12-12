@@ -47,7 +47,7 @@
 
 
 /* Function prototypes */
-static irqreturn_t wdt_gpi_irqhdl(int, void *, struct pt_regs *);
+static irqreturn_t wdt_gpi_irqhdl(int, void *);
 static void wdt_gpi_start(void);
 static void wdt_gpi_stop(void);
 static void wdt_gpi_set_timeout(unsigned int);
@@ -94,8 +94,28 @@ module_param(nowayout, bool, 0444);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be disabled once started");
 
 
+/* Kernel interfaces */
+static struct file_operations fops = {
+	.owner		= THIS_MODULE,
+	.open		= wdt_gpi_open,
+	.release	= wdt_gpi_release,
+	.write		= wdt_gpi_write,
+	.unlocked_ioctl	= wdt_gpi_ioctl,
+};
+
+static struct miscdevice miscdev = {
+	.minor		= WATCHDOG_MINOR,
+	.name		= wdt_gpi_name,
+	.fops		= &fops,
+};
+
+static struct notifier_block wdt_gpi_shutdown = {
+	.notifier_call	= wdt_gpi_notify,
+};
+
+
 /* Interrupt handler */
-static irqreturn_t wdt_gpi_irqhdl(int irq, void *ctxt, struct pt_regs *regs)
+static irqreturn_t wdt_gpi_irqhdl(int irq, void *ctxt)
 {
 	if (!unlikely(__raw_readl(wd_regs + 0x0008) & 0x1))
 		return IRQ_NONE;
@@ -310,26 +330,6 @@ wdt_gpi_notify(struct notifier_block *this, unsigned long code, void *unused)
 
 	return NOTIFY_DONE;
 }
-
-
-/* Kernel interfaces */
-static struct file_operations fops = {
-	.owner		= THIS_MODULE,
-	.open		= wdt_gpi_open,
-	.release	= wdt_gpi_release,
-	.write		= wdt_gpi_write,
-	.unlocked_ioctl	= wdt_gpi_ioctl,
-};
-
-static struct miscdevice miscdev = {
-	.minor		= WATCHDOG_MINOR,
-	.name		= wdt_gpi_name,
-	.fops		= &fops,
-};
-
-static struct notifier_block wdt_gpi_shutdown = {
-	.notifier_call	= wdt_gpi_notify,
-};
 
 
 /* Init & exit procedures */
