@@ -401,7 +401,7 @@ config IP_NF_NAT
 # NAT + specific targets: nf_conntrack
 config NF_NAT
 	tristate "Full NAT"
-	depends on IP_NF_IPTABLES && NF_CONNTRACK
+	depends on IP_NF_IPTABLES && NF_CONNTRACK_IPV4
 	help
 	  The Full NAT option allows masquerading, port forwarding and other
 	  forms of full Network Address Port Translation.  It is controlled by
