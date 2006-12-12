@@ -34,7 +34,9 @@ config GFS2_FS_LOCKING_NOLOCK
 
 config GFS2_FS_LOCKING_DLM
 	tristate "GFS2 DLM locking module"
-	depends on GFS2_FS
+	depends on GFS2_FS && NET && INET && (IPV6 || IPV6=n)
+	select IP_SCTP if DLM_SCTP
+	select CONFIGFS_FS
 	select DLM
 	help
 	Multiple node locking module for GFS2
