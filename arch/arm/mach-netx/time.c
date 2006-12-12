@@ -19,20 +19,13 @@
 
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/clocksource.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/mach/time.h>
 #include <asm/arch/netx-regs.h>
-
-/*
- * Returns number of us since last clock interrupt.  Note that interrupts
- * will have been disabled by do_gettimeoffset()
- */
-static unsigned long netx_gettimeoffset(void)
-{
-	return readl(NETX_GPIO_COUNTER_CURRENT(0)) / 100;
-}
 
 /*
  * IRQ handler for the timer
@@ -43,6 +36,7 @@ netx_timer_interrupt(int irq, void *dev_id)
 	write_seqlock(&xtime_lock);
 
 	timer_tick();
+
 	write_sequnlock(&xtime_lock);
 
 	/* acknowledge interrupt */
@@ -51,11 +45,24 @@ netx_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-
 static struct irqaction netx_timer_irq = {
 	.name           = "NetX Timer Tick",
 	.flags          = IRQF_DISABLED | IRQF_TIMER,
 	.handler        = netx_timer_interrupt,
+};
+
+cycle_t netx_get_cycles(void)
+{
+	return readl(NETX_GPIO_COUNTER_CURRENT(1));
+}
+
+static struct clocksource clocksource_netx = {
+	.name 		= "netx_timer",
+	.rating		= 200,
+	.read		= netx_get_cycles,
+	.mask		= CLOCKSOURCE_MASK(32),
+	.shift 		= 20,
+	.is_continuous 	= 1,
 };
 
 /*
@@ -80,9 +87,20 @@ static void __init netx_timer_init(void)
 		NETX_GPIO_COUNTER_CTRL(0));
 
 	setup_irq(NETX_IRQ_TIMER0, &netx_timer_irq);
+
+	/* Setup timer one for clocksource */
+        writel(0, NETX_GPIO_COUNTER_CTRL(1));
+        writel(0, NETX_GPIO_COUNTER_CURRENT(1));
+        writel(0xFFFFFFFF, NETX_GPIO_COUNTER_MAX(1));
+
+        writel(NETX_GPIO_COUNTER_CTRL_RUN,
+                NETX_GPIO_COUNTER_CTRL(1));
+
+	clocksource_netx.mult =
+		clocksource_hz2mult(CLOCK_TICK_RATE, clocksource_netx.shift);
+	clocksource_register(&clocksource_netx);
 }
 
 struct sys_timer netx_timer = {
-	.init           = netx_timer_init,
-	.offset         = netx_gettimeoffset,
+	.init		= netx_timer_init,
 };
