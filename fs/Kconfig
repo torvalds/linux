@@ -12,9 +12,7 @@ config EXT2_FS
 	  Ext2 is a standard Linux file system for hard disks.
 
 	  To compile this file system support as a module, choose M here: the
-	  module will be called ext2.  Be aware however that the file system
-	  of your root partition (the one containing the directory /) cannot
-	  be compiled as a module, and so this could be dangerous.
+	  module will be called ext2.
 
 	  If unsure, say Y.
 
@@ -98,9 +96,7 @@ config EXT3_FS
 	  (available at <http://sourceforge.net/projects/e2fsprogs/>).
 
 	  To compile this file system support as a module, choose M here: the
-	  module will be called ext3.  Be aware however that the file system
-	  of your root partition (the one containing the directory /) cannot
-	  be compiled as a module, and so this may be dangerous.
+	  module will be called ext3.
 
 config EXT3_FS_XATTR
 	bool "Ext3 extended attributes"
@@ -163,9 +159,7 @@ config EXT4DEV_FS
 	  features will be added to ext4dev gradually.
 
 	  To compile this file system support as a module, choose M here. The
-	  module will be called ext4dev.  Be aware, however, that the filesystem
-	  of your root partition (the one containing the directory /) cannot
-	  be compiled as a module, and so this could be dangerous.
+	  module will be called ext4dev.
 
 	  If unsure, say N.
 
